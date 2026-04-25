@@ -2,6 +2,7 @@ import { Canvas } from '@react-three/fiber';
 import { Ceiling } from '../apartment/Ceiling';
 import { Floor } from '../apartment/Floor';
 import { Walls } from '../apartment/Walls';
+import { Doors } from '../apartment/Door';
 import { Windows } from '../apartment/Window';
 
 export function Scene() {
@@ -19,6 +20,7 @@ export function Scene() {
       <Ceiling />
       <Walls />
       <Windows />
+      <Doors />
     </Canvas>
   );
 }
