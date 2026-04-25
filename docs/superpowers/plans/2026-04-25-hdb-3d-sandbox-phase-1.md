@@ -339,8 +339,10 @@ git commit -m "Configure Tailwind CSS"
 - [ ] **Step 1: Install Vitest**
 
 ```bash
-npm install -D vitest @vitest/ui jsdom @testing-library/react @testing-library/jest-dom
+npm install -D vitest @vitest/ui happy-dom @testing-library/react @testing-library/jest-dom
 ```
+
+(Note: we use `happy-dom` rather than `jsdom`. The latest jsdom (v27) has a transitive ESM-only dependency that breaks Vitest's fork pool with the React plugin. `happy-dom` is the documented Vitest alternative and provides the same DOM API surface for these tests.)
 
 - [ ] **Step 2: Create `vitest.config.ts`**
 
@@ -351,7 +353,7 @@ import react from '@vitejs/plugin-react';
 export default defineConfig({
   plugins: [react()],
   test: {
-    environment: 'jsdom',
+    environment: 'happy-dom',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
   },
