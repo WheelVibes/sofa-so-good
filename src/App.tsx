@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { Scene } from './scene/Scene';
+import { Toolbar } from './ui/Toolbar';
 import { useStore } from './state/store';
 import { KEYBINDINGS } from './controls/keybindings';
 import { useKeyboard } from './controls/useKeyboard';
@@ -20,7 +21,8 @@ export default function App() {
   useKeyboard(onKey);
 
   return (
-    <div className="h-screen w-screen overflow-hidden">
+    <div className="relative h-screen w-screen overflow-hidden">
+      <Toolbar />
       <Scene />
     </div>
   );
