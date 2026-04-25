@@ -1,10 +1,5 @@
 import { Canvas } from '@react-three/fiber';
-import { Ceiling } from '../apartment/Ceiling';
-import { Floor } from '../apartment/Floor';
-import { Walls } from '../apartment/Walls';
-import { Doors } from '../apartment/Door';
-import { Fixtures } from '../apartment/Fixtures';
-import { Windows } from '../apartment/Window';
+import { Apartment } from '../apartment/Apartment';
 
 export function Scene() {
   return (
@@ -17,12 +12,7 @@ export function Scene() {
       <color attach="background" args={['#e9eef2']} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-      <Floor />
-      <Ceiling />
-      <Walls />
-      <Windows />
-      <Doors />
-      <Fixtures />
+      <Apartment />
     </Canvas>
   );
 }
