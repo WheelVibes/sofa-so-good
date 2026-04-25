@@ -1,0 +1,81 @@
+import { PointerLockControls } from '@react-three/drei';
+import { useFrame, useThree } from '@react-three/fiber';
+import { useEffect, useRef } from 'react';
+import { Vector3 } from 'three';
+import { WALLS } from '../../apartment/constants';
+import { resolveMovement, type CollisionWall } from '../../collision/walls';
+import { KEYBINDINGS } from '../../controls/keybindings';
+
+const EYE_HEIGHT = 1.65;
+const WALK_SPEED = 1.4;
+const PLAYER_RADIUS = 0.25;
+
+function buildCollisionWalls(): CollisionWall[] {
+  return WALLS.map((w) => ({ ax: w.start[0], az: w.start[1], bx: w.end[0], bz: w.end[1] }));
+}
+
+export function FirstPersonCamera() {
+  const { camera } = useThree();
+  const pressed = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    const onDown = (e: KeyboardEvent) => {
+      pressed.current[e.code] = true;
+    };
+    const onUp = (e: KeyboardEvent) => {
+      pressed.current[e.code] = false;
+    };
+    window.addEventListener('keydown', onDown);
+    window.addEventListener('keyup', onUp);
+    return () => {
+      window.removeEventListener('keydown', onDown);
+      window.removeEventListener('keyup', onUp);
+    };
+  }, []);
+
+  useEffect(() => {
+    camera.position.set(11, EYE_HEIGHT, 6);
+  }, [camera]);
+
+  const collisionWalls = useRef(buildCollisionWalls());
+  const tmpForward = useRef(new Vector3());
+  const tmpRight = useRef(new Vector3());
+
+  useFrame((_, dt) => {
+    const dir = tmpForward.current;
+    camera.getWorldDirection(dir);
+    dir.y = 0;
+    dir.normalize();
+    const right = tmpRight.current.set(dir.z, 0, -dir.x);
+
+    let dx = 0,
+      dz = 0;
+    if (pressed.current[KEYBINDINGS.walkForward]) {
+      dx += dir.x;
+      dz += dir.z;
+    }
+    if (pressed.current[KEYBINDINGS.walkBack]) {
+      dx -= dir.x;
+      dz -= dir.z;
+    }
+    if (pressed.current[KEYBINDINGS.walkRight]) {
+      dx += right.x;
+      dz += right.z;
+    }
+    if (pressed.current[KEYBINDINGS.walkLeft]) {
+      dx -= right.x;
+      dz -= right.z;
+    }
+    if (dx === 0 && dz === 0) return;
+
+    const len = Math.hypot(dx, dz);
+    dx = (dx / len) * WALK_SPEED * dt;
+    dz = (dz / len) * WALK_SPEED * dt;
+    const from: [number, number] = [camera.position.x, camera.position.z];
+    const to: [number, number] = [from[0] + dx, from[1] + dz];
+    const next = resolveMovement(from, to, PLAYER_RADIUS, collisionWalls.current);
+    camera.position.set(next[0], EYE_HEIGHT, next[1]);
+  });
+
+  return <PointerLockControls />;
+}
