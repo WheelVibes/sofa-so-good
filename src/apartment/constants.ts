@@ -234,10 +234,7 @@ export const WALLS: WallSpec[] = [
     start: [12.65, 1.30],
     end: [12.65, 8.00],
     thickness: 'external',
-    cutouts: [
-      // L/D bay window (SVG y=[270,470] → offset 1.67, width 2.80).
-      { kind: 'window', offset: 1.65, width: LD_BAY_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-livingDining-E' },
-    ],
+    cutouts: [],
   },
   // SE step horizontal wall (with main entrance door cutout).
   {
@@ -586,14 +583,6 @@ export const WINDOWS: WindowSpec[] = [
     wallId: 'wall-ext-NE-jog-S',
     offset: 0.55,
     width: LD_NORTH_WIN_W,
-    sill: WIN_SILL,
-    head: WIN_HEAD,
-  },
-  {
-    id: 'win-livingDining-E',
-    wallId: 'wall-ext-E',
-    offset: 1.65,
-    width: LD_BAY_WIN_W,
     sill: WIN_SILL,
     head: WIN_HEAD,
   },
