@@ -1,4 +1,5 @@
 import { Canvas } from '@react-three/fiber';
+import { Ceiling } from '../apartment/Ceiling';
 import { Floor } from '../apartment/Floor';
 
 export function Scene() {
@@ -13,6 +14,7 @@ export function Scene() {
       <ambientLight intensity={0.6} />
       <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
       <Floor />
+      <Ceiling />
     </Canvas>
   );
 }
