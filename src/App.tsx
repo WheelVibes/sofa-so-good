@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { Scene } from './scene/Scene';
+import { HelpHint } from './ui/HelpHint';
 import { Toolbar } from './ui/Toolbar';
 import { useStore } from './state/store';
 import { KEYBINDINGS } from './controls/keybindings';
@@ -24,6 +25,7 @@ export default function App() {
     <div className="relative h-screen w-screen overflow-hidden">
       <Toolbar />
       <Scene />
+      <HelpHint />
     </div>
   );
 }
