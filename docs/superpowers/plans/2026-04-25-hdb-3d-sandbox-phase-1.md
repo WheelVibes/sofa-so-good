@@ -462,6 +462,17 @@ export interface RoomDef {
   external?: boolean;
   /** Free-form derivation note for traceability (see spec §6.2). */
   derivation?: string;
+  /**
+   * Optional secondary rectangle for L-shaped rooms (e.g. living/dining that
+   * wraps around another space). Offset is relative to the room's `origin`.
+   * The two rectangles are treated as a single logical room for finishes,
+   * floor rendering, and area accounting.
+   */
+  extension?: {
+    offset: Vec2;
+    width: number;
+    depth: number;
+  };
 }
 
 export type CutoutKind = 'door' | 'window';
@@ -476,7 +487,8 @@ export interface Cutout {
   sill: number;
   /** Top edge height above floor. */
   head: number;
-  /** Reference to a DoorSpec or WindowSpec id, when relevant. */
+  /** Reference to the DoorSpec.id (when kind === 'door') or WindowSpec.id (when kind === 'window').
+   *  Should always be set in v1 — every cutout has a corresponding spec. */
   refId?: string;
 }
 
