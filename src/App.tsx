@@ -1,7 +1,9 @@
+import { Scene } from './scene/Scene';
+
 export default function App() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-neutral-50 text-neutral-700">
-      sofa-so-good — initializing
+    <div className="h-screen w-screen overflow-hidden">
+      <Scene />
     </div>
   );
 }
