@@ -323,6 +323,8 @@ interface StorageAdapter {
 
 Each phase ends in an independently runnable, demoable build. The user gives the green light at each boundary.
 
+**Commit granularity (applies across all phases):** every independent module or feature ships as its own commit. The git history mirrors the modular structure — never bundle "the apartment shell" and "the catalog drawer" into one commit. Examples of acceptable single-commit scopes: scaffolding the project, `apartment/constants.ts`, `Walls.tsx`, `OrbitCamera`, `FirstPersonCamera + collision`, a single furniture primitive (e.g. `Bed`), the `StorageAdapter` interface, `LocalStorageAdapter`. A commit may touch multiple files only when they belong to the same module or feature (e.g., a primitive + its catalog entry + its tests).
+
 ### Phase 1 — Apartment shell + camera modes
 - Vite/React/R3F scaffold with TypeScript, Tailwind, Zustand, drei.
 - `apartment/constants.ts` populated with calibrated dimensions (incl. the §6.2 web search step and any required user confirmations).
