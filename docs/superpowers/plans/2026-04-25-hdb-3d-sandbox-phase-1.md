@@ -55,34 +55,125 @@ Phase 2 will add `furniture/`, `state/storage/`, `state/schema.ts`, `collision/p
 
 ## Task 1: Vite + React + TypeScript scaffold
 
-**Files:**
-- Create: `package.json`, `tsconfig.json`, `tsconfig.node.json`, `vite.config.ts`, `index.html`, `src/main.tsx`, `src/App.tsx`, `src/index.css`, `.gitignore`
+**Files:** Create `package.json`, `tsconfig.json`, `tsconfig.node.json`, `vite.config.ts`, `index.html`, `src/main.tsx`, `src/App.tsx`, `src/index.css`, `src/vite-env.d.ts`, `.gitignore`.
 
-- [ ] **Step 1: Scaffold project**
+We create the Vite project files manually rather than using `npm create vite@latest .` because the working directory already contains `docs/` and `.git/`, which would trigger an interactive overwrite prompt that subagents can't reliably answer.
 
-Run from the repo root:
-```bash
-npm create vite@latest . -- --template react-ts
+- [ ] **Step 1: Create `package.json`**
+
+```json
+{
+  "name": "sofa-so-good",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@vitejs/plugin-react": "^4.3.4",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11"
+  }
+}
 ```
-When prompted to overwrite the empty directory, accept. Choose React → TypeScript.
 
-- [ ] **Step 2: Install scaffold dependencies**
+- [ ] **Step 2: Create `tsconfig.json`**
 
-```bash
-npm install
+```json
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "useDefineForClassFields": true,
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "module": "ESNext",
+    "skipLibCheck": true,
+    "moduleResolution": "bundler",
+    "allowImportingTsExtensions": true,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "moduleDetection": "force",
+    "noEmit": true,
+    "jsx": "react-jsx",
+    "strict": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "noFallthroughCasesInSwitch": true
+  },
+  "include": ["src"],
+  "references": [{ "path": "./tsconfig.node.json" }]
+}
 ```
-Expected: dependencies install cleanly, `node_modules/` populated.
 
-- [ ] **Step 3: Verify dev server boots**
+- [ ] **Step 3: Create `tsconfig.node.json`**
 
-```bash
-npm run dev
+```json
+{
+  "compilerOptions": {
+    "composite": true,
+    "skipLibCheck": true,
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "allowSyntheticDefaultImports": true,
+    "strict": true
+  },
+  "include": ["vite.config.ts"]
+}
 ```
-Expected: server starts, default Vite + React landing page renders at `http://localhost:5173`. Stop with Ctrl-C.
 
-- [ ] **Step 4: Replace boilerplate `App.tsx` with a minimal placeholder**
+- [ ] **Step 4: Create `vite.config.ts`**
 
-Overwrite `src/App.tsx`:
+```ts
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+});
+```
+
+- [ ] **Step 5: Create `index.html`**
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>sofa-so-good</title>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+```
+
+- [ ] **Step 6: Create `src/main.tsx`**
+
+```tsx
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import App from './App';
+
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
+```
+
+- [ ] **Step 7: Create `src/App.tsx`**
+
 ```tsx
 export default function App() {
   return (
@@ -93,7 +184,8 @@ export default function App() {
 }
 ```
 
-Overwrite `src/index.css`:
+- [ ] **Step 8: Create `src/index.css`**
+
 ```css
 :root { color-scheme: light; }
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -101,12 +193,19 @@ html, body, #root { height: 100%; }
 body { font-family: ui-sans-serif, system-ui, sans-serif; }
 ```
 
-Delete `src/App.css` if Vite created one.
+- [ ] **Step 9: Create `src/vite-env.d.ts`**
 
-- [ ] **Step 5: Update `.gitignore` to include common artefacts**
-
-Append to `.gitignore`:
+```ts
+/// <reference types="vite/client" />
 ```
+
+- [ ] **Step 10: Create `.gitignore`**
+
+```
+node_modules/
+dist/
+dist-ssr/
+*.local
 .DS_Store
 *.log
 .idea/
@@ -115,10 +214,31 @@ Append to `.gitignore`:
 .env.local
 ```
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 11: Install dependencies**
 
 ```bash
-git add -A
+npm install
+```
+Expected: dependencies install cleanly, `node_modules/` populated, `package-lock.json` created.
+
+- [ ] **Step 12: Verify TypeScript resolves**
+
+```bash
+npx tsc --noEmit
+```
+Expected: 0 errors.
+
+- [ ] **Step 13: Verify dev server boots**
+
+```bash
+npm run dev
+```
+Expected: server starts on `http://localhost:5173`. The placeholder text "sofa-so-good — initializing" should render. Stop with Ctrl-C.
+
+- [ ] **Step 14: Commit**
+
+```bash
+git add package.json package-lock.json tsconfig.json tsconfig.node.json vite.config.ts index.html src/main.tsx src/App.tsx src/index.css src/vite-env.d.ts .gitignore
 git commit -m "Scaffold Vite + React + TypeScript project"
 ```
 
