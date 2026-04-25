@@ -9,9 +9,7 @@ export function MeasurementOverlay() {
   if (!show) return null;
   return (
     <group>
-      {Object.values(ROOMS)
-        .filter((r) => !r.external)
-        .map((r) => {
+      {Object.values(ROOMS).map((r) => {
           const [cx, cz] = roomCentroid(r.id);
           const cy = (r.ceilingHeight ?? FLAT.ceilingHeight) / 2;
           const main = r.width * r.depth;

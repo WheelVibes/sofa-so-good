@@ -21,6 +21,7 @@ function DoorLeaf({ spec }: { spec: DoorSpec }) {
 
   useFrame((_, dt) => {
     const target = isOpen ? SWING_RAD : 0;
+    if (angleRef.current === target) return;
     const step = (SWING_RAD / SWING_SECONDS) * dt;
     if (Math.abs(target - angleRef.current) < step) {
       angleRef.current = target;
@@ -55,9 +56,23 @@ function DoorLeaf({ spec }: { spec: DoorSpec }) {
           }}
           castShadow
         >
-          <boxGeometry args={[spec.width, FLAT.doorHeight, 0.04]} />
+          <boxGeometry args={[spec.width, FLAT.doorHeight, FLAT.doorThickness]} />
           <meshStandardMaterial color="#9d7c54" roughness={0.7} />
         </mesh>
+        <group position={[direction * (spec.width - 0.06), 0.95, 0]}>
+          <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
+            <cylinderGeometry args={[0.012, 0.012, 0.12, 12]} />
+            <meshStandardMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0, 0.06]} castShadow>
+            <sphereGeometry args={[0.025, 16, 12]} />
+            <meshStandardMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
+          </mesh>
+          <mesh position={[0, 0, -0.06]} castShadow>
+            <sphereGeometry args={[0.025, 16, 12]} />
+            <meshStandardMaterial color="#c9a86a" metalness={0.7} roughness={0.35} />
+          </mesh>
+        </group>
       </group>
     </group>
   );

@@ -22,13 +22,12 @@ function WindowPane({ spec }: { spec: WindowSpec }) {
     <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
       <mesh position={[localX, paneCenterY, 0]}>
         <boxGeometry args={[spec.width, paneHeight, 0.04]} />
-        <meshPhysicalMaterial
+        <meshStandardMaterial
           color="#cfe1ec"
-          transmission={0.85}
-          roughness={0.05}
-          thickness={0.04}
-          opacity={0.5}
+          roughness={0.1}
+          metalness={0}
           transparent
+          opacity={0.35}
         />
       </mesh>
     </group>

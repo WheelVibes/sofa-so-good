@@ -57,3 +57,33 @@ export function resolveMovement(
 
   return [x, z];
 }
+
+/**
+ * Returns true if the segment from (ax,az) to (bx,bz) is blocked by any wall
+ * (i.e. crosses a wall segment strictly between the endpoints). Endpoint
+ * touches are ignored so a ray ending on a wall (the target door) doesn't
+ * register as blocked.
+ */
+export function isLineOfSightBlocked(
+  ax: number,
+  az: number,
+  bx: number,
+  bz: number,
+  walls: CollisionWall[],
+): boolean {
+  const rx = bx - ax;
+  const rz = bz - az;
+  const eps = 1e-3;
+  for (const w of walls) {
+    const sx = w.bx - w.ax;
+    const sz = w.bz - w.az;
+    const denom = rx * sz - rz * sx;
+    if (Math.abs(denom) < 1e-9) continue;
+    const dx = w.ax - ax;
+    const dz = w.az - az;
+    const t = (dx * sz - dz * sx) / denom;
+    const u = (dx * rz - dz * rx) / denom;
+    if (t > eps && t < 1 - eps && u > eps && u < 1 - eps) return true;
+  }
+  return false;
+}

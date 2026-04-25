@@ -6,6 +6,7 @@ export type RoomId =
   | 'bath2'
   | 'livingDining'
   | 'kitchen'
+  | 'corridor'
   | 'serviceYard'
   | 'householdShelter'
   | 'acLedge';
@@ -66,6 +67,9 @@ export interface WallSpec {
   end: Vec2;
   thickness: 'external' | 'internal';
   cutouts: Cutout[];
+  /** Optional cap on solid-wall height (e.g. parapets on open balconies/yards).
+   *  When unset, walls run from floor to ceiling. */
+  topHeight?: number;
 }
 
 export interface DoorSpec {
@@ -98,6 +102,7 @@ export interface FlatSpec {
   externalWallThickness: number;
   internalWallThickness: number;
   doorHeight: number;
+  doorThickness: number;
   mainDoorWidth: number;
   internalDoorWidth: number;
   bedroomWindowSill: number;

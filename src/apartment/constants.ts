@@ -1,13 +1,21 @@
 import type { DoorSpec, FlatSpec, RoomDef, RoomId, WallSpec, WindowSpec } from './types';
 
 // Apartment external bounding box. NW external corner is at (0, 0).
-// The apartment-proper *envelope* is NOT a simple rectangle — its SW corner is
-// notched inward by the AC ledge annex (a ~2.0 × 1.5 m external box that hangs
-// south of bath1, outside the 90 m² interior). The bounding box below covers
-// the apartment proper plus the AC-ledge annex; the actual perimeter walls
-// (see WALLS) trace the irregular outline.
-export const APARTMENT_EXT_W = 13.2;
-export const APARTMENT_EXT_D = 8.1;
+// Geometry derived from docs/reference/floor-plan.svg (2026-04-26 revision).
+// SVG-to-apartment scale: 1 SVG px = 0.014 m. The SVG NW external centerline
+// (50, 65) maps to apartment centerline (0.10, 0.10), so:
+//   apartment cx = (sx − 50) × 0.014 + 0.10
+//   apartment cz = (sy − 65) × 0.014 + 0.10
+//
+// The apartment polygon is irregular: the SVG bounding rectangle (50, 65) →
+// (945, 720) maps to (0, 0) → (12.75, 9.35), but four notches are excluded:
+//   • NE notch (above L/D): SVG x=[690, 945] y=[65, 150]
+//   • SE notch (south of main entrance): SVG x=[765, 945] y=[630, 720]
+//   • SW upper notch (AC ledge): SVG x=[50, 140] y=[420, 720]
+//   • SW lower notch (service yard): SVG x=[140, 320] y=[600, 720]
+// All in-apartment coordinates round to 50 mm increments.
+export const APARTMENT_EXT_W = 12.75;
+export const APARTMENT_EXT_D = 9.35;
 
 export const FLAT: FlatSpec = {
   ceilingHeight: 2.6,
@@ -15,520 +23,603 @@ export const FLAT: FlatSpec = {
   externalWallThickness: 0.2,
   internalWallThickness: 0.1,
   doorHeight: 2.1,
+  doorThickness: 0.05,
   mainDoorWidth: 1.0,
   internalDoorWidth: 0.8,
   bedroomWindowSill: 0.95,
   windowHeadHeight: 2.1,
 };
 
-// Per-room dimensions approved 2026-04-25 (see docs/reference/dimensions-derivation.md).
-// Origins place the NW interior corner of each room. External wall thickness 0.20 m,
-// internal partition 0.10 m. Living/Dining is L-shaped: main column on the east side
-// plus an extension wing south-west of it. Three minor adjustments vs the approved table,
-// all driven by the irregular envelope shape (apartment proper has an SW notch where
-// the AC-ledge annex hangs out):
-//   • livingDining.depth bumped 7.50 → 7.70 to align its south face with the kitchen's
-//     south face (= apartment-proper south wall over kitchen+L/D x range).
-//   • livingDining.extension.depth kept at the approved 3.70 m (the extension's south
-//     face = main column south face = apartment-proper south).
-//   • serviceYard.depth trimmed 1.40 → 1.10 m so its south face sits at z=6.6, flush
-//     with the apartment-proper south wall over the AC-ledge x range (any deeper and
-//     part of the room would fall outside the envelope, into the AC-ledge annex).
-// Net total interior area: 90.10 m² summed (within the ±0.5 m² tolerance of the 90 m²
-// target). Note this sum double-counts the bath2/shelter strip where it overlaps the
-// L/D extension corridor (~1.65 m²); the true non-overlapping interior is ~88.45 m².
+// Per-room dimensions derived from docs/reference/floor-plan.svg (2026-04-26).
+// Layout bands (interior coordinates):
+//   • Bedroom band  z=[0.20, 3.60]: MB / B2 / B3, partitions at cx=3.10 and 6.05
+//   • Corridor band z=[3.70, 5.00]: full-width circulation strip; bedroom doors
+//     on its north wall, bath/HS doors on its south wall
+//   • Bath/shelter z=[5.10, 6.70]: bath1, bath2, household shelter (west-to-east),
+//     and L/D middle column to the east. South wall of this band is SVG y=540.
+//   • South band   z=[6.80, 9.15]: service yard (centre, EXTERNAL) and the
+//     kitchen (east of service yard, south of HS), spanning the 2.35 m depth
+//     from the bath/shelter south wall down to the apartment south perimeter.
+// Living/Dining is L-shaped: a 4.00 × 5.40 m main body in the east column plus
+// a 2.45 × 1.10 m SE alcove that hugs the apartment east wall down to the SE
+// step (main entrance). The kitchen below is also a rectangle, extended east
+// to where the SE jog wall would meet the kitchen north wall when extended.
+//
+// External annexes (excluded from interior area):
+//   • acLedge — full SW external area below the bath1 south wall, combining
+//     the inside-polygon strip (bath1 south slice) with the SW lower notch.
+//     Accessed from bath1 / external; not livable.
+//
+// The service yard is counted as strata interior (it has an L-shape covering
+// both the louvred south-band centre and the small enclosed utility strip
+// directly to its west). The room-rectangle area sum lands at ≈ 90.2 m²
+// excluding the AC ledge; the ±0.5 m² tolerance is enforced by the constants
+// test.
 export const ROOMS: Record<RoomId, RoomDef> = {
   mainBedroom: {
     id: 'mainBedroom',
     name: 'Main Bedroom',
-    origin: [0.2, 0.2],
-    width: 3.6,
-    depth: 3.4,
-    derivation: 'NW of plan. 3.60 × 3.40 m, proportional + 50 mm round.',
+    origin: [0.20, 0.20],
+    width: 2.85,
+    depth: 3.40,
+    extension: {
+      // MB foyer: the western strip of the corridor band is part of MB
+      // (no MB south wall — MB main flows into the foyer). The foyer ends
+      // at the small N-S wall just west of the B2 door (cx=4.30), which
+      // hosts the MB door. Foyer interior cx=[0.20, 4.25] cz=[3.60, 5.00].
+      offset: [0, 3.40],
+      width: 4.05,
+      depth: 1.40,
+    },
+    derivation:
+      'L-shape: bedroom + south foyer. Main body NW of plan, SVG x=[50,265] y=[65,320] → cx=[0.10,3.10] cz=[0.10,3.65] (north window centred, tall sliding window on west wall over SVG y=[140,290]). Foyer extends south through the corridor band (cz=[3.65, 5.05]) up to a small partition at cx=4.30 — that partition hosts the MB door, just west of the B2 door. Bath1 sits south of the foyer and is reached via the existing corridor-S door cutout at cx=[2.40, 3.20].',
   },
   bedroom2: {
     id: 'bedroom2',
     name: 'Bedroom 2',
-    origin: [3.9, 0.2],
-    width: 2.7,
-    depth: 3.0,
-    derivation: 'North-centre. 2.70 × 3.00 m, proportional + 50 mm round.',
+    origin: [3.15, 0.20],
+    width: 2.85,
+    depth: 3.40,
+    derivation:
+      'North-centre. SVG x=[265,475] y=[65,320]. Shared partitions with MB (cx=3.10) and B3 (cx=6.05). North window centred.',
   },
   bedroom3: {
     id: 'bedroom3',
     name: 'Bedroom 3',
-    origin: [6.7, 0.2],
-    width: 2.7,
-    depth: 3.0,
-    derivation: 'East of bedroom2. 2.70 × 3.00 m, proportional + 50 mm round.',
+    origin: [6.10, 0.20],
+    width: 2.85,
+    depth: 3.40,
+    derivation:
+      'NE of bedroom band. SVG x=[475,690] y=[65,320]. East wall (cx=9.05) is also the apartment external NE-notch wall in z=[0.10, 1.30] and the corridor-east / L/D-west partition below.',
+  },
+  corridor: {
+    id: 'corridor',
+    name: 'Corridor',
+    origin: [4.35, 3.70],
+    width: 4.65,
+    depth: 1.30,
+    derivation:
+      'Central circulation strip from the small MB-foyer partition (cx=4.30) east to L/D, linking B2/B3 (north) to bath2/kitchen/L-D (south). The corridor band west of cx=4.30 is the MB foyer (part of MB, no separating wall from MB main). North wall (cz=3.65) carries the B2 and B3 doors; south wall (cz=5.05) carries the bath2 and kitchen doors (bath1 door is on the foyer-S wall). East end opens to L/D (no wall over cz=[3.65, 5.05] at cx=9.05).',
   },
   bath1: {
     id: 'bath1',
     name: 'Bath/WC 1',
-    origin: [0.2, 3.4],
-    width: 1.6,
-    depth: 2.1,
+    origin: [1.45, 5.10],
+    width: 2.40,
+    depth: 1.60,
     ceilingHeight: 2.4,
-    derivation: 'Master bath, south of mainBedroom. 1.60 × 2.10 m.',
+    derivation:
+      'West of the bath/kitchen band. SVG x=[140,320] y=[420,540]. West wall is the apartment SW-jog external wall (cx=1.35); east wall is the bath1/bath2 partition (cx=3.90); south wall is the bath1/AC-ledge internal wall at SVG y=540 (cz=6.75), separating the room from the AC ledge in the bath1 SW corner.',
   },
   bath2: {
     id: 'bath2',
     name: 'Bath/WC 2',
-    origin: [3.9, 3.3],
-    width: 1.5,
-    depth: 1.7,
+    origin: [3.95, 5.10],
+    width: 2.05,
+    depth: 1.60,
     ceilingHeight: 2.4,
-    derivation: 'Common bath, south of bedroom2. 1.50 × 1.70 m.',
+    derivation:
+      'Common bath, east of bath1. SVG x=[320,475] y=[420,540]. Door on north wall (corridor-S).',
   },
   householdShelter: {
     id: 'householdShelter',
     name: 'Household Shelter',
-    origin: [6.7, 3.3],
-    width: 1.5,
-    depth: 2.0,
-    derivation: 'South of bedroom3. 1.50 × 2.00 m, HDB-typical bomb shelter.',
-  },
-  serviceYard: {
-    id: 'serviceYard',
-    name: 'Service Yard',
-    origin: [0.2, 5.5],
-    width: 1.5,
-    depth: 1.1,
+    origin: [6.10, 5.10],
+    width: 2.35,
+    depth: 1.60,
     derivation:
-      'South of bath1, west of kitchen. Approved 1.50 × 1.40 m; depth trimmed to 1.10 m so its south face sits at z=6.6, flush with apartment-proper south wall over the AC-ledge annex (any further south would put part of the room outside the apartment envelope).',
+      'East of bath2 in the bath/shelter band. SVG x=[475,650] y=[420,540]. North door from corridor (the blast door); east wall (cx=8.50) is the HS / L/D partition; south wall at cz=6.75 (SVG y=540) abuts the kitchen below. Reinforced concrete walls (modeled at internal-wall thickness for v1).',
   },
   kitchen: {
     id: 'kitchen',
     name: 'Kitchen',
-    origin: [1.8, 5.4],
-    width: 3.0,
-    depth: 2.5,
-    derivation: 'South strip, east of serviceYard. 3.00 × 2.50 m.',
+    origin: [6.40, 6.80],
+    width: 3.70,
+    depth: 2.35,
+    derivation:
+      'South band, east of the service yard and south of the household shelter, extending east to the SE step (main entrance alcove). SVG x=[495,810] y=[540,720]. Bounded west by the SY/kitchen partition (cx=6.35), north by the HS-S / mid-S wall (cz=6.75), south by the apartment external south wall (cz=9.25). The east side is physically open to the L/D — no partition wall — but for area accounting the rectangle is closed by extending the kitchen north wall (cz=6.75) east and the SE jog wall (cx=10.10) north until they meet at the notional NE corner (10.10, 6.75). Interior 3.70 × 2.35 = 8.695 m².',
+  },
+  serviceYard: {
+    id: 'serviceYard',
+    name: 'Service Yard',
+    origin: [3.90, 6.80],
+    width: 2.40,
+    depth: 2.35,
+    derivation:
+      'Louvred utility space in the south band centre, between bath2 (north) and the apartment external south wall. SVG x=[320,495] y=[540,720]. Bounded west by the bath1/bath2 partition extended south (cx=3.90, also the SW lower notch east wall), east by the SY/kitchen partition (cx=6.35) — the latter has a door (SVG gap y=[580,680]) opening east into the kitchen. The previous SY-W partition (cx=4.60) has been removed: the small strip west of it was structural/utility-only and is now merged into the SY proper. Counted as strata interior per HDB area conventions.',
   },
   livingDining: {
     id: 'livingDining',
     name: 'Living / Dining',
-    origin: [9.5, 0.2],
-    width: 3.5,
-    depth: 7.7,
+    origin: [8.55, 1.40],
+    width: 4.00,
+    depth: 5.40,
     extension: {
-      offset: [-4.5, 4.0],
-      width: 4.5,
-      depth: 3.7,
+      // SE alcove: the strip east of the kitchen and west of the SE step,
+      // running along the apartment east wall from the kitchen north boundary
+      // (cz=6.80) down to the SE step interior face (cz=7.90). Open-plan with
+      // the L/D main and with the kitchen — no partitions.
+      offset: [1.55, 5.40],
+      width: 2.45,
+      depth: 1.10,
     },
     derivation:
-      'L-shape. Main column 3.50 × 7.70 m (east, full apartment height). Extension 4.50 × 3.70 m (south-west wing for foyer + dining; the household shelter sits as an internal island within the north edge of this extension and the bath2/shelter row overlaps the extension by ~1.65 m² along the corridor). Combined accounted area 43.60 m².',
+      'East column, L-shape. Main rectangle SVG x=[650,945] y=[150,540] → cx=[8.55,12.55] cz=[1.40,6.80] (4.00 × 5.40 m): NE notch with north window above; bay window on east wall; west wall (cx=8.50) shared with HS (cz=5.05–6.75). The kitchen rectangle (extended east to the SE jog wall) takes the south band west of cx=10.10, so the L/D south boundary moves up to cz=6.80. SE alcove extension cx=[10.10,12.55] cz=[6.80,7.90] (2.45 × 1.10 m) hugs the apartment east wall down to the SE step, where the main entrance is. Total interior 21.60 + 2.695 = 24.295 m².',
   },
   acLedge: {
     id: 'acLedge',
     name: 'AC Ledge',
-    origin: [0.2, 6.6],
-    width: 2.0,
-    depth: 1.5,
+    origin: [1.35, 6.75],
+    width: 2.55,
+    depth: 0.85,
     external: true,
     derivation:
-      'External AC condenser ledge, south of bath1. 2.00 × 1.50 m. Annex outside the apartment-proper envelope (the south wall of the apartment proper jogs north over its x range). Excluded from interior area.',
+      'External SW annex: the inside-polygon strip immediately south of bath1 (SVG y=[540,600]) — cx=[1.35,3.90] cz=[6.75,7.60]. Bounded north by the full-height bath1 south wall, east/west/south by half-height parapets (wall-int-acLedge-sy, wall-ext-SW-jog-W-acLedge, wall-ext-SW-bath). The SW lower notch south of cz=7.60 is outside the apartment polygon and not part of the AC ledge. Accessed from bath1.',
   },
 };
 
-// Cutouts for windows and doors. Offsets are along each wall from its `start` point.
-// Window sills/heads use FLAT defaults unless noted; door headers go from `head` to ceiling.
 const WIN_SILL = FLAT.bedroomWindowSill;
 const WIN_HEAD = FLAT.windowHeadHeight;
 const DOOR_HEAD = FLAT.doorHeight;
 const DOOR_W = FLAT.internalDoorWidth;
 const MAIN_DOOR_W = FLAT.mainDoorWidth;
 
-// Convenience: bedroom window widths (≈1.5 m typical HDB sliding panel pair).
-const BEDROOM_WIN_W = 1.5;
-const KITCHEN_WIN_W = 1.2;
-const LD_BAY_WIN_W = 2.4;
+// Window widths (SVG-derived, rounded to 50 mm).
+const BEDROOM_WIN_W = 1.40; // SVG 100 px → 1.40 m
+const LD_NORTH_WIN_W = 2.50; // SVG 180 px → 2.52 m
+const LD_BAY_WIN_W = 2.80; // SVG 200 px → 2.80 m
+const MB_WEST_WIN_W = 2.10; // SVG 150 px → 2.10 m
 
-// Apartment-proper envelope traced clockwise from NW (0, 0). The envelope is
-// rectangular except for the SW notch where the AC-ledge annex hangs south of
-// bath1 (apartment-proper south wall jogs north over the AC-ledge x range).
-//
-//   (0,0) ────────────────────────────────────── (13.2, 0)      [N]
-//     │                                              │
-//     │                 apartment proper              │           [W on left,
-//     │                                              │            E on right]
-//   (0,6.6)──(2.2,6.6)                                │
-//                  │                                  │
-//                  │   (AC ledge annex                │
-//                  │    south of bath1,               │
-//                  │    outside envelope)             │
-//                  │                                  │
-//             (2.2,8.1)─────────────────────────(13.2, 8.1)      [S main]
-//
-// AC ledge has its own west + south walls (its north/east coincide with the
-// apartment-proper south-bath1 / south-jog walls and aren't duplicated).
+// Wall paths trace centerlines. Apartment perimeter goes clockwise from NW.
+// Internal partitions follow SVG paths in docs/reference/floor-plan.svg.
 export const WALLS: WallSpec[] = [
-  // ── External perimeter ─────────────────────────────────────────────────
-  // North wall: full width across the three bedrooms.
+  // ── External perimeter (clockwise from NW) ──────────────────────────────
+  // North wall over the bedroom band (NW to NE notch corner).
   {
     id: 'wall-ext-N',
-    start: [0, 0],
-    end: [APARTMENT_EXT_W, 0],
+    start: [0.10, 0.10],
+    end: [9.05, 0.10],
     thickness: 'external',
     cutouts: [
-      // Bedroom windows centred over each bedroom (along the wall's X axis).
-      // Wall spans x=0..13.20; rooms sit at internal origins shifted by 0.20 m.
-      { kind: 'window', offset: 1.25, width: BEDROOM_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-mainBedroom' },
-      { kind: 'window', offset: 4.5, width: BEDROOM_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-bedroom2' },
-      { kind: 'window', offset: 7.3, width: BEDROOM_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-bedroom3' },
+      // MB north window (SVG x=[110,210] → offset 0.84, width 1.40).
+      { kind: 'window', offset: 0.85, width: BEDROOM_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-mainBedroom-N' },
+      // B2 north window (SVG x=[320,420] → offset 3.78).
+      { kind: 'window', offset: 3.80, width: BEDROOM_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-bedroom2-N' },
+      // B3 north window (SVG x=[530,630] → offset 6.72).
+      { kind: 'window', offset: 6.70, width: BEDROOM_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-bedroom3-N' },
     ],
   },
-  // East wall: full height down the L/D side, with the L/D bay window near the
-  // top and the main entrance door near the south end.
+  // NE notch west wall: vertical jog from bedroom-N east edge down to L/D-N.
+  {
+    id: 'wall-ext-NE-jog-W',
+    start: [9.05, 0.10],
+    end: [9.05, 1.30],
+    thickness: 'external',
+    cutouts: [],
+  },
+  // NE notch south wall = L/D north wall.
+  {
+    id: 'wall-ext-NE-jog-S',
+    start: [9.05, 1.30],
+    end: [12.65, 1.30],
+    thickness: 'external',
+    cutouts: [
+      // L/D north window (SVG x=[730,910] → offset 0.56, width 2.52).
+      { kind: 'window', offset: 0.55, width: LD_NORTH_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-livingDining-N' },
+    ],
+  },
+  // East wall (full L/D height; ends at the SE step at cz=8.00).
   {
     id: 'wall-ext-E',
-    start: [APARTMENT_EXT_W, 0],
-    end: [APARTMENT_EXT_W, APARTMENT_EXT_D],
+    start: [12.65, 1.30],
+    end: [12.65, 8.00],
     thickness: 'external',
     cutouts: [
-      // L/D bay window over the living area (sofa zone, top half of L/D column).
-      { kind: 'window', offset: 2.0, width: LD_BAY_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-livingDining' },
-      // Main entrance door near the south end of the east wall.
-      { kind: 'door', offset: 6.6, width: MAIN_DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-main' },
+      // L/D bay window (SVG y=[270,470] → offset 1.67, width 2.80).
+      { kind: 'window', offset: 1.65, width: LD_BAY_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-livingDining-E' },
     ],
   },
-  // South wall (main span): from the SE corner west across L/D, kitchen, and
-  // serviceYard's south strip, stopping at the AC ledge's east edge.
+  // SE step horizontal wall (with main entrance door cutout).
   {
-    id: 'wall-ext-S-main',
-    start: [APARTMENT_EXT_W, APARTMENT_EXT_D],
-    end: [2.2, APARTMENT_EXT_D],
+    id: 'wall-ext-SE-step',
+    start: [12.65, 8.00],
+    end: [10.10, 8.00],
     thickness: 'external',
     cutouts: [
-      // Kitchen window above the sink, centred on the kitchen's south wall.
-      // Wall runs E→W; offset measured from (13.2, 8.1). Kitchen interior x=1.8..4.8;
-      // window centred at x=3.3 → offset = 13.2 − 3.3 − KITCHEN_WIN_W/2 = 9.3.
-      { kind: 'window', offset: 9.3, width: KITCHEN_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-kitchen' },
+      // Main entrance door (SVG gap x=[810,895] at y=630). Wall direction is
+      // east → west; door centred in the gap → offset 0.80 from start.
+      { kind: 'door', offset: 0.80, width: MAIN_DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-main' },
     ],
   },
-  // SW jog: at x=2.2, going north from the south face up to the AC ledge's
-  // north edge. This is the east face of the AC-ledge annex (shared wall).
+  // SE jog: vertical wall from the SE step down to the main south wall.
   {
-    id: 'wall-ext-S-jog',
-    start: [2.2, APARTMENT_EXT_D],
-    end: [2.2, 6.6],
+    id: 'wall-ext-SE-jog-W',
+    start: [10.10, 8.00],
+    end: [10.10, 9.25],
     thickness: 'external',
     cutouts: [],
   },
-  // South wall (bath1 strip): from x=2.2 west to x=0, at z=6.6. This is the
-  // apartment-proper south wall over the AC-ledge x range, and simultaneously
-  // the AC ledge's north wall.
+  // South wall (main span: from SE jog west to SW-lower-notch east edge).
   {
-    id: 'wall-ext-S-bath1',
-    start: [2.2, 6.6],
-    end: [0, 6.6],
+    id: 'wall-ext-S',
+    start: [10.10, 9.25],
+    end: [3.90, 9.25],
     thickness: 'external',
     cutouts: [],
   },
-  // West wall: from (0, 6.6) north back to (0, 0). No window — the floor plan
-  // shows the west elevation as solid wall (mainBedroom's only window is the
-  // north window).
+  // SW lower notch east wall (jog north from the main south wall). This is the
+  // boundary between the AC ledge (west, in the SW lower notch) and the
+  // service yard (east). Both sides are open-air utility spaces, so the wall
+  // is a half-height parapet rather than a full enclosing wall.
+  {
+    id: 'wall-ext-SW-jog-E',
+    start: [3.90, 9.25],
+    end: [3.90, 7.60],
+    thickness: 'external',
+    cutouts: [],
+    topHeight: 1.0,
+  },
+  // SW lower notch north wall = south wall of bath1 over the notch x range.
+  {
+    id: 'wall-ext-SW-bath',
+    start: [3.90, 7.60],
+    end: [1.35, 7.60],
+    thickness: 'external',
+    cutouts: [],
+    topHeight: 1.0,
+  },
+  // SW upper notch east wall, north portion = west wall of bath1 (full height,
+  // bath is enclosed).
+  {
+    id: 'wall-ext-SW-jog-W-bath',
+    start: [1.35, 6.75],
+    end: [1.35, 5.05],
+    thickness: 'external',
+    cutouts: [],
+  },
+  // SW upper notch east wall, south portion = west wall of the AC ledge
+  // (bath1-south slice). Open-air balcony — modeled as a half-height parapet.
+  {
+    id: 'wall-ext-SW-jog-W-acLedge',
+    start: [1.35, 7.60],
+    end: [1.35, 6.75],
+    thickness: 'external',
+    cutouts: [],
+    topHeight: 1.0,
+  },
+  // SW upper notch north wall = bedroom band south wall stub over AC-ledge x.
+  {
+    id: 'wall-ext-SW-bedroom',
+    start: [1.35, 5.05],
+    end: [0.10, 5.05],
+    thickness: 'external',
+    cutouts: [],
+  },
+  // West wall (full bedroom band height; tall MB sliding window).
   {
     id: 'wall-ext-W',
-    start: [0, 6.6],
-    end: [0, 0],
+    start: [0.10, 5.05],
+    end: [0.10, 0.10],
     thickness: 'external',
-    cutouts: [],
+    cutouts: [
+      // MB west window (SVG y=[140,290] → window cz=[1.15,3.25]; wall runs
+      // south → north so offset = 5.05 − 3.25 = 1.80; width 2.10).
+      { kind: 'window', offset: 1.80, width: MB_WEST_WIN_W, sill: WIN_SILL, head: WIN_HEAD, refId: 'win-mainBedroom-W' },
+    ],
   },
 
-  // ── AC-ledge annex (external box south of bath1) ───────────────────────
-  // Its north and east walls coincide with apartment-proper walls
-  // (wall-ext-S-bath1 and wall-ext-S-jog respectively) and aren't duplicated.
-  // West wall of AC ledge.
-  {
-    id: 'wall-acl-W',
-    start: [0, 6.6],
-    end: [0, APARTMENT_EXT_D],
-    thickness: 'external',
-    cutouts: [],
-  },
-  // South wall of AC ledge.
-  {
-    id: 'wall-acl-S',
-    start: [0, APARTMENT_EXT_D],
-    end: [2.2, APARTMENT_EXT_D],
-    thickness: 'external',
-    cutouts: [],
-  },
-
-  // ── Internal partitions: bedroom band ──────────────────────────────────
-  // Vertical wall between mainBedroom and bedroom2 (and continuing south through bath1/bath2 row).
+  // ── Internal partitions ────────────────────────────────────────────────
+  // MB / B2 partition (SVG terminates at cz=3.65 = bedroom south wall).
   {
     id: 'wall-int-mb-b2',
-    start: [3.85, 0],
-    end: [3.85, 5.4],
+    start: [3.10, 0.10],
+    end: [3.10, 3.65],
     thickness: 'internal',
     cutouts: [],
   },
-  // Vertical wall between bedroom2 and bedroom3.
+  // B2 / B3 partition.
   {
     id: 'wall-int-b2-b3',
-    start: [6.65, 0],
-    end: [6.65, 5.4],
+    start: [6.05, 0.10],
+    end: [6.05, 3.65],
     thickness: 'internal',
     cutouts: [],
   },
-  // Vertical wall between bedroom3 / householdShelter and livingDining main column.
+  // Bedroom south wall = north wall of corridor (and of MB foyer west of
+  // cx=4.30). MB has no traditional south wall — the cx=[0.10, 3.10] section
+  // is omitted so MB main flows into the foyer below it. Wall starts at the
+  // MB/B2 partition (cx=3.10) and runs east to the B3 east wall (cx=9.05).
   {
-    id: 'wall-int-b3-ld',
-    start: [9.45, 0],
-    end: [9.45, APARTMENT_EXT_D],
+    id: 'wall-int-bedroom-S',
+    start: [3.10, 3.65],
+    end: [9.05, 3.65],
+    thickness: 'internal',
+    cutouts: [
+      // B2 door — wall starts at cx=3.10; door cx=[5.10, 5.90] → offset 2.00.
+      { kind: 'door', offset: 2.00, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-bedroom2' },
+      // B3 door — cx=[6.10, 6.90] → offset 3.00.
+      { kind: 'door', offset: 3.00, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-bedroom3' },
+    ],
+  },
+  // MB-foyer / corridor partition — the small N-S wall just west of the B2
+  // door. Hosts the MB door (perpendicular to the bedroom-S wall and to the
+  // bath/kitchen doors on corridor-S). Walking east down the corridor, this
+  // is the last wall on the left before the B2 door.
+  {
+    id: 'wall-int-mb-foyer-E',
+    start: [4.30, 3.65],
+    end: [4.30, 5.05],
+    thickness: 'internal',
+    cutouts: [
+      // MB door centred on the partition. Wall length 1.40; door 0.80 with
+      // 0.30 wall on either side → offset 0.30, span cz=[3.95, 4.75].
+      { kind: 'door', offset: 0.30, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-mainBedroom' },
+    ],
+  },
+  // Bedroom 3 east wall / L/D west wall over the bedroom band.
+  // SVG: M 690 160 L 690 320 → cx=9.05, cz=[1.40, 3.65]; extended slightly
+  // north to meet the NE-jog external wall corner at (9.05, 1.30) so the
+  // cx=9.05 line is continuous from cz=0.10 (NW external) through to the
+  // bedroom-S wall at cz=3.65. The corridor (cz=[3.65, 5.05]) is left open
+  // to L/D on its east end — that opening is the corridor entrance to L/D.
+  {
+    id: 'wall-int-b3-LD',
+    start: [9.05, 1.30],
+    end: [9.05, 3.65],
     thickness: 'internal',
     cutouts: [],
   },
-
-  // South wall of mainBedroom (separates it from bath1). Door to mainBedroom is here.
+  // Corridor south wall = bath1/bath2/kitchen north wall. Wall runs west → east
+  // and ends at the kitchen / L/D partition (cx=8.50); the 0.55 m gap east of
+  // that is the corridor → L/D opening.
   {
-    id: 'wall-int-mb-S',
-    start: [0, 3.35],
-    end: [3.85, 3.35],
+    id: 'wall-int-corridor-S',
+    start: [0.10, 5.05],
+    end: [8.50, 5.05],
     thickness: 'internal',
     cutouts: [
-      { kind: 'door', offset: 2.6, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-mainBedroom' },
+      // Bath1 door — SVG gap x=[210,280] centred cx=2.825 → offset 2.30.
+      { kind: 'door', offset: 2.30, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-bath1' },
+      // Bath2 door — SVG gap x=[390,475] centred cx=5.45 → offset 4.95.
+      { kind: 'door', offset: 4.95, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-bath2' },
+      // Household shelter door (blast door) — SVG gap x=[515,565] centred
+      // cx=6.95 → offset 6.45.
+      { kind: 'door', offset: 6.45, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-householdShelter' },
     ],
   },
-  // South wall of bedroom2 (separates from bath2 / corridor).
+  // Bath1 / bath2 partition (SVG x=320, y=[420,540]) — full height between the
+  // two enclosed bathrooms.
   {
-    id: 'wall-int-b2-S',
-    start: [3.85, 3.25],
-    end: [6.65, 3.25],
-    thickness: 'internal',
-    cutouts: [
-      { kind: 'door', offset: 2.0, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-bedroom2' },
-    ],
-  },
-  // South wall of bedroom3 (separates from householdShelter / corridor).
-  {
-    id: 'wall-int-b3-S',
-    start: [6.65, 3.25],
-    end: [9.45, 3.25],
-    thickness: 'internal',
-    cutouts: [
-      { kind: 'door', offset: 0.4, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-bedroom3' },
-    ],
-  },
-
-  // ── Internal partitions: utility band ──────────────────────────────────
-  // South wall of bath1.
-  {
-    id: 'wall-int-bath1-S',
-    start: [0, 5.5],
-    end: [1.85, 5.5],
-    thickness: 'internal',
-    cutouts: [
-      { kind: 'door', offset: 1.0, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-bath1' },
-    ],
-  },
-  // South wall of bath2.
-  {
-    id: 'wall-int-bath2-S',
-    start: [3.85, 5.05],
-    end: [5.45, 5.05],
-    thickness: 'internal',
-    cutouts: [
-      { kind: 'door', offset: 0.6, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-bath2' },
-    ],
-  },
-  // East wall of bath2 (separates from householdShelter).
-  {
-    id: 'wall-int-bath2-E',
-    start: [5.45, 3.25],
-    end: [5.45, 5.05],
+    id: 'wall-int-bath1-bath2',
+    start: [3.90, 5.05],
+    end: [3.90, 6.75],
     thickness: 'internal',
     cutouts: [],
   },
-  // South wall of householdShelter.
+  // Continuation of the cx=3.90 partition between the AC ledge (west) and the
+  // service yard (east), south of the bath/shelter band. Both sides are open-
+  // air utility spaces — modeled as a half-height parapet.
   {
-    id: 'wall-int-shelter-S',
-    start: [6.65, 5.35],
-    end: [8.25, 5.35],
+    id: 'wall-int-acLedge-sy',
+    start: [3.90, 6.75],
+    end: [3.90, 7.60],
     thickness: 'internal',
-    cutouts: [
-      { kind: 'door', offset: 0.5, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-shelter' },
-    ],
+    cutouts: [],
+    topHeight: 1.0,
   },
-  // East wall of householdShelter.
+  // Bath1 / AC-ledge partition (SVG y=540, x=[140,320]). Segregates bath1
+  // (north) from the AC ledge tucked into the bath1 SW corner (south).
+  {
+    id: 'wall-int-bath1-acLedge',
+    start: [1.35, 6.75],
+    end: [3.90, 6.75],
+    thickness: 'internal',
+    cutouts: [],
+  },
+  // Bath2 / kitchen partition (SVG x=475, y=[420,530] drawn; effectively spans
+  // y=[420,540] joining the mid-S wall at cz=6.75).
+  {
+    id: 'wall-int-bath2-kitchen',
+    start: [6.05, 5.05],
+    end: [6.05, 6.75],
+    thickness: 'internal',
+    cutouts: [],
+  },
+  // HS east / L/D west partition (SVG x=650, y=[420,540]). Wall stops at
+  // cz=6.75 — the kitchen south of here is open to the L/D on its east side
+  // (no kitchen-east partition).
+  {
+    id: 'wall-int-shelter-LD',
+    start: [8.50, 5.05],
+    end: [8.50, 6.75],
+    thickness: 'internal',
+    cutouts: [],
+  },
+  // Bath/shelter south wall at SVG y=540 (cz=6.75). West stretch (cx=3.90–4.60)
+  // is bath2 south above the gap to SY; centre stretch (cx=4.60–6.35) is the
+  // bath2-south / SY-north partition; east stretch (cx=6.35–8.50) is the
+  // HS-south / kitchen-north partition.
+  {
+    id: 'wall-int-mid-S',
+    start: [3.90, 6.75],
+    end: [8.50, 6.75],
+    thickness: 'internal',
+    cutouts: [],
+  },
+  // Service yard east wall = kitchen west wall (SVG x=495 in two segments
+  // y=[550,580] and y=[680,720]; door gap y=[580,680] → cz=[7.30, 8.70]).
   {
     id: 'wall-int-shelter-E',
-    start: [8.25, 3.25],
-    end: [8.25, 5.35],
-    thickness: 'internal',
-    cutouts: [],
-  },
-
-  // ── Internal partitions: south band ────────────────────────────────────
-  // North wall of kitchen (separates kitchen from L/D extension foyer area).
-  {
-    id: 'wall-int-kitchen-N',
-    start: [1.75, 5.35],
-    end: [4.85, 5.35],
-    thickness: 'internal',
-    cutouts: [],
-  },
-  // East wall of kitchen (separates from L/D extension dining area). Door from kitchen → L/D.
-  {
-    id: 'wall-int-kitchen-E',
-    start: [4.85, 5.35],
-    end: [4.85, APARTMENT_EXT_D],
+    start: [6.35, 6.75],
+    end: [6.35, 9.25],
     thickness: 'internal',
     cutouts: [
-      { kind: 'door', offset: 1.4, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-kitchen' },
+      // Service yard access door — DOOR_W centred in gap cz=[7.30, 8.70] →
+      // cz=[7.60, 8.40]. Wall starts at cz=6.75 → offset = 0.85.
+      { kind: 'door', offset: 0.85, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-serviceYard' },
     ],
   },
-  // West wall of kitchen / east wall of serviceYard. Stops at z=6.6 where the
-  // apartment-proper south wall jogs over the AC-ledge annex.
-  {
-    id: 'wall-int-sy-E',
-    start: [1.75, 5.45],
-    end: [1.75, 6.6],
-    thickness: 'internal',
-    cutouts: [
-      { kind: 'door', offset: 0.3, width: DOOR_W, sill: 0, head: DOOR_HEAD, refId: 'door-serviceYard' },
-    ],
-  },
-  // South wall of serviceYard (= apartment-proper south wall over AC-ledge x range,
-  // already covered by wall-ext-S-bath1 — no extra internal wall needed).
 ];
 
 export const DOORS: DoorSpec[] = [
   {
     id: 'door-main',
-    wallId: 'wall-ext-E',
-    offset: 6.6,
+    wallId: 'wall-ext-SE-step',
+    offset: 0.80,
     width: MAIN_DOOR_W,
     hinge: 'start',
-    swing: 'left',
+    swing: 'right',
     defaultOpen: false,
   },
   {
     id: 'door-mainBedroom',
-    wallId: 'wall-int-mb-S',
-    offset: 2.6,
+    wallId: 'wall-int-mb-foyer-E',
+    offset: 0.30,
     width: DOOR_W,
     hinge: 'start',
-    swing: 'left',
+    swing: 'right',
     defaultOpen: false,
   },
   {
     id: 'door-bedroom2',
-    wallId: 'wall-int-b2-S',
-    offset: 2.0,
+    wallId: 'wall-int-bedroom-S',
+    offset: 2.00,
     width: DOOR_W,
     hinge: 'end',
-    swing: 'left',
+    swing: 'right',
     defaultOpen: false,
   },
   {
     id: 'door-bedroom3',
-    wallId: 'wall-int-b3-S',
-    offset: 0.4,
+    wallId: 'wall-int-bedroom-S',
+    offset: 3.00,
     width: DOOR_W,
     hinge: 'start',
-    swing: 'right',
+    swing: 'left',
     defaultOpen: false,
   },
   {
     id: 'door-bath1',
-    wallId: 'wall-int-bath1-S',
-    offset: 1.0,
-    width: DOOR_W,
-    hinge: 'start',
-    swing: 'left',
-    defaultOpen: false,
-  },
-  {
-    id: 'door-bath2',
-    wallId: 'wall-int-bath2-S',
-    offset: 0.6,
-    width: DOOR_W,
-    hinge: 'start',
-    swing: 'left',
-    defaultOpen: false,
-  },
-  {
-    id: 'door-shelter',
-    wallId: 'wall-int-shelter-S',
-    offset: 0.5,
+    wallId: 'wall-int-corridor-S',
+    offset: 2.30,
     width: DOOR_W,
     hinge: 'start',
     swing: 'right',
     defaultOpen: false,
   },
   {
-    id: 'door-kitchen',
-    wallId: 'wall-int-kitchen-E',
-    offset: 1.4,
+    id: 'door-bath2',
+    wallId: 'wall-int-corridor-S',
+    offset: 4.95,
     width: DOOR_W,
-    hinge: 'end',
-    swing: 'left',
-    defaultOpen: true,
+    hinge: 'start',
+    swing: 'right',
+    defaultOpen: false,
   },
   {
-    id: 'door-serviceYard',
-    wallId: 'wall-int-sy-E',
-    offset: 0.3,
+    id: 'door-householdShelter',
+    wallId: 'wall-int-corridor-S',
+    offset: 6.45,
     width: DOOR_W,
     hinge: 'start',
     swing: 'left',
+    defaultOpen: false,
+  },
+  {
+    id: 'door-serviceYard',
+    wallId: 'wall-int-shelter-E',
+    offset: 0.85,
+    width: DOOR_W,
+    hinge: 'start',
+    swing: 'right',
     defaultOpen: false,
   },
 ];
 
 export const WINDOWS: WindowSpec[] = [
   {
-    id: 'win-mainBedroom',
+    id: 'win-mainBedroom-N',
     wallId: 'wall-ext-N',
-    offset: 1.25,
+    offset: 0.85,
     width: BEDROOM_WIN_W,
     sill: WIN_SILL,
     head: WIN_HEAD,
   },
   {
-    id: 'win-bedroom2',
+    id: 'win-bedroom2-N',
     wallId: 'wall-ext-N',
-    offset: 4.5,
+    offset: 3.80,
     width: BEDROOM_WIN_W,
     sill: WIN_SILL,
     head: WIN_HEAD,
   },
   {
-    id: 'win-bedroom3',
+    id: 'win-bedroom3-N',
     wallId: 'wall-ext-N',
-    offset: 7.3,
+    offset: 6.70,
     width: BEDROOM_WIN_W,
     sill: WIN_SILL,
     head: WIN_HEAD,
   },
   {
-    id: 'win-livingDining',
+    id: 'win-livingDining-N',
+    wallId: 'wall-ext-NE-jog-S',
+    offset: 0.55,
+    width: LD_NORTH_WIN_W,
+    sill: WIN_SILL,
+    head: WIN_HEAD,
+  },
+  {
+    id: 'win-livingDining-E',
     wallId: 'wall-ext-E',
-    offset: 2.0,
+    offset: 1.65,
     width: LD_BAY_WIN_W,
     sill: WIN_SILL,
     head: WIN_HEAD,
   },
   {
-    id: 'win-kitchen',
-    wallId: 'wall-ext-S-main',
-    offset: 9.3,
-    width: KITCHEN_WIN_W,
+    id: 'win-mainBedroom-W',
+    wallId: 'wall-ext-W',
+    offset: 1.80,
+    width: MB_WEST_WIN_W,
     sill: WIN_SILL,
     head: WIN_HEAD,
   },
 ];
 
 // Total interior area, summing each room's main rectangle plus any extension. Should
-// be ≈ 90 m² ± 0.5 m² (the 90 m² target absorbs all rounding slack from 50 mm rounding
-// per HDB convention; the ±0.5 m² tolerance is enforced by the constants test).
+// be ≈ 82.5 m² ± 0.5 m² (service yard counted as external per HDB convention; tolerance
+// enforced by the constants test).
+function roomArea(r: RoomDef): number {
+  const main = r.width * r.depth;
+  const ext = r.extension ? r.extension.width * r.extension.depth : 0;
+  return main + ext;
+}
+
 export const INTERIOR_AREA_M2 = Object.values(ROOMS)
   .filter((r) => !r.external)
-  .reduce((acc, r) => {
-    const main = r.width * r.depth;
-    const ext = r.extension ? r.extension.width * r.extension.depth : 0;
-    return acc + main + ext;
-  }, 0);
+  .reduce((acc, r) => acc + roomArea(r), 0);
+
+export const AC_LEDGE_AREA_M2 = roomArea(ROOMS.acLedge);
+
+export const TOTAL_AREA_M2 = INTERIOR_AREA_M2 + AC_LEDGE_AREA_M2;

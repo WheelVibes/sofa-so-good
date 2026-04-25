@@ -2,7 +2,10 @@ import { describe, it, expect } from 'vitest';
 import { ROOMS, WALLS, DOORS, WINDOWS, INTERIOR_AREA_M2 } from './constants';
 
 describe('apartment constants', () => {
-  it('total internal area is within 0.5 m² of 90', () => {
+  it('total internal area is within 0.5 m² of 90 (excluding AC ledge)', () => {
+    // Strata interior excludes only the AC ledge (external annex south of bath1).
+    // Service yard is counted as interior, including its small enclosed strip
+    // west of the SY-W partition. Total is ~90 m².
     const sum = Object.values(ROOMS)
       .filter((r) => !r.external)
       .reduce((acc, r) => {

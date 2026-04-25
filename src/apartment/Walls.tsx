@@ -22,7 +22,7 @@ function WallRender({ wall }: { wall: WallSpec }) {
         return (
           <mesh key={i} position={[segMid, segMidY, 0]} castShadow receiveShadow>
             <boxGeometry args={[segLen, segHeight, thickness]} />
-            <meshStandardMaterial color="#f4ede0" roughness={0.9} />
+            <meshStandardMaterial color="#ffffff" roughness={0.95} />
           </mesh>
         );
       })}
