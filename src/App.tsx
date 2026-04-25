@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Scene } from './scene/Scene';
 import { HelpHint } from './ui/HelpHint';
 import { Toolbar } from './ui/Toolbar';
+import { WebGLFallback } from './ui/WebGLFallback';
 import { useStore } from './state/store';
 import { KEYBINDINGS } from './controls/keybindings';
 import { useKeyboard } from './controls/useKeyboard';
@@ -22,10 +23,12 @@ export default function App() {
   useKeyboard(onKey);
 
   return (
-    <div className="relative h-screen w-screen overflow-hidden">
-      <Toolbar />
-      <Scene />
-      <HelpHint />
-    </div>
+    <WebGLFallback>
+      <div className="relative h-screen w-screen overflow-hidden">
+        <Toolbar />
+        <Scene />
+        <HelpHint />
+      </div>
+    </WebGLFallback>
   );
 }
