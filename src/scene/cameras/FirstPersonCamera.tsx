@@ -2,21 +2,50 @@ import { PointerLockControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
 import { Vector3 } from 'three';
-import { WALLS } from '../../apartment/constants';
+import { DOORS, WALLS } from '../../apartment/constants';
 import { resolveMovement, type CollisionWall } from '../../collision/walls';
 import { KEYBINDINGS } from '../../controls/keybindings';
+import { useStore } from '../../state/store';
 
 const EYE_HEIGHT = 1.65;
 const WALK_SPEED = 1.4;
 const PLAYER_RADIUS = 0.25;
 
-function buildCollisionWalls(): CollisionWall[] {
-  return WALLS.map((w) => ({ ax: w.start[0], az: w.start[1], bx: w.end[0], bz: w.end[1] }));
+function buildCollisionWalls(doorState: Record<string, { open: boolean }>): CollisionWall[] {
+  const segs: CollisionWall[] = WALLS.map((w) => ({
+    ax: w.start[0],
+    az: w.start[1],
+    bx: w.end[0],
+    bz: w.end[1],
+  }));
+  for (const d of DOORS) {
+    const isOpen = doorState[d.id]?.open ?? d.defaultOpen;
+    if (isOpen) continue;
+    const wall = WALLS.find((w) => w.id === d.wallId);
+    if (!wall) continue;
+    const dx = wall.end[0] - wall.start[0];
+    const dz = wall.end[1] - wall.start[1];
+    const length = Math.hypot(dx, dz);
+    const ux = dx / length;
+    const uz = dz / length;
+    const sx = wall.start[0] + ux * d.offset;
+    const sz = wall.start[1] + uz * d.offset;
+    const ex = wall.start[0] + ux * (d.offset + d.width);
+    const ez = wall.start[1] + uz * (d.offset + d.width);
+    segs.push({ ax: sx, az: sz, bx: ex, bz: ez });
+  }
+  return segs;
 }
 
 export function FirstPersonCamera() {
   const { camera } = useThree();
   const pressed = useRef<Record<string, boolean>>({});
+  const doors = useStore((s) => s.doors);
+  const collisionWalls = useRef<CollisionWall[]>([]);
+
+  useEffect(() => {
+    collisionWalls.current = buildCollisionWalls(doors);
+  }, [doors]);
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
@@ -37,7 +66,6 @@ export function FirstPersonCamera() {
     camera.position.set(11, EYE_HEIGHT, 6);
   }, [camera]);
 
-  const collisionWalls = useRef(buildCollisionWalls());
   const tmpForward = useRef(new Vector3());
   const tmpRight = useRef(new Vector3());
 
