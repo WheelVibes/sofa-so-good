@@ -3,6 +3,7 @@ import { Apartment } from '../apartment/Apartment';
 import { CameraRig } from './cameras/CameraRig';
 import { Lighting } from './lighting/Lighting';
 import { Sky } from './lighting/Sky';
+import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 
 export function Scene() {
   return (
@@ -16,6 +17,7 @@ export function Scene() {
       <Lighting />
       <Apartment />
       <CameraRig />
+      <MeasurementOverlay />
     </Canvas>
   );
 }
