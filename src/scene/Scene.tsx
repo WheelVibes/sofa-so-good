@@ -1,4 +1,5 @@
 import { Canvas } from '@react-three/fiber';
+import { Floor } from '../apartment/Floor';
 
 export function Scene() {
   return (
@@ -11,8 +12,7 @@ export function Scene() {
       <color attach="background" args={['#e9eef2']} />
       <ambientLight intensity={0.6} />
       <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
-      <gridHelper args={[20, 20, '#888', '#ccc']} />
-      <axesHelper args={[2]} />
+      <Floor />
     </Canvas>
   );
 }
