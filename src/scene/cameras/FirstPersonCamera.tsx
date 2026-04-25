@@ -103,6 +103,25 @@ export function FirstPersonCamera() {
     const to: [number, number] = [from[0] + dx, from[1] + dz];
     const next = resolveMovement(from, to, PLAYER_RADIUS, collisionWalls.current);
     camera.position.set(next[0], EYE_HEIGHT, next[1]);
+
+    const setDoorOpen = useStore.getState().setDoorOpen;
+    for (const d of DOORS) {
+      if (doors[d.id]?.open) continue;
+      const wall = WALLS.find((w) => w.id === d.wallId);
+      if (!wall) continue;
+      const wdx = wall.end[0] - wall.start[0];
+      const wdz = wall.end[1] - wall.start[1];
+      const wlen = Math.hypot(wdx, wdz);
+      const ux = wdx / wlen;
+      const uz = wdz / wlen;
+      const cx = wall.start[0] + ux * (d.offset + d.width / 2);
+      const cz = wall.start[1] + uz * (d.offset + d.width / 2);
+      const dist = Math.hypot(camera.position.x - cx, camera.position.z - cz);
+      if (dist < 0.7) {
+        setDoorOpen(d.id, true);
+        break;
+      }
+    }
   });
 
   return <PointerLockControls />;
