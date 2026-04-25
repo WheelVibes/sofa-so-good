@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { Apartment } from '../apartment/Apartment';
-import { OrbitCamera } from './cameras/OrbitCamera';
+import { CameraRig } from './cameras/CameraRig';
 
 export function Scene() {
   return (
@@ -14,7 +14,7 @@ export function Scene() {
       <ambientLight intensity={0.6} />
       <directionalLight position={[10, 10, 5]} intensity={1} castShadow />
       <Apartment />
-      <OrbitCamera />
+      <CameraRig />
     </Canvas>
   );
 }

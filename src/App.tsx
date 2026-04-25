@@ -6,11 +6,16 @@ import { useKeyboard } from './controls/useKeyboard';
 
 export default function App() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements);
+  const cameraMode = useStore((s) => s.cameraMode);
+  const setCameraMode = useStore((s) => s.setCameraMode);
   const onKey = useCallback(
     (code: string) => {
       if (code === KEYBINDINGS.toggleMeasurements) toggleMeasurements();
+      if (code === KEYBINDINGS.toggleCameraMode) {
+        setCameraMode(cameraMode === 'orbit' ? 'firstPerson' : 'orbit');
+      }
     },
-    [toggleMeasurements],
+    [toggleMeasurements, cameraMode, setCameraMode],
   );
   useKeyboard(onKey);
 
