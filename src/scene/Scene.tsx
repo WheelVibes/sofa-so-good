@@ -3,6 +3,7 @@ import { Ceiling } from '../apartment/Ceiling';
 import { Floor } from '../apartment/Floor';
 import { Walls } from '../apartment/Walls';
 import { Doors } from '../apartment/Door';
+import { Fixtures } from '../apartment/Fixtures';
 import { Windows } from '../apartment/Window';
 
 export function Scene() {
@@ -21,6 +22,7 @@ export function Scene() {
       <Walls />
       <Windows />
       <Doors />
+      <Fixtures />
     </Canvas>
   );
 }
