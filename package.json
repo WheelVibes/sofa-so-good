@@ -8,7 +8,10 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "fetch-assets": "tsx scripts/fetch-assets.ts",
+    "fetch-assets:quick": "tsx scripts/fetch-assets.ts --quick",
+    "index-assets": "tsx scripts/index-assets-cli.ts"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -20,6 +23,9 @@
     "zustand": "^5.0.12"
   },
   "devDependencies": {
+    "@gltf-transform/core": "^4.3.0",
+    "@gltf-transform/extensions": "^4.3.0",
+    "@gltf-transform/functions": "^4.3.0",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.12",
@@ -31,7 +37,9 @@
     "happy-dom": "^20.9.0",
     "jsdom": "^27.0.1",
     "postcss": "^8.5.10",
+    "sharp": "^0.34.5",
     "tailwindcss": "^3.4.19",
+    "tsx": "^4.21.0",
     "typescript": "^5.6.3",
     "vite": "^5.4.11",
     "vitest": "^4.1.5"
