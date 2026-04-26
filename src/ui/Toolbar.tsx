@@ -1,9 +1,11 @@
 import { useEffect, useState } from 'react';
 import { useStore, type CameraMode, type TimeOfDay } from '../state/store';
+import type { EditorTool } from '../state/slices/uiSlice';
 import { LocalStorageAdapter } from '../state/storage/LocalStorageAdapter';
 import { serialize, applySerialized } from '../state/schema';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import type { SlotMeta } from '../state/storage/StorageAdapter';
+import { CreditsModal } from './CreditsModal';
 
 const TIMES: TimeOfDay[] = ['day', 'dusk', 'night'];
 
@@ -14,9 +16,12 @@ export function Toolbar() {
   const setTimeOfDay = useStore((s) => s.setTimeOfDay);
   const showMeasurements = useStore((s) => s.showMeasurements);
   const toggleMeasurements = useStore((s) => s.toggleMeasurements);
+  const showFps = useStore((s) => s.showFps);
+  const toggleShowFps = useStore((s) => s.toggleShowFps);
+  const [creditsOpen, setCreditsOpen] = useState(false);
 
   return (
-    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex gap-2 rounded-lg bg-white/90 px-3 py-2 shadow backdrop-blur">
+    <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-lg bg-white/90 px-3 py-2 shadow backdrop-blur">
       <SegmentedControl<CameraMode>
         label="Camera"
         value={cameraMode}
@@ -36,17 +41,55 @@ export function Toolbar() {
       <Divider />
       <button
         onClick={toggleMeasurements}
-        className={`rounded px-3 py-1 text-sm ${showMeasurements ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+        title="Toggle measurements (M)"
+        className={`whitespace-nowrap rounded px-3 py-1 text-sm ${showMeasurements ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
       >
-        Measurements (M)
+        Measurements
       </button>
+      <button
+        onClick={toggleShowFps}
+        title="Toggle FPS counter"
+        className={`whitespace-nowrap rounded px-3 py-1 text-sm ${showFps ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+      >
+        FPS
+      </button>
+      {cameraMode === 'orbit' ? (
+        <>
+          <Divider />
+          <EditorToolToggle />
+          <Divider />
+          <CatalogToggle />
+          <Divider />
+          <SaveButton />
+          <LoadButton />
+        </>
+      ) : null}
       <Divider />
-      <CatalogToggle />
-      <ResetButton />
-      <Divider />
-      <SaveButton />
-      <LoadButton />
+      <button
+        onClick={() => setCreditsOpen(true)}
+        title="Asset credits"
+        className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+      >
+        Credits
+      </button>
+      <CreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
     </div>
+  );
+}
+
+function EditorToolToggle() {
+  const editorTool = useStore((s) => s.editorTool);
+  const setEditorTool = useStore((s) => s.setEditorTool);
+  return (
+    <SegmentedControl<EditorTool>
+      label="Tool"
+      value={editorTool}
+      options={[
+        { value: 'orbit', label: 'Rotate' },
+        { value: 'select', label: 'Select' },
+      ]}
+      onChange={setEditorTool}
+    />
   );
 }
 
@@ -56,9 +99,10 @@ function CatalogToggle() {
   return (
     <button
       onClick={toggle}
-      className={`rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+      title="Toggle catalog (C)"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
-      Catalog (C)
+      Catalog
     </button>
   );
 }
@@ -87,6 +131,8 @@ function SaveButton() {
 function LoadButton() {
   const [open, setOpen] = useState(false);
   const [slots, setSlots] = useState<SlotMeta[]>([]);
+  const resetToDefault = useStore((s) => s.resetToDefault);
+  const resetToEmpty = useStore((s) => s.resetToEmpty);
 
   useEffect(() => {
     if (!open) return;
@@ -103,6 +149,30 @@ function LoadButton() {
       </button>
       {open ? (
         <div className="absolute right-0 top-full z-20 mt-1 w-56 rounded-lg bg-white p-2 text-xs shadow">
+          <div className="mb-1 border-b border-neutral-200 pb-1">
+            <button
+              onClick={() => {
+                if (confirm('Reset to floor-plan default? Your current layout will be lost.')) {
+                  resetToDefault();
+                  setOpen(false);
+                }
+              }}
+              className="block w-full rounded px-2 py-1 text-left hover:bg-neutral-100"
+            >
+              Default
+            </button>
+            <button
+              onClick={() => {
+                if (confirm('Clear all furniture? This cannot be undone.')) {
+                  resetToEmpty();
+                  setOpen(false);
+                }
+              }}
+              className="block w-full rounded px-2 py-1 text-left hover:bg-neutral-100"
+            >
+              Empty
+            </button>
+          </div>
           {slots.length === 0 ? (
             <p className="px-2 py-3 text-center text-neutral-500">No saved layouts.</p>
           ) : (
@@ -145,35 +215,6 @@ function LoadButton() {
           )}
         </div>
       ) : null}
-    </div>
-  );
-}
-
-function ResetButton() {
-  const resetToDefault = useStore((s) => s.resetToDefault);
-  const resetToEmpty = useStore((s) => s.resetToEmpty);
-  return (
-    <div className="flex items-center gap-1 text-sm">
-      <button
-        onClick={() => {
-          if (confirm('Reset to floor-plan default? Your current layout will be lost.')) {
-            resetToDefault();
-          }
-        }}
-        className="rounded bg-neutral-100 px-3 py-1 text-neutral-700 hover:bg-neutral-200"
-      >
-        Default
-      </button>
-      <button
-        onClick={() => {
-          if (confirm('Clear all furniture? This cannot be undone.')) {
-            resetToEmpty();
-          }
-        }}
-        className="rounded bg-neutral-100 px-3 py-1 text-neutral-700 hover:bg-neutral-200"
-      >
-        Empty
-      </button>
     </div>
   );
 }
