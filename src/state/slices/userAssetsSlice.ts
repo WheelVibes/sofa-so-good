@@ -1,6 +1,7 @@
 import type { SliceCreator } from './types';
 import type { RootState } from '../store';
 import type { UserGltfDef } from '../../furniture/types';
+import type { TexturedMaterialDef } from '../../materials/types';
 import { IdbAssetStore } from '../storage/IdbAssetStore';
 
 /**
@@ -18,10 +19,15 @@ export interface UserAssetsSlice {
   addUserFurniture: (def: UserGltfDef) => void;
   removeUserFurniture: (id: string) => void;
   setUserFurniture: (defs: UserGltfDef[]) => void;
+  userMaterials: TexturedMaterialDef[];
+  addUserMaterial: (def: TexturedMaterialDef) => void;
+  removeUserMaterial: (id: string) => void;
+  setUserMaterials: (defs: TexturedMaterialDef[]) => void;
 }
 
-export const USER_ASSETS_INITIAL: Pick<UserAssetsSlice, 'userFurniture'> = {
+export const USER_ASSETS_INITIAL: Pick<UserAssetsSlice, 'userFurniture' | 'userMaterials'> = {
   userFurniture: [],
+  userMaterials: [],
 };
 
 export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (set, get) => ({
@@ -44,4 +50,18 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
     }
   },
   setUserFurniture: (defs) => set({ userFurniture: defs }),
+  addUserMaterial: (def) =>
+    set((s) => ({ userMaterials: [...s.userMaterials, def] })),
+  removeUserMaterial: (id) => {
+    const def = get().userMaterials.find((d) => d.id === id);
+    set((s) => ({
+      userMaterials: s.userMaterials.filter((d) => d.id !== id),
+    }));
+    if (def?.runtimeUrls) {
+      for (const url of Object.values(def.runtimeUrls)) {
+        if (url) URL.revokeObjectURL(url);
+      }
+    }
+  },
+  setUserMaterials: (defs) => set({ userMaterials: defs }),
 });
