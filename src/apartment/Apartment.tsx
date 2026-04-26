@@ -1,6 +1,6 @@
 import { Ceiling } from './Ceiling';
 import { Doors } from './Door';
-import { Floor } from './Floor';
+import { Floor } from './floor/Floor';
 import { Walls } from './Walls';
 import { Windows } from './Window';
 

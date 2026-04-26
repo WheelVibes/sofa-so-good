@@ -5,6 +5,7 @@ import { DoorPrompt } from './ui/DoorPrompt';
 import { HelpHint } from './ui/HelpHint';
 import { Toolbar } from './ui/Toolbar';
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer';
+import { FinishPicker } from './ui/FinishPicker';
 import { InspectorPanel } from './ui/inspector/InspectorPanel';
 import { WebGLFallback } from './ui/WebGLFallback';
 import { useStore } from './state/store';
@@ -76,6 +77,7 @@ export default function App() {
         <HelpHint />
         <CatalogDrawer />
         <InspectorPanel />
+        <FinishPicker />
       </div>
     </WebGLFallback>
   );
