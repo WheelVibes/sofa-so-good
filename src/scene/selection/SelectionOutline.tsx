@@ -4,39 +4,140 @@ import { BoxGeometry, EdgesGeometry } from 'three';
 import { useStore } from '../../state/store';
 import { useCatalog } from '../../furniture/catalog';
 import { itemFootprint } from '../../collision/placement';
+import type { FurnitureDef, FurnitureItem } from '../../furniture/types';
 
-const OUTLINE_COLOR = '#3b82f6';
+const OUTLINE_COLOR_DEFAULT = '#3b82f6';
+const OUTLINE_COLOR_VALID = '#22c55e';
+const OUTLINE_COLOR_INVALID = '#ef4444';
+const TINT_DEFAULT = '#3b82f6';
+const TINT_VALID = '#22c55e';
+const TINT_INVALID = '#ef4444';
 const OUTLINE_LIFT = 0.005;
+const OUTLINE_PAD = 0.06;
+const OUTLINE_PAD_OUTER = 0.18;
+const CORNER_LEN = 0.25;
+const CORNER_THICK = 0.04;
 
-/**
- * Draws a thin rectangular outline on the floor under the selected
- * item, matching its OBB footprint. Lives at the scene root so it is
- * not coupled to the FurnitureLayer transform stack.
- */
-export function SelectionOutline() {
-  const selectedId = useStore((s) => s.selectedItemId);
-  const item = useStore(
-    useShallow((s) => s.items.find((i) => i.id === s.selectedItemId)),
+interface ItemOutlineProps {
+  item: FurnitureItem;
+  def: FurnitureDef;
+  isDragging: boolean;
+  dragValid: boolean;
+}
+
+function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
+  const obb = itemFootprint(item, def);
+  const w = obb.hx * 2 + OUTLINE_PAD;
+  const d = obb.hz * 2 + OUTLINE_PAD;
+  const wOuter = obb.hx * 2 + OUTLINE_PAD_OUTER;
+  const dOuter = obb.hz * 2 + OUTLINE_PAD_OUTER;
+  const geom = useMemo(() => new EdgesGeometry(new BoxGeometry(w, 0.001, d)), [w, d]);
+  const geomOuter = useMemo(
+    () => new EdgesGeometry(new BoxGeometry(wOuter, 0.001, dOuter)),
+    [wOuter, dOuter],
   );
-  const catalog = useCatalog();
 
-  // Geometry depends only on size — memoize on width/depth to avoid
-  // rebuilding the edges geometry every render.
-  const obb = item && catalog[item.defId] ? itemFootprint(item, catalog[item.defId]) : null;
-  const w = obb ? obb.hx * 2 + 0.06 : 0;
-  const d = obb ? obb.hz * 2 + 0.06 : 0;
-  const geom = useMemo(() => {
-    if (!w || !d) return null;
-    return new EdgesGeometry(new BoxGeometry(w, 0.001, d));
-  }, [w, d]);
+  const outlineColor = isDragging
+    ? dragValid
+      ? OUTLINE_COLOR_VALID
+      : OUTLINE_COLOR_INVALID
+    : OUTLINE_COLOR_DEFAULT;
+  const tintColor = isDragging
+    ? dragValid
+      ? TINT_VALID
+      : TINT_INVALID
+    : TINT_DEFAULT;
 
-  if (!selectedId || !obb || !geom) return null;
+  const cx = w / 2;
+  const cz = d / 2;
+  const corners = [
+    [cx, cz, 1, 1],
+    [-cx, cz, -1, 1],
+    [cx, -cz, 1, -1],
+    [-cx, -cz, -1, -1],
+  ] as const;
 
   return (
     <group position={[obb.cx, OUTLINE_LIFT, obb.cz]} rotation={[0, obb.rot, 0]}>
-      <lineSegments geometry={geom}>
-        <lineBasicMaterial color={OUTLINE_COLOR} />
+      <mesh position={[0, 0.0005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+        <planeGeometry args={[obb.hx * 2, obb.hz * 2]} />
+        <meshBasicMaterial
+          color={tintColor}
+          transparent
+          opacity={isDragging ? 0.3 : 0.18}
+          depthWrite={false}
+        />
+      </mesh>
+      <lineSegments geometry={geomOuter} renderOrder={2}>
+        <lineBasicMaterial color={outlineColor} transparent opacity={0.5} depthTest={false} />
       </lineSegments>
+      <lineSegments geometry={geom} renderOrder={3}>
+        <lineBasicMaterial color={outlineColor} depthTest={false} />
+      </lineSegments>
+      {corners.map(([x, z, sx, sz], i) => (
+        <group key={i} position={[x, 0.0015, z]}>
+          <mesh
+            position={[(-sx * CORNER_LEN) / 2, 0, 0]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            renderOrder={4}
+          >
+            <planeGeometry args={[CORNER_LEN, CORNER_THICK]} />
+            <meshBasicMaterial color={outlineColor} depthTest={false} />
+          </mesh>
+          <mesh
+            position={[0, 0, (-sz * CORNER_LEN) / 2]}
+            rotation={[-Math.PI / 2, 0, 0]}
+            renderOrder={4}
+          >
+            <planeGeometry args={[CORNER_THICK, CORNER_LEN]} />
+            <meshBasicMaterial color={outlineColor} depthTest={false} />
+          </mesh>
+        </group>
+      ))}
     </group>
+  );
+}
+
+/**
+ * Draws an outline + floor tint under every selected item. Most of the
+ * time `selectedItemIds` is single-element (plain click); marquee drag
+ * and shift-click can populate it with several. While the primary item
+ * is being dragged its outline turns green/red based on placement
+ * validity; non-primary outlines stay default-coloured.
+ */
+export function SelectionOutline() {
+  const ids = useStore(useShallow((s) => s.selectedItemIds));
+  const items = useStore(
+    useShallow((s) => s.items.filter((i) => s.selectedItemIds.includes(i.id))),
+  );
+  const draggingItemId = useStore((s) => s.draggingItemId);
+  const dragGroupIds = useStore(
+    useShallow((s) => s.dragGroupOriginals.map((g) => g.id)),
+  );
+  const dragValid = useStore((s) => s.dragValid);
+  const catalog = useCatalog();
+
+  if (ids.length === 0) return null;
+
+  // During a group drag, colour every member's outline by validity (not
+  // just the anchor) so the feedback matches the visual translation.
+  const draggingSet = new Set(dragGroupIds.length > 0 ? dragGroupIds : draggingItemId ? [draggingItemId] : []);
+
+  return (
+    <>
+      {items.map((item) => {
+        const def = catalog[item.defId];
+        if (!def) return null;
+        return (
+          <ItemOutline
+            key={item.id}
+            item={item}
+            def={def}
+            isDragging={draggingSet.has(item.id)}
+            dragValid={dragValid}
+          />
+        );
+      })}
+    </>
   );
 }

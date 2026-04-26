@@ -5,6 +5,7 @@
  */
 
 import { DOORS, WALLS } from '../apartment/constants';
+import { wallThicknessMetres } from '../apartment/wallSegments';
 import type { CollisionWall } from './walls';
 
 export function buildCollisionWalls(
@@ -18,6 +19,7 @@ export function buildCollisionWalls(
     if (length === 0) continue;
     const ux = dx / length;
     const uz = dz / length;
+    const thickness = wallThicknessMetres(wall);
 
     const openSpans: Array<{ start: number; end: number }> = [];
     for (const c of wall.cutouts) {
@@ -41,14 +43,14 @@ export function buildCollisionWalls(
       if (span.start > cursor) {
         const [ax, az] = pointAt(cursor);
         const [bx, bz] = pointAt(span.start);
-        segs.push({ ax, az, bx, bz });
+        segs.push({ ax, az, bx, bz, thickness });
       }
       cursor = span.end;
     }
     if (cursor < length) {
       const [ax, az] = pointAt(cursor);
       const [bx, bz] = pointAt(length);
-      segs.push({ ax, az, bx, bz });
+      segs.push({ ax, az, bx, bz, thickness });
     }
   }
   return segs;

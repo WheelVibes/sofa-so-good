@@ -11,8 +11,24 @@
 
 import type { FurnitureDef, FurnitureItem } from '../furniture/types';
 import { getCachedGltfFootprint } from '../furniture/GltfModel';
-import { obbVsObb, obbVsSegment, type OBB } from './obb';
+import { obbVsObb, type OBB } from './obb';
 import { buildCollisionWalls } from './wallsFromState';
+import type { CollisionWall } from './walls';
+
+/** Convert a thick wall segment to an OBB so OBB-vs-OBB SAT can detect
+ *  furniture poking into the wall *body*, not just past its centerline. */
+function wallToObb(w: CollisionWall): OBB {
+  const dx = w.bx - w.ax;
+  const dz = w.bz - w.az;
+  const length = Math.hypot(dx, dz);
+  return {
+    cx: (w.ax + w.bx) / 2,
+    cz: (w.az + w.bz) / 2,
+    hx: length / 2,
+    hz: w.thickness / 2,
+    rot: Math.atan2(dz, dx),
+  };
+}
 
 /** Returns the OBB footprint of an item using the def's defaultFootprint
  *  modified by parametric overrides where the schema exposes them. */
@@ -64,10 +80,11 @@ export function canPlace(
 ): boolean {
   const obb = itemFootprint(item, def);
 
-  // Walls
+  // Walls — tested as full-thickness OBBs so an item placed flush
+  // against the visible interior face still has to clear the wall body.
   const walls = buildCollisionWalls(ctx.doors);
   for (const seg of walls) {
-    if (obbVsSegment(obb, seg)) return false;
+    if (obbVsObb(obb, wallToObb(seg))) return false;
   }
 
   // Other furniture

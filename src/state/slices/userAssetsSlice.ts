@@ -36,14 +36,24 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
     set((s) => ({ userFurniture: [...s.userFurniture, def] })),
   removeUserFurniture: (id) => {
     const def = get().userFurniture.find((d) => d.id === id);
-    set((s) => ({
-      userFurniture: s.userFurniture.filter((d) => d.id !== id),
-      // Drop placed instances of the def so they don't render placeholder cubes.
-      items: s.items.filter((it) => it.defId !== id),
-      selectedItemId: s.selectedItemId && s.items.find((it) => it.id === s.selectedItemId)?.defId === id
-        ? null
-        : s.selectedItemId,
-    }));
+    set((s) => {
+      const removedIds = new Set(
+        s.items.filter((it) => it.defId === id).map((it) => it.id),
+      );
+      const nextIds = s.selectedItemIds.filter((x) => !removedIds.has(x));
+      return {
+        userFurniture: s.userFurniture.filter((d) => d.id !== id),
+        // Drop placed instances of the def so they don't render placeholder cubes.
+        items: s.items.filter((it) => it.defId !== id),
+        selectedItemId:
+          s.selectedItemId && removedIds.has(s.selectedItemId)
+            ? nextIds.length > 0
+              ? nextIds[nextIds.length - 1]
+              : null
+            : s.selectedItemId,
+        selectedItemIds: nextIds,
+      };
+    });
     if (def) {
       if (def.runtimeUrl) URL.revokeObjectURL(def.runtimeUrl);
       void IdbAssetStore.delete(def.assetId);

@@ -14,6 +14,12 @@ Single source of truth for deferred work across this project. Each entry links b
 - **Quaternius pack inclusion** — manifest source enum already admits `quaternius`; add concrete entries when expanding past Starter.
 - **`builtinCatalog.ts` solid-swatch entries for floor textures** — once the texture pipeline is exercised end-to-end, the eight solid-swatch entries (`floor-wood-oak`, `floor-wood-walnut`, etc.) can be deleted; the generated catalog will provide textured equivalents under the same ids. See [src/materials/builtinCatalog.ts](src/materials/builtinCatalog.ts).
 
+## Editor / Selection
+
+- **Multi-select rotate** — `R` rotates only the primary selection. Decide whether group rotate spins around the group centroid or each item in place, then extend the onKey handler. See [src/App.tsx](src/App.tsx).
+- **Inspector for multi-selection** — currently shows the primary item only. Could show a "N items selected" placeholder with bulk actions (delete all, clear). See [src/ui/inspector/InspectorPanel.tsx](src/ui/inspector/InspectorPanel.tsx).
+- **Marquee strictness** — selection is membership-by-centre; partial-overlap (Lasso-style) may be preferred for large items. Revisit if users complain. See [src/scene/selection/MarqueeSelector.tsx](src/scene/selection/MarqueeSelector.tsx).
+
 ## Risks tracked from specs
 
 - **Asset source URL drift** (Poly Haven / ambientCG slug versioning) — pin to stable per-asset URLs in manifest, audit periodically. See [asset-population spec — Risks](docs/superpowers/specs/2026-04-26-asset-population-design.md#risks).

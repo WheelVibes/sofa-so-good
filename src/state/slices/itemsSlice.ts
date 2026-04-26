@@ -24,16 +24,22 @@ export interface ItemsSlice {
 
 export const ITEMS_INITIAL: Pick<ItemsSlice, 'items'> = { items: [] };
 
-export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set) => ({
+export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) => ({
   ...ITEMS_INITIAL,
   addItem: (i) => {
     const id = newId();
+    get().pushHistory();
     set((s) => ({
       items: [...s.items, { ...i, id }],
       selectedItemId: id,
+      selectedItemIds: [id],
     }));
     return id;
   },
+  // moveItem / rotateItem fire per-frame during drag and press-and-hold
+  // nudge. History is pushed once at the start of those sessions
+  // (Furniture.onPointerDown, App.tsx rotate-key, nudge first-keydown),
+  // not on every micro-update.
   moveItem: (id, position) =>
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, position } : it)),
@@ -42,16 +48,32 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set) => ({
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, rotation } : it)),
     })),
-  deleteItem: (id) =>
-    set((s) => ({
-      items: s.items.filter((it) => it.id !== id),
-      selectedItemId: s.selectedItemId === id ? null : s.selectedItemId,
-    })),
-  updateItemProps: (id, props) =>
+  deleteItem: (id) => {
+    // Coalesced so a multi-select delete loop produces one undo step.
+    get().pushHistoryCoalesced('delete');
+    set((s) => {
+      const ids = s.selectedItemIds.filter((x) => x !== id);
+      return {
+        items: s.items.filter((it) => it.id !== id),
+        selectedItemId:
+          s.selectedItemId === id
+            ? ids.length > 0
+              ? ids[ids.length - 1]
+              : null
+            : s.selectedItemId,
+        selectedItemIds: ids,
+      };
+    });
+  },
+  updateItemProps: (id, props) => {
+    // Coalesce per (item, prop-set) so a slider drag collapses into a
+    // single undo step rather than dozens.
+    get().pushHistoryCoalesced(`prop:${id}:${Object.keys(props).sort().join(',')}`);
     set((s) => ({
       items: s.items.map((it) =>
         it.id === id ? { ...it, props: { ...it.props, ...props } } : it,
       ),
-    })),
+    }));
+  },
   setItems: (items) => set({ items }),
 });

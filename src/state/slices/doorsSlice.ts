@@ -18,14 +18,18 @@ export const DOORS_INITIAL: Pick<DoorsSlice, 'doors' | 'nearbyDoorId'> = {
   nearbyDoorId: null,
 };
 
-export const createDoorsSlice: SliceCreator<DoorsSlice, RootState> = (set) => ({
+export const createDoorsSlice: SliceCreator<DoorsSlice, RootState> = (set, get) => ({
   ...DOORS_INITIAL,
-  toggleDoor: (id) =>
+  toggleDoor: (id) => {
+    get().pushHistory();
     set((s) => ({
       doors: { ...s.doors, [id]: { open: !(s.doors[id]?.open ?? false) } },
-    })),
-  setDoorOpen: (id, open) =>
-    set((s) => ({ doors: { ...s.doors, [id]: { open } } })),
+    }));
+  },
+  setDoorOpen: (id, open) => {
+    get().pushHistory();
+    set((s) => ({ doors: { ...s.doors, [id]: { open } } }));
+  },
   setNearbyDoor: (id) =>
     set((s) => (s.nearbyDoorId === id ? s : { nearbyDoorId: id })),
 });

@@ -148,9 +148,17 @@ export interface FurnitureItem {
   props: ParamProps;
 }
 
-/** Returns the param schema's default values as a fresh ParamProps map. */
+/** Returns the param schema's default values as a fresh ParamProps map.
+ *  Footprint dimensions (`width`, `depth`, `length`) are seeded from
+ *  `defaultFootprint` so primitives can read them even when they aren't
+ *  exposed as editable schema fields (e.g. fixed-size beds). Schema
+ *  defaults override the seeds when both are present. */
 export function defaultParamProps(def: ParametricDef): ParamProps {
-  const out: ParamProps = {};
+  const out: ParamProps = {
+    width: def.defaultFootprint.w,
+    depth: def.defaultFootprint.d,
+    length: def.defaultFootprint.d,
+  };
   for (const f of def.paramSchema) out[f.key] = f.default;
   return out;
 }

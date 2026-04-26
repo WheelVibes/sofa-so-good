@@ -13,7 +13,7 @@ export const bedroom3: LayoutEntry[] = [
   {
     id: 'default-b3-bookshelf',
     defId: 'bookshelf',
-    position: [8.85, 1.20],
+    position: [8.80, 1.20],
     rotation: -Math.PI / 2,
     props: { width: 0.9, height: 1.6 },
   },

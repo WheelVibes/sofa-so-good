@@ -12,13 +12,14 @@ import { UploadModelDialog } from '../upload/UploadModelDialog';
  *  ghost which we revisit when the gizmo lands. */
 export function CatalogDrawer() {
   const open = useStore((s) => s.catalogOpen);
+  const cameraMode = useStore((s) => s.cameraMode);
   const setOpen = useStore((s) => s.setCatalogOpen);
   const removeUserFurniture = useStore((s) => s.removeUserFurniture);
   const byCategory = useCatalogByCategory();
   const [active, setActive] = useState<FurnitureCategory>('seating');
   const [uploadOpen, setUploadOpen] = useState(false);
 
-  if (!open) return null;
+  if (!open || cameraMode !== 'orbit') return null;
   const cards = byCategory[active] ?? [];
 
   return (

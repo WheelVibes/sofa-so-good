@@ -2,11 +2,11 @@ import { describe, it, expect } from 'vitest';
 import { resolveMovement, type CollisionWall } from './walls';
 
 const wallNS = (x: number, z0: number, z1: number): CollisionWall => ({
-  ax: x, az: z0, bx: x, bz: z1,
+  ax: x, az: z0, bx: x, bz: z1, thickness: 0.1,
 });
 
 const wallEW = (z: number, x0: number, x1: number): CollisionWall => ({
-  ax: x0, az: z, bx: x1, bz: z,
+  ax: x0, az: z, bx: x1, bz: z, thickness: 0.1,
 });
 
 describe('resolveMovement', () => {

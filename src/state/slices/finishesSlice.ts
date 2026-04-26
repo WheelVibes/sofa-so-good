@@ -34,20 +34,24 @@ export const FINISHES_INITIAL: Pick<FinishesSlice, 'finishes'> = {
   },
 };
 
-export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set) => ({
+export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set, get) => ({
   ...FINISHES_INITIAL,
-  setFloorFinish: (room, id) =>
+  setFloorFinish: (room, id) => {
+    get().pushHistory();
     set((s) => ({
       finishes: {
         ...s.finishes,
         floor: { ...s.finishes.floor, [room]: id },
       },
-    })),
-  setWallFinish: (room, id) =>
+    }));
+  },
+  setWallFinish: (room, id) => {
+    get().pushHistory();
     set((s) => ({
       finishes: {
         ...s.finishes,
         walls: { ...s.finishes.walls, [room]: id },
       },
-    })),
+    }));
+  },
 });

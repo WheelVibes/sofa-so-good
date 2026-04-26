@@ -14,17 +14,17 @@ import type { FurnitureCategory, FurnitureDef, FurnitureType } from './types';
 
 export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   // ── Beds ────────────────────────────────────────────────────────────────
+  // Beds use fixed Singapore-standard mattress sizes — width/length are
+  // not user-editable, so they're omitted from paramSchema and resolved
+  // from defaultFootprint via defaultParamProps().
   'bed-single': {
     kind: 'parametric',
     id: 'bed-single',
     name: 'Single bed',
     category: 'beds',
     primitive: 'Bed',
-    defaultFootprint: { w: 1.0, d: 2.0, h: 0.6 },
-    footprintParams: { w: 'width', d: 'length' },
+    defaultFootprint: { w: 0.91, d: 1.9, h: 0.6 },
     paramSchema: [
-      { kind: 'number', key: 'width', label: 'Width', min: 0.9, max: 1.1, step: 0.05, default: 1.0, unit: 'm' },
-      { kind: 'number', key: 'length', label: 'Length', min: 1.9, max: 2.1, step: 0.05, default: 2.0, unit: 'm' },
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
@@ -45,10 +45,8 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     name: 'Double bed',
     category: 'beds',
     primitive: 'Bed',
-    defaultFootprint: { w: 1.4, d: 2.0, h: 0.6 },
+    defaultFootprint: { w: 1.37, d: 1.9, h: 0.6 },
     paramSchema: [
-      { kind: 'number', key: 'width', label: 'Width', min: 1.3, max: 1.5, step: 0.05, default: 1.4, unit: 'm' },
-      { kind: 'number', key: 'length', label: 'Length', min: 1.9, max: 2.1, step: 0.05, default: 2.0, unit: 'm' },
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
@@ -69,10 +67,30 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     name: 'Queen bed',
     category: 'beds',
     primitive: 'Bed',
-    defaultFootprint: { w: 1.6, d: 2.0, h: 0.6 },
+    defaultFootprint: { w: 1.52, d: 1.9, h: 0.6 },
     paramSchema: [
-      { kind: 'number', key: 'width', label: 'Width', min: 1.5, max: 1.8, step: 0.05, default: 1.6, unit: 'm' },
-      { kind: 'number', key: 'length', label: 'Length', min: 1.9, max: 2.1, step: 0.05, default: 2.0, unit: 'm' },
+      { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
+      {
+        kind: 'enum',
+        key: 'headboardStyle',
+        label: 'Headboard',
+        default: 'paneled',
+        options: [
+          { value: 'flat', label: 'Flat' },
+          { value: 'paneled', label: 'Paneled' },
+        ],
+      },
+    ],
+  },
+  'bed-king': {
+    kind: 'parametric',
+    id: 'bed-king',
+    name: 'King bed',
+    category: 'beds',
+    primitive: 'Bed',
+    defaultFootprint: { w: 1.82, d: 2.03, h: 0.6 },
+    paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {

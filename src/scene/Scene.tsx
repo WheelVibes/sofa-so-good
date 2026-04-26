@@ -1,15 +1,20 @@
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
+import { useStore } from '../state/store';
 import { Apartment } from '../apartment/Apartment';
 import { CameraRig } from './cameras/CameraRig';
+import { CameraForwardTracker } from './cameras/cameraForward';
 import { Lighting } from './lighting/Lighting';
 import { Sky } from './lighting/Sky';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
 import { SelectionOutline } from './selection/SelectionOutline';
+import { MarqueeCameraTracker } from './selection/MarqueeSelector';
 import { PlacementGhost } from './PlacementGhost';
+import { DragController } from './DragController';
 
 export function Scene() {
+  const showFps = useStore((s) => s.showFps);
   return (
     <Canvas
       shadows
@@ -23,9 +28,12 @@ export function Scene() {
       <FurnitureLayer />
       <SelectionOutline />
       <PlacementGhost />
+      <DragController />
+      <MarqueeCameraTracker />
       <CameraRig />
+      <CameraForwardTracker />
       <MeasurementOverlay />
-      <Stats />
+      {showFps ? <Stats /> : null}
     </Canvas>
   );
 }

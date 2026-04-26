@@ -14,14 +14,65 @@ interface FurnitureProps {
 }
 
 function FurnitureInner({ item, def, passive }: FurnitureProps) {
-  const selectItem = useStore((s) => s.selectItem);
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       if (passive) return;
       e.stopPropagation();
-      selectItem(item.id);
+      const state = useStore.getState();
+      // Shift-click extends/toggles the multi-selection; plain click
+      // replaces it with just this item.
+      if (e.shiftKey) state.toggleSelectedItem(item.id);
+      else state.selectItem(item.id);
     },
-    [item.id, passive, selectItem],
+    [item.id, passive],
+  );
+
+  // Pointer-down begins a drag in select mode. We capture the original
+  // transform here so DragController can revert if the release lands on
+  // an invalid spot. The hit point on the floor is used to compute an
+  // offset so the item doesn't snap-jump to the cursor.
+  const onPointerDown = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      if (passive) return;
+      const state = useStore.getState();
+      if (state.cameraMode !== 'orbit') return;
+      if (state.editorTool !== 'select') return;
+      if (state.activeDefId) return;
+      e.stopPropagation();
+      // Shift-pointerdown defers selection to the click handler (which
+      // toggles). Plain click preserves an existing multi-selection if
+      // the grabbed item is already part of it; only collapse otherwise.
+      if (!e.shiftKey && !state.selectedItemIds.includes(item.id)) {
+        state.selectItem(item.id);
+      }
+      const offset: [number, number] = [
+        e.point.x - item.position[0],
+        e.point.z - item.position[1],
+      ];
+      // If the grabbed item is part of a multi-selection, snapshot every
+      // member's transform so DragController can translate the whole
+      // group in lock-step.
+      const post = useStore.getState();
+      const ids = post.selectedItemIds.includes(item.id) ? post.selectedItemIds : [item.id];
+      const groupOriginals =
+        ids.length > 1
+          ? ids
+              .map((id) => post.items.find((it) => it.id === id))
+              .filter((it): it is NonNullable<typeof it> => it != null)
+              .map((it) => ({
+                id: it.id,
+                position: [it.position[0], it.position[1]] as [number, number],
+                rotation: it.rotation,
+              }))
+          : undefined;
+      state.startDrag(
+        item.id,
+        { position: [item.position[0], item.position[1]], rotation: item.rotation },
+        offset,
+        groupOriginals,
+      );
+    },
+    [item.id, item.position, item.rotation, passive],
   );
 
   const body =
@@ -55,6 +106,7 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
       position={[item.position[0], 0, item.position[1]]}
       rotation={[0, item.rotation, 0]}
       onClick={onClick}
+      onPointerDown={onPointerDown}
     >
       {body}
     </group>

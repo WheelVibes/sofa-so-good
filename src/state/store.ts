@@ -46,6 +46,16 @@ import {
   PLACEMENT_INITIAL,
   type PlacementSlice,
 } from './slices/placementSlice';
+import {
+  createClipboardSlice,
+  CLIPBOARD_INITIAL,
+  type ClipboardSlice,
+} from './slices/clipboardSlice';
+import {
+  createHistorySlice,
+  HISTORY_INITIAL,
+  type HistorySlice,
+} from './slices/historySlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeOfDay } from './slices/timeSlice';
@@ -61,7 +71,9 @@ export interface RootState
     ResetSlice,
     UiSlice,
     FinishesSlice,
-    PlacementSlice {
+    PlacementSlice,
+    ClipboardSlice,
+    HistorySlice {
   __resetForTest: () => void;
 }
 
@@ -76,6 +88,8 @@ const INITIAL = {
   ...UI_INITIAL,
   ...FINISHES_INITIAL,
   ...PLACEMENT_INITIAL,
+  ...CLIPBOARD_INITIAL,
+  ...HISTORY_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -90,5 +104,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createUiSlice(set, get, api),
   ...createFinishesSlice(set, get, api),
   ...createPlacementSlice(set, get, api),
+  ...createClipboardSlice(set, get, api),
+  ...createHistorySlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));

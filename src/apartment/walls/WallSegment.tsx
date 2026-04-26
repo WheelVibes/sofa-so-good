@@ -1,26 +1,34 @@
 import { Suspense, memo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
+import type { MeshStandardMaterial } from 'three';
 import { FLAT } from '../constants';
 import { buildWallSegments, wallThicknessMetres } from '../wallSegments';
 import { useStore } from '../../state/store';
-import { useMaterial } from '../../materials/useMaterial';
+import {
+  useMaterialDef,
+  useSolidMaterial,
+  useTexturedMaterial,
+} from '../../materials/useMaterial';
 import type { WallSpec, RoomId } from '../types';
-import type { MaterialId } from '../../materials/types';
+import type {
+  MaterialId,
+  SolidMaterialDef,
+  TexturedMaterialDef,
+} from '../../materials/types';
 import { wallRoomSides } from './wallRoomSides';
 
 const FACE_OFFSET = 0.001; // lift face plane fractionally off the body box
 
-interface WallFacesProps {
+interface WallFacesGeometryProps {
   segments: ReturnType<typeof buildWallSegments>;
   length: number;
   thickness: number;
   /** +1 = +Z face, -1 = -Z face in the wall's local frame. */
   sign: 1 | -1;
-  materialId: MaterialId;
+  material: MeshStandardMaterial;
 }
 
-function WallFacesInner({ segments, length, thickness, sign, materialId }: WallFacesProps) {
-  const { material } = useMaterial(materialId);
+function WallFacesGeometry({ segments, length, thickness, sign, material }: WallFacesGeometryProps) {
   return (
     <group>
       {segments.map((s, i) => {
@@ -29,7 +37,6 @@ function WallFacesInner({ segments, length, thickness, sign, materialId }: WallF
         const segHeight = s.top - s.bottom;
         const segMidY = s.bottom + segHeight / 2;
         const z = sign * (thickness / 2 + FACE_OFFSET);
-        // Plane default normal +Z; rotate 180° around Y to flip for -Z faces.
         const yRot = sign === 1 ? 0 : Math.PI;
         return (
           <mesh
@@ -43,6 +50,39 @@ function WallFacesInner({ segments, length, thickness, sign, materialId }: WallF
         );
       })}
     </group>
+  );
+}
+
+interface WallFacesProps {
+  segments: ReturnType<typeof buildWallSegments>;
+  length: number;
+  thickness: number;
+  sign: 1 | -1;
+  materialId: MaterialId;
+}
+
+function SolidWallFaces({
+  def,
+  ...rest
+}: Omit<WallFacesGeometryProps, 'material'> & { def: SolidMaterialDef }) {
+  const material = useSolidMaterial(def);
+  return <WallFacesGeometry {...rest} material={material} />;
+}
+
+function TexturedWallFaces({
+  def,
+  ...rest
+}: Omit<WallFacesGeometryProps, 'material'> & { def: TexturedMaterialDef }) {
+  const material = useTexturedMaterial(def);
+  return <WallFacesGeometry {...rest} material={material} />;
+}
+
+function WallFacesInner({ materialId, ...rest }: WallFacesProps) {
+  const def = useMaterialDef(materialId);
+  return def.kind === 'textured' ? (
+    <TexturedWallFaces def={def} {...rest} />
+  ) : (
+    <SolidWallFaces def={def} {...rest} />
   );
 }
 

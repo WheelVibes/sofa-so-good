@@ -13,33 +13,26 @@ import type {
   MaterialCategory,
   MaterialDef,
   MaterialId,
-  TexturedMaterialDef,
+  SolidMaterialDef,
 } from './types';
 
-const ASSET_BASE = '/assets/materials';
-
+// Solid placeholder until the texture pipeline ships real PBR maps under
+// public/assets/materials/<id>/. When that lands, swap this back to a
+// TexturedMaterialDef factory that points at /assets/materials/${id}/.
 function texFloor(
   id: string,
   name: string,
   swatch: string,
-  source: TexturedMaterialDef['source'],
-  sourceUrl: string,
-  uvScale: [number, number] = [1, 1],
-): TexturedMaterialDef {
+  _source: 'polyhaven' | 'ambientcg',
+  _sourceUrl: string,
+  _uvScale: [number, number] = [1, 1],
+): SolidMaterialDef {
   return {
     id,
     name,
     category: 'floor',
-    kind: 'textured',
-    source,
-    sourceUrl,
+    kind: 'solid',
     swatch,
-    uvScale,
-    textures: {
-      albedo: `${ASSET_BASE}/${id}/albedo.jpg`,
-      normal: `${ASSET_BASE}/${id}/normal.jpg`,
-      roughness: `${ASSET_BASE}/${id}/roughness.jpg`,
-    },
   };
 }
 

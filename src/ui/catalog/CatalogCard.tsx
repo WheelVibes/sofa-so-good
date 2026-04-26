@@ -1,6 +1,7 @@
 import type { FurnitureDef } from '../../furniture/types';
 import { isUserDef } from '../../furniture/catalog';
 import { usePlacementDrag } from './usePlacementDrag';
+import { CategoryIcon } from './CategoryIcon';
 
 interface CatalogCardProps {
   def: FurnitureDef;
@@ -9,13 +10,19 @@ interface CatalogCardProps {
 
 export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const isUser = isUserDef(def);
-  const onPointerDown = usePlacementDrag(def);
+  const onClick = usePlacementDrag(def);
   return (
     <div
-      onPointerDown={onPointerDown}
-      className="group relative flex cursor-grab flex-col items-start rounded border border-neutral-200 bg-white px-3 py-2 text-left text-xs hover:border-blue-400 hover:bg-blue-50 active:cursor-grabbing"
+      onClick={onClick}
+      className="group relative flex cursor-pointer flex-col items-start rounded border border-neutral-200 bg-white px-3 py-2 text-left text-xs hover:border-blue-400 hover:bg-blue-50"
     >
-      <span className="font-medium text-neutral-800">{def.name}</span>
+      <div className="flex items-center gap-1.5">
+        <CategoryIcon
+          category={def.category}
+          className="h-4 w-4 shrink-0 text-neutral-500 group-hover:text-blue-600"
+        />
+        <span className="font-medium text-neutral-800">{def.name}</span>
+      </div>
       <span className="text-[10px] text-neutral-500">
         {def.defaultFootprint.w.toFixed(2)} × {def.defaultFootprint.d.toFixed(2)} m
       </span>
@@ -27,7 +34,6 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
       {isUser && onDelete ? (
         <button
           type="button"
-          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onDelete();

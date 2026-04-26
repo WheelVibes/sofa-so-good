@@ -9,9 +9,14 @@ const ORBIT_CONTROLS: Binding[] = [
   { keys: 'scroll', desc: 'Zoom' },
   { keys: 'click door', desc: 'Open / close' },
   { keys: 'click item', desc: 'Select furniture' },
+  { keys: 'drag (select mode)', desc: 'Marquee select' },
+  { keys: '⇧ click', desc: 'Toggle item in selection' },
   { keys: 'C', desc: 'Toggle catalog' },
   { keys: 'R / ⇧R', desc: 'Rotate (90° / 15°)' },
   { keys: 'Del', desc: 'Delete selected' },
+  { keys: '⌃C / ⌃V', desc: 'Copy / paste item' },
+  { keys: '⌃D', desc: 'Duplicate selected' },
+  { keys: '⌃Z / ⇧⌃Z', desc: 'Undo / redo' },
   { keys: 'Esc', desc: 'Deselect' },
 ];
 

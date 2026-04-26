@@ -1,9 +1,14 @@
 import { Suspense, memo, useCallback } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
-import { useMaterial } from '../../materials/useMaterial';
+import type { MeshStandardMaterial } from 'three';
+import {
+  useMaterialDef,
+  useSolidMaterial,
+  useTexturedMaterial,
+} from '../../materials/useMaterial';
 import { useStore } from '../../state/store';
 import type { RoomId } from '../types';
-import type { MaterialId } from '../../materials/types';
+import type { MaterialId, SolidMaterialDef, TexturedMaterialDef } from '../../materials/types';
 
 const FLOOR_LIFT = 0.001;
 
@@ -15,10 +20,16 @@ interface RoomFloorProps {
   materialId: MaterialId;
 }
 
-function RoomFloorInner({ roomId, origin, width, depth, materialId }: RoomFloorProps) {
-  const { material } = useMaterial(materialId);
-  const selectRoom = useStore((s) => s.selectRoom);
+interface FloorMeshProps {
+  roomId: RoomId;
+  origin: [number, number];
+  width: number;
+  depth: number;
+  material: MeshStandardMaterial;
+}
 
+function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
+  const selectRoom = useStore((s) => s.selectRoom);
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       e.stopPropagation();
@@ -26,7 +37,6 @@ function RoomFloorInner({ roomId, origin, width, depth, materialId }: RoomFloorP
     },
     [roomId, selectRoom],
   );
-
   return (
     <mesh
       position={[origin[0] + width / 2, FLOOR_LIFT, origin[1] + depth / 2]}
@@ -37,6 +47,28 @@ function RoomFloorInner({ roomId, origin, width, depth, materialId }: RoomFloorP
     >
       <planeGeometry args={[width, depth]} />
     </mesh>
+  );
+}
+
+function SolidRoomFloor({ def, ...rest }: Omit<FloorMeshProps, 'material'> & { def: SolidMaterialDef }) {
+  const material = useSolidMaterial(def);
+  return <FloorMesh {...rest} material={material} />;
+}
+
+function TexturedRoomFloor({
+  def,
+  ...rest
+}: Omit<FloorMeshProps, 'material'> & { def: TexturedMaterialDef }) {
+  const material = useTexturedMaterial(def);
+  return <FloorMesh {...rest} material={material} />;
+}
+
+function RoomFloorInner({ materialId, ...rest }: RoomFloorProps) {
+  const def = useMaterialDef(materialId);
+  return def.kind === 'textured' ? (
+    <TexturedRoomFloor def={def} {...rest} />
+  ) : (
+    <SolidRoomFloor def={def} {...rest} />
   );
 }
 

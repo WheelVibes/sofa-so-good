@@ -51,8 +51,14 @@ function project(points: [number, number][], ax: number, az: number): [number, n
   return [min, max];
 }
 
+/** Strict 1-D interval overlap with a small FP tolerance: edges
+ *  touching at a single value (a[1] ≈ b[0]) does NOT count as overlap,
+ *  even when arithmetic like `1.2 - 1.0 = 0.19999…` would otherwise
+ *  flag flush placements as collisions. The tolerance is well below a
+ *  millimetre so it never lets visible penetration slip past. */
+const OVERLAP_EPSILON = 1e-6;
 function overlap(a: [number, number], b: [number, number]): boolean {
-  return a[0] <= b[1] && b[0] <= a[1];
+  return a[0] + OVERLAP_EPSILON < b[1] && b[0] + OVERLAP_EPSILON < a[1];
 }
 
 /** Returns true iff the two OBBs overlap (SAT, 4 axes). */

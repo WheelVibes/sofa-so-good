@@ -3,6 +3,11 @@ export interface CollisionWall {
   /** Endpoint A (Z). */ az: number;
   /** Endpoint B (X). */ bx: number;
   /** Endpoint B (Z). */ bz: number;
+  /** Total wall thickness in metres. The wall body extends `thickness/2`
+   *  on each side of the (ax,az)–(bx,bz) centerline. Placement collision
+   *  uses this to treat walls as solid OBBs rather than zero-thickness
+   *  lines, so furniture can't be pushed into the wall body. */
+  thickness: number;
 }
 
 type Vec2 = [number, number];
