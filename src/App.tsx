@@ -4,6 +4,7 @@ import { Crosshair } from './ui/Crosshair';
 import { DoorPrompt } from './ui/DoorPrompt';
 import { HelpHint } from './ui/HelpHint';
 import { Toolbar } from './ui/Toolbar';
+import { CatalogDrawer } from './ui/catalog/CatalogDrawer';
 import { InspectorPanel } from './ui/inspector/InspectorPanel';
 import { WebGLFallback } from './ui/WebGLFallback';
 import { useStore } from './state/store';
@@ -73,6 +74,7 @@ export default function App() {
         <Crosshair />
         <DoorPrompt />
         <HelpHint />
+        <CatalogDrawer />
         <InspectorPanel />
       </div>
     </WebGLFallback>

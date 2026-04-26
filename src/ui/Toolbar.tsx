@@ -35,6 +35,51 @@ export function Toolbar() {
       >
         Measurements (M)
       </button>
+      <Divider />
+      <CatalogToggle />
+      <ResetButton />
+    </div>
+  );
+}
+
+function CatalogToggle() {
+  const open = useStore((s) => s.catalogOpen);
+  const toggle = useStore((s) => s.toggleCatalogOpen);
+  return (
+    <button
+      onClick={toggle}
+      className={`rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      Catalog (C)
+    </button>
+  );
+}
+
+function ResetButton() {
+  const resetToDefault = useStore((s) => s.resetToDefault);
+  const resetToEmpty = useStore((s) => s.resetToEmpty);
+  return (
+    <div className="flex items-center gap-1 text-sm">
+      <button
+        onClick={() => {
+          if (confirm('Reset to floor-plan default? Your current layout will be lost.')) {
+            resetToDefault();
+          }
+        }}
+        className="rounded bg-neutral-100 px-3 py-1 text-neutral-700 hover:bg-neutral-200"
+      >
+        Default
+      </button>
+      <button
+        onClick={() => {
+          if (confirm('Clear all furniture? This cannot be undone.')) {
+            resetToEmpty();
+          }
+        }}
+        className="rounded bg-neutral-100 px-3 py-1 text-neutral-700 hover:bg-neutral-200"
+      >
+        Empty
+      </button>
     </div>
   );
 }
