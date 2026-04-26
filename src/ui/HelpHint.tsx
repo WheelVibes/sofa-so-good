@@ -8,6 +8,11 @@ const ORBIT_CONTROLS: Binding[] = [
   { keys: 'drag', desc: 'Rotate (orbit)' },
   { keys: 'scroll', desc: 'Zoom' },
   { keys: 'click door', desc: 'Open / close' },
+  { keys: 'click item', desc: 'Select furniture' },
+  { keys: 'C', desc: 'Toggle catalog' },
+  { keys: 'R / ⇧R', desc: 'Rotate (90° / 15°)' },
+  { keys: 'Del', desc: 'Delete selected' },
+  { keys: 'Esc', desc: 'Deselect' },
 ];
 
 const FIRST_PERSON_CONTROLS: Binding[] = [

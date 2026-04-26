@@ -187,7 +187,6 @@ const MAIN_DOOR_W = FLAT.mainDoorWidth;
 // Window widths (SVG-derived, rounded to 50 mm).
 const BEDROOM_WIN_W = 1.40; // SVG 100 px → 1.40 m
 const LD_NORTH_WIN_W = 2.50; // SVG 180 px → 2.52 m
-const LD_BAY_WIN_W = 2.80; // SVG 200 px → 2.80 m
 const MB_WEST_WIN_W = 2.10; // SVG 150 px → 2.10 m
 
 // Wall paths trace centerlines. Apartment perimeter goes clockwise from NW.

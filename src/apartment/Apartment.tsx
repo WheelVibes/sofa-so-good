@@ -1,7 +1,7 @@
 import { Ceiling } from './Ceiling';
 import { Doors } from './Door';
-import { Floor } from './Floor';
-import { Walls } from './Walls';
+import { Floor } from './floor/Floor';
+import { Walls } from './walls/Walls';
 import { Windows } from './Window';
 
 export function Apartment() {

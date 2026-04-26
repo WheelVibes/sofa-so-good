@@ -1,58 +1,94 @@
 import { create } from 'zustand';
+import {
+  createCameraSlice,
+  CAMERA_INITIAL,
+  type CameraSlice,
+} from './slices/cameraSlice';
+import {
+  createTimeSlice,
+  TIME_INITIAL,
+  type TimeSlice,
+} from './slices/timeSlice';
+import {
+  createMeasurementsSlice,
+  MEASUREMENTS_INITIAL,
+  type MeasurementsSlice,
+} from './slices/measurementsSlice';
+import {
+  createDoorsSlice,
+  DOORS_INITIAL,
+  type DoorsSlice,
+} from './slices/doorsSlice';
+import {
+  createItemsSlice,
+  ITEMS_INITIAL,
+  type ItemsSlice,
+} from './slices/itemsSlice';
+import {
+  createSelectionSlice,
+  SELECTION_INITIAL,
+  type SelectionSlice,
+} from './slices/selectionSlice';
+import {
+  createUserAssetsSlice,
+  USER_ASSETS_INITIAL,
+  type UserAssetsSlice,
+} from './slices/userAssetsSlice';
+import { createResetSlice, type ResetSlice } from './slices/resetSlice';
+import { createUiSlice, UI_INITIAL, type UiSlice } from './slices/uiSlice';
+import {
+  createFinishesSlice,
+  FINISHES_INITIAL,
+  type FinishesSlice,
+} from './slices/finishesSlice';
+import {
+  createPlacementSlice,
+  PLACEMENT_INITIAL,
+  type PlacementSlice,
+} from './slices/placementSlice';
 
-export type CameraMode = 'orbit' | 'firstPerson';
-export type TimeOfDay = 'day' | 'dusk' | 'night';
+export type { CameraMode } from './slices/cameraSlice';
+export type { TimeOfDay } from './slices/timeSlice';
 
-interface DoorState {
-  open: boolean;
-}
-
-interface State {
-  cameraMode: CameraMode;
-  timeOfDay: TimeOfDay;
-  showMeasurements: boolean;
-  doors: Record<string, DoorState>;
-  nearbyDoorId: string | null;
-
-  setCameraMode: (m: CameraMode) => void;
-  setTimeOfDay: (t: TimeOfDay) => void;
-  cycleTimeOfDay: () => void;
-  toggleMeasurements: () => void;
-  toggleDoor: (id: string) => void;
-  setDoorOpen: (id: string, open: boolean) => void;
-  setNearbyDoor: (id: string | null) => void;
+export interface RootState
+  extends CameraSlice,
+    TimeSlice,
+    MeasurementsSlice,
+    DoorsSlice,
+    ItemsSlice,
+    SelectionSlice,
+    UserAssetsSlice,
+    ResetSlice,
+    UiSlice,
+    FinishesSlice,
+    PlacementSlice {
   __resetForTest: () => void;
 }
 
-const INITIAL: Pick<
-  State,
-  'cameraMode' | 'timeOfDay' | 'showMeasurements' | 'doors' | 'nearbyDoorId'
-> = {
-  cameraMode: 'orbit',
-  timeOfDay: 'day',
-  showMeasurements: false,
-  doors: {},
-  nearbyDoorId: null,
+const INITIAL = {
+  ...CAMERA_INITIAL,
+  ...TIME_INITIAL,
+  ...MEASUREMENTS_INITIAL,
+  ...DOORS_INITIAL,
+  ...ITEMS_INITIAL,
+  ...SELECTION_INITIAL,
+  ...USER_ASSETS_INITIAL,
+  ...UI_INITIAL,
+  ...FINISHES_INITIAL,
+  ...PLACEMENT_INITIAL,
 };
 
-export const useStore = create<State>((set) => ({
-  ...INITIAL,
-  setCameraMode: (m) => set({ cameraMode: m }),
-  setTimeOfDay: (t) => set({ timeOfDay: t }),
-  cycleTimeOfDay: () =>
-    set((s) => {
-      const order: TimeOfDay[] = ['day', 'dusk', 'night'];
-      const next = order[(order.indexOf(s.timeOfDay) + 1) % order.length];
-      return { timeOfDay: next };
-    }),
-  toggleMeasurements: () => set((s) => ({ showMeasurements: !s.showMeasurements })),
-  toggleDoor: (id) =>
-    set((s) => ({
-      doors: { ...s.doors, [id]: { open: !(s.doors[id]?.open ?? false) } },
-    })),
-  setDoorOpen: (id, open) =>
-    set((s) => ({ doors: { ...s.doors, [id]: { open } } })),
-  setNearbyDoor: (id) =>
-    set((s) => (s.nearbyDoorId === id ? s : { nearbyDoorId: id })),
-  __resetForTest: () => set({ ...INITIAL, doors: {} }),
+export const useStore = create<RootState>((set, get, api) => ({
+  ...createCameraSlice(set, get, api),
+  ...createTimeSlice(set, get, api),
+  ...createMeasurementsSlice(set, get, api),
+  ...createDoorsSlice(set, get, api),
+  ...createItemsSlice(set, get, api),
+  ...createSelectionSlice(set, get, api),
+  ...createUserAssetsSlice(set, get, api),
+  ...createResetSlice(set, get, api),
+  ...createUiSlice(set, get, api),
+  ...createFinishesSlice(set, get, api),
+  ...createPlacementSlice(set, get, api),
+  __resetForTest: () => set({ ...INITIAL }),
 }));

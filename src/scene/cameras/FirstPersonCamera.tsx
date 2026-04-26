@@ -4,6 +4,7 @@ import { useEffect, useRef } from 'react';
 import { Vector3 } from 'three';
 import { DOORS, WALLS } from '../../apartment/constants';
 import { isLineOfSightBlocked, resolveMovement, type CollisionWall } from '../../collision/walls';
+import { buildCollisionWalls } from '../../collision/wallsFromState';
 import { KEYBINDINGS } from '../../controls/keybindings';
 import { useStore } from '../../state/store';
 
@@ -41,46 +42,6 @@ const POINTER_SPEED = 1.4;
 const PLAYER_RADIUS = 0.25;
 const INTERACT_RADIUS = 2.0;
 const AIM_CHECK_INTERVAL = 0.1;
-
-function buildCollisionWalls(doorState: Record<string, { open: boolean }>): CollisionWall[] {
-  const segs: CollisionWall[] = [];
-  for (const wall of WALLS) {
-    const dx = wall.end[0] - wall.start[0];
-    const dz = wall.end[1] - wall.start[1];
-    const length = Math.hypot(dx, dz);
-    if (length === 0) continue;
-    const ux = dx / length;
-    const uz = dz / length;
-
-    const openSpans: Array<{ start: number; end: number }> = [];
-    for (const c of wall.cutouts) {
-      if (c.kind !== 'door') continue;
-      const door = DOORS.find((d) => d.wallId === wall.id && d.offset === c.offset && d.width === c.width);
-      if (!door) continue;
-      const isOpen = doorState[door.id]?.open ?? door.defaultOpen;
-      if (isOpen) openSpans.push({ start: c.offset, end: c.offset + c.width });
-    }
-    openSpans.sort((a, b) => a.start - b.start);
-
-    const pointAt = (t: number): [number, number] => [wall.start[0] + ux * t, wall.start[1] + uz * t];
-
-    let cursor = 0;
-    for (const span of openSpans) {
-      if (span.start > cursor) {
-        const [ax, az] = pointAt(cursor);
-        const [bx, bz] = pointAt(span.start);
-        segs.push({ ax, az, bx, bz });
-      }
-      cursor = span.end;
-    }
-    if (cursor < length) {
-      const [ax, az] = pointAt(cursor);
-      const [bx, bz] = pointAt(length);
-      segs.push({ ax, az, bx, bz });
-    }
-  }
-  return segs;
-}
 
 export function FirstPersonCamera() {
   const { camera } = useThree();

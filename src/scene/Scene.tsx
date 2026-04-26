@@ -5,6 +5,9 @@ import { CameraRig } from './cameras/CameraRig';
 import { Lighting } from './lighting/Lighting';
 import { Sky } from './lighting/Sky';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
+import { FurnitureLayer } from '../furniture/FurnitureLayer';
+import { SelectionOutline } from './selection/SelectionOutline';
+import { PlacementGhost } from './PlacementGhost';
 
 export function Scene() {
   return (
@@ -17,6 +20,9 @@ export function Scene() {
       <Sky />
       <Lighting />
       <Apartment />
+      <FurnitureLayer />
+      <SelectionOutline />
+      <PlacementGhost />
       <CameraRig />
       <MeasurementOverlay />
       <Stats />
