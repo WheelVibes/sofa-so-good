@@ -18,7 +18,7 @@ export interface ItemsSlice {
   moveItem: (id: string, position: [number, number]) => void;
   rotateItem: (id: string, rotation: number) => void;
   deleteItem: (id: string) => void;
-  updateItemProps: (id: string, props: Partial<ParamProps>) => void;
+  updateItemProps: (id: string, props: ParamProps) => void;
   setItems: (items: FurnitureItem[]) => void;
 }
 
