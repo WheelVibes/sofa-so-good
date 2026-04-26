@@ -7,6 +7,7 @@
 
 import { useShallow } from 'zustand/react/shallow';
 import { BUILTIN_CATALOG, BUILTIN_BY_CATEGORY } from './builtinCatalog';
+import { GENERATED_FURNITURE } from './generatedCatalog';
 import { useStore } from '../state/store';
 import type {
   FurnitureCategory,
@@ -19,6 +20,7 @@ import type {
 export function useCatalog(): Record<FurnitureType, FurnitureDef> {
   const userFurniture = useStore(useShallow((s) => s.userFurniture));
   const merged: Record<FurnitureType, FurnitureDef> = { ...BUILTIN_CATALOG };
+  for (const def of GENERATED_FURNITURE) merged[def.id] = def;
   for (const def of userFurniture) merged[def.id] = def;
   return merged;
 }
@@ -35,6 +37,7 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
     lighting: [...(BUILTIN_BY_CATEGORY.lighting ?? [])],
     decor: [...(BUILTIN_BY_CATEGORY.decor ?? [])],
   };
+  for (const def of GENERATED_FURNITURE) (out[def.category] ??= []).push(def);
   for (const def of userFurniture) (out[def.category] ??= []).push(def);
   return out;
 }
