@@ -1,0 +1,155 @@
+[
+  {
+    "id": "floor-wood-oak",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/wood_floor_deck",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor_deck/wood_floor_deck_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor_deck/wood_floor_deck_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor_deck/wood_floor_deck_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Oak planks",
+    "category": "floor",
+    "uvScale": [1.5, 1.5]
+  },
+  {
+    "id": "floor-wood-walnut",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/wood_floor_worn",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor_worn/wood_floor_worn_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor_worn/wood_floor_worn_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/wood_floor_worn/wood_floor_worn_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Walnut planks",
+    "category": "floor",
+    "uvScale": [1.5, 1.5]
+  },
+  {
+    "id": "floor-tile-white",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/square_tiles_03",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/square_tiles_03/square_tiles_03_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/square_tiles_03/square_tiles_03_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/square_tiles_03/square_tiles_03_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "White tiles",
+    "category": "floor",
+    "uvScale": [0.6, 0.6]
+  },
+  {
+    "id": "floor-tile-marble",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/marble_01",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/marble_01/marble_01_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Marble",
+    "category": "floor",
+    "uvScale": [1.0, 1.0]
+  },
+  {
+    "id": "floor-parquet",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/brown_planks_03",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/brown_planks_03/brown_planks_03_diff_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Parquet",
+    "category": "floor",
+    "uvScale": [1.5, 1.5]
+  },
+  {
+    "id": "floor-carpet",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/dirty_carpet",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/dirty_carpet/dirty_carpet_diff_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Carpet",
+    "category": "floor",
+    "uvScale": [2.0, 2.0]
+  },
+  {
+    "id": "wall-concrete",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/concrete_wall_007",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_diff_1k.jpg",
+      "normal": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_nor_gl_1k.jpg",
+      "rough": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/concrete_wall_007/concrete_wall_007_rough_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Concrete wall",
+    "category": "wall",
+    "uvScale": [2.0, 2.0]
+  },
+  {
+    "id": "wall-plaster",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/plastered_wall_02",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/plastered_wall_02/plastered_wall_02_diff_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Plastered wall",
+    "category": "wall",
+    "uvScale": [2.0, 2.0]
+  },
+  {
+    "id": "wall-brick",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/medieval_red_brick",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/medieval_red_brick/medieval_red_brick_diff_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Red brick",
+    "category": "wall",
+    "uvScale": [1.5, 1.5]
+  },
+  {
+    "id": "wall-beige",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/beige_wall_001",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/beige_wall_001/beige_wall_001_diff_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Beige wall",
+    "category": "wall",
+    "uvScale": [2.0, 2.0]
+  },
+  {
+    "id": "wall-stone-brick",
+    "source": "polyhaven",
+    "sourceUrl": "https://polyhaven.com/a/stone_brick_wall_001",
+    "downloads": {
+      "albedo": "https://dl.polyhaven.org/file/ph-assets/Textures/jpg/1k/stone_brick_wall_001/stone_brick_wall_001_diff_1k.jpg"
+    },
+    "license": "CC0",
+    "attribution": "Poly Haven",
+    "name": "Stone brick",
+    "category": "wall",
+    "uvScale": [1.5, 1.5]
+  }
+]
