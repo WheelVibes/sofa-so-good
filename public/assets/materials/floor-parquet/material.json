@@ -1,0 +1,15 @@
+{
+  "id": "floor-parquet",
+  "name": "Parquet",
+  "category": "floor",
+  "uvScale": [
+    1.5,
+    1.5
+  ],
+  "channels": {
+    "albedo": "albedo.jpg"
+  },
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/brown_planks_03"
+}
