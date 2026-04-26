@@ -19,6 +19,16 @@ import {
   DOORS_INITIAL,
   type DoorsSlice,
 } from './slices/doorsSlice';
+import {
+  createItemsSlice,
+  ITEMS_INITIAL,
+  type ItemsSlice,
+} from './slices/itemsSlice';
+import {
+  createSelectionSlice,
+  SELECTION_INITIAL,
+  type SelectionSlice,
+} from './slices/selectionSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeOfDay } from './slices/timeSlice';
@@ -27,7 +37,9 @@ export interface RootState
   extends CameraSlice,
     TimeSlice,
     MeasurementsSlice,
-    DoorsSlice {
+    DoorsSlice,
+    ItemsSlice,
+    SelectionSlice {
   __resetForTest: () => void;
 }
 
@@ -36,6 +48,8 @@ const INITIAL = {
   ...TIME_INITIAL,
   ...MEASUREMENTS_INITIAL,
   ...DOORS_INITIAL,
+  ...ITEMS_INITIAL,
+  ...SELECTION_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -43,5 +57,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createTimeSlice(set, get, api),
   ...createMeasurementsSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
+  ...createItemsSlice(set, get, api),
+  ...createSelectionSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));
