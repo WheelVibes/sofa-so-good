@@ -41,6 +41,11 @@ import {
   FINISHES_INITIAL,
   type FinishesSlice,
 } from './slices/finishesSlice';
+import {
+  createPlacementSlice,
+  PLACEMENT_INITIAL,
+  type PlacementSlice,
+} from './slices/placementSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeOfDay } from './slices/timeSlice';
@@ -55,7 +60,8 @@ export interface RootState
     UserAssetsSlice,
     ResetSlice,
     UiSlice,
-    FinishesSlice {
+    FinishesSlice,
+    PlacementSlice {
   __resetForTest: () => void;
 }
 
@@ -69,6 +75,7 @@ const INITIAL = {
   ...USER_ASSETS_INITIAL,
   ...UI_INITIAL,
   ...FINISHES_INITIAL,
+  ...PLACEMENT_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -82,5 +89,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createResetSlice(set, get, api),
   ...createUiSlice(set, get, api),
   ...createFinishesSlice(set, get, api),
+  ...createPlacementSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));

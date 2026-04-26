@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import { useStore } from '../../state/store';
-import { useCatalog, useCatalogByCategory } from '../../furniture/catalog';
+import { useCatalogByCategory } from '../../furniture/catalog';
 import type { FurnitureCategory } from '../../furniture/types';
 import { CategoryTabs } from './CategoryTabs';
 import { CatalogCard } from './CatalogCard';
-import { spawnFromDef } from './spawn';
 import { UploadModelDialog } from '../upload/UploadModelDialog';
 
 /** Sliding left-side drawer. Toggle via toolbar or the C key (handled
@@ -16,7 +15,6 @@ export function CatalogDrawer() {
   const setOpen = useStore((s) => s.setCatalogOpen);
   const removeUserFurniture = useStore((s) => s.removeUserFurniture);
   const byCategory = useCatalogByCategory();
-  const catalog = useCatalog();
   const [active, setActive] = useState<FurnitureCategory>('seating');
   const [uploadOpen, setUploadOpen] = useState(false);
 
@@ -46,7 +44,6 @@ export function CatalogDrawer() {
             <CatalogCard
               key={def.id}
               def={def}
-              onSpawn={() => spawnFromDef(def, catalog)}
               onDelete={() => removeUserFurniture(def.id)}
             />
           ))
@@ -54,7 +51,7 @@ export function CatalogDrawer() {
       </div>
       <footer className="flex items-center justify-between border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
         <span>
-          Click to add. Press <kbd className="font-mono">R</kbd> to rotate.
+          Drag onto the floor. <kbd className="font-mono">R</kbd> rotates after drop.
         </span>
         <button
           onClick={() => setUploadOpen(true)}
