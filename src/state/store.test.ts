@@ -109,3 +109,23 @@ describe('store — items + selection slice', () => {
     expect(useStore.getState().selectedItemId).toBe(id);
   });
 });
+
+describe('store — reset actions', () => {
+  beforeEach(() => useStore.getState().__resetForTest());
+
+  it('resetToEmpty clears items and selection', () => {
+    useStore.getState().addItem(sampleItem('bed-double'));
+    useStore.getState().resetToEmpty();
+    expect(useStore.getState().items).toEqual([]);
+    expect(useStore.getState().selectedItemId).toBeNull();
+  });
+
+  it('resetToDefault populates the layout (idempotent ids)', () => {
+    useStore.getState().resetToDefault();
+    const first = useStore.getState().items.map((i) => i.id);
+    expect(first.length).toBeGreaterThan(0);
+    useStore.getState().resetToDefault();
+    const second = useStore.getState().items.map((i) => i.id);
+    expect(second).toEqual(first);
+  });
+});

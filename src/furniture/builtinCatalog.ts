@@ -21,6 +21,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'beds',
     primitive: 'Bed',
     defaultFootprint: { w: 1.0, d: 2.0, h: 0.6 },
+    footprintParams: { w: 'width', d: 'length' },
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 0.9, max: 1.1, step: 0.05, default: 1.0, unit: 'm' },
       { kind: 'number', key: 'length', label: 'Length', min: 1.9, max: 2.1, step: 0.05, default: 2.0, unit: 'm' },
@@ -204,6 +205,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'kitchen',
     primitive: 'KitchenCounter',
     defaultFootprint: { w: 2.4, d: 0.6, h: 0.9 },
+    footprintParams: { w: 'length' },
     paramSchema: [
       { kind: 'number', key: 'length', label: 'Length', min: 1.2, max: 4.0, step: 0.1, default: 2.4, unit: 'm' },
       {

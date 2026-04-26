@@ -21,10 +21,13 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
   let d = def.defaultFootprint.d;
 
   if (def.kind === 'parametric') {
-    // For primitives that expose width/depth/length params, use the live
-    // values so resizing in the inspector tightens the collision footprint.
-    const wv = item.props['width'];
-    const dv = item.props['depth'] ?? item.props['length'];
+    // Recompute footprint from live params using the def's mapping; falls
+    // back to the standard 'width' / 'depth' keys.
+    const map = def.footprintParams ?? {};
+    const wKey = map.w ?? 'width';
+    const dKey = map.d ?? 'depth';
+    const wv = item.props[wKey];
+    const dv = item.props[dKey];
     if (typeof wv === 'number') w = wv;
     if (typeof dv === 'number') d = dv;
   } else if (def.source === 'builtin') {

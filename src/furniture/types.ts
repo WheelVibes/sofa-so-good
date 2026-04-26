@@ -97,6 +97,17 @@ export interface ParametricDef extends FurnitureDefBase {
   kind: 'parametric';
   primitive: PrimitiveKind;
   paramSchema: ParamField[];
+  /**
+   * Maps the OBB footprint axes to ParamField keys so placement
+   * collision can recompute the footprint from live params. When a
+   * key is absent (or the param is not a number) the corresponding
+   * `defaultFootprint` axis is used unchanged.
+   *
+   * Default: { w: 'width', d: 'depth' } — most primitives use these.
+   * Bed and KitchenCounter override because their long axis is named
+   * differently in the inspector.
+   */
+  footprintParams?: { w?: string; d?: string };
 }
 
 export interface BuiltinGltfDef extends FurnitureDefBase {

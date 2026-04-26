@@ -1,4 +1,4 @@
-import { useCallback } from 'react';
+import { useCallback, useEffect } from 'react';
 import { Scene } from './scene/Scene';
 import { Crosshair } from './ui/Crosshair';
 import { DoorPrompt } from './ui/DoorPrompt';
@@ -13,6 +13,15 @@ export default function App() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements);
   const cameraMode = useStore((s) => s.cameraMode);
   const setCameraMode = useStore((s) => s.setCameraMode);
+
+  // Seed the default layout on first mount. Phase 3 autosave hydration
+  // takes precedence — once that lands, this becomes a "no save → seed
+  // default" branch.
+  useEffect(() => {
+    if (useStore.getState().items.length === 0) {
+      useStore.getState().resetToDefault();
+    }
+  }, []);
   const onKey = useCallback(
     (code: string) => {
       if (code === KEYBINDINGS.toggleMeasurements) toggleMeasurements();
