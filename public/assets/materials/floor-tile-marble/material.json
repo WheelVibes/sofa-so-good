@@ -1,0 +1,17 @@
+{
+  "id": "floor-tile-marble",
+  "name": "Marble",
+  "category": "floor",
+  "uvScale": [
+    1,
+    1
+  ],
+  "channels": {
+    "albedo": "albedo.jpg",
+    "normal": "normal.jpg",
+    "rough": "rough.jpg"
+  },
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/marble_01"
+}

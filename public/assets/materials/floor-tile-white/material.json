@@ -1,0 +1,17 @@
+{
+  "id": "floor-tile-white",
+  "name": "White tiles",
+  "category": "floor",
+  "uvScale": [
+    0.6,
+    0.6
+  ],
+  "channels": {
+    "albedo": "albedo.jpg",
+    "normal": "normal.jpg",
+    "rough": "rough.jpg"
+  },
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/square_tiles_03"
+}

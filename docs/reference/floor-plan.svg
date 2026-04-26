@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 800" width="100%" height="100%">
+  <rect width="1000" height="800" fill="white" />
+  <style>
+    .wall {
+      stroke: black;
+      stroke-width: 10px;
+      stroke-linecap: square;
+      fill: none;
+    }
+
+    .window {
+      fill: white;
+      stroke: black;
+      stroke-width: 1px;
+    }
+  </style>
+
+  <g id="walls">
+    <path class="wall" d="
+      M 50 420
+      L 50 65
+      L 690 65
+      L 690 150
+      L 945 150
+      L 945 630
+      L 895 630
+    " />
+
+    <path class="wall" d="
+      M 810 630
+      L 765 630
+      L 765 720
+      L 320 720
+      L 320 600
+      L 140 600
+      L 140 420
+      L 50 420
+    " />
+
+    <path class="wall" d="M 265 65 L 265 320" />
+    <path class="wall" d="M 475 65 L 475 320" />
+    <path class="wall" d="M 690 160 L 690 320" />
+    <path class="wall" d="M 320 420 L 320 600" />
+    <path class="wall" d="M 370 550 L 370 720" />
+    <path class="wall" d="M 475 420 L 475 530" />
+    <path class="wall" d="M 650 420 L 650 530" />
+    <path class="wall" d="M 495 550 L 495 580" />
+    <path class="wall" d="M 495 680 L 495 720" />
+
+    <path class="wall" d="M 265 320 L 390 320" />
+    <path class="wall" d="M 560 320 L 690 320" />
+    <path class="wall" d="M 50 420 L 210 420" />
+    <path class="wall" d="M 280 420 L 390 420" />
+    <path class="wall" d="M 475 420 L 515 420" />
+    <path class="wall" d="M 565 420 L 650 420" />
+    <path class="wall" d="M 140 540 L 320 540" />
+    <path class="wall" d="M 330 540 L 650 540" />
+  </g>
+
+  <g id="windows">
+    <rect class="window" x="46" y="140" width="8" height="150" />
+    <rect class="window" x="110" y="61" width="100" height="8" />
+    <rect class="window" x="320" y="61" width="100" height="8" />
+    <rect class="window" x="530" y="61" width="100" height="8" />
+    <rect class="window" x="730" y="146" width="180" height="8" />
+    <rect class="window" x="941" y="270" width="8" height="200" />
+  </g>
+</svg>

@@ -1,0 +1,33 @@
+import { FLAT, ROOMS } from './constants';
+
+export function Ceiling() {
+  return (
+    <group>
+      {Object.values(ROOMS)
+        .filter((r) => !r.external)
+        .flatMap((r) => {
+          const h = r.ceilingHeight ?? FLAT.ceilingHeight;
+          const tiles: { cx: number; cz: number; w: number; d: number; key: string }[] = [
+            { cx: r.origin[0] + r.width / 2, cz: r.origin[1] + r.depth / 2, w: r.width, d: r.depth, key: r.id },
+          ];
+          if (r.extension) {
+            const ex = r.origin[0] + r.extension.offset[0];
+            const ez = r.origin[1] + r.extension.offset[1];
+            tiles.push({
+              cx: ex + r.extension.width / 2,
+              cz: ez + r.extension.depth / 2,
+              w: r.extension.width,
+              d: r.extension.depth,
+              key: `${r.id}-ext`,
+            });
+          }
+          return tiles.map((t) => (
+            <mesh key={t.key} position={[t.cx, h, t.cz]} rotation={[Math.PI / 2, 0, 0]}>
+              <planeGeometry args={[t.w, t.d]} />
+              <meshStandardMaterial color="#fafafa" roughness={1} />
+            </mesh>
+          ));
+        })}
+    </group>
+  );
+}

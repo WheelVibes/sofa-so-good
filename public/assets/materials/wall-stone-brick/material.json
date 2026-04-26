@@ -1,0 +1,15 @@
+{
+  "id": "wall-stone-brick",
+  "name": "Stone brick",
+  "category": "wall",
+  "uvScale": [
+    1.5,
+    1.5
+  ],
+  "channels": {
+    "albedo": "albedo.jpg"
+  },
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/stone_brick_wall_001"
+}

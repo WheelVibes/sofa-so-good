@@ -1,0 +1,11 @@
+{
+  "id": "demo-box",
+  "name": "Demo box",
+  "category": "decor",
+  "footprint": { "w": 1.0, "d": 1.0, "h": 1.0 },
+  "scale": 0.6,
+  "anchor": "floor-center",
+  "license": "CC0",
+  "attribution": "Khronos glTF Sample Models",
+  "sourceUrl": "https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Box"
+}

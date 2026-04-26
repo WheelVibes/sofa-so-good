@@ -1,0 +1,15 @@
+{
+  "id": "wall-plaster",
+  "name": "Plastered wall",
+  "category": "wall",
+  "uvScale": [
+    2,
+    2
+  ],
+  "channels": {
+    "albedo": "albedo.jpg"
+  },
+  "license": "CC0",
+  "attribution": "Poly Haven",
+  "sourceUrl": "https://polyhaven.com/a/plastered_wall_02"
+}
