@@ -3,6 +3,7 @@ import { useStore } from '../../state/store';
 import { useCatalog } from '../../furniture/catalog';
 import { ParametricBody } from './ParametricBody';
 import { GltfBody } from './GltfBody';
+import { SourceLine } from './SourceLine';
 
 /** Right-side panel shown when an item is selected. Maps the selected
  *  def kind to either ParametricBody or GltfBody, plus a small header
@@ -48,6 +49,13 @@ export function InspectorPanel() {
         <ParametricBody item={item} def={def} />
       ) : (
         <GltfBody item={item} def={def} />
+      )}
+      {def.kind === 'gltf' && def.source === 'builtin' && (
+        <SourceLine
+          attribution={def.attribution}
+          license={def.license}
+          sourceUrl={def.sourceUrl}
+        />
       )}
       <footer className="mt-3 border-t border-neutral-200 pt-2">
         <button
