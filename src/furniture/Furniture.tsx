@@ -32,15 +32,21 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
       })()
     ) : (
       <Suspense fallback={null}>
-        <GltfModel
-          url={def.source === 'builtin' ? def.url : (item.props['__url'] as string) ?? ''}
-          scale={
-            (typeof item.props['scale'] === 'number'
-              ? item.props['scale']
-              : def.scale) ?? 1
-          }
-          tint={typeof item.props['tint'] === 'string' ? item.props['tint'] : undefined}
-        />
+        {(() => {
+          const url = def.source === 'builtin' ? def.url : def.runtimeUrl;
+          if (!url) return null;
+          return (
+            <GltfModel
+              url={url}
+              scale={
+                (typeof item.props['scale'] === 'number'
+                  ? item.props['scale']
+                  : def.scale) ?? 1
+              }
+              tint={typeof item.props['tint'] === 'string' ? item.props['tint'] : undefined}
+            />
+          );
+        })()}
       </Suspense>
     );
 

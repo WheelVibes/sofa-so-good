@@ -5,6 +5,7 @@ import type { FurnitureCategory } from '../../furniture/types';
 import { CategoryTabs } from './CategoryTabs';
 import { CatalogCard } from './CatalogCard';
 import { spawnFromDef } from './spawn';
+import { UploadModelDialog } from '../upload/UploadModelDialog';
 
 /** Sliding left-side drawer. Toggle via toolbar or the C key (handled
  *  in App.tsx). Click a card to drop the item near the L/D centre and
@@ -17,6 +18,7 @@ export function CatalogDrawer() {
   const byCategory = useCatalogByCategory();
   const catalog = useCatalog();
   const [active, setActive] = useState<FurnitureCategory>('seating');
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   if (!open) return null;
   const cards = byCategory[active] ?? [];
@@ -50,10 +52,18 @@ export function CatalogDrawer() {
           ))
         )}
       </div>
-      <footer className="border-t border-neutral-200 px-4 py-2 text-[10px] text-neutral-500">
-        Click an item to add it near the living/dining centre. Use the
-        inspector or <kbd className="font-mono">R</kbd> to rotate.
+      <footer className="flex items-center justify-between border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
+        <span>
+          Click to add. Press <kbd className="font-mono">R</kbd> to rotate.
+        </span>
+        <button
+          onClick={() => setUploadOpen(true)}
+          className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-700"
+        >
+          Upload model…
+        </button>
       </footer>
+      <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
     </aside>
   );
 }

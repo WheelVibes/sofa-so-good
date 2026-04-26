@@ -127,6 +127,12 @@ export interface UserGltfDef extends FurnitureDefBase {
   assetId: string;
   scale?: number;
   uploadedAt: string;
+  /**
+   * Runtime-only blob URL resolved from `assetId` on first persist /
+   * on hydration. NOT included in the serialized save format — Phase 3
+   * hydration recreates it from the IndexedDB blob.
+   */
+  runtimeUrl?: string;
 }
 
 export type GltfDef = BuiltinGltfDef | UserGltfDef;
