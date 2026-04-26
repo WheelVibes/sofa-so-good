@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ROOMS } from '../apartment/constants';
 import { useMaterials } from '../materials/useMaterial';
 import { useStore } from '../state/store';
 import type { MaterialCategory, MaterialDef } from '../materials/types';
 import type { RoomId } from '../apartment/types';
+import { UploadMaterialDialog } from './upload/UploadMaterialDialog';
 
 /**
  * Right-side panel shown when a room is selected (click on the floor).
@@ -20,7 +22,9 @@ export function FinishPicker() {
   const setFloorFinish = useStore((s) => s.setFloorFinish);
   const setWallFinish = useStore((s) => s.setWallFinish);
   const selectRoom = useStore((s) => s.selectRoom);
+  const removeUserMaterial = useStore((s) => s.removeUserMaterial);
   const materials = useMaterials();
+  const [uploadOpen, setUploadOpen] = useState(false);
 
   if (!roomId) return null;
   const room = ROOMS[roomId];
@@ -55,13 +59,22 @@ export function FinishPicker() {
         items={groups.floor}
         active={finishes.floor[roomId]}
         onSelect={(id) => setFloorFinish(roomId, id)}
+        onRemoveUser={removeUserMaterial}
       />
       <SwatchGroup
         label="Walls"
         items={groups.wall}
         active={finishes.walls[roomId]}
         onSelect={(id) => setWallFinish(roomId, id)}
+        onRemoveUser={removeUserMaterial}
       />
+      <button
+        onClick={() => setUploadOpen(true)}
+        className="mt-2 w-full rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-700"
+      >
+        Upload material…
+      </button>
+      <UploadMaterialDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
     </aside>
   );
 }
@@ -71,9 +84,10 @@ interface SwatchGroupProps {
   items: MaterialDef[];
   active: string;
   onSelect: (id: string) => void;
+  onRemoveUser: (id: string) => void;
 }
 
-function SwatchGroup({ label, items, active, onSelect }: SwatchGroupProps) {
+function SwatchGroup({ label, items, active, onSelect, onRemoveUser }: SwatchGroupProps) {
   return (
     <section className="mb-4 last:mb-0">
       <div className="mb-2 font-semibold text-neutral-700">{label}</div>
@@ -82,11 +96,16 @@ function SwatchGroup({ label, items, active, onSelect }: SwatchGroupProps) {
           const isUser = m.kind === 'textured' && m.source === 'user';
           const isActive = m.id === active;
           return (
-            <button
+            <div
               key={m.id}
+              role="button"
+              tabIndex={0}
               onClick={() => onSelect(m.id)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') onSelect(m.id);
+              }}
               className={
-                'group relative flex flex-col overflow-hidden rounded border ' +
+                'group relative flex cursor-pointer flex-col overflow-hidden rounded border ' +
                 (isActive
                   ? 'border-blue-500 ring-2 ring-blue-200'
                   : 'border-neutral-200 hover:border-neutral-400')
@@ -101,11 +120,23 @@ function SwatchGroup({ label, items, active, onSelect }: SwatchGroupProps) {
                 {m.name}
               </span>
               {isUser ? (
-                <span className="absolute right-0 top-0 rounded-bl bg-amber-100 px-1 text-[8px] uppercase tracking-wide text-amber-800">
-                  user
-                </span>
+                <>
+                  <span className="absolute right-0 top-0 rounded-bl bg-amber-100 px-1 text-[8px] uppercase tracking-wide text-amber-800">
+                    user
+                  </span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onRemoveUser(m.id);
+                    }}
+                    className="absolute right-0 bottom-0 hidden text-[10px] text-rose-600 group-hover:inline"
+                    aria-label="Remove uploaded material"
+                  >
+                    ×
+                  </button>
+                </>
               ) : null}
-            </button>
+            </div>
           );
         })}
       </div>
