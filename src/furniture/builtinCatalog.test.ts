@@ -42,6 +42,15 @@ describe('BUILTIN_CATALOG', () => {
     }
   });
 
+  it('every built-in gltf def is CC0 with a source URL', () => {
+    for (const def of Object.values(BUILTIN_CATALOG)) {
+      if (def.kind !== 'gltf' || def.source !== 'builtin') continue;
+      expect(def.license).toBe('CC0');
+      expect(() => new URL(def.sourceUrl ?? '')).not.toThrow();
+      expect(def.url.startsWith('/assets/furniture/')).toBe(true);
+    }
+  });
+
   it('every entry has a non-zero default footprint', () => {
     for (const def of Object.values(BUILTIN_CATALOG)) {
       expect(def.defaultFootprint.w).toBeGreaterThan(0);
