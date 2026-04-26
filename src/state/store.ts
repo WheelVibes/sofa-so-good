@@ -35,6 +35,7 @@ import {
   type UserAssetsSlice,
 } from './slices/userAssetsSlice';
 import { createResetSlice, type ResetSlice } from './slices/resetSlice';
+import { createUiSlice, UI_INITIAL, type UiSlice } from './slices/uiSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeOfDay } from './slices/timeSlice';
@@ -47,7 +48,8 @@ export interface RootState
     ItemsSlice,
     SelectionSlice,
     UserAssetsSlice,
-    ResetSlice {
+    ResetSlice,
+    UiSlice {
   __resetForTest: () => void;
 }
 
@@ -59,6 +61,7 @@ const INITIAL = {
   ...ITEMS_INITIAL,
   ...SELECTION_INITIAL,
   ...USER_ASSETS_INITIAL,
+  ...UI_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -70,5 +73,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createSelectionSlice(set, get, api),
   ...createUserAssetsSlice(set, get, api),
   ...createResetSlice(set, get, api),
+  ...createUiSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));
