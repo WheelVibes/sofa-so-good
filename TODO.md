@@ -7,7 +7,7 @@ Single source of truth for deferred work across this project. Each entry links b
 Decomposed into four subsystems, each shipped independently. Brainstormed 2026-05-01.
 
 - ~~**Subsystem 1: Multi-provider plumbing**~~ — done. Spec: [docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md](docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md). Plan: [docs/superpowers/plans/2026-05-01-multi-provider-plumbing.md](docs/superpowers/plans/2026-05-01-multi-provider-plumbing.md).
-- **Subsystem 2: DLC packs** — opt-in installable CC0 packs (Quaternius Ultimate Interiors v1, Kenney follow-up). Streaming download + in-app notifications + IDB cache + per-entry thumbnail generation. Spec: [docs/superpowers/specs/2026-05-01-dlc-packs-design.md](docs/superpowers/specs/2026-05-01-dlc-packs-design.md). Plan pending.
+- **Subsystem 2: DLC packs** — opt-in installable CC0 packs (Kenney Furniture Kit v1; Quaternius deferred — Google Drive + FBX format issue). Streaming download + in-app notifications + IDB cache + per-entry thumbnail generation. Spec: [docs/superpowers/specs/2026-05-01-dlc-packs-design.md](docs/superpowers/specs/2026-05-01-dlc-packs-design.md). Plan pending.
 - **Subsystem 3: Sketchfab** — REST + OAuth token + runtime fetch. Largest variety gain; auth+ToS friction. Pending.
 - **Subsystem 4: Procedural furniture** — runtime mesh generation (parametric shelving, sofas, wardrobes). Largest design surface. Pending.
 

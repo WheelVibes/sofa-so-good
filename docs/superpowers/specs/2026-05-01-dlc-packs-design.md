@@ -2,13 +2,32 @@
 
 **Date:** 2026-05-01
 **Status:** Approved
-**Scope:** Subsystem 2 of the furniture-catalog expansion. Adds an opt-in "downloadable content" system for CC0 furniture packs (Quaternius/Kenney-style), shipping with the Quaternius **Ultimate Interiors** pack as the v1 content. Introduces a generic in-app notification system as supporting infrastructure.
+**Scope:** Subsystem 2 of the furniture-catalog expansion. Adds an opt-in "downloadable content" system for CC0 furniture packs, shipping with the Kenney **Furniture Kit** pack as the v1 content (140 GLB items, ~5 MB). Introduces a generic in-app notification system as supporting infrastructure. Quaternius is deferred: its packs are hosted on Google Drive and distributed as FBX/OBJ/Blend rather than GLB, both of which break browser-direct fetching — see the deferred-TODO at the end.
 
 ## Motivation
 
-Poly Haven and ambientCG ship per-asset REST APIs that suit the existing runtime-fetch-on-click model. Quaternius and Kenney don't — they distribute one zip per pack, ~50 MB containing ~150 GLBs. The right user experience is **explicit, opt-in installation** of a whole pack at once: user clicks Install, accepts the size cost, gets all items at once, browses them instantly thereafter from a local cache.
+Poly Haven and ambientCG ship per-asset REST APIs that suit the existing runtime-fetch-on-click model. Kenney doesn't — its asset packs distribute as a single zip per pack containing many GLBs. The right user experience is **explicit, opt-in installation** of a whole pack at once: user clicks Install, accepts the size cost, gets all items at once, browses them instantly thereafter from a local cache.
 
 This is meaningfully different from the existing runtime catalog (per-asset, fetched on click, ephemeral blob URLs). It needs its own state, IDB stores, and UI surface.
+
+## v1 content: Kenney Furniture Kit
+
+- **Source:** [kenney.nl/assets/furniture-kit](https://kenney.nl/assets/furniture-kit) (CC0).
+- **Direct zip URL:** `https://kenney.nl/media/pages/assets/furniture-kit/e56d2a9828-1677580847/kenney_furniture-kit.zip` (HEAD verified — 200, content-length 5,130,729 bytes ≈ 5.1 MB).
+- **Contents:** 140 GLB files under `Models/GLTF format/<name>.glb`, plus duplicate FBX and OBJ copies (ignored). Naming is consistent (`bedDouble`, `kitchenStove`, `loungeSofaCorner`, `bathroomSink`, `tableCoffee`, `lampRoundFloor`, `bookcaseClosed`, …).
+- **Filter:** wall, floor, door, stairs, ceilingFan, paneling entries are architectural — they're filtered out at parse time. The remaining ~125 are real furniture.
+- **Category mapping** (substring rules, applied in priority order — first match wins):
+  | substring contains | category |
+  |---|---|
+  | `bed` (and not `kitchen`) | beds |
+  | `chair`, `sofa`, `lounge`, `bench`, `stool`, `pillow` | seating |
+  | `desk`, `table` | tables |
+  | `bookcase`, `cabinet`, `coatRack`, `cardboardBox` | storage |
+  | `kitchen` | kitchen |
+  | `lamp` | lighting |
+  | (everything else: bathroom, plants, electronics, decor) | decor |
+  | `wall`, `floor`, `door`, `stairs`, `ceilingFan`, `paneling` | (filtered out) |
+- **Display name**: convert camelCase `loungeSofaCorner` → `Lounge Sofa Corner` via a regex split-and-titlecase.
 
 ## Architecture
 
@@ -103,20 +122,20 @@ export interface InstalledPack {
 ```ts
 export const AVAILABLE_PACKS: Pack[] = [
   {
-    id: 'quaternius-ultimate-interiors',
-    name: 'Ultimate Interiors (Quaternius)',
-    description: 'Stylized low-poly interior furniture pack — beds, seating, tables, storage, decor.',
-    attribution: 'Quaternius — quaternius.com (CC0)',
+    id: 'kenney-furniture-kit',
+    name: 'Kenney Furniture Kit',
+    description: 'Stylized low-poly furniture — bedrooms, kitchens, bathrooms, lounges, decor (~125 items).',
+    attribution: 'Kenney — kenney.nl (CC0)',
     license: 'CC0',
-    sourceUrl: 'https://quaternius.com/packs/ultimateinteriorspack.html',
-    downloadUrl: '/quaternius/packs/ultimate_interiors.zip',  // proxied
-    sizeBytes: 50 * 1024 * 1024,
-    parseEntries: parseQuaterniusInteriors,  // category-from-filename heuristic
+    sourceUrl: 'https://kenney.nl/assets/furniture-kit',
+    downloadUrl: '/kenney/media/pages/assets/furniture-kit/e56d2a9828-1677580847/kenney_furniture-kit.zip',
+    sizeBytes: 5_130_729,
+    parseEntries: parseKenneyFurnitureKit,
   },
 ];
 ```
 
-`parseQuaterniusInteriors` uses filename prefixes (`Bed_*`, `Sofa_*`, `Table_*`, `Chair_*`, `Cabinet_*`, …) to assign `FurnitureCategory`. Unmappable filenames default to `decor`. The mapping table is hand-curated based on the actual Ultimate Interiors zip contents and lives in the same file.
+`parseKenneyFurnitureKit` walks the unzipped file map, takes only entries under `Models/GLTF format/*.glb`, applies the filter+category-mapping rules from the v1-content section above, and produces `PackEntryDescriptor`s with camelCase-to-Title-Case display names. Lives in the same file as the registry.
 
 **IDB stores** (`src/catalog/packs/db.ts`, mirrors the user-uploads pattern in [src/state/uploads/](src/state/uploads/)):
 - `pack-blobs` (object store): keyed by `glbKey` and `thumbKey` strings, value is `Blob`. One store for both kinds — keys are namespaced by suffix (`:glb`, `:thumb`).
@@ -211,12 +230,14 @@ mergedFurnitureCatalog(state) =
 
 [vite.config.ts](vite.config.ts) gains:
 ```ts
-'/quaternius': {
-  target: 'https://quaternius.com',
+'/kenney': {
+  target: 'https://kenney.nl',
   changeOrigin: true,
-  rewrite: (p) => p.replace(/^\/quaternius/, ''),
+  rewrite: (p) => p.replace(/^\/kenney/, ''),
 },
 ```
+
+(Kenney's CDN does not advertise CORS headers on the zip endpoint — verified via `curl -sI`.)
 
 Production needs an equivalent reverse-proxy entry alongside the existing ambientCG one. **Adds to the existing TODO** "Runtime catalog: production CORS proxy" — does not block this subsystem from shipping in dev.
 
@@ -228,7 +249,7 @@ Production needs an equivalent reverse-proxy entry alongside the existing ambien
     ▼
 installPack(pack)
     │
-    ├── fetch /quaternius/packs/ultimate_interiors.zip (streaming)
+    ├── fetch /kenney/.../kenney_furniture-kit.zip (streaming)
     │       │ progress 0 → 0.5  ──→ notify.update
     │       ▼
     ├── unzipSync                ──→ progress 0.5 → 0.6
@@ -237,9 +258,9 @@ installPack(pack)
     ├── parseEntries(files)      → 150× PackEntryDescriptor
     │       │
     │       ▼
-    │   for each entry:
-    │     ├── renderThumbnail    → Blob
-    │     ├── glbFootprint       → {w,d,h}
+    │   for each entry (~125):
+    │     ├── renderThumbnail    → Blob (256×256 jpeg)
+    │     ├── glbFootprint       → {w,d,h} (bbox-derived)
     │     ├── IDB.put pack-blobs (glb + thumb)
     │     └── progress += 0.4/N
     │
@@ -254,21 +275,23 @@ installPack(pack)
 
 ## Out of scope
 
-- Mirroring/hosting Quaternius packs ourselves (per user direction).
-- Auto-update when Quaternius re-releases a pack version.
+- Mirroring/hosting packs ourselves (per user direction; we proxy at runtime).
+- Auto-update when a pack re-releases.
 - Granular per-asset selection inside a pack (it's all-or-nothing).
 - Subsystems 3 (Sketchfab) and 4 (procedural).
 - Migrating user-uploads IDB to share `pack-blobs` (separate concern).
 - Pack thumbnails for the *Pack card itself* (we use a category icon or static asset; only per-entry thumbnails are in scope).
+- **Quaternius packs.** Their packs are hosted on Google Drive folders (no programmatic single-zip download from the browser) and ship as FBX/OBJ/Blend rather than GLB. Either path requires substantial extra infra (proxied folder-zip API + FBXLoader integration, OR maintainer-mirroring + format conversion). Tracked as a deferred TODO; revisit after subsystems 3 and 4 ship.
 
 ## Risks
 
-- **Quaternius URL drift.** Their pack download URL is not versioned. Future re-releases at the same URL could change contents and break our `parseEntries` heuristic. Mitigation: pin a known-good URL (verify HEAD content-length matches `pack.sizeBytes` ± 5%; if not, fail with a clear error).
+- **Kenney URL drift.** The download URL contains a content-hash directory (`e56d2a9828-1677580847/`). When Kenney updates the pack, the hash changes and the old URL likely 404s. Mitigation: verify HEAD `content-length` matches `pack.sizeBytes` ± 5% before consuming the body; if not, fail with a clear notification.error pointing the user at the source page so they can report the broken pack URL. Pack registry version-bumps fix it once we know.
 - **Thumbnail render performance.** 150× GLB parse + render on a single thread can take 10-30s. Mitigation: progress UI surfaces this honestly; the install runs to completion in the background and the user can keep working in another tab.
 - **IDB quota.** ~50 MB of GLBs + ~1 MB of thumbs is well within typical browser quotas, but failure mode (`QuotaExceededError`) needs a clear notification.error message.
 - **Tab close mid-install.** No transactional safety. Mitigation: install logic detects partial state on next boot (manifest absent but blobs present) and offers a "clean up partial install" action — deferred to a follow-up TODO if it doesn't bite us in v1.
 
 ## What this unlocks
 
-- Adding Kenney as a second pack: just one entry in `AVAILABLE_PACKS` with a different `parseEntries` heuristic. No infra changes.
+- Adding more Kenney packs (Kenney has dozens — Music Kit, Conference Kit, City Kit interior bits): one new entry in `AVAILABLE_PACKS` per pack, each with its own `parseEntries`. No infra changes.
 - Generic notification system available for any other long-running flow (subsystem 3's Sketchfab fetches, subsystem 4's procedural rebuilds, future export operations).
+- Quaternius support, once Google-Drive-folder-zip proxying or FBX-loading is added.
