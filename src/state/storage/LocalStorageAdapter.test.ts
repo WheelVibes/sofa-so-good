@@ -11,7 +11,8 @@ function fakeState(savedAt: string): SerializedState {
     finishes: { floor: {}, walls: {} },
     userFurniture: [],
     userMaterials: [],
-    timeOfDay: 'day',
+    timeMode: 'system',
+    manualHour: 12,
     cameraMode: 'orbit',
     savedAt,
   };

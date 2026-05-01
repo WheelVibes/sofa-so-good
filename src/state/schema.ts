@@ -52,7 +52,7 @@ const UserMaterialDefZ = z.object({
   }),
 });
 
-export const SerializedStateZ = z.object({
+const RawSerializedStateZ = z.object({
   version: z.literal(1),
   apartmentId: z.literal('serangoon-north-vista-4r'),
   items: z.array(FurnitureItemZ),
@@ -63,10 +63,36 @@ export const SerializedStateZ = z.object({
   }),
   userFurniture: z.array(UserGltfDefZ),
   userMaterials: z.array(UserMaterialDefZ),
-  timeOfDay: z.enum(['day', 'dusk', 'night']),
+  timeMode: z.enum(['system', 'manual']),
+  manualHour: z.number().min(0).max(24),
   cameraMode: z.enum(['orbit', 'firstPerson']),
+  orientationDeg: z.number().optional(),
   savedAt: z.string(),
 });
+
+const LEGACY_TIME_HOUR: Record<string, number> = {
+  day: 12,
+  dusk: 18,
+  night: 0,
+};
+
+/** Accepts both new (`timeMode`/`manualHour`) and legacy (`timeOfDay`)
+ *  payload shapes. Legacy values map: day→12, dusk→18, night→0, all
+ *  in manual mode. */
+export const SerializedStateZ = z.preprocess((input) => {
+  if (input && typeof input === 'object' && !Array.isArray(input)) {
+    const obj = input as Record<string, unknown>;
+    if (!('timeMode' in obj) && typeof obj.timeOfDay === 'string') {
+      const hour = LEGACY_TIME_HOUR[obj.timeOfDay];
+      if (typeof hour === 'number') {
+        const { timeOfDay: _legacy, ...rest } = obj;
+        void _legacy;
+        return { ...rest, timeMode: 'manual', manualHour: hour };
+      }
+    }
+  }
+  return input;
+}, RawSerializedStateZ);
 
 export type SerializedState = z.infer<typeof SerializedStateZ>;
 
@@ -100,8 +126,10 @@ export function serialize(state: RootState): SerializedState {
       uvScale: d.uvScale,
       textures: d.textures,
     })),
-    timeOfDay: state.timeOfDay,
+    timeMode: state.timeMode,
+    manualHour: state.manualHour,
     cameraMode: state.cameraMode,
+    orientationDeg: state.orientationDeg,
     savedAt: new Date().toISOString(),
   };
 }
@@ -129,7 +157,9 @@ export function applySerialized(
       floor: floor as Record<RoomId, string>,
       walls: walls as Record<RoomId, string>,
     },
-    timeOfDay: state.timeOfDay,
+    timeMode: state.timeMode,
+    manualHour: state.manualHour,
     cameraMode: state.cameraMode,
+    orientationDeg: state.orientationDeg ?? 0,
   };
 }
