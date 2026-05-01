@@ -1,4 +1,4 @@
-# Time of Day — System Time, Astronomical Sun, Indoor Occlusion, Light Fixtures
+# Time of Day — System Time, Astronomical Sun, Realistic Indoor Lighting, Light Fixtures
 
 Brainstormed 2026-05-01.
 
@@ -7,13 +7,22 @@ Brainstormed 2026-05-01.
 Replace the current three-preset toolbar control (`day` / `dusk` / `night`) with a richer, physically-grounded lighting system that:
 
 1. Tracks the user's system clock by default ("System" mode), with four named presets — **Morning (06:00)**, **Noon (12:00)**, **Dusk (18:00)**, **Night (00:00)** — and a **Custom** time picker.
-2. Computes the sun's real azimuth + elevation from the user's geographic location and the current date, so morning sun rises in the east and the arc shifts seasonally.
-3. Reduces direct daylight in rooms whose walls don't face the sun or have no window line-of-sight to it, so interior rooms get dimmer in the daytime and feel night-like once the sun sets.
+2. Computes the sun's real azimuth + elevation from the user's geographic location and the current date, so morning sun rises in the east and the arc shifts seasonally. Location is set via geolocation, manual lat/lon, or **city-name search**.
+3. Renders realistic indoor light: interior rooms dim correctly, sun casts **real shadows through windows** via three.js shadow maps, **bounced light** is approximated via image-based lighting, and **light bleeds between rooms through open doors**.
 4. Lets users place **light fixtures** (lamps, ceiling lights) as a furniture category. Fixtures emit light independent of the sun and are essential for night/evening scenes.
+5. Exposes **quality toggles** in a Settings panel so users on low-end devices can disable shadows, GI, and inter-room bleed independently.
 
 The scene does not auto-advance on its own. System mode is the only mode that follows the wall clock; presets and custom times are static until the user changes them.
 
-This spec is large enough that the implementation plan will likely break into four phases (time model → sun astronomy → indoor occlusion → light fixtures), each independently shippable. They are described together here because they share state, types, and user-visible surface.
+This is a large spec. The implementation plan will break into five independently-shippable phases:
+
+1. **Time model** — state, dropdown, persistence, T cycle.
+2. **Astronomy + geocoding** — SunCalc, location prompt with geolocation / lat-lon / city search, altitude-driven lighting.
+3. **Realistic indoor lighting** — fast per-room fill (cheap baseline), real shadow maps through window cutouts, IBL bounced-light approximation, open-door light bleed via room graph.
+4. **Light fixtures** — light-emitting furniture, inspector controls, global toggle.
+5. **Quality settings** — Settings panel and per-feature toggles wired through phases 2–4.
+
+Phase 5's toggles are referenced throughout this spec; the panel itself is specified in §5.
 
 ---
 
@@ -97,9 +106,9 @@ New slice `src/state/slices/locationSlice.ts`:
 
 ```ts
 export interface LocationSlice {
-  location: { lat: number; lon: number } | null;
-  locationPromptDismissed: boolean; // user chose "enter manually" or denied geo
-  setLocation: (loc: { lat: number; lon: number }) => void;
+  location: { lat: number; lon: number; label?: string } | null;
+  locationPromptDismissed: boolean; // user chose "skip" or denied geo
+  setLocation: (loc: { lat: number; lon: number; label?: string }) => void;
   dismissLocationPrompt: () => void;
 }
 ```
@@ -108,11 +117,16 @@ Persisted in `schema.ts` alongside other slices. Initial state: `{ location: nul
 
 ### First-run prompt
 
-A small modal `src/ui/LocationPrompt.tsx` shows once when `location === null && !locationPromptDismissed`. Two paths:
+A small modal `src/ui/LocationPrompt.tsx` shows once when `location === null && !locationPromptDismissed`. Three paths:
 
-1. **Use my location** — calls `navigator.geolocation.getCurrentPosition()`. On success, stores `{ lat, lon }`. On error/denial, falls through to manual.
-2. **Enter manually** — two number inputs (lat/lon) with validation (lat ∈ [-90, 90], lon ∈ [-180, 180]). City-name geocoding is out of scope.
-3. **Skip** — sets `locationPromptDismissed = true`. Lighting falls back to a baked-in default location (Singapore, `1.35°N, 103.82°E`) so the scene still renders coherently.
+1. **Use my location** — calls `navigator.geolocation.getCurrentPosition()`. On success, stores `{ lat, lon, label?: string }` (label populated by reverse-geocoding the result; see below).
+2. **Search by city** — text input that queries `https://nominatim.openstreetmap.org/search?format=json&q=<query>&limit=5` (debounced 300 ms, 2-character minimum). Results render as a small dropdown of `{ display_name, lat, lon }`. Picking one stores `{ lat, lon, label: display_name }`. Nominatim's free public endpoint is rate-limited (1 req/s) and requires a `User-Agent`/`Referer` header; we set `User-Agent: sofa-so-good/<version>` per their policy. No API key.
+3. **Enter manually** — two number inputs (lat/lon) with validation (lat ∈ [-90, 90], lon ∈ [-180, 180]). Stored without a label.
+4. **Skip** — sets `locationPromptDismissed = true`. Lighting falls back to a baked-in default location (Singapore, `1.35°N, 103.82°E`).
+
+The location is shown in the time-of-day dropdown footer as the city `label` if present, else `lat°, lon°`. Clicking it reopens the prompt to change.
+
+**Geocoding wrapper** — `src/services/geocoding.ts` exposes `searchPlaces(q: string): Promise<Place[]>` and `reverseGeocode(lat, lon): Promise<string | null>`. Errors and rate-limit (429) are surfaced as a small inline error in the prompt; the modal stays usable for manual entry. Nominatim queries are not retried.
 
 The prompt is also reachable later from a "Location" entry in the time-of-day dropdown's footer, so users who skipped can come back.
 
@@ -154,57 +168,70 @@ The directional-light tween in `Lighting.tsx` keeps working — it now chases an
 
 ---
 
-## 3. Window-aware indoor daylight occlusion
+## 3. Realistic indoor lighting
 
-### Model
+This phase has four layered features. Each can be toggled on/off independently in Settings (§5). The cheapest layer (per-room fill) is always on; everything above it costs FPS and is opt-in based on user-selected quality.
 
-For each room, determine a *daylight factor* `f ∈ [0, 1]` for the current sun direction. `f = 1` means the room sees the sun fully; `f = 0` means it's interior or the sun is on the wrong side.
+### 3.1 Per-room fill light (always on, baseline)
 
-The lighting pipeline applies `f` per-room as a multiplier on the directional-light contribution within that room's volume.
+For each room, compute a *daylight factor* `f ∈ [0, 1]` for the current sun direction. `f = 1` means the room sees the sun; `f = 0` means it's fully interior. Each room gets one small `<pointLight>` at ceiling height inside its volume with intensity `(1 - f) * indoorDarkening`, simulating bounced indoor ambient. This is the cheap baseline that keeps interiors readable without any expensive features.
 
-### Three.js execution
+`src/apartment/daylight.ts` exposes `roomDaylightFactor(room, walls, sunDir): number`:
 
-Three.js doesn't natively support per-volume light masks, so we implement this as **per-room ambient adjustment**:
+1. If `sunDir.y <= 0`, return `0`.
+2. If `room.external === true`, return `1`.
+3. For each wall bordering the room (via `wallRoomSides.ts`), compute outward-facing normal. If `dot(normal, sunDir.xz) > 0` AND the wall has at least one `Cutout` of `kind === 'window'`, contribute `windowAreaFraction` (clamped sum of cutout widths / wall length).
+4. Cap at `1.0`.
 
-- The single global `<directionalLight>` continues to light the whole scene as a baseline (it's primarily seen through windows and on the apartment's exterior surfaces).
-- Each `RoomDef` gets a *room-local* `<ambientLight>` (or `<hemisphereLight>`) whose intensity scales with `(1 - f) * indoorDarkening + baseAmbient`. Rooms with no sun line-of-sight get more ambient fill (so they don't go pitch black) but no extra direct sun.
-- Room-local lights are placed at the room's centroid, only affect meshes within that room's AABB via three.js layers (each room gets a layer; furniture inside the room is added to that layer at placement time).
+`src/scene/lighting/RoomFillLights.tsx` (new) renders one fill light per room. Intensity tweens smoothly to avoid pops at sunset.
 
-The per-room layer assignment is the trickiest piece. Rather than tagging every furniture mesh by room at runtime, we use a simpler approach: each room renders its own subtle `<rectAreaLight>` (or `pointLight`) at ceiling height inside the room's volume, with intensity `(1 - f) * indoorDarkening`. This avoids layer plumbing entirely. The fill light is small and warm, simulating bounced indoor ambient.
+### 3.2 Real shadows through window cutouts (toggleable)
 
-### Computing `f`
+When the **Shadows** quality setting is `'on'`, the global directional light becomes a real three.js shadow caster, and walls/floor/ceiling/furniture become shadow casters and receivers. Because `wallSegments.ts` already builds wall geometry as solid panels with rectangular window cutouts, the shadow map naturally projects sun beams through windows onto interior floors — no extra modelling required.
 
-`src/apartment/daylight.ts`:
+Concretely:
 
-```ts
-export function roomDaylightFactor(
-  room: RoomDef,
-  walls: WallSpec[],
-  sunDir: Vec3, // unit vector, +y up
-): number
-```
+- `Lighting.tsx`'s `<directionalLight>` gains `castShadow={shadows !== 'off'}` and `shadow.mapSize` driven by setting (`512` low / `2048` high). Shadow camera frustum is fit to the apartment AABB plus a margin, recomputed when the apartment changes.
+- All meshes in `Apartment.tsx` (`Floor`, `Walls`, `Ceiling`, `Door`, `Fixtures`) and in furniture renderers get `castShadow receiveShadow` flags, gated on the same setting.
+- The `<Canvas>` in `App.tsx` enables `shadows={shadows !== 'off' ? 'soft' : false}`.
+- When shadows are `'off'`, behavior matches the current code (no shadow maps).
 
-Algorithm:
+The 3.1 fill light continues to render in all modes; with shadows on, it lifts dim corners that the directional light's shadow doesn't reach.
 
-1. If `sunDir.y <= 0`, return `0` (sun below horizon).
-2. If `room.external === true`, return `1` (open balcony / AC ledge).
-3. Find walls bordering this room (uses the existing `wallRoomSides.ts` mapping).
-4. For each wall, find its outward-facing normal in scene space. If `dot(normal, sunDir.xz) > 0` (wall faces toward sun) AND the wall has at least one `Cutout` of `kind === 'window'`, contribute `windowAreaFraction` to `f`. Doors don't count for daylight even if open.
-5. Cap at `1.0`.
+**Performance notes** — shadow-map cost is the single biggest FPS lever for indoor scenes. The setting offers `'off' | 'low' | 'high'` (mapping to map size + PCF filter + soft-shadow toggle). Default is `'low'` on first load; users can downgrade.
 
-So a bedroom with a north-facing window gets daylight when the sun has any northern component; a windowless bath gets `f = 0` always; the L/D with windows on multiple sides usually has `f = 1`.
+### 3.3 Bounced-light global illumination (toggleable)
 
-### Rendering integration
+When **Global illumination** is enabled, the scene gains an image-based-lighting (IBL) environment that approximates indirect bounce. Three.js does not ship real-time GI, so we use the standard pragmatic approach:
 
-`src/scene/lighting/RoomFillLights.tsx` (new): maps over `ROOMS`, computes `f` from current sun direction (memoized on sun + walls), emits one fill light per room positioned at room centroid + `(0, ceilingHeight - 0.3, 0)`. Intensity is tweened smoothly toward the target value to avoid pops at sunset.
+- A small set of pre-baked HDRI environments (one per "lighting mood" — clear day, overcast, golden, dusk, night) shipped under `public/assets/hdri/` as compressed `.hdr` files. We pick one based on solar altitude using the same curve from §2.
+- `<Environment>` from `@react-three/drei` loads the chosen HDRI and tints all PBR materials with its irradiance. This produces visibly bouncier-looking surfaces (especially walls/ceilings) and proper specular reflections in glossy materials.
+- An optional second pass uses `@react-three/postprocessing`'s `<SSAO>` (screen-space ambient occlusion) for contact-shadow darkening in corners. SSAO lives behind its own setting because it requires `EffectComposer` and adds a render pass.
 
-This is purely additive lighting; it does not change the directional-light setup.
+When GI is `'off'`, the scene uses the existing constant ambient light only.
 
-### Limitations (deliberate)
+**Performance notes** — IBL itself is essentially free at runtime (one cubemap sample per material). HDRI download is the cost (each ~1–4 MB). SSAO costs ~1–3 ms/frame depending on resolution. The setting's three levels are `'off' | 'ibl' | 'ibl+ssao'`.
 
-- No real shadow ray-casting through window apertures. A room "has sun" if any of its sun-facing walls has a window; we don't check that the sun's actual angle would project light onto the floor through the window. Users won't notice in most cases.
-- No accounting for inter-room light bleed through open doors. This is a known simplification; we can revisit with portal techniques later.
-- No bounced-light GI. Three.js standard.
+### 3.4 Inter-room light bleed through open doors (toggleable)
+
+When **Inter-room bleed** is enabled, daylight reaching one room can spill into adjacent rooms through open doors. Implementation is a graph relaxation:
+
+1. Build a **room adjacency graph**: nodes are rooms, edges are doors (each edge knows which two rooms it connects, gated by `Door.open`). Built once from `WALLS`/`DOORS` constants and rebuilt only if the apartment changes.
+2. Compute the base daylight factor `f₀` per room from §3.1.
+3. Relax: for each room, `f = max(f₀, max over open-door neighbors of f_neighbor * BLEED_ATTENUATION)` where `BLEED_ATTENUATION = 0.4` per door traversal. Iterate until stable (≤4 passes for our 11-room flat).
+4. Use the relaxed `f` to drive room fill lights from §3.1.
+
+Open/closed door state already exists in `doorSlice.ts` (verified in code). The graph rebuilds when door state changes, which is rare; the relaxation is O(rooms × doors × 4) ≈ trivial.
+
+When the bleed setting is off, only `f₀` is used — corridor stays dark even with all doors open.
+
+**Performance notes** — pure CPU, negligible cost (microseconds). The setting is on/off only and on by default.
+
+### 3.5 Limitations (deliberate)
+
+- Shadow casting through windows is correct geometrically but doesn't account for window glass refraction, tinting, or curtains.
+- IBL is a single global environment; it doesn't truly localize bounce per-room. For most indoor architecture views this is acceptable.
+- Door light bleed is uniform attenuation per traversal — no directional weighting based on door orientation.
 
 ---
 
@@ -278,6 +305,62 @@ Toolbar gets a small "Lights" button next to the time dropdown that flips a glob
 
 ---
 
+---
+
+## 5. Quality settings
+
+### State
+
+New slice `src/state/slices/qualitySlice.ts`:
+
+```ts
+export interface QualitySettings {
+  shadows: 'off' | 'low' | 'high';
+  globalIllumination: 'off' | 'ibl' | 'ibl+ssao';
+  interRoomBleed: boolean;
+  fixtures: boolean;       // global fixtures on/off (replaces toolbar button from §4)
+}
+
+export interface QualitySlice {
+  quality: QualitySettings;
+  setQuality: (patch: Partial<QualitySettings>) => void;
+}
+```
+
+Defaults differ by device: on first load, query `navigator.hardwareConcurrency` and `navigator.deviceMemory` (best-effort) to pick presets:
+
+- **Low**: `shadows: 'off', globalIllumination: 'off', interRoomBleed: true, fixtures: true`
+- **Medium** (default): `shadows: 'low', globalIllumination: 'ibl', interRoomBleed: true, fixtures: true`
+- **High**: `shadows: 'high', globalIllumination: 'ibl+ssao', interRoomBleed: true, fixtures: true`
+
+Stored individually (not as a preset name) so users can mix.
+
+### Settings panel UI
+
+`src/ui/SettingsPanel.tsx` (new) — a modal opened from a small "Settings" button in the toolbar (gear icon). Sections:
+
+- **Quality preset** — three buttons (Low / Medium / High) that bulk-set the four flags.
+- **Shadows** — segmented control: Off / Low / High. Tooltip: "Sun shadows through windows. Big FPS impact."
+- **Global illumination** — segmented control: Off / IBL / IBL + SSAO. Tooltip: "Bounced light approximation. IBL is cheap; SSAO costs ~1–3 ms/frame."
+- **Inter-room light bleed** — toggle. Tooltip: "Light spills through open doors. Free."
+- **Fixtures** — toggle. Tooltip: "Render placed lamps and ceiling lights."
+
+Each section shows current FPS reading inline (re-using the existing FPS counter source) so users can see the immediate cost when toggling.
+
+### Wiring through phases
+
+- **Phase 2** Lighting/Sky check `quality.shadows` to set `castShadow` props.
+- **Phase 3.2** uses `quality.shadows` for map size + soft-shadow filter.
+- **Phase 3.3** uses `quality.globalIllumination` to mount/unmount `<Environment>` and `<EffectComposer>`.
+- **Phase 3.4** uses `quality.interRoomBleed` to switch between relaxed `f` and base `f₀`.
+- **Phase 4** uses `quality.fixtures` to gate `<FurnitureLights>` rendering. The toolbar fixtures button from §4 is replaced by this setting.
+
+### Persistence
+
+`schema.ts` serializes the entire `QualitySettings` object. Migration: missing → device-detected defaults (so existing saves don't pin themselves to whatever was current at save time; quality is a per-device preference, not a per-layout one).
+
+---
+
 ## Files touched
 
 **Phase 1 — time model**
@@ -300,10 +383,18 @@ Toolbar gets a small "Lights" button next to the time dropdown that flips a glob
 - `src/scene/lighting/Lighting.tsx`, `Sky.tsx` — drive from altitude
 - `package.json` — add `suncalc`
 
-**Phase 3 — indoor occlusion**
+**Phase 3 — realistic indoor lighting**
 
 - `src/apartment/daylight.ts` — new (`roomDaylightFactor`)
+- `src/apartment/roomGraph.ts` — new (door-adjacency + bleed relaxation)
 - `src/scene/lighting/RoomFillLights.tsx` — new
+- `src/scene/lighting/Lighting.tsx` — `castShadow`/shadow-map size driven by quality
+- `src/apartment/Apartment.tsx`, `Floor.tsx`, `Walls.tsx`, `Ceiling.tsx`, `Door.tsx`, `Fixtures.tsx` — `castShadow`/`receiveShadow` flags
+- `src/App.tsx` — `<Canvas shadows>` driven by quality
+- `src/scene/lighting/Environment.tsx` — new (drei `<Environment>` + altitude→HDRI selection)
+- `src/scene/lighting/PostFx.tsx` — new (`<EffectComposer>` + SSAO)
+- `public/assets/hdri/` — pre-baked HDRIs (`clear-day.hdr`, `overcast.hdr`, `golden.hdr`, `dusk.hdr`, `night.hdr`)
+- `package.json` — `@react-three/postprocessing`
 
 **Phase 4 — light fixtures**
 
@@ -311,23 +402,33 @@ Toolbar gets a small "Lights" button next to the time dropdown that flips a glob
 - `src/furniture/builtinCatalog.ts` — five fixture entries
 - `src/scene/furniture/FurnitureLights.tsx` — new renderer
 - `src/ui/inspector/InspectorPanel.tsx` — Light section
-- `src/ui/Toolbar.tsx` — global fixtures toggle
 - `src/state/schema.ts` — serialize `lightOverride`
 
-**Tests** (one file per phase)
+**Phase 5 — quality settings**
+
+- `src/state/slices/qualitySlice.ts` — new
+- `src/state/schema.ts` — persist quality
+- `src/ui/SettingsPanel.tsx` — new modal
+- `src/ui/Toolbar.tsx` — Settings (gear) button
+- Wiring across Lighting, Environment, PostFx, RoomFillLights, FurnitureLights to read `quality.*`
+
+**Tests** (per phase)
 
 - `timeSlice.test.ts`, `useEffectiveHour.test.ts`
 - `sunPosition.test.ts` (golden values for Singapore noon, London winter solstice, Sydney summer solstice), `altitudeCurve.test.ts`
+- `geocoding.test.ts` (Nominatim response parsing, error handling — no live HTTP)
 - `daylight.test.ts` (each room: which sun directions yield `f > 0`)
+- `roomGraph.test.ts` (adjacency build; bleed relaxation reaches stable values; closed-door isolation)
 - `furnitureLight.test.ts` (override merge, color-temp conversion)
+- `qualitySlice.test.ts` (defaults from device hints; partial patch updates)
 - `schema.test.ts` extended for new fields and migration
 
 ## Out of scope
 
 - Auto-advancing in-world clock.
-- City-name geocoding for the location prompt (lat/lon only).
-- Real shadow ray-casting through windows (only line-of-sight via wall normals + window presence).
-- Bounced-light global illumination.
-- Inter-room light bleed through open doors.
+- Window glass tinting / curtains affecting shadow color.
+- Localized per-room IBL probes (single global environment is used).
+- Directional weighting of door bleed based on door orientation (uniform attenuation).
 - Animated dusk/dawn that's faster than the existing 0.6 s tween.
 - Outdoor environment beyond the apartment shell (skybox stays stylistic, no terrain).
+- Real-time path-traced GI / RTX. IBL + SSAO is the target.

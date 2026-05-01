@@ -48,7 +48,7 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 
 Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers/specs/2026-05-01-time-of-day-design.md). Pending implementation plan.
 
-- **Time-of-day rework** — four-phase project. Phase 1: time model (system/manual + presets + Custom dropdown). Phase 2: astronomical sun position from user location (SunCalc + first-run prompt). Phase 3: window-aware indoor daylight occlusion (per-room fill lights). Phase 4: placeable light fixtures (lamp/pendant/sconce furniture with point/spot lights, inspector controls). Each phase ships independently.
+- **Time-of-day rework** — five-phase project. Phase 1: time model (system/manual + presets + Custom dropdown). Phase 2: astronomical sun position from user location (SunCalc + first-run prompt with geolocation/lat-lon/city search). Phase 3: realistic indoor lighting (per-room fill, real shadows through window cutouts, IBL + SSAO global illumination, inter-room light bleed through open doors). Phase 4: placeable light fixtures (lamp/pendant/sconce furniture with point/spot lights, inspector controls). Phase 5: quality settings panel — toggle shadows / GI / SSAO / inter-room bleed / fixtures independently, with auto-detected device-tier defaults.
 
 ## Risks tracked from specs
 
