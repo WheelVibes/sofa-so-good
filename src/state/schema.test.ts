@@ -157,6 +157,22 @@ describe('schema', () => {
     expect(parsed.locationPromptDismissed).toBe(false);
   });
 
+  it('round-trips lightOverride through serialize → parse → applySerialized', () => {
+    useStore.getState().__resetForTest();
+    const id = useStore.getState().addItem({
+      defId: 'lamp-floor', position: [1, 1], rotation: 0, props: {},
+    });
+    useStore.getState().setLightOverride(id, { on: false, intensity: 1.5, kelvin: 3000 });
+    const out = serialize(useStore.getState());
+    const parsed = SerializedStateZ.safeParse(out);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      const known = new Set(['lamp-floor']);
+      const patch = applySerialized(parsed.data, known);
+      expect(patch.items?.[0]?.lightOverride).toEqual({ on: false, intensity: 1.5, kelvin: 3000 });
+    }
+  });
+
   it('applySerialized restores location into the store patch', () => {
     useStore.getState().__resetForTest();
     useStore.getState().setLocation({ lat: 35.68, lon: 139.69, label: 'Tokyo' });

@@ -1,6 +1,6 @@
 import type { SliceCreator } from './types';
 import type { RootState } from '../store';
-import type { FurnitureItem, ParamProps } from '../../furniture/types';
+import type { FurnitureItem, LightOverride, ParamProps } from '../../furniture/types';
 
 /** Returns a fresh UUID. Falls back to a Math.random-based id if
  *  crypto.randomUUID is unavailable (very old browsers / non-secure
@@ -20,6 +20,7 @@ export interface ItemsSlice {
   deleteItem: (id: string) => void;
   updateItemProps: (id: string, props: ParamProps) => void;
   setItems: (items: FurnitureItem[]) => void;
+  setLightOverride: (itemId: string, patch: Partial<LightOverride>) => void;
 }
 
 export const ITEMS_INITIAL: Pick<ItemsSlice, 'items'> = { items: [] };
@@ -76,4 +77,14 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     }));
   },
   setItems: (items) => set({ items }),
+  setLightOverride: (itemId, patch) => {
+    get().pushHistory();
+    set((s) => ({
+      items: s.items.map((it) =>
+        it.id === itemId
+          ? { ...it, lightOverride: { ...(it.lightOverride ?? {}), ...patch } }
+          : it,
+      ),
+    }));
+  },
 });
