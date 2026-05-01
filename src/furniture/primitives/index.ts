@@ -15,6 +15,11 @@ import { Wardrobe } from './Wardrobe';
 import { Desk } from './Desk';
 import { Bookshelf } from './Bookshelf';
 import { TVConsole } from './TVConsole';
+import { FloorLamp } from './FloorLamp';
+import { TableLamp } from './TableLamp';
+import { Pendant } from './Pendant';
+import { CeilingSpot } from './CeilingSpot';
+import { Sconce } from './Sconce';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -27,4 +32,9 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Desk,
   Bookshelf,
   TVConsole,
+  FloorLamp,
+  TableLamp,
+  Pendant,
+  CeilingSpot,
+  Sconce,
 };

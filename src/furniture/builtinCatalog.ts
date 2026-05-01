@@ -239,6 +239,64 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Cabinet', default: '#e3dfd6' },
     ],
   },
+
+  // ── Lighting ────────────────────────────────────────────────────────────
+  'lamp-floor': {
+    kind: 'parametric', id: 'lamp-floor', name: 'Floor lamp', category: 'lighting',
+    primitive: 'FloorLamp', defaultFootprint: { w: 0.36, d: 0.36, h: 1.7 },
+    paramSchema: [
+      { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#e7dec5' },
+    ],
+    light: {
+      kind: 'point', anchor: [0, 1.55, 0], defaultIntensity: 18,
+      defaultKelvin: 2700, distance: 6,
+    },
+  },
+  'lamp-table': {
+    kind: 'parametric', id: 'lamp-table', name: 'Table lamp', category: 'lighting',
+    primitive: 'TableLamp', defaultFootprint: { w: 0.24, d: 0.24, h: 0.55 },
+    paramSchema: [
+      { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f3ecda' },
+    ],
+    light: {
+      kind: 'point', anchor: [0, 0.46, 0], defaultIntensity: 12,
+      defaultKelvin: 2700, distance: 4,
+    },
+  },
+  'lamp-pendant': {
+    kind: 'parametric', id: 'lamp-pendant', name: 'Pendant ceiling light', category: 'lighting',
+    primitive: 'Pendant', defaultFootprint: { w: 0.36, d: 0.36, h: 0.6 },
+    paramSchema: [
+      { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#e7dec5' },
+    ],
+    light: {
+      kind: 'point', anchor: [0, 1.95, 0], defaultIntensity: 40,
+      defaultKelvin: 3000, distance: 8,
+    },
+  },
+  'lamp-spot': {
+    kind: 'parametric', id: 'lamp-spot', name: 'Spot ceiling light', category: 'lighting',
+    primitive: 'CeilingSpot', defaultFootprint: { w: 0.14, d: 0.14, h: 0.04 },
+    paramSchema: [
+      { kind: 'color', key: 'bodyColor', label: 'Body', default: '#1f1f1f' },
+    ],
+    light: {
+      kind: 'spot', anchor: [0, 2.53, 0], defaultIntensity: 25,
+      defaultKelvin: 4000, distance: 6,
+      cone: { angle: 0.7, penumbra: 0.3, targetOffset: [0, -1, 0] },
+    },
+  },
+  'lamp-sconce': {
+    kind: 'parametric', id: 'lamp-sconce', name: 'Wall sconce', category: 'lighting',
+    primitive: 'Sconce', defaultFootprint: { w: 0.16, d: 0.08, h: 0.06 },
+    paramSchema: [
+      { kind: 'color', key: 'bodyColor', label: 'Body', default: '#2a2a2a' },
+    ],
+    light: {
+      kind: 'point', anchor: [0, 1.7, 0.12], defaultIntensity: 8,
+      defaultKelvin: 2700, distance: 3,
+    },
+  },
 };
 
 /** Pre-grouped lookup for the catalog drawer; recomputed only on module init. */

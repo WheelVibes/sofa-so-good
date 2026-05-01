@@ -100,6 +100,16 @@ describe('store — items + selection slice', () => {
     expect(item.props.mattressColor).toBe('#fff');
   });
 
+  it('setLightOverride patches the override map for an item', () => {
+    const id = useStore.getState().addItem({
+      defId: 'lamp-floor', position: [1, 1], rotation: 0, props: {},
+    });
+    useStore.getState().setLightOverride(id, { on: false });
+    expect(useStore.getState().items[0].lightOverride).toEqual({ on: false });
+    useStore.getState().setLightOverride(id, { intensity: 0.5 });
+    expect(useStore.getState().items[0].lightOverride).toEqual({ on: false, intensity: 0.5 });
+  });
+
   it('deleteItem removes the item and clears selection if it was selected', () => {
     const id = useStore.getState().addItem(sampleItem('bed-double'));
     expect(useStore.getState().selectedItemId).toBe(id);

@@ -48,7 +48,33 @@ export type PrimitiveKind =
   | 'Wardrobe'
   | 'Desk'
   | 'Bookshelf'
-  | 'TVConsole';
+  | 'TVConsole'
+  | 'FloorLamp'
+  | 'TableLamp'
+  | 'Pendant'
+  | 'CeilingSpot'
+  | 'Sconce';
+
+export interface LightEmitter {
+  kind: 'point' | 'spot';
+  /** Offset from furniture origin (metres) at which the bulb sits. */
+  anchor: [number, number, number];
+  defaultIntensity: number;
+  /** Default color temperature in Kelvin (2200–6500). */
+  defaultKelvin: number;
+  /** For spot lights only. */
+  cone?: { angle: number; penumbra: number; targetOffset: [number, number, number] };
+  /** Falloff distance in metres. */
+  distance: number;
+  /** Whether the fixture casts shadows. Capped automatically; see FurnitureLights. */
+  castShadow?: boolean;
+}
+
+export interface LightOverride {
+  on?: boolean;
+  intensity?: number;
+  kelvin?: number;
+}
 
 export type ParamField =
   | {
@@ -93,6 +119,7 @@ interface FurnitureDefBase {
    * fall back to this until the GLB has loaded and the bbox is cached).
    */
   defaultFootprint: { w: number; d: number; h: number };
+  light?: LightEmitter;
 }
 
 export interface ParametricDef extends FurnitureDefBase {
@@ -178,6 +205,7 @@ export interface FurnitureItem {
   /** Y-axis rotation in radians. */
   rotation: number;
   props: ParamProps;
+  lightOverride?: LightOverride;
 }
 
 /** Returns the param schema's default values as a fresh ParamProps map.

@@ -1,6 +1,7 @@
 import type { FurnitureItem, ParametricDef, ParamValue } from '../../furniture/types';
 import { useStore } from '../../state/store';
 import { ColorField, EnumField, IntegerField, NumberField } from './fields';
+import { LightSection } from './fields/LightSection';
 
 interface ParametricBodyProps {
   item: FurnitureItem;
@@ -59,6 +60,7 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
             );
         }
       })}
+      {def.light ? <LightSection item={item} light={def.light} /> : null}
     </div>
   );
 }

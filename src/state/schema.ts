@@ -19,6 +19,13 @@ const FurnitureItemZ = z.object({
   position: z.tuple([z.number(), z.number()]),
   rotation: z.number(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
+  lightOverride: z
+    .object({
+      on: z.boolean().optional(),
+      intensity: z.number().optional(),
+      kelvin: z.number().optional(),
+    })
+    .optional(),
 });
 
 const UserGltfDefZ = z.object({

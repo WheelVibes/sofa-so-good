@@ -9,6 +9,7 @@ import { Sky } from './lighting/Sky';
 import { Environment } from './lighting/Environment';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
+import { FurnitureLights } from './furniture/FurnitureLights';
 import { SelectionOutline } from './selection/SelectionOutline';
 import { MarqueeCameraTracker } from './selection/MarqueeSelector';
 import { PlacementGhost } from './PlacementGhost';
@@ -29,6 +30,7 @@ export function Scene() {
       <Lighting />
       <Apartment />
       <FurnitureLayer />
+      <FurnitureLights />
       <SelectionOutline />
       <PlacementGhost />
       <DragController />
