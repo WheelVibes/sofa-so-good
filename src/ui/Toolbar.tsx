@@ -8,6 +8,7 @@ import { serialize, applySerialized } from '../state/schema';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import type { SlotMeta } from '../state/storage/StorageAdapter';
 import { CreditsModal } from './CreditsModal';
+import { SettingsPanel } from './SettingsPanel';
 
 export function Toolbar() {
   const cameraMode = useStore((s) => s.cameraMode);
@@ -17,6 +18,7 @@ export function Toolbar() {
   const showFps = useStore((s) => s.showFps);
   const toggleShowFps = useStore((s) => s.toggleShowFps);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
     <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-lg bg-white/90 px-3 py-2 shadow backdrop-blur">
@@ -67,7 +69,16 @@ export function Toolbar() {
       >
         Credits
       </button>
+      <button
+        onClick={() => setSettingsOpen(true)}
+        className="whitespace-nowrap rounded bg-neutral-100 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+        aria-label="Settings"
+        title="Settings"
+      >
+        ⚙
+      </button>
       <CreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
+      {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );
 }
