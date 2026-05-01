@@ -25,8 +25,12 @@ export interface SolidMaterialDef extends MaterialDefBase {
 export interface TexturedMaterialDef extends MaterialDefBase {
   kind: 'textured';
   source: 'polyhaven' | 'ambientcg' | 'user';
-  /** CC0 attribution URL (built-ins only). */
+  /** CC0 attribution URL (built-ins and remote-resolved). */
   sourceUrl?: string;
+  /** Provider slug for runtime-resolved entries. */
+  slug?: string;
+  /** Resolution variant for runtime-resolved entries. */
+  resolution?: '1k' | '2k' | '4k';
   textures: {
     albedo: string;
     normal?: string;

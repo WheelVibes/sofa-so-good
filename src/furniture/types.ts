@@ -135,7 +135,23 @@ export interface UserGltfDef extends FurnitureDefBase {
   runtimeUrl?: string;
 }
 
-export type GltfDef = BuiltinGltfDef | UserGltfDef;
+export interface RemoteGltfDef extends FurnitureDefBase {
+  kind: 'gltf';
+  source: 'remote';
+  provider: 'polyhaven';
+  slug: string;
+  resolution: '1k' | '2k' | '4k';
+  /** Object URL pointing to the .gltf JSON document for the loader. */
+  runtimeUrl: string;
+  /** Map of every relative path the .gltf JSON references → object URL. */
+  runtimeAssets: Record<string, string>;
+  scale?: number;
+  license: 'CC0';
+  attribution: string;
+  sourceUrl: string;
+}
+
+export type GltfDef = BuiltinGltfDef | UserGltfDef | RemoteGltfDef;
 export type FurnitureDef = ParametricDef | GltfDef;
 
 export interface FurnitureItem {

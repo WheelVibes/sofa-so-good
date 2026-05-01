@@ -56,6 +56,11 @@ import {
   HISTORY_INITIAL,
   type HistorySlice,
 } from './slices/historySlice';
+import {
+  createRemoteCatalogSlice,
+  REMOTE_CATALOG_INITIAL,
+  type RemoteCatalogSlice,
+} from './slices/remoteCatalogSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeOfDay } from './slices/timeSlice';
@@ -73,7 +78,8 @@ export interface RootState
     FinishesSlice,
     PlacementSlice,
     ClipboardSlice,
-    HistorySlice {
+    HistorySlice,
+    RemoteCatalogSlice {
   __resetForTest: () => void;
 }
 
@@ -90,6 +96,7 @@ const INITIAL = {
   ...PLACEMENT_INITIAL,
   ...CLIPBOARD_INITIAL,
   ...HISTORY_INITIAL,
+  ...REMOTE_CATALOG_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -106,5 +113,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createPlacementSlice(set, get, api),
   ...createClipboardSlice(set, get, api),
   ...createHistorySlice(set, get, api),
+  ...createRemoteCatalogSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));

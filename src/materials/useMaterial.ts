@@ -10,9 +10,11 @@ import type { MeshStandardMaterial } from 'three';
 /** Reactive hook returning the merged material catalog. */
 export function useMaterials(): Record<MaterialId, MaterialDef> {
   const userMaterials = useStore(useShallow((s) => s.userMaterials));
+  const remoteMaterials = useStore(useShallow((s) => s.resolvedRemoteMaterials));
   const merged: Record<MaterialId, MaterialDef> = { ...BUILTIN_MATERIALS };
   for (const m of GENERATED_MATERIALS) merged[m.id] = m;
   for (const m of userMaterials) merged[m.id] = m;
+  for (const m of Object.values(remoteMaterials)) merged[m.id] = m;
   return merged;
 }
 
