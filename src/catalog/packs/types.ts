@@ -16,6 +16,11 @@ export interface InstalledPackEntry {
   entryId: string;
   name: string;
   category: FurnitureCategory;
+  /** Render-time multiplier applied to the raw GLB. `footprint` already
+   *  includes this multiplier; the value is persisted so collision and
+   *  rendering stay in sync without re-deriving on every read. */
+  scale: number;
+  /** Scaled footprint = raw GLB bounding box × `scale`. */
   footprint: { w: number; d: number; h: number };
   /** IDB key for the GLB blob in the existing `assets` store. */
   glbKey: string;

@@ -21,11 +21,11 @@ afterEach(() => {
 
 describe('indexAssets', () => {
   it('emits a TS module containing entries for each GLB', async () => {
-    const glb = join(root, 'public/assets/furniture/demo-duck.glb');
-    copyFileSync('public/assets/furniture/demo-duck.glb', glb);
+    const glb = join(root, 'public/assets/furniture/duck.glb');
+    copyFileSync('scripts/asset-pipeline/__tests__/fixtures/duck.glb', glb);
     writeSidecar(glb, {
-      id: 'demo-duck-fixture',
-      name: 'Demo duck fixture',
+      id: 'duck-fixture',
+      name: 'Duck fixture',
       category: 'decor',
       footprint: { w: 0.6, d: 0.6, h: 1.0 },
       scale: 0.005,
@@ -36,17 +36,17 @@ describe('indexAssets', () => {
     });
     await indexAssets({ projectRoot: root });
     const out = readFileSync(join(root, 'src/furniture/generatedCatalog.ts'), 'utf8');
-    expect(out).toContain('"demo-duck-fixture"');
+    expect(out).toContain('"duck-fixture"');
     expect(out).toContain('"decor"');
-    expect(out).toContain('"/assets/furniture/demo-duck.glb"');
+    expect(out).toContain('"/assets/furniture/duck.glb"');
     expect(out).toContain('"Khronos"');
   });
 
   it('throws on duplicate ids', async () => {
     const a = join(root, 'public/assets/furniture/a.glb');
     const b = join(root, 'public/assets/furniture/b.glb');
-    copyFileSync('public/assets/furniture/demo-duck.glb', a);
-    copyFileSync('public/assets/furniture/demo-duck.glb', b);
+    copyFileSync('scripts/asset-pipeline/__tests__/fixtures/duck.glb', a);
+    copyFileSync('scripts/asset-pipeline/__tests__/fixtures/duck.glb', b);
     const sidecar = {
       id: 'same-id',
       name: 'X',

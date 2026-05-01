@@ -38,9 +38,9 @@ export function RemoteCard({ entry, onResolved }: Props) {
       ref={cardRef}
       className="relative flex flex-col gap-1 rounded border border-neutral-200 p-2 text-[10px]"
     >
-      <div className="flex aspect-square w-full items-center justify-center bg-neutral-100">
+      <div className="flex h-32 w-full items-center justify-center bg-neutral-100">
         {thumb ? (
-          <img src={thumb} alt={entry.name} className="h-full w-full object-cover" />
+          <img src={thumb} alt={entry.name} className="h-full w-full object-contain" />
         ) : (
           <span className="text-neutral-300">…</span>
         )}

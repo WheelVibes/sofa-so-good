@@ -96,7 +96,11 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     id: 'corridor',
     name: 'Corridor',
     origin: [4.35, 3.70],
-    width: 4.65,
+    // Extends east to the outer body face of the b3-LD partition (cx=9.10)
+    // so the corridor reaches the bedroom / living-room wall corner; this
+    // lets the corridor finish on the bedroom-S south face cover all the way
+    // to the outer L-corner instead of stopping at the b3-LD west body face.
+    width: 4.75,
     depth: 1.30,
     derivation:
       'Central circulation strip from the small MB-foyer partition (cx=4.30) east to L/D, linking B2/B3 (north) to bath2/kitchen/L-D (south). The corridor band west of cx=4.30 is the MB foyer (part of MB, no separating wall from MB main). North wall (cz=3.65) carries the B2 and B3 doors; south wall (cz=5.05) carries the bath2 and kitchen doors (bath1 door is on the foyer-S wall). East end opens to L/D (no wall over cz=[3.65, 5.05] at cx=9.05).',

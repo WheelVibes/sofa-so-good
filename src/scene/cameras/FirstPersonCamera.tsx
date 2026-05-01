@@ -1,11 +1,12 @@
 import { PointerLockControls } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useEffect, useRef } from 'react';
-import { Vector3 } from 'three';
+import { PerspectiveCamera, Vector3 } from 'three';
 import { DOORS, WALLS } from '../../apartment/constants';
 import { isLineOfSightBlocked, resolveMovement, type CollisionWall } from '../../collision/walls';
 import { buildCollisionWalls } from '../../collision/wallsFromState';
 import { KEYBINDINGS } from '../../controls/keybindings';
+import { isEditableTarget } from '../../controls/useKeyboard';
 import { useStore } from '../../state/store';
 
 interface DoorSegment {
@@ -37,7 +38,13 @@ const DOOR_SEGMENTS: DoorSegment[] = (() => {
 })();
 
 const EYE_HEIGHT = 1.65;
+const CROUCH_HEIGHT = 1.05;
+const CROUCH_RATE = 4.5;
+const WALK_FOV = 60;
 const WALK_SPEED = 3.2;
+const SNEAK_SPEED = 1.2;
+const JUMP_VELOCITY = 4.2;
+const GRAVITY = 14;
 const POINTER_SPEED = 1.4;
 const PLAYER_RADIUS = 0.25;
 const INTERACT_RADIUS = 2.0;
@@ -55,6 +62,7 @@ export function FirstPersonCamera() {
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e)) return;
       pressed.current[e.code] = true;
     };
     const onUp = (e: KeyboardEvent) => {
@@ -77,14 +85,30 @@ export function FirstPersonCamera() {
 
   useEffect(() => {
     camera.position.set(11, EYE_HEIGHT, 6);
+    yPos.current = EYE_HEIGHT;
+    yVel.current = 0;
+    groundY.current = EYE_HEIGHT;
+    let prevFov: number | null = null;
+    if (camera instanceof PerspectiveCamera) {
+      prevFov = camera.fov;
+      camera.fov = WALK_FOV;
+      camera.updateProjectionMatrix();
+    }
     return () => {
       useStore.getState().setNearbyDoor(null);
+      if (camera instanceof PerspectiveCamera && prevFov !== null) {
+        camera.fov = prevFov;
+        camera.updateProjectionMatrix();
+      }
     };
   }, [camera]);
 
   const tmpForward = useRef(new Vector3());
   const tmpRight = useRef(new Vector3());
   const aimAccum = useRef(0);
+  const yPos = useRef(EYE_HEIGHT);
+  const yVel = useRef(0);
+  const groundY = useRef(EYE_HEIGHT);
 
   useFrame((_, dt) => {
     const dir = tmpForward.current;
@@ -93,21 +117,41 @@ export function FirstPersonCamera() {
     dir.normalize();
     const right = tmpRight.current.set(-dir.z, 0, dir.x);
 
+    const forward =
+      pressed.current[KEYBINDINGS.walkForward] || pressed.current['ArrowUp'];
+    const back =
+      pressed.current[KEYBINDINGS.walkBack] || pressed.current['ArrowDown'];
+    const left =
+      pressed.current[KEYBINDINGS.walkLeft] || pressed.current['ArrowLeft'];
+    const rightKey =
+      pressed.current[KEYBINDINGS.walkRight] || pressed.current['ArrowRight'];
+    const crouching =
+      !!pressed.current['ShiftLeft'] || !!pressed.current['ShiftRight'];
+    const targetGround = crouching ? CROUCH_HEIGHT : EYE_HEIGHT;
+    const dy = targetGround - groundY.current;
+    const maxStep = CROUCH_RATE * dt;
+    groundY.current += Math.abs(dy) <= maxStep ? dy : Math.sign(dy) * maxStep;
+    const onGround = yPos.current <= groundY.current + 1e-3 && yVel.current <= 0;
+
+    if (pressed.current['Space'] && onGround && !crouching) {
+      yVel.current = JUMP_VELOCITY;
+    }
+
     let dx = 0,
       dz = 0;
-    if (pressed.current[KEYBINDINGS.walkForward]) {
+    if (forward) {
       dx += dir.x;
       dz += dir.z;
     }
-    if (pressed.current[KEYBINDINGS.walkBack]) {
+    if (back) {
       dx -= dir.x;
       dz -= dir.z;
     }
-    if (pressed.current[KEYBINDINGS.walkRight]) {
+    if (rightKey) {
       dx += right.x;
       dz += right.z;
     }
-    if (pressed.current[KEYBINDINGS.walkLeft]) {
+    if (left) {
       dx -= right.x;
       dz -= right.z;
     }
@@ -115,13 +159,27 @@ export function FirstPersonCamera() {
     if (dx !== 0 || dz !== 0) {
       const len = Math.hypot(dx, dz);
       const stepDt = Math.min(dt, 0.05);
-      dx = (dx / len) * WALK_SPEED * stepDt;
-      dz = (dz / len) * WALK_SPEED * stepDt;
+      const speed = crouching ? SNEAK_SPEED : WALK_SPEED;
+      dx = (dx / len) * speed * stepDt;
+      dz = (dz / len) * speed * stepDt;
       const from: [number, number] = [camera.position.x, camera.position.z];
       const to: [number, number] = [from[0] + dx, from[1] + dz];
       const next = resolveMovement(from, to, PLAYER_RADIUS, collisionWalls.current);
-      camera.position.set(next[0], EYE_HEIGHT, next[1]);
+      camera.position.x = next[0];
+      camera.position.z = next[1];
     }
+
+    if (onGround && yVel.current === 0) {
+      yPos.current = groundY.current;
+    } else {
+      yVel.current -= GRAVITY * dt;
+      yPos.current += yVel.current * dt;
+      if (yPos.current <= groundY.current) {
+        yPos.current = groundY.current;
+        yVel.current = 0;
+      }
+    }
+    camera.position.y = yPos.current;
 
     aimAccum.current += dt;
     if (aimAccum.current < AIM_CHECK_INTERVAL) return;

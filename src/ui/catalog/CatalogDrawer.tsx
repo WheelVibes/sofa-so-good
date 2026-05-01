@@ -7,8 +7,9 @@ import { CatalogCard } from './CatalogCard';
 import { UploadModelDialog } from '../upload/UploadModelDialog';
 import { RemoteBrowseTab } from './RemoteBrowseTab';
 import { PacksTab } from './PacksTab';
+import { ThumbnailHost } from './thumbnails';
 
-type Mode = 'builtin' | 'browse-furniture' | 'browse-materials' | 'packs';
+type Mode = 'builtin' | 'browse-furniture' | 'packs';
 
 /** Sliding left-side drawer. Toggle via toolbar or the C key (handled
  *  in App.tsx). Click a card to drop the item near the L/D centre and
@@ -50,7 +51,6 @@ export function CatalogDrawer() {
           [
             ['builtin', 'Built-in'],
             ['browse-furniture', 'Browse furniture'],
-            ['browse-materials', 'Browse materials'],
             ['packs', 'Packs'],
           ] as const
         ).map(([m, label]) => (
@@ -104,7 +104,7 @@ export function CatalogDrawer() {
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           <RemoteBrowseTab
-            kind={mode === 'browse-furniture' ? 'furniture' : 'material'}
+            kind="furniture"
             onResolved={() => {
               // Switch to built-in tab so the user can place the resolved item
               // (it's already merged into the active catalog).
@@ -114,6 +114,7 @@ export function CatalogDrawer() {
         </div>
       )}
       <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+      <ThumbnailHost />
     </aside>
   );
 }

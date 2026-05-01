@@ -4,14 +4,19 @@ import { Box3, Color, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { SkeletonUtils } from 'three-stdlib';
 import type { Object3D } from 'three';
 
-/** Module-level bbox cache: GLB url → axis-aligned size in metres at scale=1.
- *  Computed once per url on first mount and reused for placement collision. */
-const FOOTPRINT_CACHE = new Map<string, { w: number; d: number; h: number }>();
+/** Module-level bbox cache: GLB url → axis-aligned size in metres at scale=1,
+ *  plus the local-space center offset of that bbox. Many GLBs are not
+ *  centered on their local origin, so consumers must add (ox, oz) — rotated
+ *  by the item's yaw — to item.position when computing the OBB. */
+const FOOTPRINT_CACHE = new Map<
+  string,
+  { w: number; d: number; h: number; ox: number; oz: number }
+>();
 
 /** Reads the cached footprint for a GLB if available, else returns null. */
 export function getCachedGltfFootprint(
   url: string,
-): { w: number; d: number; h: number } | null {
+): { w: number; d: number; h: number; ox: number; oz: number } | null {
   return FOOTPRINT_CACHE.get(url) ?? null;
 }
 
@@ -42,13 +47,35 @@ export function GltfModel({ url, scale = 1, tint }: GltfModelProps) {
   // Cache footprint once.
   useEffect(() => {
     if (FOOTPRINT_CACHE.has(url)) return;
-    const box = new Box3().setFromObject(cloned);
+    // Compute bbox from visible meshes only. setFromObject traverses every
+    // descendant including lights, empties, collision proxies, and hidden
+    // helper geometry that some GLBs ship with — those can inflate the
+    // footprint well beyond the rendered shape.
+    cloned.updateWorldMatrix(true, true);
+    const box = new Box3();
+    const meshBox = new Box3();
+    cloned.traverse((obj) => {
+      const mesh = obj as Mesh;
+      if (!mesh.isMesh || !mesh.visible || !mesh.geometry) return;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const gb = mesh.geometry.boundingBox;
+      if (!gb) return;
+      meshBox.copy(gb).applyMatrix4(mesh.matrixWorld);
+      box.union(meshBox);
+    });
     const size = new Vector3();
+    const center = new Vector3();
+    if (box.isEmpty()) {
+      box.setFromObject(cloned);
+    }
     box.getSize(size);
+    box.getCenter(center);
     FOOTPRINT_CACHE.set(url, {
       w: Math.max(0.05, size.x),
       d: Math.max(0.05, size.z),
       h: Math.max(0.05, size.y),
+      ox: center.x,
+      oz: center.z,
     });
   }, [url, cloned]);
 

@@ -168,7 +168,7 @@ export function RemoteBrowseTab({
           </p>
         ) : (
           <>
-            <div className="grid grid-cols-2 gap-2">
+            <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2">
               {visible.map((entry) => (
                 <RemoteCard
                   key={`${entry.provider}:${entry.slug}`}

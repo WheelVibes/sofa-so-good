@@ -31,6 +31,9 @@ export interface TexturedMaterialDef extends MaterialDefBase {
   slug?: string;
   /** Resolution variant for runtime-resolved entries. */
   resolution?: '1k' | '2k' | '4k';
+  /** Provider-hosted low-res preview URL (~128–150 px). Used by the
+   *  finish picker swatch grid so we don't load the full albedo. */
+  thumbUrl?: string;
   textures: {
     albedo: string;
     normal?: string;

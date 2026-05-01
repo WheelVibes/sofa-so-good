@@ -35,6 +35,10 @@ function wallToObb(w: CollisionWall): OBB {
 export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
   let w = def.defaultFootprint.w;
   let d = def.defaultFootprint.d;
+  // Local-space center offset of the GLB bbox. Many models are authored
+  // off-origin; without this the OBB drifts from the rendered geometry.
+  let ox = 0;
+  let oz = 0;
 
   if (def.kind === 'parametric') {
     // Recompute footprint from live params using the def's mapping; falls
@@ -46,19 +50,34 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
     const dv = item.props[dKey];
     if (typeof wv === 'number') w = wv;
     if (typeof dv === 'number') d = dv;
-  } else if (def.source === 'builtin') {
-    const cached = getCachedGltfFootprint(def.url);
+  } else {
+    // For any GLB-backed def (builtin / user upload / remote / pack),
+    // prefer the cached real bounding box over the def's authored
+    // defaultFootprint — uploads default to a 1×1×1 placeholder, and
+    // remote/pack entries may be inaccurate too.
+    const url = def.source === 'builtin' ? def.url : def.runtimeUrl;
+    const cached = url ? getCachedGltfFootprint(url) : null;
     if (cached) {
       w = cached.w;
       d = cached.d;
+      ox = cached.ox;
+      oz = cached.oz;
     }
   }
 
+  const defScale = def.kind === 'parametric' ? undefined : def.scale;
+  const scale =
+    (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1;
+  const cos = Math.cos(item.rotation);
+  const sin = Math.sin(item.rotation);
+  const sx = ox * scale;
+  const sz = oz * scale;
+
   return {
-    cx: item.position[0],
-    cz: item.position[1],
-    hx: w / 2,
-    hz: d / 2,
+    cx: item.position[0] + cos * sx - sin * sz,
+    cz: item.position[1] + sin * sx + cos * sz,
+    hx: (w * scale) / 2,
+    hz: (d * scale) / 2,
     rot: item.rotation,
   };
 }

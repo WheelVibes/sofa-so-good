@@ -52,3 +52,28 @@ export function buildWallSegments(wall: WallSpec, ceilingHeight: number): WallSe
 export function wallThicknessMetres(wall: WallSpec): number {
   return wall.thickness === 'external' ? FLAT.externalWallThickness : FLAT.internalWallThickness;
 }
+
+/** Returns the thickness of the wall that this wall's start/end abuts, or 0
+ *  if the endpoint is free (does not lie on any other wall's centerline).
+ *  Used for trimming face planes flush to the inner edge of the abutting
+ *  wall and extending body boxes to its outer edge. */
+export function wallEndAbutmentThickness(wall: WallSpec, allWalls: readonly WallSpec[], atStart: boolean): number {
+  const point = atStart ? wall.start : wall.end;
+  for (const other of allWalls) {
+    if (other.id === wall.id) continue;
+    const dx = other.end[0] - other.start[0];
+    const dz = other.end[1] - other.start[1];
+    const len = Math.hypot(dx, dz);
+    if (len === 0) continue;
+    const tx = dx / len;
+    const tz = dz / len;
+    const px = point[0] - other.start[0];
+    const pz = point[1] - other.start[1];
+    const along = px * tx + pz * tz;
+    const perp = Math.abs(px * -tz + pz * tx);
+    if (perp < 1e-3 && along > -1e-3 && along < len + 1e-3) {
+      return wallThicknessMetres(other);
+    }
+  }
+  return 0;
+}

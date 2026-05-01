@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Scene } from './scene/Scene';
 import { MarqueeSelector } from './scene/selection/MarqueeSelector';
+import { Compass } from './ui/Compass';
 import { Crosshair } from './ui/Crosshair';
 import { DoorPrompt } from './ui/DoorPrompt';
 import { HelpHint } from './ui/HelpHint';
@@ -329,6 +330,7 @@ export default function App() {
         <Toolbar />
         <Scene />
         <MarqueeSelector />
+        <Compass />
         <Crosshair />
         <DoorPrompt />
         <HelpHint />

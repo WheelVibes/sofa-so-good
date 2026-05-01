@@ -54,4 +54,37 @@ describe('installPack', () => {
       expect(await IdbAssetStore.get(entry.thumbKey)).not.toBeNull();
     }
   });
+
+  it('applies the curated per-id scale to each entry footprint', async () => {
+    const zipBytes = makeMockPackZip();
+    const fakeFetch = vi.fn(
+      async () =>
+        new Response(new Blob([zipBytes.buffer.slice(0) as ArrayBuffer]), {
+          status: 200,
+          headers: {
+            'Content-Length': String(zipBytes.byteLength),
+            'Content-Type': 'application/zip',
+          },
+        }),
+    );
+    const realPack = AVAILABLE_PACKS[0];
+    const pack = { ...realPack, sizeBytes: zipBytes.byteLength };
+
+    const installed = await installPack(pack, { fetchImpl: fakeFetch as unknown as typeof fetch });
+
+    // bedDouble is intentionally scale=1 (already correct in source).
+    const bed = installed.entries.find((e) => e.entryId === 'bedDouble');
+    expect(bed?.scale).toBe(1);
+    // loungeSofa is curated to scale=2 to bring the half-sized model up to
+    // a real-world ~2 m sofa width.
+    const sofa = installed.entries.find((e) => e.entryId === 'loungeSofa');
+    expect(sofa?.scale).toBe(2);
+    // Footprint reflects the applied scale (sofa footprint = 2× bed footprint
+    // here because the test fixture re-uses one duck.glb for both).
+    if (bed && sofa) {
+      expect(sofa.footprint.w).toBeCloseTo(bed.footprint.w * 2, 5);
+      expect(sofa.footprint.d).toBeCloseTo(bed.footprint.d * 2, 5);
+      expect(sofa.footprint.h).toBeCloseTo(bed.footprint.h * 2, 5);
+    }
+  });
 });

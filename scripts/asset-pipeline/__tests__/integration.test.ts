@@ -22,7 +22,7 @@ afterEach(() => {
 
 describe('asset pipeline integration', () => {
   it('produces a generated catalog and CREDITS.json from one fixture entry', async () => {
-    const src = 'public/assets/furniture/demo-duck.glb';
+    const src = 'scripts/asset-pipeline/__tests__/fixtures/duck.glb';
     const dst = join(root, 'public/assets/furniture/fixture-duck.glb');
     await processGlb(src, dst, { compress: false });
     writeSidecar(dst, {

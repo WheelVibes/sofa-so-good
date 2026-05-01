@@ -17,8 +17,11 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       if (passive) return;
-      e.stopPropagation();
       const state = useStore.getState();
+      // Walk mode and rotate-tool are view-only — clicks must not select.
+      if (state.cameraMode !== 'orbit') return;
+      if (state.editorTool !== 'select') return;
+      e.stopPropagation();
       // Shift-click extends/toggles the multi-selection; plain click
       // replaces it with just this item.
       if (e.shiftKey) state.toggleSelectedItem(item.id);

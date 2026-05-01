@@ -2,7 +2,10 @@ import { useStore } from '../store';
 import { InstalledPackStore } from '../../catalog/packs/installedPackStore';
 import { IdbAssetStore } from './IdbAssetStore';
 import { AVAILABLE_PACKS } from '../../catalog/packs/registry';
+import { packEntryScale, scaledFootprint } from '../../catalog/packs/scaleHeuristic';
+import { glbFootprint } from '../../catalog/packs/footprint';
 import type { PackGltfDef } from '../../furniture/types';
+import type { InstalledPack } from '../../catalog/packs/types';
 
 /**
  * Reads installed-pack manifests from IDB, resolves blob URLs for each
@@ -24,14 +27,35 @@ export async function hydratePacks(): Promise<void> {
   const store = useStore.getState();
 
   for (const pack of installed) {
-    store.markPackInstalled(pack);
     const meta = AVAILABLE_PACKS.find((p) => p.id === pack.packId);
     const attribution = meta?.attribution ?? pack.packId;
     const sourceUrl = meta?.sourceUrl ?? '';
+    let mutated = false;
+    const migratedEntries: typeof pack.entries = [];
     for (const e of pack.entries) {
       const glb = await IdbAssetStore.get(e.glbKey);
       const thumb = await IdbAssetStore.get(e.thumbKey);
-      if (!glb) continue;
+      if (!glb) {
+        migratedEntries.push(e);
+        continue;
+      }
+
+      // Migrate legacy entries that pre-date per-id scaling: their
+      // persisted `footprint` is the raw GLB bbox and `scale` is missing.
+      // Recompute both from the still-stored GLB bytes.
+      let { scale, footprint } = e;
+      if (typeof scale !== 'number') {
+        const expectedScale = packEntryScale(pack.packId, e.entryId);
+        if (expectedScale !== 1) {
+          const rawBytes = new Uint8Array(await new Response(glb.blob).arrayBuffer());
+          const raw = await glbFootprint(rawBytes);
+          footprint = scaledFootprint(raw, expectedScale);
+        }
+        scale = expectedScale;
+        mutated = true;
+      }
+
+      migratedEntries.push({ ...e, scale, footprint });
       defs.push({
         id: e.id,
         name: e.name,
@@ -40,7 +64,8 @@ export async function hydratePacks(): Promise<void> {
         source: 'pack',
         packId: e.packId,
         entryId: e.entryId,
-        defaultFootprint: e.footprint,
+        defaultFootprint: footprint,
+        scale,
         runtimeUrl: URL.createObjectURL(glb.blob),
         thumbUrl: thumb ? URL.createObjectURL(thumb.blob) : undefined,
         license: 'CC0',
@@ -48,6 +73,20 @@ export async function hydratePacks(): Promise<void> {
         sourceUrl,
       });
     }
+
+    const finalPack: InstalledPack = mutated
+      ? { ...pack, entries: migratedEntries }
+      : pack;
+    if (mutated) {
+      try {
+        await InstalledPackStore.put(finalPack);
+      } catch {
+        // Best-effort persistence — the in-memory defs above already
+        // carry the migrated scale, so a write failure only means the
+        // migration repeats on next hydrate.
+      }
+    }
+    store.markPackInstalled(finalPack);
   }
   useStore.getState().setPackFurniture(defs);
 }

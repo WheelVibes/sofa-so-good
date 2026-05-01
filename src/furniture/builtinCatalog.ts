@@ -215,38 +215,6 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     ],
   },
 
-  // ── Decor (CC0 GLB demos) ───────────────────────────────────────────────
-  // Two very small Khronos sample GLBs proving the GLB → catalog →
-  // GltfModel → placement-collision pipeline works end-to-end. Real
-  // furniture GLBs (Kenney, Poly Haven) drop into public/assets/
-  // furniture/ alongside these and get one catalog entry each.
-  'demo-box': {
-    kind: 'gltf',
-    id: 'demo-box',
-    name: 'Demo box',
-    category: 'decor',
-    source: 'builtin',
-    url: '/assets/furniture/demo-box.glb',
-    license: 'CC0',
-    sourceUrl: 'https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Box',
-    attribution: 'Khronos glTF Sample Models',
-    defaultFootprint: { w: 1.0, d: 1.0, h: 1.0 },
-    scale: 0.6,
-  },
-  'demo-duck': {
-    kind: 'gltf',
-    id: 'demo-duck',
-    name: 'Demo duck',
-    category: 'decor',
-    source: 'builtin',
-    url: '/assets/furniture/demo-duck.glb',
-    license: 'CC0',
-    sourceUrl: 'https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Duck',
-    attribution: 'Khronos glTF Sample Models',
-    defaultFootprint: { w: 0.6, d: 0.6, h: 1.0 },
-    scale: 0.005,
-  },
-
   // ── Kitchen ─────────────────────────────────────────────────────────────
   'kitchen-counter-l': {
     kind: 'parametric',

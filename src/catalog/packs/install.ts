@@ -2,9 +2,11 @@ import { unzipSync } from 'fflate';
 import type { Pack, InstalledPack, InstalledPackEntry } from './types';
 import { ThumbnailRenderer } from './thumbnail';
 import { glbFootprint } from './footprint';
+import { packEntryScale, scaledFootprint } from './scaleHeuristic';
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore';
 import { InstalledPackStore } from './installedPackStore';
 import { useStore } from '../../state/store';
+import type { PackGltfDef } from '../../furniture/types';
 
 export interface InstallOpts {
   signal?: AbortSignal;
@@ -63,6 +65,7 @@ export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<I
     const descriptors = pack.parseEntries(files);
     const renderer = new ThumbnailRenderer();
     const entries: InstalledPackEntry[] = [];
+    const newDefs: PackGltfDef[] = [];
     try {
       for (let i = 0; i < descriptors.length; i++) {
         if (opts.signal?.aborted) throw new Error('Cancelled');
@@ -70,22 +73,25 @@ export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<I
         const glbBytes = files[d.glbPath];
         if (!glbBytes) continue;
 
-        const [thumbBlob, footprint] = await Promise.all([
+        const [thumbBlob, rawFootprint] = await Promise.all([
           renderer.render(glbBytes),
           glbFootprint(glbBytes),
         ]);
+        const scale = packEntryScale(pack.id, d.id);
+        const footprint = scaledFootprint(rawFootprint, scale);
 
         const gKey = glbKey(pack.id, d.id);
         const tKey = thumbKey(pack.id, d.id);
         const now = new Date().toISOString();
 
+        const glbBlob = new Blob([new Uint8Array(glbBytes)], { type: 'model/gltf-binary' });
         await IdbAssetStore.put({
           assetId: gKey,
           kind: 'gltf',
           mime: 'model/gltf-binary',
           name: d.name,
           uploadedAt: now,
-          blob: new Blob([new Uint8Array(glbBytes)], { type: 'model/gltf-binary' }),
+          blob: glbBlob,
           meta: { source: 'pack', packId: pack.id, entryId: d.id, role: 'glb' },
         });
         await IdbAssetStore.put({
@@ -98,15 +104,33 @@ export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<I
           meta: { source: 'pack', packId: pack.id, entryId: d.id, role: 'thumb' },
         });
 
+        const entryId = `${pack.id}:${d.id}`;
         entries.push({
-          id: `${pack.id}:${d.id}`,
+          id: entryId,
           packId: pack.id,
           entryId: d.id,
           name: d.name,
           category: d.category,
+          scale,
           footprint,
           glbKey: gKey,
           thumbKey: tKey,
+        });
+        newDefs.push({
+          id: entryId,
+          name: d.name,
+          category: d.category,
+          kind: 'gltf',
+          source: 'pack',
+          packId: pack.id,
+          entryId: d.id,
+          defaultFootprint: footprint,
+          scale,
+          runtimeUrl: URL.createObjectURL(glbBlob),
+          thumbUrl: URL.createObjectURL(thumbBlob),
+          license: 'CC0',
+          attribution: pack.attribution,
+          sourceUrl: pack.sourceUrl,
         });
 
         notify.update(notifId, {
@@ -125,7 +149,12 @@ export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<I
     };
     await InstalledPackStore.put(installed);
 
-    useStore.getState().markPackInstalled(installed);
+    const state = useStore.getState();
+    state.markPackInstalled(installed);
+    state.setPackFurniture([
+      ...state.packFurniture.filter((d) => d.packId !== pack.id),
+      ...newDefs,
+    ]);
 
     notify.success(notifId, `${entries.length} items added to your catalog`);
     return installed;

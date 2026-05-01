@@ -32,6 +32,10 @@ function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
   const selectRoom = useStore((s) => s.selectRoom);
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
+      const state = useStore.getState();
+      // Walk mode and rotate-tool are view-only — don't open finishes.
+      if (state.cameraMode !== 'orbit') return;
+      if (state.editorTool !== 'select') return;
       e.stopPropagation();
       selectRoom(roomId);
     },

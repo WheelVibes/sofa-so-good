@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { processGlb, deriveBoundingBox } from '../process-glb';
 
 let tmp: string;
-const FIXTURE_GLB = 'public/assets/furniture/demo-duck.glb';
+const FIXTURE_GLB = 'scripts/asset-pipeline/__tests__/fixtures/duck.glb';
 
 beforeEach(() => {
   tmp = mkdtempSync(join(tmpdir(), 'glb-test-'));
@@ -31,7 +31,7 @@ describe('processGlb', () => {
 });
 
 describe('deriveBoundingBox', () => {
-  it('returns a positive bbox for the demo duck', async () => {
+  it('returns a positive bbox for the duck fixture', async () => {
     const bbox = await deriveBoundingBox(FIXTURE_GLB);
     expect(bbox.w).toBeGreaterThan(0);
     expect(bbox.d).toBeGreaterThan(0);

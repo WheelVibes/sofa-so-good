@@ -13,6 +13,7 @@ const sample: InstalledPack = {
       entryId: 'bedDouble',
       name: 'Bed Double',
       category: 'beds',
+      scale: 1,
       footprint: { w: 1.5, d: 2, h: 0.8 },
       glbKey: 'pack:kenney-furniture-kit:bedDouble:glb',
       thumbKey: 'pack:kenney-furniture-kit:bedDouble:thumb',

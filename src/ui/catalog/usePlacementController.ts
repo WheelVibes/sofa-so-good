@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { useStore } from '../../state/store';
 import { useCatalog } from '../../furniture/catalog';
+import { isEditableTarget } from '../../controls/useKeyboard';
 import {
   defaultParamProps,
   type FurnitureDef,
@@ -61,6 +62,7 @@ export function usePlacementController() {
       useStore.getState().cancelPlacement();
     };
     const onKey = (ev: KeyboardEvent) => {
+      if (isEditableTarget(ev)) return;
       if (ev.code === 'Escape') useStore.getState().cancelPlacement();
     };
 

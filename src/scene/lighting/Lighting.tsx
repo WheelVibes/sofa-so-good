@@ -2,8 +2,13 @@ import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
 import type { DirectionalLight, AmbientLight } from 'three';
 import { useStore } from '../../state/store';
-import { useEffectiveHour } from './useEffectiveHour';
-import { hourToPreset, type LegacyTimeKey } from './hourToPreset';
+import { useSunPosition } from './useSunPosition';
+import { sunDirectionToScene, type SunPosition } from './sunPosition';
+import { lightingFromAltitude } from './altitudeCurve';
+
+/** Distance from origin where the directional light sits (metres). */
+const SUN_DISTANCE = 25;
+const TWEEN_DURATION = 0.6;
 
 interface Vals {
   sun: number;
@@ -12,39 +17,47 @@ interface Vals {
   sunColor: [number, number, number];
 }
 
-const PRESETS: Record<LegacyTimeKey, Vals> = {
-  day: { sun: 1.0, ambient: 0.6, sunPos: [10, 20, 5], sunColor: [1.0, 0.96, 0.88] },
-  dusk: { sun: 0.4, ambient: 0.4, sunPos: [10, 4, 5], sunColor: [1.0, 0.72, 0.42] },
-  night: { sun: 0.05, ambient: 0.15, sunPos: [10, -5, 5], sunColor: [0.24, 0.29, 0.42] },
-};
-
-const TWEEN_DURATION = 0.6;
-
+// Clockwise around Y when viewed from above, matching compass bearings
+// (N=0° → E=90° → S=180° → W=270°). Same convention as Sky.tsx.
 function rotateY(pos: readonly [number, number, number], deg: number): [number, number, number] {
   const r = (deg * Math.PI) / 180;
   const c = Math.cos(r);
   const s = Math.sin(r);
   const [x, y, z] = pos;
-  return [x * c + z * s, y, -x * s + z * c];
+  return [x * c - z * s, y, x * s + z * c];
+}
+
+function targetVals(sun: SunPosition, orientation: number): Vals {
+  const lighting = lightingFromAltitude(sun.altitude);
+  const dir = sunDirectionToScene(sun);
+  const scaled: [number, number, number] = [
+    dir[0] * SUN_DISTANCE,
+    dir[1] * SUN_DISTANCE,
+    dir[2] * SUN_DISTANCE,
+  ];
+  return {
+    sun: lighting.sun,
+    ambient: lighting.ambient,
+    sunPos: rotateY(scaled, orientation),
+    sunColor: lighting.sunColor,
+  };
 }
 
 export function Lighting() {
-  const time = hourToPreset(useEffectiveHour());
+  const sunPos = useSunPosition();
   const orientation = useStore((s) => s.orientationDeg);
   const sunRef = useRef<DirectionalLight>(null!);
   const ambientRef = useRef<AmbientLight>(null!);
-  const initialPos = rotateY(PRESETS[time].sunPos, 0);
+  const initial = targetVals(sunPos, orientation);
   const current = useRef<Vals>({
-    sun: PRESETS[time].sun,
-    ambient: PRESETS[time].ambient,
-    sunPos: initialPos,
-    sunColor: [...PRESETS[time].sunColor] as [number, number, number],
+    sun: initial.sun,
+    ambient: initial.ambient,
+    sunPos: [...initial.sunPos] as [number, number, number],
+    sunColor: [...initial.sunColor] as [number, number, number],
   });
 
   useFrame((_, dt) => {
-    const preset = PRESETS[time];
-    const rotated = rotateY(preset.sunPos, orientation);
-    const target = { ...preset, sunPos: rotated };
+    const target = targetVals(sunPos, orientation);
     const cur = current.current;
     const dSun = target.sun - cur.sun;
     const dAmb = target.ambient - cur.ambient;
