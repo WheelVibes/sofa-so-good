@@ -67,6 +67,16 @@ const RawSerializedStateZ = z.object({
   manualHour: z.number().min(0).max(24),
   cameraMode: z.enum(['orbit', 'firstPerson']),
   orientationDeg: z.number().optional(),
+  location: z
+    .object({
+      lat: z.number().min(-90).max(90),
+      lon: z.number().min(-180).max(180),
+      label: z.string().optional(),
+    })
+    .nullable()
+    .optional()
+    .default(null),
+  locationPromptDismissed: z.boolean().optional().default(false),
   savedAt: z.string(),
 });
 
@@ -130,6 +140,8 @@ export function serialize(state: RootState): SerializedState {
     manualHour: state.manualHour,
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
+    location: state.location,
+    locationPromptDismissed: state.locationPromptDismissed,
     savedAt: new Date().toISOString(),
   };
 }
@@ -161,5 +173,7 @@ export function applySerialized(
     manualHour: state.manualHour,
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
+    location: state.location ?? null,
+    locationPromptDismissed: state.locationPromptDismissed ?? false,
   };
 }

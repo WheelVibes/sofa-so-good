@@ -125,4 +125,45 @@ describe('schema', () => {
     expect(patch.timeMode).toBe('manual');
     expect(patch.manualHour).toBe(7.5);
   });
+
+  it('round-trips a location with a label', () => {
+    useStore.getState().__resetForTest();
+    useStore.getState().setLocation({ lat: 51.5, lon: 0, label: 'London, UK' });
+    const out = serialize(useStore.getState());
+    const parsed = SerializedStateZ.safeParse(out);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.location).toEqual({ lat: 51.5, lon: 0, label: 'London, UK' });
+      expect(parsed.data.locationPromptDismissed).toBe(false);
+    }
+  });
+
+  it('defaults missing location fields when reading legacy payloads', () => {
+    const legacy = {
+      version: 1,
+      apartmentId: 'serangoon-north-vista-4r',
+      items: [],
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: '2026-04-01T00:00:00.000Z',
+    };
+    const parsed = SerializedStateZ.parse(legacy);
+    expect(parsed.location).toBeNull();
+    expect(parsed.locationPromptDismissed).toBe(false);
+  });
+
+  it('applySerialized restores location into the store patch', () => {
+    useStore.getState().__resetForTest();
+    useStore.getState().setLocation({ lat: 35.68, lon: 139.69, label: 'Tokyo' });
+    useStore.getState().dismissLocationPrompt();
+    const out = serialize(useStore.getState());
+    const patch = applySerialized(out, new Set());
+    expect(patch.location).toEqual({ lat: 35.68, lon: 139.69, label: 'Tokyo' });
+    expect(patch.locationPromptDismissed).toBe(true);
+  });
 });

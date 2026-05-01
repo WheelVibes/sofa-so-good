@@ -14,6 +14,8 @@ function fakeState(savedAt: string): SerializedState {
     timeMode: 'system',
     manualHour: 12,
     cameraMode: 'orbit',
+    location: null,
+    locationPromptDismissed: false,
     savedAt,
   };
 }

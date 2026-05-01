@@ -17,6 +17,8 @@ type Persistent = {
   timeMode: unknown;
   manualHour: unknown;
   cameraMode: unknown;
+  location: unknown;
+  locationPromptDismissed: unknown;
 };
 
 function pickPersistent(): Persistent {
@@ -30,6 +32,8 @@ function pickPersistent(): Persistent {
     timeMode: s.timeMode,
     manualHour: s.manualHour,
     cameraMode: s.cameraMode,
+    location: s.location,
+    locationPromptDismissed: s.locationPromptDismissed,
   };
 }
 
@@ -42,7 +46,9 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
     a.userMaterials === b.userMaterials &&
     a.timeMode === b.timeMode &&
     a.manualHour === b.manualHour &&
-    a.cameraMode === b.cameraMode
+    a.cameraMode === b.cameraMode &&
+    a.location === b.location &&
+    a.locationPromptDismissed === b.locationPromptDismissed
   );
 }
 
