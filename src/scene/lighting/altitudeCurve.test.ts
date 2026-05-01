@@ -7,18 +7,18 @@ describe('lightingFromAltitude', () => {
   it('mid-overhead (alt = 30°) returns the daytime baseline', () => {
     const v = lightingFromAltitude(30 * DEG);
     expect(v.sun).toBeCloseTo(1.0, 2);
-    expect(v.ambient).toBeCloseTo(0.28, 2);
+    expect(v.ambient).toBeCloseTo(0.14, 2);
     expect(v.sunColor[0]).toBeCloseTo(1.0, 2);
     expect(v.sunColor[1]).toBeCloseTo(0.96, 2);
     expect(v.sunColor[2]).toBeCloseTo(0.88, 2);
     expect(v.exposure).toBeCloseTo(1.0, 2);
-    expect(v.envIntensity).toBeCloseTo(0.45, 2);
+    expect(v.envIntensity).toBeCloseTo(0.27, 2);
   });
 
   it('zenith (Singapore noon, alt ≥ 80°) lifts exposure and ambient above the daytime baseline', () => {
     const v = lightingFromAltitude(85 * DEG);
     expect(v.sun).toBeGreaterThan(1.0);
-    expect(v.ambient).toBeGreaterThan(0.28);
+    expect(v.ambient).toBeGreaterThan(0.14);
     expect(v.exposure).toBeGreaterThan(1.0);
   });
 
@@ -56,7 +56,7 @@ describe('lightingFromAltitude', () => {
   it('deep night (alt ≤ -12°) returns night floor', () => {
     const v = lightingFromAltitude(-30 * DEG);
     expect(v.sun).toBeCloseTo(0, 2);
-    expect(v.ambient).toBeCloseTo(0.06, 2);
+    expect(v.ambient).toBeCloseTo(0.03, 2);
   });
 
   it('linearly interpolates between adjacent keyframes', () => {

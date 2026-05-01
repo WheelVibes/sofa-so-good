@@ -32,13 +32,13 @@ interface SkyKey {
 
 /** Sorted by altitude descending. */
 const LIGHTING_KEYS: ReadonlyArray<LightingKey> = [
-  { altDeg: 80, values: { sun: 1.15, ambient: 0.36, sunColor: [1.0, 0.99, 0.96], exposure: 1.1, envIntensity: 0.50 } },
-  { altDeg: 30, values: { sun: 1.0,  ambient: 0.28, sunColor: [1.0, 0.96, 0.88], exposure: 1.0, envIntensity: 0.45 } },
-  { altDeg: 15, values: { sun: 0.65, ambient: 0.22, sunColor: [1.0, 0.92, 0.80], exposure: 0.9, envIntensity: 0.32 } },
-  { altDeg: 6,  values: { sun: 0.3,  ambient: 0.14, sunColor: [1.0, 0.78, 0.55], exposure: 0.72, envIntensity: 0.20 } },
-  { altDeg: 0,  values: { sun: 0.08, ambient: 0.10, sunColor: [1.0, 0.60, 0.32], exposure: 0.6, envIntensity: 0.13 } },
-  { altDeg: -6, values: { sun: 0.02, ambient: 0.07, sunColor: [0.45, 0.50, 0.65], exposure: 0.55, envIntensity: 0.13 } },
-  { altDeg: -12, values: { sun: 0,   ambient: 0.06, sunColor: [0.24, 0.29, 0.42], exposure: 0.6, envIntensity: 0.07 } },
+  { altDeg: 80, values: { sun: 1.15, ambient: 0.18, sunColor: [1.0, 0.99, 0.96], exposure: 1.1, envIntensity: 0.30 } },
+  { altDeg: 30, values: { sun: 1.0,  ambient: 0.14, sunColor: [1.0, 0.96, 0.88], exposure: 1.0, envIntensity: 0.27 } },
+  { altDeg: 15, values: { sun: 0.65, ambient: 0.11, sunColor: [1.0, 0.92, 0.80], exposure: 0.9, envIntensity: 0.20 } },
+  { altDeg: 6,  values: { sun: 0.3,  ambient: 0.07, sunColor: [1.0, 0.78, 0.55], exposure: 0.72, envIntensity: 0.13 } },
+  { altDeg: 0,  values: { sun: 0.08, ambient: 0.05, sunColor: [1.0, 0.60, 0.32], exposure: 0.6, envIntensity: 0.09 } },
+  { altDeg: -6, values: { sun: 0.02, ambient: 0.04, sunColor: [0.45, 0.50, 0.65], exposure: 0.55, envIntensity: 0.09 } },
+  { altDeg: -12, values: { sun: 0,   ambient: 0.03, sunColor: [0.24, 0.29, 0.42], exposure: 0.6, envIntensity: 0.05 } },
 ];
 
 // Tropics baseline turbidity is higher than temperate latitudes (humid haze).

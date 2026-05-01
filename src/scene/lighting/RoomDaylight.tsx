@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
-import type { DirectionalLight, PointLight } from 'three';
+import type { PointLight } from 'three';
 import { ROOMS } from '../../apartment/constants';
 import { useStore } from '../../state/store';
 import type { RoomId } from '../../apartment/types';
@@ -11,8 +11,9 @@ import { rotateAroundY, sunDirectionToScene } from './sunPosition';
 import { useSunPosition } from './useSunPosition';
 
 const TWEEN_DURATION = 0.6;
-const FILL_DISTANCE = 6;
-const FILL_DECAY = 1.5;
+const FILL_DISTANCE = 5;
+const FILL_DECAY = 2;
+const INJECTOR_DECAY = 2;
 
 interface RoomEntry {
   id: RoomId;
@@ -35,7 +36,7 @@ export function RoomDaylight() {
   }, []);
 
   const fillRefs = useRef<Map<RoomId, PointLight | null>>(new Map());
-  const injectorRefs = useRef<Map<string, DirectionalLight | null>>(new Map());
+  const injectorRefs = useRef<Map<string, PointLight | null>>(new Map());
   const current = useRef<{
     fill: Map<RoomId, number>;
     inj: Map<string, number>;
@@ -99,12 +100,13 @@ export function RoomDaylight() {
           {room.injectors.map((inj, i) => {
             const key = `${room.id}#${i}`;
             return (
-              <directionalLight
+              <pointLight
                 key={key}
                 ref={(node) => { injectorRefs.current.set(key, node); }}
                 position={inj.position}
-                target-position={inj.target}
                 intensity={0}
+                distance={inj.radius}
+                decay={INJECTOR_DECAY}
                 castShadow={false}
               />
             );

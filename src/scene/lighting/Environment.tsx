@@ -1,6 +1,7 @@
 import { Environment as DreiEnvironment } from '@react-three/drei';
 import { useStore } from '../../state/store';
 import { useSunPosition } from './useSunPosition';
+import { lightingFromAltitude } from './altitudeCurve';
 
 type Preset = 'night' | 'sunset' | 'dawn' | 'apartment' | 'city';
 
@@ -18,7 +19,14 @@ function EnvironmentInner() {
   const sun = useSunPosition();
   if (gi === 'off') return null;
   const preset = altitudeToPreset(sun.altitude);
-  return <DreiEnvironment preset={preset} background={false} />;
+  const { envIntensity } = lightingFromAltitude(sun.altitude);
+  return (
+    <DreiEnvironment
+      preset={preset}
+      background={false}
+      environmentIntensity={envIntensity}
+    />
+  );
 }
 
 export function Environment() {

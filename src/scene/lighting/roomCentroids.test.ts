@@ -16,20 +16,18 @@ describe('roomCentroidPose', () => {
 });
 
 describe('roomWindowedWallInjectors', () => {
-  it('returns at least one injector for a windowed bedroom', () => {
+  it('returns at least one injector positioned inside a windowed bedroom', () => {
     const list = roomWindowedWallInjectors('mainBedroom');
     expect(list.length).toBeGreaterThan(0);
     const inj = list[0];
     expect(Number.isFinite(inj.position[0])).toBe(true);
-    expect(Number.isFinite(inj.target[0])).toBe(true);
+    expect(inj.radius).toBeGreaterThan(0);
     const r = ROOMS.mainBedroom;
-    const cx = r.origin[0] + r.width / 2;
-    const cz = r.origin[1] + r.depth / 2;
-    const dx = inj.target[0] - inj.position[0];
-    const dz = inj.target[2] - inj.position[2];
-    const tx = cx - inj.position[0];
-    const tz = cz - inj.position[2];
-    expect(dx * tx + dz * tz).toBeGreaterThan(0);
+    // Position must lie within the room's footprint (interior placement).
+    expect(inj.position[0]).toBeGreaterThanOrEqual(r.origin[0]);
+    expect(inj.position[0]).toBeLessThanOrEqual(r.origin[0] + r.width);
+    expect(inj.position[2]).toBeGreaterThanOrEqual(r.origin[1]);
+    expect(inj.position[2]).toBeLessThanOrEqual(r.origin[1] + r.depth);
   });
 
   it('returns an empty list for a windowless interior room', () => {

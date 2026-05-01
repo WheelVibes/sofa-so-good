@@ -15,16 +15,18 @@ export function hoursFromDate(d: Date): number {
 export function useEffectiveHour(): number {
   const timeMode = useStore((s) => s.timeMode);
   const manualHour = useStore((s) => s.manualHour);
-  const [systemHour, setSystemHour] = useState(() => hoursFromDate(new Date()));
+  const systemHour = useSystemHour();
+  return timeMode === 'system' ? systemHour : manualHour;
+}
 
+/** Returns the wall-clock hour, refreshed every 60 s, regardless of timeMode. */
+export function useSystemHour(): number {
+  const [systemHour, setSystemHour] = useState(() => hoursFromDate(new Date()));
   useEffect(() => {
-    if (timeMode !== 'system') return;
-    setSystemHour(hoursFromDate(new Date()));
     const id = setInterval(() => {
       setSystemHour(hoursFromDate(new Date()));
     }, 60_000);
     return () => clearInterval(id);
-  }, [timeMode]);
-
-  return timeMode === 'system' ? systemHour : manualHour;
+  }, []);
+  return systemHour;
 }
