@@ -15,6 +15,8 @@
  * only `scale` and `tint` are honoured.
  */
 
+import type { ProviderId } from '../catalog/remote/types';
+
 export type FurnitureCategory =
   | 'beds'
   | 'seating'
@@ -138,7 +140,7 @@ export interface UserGltfDef extends FurnitureDefBase {
 export interface RemoteGltfDef extends FurnitureDefBase {
   kind: 'gltf';
   source: 'remote';
-  provider: 'polyhaven';
+  provider: ProviderId;
   slug: string;
   resolution: '1k' | '2k' | '4k';
   /** Object URL pointing to the .gltf JSON document for the loader. */
