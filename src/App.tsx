@@ -10,6 +10,7 @@ import { CatalogDrawer } from './ui/catalog/CatalogDrawer';
 import { usePlacementController } from './ui/catalog/usePlacementController';
 import { FinishPicker } from './ui/FinishPicker';
 import { InspectorPanel } from './ui/inspector/InspectorPanel';
+import { LocationPrompt } from './ui/LocationPrompt';
 import { WebGLFallback } from './ui/WebGLFallback';
 import { NotificationContainer } from './ui/notifications/NotificationContainer';
 import { useStore } from './state/store';
@@ -338,6 +339,7 @@ export default function App() {
         <InspectorPanel />
         <FinishPicker />
         <NotificationContainer />
+        <LocationPrompt />
       </div>
     </WebGLFallback>
   );

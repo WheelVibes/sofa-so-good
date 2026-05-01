@@ -477,9 +477,36 @@ function TimeDropdown() {
               className="rounded border border-neutral-200 bg-white px-1 py-0.5 text-xs"
             />
           </div>
+          <Separator />
+          <LocationFooter />
         </div>
       ) : null}
     </div>
+  );
+}
+
+function LocationFooter() {
+  const location = useStore((s) => s.location);
+  const resetLocationPrompt = useStore((s) => s.resetLocationPrompt);
+
+  const label = location
+    ? location.label ?? `${location.lat.toFixed(2)}°, ${location.lon.toFixed(2)}°`
+    : 'Default (Singapore)';
+
+  const onClick = () => {
+    // Re-show the prompt: clear the user's location and the dismissed flag.
+    useStore.setState({ location: null });
+    resetLocationPrompt();
+  };
+
+  return (
+    <button
+      onClick={onClick}
+      className="block w-full rounded px-2 py-1.5 text-left text-neutral-500 hover:bg-neutral-100"
+      title="Change location"
+    >
+      Location: <span className="text-neutral-700">{label}</span>
+    </button>
   );
 }
 

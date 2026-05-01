@@ -52,7 +52,7 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers/specs/2026-05-01-time-of-day-design.md). Pending implementation plan.
 
 - ~~**Time-of-day rework — Phase 1 (time model)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md](docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md). System / Morning / Noon / Dusk / Night / Custom dropdown, schema migration from legacy timeOfDay. Lighting still uses the old 3-preset visuals via a temporary hour→preset shim — Phase 2 replaces them.
-- **Time-of-day rework — Phase 2 (astronomy + geocoding)** — pending. SunCalc-driven sun position from user location; first-run prompt with geolocation / lat-lon / Nominatim city search; altitude-driven intensity/color curve replacing the hour-keyframe shim.
+- ~~**Time-of-day rework — Phase 2 (astronomy + geocoding)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase2-astronomy.md](docs/superpowers/plans/2026-05-01-time-of-day-phase2-astronomy.md). SunCalc-driven sun position, location prompt with geolocation/Nominatim/manual entry, altitude-driven lighting and sky.
 - **Time-of-day rework — Phase 3 (realistic indoor lighting)** — pending. Per-room fill, real shadows through window cutouts, IBL + SSAO, inter-room light bleed through open doors.
 - **Time-of-day rework — Phase 4 (light fixtures)** — pending. Lamp/pendant/sconce furniture with point/spot lights, inspector controls.
 - **Time-of-day rework — Phase 5 (quality settings)** — pending. Toggle shadows / GI / SSAO / inter-room bleed / fixtures independently with device-tier defaults.
