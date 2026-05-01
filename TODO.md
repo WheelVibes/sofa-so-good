@@ -6,11 +6,8 @@ Single source of truth for deferred work across this project. Each entry links b
 
 Decomposed into four subsystems, each shipped independently. Brainstormed 2026-05-01.
 
-- ~~**Subsystem 1: Multi-provider plumbing**~~ — done. Spec: [docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md](docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md). Plan: [docs/superpowers/plans/2026-05-01-multi-provider-plumbing.md](docs/superpowers/plans/2026-05-01-multi-provider-plumbing.md).
-- ~~**Subsystem 2: DLC packs**~~ — done (v1: Kenney Furniture Kit). Spec: [docs/superpowers/specs/2026-05-01-dlc-packs-design.md](docs/superpowers/specs/2026-05-01-dlc-packs-design.md). Plan: [docs/superpowers/plans/2026-05-01-dlc-packs.md](docs/superpowers/plans/2026-05-01-dlc-packs.md). Production proxy for `/kenney` rolls into the existing CORS-proxy TODO.
 - **Quaternius DLC pack support** — deferred from subsystem 2. Their packs are Google-Drive-folder-hosted (no programmatic single-zip download from a browser) and ship FBX/OBJ/Blend rather than GLB. Either (a) build a server-side proxy that exposes a single zip endpoint over a Drive folder + add three's `FBXLoader`, or (b) maintainer-mirror packs to a CC0-redistributable CDN with format conversion. Revisit after subsystem 4.
 - **DLC pack URL drift** — Kenney's pack URL contains a content-hash directory; HEAD-validation on `Content-Length` ± 5% catches breakage. Bump the registry entry when the upstream rotates.
-- **DLC pack scale curation** — Kenney's furniture-kit is unevenly scaled (most seating/storage/kitchen/lighting/bath items render at ~½ real size at scale=1; beds and the cross dining table are already correct). [src/catalog/packs/scaleHeuristic.ts](src/catalog/packs/scaleHeuristic.ts) ships a curated per-id multiplier table; install + hydrate apply it and existing installs auto-migrate on next boot. New packs need their own measured table or items will render at the wrong size.
 - **Subsystem 3: Sketchfab** — REST + OAuth token + runtime fetch. Largest variety gain; auth+ToS friction. Pending.
 - **Subsystem 4: Procedural furniture** — runtime mesh generation (parametric shelving, sofas, wardrobes). Largest design surface. Pending.
 
@@ -49,13 +46,7 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 
 ## Time of Day
 
-Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers/specs/2026-05-01-time-of-day-design.md). Pending implementation plan.
-
-- ~~**Time-of-day rework — Phase 1 (time model)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md](docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md). System / Morning / Noon / Dusk / Night / Custom dropdown, schema migration from legacy timeOfDay. Lighting still uses the old 3-preset visuals via a temporary hour→preset shim — Phase 2 replaces them.
-- ~~**Time-of-day rework — Phase 2 (astronomy + geocoding)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase2-astronomy.md](docs/superpowers/plans/2026-05-01-time-of-day-phase2-astronomy.md). SunCalc-driven sun position, location prompt with geolocation/Nominatim/manual entry, altitude-driven lighting and sky.
-- ~~**Time-of-day rework — Phase 3 (realistic indoor lighting)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase3-indoor-lighting.md](docs/superpowers/plans/2026-05-01-time-of-day-phase3-indoor-lighting.md). Per-room daylight fill (`RoomFillLights`), real shadow casting through window cutouts (1024² shadow map, fitted frustum), IBL via drei `<Environment preset>` (altitude-driven), inter-room light bleed via room adjacency graph (door-midpoint probe resolves walls that span 3+ rooms). SSAO scaffolded but default-off until Phase 5 wires the toggle. Note: drei built-in presets used instead of bundled `.hdr` files (no extra assets, no licensing).
-- ~~**Time-of-day rework — Phase 4 (light fixtures)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase4-light-fixtures.md](docs/superpowers/plans/2026-05-01-time-of-day-phase4-light-fixtures.md). Five fixture primitives (floor / table / pendant / spot / sconce) with `LightEmitter` defs, per-instance `lightOverride` (on / intensity / kelvin) persisted via schema, `<FurnitureLights>` renderer (16-light cap, distance-sorted, kelvinToRGB), Inspector "Light" section. Each primitive exposes one color picker (shade or body color) so the catalog test's non-empty-paramSchema requirement holds.
-- ~~**Time-of-day rework — Phase 5 (quality settings)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase5-quality-settings.md](docs/superpowers/plans/2026-05-01-time-of-day-phase5-quality-settings.md). `qualitySlice` with `pickDefaultQuality()` device-tier defaults (cores+memory hints), persisted via schema with fallback. `SettingsPanel` modal (gear button in toolbar) exposes preset buttons, shadows / GI segmented controls, and inter-room bleed / fixtures toggles. Phase 3/4 module-local feature flags replaced with `useStore((s) => s.quality.*)` reads across `Lighting`, `Scene`, `Environment`, `PostFx`, `RoomFillLights`, `FurnitureLights`.
+Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers/specs/2026-05-01-time-of-day-design.md).
 
 Out-of-scope items deferred from the spec:
 
@@ -66,6 +57,24 @@ Out-of-scope items deferred from the spec:
 - **Time-of-day: animated dusk/dawn transitions** faster than the existing 0.6 s tween. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
 - **Time-of-day: outdoor environment beyond apartment shell** — skybox stays stylistic, no terrain/buildings. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
 - **Time-of-day: real-time path-traced GI / RTX** — IBL + SSAO is the target; revisit only if WebGPU + path tracing becomes affordable. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
+
+### Realistic per-room lighting (window-aware, door-gated)
+
+Spec: [docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md](docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md). Brainstormed 2026-05-02. Drives per-room daylight from existing `roomDaylightFactor` + `relaxDaylight` so windowless rooms read dim and door state gates bleed. Plan pending.
+
+### Realism follow-ups (Singapore tropical defaults, 2026-05-02)
+
+Initial pass landed: ACES tone mapping + per-altitude exposure tween, Singapore-zenith key (alt=80°, brighter & cooler), envIntensity attenuation so the drei `night` HDRI no longer over-lights dark rooms, tropics-baseline turbidity, low preset now keeps IBL on, always-on SMAA, Bloom at the high preset. Touched: [qualitySlice.ts](src/state/slices/qualitySlice.ts), [altitudeCurve.ts](src/scene/lighting/altitudeCurve.ts), [Lighting.tsx](src/scene/lighting/Lighting.tsx), [Environment.tsx](src/scene/lighting/Environment.tsx), [Scene.tsx](src/scene/Scene.tsx), [PostFx.tsx](src/scene/lighting/PostFx.tsx).
+
+Follow-up 2026-05-02: reshaped [altitudeCurve.ts](src/scene/lighting/altitudeCurve.ts) to dim/warm earlier — added keyframes at alt=15° (≈1 h before sunset) and alt=6° (golden hour), and dropped the alt=0° direct-sun term so 18:00 in Singapore is no longer noon-bright.
+
+Follow-up 2026-05-02: removed `RoomFillLights` entirely. The per-room ceiling pointLight was a daylight-bounce stand-in that read as a fake installed downlight; with IBL on it's redundant, and at night it glowed without any user-installed fixture. Sun + sky IBL + ambient floor are now the only sources of apartment illumination unless the user installs a fixture. Dead `interRoomBleed` quality toggle removed from presets and the Settings UI; schema field kept as `.optional()` so older saves still parse.
+
+- **User-facing exposure slider** in the Settings panel (default 1.0, range ~0.5–1.5) layered on top of the altitude-driven exposure.
+- **Weather / haze knob** (clear / hazy / overcast) wired to a turbidity multiplier — Singapore is rarely "clear", and hazy days vs PSI spikes are visually distinct.
+- **Auto-fixtures dusk hand-off** — ramp `fixtures` on as the sun crosses ~+5° → −6° altitude so an unedited scene goes from daylight to warm interior lighting around 6:45–7:15pm without the user toggling anything.
+- **Skyglow window leak at night** — replace drei's bluish `night` HDRI with a faint warm-orange skyglow probe (Singapore is Bortle 8–9). envIntensity attenuation gets us most of the way; a tinted environment finishes it.
+- **Verify in-browser at each time-of-day keypoint** (zenith, golden hour, civil twilight, deep night) — the curve looks right by the numbers but the tone-mapping interaction needs a visual smoke test before we treat realism work as done.
 
 ## Risks tracked from specs
 
