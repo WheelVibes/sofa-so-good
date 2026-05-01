@@ -44,6 +44,12 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 - **Finishes browse: filter by category** — `RemoteBrowseTab` shows all materials; could narrow by floor-vs-wall heuristics from tags. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx) and [finishes-browse spec](docs/superpowers/specs/2026-05-01-finishes-browse-design.md).
 - **Persist last-edited surface** across sessions for the finishes browse → resolve flow. See [finishes-browse spec — Out of scope](docs/superpowers/specs/2026-05-01-finishes-browse-design.md#out-of-scope).
 
+## Time of Day
+
+Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers/specs/2026-05-01-time-of-day-design.md). Pending implementation plan.
+
+- **Time-of-day rework** — replace the discrete `day/dusk/night` enum with a `system | manual` mode + fractional `manualHour`, four named presets (Morning/Noon/Dusk/Night), and a Custom time input in a new toolbar dropdown. Lighting and Sky interpolate between hour-keyed keyframes. Includes save-format migration.
+
 ## Risks tracked from specs
 
 - **Asset source URL drift** (Poly Haven / ambientCG slug versioning) — pin to stable per-asset URLs in manifest, audit periodically. See [asset-population spec — Risks](docs/superpowers/specs/2026-04-26-asset-population-design.md#risks).
