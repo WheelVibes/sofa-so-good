@@ -6,8 +6,9 @@ import { CategoryTabs } from './CategoryTabs';
 import { CatalogCard } from './CatalogCard';
 import { UploadModelDialog } from '../upload/UploadModelDialog';
 import { RemoteBrowseTab } from './RemoteBrowseTab';
+import { PacksTab } from './PacksTab';
 
-type Mode = 'builtin' | 'browse-furniture' | 'browse-materials';
+type Mode = 'builtin' | 'browse-furniture' | 'browse-materials' | 'packs';
 
 /** Sliding left-side drawer. Toggle via toolbar or the C key (handled
  *  in App.tsx). Click a card to drop the item near the L/D centre and
@@ -50,6 +51,7 @@ export function CatalogDrawer() {
             ['builtin', 'Built-in'],
             ['browse-furniture', 'Browse furniture'],
             ['browse-materials', 'Browse materials'],
+            ['packs', 'Packs'],
           ] as const
         ).map(([m, label]) => (
           <button
@@ -95,6 +97,10 @@ export function CatalogDrawer() {
             </button>
           </footer>
         </>
+      ) : mode === 'packs' ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <PacksTab />
+        </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
           <RemoteBrowseTab
