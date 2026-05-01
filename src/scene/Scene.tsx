@@ -13,6 +13,7 @@ import { SelectionOutline } from './selection/SelectionOutline';
 import { MarqueeCameraTracker } from './selection/MarqueeSelector';
 import { PlacementGhost } from './PlacementGhost';
 import { DragController } from './DragController';
+import { PostFx } from './lighting/PostFx';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
@@ -36,6 +37,7 @@ export function Scene() {
       <CameraForwardTracker />
       <MeasurementOverlay />
       {showFps ? <Stats /> : null}
+      <PostFx />
     </Canvas>
   );
 }
