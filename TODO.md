@@ -48,7 +48,7 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 
 Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers/specs/2026-05-01-time-of-day-design.md). Pending implementation plan.
 
-- **Time-of-day rework** — replace the discrete `day/dusk/night` enum with a `system | manual` mode + fractional `manualHour`, four named presets (Morning/Noon/Dusk/Night), and a Custom time input in a new toolbar dropdown. Lighting and Sky interpolate between hour-keyed keyframes. Includes save-format migration.
+- **Time-of-day rework** — four-phase project. Phase 1: time model (system/manual + presets + Custom dropdown). Phase 2: astronomical sun position from user location (SunCalc + first-run prompt). Phase 3: window-aware indoor daylight occlusion (per-room fill lights). Phase 4: placeable light fixtures (lamp/pendant/sconce furniture with point/spot lights, inspector controls). Each phase ships independently.
 
 ## Risks tracked from specs
 
