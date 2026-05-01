@@ -50,7 +50,11 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 
 Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers/specs/2026-05-01-time-of-day-design.md). Pending implementation plan.
 
-- **Time-of-day rework** — five-phase project. Phase 1: time model (system/manual + presets + Custom dropdown). Phase 2: astronomical sun position from user location (SunCalc + first-run prompt with geolocation/lat-lon/city search). Phase 3: realistic indoor lighting (per-room fill, real shadows through window cutouts, IBL + SSAO global illumination, inter-room light bleed through open doors). Phase 4: placeable light fixtures (lamp/pendant/sconce furniture with point/spot lights, inspector controls). Phase 5: quality settings panel — toggle shadows / GI / SSAO / inter-room bleed / fixtures independently, with auto-detected device-tier defaults.
+- ~~**Time-of-day rework — Phase 1 (time model)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md](docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md). System / Morning / Noon / Dusk / Night / Custom dropdown, schema migration from legacy timeOfDay. Lighting still uses the old 3-preset visuals via a temporary hour→preset shim — Phase 2 replaces them.
+- **Time-of-day rework — Phase 2 (astronomy + geocoding)** — pending. SunCalc-driven sun position from user location; first-run prompt with geolocation / lat-lon / Nominatim city search; altitude-driven intensity/color curve replacing the hour-keyframe shim.
+- **Time-of-day rework — Phase 3 (realistic indoor lighting)** — pending. Per-room fill, real shadows through window cutouts, IBL + SSAO, inter-room light bleed through open doors.
+- **Time-of-day rework — Phase 4 (light fixtures)** — pending. Lamp/pendant/sconce furniture with point/spot lights, inspector controls.
+- **Time-of-day rework — Phase 5 (quality settings)** — pending. Toggle shadows / GI / SSAO / inter-room bleed / fixtures independently with device-tier defaults.
 
 Out-of-scope items deferred from the spec:
 
