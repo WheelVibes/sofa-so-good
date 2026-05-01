@@ -21,7 +21,7 @@ export function useEffectiveHour(): number {
     if (timeMode !== 'system') return;
     setSystemHour(hoursFromDate(new Date()));
     const id = setInterval(() => {
-      setSystemHour((prev) => prev + 1 / 60);
+      setSystemHour(hoursFromDate(new Date()));
     }, 60_000);
     return () => clearInterval(id);
   }, [timeMode]);

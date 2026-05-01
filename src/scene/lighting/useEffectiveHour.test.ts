@@ -45,8 +45,9 @@ describe('useEffectiveHour', () => {
     const { result } = renderHook(() => useEffectiveHour());
     expect(result.current).toBeCloseTo(14.0, 2);
 
+    // advanceTimersByTime moves the system clock forward by 60s and
+    // fires the interval; the callback re-reads new Date() = 14:01.
     act(() => {
-      vi.setSystemTime(new Date('2026-05-01T14:01:00'));
       vi.advanceTimersByTime(60_000);
     });
     expect(result.current).toBeCloseTo(14 + 1 / 60, 2);
@@ -58,9 +59,9 @@ describe('useEffectiveHour', () => {
     expect(result.current).toBeCloseTo(10, 2);
     act(() => useStore.getState().setManualHour(20));
     expect(result.current).toBe(20);
-    // Advancing wall clock should not change result.
+    // Advancing wall clock should not change result, because the
+    // interval was cleared when timeMode flipped to 'manual'.
     act(() => {
-      vi.setSystemTime(new Date('2026-05-01T11:30:00'));
       vi.advanceTimersByTime(120_000);
     });
     expect(result.current).toBe(20);
