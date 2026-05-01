@@ -7,8 +7,18 @@ import type {
 } from '../types';
 import type { MaterialCategory } from '../../../materials/types';
 
-const API = 'https://ambientcg.com/api/v2/full_json';
+// ambientCG's API and CDN don't send CORS headers, so browser fetches go
+// through a same-origin proxy (Vite dev proxy in development; production
+// deployments need an equivalent reverse-proxy — see TODO.md). Asset zip
+// links returned by the API are rewritten to the proxied origin too.
+const API = '/acg/api/v2/full_json';
 const PAGE_URL = (slug: string) => `https://ambientcg.com/view?id=${slug}`;
+
+function proxify(url: string): string {
+  return url
+    .replace(/^https?:\/\/acg-media\.ambientcg\.com/i, '/acg-cdn')
+    .replace(/^https?:\/\/ambientcg\.com/i, '/acg');
+}
 
 interface AcgAsset {
   assetId: string;
@@ -57,10 +67,11 @@ async function fetchIndex(signal?: AbortSignal): Promise<RemoteEntry[]> {
     kind: 'material' as const,
     name: a.displayName,
     category: categoryFor(a),
-    thumbUrl: thumbFor(a),
+    thumbUrl: proxify(thumbFor(a)),
     resolutions: ['1k', '2k', '4k'] as Resolution[],
     attribution: 'ambientCG (CC0)',
     sourceUrl: PAGE_URL(a.assetId),
+    tags: a.category ? [a.category] : [],
   }));
 }
 
@@ -83,7 +94,7 @@ async function fetchAsset(
   if (!meta) throw new Error(`ambientCG asset ${entry.slug} not found`);
   const zipUrl = zipUrlFor(meta, resolution);
   if (!zipUrl) throw new Error(`No ${resolution} zip for ${entry.slug}`);
-  const zipRes = await fetch(zipUrl, { signal });
+  const zipRes = await fetch(proxify(zipUrl), { signal });
   if (!zipRes.ok) throw new Error(`ambientCG zip ${zipRes.status}`);
   const buf = new Uint8Array(await zipRes.arrayBuffer());
   const files = unzipSync(buf);

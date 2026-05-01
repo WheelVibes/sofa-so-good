@@ -18,6 +18,11 @@ interface PHAssetMeta {
   authors?: Record<string, string>;
   tags?: string[];
 }
+
+const tagsFor = (m: PHAssetMeta): string[] => [
+  ...(m.tags ?? []),
+  ...(m.categories ?? []),
+];
 type PHIndex = Record<string, PHAssetMeta>;
 
 interface PHFiles {
@@ -55,6 +60,7 @@ async function fetchIndex(signal?: AbortSignal): Promise<RemoteEntry[]> {
       resolutions: ['1k', '2k', '4k'],
       attribution: attrib(meta),
       sourceUrl: PAGE_URL(slug),
+      tags: tagsFor(meta),
     });
   }
   for (const [slug, meta] of Object.entries(textures)) {
@@ -68,6 +74,7 @@ async function fetchIndex(signal?: AbortSignal): Promise<RemoteEntry[]> {
       resolutions: ['1k', '2k', '4k'],
       attribution: attrib(meta),
       sourceUrl: PAGE_URL(slug),
+      tags: tagsFor(meta),
     });
   }
   return out;

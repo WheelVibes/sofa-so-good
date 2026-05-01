@@ -17,6 +17,8 @@ export interface RemoteEntry {
   resolutions: Resolution[];
   attribution: string;
   sourceUrl: string;
+  /** Free-form keywords from the provider (Poly Haven `tags` + `categories`). */
+  tags?: string[];
   bytesEstimate?: Partial<Record<Resolution, number>>;
 }
 
