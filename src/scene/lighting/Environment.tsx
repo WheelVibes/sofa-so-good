@@ -1,7 +1,6 @@
 import { Environment as DreiEnvironment } from '@react-three/drei';
+import { useStore } from '../../state/store';
 import { useSunPosition } from './useSunPosition';
-
-const IBL_ENABLED = true;
 
 type Preset = 'night' | 'sunset' | 'dawn' | 'apartment' | 'city';
 
@@ -15,12 +14,13 @@ function altitudeToPreset(altitudeRad: number): Preset {
 }
 
 function EnvironmentInner() {
+  const gi = useStore((s) => s.quality.globalIllumination);
   const sun = useSunPosition();
+  if (gi === 'off') return null;
   const preset = altitudeToPreset(sun.altitude);
   return <DreiEnvironment preset={preset} background={false} />;
 }
 
 export function Environment() {
-  if (!IBL_ENABLED) return null;
   return <EnvironmentInner />;
 }
