@@ -9,7 +9,6 @@ import { buildRoomGraph, relaxDaylight } from '../../apartment/roomGraph';
 import { useSunPosition } from './useSunPosition';
 import { sunDirectionToScene } from './sunPosition';
 
-const FILL_ENABLED = true;
 const FILL_INTENSITY = 0.45;
 const FILL_HEIGHT_FRAC = 0.85;
 const FILL_TWEEN_DURATION = 0.6;
@@ -87,6 +86,6 @@ function RoomFillLightsInner() {
 }
 
 export function RoomFillLights() {
-  if (!FILL_ENABLED) return null;
+  // Per-room fill is the always-on baseline; no quality toggle.
   return <RoomFillLightsInner />;
 }

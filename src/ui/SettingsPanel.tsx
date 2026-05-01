@@ -1,3 +1,5 @@
+import { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { useStore } from '../state/store';
 import { QUALITY_PRESETS, type QualityPreset } from '../state/slices/qualitySlice';
 
@@ -5,7 +7,13 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
   const quality = useStore((s) => s.quality);
   const setQuality = useStore((s) => s.setQuality);
 
-  return (
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [onClose]);
+
+  return createPortal(
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
       onClick={onClose}
@@ -96,6 +104,7 @@ export function SettingsPanel({ onClose }: { onClose: () => void }) {
           />
         </section>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
