@@ -12,10 +12,11 @@ const sampleItem = (defId: string): Omit<FurnitureItem, 'id'> => ({
 describe('store — Phase 1 slice', () => {
   beforeEach(() => useStore.getState().__resetForTest());
 
-  it('starts in orbit camera mode at day with measurements off', () => {
+  it('starts in orbit camera mode in system time mode with measurements off', () => {
     const s = useStore.getState();
     expect(s.cameraMode).toBe('orbit');
-    expect(s.timeOfDay).toBe('day');
+    expect(s.timeMode).toBe('system');
+    expect(s.manualHour).toBe(12);
     expect(s.showMeasurements).toBe(false);
   });
 
@@ -24,9 +25,10 @@ describe('store — Phase 1 slice', () => {
     expect(useStore.getState().cameraMode).toBe('firstPerson');
   });
 
-  it('cycles time of day', () => {
-    useStore.getState().setTimeOfDay('dusk');
-    expect(useStore.getState().timeOfDay).toBe('dusk');
+  it('sets a manual hour via setPresetTime', () => {
+    useStore.getState().setPresetTime('dusk');
+    expect(useStore.getState().timeMode).toBe('manual');
+    expect(useStore.getState().manualHour).toBe(18);
   });
 
   it('toggles measurements', () => {

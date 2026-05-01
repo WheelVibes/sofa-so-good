@@ -78,7 +78,8 @@ import {
 } from './slices/installedPacksSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
-export type { TimeOfDay } from './slices/timeSlice';
+export type { TimeMode, TimePreset } from './slices/timeSlice';
+export { PRESET_HOURS } from './slices/timeSlice';
 
 export interface RootState
   extends CameraSlice,
