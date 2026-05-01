@@ -1,4 +1,5 @@
 import { Sky as DreiSky } from '@react-three/drei';
+import { useStore } from '../../state/store';
 import { useEffectiveHour } from './useEffectiveHour';
 import { hourToPreset } from './hourToPreset';
 

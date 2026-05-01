@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
 import type { DirectionalLight, AmbientLight } from 'three';
+import { useStore } from '../../state/store';
 import { useEffectiveHour } from './useEffectiveHour';
 import { hourToPreset, type LegacyTimeKey } from './hourToPreset';
 
