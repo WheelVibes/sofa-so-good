@@ -1,7 +1,8 @@
 import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
 import type { DirectionalLight, AmbientLight } from 'three';
-import { useStore, type TimeOfDay } from '../../state/store';
+import { useEffectiveHour } from './useEffectiveHour';
+import { hourToPreset, type LegacyTimeKey } from './hourToPreset';
 
 interface Vals {
   sun: number;
@@ -10,7 +11,7 @@ interface Vals {
   sunColor: [number, number, number];
 }
 
-const PRESETS: Record<TimeOfDay, Vals> = {
+const PRESETS: Record<LegacyTimeKey, Vals> = {
   day: { sun: 1.0, ambient: 0.6, sunPos: [10, 20, 5], sunColor: [1.0, 0.96, 0.88] },
   dusk: { sun: 0.4, ambient: 0.4, sunPos: [10, 4, 5], sunColor: [1.0, 0.72, 0.42] },
   night: { sun: 0.05, ambient: 0.15, sunPos: [10, -5, 5], sunColor: [0.24, 0.29, 0.42] },
@@ -18,19 +19,31 @@ const PRESETS: Record<TimeOfDay, Vals> = {
 
 const TWEEN_DURATION = 0.6;
 
+function rotateY(pos: readonly [number, number, number], deg: number): [number, number, number] {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  const [x, y, z] = pos;
+  return [x * c + z * s, y, -x * s + z * c];
+}
+
 export function Lighting() {
-  const time = useStore((s) => s.timeOfDay);
+  const time = hourToPreset(useEffectiveHour());
+  const orientation = useStore((s) => s.orientationDeg);
   const sunRef = useRef<DirectionalLight>(null!);
   const ambientRef = useRef<AmbientLight>(null!);
+  const initialPos = rotateY(PRESETS[time].sunPos, 0);
   const current = useRef<Vals>({
     sun: PRESETS[time].sun,
     ambient: PRESETS[time].ambient,
-    sunPos: [...PRESETS[time].sunPos] as [number, number, number],
+    sunPos: initialPos,
     sunColor: [...PRESETS[time].sunColor] as [number, number, number],
   });
 
   useFrame((_, dt) => {
-    const target = PRESETS[time];
+    const preset = PRESETS[time];
+    const rotated = rotateY(preset.sunPos, orientation);
+    const target = { ...preset, sunPos: rotated };
     const cur = current.current;
     const dSun = target.sun - cur.sun;
     const dAmb = target.ambient - cur.ambient;

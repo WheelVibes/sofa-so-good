@@ -1,5 +1,6 @@
 import { Sky as DreiSky } from '@react-three/drei';
-import { useStore } from '../../state/store';
+import { useEffectiveHour } from './useEffectiveHour';
+import { hourToPreset } from './hourToPreset';
 
 const PRESETS = {
   day: {
@@ -25,12 +26,22 @@ const PRESETS = {
   },
 };
 
+function rotateY(pos: readonly [number, number, number], deg: number): [number, number, number] {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  const [x, y, z] = pos;
+  return [x * c + z * s, y, -x * s + z * c];
+}
+
 export function Sky() {
-  const time = useStore((s) => s.timeOfDay);
+  const time = hourToPreset(useEffectiveHour());
+  const orientation = useStore((s) => s.orientationDeg);
   const p = PRESETS[time];
+  const sunPosition = rotateY(p.sunPosition, orientation);
   return (
     <DreiSky
-      sunPosition={p.sunPosition as unknown as [number, number, number]}
+      sunPosition={sunPosition}
       turbidity={p.turbidity}
       rayleigh={p.rayleigh}
       mieCoefficient={p.mieCoefficient}
