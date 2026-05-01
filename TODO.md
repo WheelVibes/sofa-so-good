@@ -50,6 +50,16 @@ Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers
 
 - **Time-of-day rework** — five-phase project. Phase 1: time model (system/manual + presets + Custom dropdown). Phase 2: astronomical sun position from user location (SunCalc + first-run prompt with geolocation/lat-lon/city search). Phase 3: realistic indoor lighting (per-room fill, real shadows through window cutouts, IBL + SSAO global illumination, inter-room light bleed through open doors). Phase 4: placeable light fixtures (lamp/pendant/sconce furniture with point/spot lights, inspector controls). Phase 5: quality settings panel — toggle shadows / GI / SSAO / inter-room bleed / fixtures independently, with auto-detected device-tier defaults.
 
+Out-of-scope items deferred from the spec:
+
+- **Time-of-day: auto-advancing in-world clock** — option C from brainstorming (accelerated day/night loop). See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
+- **Time-of-day: window glass tinting / curtains affecting shadow color** — current shadows are clear-glass equivalent. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
+- **Time-of-day: localized per-room IBL probes** — single global environment used; per-room probes would localize bounce more accurately at the cost of additional cubemap captures. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
+- **Time-of-day: directional weighting of door bleed** — current attenuation is uniform per traversal; orientation-aware weighting would dim bleed for doors not facing the source room's sunlit walls. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
+- **Time-of-day: animated dusk/dawn transitions** faster than the existing 0.6 s tween. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
+- **Time-of-day: outdoor environment beyond apartment shell** — skybox stays stylistic, no terrain/buildings. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
+- **Time-of-day: real-time path-traced GI / RTX** — IBL + SSAO is the target; revisit only if WebGPU + path tracing becomes affordable. See [time-of-day spec — Out of scope](docs/superpowers/specs/2026-05-01-time-of-day-design.md#out-of-scope).
+
 ## Risks tracked from specs
 
 - **Asset source URL drift** (Poly Haven / ambientCG slug versioning) — pin to stable per-asset URLs in manifest, audit periodically. See [asset-population spec — Risks](docs/superpowers/specs/2026-04-26-asset-population-design.md#risks).
