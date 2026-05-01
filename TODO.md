@@ -6,7 +6,7 @@ Single source of truth for deferred work across this project. Each entry links b
 
 Decomposed into four subsystems, each shipped independently. Brainstormed 2026-05-01.
 
-- **Subsystem 1: Multi-provider plumbing** — fix hardcoded `'polyhaven'` in [resolver.ts:93](src/catalog/remote/resolver.ts#L93) and widen `RemoteGltfDef.provider` to `ProviderId` so subsystems 2-4 don't require per-provider type edits. Spec: [docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md](docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md). Plan pending.
+- ~~**Subsystem 1: Multi-provider plumbing**~~ — done. Spec: [docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md](docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md). Plan: [docs/superpowers/plans/2026-05-01-multi-provider-plumbing.md](docs/superpowers/plans/2026-05-01-multi-provider-plumbing.md).
 - **Subsystem 2: Quaternius + Kenney static packs** — manifest-driven CC0 zip packs, no API. Largest count gain. Pending.
 - **Subsystem 3: Sketchfab** — REST + OAuth token + runtime fetch. Largest variety gain; auth+ToS friction. Pending.
 - **Subsystem 4: Procedural furniture** — runtime mesh generation (parametric shelving, sofas, wardrobes). Largest design surface. Pending.
