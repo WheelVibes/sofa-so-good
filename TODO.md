@@ -60,15 +60,9 @@ Out-of-scope items deferred from the spec:
 
 ### Realistic per-room lighting (window-aware, door-gated)
 
-Spec: [docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md](docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md). Brainstormed 2026-05-02. Drives per-room daylight from existing `roomDaylightFactor` + `relaxDaylight` so windowless rooms read dim and door state gates bleed.
+Spec: [docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md](docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md). Plan: [docs/superpowers/plans/2026-05-02-realistic-room-lighting.md](docs/superpowers/plans/2026-05-02-realistic-room-lighting.md). Landed 2026-05-02. New `RoomDaylight` component drives per-room ambient fill from `relaxDaylight` (door-aware) and per-windowed-wall directional injectors from `roomDaylightFactor`, both gated by a new `daylightAdmittance` curve. Global ambient/envIntensity baseline lowered so windowless interiors read dim unless an open door bleeds light from a windowed neighbour.
 
-Tasks completed:
-- Task 1: `roomDaylightFactor` pure function (2026-05-02)
-- Task 2: `relaxDaylight` door-gated bleed + graph solver (2026-05-02)
-- Task 3: civil-twilight-aware `daylightAdmittance` curve (2026-05-02)
-- Task 4: `computeRoomDaylightIntensities` helper combining the above (2026-05-02)
-
-Remaining: Task 5 (light fixtures scale + render hook) → on next session.
+Pending: visual smoke test in browser at the four time-of-day keypoints × {all doors open, all closed, household-shelter only closed}; tune `AMBIENT_FILL_GAIN` / `WINDOW_INJECTOR_GAIN` in [roomDaylightIntensities.ts](src/scene/lighting/roomDaylightIntensities.ts) or `ADMITTANCE_KEYS` in [altitudeCurve.ts](src/scene/lighting/altitudeCurve.ts) if any reading looks wrong.
 
 ### Realism follow-ups (Singapore tropical defaults, 2026-05-02)
 
