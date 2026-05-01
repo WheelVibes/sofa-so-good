@@ -16,14 +16,16 @@ import type {
   UserGltfDef,
 } from './types';
 
-/** Reactive hook returning the complete catalog (built-ins + user uploads + resolved remote). */
+/** Reactive hook returning the complete catalog (built-ins + user uploads + resolved remote + installed packs). */
 export function useCatalog(): Record<FurnitureType, FurnitureDef> {
   const userFurniture = useStore(useShallow((s) => s.userFurniture));
   const remote = useStore(useShallow((s) => s.resolvedRemoteFurniture));
+  const packFurniture = useStore(useShallow((s) => s.packFurniture));
   const merged: Record<FurnitureType, FurnitureDef> = { ...BUILTIN_CATALOG };
   for (const def of GENERATED_FURNITURE) merged[def.id] = def;
   for (const def of userFurniture) merged[def.id] = def;
   for (const def of Object.values(remote)) merged[def.id] = def;
+  for (const def of packFurniture) merged[def.id] = def;
   return merged;
 }
 
@@ -31,6 +33,7 @@ export function useCatalog(): Record<FurnitureType, FurnitureDef> {
 export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]> {
   const userFurniture = useStore(useShallow((s) => s.userFurniture));
   const remote = useStore(useShallow((s) => s.resolvedRemoteFurniture));
+  const packFurniture = useStore(useShallow((s) => s.packFurniture));
   const out: Record<FurnitureCategory, FurnitureDef[]> = {
     beds: [...(BUILTIN_BY_CATEGORY.beds ?? [])],
     seating: [...(BUILTIN_BY_CATEGORY.seating ?? [])],
@@ -43,6 +46,7 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
   for (const def of GENERATED_FURNITURE) (out[def.category] ??= []).push(def);
   for (const def of userFurniture) (out[def.category] ??= []).push(def);
   for (const def of Object.values(remote)) (out[def.category] ??= []).push(def);
+  for (const def of packFurniture) (out[def.category] ??= []).push(def);
   return out;
 }
 

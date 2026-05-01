@@ -35,6 +35,9 @@ export async function hydrateUserAssets(): Promise<void> {
   const matChannels = new Map<string, Partial<Record<'albedo' | 'normal' | 'roughness' | 'ao', AssetRecord>>>();
 
   for (const m of metas) {
+    // Pack-installed assets share the IDB store; skip them here so they
+    // don't surface as user uploads. hydratePacks() reconstructs them.
+    if (m.meta?.['source'] === 'pack') continue;
     if (m.kind === 'gltf') {
       const rec = await IdbAssetStore.get(m.assetId);
       if (!rec) continue;

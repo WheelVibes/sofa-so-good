@@ -11,6 +11,7 @@ import { applySerialized } from '../schema';
 import { useStore } from '../store';
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog';
 import { hydrateUserAssets } from './hydrateAssets';
+import { hydratePacks } from './hydratePacks';
 import { LocalStorageAdapter, AUTOSAVE_SLOT } from './LocalStorageAdapter';
 import { StorageError } from './StorageAdapter';
 
@@ -23,6 +24,9 @@ export interface HydrateResult {
 export async function hydrate(): Promise<HydrateResult> {
   const errors: StorageError[] = [];
   await hydrateUserAssets().catch(() => {
+    /* fail soft — IDB unavailable */
+  });
+  await hydratePacks().catch(() => {
     /* fail soft — IDB unavailable */
   });
 
@@ -41,7 +45,8 @@ export async function hydrate(): Promise<HydrateResult> {
   // Build the set of resolvable def ids (built-ins + already-hydrated
   // user uploads). Items referencing missing defs are dropped.
   const userIds = useStore.getState().userFurniture.map((d) => d.id);
-  const known = new Set<string>([...Object.keys(BUILTIN_CATALOG), ...userIds]);
+  const packIds = useStore.getState().packFurniture.map((d) => d.id);
+  const known = new Set<string>([...Object.keys(BUILTIN_CATALOG), ...userIds, ...packIds]);
   const droppedItemIds = saved.items
     .filter((it) => !known.has(it.defId))
     .map((it) => it.id);

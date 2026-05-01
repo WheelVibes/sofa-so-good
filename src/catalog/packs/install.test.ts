@@ -29,7 +29,7 @@ describe('installPack', () => {
     const zipBytes = makeMockPackZip();
     const fakeFetch = vi.fn(
       async () =>
-        new Response(zipBytes, {
+        new Response(new Blob([zipBytes.buffer.slice(0) as ArrayBuffer]), {
           status: 200,
           headers: {
             'Content-Length': String(zipBytes.byteLength),
