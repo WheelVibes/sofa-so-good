@@ -26,7 +26,7 @@ A new `src/catalog/remote/` module mirrors the way `src/furniture/` and `src/mat
 - A Zustand slice that holds index entries, in-flight fetches, and resolved defs
 - React hooks that the existing catalog UI consumes alongside built-ins
 
-Furniture entries materialize as `BuiltinGltfDef` (with `source: 'builtin'` repurposed to `'remote'`, see schema change below) once fetched; material entries materialize as `TexturedMaterialDef` with the existing `'polyhaven' | 'ambientcg'` source values. The downstream renderer (`GltfModel`, `useMaterial`) does not need changes — it sees fully-formed defs.
+Furniture entries materialize as a new `RemoteGltfDef` variant of `GltfDef` once fetched (see schema change below); material entries reuse the existing `TexturedMaterialDef` shape with `source: 'polyhaven' | 'ambientcg'`. The downstream renderer (`GltfModel`, `useMaterial`) does not need changes — it sees fully-formed defs.
 
 ### Module layout
 
