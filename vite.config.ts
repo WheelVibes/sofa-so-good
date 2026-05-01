@@ -18,6 +18,11 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/acg-cdn/, ''),
       },
+      '/kenney': {
+        target: 'https://kenney.nl',
+        changeOrigin: true,
+        rewrite: (p) => p.replace(/^\/kenney/, ''),
+      },
     },
   },
 });
