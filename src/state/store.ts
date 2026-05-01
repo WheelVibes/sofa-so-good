@@ -71,6 +71,11 @@ import {
   NOTIFICATIONS_INITIAL,
   type NotificationsSlice,
 } from './slices/notificationsSlice';
+import {
+  createInstalledPacksSlice,
+  INSTALLED_PACKS_INITIAL,
+  type InstalledPacksSlice,
+} from './slices/installedPacksSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeOfDay } from './slices/timeSlice';
@@ -91,7 +96,8 @@ export interface RootState
     HistorySlice,
     RemoteCatalogSlice,
     OrientationSlice,
-    NotificationsSlice {
+    NotificationsSlice,
+    InstalledPacksSlice {
   __resetForTest: () => void;
 }
 
@@ -111,6 +117,7 @@ const INITIAL = {
   ...REMOTE_CATALOG_INITIAL,
   ...ORIENTATION_INITIAL,
   ...NOTIFICATIONS_INITIAL,
+  ...INSTALLED_PACKS_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -130,5 +137,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createRemoteCatalogSlice(set, get, api),
   ...createOrientationSlice(set, get, api),
   ...createNotificationsSlice(set, get, api),
+  ...createInstalledPacksSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));

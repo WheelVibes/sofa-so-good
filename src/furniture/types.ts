@@ -153,7 +153,21 @@ export interface RemoteGltfDef extends FurnitureDefBase {
   sourceUrl: string;
 }
 
-export type GltfDef = BuiltinGltfDef | UserGltfDef | RemoteGltfDef;
+export interface PackGltfDef extends FurnitureDefBase {
+  kind: 'gltf';
+  source: 'pack';
+  packId: string;
+  entryId: string;
+  /** Hydrated from the IDB blob at app start; same lifecycle as UserGltfDef. */
+  runtimeUrl?: string;
+  thumbUrl?: string;
+  scale?: number;
+  license: 'CC0';
+  attribution: string;
+  sourceUrl: string;
+}
+
+export type GltfDef = BuiltinGltfDef | UserGltfDef | RemoteGltfDef | PackGltfDef;
 export type FurnitureDef = ParametricDef | GltfDef;
 
 export interface FurnitureItem {
