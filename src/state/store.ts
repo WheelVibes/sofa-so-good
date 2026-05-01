@@ -61,6 +61,16 @@ import {
   REMOTE_CATALOG_INITIAL,
   type RemoteCatalogSlice,
 } from './slices/remoteCatalogSlice';
+import {
+  createOrientationSlice,
+  ORIENTATION_INITIAL,
+  type OrientationSlice,
+} from './slices/orientationSlice';
+import {
+  createNotificationsSlice,
+  NOTIFICATIONS_INITIAL,
+  type NotificationsSlice,
+} from './slices/notificationsSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeOfDay } from './slices/timeSlice';
@@ -79,7 +89,9 @@ export interface RootState
     PlacementSlice,
     ClipboardSlice,
     HistorySlice,
-    RemoteCatalogSlice {
+    RemoteCatalogSlice,
+    OrientationSlice,
+    NotificationsSlice {
   __resetForTest: () => void;
 }
 
@@ -97,6 +109,8 @@ const INITIAL = {
   ...CLIPBOARD_INITIAL,
   ...HISTORY_INITIAL,
   ...REMOTE_CATALOG_INITIAL,
+  ...ORIENTATION_INITIAL,
+  ...NOTIFICATIONS_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -114,5 +128,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createClipboardSlice(set, get, api),
   ...createHistorySlice(set, get, api),
   ...createRemoteCatalogSlice(set, get, api),
+  ...createOrientationSlice(set, get, api),
+  ...createNotificationsSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));
