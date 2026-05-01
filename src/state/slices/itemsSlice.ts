@@ -78,7 +78,7 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
   },
   setItems: (items) => set({ items }),
   setLightOverride: (itemId, patch) => {
-    get().pushHistory();
+    get().pushHistoryCoalesced(`light:${itemId}:${Object.keys(patch).sort().join(',')}`);
     set((s) => ({
       items: s.items.map((it) =>
         it.id === itemId
