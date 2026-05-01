@@ -10,8 +10,6 @@ import { lightingFromAltitude } from './altitudeCurve';
 /** Distance from origin where the directional light sits (metres). */
 const SUN_DISTANCE = 25;
 const TWEEN_DURATION = 0.6;
-const SHADOW_MAP_SIZE = 1024;
-const SHADOWS_ENABLED = true;
 
 function apartmentAABB() {
   let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
@@ -60,6 +58,9 @@ function targetVals(sun: SunPosition, orientation: number): Vals {
 export function Lighting() {
   const sunPos = useSunPosition();
   const orientation = useStore((s) => s.orientationDeg);
+  const shadows = useStore((s) => s.quality.shadows);
+  const shadowsEnabled = shadows !== 'off';
+  const shadowMapSize = shadows === 'high' ? 2048 : 1024;
   const sunRef = useRef<DirectionalLight>(null!);
   const ambientRef = useRef<AmbientLight>(null!);
   const initial = targetVals(sunPos, orientation);
@@ -124,9 +125,9 @@ export function Lighting() {
         ref={sunRef}
         intensity={initial.sun}
         position={initial.sunPos}
-        castShadow={SHADOWS_ENABLED}
-        shadow-mapSize-width={SHADOW_MAP_SIZE}
-        shadow-mapSize-height={SHADOW_MAP_SIZE}
+        castShadow={shadowsEnabled}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
         shadow-camera-near={0.5}
         shadow-camera-far={SUN_DISTANCE * 2.5}
         shadow-camera-left={-shadowExtent}
