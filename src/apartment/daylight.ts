@@ -28,7 +28,7 @@ function wallNormalOutward(wall: WallSpec, roomId: RoomId): Vec2 | null {
   return pickA ? nA : nB;
 }
 
-function wallBordersRoom(wall: WallSpec, roomId: RoomId): boolean {
+export function wallBordersRoom(wall: WallSpec, roomId: RoomId): boolean {
   // True iff the wall's centerline lies along one of the room's four edges,
   // offset outward by the appropriate wall half-thickness.
   const r = ROOMS[roomId];
