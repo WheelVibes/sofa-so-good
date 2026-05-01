@@ -12,6 +12,7 @@ import { z } from 'zod';
 import { ROOMS } from '../apartment/constants';
 import type { RootState } from './store';
 import type { RoomId } from '../apartment/types';
+import { pickDefaultQuality } from './slices/qualitySlice';
 
 const FurnitureItemZ = z.object({
   id: z.string(),
@@ -84,6 +85,14 @@ const RawSerializedStateZ = z.object({
     .optional()
     .default(null),
   locationPromptDismissed: z.boolean().optional().default(false),
+  quality: z
+    .object({
+      shadows: z.enum(['off', 'low', 'high']),
+      globalIllumination: z.enum(['off', 'ibl', 'ibl+ssao']),
+      interRoomBleed: z.boolean(),
+      fixtures: z.boolean(),
+    })
+    .optional(),
   savedAt: z.string(),
 });
 
@@ -149,6 +158,7 @@ export function serialize(state: RootState): SerializedState {
     orientationDeg: state.orientationDeg,
     location: state.location,
     locationPromptDismissed: state.locationPromptDismissed,
+    quality: state.quality,
     savedAt: new Date().toISOString(),
   };
 }
@@ -182,5 +192,6 @@ export function applySerialized(
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,
     locationPromptDismissed: state.locationPromptDismissed ?? false,
+    quality: state.quality ?? pickDefaultQuality(),
   };
 }

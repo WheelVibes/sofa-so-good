@@ -182,4 +182,26 @@ describe('schema', () => {
     expect(patch.location).toEqual({ lat: 35.68, lon: 139.69, label: 'Tokyo' });
     expect(patch.locationPromptDismissed).toBe(true);
   });
+
+  it('round-trips quality settings', () => {
+    useStore.getState().__resetForTest();
+    useStore.getState().setQuality({ shadows: 'high', globalIllumination: 'ibl+ssao' });
+    const out = serialize(useStore.getState());
+    const parsed = SerializedStateZ.parse(JSON.parse(JSON.stringify(out)));
+    expect(parsed.quality?.shadows).toBe('high');
+    expect(parsed.quality?.globalIllumination).toBe('ibl+ssao');
+  });
+
+  it('falls back to device defaults when quality is missing in old saves', () => {
+    // Use the result of serialize() as a baseline, then strip quality.
+    useStore.getState().__resetForTest();
+    const out = serialize(useStore.getState());
+    const stripped = { ...out, quality: undefined } as unknown;
+    const parsed = SerializedStateZ.parse(JSON.parse(JSON.stringify(stripped)));
+    const applied = applySerialized(parsed, new Set());
+    // pickDefaultQuality returns one of QUALITY_PRESETS.{low,medium,high} —
+    // we just assert it's defined and structurally valid.
+    expect(applied.quality).toBeDefined();
+    expect(['off', 'low', 'high']).toContain(applied.quality!.shadows);
+  });
 });
