@@ -60,7 +60,15 @@ Out-of-scope items deferred from the spec:
 
 ### Realistic per-room lighting (window-aware, door-gated)
 
-Spec: [docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md](docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md). Brainstormed 2026-05-02. Drives per-room daylight from existing `roomDaylightFactor` + `relaxDaylight` so windowless rooms read dim and door state gates bleed. Plan pending.
+Spec: [docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md](docs/superpowers/specs/2026-05-02-realistic-room-lighting-design.md). Brainstormed 2026-05-02. Drives per-room daylight from existing `roomDaylightFactor` + `relaxDaylight` so windowless rooms read dim and door state gates bleed.
+
+Tasks completed:
+- Task 1: `roomDaylightFactor` pure function (2026-05-02)
+- Task 2: `relaxDaylight` door-gated bleed + graph solver (2026-05-02)
+- Task 3: civil-twilight-aware `daylightAdmittance` curve (2026-05-02)
+- Task 4: `computeRoomDaylightIntensities` helper combining the above (2026-05-02)
+
+Remaining: Task 5 (light fixtures scale + render hook) → on next session.
 
 ### Realism follow-ups (Singapore tropical defaults, 2026-05-02)
 
