@@ -119,9 +119,11 @@ export function Lighting() {
 
   return (
     <>
-      <ambientLight ref={ambientRef} />
+      <ambientLight ref={ambientRef} intensity={initial.ambient} />
       <directionalLight
         ref={sunRef}
+        intensity={initial.sun}
+        position={initial.sunPos}
         castShadow={SHADOWS_ENABLED}
         shadow-mapSize-width={SHADOW_MAP_SIZE}
         shadow-mapSize-height={SHADOW_MAP_SIZE}
