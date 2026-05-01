@@ -41,6 +41,7 @@ export function Bed({ props }: BedProps) {
       {/* Headboard at -Z end */}
       <mesh
         castShadow
+        receiveShadow
         position={[0, headboardH / 2, -length / 2 + headboardThickness / 2]}
       >
         <boxGeometry args={[width + 0.04, headboardH, headboardThickness]} />

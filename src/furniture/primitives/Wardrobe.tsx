@@ -25,7 +25,7 @@ export function Wardrobe({ props }: WardrobeProps) {
   const doors = Array.from({ length: doorCount }, (_, i) => {
     const x = -width / 2 + doorGap + doorPanelW / 2 + i * (doorPanelW + doorGap);
     return (
-      <mesh key={i} castShadow position={[x, height / 2, depth / 2 - doorInset]}>
+      <mesh key={i} castShadow receiveShadow position={[x, height / 2, depth / 2 - doorInset]}>
         <boxGeometry args={[doorPanelW, doorPanelH, 0.015]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
         {/* Handle as a child sphere */}

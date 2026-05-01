@@ -47,7 +47,7 @@ export function DiningTable({ props }: DiningTableProps) {
         <meshStandardMaterial color={topColor} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {legPositions.map((p, i) => (
-        <mesh key={i} castShadow position={p}>
+        <mesh key={i} castShadow receiveShadow position={p}>
           <boxGeometry args={[legThickness, totalH - topThickness, legThickness]} />
           <meshStandardMaterial color={legColor} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
         </mesh>

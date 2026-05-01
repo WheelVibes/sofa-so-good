@@ -22,7 +22,7 @@ export function Ceiling() {
             });
           }
           return tiles.map((t) => (
-            <mesh key={t.key} position={[t.cx, h, t.cz]} rotation={[Math.PI / 2, 0, 0]}>
+            <mesh key={t.key} position={[t.cx, h, t.cz]} rotation={[Math.PI / 2, 0, 0]} receiveShadow>
               <planeGeometry args={[t.w, t.d]} />
               <meshStandardMaterial color="#fafafa" roughness={1} />
             </mesh>

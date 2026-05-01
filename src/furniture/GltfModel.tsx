@@ -79,6 +79,16 @@ export function GltfModel({ url, scale = 1, tint }: GltfModelProps) {
     });
   }, [url, cloned]);
 
+  // Enable shadow casting/receiving on all meshes.
+  useEffect(() => {
+    cloned.traverse((obj) => {
+      const mesh = obj as Mesh;
+      if (!mesh.isMesh) return;
+      mesh.castShadow = true;
+      mesh.receiveShadow = true;
+    });
+  }, [cloned]);
+
   // Apply tint by walking the cloned tree once when it changes.
   useEffect(() => {
     if (tint === tintRef.current) return;

@@ -39,7 +39,7 @@ function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, materi
   const z = sign * (thickness / 2 + FACE_OFFSET);
   const yRot = sign === 1 ? 0 : Math.PI;
   return (
-    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} material={material}>
+    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} material={material} castShadow receiveShadow>
       <planeGeometry args={[segLen, segHeight]} />
     </mesh>
   );

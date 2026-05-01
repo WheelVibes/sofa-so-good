@@ -35,16 +35,16 @@ export function Bookshelf({ props }: BookshelfProps) {
   return (
     <group>
       {/* Sides */}
-      <mesh castShadow position={[-width / 2 + sideThickness / 2, height / 2, 0]}>
+      <mesh castShadow receiveShadow position={[-width / 2 + sideThickness / 2, height / 2, 0]}>
         <boxGeometry args={[sideThickness, height, depth]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
-      <mesh castShadow position={[width / 2 - sideThickness / 2, height / 2, 0]}>
+      <mesh castShadow receiveShadow position={[width / 2 - sideThickness / 2, height / 2, 0]}>
         <boxGeometry args={[sideThickness, height, depth]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Back */}
-      <mesh receiveShadow position={[0, height / 2, -depth / 2 + backThickness / 2]}>
+      <mesh castShadow receiveShadow position={[0, height / 2, -depth / 2 + backThickness / 2]}>
         <boxGeometry args={[width - sideThickness * 2, height, backThickness]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>

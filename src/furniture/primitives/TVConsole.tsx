@@ -25,11 +25,11 @@ export function TVConsole({ props }: TVConsoleProps) {
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Drawer faces (inset on +Z front) */}
-      <mesh castShadow position={[-drawerW / 2 - 0.015, height / 2, depth / 2 - drawerInset]}>
+      <mesh castShadow receiveShadow position={[-drawerW / 2 - 0.015, height / 2, depth / 2 - drawerInset]}>
         <boxGeometry args={[drawerW, height - 0.04, 0.012]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
-      <mesh castShadow position={[drawerW / 2 + 0.015, height / 2, depth / 2 - drawerInset]}>
+      <mesh castShadow receiveShadow position={[drawerW / 2 + 0.015, height / 2, depth / 2 - drawerInset]}>
         <boxGeometry args={[drawerW, height - 0.04, 0.012]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
