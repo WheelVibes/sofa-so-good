@@ -2,6 +2,15 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+## Furniture Catalog Expansion
+
+Decomposed into four subsystems, each shipped independently. Brainstormed 2026-05-01.
+
+- **Subsystem 1: Multi-provider plumbing** — fix hardcoded `'polyhaven'` in [resolver.ts:93](src/catalog/remote/resolver.ts#L93) and widen `RemoteGltfDef.provider` to `ProviderId` so subsystems 2-4 don't require per-provider type edits. Spec: [docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md](docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md). Plan pending.
+- **Subsystem 2: Quaternius + Kenney static packs** — manifest-driven CC0 zip packs, no API. Largest count gain. Pending.
+- **Subsystem 3: Sketchfab** — REST + OAuth token + runtime fetch. Largest variety gain; auth+ToS friction. Pending.
+- **Subsystem 4: Procedural furniture** — runtime mesh generation (parametric shelving, sofas, wardrobes). Largest design surface. Pending.
+
 ## Runtime CC0 Catalog
 
 Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md). Spec: [docs/superpowers/specs/2026-05-01-runtime-cc0-catalog-design.md](docs/superpowers/specs/2026-05-01-runtime-cc0-catalog-design.md). Active implementation in progress on this branch.
@@ -29,6 +38,11 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 - **Multi-select rotate** — `R` rotates only the primary selection. Decide whether group rotate spins around the group centroid or each item in place, then extend the onKey handler. See [src/App.tsx](src/App.tsx).
 - **Inspector for multi-selection** — currently shows the primary item only. Could show a "N items selected" placeholder with bulk actions (delete all, clear). See [src/ui/inspector/InspectorPanel.tsx](src/ui/inspector/InspectorPanel.tsx).
 - **Marquee strictness** — selection is membership-by-centre; partial-overlap (Lasso-style) may be preferred for large items. Revisit if users complain. See [src/scene/selection/MarqueeSelector.tsx](src/scene/selection/MarqueeSelector.tsx).
+
+## UI
+
+- **Finishes browse: filter by category** — `RemoteBrowseTab` shows all materials; could narrow by floor-vs-wall heuristics from tags. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx) and [finishes-browse spec](docs/superpowers/specs/2026-05-01-finishes-browse-design.md).
+- **Persist last-edited surface** across sessions for the finishes browse → resolve flow. See [finishes-browse spec — Out of scope](docs/superpowers/specs/2026-05-01-finishes-browse-design.md#out-of-scope).
 
 ## Risks tracked from specs
 
