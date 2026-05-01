@@ -5,7 +5,6 @@ import { useCatalog } from '../../furniture/catalog';
 import { kelvinToRGB } from '../../furniture/lighting/colorTemp';
 import type { LightEmitter } from '../../furniture/types';
 
-const FIXTURES_ENABLED = true;
 const MAX_LIGHTS = 16;
 
 interface ResolvedFixture {
@@ -97,6 +96,7 @@ function FurnitureLightsInner() {
 }
 
 export function FurnitureLights() {
-  if (!FIXTURES_ENABLED) return null;
+  const fixturesOn = useStore((s) => s.quality.fixtures);
+  if (!fixturesOn) return null;
   return <FurnitureLightsInner />;
 }

@@ -9,8 +9,6 @@ import { buildRoomGraph, relaxDaylight } from '../../apartment/roomGraph';
 import { useSunPosition } from './useSunPosition';
 import { sunDirectionToScene } from './sunPosition';
 
-const FILL_ENABLED = true;
-const BLEED_ENABLED = true;
 const FILL_INTENSITY = 0.45;
 const FILL_HEIGHT_FRAC = 0.85;
 const FILL_TWEEN_DURATION = 0.6;
@@ -21,6 +19,7 @@ function RoomFillLightsInner() {
   const sun = useSunPosition();
   const orientation = useStore((s) => s.orientationDeg);
   const doors = useStore((s) => s.doors);
+  const bleedEnabled = useStore((s) => s.quality.interRoomBleed);
 
   const target = useMemo(() => {
     const dir = sunDirectionToScene(sun);
@@ -36,7 +35,7 @@ function RoomFillLightsInner() {
     for (const id of Object.keys(ROOMS) as RoomId[]) {
       base[id] = roomDaylightFactor(id, sceneDir);
     }
-    const relaxed = BLEED_ENABLED
+    const relaxed = bleedEnabled
       ? relaxDaylight(base, buildRoomGraph(doors))
       : base;
     const intensities: Record<RoomId, number> = {} as Record<RoomId, number>;
@@ -44,7 +43,7 @@ function RoomFillLightsInner() {
       intensities[id] = (1 - relaxed[id]) * FILL_INTENSITY;
     }
     return intensities;
-  }, [sun, orientation, doors]);
+  }, [sun, orientation, doors, bleedEnabled]);
 
   const refs = useRef<Record<RoomId, PointLight | null>>({} as Record<RoomId, PointLight | null>);
   const current = useRef<Record<RoomId, number>>(
@@ -87,6 +86,6 @@ function RoomFillLightsInner() {
 }
 
 export function RoomFillLights() {
-  if (!FILL_ENABLED) return null;
+  // Per-room fill is the always-on baseline; no quality toggle.
   return <RoomFillLightsInner />;
 }

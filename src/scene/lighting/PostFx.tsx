@@ -1,9 +1,10 @@
 import { EffectComposer, SSAO } from '@react-three/postprocessing';
 import { BlendFunction } from 'postprocessing';
-
-const SSAO_ENABLED = false; // Phase 5 toggles this on for high quality
+import { useStore } from '../../state/store';
 
 function PostFxInner() {
+  const gi = useStore((s) => s.quality.globalIllumination);
+  if (gi !== 'ibl+ssao') return null;
   return (
     <EffectComposer multisampling={0} enableNormalPass>
       <SSAO
@@ -22,6 +23,5 @@ function PostFxInner() {
 }
 
 export function PostFx() {
-  if (!SSAO_ENABLED) return null;
   return <PostFxInner />;
 }

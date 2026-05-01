@@ -18,9 +18,10 @@ import { PostFx } from './lighting/PostFx';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
+  const shadowsQuality = useStore((s) => s.quality.shadows);
   return (
     <Canvas
-      shadows
+      shadows={shadowsQuality !== 'off' ? 'soft' : false}
       dpr={[1, 1.25]}
       camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 100 }}
       gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
