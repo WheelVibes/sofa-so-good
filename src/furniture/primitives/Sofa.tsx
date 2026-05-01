@@ -29,7 +29,7 @@ export function Sofa({ props }: SofaProps) {
   const cushions = Array.from({ length: cushionCount }, (_, i) => {
     const x = -innerW / 2 + cushionW / 2 + i * (cushionW + cushionGap);
     return (
-      <mesh key={i} castShadow position={[x, seatH + cushionH / 2, 0.04]}>
+      <mesh key={i} castShadow receiveShadow position={[x, seatH + cushionH / 2, 0.04]}>
         <boxGeometry args={[cushionW, cushionH, cushionD]} />
         <meshStandardMaterial color={color} roughness={0.85} metalness={0} />
       </mesh>
@@ -44,21 +44,21 @@ export function Sofa({ props }: SofaProps) {
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Seat platform */}
-      <mesh castShadow position={[0, seatH, 0]}>
+      <mesh castShadow receiveShadow position={[0, seatH, 0]}>
         <boxGeometry args={[innerW, 0.04, depth - 0.1]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Back */}
-      <mesh castShadow position={[0, seatH + backH / 2, -depth / 2 + 0.08]}>
+      <mesh castShadow receiveShadow position={[0, seatH + backH / 2, -depth / 2 + 0.08]}>
         <boxGeometry args={[width, backH, 0.16]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Arms */}
-      <mesh castShadow position={[-(width - armW) / 2, (seatH + backH * 0.5) / 2 + 0.05, 0]}>
+      <mesh castShadow receiveShadow position={[-(width - armW) / 2, (seatH + backH * 0.5) / 2 + 0.05, 0]}>
         <boxGeometry args={[armW, seatH + backH * 0.5, depth]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
-      <mesh castShadow position={[(width - armW) / 2, (seatH + backH * 0.5) / 2 + 0.05, 0]}>
+      <mesh castShadow receiveShadow position={[(width - armW) / 2, (seatH + backH * 0.5) / 2 + 0.05, 0]}>
         <boxGeometry args={[armW, seatH + backH * 0.5, depth]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>

@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber';
 import { useRef } from 'react';
 import type { DirectionalLight, AmbientLight } from 'three';
 import { useStore } from '../../state/store';
+import { ROOMS } from '../../apartment/constants';
 import { useSunPosition } from './useSunPosition';
 import { sunDirectionToScene, type SunPosition } from './sunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
@@ -9,6 +10,19 @@ import { lightingFromAltitude } from './altitudeCurve';
 /** Distance from origin where the directional light sits (metres). */
 const SUN_DISTANCE = 25;
 const TWEEN_DURATION = 0.6;
+const SHADOW_MAP_SIZE = 1024;
+const SHADOWS_ENABLED = true;
+
+function apartmentAABB() {
+  let minX = Infinity, maxX = -Infinity, minZ = Infinity, maxZ = -Infinity;
+  for (const r of Object.values(ROOMS)) {
+    minX = Math.min(minX, r.origin[0]);
+    maxX = Math.max(maxX, r.origin[0] + r.width);
+    minZ = Math.min(minZ, r.origin[1]);
+    maxZ = Math.max(maxZ, r.origin[1] + r.depth);
+  }
+  return { minX, maxX, minZ, maxZ };
+}
 
 interface Vals {
   sun: number;
@@ -49,6 +63,12 @@ export function Lighting() {
   const sunRef = useRef<DirectionalLight>(null!);
   const ambientRef = useRef<AmbientLight>(null!);
   const initial = targetVals(sunPos, orientation);
+
+  const aabb = apartmentAABB();
+  const margin = 4;
+  const halfX = (aabb.maxX - aabb.minX) / 2 + margin;
+  const halfZ = (aabb.maxZ - aabb.minZ) / 2 + margin;
+  const shadowExtent = Math.max(halfX, halfZ);
   const current = useRef<Vals>({
     sun: initial.sun,
     ambient: initial.ambient,
@@ -99,18 +119,21 @@ export function Lighting() {
 
   return (
     <>
-      <ambientLight ref={ambientRef} />
+      <ambientLight ref={ambientRef} intensity={initial.ambient} />
       <directionalLight
         ref={sunRef}
-        castShadow
-        shadow-mapSize-width={512}
-        shadow-mapSize-height={512}
+        intensity={initial.sun}
+        position={initial.sunPos}
+        castShadow={SHADOWS_ENABLED}
+        shadow-mapSize-width={SHADOW_MAP_SIZE}
+        shadow-mapSize-height={SHADOW_MAP_SIZE}
         shadow-camera-near={0.5}
-        shadow-camera-far={50}
-        shadow-camera-left={-15}
-        shadow-camera-right={15}
-        shadow-camera-top={15}
-        shadow-camera-bottom={-15}
+        shadow-camera-far={SUN_DISTANCE * 2.5}
+        shadow-camera-left={-shadowExtent}
+        shadow-camera-right={shadowExtent}
+        shadow-camera-top={shadowExtent}
+        shadow-camera-bottom={-shadowExtent}
+        shadow-bias={-0.0005}
       />
     </>
   );

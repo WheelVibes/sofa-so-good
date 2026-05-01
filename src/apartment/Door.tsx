@@ -55,6 +55,7 @@ function DoorLeaf({ spec }: { spec: DoorSpec }) {
             toggle(spec.id);
           }}
           castShadow
+          receiveShadow
         >
           <boxGeometry args={[spec.width, FLAT.doorHeight, FLAT.doorThickness]} />
           <meshStandardMaterial color="#9d7c54" roughness={0.7} />

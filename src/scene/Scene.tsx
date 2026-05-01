@@ -6,12 +6,14 @@ import { CameraRig } from './cameras/CameraRig';
 import { CameraForwardTracker } from './cameras/cameraForward';
 import { Lighting } from './lighting/Lighting';
 import { Sky } from './lighting/Sky';
+import { Environment } from './lighting/Environment';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
 import { SelectionOutline } from './selection/SelectionOutline';
 import { MarqueeCameraTracker } from './selection/MarqueeSelector';
 import { PlacementGhost } from './PlacementGhost';
 import { DragController } from './DragController';
+import { PostFx } from './lighting/PostFx';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
@@ -23,6 +25,7 @@ export function Scene() {
       gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
     >
       <Sky />
+      <Environment />
       <Lighting />
       <Apartment />
       <FurnitureLayer />
@@ -34,6 +37,7 @@ export function Scene() {
       <CameraForwardTracker />
       <MeasurementOverlay />
       {showFps ? <Stats /> : null}
+      <PostFx />
     </Canvas>
   );
 }

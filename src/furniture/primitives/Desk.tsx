@@ -28,13 +28,14 @@ export function Desk({ props }: DeskProps) {
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Left leg plate */}
-      <mesh castShadow position={[-width / 2 + legThickness / 2, (height - topThickness) / 2, 0]}>
+      <mesh castShadow receiveShadow position={[-width / 2 + legThickness / 2, (height - topThickness) / 2, 0]}>
         <boxGeometry args={[legThickness, height - topThickness, depth - 0.04]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Right drawer block */}
       <mesh
         castShadow
+        receiveShadow
         position={[width / 2 - drawerW / 2, height - topThickness - drawerH / 2, 0]}
       >
         <boxGeometry args={[drawerW, drawerH, depth - 0.06]} />
