@@ -57,4 +57,28 @@ describe('resolver', () => {
     expect(def.runtimeAssets['textures/wood.jpg']).toMatch(/^blob:/);
     expect(def.runtimeAssets['scene.bin']).toMatch(/^blob:/);
   });
+
+  it('preserves the provider on furniture defs (does not hardcode polyhaven)', () => {
+    const acgFurnEntry: RemoteEntry = {
+      provider: 'ambientcg',
+      slug: 'wooden-chair',
+      kind: 'furniture',
+      name: 'Wooden Chair',
+      category: 'seating',
+      thumbUrl: '',
+      resolutions: ['2k'],
+      attribution: 'ambientCG',
+      sourceUrl: 'https://ambientcg.com/view?id=wooden-chair',
+    };
+    const bundle: AssetBundle = {
+      kind: 'furniture',
+      gltfJson: { buffers: [{ uri: 'scene.bin', byteLength: 1 }], images: [] },
+      bin: new Blob(['b']),
+      textures: {},
+      rootPath: 'asset.gltf',
+    };
+    const def = bundleToFurnitureDef(acgFurnEntry, '2k', bundle);
+    expect(def.provider).toBe('ambientcg');
+    expect(def.id).toBe('ambientcg:wooden-chair:2k');
+  });
 });
