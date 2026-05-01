@@ -1,10 +1,12 @@
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
+import { ACESFilmicToneMapping } from 'three';
 import { useStore } from '../state/store';
 import { Apartment } from '../apartment/Apartment';
 import { CameraRig } from './cameras/CameraRig';
 import { CameraForwardTracker } from './cameras/cameraForward';
 import { Lighting } from './lighting/Lighting';
+import { RoomDaylight } from './lighting/RoomDaylight';
 import { Sky } from './lighting/Sky';
 import { Environment } from './lighting/Environment';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
@@ -19,16 +21,27 @@ import { PostFx } from './lighting/PostFx';
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
   const shadowsQuality = useStore((s) => s.quality.shadows);
+  const gi = useStore((s) => s.quality.globalIllumination);
+  // MSAA at the WebGL level only at the highest preset; SMAA in PostFx covers
+  // the lower presets cheaply.
+  const antialias = gi === 'ibl+ssao';
   return (
     <Canvas
       shadows={shadowsQuality !== 'off' ? 'soft' : false}
       dpr={[1, 1.25]}
-      camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 100 }}
-      gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
+      camera={{ position: [12, 8, 12], fov: 70, near: 0.1, far: 100 }}
+      gl={{
+        antialias,
+        powerPreference: 'high-performance',
+        stencil: false,
+        toneMapping: ACESFilmicToneMapping,
+        toneMappingExposure: 1.0,
+      }}
     >
       <Sky />
       <Environment />
       <Lighting />
+      <RoomDaylight />
       <Apartment />
       <FurnitureLayer />
       <FurnitureLights />
