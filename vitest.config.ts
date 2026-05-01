@@ -11,6 +11,7 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
+    exclude: ['**/node_modules/**', '**/dist/**', '.worktrees/**'],
     env: {
       TZ: 'Asia/Singapore',
     },
