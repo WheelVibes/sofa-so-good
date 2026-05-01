@@ -6,6 +6,7 @@ import { CameraRig } from './cameras/CameraRig';
 import { CameraForwardTracker } from './cameras/cameraForward';
 import { Lighting } from './lighting/Lighting';
 import { Sky } from './lighting/Sky';
+import { Environment } from './lighting/Environment';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
 import { SelectionOutline } from './selection/SelectionOutline';
@@ -23,6 +24,7 @@ export function Scene() {
       gl={{ antialias: false, powerPreference: 'high-performance', stencil: false }}
     >
       <Sky />
+      <Environment />
       <Lighting />
       <Apartment />
       <FurnitureLayer />
