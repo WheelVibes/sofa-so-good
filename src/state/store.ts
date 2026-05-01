@@ -81,8 +81,15 @@ import {
   INSTALLED_PACKS_INITIAL,
   type InstalledPacksSlice,
 } from './slices/installedPacksSlice';
+import {
+  createQualitySlice,
+  QUALITY_INITIAL,
+  type QualitySlice,
+} from './slices/qualitySlice';
 
 export type { CameraMode } from './slices/cameraSlice';
+export type { QualitySettings, QualityPreset } from './slices/qualitySlice';
+export { QUALITY_PRESETS } from './slices/qualitySlice';
 export type { TimeMode, TimePreset } from './slices/timeSlice';
 export { PRESET_HOURS } from './slices/timeSlice';
 export type { Location } from './slices/locationSlice';
@@ -105,7 +112,8 @@ export interface RootState
     RemoteCatalogSlice,
     OrientationSlice,
     NotificationsSlice,
-    InstalledPacksSlice {
+    InstalledPacksSlice,
+    QualitySlice {
   __resetForTest: () => void;
 }
 
@@ -127,6 +135,7 @@ const INITIAL = {
   ...ORIENTATION_INITIAL,
   ...NOTIFICATIONS_INITIAL,
   ...INSTALLED_PACKS_INITIAL,
+  ...QUALITY_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -148,5 +157,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createOrientationSlice(set, get, api),
   ...createNotificationsSlice(set, get, api),
   ...createInstalledPacksSlice(set, get, api),
+  ...createQualitySlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));

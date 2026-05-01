@@ -147,3 +147,14 @@ describe('store — reset actions', () => {
     expect(second).toEqual(first);
   });
 });
+
+describe('store — quality slice', () => {
+  beforeEach(() => useStore.getState().__resetForTest());
+
+  it('setQuality merges a partial patch', () => {
+    useStore.getState().setQuality({ shadows: 'off' });
+    expect(useStore.getState().quality.shadows).toBe('off');
+    // other fields preserved (whatever pickDefaultQuality returned at init)
+    expect(useStore.getState().quality.fixtures).toBe(true);
+  });
+});
