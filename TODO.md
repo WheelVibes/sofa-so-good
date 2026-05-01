@@ -7,7 +7,9 @@ Single source of truth for deferred work across this project. Each entry links b
 Decomposed into four subsystems, each shipped independently. Brainstormed 2026-05-01.
 
 - ~~**Subsystem 1: Multi-provider plumbing**~~ — done. Spec: [docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md](docs/superpowers/specs/2026-05-01-multi-provider-plumbing-design.md). Plan: [docs/superpowers/plans/2026-05-01-multi-provider-plumbing.md](docs/superpowers/plans/2026-05-01-multi-provider-plumbing.md).
-- **Subsystem 2: DLC packs** — opt-in installable CC0 packs (Kenney Furniture Kit v1; Quaternius deferred — Google Drive + FBX format issue). Streaming download + in-app notifications + IDB cache + per-entry thumbnail generation. Spec: [docs/superpowers/specs/2026-05-01-dlc-packs-design.md](docs/superpowers/specs/2026-05-01-dlc-packs-design.md). Plan pending.
+- ~~**Subsystem 2: DLC packs**~~ — done (v1: Kenney Furniture Kit). Spec: [docs/superpowers/specs/2026-05-01-dlc-packs-design.md](docs/superpowers/specs/2026-05-01-dlc-packs-design.md). Plan: [docs/superpowers/plans/2026-05-01-dlc-packs.md](docs/superpowers/plans/2026-05-01-dlc-packs.md). Production proxy for `/kenney` rolls into the existing CORS-proxy TODO.
+- **Quaternius DLC pack support** — deferred from subsystem 2. Their packs are Google-Drive-folder-hosted (no programmatic single-zip download from a browser) and ship FBX/OBJ/Blend rather than GLB. Either (a) build a server-side proxy that exposes a single zip endpoint over a Drive folder + add three's `FBXLoader`, or (b) maintainer-mirror packs to a CC0-redistributable CDN with format conversion. Revisit after subsystem 4.
+- **DLC pack URL drift** — Kenney's pack URL contains a content-hash directory; HEAD-validation on `Content-Length` ± 5% catches breakage. Bump the registry entry when the upstream rotates.
 - **Subsystem 3: Sketchfab** — REST + OAuth token + runtime fetch. Largest variety gain; auth+ToS friction. Pending.
 - **Subsystem 4: Procedural furniture** — runtime mesh generation (parametric shelving, sofas, wardrobes). Largest design surface. Pending.
 
