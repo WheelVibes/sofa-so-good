@@ -111,8 +111,8 @@ export default function App() {
       if (!mod && code === KEYBINDINGS.toggleCameraMode) {
         setCameraMode(cameraMode === 'orbit' ? 'firstPerson' : 'orbit');
       }
-      if (!mod && code === KEYBINDINGS.cycleTimeOfDay) {
-        useStore.getState().cycleTimeOfDay();
+      if (!mod && code === KEYBINDINGS.cyclePresetTime) {
+        useStore.getState().cyclePresetTime();
       }
       if (code === KEYBINDINGS.interact) {
         const { nearbyDoorId, toggleDoor } = useStore.getState();

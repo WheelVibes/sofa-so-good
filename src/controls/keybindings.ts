@@ -1,7 +1,7 @@
 export const KEYBINDINGS = {
   toggleMeasurements: 'KeyM',
   toggleCameraMode: 'KeyV',
-  cycleTimeOfDay: 'KeyT',
+  cyclePresetTime: 'KeyT',
   walkForward: 'KeyW',
   walkBack: 'KeyS',
   walkLeft: 'KeyA',
