@@ -25,6 +25,19 @@ export function sunDirectionToScene(s: SunPosition): [number, number, number] {
   return [x, y, z];
 }
 
+/** Rotate a 3-vector clockwise around Y when viewed from above (compass
+ *  bearings: N=0° → E=90° → S=180° → W=270°). Used to apply the user's
+ *  apartment orientation to sun positions and directions. */
+export function rotateAroundY(
+  v: readonly [number, number, number],
+  deg: number,
+): [number, number, number] {
+  const r = (deg * Math.PI) / 180;
+  const c = Math.cos(r);
+  const s = Math.sin(r);
+  return [v[0] * c - v[2] * s, v[1], v[0] * s + v[2] * c];
+}
+
 /** Build a Date for the same calendar day as `today` but with the given
  *  fractional hour (local time). Used to translate the user's effective
  *  hour into a Date that SunCalc can consume. */

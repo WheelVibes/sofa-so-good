@@ -7,7 +7,7 @@ import type { RoomId } from '../../apartment/types';
 import { lightingFromAltitude } from './altitudeCurve';
 import { roomCentroidPose, roomWindowedWallInjectors, type WallInjector } from './roomCentroids';
 import { computeRoomDaylightIntensities } from './roomDaylightIntensities';
-import { sunDirectionToScene } from './sunPosition';
+import { rotateAroundY, sunDirectionToScene } from './sunPosition';
 import { useSunPosition } from './useSunPosition';
 
 const TWEEN_DURATION = 0.6;
@@ -47,16 +47,10 @@ export function RoomDaylight() {
   });
 
   useFrame((_, dt) => {
+    // Read doors imperatively — useFrame already polls every frame, so subscribing
+    // would only add unnecessary React re-renders on every door toggle.
     const doors = useStore.getState().doors;
-    const sunDir = sunDirectionToScene(sun);
-    const r = (orientation * Math.PI) / 180;
-    const cs = Math.cos(r);
-    const sn = Math.sin(r);
-    const rotated: [number, number, number] = [
-      sunDir[0] * cs - sunDir[2] * sn,
-      sunDir[1],
-      sunDir[0] * sn + sunDir[2] * cs,
-    ];
+    const rotated = rotateAroundY(sunDirectionToScene(sun), orientation);
     const intensities = computeRoomDaylightIntensities(rotated, sun.altitude, doors);
     const targetColor = lightingFromAltitude(sun.altitude).sunColor;
     const k = Math.min(1, dt / TWEEN_DURATION);

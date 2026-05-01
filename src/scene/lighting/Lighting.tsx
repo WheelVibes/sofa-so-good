@@ -1,10 +1,10 @@
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useRef } from 'react';
 import type { DirectionalLight, AmbientLight } from 'three';
 import { useStore } from '../../state/store';
 import { ROOMS } from '../../apartment/constants';
 import { useSunPosition } from './useSunPosition';
-import { sunDirectionToScene, type SunPosition } from './sunPosition';
+import { rotateAroundY, sunDirectionToScene, type SunPosition } from './sunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
 
 /** Distance from origin where the directional light sits (metres). */
@@ -27,16 +27,7 @@ interface Vals {
   ambient: number;
   sunPos: [number, number, number];
   sunColor: [number, number, number];
-}
-
-// Clockwise around Y when viewed from above, matching compass bearings
-// (N=0° → E=90° → S=180° → W=270°). Same convention as Sky.tsx.
-function rotateY(pos: readonly [number, number, number], deg: number): [number, number, number] {
-  const r = (deg * Math.PI) / 180;
-  const c = Math.cos(r);
-  const s = Math.sin(r);
-  const [x, y, z] = pos;
-  return [x * c - z * s, y, x * s + z * c];
+  exposure: number;
 }
 
 function targetVals(sun: SunPosition, orientation: number): Vals {
@@ -50,8 +41,9 @@ function targetVals(sun: SunPosition, orientation: number): Vals {
   return {
     sun: lighting.sun,
     ambient: lighting.ambient,
-    sunPos: rotateY(scaled, orientation),
+    sunPos: rotateAroundY(scaled, orientation),
     sunColor: lighting.sunColor,
+    exposure: lighting.exposure,
   };
 }
 
@@ -63,6 +55,7 @@ export function Lighting() {
   const shadowMapSize = shadows === 'high' ? 2048 : 1024;
   const sunRef = useRef<DirectionalLight>(null!);
   const ambientRef = useRef<AmbientLight>(null!);
+  const gl = useThree((s) => s.gl);
   const initial = targetVals(sunPos, orientation);
 
   const aabb = apartmentAABB();
@@ -75,6 +68,7 @@ export function Lighting() {
     ambient: initial.ambient,
     sunPos: [...initial.sunPos] as [number, number, number],
     sunColor: [...initial.sunColor] as [number, number, number],
+    exposure: initial.exposure,
   });
 
   useFrame((_, dt) => {
@@ -88,6 +82,7 @@ export function Lighting() {
     const dCr = target.sunColor[0] - cur.sunColor[0];
     const dCg = target.sunColor[1] - cur.sunColor[1];
     const dCb = target.sunColor[2] - cur.sunColor[2];
+    const dExp = target.exposure - cur.exposure;
     const settled =
       Math.abs(dSun) < 1e-3 &&
       Math.abs(dAmb) < 1e-3 &&
@@ -96,7 +91,8 @@ export function Lighting() {
       Math.abs(dPz) < 1e-2 &&
       Math.abs(dCr) < 1e-3 &&
       Math.abs(dCg) < 1e-3 &&
-      Math.abs(dCb) < 1e-3;
+      Math.abs(dCb) < 1e-3 &&
+      Math.abs(dExp) < 1e-3;
 
     if (settled) return;
 
@@ -109,7 +105,9 @@ export function Lighting() {
     cur.sunColor[0] += dCr * k;
     cur.sunColor[1] += dCg * k;
     cur.sunColor[2] += dCb * k;
+    cur.exposure += dExp * k;
 
+    if (gl) gl.toneMappingExposure = cur.exposure;
     if (sunRef.current) {
       sunRef.current.intensity = cur.sun;
       sunRef.current.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2]);
