@@ -53,9 +53,9 @@ Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers
 
 - ~~**Time-of-day rework — Phase 1 (time model)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md](docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md). System / Morning / Noon / Dusk / Night / Custom dropdown, schema migration from legacy timeOfDay. Lighting still uses the old 3-preset visuals via a temporary hour→preset shim — Phase 2 replaces them.
 - ~~**Time-of-day rework — Phase 2 (astronomy + geocoding)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase2-astronomy.md](docs/superpowers/plans/2026-05-01-time-of-day-phase2-astronomy.md). SunCalc-driven sun position, location prompt with geolocation/Nominatim/manual entry, altitude-driven lighting and sky.
-- **Time-of-day rework — Phase 3 (realistic indoor lighting)** — pending. Per-room fill, real shadows through window cutouts, IBL + SSAO, inter-room light bleed through open doors.
-- **Time-of-day rework — Phase 4 (light fixtures)** — pending. Lamp/pendant/sconce furniture with point/spot lights, inspector controls.
-- **Time-of-day rework — Phase 5 (quality settings)** — pending. Toggle shadows / GI / SSAO / inter-room bleed / fixtures independently with device-tier defaults.
+- **Time-of-day rework — Phase 3 (realistic indoor lighting)** — plan written, pending implementation. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase3-indoor-lighting.md](docs/superpowers/plans/2026-05-01-time-of-day-phase3-indoor-lighting.md). Per-room fill, real shadows through window cutouts, IBL (SSAO scaffolded off), inter-room light bleed through open doors.
+- **Time-of-day rework — Phase 4 (light fixtures)** — plan written, pending implementation. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase4-light-fixtures.md](docs/superpowers/plans/2026-05-01-time-of-day-phase4-light-fixtures.md). Floor / table / pendant / spot / sconce primitives with point/spot lights, per-instance lightOverride, inspector controls.
+- **Time-of-day rework — Phase 5 (quality settings)** — plan written, pending implementation. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase5-quality-settings.md](docs/superpowers/plans/2026-05-01-time-of-day-phase5-quality-settings.md). Quality slice with device-tier defaults, SettingsPanel modal, shadows / GI / inter-room bleed / fixtures toggles wired through Phases 3+4.
 
 Out-of-scope items deferred from the spec:
 

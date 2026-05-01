@@ -19,3 +19,6 @@ public/assets/furniture/dropped/*
 public/assets/materials/dropped/*
 !public/assets/materials/dropped/.gitkeep
 !public/assets/materials/dropped/README.md
+
+# Git worktrees
+.worktrees/
