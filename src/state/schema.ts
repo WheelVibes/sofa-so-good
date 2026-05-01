@@ -69,10 +69,12 @@ const RawSerializedStateZ = z.object({
     floor: z.record(z.string(), z.string()),
     walls: z.record(z.string(), z.string()),
   }),
+  lastSurface: z.enum(['floor', 'wall']).optional(),
   userFurniture: z.array(UserGltfDefZ),
   userMaterials: z.array(UserMaterialDefZ),
-  timeMode: z.enum(['system', 'manual']),
+  timeMode: z.enum(['system', 'manual', 'accelerated']),
   manualHour: z.number().min(0).max(24),
+  timeScale: z.number().positive().optional(),
   cameraMode: z.enum(['orbit', 'firstPerson']),
   orientationDeg: z.number().optional(),
   location: z
@@ -89,8 +91,22 @@ const RawSerializedStateZ = z.object({
     .object({
       shadows: z.enum(['off', 'low', 'high']),
       globalIllumination: z.enum(['off', 'ibl', 'ibl+ssao']),
-      interRoomBleed: z.boolean(),
-      fixtures: z.boolean(),
+      // interRoomBleed was a quality toggle for the now-removed fake
+      // ceiling fill; tolerated on read so older saves keep parsing.
+      interRoomBleed: z.boolean().optional(),
+      // fixtures was a plain boolean before the auto-dusk hand-off landed;
+      // accept either shape and migrate in applySerialized().
+      fixtures: z.union([z.boolean(), z.enum(['auto', 'on', 'off'])]),
+      exposureBias: z.number().min(0.1).max(3).optional(),
+      weather: z.enum(['clear', 'hazy', 'overcast']).optional(),
+      outdoor: z.boolean().optional(),
+    })
+    .optional(),
+  windows: z
+    .object({
+      windowTint: z.enum(['none', 'warm', 'cool', 'sage', 'rose']),
+      curtainsClosed: z.boolean(),
+      curtainOpacity: z.number().min(0).max(1),
     })
     .optional(),
   savedAt: z.string(),
@@ -132,6 +148,7 @@ export function serialize(state: RootState): SerializedState {
     items: state.items,
     doors: state.doors,
     finishes: state.finishes,
+    lastSurface: state.lastSurface,
     userFurniture: state.userFurniture.map((d) => ({
       id: d.id,
       name: d.name,
@@ -154,11 +171,17 @@ export function serialize(state: RootState): SerializedState {
     })),
     timeMode: state.timeMode,
     manualHour: state.manualHour,
+    timeScale: state.timeScale,
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
     location: state.location,
     locationPromptDismissed: state.locationPromptDismissed,
     quality: state.quality,
+    windows: {
+      windowTint: state.windowTint,
+      curtainsClosed: state.curtainsClosed,
+      curtainOpacity: state.curtainOpacity,
+    },
     savedAt: new Date().toISOString(),
   };
 }
@@ -186,12 +209,31 @@ export function applySerialized(
       floor: floor as Record<RoomId, string>,
       walls: walls as Record<RoomId, string>,
     },
+    lastSurface: state.lastSurface ?? 'floor',
     timeMode: state.timeMode,
     manualHour: state.manualHour,
+    timeScale: state.timeScale ?? 600,
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,
     locationPromptDismissed: state.locationPromptDismissed ?? false,
-    quality: state.quality ?? pickDefaultQuality(),
+    quality: state.quality
+      ? {
+          shadows: state.quality.shadows,
+          globalIllumination: state.quality.globalIllumination,
+          fixtures:
+            typeof state.quality.fixtures === 'boolean'
+              ? state.quality.fixtures
+                ? 'on'
+                : 'off'
+              : state.quality.fixtures,
+          exposureBias: state.quality.exposureBias ?? 1.0,
+          weather: state.quality.weather ?? 'hazy',
+          outdoor: state.quality.outdoor ?? true,
+        }
+      : pickDefaultQuality(),
+    windowTint: state.windows?.windowTint ?? 'none',
+    curtainsClosed: state.windows?.curtainsClosed ?? false,
+    curtainOpacity: state.windows?.curtainOpacity ?? 0.85,
   };
 }

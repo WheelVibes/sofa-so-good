@@ -62,15 +62,17 @@ export const ROOMS: Record<RoomId, RoomDef> = {
     origin: [0.20, 0.20],
     width: 2.85,
     depth: 3.40,
-    extension: {
-      // MB foyer: the western strip of the corridor band is part of MB
-      // (no MB south wall — MB main flows into the foyer). The foyer ends
-      // at the small N-S wall just west of the B2 door (cx=4.30), which
-      // hosts the MB door. Foyer interior cx=[0.20, 4.25] cz=[3.60, 5.00].
-      offset: [0, 3.40],
-      width: 4.05,
-      depth: 1.40,
-    },
+    extensions: [
+      {
+        // MB foyer: the western strip of the corridor band is part of MB
+        // (no MB south wall — MB main flows into the foyer). The foyer ends
+        // at the small N-S wall just west of the B2 door (cx=4.30), which
+        // hosts the MB door. Foyer interior cx=[0.20, 4.25] cz=[3.60, 5.00].
+        offset: [0, 3.40],
+        width: 4.05,
+        depth: 1.40,
+      },
+    ],
     derivation:
       'L-shape: bedroom + south foyer. Main body NW of plan, SVG x=[50,265] y=[65,320] → cx=[0.10,3.10] cz=[0.10,3.65] (north window centred, tall sliding window on west wall over SVG y=[140,290]). Foyer extends south through the corridor band (cz=[3.65, 5.05]) up to a small partition at cx=4.30 — that partition hosts the MB door, just west of the B2 door. Bath1 sits south of the foyer and is reached via the existing corridor-S door cutout at cx=[2.40, 3.20].',
   },
@@ -154,21 +156,40 @@ export const ROOMS: Record<RoomId, RoomDef> = {
   },
   livingDining: {
     id: 'livingDining',
+    // Main rectangle = the SOUTH ARM (bath/HS band), the widest contiguous
+    // portion. The earlier model used a single 4.00 × 5.40 rectangle that
+    // extended up into the bedroom band; that overstated the interior
+    // because the b3↔L/D partition (cx=9.05) cuts a 0.55 × 2.25 m slice
+    // off the west side up there. Modelling the L-shape with explicit
+    // sub-rectangles is more spatially honest: the north arm is genuinely
+    // narrower than the south arm, and a sofa placed up there has less
+    // free wall-to-wall space than the south-arm width suggests.
     name: 'Living / Dining',
-    origin: [8.55, 1.40],
+    origin: [8.55, 3.65],
     width: 4.00,
-    depth: 5.40,
-    extension: {
-      // SE alcove: the strip east of the kitchen and west of the SE step,
-      // running along the apartment east wall from the kitchen north boundary
-      // (cz=6.80) down to the SE step interior face (cz=7.90). Open-plan with
-      // the L/D main and with the kitchen — no partitions.
-      offset: [1.55, 5.40],
-      width: 2.45,
-      depth: 1.10,
-    },
+    depth: 3.15,
+    extensions: [
+      {
+        // North arm (bedroom band): cx=[9.10, 12.55] cz=[1.40, 3.65].
+        // West edge is the b3↔L/D partition's interior face (cx=9.10 =
+        // 9.05 centerline + 0.05 half-thickness), NOT the south-arm west
+        // edge. This is the slice the previous single-rectangle model
+        // got wrong.
+        offset: [0.55, -2.25],
+        width: 3.45,
+        depth: 2.25,
+      },
+      {
+        // SE alcove: cx=[10.10, 12.55] cz=[6.80, 7.90]. Hugs the apartment
+        // east wall down to the SE step (main entrance). Open-plan with
+        // the south arm and with the kitchen.
+        offset: [1.55, 3.15],
+        width: 2.45,
+        depth: 1.10,
+      },
+    ],
     derivation:
-      'East column, L-shape. Main rectangle SVG x=[650,945] y=[150,540] → cx=[8.55,12.55] cz=[1.40,6.80] (4.00 × 5.40 m): NE notch with north window above; bay window on east wall; west wall (cx=8.50) shared with HS (cz=5.05–6.75). The kitchen rectangle (extended east to the SE jog wall) takes the south band west of cx=10.10, so the L/D south boundary moves up to cz=6.80. SE alcove extension cx=[10.10,12.55] cz=[6.80,7.90] (2.45 × 1.10 m) hugs the apartment east wall down to the SE step, where the main entrance is. Total interior 21.60 + 2.695 = 24.295 m².',
+      'East column, true L-shape modelled with three rectangles: south arm cx=[8.55,12.55] cz=[3.65,6.80] (4.00 × 3.15 m, the main), north arm cx=[9.10,12.55] cz=[1.40,3.65] (3.45 × 2.25 m), SE alcove cx=[10.10,12.55] cz=[6.80,7.90] (2.45 × 1.10 m). North arm is narrower because the b3↔L/D partition (cx=9.05) takes a 0.55 m bite off the west side over cz=[1.40,3.65]. South arm shares its west wall (cx=8.50) with HS (cz=5.05–6.75); kitchen (cx=[6.40,10.10] cz=[6.80,9.15]) bounds the south arm on the south below cx=10.10. Total interior 12.60 + 7.7625 + 2.695 = 23.0575 m².',
   },
   acLedge: {
     id: 'acLedge',
@@ -604,7 +625,7 @@ export const WINDOWS: WindowSpec[] = [
 // enforced by the constants test).
 function roomArea(r: RoomDef): number {
   const main = r.width * r.depth;
-  const ext = r.extension ? r.extension.width * r.extension.depth : 0;
+  const ext = (r.extensions ?? []).reduce((acc, e) => acc + e.width * e.depth, 0);
   return main + ext;
 }
 

@@ -117,6 +117,11 @@ interface FurnitureDefBase {
    * Footprint used for the placement-collision pre-check (parametric items
    * may compute a tighter footprint from their current params; gltf items
    * fall back to this until the GLB has loaded and the bbox is cached).
+   *
+   * For GLB-backed defs this is the RAW (scale=1) bbox — `itemFootprint`
+   * multiplies by `def.scale` at read time, so storing a pre-scaled value
+   * here would double-apply the multiplier. Parametric defs have no
+   * `scale` field, so the value is already in real-world metres.
    */
   defaultFootprint: { w: number; d: number; h: number };
   light?: LightEmitter;

@@ -40,6 +40,38 @@ describe('placement', () => {
     expect(obb.hz).toBeCloseTo(0.425);
   });
 
+  it('itemFootprint multiplies the GLB defaultFootprint by def.scale exactly once', () => {
+    // Pre-cache miss path: when no rendered GLB has populated the
+    // module-level cache, itemFootprint falls back to def.defaultFootprint
+    // and multiplies by def.scale. defaultFootprint is the RAW bbox, so
+    // the result must equal raw × scale (not raw × scale²).
+    const packDef: import('../furniture/types').PackGltfDef = {
+      id: 'kenney-furniture-kit:bench',
+      name: 'Bench',
+      category: 'seating',
+      kind: 'gltf',
+      source: 'pack',
+      packId: 'kenney-furniture-kit',
+      entryId: 'bench',
+      defaultFootprint: { w: 0.83, d: 0.225, h: 0.42 },
+      scale: 1.8,
+      runtimeUrl: undefined,
+      license: 'CC0',
+      attribution: 'Kenney',
+      sourceUrl: 'https://example.test',
+    };
+    const item: FurnitureItem = {
+      id: 'b1',
+      defId: packDef.id,
+      position: [3, 4],
+      rotation: 0,
+      props: {},
+    };
+    const obb = itemFootprint(item, packDef);
+    expect(obb.hx).toBeCloseTo((0.83 * 1.8) / 2, 5);
+    expect(obb.hz).toBeCloseTo((0.225 * 1.8) / 2, 5);
+  });
+
   it('rejects placement that overlaps a wall', () => {
     // Place a sofa straddling the apartment's external south wall (z=0).
     const item: FurnitureItem = placedSofa(2, 0);

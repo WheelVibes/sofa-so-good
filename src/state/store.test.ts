@@ -148,6 +148,32 @@ describe('store — reset actions', () => {
   });
 });
 
+describe('store — finishes slice lastSurface', () => {
+  beforeEach(() => useStore.getState().__resetForTest());
+
+  it('defaults to floor', () => {
+    expect(useStore.getState().lastSurface).toBe('floor');
+  });
+
+  it('setFloorFinish updates lastSurface to floor', () => {
+    useStore.getState().setLastSurface('wall');
+    useStore.getState().setFloorFinish('mainBedroom', 'floor-wood-oak');
+    expect(useStore.getState().lastSurface).toBe('floor');
+  });
+
+  it('setWallFinish updates lastSurface to wall', () => {
+    useStore.getState().setWallFinish('mainBedroom', 'wall-paint-white');
+    expect(useStore.getState().lastSurface).toBe('wall');
+  });
+
+  it('setLastSurface updates without touching finishes', () => {
+    const before = useStore.getState().finishes;
+    useStore.getState().setLastSurface('wall');
+    expect(useStore.getState().lastSurface).toBe('wall');
+    expect(useStore.getState().finishes).toBe(before);
+  });
+});
+
 describe('store — quality slice', () => {
   beforeEach(() => useStore.getState().__resetForTest());
 
@@ -155,6 +181,6 @@ describe('store — quality slice', () => {
     useStore.getState().setQuality({ shadows: 'off' });
     expect(useStore.getState().quality.shadows).toBe('off');
     // other fields preserved (whatever pickDefaultQuality returned at init)
-    expect(useStore.getState().quality.fixtures).toBe(true);
+    expect(useStore.getState().quality.fixtures).toBe('auto');
   });
 });

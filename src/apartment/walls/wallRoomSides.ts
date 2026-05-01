@@ -40,13 +40,13 @@ const RECTS: Rect[] = (() => {
       x1: r.origin[0] + r.width,
       z1: r.origin[1] + r.depth,
     });
-    if (r.extension) {
+    for (const e of r.extensions ?? []) {
       out.push({
         roomId: id,
-        x0: r.origin[0] + r.extension.offset[0],
-        z0: r.origin[1] + r.extension.offset[1],
-        x1: r.origin[0] + r.extension.offset[0] + r.extension.width,
-        z1: r.origin[1] + r.extension.offset[1] + r.extension.depth,
+        x0: r.origin[0] + e.offset[0],
+        z0: r.origin[1] + e.offset[1],
+        x1: r.origin[0] + e.offset[0] + e.width,
+        z1: r.origin[1] + e.offset[1] + e.depth,
       });
     }
   }

@@ -33,12 +33,11 @@ describe('computeRoomDaylightIntensities', () => {
     const r = computeRoomDaylightIntensities([0, -0.2, -1], -10 * DEG, allDoorsOpen());
     for (const id of Object.keys(r)) {
       expect(r[id as keyof typeof r].ambientFill).toBe(0);
-      expect(r[id as keyof typeof r].windowInjector).toBe(0);
     }
   });
 
-  it('windowed room with own door closed still has window injector at noon', () => {
+  it('windowed room with own door closed still has nonzero ambient fill at noon', () => {
     const r = computeRoomDaylightIntensities(sunDirNoon, 60 * DEG, allDoorsClosed());
-    expect(r.mainBedroom.windowInjector).toBeGreaterThan(0);
+    expect(r.mainBedroom.ambientFill).toBeGreaterThan(0);
   });
 });

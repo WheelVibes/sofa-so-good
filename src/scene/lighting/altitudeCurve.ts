@@ -117,6 +117,30 @@ const ADMITTANCE_KEYS: ReadonlyArray<{ altDeg: number; v: number }> = [
   { altDeg: -6, v: 0.0 },
 ];
 
+/** Multiplier on the altitude-driven turbidity, by atmospheric haze preset.
+ *  Singapore is rarely 'clear'; 'hazy' matches typical PSI; 'overcast' bumps
+ *  Mie scattering for milky / spiking-PSI days. */
+export function weatherTurbidityMultiplier(weather: 'clear' | 'hazy' | 'overcast'): number {
+  switch (weather) {
+    case 'clear':    return 0.7;
+    case 'hazy':     return 1.0;
+    case 'overcast': return 1.6;
+  }
+}
+
+const FIXTURES_AUTO_ON_DEG = -6;
+const FIXTURES_AUTO_OFF_DEG = 5;
+
+/** Smooth ramp [0,1] for fixture brightness when fixtures='auto'. Crosses
+ *  ~0.5 around civil-twilight; full at sun ≤ −6° and zero at sun ≥ +5°. */
+export function autoFixtureLevel(altRad: number): number {
+  const altDeg = altRad / DEG;
+  if (altDeg <= FIXTURES_AUTO_ON_DEG) return 1;
+  if (altDeg >= FIXTURES_AUTO_OFF_DEG) return 0;
+  const t = (altDeg - FIXTURES_AUTO_OFF_DEG) / (FIXTURES_AUTO_ON_DEG - FIXTURES_AUTO_OFF_DEG);
+  return Math.max(0, Math.min(1, t));
+}
+
 export function daylightAdmittance(altRad: number): number {
   const altDeg = altRad / DEG;
   if (altDeg >= ADMITTANCE_KEYS[0].altDeg) return ADMITTANCE_KEYS[0].v;

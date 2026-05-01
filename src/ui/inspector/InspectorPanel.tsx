@@ -1,20 +1,38 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../state/store';
 import { useCatalog } from '../../furniture/catalog';
+import { itemFootprint } from '../../collision/placement';
 import { ParametricBody } from './ParametricBody';
 import { GltfBody } from './GltfBody';
 import { SourceLine } from './SourceLine';
 
-/** Right-side panel shown when an item is selected. Maps the selected
- *  def kind to either ParametricBody or GltfBody, plus a small header
- *  for category + position + delete. */
+/** Right-side panel shown when one or more items are selected.
+ *  - 0 selected → not rendered
+ *  - 1 selected → single-item editor (parametric or gltf body + props)
+ *  - 2+ selected → bulk-actions header with Delete all / Clear selection.
+ *    Per-item edits stay routed through the single-item path; multi-edit
+ *    is intentionally out of scope (every type has different props).
+ */
 export function InspectorPanel() {
+  const selectedIds = useStore(useShallow((s) => s.selectedItemIds));
   const item = useStore(
     useShallow((s) => s.items.find((i) => i.id === s.selectedItemId) ?? null),
   );
   const catalog = useCatalog();
   const deleteItem = useStore((s) => s.deleteItem);
   const selectItem = useStore((s) => s.selectItem);
+
+  if (selectedIds.length > 1) {
+    return (
+      <MultiSelectPanel
+        count={selectedIds.length}
+        onDeleteAll={() => {
+          for (const id of [...selectedIds]) deleteItem(id);
+        }}
+        onClear={() => selectItem(null)}
+      />
+    );
+  }
 
   if (!item) return null;
   const def = catalog[item.defId];
@@ -38,12 +56,23 @@ export function InspectorPanel() {
         </button>
       </header>
       <div className="mb-3 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
-        <span className="text-neutral-500">x</span>
+        <span className="text-neutral-500">pos.x</span>
         <span className="font-mono">{item.position[0].toFixed(2)} m</span>
-        <span className="text-neutral-500">z</span>
+        <span className="text-neutral-500">pos.z</span>
         <span className="font-mono">{item.position[1].toFixed(2)} m</span>
         <span className="text-neutral-500">rot</span>
         <span className="font-mono">{((item.rotation * 180) / Math.PI).toFixed(0)}°</span>
+        {(() => {
+          const obb = itemFootprint(item, def);
+          return (
+            <>
+              <span className="text-neutral-500">size</span>
+              <span className="font-mono">
+                {(obb.hx * 2).toFixed(2)} × {(obb.hz * 2).toFixed(2)} m
+              </span>
+            </>
+          );
+        })()}
       </div>
       {def.kind === 'parametric' ? (
         <ParametricBody item={item} def={def} />
@@ -65,6 +94,54 @@ export function InspectorPanel() {
           Delete
         </button>
       </footer>
+    </aside>
+  );
+}
+
+interface MultiSelectPanelProps {
+  count: number;
+  onDeleteAll: () => void;
+  onClear: () => void;
+}
+
+function MultiSelectPanel({ count, onDeleteAll, onClear }: MultiSelectPanelProps) {
+  return (
+    <aside className="absolute right-3 top-3 z-10 w-64 rounded-lg bg-white/95 p-4 text-xs text-neutral-700 shadow">
+      <header className="mb-3 flex items-start justify-between">
+        <div>
+          <div className="text-sm font-semibold text-neutral-900">
+            {count} items selected
+          </div>
+          <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+            Bulk actions
+          </div>
+        </div>
+        <button
+          onClick={onClear}
+          className="text-neutral-400 hover:text-neutral-700"
+          aria-label="Close multi-select panel"
+        >
+          ×
+        </button>
+      </header>
+      <p className="mb-3 text-[11px] leading-snug text-neutral-500">
+        Per-item edits are disabled while multiple items are selected. Click
+        a single item to edit its properties.
+      </p>
+      <div className="flex flex-col gap-2">
+        <button
+          onClick={onDeleteAll}
+          className="w-full rounded bg-rose-50 py-1 text-rose-700 hover:bg-rose-100"
+        >
+          Delete all
+        </button>
+        <button
+          onClick={onClear}
+          className="w-full rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
+        >
+          Clear selection
+        </button>
+      </div>
     </aside>
   );
 }

@@ -40,7 +40,7 @@ const DOOR_SEGMENTS: DoorSegment[] = (() => {
 const EYE_HEIGHT = 1.65;
 const CROUCH_HEIGHT = 1.05;
 const CROUCH_RATE = 4.5;
-const WALK_FOV = 60;
+const WALK_FOV = 70;
 const WALK_SPEED = 3.2;
 const SNEAK_SPEED = 1.2;
 const JUMP_VELOCITY = 4.2;

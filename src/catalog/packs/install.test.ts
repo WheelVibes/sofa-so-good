@@ -87,4 +87,44 @@ describe('installPack', () => {
       expect(sofa.footprint.h).toBeCloseTo(bed.footprint.h * 2, 5);
     }
   });
+
+  it('stores the RAW (unscaled) bbox on def.defaultFootprint so itemFootprint × scale stays single-applied', async () => {
+    // Regression: when defaultFootprint was set to the scaled bbox, the
+    // collision/selection-outline path multiplied by scale a second time,
+    // producing a scale² footprint (e.g. Kenney bench at 10.75 × 2.93 m).
+    const zipBytes = makeMockPackZip();
+    const fakeFetch = vi.fn(
+      async () =>
+        new Response(new Blob([zipBytes.buffer.slice(0) as ArrayBuffer]), {
+          status: 200,
+          headers: {
+            'Content-Length': String(zipBytes.byteLength),
+            'Content-Type': 'application/zip',
+          },
+        }),
+    );
+    const { useStore } = await import('../../state/store');
+    const realPack = AVAILABLE_PACKS[0];
+    const pack = { ...realPack, sizeBytes: zipBytes.byteLength };
+
+    await installPack(pack, { fetchImpl: fakeFetch as unknown as typeof fetch });
+
+    const defs = useStore.getState().packFurniture;
+    const sofaDef = defs.find((d) => d.entryId === 'loungeSofa');
+    const bedDef = defs.find((d) => d.entryId === 'bedDouble');
+    expect(sofaDef).toBeDefined();
+    expect(bedDef).toBeDefined();
+    if (!sofaDef || !bedDef) return;
+
+    // Both defs share the same source GLB in this fixture; raw bbox is
+    // identical regardless of curated scale.
+    expect(sofaDef.defaultFootprint.w).toBeCloseTo(bedDef.defaultFootprint.w, 5);
+    expect(sofaDef.defaultFootprint.d).toBeCloseTo(bedDef.defaultFootprint.d, 5);
+    expect(sofaDef.scale).toBe(2);
+    // sofa as-placed = raw × scale matches the persisted scaled entry.footprint.
+    const sofaEntry = (await InstalledPackStore.get(pack.id))?.entries.find(
+      (e) => e.entryId === 'loungeSofa',
+    );
+    expect(sofaEntry?.footprint.w).toBeCloseTo(sofaDef.defaultFootprint.w * 2, 5);
+  });
 });

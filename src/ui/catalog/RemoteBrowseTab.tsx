@@ -5,8 +5,10 @@ import { CachePane } from './CachePane';
 import { useRemoteEntries } from '../../catalog/remote/hooks';
 import { useStore } from '../../state/store';
 import type { RemoteKind, ProviderId } from '../../catalog/remote/types';
+import type { Surface } from '../../state/slices/finishesSlice';
 
 const ALL: 'all' = 'all';
+type CategoryFilter = Surface | typeof ALL;
 
 function matchesQuery(
   entry: { name: string; slug: string; tags?: string[] },
@@ -23,12 +25,20 @@ function matchesQuery(
 export function RemoteBrowseTab({
   kind,
   onResolved,
+  initialSurface,
 }: {
   kind: RemoteKind;
   onResolved: (id: string) => void;
+  /** When set on a `kind="material"` browser, the category chip starts on
+   *  this surface (floor / wall). The user can switch to "All" via the
+   *  chip row. Ignored for furniture browsers. */
+  initialSurface?: Surface;
 }) {
   const [q, setQ] = useState('');
   const [provider, setProvider] = useState<ProviderId | typeof ALL>(ALL);
+  const [category, setCategory] = useState<CategoryFilter>(
+    kind === 'material' ? (initialSurface ?? ALL) : ALL,
+  );
   const all = useRemoteEntries(kind);
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status);
   const phError = useStore((s) => s.remoteIndexes.polyhaven.error);
@@ -39,8 +49,11 @@ export function RemoteBrowseTab({
   const filtered = useMemo(() => {
     let list = all;
     if (provider !== ALL) list = list.filter((e) => e.provider === provider);
+    if (kind === 'material' && category !== ALL) {
+      list = list.filter((e) => e.category === category);
+    }
     return list.filter((e) => matchesQuery(e, q));
-  }, [all, q, provider]);
+  }, [all, q, provider, category, kind]);
 
   // Cap rendered nodes; show a "load more" tail so we don't slam the DOM
   // with 3000+ cards on first paint. Each card lazy-loads its own thumb.
@@ -75,7 +88,7 @@ export function RemoteBrowseTab({
           <ResolutionPicker />
         </div>
         {kind === 'material' && (
-          <div className="flex gap-1 text-[10px]">
+          <div className="flex flex-wrap gap-1 text-[10px]">
             {([ALL, 'polyhaven', 'ambientcg'] as const).map((p) => (
               <button
                 key={p}
@@ -87,6 +100,23 @@ export function RemoteBrowseTab({
                 }`}
               >
                 {p === ALL ? 'All' : p === 'polyhaven' ? 'Poly Haven' : 'ambientCG'}
+              </button>
+            ))}
+            <span className="mx-1 self-center text-neutral-300">·</span>
+            {([ALL, 'floor', 'wall'] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  setCategory(c);
+                  setLimit(120);
+                }}
+                className={`rounded px-2 py-0.5 capitalize ${
+                  category === c
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-neutral-100 text-neutral-600'
+                }`}
+              >
+                {c === ALL ? 'Any surface' : c}
               </button>
             ))}
           </div>

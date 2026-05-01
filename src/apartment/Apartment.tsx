@@ -3,7 +3,6 @@ import { Doors } from './Door';
 import { Floor } from './floor/Floor';
 import { Walls } from './walls/Walls';
 import { Windows } from './Window';
-import { RoomFillLights } from '../scene/lighting/RoomFillLights';
 
 export function Apartment() {
   return (
@@ -13,7 +12,6 @@ export function Apartment() {
       <Walls />
       <Windows />
       <Doors />
-      <RoomFillLights />
     </group>
   );
 }

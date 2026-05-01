@@ -15,14 +15,13 @@ function roomRects(r: RoomDef): FloorRect[] {
     x1: r.origin[0] + r.width,
     z1: r.origin[1] + r.depth,
   };
-  if (!r.extension) return [main];
-  const ext: FloorRect = {
-    x0: r.origin[0] + r.extension.offset[0],
-    z0: r.origin[1] + r.extension.offset[1],
-    x1: r.origin[0] + r.extension.offset[0] + r.extension.width,
-    z1: r.origin[1] + r.extension.offset[1] + r.extension.depth,
-  };
-  return [main, ext];
+  const exts = (r.extensions ?? []).map((e) => ({
+    x0: r.origin[0] + e.offset[0],
+    z0: r.origin[1] + e.offset[1],
+    x1: r.origin[0] + e.offset[0] + e.width,
+    z1: r.origin[1] + e.offset[1] + e.depth,
+  }));
+  return [main, ...exts];
 }
 
 function rectArea(r: FloorRect): number {

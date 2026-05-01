@@ -1,6 +1,6 @@
 import { useMemo, useEffect, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { Box3, Color, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { Box3, Color, Matrix4, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { SkeletonUtils } from 'three-stdlib';
 import type { Object3D } from 'three';
 
@@ -44,14 +44,18 @@ export function GltfModel({ url, scale = 1, tint }: GltfModelProps) {
   );
   const tintRef = useRef<string | undefined>();
 
-  // Cache footprint once.
+  // Cache footprint once. Computed in `cloned`'s LOCAL frame so the
+  // primitive's `scale` prop (set on `cloned.scale` by R3F before this
+  // effect runs) and any ancestor transforms (Furniture's outer group's
+  // position/rotation, scene root, etc.) are excluded. Downstream
+  // (`itemFootprint`, `SelectionOutline`) multiplies by the live scale,
+  // so caching scale-included values would compound to scale² and bloat
+  // collision footprints + selection outlines.
   useEffect(() => {
     if (FOOTPRINT_CACHE.has(url)) return;
-    // Compute bbox from visible meshes only. setFromObject traverses every
-    // descendant including lights, empties, collision proxies, and hidden
-    // helper geometry that some GLBs ship with — those can inflate the
-    // footprint well beyond the rendered shape.
     cloned.updateWorldMatrix(true, true);
+    const inv = new Matrix4().copy(cloned.matrixWorld).invert();
+    const local = new Matrix4();
     const box = new Box3();
     const meshBox = new Box3();
     cloned.traverse((obj) => {
@@ -60,14 +64,12 @@ export function GltfModel({ url, scale = 1, tint }: GltfModelProps) {
       if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
       const gb = mesh.geometry.boundingBox;
       if (!gb) return;
-      meshBox.copy(gb).applyMatrix4(mesh.matrixWorld);
+      local.multiplyMatrices(inv, mesh.matrixWorld);
+      meshBox.copy(gb).applyMatrix4(local);
       box.union(meshBox);
     });
     const size = new Vector3();
     const center = new Vector3();
-    if (box.isEmpty()) {
-      box.setFromObject(cloned);
-    }
     box.getSize(size);
     box.getCenter(center);
     FOOTPRINT_CACHE.set(url, {

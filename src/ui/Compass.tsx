@@ -1,12 +1,13 @@
 import { useEffect, useRef, useState } from 'react';
 import { cameraForwardXZ } from '../scene/cameras/cameraForward';
+import { useStore } from '../state/store';
 
-// Heading is measured from world-north (which is -Z in three.js) clockwise:
-// N=0, E=90, S=180, W=270. The apartment's bedroom band sits at low z (the
-// "north window" rooms in src/apartment/constants.ts), so -Z = north.
-function forwardToHeadingDeg(fx: number, fz: number): number {
+// Heading is measured from true (sun-frame) north clockwise: N=0, E=90, S=180,
+// W=270. With orientationDeg=0, scene -Z is north; non-zero orientation rotates
+// geographic north relative to the apartment, so we subtract it here.
+function forwardToHeadingDeg(fx: number, fz: number, orientationDeg: number): number {
   const deg = (Math.atan2(fx, -fz) * 180) / Math.PI;
-  return (deg + 360) % 360;
+  return (deg - orientationDeg + 360 * 4) % 360;
 }
 
 function headingLabel(deg: number): string {
@@ -15,18 +16,19 @@ function headingLabel(deg: number): string {
 }
 
 export function Compass() {
+  const orientationDeg = useStore((s) => s.orientationDeg);
   const [heading, setHeading] = useState(0);
   const rafRef = useRef(0);
 
   useEffect(() => {
     const tick = () => {
-      const next = forwardToHeadingDeg(cameraForwardXZ.x, cameraForwardXZ.z);
+      const next = forwardToHeadingDeg(cameraForwardXZ.x, cameraForwardXZ.z, orientationDeg);
       setHeading((prev) => (Math.abs(prev - next) < 0.25 ? prev : next));
       rafRef.current = requestAnimationFrame(tick);
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(rafRef.current);
-  }, []);
+  }, [orientationDeg]);
 
   const size = 72;
   const center = size / 2;

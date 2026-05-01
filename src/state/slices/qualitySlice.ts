@@ -1,20 +1,32 @@
 import type { SliceCreator } from './types';
 import type { RootState } from '../store';
 
+export type FixtureMode = 'auto' | 'on' | 'off';
+export type Weather = 'clear' | 'hazy' | 'overcast';
+
 export interface QualitySettings {
   shadows: 'off' | 'low' | 'high';
   globalIllumination: 'off' | 'ibl' | 'ibl+ssao';
-  interRoomBleed: boolean;
-  fixtures: boolean;
+  /** 'auto' ramps fixtures on as the sun drops below the horizon. */
+  fixtures: FixtureMode;
+  /** User-facing multiplier on top of the altitude-driven exposure. */
+  exposureBias: number;
+  /** Atmosphere thickness preset; multiplies sky turbidity. Singapore default = 'hazy'. */
+  weather: Weather;
+  /** Render the procedural outdoor skyline + ground plane outside the apartment shell. */
+  outdoor: boolean;
 }
 
 export type QualityPreset = 'low' | 'medium' | 'high';
 
 export const QUALITY_PRESETS: Record<QualityPreset, QualitySettings> = {
-  low:    { shadows: 'off',  globalIllumination: 'off',      interRoomBleed: true, fixtures: true },
-  medium: { shadows: 'low',  globalIllumination: 'ibl',      interRoomBleed: true, fixtures: true },
-  high:   { shadows: 'high', globalIllumination: 'ibl+ssao', interRoomBleed: true, fixtures: true },
+  low:    { shadows: 'off',  globalIllumination: 'ibl',      fixtures: 'auto', exposureBias: 1.0, weather: 'hazy', outdoor: true },
+  medium: { shadows: 'low',  globalIllumination: 'ibl',      fixtures: 'auto', exposureBias: 1.0, weather: 'hazy', outdoor: true },
+  high:   { shadows: 'high', globalIllumination: 'ibl+ssao', fixtures: 'auto', exposureBias: 1.0, weather: 'hazy', outdoor: true },
 };
+
+export const EXPOSURE_BIAS_MIN = 0.5;
+export const EXPOSURE_BIAS_MAX = 1.5;
 
 export function pickDefaultQuality(): QualitySettings {
   try {

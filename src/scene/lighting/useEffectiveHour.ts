@@ -16,6 +16,8 @@ export function useEffectiveHour(): number {
   const timeMode = useStore((s) => s.timeMode);
   const manualHour = useStore((s) => s.manualHour);
   const systemHour = useSystemHour();
+  // 'accelerated' shares manualHour as the live clock; the AcceleratedClock
+  // component drives advancement via tickAccelerated().
   return timeMode === 'system' ? systemHour : manualHour;
 }
 

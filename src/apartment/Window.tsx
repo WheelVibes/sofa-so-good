@@ -1,5 +1,7 @@
+import { DoubleSide } from 'three';
 import { WALLS, WINDOWS } from './constants';
 import type { WindowSpec, WallSpec } from './types';
+import { useStore } from '../state/store';
 
 function findWall(wallId: string): WallSpec | undefined {
   return WALLS.find((w) => w.id === wallId);
@@ -7,6 +9,9 @@ function findWall(wallId: string): WallSpec | undefined {
 
 function WindowPane({ spec }: { spec: WindowSpec }) {
   const wall = findWall(spec.wallId);
+  const curtainsClosed = useStore((s) => s.curtainsClosed);
+  const curtainOpacity = useStore((s) => s.curtainOpacity);
+  const shadowsOn = useStore((s) => s.quality.shadows !== 'off');
   if (!wall) return null;
   const dx = wall.end[0] - wall.start[0];
   const dz = wall.end[1] - wall.start[1];
@@ -30,6 +35,23 @@ function WindowPane({ spec }: { spec: WindowSpec }) {
           opacity={0.35}
         />
       </mesh>
+      {curtainsClosed && (
+        <mesh
+          position={[localX, paneCenterY, 0.03]}
+          castShadow={shadowsOn}
+          receiveShadow
+        >
+          <planeGeometry args={[spec.width, paneHeight]} />
+          <meshStandardMaterial
+            color="#dccaa6"
+            roughness={0.85}
+            metalness={0}
+            transparent={curtainOpacity < 1}
+            opacity={curtainOpacity}
+            side={DoubleSide}
+          />
+        </mesh>
+      )}
     </group>
   );
 }

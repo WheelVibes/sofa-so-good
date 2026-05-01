@@ -94,7 +94,15 @@ export function Lighting() {
       Math.abs(dCb) < 1e-3 &&
       Math.abs(dExp) < 1e-3;
 
-    if (settled) return;
+    if (settled) {
+      // Bias is user-controlled and can change between frames even when the
+      // altitude-driven exposure target has settled — re-apply unconditionally.
+      if (gl) {
+        const bias = useStore.getState().quality.exposureBias;
+        gl.toneMappingExposure = cur.exposure * bias;
+      }
+      return;
+    }
 
     const k = Math.min(1, dt / TWEEN_DURATION);
     cur.sun += dSun * k;
@@ -107,7 +115,10 @@ export function Lighting() {
     cur.sunColor[2] += dCb * k;
     cur.exposure += dExp * k;
 
-    if (gl) gl.toneMappingExposure = cur.exposure;
+    if (gl) {
+      const bias = useStore.getState().quality.exposureBias;
+      gl.toneMappingExposure = cur.exposure * bias;
+    }
     if (sunRef.current) {
       sunRef.current.intensity = cur.sun;
       sunRef.current.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2]);

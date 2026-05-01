@@ -9,6 +9,15 @@ interface CatalogCardProps {
   onDelete?: () => void;
 }
 
+/** GLB-backed defs carry a render-time `scale`; the catalog card's
+ *  metric label should reflect the as-placed footprint (raw × scale).
+ *  Parametric defs have no `scale` field — their `defaultFootprint`
+ *  already reads in real-world units. */
+function displayScale(def: FurnitureDef): number {
+  if (def.kind === 'gltf') return def.scale ?? 1;
+  return 1;
+}
+
 export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const isUser = isUserDef(def);
   const onClick = usePlacementDrag(def);
@@ -36,7 +45,8 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         <span className="truncate font-medium text-neutral-800">{def.name}</span>
       </div>
       <span className="text-[10px] text-neutral-500">
-        {def.defaultFootprint.w.toFixed(2)} × {def.defaultFootprint.d.toFixed(2)} m
+        {(def.defaultFootprint.w * displayScale(def)).toFixed(2)} ×{' '}
+        {(def.defaultFootprint.d * displayScale(def)).toFixed(2)} m
       </span>
       {isUser ? (
         <span className="absolute right-1 top-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-800">

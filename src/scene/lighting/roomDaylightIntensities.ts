@@ -7,13 +7,16 @@ import { daylightAdmittance } from './altitudeCurve';
 
 export interface RoomIntensities {
   ambientFill: number;
-  windowInjector: number;
 }
 
 const ALL_ROOM_IDS = Object.keys(ROOMS) as RoomId[];
 
 export const AMBIENT_FILL_GAIN = 0.9;
-export const WINDOW_INJECTOR_GAIN = 1.4;
+/** Per-window-bearing-room boost added to the centroid fill. Folded in
+ *  here (rather than emitted as a separate per-window pointLight) because
+ *  near-window pointLights produced a visible spotlight halo on the
+ *  window-wall surface — same failure mode as the earlier `RoomFillLights`. */
+export const WINDOW_FILL_GAIN = 1.4;
 
 export function computeRoomDaylightIntensities(
   sunDir: readonly [number, number, number],
@@ -26,17 +29,16 @@ export function computeRoomDaylightIntensities(
     base[id] = ROOMS[id].external ? 0 : roomDaylightFactor(id, sunDir);
   }
   const graph = buildRoomGraph(doorState);
-  const relaxed = relaxDaylight(base, graph);
+  const relaxed = relaxDaylight(base, graph, sunDir);
 
   const out = {} as Record<RoomId, RoomIntensities>;
   for (const id of ALL_ROOM_IDS) {
     if (ROOMS[id].external) {
-      out[id] = { ambientFill: 0, windowInjector: 0 };
+      out[id] = { ambientFill: 0 };
       continue;
     }
     out[id] = {
-      ambientFill: admit * relaxed[id] * AMBIENT_FILL_GAIN,
-      windowInjector: admit * base[id] * WINDOW_INJECTOR_GAIN,
+      ambientFill: admit * (relaxed[id] * AMBIENT_FILL_GAIN + base[id] * WINDOW_FILL_GAIN),
     };
   }
   return out;

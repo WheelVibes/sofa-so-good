@@ -17,6 +17,9 @@ import { MarqueeCameraTracker } from './selection/MarqueeSelector';
 import { PlacementGhost } from './PlacementGhost';
 import { DragController } from './DragController';
 import { PostFx } from './lighting/PostFx';
+import { AcceleratedClock } from './lighting/AcceleratedClock';
+import { WindowSunbeams } from './lighting/WindowSunbeams';
+import { OutdoorScene } from './outdoor/OutdoorScene';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
@@ -29,7 +32,7 @@ export function Scene() {
     <Canvas
       shadows={shadowsQuality !== 'off' ? 'soft' : false}
       dpr={[1, 1.25]}
-      camera={{ position: [12, 8, 12], fov: 70, near: 0.1, far: 100 }}
+      camera={{ position: [12, 8, 12], fov: 70, near: 0.1, far: 500 }}
       gl={{
         antialias,
         powerPreference: 'high-performance',
@@ -42,6 +45,9 @@ export function Scene() {
       <Environment />
       <Lighting />
       <RoomDaylight />
+      <WindowSunbeams />
+      <OutdoorScene />
+      <AcceleratedClock />
       <Apartment />
       <FurnitureLayer />
       <FurnitureLights />

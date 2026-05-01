@@ -5,11 +5,16 @@ import type { RoomDef, RoomId, WallSpec } from './types';
 
 export const BLEED_ATTENUATION = 0.4;
 export const BLEED_MAX_PASSES = 4;
+/** Minimum directional weight applied to BLEED_ATTENUATION when a door's normal
+ *  points opposite to the sun's horizontal travel direction. */
+export const BLEED_DIRECTIONAL_W_MIN = 0.4;
 
 export interface RoomEdge {
   neighbour: RoomId;
   doorId: string;
   open: boolean;
+  /** Unit normal in the xz plane, pointing from the source room into `neighbour`. */
+  normal: [number, number];
 }
 export interface RoomGraph {
   edges: Record<RoomId, RoomEdge[]>;
@@ -41,11 +46,11 @@ function pointInRoom(px: number, pz: number, r: RoomDef): boolean {
   const x1 = x0 + r.width;
   const z1 = z0 + r.depth;
   if (inRange(px, x0, x1) && inRange(pz, z0, z1)) return true;
-  if (r.extension) {
-    const ex0 = r.origin[0] + r.extension.offset[0];
-    const ez0 = r.origin[1] + r.extension.offset[1];
-    const ex1 = ex0 + r.extension.width;
-    const ez1 = ez0 + r.extension.depth;
+  for (const e of r.extensions ?? []) {
+    const ex0 = r.origin[0] + e.offset[0];
+    const ez0 = r.origin[1] + e.offset[1];
+    const ex1 = ex0 + e.width;
+    const ez1 = ez0 + e.depth;
     if (inRange(px, ex0, ex1) && inRange(pz, ez0, ez1)) return true;
   }
   return false;
@@ -60,7 +65,7 @@ function roomsAdjacentToDoor(
   wall: WallSpec,
   doorOffset: number,
   doorWidth: number,
-): [RoomId, RoomId] | null {
+): [RoomId, RoomId, [number, number]] | null {
   const [sx, sz] = wall.start;
   const [ex, ez] = wall.end;
   const len = Math.hypot(ex - sx, ez - sz);
@@ -88,7 +93,9 @@ function roomsAdjacentToDoor(
     if (pointInRoom(mx - nx * probe, mz - nz * probe, r)) sideB.push(id);
   }
   if (sideA.length === 1 && sideB.length === 1 && sideA[0] !== sideB[0]) {
-    return [sideA[0], sideB[0]];
+    // (nx, nz) is the unit normal that pushed the probe into sideA, so it
+    // points from sideB -> sideA. The A->B edge therefore carries -(nx, nz).
+    return [sideA[0], sideB[0], [-nx, -nz]];
   }
   return null;
 }
@@ -100,26 +107,53 @@ export function buildRoomGraph(doorState: Record<string, DoorState>): RoomGraph 
     if (!wall) continue;
     const pair = roomsAdjacentToDoor(wall, door.offset, door.width);
     if (!pair) continue;
-    const [a, b] = pair;
+    const [a, b, nAB] = pair;
     const open = doorState[door.id]?.open ?? door.defaultOpen;
-    edges[a].push({ neighbour: b, doorId: door.id, open });
-    edges[b].push({ neighbour: a, doorId: door.id, open });
+    edges[a].push({ neighbour: b, doorId: door.id, open, normal: [nAB[0], nAB[1]] });
+    edges[b].push({ neighbour: a, doorId: door.id, open, normal: [-nAB[0], -nAB[1]] });
   }
   return { edges };
+}
+
+/**
+ * Compute horizontal sun-travel direction (unit, xz plane). Returns null if the
+ * sun is at/below the horizon or directly overhead — in either case directional
+ * weighting is meaningless and the caller should fall back to uniform attenuation.
+ */
+function sunTravelDir(
+  sunDir: readonly [number, number, number] | undefined,
+): [number, number] | null {
+  if (!sunDir || sunDir[1] <= 0) return null;
+  const sx = -sunDir[0];
+  const sz = -sunDir[2];
+  const len = Math.hypot(sx, sz);
+  if (len < 1e-6) return null;
+  return [sx / len, sz / len];
 }
 
 export function relaxDaylight(
   base: Record<RoomId, number>,
   graph: RoomGraph,
+  sunDir?: readonly [number, number, number],
 ): Record<RoomId, number> {
   const out = { ...base };
+  const s = sunTravelDir(sunDir);
   for (let pass = 0; pass < BLEED_MAX_PASSES; pass++) {
     let changed = false;
     for (const r of ALL_ROOM_IDS) {
       let best = out[r];
       for (const e of graph.edges[r]) {
         if (!e.open) continue;
-        const cand = out[e.neighbour] * BLEED_ATTENUATION;
+        let att = BLEED_ATTENUATION;
+        if (s) {
+          // n_AB on edge r -> e.neighbour; we are computing how much light bleeds
+          // FROM the neighbour INTO r, so use the reverse normal -n_AB.
+          const dot = -(e.normal[0] * s[0] + e.normal[1] * s[1]);
+          const w = BLEED_DIRECTIONAL_W_MIN +
+            (1 - BLEED_DIRECTIONAL_W_MIN) * 0.5 * (1 + dot);
+          att = BLEED_ATTENUATION * w;
+        }
+        const cand = out[e.neighbour] * att;
         if (cand > best) best = cand;
       }
       if (best > out[r] + 1e-6) {

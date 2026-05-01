@@ -1,13 +1,12 @@
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type CameraMode, PRESET_HOURS, type TimePreset } from '../state/store';
-import { useEffectiveHour } from '../scene/lighting/useEffectiveHour';
+import { useEffectiveHour, useSystemHour } from '../scene/lighting/useEffectiveHour';
 import type { EditorTool } from '../state/slices/uiSlice';
 import { LocalStorageAdapter } from '../state/storage/LocalStorageAdapter';
 import { serialize, applySerialized } from '../state/schema';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import type { SlotMeta } from '../state/storage/StorageAdapter';
-import { CreditsModal } from './CreditsModal';
 import { SettingsPanel } from './SettingsPanel';
 
 export function Toolbar() {
@@ -17,7 +16,6 @@ export function Toolbar() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements);
   const showFps = useStore((s) => s.showFps);
   const toggleShowFps = useStore((s) => s.toggleShowFps);
-  const [creditsOpen, setCreditsOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
 
   return (
@@ -63,13 +61,6 @@ export function Toolbar() {
       ) : null}
       <Divider />
       <button
-        onClick={() => setCreditsOpen(true)}
-        title="Asset credits"
-        className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
-      >
-        Credits
-      </button>
-      <button
         onClick={() => setSettingsOpen(true)}
         className="whitespace-nowrap rounded bg-neutral-100 px-2 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
         aria-label="Settings"
@@ -77,7 +68,6 @@ export function Toolbar() {
       >
         ⚙
       </button>
-      <CreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
       {settingsOpen ? <SettingsPanel onClose={() => setSettingsOpen(false)} /> : null}
     </div>
   );
@@ -104,7 +94,7 @@ function OrientationControl() {
         title="Apartment orientation"
         className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
       >
-        Sun: {Math.round(orientationDeg)}°
+        N: {Math.round(orientationDeg)}°
       </button>
       <CompassModal open={open} onClose={() => setOpen(false)} />
     </>
@@ -173,7 +163,7 @@ function CompassModal({ open, onClose }: { open: boolean; onClose: () => void })
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-baseline justify-between gap-6">
-          <h2 className="text-base font-semibold text-neutral-800">Sun direction</h2>
+          <h2 className="text-base font-semibold text-neutral-800">Apartment orientation</h2>
           <span className="tabular-nums text-sm text-neutral-500">{Math.round(orientationDeg)}°</span>
         </div>
         <svg
@@ -254,7 +244,7 @@ function CompassModal({ open, onClose }: { open: boolean; onClose: () => void })
           })}
         </svg>
         <p className="mt-3 max-w-[260px] text-xs leading-snug text-neutral-500">
-          Drag the sun or click a compass direction to set where the sun rises relative to the apartment.
+          Drag or click a compass direction to set the bearing of true north relative to the apartment.
         </p>
       </div>
     </div>,
@@ -411,6 +401,7 @@ function TimeDropdown() {
   const setPresetTime = useStore((s) => s.setPresetTime);
   const setManualHour = useStore((s) => s.setManualHour);
   const effectiveHour = useEffectiveHour();
+  const systemHour = useSystemHour();
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -456,7 +447,7 @@ function TimeDropdown() {
           <DropdownRow
             checked={timeMode === 'system'}
             label="System"
-            detail={formatClock(effectiveHour)}
+            detail={formatClock(systemHour)}
             onClick={onSelectSystem}
           />
           <Separator />
@@ -551,7 +542,7 @@ function Separator() {
 }
 
 function matchPreset(
-  mode: 'system' | 'manual',
+  mode: 'system' | 'manual' | 'accelerated',
   hour: number,
 ): TimePreset | null {
   if (mode !== 'manual') return null;
@@ -562,12 +553,13 @@ function matchPreset(
 }
 
 function closedLabel(
-  mode: 'system' | 'manual',
+  mode: 'system' | 'manual' | 'accelerated',
   manualHour: number,
   effectiveHour: number,
   matched: TimePreset | null,
 ): string {
   if (mode === 'system') return `System (${formatClock(effectiveHour)})`;
+  if (mode === 'accelerated') return `Live (${formatClock(effectiveHour)})`;
   if (matched) return matched[0].toUpperCase() + matched.slice(1);
   return `Custom (${formatClock(manualHour)})`;
 }

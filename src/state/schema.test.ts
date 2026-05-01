@@ -126,6 +126,37 @@ describe('schema', () => {
     expect(patch.manualHour).toBe(7.5);
   });
 
+  it('round-trips lastSurface', () => {
+    useStore.getState().__resetForTest();
+    useStore.getState().setLastSurface('wall');
+    const out = serialize(useStore.getState());
+    const parsed = SerializedStateZ.safeParse(out);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) expect(parsed.data.lastSurface).toBe('wall');
+    const patch = applySerialized(out, new Set());
+    expect(patch.lastSurface).toBe('wall');
+  });
+
+  it('defaults lastSurface to floor when absent in legacy payload', () => {
+    const legacy = {
+      version: 1,
+      apartmentId: 'serangoon-north-vista-4r',
+      items: [],
+      doors: {},
+      finishes: { floor: {}, walls: {} },
+      userFurniture: [],
+      userMaterials: [],
+      timeMode: 'system',
+      manualHour: 12,
+      cameraMode: 'orbit',
+      savedAt: '2026-04-01T00:00:00.000Z',
+    };
+    const parsed = SerializedStateZ.parse(legacy);
+    expect(parsed.lastSurface).toBeUndefined();
+    const patch = applySerialized(parsed, new Set());
+    expect(patch.lastSurface).toBe('floor');
+  });
+
   it('round-trips a location with a label', () => {
     useStore.getState().__resetForTest();
     useStore.getState().setLocation({ lat: 51.5, lon: 0, label: 'London, UK' });

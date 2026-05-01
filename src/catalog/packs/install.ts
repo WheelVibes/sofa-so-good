@@ -124,7 +124,10 @@ export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<I
           source: 'pack',
           packId: pack.id,
           entryId: d.id,
-          defaultFootprint: footprint,
+          // `defaultFootprint` is the RAW (scale=1) GLB bbox; `itemFootprint`
+          // multiplies by `def.scale` at read time. Storing the scaled value
+          // here would double-apply the multiplier.
+          defaultFootprint: rawFootprint,
           scale,
           runtimeUrl: URL.createObjectURL(glbBlob),
           thumbUrl: URL.createObjectURL(thumbBlob),

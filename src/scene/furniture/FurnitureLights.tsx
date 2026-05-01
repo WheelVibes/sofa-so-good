@@ -4,6 +4,8 @@ import { useStore } from '../../state/store';
 import { useCatalog } from '../../furniture/catalog';
 import { kelvinToRGB } from '../../furniture/lighting/colorTemp';
 import type { LightEmitter } from '../../furniture/types';
+import { useSunPosition } from '../lighting/useSunPosition';
+import { autoFixtureLevel } from '../lighting/altitudeCurve';
 
 const MAX_LIGHTS = 16;
 
@@ -15,7 +17,7 @@ interface ResolvedFixture {
   color: [number, number, number];
 }
 
-function FurnitureLightsInner() {
+function FurnitureLightsInner({ levelMul }: { levelMul: number }) {
   const items = useStore((s) => s.items);
   const catalog = useCatalog();
   const cameraX = useThree((t) => t.camera.position.x);
@@ -66,7 +68,7 @@ function FurnitureLightsInner() {
             <spotLight
               key={f.id}
               position={f.worldPos}
-              intensity={f.intensity}
+              intensity={f.intensity * levelMul}
               color={colorHex}
               distance={f.light.distance}
               angle={f.light.cone?.angle ?? 0.6}
@@ -84,7 +86,7 @@ function FurnitureLightsInner() {
           <pointLight
             key={f.id}
             position={f.worldPos}
-            intensity={f.intensity}
+            intensity={f.intensity * levelMul}
             color={colorHex}
             distance={f.light.distance}
             decay={2}
@@ -96,7 +98,10 @@ function FurnitureLightsInner() {
 }
 
 export function FurnitureLights() {
-  const fixturesOn = useStore((s) => s.quality.fixtures);
-  if (!fixturesOn) return null;
-  return <FurnitureLightsInner />;
+  const mode = useStore((s) => s.quality.fixtures);
+  const sun = useSunPosition();
+  if (mode === 'off') return null;
+  const levelMul = mode === 'on' ? 1 : autoFixtureLevel(sun.altitude);
+  if (levelMul <= 0) return null;
+  return <FurnitureLightsInner levelMul={levelMul} />;
 }

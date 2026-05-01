@@ -5,7 +5,7 @@ import { ROOMS } from '../../apartment/constants';
 import { useStore } from '../../state/store';
 import type { RoomId } from '../../apartment/types';
 import { lightingFromAltitude } from './altitudeCurve';
-import { roomCentroidPose, roomWindowedWallInjectors, type WallInjector } from './roomCentroids';
+import { roomCentroidPose } from './roomCentroids';
 import { computeRoomDaylightIntensities } from './roomDaylightIntensities';
 import { rotateAroundY, sunDirectionToScene } from './sunPosition';
 import { useSunPosition } from './useSunPosition';
@@ -13,12 +13,10 @@ import { useSunPosition } from './useSunPosition';
 const TWEEN_DURATION = 0.6;
 const FILL_DISTANCE = 5;
 const FILL_DECAY = 2;
-const INJECTOR_DECAY = 2;
 
 interface RoomEntry {
   id: RoomId;
   centroid: { x: number; y: number; z: number };
-  injectors: WallInjector[];
 }
 
 export function RoomDaylight() {
@@ -31,19 +29,15 @@ export function RoomDaylight() {
       .map((id) => ({
         id,
         centroid: roomCentroidPose(id),
-        injectors: roomWindowedWallInjectors(id),
       }));
   }, []);
 
   const fillRefs = useRef<Map<RoomId, PointLight | null>>(new Map());
-  const injectorRefs = useRef<Map<string, PointLight | null>>(new Map());
   const current = useRef<{
     fill: Map<RoomId, number>;
-    inj: Map<string, number>;
     color: [number, number, number];
   }>({
     fill: new Map(rooms.map((r) => [r.id, 0])),
-    inj: new Map(),
     color: [1, 1, 1],
   });
 
@@ -71,47 +65,21 @@ export function RoomDaylight() {
         fillLight.intensity = nextFill;
         fillLight.color.setRGB(cur.color[0], cur.color[1], cur.color[2]);
       }
-      for (let i = 0; i < room.injectors.length; i++) {
-        const key = `${room.id}#${i}`;
-        const curInj = cur.inj.get(key) ?? 0;
-        const nextInj = curInj + (target.windowInjector - curInj) * k;
-        cur.inj.set(key, nextInj);
-        const inj = injectorRefs.current.get(key);
-        if (inj) {
-          inj.intensity = nextInj;
-          inj.color.setRGB(cur.color[0], cur.color[1], cur.color[2]);
-        }
-      }
     }
   });
 
   return (
     <>
       {rooms.map((room) => (
-        <group key={room.id}>
-          <pointLight
-            ref={(node) => { fillRefs.current.set(room.id, node); }}
-            position={[room.centroid.x, room.centroid.y, room.centroid.z]}
-            intensity={0}
-            distance={FILL_DISTANCE}
-            decay={FILL_DECAY}
-            castShadow={false}
-          />
-          {room.injectors.map((inj, i) => {
-            const key = `${room.id}#${i}`;
-            return (
-              <pointLight
-                key={key}
-                ref={(node) => { injectorRefs.current.set(key, node); }}
-                position={inj.position}
-                intensity={0}
-                distance={inj.radius}
-                decay={INJECTOR_DECAY}
-                castShadow={false}
-              />
-            );
-          })}
-        </group>
+        <pointLight
+          key={room.id}
+          ref={(node) => { fillRefs.current.set(room.id, node); }}
+          position={[room.centroid.x, room.centroid.y, room.centroid.z]}
+          intensity={0}
+          distance={FILL_DISTANCE}
+          decay={FILL_DECAY}
+          castShadow={false}
+        />
       ))}
     </>
   );

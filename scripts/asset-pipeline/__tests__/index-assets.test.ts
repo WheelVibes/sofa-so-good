@@ -1,5 +1,12 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, readFileSync, copyFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  copyFileSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { indexAssets } from '../index-assets';
@@ -65,5 +72,23 @@ describe('indexAssets', () => {
     const out = readFileSync(join(root, 'src/furniture/generatedCatalog.ts'), 'utf8');
     expect(out).toContain('export const GENERATED_FURNITURE');
     expect(out).toContain('[]');
+  });
+
+  it('auto-detects a material folder with PH-style filenames and no sidecar', async () => {
+    const dir = join(root, 'public/assets/materials/oak_floor');
+    mkdirSync(dir, { recursive: true });
+    for (const f of [
+      'oak_floor_2k_diff.jpg',
+      'oak_floor_2k_nor_gl.jpg',
+      'oak_floor_2k_rough.jpg',
+    ]) {
+      writeFileSync(join(dir, f), 'fake-pixels');
+    }
+    await indexAssets({ projectRoot: root });
+    const out = readFileSync(join(root, 'src/materials/generatedCatalog.ts'), 'utf8');
+    expect(out).toContain('"dropped-oak_floor"');
+    expect(out).toContain('/assets/materials/oak_floor/oak_floor_2k_diff.jpg');
+    expect(out).toContain('/assets/materials/oak_floor/oak_floor_2k_nor_gl.jpg');
+    expect(out).toContain('"floor"');
   });
 });

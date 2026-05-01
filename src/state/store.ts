@@ -86,6 +86,11 @@ import {
   QUALITY_INITIAL,
   type QualitySlice,
 } from './slices/qualitySlice';
+import {
+  createWindowsSlice,
+  WINDOWS_INITIAL,
+  type WindowsSlice,
+} from './slices/windowsSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { QualitySettings, QualityPreset } from './slices/qualitySlice';
@@ -113,7 +118,8 @@ export interface RootState
     OrientationSlice,
     NotificationsSlice,
     InstalledPacksSlice,
-    QualitySlice {
+    QualitySlice,
+    WindowsSlice {
   __resetForTest: () => void;
 }
 
@@ -136,6 +142,7 @@ const INITIAL = {
   ...NOTIFICATIONS_INITIAL,
   ...INSTALLED_PACKS_INITIAL,
   ...QUALITY_INITIAL,
+  ...WINDOWS_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -158,5 +165,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createNotificationsSlice(set, get, api),
   ...createInstalledPacksSlice(set, get, api),
   ...createQualitySlice(set, get, api),
+  ...createWindowsSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));

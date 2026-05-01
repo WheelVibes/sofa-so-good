@@ -2,7 +2,7 @@ import { Sky as DreiSky } from '@react-three/drei';
 import { useStore } from '../../state/store';
 import { useSunPosition } from './useSunPosition';
 import { sunDirectionToScene } from './sunPosition';
-import { skyFromAltitude } from './altitudeCurve';
+import { skyFromAltitude, weatherTurbidityMultiplier } from './altitudeCurve';
 
 /** Sky sun-position is rendered far away so DreiSky's shader places
  *  the disc near the horizon plane. */
@@ -29,10 +29,12 @@ export function Sky() {
   ];
   const sunPosition = rotateY(scaled, orientation);
   const sky = skyFromAltitude(sunPos.altitude);
+  const weather = useStore((s) => s.quality.weather);
+  const turbidity = sky.turbidity * weatherTurbidityMultiplier(weather);
   return (
     <DreiSky
       sunPosition={sunPosition}
-      turbidity={sky.turbidity}
+      turbidity={turbidity}
       rayleigh={sky.rayleigh}
       mieCoefficient={sky.mieCoefficient}
       mieDirectionalG={sky.mieDirectionalG}

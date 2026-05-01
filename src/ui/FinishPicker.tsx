@@ -4,12 +4,12 @@ import { ROOMS } from '../apartment/constants';
 import { useMaterials } from '../materials/useMaterial';
 import { useStore } from '../state/store';
 import type { MaterialCategory, MaterialDef } from '../materials/types';
+import type { Surface } from '../state/slices/finishesSlice';
 import type { RoomId } from '../apartment/types';
 import { UploadMaterialDialog } from './upload/UploadMaterialDialog';
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab';
 
 type View = 'swatch' | 'browse';
-type Surface = 'floor' | 'wall';
 
 /**
  * Right-side panel shown when a room is selected. Floor / wall tabs
@@ -30,10 +30,10 @@ export function FinishPicker() {
   const removeUserMaterial = useStore((s) => s.removeUserMaterial);
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog);
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status);
+  const lastSurface = useStore((s) => s.lastSurface);
   const materials = useMaterials();
   const [uploadOpen, setUploadOpen] = useState(false);
   const [view, setView] = useState<View>('swatch');
-  const [lastSurface, setLastSurface] = useState<Surface>('floor');
 
   useEffect(() => {
     if (view === 'browse' && phStatus === 'idle') void bootstrapRemote();
@@ -50,7 +50,6 @@ export function FinishPicker() {
   for (const m of Object.values(materials)) groups[m.category].push(m);
 
   const handleSelect = (surface: Surface, id: string) => {
-    setLastSurface(surface);
     if (surface === 'floor') setFloorFinish(roomId, id);
     else setWallFinish(roomId, id);
   };
@@ -130,7 +129,11 @@ export function FinishPicker() {
         </div>
       ) : (
         <div className="flex min-h-0 flex-1 flex-col">
-          <RemoteBrowseTab kind="material" onResolved={handleResolved} />
+          <RemoteBrowseTab
+            kind="material"
+            onResolved={handleResolved}
+            initialSurface={lastSurface}
+          />
         </div>
       )}
     </aside>

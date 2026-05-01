@@ -56,6 +56,10 @@ export async function hydratePacks(): Promise<void> {
       }
 
       migratedEntries.push({ ...e, scale, footprint });
+      // `entry.footprint` is persisted SCALED (raw × scale) for storage
+      // back-compat, but `def.defaultFootprint` must be the RAW bbox —
+      // `itemFootprint` multiplies by `def.scale` again at read time.
+      const safeScale = scale > 0 ? scale : 1;
       defs.push({
         id: e.id,
         name: e.name,
@@ -64,7 +68,11 @@ export async function hydratePacks(): Promise<void> {
         source: 'pack',
         packId: e.packId,
         entryId: e.entryId,
-        defaultFootprint: footprint,
+        defaultFootprint: {
+          w: footprint.w / safeScale,
+          d: footprint.d / safeScale,
+          h: footprint.h / safeScale,
+        },
         scale,
         runtimeUrl: URL.createObjectURL(glb.blob),
         thumbUrl: thumb ? URL.createObjectURL(thumb.blob) : undefined,

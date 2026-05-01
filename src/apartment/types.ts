@@ -32,16 +32,18 @@ export interface RoomDef {
   /** Free-form derivation note for traceability (see spec §6.2). */
   derivation?: string;
   /**
-   * Optional secondary rectangle for L-shaped rooms (e.g. living/dining that
-   * wraps around another space). Offset is relative to the room's `origin`.
-   * The two rectangles are treated as a single logical room for finishes,
-   * floor rendering, and area accounting.
+   * Optional secondary rectangles for L-shaped or more complex rooms (e.g.
+   * living/dining wrapping around another space, with both a north arm and
+   * a south alcove). Each entry's `offset` is relative to the room's
+   * `origin`. All rectangles together — main + every entry — are treated
+   * as a single logical room for finishes, floor rendering, ceiling, area
+   * accounting, and door-adjacency.
    */
-  extension?: {
+  extensions?: Array<{
     offset: Vec2;
     width: number;
     depth: number;
-  };
+  }>;
 }
 
 export type CutoutKind = 'door' | 'window';

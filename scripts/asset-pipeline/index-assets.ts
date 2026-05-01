@@ -1,6 +1,7 @@
 import { readdirSync, statSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
 import { join, relative } from 'node:path';
 import {
+  detectMaterialFromFolder,
   readSidecar,
   resolveFurnitureMetadata,
   type FurnitureSidecar,
@@ -99,7 +100,9 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
   const matSeen = new Set<string>();
   const materialLits: string[] = [];
   for (const md of materialDirs) {
-    const meta = readSidecar<MaterialSidecar>(join(md, 'material'));
+    const meta =
+      readSidecar<MaterialSidecar>(join(md, 'material')) ??
+      detectMaterialFromFolder({ dir: md });
     if (!meta) continue;
     if (matSeen.has(meta.id)) throw new Error(`duplicate id "${meta.id}" in ${md}`);
     matSeen.add(meta.id);

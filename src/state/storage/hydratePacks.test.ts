@@ -73,4 +73,24 @@ describe('hydratePacks (migration)', () => {
     expect(entry?.footprint.w).not.toBeCloseTo(0.5, 5);
     expect(entry?.footprint.w).toBeGreaterThan(0.5);
   });
+
+  it('exposes def.defaultFootprint as the RAW bbox (entry.footprint / scale)', async () => {
+    // Regression: hydratePacks used to copy the scaled `entry.footprint`
+    // straight into `def.defaultFootprint`, which combined with
+    // `def.scale` caused itemFootprint to multiply by scale a second
+    // time (e.g. Kenney bench appearing 10.75 × 2.93 m).
+    await seedLegacyInstall();
+    await hydratePacks();
+
+    const def = useStore.getState().packFurniture.find((d) => d.entryId === 'loungeSofa');
+    const persisted = await InstalledPackStore.get('kenney-furniture-kit');
+    const entry = persisted?.entries[0];
+    expect(def && entry).toBeTruthy();
+    if (!def || !entry) return;
+
+    // entry.footprint is scaled (raw × scale), def.defaultFootprint is raw.
+    expect(def.defaultFootprint.w).toBeCloseTo(entry.footprint.w / entry.scale, 5);
+    expect(def.defaultFootprint.d).toBeCloseTo(entry.footprint.d / entry.scale, 5);
+    expect(def.defaultFootprint.h).toBeCloseTo(entry.footprint.h / entry.scale, 5);
+  });
 });
