@@ -10,6 +10,11 @@ import {
   type TimeSlice,
 } from './slices/timeSlice';
 import {
+  createLocationSlice,
+  LOCATION_INITIAL,
+  type LocationSlice,
+} from './slices/locationSlice';
+import {
   createMeasurementsSlice,
   MEASUREMENTS_INITIAL,
   type MeasurementsSlice,
@@ -80,10 +85,12 @@ import {
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeMode, TimePreset } from './slices/timeSlice';
 export { PRESET_HOURS } from './slices/timeSlice';
+export type { Location } from './slices/locationSlice';
 
 export interface RootState
   extends CameraSlice,
     TimeSlice,
+    LocationSlice,
     MeasurementsSlice,
     DoorsSlice,
     ItemsSlice,
@@ -105,6 +112,7 @@ export interface RootState
 const INITIAL = {
   ...CAMERA_INITIAL,
   ...TIME_INITIAL,
+  ...LOCATION_INITIAL,
   ...MEASUREMENTS_INITIAL,
   ...DOORS_INITIAL,
   ...ITEMS_INITIAL,
@@ -124,6 +132,7 @@ const INITIAL = {
 export const useStore = create<RootState>((set, get, api) => ({
   ...createCameraSlice(set, get, api),
   ...createTimeSlice(set, get, api),
+  ...createLocationSlice(set, get, api),
   ...createMeasurementsSlice(set, get, api),
   ...createDoorsSlice(set, get, api),
   ...createItemsSlice(set, get, api),

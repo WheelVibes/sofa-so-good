@@ -51,6 +51,12 @@ describe('store — Phase 1 slice', () => {
     useStore.getState().setDoorOpen('door-main', true);
     expect(useStore.getState().doors['door-main']?.open).toBe(true);
   });
+
+  it('starts with no location and the prompt undismissed', () => {
+    const s = useStore.getState();
+    expect(s.location).toBeNull();
+    expect(s.locationPromptDismissed).toBe(false);
+  });
 });
 
 describe('store — items + selection slice', () => {
