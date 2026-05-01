@@ -10,6 +10,7 @@ import { usePlacementController } from './ui/catalog/usePlacementController';
 import { FinishPicker } from './ui/FinishPicker';
 import { InspectorPanel } from './ui/inspector/InspectorPanel';
 import { WebGLFallback } from './ui/WebGLFallback';
+import { NotificationContainer } from './ui/notifications/NotificationContainer';
 import { useStore } from './state/store';
 import {
   KEYBINDINGS,
@@ -20,7 +21,7 @@ import {
 } from './controls/keybindings';
 import { useCatalog } from './furniture/catalog';
 import { canPlace } from './collision/placement';
-import { useKeyboard } from './controls/useKeyboard';
+import { isEditableTarget, useKeyboard } from './controls/useKeyboard';
 import { cameraForwardXZ } from './scene/cameras/cameraForward';
 
 export default function App() {
@@ -281,6 +282,7 @@ export default function App() {
     };
 
     const onDown = (e: KeyboardEvent) => {
+      if (isEditableTarget(e)) return;
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         shiftHeld = true;
         return;
@@ -333,6 +335,7 @@ export default function App() {
         <CatalogDrawer />
         <InspectorPanel />
         <FinishPicker />
+        <NotificationContainer />
       </div>
     </WebGLFallback>
   );
