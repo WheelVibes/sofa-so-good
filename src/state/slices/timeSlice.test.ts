@@ -23,11 +23,15 @@ describe('timeSlice', () => {
     expect(useStore.getState().manualHour).toBe(15.5);
   });
 
-  it('setManualHour clamps out-of-range values into [0, 24)', () => {
+  it('setManualHour wraps out-of-range values into [0, 24)', () => {
     useStore.getState().setManualHour(25);
-    expect(useStore.getState().manualHour).toBe(0);
+    expect(useStore.getState().manualHour).toBe(1);
+    useStore.getState().setManualHour(36);
+    expect(useStore.getState().manualHour).toBe(12);
     useStore.getState().setManualHour(-1);
     expect(useStore.getState().manualHour).toBe(23);
+    useStore.getState().setManualHour(48);
+    expect(useStore.getState().manualHour).toBe(0);
   });
 
   it('setPresetTime sets manual mode + matching hour', () => {

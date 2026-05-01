@@ -37,14 +37,9 @@ export const TIME_INITIAL: Pick<TimeSlice, 'timeMode' | 'manualHour'> = {
 };
 
 /** Wrap any real number into [0, 24). Negative inputs wrap backwards
- *  (e.g. -1 → 23). Inputs ≥ 24 wrap to 0. */
+ *  (e.g. -1 → 23). Inputs ≥ 24 wrap modulo (e.g. 25 → 1, 36 → 12). */
 function wrapHour(h: number): number {
-  if (h >= 24) return 0;
-  if (h < 0) {
-    const m = h % 24;
-    return m < 0 ? m + 24 : m;
-  }
-  return h;
+  return ((h % 24) + 24) % 24;
 }
 
 /** Identify which preset (if any) the current state matches, for cycling. */
