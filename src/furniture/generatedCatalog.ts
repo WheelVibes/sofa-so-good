@@ -14,6 +14,7 @@ export const GENERATED_FURNITURE: FurnitureDef[] = [
     sourceUrl: "https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Box",
     defaultFootprint: { w: 1, d: 1, h: 1 },
     scale: 0.6,
+    sizeBytes: 1664,
   },
   {
     kind: 'gltf',
@@ -27,5 +28,6 @@ export const GENERATED_FURNITURE: FurnitureDef[] = [
     sourceUrl: "https://github.com/KhronosGroup/glTF-Sample-Models/tree/main/2.0/Duck",
     defaultFootprint: { w: 0.6, d: 0.6, h: 1 },
     scale: 0.005,
+    sizeBytes: 120484,
   },
 ];

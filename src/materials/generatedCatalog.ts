@@ -14,6 +14,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       albedo: "/assets/materials/floor-carpet/albedo.jpg",
     },
     uvScale: [2, 2],
+    sizeBytes: 428115,
   },
   {
     id: "floor-parquet",
@@ -27,6 +28,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       albedo: "/assets/materials/floor-parquet/albedo.jpg",
     },
     uvScale: [1.5, 1.5],
+    sizeBytes: 391508,
   },
   {
     id: "floor-tile-marble",
@@ -42,6 +44,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       roughness: "/assets/materials/floor-tile-marble/rough.jpg",
     },
     uvScale: [1, 1],
+    sizeBytes: 301305,
   },
   {
     id: "floor-tile-white",
@@ -57,6 +60,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       roughness: "/assets/materials/floor-tile-white/rough.jpg",
     },
     uvScale: [0.6, 0.6],
+    sizeBytes: 741125,
   },
   {
     id: "floor-wood-oak",
@@ -72,6 +76,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       roughness: "/assets/materials/floor-wood-oak/rough.jpg",
     },
     uvScale: [1.5, 1.5],
+    sizeBytes: 767447,
   },
   {
     id: "floor-wood-walnut",
@@ -87,6 +92,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       roughness: "/assets/materials/floor-wood-walnut/rough.jpg",
     },
     uvScale: [1.5, 1.5],
+    sizeBytes: 415028,
   },
   {
     id: "wall-beige",
@@ -100,6 +106,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       albedo: "/assets/materials/wall-beige/albedo.jpg",
     },
     uvScale: [2, 2],
+    sizeBytes: 25113,
   },
   {
     id: "wall-brick",
@@ -113,6 +120,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       albedo: "/assets/materials/wall-brick/albedo.jpg",
     },
     uvScale: [1.5, 1.5],
+    sizeBytes: 315753,
   },
   {
     id: "wall-concrete",
@@ -128,6 +136,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       roughness: "/assets/materials/wall-concrete/rough.jpg",
     },
     uvScale: [2, 2],
+    sizeBytes: 548785,
   },
   {
     id: "wall-plaster",
@@ -141,6 +150,7 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       albedo: "/assets/materials/wall-plaster/albedo.jpg",
     },
     uvScale: [2, 2],
+    sizeBytes: 104938,
   },
   {
     id: "wall-stone-brick",
@@ -154,5 +164,6 @@ export const GENERATED_MATERIALS: MaterialDef[] = [
       albedo: "/assets/materials/wall-stone-brick/albedo.jpg",
     },
     uvScale: [1.5, 1.5],
+    sizeBytes: 294530,
   },
 ];
