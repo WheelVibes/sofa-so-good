@@ -46,7 +46,10 @@ export type PrimitiveKind =
   | 'Wardrobe'
   | 'Desk'
   | 'Bookshelf'
-  | 'TVConsole';
+  | 'TVConsole'
+  | 'WallShelf'
+  | 'SectionalSofa'
+  | 'OpenWardrobe';
 
 export type ParamField =
   | {

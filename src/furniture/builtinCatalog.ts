@@ -135,6 +135,35 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Upholstery', default: '#8aa1a8' },
     ],
   },
+  // Bounding box assumes chaiseLength >= depth so the L's depth-axis extent
+  // equals chaiseLength. This holds for the schema ranges below
+  // (chaiseLength 1.2–2.0, depth 0.9–1.1).
+  'sofa-sectional': {
+    kind: 'parametric',
+    id: 'sofa-sectional',
+    name: 'Sectional sofa',
+    category: 'seating',
+    primitive: 'SectionalSofa',
+    defaultFootprint: { w: 2.4, d: 1.5, h: 0.85 },
+    footprintParams: { w: 'mainLength', d: 'chaiseLength' },
+    paramSchema: [
+      { kind: 'number', key: 'mainLength', label: 'Main length', min: 2.0, max: 3.0, step: 0.1, default: 2.4, unit: 'm' },
+      { kind: 'number', key: 'chaiseLength', label: 'Chaise length', min: 1.2, max: 2.0, step: 0.1, default: 1.5, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.9, max: 1.1, step: 0.05, default: 1.0, unit: 'm' },
+      {
+        kind: 'enum',
+        key: 'chaiseSide',
+        label: 'Chaise side',
+        default: 'right',
+        options: [
+          { value: 'left', label: 'Left' },
+          { value: 'right', label: 'Right' },
+        ],
+      },
+      { kind: 'integer', key: 'cushionCount', label: 'Cushions', min: 2, max: 5, default: 3 },
+      { kind: 'color', key: 'color', label: 'Upholstery', default: '#8aa1a8' },
+    ],
+  },
 
   // ── Tables ──────────────────────────────────────────────────────────────
   'dining-table-4': {
@@ -212,6 +241,46 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 1.2, max: 2.4, step: 0.1, default: 1.8, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Colour', default: '#3a2f24' },
+    ],
+  },
+  'wall-shelf': {
+    kind: 'parametric',
+    id: 'wall-shelf',
+    name: 'Wall shelf',
+    category: 'storage',
+    primitive: 'WallShelf',
+    defaultFootprint: { w: 1.2, d: 0.22, h: 0.04 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.6, max: 2.0, step: 0.05, default: 1.2, unit: 'm' },
+      { kind: 'integer', key: 'shelfCount', label: 'Shelves', min: 1, max: 4, default: 2 },
+      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 1.0, max: 2.0, step: 0.05, default: 1.4, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#caa478' },
+    ],
+  },
+  'wardrobe-open': {
+    kind: 'parametric',
+    id: 'wardrobe-open',
+    name: 'Open wardrobe',
+    category: 'storage',
+    primitive: 'OpenWardrobe',
+    defaultFootprint: { w: 1.6, d: 0.6, h: 2.1 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 1.0, max: 2.4, step: 0.1, default: 1.6, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.55, max: 0.7, step: 0.05, default: 0.6, unit: 'm' },
+      { kind: 'number', key: 'height', label: 'Height', min: 1.8, max: 2.4, step: 0.1, default: 2.1, unit: 'm' },
+      { kind: 'integer', key: 'shelfCount', label: 'Shelves', min: 2, max: 5, default: 3 },
+      {
+        kind: 'enum',
+        key: 'hasRod',
+        label: 'Hanging rod',
+        default: 'yes',
+        options: [
+          { value: 'yes', label: 'With rod' },
+          { value: 'no', label: 'No rod' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#caa478' },
     ],
   },
 
