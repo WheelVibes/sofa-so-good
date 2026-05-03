@@ -6,6 +6,7 @@ import { CameraRig } from './cameras/CameraRig';
 import { CameraForwardTracker } from './cameras/cameraForward';
 import { Lighting } from './lighting/Lighting';
 import { Sky } from './lighting/Sky';
+import { EnvironmentMap } from './lighting/EnvironmentMap';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
 import { SelectionOutline } from './selection/SelectionOutline';
@@ -24,6 +25,7 @@ export function Scene() {
     >
       <Sky />
       <Lighting />
+      <EnvironmentMap />
       <Apartment />
       <FurnitureLayer />
       <SelectionOutline />
