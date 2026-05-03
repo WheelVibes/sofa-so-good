@@ -35,6 +35,10 @@ export interface TexturedMaterialDef extends MaterialDefBase {
   };
   /** UV repeat in metres-per-tile. [1, 1] tiles 1×1 m per texture. */
   uvScale: [number, number];
+  /** Sum of on-disk texture file sizes in bytes; emitted by the asset
+   *  indexer for built-in materials. Surfaced on the swatch tile so users
+   *  see total download size before selecting. */
+  sizeBytes?: number;
   /** Runtime-only blob URL set during hydration for user materials. */
   runtimeUrls?: {
     albedo: string;

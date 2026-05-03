@@ -121,6 +121,9 @@ export interface BuiltinGltfDef extends FurnitureDefBase {
   license: 'CC0';
   attribution?: string;
   sourceUrl?: string;
+  /** On-disk size of the GLB in bytes; emitted by the asset indexer.
+   *  Surfaced on the catalog card so users see download size before clicking. */
+  sizeBytes?: number;
 }
 
 export interface UserGltfDef extends FurnitureDefBase {
