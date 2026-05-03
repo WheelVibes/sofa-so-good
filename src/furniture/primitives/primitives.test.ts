@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
+import type { FunctionComponent } from 'react';
 import { PRIMITIVE_COMPONENTS } from './index';
 import { BUILTIN_CATALOG } from '../builtinCatalog';
-import { defaultParamProps } from '../types';
+import { defaultParamProps, type ParamProps } from '../types';
 
 describe('primitives ↔ catalog wiring', () => {
   it('every PrimitiveKind referenced by the catalog has a component', () => {
@@ -29,7 +30,9 @@ describe('parametric primitive smoke', () => {
       const def = BUILTIN_CATALOG[id];
       expect(def?.kind).toBe('parametric');
       if (def?.kind !== 'parametric') return;
-      const Component = PRIMITIVE_COMPONENTS[def.primitive];
+      const Component = PRIMITIVE_COMPONENTS[def.primitive] as FunctionComponent<{
+        props: ParamProps;
+      }>;
       const props = defaultParamProps(def);
       expect(() => Component({ props })).not.toThrow();
     });

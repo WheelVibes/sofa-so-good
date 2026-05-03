@@ -6,6 +6,7 @@ import { useStore } from '../state/store';
 import type { MaterialCategory, MaterialDef } from '../materials/types';
 import type { RoomId } from '../apartment/types';
 import { UploadMaterialDialog } from './upload/UploadMaterialDialog';
+import { formatBytes } from '../utils/bytes';
 
 /**
  * Right-side panel shown when a room is selected (click on the floor).
@@ -95,6 +96,8 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser }: SwatchGro
         {items.map((m) => {
           const isUser = m.kind === 'textured' && m.source === 'user';
           const isActive = m.id === active;
+          const size =
+            m.kind === 'textured' && m.source !== 'user' ? m.sizeBytes : undefined;
           return (
             <div
               key={m.id}
@@ -116,9 +119,14 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser }: SwatchGro
                 className="block h-10 w-full"
                 style={{ backgroundColor: m.swatch }}
               />
-              <span className="block px-1 py-1 text-[10px] leading-tight">
+              <span className="block px-1 pt-1 text-[10px] leading-tight">
                 {m.name}
               </span>
+              {size ? (
+                <span className="block px-1 pb-1 text-[8px] leading-tight text-neutral-400">
+                  {formatBytes(size)}
+                </span>
+              ) : null}
               {isUser ? (
                 <>
                   <span className="absolute right-0 top-0 rounded-bl bg-amber-100 px-1 text-[8px] uppercase tracking-wide text-amber-800">

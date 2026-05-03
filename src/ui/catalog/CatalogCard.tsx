@@ -2,6 +2,7 @@ import type { FurnitureDef } from '../../furniture/types';
 import { isUserDef } from '../../furniture/catalog';
 import { usePlacementDrag } from './usePlacementDrag';
 import { CategoryIcon } from './CategoryIcon';
+import { formatBytes } from '../../utils/bytes';
 
 interface CatalogCardProps {
   def: FurnitureDef;
@@ -11,6 +12,8 @@ interface CatalogCardProps {
 export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const isUser = isUserDef(def);
   const onClick = usePlacementDrag(def);
+  const size =
+    def.kind === 'gltf' && def.source === 'builtin' ? def.sizeBytes : undefined;
   return (
     <div
       onClick={onClick}
@@ -26,6 +29,9 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
       <span className="text-[10px] text-neutral-500">
         {def.defaultFootprint.w.toFixed(2)} × {def.defaultFootprint.d.toFixed(2)} m
       </span>
+      {size ? (
+        <span className="text-[10px] text-neutral-400">{formatBytes(size)}</span>
+      ) : null}
       {isUser ? (
         <span className="absolute right-1 top-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-800">
           Uploaded
