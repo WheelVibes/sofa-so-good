@@ -1,5 +1,13 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { mkdtempSync, mkdirSync, rmSync, readFileSync, copyFileSync } from 'node:fs';
+import {
+  mkdtempSync,
+  mkdirSync,
+  rmSync,
+  readFileSync,
+  copyFileSync,
+  statSync,
+  writeFileSync,
+} from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { indexAssets } from '../index-assets';
@@ -65,5 +73,44 @@ describe('indexAssets', () => {
     const out = readFileSync(join(root, 'src/furniture/generatedCatalog.ts'), 'utf8');
     expect(out).toContain('export const GENERATED_FURNITURE');
     expect(out).toContain('[]');
+  });
+
+  it('emits sizeBytes matching the GLB file size', async () => {
+    const glb = join(root, 'public/assets/furniture/demo-duck.glb');
+    copyFileSync('public/assets/furniture/demo-duck.glb', glb);
+    writeSidecar(glb, {
+      id: 'demo-duck-bytes',
+      name: 'Demo duck bytes',
+      category: 'decor',
+      footprint: { w: 0.6, d: 0.6, h: 1.0 },
+      scale: 0.005,
+      anchor: 'floor-center',
+    });
+    await indexAssets({ projectRoot: root });
+    const out = readFileSync(join(root, 'src/furniture/generatedCatalog.ts'), 'utf8');
+    const match = out.match(/sizeBytes:\s*(\d+)/);
+    expect(match).not.toBeNull();
+    expect(Number(match![1])).toBe(statSync(glb).size);
+  });
+
+  it('emits material sizeBytes summed across channel files', async () => {
+    const matDir = join(root, 'public/assets/materials/demo-mat');
+    mkdirSync(matDir, { recursive: true });
+    writeFileSync(join(matDir, 'albedo.jpg'), Buffer.alloc(1000));
+    writeFileSync(join(matDir, 'normal.jpg'), Buffer.alloc(500));
+    writeSidecar(join(matDir, 'material'), {
+      id: 'demo-mat',
+      name: 'Demo mat',
+      category: 'floor',
+      uvScale: [1, 1],
+      channels: { albedo: 'albedo.jpg', normal: 'normal.jpg' },
+      license: 'CC0',
+      sourceUrl: 'https://polyhaven.com/a/demo',
+    });
+    await indexAssets({ projectRoot: root });
+    const out = readFileSync(join(root, 'src/materials/generatedCatalog.ts'), 'utf8');
+    const match = out.match(/sizeBytes:\s*(\d+)/);
+    expect(match).not.toBeNull();
+    expect(Number(match![1])).toBe(1500);
   });
 });

@@ -24,7 +24,7 @@ function walk(dir: string, ext: RegExp): string[] {
   return out;
 }
 
-function tsLiteralFurniture(meta: FurnitureSidecar, urlPath: string): string {
+function tsLiteralFurniture(meta: FurnitureSidecar, urlPath: string, sizeBytes: number): string {
   const attrLine = meta.attribution ? `    attribution: ${JSON.stringify(meta.attribution)},\n` : '';
   const srcLine = meta.sourceUrl ? `    sourceUrl: ${JSON.stringify(meta.sourceUrl)},\n` : '';
   return `  {
@@ -37,10 +37,11 @@ function tsLiteralFurniture(meta: FurnitureSidecar, urlPath: string): string {
     license: 'CC0',
 ${attrLine}${srcLine}    defaultFootprint: { w: ${meta.footprint.w}, d: ${meta.footprint.d}, h: ${meta.footprint.h} },
     scale: ${meta.scale},
+    sizeBytes: ${sizeBytes},
   },\n`;
 }
 
-function tsLiteralMaterial(meta: MaterialSidecar, baseUrl: string): string {
+function tsLiteralMaterial(meta: MaterialSidecar, baseUrl: string, sizeBytes: number): string {
   const albedo = `${baseUrl}/${meta.channels.albedo}`;
   const normal = meta.channels.normal
     ? `\n      normal: ${JSON.stringify(`${baseUrl}/${meta.channels.normal}`)},`
@@ -65,7 +66,24 @@ function tsLiteralMaterial(meta: MaterialSidecar, baseUrl: string): string {
       albedo: ${JSON.stringify(albedo)},${normal}${rough}${ao}
     },
     uvScale: [${meta.uvScale[0]}, ${meta.uvScale[1]}],
+    sizeBytes: ${sizeBytes},
   },\n`;
+}
+
+/** Sum bytes across the texture channels that exist on disk. */
+function materialSizeBytes(materialDir: string, meta: MaterialSidecar): number {
+  let total = 0;
+  for (const channelFile of [
+    meta.channels.albedo,
+    meta.channels.normal,
+    meta.channels.rough,
+    meta.channels.ao,
+  ]) {
+    if (!channelFile) continue;
+    const p = join(materialDir, channelFile);
+    if (existsSync(p)) total += statSync(p).size;
+  }
+  return total;
 }
 
 export async function indexAssets(opts: IndexOptions): Promise<void> {
@@ -88,7 +106,8 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
     }
     seen.add(meta.id);
     const url = '/' + relative(join(root, 'public'), glb).replace(/\\/g, '/');
-    furnitureLits.push(tsLiteralFurniture(meta, url));
+    const sizeBytes = statSync(glb).size;
+    furnitureLits.push(tsLiteralFurniture(meta, url, sizeBytes));
   }
 
   const materialDirs = existsSync(materialsDir)
@@ -104,7 +123,8 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
     if (matSeen.has(meta.id)) throw new Error(`duplicate id "${meta.id}" in ${md}`);
     matSeen.add(meta.id);
     const baseUrl = '/' + relative(join(root, 'public'), md).replace(/\\/g, '/');
-    materialLits.push(tsLiteralMaterial(meta, baseUrl));
+    const sizeBytes = materialSizeBytes(md, meta);
+    materialLits.push(tsLiteralMaterial(meta, baseUrl, sizeBytes));
   }
 
   mkdirSync(join(root, 'src/furniture'), { recursive: true });
