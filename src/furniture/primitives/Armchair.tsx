@@ -1,5 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
+import { getFabricMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Upholstered armchair: base + seat cushion + back cushion + two arms,
@@ -16,27 +17,19 @@ export function Armchair({ props }: { props: ParamProps }) {
   const cushionH = 0.16;
   const innerW = width - armW * 2;
 
-  const fabric = { roughness: 0.92, metalness: 0 };
+  const mat = getFabricMaterial(color);
 
   return (
     <group>
       {/* Base */}
-      <RoundedBox args={[width, baseH, depth]} radius={0.05} smoothness={2} castShadow receiveShadow position={[0, baseH / 2, 0]}>
-        <meshStandardMaterial color={color} {...fabric} />
-      </RoundedBox>
+      <RoundedBox args={[width, baseH, depth]} radius={0.05} smoothness={2} castShadow receiveShadow position={[0, baseH / 2, 0]} material={mat} />
       {/* Seat cushion */}
-      <RoundedBox args={[innerW, cushionH, depth - 0.18]} radius={0.05} smoothness={2} castShadow position={[0, seatH + cushionH / 2, 0.03]}>
-        <meshStandardMaterial color={color} {...fabric} />
-      </RoundedBox>
+      <RoundedBox args={[innerW, cushionH, depth - 0.18]} radius={0.05} smoothness={2} castShadow position={[0, seatH + cushionH / 2, 0.03]} material={mat} />
       {/* Back cushion */}
-      <RoundedBox args={[innerW, backH, 0.18]} radius={0.05} smoothness={2} castShadow position={[0, seatH + backH / 2, -depth / 2 + 0.1]}>
-        <meshStandardMaterial color={color} {...fabric} />
-      </RoundedBox>
+      <RoundedBox args={[innerW, backH, 0.18]} radius={0.05} smoothness={2} castShadow position={[0, seatH + backH / 2, -depth / 2 + 0.1]} material={mat} />
       {/* Arms */}
       {[-1, 1].map((s) => (
-        <RoundedBox key={s} args={[armW, seatH * 0.9 + cushionH, depth]} radius={0.05} smoothness={2} castShadow position={[s * (width - armW) / 2, seatH * 0.75, 0]}>
-          <meshStandardMaterial color={color} {...fabric} />
-        </RoundedBox>
+        <RoundedBox key={s} args={[armW, seatH * 0.9 + cushionH, depth]} radius={0.05} smoothness={2} castShadow position={[s * (width - armW) / 2, seatH * 0.75, 0]} material={mat} />
       ))}
       {/* Feet */}
       {[-1, 1].map((sx) =>
