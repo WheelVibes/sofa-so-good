@@ -579,6 +579,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#3a3d42' },
       {
         kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'splayed',
+        options: [
+          { value: 'splayed', label: 'Splayed legs' },
+          { value: 'pedestal', label: 'Pedestal base' },
+          { value: 'backed', label: 'With backrest' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Seat finish',
         default: 'wood',
