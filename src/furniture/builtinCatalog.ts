@@ -868,8 +868,33 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     name: 'Basin',
     category: 'bathroom',
     primitive: 'BathroomSink',
-    defaultFootprint: { w: 0.44, d: 0.44, h: 0.98 },
-    paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#f4f4f1' }],
+    defaultFootprint: { w: 0.62, d: 0.5, h: 0.98 },
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Basin', default: '#f4f4f1' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'pedestal',
+        options: [
+          { value: 'pedestal', label: 'Pedestal' },
+          { value: 'vanity', label: 'Vanity cabinet' },
+          { value: 'wall-hung', label: 'Wall-hung' },
+        ],
+      },
+      { kind: 'color', key: 'cabinetColor', label: 'Cabinet (vanity)', default: '#8a6b48' },
+      {
+        kind: 'enum',
+        key: 'cabinetFinish',
+        label: 'Cabinet finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+    ],
   },
   shower: {
     kind: 'parametric',
