@@ -47,10 +47,12 @@ export function QualityController() {
     if (fps < FPS_FLOOR) {
       a.lowWindows++;
       if (a.lowWindows >= 2) {
-        // ~3s sustained below floor → drop one tier.
-        const cur = useStore.getState().qualityTier;
-        const i = ORDER.indexOf(cur);
-        if (i > 0) useStore.getState().autoSetQualityTier(ORDER[i - 1]);
+        // ~3s sustained below floor → drop one tier, or — once bottomed out at
+        // Low — shed the sun-shadow pass as a final fallback to hold 30fps.
+        const st = useStore.getState();
+        const i = ORDER.indexOf(st.qualityTier);
+        if (i > 0) st.autoSetQualityTier(ORDER[i - 1]);
+        else if (!st.autoShadowsOff) st.setAutoShadowsOff(true);
         a.lowWindows = 0;
       }
     } else {

@@ -28,6 +28,10 @@ export interface UiSlice {
   qualityOverrides: Partial<QualitySettings>;
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode;
+  /** Adaptive last-resort: when the FPS guard is already at the Low tier and
+   *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
+   *  remaining cost). Not a user setting; reset when a tier is picked manually. */
+  autoShadowsOff: boolean;
   setCatalogOpen: (open: boolean) => void;
   toggleCatalogOpen: () => void;
   setEditorTool: (tool: EditorTool) => void;
@@ -47,6 +51,7 @@ export interface UiSlice {
   setLightsMode: (m: LightsMode) => void;
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void;
+  setAutoShadowsOff: (v: boolean) => void;
 }
 
 export const UI_INITIAL: Pick<
@@ -58,6 +63,7 @@ export const UI_INITIAL: Pick<
   | 'qualityUserSet'
   | 'qualityOverrides'
   | 'lightsMode'
+  | 'autoShadowsOff'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -66,6 +72,7 @@ export const UI_INITIAL: Pick<
   qualityUserSet: false,
   qualityOverrides: {},
   lightsMode: 'auto',
+  autoShadowsOff: false,
 };
 
 const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
@@ -80,12 +87,14 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
     set((s) => ({ editorTool: s.editorTool === 'orbit' ? 'select' : 'orbit' })),
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
-  setQualityTier: (t) => set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {} }),
+  setQualityTier: (t) =>
+    set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false }),
   cycleQuality: () =>
     set((s) => ({
       qualityTier: CYCLE[(CYCLE.indexOf(s.qualityTier) + 1) % CYCLE.length],
       qualityUserSet: true,
       qualityOverrides: {},
+      autoShadowsOff: false,
     })),
   autoSetQualityTier: (t) =>
     set((s) => (s.qualityUserSet || s.qualityTier === t ? {} : { qualityTier: t })),
@@ -100,4 +109,5 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
     set((s) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
     })),
+  setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
 });

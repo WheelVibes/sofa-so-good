@@ -25,4 +25,11 @@ describe('uiSlice lights mode', () => {
     cycle();
     expect(useStore.getState().lightsMode).toBe('auto');
   });
+
+  it('picking a tier manually clears the adaptive shadow-shed fallback', () => {
+    useStore.getState().setAutoShadowsOff(true);
+    expect(useStore.getState().autoShadowsOff).toBe(true);
+    useStore.getState().setQualityTier('low');
+    expect(useStore.getState().autoShadowsOff).toBe(false);
+  });
 });
