@@ -1305,6 +1305,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 1.0, max: 3.0, step: 0.1, default: 1.8, unit: 'm' },
       { kind: 'number', key: 'height', label: 'Height', min: 1.5, max: 2.5, step: 0.05, default: 2.3, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Fabric', default: '#c4b9a6' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'State',
+        default: 'drawn',
+        options: [
+          { value: 'drawn', label: 'Drawn (closed)' },
+          { value: 'open', label: 'Tied back (open)' },
+        ],
+      },
     ],
   },
   'wall-art': {
