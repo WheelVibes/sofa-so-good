@@ -496,6 +496,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#9a8a72' },
       {
         kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'closed',
+        options: [
+          { value: 'closed', label: 'Closed (flip fronts)' },
+          { value: 'open', label: 'Open rack' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Finish',
         default: 'wood',
