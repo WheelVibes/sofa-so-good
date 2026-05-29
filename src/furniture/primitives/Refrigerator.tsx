@@ -1,4 +1,5 @@
 import { readNum, readStr } from './shared';
+import { applianceFinish } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Two-door (fridge + freezer) upright refrigerator with recessed handles. */
@@ -7,9 +8,10 @@ export function Refrigerator({ props }: { props: ParamProps }) {
   const depth = readNum(props, 'depth', 0.7);
   const height = readNum(props, 'height', 1.78);
   const color = readStr(props, 'color', '#d8dade');
+  const finish = readStr(props, 'finish', 'steel');
 
   const split = height * 0.66; // freezer drawer below
-  const body = { color, roughness: 0.35, metalness: 0.55 };
+  const body = { color, ...applianceFinish(finish) };
   const handleMat = { color: '#9aa0a6', roughness: 0.3, metalness: 0.7 };
 
   return (

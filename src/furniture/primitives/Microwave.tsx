@@ -1,4 +1,5 @@
 import { readNum, readStr } from './shared';
+import { applianceFinish } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Countertop microwave: body + glazed door + control strip. Sits at
@@ -6,10 +7,11 @@ import type { ParamProps } from '../types';
 export function Microwave({ props }: { props: ParamProps }) {
   const surfaceH = readNum(props, 'surfaceHeight', 0.9);
   const color = readStr(props, 'color', '#3b3e44');
+  const finish = readStr(props, 'finish', 'gloss');
   const w = 0.5;
   const h = 0.3;
   const d = 0.36;
-  const body = { color, roughness: 0.4, metalness: 0.45 };
+  const body = { color, ...applianceFinish(finish) };
 
   return (
     <group position={[0, surfaceH, 0]}>

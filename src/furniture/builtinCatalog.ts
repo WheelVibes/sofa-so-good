@@ -926,7 +926,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     verticalSpan: { base: 0.9, top: 1.22 },
     paramSchema: [
       { kind: 'number', key: 'surfaceHeight', label: 'Sits at', min: 0, max: 1.2, step: 0.02, default: 0.9, unit: 'm' },
-      { kind: 'color', key: 'color', label: 'Finish', default: '#3b3e44' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#3b3e44' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'gloss',
+        options: [
+          { value: 'matte', label: 'Matte' },
+          { value: 'steel', label: 'Stainless steel' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   refrigerator: {
@@ -938,7 +949,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 0.7, d: 0.7, h: 1.78 },
     paramSchema: [
       { kind: 'number', key: 'height', label: 'Height', min: 1.4, max: 1.9, step: 0.02, default: 1.78, unit: 'm' },
-      { kind: 'color', key: 'color', label: 'Finish', default: '#d8dade' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#d8dade' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'steel',
+        options: [
+          { value: 'matte', label: 'Matte' },
+          { value: 'steel', label: 'Stainless steel' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   'flatscreen-tv': {
@@ -1129,7 +1151,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 0.6, max: 0.9, step: 0.05, default: 0.7, unit: 'm' },
       { kind: 'number', key: 'mountHeight', label: 'Underside', min: 1.3, max: 1.6, step: 0.05, default: 1.45, unit: 'm' },
-      { kind: 'color', key: 'color', label: 'Finish', default: '#c4c8cc' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#c4c8cc' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'steel',
+        options: [
+          { value: 'matte', label: 'Matte' },
+          { value: 'steel', label: 'Stainless steel' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   stove: {
@@ -1139,7 +1172,20 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'kitchen',
     primitive: 'Stove',
     defaultFootprint: { w: 0.6, d: 0.6, h: 0.92 },
-    paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#cfd2d6' }],
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Colour', default: '#cfd2d6' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'steel',
+        options: [
+          { value: 'matte', label: 'Matte' },
+          { value: 'steel', label: 'Stainless steel' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+    ],
   },
   'drying-rack': {
     kind: 'parametric',
@@ -1160,7 +1206,20 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'appliances',
     primitive: 'WashingMachine',
     defaultFootprint: { w: 0.6, d: 0.6, h: 0.85 },
-    paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#eef0f2' }],
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Colour', default: '#eef0f2' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'matte',
+        options: [
+          { value: 'matte', label: 'Matte' },
+          { value: 'steel', label: 'Stainless steel' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+    ],
   },
   'ceiling-fan': {
     kind: 'parametric',

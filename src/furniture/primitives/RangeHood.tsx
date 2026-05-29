@@ -1,4 +1,5 @@
 import { readNum, readStr } from './shared';
+import { applianceFinish } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Chimney range hood mounted above a stove: tapered canopy + duct cover.
@@ -8,7 +9,8 @@ export function RangeHood({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 0.7);
   const mountH = readNum(props, 'mountHeight', 1.45); // canopy underside height
   const color = readStr(props, 'color', '#c4c8cc');
-  const metal = { color, roughness: 0.35, metalness: 0.6 };
+  const finish = readStr(props, 'finish', 'steel');
+  const metal = { color, ...applianceFinish(finish) };
 
   const canopyH = 0.16;
   const depth = 0.45;

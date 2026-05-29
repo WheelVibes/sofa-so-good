@@ -23,9 +23,11 @@ colour/finish/material/sheen controls):
   material/sheen; ~~Floor mirror~~ rect-leaning / round-cheval; ~~Wall clock~~
   round / square + quarter / all-hour markers.
 
-Still to extend for shape/size variety (follow-up): dining table (oval /
-extending leaf), wardrobe interior layouts, shoe cabinet open-shelf option,
-wall shelf (floating cleat / two-tier), bed frame styles (platform / storage).
+Follow-up shape/size variants — ~~dining table oval (twin-pedestal)~~,
+~~shoe cabinet open rack~~, ~~wall shelf floating / two-tier~~, ~~bed base
+platform / storage~~ — all shipped (2026-05-29). Remaining: wardrobe interior
+layouts; appliance/fixture colour + finish configurability audit (fridge,
+washer, stove, aircon, etc.) so colour/material applies everywhere.
 
 ## Realism & content pass (2026-05-29)
 

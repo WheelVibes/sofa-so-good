@@ -261,3 +261,21 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
   cache.set(key, m);
   return m;
 }
+
+/**
+ * Surface-finish presets for hard appliance/fixture bodies. Returns plain
+ * `meshStandardMaterial` props (roughness/metalness) to spread onto a mesh
+ * material so the same painted/steel/gloss look is consistent across the
+ * fridge, washer, oven, hood, microwave, etc. Colour is supplied separately.
+ */
+export function applianceFinish(finish: string): { roughness: number; metalness: number } {
+  switch (finish) {
+    case 'steel': // brushed stainless steel
+      return { roughness: 0.3, metalness: 0.88 };
+    case 'gloss': // glossy lacquer / glass front
+      return { roughness: 0.12, metalness: 0.25 };
+    case 'matte': // painted matte
+    default:
+      return { roughness: 0.55, metalness: 0.1 };
+  }
+}

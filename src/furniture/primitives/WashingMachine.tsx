@@ -1,14 +1,16 @@
 import { readStr } from './shared';
+import { applianceFinish } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Front-load washing machine: body + recessed circular door + control
  *  panel. Faces +Z. */
 export function WashingMachine({ props }: { props: ParamProps }) {
   const color = readStr(props, 'color', '#eef0f2');
+  const finish = readStr(props, 'finish', 'matte');
   const w = 0.6;
   const d = 0.6;
   const h = 0.85;
-  const body = { color, roughness: 0.35, metalness: 0.4 };
+  const body = { color, ...applianceFinish(finish) };
 
   return (
     <group>
