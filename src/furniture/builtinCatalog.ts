@@ -340,6 +340,40 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     ],
   },
 
+  stove: {
+    kind: 'parametric',
+    id: 'stove',
+    name: 'Cooker / stove',
+    category: 'kitchen',
+    primitive: 'Stove',
+    defaultFootprint: { w: 0.6, d: 0.6, h: 0.92 },
+    paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#cfd2d6' }],
+  },
+  'washing-machine': {
+    kind: 'parametric',
+    id: 'washing-machine',
+    name: 'Washing machine',
+    category: 'appliances',
+    primitive: 'WashingMachine',
+    defaultFootprint: { w: 0.6, d: 0.6, h: 0.85 },
+    paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#eef0f2' }],
+  },
+  'ceiling-fan': {
+    kind: 'parametric',
+    id: 'ceiling-fan',
+    name: 'Ceiling fan',
+    category: 'appliances',
+    primitive: 'CeilingFan',
+    defaultFootprint: { w: 1.3, d: 1.3, h: 0.4 },
+    mounted: true,
+    verticalSpan: { base: 2.1, top: 2.7 },
+    paramSchema: [
+      { kind: 'integer', key: 'blades', label: 'Blades', min: 2, max: 5, default: 3 },
+      { kind: 'number', key: 'span', label: 'Span', min: 0.9, max: 1.6, step: 0.05, default: 1.3, unit: 'm' },
+      { kind: 'color', key: 'bladeColor', label: 'Blades colour', default: '#6b4f34' },
+    ],
+  },
+
   // ── Lighting ────────────────────────────────────────────────────────────
   'floor-lamp': {
     kind: 'parametric',
@@ -391,6 +425,21 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.6, max: 2.4, step: 0.1, default: 1.4, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Field', default: '#9c8f7a' },
       { kind: 'color', key: 'borderColor', label: 'Border', default: '#6e5f4c' },
+    ],
+  },
+  curtains: {
+    kind: 'parametric',
+    id: 'curtains',
+    name: 'Curtains',
+    category: 'decor',
+    primitive: 'Curtain',
+    defaultFootprint: { w: 1.8, d: 0.12, h: 2.3 },
+    mounted: true,
+    verticalSpan: { base: 0, top: 2.4 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 1.0, max: 3.0, step: 0.1, default: 1.8, unit: 'm' },
+      { kind: 'number', key: 'height', label: 'Height', min: 1.5, max: 2.5, step: 0.05, default: 2.3, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Fabric', default: '#c4b9a6' },
     ],
   },
   'potted-plant': {

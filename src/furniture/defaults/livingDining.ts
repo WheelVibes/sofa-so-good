@@ -40,7 +40,7 @@ export const livingDining: LayoutEntry[] = [
   { id: 'default-ld-armchair', defId: 'armchair', position: [11.4, 7.3], rotation: Math.PI, props: {} },
   { id: 'default-ld-plant', defId: 'potted-plant', position: [12.2, 6.3], rotation: 0, props: { size: 'large' } },
   { id: 'default-ld-lamp', defId: 'floor-lamp', position: [9.35, 1.95], rotation: 0, props: {} },
-  { id: 'default-ld-pendant', defId: 'ceiling-light', position: [10.65, 3.55], rotation: 0, props: { style: 'pendant' } },
+  { id: 'default-ld-fan', defId: 'ceiling-fan', position: [10.65, 3.55], rotation: 0, props: {} },
   { id: 'default-ld-pendant-dining', defId: 'ceiling-light', position: [10.55, 5.20], rotation: 0, props: { style: 'pendant' } },
   { id: 'default-ld-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
 ];

@@ -65,7 +65,11 @@ export type PrimitiveKind =
   | 'FloorLamp'
   | 'Toilet'
   | 'BathroomSink'
-  | 'CeilingLight';
+  | 'CeilingLight'
+  | 'CeilingFan'
+  | 'Stove'
+  | 'WashingMachine'
+  | 'Curtain';
 
 export type ParamField =
   | {

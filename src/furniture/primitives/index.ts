@@ -28,6 +28,10 @@ import { FloorLamp } from './FloorLamp';
 import { Toilet } from './Toilet';
 import { BathroomSink } from './BathroomSink';
 import { CeilingLight } from './CeilingLight';
+import { CeilingFan } from './CeilingFan';
+import { Stove } from './Stove';
+import { WashingMachine } from './WashingMachine';
+import { Curtain } from './Curtain';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -53,4 +57,8 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Toilet,
   BathroomSink,
   CeilingLight,
+  CeilingFan,
+  Stove,
+  WashingMachine,
+  Curtain,
 };
