@@ -4,14 +4,12 @@
 import puppeteer from 'puppeteer';
 import fs from 'node:fs';
 
-const CHROME = '/root/.cache/puppeteer/chrome/linux-149.0.7827.22/chrome-linux64/chrome';
 const out = process.argv[2] || '/tmp/shot.png';
 const waitMs = Number(process.argv[3] || 6000);
 const evalFile = process.argv[4];
 const actionsArg = process.argv[5];
 
 const browser = await puppeteer.launch({
-  executablePath: CHROME,
   headless: 'shell',
   args: [
     '--no-sandbox', '--disable-setuid-sandbox',

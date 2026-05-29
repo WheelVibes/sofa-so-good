@@ -1,11 +1,9 @@
 // Measures average FPS under a populated scene (software WebGL, so absolute
 // numbers are low — use for RELATIVE before/after comparisons).
 import puppeteer from 'puppeteer';
-const CHROME = '/root/.cache/puppeteer/chrome/linux-149.0.7827.22/chrome-linux64/chrome';
 const count = Number(process.argv[2] || 80);
 
 const browser = await puppeteer.launch({
-  executablePath: CHROME,
   headless: 'shell',
   args: ['--no-sandbox', '--use-gl=angle', '--use-angle=swiftshader',
     '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--window-size=1400,900'],
