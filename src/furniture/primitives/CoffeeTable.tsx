@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Low coffee table: top + lower shelf + four legs. */
@@ -7,6 +7,7 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 1.1);
   const depth = readNum(props, 'depth', 0.55);
   const color = readStr(props, 'color', '#6f553f');
+  const finish = readStr(props, 'finish', 'wood');
 
   const totalH = 0.42;
   const topT = 0.04;
@@ -14,7 +15,7 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
   const inset = legT / 2 + 0.03;
   const shelfY = 0.12;
 
-  const wood = getWoodMaterial(color, 1.6);
+  const wood = getSurfaceMaterial(finish, color, 1.6);
   const xs = [-width / 2 + inset, width / 2 - inset];
   const zs = [-depth / 2 + inset, depth / 2 - inset];
 

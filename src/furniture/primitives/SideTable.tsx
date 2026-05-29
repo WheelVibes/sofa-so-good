@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Small round side / end table — a round top on three splayed legs. Sits
@@ -9,11 +9,12 @@ export function SideTable({ props }: { props: ParamProps }) {
   const totalH = readNum(props, 'height', 0.5);
   const topColor = readStr(props, 'topColor', '#9e7b53');
   const legColor = readStr(props, 'legColor', '#4a3722');
+  const finish = readStr(props, 'finish', 'wood');
 
   const r = diameter / 2;
   const topThk = 0.035;
   const legR = 0.018;
-  const topMat = getWoodMaterial(topColor, 0.8);
+  const topMat = getSurfaceMaterial(finish, topColor, 0.8);
   const legH = totalH - topThk;
   const splay = r * 0.62;
 

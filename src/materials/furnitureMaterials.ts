@@ -154,6 +154,29 @@ export function getUpholsteryMaterial(kind: string, color: string): MeshStandard
   return getFabricMaterial(color);
 }
 
+/** Flat painted material — matte by default, or glossy (lacquered) when
+ *  `gloss` is set. No grain, so it reads as a painted/laminate surface. */
+export function getPaintedMaterial(color: string, gloss = false): MeshStandardMaterial {
+  const key = `paint:${color}:${gloss ? 'g' : 'm'}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const m = new MeshStandardMaterial({
+    color,
+    roughness: gloss ? 0.16 : 0.72,
+    metalness: gloss ? 0.1 : 0.0,
+  });
+  cache.set(key, m);
+  return m;
+}
+
+/** Dispatch a hard-surface material by finish kind ('wood' | 'painted' |
+ *  'gloss'), tinted to `color`. Wood keeps its grain; painted/gloss are flat. */
+export function getSurfaceMaterial(kind: string, color: string, repeat = 1): MeshStandardMaterial {
+  if (kind === 'painted') return getPaintedMaterial(color, false);
+  if (kind === 'gloss') return getPaintedMaterial(color, true);
+  return getWoodMaterial(color, repeat);
+}
+
 /** Wood material whose grain is tinted by `color`. `repeat` tiles the grain
  *  (defaults suit a ~1 m piece). */
 export function getWoodMaterial(color: string, repeat = 1): MeshStandardMaterial {

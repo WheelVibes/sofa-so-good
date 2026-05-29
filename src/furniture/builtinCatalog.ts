@@ -190,6 +190,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       },
       { kind: 'color', key: 'topColor', label: 'Top', default: '#9e7b53' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#5b4126' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Top finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   desk: {
@@ -346,6 +357,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 1.4, step: 0.05, default: 1.1, unit: 'm' },
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.4, max: 0.7, step: 0.05, default: 0.55, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Colour', default: '#6f553f' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   'side-table': {
@@ -361,6 +383,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'height', label: 'Height', min: 0.4, max: 0.65, step: 0.05, default: 0.5, unit: 'm' },
       { kind: 'color', key: 'topColor', label: 'Top', default: '#9e7b53' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#4a3722' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Top finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   nightstand: {
