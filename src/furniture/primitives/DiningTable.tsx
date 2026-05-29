@@ -53,6 +53,27 @@ export function DiningTable({ props }: DiningTableProps) {
           <boxGeometry args={[legThickness, totalH - topThickness, legThickness]} />
         </mesh>
       ))}
+      {/* Apron rails just under the top, connecting the legs. */}
+      {(() => {
+        const apronH = 0.06;
+        const apronY = totalH - topThickness - apronH / 2 - 0.01;
+        const innerW = dim.w - legInset * 2;
+        const innerD = dim.d - legInset * 2;
+        return (
+          <>
+            {[zN, zS].map((z, i) => (
+              <mesh key={`la${i}`} castShadow position={[0, apronY, z]} material={legMat}>
+                <boxGeometry args={[innerW, apronH, 0.03]} />
+              </mesh>
+            ))}
+            {[xL, xR].map((x, i) => (
+              <mesh key={`wa${i}`} castShadow position={[x, apronY, 0]} material={legMat}>
+                <boxGeometry args={[0.03, apronH, innerD]} />
+              </mesh>
+            ))}
+          </>
+        );
+      })()}
     </group>
   );
 }
