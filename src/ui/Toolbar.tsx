@@ -10,6 +10,7 @@ import type { SlotMeta } from '../state/storage/StorageAdapter';
 import { CreditsModal } from './CreditsModal';
 import { QUALITY_LABEL } from '../scene/quality';
 import { GraphicsSettings } from './GraphicsSettings';
+import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
 export function Toolbar() {
   const cameraMode = useStore((s) => s.cameraMode);
@@ -69,6 +70,13 @@ export function Toolbar() {
           <Divider />
           <SaveButton />
           <LoadButton />
+          <button
+            onClick={() => window.dispatchEvent(new Event(EXPORT_EVENT))}
+            title="Export the current view as a PNG"
+            className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+          >
+            Export
+          </button>
         </>
       ) : null}
       <Divider />

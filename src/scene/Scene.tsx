@@ -17,6 +17,7 @@ import { PlacementGhost } from './PlacementGhost';
 import { DragController } from './DragController';
 import { Effects } from './Effects';
 import { QualityController } from './QualityController';
+import { ScreenshotController } from './ScreenshotController';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
@@ -48,6 +49,7 @@ export function Scene() {
       <MeasurementOverlay />
       <Effects />
       <QualityController />
+      <ScreenshotController />
       {showFps ? <Stats /> : null}
     </Canvas>
   );
