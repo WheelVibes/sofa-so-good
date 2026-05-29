@@ -17,6 +17,7 @@ export function Sofa({ props }: SofaProps) {
   const depth = readNum(props, 'depth', 0.9);
   const cushionCount = Math.max(1, Math.floor(readNum(props, 'cushionCount', 3)));
   const color = readStr(props, 'color', '#8aa1a8');
+  const pillowColor = readStr(props, 'pillowColor', '#c8775c');
 
   const seatH = 0.42;
   const baseH = 0.2;
@@ -65,6 +66,19 @@ export function Sofa({ props }: SofaProps) {
           />
         );
       })}
+      {/* Accent throw pillows against the back, near each arm */}
+      {[-1, 1].map((s) => (
+        <RoundedBox
+          key={`p${s}`}
+          args={[0.34, 0.34, 0.12]}
+          radius={0.05}
+          smoothness={2}
+          castShadow
+          position={[s * (innerW / 2 - 0.22), baseH + cushionH + 0.17, -depth / 2 + 0.28]}
+          rotation={[0.32, s * 0.18, s * 0.12]}
+          material={getFabricMaterial(pillowColor)}
+        />
+      ))}
       {/* Feet */}
       {[-1, 1].map((sx) =>
         [-1, 1].map((sz) => (

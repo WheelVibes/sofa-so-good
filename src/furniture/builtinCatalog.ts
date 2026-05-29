@@ -123,6 +123,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.85, max: 1.0, step: 0.05, default: 0.9, unit: 'm' },
       { kind: 'integer', key: 'cushionCount', label: 'Cushions', min: 2, max: 4, default: 3 },
       { kind: 'color', key: 'color', label: 'Upholstery', default: '#8aa1a8' },
+      { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#c8775c' },
     ],
   },
   'sofa-2seat': {
@@ -137,6 +138,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.85, max: 1.0, step: 0.05, default: 0.9, unit: 'm' },
       { kind: 'integer', key: 'cushionCount', label: 'Cushions', min: 2, max: 3, default: 2 },
       { kind: 'color', key: 'color', label: 'Upholstery', default: '#8aa1a8' },
+      { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#c8775c' },
     ],
   },
 
