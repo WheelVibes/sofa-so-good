@@ -327,6 +327,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 1.0, max: 2.4, step: 0.1, default: 1.5, unit: 'm' },
       { kind: 'integer', key: 'doorCount', label: 'Doors', min: 2, max: 4, default: 3 },
+      {
+        kind: 'enum',
+        key: 'doorStyle',
+        label: 'Doors style',
+        default: 'hinged',
+        options: [
+          { value: 'hinged', label: 'Hinged' },
+          { value: 'sliding', label: 'Sliding' },
+        ],
+      },
       { kind: 'color', key: 'color', label: 'Colour', default: '#caa478' },
       {
         kind: 'enum',
