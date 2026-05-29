@@ -25,9 +25,13 @@ colour/finish/material/sheen controls):
 
 Follow-up shape/size variants — ~~dining table oval (twin-pedestal)~~,
 ~~shoe cabinet open rack~~, ~~wall shelf floating / two-tier~~, ~~bed base
-platform / storage~~ — all shipped (2026-05-29). Remaining: wardrobe interior
-layouts; appliance/fixture colour + finish configurability audit (fridge,
-washer, stove, aircon, etc.) so colour/material applies everywhere.
+platform / storage~~, ~~wardrobe open interior (rail + clothes + shelves)~~,
+~~bathroom basin pedestal/vanity/wall-hung~~, ~~appliance finish matte/steel/
+gloss (fridge, washer, stove, microwave, hood)~~ — all shipped (2026-05-29).
+
+Possible further polish: patterned upholstery textures (stripes / herringbone
+needs new procedural generators); toilet one-piece/wall-hung; shower enclosure
+glass vs open; kitchen counter door/drawer fronts.
 
 ## Realism & content pass (2026-05-29)
 
