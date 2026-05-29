@@ -158,6 +158,31 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     ],
   },
 
+  'bunk-bed': {
+    kind: 'parametric',
+    id: 'bunk-bed',
+    name: 'Bunk bed',
+    category: 'beds',
+    primitive: 'BunkBed',
+    defaultFootprint: { w: 0.95, d: 1.95, h: 1.62 },
+    paramSchema: [
+      { kind: 'color', key: 'lowerBedding', label: 'Lower bedding', default: '#c9d3da' },
+      { kind: 'color', key: 'upperBedding', label: 'Upper bedding', default: '#d9c3b0' },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#b8895a' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Frame finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+    ],
+  },
+
   // ── Seating ─────────────────────────────────────────────────────────────
   'sofa-3seat': {
     kind: 'parametric',
