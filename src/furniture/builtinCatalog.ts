@@ -697,6 +697,21 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'borderColor', label: 'Border', default: '#6e5f4c' },
     ],
   },
+  'roller-blind': {
+    kind: 'parametric',
+    id: 'roller-blind',
+    name: 'Roller blind',
+    category: 'decor',
+    primitive: 'RollerBlind',
+    defaultFootprint: { w: 1.2, d: 0.12, h: 2.3 },
+    noClip: true,
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.6, max: 2.6, step: 0.1, default: 1.2, unit: 'm' },
+      { kind: 'number', key: 'height', label: 'Top height', min: 1.8, max: 2.5, step: 0.05, default: 2.3, unit: 'm' },
+      { kind: 'number', key: 'drop', label: 'Drop', min: 0.4, max: 2.2, step: 0.1, default: 1.7, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Fabric', default: '#d8d2c4' },
+    ],
+  },
   curtains: {
     kind: 'parametric',
     id: 'curtains',
