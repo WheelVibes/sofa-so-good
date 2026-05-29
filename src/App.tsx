@@ -168,20 +168,55 @@ export default function App() {
         }
       }
       if (!mod && code === KEYBINDINGS.rotate && state.selectedItemId) {
-        const item = state.items.find((i) => i.id === state.selectedItemId);
-        const def = item ? catalog[item.defId] : null;
-        if (!item || !def) return;
         const step = e.shiftKey ? ROTATE_FINE_STEP : ROTATE_STEP;
-        const nextRotation = item.rotation + step;
-        const candidate = { ...item, rotation: nextRotation };
-        const ok = canPlace(candidate, def, {
-          others: state.items,
-          defs: catalog,
-          doors: state.doors,
+        const ids = state.selectedItemIds.length > 0 ? state.selectedItemIds : [state.selectedItemId];
+        const group = state.items.filter((i) => ids.includes(i.id));
+        if (group.length === 0) return;
+
+        if (group.length === 1) {
+          const item = group[0];
+          const def = catalog[item.defId];
+          if (!def) return;
+          const nextRotation = item.rotation + step;
+          const ok = canPlace({ ...item, rotation: nextRotation }, def, {
+            others: state.items,
+            defs: catalog,
+            doors: state.doors,
+          });
+          if (ok) {
+            state.pushHistory();
+            state.rotateItem(item.id, nextRotation);
+          }
+          return;
+        }
+
+        // Group rotate: spin every selected item around the group centroid by
+        // `step`, preserving the arrangement. Apply only if all fit.
+        const cx = group.reduce((a, i) => a + i.position[0], 0) / group.length;
+        const cz = group.reduce((a, i) => a + i.position[1], 0) / group.length;
+        const cos = Math.cos(step);
+        const sin = Math.sin(step);
+        const candidates = group.map((i) => {
+          const dx = i.position[0] - cx;
+          const dz = i.position[1] - cz;
+          return {
+            ...i,
+            position: [cx + dx * cos - dz * sin, cz + dx * sin + dz * cos] as [number, number],
+            rotation: i.rotation + step,
+          };
         });
-        if (ok) {
+        const byId = new Map(candidates.map((c) => [c.id, c]));
+        const merged = state.items.map((i) => byId.get(i.id) ?? i);
+        const allFit = candidates.every((c) => {
+          const def = catalog[c.defId];
+          return def && canPlace(c, def, { others: merged, defs: catalog, doors: state.doors });
+        });
+        if (allFit) {
           state.pushHistory();
-          state.rotateItem(item.id, nextRotation);
+          for (const c of candidates) {
+            state.rotateItem(c.id, c.rotation);
+            state.moveItem(c.id, c.position);
+          }
         }
       }
       if (code === KEYBINDINGS.toggleEditorTool) {
