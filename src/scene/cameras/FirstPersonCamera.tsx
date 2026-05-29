@@ -85,6 +85,8 @@ export function FirstPersonCamera() {
 
   useEffect(() => {
     camera.position.set(11, EYE_HEIGHT, 6);
+    // Face into the living/dining instead of inheriting the orbit angle.
+    camera.lookAt(10.4, EYE_HEIGHT, 2.5);
     yPos.current = EYE_HEIGHT;
     yVel.current = 0;
     groundY.current = EYE_HEIGHT;
