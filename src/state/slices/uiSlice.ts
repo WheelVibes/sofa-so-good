@@ -30,6 +30,8 @@ export interface UiSlice {
   lightsMode: LightsMode;
   /** Snap dragged furniture to a fixed grid for precise alignment. */
   snapEnabled: boolean;
+  /** True while recording the canvas to a downloadable video clip. */
+  recording: boolean;
   /** Adaptive last-resort: when the FPS guard is already at the Low tier and
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
@@ -55,6 +57,7 @@ export interface UiSlice {
   cycleLightsMode: () => void;
   setAutoShadowsOff: (v: boolean) => void;
   toggleSnap: () => void;
+  setRecording: (v: boolean) => void;
 }
 
 export const UI_INITIAL: Pick<
@@ -68,6 +71,7 @@ export const UI_INITIAL: Pick<
   | 'lightsMode'
   | 'autoShadowsOff'
   | 'snapEnabled'
+  | 'recording'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -78,6 +82,7 @@ export const UI_INITIAL: Pick<
   lightsMode: 'auto',
   autoShadowsOff: false,
   snapEnabled: false,
+  recording: false,
 };
 
 const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
@@ -116,4 +121,5 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
+  setRecording: (v) => set({ recording: v }),
 });

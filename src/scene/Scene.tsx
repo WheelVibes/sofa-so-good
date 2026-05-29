@@ -19,6 +19,7 @@ import { DragController } from './DragController';
 import { Effects } from './Effects';
 import { QualityController } from './QualityController';
 import { ScreenshotController } from './ScreenshotController';
+import { RecordController } from './RecordController';
 import { DevCameraExpose } from './DevCameraExpose';
 
 export function Scene() {
@@ -53,6 +54,7 @@ export function Scene() {
       <Effects />
       <QualityController />
       <ScreenshotController />
+      <RecordController />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
       {showFps ? <Stats /> : null}
     </Canvas>

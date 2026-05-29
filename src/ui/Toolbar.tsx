@@ -11,6 +11,7 @@ import { CreditsModal } from './CreditsModal';
 import { QUALITY_LABEL } from '../scene/quality';
 import { GraphicsSettings } from './GraphicsSettings';
 import { STYLE_PRESETS, applyStyle } from '../materials/stylePresets';
+import { canRecord } from '../scene/RecordController';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
 export function Toolbar() {
@@ -91,6 +92,7 @@ export function Toolbar() {
           >
             Export
           </button>
+          <RecordButton />
         </>
       ) : null}
       <Divider />
@@ -126,6 +128,24 @@ function LightsToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${active ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Lights: {LIGHTS_LABEL[lightsMode]}
+    </button>
+  );
+}
+
+/** Records the live view to a downloadable .webm clip (pair with Turntable
+ *  for an auto-orbiting presentation video). Hidden if unsupported. */
+function RecordButton() {
+  const recording = useStore((s) => s.recording);
+  const setRecording = useStore((s) => s.setRecording);
+  if (!canRecord()) return null;
+  return (
+    <button
+      onClick={() => setRecording(!recording)}
+      title={recording ? 'Stop recording and download the clip' : 'Record a video clip of the view (.webm)'}
+      className={`flex items-center gap-1.5 whitespace-nowrap rounded px-3 py-1 text-sm ${recording ? 'bg-red-600 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      <span className={`inline-block h-2 w-2 rounded-full ${recording ? 'animate-pulse bg-white' : 'bg-red-600'}`} />
+      {recording ? 'Stop' : 'Record'}
     </button>
   );
 }
