@@ -1,8 +1,9 @@
+import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
 import type { ParamProps } from '../types';
 
-/** Upholstered armchair: base + seat cushion + back cushion + two arms.
- *  Faces +Z. */
+/** Upholstered armchair: base + seat cushion + back cushion + two arms,
+ *  all softly rounded. Faces +Z. */
 export function Armchair({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 0.85);
   const depth = readNum(props, 'depth', 0.85);
@@ -20,26 +21,22 @@ export function Armchair({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Base */}
-      <mesh castShadow receiveShadow position={[0, baseH / 2, 0]}>
-        <boxGeometry args={[width, baseH, depth]} />
+      <RoundedBox args={[width, baseH, depth]} radius={0.05} smoothness={2} castShadow receiveShadow position={[0, baseH / 2, 0]}>
         <meshStandardMaterial color={color} {...fabric} />
-      </mesh>
+      </RoundedBox>
       {/* Seat cushion */}
-      <mesh castShadow position={[0, seatH + cushionH / 2, 0.03]}>
-        <boxGeometry args={[innerW, cushionH, depth - 0.18]} />
+      <RoundedBox args={[innerW, cushionH, depth - 0.18]} radius={0.05} smoothness={2} castShadow position={[0, seatH + cushionH / 2, 0.03]}>
         <meshStandardMaterial color={color} {...fabric} />
-      </mesh>
+      </RoundedBox>
       {/* Back cushion */}
-      <mesh castShadow position={[0, seatH + backH / 2, -depth / 2 + 0.1]}>
-        <boxGeometry args={[innerW, backH, 0.18]} />
+      <RoundedBox args={[innerW, backH, 0.18]} radius={0.05} smoothness={2} castShadow position={[0, seatH + backH / 2, -depth / 2 + 0.1]}>
         <meshStandardMaterial color={color} {...fabric} />
-      </mesh>
+      </RoundedBox>
       {/* Arms */}
       {[-1, 1].map((s) => (
-        <mesh key={s} castShadow position={[s * (width - armW) / 2, seatH * 0.75, 0]}>
-          <boxGeometry args={[armW, seatH * 0.9 + cushionH, depth]} />
+        <RoundedBox key={s} args={[armW, seatH * 0.9 + cushionH, depth]} radius={0.05} smoothness={2} castShadow position={[s * (width - armW) / 2, seatH * 0.75, 0]}>
           <meshStandardMaterial color={color} {...fabric} />
-        </mesh>
+        </RoundedBox>
       ))}
       {/* Feet */}
       {[-1, 1].map((sx) =>
