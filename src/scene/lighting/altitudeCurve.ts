@@ -4,6 +4,10 @@ export interface LightingValues {
   sun: number;
   ambient: number;
   sunColor: [number, number, number];
+  /** Hemisphere sky tint — light arriving from above (RGB 0..1). */
+  skyColor: [number, number, number];
+  /** Hemisphere ground-bounce tint — light arriving from below (RGB 0..1). */
+  groundColor: [number, number, number];
 }
 
 export interface SkyValues {
@@ -25,11 +29,11 @@ interface SkyKey {
 
 /** Sorted by altitude descending. */
 const LIGHTING_KEYS: ReadonlyArray<LightingKey> = [
-  { altDeg: 30, values: { sun: 1.0, ambient: 0.6, sunColor: [1.0, 0.96, 0.88] } },
-  { altDeg: 10, values: { sun: 0.85, ambient: 0.55, sunColor: [1.0, 0.92, 0.78] } },
-  { altDeg: 0, values: { sun: 0.4, ambient: 0.4, sunColor: [1.0, 0.72, 0.42] } },
-  { altDeg: -6, values: { sun: 0.05, ambient: 0.18, sunColor: [0.45, 0.50, 0.65] } },
-  { altDeg: -12, values: { sun: 0, ambient: 0.12, sunColor: [0.24, 0.29, 0.42] } },
+  { altDeg: 30, values: { sun: 1.0, ambient: 0.6, sunColor: [1.0, 0.96, 0.88], skyColor: [0.55, 0.66, 0.92], groundColor: [0.42, 0.38, 0.34] } },
+  { altDeg: 10, values: { sun: 0.85, ambient: 0.55, sunColor: [1.0, 0.92, 0.78], skyColor: [0.62, 0.62, 0.78], groundColor: [0.40, 0.34, 0.30] } },
+  { altDeg: 0, values: { sun: 0.4, ambient: 0.4, sunColor: [1.0, 0.72, 0.42], skyColor: [0.72, 0.56, 0.46], groundColor: [0.34, 0.28, 0.25] } },
+  { altDeg: -6, values: { sun: 0.05, ambient: 0.18, sunColor: [0.45, 0.50, 0.65], skyColor: [0.30, 0.35, 0.52], groundColor: [0.18, 0.18, 0.23] } },
+  { altDeg: -12, values: { sun: 0, ambient: 0.12, sunColor: [0.24, 0.29, 0.42], skyColor: [0.16, 0.20, 0.34], groundColor: [0.10, 0.11, 0.16] } },
 ];
 
 const SKY_KEYS: ReadonlyArray<SkyKey> = [
@@ -44,15 +48,21 @@ function lerp(a: number, b: number, t: number): number {
   return a + (b - a) * t;
 }
 
+function lerp3(
+  a: [number, number, number],
+  b: [number, number, number],
+  t: number,
+): [number, number, number] {
+  return [lerp(a[0], b[0], t), lerp(a[1], b[1], t), lerp(a[2], b[2], t)];
+}
+
 function interpLighting(a: LightingValues, b: LightingValues, t: number): LightingValues {
   return {
     sun: lerp(a.sun, b.sun, t),
     ambient: lerp(a.ambient, b.ambient, t),
-    sunColor: [
-      lerp(a.sunColor[0], b.sunColor[0], t),
-      lerp(a.sunColor[1], b.sunColor[1], t),
-      lerp(a.sunColor[2], b.sunColor[2], t),
-    ],
+    sunColor: lerp3(a.sunColor, b.sunColor, t),
+    skyColor: lerp3(a.skyColor, b.skyColor, t),
+    groundColor: lerp3(a.groundColor, b.groundColor, t),
   };
 }
 

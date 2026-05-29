@@ -11,6 +11,8 @@ describe('lightingFromAltitude', () => {
     expect(v.sunColor[0]).toBeCloseTo(1.0, 2);
     expect(v.sunColor[1]).toBeCloseTo(0.96, 2);
     expect(v.sunColor[2]).toBeCloseTo(0.88, 2);
+    // Daytime hemisphere sky tint reads cool/blue (blue > red).
+    expect(v.skyColor[2]).toBeGreaterThan(v.skyColor[0]);
   });
 
   it('horizon (alt = 0) returns golden values', () => {
