@@ -4,7 +4,13 @@ import { useStore } from '../state/store';
 import { BUILTIN_MATERIALS } from './builtinCatalog';
 import { GENERATED_MATERIALS } from './generatedCatalog';
 import { buildMaterial, getCachedMaterial } from './cache';
-import type { MaterialDef, MaterialId, SolidMaterialDef, TexturedMaterialDef } from './types';
+import type {
+  MaterialDef,
+  MaterialId,
+  ProceduralMaterialDef,
+  SolidMaterialDef,
+  TexturedMaterialDef,
+} from './types';
 import type { MeshStandardMaterial } from 'three';
 
 /** Reactive hook returning the merged material catalog. */
@@ -29,6 +35,14 @@ export function useMaterialDef(id: MaterialId): MaterialDef {
 
 /** Hook for solid materials — no suspending loader, never throws. */
 export function useSolidMaterial(def: SolidMaterialDef): MeshStandardMaterial {
+  const cached = getCachedMaterial(def.id);
+  if (cached) return cached;
+  return buildMaterial(def);
+}
+
+/** Hook for procedural materials — generates PBR maps on first use and
+ *  caches them; synchronous, never suspends. */
+export function useProceduralMaterial(def: ProceduralMaterialDef): MeshStandardMaterial {
   const cached = getCachedMaterial(def.id);
   if (cached) return cached;
   return buildMaterial(def);

@@ -5,6 +5,8 @@ import type { RoomId } from '../../apartment/types';
 import {
   DEFAULT_FLOOR,
   DEFAULT_WALL,
+  DEFAULT_ROOM_FLOOR,
+  DEFAULT_ROOM_WALL,
 } from '../../materials/builtinCatalog';
 import type { MaterialId } from '../../materials/types';
 
@@ -21,16 +23,19 @@ export interface FinishesSlice {
   setWallFinish: (room: RoomId, id: MaterialId) => void;
 }
 
-function initialMap(material: MaterialId): Record<RoomId, MaterialId> {
+function initialMap(
+  fallback: MaterialId,
+  overrides: Partial<Record<RoomId, MaterialId>>,
+): Record<RoomId, MaterialId> {
   const out = {} as Record<RoomId, MaterialId>;
-  for (const id of Object.keys(ROOMS) as RoomId[]) out[id] = material;
+  for (const id of Object.keys(ROOMS) as RoomId[]) out[id] = overrides[id] ?? fallback;
   return out;
 }
 
 export const FINISHES_INITIAL: Pick<FinishesSlice, 'finishes'> = {
   finishes: {
-    floor: initialMap(DEFAULT_FLOOR),
-    walls: initialMap(DEFAULT_WALL),
+    floor: initialMap(DEFAULT_FLOOR, DEFAULT_ROOM_FLOOR),
+    walls: initialMap(DEFAULT_WALL, DEFAULT_ROOM_WALL),
   },
 };
 

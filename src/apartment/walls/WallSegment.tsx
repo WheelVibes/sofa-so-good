@@ -1,4 +1,4 @@
-import { Suspense, memo } from 'react';
+import { Suspense, memo, useMemo } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import type { MeshStandardMaterial } from 'three';
 import { FLAT, WALLS } from '../constants';
@@ -11,12 +11,15 @@ import {
 import { useStore } from '../../state/store';
 import {
   useMaterialDef,
+  useProceduralMaterial,
   useSolidMaterial,
   useTexturedMaterial,
 } from '../../materials/useMaterial';
+import { worldUvPlaneGeometry } from '../../materials/worldUv';
 import type { WallSpec, RoomId } from '../types';
 import type {
   MaterialId,
+  ProceduralMaterialDef,
   SolidMaterialDef,
   TexturedMaterialDef,
 } from '../../materials/types';
@@ -38,10 +41,9 @@ interface FacePlaneProps {
 function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, material }: FacePlaneProps) {
   const z = sign * (thickness / 2 + FACE_OFFSET);
   const yRot = sign === 1 ? 0 : Math.PI;
+  const geometry = useMemo(() => worldUvPlaneGeometry(segLen, segHeight), [segLen, segHeight]);
   return (
-    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} material={material}>
-      <planeGeometry args={[segLen, segHeight]} />
-    </mesh>
+    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} material={material} geometry={geometry} />
   );
 }
 
@@ -59,13 +61,16 @@ function TexturedSegmentFace({ def, ...rest }: Omit<FacePlaneProps, 'material'> 
   return <FacePlane {...rest} material={material} />;
 }
 
+function ProceduralSegmentFace({ def, ...rest }: Omit<FacePlaneProps, 'material'> & { def: ProceduralMaterialDef }) {
+  const material = useProceduralMaterial(def);
+  return <FacePlane {...rest} material={material} />;
+}
+
 function SegmentFaceInner({ materialId, ...rest }: SegmentFaceProps) {
   const def = useMaterialDef(materialId);
-  return def.kind === 'textured' ? (
-    <TexturedSegmentFace def={def} {...rest} />
-  ) : (
-    <SolidSegmentFace def={def} {...rest} />
-  );
+  if (def.kind === 'textured') return <TexturedSegmentFace def={def} {...rest} />;
+  if (def.kind === 'procedural') return <ProceduralSegmentFace def={def} {...rest} />;
+  return <SolidSegmentFace def={def} {...rest} />;
 }
 
 const SegmentFace = memo(SegmentFaceInner);

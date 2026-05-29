@@ -22,6 +22,26 @@ export interface SolidMaterialDef extends MaterialDefBase {
   kind: 'solid';
 }
 
+/** Pattern name for runtime procedural texture generation. */
+export type ProceduralPattern =
+  | 'wood'
+  | 'tile'
+  | 'carpet'
+  | 'concrete'
+  | 'marble'
+  | 'plaster';
+
+/** A finish whose PBR maps are generated on-device at runtime (no fetch).
+ *  `swatch` doubles as the base tint fed to the generator. */
+export interface ProceduralMaterialDef extends MaterialDefBase {
+  kind: 'procedural';
+  pattern: ProceduralPattern;
+  /** CC0/attribution-free; generated locally. */
+  sourceUrl?: string;
+  /** UV repeat in metres-per-tile. [1, 1] tiles 1×1 m per texture. */
+  uvScale: [number, number];
+}
+
 export interface TexturedMaterialDef extends MaterialDefBase {
   kind: 'textured';
   source: 'polyhaven' | 'ambientcg' | 'user';
@@ -51,4 +71,7 @@ export interface TexturedMaterialDef extends MaterialDefBase {
   };
 }
 
-export type MaterialDef = SolidMaterialDef | TexturedMaterialDef;
+export type MaterialDef =
+  | SolidMaterialDef
+  | TexturedMaterialDef
+  | ProceduralMaterialDef;

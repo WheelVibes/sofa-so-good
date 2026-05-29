@@ -1,14 +1,21 @@
-import { Suspense, memo, useCallback } from 'react';
+import { Suspense, memo, useCallback, useMemo } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import type { MeshStandardMaterial } from 'three';
 import {
   useMaterialDef,
+  useProceduralMaterial,
   useSolidMaterial,
   useTexturedMaterial,
 } from '../../materials/useMaterial';
+import { worldUvPlaneGeometry } from '../../materials/worldUv';
 import { useStore } from '../../state/store';
 import type { RoomId } from '../types';
-import type { MaterialId, SolidMaterialDef, TexturedMaterialDef } from '../../materials/types';
+import type {
+  MaterialId,
+  ProceduralMaterialDef,
+  SolidMaterialDef,
+  TexturedMaterialDef,
+} from '../../materials/types';
 
 const FLOOR_LIFT = 0.001;
 
@@ -30,6 +37,7 @@ interface FloorMeshProps {
 
 function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
   const selectRoom = useStore((s) => s.selectRoom);
+  const geometry = useMemo(() => worldUvPlaneGeometry(width, depth), [width, depth]);
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       const state = useStore.getState();
@@ -48,9 +56,8 @@ function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
       receiveShadow
       onClick={onClick}
       material={material}
-    >
-      <planeGeometry args={[width, depth]} />
-    </mesh>
+      geometry={geometry}
+    />
   );
 }
 
@@ -67,13 +74,19 @@ function TexturedRoomFloor({
   return <FloorMesh {...rest} material={material} />;
 }
 
+function ProceduralRoomFloor({
+  def,
+  ...rest
+}: Omit<FloorMeshProps, 'material'> & { def: ProceduralMaterialDef }) {
+  const material = useProceduralMaterial(def);
+  return <FloorMesh {...rest} material={material} />;
+}
+
 function RoomFloorInner({ materialId, ...rest }: RoomFloorProps) {
   const def = useMaterialDef(materialId);
-  return def.kind === 'textured' ? (
-    <TexturedRoomFloor def={def} {...rest} />
-  ) : (
-    <SolidRoomFloor def={def} {...rest} />
-  );
+  if (def.kind === 'textured') return <TexturedRoomFloor def={def} {...rest} />;
+  if (def.kind === 'procedural') return <ProceduralRoomFloor def={def} {...rest} />;
+  return <SolidRoomFloor def={def} {...rest} />;
 }
 
 const RoomFloorMemo = memo(RoomFloorInner, (prev, next) => {
