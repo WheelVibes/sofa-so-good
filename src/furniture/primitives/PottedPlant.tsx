@@ -2,11 +2,12 @@ import { readStr } from './shared';
 import { hexToRgb } from '../../materials/procedural/noise';
 import type { ParamProps } from '../types';
 
-/** Potted foliage plant: tapered pot + soil + a full clustered canopy of
- *  leafy blobs (with green variation) and a few upward leaf fronds.
- *  `size` enum scales the whole plant. */
+/** Potted foliage plant: tapered pot + soil + foliage. The `type` enum picks
+ *  the silhouette — a clustered bush, an upright snake plant, or an arching
+ *  palm — and `size` scales the whole plant. */
 export function PottedPlant({ props }: { props: ParamProps }) {
   const sizeKey = readStr(props, 'size', 'medium');
+  const type = readStr(props, 'type', 'bush');
   const potColor = readStr(props, 'potColor', '#b9743f');
   const leafColor = readStr(props, 'leafColor', '#3f6b3a');
 
@@ -58,25 +59,75 @@ export function PottedPlant({ props }: { props: ParamProps }) {
         <cylinderGeometry args={[potRTop - 0.02, potRTop - 0.02, 0.03, 20]} />
         <meshStandardMaterial color="#3a2a1c" roughness={1} />
       </mesh>
-      {/* Stem */}
-      <mesh castShadow position={[0, potH + 0.14, 0]}>
-        <cylinderGeometry args={[0.025, 0.03, 0.3, 8]} />
-        <meshStandardMaterial color="#5a4324" roughness={0.9} />
-      </mesh>
-      {/* Canopy */}
-      {blobs.map((b, i) => (
-        <mesh key={i} castShadow position={b.p}>
-          <icosahedronGeometry args={[b.r, 1]} />
-          <meshStandardMaterial color={tint(b.f)} roughness={0.85} metalness={0} flatShading />
-        </mesh>
-      ))}
-      {/* Fronds */}
-      {fronds.map((f, i) => (
-        <mesh key={`f${i}`} castShadow position={f.p} rotation={f.rot}>
-          <coneGeometry args={[0.05, 0.34, 5]} />
-          <meshStandardMaterial color={tint(1.1)} roughness={0.85} metalness={0} flatShading />
-        </mesh>
-      ))}
+      {type === 'bush' && (
+        <>
+          {/* Stem */}
+          <mesh castShadow position={[0, potH + 0.14, 0]}>
+            <cylinderGeometry args={[0.025, 0.03, 0.3, 8]} />
+            <meshStandardMaterial color="#5a4324" roughness={0.9} />
+          </mesh>
+          {/* Canopy */}
+          {blobs.map((b, i) => (
+            <mesh key={i} castShadow position={b.p}>
+              <icosahedronGeometry args={[b.r, 1]} />
+              <meshStandardMaterial color={tint(b.f)} roughness={0.85} metalness={0} flatShading />
+            </mesh>
+          ))}
+          {/* Fronds */}
+          {fronds.map((f, i) => (
+            <mesh key={`f${i}`} castShadow position={f.p} rotation={f.rot}>
+              <coneGeometry args={[0.05, 0.34, 5]} />
+              <meshStandardMaterial color={tint(1.1)} roughness={0.85} metalness={0} flatShading />
+            </mesh>
+          ))}
+        </>
+      )}
+      {type === 'snake' && (
+        <>
+          {/* Upright sword-like leaves fanning out of the pot. */}
+          {Array.from({ length: 9 }, (_, i) => {
+            const a = (i / 9) * Math.PI * 2;
+            const ring = 0.06 + (i % 3) * 0.03;
+            const h = 0.7 + ((i * 37) % 5) * 0.09;
+            const lean = 0.12 + (i % 4) * 0.04;
+            return (
+              <mesh
+                key={i}
+                castShadow
+                position={[Math.sin(a) * ring, potH + h / 2, Math.cos(a) * ring]}
+                rotation={[Math.cos(a) * lean, a, -Math.sin(a) * lean]}
+              >
+                <boxGeometry args={[0.07, h, 0.012]} />
+                <meshStandardMaterial color={tint(0.85 + (i % 3) * 0.12)} roughness={0.7} metalness={0} flatShading />
+              </mesh>
+            );
+          })}
+        </>
+      )}
+      {type === 'palm' && (
+        <>
+          {/* Slim trunk + arching fronds at the crown. */}
+          <mesh castShadow position={[0, potH + 0.35, 0]}>
+            <cylinderGeometry args={[0.022, 0.032, 0.7, 8]} />
+            <meshStandardMaterial color="#6a5230" roughness={0.9} />
+          </mesh>
+          {Array.from({ length: 7 }, (_, i) => {
+            const a = (i / 7) * Math.PI * 2;
+            const arch = 0.5 + (i % 3) * 0.06;
+            return (
+              <mesh
+                key={i}
+                castShadow
+                position={[Math.sin(a) * 0.16, potH + 0.72, Math.cos(a) * 0.16]}
+                rotation={[Math.cos(a) * 0.9, a, -Math.sin(a) * 0.9]}
+              >
+                <coneGeometry args={[0.06, arch, 4]} />
+                <meshStandardMaterial color={tint(0.9 + (i % 3) * 0.1)} roughness={0.8} metalness={0} flatShading />
+              </mesh>
+            );
+          })}
+        </>
+      )}
     </group>
   );
 }

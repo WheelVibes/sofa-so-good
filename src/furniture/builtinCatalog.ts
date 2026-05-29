@@ -770,6 +770,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       {
         kind: 'enum',
+        key: 'type',
+        label: 'Type',
+        default: 'bush',
+        options: [
+          { value: 'bush', label: 'Bush' },
+          { value: 'snake', label: 'Snake plant' },
+          { value: 'palm', label: 'Palm' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'size',
         label: 'Size',
         default: 'medium',
