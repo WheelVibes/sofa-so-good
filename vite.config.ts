@@ -17,10 +17,15 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
+          // The post-processing stack (only used on the high tier) is loaded
+          // lazily via Effects.tsx — leave it unchunked so Rollup keeps it in
+          // that async chunk instead of the always-loaded vendor bundle.
+          if (/[\\/]node_modules[\\/](postprocessing|n8ao|@react-three[\\/]postprocessing)[\\/]/.test(id))
+            return undefined;
           // Only the three core + its stdlib get their own chunk; everything
-          // else (react, drei, fiber, postprocessing, zustand…) shares vendor.
-          // A precise match avoids the import cycles a greedy 'three' test
-          // creates with @react-three/* paths.
+          // else (react, drei, fiber, zustand…) shares vendor. A precise match
+          // avoids the import cycles a greedy 'three' test creates with
+          // @react-three/* paths.
           if (/[\\/]node_modules[\\/](three|three-stdlib)[\\/]/.test(id)) return 'three';
           return 'vendor';
         },

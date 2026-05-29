@@ -1,22 +1,21 @@
-import { EffectComposer, Bloom, SMAA } from '@react-three/postprocessing';
+import { Suspense, lazy } from 'react';
 import { useQuality } from './useQuality';
 
+// The post-processing stack (Bloom + SMAA + N8AO) and its dependencies are
+// only used on the high tier. Lazy-load them so low/medium users — the fast
+// path — never download the heavy postprocessing/n8ao code.
+const EffectsImpl = lazy(() => import('./EffectsImpl'));
+
 /**
- * Post-processing stack (quality === 'high'):
- *   - Bloom: gentle glow on emissive fixtures (lamps, screens) at night —
- *     thresholded so daytime diffuse surfaces don't bloom.
- *   - SMAA: edge antialiasing (the composer renders off-screen, so the
- *     canvas MSAA doesn't apply).
- * The renderer's ACES tone mapping carries through the render pass.
- * Disabled when quality is 'off' (the default) for the fastest path.
+ * Mounts the high-tier post-processing stack when quality enables it; renders
+ * nothing (and pulls in no postprocessing code) otherwise.
  */
 export function Effects() {
   const { postprocessing } = useQuality();
   if (!postprocessing) return null;
   return (
-    <EffectComposer multisampling={0}>
-      <Bloom mipmapBlur luminanceThreshold={1.05} luminanceSmoothing={0.15} intensity={0.6} />
-      <SMAA />
-    </EffectComposer>
+    <Suspense fallback={null}>
+      <EffectsImpl />
+    </Suspense>
   );
 }
