@@ -20,5 +20,6 @@ export const bedroom2: LayoutEntry[] = [
   { id: 'default-b2-chair', defId: 'office-chair', position: [4.55, 2.55], rotation: 0, props: {} },
   { id: 'default-b2-monitor', defId: 'monitor', position: [4.55, 3.08], rotation: Math.PI, props: {} },
   { id: 'default-b2-nightstand', defId: 'nightstand', position: [5.55, 0.65], rotation: 0, props: {} },
+  { id: 'default-b2-art', defId: 'wall-art', position: [5.96, 1.9], rotation: -Math.PI / 2, props: { width: 0.7, height: 0.5, artColor: '#c98a86' } },
   { id: 'default-b2-pendant', defId: 'ceiling-light', position: [4.55, 2.4], rotation: 0, props: { style: 'flush' } },
 ];
