@@ -52,7 +52,8 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
       {/* Countertop */}
       <mesh castShadow receiveShadow position={[0, cabinetH + topThickness / 2, 0]}>
         <boxGeometry args={[length, topThickness, depth]} />
-        <meshStandardMaterial color="#cfcec8" roughness={0.4} metalness={0.1} />
+        {/* Polished dark-granite worktop — low roughness picks up the IBL. */}
+        <meshStandardMaterial color="#34373d" roughness={0.22} metalness={0.15} />
       </mesh>
       {hasSink && (
         <>
