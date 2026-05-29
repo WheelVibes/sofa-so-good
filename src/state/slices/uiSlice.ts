@@ -1,5 +1,6 @@
 import type { SliceCreator } from './types';
 import type { RootState } from '../store';
+import type { QualityTier } from '../../scene/quality';
 
 /** Editor tool while in orbit camera mode. 'orbit' lets click-drag rotate
  *  the camera (current default). 'select' disables camera rotation so a
@@ -7,35 +8,43 @@ import type { RootState } from '../store';
 export type EditorTool = 'select' | 'orbit';
 
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
-/** Post-processing / effects quality. 'high' enables SSAO + bloom + SMAA;
- *  'off' renders the raw forward pass (fastest, for low-end devices). */
-export type EffectsQuality = 'high' | 'off';
-
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
 export interface UiSlice {
   catalogOpen: boolean;
   editorTool: EditorTool;
   showFps: boolean;
-  effectsQuality: EffectsQuality;
+  /** Graphics quality tier. Auto-detected on boot, auto-downgraded by the
+   *  adaptive performance monitor, and user-overridable from the toolbar. */
+  qualityTier: QualityTier;
+  /** True once the user picks a tier manually — stops the adaptive monitor
+   *  from overriding their choice. */
+  qualityUserSet: boolean;
   setCatalogOpen: (open: boolean) => void;
   toggleCatalogOpen: () => void;
   setEditorTool: (tool: EditorTool) => void;
   toggleEditorTool: () => void;
   setShowFps: (show: boolean) => void;
   toggleShowFps: () => void;
-  setEffectsQuality: (q: EffectsQuality) => void;
-  toggleEffects: () => void;
+  /** Manual tier change (marks qualityUserSet). */
+  setQualityTier: (t: QualityTier) => void;
+  /** Cycle Low → Medium → High → Low (manual). */
+  cycleQuality: () => void;
+  /** Adaptive auto-adjust (does not set qualityUserSet). */
+  autoSetQualityTier: (t: QualityTier) => void;
 }
 
 export const UI_INITIAL: Pick<
   UiSlice,
-  'catalogOpen' | 'editorTool' | 'showFps' | 'effectsQuality'
+  'catalogOpen' | 'editorTool' | 'showFps' | 'qualityTier' | 'qualityUserSet'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
   showFps: false,
-  effectsQuality: 'high',
+  qualityTier: 'medium',
+  qualityUserSet: false,
 };
+
+const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
 
 export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
   ...UI_INITIAL,
@@ -46,7 +55,12 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
     set((s) => ({ editorTool: s.editorTool === 'orbit' ? 'select' : 'orbit' })),
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
-  setEffectsQuality: (q) => set({ effectsQuality: q }),
-  toggleEffects: () =>
-    set((s) => ({ effectsQuality: s.effectsQuality === 'high' ? 'off' : 'high' })),
+  setQualityTier: (t) => set({ qualityTier: t, qualityUserSet: true }),
+  cycleQuality: () =>
+    set((s) => ({
+      qualityTier: CYCLE[(CYCLE.indexOf(s.qualityTier) + 1) % CYCLE.length],
+      qualityUserSet: true,
+    })),
+  autoSetQualityTier: (t) =>
+    set((s) => (s.qualityUserSet || s.qualityTier === t ? {} : { qualityTier: t })),
 });

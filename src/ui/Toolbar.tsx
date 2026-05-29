@@ -8,6 +8,7 @@ import { serialize, applySerialized } from '../state/schema';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import type { SlotMeta } from '../state/storage/StorageAdapter';
 import { CreditsModal } from './CreditsModal';
+import { QUALITY_LABEL } from '../scene/quality';
 
 export function Toolbar() {
   const cameraMode = useStore((s) => s.cameraMode);
@@ -16,8 +17,8 @@ export function Toolbar() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements);
   const showFps = useStore((s) => s.showFps);
   const toggleShowFps = useStore((s) => s.toggleShowFps);
-  const effectsQuality = useStore((s) => s.effectsQuality);
-  const toggleEffects = useStore((s) => s.toggleEffects);
+  const qualityTier = useStore((s) => s.qualityTier);
+  const cycleQuality = useStore((s) => s.cycleQuality);
   const [creditsOpen, setCreditsOpen] = useState(false);
 
   return (
@@ -51,11 +52,11 @@ export function Toolbar() {
         FPS
       </button>
       <button
-        onClick={toggleEffects}
-        title="Toggle high-quality effects (bloom + antialiasing)"
-        className={`whitespace-nowrap rounded px-3 py-1 text-sm ${effectsQuality === 'high' ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+        onClick={cycleQuality}
+        title="Graphics quality (auto-adjusts to hold 30+ fps; click to override)"
+        className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
       >
-        Effects
+        Quality: {QUALITY_LABEL[qualityTier]}
       </button>
       {cameraMode === 'orbit' ? (
         <>

@@ -2,6 +2,8 @@ import { Environment, Lightformer } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useSunPosition } from './useSunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
+import { useStore } from '../../state/store';
+import { QUALITY_PRESETS } from '../quality';
 
 /**
  * A lightweight procedural image-based-lighting environment, built once from
@@ -13,13 +15,20 @@ import { lightingFromAltitude } from './altitudeCurve';
 export function SceneEnvironment() {
   const { scene } = useThree();
   const sun = useSunPosition();
+  const tier = useStore((s) => s.qualityTier);
+  const enabled = QUALITY_PRESETS[tier].ibl;
 
   useFrame(() => {
+    if (!enabled) return;
     const level = lightingFromAltitude(sun.altitude).sun; // 1 day → 0 night
     // Keep a little IBL at night so reflective surfaces aren't pure black.
     scene.environmentIntensity = 0.12 + level * 0.55;
   });
 
+  if (!enabled) {
+    if (scene.environment) scene.environment = null;
+    return null;
+  }
   return (
     <Environment resolution={64} frames={1} background={false}>
       {/* Bright sky cap + cooler horizon for a soft top-down gradient. */}

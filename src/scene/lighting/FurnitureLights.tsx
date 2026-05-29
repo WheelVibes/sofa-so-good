@@ -5,11 +5,9 @@ import { useStore } from '../../state/store';
 import { useSunPosition } from './useSunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
 import { LIGHT_EMITTERS } from '../../furniture/lightEmitters';
+import { QUALITY_PRESETS } from '../quality';
 import type { FurnitureItem } from '../../furniture/types';
 
-/** Hard cap on simultaneously-rendered fixture lights. Forward-rendered point
- *  lights cost per-fragment, so we keep only the nearest few to the camera. */
-const MAX_LIGHTS = 6;
 /** Below this darkness the room is daylit — render no fixture lights at all. */
 const MIN_DARKNESS = 0.04;
 
@@ -28,6 +26,8 @@ interface ActiveLight {
  */
 export function FurnitureLights() {
   const items = useStore(useShallow((s) => s.items));
+  const tier = useStore((s) => s.qualityTier);
+  const maxLights = QUALITY_PRESETS[tier].maxFixtureLights;
   const sun = useSunPosition();
   const { camera } = useThree();
   const darknessRef = useRef(0);
@@ -56,7 +56,7 @@ export function FurnitureLights() {
       emitters.push({ item, d2: dx * dx + dz * dz });
     }
     emitters.sort((a, b) => a.d2 - b.d2);
-    const chosen = emitters.slice(0, MAX_LIGHTS);
+    const chosen = emitters.slice(0, maxLights);
     const key = chosen.map((e) => e.item.id).join(',');
     if (key === lastKeyRef.current) return; // set unchanged → no re-render
     lastKeyRef.current = key;

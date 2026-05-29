@@ -6,6 +6,7 @@ import { useSunPosition } from './useSunPosition';
 import { sunDirectionToScene, type SunPosition } from './sunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
 import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../../apartment/constants';
+import { QUALITY_PRESETS } from '../quality';
 
 /** Distance from the apartment centre where the directional light sits (m). */
 const SUN_DISTANCE = 25;
@@ -60,6 +61,8 @@ function targetVals(sun: SunPosition, orientation: number): Vals {
 export function Lighting() {
   const sunPos = useSunPosition();
   const orientation = useStore((s) => s.orientationDeg);
+  const tier = useStore((s) => s.qualityTier);
+  const shadowMapSize = QUALITY_PRESETS[tier].shadowMapSize;
   const sunRef = useRef<DirectionalLight>(null!);
   const ambientRef = useRef<AmbientLight>(null!);
   const hemiRef = useRef<HemisphereLight>(null!);
@@ -129,11 +132,12 @@ export function Lighting() {
       <hemisphereLight ref={hemiRef} />
       <primitive object={sunTarget} />
       <directionalLight
+        key={shadowMapSize}
         ref={sunRef}
         castShadow
         target={sunTarget}
-        shadow-mapSize-width={2048}
-        shadow-mapSize-height={2048}
+        shadow-mapSize-width={shadowMapSize}
+        shadow-mapSize-height={shadowMapSize}
         shadow-bias={-0.0002}
         shadow-normalBias={0.035}
         shadow-camera-near={1}

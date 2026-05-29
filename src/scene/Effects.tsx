@@ -1,5 +1,6 @@
 import { EffectComposer, Bloom, SMAA } from '@react-three/postprocessing';
 import { useStore } from '../state/store';
+import { QUALITY_PRESETS } from './quality';
 
 /**
  * Post-processing stack (quality === 'high'):
@@ -11,8 +12,8 @@ import { useStore } from '../state/store';
  * Disabled when quality is 'off' (the default) for the fastest path.
  */
 export function Effects() {
-  const quality = useStore((s) => s.effectsQuality);
-  if (quality === 'off') return null;
+  const tier = useStore((s) => s.qualityTier);
+  if (!QUALITY_PRESETS[tier].postprocessing) return null;
   return (
     <EffectComposer multisampling={0}>
       <Bloom mipmapBlur luminanceThreshold={1.05} luminanceSmoothing={0.15} intensity={0.6} />
