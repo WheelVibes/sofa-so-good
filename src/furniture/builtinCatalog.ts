@@ -488,8 +488,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     name: 'Dining chair',
     category: 'seating',
     primitive: 'DiningChair',
-    defaultFootprint: { w: 0.46, d: 0.46, h: 0.92 },
+    defaultFootprint: { w: 0.46, d: 0.48, h: 0.92 },
     paramSchema: [
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'upholstered', label: 'Upholstered' },
+        ],
+      },
       { kind: 'color', key: 'seatColor', label: 'Seat', default: '#7a5c3c' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#4e3a24' },
       {
