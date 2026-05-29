@@ -47,6 +47,10 @@ function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const hingeLocalX =
     spec.hinge === 'start' ? spec.offset - length / 2 : spec.offset + spec.width - length / 2;
   const direction = spec.hinge === 'start' ? 1 : -1;
+  // The household shelter's blast door is a thick reinforced steel slab,
+  // not a panelled timber leaf — a recognisable HDB detail.
+  const blast = spec.id === 'door-householdShelter';
+  const leafThick = blast ? 0.14 : FLAT.doorThickness;
 
   return (
     <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
@@ -59,25 +63,45 @@ function DoorLeaf({ spec }: { spec: DoorSpec }) {
             }}
             castShadow
           >
-            <boxGeometry args={[spec.width, FLAT.doorHeight, FLAT.doorThickness]} />
-            <meshStandardMaterial color="#9d7c54" roughness={0.7} />
+            <boxGeometry args={[spec.width, FLAT.doorHeight, leafThick]} />
+            {blast ? (
+              <meshStandardMaterial color="#9aa0a6" roughness={0.45} metalness={0.65} />
+            ) : (
+              <meshStandardMaterial color="#9d7c54" roughness={0.7} />
+            )}
           </mesh>
-          {/* Recessed panels (two per face) for a panelled-door look. */}
-          {[1, -1].map((face) =>
-            [
-              { y: FLAT.doorHeight * 0.24, h: FLAT.doorHeight * 0.34 },
-              { y: -FLAT.doorHeight * 0.22, h: FLAT.doorHeight * 0.42 },
-            ].map((p, i) => (
-              <mesh
-                key={`${face}.${i}`}
-                position={[0, p.y, face * (FLAT.doorThickness / 2 + 0.001)]}
-                rotation={[0, face === 1 ? 0 : Math.PI, 0]}
-              >
-                <planeGeometry args={[spec.width * 0.62, p.h]} />
-                <meshStandardMaterial color="#8a6c48" roughness={0.75} />
-              </mesh>
-            )),
-          )}
+          {blast
+            ? /* Bolt grid on the front face of the blast door. */
+              [-1, 1].map((face) =>
+                [-0.7, -0.35, 0, 0.35, 0.7].map((fy) =>
+                  [-0.35, 0.35].map((fx) => (
+                    <mesh
+                      key={`${face}.${fy}.${fx}`}
+                      position={[fx * spec.width * 0.5, fy * (FLAT.doorHeight / 2 - 0.1), face * (leafThick / 2 + 0.01)]}
+                      rotation={[Math.PI / 2, 0, 0]}
+                    >
+                      <cylinderGeometry args={[0.02, 0.02, 0.02, 8]} />
+                      <meshStandardMaterial color="#6d7177" roughness={0.5} metalness={0.7} />
+                    </mesh>
+                  )),
+                )
+              )
+            : /* Recessed panels (two per face) for a panelled-door look. */
+              [1, -1].map((face) =>
+                [
+                  { y: FLAT.doorHeight * 0.24, h: FLAT.doorHeight * 0.34 },
+                  { y: -FLAT.doorHeight * 0.22, h: FLAT.doorHeight * 0.42 },
+                ].map((p, i) => (
+                  <mesh
+                    key={`${face}.${i}`}
+                    position={[0, p.y, face * (leafThick / 2 + 0.001)]}
+                    rotation={[0, face === 1 ? 0 : Math.PI, 0]}
+                  >
+                    <planeGeometry args={[spec.width * 0.62, p.h]} />
+                    <meshStandardMaterial color="#8a6c48" roughness={0.75} />
+                  </mesh>
+                )),
+              )}
         </group>
         <group position={[direction * (spec.width - 0.06), 0.95, 0]}>
           <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
