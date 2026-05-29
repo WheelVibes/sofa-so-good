@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface WardrobeProps {
@@ -22,6 +23,7 @@ export function Wardrobe({ props }: WardrobeProps) {
   const doorPanelH = height - 0.1;
   const doorPanelW = (width - doorGap * (doorCount + 1) - 0.02) / doorCount;
 
+  const wood = getWoodMaterial(color, 2);
   const doors = Array.from({ length: doorCount }, (_, i) => {
     const x = -width / 2 + doorGap + doorPanelW / 2 + i * (doorPanelW + doorGap);
     // Handle on the inner edge of each door (toward the centre gap).
@@ -29,9 +31,8 @@ export function Wardrobe({ props }: WardrobeProps) {
     const handleX = x + handleSide * (doorPanelW / 2 - 0.05);
     return (
       <group key={i}>
-        <mesh castShadow position={[x, height / 2, depth / 2 - doorInset]}>
+        <mesh castShadow position={[x, height / 2, depth / 2 - doorInset]} material={wood}>
           <boxGeometry args={[doorPanelW, doorPanelH, 0.015]} />
-          <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
         </mesh>
         <mesh castShadow position={[handleX, height / 2, depth / 2 + 0.012]}>
           <boxGeometry args={[0.02, 0.22, 0.02]} />
@@ -44,9 +45,8 @@ export function Wardrobe({ props }: WardrobeProps) {
   return (
     <group>
       {/* Body */}
-      <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, height / 2, 0]} material={wood}>
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {doors}
     </group>

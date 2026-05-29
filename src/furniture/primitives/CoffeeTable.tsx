@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Low coffee table: top + lower shelf + four legs. */
@@ -13,25 +14,22 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
   const inset = legT / 2 + 0.03;
   const shelfY = 0.12;
 
-  const wood = { color, roughness: STYLISED_ROUGHNESS, metalness: STYLISED_METALNESS };
+  const wood = getWoodMaterial(color, 1.6);
   const xs = [-width / 2 + inset, width / 2 - inset];
   const zs = [-depth / 2 + inset, depth / 2 - inset];
 
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, totalH - topT / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, totalH - topT / 2, 0]} material={wood}>
         <boxGeometry args={[width, topT, depth]} />
-        <meshStandardMaterial {...wood} />
       </mesh>
-      <mesh castShadow position={[0, shelfY, 0]}>
+      <mesh castShadow position={[0, shelfY, 0]} material={wood}>
         <boxGeometry args={[width - inset * 2, 0.03, depth - inset * 2]} />
-        <meshStandardMaterial {...wood} />
       </mesh>
       {xs.map((x) =>
         zs.map((z) => (
-          <mesh key={`${x}.${z}`} castShadow position={[x, (totalH - topT) / 2, z]}>
+          <mesh key={`${x}.${z}`} castShadow position={[x, (totalH - topT) / 2, z]} material={wood}>
             <boxGeometry args={[legT, totalH - topT, legT]} />
-            <meshStandardMaterial {...wood} />
           </mesh>
         )),
       )}

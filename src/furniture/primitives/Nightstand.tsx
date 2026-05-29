@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Bedside cabinet with two drawer fronts and short legs. */
@@ -9,23 +10,21 @@ export function Nightstand({ props }: { props: ParamProps }) {
 
   const legH = 0.1;
   const bodyH = 0.42;
-  const wood = { color, roughness: STYLISED_ROUGHNESS, metalness: STYLISED_METALNESS };
+  const wood = getWoodMaterial(color, 1);
 
   return (
     <group>
       {/* Body */}
-      <mesh castShadow receiveShadow position={[0, legH + bodyH / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, legH + bodyH / 2, 0]} material={wood}>
         <boxGeometry args={[width, bodyH, depth]} />
-        <meshStandardMaterial {...wood} />
       </mesh>
       {/* Two recessed drawer fronts + knobs */}
       {[0, 1].map((i) => {
         const cy = legH + bodyH * (i === 0 ? 0.72 : 0.28);
         return (
           <group key={i}>
-            <mesh position={[0, cy, depth / 2 + 0.003]}>
+            <mesh position={[0, cy, depth / 2 + 0.003]} material={wood}>
               <boxGeometry args={[width * 0.84, bodyH * 0.38, 0.02]} />
-              <meshStandardMaterial color={color} roughness={0.7} metalness={0.05} />
             </mesh>
             <mesh castShadow rotation={[Math.PI / 2, 0, 0]} position={[0, cy, depth / 2 + 0.025]}>
               <cylinderGeometry args={[0.016, 0.016, 0.035, 10]} />

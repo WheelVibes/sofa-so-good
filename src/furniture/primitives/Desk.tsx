@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface DeskProps {
@@ -20,25 +21,24 @@ export function Desk({ props }: DeskProps) {
   const drawerW = 0.34;
   const drawerH = 0.36;
 
+  const wood = getWoodMaterial(color, 1.5);
   return (
     <group>
       {/* Top */}
-      <mesh castShadow receiveShadow position={[0, height - topThickness / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, height - topThickness / 2, 0]} material={wood}>
         <boxGeometry args={[width, topThickness, depth]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Left leg plate */}
-      <mesh castShadow position={[-width / 2 + legThickness / 2, (height - topThickness) / 2, 0]}>
+      <mesh castShadow position={[-width / 2 + legThickness / 2, (height - topThickness) / 2, 0]} material={wood}>
         <boxGeometry args={[legThickness, height - topThickness, depth - 0.04]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Right drawer block */}
       <mesh
         castShadow
         position={[width / 2 - drawerW / 2, height - topThickness - drawerH / 2, 0]}
+        material={wood}
       >
         <boxGeometry args={[drawerW, drawerH, depth - 0.06]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Drawer knob */}
       <mesh castShadow position={[width / 2 - drawerW / 2, height - topThickness - drawerH * 0.32, depth / 2 - 0.02]}>

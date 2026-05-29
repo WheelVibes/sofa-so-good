@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Wide chest of drawers: body + a grid of drawer fronts with knobs.
@@ -12,16 +13,15 @@ export function Dresser({ props }: { props: ParamProps }) {
 
   const legH = 0.08;
   const bodyH = 0.85;
-  const wood = { color, roughness: STYLISED_ROUGHNESS, metalness: STYLISED_METALNESS };
+  const wood = getWoodMaterial(color, 1.6);
   const gap = 0.02;
   const dw = (width - gap * (cols + 1)) / cols;
   const dh = (bodyH - gap * (rows + 1)) / rows;
 
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, legH + bodyH / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, legH + bodyH / 2, 0]} material={wood}>
         <boxGeometry args={[width, bodyH, depth]} />
-        <meshStandardMaterial {...wood} />
       </mesh>
       {Array.from({ length: rows }, (_, r) =>
         Array.from({ length: cols }, (_, c) => {
@@ -29,9 +29,8 @@ export function Dresser({ props }: { props: ParamProps }) {
           const y = legH + gap + dh / 2 + r * (dh + gap);
           return (
             <group key={`${r}.${c}`}>
-              <mesh position={[x, y, depth / 2 + 0.003]}>
+              <mesh position={[x, y, depth / 2 + 0.003]} material={wood}>
                 <boxGeometry args={[dw, dh, 0.02]} />
-                <meshStandardMaterial color={color} roughness={0.65} metalness={STYLISED_METALNESS} />
               </mesh>
               <mesh castShadow position={[x, y, depth / 2 + 0.03]}>
                 <sphereGeometry args={[0.018, 12, 10]} />

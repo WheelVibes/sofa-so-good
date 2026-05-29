@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface TVConsoleProps {
@@ -17,21 +18,20 @@ export function TVConsole({ props }: TVConsoleProps) {
   const drawerInset = 0.015;
   const drawerW = (width - 0.06) / 2;
 
+  const wood = getWoodMaterial(color, 1.6);
   return (
     <group>
       {/* Body */}
-      <mesh castShadow receiveShadow position={[0, height / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, height / 2, 0]} material={wood}>
         <boxGeometry args={[width, height, depth]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Drawer faces (inset on +Z front) + bar handles */}
       {[-1, 1].map((s) => {
         const cx = s * (drawerW / 2 + 0.015);
         return (
           <group key={s}>
-            <mesh castShadow position={[cx, height / 2, depth / 2 - drawerInset]}>
+            <mesh castShadow position={[cx, height / 2, depth / 2 - drawerInset]} material={wood}>
               <boxGeometry args={[drawerW, height - 0.04, 0.012]} />
-              <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
             </mesh>
             <mesh castShadow position={[cx, height / 2, depth / 2 + 0.01]}>
               <boxGeometry args={[drawerW * 0.45, 0.018, 0.018]} />

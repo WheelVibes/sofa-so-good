@@ -1,4 +1,5 @@
-import { readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface DiningTableProps {
@@ -40,16 +41,16 @@ export function DiningTable({ props }: DiningTableProps) {
     [xR, legY, zS],
   ];
 
+  const topMat = getWoodMaterial(topColor, 1.5);
+  const legMat = getWoodMaterial(legColor, 0.5);
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, totalH - topThickness / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, totalH - topThickness / 2, 0]} material={topMat}>
         <boxGeometry args={[dim.w, topThickness, dim.d]} />
-        <meshStandardMaterial color={topColor} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {legPositions.map((p, i) => (
-        <mesh key={i} castShadow position={p}>
+        <mesh key={i} castShadow position={p} material={legMat}>
           <boxGeometry args={[legThickness, totalH - topThickness, legThickness]} />
-          <meshStandardMaterial color={legColor} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
         </mesh>
       ))}
     </group>

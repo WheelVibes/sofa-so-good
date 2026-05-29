@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface BedProps {
@@ -24,6 +25,7 @@ export function Bed({ props }: BedProps) {
   const headboardThickness = 0.06;
   const mattressTop = frameH + mattressH;
 
+  const frameMat = getWoodMaterial(frameColor, 2);
   const fabric = { roughness: 0.92, metalness: 0 };
   // Pillows: two for anything queen-width or wider, otherwise one.
   const twoPillows = width >= 1.3;
@@ -33,9 +35,8 @@ export function Bed({ props }: BedProps) {
   return (
     <group>
       {/* Frame */}
-      <mesh castShadow receiveShadow position={[0, frameH / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, frameH / 2, 0]} material={frameMat}>
         <boxGeometry args={[width, frameH, length]} />
-        <meshStandardMaterial color={frameColor} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Mattress */}
       <mesh castShadow receiveShadow position={[0, frameH + mattressH / 2, 0]}>
@@ -64,9 +65,8 @@ export function Bed({ props }: BedProps) {
         </mesh>
       ))}
       {/* Headboard at -Z end */}
-      <mesh castShadow position={[0, headboardH / 2, -length / 2 + headboardThickness / 2]}>
+      <mesh castShadow position={[0, headboardH / 2, -length / 2 + headboardThickness / 2]} material={frameMat}>
         <boxGeometry args={[width + 0.04, headboardH, headboardThickness]} />
-        <meshStandardMaterial color={frameColor} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
     </group>
   );

@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface BookshelfProps {
@@ -20,14 +21,14 @@ export function Bookshelf({ props }: BookshelfProps) {
   const backThickness = 0.012;
   const shelfThickness = 0.022;
 
+  const wood = getWoodMaterial(color, 1.4);
   const innerH = height - shelfThickness;
   const shelfSpacing = innerH / (shelfCount - 1);
   const shelves = Array.from({ length: shelfCount }, (_, i) => {
     const y = shelfThickness / 2 + i * shelfSpacing;
     return (
-      <mesh key={i} castShadow receiveShadow position={[0, y, 0]}>
+      <mesh key={i} castShadow receiveShadow position={[0, y, 0]} material={wood}>
         <boxGeometry args={[width - sideThickness * 2, shelfThickness, depth - backThickness]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
     );
   });
@@ -69,18 +70,15 @@ export function Bookshelf({ props }: BookshelfProps) {
   return (
     <group>
       {/* Sides */}
-      <mesh castShadow position={[-width / 2 + sideThickness / 2, height / 2, 0]}>
+      <mesh castShadow position={[-width / 2 + sideThickness / 2, height / 2, 0]} material={wood}>
         <boxGeometry args={[sideThickness, height, depth]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
-      <mesh castShadow position={[width / 2 - sideThickness / 2, height / 2, 0]}>
+      <mesh castShadow position={[width / 2 - sideThickness / 2, height / 2, 0]} material={wood}>
         <boxGeometry args={[sideThickness, height, depth]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Back */}
-      <mesh receiveShadow position={[0, height / 2, -depth / 2 + backThickness / 2]}>
+      <mesh receiveShadow position={[0, height / 2, -depth / 2 + backThickness / 2]} material={wood}>
         <boxGeometry args={[width - sideThickness * 2, height, backThickness]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {shelves}
       {books}
