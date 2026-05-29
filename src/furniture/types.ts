@@ -23,6 +23,8 @@ export type FurnitureCategory =
   | 'tables'
   | 'storage'
   | 'kitchen'
+  | 'bathroom'
+  | 'appliances'
   | 'lighting'
   | 'decor';
 
@@ -32,6 +34,8 @@ export const FURNITURE_CATEGORIES: readonly FurnitureCategory[] = [
   'tables',
   'storage',
   'kitchen',
+  'bathroom',
+  'appliances',
   'lighting',
   'decor',
 ];
@@ -48,7 +52,20 @@ export type PrimitiveKind =
   | 'Wardrobe'
   | 'Desk'
   | 'Bookshelf'
-  | 'TVConsole';
+  | 'TVConsole'
+  | 'DiningChair'
+  | 'Armchair'
+  | 'CoffeeTable'
+  | 'Nightstand'
+  | 'Rug'
+  | 'PottedPlant'
+  | 'FlatscreenTV'
+  | 'AirconUnit'
+  | 'Refrigerator'
+  | 'FloorLamp'
+  | 'Toilet'
+  | 'BathroomSink'
+  | 'CeilingLight';
 
 export type ParamField =
   | {

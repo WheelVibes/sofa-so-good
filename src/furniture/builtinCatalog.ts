@@ -215,6 +215,203 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     ],
   },
 
+  'dining-chair': {
+    kind: 'parametric',
+    id: 'dining-chair',
+    name: 'Dining chair',
+    category: 'seating',
+    primitive: 'DiningChair',
+    defaultFootprint: { w: 0.46, d: 0.46, h: 0.92 },
+    paramSchema: [
+      { kind: 'color', key: 'seatColor', label: 'Seat', default: '#7a5c3c' },
+      { kind: 'color', key: 'legColor', label: 'Legs', default: '#4e3a24' },
+    ],
+  },
+  armchair: {
+    kind: 'parametric',
+    id: 'armchair',
+    name: 'Armchair',
+    category: 'seating',
+    primitive: 'Armchair',
+    defaultFootprint: { w: 0.85, d: 0.85, h: 0.92 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.7, max: 1.0, step: 0.05, default: 0.85, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.7, max: 0.95, step: 0.05, default: 0.85, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Upholstery', default: '#b06a52' },
+    ],
+  },
+
+  // ── Tables (low / occasional) ───────────────────────────────────────────
+  'coffee-table': {
+    kind: 'parametric',
+    id: 'coffee-table',
+    name: 'Coffee table',
+    category: 'tables',
+    primitive: 'CoffeeTable',
+    defaultFootprint: { w: 1.1, d: 0.55, h: 0.42 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 1.4, step: 0.05, default: 1.1, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.4, max: 0.7, step: 0.05, default: 0.55, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#6f553f' },
+    ],
+  },
+  nightstand: {
+    kind: 'parametric',
+    id: 'nightstand',
+    name: 'Nightstand',
+    category: 'storage',
+    primitive: 'Nightstand',
+    defaultFootprint: { w: 0.45, d: 0.4, h: 0.52 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.35, max: 0.6, step: 0.05, default: 0.45, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.3, max: 0.5, step: 0.05, default: 0.4, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+    ],
+  },
+
+  // ── Bathroom ────────────────────────────────────────────────────────────
+  toilet: {
+    kind: 'parametric',
+    id: 'toilet',
+    name: 'Toilet (WC)',
+    category: 'bathroom',
+    primitive: 'Toilet',
+    defaultFootprint: { w: 0.4, d: 0.66, h: 0.78 },
+    paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#f4f4f1' }],
+  },
+  'bathroom-sink': {
+    kind: 'parametric',
+    id: 'bathroom-sink',
+    name: 'Basin',
+    category: 'bathroom',
+    primitive: 'BathroomSink',
+    defaultFootprint: { w: 0.44, d: 0.44, h: 0.98 },
+    paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#f4f4f1' }],
+  },
+
+  // ── Appliances ──────────────────────────────────────────────────────────
+  refrigerator: {
+    kind: 'parametric',
+    id: 'refrigerator',
+    name: 'Refrigerator',
+    category: 'appliances',
+    primitive: 'Refrigerator',
+    defaultFootprint: { w: 0.7, d: 0.7, h: 1.78 },
+    paramSchema: [
+      { kind: 'number', key: 'height', label: 'Height', min: 1.4, max: 1.9, step: 0.02, default: 1.78, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Finish', default: '#d8dade' },
+    ],
+  },
+  'flatscreen-tv': {
+    kind: 'parametric',
+    id: 'flatscreen-tv',
+    name: 'TV (flatscreen)',
+    category: 'appliances',
+    primitive: 'FlatscreenTV',
+    defaultFootprint: { w: 1.25, d: 0.25, h: 0.85 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: '55',
+        options: [
+          { value: '43', label: '43"' },
+          { value: '55', label: '55"' },
+          { value: '65', label: '65"' },
+          { value: '75', label: '75"' },
+        ],
+      },
+    ],
+  },
+  'aircon-unit': {
+    kind: 'parametric',
+    id: 'aircon-unit',
+    name: 'Aircon (wall unit)',
+    category: 'appliances',
+    primitive: 'AirconUnit',
+    defaultFootprint: { w: 0.84, d: 0.22, h: 0.3 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.7, max: 1.1, step: 0.02, default: 0.84, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 1.9, max: 2.5, step: 0.05, default: 2.25, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Finish', default: '#f3f3f0' },
+    ],
+  },
+
+  // ── Lighting ────────────────────────────────────────────────────────────
+  'floor-lamp': {
+    kind: 'parametric',
+    id: 'floor-lamp',
+    name: 'Floor lamp',
+    category: 'lighting',
+    primitive: 'FloorLamp',
+    defaultFootprint: { w: 0.42, d: 0.42, h: 1.8 },
+    paramSchema: [
+      { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f3e6c8' },
+      { kind: 'color', key: 'poleColor', label: 'Pole', default: '#2b2b2b' },
+    ],
+  },
+  'ceiling-light': {
+    kind: 'parametric',
+    id: 'ceiling-light',
+    name: 'Ceiling light',
+    category: 'lighting',
+    primitive: 'CeilingLight',
+    defaultFootprint: { w: 0.45, d: 0.45, h: 0.5 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'pendant',
+        options: [
+          { value: 'pendant', label: 'Pendant' },
+          { value: 'flush', label: 'Flush mount' },
+        ],
+      },
+      { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f2ead6' },
+    ],
+  },
+
+  // ── Decor ───────────────────────────────────────────────────────────────
+  rug: {
+    kind: 'parametric',
+    id: 'rug',
+    name: 'Area rug',
+    category: 'decor',
+    primitive: 'Rug',
+    defaultFootprint: { w: 2.0, d: 1.4, h: 0.03 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 3.0, step: 0.1, default: 2.0, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.6, max: 2.4, step: 0.1, default: 1.4, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Field', default: '#9c8f7a' },
+      { kind: 'color', key: 'borderColor', label: 'Border', default: '#6e5f4c' },
+    ],
+  },
+  'potted-plant': {
+    kind: 'parametric',
+    id: 'potted-plant',
+    name: 'Potted plant',
+    category: 'decor',
+    primitive: 'PottedPlant',
+    defaultFootprint: { w: 0.55, d: 0.55, h: 1.0 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: 'medium',
+        options: [
+          { value: 'small', label: 'Small' },
+          { value: 'medium', label: 'Medium' },
+          { value: 'large', label: 'Large' },
+        ],
+      },
+      { kind: 'color', key: 'potColor', label: 'Pot', default: '#b9743f' },
+      { kind: 'color', key: 'leafColor', label: 'Foliage', default: '#3f6b3a' },
+    ],
+  },
+
   // ── Kitchen ─────────────────────────────────────────────────────────────
   'kitchen-counter-l': {
     kind: 'parametric',

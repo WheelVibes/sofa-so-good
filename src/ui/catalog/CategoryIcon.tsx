@@ -62,6 +62,21 @@ export function CategoryIcon({ category, className }: CategoryIconProps) {
           <path d="M8 2.5v1.5M8 12v1.5M2.5 8h1.5M12 8h1.5M4.1 4.1l1.05 1.05M10.85 10.85l1.05 1.05M11.9 4.1l-1.05 1.05M5.15 10.85L4.1 11.9" />
         </svg>
       );
+    case 'bathroom':
+      return (
+        <svg {...common}>
+          <path d="M3 8h10v1.5a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z" />
+          <path d="M5 8V4.5a1.5 1.5 0 0 1 3 0" />
+        </svg>
+      );
+    case 'appliances':
+      return (
+        <svg {...common}>
+          <rect x="4" y="2.5" width="8" height="11" rx="0.75" />
+          <path d="M4 6.5h8" />
+          <path d="M6 4.2v0.6M6 8.4v2.4" />
+        </svg>
+      );
     case 'decor':
       return (
         <svg {...common}>

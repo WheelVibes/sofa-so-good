@@ -15,6 +15,19 @@ import { Wardrobe } from './Wardrobe';
 import { Desk } from './Desk';
 import { Bookshelf } from './Bookshelf';
 import { TVConsole } from './TVConsole';
+import { DiningChair } from './DiningChair';
+import { Armchair } from './Armchair';
+import { CoffeeTable } from './CoffeeTable';
+import { Nightstand } from './Nightstand';
+import { Rug } from './Rug';
+import { PottedPlant } from './PottedPlant';
+import { FlatscreenTV } from './FlatscreenTV';
+import { AirconUnit } from './AirconUnit';
+import { Refrigerator } from './Refrigerator';
+import { FloorLamp } from './FloorLamp';
+import { Toilet } from './Toilet';
+import { BathroomSink } from './BathroomSink';
+import { CeilingLight } from './CeilingLight';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -27,4 +40,17 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Desk,
   Bookshelf,
   TVConsole,
+  DiningChair,
+  Armchair,
+  CoffeeTable,
+  Nightstand,
+  Rug,
+  PottedPlant,
+  FlatscreenTV,
+  AirconUnit,
+  Refrigerator,
+  FloorLamp,
+  Toilet,
+  BathroomSink,
+  CeilingLight,
 };

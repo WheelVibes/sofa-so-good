@@ -16,6 +16,8 @@ const LABELS: Record<FurnitureCategory, string> = {
   tables: 'Tables',
   storage: 'Storage',
   kitchen: 'Kitchen',
+  bathroom: 'Bathroom',
+  appliances: 'Appliances',
   lighting: 'Lighting',
   decor: 'Decor',
 };

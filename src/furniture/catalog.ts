@@ -40,6 +40,8 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
     tables: [...(BUILTIN_BY_CATEGORY.tables ?? [])],
     storage: [...(BUILTIN_BY_CATEGORY.storage ?? [])],
     kitchen: [...(BUILTIN_BY_CATEGORY.kitchen ?? [])],
+    bathroom: [...(BUILTIN_BY_CATEGORY.bathroom ?? [])],
+    appliances: [...(BUILTIN_BY_CATEGORY.appliances ?? [])],
     lighting: [...(BUILTIN_BY_CATEGORY.lighting ?? [])],
     decor: [...(BUILTIN_BY_CATEGORY.decor ?? [])],
   };
