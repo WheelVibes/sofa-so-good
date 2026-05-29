@@ -34,6 +34,36 @@ function Bar({
   );
 }
 
+const GRILLE_T = 0.012; // bar thickness
+const GRILLE_Z = 0.05; // interior offset, in front of the glass
+const GRILLE_SPACING = 0.12; // gap between vertical bars
+const grilleMat = { color: '#d9dadc', roughness: 0.45, metalness: 0.5 } as const;
+
+/** Slim vertical bar grille with a single horizontal rail, sized to the
+ *  glazed opening. Bars sit just inside the glass so they read from the room
+ *  and through the window from outside. */
+function Grille({ w, h }: { w: number; h: number }) {
+  const count = Math.max(2, Math.round(w / GRILLE_SPACING));
+  const step = w / (count + 1);
+  const bars: number[] = [];
+  for (let i = 1; i <= count; i++) bars.push(-w / 2 + i * step);
+  return (
+    <group position={[0, 0, GRILLE_Z]}>
+      {bars.map((x, i) => (
+        <mesh key={i} position={[x, 0, 0]}>
+          <boxGeometry args={[GRILLE_T, h, GRILLE_T]} />
+          <meshStandardMaterial {...grilleMat} />
+        </mesh>
+      ))}
+      {/* horizontal rail at mid-height */}
+      <mesh position={[0, 0, 0]}>
+        <boxGeometry args={[w, GRILLE_T, GRILLE_T]} />
+        <meshStandardMaterial {...grilleMat} />
+      </mesh>
+    </group>
+  );
+}
+
 function WindowPane({ spec }: { spec: WindowSpec }) {
   const wall = findWall(spec.wallId);
   const groupRef = useRef<Group>(null);
@@ -81,6 +111,9 @@ function WindowPane({ spec }: { spec: WindowSpec }) {
         {/* Mullions */}
         {verticalMullion && <Bar w={FRAME_T * 0.8} h={h} x={0} y={0} />}
         {horizontalMullion && <Bar w={w} h={FRAME_T * 0.8} x={0} y={0} />}
+        {/* Safety grille — slim vertical bars on the interior side, a
+            near-universal HDB window feature. */}
+        <Grille w={w - FRAME_T} h={h - FRAME_T} />
       </group>
       {/* Interior sill ledge */}
       <mesh position={[localX, spec.sill - 0.02, 0.06]} castShadow receiveShadow>
