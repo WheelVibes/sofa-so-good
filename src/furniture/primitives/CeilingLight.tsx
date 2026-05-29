@@ -10,6 +10,7 @@ import type { ParamProps } from '../types';
  *  Emissive so it reads as lit. */
 export function CeilingLight({ props }: { props: ParamProps }) {
   const style = readStr(props, 'style', 'pendant');
+  const shade = readStr(props, 'shade', 'dome');
   const shadeColor = readStr(props, 'shadeColor', '#f2ead6');
   const mountH = readNum(props, 'mountHeight', 2.55);
   const drop = style === 'pendant' ? readNum(props, 'drop', 0.45) : 0;
@@ -33,9 +34,18 @@ export function CeilingLight({ props }: { props: ParamProps }) {
             <cylinderGeometry args={[0.005, 0.005, drop, 6]} />
             <meshStandardMaterial color="#2b2b2b" roughness={0.8} />
           </mesh>
-          {/* Dome shade */}
-          <mesh castShadow position={[0, 0, 0]}>
-            <sphereGeometry args={[0.18, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+          {/* Shade — shape selectable (dome / globe / cone / drum) */}
+          <mesh castShadow position={[0, shade === 'globe' ? -0.04 : 0, 0]}>
+            {shade === 'globe' ? (
+              <sphereGeometry args={[0.16, 26, 18]} />
+            ) : shade === 'cone' ? (
+              <cylinderGeometry args={[0.06, 0.22, 0.22, 28, 1, true]} />
+            ) : shade === 'drum' ? (
+              <cylinderGeometry args={[0.2, 0.2, 0.18, 32, 1, true]} />
+            ) : (
+              // dome (default)
+              <sphereGeometry args={[0.18, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+            )}
             <meshStandardMaterial
               ref={shadeRef}
               color={shadeColor}

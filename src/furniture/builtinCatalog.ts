@@ -1123,6 +1123,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'flush', label: 'Flush mount' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'shade',
+        label: 'Shade shape',
+        default: 'dome',
+        options: [
+          { value: 'dome', label: 'Dome' },
+          { value: 'globe', label: 'Globe' },
+          { value: 'cone', label: 'Cone' },
+          { value: 'drum', label: 'Drum' },
+        ],
+      },
       { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f2ead6' },
     ],
   },
