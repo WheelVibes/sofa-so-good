@@ -20,6 +20,7 @@ export function Toolbar() {
   const showFps = useStore((s) => s.showFps);
   const toggleShowFps = useStore((s) => s.toggleShowFps);
   const qualityTier = useStore((s) => s.qualityTier);
+  const requestTopView = useStore((s) => s.requestTopView);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [graphicsOpen, setGraphicsOpen] = useState(false);
 
@@ -63,6 +64,14 @@ export function Toolbar() {
       <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
       {cameraMode === 'orbit' ? (
         <>
+          <Divider />
+          <button
+            onClick={requestTopView}
+            title="Top-down plan view"
+            className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+          >
+            Top view
+          </button>
           <Divider />
           <EditorToolToggle />
           <Divider />

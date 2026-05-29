@@ -25,6 +25,18 @@ export function OrbitCamera() {
     controlsRef.current?.update();
   }, [camera]);
 
+  // Snap to a top-down plan view when requested from the toolbar. The tiny
+  // +Z offset keeps OrbitControls out of gimbal lock at the pole.
+  const topViewNonce = useStore((s) => s.topViewNonce);
+  useEffect(() => {
+    if (topViewNonce === 0) return;
+    const c = controlsRef.current;
+    if (!c) return;
+    c.target.set(APARTMENT_EXT_W / 2, 0, APARTMENT_EXT_D / 2);
+    camera.position.set(APARTMENT_EXT_W / 2, 17, APARTMENT_EXT_D / 2 + 0.01);
+    c.update();
+  }, [topViewNonce, camera]);
+
   // Shift + two-finger trackpad scroll → pan. Wheel events fire in capture
   // phase before OrbitControls' listener so we can swallow them and translate
   // camera + target in screen space ourselves.
