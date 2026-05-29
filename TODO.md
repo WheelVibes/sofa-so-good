@@ -17,9 +17,18 @@ Deferred follow-ups from this pass:
 
 - ~~**Wall reveal: couple windows & doors to their wall's fade**~~ — done. Shared per-wall opacity registry ([src/apartment/walls/wallReveal.ts](src/apartment/walls/wallReveal.ts)); windows/doors hide once their wall fades ~65%.
 - ~~**Procedural finish thumbnails**~~ — done. The picker renders a 64px albedo tile per procedural material. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx).
-- **Procedural terrazzo** — `floor-terrazzo` reuses the `concrete` pattern; a dedicated speckled-chip pattern would read truer.
-- **Dispose cloned wall-face materials** — [WallSegment.tsx](src/apartment/walls/WallSegment.tsx) clones finish materials per wall for independent fade; add cleanup on finish change to avoid a minor leak.
-- **Instanced furniture meshes** — repeated primitives (chairs etc.) are many small draw calls; consider merging/instancing for scenes with hundreds of items.
+- ~~**Procedural terrazzo**~~ — done. Dedicated speckled-chip generator (cement matrix + scattered polished chips, seamless wrap). See `terrazzoFields` in [generators.ts](src/materials/procedural/generators.ts).
+- ~~**Dispose cloned wall-face materials**~~ — done. [WallSegment.tsx](src/apartment/walls/WallSegment.tsx) clones the finish material via `useMemo` and disposes it on unmount/change via a `useEffect` cleanup.
+- **Instanced furniture meshes** — repeated primitives (chairs etc.) are many small draw calls; consider merging/instancing for scenes with hundreds of items. (Tension with per-item picking — would need an instance→item index map.)
+
+## Configurable materials (2026-05-29)
+
+Shipped — assets configurable with realistic colours, gradients, textures, materials:
+
+- ~~**Upholstery materials**~~ — fabric / leather / velvet on sofas + armchair. `getUpholsteryMaterial` in [furnitureMaterials.ts](src/materials/furnitureMaterials.ts).
+- ~~**Hard-surface finishes**~~ — wood / painted / gloss across ~21 items (tables, storage, desk, kitchen cabinets, beds, mirror frame, chairs). `getSurfaceMaterial`.
+- ~~**Gradients**~~ — ombre rug + gradient wall-art print. `getGradientFabricMaterial` / `getGradientMaterial`.
+- **Per-wall accent finish** — walls take the adjacent room's finish per face; an accent-wall override (per wall-segment finish, selected by clicking a wall) would need a `wallAccents` map + wall-click selection + a FinishPicker wall mode, layered over the per-face room sampling in [WallSegment.tsx](src/apartment/walls/WallSegment.tsx).
 
 ## Furniture Catalog Expansion
 
