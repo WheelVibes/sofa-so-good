@@ -4,6 +4,7 @@ import { Plane, Raycaster, Vector2, Vector3 } from 'three';
 import { useStore } from '../state/store';
 import { useCatalog } from '../furniture/catalog';
 import { canPlace } from '../collision/placement';
+import { snapToGrid, SNAP_GRID } from './snap';
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0);
 
@@ -50,7 +51,9 @@ export function DragController() {
       if (!hit) return;
       const [hx, hz] = hit;
       const [ox, oz] = state.dragOffset;
-      const next: [number, number] = [hx - ox, hz - oz];
+      let next: [number, number] = [hx - ox, hz - oz];
+      // Snap to the alignment grid when enabled (precise placement).
+      if (state.snapEnabled) next = snapToGrid(next, SNAP_GRID);
 
       const group = state.dragGroupOriginals;
       if (group.length > 1 && state.dragOriginal) {

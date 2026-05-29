@@ -76,6 +76,7 @@ export function Toolbar() {
           <TurntableToggle />
           <Divider />
           <EditorToolToggle />
+          <SnapToggle />
           <Divider />
           <CatalogToggle />
           <Divider />
@@ -123,6 +124,21 @@ function LightsToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${active ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Lights: {LIGHTS_LABEL[lightsMode]}
+    </button>
+  );
+}
+
+/** Toggles snap-to-grid for precise furniture alignment while dragging. */
+function SnapToggle() {
+  const snapEnabled = useStore((s) => s.snapEnabled);
+  const toggleSnap = useStore((s) => s.toggleSnap);
+  return (
+    <button
+      onClick={toggleSnap}
+      title="Snap dragged furniture to a 10 cm grid for precise alignment"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${snapEnabled ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      Snap
     </button>
   );
 }

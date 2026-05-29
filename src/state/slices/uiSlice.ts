@@ -28,6 +28,8 @@ export interface UiSlice {
   qualityOverrides: Partial<QualitySettings>;
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode;
+  /** Snap dragged furniture to a fixed grid for precise alignment. */
+  snapEnabled: boolean;
   /** Adaptive last-resort: when the FPS guard is already at the Low tier and
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
@@ -52,6 +54,7 @@ export interface UiSlice {
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void;
   setAutoShadowsOff: (v: boolean) => void;
+  toggleSnap: () => void;
 }
 
 export const UI_INITIAL: Pick<
@@ -64,6 +67,7 @@ export const UI_INITIAL: Pick<
   | 'qualityOverrides'
   | 'lightsMode'
   | 'autoShadowsOff'
+  | 'snapEnabled'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -73,6 +77,7 @@ export const UI_INITIAL: Pick<
   qualityOverrides: {},
   lightsMode: 'auto',
   autoShadowsOff: false,
+  snapEnabled: false,
 };
 
 const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
@@ -110,4 +115,5 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
+  toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
 });
