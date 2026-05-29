@@ -26,6 +26,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 0.91, d: 1.9, h: 0.6 },
     paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
+      { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
@@ -48,6 +49,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 1.37, d: 1.9, h: 0.6 },
     paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
+      { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
@@ -70,6 +72,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 1.52, d: 1.9, h: 0.6 },
     paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
+      { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
@@ -92,6 +95,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 1.82, d: 2.03, h: 0.6 },
     paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
+      { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
