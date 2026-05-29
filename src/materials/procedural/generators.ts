@@ -104,35 +104,66 @@ function shade(rgb: [number, number, number], factor: number): [number, number, 
 
 function woodFields(base: [number, number, number], seed: number): Fields {
   const f = blank();
-  f.normalStrength = 12;
+  f.normalStrength = 9;
   const rand = mulberry32(seed);
   const planks = 6; // boards stacked across the tile
   const plankH = S / planks;
-  // Per-plank tint + a horizontal phase so end-seams stagger.
-  const plankTint = Array.from({ length: planks }, () => 0.82 + rand() * 0.32);
-  const plankPhase = Array.from({ length: planks }, () => rand());
-  const grain = makeFbm(seed + 7, 4, 6);
-  const fineGrain = makeFbm(seed + 99, 3, 40);
+  // Per-plank tint with correlated warmth (real boards vary in hue + value).
+  const plank = Array.from({ length: planks }, () => {
+    const val = 0.86 + rand() * 0.24; // brightness
+    const warm = 0.94 + rand() * 0.16; // >1 warmer (more red, less blue)
+    const phase = rand() * 10;
+    // A couple of knots per board at random positions along its length.
+    const knots = rand() < 0.6
+      ? [{ u: rand(), v: 0.25 + rand() * 0.5, r: 0.012 + rand() * 0.02 }]
+      : [];
+    return { val, warm, phase, knots };
+  });
+  // Cathedral grain: low-freq along the board, tight bands across it.
+  const grainAlong = makeFbm(seed + 7, 4, 3);
+  const fineGrain = makeFbm(seed + 99, 3, 28);
   for (let y = 0; y < S; y++) {
-    const plank = Math.floor(y / plankH);
+    const pi = Math.floor(y / plankH);
     const yInPlank = (y % plankH) / plankH; // 0..1
-    const tint = plankTint[plank];
+    const pk = plank[pi];
     for (let x = 0; x < S; x++) {
       const u = x / S;
       const v = y / S;
-      // Long grain streaks running along the plank (x axis).
-      const g = grain(u * 1.0 + plankPhase[plank], v * 4.0);
-      const fg = fineGrain(u, v);
-      const streak = 0.78 + g * 0.4 + (fg - 0.5) * 0.12;
-      let factor = tint * streak;
-      // Bevelled groove between planks (dark + recessed).
+      // Bands run along the board (x); warp them with low-freq noise so the
+      // grain meanders like real timber rather than ruled lines.
+      const warp = grainAlong(u * 1.2 + pk.phase, v * 1.5) - 0.5;
+      const band = Math.abs(Math.sin((yInPlank + warp * 0.6) * Math.PI * 9 + pk.phase));
+      const fg = fineGrain(u * 4, v);
+      // Grain lines darken; fine noise adds tooth.
+      let factor = pk.val * (0.92 - band * 0.16 + (fg - 0.5) * 0.06);
+
+      // Knots: dark elliptical cores with a tight ring.
+      let knotH = 0;
+      for (const k of pk.knots) {
+        const du = (u - k.u);
+        const dv = (yInPlank - k.v) * 0.6;
+        const d = Math.hypot(du, dv);
+        if (d < k.r * 3) {
+          const core = d < k.r ? 1 : 0;
+          const ring = Math.abs(Math.sin(d / k.r * 3.5)) * (1 - d / (k.r * 3));
+          factor *= 1 - core * 0.55 - ring * 0.25;
+          knotH = Math.max(knotH, ring * 0.4 + core * 0.5);
+        }
+      }
+
+      // Plank groove (dark + recessed bevel between boards).
       const edge = Math.min(yInPlank, 1 - yInPlank);
-      const groove = edge < 0.04 ? edge / 0.04 : 1;
-      factor *= 0.5 + 0.5 * groove;
-      const [r, gg, b] = shade(base, clamp01(factor));
-      const h = clamp01(0.6 * groove + 0.25 * g + 0.15 * fg);
-      const rough = clamp01(0.62 + (1 - g) * 0.18 - (1 - groove) * 0.15);
-      setPx(f, y * S + x, r, gg, b, h, rough);
+      const groove = edge < 0.035 ? edge / 0.035 : 1;
+      factor *= 0.45 + 0.55 * groove;
+
+      // Apply warmth: scale R up / B down around the value.
+      const r = base[0] * factor * pk.warm;
+      const g = base[1] * factor;
+      const b = base[2] * factor * (2 - pk.warm);
+      const h = clamp01(0.55 * groove + band * 0.3 + knotH);
+      // Satin-varnished boards: fairly glossy, grain lines slightly rougher.
+      const rough = clamp01(0.42 + band * 0.16 + (1 - groove) * 0.2);
+      setPx(f, y * S + x, r, g, b, h, rough);
     }
   }
   return f;
@@ -242,18 +273,20 @@ function marbleFields(base: [number, number, number], seed: number): Fields {
 
 function plasterFields(base: [number, number, number], seed: number): Fields {
   const f = blank();
-  f.normalStrength = 3;
-  const peel = makeFbm(seed + 17, 4, 70);
-  const broad = makeFbm(seed + 23, 3, 6);
+  // Very gentle orange-peel: low bump, near-uniform colour so walls read as
+  // clean matte paint rather than noisy stucco.
+  f.normalStrength = 1.1;
+  const peel = makeFbm(seed + 17, 3, 48);
+  const broad = makeFbm(seed + 23, 3, 5);
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const u = x / S;
       const v = y / S;
       const pk = peel(u, v);
       const br = broad(u, v);
-      const factor = 0.97 + (br - 0.5) * 0.05 + (pk - 0.5) * 0.04;
+      const factor = 0.985 + (br - 0.5) * 0.022 + (pk - 0.5) * 0.012;
       const [r, g, b] = shade(base, clamp01(factor));
-      setPx(f, y * S + x, r, g, b, pk, 0.9);
+      setPx(f, y * S + x, r, g, b, pk * 0.5, 0.92);
     }
   }
   return f;
