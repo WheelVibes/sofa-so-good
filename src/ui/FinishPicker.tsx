@@ -7,6 +7,19 @@ import type { MaterialCategory, MaterialDef } from '../materials/types';
 import type { RoomId } from '../apartment/types';
 import { UploadMaterialDialog } from './upload/UploadMaterialDialog';
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab';
+import { proceduralThumbnailDataUrl } from '../materials/procedural/generators';
+
+/** Background-image URL for a swatch tile: the generated texture preview for
+ *  procedural finishes, the provider thumbnail/albedo for textured ones. */
+function swatchImage(m: MaterialDef): string | undefined {
+  if (m.kind === 'procedural') {
+    return `url("${proceduralThumbnailDataUrl(m.id, m.pattern, m.swatch)}")`;
+  }
+  if (m.kind === 'textured') {
+    return `url("${m.thumbUrl ?? m.runtimeUrls?.albedo ?? m.textures.albedo}")`;
+  }
+  return undefined;
+}
 
 type View = 'swatch' | 'browse';
 type Surface = 'floor' | 'wall';
@@ -183,10 +196,7 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser }: SwatchGro
                 className="block h-10 w-full bg-cover bg-center"
                 style={{
                   backgroundColor: m.swatch,
-                  backgroundImage:
-                    m.kind === 'textured'
-                      ? `url("${m.thumbUrl ?? m.runtimeUrls?.albedo ?? m.textures.albedo}")`
-                      : undefined,
+                  backgroundImage: swatchImage(m),
                 }}
               />
               <span className="block px-1 py-1 text-[10px] leading-tight">
