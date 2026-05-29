@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../state/store';
 
 /** True when the browser can record a canvas stream to a video file. */
@@ -13,17 +13,21 @@ export function canRecord(): boolean {
 
 const MIME_CANDIDATES = ['video/webm;codecs=vp9', 'video/webm;codecs=vp8', 'video/webm'];
 
+type CaptureTrack = MediaStreamTrack & { requestFrame?: () => void };
+
 /**
  * Records the live WebGL canvas to a downloadable .webm while `recording` is
- * true (toggled from the toolbar). Captures the composited frames via
- * `canvas.captureStream`, so post-processing and the turntable orbit are
- * included — pair with Turntable for a presentation clip. Stopping triggers
- * the download.
+ * true (toggled from the toolbar). Uses a manual-frame capture stream
+ * (`captureStream(0)`) and pushes each rendered frame via `track.requestFrame`
+ * from the render loop — reliable regardless of compositor behaviour (and it
+ * works because the canvas keeps a readable drawing buffer). Post-processing
+ * and the turntable orbit are included; stopping triggers the download.
  */
 export function RecordController() {
   const { gl } = useThree();
   const recording = useStore((s) => s.recording);
   const recorderRef = useRef<MediaRecorder | null>(null);
+  const trackRef = useRef<CaptureTrack | null>(null);
 
   useEffect(() => {
     if (!recording) return;
@@ -37,7 +41,8 @@ export function RecordController() {
       const canvas = gl.domElement as HTMLCanvasElement & {
         captureStream(fps?: number): MediaStream;
       };
-      const stream = canvas.captureStream(30);
+      const stream = canvas.captureStream(0); // 0 → frames pushed manually
+      trackRef.current = stream.getVideoTracks()[0] as CaptureTrack;
       const mimeType = MIME_CANDIDATES.find((t) => MediaRecorder.isTypeSupported(t));
       rec = new MediaRecorder(
         stream,
@@ -69,8 +74,14 @@ export function RecordController() {
         recorderRef.current.stop();
       }
       recorderRef.current = null;
+      trackRef.current = null;
     };
   }, [recording, gl]);
+
+  // Push one captured frame per rendered frame while recording.
+  useFrame(() => {
+    if (recording && trackRef.current?.requestFrame) trackRef.current.requestFrame();
+  });
 
   return null;
 }

@@ -33,6 +33,9 @@ export function Scene() {
         antialias: true,
         powerPreference: 'high-performance',
         stencil: false,
+        // Keep the drawing buffer readable so the in-app Export (PNG) and
+        // Record (.webm) capture features reliably grab rendered frames.
+        preserveDrawingBuffer: true,
         toneMapping: ACESFilmicToneMapping,
         toneMappingExposure: 1.05,
       }}
