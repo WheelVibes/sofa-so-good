@@ -16,10 +16,20 @@ export function Mirror({ props }: { props: ParamProps }) {
         <meshStandardMaterial color={frameColor} roughness={0.35} metalness={0.6} />
       </mesh>
       {/* Reflective pane — low roughness + metalness picks up the IBL so it
-          reads as a mirror without a real reflection probe. */}
+          reads as a mirror without a real reflection probe. A light base
+          colour plus a faint emissive floor keeps it from going black on the
+          Low tier (where IBL is disabled and a pure metal has nothing to
+          reflect); the boosted envMapIntensity makes it bright where IBL is on. */}
       <mesh position={[0, 0, 0.018]}>
         <planeGeometry args={[width, height]} />
-        <meshStandardMaterial color="#cdd8e0" roughness={0.08} metalness={0.85} envMapIntensity={1.0} />
+        <meshStandardMaterial
+          color="#dfe8ee"
+          roughness={0.07}
+          metalness={0.7}
+          envMapIntensity={2.0}
+          emissive="#b9c6d0"
+          emissiveIntensity={0.16}
+        />
       </mesh>
     </group>
   );
