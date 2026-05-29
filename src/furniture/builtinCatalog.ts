@@ -789,6 +789,22 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'artColor', label: 'Art', default: '#9fb0a6' },
     ],
   },
+  'wall-clock': {
+    kind: 'parametric',
+    id: 'wall-clock',
+    name: 'Wall clock',
+    category: 'decor',
+    primitive: 'WallClock',
+    defaultFootprint: { w: 0.32, d: 0.05, h: 0.32 },
+    mounted: true,
+    verticalSpan: { base: 1.35, top: 1.85 },
+    paramSchema: [
+      { kind: 'number', key: 'diameter', label: 'Diameter', min: 0.2, max: 0.6, step: 0.02, default: 0.32, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Hang height', min: 1.2, max: 2.2, step: 0.05, default: 1.6, unit: 'm' },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#2a2722' },
+      { kind: 'color', key: 'faceColor', label: 'Face', default: '#f4f1ea' },
+    ],
+  },
   'wall-shelf': {
     kind: 'parametric',
     id: 'wall-shelf',
