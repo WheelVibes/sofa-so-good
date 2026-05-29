@@ -88,6 +88,20 @@ interface PlacementContext {
   doors: Record<string, { open: boolean }>;
 }
 
+/** Vertical extent of an item in metres above the floor, for height-aware
+ *  collision. Falls back to [0, footprint height]. */
+function verticalSpan(def: FurnitureDef): { base: number; top: number } {
+  return def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h };
+}
+
+/** True iff two vertical spans overlap (touching edges don't count). */
+function spansOverlap(
+  a: { base: number; top: number },
+  b: { base: number; top: number },
+): boolean {
+  return a.base < b.top - 1e-6 && b.base < a.top - 1e-6;
+}
+
 /** Returns true iff `item` can be placed without overlapping a (closed-door-
  *  aware) wall segment or any other item. The candidate item's id is
  *  ignored when scanning `others`, so this also works for "can the item
@@ -97,20 +111,31 @@ export function canPlace(
   def: FurnitureDef,
   ctx: PlacementContext,
 ): boolean {
+  // Flat floor coverings (rugs) sit under everything and never collide.
+  if (def.noClip) return true;
+
   const obb = itemFootprint(item, def);
 
   // Walls — tested as full-thickness OBBs so an item placed flush
   // against the visible interior face still has to clear the wall body.
-  const walls = buildCollisionWalls(ctx.doors);
-  for (const seg of walls) {
-    if (obbVsObb(obb, wallToObb(seg))) return false;
+  // Mounted items (wall aircon, ceiling lights) are exempt.
+  if (!def.mounted) {
+    const walls = buildCollisionWalls(ctx.doors);
+    for (const seg of walls) {
+      if (obbVsObb(obb, wallToObb(seg))) return false;
+    }
   }
 
-  // Other furniture
+  // Other furniture — height-aware: only collide when the 2D footprints
+  // overlap AND the vertical spans intersect, so a pendant can hang over a
+  // table or a wall unit sit above a wardrobe.
+  const span = verticalSpan(def);
   for (const other of ctx.others) {
     if (other.id === item.id) continue;
     const oDef = ctx.defs[other.defId];
     if (!oDef) continue;
+    if (oDef.noClip) continue;
+    if (!spansOverlap(span, verticalSpan(oDef))) continue;
     if (obbVsObb(obb, itemFootprint(other, oDef))) return false;
   }
 

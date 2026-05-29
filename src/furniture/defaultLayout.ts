@@ -11,11 +11,12 @@ import { bedroom2 } from './defaults/bedroom2';
 import { bedroom3 } from './defaults/bedroom3';
 import { livingDining } from './defaults/livingDining';
 import { kitchen } from './defaults/kitchen';
+import { bathrooms } from './defaults/bathrooms';
 import type { LayoutEntry } from './defaults/types';
 
 /** Returns the assembled default layout as a fresh array. Deterministic
  *  ids guarantee resetToDefault is idempotent — re-applying the layout
  *  doesn't multiply items. */
 export function defaultLayout(): LayoutEntry[] {
-  return [...mainBedroom, ...bedroom2, ...bedroom3, ...livingDining, ...kitchen];
+  return [...mainBedroom, ...bedroom2, ...bedroom3, ...livingDining, ...kitchen, ...bathrooms];
 }

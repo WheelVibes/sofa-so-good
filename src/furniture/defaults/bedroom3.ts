@@ -17,4 +17,7 @@ export const bedroom3: LayoutEntry[] = [
     rotation: -Math.PI / 2,
     props: { width: 0.9, height: 1.6 },
   },
+  { id: 'default-b3-nightstand', defId: 'nightstand', position: [8.1, 0.7], rotation: 0, props: {} },
+  { id: 'default-b3-plant', defId: 'potted-plant', position: [6.5, 3.1], rotation: 0, props: { size: 'small' } },
+  { id: 'default-b3-pendant', defId: 'ceiling-light', position: [7.5, 2.4], rotation: 0, props: { style: 'flush' } },
 ];

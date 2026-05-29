@@ -10,4 +10,6 @@ export const kitchen: LayoutEntry[] = [
     rotation: 0,
     props: { length: 3.4, hasSink: 'yes' },
   },
+  { id: 'default-k-fridge', defId: 'refrigerator', position: [6.85, 8.6], rotation: Math.PI, props: {} },
+  { id: 'default-k-pendant', defId: 'ceiling-light', position: [8.5, 8.0], rotation: 0, props: { style: 'flush' } },
 ];

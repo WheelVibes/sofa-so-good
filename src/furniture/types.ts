@@ -110,6 +110,17 @@ interface FurnitureDefBase {
    * fall back to this until the GLB has loaded and the bbox is cached).
    */
   defaultFootprint: { w: number; d: number; h: number };
+  /**
+   * Vertical extent (metres above floor) used for height-aware collision so
+   * items at different heights (a pendant over a table, a wall aircon over a
+   * wardrobe) don't falsely collide. Defaults to [0, defaultFootprint.h].
+   */
+  verticalSpan?: { base: number; top: number };
+  /** Wall/ceiling-mounted: skip wall-body collision (it's meant to touch a
+   *  wall or hang from the ceiling). */
+  mounted?: boolean;
+  /** Flat floor covering (e.g. a rug): never collides with walls or items. */
+  noClip?: boolean;
 }
 
 export interface ParametricDef extends FurnitureDefBase {

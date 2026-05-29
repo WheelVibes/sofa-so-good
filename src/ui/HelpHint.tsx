@@ -33,8 +33,26 @@ const SHARED_CONTROLS: Binding[] = [
   { keys: 'T', desc: 'Cycle time of day' },
 ];
 
+const HELP_DISMISSED_KEY = 'sofa.helpHint.dismissed';
+
 export function HelpHint() {
-  const [open, setOpen] = useState(true);
+  // Default open, but stay collapsed across reloads once the user closes it
+  // so the Controls panel doesn't re-cover the view every session.
+  const [open, setOpen] = useState(() => {
+    try {
+      return localStorage.getItem(HELP_DISMISSED_KEY) !== '1';
+    } catch {
+      return true;
+    }
+  });
+  const setOpenPersist = (v: boolean) => {
+    setOpen(v);
+    try {
+      localStorage.setItem(HELP_DISMISSED_KEY, v ? '0' : '1');
+    } catch {
+      /* ignore */
+    }
+  };
   const showMeasurements = useStore((s) => s.showMeasurements);
   const cameraMode = useStore((s) => s.cameraMode);
   const modeControls = cameraMode === 'orbit' ? ORBIT_CONTROLS : FIRST_PERSON_CONTROLS;
@@ -42,7 +60,7 @@ export function HelpHint() {
   if (!open) {
     return (
       <button
-        onClick={() => setOpen(true)}
+        onClick={() => setOpenPersist(true)}
         className="absolute bottom-3 right-3 z-10 rounded-full bg-white/90 px-3 py-2 text-sm shadow"
       >
         ?
@@ -66,7 +84,7 @@ export function HelpHint() {
       )}
       <div className="mb-2 flex items-center justify-between">
         <span className="font-semibold">Controls</span>
-        <button onClick={() => setOpen(false)} className="text-neutral-400 hover:text-neutral-700">
+        <button onClick={() => setOpenPersist(false)} className="text-neutral-400 hover:text-neutral-700">
           ×
         </button>
       </div>

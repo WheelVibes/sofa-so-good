@@ -331,6 +331,8 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'appliances',
     primitive: 'AirconUnit',
     defaultFootprint: { w: 0.84, d: 0.22, h: 0.3 },
+    mounted: true,
+    verticalSpan: { base: 1.9, top: 2.55 },
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 0.7, max: 1.1, step: 0.02, default: 0.84, unit: 'm' },
       { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 1.9, max: 2.5, step: 0.05, default: 2.25, unit: 'm' },
@@ -358,6 +360,8 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'lighting',
     primitive: 'CeilingLight',
     defaultFootprint: { w: 0.45, d: 0.45, h: 0.5 },
+    mounted: true,
+    verticalSpan: { base: 2.0, top: 2.7 },
     paramSchema: [
       {
         kind: 'enum',
@@ -381,6 +385,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'decor',
     primitive: 'Rug',
     defaultFootprint: { w: 2.0, d: 1.4, h: 0.03 },
+    noClip: true,
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 3.0, step: 0.1, default: 2.0, unit: 'm' },
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.6, max: 2.4, step: 0.1, default: 1.4, unit: 'm' },

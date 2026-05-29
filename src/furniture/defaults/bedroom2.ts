@@ -17,4 +17,7 @@ export const bedroom2: LayoutEntry[] = [
     rotation: 0,
     props: { width: 1.2, depth: 0.55 },
   },
+  { id: 'default-b2-chair', defId: 'dining-chair', position: [4.55, 2.55], rotation: 0, props: {} },
+  { id: 'default-b2-nightstand', defId: 'nightstand', position: [5.55, 0.65], rotation: 0, props: {} },
+  { id: 'default-b2-pendant', defId: 'ceiling-light', position: [4.55, 2.4], rotation: 0, props: { style: 'flush' } },
 ];

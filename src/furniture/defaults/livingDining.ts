@@ -29,4 +29,18 @@ export const livingDining: LayoutEntry[] = [
     rotation: 0,
     props: { seats: '4' },
   },
+  // Dining chairs — two per long side of the 1.4 m table.
+  { id: 'default-ld-chair-n1', defId: 'dining-chair', position: [10.2, 4.45], rotation: 0, props: {} },
+  { id: 'default-ld-chair-n2', defId: 'dining-chair', position: [10.9, 4.45], rotation: 0, props: {} },
+  { id: 'default-ld-chair-s1', defId: 'dining-chair', position: [10.2, 5.95], rotation: Math.PI, props: {} },
+  { id: 'default-ld-chair-s2', defId: 'dining-chair', position: [10.9, 5.95], rotation: Math.PI, props: {} },
+  // Lounge zone in front of the sofa.
+  { id: 'default-ld-rug', defId: 'rug', position: [10.65, 3.55], rotation: 0, props: { width: 2.2, depth: 1.5 } },
+  { id: 'default-ld-coffee', defId: 'coffee-table', position: [10.65, 3.55], rotation: 0, props: {} },
+  { id: 'default-ld-armchair', defId: 'armchair', position: [11.4, 7.3], rotation: Math.PI, props: {} },
+  { id: 'default-ld-plant', defId: 'potted-plant', position: [12.2, 6.3], rotation: 0, props: { size: 'large' } },
+  { id: 'default-ld-lamp', defId: 'floor-lamp', position: [9.35, 1.95], rotation: 0, props: {} },
+  { id: 'default-ld-pendant', defId: 'ceiling-light', position: [10.65, 3.55], rotation: 0, props: { style: 'pendant' } },
+  { id: 'default-ld-pendant-dining', defId: 'ceiling-light', position: [10.55, 5.20], rotation: 0, props: { style: 'pendant' } },
+  { id: 'default-ld-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
 ];
