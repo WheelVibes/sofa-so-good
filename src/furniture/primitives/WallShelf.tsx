@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Floating wall shelf — a single plank on two L-brackets, wall-mounted.
@@ -10,9 +10,10 @@ export function WallShelf({ props }: { props: ParamProps }) {
   const depth = readNum(props, 'depth', 0.22);
   const centerY = readNum(props, 'mountHeight', 1.4);
   const color = readStr(props, 'color', '#8a6b48');
+  const finish = readStr(props, 'finish', 'wood');
 
   const plankT = 0.035;
-  const wood = getWoodMaterial(color, 1.2);
+  const wood = getSurfaceMaterial(finish, color, 1.2);
   // Brackets sit a little in from each end.
   const bx = width / 2 - 0.08;
   const bracketColor = '#2b2b2b';

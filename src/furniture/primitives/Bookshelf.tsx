@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface BookshelfProps {
@@ -15,13 +15,14 @@ export function Bookshelf({ props }: BookshelfProps) {
   const height = readNum(props, 'height', 1.8);
   const shelfCount = Math.max(2, Math.min(6, Math.round(readNum(props, 'shelfCount', 4))));
   const color = readStr(props, 'color', '#7a5e3a');
+  const finish = readStr(props, 'finish', 'wood');
 
   const depth = 0.3;
   const sideThickness = 0.025;
   const backThickness = 0.012;
   const shelfThickness = 0.022;
 
-  const wood = getWoodMaterial(color, 1.4);
+  const wood = getSurfaceMaterial(finish, color, 1.4);
   const innerH = height - shelfThickness;
   const shelfSpacing = innerH / (shelfCount - 1);
   const shelves = Array.from({ length: shelfCount }, (_, i) => {

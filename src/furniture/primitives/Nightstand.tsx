@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Bedside cabinet with two drawer fronts and short legs. */
@@ -7,10 +7,11 @@ export function Nightstand({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 0.45);
   const depth = readNum(props, 'depth', 0.4);
   const color = readStr(props, 'color', '#8a6b48');
+  const finish = readStr(props, 'finish', 'wood');
 
   const legH = 0.1;
   const bodyH = 0.42;
-  const wood = getWoodMaterial(color, 1);
+  const wood = getSurfaceMaterial(finish, color, 1);
 
   return (
     <group>

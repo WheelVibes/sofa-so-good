@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Wide chest of drawers: body + a grid of drawer fronts with knobs.
@@ -10,10 +10,11 @@ export function Dresser({ props }: { props: ParamProps }) {
   const rows = Math.max(2, Math.round(readNum(props, 'rows', 3)));
   const cols = Math.max(1, Math.round(readNum(props, 'cols', 2)));
   const color = readStr(props, 'color', '#8a6b48');
+  const finish = readStr(props, 'finish', 'wood');
 
   const legH = 0.08;
   const bodyH = 0.85;
-  const wood = getWoodMaterial(color, 1.6);
+  const wood = getSurfaceMaterial(finish, color, 1.6);
   const gap = 0.02;
   const dw = (width - gap * (cols + 1)) / cols;
   const dh = (bodyH - gap * (rows + 1)) / rows;

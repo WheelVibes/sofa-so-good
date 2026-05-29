@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Slim entryway shoe cabinet — a near-universal fixture by the front door
@@ -10,11 +10,12 @@ export function ShoeCabinet({ props }: { props: ParamProps }) {
   const depth = readNum(props, 'depth', 0.32);
   const tiers = Math.max(2, Math.round(readNum(props, 'tiers', 3)));
   const bodyColor = readStr(props, 'color', '#9a8a72');
+  const finish = readStr(props, 'finish', 'wood');
 
   const plinthH = 0.06;
   const bodyH = 0.94;
   const topThk = 0.025;
-  const wood = getWoodMaterial(bodyColor, 1.4);
+  const wood = getSurfaceMaterial(finish, bodyColor, 1.4);
 
   const gap = 0.015;
   const frontsH = bodyH - topThk;

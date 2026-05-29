@@ -229,6 +229,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 1.0, max: 2.4, step: 0.1, default: 1.5, unit: 'm' },
       { kind: 'integer', key: 'doorCount', label: 'Doors', min: 2, max: 4, default: 3 },
       { kind: 'color', key: 'color', label: 'Colour', default: '#caa478' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   dresser: {
@@ -243,6 +254,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'integer', key: 'rows', label: 'Rows', min: 2, max: 5, default: 3 },
       { kind: 'integer', key: 'cols', label: 'Columns', min: 1, max: 3, default: 2 },
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   'shoe-cabinet': {
@@ -258,6 +280,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.24, max: 0.4, step: 0.02, default: 0.32, unit: 'm' },
       { kind: 'integer', key: 'tiers', label: 'Tiers', min: 2, max: 5, default: 3 },
       { kind: 'color', key: 'color', label: 'Colour', default: '#9a8a72' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   bookshelf: {
@@ -272,6 +305,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'height', label: 'Height', min: 1.2, max: 2.4, step: 0.1, default: 1.8, unit: 'm' },
       { kind: 'integer', key: 'shelfCount', label: 'Shelves', min: 3, max: 6, default: 4 },
       { kind: 'color', key: 'color', label: 'Colour', default: '#7a5e3a' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   'tv-console': {
@@ -284,6 +328,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 1.2, max: 2.4, step: 0.1, default: 1.8, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Colour', default: '#3a2f24' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
 
@@ -407,6 +462,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 0.35, max: 0.6, step: 0.05, default: 0.45, unit: 'm' },
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.3, max: 0.5, step: 0.05, default: 0.4, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
 
@@ -886,6 +952,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.16, max: 0.32, step: 0.02, default: 0.22, unit: 'm' },
       { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 0.8, max: 2.0, step: 0.05, default: 1.4, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   'floor-mirror': {
