@@ -586,7 +586,32 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'seating',
     primitive: 'OfficeChair',
     defaultFootprint: { w: 0.6, d: 0.6, h: 1.0 },
-    paramSchema: [{ kind: 'color', key: 'color', label: 'Upholstery', default: '#2b2f33' }],
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Upholstery', default: '#2b2f33' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'task',
+        options: [
+          { value: 'task', label: 'Task' },
+          { value: 'executive', label: 'Executive' },
+          { value: 'mesh', label: 'Mesh back' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
   },
   'bar-stool': {
     kind: 'parametric',
