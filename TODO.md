@@ -28,7 +28,7 @@ Shipped — assets configurable with realistic colours, gradients, textures, mat
 - ~~**Upholstery materials**~~ — fabric / leather / velvet on sofas + armchair. `getUpholsteryMaterial` in [furnitureMaterials.ts](src/materials/furnitureMaterials.ts).
 - ~~**Hard-surface finishes**~~ — wood / painted / gloss across ~21 items (tables, storage, desk, kitchen cabinets, beds, mirror frame, chairs). `getSurfaceMaterial`.
 - ~~**Gradients**~~ — ombre rug + gradient wall-art print. `getGradientFabricMaterial` / `getGradientMaterial`.
-- **Per-wall accent finish** — walls take the adjacent room's finish per face; an accent-wall override (per wall-segment finish, selected by clicking a wall) would need a `wallAccents` map + wall-click selection + a FinishPicker wall mode, layered over the per-face room sampling in [WallSegment.tsx](src/apartment/walls/WallSegment.tsx).
+- ~~**Per-wall accent finish**~~ — done. Click a wall in orbit mode → `selectWall` → [WallAccentPicker](src/ui/WallAccentPicker.tsx); `wallAccents` map (keyed `wallId:roomId`) overrides the per-face room finish in [WallSegment.tsx](src/apartment/walls/WallSegment.tsx). Schema-persisted (backward-compatible).
 
 ## Furniture Catalog Expansion
 
