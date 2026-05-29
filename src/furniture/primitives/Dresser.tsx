@@ -32,7 +32,7 @@ export function Dresser({ props }: { props: ParamProps }) {
               <mesh position={[x, y, depth / 2 + 0.003]} material={wood}>
                 <boxGeometry args={[dw, dh, 0.02]} />
               </mesh>
-              <mesh castShadow position={[x, y, depth / 2 + 0.03]}>
+              <mesh position={[x, y, depth / 2 + 0.03]}>
                 <sphereGeometry args={[0.018, 12, 10]} />
                 <meshStandardMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
               </mesh>

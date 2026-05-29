@@ -57,7 +57,7 @@ export function Bookshelf({ props }: BookshelfProps) {
         const bh = gapH * (0.62 + rnd() * 0.3);
         const col = BOOK_COLORS[Math.floor(rnd() * BOOK_COLORS.length)];
         books.push(
-          <mesh key={`bk-${bookKey++}`} castShadow position={[x + bw / 2, baseY + bh / 2, 0.02]}>
+          <mesh key={`bk-${bookKey++}`} position={[x + bw / 2, baseY + bh / 2, 0.02]}>
             <boxGeometry args={[bw, bh, depth * 0.62]} />
             <meshStandardMaterial color={col} roughness={0.8} metalness={0} />
           </mesh>,
