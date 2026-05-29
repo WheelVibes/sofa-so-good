@@ -1,4 +1,5 @@
 import { readNum, readStr } from './shared';
+import { getFabricMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Pleated floor-length curtains on a rod. Modelled as overlapping vertical
@@ -11,7 +12,7 @@ export function Curtain({ props }: { props: ParamProps }) {
 
   const pleats = Math.max(6, Math.round(width / 0.14));
   const step = width / pleats;
-  const fabric = { color, roughness: 0.95, metalness: 0 };
+  const fabricMat = getFabricMaterial(color);
 
   return (
     <group>
@@ -31,9 +32,8 @@ export function Curtain({ props }: { props: ParamProps }) {
         const x = -width / 2 + step / 2 + i * step;
         const z = Math.sin(i * 1.7) * 0.035;
         return (
-          <mesh key={i} castShadow position={[x, height / 2, z]}>
+          <mesh key={i} castShadow position={[x, height / 2, z]} material={fabricMat}>
             <boxGeometry args={[step * 1.25, height, 0.04]} />
-            <meshStandardMaterial {...fabric} />
           </mesh>
         );
       })}
