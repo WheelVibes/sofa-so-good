@@ -7,13 +7,17 @@ export interface CameraSlice {
   cameraMode: CameraMode;
   /** Bumped to request the orbit camera snap to a top-down plan view. */
   topViewNonce: number;
+  /** Slow auto-orbit for presentation / recording a turntable clip. */
+  autoRotate: boolean;
   setCameraMode: (m: CameraMode) => void;
   requestTopView: () => void;
+  toggleAutoRotate: () => void;
 }
 
-export const CAMERA_INITIAL: Pick<CameraSlice, 'cameraMode' | 'topViewNonce'> = {
+export const CAMERA_INITIAL: Pick<CameraSlice, 'cameraMode' | 'topViewNonce' | 'autoRotate'> = {
   cameraMode: 'orbit',
   topViewNonce: 0,
+  autoRotate: false,
 };
 
 export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set) => ({
@@ -21,4 +25,5 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set) => 
   setCameraMode: (m) => set({ cameraMode: m }),
   requestTopView: () =>
     set((s) => ({ topViewNonce: s.topViewNonce + 1, cameraMode: 'orbit' })),
+  toggleAutoRotate: () => set((s) => ({ autoRotate: !s.autoRotate })),
 });

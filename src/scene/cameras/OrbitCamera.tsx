@@ -16,6 +16,7 @@ const INITIAL_TARGET: [number, number, number] = [
 
 export function OrbitCamera() {
   const editorTool = useStore((s) => s.editorTool);
+  const autoRotate = useStore((s) => s.autoRotate);
   const { camera, gl } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
@@ -98,6 +99,8 @@ export function OrbitCamera() {
       ref={controlsRef}
       makeDefault
       enabled={editorTool === 'orbit'}
+      autoRotate={autoRotate}
+      autoRotateSpeed={0.6}
       enableDamping
       dampingFactor={0.1}
       enablePan

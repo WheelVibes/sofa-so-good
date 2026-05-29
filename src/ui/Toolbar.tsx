@@ -73,6 +73,7 @@ export function Toolbar() {
           >
             Top view
           </button>
+          <TurntableToggle />
           <Divider />
           <EditorToolToggle />
           <Divider />
@@ -122,6 +123,21 @@ function LightsToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${active ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Lights: {LIGHTS_LABEL[lightsMode]}
+    </button>
+  );
+}
+
+/** Toggles a slow auto-orbit for presentations / recording a turntable clip. */
+function TurntableToggle() {
+  const autoRotate = useStore((s) => s.autoRotate);
+  const toggleAutoRotate = useStore((s) => s.toggleAutoRotate);
+  return (
+    <button
+      onClick={toggleAutoRotate}
+      title="Turntable: slowly auto-orbit the model (great for recording a clip)"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${autoRotate ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      Turntable
     </button>
   );
 }
