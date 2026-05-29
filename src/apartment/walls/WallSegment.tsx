@@ -1,4 +1,4 @@
-import { Suspense, memo, useMemo, useRef } from 'react';
+import { Suspense, memo, useEffect, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useFrame, useThree } from '@react-three/fiber';
 import { Group, Mesh, type MeshStandardMaterial } from 'three';
@@ -45,8 +45,10 @@ function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, materi
   const yRot = sign === 1 ? 0 : Math.PI;
   const geometry = useMemo(() => worldUvPlaneGeometry(segLen, segHeight), [segLen, segHeight]);
   // Clone so this wall's face can fade for camera-reveal independently of the
-  // shared, cached finish material (which other walls also use).
+  // shared, cached finish material (which other walls also use). Textures are
+  // shared by reference, so disposing the clone frees only its own GPU program.
   const faded = useMemo(() => material.clone(), [material]);
+  useEffect(() => () => faded.dispose(), [faded]);
   return (
     <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} material={faded} geometry={geometry} />
   );
