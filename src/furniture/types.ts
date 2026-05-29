@@ -72,7 +72,9 @@ export type PrimitiveKind =
   | 'Curtain'
   | 'WallArt'
   | 'OfficeChair'
-  | 'WallCabinet';
+  | 'WallCabinet'
+  | 'Dresser'
+  | 'BarStool';
 
 export type ParamField =
   | {

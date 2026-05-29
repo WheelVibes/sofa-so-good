@@ -192,6 +192,20 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#caa478' },
     ],
   },
+  dresser: {
+    kind: 'parametric',
+    id: 'dresser',
+    name: 'Chest of drawers',
+    category: 'storage',
+    primitive: 'Dresser',
+    defaultFootprint: { w: 1.2, d: 0.5, h: 0.93 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 1.8, step: 0.1, default: 1.2, unit: 'm' },
+      { kind: 'integer', key: 'rows', label: 'Rows', min: 2, max: 5, default: 3 },
+      { kind: 'integer', key: 'cols', label: 'Columns', min: 1, max: 3, default: 2 },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+    ],
+  },
   bookshelf: {
     kind: 'parametric',
     id: 'bookshelf',
@@ -239,6 +253,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     primitive: 'OfficeChair',
     defaultFootprint: { w: 0.6, d: 0.6, h: 1.0 },
     paramSchema: [{ kind: 'color', key: 'color', label: 'Upholstery', default: '#2b2f33' }],
+  },
+  'bar-stool': {
+    kind: 'parametric',
+    id: 'bar-stool',
+    name: 'Bar stool',
+    category: 'seating',
+    primitive: 'BarStool',
+    defaultFootprint: { w: 0.42, d: 0.42, h: 0.71 },
+    paramSchema: [
+      { kind: 'color', key: 'seatColor', label: 'Seat', default: '#7a5c3c' },
+      { kind: 'color', key: 'legColor', label: 'Legs', default: '#3a3d42' },
+    ],
   },
   armchair: {
     kind: 'parametric',
