@@ -23,59 +23,70 @@ import { getFixtureGlow } from './lighting/fixtureGlow';
 const CX = APARTMENT_EXT_W / 2;
 const CZ = APARTMENT_EXT_D / 2;
 
-/** Build the shared façade albedo (concrete + recessed windows) and an
- *  emissive map where a fraction of windows are "lit" warm. */
-function makeFacadeTextures(): { albedo: CanvasTexture; emissive: CanvasTexture } {
-  const W = 128;
-  const H = 256;
-  const a = document.createElement('canvas');
-  a.width = W;
-  a.height = H;
-  const e = document.createElement('canvas');
-  e.width = W;
-  e.height = H;
-  const ac = a.getContext('2d')!;
-  const ec = e.getContext('2d')!;
+const TEX_W = 128;
+const TEX_H = 256;
+const GRID_COLS = 4;
+const GRID_ROWS = 8;
 
-  ac.fillStyle = '#9498a0';
-  ac.fillRect(0, 0, W, H);
-  ec.fillStyle = '#000000';
-  ec.fillRect(0, 0, W, H);
-
-  const cols = 4;
-  const rows = 8;
-  const mx = W * 0.12;
-  const my = H * 0.06;
-  const gw = (W - mx * 2) / cols;
-  const gh = (H - my * 2) / rows;
+/** Window-cell geometry shared by the albedo and every emissive variant so
+ *  lit windows line up exactly with the recessed glazing. */
+function windowCells(): { x: number; y: number; w: number; h: number }[] {
+  const mx = TEX_W * 0.12;
+  const my = TEX_H * 0.06;
+  const gw = (TEX_W - mx * 2) / GRID_COLS;
+  const gh = (TEX_H - my * 2) / GRID_ROWS;
   const ww = gw * 0.64;
   const wh = gh * 0.6;
-  const rnd = mulberry32(0x5eed);
-
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const x = mx + c * gw + (gw - ww) / 2;
-      const y = my + r * gh + (gh - wh) / 2;
-      // Recessed glazing on the albedo (cool dark blue-grey).
-      ac.fillStyle = '#384350';
-      ac.fillRect(x, y, ww, wh);
-      // A subset of windows are lit at night (warm), with a little variety.
-      const roll = rnd();
-      if (roll < 0.42) {
-        ec.fillStyle = roll < 0.1 ? '#cfe0ff' : '#ffd49a';
-        ec.fillRect(x, y, ww, wh);
-      }
+  const cells: { x: number; y: number; w: number; h: number }[] = [];
+  for (let r = 0; r < GRID_ROWS; r++) {
+    for (let c = 0; c < GRID_COLS; c++) {
+      cells.push({ x: mx + c * gw + (gw - ww) / 2, y: my + r * gh + (gh - wh) / 2, w: ww, h: wh });
     }
   }
+  return cells;
+}
 
-  const albedo = new CanvasTexture(a);
-  albedo.colorSpace = SRGBColorSpace;
-  albedo.wrapS = albedo.wrapT = RepeatWrapping;
-  albedo.repeat.set(4, 6);
-  const emissive = new CanvasTexture(e);
-  emissive.wrapS = emissive.wrapT = RepeatWrapping;
-  emissive.repeat.set(4, 6);
-  return { albedo, emissive };
+function repeatTexture(canvas: HTMLCanvasElement, srgb: boolean): CanvasTexture {
+  const tex = new CanvasTexture(canvas);
+  if (srgb) tex.colorSpace = SRGBColorSpace;
+  tex.wrapS = tex.wrapT = RepeatWrapping;
+  tex.repeat.set(4, 6);
+  return tex;
+}
+
+/** Shared concrete façade with recessed glazing. */
+function makeAlbedo(cells: ReturnType<typeof windowCells>): CanvasTexture {
+  const a = document.createElement('canvas');
+  a.width = TEX_W;
+  a.height = TEX_H;
+  const ac = a.getContext('2d')!;
+  ac.fillStyle = '#9498a0';
+  ac.fillRect(0, 0, TEX_W, TEX_H);
+  for (const cell of cells) {
+    ac.fillStyle = '#384350';
+    ac.fillRect(cell.x, cell.y, cell.w, cell.h);
+  }
+  return repeatTexture(a, true);
+}
+
+/** One night-lighting variant: a different random subset of windows lit warm
+ *  (a few cool), so neighbouring blocks don't share an identical pattern. */
+function makeEmissive(cells: ReturnType<typeof windowCells>, seed: number): CanvasTexture {
+  const e = document.createElement('canvas');
+  e.width = TEX_W;
+  e.height = TEX_H;
+  const ec = e.getContext('2d')!;
+  ec.fillStyle = '#000000';
+  ec.fillRect(0, 0, TEX_W, TEX_H);
+  const rnd = mulberry32(seed);
+  for (const cell of cells) {
+    const roll = rnd();
+    if (roll < 0.42) {
+      ec.fillStyle = roll < 0.1 ? '#cfe0ff' : '#ffd49a';
+      ec.fillRect(cell.x, cell.y, cell.w, cell.h);
+    }
+  }
+  return repeatTexture(e, false);
 }
 
 interface Block {
@@ -111,26 +122,29 @@ function makeBlocks(): Block[] {
 
 export function CityBackdrop() {
   const geom = useMemo(() => new BoxGeometry(1, 1, 1), []);
-  const { albedo, emissive } = useMemo(makeFacadeTextures, []);
   const blocks = useMemo(makeBlocks, []);
 
-  // Three tinted variants share the one façade texture — varied concrete
-  // tones at no extra texture memory.
+  // Three tinted variants share one albedo texture (varied concrete tones at
+  // no extra memory) but each gets its own emissive variant so neighbouring
+  // blocks light up with distinct window patterns at night.
   const materials = useMemo(() => {
+    const cells = windowCells();
+    const albedo = makeAlbedo(cells);
     const tints = ['#aeb2b8', '#c4bcae', '#9aa6ad'];
+    const seeds = [0x5eed, 0x1a2b, 0x9f3c];
     return tints.map(
-      (color) =>
+      (color, i) =>
         new MeshStandardMaterial({
           color,
           map: albedo,
           emissive: '#ffce8a',
-          emissiveMap: emissive,
+          emissiveMap: makeEmissive(cells, seeds[i]),
           emissiveIntensity: 0,
           roughness: 0.85,
           metalness: 0,
         }),
     );
-  }, [albedo, emissive]);
+  }, []);
 
   const groundMat = useMemo(
     () => new MeshStandardMaterial({ color: '#6f7468', roughness: 1, metalness: 0 }),
