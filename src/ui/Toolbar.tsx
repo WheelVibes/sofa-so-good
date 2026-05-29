@@ -9,6 +9,7 @@ import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import type { SlotMeta } from '../state/storage/StorageAdapter';
 import { CreditsModal } from './CreditsModal';
 import { QUALITY_LABEL } from '../scene/quality';
+import { GraphicsSettings } from './GraphicsSettings';
 
 export function Toolbar() {
   const cameraMode = useStore((s) => s.cameraMode);
@@ -18,8 +19,8 @@ export function Toolbar() {
   const showFps = useStore((s) => s.showFps);
   const toggleShowFps = useStore((s) => s.toggleShowFps);
   const qualityTier = useStore((s) => s.qualityTier);
-  const cycleQuality = useStore((s) => s.cycleQuality);
   const [creditsOpen, setCreditsOpen] = useState(false);
+  const [graphicsOpen, setGraphicsOpen] = useState(false);
 
   return (
     <div className="absolute top-3 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 rounded-lg bg-white/90 px-3 py-2 shadow backdrop-blur">
@@ -52,12 +53,13 @@ export function Toolbar() {
         FPS
       </button>
       <button
-        onClick={cycleQuality}
-        title="Graphics quality (auto-adjusts to hold 30+ fps; click to override)"
+        onClick={() => setGraphicsOpen(true)}
+        title="Graphics settings (auto-adjusts to hold 30+ fps)"
         className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
       >
         Quality: {QUALITY_LABEL[qualityTier]}
       </button>
+      <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
       {cameraMode === 'orbit' ? (
         <>
           <Divider />

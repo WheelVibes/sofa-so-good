@@ -55,6 +55,15 @@ export const QUALITY_LABEL: Record<QualityTier, string> = {
   high: 'High',
 };
 
+/** Effective settings = the tier preset with any per-setting user overrides
+ *  layered on top. */
+export function resolveQuality(
+  tier: QualityTier,
+  overrides: Partial<QualitySettings> | undefined,
+): QualitySettings {
+  return { ...QUALITY_PRESETS[tier], ...(overrides ?? {}) };
+}
+
 /**
  * Pick a sensible starting tier for the current device. Conservative by
  * design: software / integrated renderers and low-core machines start at

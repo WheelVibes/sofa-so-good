@@ -5,7 +5,7 @@ import { useStore } from '../../state/store';
 import { useSunPosition } from './useSunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
 import { LIGHT_EMITTERS } from '../../furniture/lightEmitters';
-import { QUALITY_PRESETS } from '../quality';
+import { useQuality } from '../useQuality';
 import type { FurnitureItem } from '../../furniture/types';
 
 /** Below this darkness the room is daylit — render no fixture lights at all. */
@@ -26,8 +26,7 @@ interface ActiveLight {
  */
 export function FurnitureLights() {
   const items = useStore(useShallow((s) => s.items));
-  const tier = useStore((s) => s.qualityTier);
-  const maxLights = QUALITY_PRESETS[tier].maxFixtureLights;
+  const maxLights = useQuality().maxFixtureLights;
   const sun = useSunPosition();
   const { camera } = useThree();
   const darknessRef = useRef(0);

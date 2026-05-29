@@ -2,8 +2,7 @@ import { Environment, Lightformer } from '@react-three/drei';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useSunPosition } from './useSunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
-import { useStore } from '../../state/store';
-import { QUALITY_PRESETS } from '../quality';
+import { useQuality } from '../useQuality';
 
 /**
  * A lightweight procedural image-based-lighting environment, built once from
@@ -15,8 +14,7 @@ import { QUALITY_PRESETS } from '../quality';
 export function SceneEnvironment() {
   const { scene } = useThree();
   const sun = useSunPosition();
-  const tier = useStore((s) => s.qualityTier);
-  const enabled = QUALITY_PRESETS[tier].ibl;
+  const enabled = useQuality().ibl;
 
   useFrame(() => {
     if (!enabled) return;

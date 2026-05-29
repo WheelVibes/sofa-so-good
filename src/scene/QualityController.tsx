@@ -1,7 +1,8 @@
 import { useEffect, useRef } from 'react';
 import { useFrame, useThree } from '@react-three/fiber';
 import { useStore } from '../state/store';
-import { QUALITY_PRESETS, detectDefaultTier, type QualityTier } from './quality';
+import { detectDefaultTier, type QualityTier } from './quality';
+import { useQuality } from './useQuality';
 
 const ORDER: QualityTier[] = ['low', 'medium', 'high'];
 /** Frame-rate floor. Sustained dips below this auto-drop the tier. */
@@ -18,7 +19,7 @@ const FPS_FLOOR = 30;
  */
 export function QualityController() {
   const { gl } = useThree();
-  const tier = useStore((s) => s.qualityTier);
+  const dprMax = useQuality().dprMax;
 
   // One-time device detection (skipped if the user already chose a tier).
   useEffect(() => {
@@ -27,11 +28,10 @@ export function QualityController() {
     useStore.getState().autoSetQualityTier(detectDefaultTier(ctx));
   }, [gl]);
 
-  // Apply the tier's device-pixel-ratio clamp.
+  // Apply the effective device-pixel-ratio clamp.
   useEffect(() => {
-    const max = QUALITY_PRESETS[tier].dprMax;
-    gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, max));
-  }, [tier, gl]);
+    gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprMax));
+  }, [dprMax, gl]);
 
   // Adaptive frame-rate guard.
   const acc = useRef({ t: 0, frames: 0, lowWindows: 0 });

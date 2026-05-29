@@ -1,6 +1,6 @@
 import type { SliceCreator } from './types';
 import type { RootState } from '../store';
-import type { QualityTier } from '../../scene/quality';
+import type { QualityTier, QualitySettings } from '../../scene/quality';
 
 /** Editor tool while in orbit camera mode. 'orbit' lets click-drag rotate
  *  the camera (current default). 'select' disables camera rotation so a
@@ -19,29 +19,36 @@ export interface UiSlice {
   /** True once the user picks a tier manually — stops the adaptive monitor
    *  from overriding their choice. */
   qualityUserSet: boolean;
+  /** Per-setting overrides layered on top of the active tier preset. */
+  qualityOverrides: Partial<QualitySettings>;
   setCatalogOpen: (open: boolean) => void;
   toggleCatalogOpen: () => void;
   setEditorTool: (tool: EditorTool) => void;
   toggleEditorTool: () => void;
   setShowFps: (show: boolean) => void;
   toggleShowFps: () => void;
-  /** Manual tier change (marks qualityUserSet). */
+  /** Manual tier change — clears overrides and marks qualityUserSet. */
   setQualityTier: (t: QualityTier) => void;
   /** Cycle Low → Medium → High → Low (manual). */
   cycleQuality: () => void;
   /** Adaptive auto-adjust (does not set qualityUserSet). */
   autoSetQualityTier: (t: QualityTier) => void;
+  /** Override a single quality setting (marks qualityUserSet). */
+  setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void;
+  /** Drop all overrides so settings follow the tier preset again. */
+  resetQualityOverrides: () => void;
 }
 
 export const UI_INITIAL: Pick<
   UiSlice,
-  'catalogOpen' | 'editorTool' | 'showFps' | 'qualityTier' | 'qualityUserSet'
+  'catalogOpen' | 'editorTool' | 'showFps' | 'qualityTier' | 'qualityUserSet' | 'qualityOverrides'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
   showFps: false,
   qualityTier: 'medium',
   qualityUserSet: false,
+  qualityOverrides: {},
 };
 
 const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
@@ -55,12 +62,19 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
     set((s) => ({ editorTool: s.editorTool === 'orbit' ? 'select' : 'orbit' })),
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
-  setQualityTier: (t) => set({ qualityTier: t, qualityUserSet: true }),
+  setQualityTier: (t) => set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {} }),
   cycleQuality: () =>
     set((s) => ({
       qualityTier: CYCLE[(CYCLE.indexOf(s.qualityTier) + 1) % CYCLE.length],
       qualityUserSet: true,
+      qualityOverrides: {},
     })),
   autoSetQualityTier: (t) =>
     set((s) => (s.qualityUserSet || s.qualityTier === t ? {} : { qualityTier: t })),
+  setQualityOverride: (key, value) =>
+    set((s) => ({
+      qualityOverrides: { ...s.qualityOverrides, [key]: value },
+      qualityUserSet: true,
+    })),
+  resetQualityOverrides: () => set({ qualityOverrides: {} }),
 });

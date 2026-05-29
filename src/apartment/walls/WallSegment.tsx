@@ -130,9 +130,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   useFrame(() => {
     const group = groupRef.current;
     if (!group) return;
-    const orbit = useStore.getState().cameraMode === 'orbit';
+    const st = useStore.getState();
+    const orbit = st.cameraMode === 'orbit';
+    const revealEnabled = st.qualityOverrides.wallReveal ?? true;
     let target = 1;
-    if (revealable && orbit) {
+    if (revealable && orbit && revealEnabled) {
       const cdx = CENTER_X - camera.position.x;
       const cdz = CENTER_Z - camera.position.z;
       const clen = Math.hypot(cdx, cdz) || 1;
