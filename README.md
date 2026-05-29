@@ -11,27 +11,39 @@ export the result — all in the browser.
 
 - **Accurate HDB 4-room layout** — walls, doors, windows, and room areas
   derived from a measured floor plan; openable doors; a household-shelter
-  blast door.
-- **~60-item furniture catalog** across beds, seating, tables, storage,
+  blast door; and HDB-signature touches like window safety grilles and a
+  kitchen backsplash.
+- **~70-item furniture catalog** across beds, seating, tables, storage,
   kitchen, bathroom, appliances, lighting, and decor — all parametric
   (resize / recolour / configure in the inspector), searchable, with live
-  3D thumbnails. Comes furnished out of the box.
-- **Realistic materials** — procedurally generated PBR finishes (wood, tile,
-  marble, terrazzo, carpet, concrete, painted plaster) plus fabric and
-  wood-grain on furniture and a polished-granite worktop. Per-room floor and
-  wall finishes. Photoreal CC0 textures/models can also be fetched in-app
-  from Poly Haven / ambientCG / Kenney.
+  3D thumbnails. Includes an entryway shoe cabinet, floating + leaning
+  mirrors, wall shelves, and potted plants in bush / snake-plant / palm
+  forms. Comes furnished out of the box.
+- **Realistic materials** — procedurally generated PBR finishes (12 floors
+  incl. oak/walnut/teak planks, white/grey/charcoal porcelain, marble,
+  terrazzo, carpet, concrete; 10 wall paints) plus fabric and wood-grain on
+  furniture and a polished-granite worktop. Per-room floor and wall finishes.
+  Photoreal CC0 textures/models can also be fetched in-app from Poly Haven /
+  ambientCG / Kenney.
 - **Time-of-day lighting** — SunCalc-driven sun for your location, ACES tone
-  mapping, image-based lighting, soft shadows, and real lamp/pendant/fan
-  lights that switch on at night.
+  mapping, image-based lighting, shadows, and real fixture lights
+  (lamps, pendants, fans, wall sconces, and signature cove LEDs) that switch
+  on at night. An **Auto / On / Off** toggle lights windowless rooms in
+  daylight or kills fixtures entirely.
+- **HDB-estate skyline** — neighbouring blocks ring the flat so windows frame
+  a real view; their windows light up warm at night.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
-  top-down plan (pair with Measurements for an annotated floor plan), and a
-  first-person walkthrough.
-- **Editing** — drag to place, move, rotate, multi-select, copy/duplicate,
-  numeric position/rotation, undo/redo, save/load layouts, and PNG export.
+  top-down plan (pair with Measurements for an annotated floor plan), a
+  first-person walkthrough, plus a **Turntable** auto-orbit for recording a
+  presentation clip.
+- **Editing** — drag to place (with optional **snap-to-grid**), move, rotate,
+  multi-select, copy/duplicate, numeric position/rotation, undo/redo,
+  save/load named layouts, and PNG export.
 - **Performance** — CPU-first quality tiers with auto-detection, an adaptive
-  guard that holds 30+ fps, and a Graphics panel exposing every setting
-  (shadows, reflections, bloom, light cap, resolution) — all persisted.
+  guard that holds 30+ fps (shedding the shadow pass as a last resort), and a
+  Graphics panel exposing every setting (shadows, reflections, post-processing,
+  light cap, resolution) — all persisted. Optional GPU realism on the High
+  tier (ambient occlusion + bloom) is lazy-loaded so the baseline stays lean.
 
 ## Controls
 
