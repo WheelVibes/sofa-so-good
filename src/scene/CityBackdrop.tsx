@@ -9,7 +9,8 @@ import {
 } from 'three';
 import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../apartment/constants';
 import { mulberry32 } from '../materials/procedural/noise';
-import { getFixtureGlow } from './lighting/fixtureGlow';
+import { useSunPosition } from './lighting/useSunPosition';
+import { lightingFromAltitude } from './lighting/altitudeCurve';
 
 /**
  * Distant HDB-estate backdrop — the neighbouring blocks you always see out
@@ -151,9 +152,14 @@ export function CityBackdrop() {
     [],
   );
 
-  // Night window glow tracks scene darkness (shared signal — O(1) per frame).
+  // Night window glow tracks the actual sky darkness (NOT the user's interior
+  // lights mode) — distant blocks stay dark in daylight even if the flat's
+  // own lights are forced on. O(1) per frame.
+  const sun = useSunPosition();
+  const sunLevel = lightingFromAltitude(sun.altitude).sun;
+  const darkness = Math.min(1, Math.max(0, 1 - sunLevel / 0.85));
   useFrame(() => {
-    const intensity = getFixtureGlow() * 1.35;
+    const intensity = darkness * 1.35;
     for (const m of materials) m.emissiveIntensity = intensity;
   });
 

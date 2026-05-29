@@ -62,6 +62,7 @@ export function Toolbar() {
         Quality: {QUALITY_LABEL[qualityTier]}
       </button>
       <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
+      <LightsToggle />
       {cameraMode === 'orbit' ? (
         <>
           <Divider />
@@ -98,6 +99,30 @@ export function Toolbar() {
       </button>
       <CreditsModal open={creditsOpen} onClose={() => setCreditsOpen(false)} />
     </div>
+  );
+}
+
+const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = {
+  auto: 'Auto',
+  on: 'On',
+  off: 'Off',
+};
+
+/** Cycles fixture lights between Auto (day/night), On, and Off. Lets users
+ *  light windowless rooms in daylight, or kill all fixtures for a daytime-only
+ *  look. */
+function LightsToggle() {
+  const lightsMode = useStore((s) => s.lightsMode);
+  const cycleLightsMode = useStore((s) => s.cycleLightsMode);
+  const active = lightsMode !== 'auto';
+  return (
+    <button
+      onClick={cycleLightsMode}
+      title="Fixture lights: Auto follows the day/night cycle; On forces them on (lights windowless rooms in daylight); Off disables them"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${active ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      Lights: {LIGHTS_LABEL[lightsMode]}
+    </button>
   );
 }
 

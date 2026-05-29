@@ -27,20 +27,24 @@ interface ActiveLight {
  */
 export function FurnitureLights() {
   const items = useStore(useShallow((s) => s.items));
+  const lightsMode = useStore((s) => s.lightsMode);
   const maxLights = useQuality().maxFixtureLights;
   const sun = useSunPosition();
   const { camera } = useThree();
-  const darknessRef = useRef(0);
+  const levelRef = useRef(0);
   const [active, setActive] = useState<ActiveLight[]>([]);
   const lastKeyRef = useRef('');
 
-  // Darkness: 1 at night, 0 in full day. Ramps through dusk.
+  // Darkness: 1 at night, 0 in full day. Ramps through dusk. The effective
+  // fixture level then honours the user's lights mode: forced on/off override
+  // the day/night cycle so windowless rooms can be lit in daylight.
   const sunLevel = lightingFromAltitude(sun.altitude).sun;
   const darkness = Math.min(1, Math.max(0, 1 - sunLevel / 0.85));
-  darknessRef.current = darkness;
+  const level = lightsMode === 'on' ? 1 : lightsMode === 'off' ? 0 : darkness;
+  levelRef.current = level;
 
   useFrame(() => {
-    const dark = darknessRef.current;
+    const dark = levelRef.current;
     setFixtureGlow(dark);
     if (dark < MIN_DARKNESS) {
       if (active.length > 0) {
@@ -83,7 +87,7 @@ export function FurnitureLights() {
           key={l.id}
           position={l.position}
           color={l.color}
-          intensity={l.baseIntensity * darkness}
+          intensity={l.baseIntensity * level}
           distance={l.distance}
           decay={2}
         />

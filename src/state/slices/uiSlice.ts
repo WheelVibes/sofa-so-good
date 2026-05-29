@@ -7,6 +7,11 @@ import type { QualityTier, QualitySettings } from '../../scene/quality';
  *  click-drag on furniture moves it; click-drag on empty space does nothing. */
 export type EditorTool = 'select' | 'orbit';
 
+/** Whether furniture fixture lights are driven automatically by the day/night
+ *  cycle ('auto'), forced on (so windowless rooms read well in daylight), or
+ *  forced off. */
+export type LightsMode = 'auto' | 'on' | 'off';
+
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
 export interface UiSlice {
@@ -21,6 +26,8 @@ export interface UiSlice {
   qualityUserSet: boolean;
   /** Per-setting overrides layered on top of the active tier preset. */
   qualityOverrides: Partial<QualitySettings>;
+  /** Fixture lights mode (auto / forced on / forced off). */
+  lightsMode: LightsMode;
   setCatalogOpen: (open: boolean) => void;
   toggleCatalogOpen: () => void;
   setEditorTool: (tool: EditorTool) => void;
@@ -37,11 +44,20 @@ export interface UiSlice {
   setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void;
   /** Drop all overrides so settings follow the tier preset again. */
   resetQualityOverrides: () => void;
+  setLightsMode: (m: LightsMode) => void;
+  /** Cycle Auto → On → Off → Auto. */
+  cycleLightsMode: () => void;
 }
 
 export const UI_INITIAL: Pick<
   UiSlice,
-  'catalogOpen' | 'editorTool' | 'showFps' | 'qualityTier' | 'qualityUserSet' | 'qualityOverrides'
+  | 'catalogOpen'
+  | 'editorTool'
+  | 'showFps'
+  | 'qualityTier'
+  | 'qualityUserSet'
+  | 'qualityOverrides'
+  | 'lightsMode'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -49,9 +65,11 @@ export const UI_INITIAL: Pick<
   qualityTier: 'medium',
   qualityUserSet: false,
   qualityOverrides: {},
+  lightsMode: 'auto',
 };
 
 const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
+const LIGHTS_CYCLE: LightsMode[] = ['auto', 'on', 'off'];
 
 export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
   ...UI_INITIAL,
@@ -77,4 +95,9 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
       qualityUserSet: true,
     })),
   resetQualityOverrides: () => set({ qualityOverrides: {} }),
+  setLightsMode: (m) => set({ lightsMode: m }),
+  cycleLightsMode: () =>
+    set((s) => ({
+      lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
+    })),
 });
