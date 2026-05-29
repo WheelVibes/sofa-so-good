@@ -48,6 +48,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'flat', label: 'Flat' },
           { value: 'paneled', label: 'Paneled' },
+          { value: 'upholstered', label: 'Upholstered' },
         ],
       },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
@@ -84,6 +85,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'flat', label: 'Flat' },
           { value: 'paneled', label: 'Paneled' },
+          { value: 'upholstered', label: 'Upholstered' },
         ],
       },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
@@ -120,6 +122,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'flat', label: 'Flat' },
           { value: 'paneled', label: 'Paneled' },
+          { value: 'upholstered', label: 'Upholstered' },
         ],
       },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
@@ -156,6 +159,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'flat', label: 'Flat' },
           { value: 'paneled', label: 'Paneled' },
+          { value: 'upholstered', label: 'Upholstered' },
         ],
       },
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
