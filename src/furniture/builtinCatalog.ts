@@ -407,6 +407,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'color', key: 'seatColor', label: 'Seat', default: '#7a5c3c' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#4e3a24' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Seat finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   'office-chair': {
@@ -428,6 +439,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'color', key: 'seatColor', label: 'Seat', default: '#7a5c3c' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#3a3d42' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Seat finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   armchair: {

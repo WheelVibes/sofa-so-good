@@ -1,18 +1,19 @@
 import { readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Counter-height bar stool: round seat, footrest ring, four splayed legs. */
 export function BarStool({ props }: { props: ParamProps }) {
   const seatColor = readStr(props, 'seatColor', '#7a5c3c');
   const legColor = readStr(props, 'legColor', '#3a3d42');
+  const finish = readStr(props, 'finish', 'wood');
   const seatH = 0.66;
   const r = 0.18;
 
   return (
     <group>
       {/* Seat */}
-      <mesh castShadow position={[0, seatH, 0]} material={getWoodMaterial(seatColor, 0.5)}>
+      <mesh castShadow position={[0, seatH, 0]} material={getSurfaceMaterial(finish, seatColor, 0.5)}>
         <cylinderGeometry args={[r, r, 0.05, 24]} />
       </mesh>
       {/* Legs (splayed) */}

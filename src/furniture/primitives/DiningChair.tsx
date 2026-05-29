@@ -1,11 +1,12 @@
 import { readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getWoodMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Dining chair: seat + back + four legs. Faces +Z (back at -Z). */
 export function DiningChair({ props }: { props: ParamProps }) {
   const seatColor = readStr(props, 'seatColor', '#7a5c3c');
   const legColor = readStr(props, 'legColor', '#4e3a24');
+  const finish = readStr(props, 'finish', 'wood');
 
   const seatH = 0.46;
   const seatW = 0.44;
@@ -21,7 +22,7 @@ export function DiningChair({ props }: { props: ParamProps }) {
   const legs: [number, number, number][] = [];
   for (const x of xs) for (const z of zs) legs.push([x, legY, z]);
 
-  const seatMat = getWoodMaterial(seatColor, 1);
+  const seatMat = getSurfaceMaterial(finish, seatColor, 1);
   const legMat = getWoodMaterial(legColor, 0.4);
 
   return (
