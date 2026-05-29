@@ -48,17 +48,34 @@ function DoorLeaf({ spec }: { spec: DoorSpec }) {
   return (
     <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
       <group ref={swingRef} position={[hingeLocalX, 0, 0]}>
-        <mesh
-          position={[(direction * spec.width) / 2, FLAT.doorHeight / 2, 0]}
-          onClick={(e) => {
-            e.stopPropagation();
-            toggle(spec.id);
-          }}
-          castShadow
-        >
-          <boxGeometry args={[spec.width, FLAT.doorHeight, FLAT.doorThickness]} />
-          <meshStandardMaterial color="#9d7c54" roughness={0.7} />
-        </mesh>
+        <group position={[(direction * spec.width) / 2, FLAT.doorHeight / 2, 0]}>
+          <mesh
+            onClick={(e) => {
+              e.stopPropagation();
+              toggle(spec.id);
+            }}
+            castShadow
+          >
+            <boxGeometry args={[spec.width, FLAT.doorHeight, FLAT.doorThickness]} />
+            <meshStandardMaterial color="#9d7c54" roughness={0.7} />
+          </mesh>
+          {/* Recessed panels (two per face) for a panelled-door look. */}
+          {[1, -1].map((face) =>
+            [
+              { y: FLAT.doorHeight * 0.24, h: FLAT.doorHeight * 0.34 },
+              { y: -FLAT.doorHeight * 0.22, h: FLAT.doorHeight * 0.42 },
+            ].map((p, i) => (
+              <mesh
+                key={`${face}.${i}`}
+                position={[0, p.y, face * (FLAT.doorThickness / 2 + 0.001)]}
+                rotation={[0, face === 1 ? 0 : Math.PI, 0]}
+              >
+                <planeGeometry args={[spec.width * 0.62, p.h]} />
+                <meshStandardMaterial color="#8a6c48" roughness={0.75} />
+              </mesh>
+            )),
+          )}
+        </group>
         <group position={[direction * (spec.width - 0.06), 0.95, 0]}>
           <mesh rotation={[Math.PI / 2, 0, 0]} castShadow>
             <cylinderGeometry args={[0.012, 0.012, 0.12, 12]} />
