@@ -435,6 +435,28 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'mountHeight', label: 'Centre height', min: 1.0, max: 1.7, step: 0.05, default: 1.35, unit: 'm' },
     ],
   },
+  monitor: {
+    kind: 'parametric',
+    id: 'monitor',
+    name: 'Monitor',
+    category: 'appliances',
+    primitive: 'Monitor',
+    defaultFootprint: { w: 0.62, d: 0.2, h: 0.5 },
+    verticalSpan: { base: 0.74, top: 1.25 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: '27',
+        options: [
+          { value: '24', label: '24"' },
+          { value: '27', label: '27"' },
+          { value: '32', label: '32"' },
+        ],
+      },
+    ],
+  },
   'aircon-unit': {
     kind: 'parametric',
     id: 'aircon-unit',
