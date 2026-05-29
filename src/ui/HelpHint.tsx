@@ -9,6 +9,8 @@ const ORBIT_CONTROLS: Binding[] = [
   { keys: 'scroll', desc: 'Zoom' },
   { keys: 'click door', desc: 'Open / close' },
   { keys: 'click item', desc: 'Select furniture' },
+  { keys: 'click floor', desc: 'Room finishes' },
+  { keys: 'click wall', desc: 'Accent wall finish' },
   { keys: 'drag (select mode)', desc: 'Marquee select' },
   { keys: '⇧ click', desc: 'Toggle item in selection' },
   { keys: 'C', desc: 'Toggle catalog' },
