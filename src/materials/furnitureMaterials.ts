@@ -9,6 +9,7 @@ import {
   CanvasTexture,
   MeshStandardMaterial,
   RepeatWrapping,
+  SRGBColorSpace,
   type Texture,
 } from 'three';
 import { makeFbm, heightToNormalRGBA, hexToRgb, clamp01 } from './procedural/noise';
@@ -104,6 +105,34 @@ export function getFabricMaterial(color: string): MeshStandardMaterial {
   if (hit) return hit;
   const m = new MeshStandardMaterial({
     color,
+    roughness: 0.95,
+    metalness: 0,
+    normalMap: getFabricNormal(),
+  });
+  m.normalScale.set(0.5, 0.5);
+  cache.set(key, m);
+  return m;
+}
+
+/** Woven fabric with a diagonal two-colour gradient (ombre) albedo, tinted
+ *  full-colour by the gradient itself. Shares the fabric weave normal. */
+export function getGradientFabricMaterial(a: string, b: string): MeshStandardMaterial {
+  const key = `grad:${a}:${b}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createLinearGradient(0, 0, 64, 64);
+  g.addColorStop(0, a);
+  g.addColorStop(1, b);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  const m = new MeshStandardMaterial({
+    map: tex,
     roughness: 0.95,
     metalness: 0,
     normalMap: getFabricNormal(),

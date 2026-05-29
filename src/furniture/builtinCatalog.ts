@@ -959,6 +959,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 3.0, step: 0.1, default: 2.0, unit: 'm' },
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.6, max: 2.4, step: 0.1, default: 1.4, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Field', default: '#9c8f7a' },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Pattern',
+        default: 'solid',
+        options: [
+          { value: 'solid', label: 'Solid' },
+          { value: 'gradient', label: 'Gradient' },
+        ],
+      },
+      { kind: 'color', key: 'color2', label: 'Field 2 (gradient)', default: '#c4b9a6' },
       { kind: 'color', key: 'borderColor', label: 'Border', default: '#6e5f4c' },
     ],
   },
