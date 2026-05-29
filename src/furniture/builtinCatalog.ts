@@ -1089,6 +1089,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'surfaceHeight', label: 'Sits at', min: 0, max: 1.0, step: 0.02, default: 0.52, unit: 'm' },
       { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f0e4c4' },
       { kind: 'color', key: 'baseColor', label: 'Base', default: '#33363b' },
+      {
+        kind: 'enum',
+        key: 'shade',
+        label: 'Shade shape',
+        default: 'empire',
+        options: [
+          { value: 'empire', label: 'Empire' },
+          { value: 'drum', label: 'Drum' },
+          { value: 'cone', label: 'Cone' },
+        ],
+      },
     ],
   },
   'floor-lamp': {
@@ -1100,7 +1111,28 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 0.42, d: 0.42, h: 1.8 },
     paramSchema: [
       { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f3e6c8' },
-      { kind: 'color', key: 'poleColor', label: 'Pole', default: '#2b2b2b' },
+      { kind: 'color', key: 'poleColor', label: 'Pole / legs', default: '#2b2b2b' },
+      {
+        kind: 'enum',
+        key: 'base',
+        label: 'Base',
+        default: 'disc',
+        options: [
+          { value: 'disc', label: 'Disc + pole' },
+          { value: 'tripod', label: 'Tripod' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'shade',
+        label: 'Shade shape',
+        default: 'empire',
+        options: [
+          { value: 'empire', label: 'Empire' },
+          { value: 'drum', label: 'Drum' },
+          { value: 'cone', label: 'Cone' },
+        ],
+      },
     ],
   },
   'ceiling-light': {
