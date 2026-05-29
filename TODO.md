@@ -15,8 +15,8 @@ Shipped this iteration — recorded here for follow-up polish:
 
 Deferred follow-ups from this pass:
 
-- **Wall reveal: couple windows & doors to their wall's fade** — windows/doors render outside the wall group, so a faded exterior wall leaves its window/door solid (only visible from extreme low-outside angles). Lift per-wall opacity into a shared registry that Windows/Door read.
-- **Procedural finish thumbnails** — the finish picker shows a flat swatch for procedural materials; render a small tile of the generated texture instead. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx).
+- ~~**Wall reveal: couple windows & doors to their wall's fade**~~ — done. Shared per-wall opacity registry ([src/apartment/walls/wallReveal.ts](src/apartment/walls/wallReveal.ts)); windows/doors hide once their wall fades ~65%.
+- ~~**Procedural finish thumbnails**~~ — done. The picker renders a 64px albedo tile per procedural material. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx).
 - **Procedural terrazzo** — `floor-terrazzo` reuses the `concrete` pattern; a dedicated speckled-chip pattern would read truer.
 - **Dispose cloned wall-face materials** — [WallSegment.tsx](src/apartment/walls/WallSegment.tsx) clones finish materials per wall for independent fade; add cleanup on finish change to avoid a minor leak.
 - **Instanced furniture meshes** — repeated primitives (chairs etc.) are many small draw calls; consider merging/instancing for scenes with hundreds of items.
