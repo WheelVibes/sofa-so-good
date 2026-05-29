@@ -40,6 +40,11 @@ export function Desk({ props }: DeskProps) {
         <boxGeometry args={[drawerW, drawerH, depth - 0.06]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
+      {/* Drawer knob */}
+      <mesh castShadow position={[width / 2 - drawerW / 2, height - topThickness - drawerH * 0.32, depth / 2 - 0.02]}>
+        <boxGeometry args={[0.1, 0.02, 0.02]} />
+        <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
+      </mesh>
     </group>
   );
 }

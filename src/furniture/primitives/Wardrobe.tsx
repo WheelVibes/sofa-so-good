@@ -24,12 +24,20 @@ export function Wardrobe({ props }: WardrobeProps) {
 
   const doors = Array.from({ length: doorCount }, (_, i) => {
     const x = -width / 2 + doorGap + doorPanelW / 2 + i * (doorPanelW + doorGap);
+    // Handle on the inner edge of each door (toward the centre gap).
+    const handleSide = i < doorCount / 2 ? 1 : -1;
+    const handleX = x + handleSide * (doorPanelW / 2 - 0.05);
     return (
-      <mesh key={i} castShadow position={[x, height / 2, depth / 2 - doorInset]}>
-        <boxGeometry args={[doorPanelW, doorPanelH, 0.015]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
-        {/* Handle as a child sphere */}
-      </mesh>
+      <group key={i}>
+        <mesh castShadow position={[x, height / 2, depth / 2 - doorInset]}>
+          <boxGeometry args={[doorPanelW, doorPanelH, 0.015]} />
+          <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
+        </mesh>
+        <mesh castShadow position={[handleX, height / 2, depth / 2 + 0.012]}>
+          <boxGeometry args={[0.02, 0.22, 0.02]} />
+          <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
+        </mesh>
+      </group>
     );
   });
 

@@ -32,6 +32,40 @@ export function Bookshelf({ props }: BookshelfProps) {
     );
   });
 
+  // Decorative books standing on each shelf (deterministic per slot so they
+  // don't reshuffle every render).
+  const BOOK_COLORS = ['#7d3b3b', '#3b5a7d', '#5a7d3b', '#b08a3e', '#6b4a7d', '#3b6f6b', '#9c5a3c'];
+  const usableW = width - sideThickness * 2 - 0.02;
+  const books: JSX.Element[] = [];
+  let bookKey = 0;
+  for (let s = 0; s < shelfCount - 1; s++) {
+    const baseY = shelfThickness + s * shelfSpacing; // top of this shelf
+    const gapH = shelfSpacing - shelfThickness;
+    let x = -usableW / 2 + 0.01;
+    // Pseudo-random walk seeded by shelf index.
+    let seed = (s + 1) * 2654435761;
+    const rnd = () => {
+      seed = (seed * 1103515245 + 12345) & 0x7fffffff;
+      return seed / 0x7fffffff;
+    };
+    while (x < usableW / 2 - 0.04) {
+      const bw = 0.025 + rnd() * 0.04;
+      if (x + bw > usableW / 2) break;
+      // Occasional gap (a missing book).
+      if (rnd() > 0.18) {
+        const bh = gapH * (0.62 + rnd() * 0.3);
+        const col = BOOK_COLORS[Math.floor(rnd() * BOOK_COLORS.length)];
+        books.push(
+          <mesh key={`bk-${bookKey++}`} castShadow position={[x + bw / 2, baseY + bh / 2, 0.02]}>
+            <boxGeometry args={[bw, bh, depth * 0.62]} />
+            <meshStandardMaterial color={col} roughness={0.8} metalness={0} />
+          </mesh>,
+        );
+      }
+      x += bw + 0.004;
+    }
+  }
+
   return (
     <group>
       {/* Sides */}
@@ -49,6 +83,7 @@ export function Bookshelf({ props }: BookshelfProps) {
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {shelves}
+      {books}
     </group>
   );
 }

@@ -24,15 +24,22 @@ export function TVConsole({ props }: TVConsoleProps) {
         <boxGeometry args={[width, height, depth]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
-      {/* Drawer faces (inset on +Z front) */}
-      <mesh castShadow position={[-drawerW / 2 - 0.015, height / 2, depth / 2 - drawerInset]}>
-        <boxGeometry args={[drawerW, height - 0.04, 0.012]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
-      </mesh>
-      <mesh castShadow position={[drawerW / 2 + 0.015, height / 2, depth / 2 - drawerInset]}>
-        <boxGeometry args={[drawerW, height - 0.04, 0.012]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
-      </mesh>
+      {/* Drawer faces (inset on +Z front) + bar handles */}
+      {[-1, 1].map((s) => {
+        const cx = s * (drawerW / 2 + 0.015);
+        return (
+          <group key={s}>
+            <mesh castShadow position={[cx, height / 2, depth / 2 - drawerInset]}>
+              <boxGeometry args={[drawerW, height - 0.04, 0.012]} />
+              <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
+            </mesh>
+            <mesh castShadow position={[cx, height / 2, depth / 2 + 0.01]}>
+              <boxGeometry args={[drawerW * 0.45, 0.018, 0.018]} />
+              <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
+            </mesh>
+          </group>
+        );
+      })}
     </group>
   );
 }
