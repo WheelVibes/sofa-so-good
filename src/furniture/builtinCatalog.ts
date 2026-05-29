@@ -127,6 +127,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.85, max: 1.0, step: 0.05, default: 0.9, unit: 'm' },
       { kind: 'integer', key: 'cushionCount', label: 'Cushions', min: 2, max: 4, default: 3 },
       { kind: 'color', key: 'color', label: 'Upholstery', default: '#8aa1a8' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
       { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#c8775c' },
     ],
   },
@@ -142,6 +153,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.85, max: 1.0, step: 0.05, default: 0.9, unit: 'm' },
       { kind: 'integer', key: 'cushionCount', label: 'Cushions', min: 2, max: 3, default: 2 },
       { kind: 'color', key: 'color', label: 'Upholstery', default: '#8aa1a8' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
       { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#c8775c' },
     ],
   },
@@ -298,6 +320,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 0.7, max: 1.0, step: 0.05, default: 0.85, unit: 'm' },
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.7, max: 0.95, step: 0.05, default: 0.85, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Upholstery', default: '#b06a52' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
     ],
   },
 

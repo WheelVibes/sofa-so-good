@@ -1,6 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
-import { getFabricMaterial } from '../../materials/furnitureMaterials';
+import { getUpholsteryMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Upholstered armchair: base + seat cushion + back cushion + two arms,
@@ -9,6 +9,7 @@ export function Armchair({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 0.85);
   const depth = readNum(props, 'depth', 0.85);
   const color = readStr(props, 'color', '#b06a52');
+  const material = readStr(props, 'material', 'fabric');
 
   const baseH = 0.22;
   const seatH = 0.42;
@@ -17,7 +18,7 @@ export function Armchair({ props }: { props: ParamProps }) {
   const cushionH = 0.16;
   const innerW = width - armW * 2;
 
-  const mat = getFabricMaterial(color);
+  const mat = getUpholsteryMaterial(material, color);
 
   return (
     <group>

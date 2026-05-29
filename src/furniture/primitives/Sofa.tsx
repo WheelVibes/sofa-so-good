@@ -1,6 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
-import { getFabricMaterial } from '../../materials/furnitureMaterials';
+import { getUpholsteryMaterial, getFabricMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface SofaProps {
@@ -18,6 +18,7 @@ export function Sofa({ props }: SofaProps) {
   const cushionCount = Math.max(1, Math.floor(readNum(props, 'cushionCount', 3)));
   const color = readStr(props, 'color', '#8aa1a8');
   const pillowColor = readStr(props, 'pillowColor', '#c8775c');
+  const material = readStr(props, 'material', 'fabric');
 
   const seatH = 0.42;
   const baseH = 0.2;
@@ -30,7 +31,7 @@ export function Sofa({ props }: SofaProps) {
   const cushionW = (innerW - cushionGap * (cushionCount - 1)) / cushionCount;
   const cushionD = depth - 0.2;
 
-  const mat = getFabricMaterial(color);
+  const mat = getUpholsteryMaterial(material, color);
   const r = 0.05;
 
   return (

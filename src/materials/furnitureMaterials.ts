@@ -77,6 +77,24 @@ function getWoodMaps(): { albedo: Texture; normal: Texture } {
   return woodMaps;
 }
 
+let leatherNormal: Texture | null = null;
+function getLeatherNormal(): Texture {
+  if (leatherNormal) return leatherNormal;
+  // Fine pebbled grain (small cells) for a leather hide look.
+  const coarse = makeFbm(0x1ea7, 4, 18);
+  const fine = makeFbm(0x9a13, 3, 60);
+  const height = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N;
+      const v = y / N;
+      height[y * N + x] = coarse(u, v) * 0.6 + fine(u, v) * 0.4;
+    }
+  }
+  leatherNormal = canvasFrom(heightToNormalRGBA(height, N, 1.4));
+  return leatherNormal;
+}
+
 const cache = new Map<string, MeshStandardMaterial>();
 
 /** Soft-fabric material tinted to `color` (upholstery). */
@@ -93,6 +111,47 @@ export function getFabricMaterial(color: string): MeshStandardMaterial {
   m.normalScale.set(0.5, 0.5);
   cache.set(key, m);
   return m;
+}
+
+/** Smooth leather upholstery — pebbled grain, low roughness for a soft sheen. */
+export function getLeatherMaterial(color: string): MeshStandardMaterial {
+  const key = 'leath:' + color;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const m = new MeshStandardMaterial({
+    color,
+    roughness: 0.42,
+    metalness: 0.06,
+    normalMap: getLeatherNormal(),
+  });
+  m.normalScale.set(0.35, 0.35);
+  cache.set(key, m);
+  return m;
+}
+
+/** Velvet upholstery — soft pile (fine weave normal) with a gentle sheen
+ *  (lower roughness than plain fabric) so it catches light richly. */
+export function getVelvetMaterial(color: string): MeshStandardMaterial {
+  const key = 'velv:' + color;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const m = new MeshStandardMaterial({
+    color,
+    roughness: 0.62,
+    metalness: 0.02,
+    normalMap: getFabricNormal(),
+  });
+  m.normalScale.set(0.22, 0.22);
+  cache.set(key, m);
+  return m;
+}
+
+/** Dispatch upholstery material by finish kind ('fabric' | 'leather' |
+ *  'velvet'), tinted to `color`. */
+export function getUpholsteryMaterial(kind: string, color: string): MeshStandardMaterial {
+  if (kind === 'leather') return getLeatherMaterial(color);
+  if (kind === 'velvet') return getVelvetMaterial(color);
+  return getFabricMaterial(color);
 }
 
 /** Wood material whose grain is tinted by `color`. `repeat` tiles the grain
