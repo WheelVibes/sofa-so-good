@@ -7,6 +7,7 @@ import { CameraRig } from './cameras/CameraRig';
 import { CameraForwardTracker } from './cameras/cameraForward';
 import { Lighting } from './lighting/Lighting';
 import { FurnitureLights } from './lighting/FurnitureLights';
+import { SceneEnvironment } from './lighting/SceneEnvironment';
 import { Sky } from './lighting/Sky';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
@@ -31,6 +32,7 @@ export function Scene() {
       }}
     >
       <Sky />
+      <SceneEnvironment />
       <Lighting />
       <FurnitureLights />
       <Apartment />
