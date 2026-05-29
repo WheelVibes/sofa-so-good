@@ -329,6 +329,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#d5c2a3' },
       {
         kind: 'enum',
+        key: 'legStyle',
+        label: 'Legs',
+        default: 'panel',
+        options: [
+          { value: 'panel', label: 'Panel + drawer' },
+          { value: 'legs', label: 'Four legs' },
+          { value: 'hairpin', label: 'Hairpin' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Finish',
         default: 'wood',
