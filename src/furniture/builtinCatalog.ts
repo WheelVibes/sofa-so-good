@@ -298,6 +298,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'rect', label: 'Rectangular' },
           { value: 'round', label: 'Round' },
+          { value: 'oval', label: 'Oval' },
         ],
       },
       { kind: 'color', key: 'topColor', label: 'Top', default: '#9e7b53' },

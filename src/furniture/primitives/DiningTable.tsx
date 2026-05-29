@@ -47,6 +47,38 @@ export function DiningTable({ props }: DiningTableProps) {
   const topMat = getSurfaceMaterial(finish, topColor, 1.5, sheen);
   const legMat = getWoodMaterial(legColor, 0.5);
 
+  // Oval table: an elongated top on a twin-pedestal trestle (two columns +
+  // cross-feet along the length, extended-DOCKSTA style).
+  if (shape === 'oval') {
+    const rx = dim.w / 2;
+    const scaleZ = dim.d / dim.w;
+    const colX = dim.w * 0.26;
+    const colH = totalH - topThickness - 0.04;
+    return (
+      <group>
+        <mesh castShadow receiveShadow position={[0, totalH - topThickness / 2, 0]} scale={[1, 1, scaleZ]} material={topMat}>
+          <cylinderGeometry args={[rx, rx, topThickness, 48]} />
+        </mesh>
+        {[-1, 1].map((s) => (
+          <group key={s}>
+            {/* Column */}
+            <mesh castShadow position={[s * colX, colH / 2 + 0.04, 0]} material={legMat}>
+              <cylinderGeometry args={[0.06, 0.08, colH, 18]} />
+            </mesh>
+            {/* Cross-foot running across the depth */}
+            <mesh castShadow receiveShadow position={[s * colX, 0.03, 0]} material={legMat}>
+              <boxGeometry args={[0.1, 0.05, dim.d * 0.62]} />
+            </mesh>
+          </group>
+        ))}
+        {/* Stretcher beam linking the two pedestals */}
+        <mesh castShadow position={[0, 0.12, 0]} material={legMat}>
+          <boxGeometry args={[colX * 2, 0.05, 0.05]} />
+        </mesh>
+      </group>
+    );
+  }
+
   // Round pedestal table (IKEA DOCKSTA / LISABO style): circular top on a
   // central column + disc foot. Diameter fits the seat footprint.
   if (shape === 'round') {
