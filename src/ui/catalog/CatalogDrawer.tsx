@@ -26,13 +26,19 @@ export function CatalogDrawer() {
   const [active, setActive] = useState<FurnitureCategory>('seating');
   const [mode, setMode] = useState<Mode>('builtin');
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [query, setQuery] = useState('');
 
   useEffect(() => {
     if (open && phStatus === 'idle') void bootstrapRemote();
   }, [open, phStatus, bootstrapRemote]);
 
   if (!open || cameraMode !== 'orbit') return null;
-  const cards = byCategory[active] ?? [];
+  const q = query.trim().toLowerCase();
+  const cards = q
+    ? Object.values(byCategory)
+        .flat()
+        .filter((d) => d.name.toLowerCase().includes(q))
+    : byCategory[active] ?? [];
 
   return (
     <aside className="absolute left-3 top-3 z-10 flex w-80 max-h-[85vh] flex-col rounded-lg bg-white/95 text-neutral-700 shadow">
@@ -69,11 +75,22 @@ export function CatalogDrawer() {
       </nav>
       {mode === 'builtin' ? (
         <>
-          <CategoryTabs active={active} onSelect={setActive} byCategory={byCategory} />
+          <div className="px-3 pt-2">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search furniture…"
+              className="w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
+            />
+          </div>
+          {q ? null : (
+            <CategoryTabs active={active} onSelect={setActive} byCategory={byCategory} />
+          )}
           <div className="grid grid-cols-2 gap-2 overflow-y-auto p-3">
             {cards.length === 0 ? (
               <p className="col-span-2 py-6 text-center text-xs text-neutral-500">
-                No items in this category yet.
+                {q ? `No matches for “${query.trim()}”.` : 'No items in this category yet.'}
               </p>
             ) : (
               cards.map((def) => (

@@ -2,6 +2,25 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+## Realism & content pass (2026-05-29)
+
+Shipped this iteration — recorded here for follow-up polish:
+
+- ~~**Rendering quality**~~ — ACES tone mapping, time-of-day hemisphere fill, 2048 sun shadows with normal-bias + apartment-centred frustum, MSAA. See [src/scene/Scene.tsx](src/scene/Scene.tsx), [src/scene/lighting/Lighting.tsx](src/scene/lighting/Lighting.tsx).
+- ~~**Procedural PBR finishes**~~ — runtime wood/tile/marble/carpet/concrete/plaster maps (albedo+normal+roughness) from seeded noise, world-space UVs, per-room defaults. See [src/materials/procedural/](src/materials/procedural/).
+- ~~**Furniture content**~~ — 17 new primitives (chairs, armchair, coffee table, nightstand, rug, plant, TV, aircon, fridge, lamps, ceiling light, toilet, basin, ceiling fan, stove, washing machine, curtains) + `bathroom`/`appliances` categories.
+- ~~**Auto wall reveal**~~ — exterior walls between camera and interior fade in orbit mode. See [src/apartment/walls/WallSegment.tsx](src/apartment/walls/WallSegment.tsx).
+- ~~**Fixture lighting**~~ — lamps/pendants emit real point lights at night, capped + day-gated. See [src/scene/lighting/FurnitureLights.tsx](src/scene/lighting/FurnitureLights.tsx).
+- ~~**Height-aware collision**~~ — vertical spans + `mounted`/`noClip` flags. See [src/collision/placement.ts](src/collision/placement.ts).
+
+Deferred follow-ups from this pass:
+
+- **Wall reveal: couple windows & doors to their wall's fade** — windows/doors render outside the wall group, so a faded exterior wall leaves its window/door solid (only visible from extreme low-outside angles). Lift per-wall opacity into a shared registry that Windows/Door read.
+- **Procedural finish thumbnails** — the finish picker shows a flat swatch for procedural materials; render a small tile of the generated texture instead. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx).
+- **Procedural terrazzo** — `floor-terrazzo` reuses the `concrete` pattern; a dedicated speckled-chip pattern would read truer.
+- **Dispose cloned wall-face materials** — [WallSegment.tsx](src/apartment/walls/WallSegment.tsx) clones finish materials per wall for independent fade; add cleanup on finish change to avoid a minor leak.
+- **Instanced furniture meshes** — repeated primitives (chairs etc.) are many small draw calls; consider merging/instancing for scenes with hundreds of items.
+
 ## Furniture Catalog Expansion
 
 Decomposed into four subsystems, each shipped independently. Brainstormed 2026-05-01.

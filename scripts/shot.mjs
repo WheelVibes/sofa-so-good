@@ -56,6 +56,9 @@ if (actionsArg) {
       await page.mouse.click(a.x, a.y);
     } else if (a.type === 'key') {
       await page.keyboard.press(a.key);
+    } else if (a.type === 'type') {
+      await page.mouse.click(a.x, a.y);
+      await page.keyboard.type(a.text, { delay: 20 });
     } else if (a.type === 'wait') {
       await new Promise((r) => setTimeout(r, a.ms));
     }
