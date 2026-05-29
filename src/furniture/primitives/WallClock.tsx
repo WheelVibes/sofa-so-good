@@ -9,28 +9,46 @@ export function WallClock({ props }: { props: ParamProps }) {
   const centerY = readNum(props, 'mountHeight', 1.6);
   const frameColor = readStr(props, 'frameColor', '#2a2722');
   const faceColor = readStr(props, 'faceColor', '#f4f1ea');
+  const shape = readStr(props, 'shape', 'round');
+  const markers = readStr(props, 'markers', 'four');
 
   const r = diameter / 2;
   const handMat = { color: '#23262b', roughness: 0.5, metalness: 0.2 } as const;
+  const markerCount = markers === 'twelve' ? 12 : 4;
 
   return (
     <group position={[0, centerY, 0]} rotation={[Math.PI / 2, 0, 0]}>
-      {/* Rim */}
-      <mesh castShadow>
-        <cylinderGeometry args={[r, r, 0.035, 32]} />
-        <meshStandardMaterial color={frameColor} roughness={0.5} metalness={0.3} />
-      </mesh>
-      {/* Face, slightly proud of the rim front (+Z in world → +Y local here) */}
-      <mesh position={[0, 0.019, 0]}>
-        <cylinderGeometry args={[r - 0.015, r - 0.015, 0.005, 32]} />
-        <meshStandardMaterial color={faceColor} roughness={0.8} />
-      </mesh>
-      {/* Hour markers at 12/3/6/9 */}
-      {[0, 1, 2, 3].map((i) => {
-        const a = (i / 4) * Math.PI * 2;
+      {/* Rim + face — round (cylinder) or square (box) */}
+      {shape === 'square' ? (
+        <>
+          <mesh castShadow>
+            <boxGeometry args={[diameter, 0.035, diameter]} />
+            <meshStandardMaterial color={frameColor} roughness={0.5} metalness={0.3} />
+          </mesh>
+          <mesh position={[0, 0.019, 0]}>
+            <boxGeometry args={[diameter - 0.03, 0.005, diameter - 0.03]} />
+            <meshStandardMaterial color={faceColor} roughness={0.8} />
+          </mesh>
+        </>
+      ) : (
+        <>
+          <mesh castShadow>
+            <cylinderGeometry args={[r, r, 0.035, 32]} />
+            <meshStandardMaterial color={frameColor} roughness={0.5} metalness={0.3} />
+          </mesh>
+          <mesh position={[0, 0.019, 0]}>
+            <cylinderGeometry args={[r - 0.015, r - 0.015, 0.005, 32]} />
+            <meshStandardMaterial color={faceColor} roughness={0.8} />
+          </mesh>
+        </>
+      )}
+      {/* Hour markers */}
+      {Array.from({ length: markerCount }, (_, i) => {
+        const a = (i / markerCount) * Math.PI * 2;
+        const len = i % 3 === 0 ? 0.03 : 0.02;
         return (
-          <mesh key={i} position={[Math.sin(a) * (r - 0.04), 0.022, Math.cos(a) * (r - 0.04)]}>
-            <boxGeometry args={[0.012, 0.004, 0.03]} />
+          <mesh key={i} position={[Math.sin(a) * (r - 0.04), 0.022, Math.cos(a) * (r - 0.04)]} rotation={[0, -a, 0]}>
+            <boxGeometry args={[0.012, 0.004, len]} />
             <meshStandardMaterial color="#23262b" roughness={0.6} />
           </mesh>
         );

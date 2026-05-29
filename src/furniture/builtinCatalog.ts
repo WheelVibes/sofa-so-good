@@ -1396,6 +1396,26 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'mountHeight', label: 'Hang height', min: 1.2, max: 2.2, step: 0.05, default: 1.6, unit: 'm' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#2a2722' },
       { kind: 'color', key: 'faceColor', label: 'Face', default: '#f4f1ea' },
+      {
+        kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'round',
+        options: [
+          { value: 'round', label: 'Round' },
+          { value: 'square', label: 'Square' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'markers',
+        label: 'Markers',
+        default: 'four',
+        options: [
+          { value: 'four', label: 'Quarter ticks' },
+          { value: 'twelve', label: 'All hours' },
+        ],
+      },
     ],
   },
   'wall-shelf': {
@@ -1439,6 +1459,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 0.4, max: 0.9, step: 0.05, default: 0.6, unit: 'm' },
       { kind: 'number', key: 'height', label: 'Height', min: 1.2, max: 2.0, step: 0.05, default: 1.6, unit: 'm' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
+      {
+        kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'rect',
+        options: [
+          { value: 'rect', label: 'Rectangular (leaning)' },
+          { value: 'round', label: 'Round (cheval stand)' },
+        ],
+      },
       {
         kind: 'enum',
         key: 'frameFinish',
