@@ -327,6 +327,33 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 0.44, d: 0.44, h: 0.98 },
     paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#f4f4f1' }],
   },
+  shower: {
+    kind: 'parametric',
+    id: 'shower',
+    name: 'Shower',
+    category: 'bathroom',
+    primitive: 'Shower',
+    defaultFootprint: { w: 0.9, d: 0.9, h: 2.0 },
+    paramSchema: [
+      { kind: 'number', key: 'size', label: 'Size', min: 0.8, max: 1.2, step: 0.05, default: 0.9, unit: 'm' },
+      { kind: 'color', key: 'trayColor', label: 'Tray', default: '#eceae6' },
+    ],
+  },
+  'bathroom-mirror': {
+    kind: 'parametric',
+    id: 'bathroom-mirror',
+    name: 'Mirror',
+    category: 'bathroom',
+    primitive: 'Mirror',
+    defaultFootprint: { w: 0.6, d: 0.06, h: 0.9 },
+    mounted: true,
+    verticalSpan: { base: 1.0, top: 2.0 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.4, max: 1.2, step: 0.05, default: 0.6, unit: 'm' },
+      { kind: 'number', key: 'height', label: 'Height', min: 0.5, max: 1.2, step: 0.05, default: 0.9, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Hang height', min: 1.1, max: 1.8, step: 0.05, default: 1.5, unit: 'm' },
+    ],
+  },
 
   // ── Appliances ──────────────────────────────────────────────────────────
   refrigerator: {

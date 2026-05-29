@@ -74,7 +74,9 @@ export type PrimitiveKind =
   | 'OfficeChair'
   | 'WallCabinet'
   | 'Dresser'
-  | 'BarStool';
+  | 'BarStool'
+  | 'Shower'
+  | 'Mirror';
 
 export type ParamField =
   | {
