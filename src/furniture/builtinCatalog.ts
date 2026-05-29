@@ -208,6 +208,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         ],
       },
       { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#c8775c' },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
   'sofa-2seat': {
@@ -234,6 +235,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         ],
       },
       { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#c8775c' },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
 
@@ -270,6 +272,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'gloss', label: 'Gloss' },
         ],
       },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
   desk: {
@@ -499,6 +502,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'velvet', label: 'Velvet' },
         ],
       },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
 
@@ -525,6 +529,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'gloss', label: 'Gloss' },
         ],
       },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
   'side-table': {
@@ -551,6 +556,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'gloss', label: 'Gloss' },
         ],
       },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
   nightstand: {

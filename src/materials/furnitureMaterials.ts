@@ -98,14 +98,23 @@ function getLeatherNormal(): Texture {
 
 const cache = new Map<string, MeshStandardMaterial>();
 
-/** Soft-fabric material tinted to `color` (upholstery). */
-export function getFabricMaterial(color: string): MeshStandardMaterial {
-  const key = 'fab:' + color;
+/** Continuous "shine" 0..1 → roughness: 0 keeps the material's natural matte
+ *  roughness, 1 drives it to a high-gloss finish. Lets any colour+material be
+ *  tuned matte → satin → gloss. */
+function sheenRough(base: number, sheen: number): number {
+  const s = Math.min(1, Math.max(0, sheen));
+  return base * (1 - s) + 0.04 * s;
+}
+
+/** Soft-fabric material tinted to `color` (upholstery). `rough` overrides the
+ *  natural roughness (for the shine control). */
+export function getFabricMaterial(color: string, rough = 0.95): MeshStandardMaterial {
+  const key = `fab:${color}:${rough.toFixed(2)}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const m = new MeshStandardMaterial({
     color,
-    roughness: 0.95,
+    roughness: rough,
     metalness: 0,
     normalMap: getFabricNormal(),
   });
@@ -164,13 +173,13 @@ export function getGradientMaterial(a: string, b: string): MeshStandardMaterial 
 }
 
 /** Smooth leather upholstery — pebbled grain, low roughness for a soft sheen. */
-export function getLeatherMaterial(color: string): MeshStandardMaterial {
-  const key = 'leath:' + color;
+export function getLeatherMaterial(color: string, rough = 0.42): MeshStandardMaterial {
+  const key = `leath:${color}:${rough.toFixed(2)}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const m = new MeshStandardMaterial({
     color,
-    roughness: 0.42,
+    roughness: rough,
     metalness: 0.06,
     normalMap: getLeatherNormal(),
   });
@@ -181,13 +190,13 @@ export function getLeatherMaterial(color: string): MeshStandardMaterial {
 
 /** Velvet upholstery — soft pile (fine weave normal) with a gentle sheen
  *  (lower roughness than plain fabric) so it catches light richly. */
-export function getVelvetMaterial(color: string): MeshStandardMaterial {
-  const key = 'velv:' + color;
+export function getVelvetMaterial(color: string, rough = 0.62): MeshStandardMaterial {
+  const key = `velv:${color}:${rough.toFixed(2)}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const m = new MeshStandardMaterial({
     color,
-    roughness: 0.62,
+    roughness: rough,
     metalness: 0.02,
     normalMap: getFabricNormal(),
   });
@@ -197,40 +206,40 @@ export function getVelvetMaterial(color: string): MeshStandardMaterial {
 }
 
 /** Dispatch upholstery material by finish kind ('fabric' | 'leather' |
- *  'velvet'), tinted to `color`. */
-export function getUpholsteryMaterial(kind: string, color: string): MeshStandardMaterial {
-  if (kind === 'leather') return getLeatherMaterial(color);
-  if (kind === 'velvet') return getVelvetMaterial(color);
-  return getFabricMaterial(color);
+ *  'velvet'), tinted to `color`. `sheen` (0..1) tunes matte → glossy. */
+export function getUpholsteryMaterial(kind: string, color: string, sheen = 0): MeshStandardMaterial {
+  if (kind === 'leather') return getLeatherMaterial(color, sheen > 0 ? sheenRough(0.42, sheen) : 0.42);
+  if (kind === 'velvet') return getVelvetMaterial(color, sheen > 0 ? sheenRough(0.62, sheen) : 0.62);
+  return getFabricMaterial(color, sheen > 0 ? sheenRough(0.95, sheen) : 0.95);
 }
 
 /** Flat painted material — matte by default, or glossy (lacquered) when
- *  `gloss` is set. No grain, so it reads as a painted/laminate surface. */
-export function getPaintedMaterial(color: string, gloss = false): MeshStandardMaterial {
-  const key = `paint:${color}:${gloss ? 'g' : 'm'}`;
+ *  `gloss` is set. `rough` overrides roughness (shine control). No grain, so
+ *  it reads as a painted/laminate surface. */
+export function getPaintedMaterial(color: string, gloss = false, rough?: number): MeshStandardMaterial {
+  const r = rough ?? (gloss ? 0.16 : 0.72);
+  const metal = gloss ? 0.1 : 0.0;
+  const key = `paint:${color}:${r.toFixed(2)}:${metal}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const m = new MeshStandardMaterial({
-    color,
-    roughness: gloss ? 0.16 : 0.72,
-    metalness: gloss ? 0.1 : 0.0,
-  });
+  const m = new MeshStandardMaterial({ color, roughness: r, metalness: metal });
   cache.set(key, m);
   return m;
 }
 
 /** Dispatch a hard-surface material by finish kind ('wood' | 'painted' |
- *  'gloss'), tinted to `color`. Wood keeps its grain; painted/gloss are flat. */
-export function getSurfaceMaterial(kind: string, color: string, repeat = 1): MeshStandardMaterial {
-  if (kind === 'painted') return getPaintedMaterial(color, false);
-  if (kind === 'gloss') return getPaintedMaterial(color, true);
-  return getWoodMaterial(color, repeat);
+ *  'gloss'), tinted to `color`. `sheen` (0..1) tunes matte → glossy across all
+ *  three. Wood keeps its grain; painted/gloss are flat. */
+export function getSurfaceMaterial(kind: string, color: string, repeat = 1, sheen = 0): MeshStandardMaterial {
+  if (kind === 'painted') return getPaintedMaterial(color, false, sheen > 0 ? sheenRough(0.72, sheen) : undefined);
+  if (kind === 'gloss') return getPaintedMaterial(color, true, sheen > 0 ? sheenRough(0.16, sheen) : undefined);
+  return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5);
 }
 
 /** Wood material whose grain is tinted by `color`. `repeat` tiles the grain
- *  (defaults suit a ~1 m piece). */
-export function getWoodMaterial(color: string, repeat = 1): MeshStandardMaterial {
-  const key = `wood:${color}:${repeat}`;
+ *  (defaults suit a ~1 m piece). `rough` overrides roughness (shine control). */
+export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshStandardMaterial {
+  const key = `wood:${color}:${repeat}:${rough.toFixed(2)}`;
   const hit = cache.get(key);
   if (hit) return hit;
   const maps = getWoodMaps();
@@ -243,7 +252,7 @@ export function getWoodMaterial(color: string, repeat = 1): MeshStandardMaterial
   const [r, g, b] = hexToRgb(color);
   const m = new MeshStandardMaterial({
     color: `rgb(${r},${g},${b})`,
-    roughness: 0.5,
+    roughness: rough,
     metalness: 0.04,
     map,
     normalMap: normal,

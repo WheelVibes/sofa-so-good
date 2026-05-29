@@ -1,4 +1,4 @@
-import { readStr } from './shared';
+import { readNum, readStr } from './shared';
 import { getWoodMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
@@ -23,6 +23,7 @@ export function DiningTable({ props }: DiningTableProps) {
   const topColor = readStr(props, 'topColor', '#9e7b53');
   const legColor = readStr(props, 'legColor', '#5b4126');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const topThickness = 0.04;
   const totalH = 0.74;
@@ -42,7 +43,7 @@ export function DiningTable({ props }: DiningTableProps) {
     [xR, legY, zS],
   ];
 
-  const topMat = getSurfaceMaterial(finish, topColor, 1.5);
+  const topMat = getSurfaceMaterial(finish, topColor, 1.5, sheen);
   const legMat = getWoodMaterial(legColor, 0.5);
   return (
     <group>

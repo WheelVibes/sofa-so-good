@@ -10,11 +10,12 @@ export function SideTable({ props }: { props: ParamProps }) {
   const topColor = readStr(props, 'topColor', '#9e7b53');
   const legColor = readStr(props, 'legColor', '#4a3722');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const r = diameter / 2;
   const topThk = 0.035;
   const legR = 0.018;
-  const topMat = getSurfaceMaterial(finish, topColor, 0.8);
+  const topMat = getSurfaceMaterial(finish, topColor, 0.8, sheen);
   const legH = totalH - topThk;
   const splay = r * 0.62;
 

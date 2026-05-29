@@ -19,6 +19,7 @@ export function Sofa({ props }: SofaProps) {
   const color = readStr(props, 'color', '#8aa1a8');
   const pillowColor = readStr(props, 'pillowColor', '#c8775c');
   const material = readStr(props, 'material', 'fabric');
+  const sheen = readNum(props, 'sheen', 0);
 
   const seatH = 0.42;
   const baseH = 0.2;
@@ -31,7 +32,7 @@ export function Sofa({ props }: SofaProps) {
   const cushionW = (innerW - cushionGap * (cushionCount - 1)) / cushionCount;
   const cushionD = depth - 0.2;
 
-  const mat = getUpholsteryMaterial(material, color);
+  const mat = getUpholsteryMaterial(material, color, sheen);
   const r = 0.05;
 
   return (

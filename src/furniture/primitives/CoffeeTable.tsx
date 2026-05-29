@@ -8,6 +8,7 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
   const depth = readNum(props, 'depth', 0.55);
   const color = readStr(props, 'color', '#6f553f');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const totalH = 0.42;
   const topT = 0.04;
@@ -15,7 +16,7 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
   const inset = legT / 2 + 0.03;
   const shelfY = 0.12;
 
-  const wood = getSurfaceMaterial(finish, color, 1.6);
+  const wood = getSurfaceMaterial(finish, color, 1.6, sheen);
   const xs = [-width / 2 + inset, width / 2 - inset];
   const zs = [-depth / 2 + inset, depth / 2 - inset];
 

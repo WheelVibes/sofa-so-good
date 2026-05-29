@@ -10,6 +10,7 @@ export function Armchair({ props }: { props: ParamProps }) {
   const depth = readNum(props, 'depth', 0.85);
   const color = readStr(props, 'color', '#b06a52');
   const material = readStr(props, 'material', 'fabric');
+  const sheen = readNum(props, 'sheen', 0);
 
   const baseH = 0.22;
   const seatH = 0.42;
@@ -18,7 +19,7 @@ export function Armchair({ props }: { props: ParamProps }) {
   const cushionH = 0.16;
   const innerW = width - armW * 2;
 
-  const mat = getUpholsteryMaterial(material, color);
+  const mat = getUpholsteryMaterial(material, color, sheen);
 
   return (
     <group>
