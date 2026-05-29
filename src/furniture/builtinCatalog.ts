@@ -746,6 +746,20 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
     ],
   },
+  'floor-mirror': {
+    kind: 'parametric',
+    id: 'floor-mirror',
+    name: 'Floor mirror',
+    category: 'decor',
+    primitive: 'FloorMirror',
+    defaultFootprint: { w: 0.6, d: 0.22, h: 1.6 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.4, max: 0.9, step: 0.05, default: 0.6, unit: 'm' },
+      { kind: 'number', key: 'height', label: 'Height', min: 1.2, max: 2.0, step: 0.05, default: 1.6, unit: 'm' },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
+    ],
+  },
   'potted-plant': {
     kind: 'parametric',
     id: 'potted-plant',
