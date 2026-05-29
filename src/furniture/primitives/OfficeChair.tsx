@@ -1,4 +1,5 @@
 import { readStr } from './shared';
+import { getFabricMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Office task chair: 5-star castor base + gas lift + seat + curved back.
@@ -8,7 +9,7 @@ export function OfficeChair({ props }: { props: ParamProps }) {
   const seatH = 0.48;
   const seatW = 0.46;
   const seatD = 0.46;
-  const fabric = { color, roughness: 0.85, metalness: 0.05 };
+  const fabricMat = getFabricMaterial(color);
   const plastic = { color: '#1d1f22', roughness: 0.5, metalness: 0.2 };
 
   const legs = 5;
@@ -38,14 +39,12 @@ export function OfficeChair({ props }: { props: ParamProps }) {
         <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
       </mesh>
       {/* Seat */}
-      <mesh castShadow position={[0, seatH, 0]}>
+      <mesh castShadow position={[0, seatH, 0]} material={fabricMat}>
         <boxGeometry args={[seatW, 0.1, seatD]} />
-        <meshStandardMaterial {...fabric} />
       </mesh>
       {/* Back */}
-      <mesh castShadow position={[0, seatH + 0.32, -seatD / 2 + 0.04]}>
+      <mesh castShadow position={[0, seatH + 0.32, -seatD / 2 + 0.04]} material={fabricMat}>
         <boxGeometry args={[seatW - 0.04, 0.5, 0.06]} />
-        <meshStandardMaterial {...fabric} />
       </mesh>
       {/* Armrests */}
       {[-1, 1].map((s) => (
