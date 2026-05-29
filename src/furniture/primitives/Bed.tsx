@@ -1,3 +1,4 @@
+import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
 import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
@@ -45,25 +46,25 @@ export function Bed({ props }: BedProps) {
         <meshStandardMaterial color={mattressColor} roughness={0.9} metalness={0} />
       </mesh>
       {/* Duvet — covers the foot ~62% of the bed, sits slightly proud. */}
-      <mesh castShadow receiveShadow position={[0, mattressTop + 0.04, length * 0.18]}>
-        <boxGeometry args={[width - 0.02, 0.09, length * 0.64]} />
+      <RoundedBox args={[width - 0.02, 0.09, length * 0.64]} radius={0.04} smoothness={2} castShadow receiveShadow position={[0, mattressTop + 0.04, length * 0.18]}>
         <meshStandardMaterial color={beddingColor} {...fabric} />
-      </mesh>
+      </RoundedBox>
       {/* Folded top edge of the duvet */}
-      <mesh castShadow position={[0, mattressTop + 0.06, -length * 0.14]}>
-        <boxGeometry args={[width - 0.02, 0.05, 0.12]} />
+      <RoundedBox args={[width - 0.02, 0.05, 0.12]} radius={0.025} smoothness={2} castShadow position={[0, mattressTop + 0.06, -length * 0.14]}>
         <meshStandardMaterial color={beddingColor} {...fabric} />
-      </mesh>
+      </RoundedBox>
       {/* Pillows */}
       {(twoPillows ? [-1, 1] : [0]).map((s) => (
-        <mesh
+        <RoundedBox
           key={s}
+          args={[pillowW, 0.13, 0.34]}
+          radius={0.06}
+          smoothness={2}
           castShadow
-          position={[twoPillows ? s * (pillowW / 2 + 0.04) : 0, mattressTop + 0.06, pillowZ]}
+          position={[twoPillows ? s * (pillowW / 2 + 0.04) : 0, mattressTop + 0.07, pillowZ]}
         >
-          <boxGeometry args={[pillowW, 0.12, 0.34]} />
           <meshStandardMaterial color="#fbfaf6" roughness={0.95} metalness={0} />
-        </mesh>
+        </RoundedBox>
       ))}
       {/* Folded throw blanket draped across the foot */}
       <mesh castShadow receiveShadow position={[0, mattressTop + 0.05, length * 0.32]}>
