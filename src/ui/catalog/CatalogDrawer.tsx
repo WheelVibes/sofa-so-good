@@ -102,15 +102,23 @@ export function CatalogDrawer() {
               ))
             )}
           </div>
-          <footer className="flex items-center justify-between border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
-            <span>
-              Drag onto the floor. <kbd className="font-mono">R</kbd> rotates after drop.
-            </span>
+          <footer className="flex flex-col gap-1 border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
+            <div className="flex items-center justify-between">
+              <span>
+                Drag onto the floor. <kbd className="font-mono">R</kbd> rotates after drop.
+              </span>
+              <button
+                onClick={() => setUploadOpen(true)}
+                className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-700"
+              >
+                Upload model…
+              </button>
+            </div>
             <button
-              onClick={() => setUploadOpen(true)}
-              className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-700"
+              onClick={() => setMode('browse-furniture')}
+              className="text-left text-[10px] text-blue-700 hover:underline"
             >
-              Upload model…
+              Want photoreal models? Browse free CC0 libraries →
             </button>
           </footer>
         </>

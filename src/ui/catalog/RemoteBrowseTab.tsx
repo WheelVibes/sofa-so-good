@@ -131,7 +131,11 @@ export function RemoteBrowseTab({
         </div>
         {(phStatus === 'error' || (kind === 'material' && acgStatus === 'error')) && (
           <div className="rounded bg-red-50 p-2 text-[10px] text-red-700">
-            <div className="font-medium">Index failed to load.</div>
+            <div className="font-medium">Couldn’t reach the online library.</div>
+            <div className="text-red-600/80">
+              Online assets need an internet connection — the built-in catalog
+              works offline. Retry below.
+            </div>
             {phError && <div className="truncate" title={phError}>Poly Haven: {phError}</div>}
             {acgError && kind === 'material' && (
               <div className="truncate" title={acgError}>ambientCG: {acgError}</div>
