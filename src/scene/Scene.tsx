@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
-import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three';
+import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
 import { useStore } from '../state/store';
 import { Apartment } from '../apartment/Apartment';
 import { CameraRig } from './cameras/CameraRig';
@@ -22,7 +22,7 @@ export function Scene() {
   const showFps = useStore((s) => s.showFps);
   return (
     <Canvas
-      shadows={{ type: PCFSoftShadowMap }}
+      shadows={{ type: PCFShadowMap }}
       dpr={[1, 1.75]}
       camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 100 }}
       gl={{

@@ -6,6 +6,9 @@ import react from '@vitejs/plugin-react';
 // see TODO.md "Runtime CC0 Catalog: production proxy".
 export default defineConfig({
   plugins: [react()],
+  // Force a single three.js instance — stats-gl (via drei) otherwise pulls a
+  // second, older three, bloating the bundle and breaking instanceof checks.
+  resolve: { dedupe: ['three'] },
   build: {
     // Split heavy, rarely-changing dependencies into their own long-lived
     // cache chunks so app-code edits don't bust the whole bundle and the
@@ -14,9 +17,11 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined;
-          if (id.includes('three') || id.includes('three-stdlib')) return 'three';
-          if (id.includes('@react-three')) return 'r3f';
-          if (id.includes('react') || id.includes('scheduler')) return 'react';
+          // Only the three core + its stdlib get their own chunk; everything
+          // else (react, drei, fiber, postprocessing, zustand…) shares vendor.
+          // A precise match avoids the import cycles a greedy 'three' test
+          // creates with @react-three/* paths.
+          if (/[\\/]node_modules[\\/](three|three-stdlib)[\\/]/.test(id)) return 'three';
           return 'vendor';
         },
       },
