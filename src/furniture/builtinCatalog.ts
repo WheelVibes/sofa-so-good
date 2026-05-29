@@ -27,6 +27,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
       { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
+      { kind: 'color', key: 'throwColor', label: 'Throw', default: '#b08968' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
@@ -50,6 +51,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
       { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
+      { kind: 'color', key: 'throwColor', label: 'Throw', default: '#b08968' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
@@ -73,6 +75,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
       { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
+      { kind: 'color', key: 'throwColor', label: 'Throw', default: '#b08968' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
@@ -96,6 +99,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#e8e2d4' },
       { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
+      { kind: 'color', key: 'throwColor', label: 'Throw', default: '#b08968' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
