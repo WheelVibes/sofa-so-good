@@ -90,7 +90,8 @@ export type PrimitiveKind =
   | 'FloorMirror'
   | 'RollerBlind'
   | 'SideTable'
-  | 'WallClock';
+  | 'WallClock'
+  | 'StandingFan';
 
 export type ParamField =
   | {

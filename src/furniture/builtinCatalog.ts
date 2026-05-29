@@ -788,6 +788,19 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       },
     ],
   },
+  'standing-fan': {
+    kind: 'parametric',
+    id: 'standing-fan',
+    name: 'Standing fan',
+    category: 'appliances',
+    primitive: 'StandingFan',
+    defaultFootprint: { w: 0.54, d: 0.54, h: 1.32 },
+    paramSchema: [
+      { kind: 'number', key: 'height', label: 'Head height', min: 0.9, max: 1.3, step: 0.05, default: 1.1, unit: 'm' },
+      { kind: 'color', key: 'bodyColor', label: 'Body', default: '#e8e6e1' },
+      { kind: 'color', key: 'bladeColor', label: 'Blades', default: '#dcddd8' },
+    ],
+  },
   'range-hood': {
     kind: 'parametric',
     id: 'range-hood',
