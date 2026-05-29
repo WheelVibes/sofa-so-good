@@ -51,6 +51,7 @@ import { WallSconce } from './WallSconce';
 import { CoveLight } from './CoveLight';
 import { FloorMirror } from './FloorMirror';
 import { RollerBlind } from './RollerBlind';
+import { SideTable } from './SideTable';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -99,4 +100,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   CoveLight,
   FloorMirror,
   RollerBlind,
+  SideTable,
 };

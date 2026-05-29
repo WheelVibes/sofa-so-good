@@ -88,7 +88,8 @@ export type PrimitiveKind =
   | 'WallSconce'
   | 'CoveLight'
   | 'FloorMirror'
-  | 'RollerBlind';
+  | 'RollerBlind'
+  | 'SideTable';
 
 export type ParamField =
   | {

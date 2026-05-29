@@ -315,6 +315,21 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#6f553f' },
     ],
   },
+  'side-table': {
+    kind: 'parametric',
+    id: 'side-table',
+    name: 'Side table',
+    category: 'tables',
+    primitive: 'SideTable',
+    defaultFootprint: { w: 0.45, d: 0.45, h: 0.5 },
+    footprintParams: { w: 'diameter', d: 'diameter' },
+    paramSchema: [
+      { kind: 'number', key: 'diameter', label: 'Diameter', min: 0.35, max: 0.7, step: 0.05, default: 0.45, unit: 'm' },
+      { kind: 'number', key: 'height', label: 'Height', min: 0.4, max: 0.65, step: 0.05, default: 0.5, unit: 'm' },
+      { kind: 'color', key: 'topColor', label: 'Top', default: '#9e7b53' },
+      { kind: 'color', key: 'legColor', label: 'Legs', default: '#4a3722' },
+    ],
+  },
   nightstand: {
     kind: 'parametric',
     id: 'nightstand',
