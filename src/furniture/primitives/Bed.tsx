@@ -22,6 +22,7 @@ export function Bed({ props }: BedProps) {
   const frameFinish = readStr(props, 'frameFinish', 'wood');
   const sheen = readNum(props, 'sheen', 0);
   const headboardStyle = readStr(props, 'headboardStyle', 'flat');
+  const baseStyle = readStr(props, 'baseStyle', 'standard');
 
   const frameH = 0.28;
   const mattressH = 0.27; // 10–11" mattress, grounded in real dimensions
@@ -39,10 +40,41 @@ export function Bed({ props }: BedProps) {
 
   return (
     <group>
-      {/* Frame */}
-      <mesh castShadow receiveShadow position={[0, frameH / 2, 0]} material={frameMat}>
-        <boxGeometry args={[width, frameH, length]} />
-      </mesh>
+      {/* Frame — 'standard' box, a 'platform' with a surrounding ledge, or a
+          'storage' frame with two drawer fronts along the +X side. */}
+      {baseStyle === 'platform' ? (
+        <>
+          {/* Wide low platform extending past the mattress as a ledge */}
+          <mesh castShadow receiveShadow position={[0, frameH * 0.4, 0]} material={frameMat}>
+            <boxGeometry args={[width + 0.2, frameH * 0.8, length + 0.2]} />
+          </mesh>
+          {/* Inset riser the mattress rests on, keeping mattress height */}
+          <mesh castShadow position={[0, frameH * 0.85, 0]} material={frameMat}>
+            <boxGeometry args={[width, frameH * 0.3, length]} />
+          </mesh>
+        </>
+      ) : (
+        <mesh castShadow receiveShadow position={[0, frameH / 2, 0]} material={frameMat}>
+          <boxGeometry args={[width, frameH, length]} />
+        </mesh>
+      )}
+      {/* Storage drawers along the +X long side (foot half) */}
+      {baseStyle === 'storage' &&
+        [0, 1].map((i) => {
+          const dz = length * (i === 0 ? 0.08 : 0.3);
+          const dl = length * 0.2;
+          return (
+            <group key={i}>
+              <mesh castShadow position={[width / 2 + 0.002, frameH / 2, dz]} material={frameMat}>
+                <boxGeometry args={[0.02, frameH * 0.7, dl]} />
+              </mesh>
+              <mesh position={[width / 2 + 0.02, frameH / 2, dz]}>
+                <boxGeometry args={[0.02, 0.02, 0.12]} />
+                <meshStandardMaterial color="#2b2b2b" roughness={0.4} metalness={0.6} />
+              </mesh>
+            </group>
+          );
+        })}
       {/* Mattress */}
       <mesh castShadow receiveShadow position={[0, frameH + mattressH / 2, 0]}>
         <boxGeometry args={[width - 0.06, mattressH, length - 0.06]} />
