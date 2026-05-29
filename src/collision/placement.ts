@@ -89,9 +89,17 @@ interface PlacementContext {
 }
 
 /** Vertical extent of an item in metres above the floor, for height-aware
- *  collision. Falls back to [0, footprint height]. */
-function verticalSpan(def: FurnitureDef): { base: number; top: number } {
-  return def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h };
+ *  collision. Falls back to [0, footprint height]. Surface items (those with
+ *  a `surfaceHeight` prop — lamps, monitors, decor) shift their span to sit
+ *  on the surface they're placed on, so they don't falsely collide with
+ *  tables of different heights. */
+function verticalSpan(item: FurnitureItem, def: FurnitureDef): { base: number; top: number } {
+  const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h };
+  const sh = item.props['surfaceHeight'];
+  if (typeof sh === 'number') {
+    return { base: sh, top: sh + (span.top - span.base) };
+  }
+  return span;
 }
 
 /** True iff two vertical spans overlap (touching edges don't count). */
@@ -129,13 +137,13 @@ export function canPlace(
   // Other furniture — height-aware: only collide when the 2D footprints
   // overlap AND the vertical spans intersect, so a pendant can hang over a
   // table or a wall unit sit above a wardrobe.
-  const span = verticalSpan(def);
+  const span = verticalSpan(item, def);
   for (const other of ctx.others) {
     if (other.id === item.id) continue;
     const oDef = ctx.defs[other.defId];
     if (!oDef) continue;
     if (oDef.noClip) continue;
-    if (!spansOverlap(span, verticalSpan(oDef))) continue;
+    if (!spansOverlap(span, verticalSpan(other, oDef))) continue;
     if (obbVsObb(obb, itemFootprint(other, oDef))) return false;
   }
 
