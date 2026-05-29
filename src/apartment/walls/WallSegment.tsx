@@ -25,6 +25,7 @@ import type {
   TexturedMaterialDef,
 } from '../../materials/types';
 import { wallSidesSpans } from './wallRoomSides';
+import { setWallOpacity } from './wallReveal';
 
 const FACE_OFFSET = 0.001; // lift face plane fractionally off the body box
 
@@ -170,6 +171,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return;
     const cur = opacityRef.current + (target - opacityRef.current) * 0.18;
     opacityRef.current = cur;
+    // Publish so windows/doors on this wall fade with it.
+    if (revealable) setWallOpacity(wall.id, cur);
     const visible = cur > 0.02;
     const transparent = cur < 0.985;
     group.traverse((o) => {

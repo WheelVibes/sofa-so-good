@@ -3,6 +3,7 @@ import { useRef } from 'react';
 import { Group } from 'three';
 import { DOORS, FLAT, WALLS } from './constants';
 import { useStore } from '../state/store';
+import { getWallOpacity } from './walls/wallReveal';
 import type { DoorSpec, WallSpec } from './types';
 
 const SWING_RAD = Math.PI / 2;
@@ -17,9 +18,11 @@ function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const isOpen = useStore((s) => s.doors[spec.id]?.open ?? spec.defaultOpen);
   const toggle = useStore((s) => s.toggleDoor);
   const swingRef = useRef<Group>(null!);
+  const rootRef = useRef<Group>(null);
   const angleRef = useRef(0);
 
   useFrame((_, dt) => {
+    if (rootRef.current) rootRef.current.visible = getWallOpacity(spec.wallId) > 0.35;
     const target = isOpen ? SWING_RAD : 0;
     if (angleRef.current === target) return;
     const step = (SWING_RAD / SWING_SECONDS) * dt;
@@ -46,7 +49,7 @@ function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const direction = spec.hinge === 'start' ? 1 : -1;
 
   return (
-    <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+    <group ref={rootRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
       <group ref={swingRef} position={[hingeLocalX, 0, 0]}>
         <group position={[(direction * spec.width) / 2, FLAT.doorHeight / 2, 0]}>
           <mesh

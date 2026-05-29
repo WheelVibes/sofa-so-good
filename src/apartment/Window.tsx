@@ -1,4 +1,8 @@
+import { useFrame } from '@react-three/fiber';
+import { useRef } from 'react';
+import type { Group } from 'three';
 import { WALLS, WINDOWS } from './constants';
+import { getWallOpacity } from './walls/wallReveal';
 import type { WindowSpec, WallSpec } from './types';
 
 function findWall(wallId: string): WallSpec | undefined {
@@ -32,6 +36,12 @@ function Bar({
 
 function WindowPane({ spec }: { spec: WindowSpec }) {
   const wall = findWall(spec.wallId);
+  const groupRef = useRef<Group>(null);
+  // Hide the window once its host wall has faded most of the way out, so it
+  // doesn't float in mid-air during the dollhouse reveal.
+  useFrame(() => {
+    if (groupRef.current) groupRef.current.visible = getWallOpacity(spec.wallId) > 0.35;
+  });
   if (!wall) return null;
   const dx = wall.end[0] - wall.start[0];
   const dz = wall.end[1] - wall.start[1];
@@ -50,7 +60,7 @@ function WindowPane({ spec }: { spec: WindowSpec }) {
   const horizontalMullion = h > 1.5;
 
   return (
-    <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+    <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
       <group position={[localX, cy, 0]}>
         {/* Glass */}
         <mesh>
