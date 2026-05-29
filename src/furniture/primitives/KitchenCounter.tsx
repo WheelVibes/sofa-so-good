@@ -55,20 +55,32 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
         {/* Polished dark-granite worktop — low roughness picks up the IBL. */}
         <meshStandardMaterial color="#34373d" roughness={0.22} metalness={0.15} />
       </mesh>
-      {hasSink && (
-        <>
-          {/* Sink basin (recessed plane sits 0.04 m below the top) */}
-          <mesh position={[length * 0.25, totalH - 0.04, 0]} rotation={[-Math.PI / 2, 0, 0]}>
-            <planeGeometry args={[0.55, 0.4]} />
-            <meshStandardMaterial color="#a9b3b8" roughness={0.3} metalness={0.4} />
-          </mesh>
-          {/* Faucet stem */}
-          <mesh castShadow position={[length * 0.25 - 0.18, totalH + 0.12, -0.18]}>
-            <cylinderGeometry args={[0.018, 0.018, 0.24, 8]} />
-            <meshStandardMaterial color="#7e8285" roughness={0.3} metalness={0.7} />
-          </mesh>
-        </>
-      )}
+      {hasSink && (() => {
+        const sx = length * 0.25;
+        const steel = { color: '#b7bdc2', roughness: 0.25, metalness: 0.8 } as const;
+        return (
+          <group>
+            {/* Recessed stainless basin */}
+            <mesh position={[sx, totalH - 0.06, 0]}>
+              <boxGeometry args={[0.5, 0.12, 0.36]} />
+              <meshStandardMaterial color="#9aa1a6" roughness={0.3} metalness={0.5} />
+            </mesh>
+            {/* Faucet base + riser + curved spout */}
+            <mesh castShadow position={[sx, totalH + 0.02, -0.15]}>
+              <cylinderGeometry args={[0.03, 0.035, 0.04, 12]} />
+              <meshStandardMaterial {...steel} />
+            </mesh>
+            <mesh castShadow position={[sx, totalH + 0.15, -0.15]}>
+              <cylinderGeometry args={[0.014, 0.014, 0.26, 10]} />
+              <meshStandardMaterial {...steel} />
+            </mesh>
+            <mesh castShadow position={[sx, totalH + 0.27, -0.08]} rotation={[Math.PI / 2.2, 0, 0]}>
+              <cylinderGeometry args={[0.013, 0.013, 0.18, 10]} />
+              <meshStandardMaterial {...steel} />
+            </mesh>
+          </group>
+        );
+      })()}
     </group>
   );
 }
