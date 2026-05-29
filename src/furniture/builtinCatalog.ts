@@ -1380,6 +1380,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'bush', label: 'Bush' },
           { value: 'snake', label: 'Snake plant' },
           { value: 'palm', label: 'Palm' },
+          { value: 'fiddle', label: 'Fiddle-leaf fig' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'potShape',
+        label: 'Planter',
+        default: 'tapered',
+        options: [
+          { value: 'tapered', label: 'Tapered' },
+          { value: 'cylinder', label: 'Cylinder' },
+          { value: 'square', label: 'Square box' },
         ],
       },
       {

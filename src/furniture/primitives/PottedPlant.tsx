@@ -2,12 +2,14 @@ import { readStr } from './shared';
 import { hexToRgb } from '../../materials/procedural/noise';
 import type { ParamProps } from '../types';
 
-/** Potted foliage plant: tapered pot + soil + foliage. The `type` enum picks
- *  the silhouette — a clustered bush, an upright snake plant, or an arching
- *  palm — and `size` scales the whole plant. */
+/** Potted foliage plant: pot + soil + foliage. The `type` enum picks the
+ *  silhouette — a clustered bush, upright snake plant, arching palm, or a
+ *  tall fiddle-leaf fig — `potShape` picks the planter (tapered / cylinder /
+ *  square box), and `size` scales the whole plant. */
 export function PottedPlant({ props }: { props: ParamProps }) {
   const sizeKey = readStr(props, 'size', 'medium');
   const type = readStr(props, 'type', 'bush');
+  const potShape = readStr(props, 'potShape', 'tapered');
   const potColor = readStr(props, 'potColor', '#b9743f');
   const leafColor = readStr(props, 'leafColor', '#3f6b3a');
 
@@ -15,7 +17,7 @@ export function PottedPlant({ props }: { props: ParamProps }) {
 
   const potH = 0.32;
   const potRTop = 0.2;
-  const potRBot = 0.14;
+  const potRBot = potShape === 'tapered' ? 0.14 : 0.2;
 
   // Shade a hex by a factor for canopy depth variation.
   const [lr, lg, lb] = hexToRgb(leafColor);
@@ -44,21 +46,38 @@ export function PottedPlant({ props }: { props: ParamProps }) {
 
   return (
     <group scale={scale}>
-      {/* Pot */}
-      <mesh castShadow receiveShadow position={[0, potH / 2, 0]}>
-        <cylinderGeometry args={[potRTop, potRBot, potH, 20]} />
-        <meshStandardMaterial color={potColor} roughness={0.85} metalness={0.02} />
-      </mesh>
-      {/* Rim */}
-      <mesh castShadow position={[0, potH, 0]}>
-        <cylinderGeometry args={[potRTop + 0.012, potRTop, 0.04, 20]} />
-        <meshStandardMaterial color={potColor} roughness={0.8} metalness={0.02} />
-      </mesh>
-      {/* Soil */}
-      <mesh position={[0, potH - 0.02, 0]}>
-        <cylinderGeometry args={[potRTop - 0.02, potRTop - 0.02, 0.03, 20]} />
-        <meshStandardMaterial color="#3a2a1c" roughness={1} />
-      </mesh>
+      {/* Pot, rim + soil — square box planter or a round (tapered/cylinder) pot */}
+      {potShape === 'square' ? (
+        <>
+          <mesh castShadow receiveShadow position={[0, potH / 2, 0]}>
+            <boxGeometry args={[potRTop * 2, potH, potRTop * 2]} />
+            <meshStandardMaterial color={potColor} roughness={0.85} metalness={0.02} />
+          </mesh>
+          <mesh castShadow position={[0, potH, 0]}>
+            <boxGeometry args={[potRTop * 2 + 0.02, 0.04, potRTop * 2 + 0.02]} />
+            <meshStandardMaterial color={potColor} roughness={0.8} metalness={0.02} />
+          </mesh>
+          <mesh position={[0, potH - 0.02, 0]}>
+            <boxGeometry args={[potRTop * 2 - 0.04, 0.03, potRTop * 2 - 0.04]} />
+            <meshStandardMaterial color="#3a2a1c" roughness={1} />
+          </mesh>
+        </>
+      ) : (
+        <>
+          <mesh castShadow receiveShadow position={[0, potH / 2, 0]}>
+            <cylinderGeometry args={[potRTop, potRBot, potH, 24]} />
+            <meshStandardMaterial color={potColor} roughness={0.85} metalness={0.02} />
+          </mesh>
+          <mesh castShadow position={[0, potH, 0]}>
+            <cylinderGeometry args={[potRTop + 0.012, potRTop, 0.04, 24]} />
+            <meshStandardMaterial color={potColor} roughness={0.8} metalness={0.02} />
+          </mesh>
+          <mesh position={[0, potH - 0.02, 0]}>
+            <cylinderGeometry args={[potRTop - 0.02, potRTop - 0.02, 0.03, 24]} />
+            <meshStandardMaterial color="#3a2a1c" roughness={1} />
+          </mesh>
+        </>
+      )}
       {type === 'bush' && (
         <>
           {/* Stem */}
@@ -123,6 +142,34 @@ export function PottedPlant({ props }: { props: ParamProps }) {
               >
                 <coneGeometry args={[0.06, arch, 4]} />
                 <meshStandardMaterial color={tint(0.9 + (i % 3) * 0.1)} roughness={0.8} metalness={0} flatShading />
+              </mesh>
+            );
+          })}
+        </>
+      )}
+      {type === 'fiddle' && (
+        <>
+          {/* Slim woody trunk */}
+          <mesh castShadow position={[0, potH + 0.42, 0]}>
+            <cylinderGeometry args={[0.024, 0.034, 0.85, 8]} />
+            <meshStandardMaterial color="#6a5230" roughness={0.9} />
+          </mesh>
+          {/* Large broad oval leaves up the trunk, alternating sides */}
+          {Array.from({ length: 7 }, (_, i) => {
+            const a = (i / 7) * Math.PI * 2 + (i % 2) * 0.6;
+            const h = potH + 0.55 + i * 0.12;
+            const out = 0.16 + (i % 2) * 0.05;
+            const tilt = 0.5 + (i % 3) * 0.12;
+            return (
+              <mesh
+                key={i}
+                castShadow
+                position={[Math.sin(a) * out, h, Math.cos(a) * out]}
+                rotation={[Math.cos(a) * tilt, a, -Math.sin(a) * tilt]}
+                scale={[0.16, 0.015, 0.24]}
+              >
+                <icosahedronGeometry args={[1, 2]} />
+                <meshStandardMaterial color={tint(0.85 + (i % 3) * 0.12)} roughness={0.55} metalness={0} />
               </mesh>
             );
           })}
