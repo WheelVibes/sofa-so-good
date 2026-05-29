@@ -1,6 +1,6 @@
 import { MeshStandardMaterial, type Texture } from 'three';
 import type { MaterialDef } from './types';
-import { generateProcedural } from './procedural/generators';
+import { generateProcedural, getPlasterNormal } from './procedural/generators';
 
 /** Module-level material cache keyed by MaterialId. Each cached
  *  MeshStandardMaterial is reused across every mesh that applies the
@@ -27,6 +27,16 @@ export function buildMaterial(
     roughness: 0.85,
     metalness: 0.0,
   });
+  if (def.kind === 'procedural' && def.pattern === 'plaster') {
+    // Painted plaster: shared normal + flat tint (no per-material textures).
+    const normal = getPlasterNormal();
+    m.color.set(def.swatch);
+    m.roughness = 0.92;
+    m.normalMap = normal;
+    m.normalScale.set(0.4, 0.4);
+    CACHE.set(def.id, m);
+    return m;
+  }
   if (def.kind === 'procedural') {
     const maps = generateProcedural(def.id, def.pattern, def.swatch);
     m.color.set('#ffffff'); // tint baked into albedo

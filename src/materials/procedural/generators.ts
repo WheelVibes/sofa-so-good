@@ -377,6 +377,26 @@ export function generateProcedural(
   return { albedo, normal, roughness, metalness: f.metalness };
 }
 
+// Shared orange-peel normal for ALL plaster (wall-paint) materials. Plaster
+// is near-flat and varies only by tint, so every wall colour reuses this one
+// 256² normal map (tinted via material.color) instead of generating its own
+// full 512² albedo+normal+roughness set — a big memory saving for the palette.
+let plasterNormalTex: Texture | null = null;
+export function getPlasterNormal(): Texture {
+  if (plasterNormalTex) return plasterNormalTex;
+  const prev = S;
+  S = 256;
+  try {
+    const f = plasterFields([255, 255, 255], hashSeed('plaster:shared'));
+    plasterNormalTex = toTexture(heightToNormalRGBA(f.height, S, f.normalStrength), false);
+    // Wall faces carry metre UVs and all wall paints tile at 2.5 m.
+    plasterNormalTex.repeat.set(1 / 2.5, 1 / 2.5);
+    return plasterNormalTex;
+  } finally {
+    S = prev;
+  }
+}
+
 const thumbCache = new Map<string, string>();
 
 /** Cheap albedo-only preview (default 64²) as a data URL, cached per id —
