@@ -388,6 +388,51 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: '75', label: '75"' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'mount',
+        label: 'Mount',
+        default: 'stand',
+        options: [
+          { value: 'stand', label: 'On stand' },
+          { value: 'wall', label: 'Wall' },
+        ],
+      },
+    ],
+  },
+  'tv-wall': {
+    kind: 'parametric',
+    id: 'tv-wall',
+    name: 'TV (wall-mounted)',
+    category: 'appliances',
+    primitive: 'FlatscreenTV',
+    defaultFootprint: { w: 1.25, d: 0.1, h: 0.75 },
+    mounted: true,
+    verticalSpan: { base: 0.9, top: 1.85 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: '55',
+        options: [
+          { value: '43', label: '43"' },
+          { value: '55', label: '55"' },
+          { value: '65', label: '65"' },
+          { value: '75', label: '75"' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'mount',
+        label: 'Mount',
+        default: 'wall',
+        options: [
+          { value: 'wall', label: 'Wall' },
+          { value: 'stand', label: 'On stand' },
+        ],
+      },
+      { kind: 'number', key: 'mountHeight', label: 'Centre height', min: 1.0, max: 1.7, step: 0.05, default: 1.35, unit: 'm' },
     ],
   },
   'aircon-unit': {
