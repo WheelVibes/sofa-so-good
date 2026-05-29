@@ -584,6 +584,22 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'trayColor', label: 'Tray', default: '#eceae6' },
     ],
   },
+  'towel-rail': {
+    kind: 'parametric',
+    id: 'towel-rail',
+    name: 'Towel rail',
+    category: 'bathroom',
+    primitive: 'TowelRail',
+    defaultFootprint: { w: 0.6, d: 0.14, h: 0.5 },
+    footprintParams: { w: 'width' },
+    mounted: true,
+    verticalSpan: { base: 0.7, top: 1.2 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.4, max: 0.9, step: 0.05, default: 0.6, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Height', min: 0.8, max: 1.5, step: 0.05, default: 1.1, unit: 'm' },
+      { kind: 'color', key: 'towelColor', label: 'Towel', default: '#d9e2e6' },
+    ],
+  },
   'bathroom-mirror': {
     kind: 'parametric',
     id: 'bathroom-mirror',
