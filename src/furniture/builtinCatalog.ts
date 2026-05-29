@@ -532,6 +532,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 0.6, d: 0.6, h: 0.92 },
     paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#cfd2d6' }],
   },
+  'drying-rack': {
+    kind: 'parametric',
+    id: 'drying-rack',
+    name: 'Drying rack',
+    category: 'appliances',
+    primitive: 'DryingRack',
+    defaultFootprint: { w: 0.9, d: 0.55, h: 0.95 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.6, max: 1.2, step: 0.05, default: 0.9, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Finish', default: '#c9ccd1' },
+    ],
+  },
   'washing-machine': {
     kind: 'parametric',
     id: 'washing-machine',

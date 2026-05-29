@@ -80,7 +80,8 @@ export type PrimitiveKind =
   | 'Monitor'
   | 'RangeHood'
   | 'TableLamp'
-  | 'Microwave';
+  | 'Microwave'
+  | 'DryingRack';
 
 export type ParamField =
   | {
