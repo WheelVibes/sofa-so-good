@@ -55,6 +55,11 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
         {/* Polished dark-granite worktop — low roughness picks up the IBL. */}
         <meshStandardMaterial color="#34373d" roughness={0.22} metalness={0.15} />
       </mesh>
+      {/* Tiled backsplash up the wall behind the run (countertop → uppers). */}
+      <mesh receiveShadow position={[0, totalH + 0.24, -depth / 2 + 0.012]}>
+        <boxGeometry args={[length, 0.48, 0.015]} />
+        <meshStandardMaterial color="#e4e7e3" roughness={0.3} metalness={0.05} />
+      </mesh>
       {hasSink && (() => {
         const sx = length * 0.25;
         const steel = { color: '#b7bdc2', roughness: 0.25, metalness: 0.8 } as const;
