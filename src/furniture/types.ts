@@ -79,7 +79,8 @@ export type PrimitiveKind =
   | 'Mirror'
   | 'Monitor'
   | 'RangeHood'
-  | 'TableLamp';
+  | 'TableLamp'
+  | 'Microwave';
 
 export type ParamField =
   | {

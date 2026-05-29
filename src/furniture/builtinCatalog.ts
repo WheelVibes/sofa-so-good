@@ -362,6 +362,19 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Appliances ──────────────────────────────────────────────────────────
+  microwave: {
+    kind: 'parametric',
+    id: 'microwave',
+    name: 'Microwave',
+    category: 'appliances',
+    primitive: 'Microwave',
+    defaultFootprint: { w: 0.5, d: 0.36, h: 0.3 },
+    verticalSpan: { base: 0.9, top: 1.22 },
+    paramSchema: [
+      { kind: 'number', key: 'surfaceHeight', label: 'Sits at', min: 0, max: 1.2, step: 0.02, default: 0.9, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Finish', default: '#3b3e44' },
+    ],
+  },
   refrigerator: {
     kind: 'parametric',
     id: 'refrigerator',

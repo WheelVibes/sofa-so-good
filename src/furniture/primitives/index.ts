@@ -42,6 +42,7 @@ import { Mirror } from './Mirror';
 import { Monitor } from './Monitor';
 import { RangeHood } from './RangeHood';
 import { TableLamp } from './TableLamp';
+import { Microwave } from './Microwave';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -81,4 +82,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Monitor,
   RangeHood,
   TableLamp,
+  Microwave,
 };

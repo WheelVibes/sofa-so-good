@@ -18,4 +18,5 @@ export const kitchen: LayoutEntry[] = [
   { id: 'default-sy-washer', defId: 'washing-machine', position: [4.35, 8.55], rotation: Math.PI, props: {} },
   // Upper cabinets above the counter run, against the north wall.
   { id: 'default-k-uppers', defId: 'wall-cabinet', position: [8.20, 6.95], rotation: 0, props: { length: 3.4 } },
+  { id: 'default-k-microwave', defId: 'microwave', position: [7.0, 7.25], rotation: 0, props: { surfaceHeight: 0.9 } },
 ];
