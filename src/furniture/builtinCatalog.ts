@@ -417,6 +417,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'hinged', label: 'Hinged' },
           { value: 'sliding', label: 'Sliding' },
+          { value: 'open', label: 'Open (no doors)' },
         ],
       },
       { kind: 'color', key: 'color', label: 'Colour', default: '#caa478' },

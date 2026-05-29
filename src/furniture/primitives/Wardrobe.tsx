@@ -28,6 +28,66 @@ export function Wardrobe({ props }: WardrobeProps) {
 
   const wood = getSurfaceMaterial(finish, color, 2, sheen);
   const frameMetal = { color: '#b8bcc0', roughness: 0.35, metalness: 0.75 } as const;
+  const open = doorStyle === 'open';
+
+  // Open wardrobe: an exposed carcass (no doors) with a hanging rail + a few
+  // garments on one side and stacked shelves on the other — useful for
+  // visualising storage in an interior-design layout.
+  const interior = (() => {
+    if (!open) return null;
+    const t = 0.02;
+    const innerW = width - t * 2;
+    const railY = height - 0.32;
+    const clothesColors = ['#6b4f6b', '#3b5a7d', '#9c5a3c', '#3f6b3a', '#7d3b3b', '#4a4f56'];
+    return (
+      <group>
+        {/* Carcass: back + two sides + top + bottom + a central divider */}
+        <mesh receiveShadow position={[0, height / 2, -depth / 2 + t / 2]} material={wood}>
+          <boxGeometry args={[width, height, t]} />
+        </mesh>
+        {[-1, 1].map((s) => (
+          <mesh key={s} castShadow position={[s * (width / 2 - t / 2), height / 2, 0]} material={wood}>
+            <boxGeometry args={[t, height, depth]} />
+          </mesh>
+        ))}
+        {[t / 2, height - t / 2].map((y, i) => (
+          <mesh key={i} castShadow receiveShadow position={[0, y, 0]} material={wood}>
+            <boxGeometry args={[width, t, depth]} />
+          </mesh>
+        ))}
+        <mesh castShadow position={[0, height / 2, 0]} material={wood}>
+          <boxGeometry args={[t, height, depth]} />
+        </mesh>
+        {/* Left bay: hanging rail + garments */}
+        <mesh position={[-innerW / 4, railY, 0]} rotation={[0, 0, Math.PI / 2]}>
+          <cylinderGeometry args={[0.012, 0.012, innerW / 2 - 0.06, 10]} />
+          <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
+        </mesh>
+        {Array.from({ length: 6 }, (_, i) => {
+          const x = -innerW / 2 + 0.1 + i * ((innerW / 2 - 0.16) / 5);
+          const h = 0.7 + (i % 3) * 0.08;
+          return (
+            <mesh key={i} castShadow position={[x, railY - h / 2, 0]}>
+              <boxGeometry args={[0.05, h, depth * 0.5]} />
+              <meshStandardMaterial color={clothesColors[i % clothesColors.length]} roughness={0.85} metalness={0} />
+            </mesh>
+          );
+        })}
+        {/* Right bay: three shelves with a couple of folded stacks */}
+        {[0.45, 0.95, 1.45].map((y, i) => (
+          <mesh key={i} castShadow receiveShadow position={[innerW / 4, y, 0]} material={wood}>
+            <boxGeometry args={[innerW / 2 - 0.04, t, depth - 0.04]} />
+          </mesh>
+        ))}
+        {[0.45, 0.95].map((y, i) => (
+          <mesh key={`f${i}`} castShadow position={[innerW / 4, y + 0.1, 0]}>
+            <boxGeometry args={[innerW / 2 - 0.14, 0.16, depth - 0.12]} />
+            <meshStandardMaterial color={i ? '#cdc4b4' : '#b7c0c8'} roughness={0.8} metalness={0} />
+          </mesh>
+        ))}
+      </group>
+    );
+  })();
 
   // Sliding-door wardrobe (the HDB norm): two/three large aluminium-framed
   // laminate panels that overlap slightly on a track, with edge pulls — no
@@ -64,7 +124,7 @@ export function Wardrobe({ props }: WardrobeProps) {
     });
   })();
 
-  const doors = sliding
+  const doors = sliding || open
     ? null
     : Array.from({ length: doorCount }, (_, i) => {
     const x = -width / 2 + doorGap + doorPanelW / 2 + i * (doorPanelW + doorGap);
@@ -86,12 +146,15 @@ export function Wardrobe({ props }: WardrobeProps) {
 
   return (
     <group>
-      {/* Body */}
-      <mesh castShadow receiveShadow position={[0, height / 2, 0]} material={wood}>
-        <boxGeometry args={[width, height, depth]} />
-      </mesh>
+      {/* Solid body for closed wardrobes; the open style draws its own carcass */}
+      {!open && (
+        <mesh castShadow receiveShadow position={[0, height / 2, 0]} material={wood}>
+          <boxGeometry args={[width, height, depth]} />
+        </mesh>
+      )}
       {doors}
       {slidePanels}
+      {interior}
     </group>
   );
 }
