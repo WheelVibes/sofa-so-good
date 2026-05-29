@@ -19,7 +19,7 @@ export function Mirror({ props }: { props: ParamProps }) {
           reads as a mirror without a real reflection probe. */}
       <mesh position={[0, 0, 0.018]}>
         <planeGeometry args={[width, height]} />
-        <meshStandardMaterial color="#d8e2ea" roughness={0.04} metalness={0.9} envMapIntensity={1.5} />
+        <meshStandardMaterial color="#cdd8e0" roughness={0.08} metalness={0.85} envMapIntensity={1.0} />
       </mesh>
     </group>
   );
