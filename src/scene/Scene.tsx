@@ -18,7 +18,6 @@ import { DragController } from './DragController';
 import { Effects } from './Effects';
 import { QualityController } from './QualityController';
 import { ScreenshotController } from './ScreenshotController';
-import { ShadowController } from './ShadowController';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
@@ -51,7 +50,6 @@ export function Scene() {
       <Effects />
       <QualityController />
       <ScreenshotController />
-      <ShadowController />
       {showFps ? <Stats /> : null}
     </Canvas>
   );
