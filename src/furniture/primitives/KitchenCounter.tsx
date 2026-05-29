@@ -21,6 +21,11 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
   const topThickness = 0.05;
   const totalH = cabinetH + topThickness;
 
+  // Cabinet door fronts with handles along the base run.
+  const cabs = Math.max(1, Math.round(length / 0.6));
+  const cabGap = 0.012;
+  const cabW = (length - cabGap * (cabs + 1)) / cabs;
+
   return (
     <group>
       {/* Base cabinet */}
@@ -28,6 +33,22 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
         <boxGeometry args={[length, cabinetH, depth]} />
         <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
+      {/* Door fronts + handles */}
+      {Array.from({ length: cabs }, (_, i) => {
+        const x = -length / 2 + cabGap + cabW / 2 + i * (cabW + cabGap);
+        return (
+          <group key={i}>
+            <mesh position={[x, cabinetH / 2, depth / 2 - 0.005]}>
+              <boxGeometry args={[cabW, cabinetH - 0.06, 0.016]} />
+              <meshStandardMaterial color={color} roughness={0.6} metalness={STYLISED_METALNESS} />
+            </mesh>
+            <mesh position={[x + (i % 2 ? -1 : 1) * (cabW / 2 - 0.04), cabinetH - 0.12, depth / 2 + 0.01]}>
+              <boxGeometry args={[0.018, 0.12, 0.018]} />
+              <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
+            </mesh>
+          </group>
+        );
+      })}
       {/* Countertop */}
       <mesh castShadow receiveShadow position={[0, cabinetH + topThickness / 2, 0]}>
         <boxGeometry args={[length, topThickness, depth]} />
