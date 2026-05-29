@@ -447,8 +447,8 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'decor',
     primitive: 'Curtain',
     defaultFootprint: { w: 1.8, d: 0.12, h: 2.3 },
-    mounted: true,
-    verticalSpan: { base: 0, top: 2.4 },
+    // Drapes hang flat against a wall behind furniture — never block placement.
+    noClip: true,
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 1.0, max: 3.0, step: 0.1, default: 1.8, unit: 'm' },
       { kind: 'number', key: 'height', label: 'Height', min: 1.5, max: 2.5, step: 0.05, default: 2.3, unit: 'm' },
