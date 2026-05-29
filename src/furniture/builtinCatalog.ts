@@ -479,6 +479,27 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#3a2f24' },
       {
         kind: 'enum',
+        key: 'base',
+        label: 'Base',
+        default: 'block',
+        options: [
+          { value: 'block', label: 'Block' },
+          { value: 'plinth', label: 'Plinth' },
+          { value: 'legs', label: 'Splayed legs' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'front',
+        label: 'Front',
+        default: 'drawers',
+        options: [
+          { value: 'drawers', label: 'Drawers' },
+          { value: 'doors', label: 'Doors' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Finish',
         default: 'wood',
