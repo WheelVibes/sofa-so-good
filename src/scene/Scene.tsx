@@ -9,6 +9,7 @@ import { Lighting } from './lighting/Lighting';
 import { FurnitureLights } from './lighting/FurnitureLights';
 import { SceneEnvironment } from './lighting/SceneEnvironment';
 import { Sky } from './lighting/Sky';
+import { CityBackdrop } from './CityBackdrop';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
 import { SelectionOutline } from './selection/SelectionOutline';
@@ -18,6 +19,7 @@ import { DragController } from './DragController';
 import { Effects } from './Effects';
 import { QualityController } from './QualityController';
 import { ScreenshotController } from './ScreenshotController';
+import { DevCameraExpose } from './DevCameraExpose';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
@@ -25,7 +27,7 @@ export function Scene() {
     <Canvas
       shadows={{ type: PCFShadowMap }}
       dpr={[1, 1.75]}
-      camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 100 }}
+      camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 400 }}
       gl={{
         antialias: true,
         powerPreference: 'high-performance',
@@ -35,6 +37,7 @@ export function Scene() {
       }}
     >
       <Sky />
+      <CityBackdrop />
       <SceneEnvironment />
       <Lighting />
       <FurnitureLights />
@@ -50,6 +53,7 @@ export function Scene() {
       <Effects />
       <QualityController />
       <ScreenshotController />
+      {import.meta.env.DEV ? <DevCameraExpose /> : null}
       {showFps ? <Stats /> : null}
     </Canvas>
   );
