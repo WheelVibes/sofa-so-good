@@ -1018,6 +1018,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'mountHeight', label: 'Hang height', min: 1.0, max: 2.0, step: 0.05, default: 1.55, unit: 'm' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#2c2722' },
       { kind: 'color', key: 'artColor', label: 'Art', default: '#9fb0a6' },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Print',
+        default: 'solid',
+        options: [
+          { value: 'solid', label: 'Solid' },
+          { value: 'gradient', label: 'Gradient' },
+        ],
+      },
+      { kind: 'color', key: 'artColor2', label: 'Art 2 (gradient)', default: '#d8c7a0' },
     ],
   },
   'wall-clock': {

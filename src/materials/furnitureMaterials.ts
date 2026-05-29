@@ -142,6 +142,27 @@ export function getGradientFabricMaterial(a: string, b: string): MeshStandardMat
   return m;
 }
 
+/** Flat two-colour diagonal gradient (no weave) — for prints / wall art. */
+export function getGradientMaterial(a: string, b: string): MeshStandardMaterial {
+  const key = `gradflat:${a}:${b}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const c = document.createElement('canvas');
+  c.width = 64;
+  c.height = 64;
+  const ctx = c.getContext('2d')!;
+  const g = ctx.createLinearGradient(0, 0, 64, 64);
+  g.addColorStop(0, a);
+  g.addColorStop(1, b);
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, 64, 64);
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  const m = new MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0 });
+  cache.set(key, m);
+  return m;
+}
+
 /** Smooth leather upholstery — pebbled grain, low roughness for a soft sheen. */
 export function getLeatherMaterial(color: string): MeshStandardMaterial {
   const key = 'leath:' + color;
