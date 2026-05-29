@@ -403,6 +403,27 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
       {
         kind: 'enum',
+        key: 'handle',
+        label: 'Handles',
+        default: 'knob',
+        options: [
+          { value: 'knob', label: 'Round knob' },
+          { value: 'bar', label: 'Bar pull' },
+          { value: 'recessed', label: 'Recessed' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'base',
+        label: 'Base',
+        default: 'legs',
+        options: [
+          { value: 'legs', label: 'Legs' },
+          { value: 'plinth', label: 'Plinth' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Finish',
         default: 'wood',
@@ -1301,6 +1322,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'mountHeight', label: 'Hang height', min: 1.0, max: 2.0, step: 0.05, default: 1.55, unit: 'm' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#2c2722' },
       { kind: 'color', key: 'artColor', label: 'Art', default: '#9fb0a6' },
+      {
+        kind: 'enum',
+        key: 'frameStyle',
+        label: 'Frame style',
+        default: 'thin',
+        options: [
+          { value: 'thin', label: 'Thin' },
+          { value: 'gallery', label: 'Gallery (wide)' },
+          { value: 'box', label: 'Box float' },
+          { value: 'none', label: 'Frameless' },
+        ],
+      },
       {
         kind: 'enum',
         key: 'pattern',
