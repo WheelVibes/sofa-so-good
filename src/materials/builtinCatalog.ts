@@ -95,6 +95,42 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     swatch: '#e6c8c0',
     uvScale: [2.5, 2.5],
   },
+  'wall-paint-greige': {
+    id: 'wall-paint-greige',
+    name: 'Greige',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: '#cdc6ba',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-paint-terracotta': {
+    id: 'wall-paint-terracotta',
+    name: 'Terracotta',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: '#c08763',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-paint-navy': {
+    id: 'wall-paint-navy',
+    name: 'Navy',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: '#3b4a63',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-paint-forest': {
+    id: 'wall-paint-forest',
+    name: 'Forest green',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: '#4a5e4a',
+    uvScale: [2.5, 2.5],
+  },
 };
 
 export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak';
