@@ -445,6 +445,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#7a5e3a' },
       {
         kind: 'enum',
+        key: 'style',
+        label: 'Base',
+        default: 'open',
+        options: [
+          { value: 'open', label: 'Open shelves' },
+          { value: 'cabinet', label: 'Closed base cabinet' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Finish',
         default: 'wood',
