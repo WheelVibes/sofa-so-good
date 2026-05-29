@@ -69,6 +69,26 @@ function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, materi
   );
 }
 
+/** Translucent highlight overlay shown on the wall face selected for accent
+ *  finishing, so the user can see which face they're editing. */
+function FaceHighlight({
+  segLen,
+  segHeight,
+  segMid,
+  segMidY,
+  thickness,
+  sign,
+}: Omit<FacePlaneProps, 'material' | 'onSelect'>) {
+  const z = sign * (thickness / 2 + FACE_OFFSET + 0.004);
+  const yRot = sign === 1 ? 0 : Math.PI;
+  return (
+    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]}>
+      <planeGeometry args={[segLen, segHeight]} />
+      <meshBasicMaterial color="#4a90d9" transparent opacity={0.25} depthWrite={false} />
+    </mesh>
+  );
+}
+
 const BASEBOARD_H = 0.09;
 
 /** A painted skirting board strip along the floor edge of a wall face. */
@@ -251,6 +271,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     }),
   );
   const selectWall = useStore((s) => s.selectWall);
+  const selectedWall = useStore((s) => s.selectedWall);
 
   return (
     <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
@@ -309,6 +330,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                   />
                 </Suspense>
                 {onFloor && <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />}
+                {selectedWall?.wallId === wall.id && selectedWall.roomId === span.positive && (
+                  <FaceHighlight segLen={segLen} segHeight={segHeight} segMid={segMid} segMidY={segMidY} thickness={thickness} sign={1} />
+                )}
               </>
             ) : null}
             {negativeMat ? (
@@ -326,6 +350,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                   />
                 </Suspense>
                 {onFloor && <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />}
+                {selectedWall?.wallId === wall.id && selectedWall.roomId === span.negative && (
+                  <FaceHighlight segLen={segLen} segHeight={segHeight} segMid={segMid} segMidY={segMidY} thickness={thickness} sign={-1} />
+                )}
               </>
             ) : null}
           </group>
