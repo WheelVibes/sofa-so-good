@@ -51,6 +51,29 @@ function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, materi
   );
 }
 
+const BASEBOARD_H = 0.09;
+
+/** A painted skirting board strip along the floor edge of a wall face. */
+function Baseboard({
+  segLen,
+  segMid,
+  thickness,
+  sign,
+}: {
+  segLen: number;
+  segMid: number;
+  thickness: number;
+  sign: 1 | -1;
+}) {
+  const z = sign * (thickness / 2 + 0.006);
+  return (
+    <mesh position={[segMid, BASEBOARD_H / 2, z]} castShadow receiveShadow>
+      <boxGeometry args={[segLen, BASEBOARD_H, 0.018]} />
+      <meshStandardMaterial color="#eeece6" roughness={0.55} metalness={0} />
+    </mesh>
+  );
+}
+
 interface SegmentFaceProps extends Omit<FacePlaneProps, 'material'> {
   materialId: MaterialId;
 }
@@ -241,33 +264,41 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         const segMidY = span.bottom + segHeight / 2;
         const positiveMat = span.positive ? wallFinishes[span.positive] : null;
         const negativeMat = span.negative ? wallFinishes[span.negative] : null;
+        // Skirting boards only on spans that reach the floor.
+        const onFloor = span.bottom < 0.01;
         return (
           <group key={i}>
             {positiveMat ? (
-              <Suspense fallback={null}>
-                <SegmentFace
-                  segLen={segLen}
-                  segHeight={segHeight}
-                  segMid={segMid}
-                  segMidY={segMidY}
-                  thickness={thickness}
-                  sign={1}
-                  materialId={positiveMat}
-                />
-              </Suspense>
+              <>
+                <Suspense fallback={null}>
+                  <SegmentFace
+                    segLen={segLen}
+                    segHeight={segHeight}
+                    segMid={segMid}
+                    segMidY={segMidY}
+                    thickness={thickness}
+                    sign={1}
+                    materialId={positiveMat}
+                  />
+                </Suspense>
+                {onFloor && <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />}
+              </>
             ) : null}
             {negativeMat ? (
-              <Suspense fallback={null}>
-                <SegmentFace
-                  segLen={segLen}
-                  segHeight={segHeight}
-                  segMid={segMid}
-                  segMidY={segMidY}
-                  thickness={thickness}
-                  sign={-1}
-                  materialId={negativeMat}
-                />
-              </Suspense>
+              <>
+                <Suspense fallback={null}>
+                  <SegmentFace
+                    segLen={segLen}
+                    segHeight={segHeight}
+                    segMid={segMid}
+                    segMidY={segMidY}
+                    thickness={thickness}
+                    sign={-1}
+                    materialId={negativeMat}
+                  />
+                </Suspense>
+                {onFloor && <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />}
+              </>
             ) : null}
           </group>
         );
