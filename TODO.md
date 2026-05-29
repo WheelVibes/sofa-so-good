@@ -66,7 +66,7 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 
 ## Editor / Selection
 
-- **Multi-select rotate** — `R` rotates only the primary selection. Decide whether group rotate spins around the group centroid or each item in place, then extend the onKey handler. See [src/App.tsx](src/App.tsx).
+- ~~**Multi-select rotate**~~ — done. `R` rotates a multi-selection rigidly around the group centroid (positions orbit the centroid, each item's rotation advances), applied only if all rotated items still fit. See [src/App.tsx](src/App.tsx).
 - **Inspector for multi-selection** — currently shows the primary item only. Could show a "N items selected" placeholder with bulk actions (delete all, clear). See [src/ui/inspector/InspectorPanel.tsx](src/ui/inspector/InspectorPanel.tsx).
 - **Marquee strictness** — selection is membership-by-centre; partial-overlap (Lasso-style) may be preferred for large items. Revisit if users complain. See [src/scene/selection/MarqueeSelector.tsx](src/scene/selection/MarqueeSelector.tsx).
 
