@@ -1,6 +1,7 @@
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../state/store';
 import { useCatalog } from '../../furniture/catalog';
+import { canPlace } from '../../collision/placement';
 import { ParametricBody } from './ParametricBody';
 import { GltfBody } from './GltfBody';
 import { SourceLine } from './SourceLine';
@@ -19,6 +20,35 @@ export function InspectorPanel() {
   if (!item) return null;
   const def = catalog[item.defId];
   if (!def) return null;
+
+  const rotate90 = () => {
+    const st = useStore.getState();
+    const it = st.items.find((i) => i.id === item.id);
+    if (!it) return;
+    const next = it.rotation + Math.PI / 2;
+    if (canPlace({ ...it, rotation: next }, def, { others: st.items, defs: catalog, doors: st.doors })) {
+      st.pushHistory();
+      st.rotateItem(it.id, next);
+    }
+  };
+
+  const duplicate = () => {
+    const st = useStore.getState();
+    const STEP = 0.3;
+    for (let ring = 1; ring <= 8; ring++) {
+      for (let dx = -ring; dx <= ring; dx++) {
+        for (let dz = -ring; dz <= ring; dz++) {
+          if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue;
+          const pos: [number, number] = [item.position[0] + dx * STEP, item.position[1] + dz * STEP];
+          const probe = { id: 'dup-probe', defId: item.defId, position: pos, rotation: item.rotation, props: item.props };
+          if (canPlace(probe, def, { others: st.items, defs: catalog, doors: st.doors })) {
+            st.addItem({ defId: item.defId, position: pos, rotation: item.rotation, props: { ...item.props } });
+            return;
+          }
+        }
+      }
+    }
+  };
 
   return (
     <aside className="absolute right-3 top-3 z-10 w-64 max-h-[80vh] overflow-y-auto rounded-lg bg-white/95 p-4 text-xs text-neutral-700 shadow">
@@ -57,12 +87,27 @@ export function InspectorPanel() {
           sourceUrl={def.sourceUrl}
         />
       )}
-      <footer className="mt-3 border-t border-neutral-200 pt-2">
+      <footer className="mt-3 grid grid-cols-3 gap-1.5 border-t border-neutral-200 pt-2">
+        <button
+          onClick={rotate90}
+          title="Rotate 90° (R)"
+          className="rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
+        >
+          ↻ Rotate
+        </button>
+        <button
+          onClick={duplicate}
+          title="Duplicate (Ctrl+D)"
+          className="rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
+        >
+          ⧉ Copy
+        </button>
         <button
           onClick={() => deleteItem(item.id)}
-          className="w-full rounded bg-rose-50 py-1 text-rose-700 hover:bg-rose-100"
+          title="Delete (Del)"
+          className="rounded bg-rose-50 py-1 text-rose-700 hover:bg-rose-100"
         >
-          Delete
+          🗑 Delete
         </button>
       </footer>
     </aside>
