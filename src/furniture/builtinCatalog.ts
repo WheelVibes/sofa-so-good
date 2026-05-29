@@ -1436,6 +1436,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
       {
         kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'bracket',
+        options: [
+          { value: 'bracket', label: 'L-bracket' },
+          { value: 'floating', label: 'Floating' },
+          { value: 'twotier', label: 'Two-tier' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Finish',
         default: 'wood',
