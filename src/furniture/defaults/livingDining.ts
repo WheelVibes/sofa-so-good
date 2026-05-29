@@ -43,4 +43,5 @@ export const livingDining: LayoutEntry[] = [
   { id: 'default-ld-fan', defId: 'ceiling-fan', position: [10.65, 3.55], rotation: 0, props: {} },
   { id: 'default-ld-pendant-dining', defId: 'ceiling-light', position: [10.55, 5.20], rotation: 0, props: { style: 'pendant' } },
   { id: 'default-ld-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
+  { id: 'default-ld-art', defId: 'wall-art', position: [12.5, 4.4], rotation: -Math.PI / 2, props: { width: 1.0, height: 0.7 } },
 ];

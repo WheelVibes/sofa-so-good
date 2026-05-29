@@ -69,7 +69,9 @@ export type PrimitiveKind =
   | 'CeilingFan'
   | 'Stove'
   | 'WashingMachine'
-  | 'Curtain';
+  | 'Curtain'
+  | 'WallArt'
+  | 'OfficeChair';
 
 export type ParamField =
   | {

@@ -32,6 +32,8 @@ import { CeilingFan } from './CeilingFan';
 import { Stove } from './Stove';
 import { WashingMachine } from './WashingMachine';
 import { Curtain } from './Curtain';
+import { WallArt } from './WallArt';
+import { OfficeChair } from './OfficeChair';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -61,4 +63,6 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Stove,
   WashingMachine,
   Curtain,
+  WallArt,
+  OfficeChair,
 };
