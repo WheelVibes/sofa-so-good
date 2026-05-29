@@ -16,6 +16,8 @@ export function Toolbar() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements);
   const showFps = useStore((s) => s.showFps);
   const toggleShowFps = useStore((s) => s.toggleShowFps);
+  const effectsQuality = useStore((s) => s.effectsQuality);
+  const toggleEffects = useStore((s) => s.toggleEffects);
   const [creditsOpen, setCreditsOpen] = useState(false);
 
   return (
@@ -47,6 +49,13 @@ export function Toolbar() {
         className={`whitespace-nowrap rounded px-3 py-1 text-sm ${showFps ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
       >
         FPS
+      </button>
+      <button
+        onClick={toggleEffects}
+        title="Toggle high-quality effects (bloom + antialiasing)"
+        className={`whitespace-nowrap rounded px-3 py-1 text-sm ${effectsQuality === 'high' ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+      >
+        Effects
       </button>
       {cameraMode === 'orbit' ? (
         <>

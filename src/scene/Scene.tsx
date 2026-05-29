@@ -15,6 +15,7 @@ import { SelectionOutline } from './selection/SelectionOutline';
 import { MarqueeCameraTracker } from './selection/MarqueeSelector';
 import { PlacementGhost } from './PlacementGhost';
 import { DragController } from './DragController';
+import { Effects } from './Effects';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
@@ -44,6 +45,7 @@ export function Scene() {
       <CameraRig />
       <CameraForwardTracker />
       <MeasurementOverlay />
+      <Effects />
       {showFps ? <Stats /> : null}
     </Canvas>
   );

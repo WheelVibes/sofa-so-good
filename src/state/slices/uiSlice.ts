@@ -7,22 +7,34 @@ import type { RootState } from '../store';
 export type EditorTool = 'select' | 'orbit';
 
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
+/** Post-processing / effects quality. 'high' enables SSAO + bloom + SMAA;
+ *  'off' renders the raw forward pass (fastest, for low-end devices). */
+export type EffectsQuality = 'high' | 'off';
+
+/** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
 export interface UiSlice {
   catalogOpen: boolean;
   editorTool: EditorTool;
   showFps: boolean;
+  effectsQuality: EffectsQuality;
   setCatalogOpen: (open: boolean) => void;
   toggleCatalogOpen: () => void;
   setEditorTool: (tool: EditorTool) => void;
   toggleEditorTool: () => void;
   setShowFps: (show: boolean) => void;
   toggleShowFps: () => void;
+  setEffectsQuality: (q: EffectsQuality) => void;
+  toggleEffects: () => void;
 }
 
-export const UI_INITIAL: Pick<UiSlice, 'catalogOpen' | 'editorTool' | 'showFps'> = {
+export const UI_INITIAL: Pick<
+  UiSlice,
+  'catalogOpen' | 'editorTool' | 'showFps' | 'effectsQuality'
+> = {
   catalogOpen: false,
   editorTool: 'orbit',
   showFps: false,
+  effectsQuality: 'high',
 };
 
 export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
@@ -34,4 +46,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
     set((s) => ({ editorTool: s.editorTool === 'orbit' ? 'select' : 'orbit' })),
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
+  setEffectsQuality: (q) => set({ effectsQuality: q }),
+  toggleEffects: () =>
+    set((s) => ({ effectsQuality: s.effectsQuality === 'high' ? 'off' : 'high' })),
 });
