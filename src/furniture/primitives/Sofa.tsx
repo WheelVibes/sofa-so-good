@@ -20,11 +20,14 @@ export function Sofa({ props }: SofaProps) {
   const pillowColor = readStr(props, 'pillowColor', '#c8775c');
   const material = readStr(props, 'material', 'fabric');
   const sheen = readNum(props, 'sheen', 0);
+  const armStyle = readStr(props, 'armStyle', 'standard');
 
   const seatH = 0.42;
   const baseH = 0.2;
   const backH = 0.5;
-  const armW = 0.16;
+  const hasArms = armStyle !== 'armless';
+  const armW = hasArms ? 0.16 : 0;
+  const armH = armStyle === 'low' ? seatH + 0.05 : seatH + backH * 0.6;
   const cushionH = 0.18;
 
   const innerW = width - armW * 2;
@@ -41,18 +44,19 @@ export function Sofa({ props }: SofaProps) {
       <RoundedBox args={[width, baseH, depth]} radius={r} smoothness={2} castShadow receiveShadow position={[0, baseH / 2, 0]} material={mat} />
       {/* Back */}
       <RoundedBox args={[innerW, backH, 0.18]} radius={0.05} smoothness={2} castShadow position={[0, baseH + backH / 2, -depth / 2 + 0.11]} material={mat} />
-      {/* Arms */}
-      {[-1, 1].map((s) => (
-        <RoundedBox
-          key={s}
-          args={[armW, seatH + backH * 0.6, depth]}
-          radius={0.06}
-          smoothness={2}
-          castShadow
-          position={[s * (width - armW) / 2, (seatH + backH * 0.6) / 2, 0]}
-          material={mat}
-        />
-      ))}
+      {/* Arms (omitted when armless; lower profile for the 'low' style) */}
+      {hasArms &&
+        [-1, 1].map((s) => (
+          <RoundedBox
+            key={s}
+            args={[armW, armH, depth]}
+            radius={0.06}
+            smoothness={2}
+            castShadow
+            position={[(s * (width - armW)) / 2, armH / 2, 0]}
+            material={mat}
+          />
+        ))}
       {/* Seat cushions */}
       {Array.from({ length: cushionCount }, (_, i) => {
         const x = -innerW / 2 + cushionW / 2 + i * (cushionW + cushionGap);
