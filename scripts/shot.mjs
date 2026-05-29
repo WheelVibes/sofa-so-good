@@ -20,6 +20,21 @@ const browser = await puppeteer.launch({
 const page = await browser.newPage();
 await page.emulateTimezone('Asia/Singapore');
 await page.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 });
+// Seed localStorage before any app code runs so previews aren't covered by the
+// first-run Controls overlay / location prompt. Override with SHOT_INIT_LS
+// (JSON object of key→value). Defaults dismiss both first-run UIs.
+{
+  const initLs = process.env.SHOT_INIT_LS
+    ? JSON.parse(process.env.SHOT_INIT_LS)
+    : { 'sofa.helpHint.dismissed': '1' };
+  await page.evaluateOnNewDocument((entries) => {
+    try {
+      for (const [k, v] of Object.entries(entries)) localStorage.setItem(k, v);
+    } catch {
+      /* ignore */
+    }
+  }, initLs);
+}
 const logs = [];
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`));
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`));

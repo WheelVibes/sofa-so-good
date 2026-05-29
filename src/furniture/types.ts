@@ -82,7 +82,8 @@ export type PrimitiveKind =
   | 'TableLamp'
   | 'Microwave'
   | 'DryingRack'
-  | 'TabletopDecor';
+  | 'TabletopDecor'
+  | 'ShoeCabinet';
 
 export type ParamField =
   | {

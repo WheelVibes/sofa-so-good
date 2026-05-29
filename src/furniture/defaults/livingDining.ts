@@ -46,6 +46,8 @@ export const livingDining: LayoutEntry[] = [
   { id: 'default-ld-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
   { id: 'default-ld-art', defId: 'wall-art', position: [12.5, 4.4], rotation: -Math.PI / 2, props: { width: 1.0, height: 0.7 } },
   { id: 'default-ld-curtain', defId: 'curtains', position: [10.85, 1.5], rotation: 0, props: { width: 2.8, height: 2.3, color: '#b9b0a0' } },
+  // Shoe cabinet by the main entrance (east wall, just inside the door).
+  { id: 'default-ld-shoe', defId: 'shoe-cabinet', position: [12.35, 7.45], rotation: -Math.PI / 2, props: { width: 0.9, depth: 0.3 } },
   // Wall-mounted TV above the console on the east wall, facing west.
   { id: 'default-ld-tv', defId: 'tv-wall', position: [12.45, 2.45], rotation: -Math.PI / 2, props: { size: '65', mount: 'wall', mountHeight: 1.3 } },
 ];

@@ -212,6 +212,21 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
     ],
   },
+  'shoe-cabinet': {
+    kind: 'parametric',
+    id: 'shoe-cabinet',
+    name: 'Shoe cabinet',
+    category: 'storage',
+    primitive: 'ShoeCabinet',
+    defaultFootprint: { w: 0.9, d: 0.32, h: 1.02 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.6, max: 1.6, step: 0.05, default: 0.9, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.24, max: 0.4, step: 0.02, default: 0.32, unit: 'm' },
+      { kind: 'integer', key: 'tiers', label: 'Tiers', min: 2, max: 5, default: 3 },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#9a8a72' },
+    ],
+  },
   bookshelf: {
     kind: 'parametric',
     id: 'bookshelf',

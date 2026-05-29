@@ -45,6 +45,7 @@ import { TableLamp } from './TableLamp';
 import { Microwave } from './Microwave';
 import { DryingRack } from './DryingRack';
 import { TabletopDecor } from './TabletopDecor';
+import { ShoeCabinet } from './ShoeCabinet';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -87,4 +88,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Microwave,
   DryingRack,
   TabletopDecor,
+  ShoeCabinet,
 };
