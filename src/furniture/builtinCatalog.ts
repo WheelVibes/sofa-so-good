@@ -259,6 +259,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: '8', label: '8-seater' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'rect',
+        options: [
+          { value: 'rect', label: 'Rectangular' },
+          { value: 'round', label: 'Round' },
+        ],
+      },
       { kind: 'color', key: 'topColor', label: 'Top', default: '#9e7b53' },
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#5b4126' },
       {

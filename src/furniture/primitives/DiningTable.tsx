@@ -24,6 +24,7 @@ export function DiningTable({ props }: DiningTableProps) {
   const legColor = readStr(props, 'legColor', '#5b4126');
   const finish = readStr(props, 'finish', 'wood');
   const sheen = readNum(props, 'sheen', 0);
+  const shape = readStr(props, 'shape', 'rect');
 
   const topThickness = 0.04;
   const totalH = 0.74;
@@ -45,6 +46,28 @@ export function DiningTable({ props }: DiningTableProps) {
 
   const topMat = getSurfaceMaterial(finish, topColor, 1.5, sheen);
   const legMat = getWoodMaterial(legColor, 0.5);
+
+  // Round pedestal table (IKEA DOCKSTA / LISABO style): circular top on a
+  // central column + disc foot. Diameter fits the seat footprint.
+  if (shape === 'round') {
+    const radius = Math.min(dim.w, dim.d) / 2;
+    return (
+      <group>
+        <mesh castShadow receiveShadow position={[0, totalH - topThickness / 2, 0]} material={topMat}>
+          <cylinderGeometry args={[radius, radius, topThickness, 40]} />
+        </mesh>
+        {/* Pedestal column */}
+        <mesh castShadow position={[0, (totalH - topThickness) / 2 + 0.04, 0]} material={legMat}>
+          <cylinderGeometry args={[0.07, 0.09, totalH - topThickness - 0.04, 20]} />
+        </mesh>
+        {/* Disc foot */}
+        <mesh castShadow receiveShadow position={[0, 0.025, 0]} material={legMat}>
+          <cylinderGeometry args={[radius * 0.42, radius * 0.46, 0.05, 28]} />
+        </mesh>
+      </group>
+    );
+  }
+
   return (
     <group>
       <mesh castShadow receiveShadow position={[0, totalH - topThickness / 2, 0]} material={topMat}>
