@@ -108,11 +108,17 @@ function cameraForDef(def: FurnitureDef): {
     return { position: [2, 1.6, 2], target: [0, 0.5, 0] };
   }
   const { w, d, h } = def.defaultFootprint;
-  const radius = Math.max(w, d, h) * 0.85 || 1;
+  // Mounted/elevated items (wall aircon, ceiling lights, wall TV, mirror…)
+  // render their geometry high in Y, so frame around the vertical span centre
+  // rather than assuming the piece sits on the floor at the origin.
+  const span = def.verticalSpan;
+  const centerY = span ? (span.base + span.top) / 2 : h * 0.5;
+  const vExtent = span ? span.top - span.base : h;
+  const radius = Math.max(w, d, vExtent) * 0.85 || 1;
   const distance = radius * 2.4;
   return {
-    position: [distance * 0.75, h * 0.6 + radius * 0.9, distance * 0.95],
-    target: [0, h * 0.5, 0],
+    position: [distance * 0.75, centerY + radius * 0.9, distance * 0.95],
+    target: [0, centerY, 0],
   };
 }
 
