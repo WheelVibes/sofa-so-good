@@ -589,6 +589,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Colour', default: '#6f553f' },
       {
         kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'rect',
+        options: [
+          { value: 'rect', label: 'Rectangular' },
+          { value: 'round', label: 'Round' },
+          { value: 'oval', label: 'Oval' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Finish',
         default: 'wood',
