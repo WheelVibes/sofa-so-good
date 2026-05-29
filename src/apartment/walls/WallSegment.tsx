@@ -1,7 +1,8 @@
-import { Suspense, memo, useMemo } from 'react';
+import { Suspense, memo, useMemo, useRef } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import type { MeshStandardMaterial } from 'three';
-import { FLAT, WALLS } from '../constants';
+import { useFrame, useThree } from '@react-three/fiber';
+import { Group, Mesh, type MeshStandardMaterial } from 'three';
+import { APARTMENT_EXT_W, APARTMENT_EXT_D, FLAT, WALLS } from '../constants';
 import {
   buildWallSegments,
   wallEndAbutmentThickness,
@@ -42,8 +43,11 @@ function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, materi
   const z = sign * (thickness / 2 + FACE_OFFSET);
   const yRot = sign === 1 ? 0 : Math.PI;
   const geometry = useMemo(() => worldUvPlaneGeometry(segLen, segHeight), [segLen, segHeight]);
+  // Clone so this wall's face can fade for camera-reveal independently of the
+  // shared, cached finish material (which other walls also use).
+  const faded = useMemo(() => material.clone(), [material]);
   return (
-    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} material={material} geometry={geometry} />
+    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} material={faded} geometry={geometry} />
   );
 }
 
@@ -86,11 +90,76 @@ interface WallSegmentProps {
  *  span multiple rooms — each segment's face must pick up its own room's
  *  finish, not the room that happens to sit at the whole-wall midpoint.
  *  External faces (no adjacent interior room) skip rendering. */
+const CENTER_X = APARTMENT_EXT_W / 2;
+const CENTER_Z = APARTMENT_EXT_D / 2;
+
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)));
+  return t * t * (3 - 2 * t);
+}
+
 function WallSegmentInner({ wall }: WallSegmentProps) {
   const dx = wall.end[0] - wall.start[0];
   const dz = wall.end[1] - wall.start[1];
   const length = Math.hypot(dx, dz);
   const angle = Math.atan2(dz, dx);
+  const { camera } = useThree();
+  const groupRef = useRef<Group>(null);
+  const opacityRef = useRef(1);
+
+  // Outward (away-from-interior) horizontal normal of this wall, used to fade
+  // the wall when it sits between the orbit camera and the apartment centre.
+  const reveal = useMemo(() => {
+    const mx = (wall.start[0] + wall.end[0]) / 2;
+    const mz = (wall.start[1] + wall.end[1]) / 2;
+    const len = Math.hypot(dx, dz) || 1;
+    // Two perpendiculars; pick the one pointing away from the apartment centre.
+    let nx = -dz / len;
+    let nz = dx / len;
+    if (nx * (mx - CENTER_X) + nz * (mz - CENTER_Z) < 0) {
+      nx = -nx;
+      nz = -nz;
+    }
+    return { nx, nz };
+  }, [wall.start, wall.end, dx, dz]);
+
+  // Only exterior perimeter walls are revealed; internal partitions stay solid
+  // so the room layout reads clearly.
+  const revealable = wall.thickness === 'external';
+
+  useFrame(() => {
+    const group = groupRef.current;
+    if (!group) return;
+    const orbit = useStore.getState().cameraMode === 'orbit';
+    let target = 1;
+    if (revealable && orbit) {
+      const cdx = CENTER_X - camera.position.x;
+      const cdz = CENTER_Z - camera.position.z;
+      const clen = Math.hypot(cdx, cdz) || 1;
+      // dot(outwardNormal, camera→centre dir). Near walls face the camera, so
+      // their outward normal opposes this direction (dot ≈ −1) → fade out.
+      const d = (reveal.nx * cdx + reveal.nz * cdz) / clen;
+      target = smoothstep(-0.4, -0.08, d);
+    }
+    // Settled and fully opaque: nothing to do (the common case).
+    if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return;
+    const cur = opacityRef.current + (target - opacityRef.current) * 0.18;
+    opacityRef.current = cur;
+    const visible = cur > 0.02;
+    const transparent = cur < 0.985;
+    group.traverse((o) => {
+      if (!(o instanceof Mesh)) return;
+      o.visible = visible;
+      const mat = o.material as MeshStandardMaterial | MeshStandardMaterial[];
+      const apply = (m: MeshStandardMaterial) => {
+        m.transparent = transparent;
+        m.opacity = cur;
+        m.depthWrite = !transparent;
+      };
+      if (Array.isArray(mat)) mat.forEach(apply);
+      else if (mat) apply(mat);
+    });
+  });
   const thickness = wallThicknessMetres(wall);
   // Half-thickness of the wall this end abuts (0 if the end is free). Used to
   // (a) extend the body box outward so corners close flush, and (b) pull the
@@ -133,7 +202,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   );
 
   return (
-    <group position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
+    <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
       {/* Body — one box per render segment (cutouts split the body). At the
           wall's absolute start/end, extend the body box by the abutting
           wall's half-thickness so it reaches that wall's outer face; without
