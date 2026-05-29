@@ -33,6 +33,12 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 9,
     distance: 6.5,
   },
+  'ceiling-fan': {
+    height: (p) => (typeof p.mountHeight === 'number' ? p.mountHeight : 2.5) - 0.35,
+    color: '#fff1d6',
+    intensity: 8,
+    distance: 6,
+  },
 };
 
 export function isEmitter(defId: FurnitureType): boolean {

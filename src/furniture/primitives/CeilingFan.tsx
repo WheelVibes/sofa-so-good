@@ -1,7 +1,8 @@
 import { useRef } from 'react';
 import { useFrame } from '@react-three/fiber';
-import type { Group } from 'three';
+import type { Group, MeshStandardMaterial } from 'three';
 import { readNum, readStr } from './shared';
+import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
 import type { ParamProps } from '../types';
 
 /** Ceiling fan with a downrod, motor housing, spinning blades, and an
@@ -12,9 +13,11 @@ export function CeilingFan({ props }: { props: ParamProps }) {
   const mountH = readNum(props, 'mountHeight', 2.5);
   const bladeColor = readStr(props, 'bladeColor', '#6b4f34');
   const bladesRef = useRef<Group>(null);
+  const lightRef = useRef<MeshStandardMaterial>(null);
 
   useFrame((_, dt) => {
     if (bladesRef.current) bladesRef.current.rotation.y += dt * 3.2;
+    if (lightRef.current) lightRef.current.emissiveIntensity = 0.05 + getFixtureGlow() * 0.8;
   });
 
   const dropY = mountH - 0.25;
@@ -35,7 +38,7 @@ export function CeilingFan({ props }: { props: ParamProps }) {
       {/* Light */}
       <mesh position={[0, -0.09, 0]}>
         <sphereGeometry args={[0.07, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
-        <meshStandardMaterial color="#fff3da" emissive="#ffeec8" emissiveIntensity={0.35} />
+        <meshStandardMaterial ref={lightRef} color="#fff3da" emissive="#ffeec8" emissiveIntensity={0.1} />
       </mesh>
       {/* Blades */}
       <group ref={bladesRef} position={[0, 0.02, 0]}>
