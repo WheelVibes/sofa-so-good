@@ -37,6 +37,11 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-carpet-grey': floor('floor-carpet-grey', 'Grey carpet', '#7a7c7e', 'carpet', [1.5, 1.5]),
   'floor-vinyl-light': floor('floor-vinyl-light', 'Light vinyl', '#c9b99c', 'wood', [1.4, 0.9]),
   'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
+  // Large-format porcelain — ubiquitous in modern HDB renovations.
+  'floor-tile-grey': floor('floor-tile-grey', 'Grey porcelain', '#b9b9b6', 'tile', [0.8, 0.8]),
+  'floor-tile-charcoal': floor('floor-tile-charcoal', 'Charcoal porcelain', '#4c4e52', 'tile', [0.8, 0.8]),
+  'floor-wood-teak': floor('floor-wood-teak', 'Teak planks', '#9a6b3f', 'wood', [1.9, 1.2]),
+  'floor-carpet-blue': floor('floor-carpet-blue', 'Navy carpet', '#3f4a63', 'carpet', [1.5, 1.5]),
 
   // ── Walls ───────────────────────────────────────────────────────────────
   // Default white is a subtly textured plaster (orange-peel normal) so walls
