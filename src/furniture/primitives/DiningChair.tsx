@@ -1,4 +1,5 @@
-import { readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Dining chair: seat + back + four legs. Faces +Z (back at -Z). */
@@ -20,21 +21,21 @@ export function DiningChair({ props }: { props: ParamProps }) {
   const legs: [number, number, number][] = [];
   for (const x of xs) for (const z of zs) legs.push([x, legY, z]);
 
+  const seatMat = getWoodMaterial(seatColor, 1);
+  const legMat = getWoodMaterial(legColor, 0.4);
+
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, seatH - seatT / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, seatH - seatT / 2, 0]} material={seatMat}>
         <boxGeometry args={[seatW, seatT, seatD]} />
-        <meshStandardMaterial color={seatColor} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Back rest */}
-      <mesh castShadow position={[0, seatH + backH / 2, -seatD / 2 + legT / 2]}>
+      <mesh castShadow position={[0, seatH + backH / 2, -seatD / 2 + legT / 2]} material={seatMat}>
         <boxGeometry args={[seatW, backH, legT]} />
-        <meshStandardMaterial color={seatColor} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {legs.map((p, i) => (
-        <mesh key={i} castShadow position={p}>
+        <mesh key={i} castShadow position={p} material={legMat}>
           <boxGeometry args={[legT, seatH - seatT, legT]} />
-          <meshStandardMaterial color={legColor} roughness={0.5} metalness={0.1} />
         </mesh>
       ))}
     </group>
