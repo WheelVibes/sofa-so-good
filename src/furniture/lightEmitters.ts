@@ -45,6 +45,12 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 8,
     distance: 6,
   },
+  'wall-sconce': {
+    height: (p) => (typeof p.mountHeight === 'number' ? p.mountHeight : 1.7),
+    color: '#ffe2b0',
+    intensity: 3.5,
+    distance: 3,
+  },
 };
 
 export function isEmitter(defId: FurnitureType): boolean {

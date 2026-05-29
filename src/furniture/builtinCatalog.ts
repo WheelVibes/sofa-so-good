@@ -585,6 +585,21 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Lighting ────────────────────────────────────────────────────────────
+  'wall-sconce': {
+    kind: 'parametric',
+    id: 'wall-sconce',
+    name: 'Wall sconce',
+    category: 'lighting',
+    primitive: 'WallSconce',
+    defaultFootprint: { w: 0.14, d: 0.18, h: 0.2 },
+    mounted: true,
+    verticalSpan: { base: 1.55, top: 1.85 },
+    paramSchema: [
+      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 1.2, max: 2.2, step: 0.05, default: 1.7, unit: 'm' },
+      { kind: 'color', key: 'shadeColor', label: 'Diffuser', default: '#f3e7c6' },
+      { kind: 'color', key: 'metalColor', label: 'Fitting', default: '#2c2f33' },
+    ],
+  },
   'table-lamp': {
     kind: 'parametric',
     id: 'table-lamp',

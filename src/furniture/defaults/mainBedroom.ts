@@ -23,4 +23,7 @@ export const mainBedroom: LayoutEntry[] = [
   { id: 'default-main-rug', defId: 'rug', position: [1.4, 2.85], rotation: 0, props: { width: 1.7, depth: 1.1, color: '#8f857a', borderColor: '#5f574c' } },
   { id: 'default-main-pendant', defId: 'ceiling-light', position: [1.5, 2.4], rotation: 0, props: { style: 'flush' } },
   { id: 'default-main-curtain', defId: 'curtains', position: [0.28, 2.2], rotation: Math.PI / 2, props: { width: 2.3, height: 2.3, color: '#c8bca8' } },
+  // Reading sconces flanking the bed on the north wall.
+  { id: 'default-main-sconce-l', defId: 'wall-sconce', position: [0.45, 0.30], rotation: 0, props: { mountHeight: 1.45 } },
+  { id: 'default-main-sconce-r', defId: 'wall-sconce', position: [1.65, 0.30], rotation: 0, props: { mountHeight: 1.45 } },
 ];
