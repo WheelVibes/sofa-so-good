@@ -1,4 +1,5 @@
 import { readStr } from './shared';
+import { getWoodMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Counter-height bar stool: round seat, footrest ring, four splayed legs. */
@@ -11,9 +12,8 @@ export function BarStool({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Seat */}
-      <mesh castShadow position={[0, seatH, 0]}>
+      <mesh castShadow position={[0, seatH, 0]} material={getWoodMaterial(seatColor, 0.5)}>
         <cylinderGeometry args={[r, r, 0.05, 24]} />
-        <meshStandardMaterial color={seatColor} roughness={0.7} metalness={0.05} />
       </mesh>
       {/* Legs (splayed) */}
       {[0, 1, 2, 3].map((i) => {
