@@ -72,9 +72,9 @@ Spec: [docs/superpowers/specs/2026-05-01-time-of-day-design.md](docs/superpowers
 
 - ~~**Time-of-day rework — Phase 1 (time model)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md](docs/superpowers/plans/2026-05-01-time-of-day-phase1-time-model.md). System / Morning / Noon / Dusk / Night / Custom dropdown, schema migration from legacy timeOfDay. Lighting still uses the old 3-preset visuals via a temporary hour→preset shim — Phase 2 replaces them.
 - ~~**Time-of-day rework — Phase 2 (astronomy + geocoding)**~~ — done. Plan: [docs/superpowers/plans/2026-05-01-time-of-day-phase2-astronomy.md](docs/superpowers/plans/2026-05-01-time-of-day-phase2-astronomy.md). SunCalc-driven sun position, location prompt with geolocation/Nominatim/manual entry, altitude-driven lighting and sky.
-- **Time-of-day rework — Phase 3 (realistic indoor lighting)** — pending. Per-room fill, real shadows through window cutouts, IBL + SSAO, inter-room light bleed through open doors.
-- **Time-of-day rework — Phase 4 (light fixtures)** — pending. Lamp/pendant/sconce furniture with point/spot lights, inspector controls.
-- **Time-of-day rework — Phase 5 (quality settings)** — pending. Toggle shadows / GI / SSAO / inter-room bleed / fixtures independently with device-tier defaults.
+- **Time-of-day rework — Phase 3 (realistic indoor lighting)** — partially done (2026-05-29). Procedural IBL probe ([src/scene/lighting/SceneEnvironment.tsx](src/scene/lighting/SceneEnvironment.tsx)) + real sun shadows through window cutouts shipped. **Still pending:** SSAO (tried via postprocessing but software-renderer-grainy and unverifiable on GPU — deferred) and inter-room light bleed through open doors.
+- ~~**Time-of-day rework — Phase 4 (light fixtures)**~~ — done (2026-05-29). Floor lamps / ceiling lights emit real, day-gated, proximity-capped point lights ([src/scene/lighting/FurnitureLights.tsx](src/scene/lighting/FurnitureLights.tsx)); emitter registry in [src/furniture/lightEmitters.ts](src/furniture/lightEmitters.ts). Inspector controls via the standard param schema.
+- ~~**Time-of-day rework — Phase 5 (quality settings)**~~ — done (2026-05-29). Low/Medium/High tiers + per-setting overrides (shadows / IBL / postprocessing / fixture cap / DPR / wall-reveal) with device-tier auto-detect, an adaptive 30fps guard, and persistence. See [src/scene/quality.ts](src/scene/quality.ts), [src/ui/GraphicsSettings.tsx](src/ui/GraphicsSettings.tsx).
 
 Out-of-scope items deferred from the spec:
 
