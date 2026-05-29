@@ -9,6 +9,7 @@ import { Toolbar } from './ui/Toolbar';
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer';
 import { usePlacementController } from './ui/catalog/usePlacementController';
 import { FinishPicker } from './ui/FinishPicker';
+import { WallAccentPicker } from './ui/WallAccentPicker';
 import { InspectorPanel } from './ui/inspector/InspectorPanel';
 import { LocationPrompt } from './ui/LocationPrompt';
 import { WebGLFallback } from './ui/WebGLFallback';
@@ -338,6 +339,7 @@ export default function App() {
         <CatalogDrawer />
         <InspectorPanel />
         <FinishPicker />
+        <WallAccentPicker />
         <NotificationContainer />
         <LocationPrompt />
       </div>

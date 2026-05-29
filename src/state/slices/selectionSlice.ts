@@ -10,19 +10,24 @@ export interface SelectionSlice {
    *  paths that still operate on a single item. */
   selectedItemIds: string[];
   selectedRoomId: string | null;
+  /** Selected wall face for accent-wall finishing: a wall id + the room its
+   *  clicked face backs. Mutually exclusive with item/room selection. */
+  selectedWall: { wallId: string; roomId: string } | null;
   selectItem: (id: string | null) => void;
   setSelectedItemIds: (ids: string[]) => void;
   toggleSelectedItem: (id: string) => void;
   selectRoom: (id: string | null) => void;
+  selectWall: (wallId: string, roomId: string) => void;
 }
 
 export const SELECTION_INITIAL: Pick<
   SelectionSlice,
-  'selectedItemId' | 'selectedItemIds' | 'selectedRoomId'
+  'selectedItemId' | 'selectedItemIds' | 'selectedRoomId' | 'selectedWall'
 > = {
   selectedItemId: null,
   selectedItemIds: [],
   selectedRoomId: null,
+  selectedWall: null,
 };
 
 export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (set) => ({
@@ -34,12 +39,14 @@ export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (se
       selectedItemId: id,
       selectedItemIds: id ? [id] : [],
       selectedRoomId: null,
+      selectedWall: null,
     }),
   setSelectedItemIds: (ids) =>
     set({
       selectedItemIds: ids,
       selectedItemId: ids.length > 0 ? ids[ids.length - 1] : null,
       selectedRoomId: null,
+      selectedWall: null,
     }),
   toggleSelectedItem: (id) =>
     set((s) => {
@@ -51,8 +58,16 @@ export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (se
         selectedItemIds: next,
         selectedItemId: next.length > 0 ? next[next.length - 1] : null,
         selectedRoomId: null,
+        selectedWall: null,
       };
     }),
   selectRoom: (id) =>
-    set({ selectedRoomId: id, selectedItemId: null, selectedItemIds: [] }),
+    set({ selectedRoomId: id, selectedItemId: null, selectedItemIds: [], selectedWall: null }),
+  selectWall: (wallId, roomId) =>
+    set({
+      selectedWall: { wallId, roomId },
+      selectedItemId: null,
+      selectedItemIds: [],
+      selectedRoomId: null,
+    }),
 });

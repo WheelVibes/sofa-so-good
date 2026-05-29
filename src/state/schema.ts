@@ -60,6 +60,8 @@ const RawSerializedStateZ = z.object({
   finishes: z.object({
     floor: z.record(z.string(), z.string()),
     walls: z.record(z.string(), z.string()),
+    // Optional for backward compat with payloads saved before accent walls.
+    wallAccents: z.record(z.string(), z.string()).optional(),
   }),
   userFurniture: z.array(UserGltfDefZ),
   userMaterials: z.array(UserMaterialDefZ),
@@ -168,6 +170,7 @@ export function applySerialized(
     finishes: {
       floor: floor as Record<RoomId, string>,
       walls: walls as Record<RoomId, string>,
+      wallAccents: state.finishes.wallAccents ?? {},
     },
     timeMode: state.timeMode,
     manualHour: state.manualHour,

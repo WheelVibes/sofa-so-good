@@ -38,9 +38,11 @@ interface FacePlaneProps {
   /** +1 = +Z face, -1 = -Z face in the wall's local frame. */
   sign: 1 | -1;
   material: MeshStandardMaterial;
+  /** Click handler for accent-wall selection. */
+  onSelect?: () => void;
 }
 
-function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, material }: FacePlaneProps) {
+function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, material, onSelect }: FacePlaneProps) {
   const z = sign * (thickness / 2 + FACE_OFFSET);
   const yRot = sign === 1 ? 0 : Math.PI;
   const geometry = useMemo(() => worldUvPlaneGeometry(segLen, segHeight), [segLen, segHeight]);
@@ -50,7 +52,20 @@ function FacePlane({ segLen, segHeight, segMid, segMidY, thickness, sign, materi
   const faded = useMemo(() => material.clone(), [material]);
   useEffect(() => () => faded.dispose(), [faded]);
   return (
-    <mesh position={[segMid, segMidY, z]} rotation={[0, yRot, 0]} material={faded} geometry={geometry} />
+    <mesh
+      position={[segMid, segMidY, z]}
+      rotation={[0, yRot, 0]}
+      material={faded}
+      geometry={geometry}
+      onClick={
+        onSelect
+          ? (e) => {
+              e.stopPropagation();
+              onSelect();
+            }
+          : undefined
+      }
+    />
   );
 }
 
@@ -224,12 +239,18 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     useShallow((s) => {
       const out: Partial<Record<RoomId, MaterialId>> = {};
       for (const span of faceSpans) {
-        if (span.positive) out[span.positive] = s.finishes.walls[span.positive];
-        if (span.negative) out[span.negative] = s.finishes.walls[span.negative];
+        // Accent override (per wall+room face) wins over the room default.
+        if (span.positive)
+          out[span.positive] =
+            s.finishes.wallAccents[`${wall.id}:${span.positive}`] ?? s.finishes.walls[span.positive];
+        if (span.negative)
+          out[span.negative] =
+            s.finishes.wallAccents[`${wall.id}:${span.negative}`] ?? s.finishes.walls[span.negative];
       }
       return out;
     }),
   );
+  const selectWall = useStore((s) => s.selectWall);
 
   return (
     <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
@@ -284,6 +305,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                     thickness={thickness}
                     sign={1}
                     materialId={positiveMat}
+                    onSelect={span.positive ? () => selectWall(wall.id, span.positive!) : undefined}
                   />
                 </Suspense>
                 {onFloor && <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />}
@@ -300,6 +322,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                     thickness={thickness}
                     sign={-1}
                     materialId={negativeMat}
+                    onSelect={span.negative ? () => selectWall(wall.id, span.negative!) : undefined}
                   />
                 </Suspense>
                 {onFloor && <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />}

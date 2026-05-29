@@ -18,9 +18,14 @@ export interface FinishesSlice {
   finishes: {
     floor: Record<RoomId, MaterialId>;
     walls: Record<RoomId, MaterialId>;
+    /** Accent-wall overrides keyed `${wallId}:${roomId}` — paints one wall
+     *  face (the side facing that room) differently from the room default. */
+    wallAccents: Record<string, MaterialId>;
   };
   setFloorFinish: (room: RoomId, id: MaterialId) => void;
   setWallFinish: (room: RoomId, id: MaterialId) => void;
+  setWallAccent: (key: string, id: MaterialId) => void;
+  clearWallAccent: (key: string) => void;
 }
 
 function initialMap(
@@ -36,6 +41,7 @@ export const FINISHES_INITIAL: Pick<FinishesSlice, 'finishes'> = {
   finishes: {
     floor: initialMap(DEFAULT_FLOOR, DEFAULT_ROOM_FLOOR),
     walls: initialMap(DEFAULT_WALL, DEFAULT_ROOM_WALL),
+    wallAccents: {},
   },
 };
 
@@ -58,5 +64,19 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
         walls: { ...s.finishes.walls, [room]: id },
       },
     }));
+  },
+  setWallAccent: (key, id) => {
+    get().pushHistory();
+    set((s) => ({
+      finishes: { ...s.finishes, wallAccents: { ...s.finishes.wallAccents, [key]: id } },
+    }));
+  },
+  clearWallAccent: (key) => {
+    get().pushHistory();
+    set((s) => {
+      const next = { ...s.finishes.wallAccents };
+      delete next[key];
+      return { finishes: { ...s.finishes, wallAccents: next } };
+    });
   },
 });
