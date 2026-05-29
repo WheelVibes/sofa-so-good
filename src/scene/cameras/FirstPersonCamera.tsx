@@ -41,8 +41,10 @@ const EYE_HEIGHT = 1.65;
 const CROUCH_HEIGHT = 1.05;
 const CROUCH_RATE = 4.5;
 const WALK_FOV = 60;
-const WALK_SPEED = 3.2;
-const SNEAK_SPEED = 1.2;
+const WALK_SPEED = 2.1; // ≈ a relaxed real walking pace (m/s)
+const SNEAK_SPEED = 1.0;
+const BOB_AMPLITUDE = 0.022; // subtle vertical head-bob while walking
+const BOB_FREQUENCY = 9.0; // rad/s ≈ ~1.4 steps/s cadence
 const JUMP_VELOCITY = 4.2;
 const GRAVITY = 14;
 const POINTER_SPEED = 1.4;
@@ -111,6 +113,8 @@ export function FirstPersonCamera() {
   const yPos = useRef(EYE_HEIGHT);
   const yVel = useRef(0);
   const groundY = useRef(EYE_HEIGHT);
+  const bobPhase = useRef(0);
+  const bobAmp = useRef(0);
 
   useFrame((_, dt) => {
     const dir = tmpForward.current;
@@ -127,6 +131,7 @@ export function FirstPersonCamera() {
       pressed.current[KEYBINDINGS.walkLeft] || pressed.current['ArrowLeft'];
     const rightKey =
       pressed.current[KEYBINDINGS.walkRight] || pressed.current['ArrowRight'];
+    const moving = !!(forward || back || left || rightKey);
     const crouching =
       !!pressed.current['ShiftLeft'] || !!pressed.current['ShiftRight'];
     const targetGround = crouching ? CROUCH_HEIGHT : EYE_HEIGHT;
@@ -181,7 +186,13 @@ export function FirstPersonCamera() {
         yVel.current = 0;
       }
     }
-    camera.position.y = yPos.current;
+    // Subtle head-bob while walking on the ground; eased in/out so stopping
+    // doesn't jolt. Steady amplitude to stay comfortable (no motion sickness).
+    const wantBob = moving && onGround ? 1 : 0;
+    bobAmp.current += (wantBob - bobAmp.current) * Math.min(1, dt * 8);
+    if (wantBob) bobPhase.current += dt * BOB_FREQUENCY * (crouching ? 0.7 : 1);
+    const bob = Math.sin(bobPhase.current) * BOB_AMPLITUDE * bobAmp.current;
+    camera.position.y = yPos.current + bob;
 
     aimAccum.current += dt;
     if (aimAccum.current < AIM_CHECK_INTERVAL) return;
