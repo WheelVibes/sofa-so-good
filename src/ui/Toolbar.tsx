@@ -10,6 +10,7 @@ import type { SlotMeta } from '../state/storage/StorageAdapter';
 import { CreditsModal } from './CreditsModal';
 import { QUALITY_LABEL } from '../scene/quality';
 import { GraphicsSettings } from './GraphicsSettings';
+import { STYLE_PRESETS, applyStyle } from '../materials/stylePresets';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
 export function Toolbar() {
@@ -79,6 +80,7 @@ export function Toolbar() {
           <SnapToggle />
           <Divider />
           <CatalogToggle />
+          <StylePicker />
           <Divider />
           <SaveButton />
           <LoadButton />
@@ -125,6 +127,41 @@ function LightsToggle() {
     >
       Lights: {LIGHTS_LABEL[lightsMode]}
     </button>
+  );
+}
+
+/** One-click design styles — apply a coordinated floor + wall palette across
+ *  the living spaces. */
+function StylePicker() {
+  const [open, setOpen] = useState(false);
+  const setFloorFinish = useStore((s) => s.setFloorFinish);
+  const setWallFinish = useStore((s) => s.setWallFinish);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Apply a coordinated floor + wall palette to the living spaces"
+        className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+      >
+        Style
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-1 w-44 rounded-lg bg-white p-1 text-xs shadow">
+          {STYLE_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => {
+                applyStyle(p, setFloorFinish, setWallFinish);
+                setOpen(false);
+              }}
+              className="block w-full rounded px-2 py-1.5 text-left hover:bg-neutral-100"
+            >
+              {p.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
