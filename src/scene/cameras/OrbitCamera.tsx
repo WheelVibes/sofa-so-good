@@ -95,7 +95,9 @@ export function OrbitCamera() {
       touches={{ ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }}
       minDistance={3}
       maxDistance={30}
-      maxPolarAngle={Math.PI / 2 - 0.05}
+      // Allow a near-overhead angle for layout planning (just shy of straight
+      // down to avoid gimbal lock).
+      maxPolarAngle={Math.PI / 2 - 0.015}
     />
   );
 }
