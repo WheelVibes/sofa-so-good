@@ -2,6 +2,31 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+## Catalogue configurability pass (2026-05-29)
+
+Goal: make every catalogue item as configurable as possible (colour ×
+material × texture × shine × **form/shape/size**) grounded in real
+references. Shipped form/style variants (each combines with existing
+colour/finish/material/sheen controls):
+
+- ~~Dining chair~~ wood / upholstered; ~~Coffee table~~ rect / round / oval;
+  ~~Side table~~ round-3leg / square / drum; ~~Area rug~~ rect / round / oval;
+  ~~Armchair~~ lounge / wingback / tub; ~~Bookshelf~~ open / closed-base-cabinet
+  + plinth; ~~TV console~~ base (block/plinth/legs) × front (drawers/doors).
+- ~~Ceiling pendant~~ dome / globe / cone / drum shades; ~~Table + floor lamp~~
+  empire / drum / cone shades, floor lamp disc / tripod base; ~~Nightstand~~
+  drawers / drawer-shelf / open; ~~Potted plant~~ + fiddle-leaf type, tapered /
+  cylinder / square planter; ~~Desk~~ panel / four-leg / hairpin.
+- ~~Bar stool~~ splayed / pedestal / backed; ~~Dresser~~ knob/bar/recessed
+  handles × legs/plinth; ~~Wall art~~ thin / gallery / box / frameless;
+  ~~Curtains~~ drawn / tied-back; ~~Office chair~~ task / executive / mesh +
+  material/sheen; ~~Floor mirror~~ rect-leaning / round-cheval; ~~Wall clock~~
+  round / square + quarter / all-hour markers.
+
+Still to extend for shape/size variety (follow-up): dining table (oval /
+extending leaf), wardrobe interior layouts, shoe cabinet open-shelf option,
+wall shelf (floating cleat / two-tier), bed frame styles (platform / storage).
+
 ## Realism & content pass (2026-05-29)
 
 Shipped this iteration — recorded here for follow-up polish:
