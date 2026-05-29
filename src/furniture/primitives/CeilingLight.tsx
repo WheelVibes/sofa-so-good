@@ -1,4 +1,8 @@
+import { useRef } from 'react';
+import { useFrame } from '@react-three/fiber';
+import type { MeshStandardMaterial } from 'three';
 import { readNum, readStr } from './shared';
+import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
 import type { ParamProps } from '../types';
 
 /** Ceiling-mounted fixture: a flush disc or a pendant dome hung from the
@@ -10,6 +14,10 @@ export function CeilingLight({ props }: { props: ParamProps }) {
   const mountH = readNum(props, 'mountHeight', 2.55);
   const drop = style === 'pendant' ? readNum(props, 'drop', 0.45) : 0;
   const fixtureY = mountH - drop;
+  const shadeRef = useRef<MeshStandardMaterial>(null);
+  useFrame(() => {
+    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7;
+  });
 
   return (
     <group position={[0, fixtureY, 0]}>
@@ -29,9 +37,10 @@ export function CeilingLight({ props }: { props: ParamProps }) {
           <mesh castShadow position={[0, 0, 0]}>
             <sphereGeometry args={[0.18, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
             <meshStandardMaterial
+              ref={shadeRef}
               color={shadeColor}
               emissive={shadeColor}
-              emissiveIntensity={0.5}
+              emissiveIntensity={0.1}
               roughness={0.6}
               side={2}
             />
@@ -42,9 +51,10 @@ export function CeilingLight({ props }: { props: ParamProps }) {
         <mesh castShadow position={[0, -0.02, 0]}>
           <cylinderGeometry args={[0.22, 0.22, 0.06, 28]} />
           <meshStandardMaterial
+            ref={shadeRef}
             color={shadeColor}
             emissive={shadeColor}
-            emissiveIntensity={0.5}
+            emissiveIntensity={0.1}
             roughness={0.5}
           />
         </mesh>

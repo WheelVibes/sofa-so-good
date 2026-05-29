@@ -5,6 +5,7 @@ import { useStore } from '../../state/store';
 import { useSunPosition } from './useSunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
 import { LIGHT_EMITTERS } from '../../furniture/lightEmitters';
+import { setFixtureGlow } from './fixtureGlow';
 import { useQuality } from '../useQuality';
 import type { FurnitureItem } from '../../furniture/types';
 
@@ -40,6 +41,7 @@ export function FurnitureLights() {
 
   useFrame(() => {
     const dark = darknessRef.current;
+    setFixtureGlow(dark);
     if (dark < MIN_DARKNESS) {
       if (active.length > 0) {
         setActive([]);
