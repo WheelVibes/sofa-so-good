@@ -22,4 +22,6 @@ export const bedroom2: LayoutEntry[] = [
   { id: 'default-b2-nightstand', defId: 'nightstand', position: [5.55, 0.65], rotation: 0, props: {} },
   { id: 'default-b2-art', defId: 'wall-art', position: [5.96, 1.9], rotation: -Math.PI / 2, props: { width: 0.7, height: 0.5, artColor: '#c98a86' } },
   { id: 'default-b2-pendant', defId: 'ceiling-light', position: [4.55, 2.4], rotation: 0, props: { style: 'flush' } },
+  // Floating shelf over the desk on the south wall (faces into the room).
+  { id: 'default-b2-shelf', defId: 'wall-shelf', position: [4.55, 3.55], rotation: Math.PI, props: { width: 1.0, depth: 0.2, mountHeight: 1.45 } },
 ];

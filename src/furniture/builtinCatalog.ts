@@ -697,6 +697,23 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'artColor', label: 'Art', default: '#9fb0a6' },
     ],
   },
+  'wall-shelf': {
+    kind: 'parametric',
+    id: 'wall-shelf',
+    name: 'Wall shelf',
+    category: 'decor',
+    primitive: 'WallShelf',
+    defaultFootprint: { w: 0.8, d: 0.22, h: 0.15 },
+    footprintParams: { w: 'width', d: 'depth' },
+    mounted: true,
+    verticalSpan: { base: 1.3, top: 1.5 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.4, max: 1.6, step: 0.05, default: 0.8, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.16, max: 0.32, step: 0.02, default: 0.22, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 0.8, max: 2.0, step: 0.05, default: 1.4, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+    ],
+  },
   'potted-plant': {
     kind: 'parametric',
     id: 'potted-plant',
