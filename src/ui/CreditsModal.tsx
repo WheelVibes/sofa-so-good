@@ -43,9 +43,17 @@ export function CreditsModal({ open, onClose }: Props) {
             <Section title="Furniture" entries={credits.furniture} />
             <Section title="Materials" entries={credits.materials} />
             {credits.furniture.length === 0 && credits.materials.length === 0 && (
-              <p className="text-neutral-500">
-                No bundled assets yet. Run <code>npm run fetch-assets</code>.
-              </p>
+              <div className="space-y-2 text-neutral-600">
+                <p>
+                  All built-in furniture and finishes are{' '}
+                  <span className="font-medium">generated procedurally on-device</span> — no
+                  third-party assets are bundled, so none need attribution.
+                </p>
+                <p>
+                  Assets you download from the in-app libraries (Poly Haven, ambientCG,
+                  Kenney — all CC0) are credited on each item&rsquo;s catalog card.
+                </p>
+              </div>
             )}
           </>
         ) : (
