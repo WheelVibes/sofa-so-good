@@ -562,6 +562,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Upholstery', default: '#b06a52' },
       {
         kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'standard',
+        options: [
+          { value: 'standard', label: 'Lounge' },
+          { value: 'wingback', label: 'Wingback' },
+          { value: 'tub', label: 'Tub / barrel' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'material',
         label: 'Material',
         default: 'fabric',
