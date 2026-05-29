@@ -353,6 +353,22 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     ],
   },
 
+  'wall-cabinet': {
+    kind: 'parametric',
+    id: 'wall-cabinet',
+    name: 'Wall cabinets',
+    category: 'kitchen',
+    primitive: 'WallCabinet',
+    defaultFootprint: { w: 2.4, d: 0.35, h: 0.7 },
+    footprintParams: { w: 'length' },
+    mounted: true,
+    verticalSpan: { base: 1.4, top: 2.2 },
+    paramSchema: [
+      { kind: 'number', key: 'length', label: 'Length', min: 0.6, max: 4.0, step: 0.1, default: 2.4, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Underside', min: 1.2, max: 1.7, step: 0.05, default: 1.45, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Finish', default: '#e3dfd6' },
+    ],
+  },
   stove: {
     kind: 'parametric',
     id: 'stove',

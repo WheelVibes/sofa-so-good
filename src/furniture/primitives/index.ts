@@ -34,6 +34,7 @@ import { WashingMachine } from './WashingMachine';
 import { Curtain } from './Curtain';
 import { WallArt } from './WallArt';
 import { OfficeChair } from './OfficeChair';
+import { WallCabinet } from './WallCabinet';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -65,4 +66,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Curtain,
   WallArt,
   OfficeChair,
+  WallCabinet,
 };
