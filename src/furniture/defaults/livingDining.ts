@@ -53,5 +53,5 @@ export const livingDining: LayoutEntry[] = [
   // Shoe cabinet by the main entrance (east wall, just inside the door).
   { id: 'default-ld-shoe', defId: 'shoe-cabinet', position: [12.35, 7.45], rotation: -Math.PI / 2, props: { width: 0.9, depth: 0.3 } },
   // Wall-mounted TV above the console on the east wall, facing west.
-  { id: 'default-ld-tv', defId: 'tv-wall', position: [12.45, 2.45], rotation: -Math.PI / 2, props: { size: '65', mount: 'wall', mountHeight: 1.3 } },
+  { id: 'default-ld-tv', defId: 'tv-wall', position: [12.45, 2.45], rotation: -Math.PI / 2, props: { size: '65', mount: 'wall', mountHeight: 1.3, screen: 'on' } },
 ];

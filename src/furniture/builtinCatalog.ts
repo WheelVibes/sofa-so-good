@@ -447,6 +447,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'wall', label: 'Wall' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'screen',
+        label: 'Screen',
+        default: 'off',
+        options: [
+          { value: 'off', label: 'Off' },
+          { value: 'on', label: 'On' },
+        ],
+      },
     ],
   },
   'tv-wall': {
@@ -482,6 +492,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         ],
       },
       { kind: 'number', key: 'mountHeight', label: 'Centre height', min: 1.0, max: 1.7, step: 0.05, default: 1.35, unit: 'm' },
+      {
+        kind: 'enum',
+        key: 'screen',
+        label: 'Screen',
+        default: 'off',
+        options: [
+          { value: 'off', label: 'Off' },
+          { value: 'on', label: 'On' },
+        ],
+      },
     ],
   },
   monitor: {
