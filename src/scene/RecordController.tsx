@@ -63,7 +63,9 @@ export function RecordController() {
         a.remove();
         setTimeout(() => URL.revokeObjectURL(url), 2000);
       };
-      rec.start();
+      // Timeslice flushes encoded data periodically rather than only on stop,
+      // which is more reliable across browser MediaRecorder implementations.
+      rec.start(250);
       recorderRef.current = rec;
     } catch {
       useStore.getState().setRecording(false);
