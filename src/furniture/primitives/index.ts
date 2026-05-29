@@ -40,6 +40,7 @@ import { BarStool } from './BarStool';
 import { Shower } from './Shower';
 import { Mirror } from './Mirror';
 import { Monitor } from './Monitor';
+import { RangeHood } from './RangeHood';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -77,4 +78,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Shower,
   Mirror,
   Monitor,
+  RangeHood,
 };

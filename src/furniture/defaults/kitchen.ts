@@ -13,6 +13,7 @@ export const kitchen: LayoutEntry[] = [
   { id: 'default-k-fridge', defId: 'refrigerator', position: [6.85, 8.6], rotation: Math.PI, props: {} },
   { id: 'default-k-pendant', defId: 'ceiling-light', position: [8.5, 8.0], rotation: 0, props: { style: 'flush' } },
   { id: 'default-k-stove', defId: 'stove', position: [9.55, 8.6], rotation: Math.PI, props: {} },
+  { id: 'default-k-hood', defId: 'range-hood', position: [9.55, 8.6], rotation: Math.PI, props: {} },
   // Washing machine in the service yard (origin 3.90, 6.80 — 2.40 × 2.35 m).
   { id: 'default-sy-washer', defId: 'washing-machine', position: [4.35, 8.55], rotation: Math.PI, props: {} },
   // Upper cabinets above the counter run, against the north wall.

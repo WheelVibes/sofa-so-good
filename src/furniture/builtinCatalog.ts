@@ -495,6 +495,21 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Finish', default: '#e3dfd6' },
     ],
   },
+  'range-hood': {
+    kind: 'parametric',
+    id: 'range-hood',
+    name: 'Range hood',
+    category: 'kitchen',
+    primitive: 'RangeHood',
+    defaultFootprint: { w: 0.7, d: 0.45, h: 0.9 },
+    mounted: true,
+    verticalSpan: { base: 1.4, top: 2.3 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.6, max: 0.9, step: 0.05, default: 0.7, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Underside', min: 1.3, max: 1.6, step: 0.05, default: 1.45, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Finish', default: '#c4c8cc' },
+    ],
+  },
   stove: {
     kind: 'parametric',
     id: 'stove',
