@@ -36,7 +36,7 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-tile-marble': floor('floor-tile-marble', 'Marble', '#dcd6c8', 'marble', [1.6, 1.6]),
   'floor-carpet-grey': floor('floor-carpet-grey', 'Grey carpet', '#7a7c7e', 'carpet', [1.5, 1.5]),
   'floor-vinyl-light': floor('floor-vinyl-light', 'Light vinyl', '#c9b99c', 'wood', [1.4, 0.9]),
-  'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#cfc8b8', 'concrete', [1.2, 1.2]),
+  'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
 
   // ── Walls ───────────────────────────────────────────────────────────────
   // Default white is a subtly textured plaster (orange-peel normal) so walls
