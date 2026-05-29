@@ -1,9 +1,12 @@
+import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
-/** Small round side / end table — a round top on three splayed legs. Sits
- *  beside a sofa, armchair, or bed for a lamp, drink, or plant. Faces +Z. */
+/** Small side / end table beside a sofa, armchair, or bed. Shapes:
+ *  'round' = round top on three splayed legs (LÖVBACKEN-style); 'square' =
+ *  square top on four straight legs (LACK/Hemnes-style); 'drum' = a solid
+ *  cylindrical pedestal. `diameter` is the top size for all. Faces +Z. */
 export function SideTable({ props }: { props: ParamProps }) {
   const diameter = readNum(props, 'diameter', 0.45);
   const totalH = readNum(props, 'height', 0.5);
@@ -11,21 +14,57 @@ export function SideTable({ props }: { props: ParamProps }) {
   const legColor = readStr(props, 'legColor', '#4a3722');
   const finish = readStr(props, 'finish', 'wood');
   const sheen = readNum(props, 'sheen', 0);
+  const shape = readStr(props, 'shape', 'round');
 
   const r = diameter / 2;
   const topThk = 0.035;
-  const legR = 0.018;
   const topMat = getSurfaceMaterial(finish, topColor, 0.8, sheen);
+  const legMat = getSurfaceMaterial(finish, legColor, 0.8, sheen);
   const legH = totalH - topThk;
-  const splay = r * 0.62;
 
+  if (shape === 'square') {
+    const legT = 0.04;
+    const inset = legT / 2 + 0.015;
+    const xs = [-r + inset, r - inset];
+    return (
+      <group>
+        <RoundedBox args={[diameter, topThk, diameter]} radius={0.01} smoothness={2} castShadow receiveShadow position={[0, totalH - topThk / 2, 0]} material={topMat} />
+        {xs.map((x) =>
+          xs.map((z) => (
+            <mesh key={`${x}.${z}`} castShadow position={[x, legH / 2, z]} material={legMat}>
+              <boxGeometry args={[legT, legH, legT]} />
+            </mesh>
+          )),
+        )}
+      </group>
+    );
+  }
+
+  if (shape === 'drum') {
+    // Solid cylindrical pedestal sitting just off the floor on a recessed base.
+    const baseH = 0.02;
+    return (
+      <group>
+        {/* Recessed plinth */}
+        <mesh castShadow position={[0, baseH / 2, 0]} material={legMat}>
+          <cylinderGeometry args={[r - 0.04, r - 0.04, baseH, 32]} />
+        </mesh>
+        {/* Drum body */}
+        <mesh castShadow receiveShadow position={[0, baseH + (totalH - baseH) / 2, 0]} material={topMat}>
+          <cylinderGeometry args={[r, r, totalH - baseH, 36]} />
+        </mesh>
+      </group>
+    );
+  }
+
+  // Round top on three splayed legs.
+  const legR = 0.018;
+  const splay = r * 0.62;
   return (
     <group>
-      {/* Round top */}
       <mesh castShadow receiveShadow position={[0, totalH - topThk / 2, 0]} material={topMat}>
         <cylinderGeometry args={[r, r, topThk, 28]} />
       </mesh>
-      {/* Three splayed legs */}
       {[0, 1, 2].map((i) => {
         const a = (i / 3) * Math.PI * 2 + Math.PI / 6;
         const tx = Math.sin(a) * (r - 0.05);

@@ -627,6 +627,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'legColor', label: 'Legs', default: '#4a3722' },
       {
         kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'round',
+        options: [
+          { value: 'round', label: 'Round (3 legs)' },
+          { value: 'square', label: 'Square (4 legs)' },
+          { value: 'drum', label: 'Drum pedestal' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'finish',
         label: 'Top finish',
         default: 'wood',
