@@ -214,6 +214,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 1.0, max: 1.8, step: 0.1, default: 1.4, unit: 'm' },
       { kind: 'number', key: 'depth', label: 'Depth', min: 0.5, max: 0.8, step: 0.05, default: 0.6, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Colour', default: '#d5c2a3' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
 
@@ -698,6 +709,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'length', label: 'Length', min: 0.6, max: 4.0, step: 0.1, default: 2.4, unit: 'm' },
       { kind: 'number', key: 'mountHeight', label: 'Underside', min: 1.2, max: 1.7, step: 0.05, default: 1.45, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Finish', default: '#e3dfd6' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   'range-hood': {
@@ -1036,6 +1058,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         ],
       },
       { kind: 'color', key: 'color', label: 'Cabinet', default: '#e3dfd6' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
 };

@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface DeskProps {
@@ -14,6 +14,7 @@ export function Desk({ props }: DeskProps) {
   const width = readNum(props, 'width', 1.4);
   const depth = readNum(props, 'depth', 0.6);
   const color = readStr(props, 'color', '#d5c2a3');
+  const finish = readStr(props, 'finish', 'wood');
 
   const height = 0.74;
   const topThickness = 0.04;
@@ -21,7 +22,7 @@ export function Desk({ props }: DeskProps) {
   const drawerW = 0.34;
   const drawerH = 0.36;
 
-  const wood = getWoodMaterial(color, 1.5);
+  const wood = getSurfaceMaterial(finish, color, 1.5);
   return (
     <group>
       {/* Top */}

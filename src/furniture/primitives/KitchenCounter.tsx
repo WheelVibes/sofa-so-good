@@ -1,4 +1,5 @@
-import { readNum, readStr, STYLISED_METALNESS, STYLISED_ROUGHNESS } from './shared';
+import { readNum, readStr } from './shared';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface KitchenCounterProps {
@@ -15,11 +16,13 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
   const length = readNum(props, 'length', 2.4);
   const hasSink = readStr(props, 'hasSink', 'no') === 'yes';
   const color = readStr(props, 'color', '#e3dfd6');
+  const finish = readStr(props, 'finish', 'painted');
 
   const depth = 0.6;
   const cabinetH = 0.85;
   const topThickness = 0.05;
   const totalH = cabinetH + topThickness;
+  const cabMat = getSurfaceMaterial(finish, color);
 
   // Cabinet door fronts with handles along the base run.
   const cabs = Math.max(1, Math.round(length / 0.6));
@@ -29,18 +32,16 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
   return (
     <group>
       {/* Base cabinet */}
-      <mesh castShadow receiveShadow position={[0, cabinetH / 2, 0]}>
+      <mesh castShadow receiveShadow position={[0, cabinetH / 2, 0]} material={cabMat}>
         <boxGeometry args={[length, cabinetH, depth]} />
-        <meshStandardMaterial color={color} roughness={STYLISED_ROUGHNESS} metalness={STYLISED_METALNESS} />
       </mesh>
       {/* Door fronts + handles */}
       {Array.from({ length: cabs }, (_, i) => {
         const x = -length / 2 + cabGap + cabW / 2 + i * (cabW + cabGap);
         return (
           <group key={i}>
-            <mesh position={[x, cabinetH / 2, depth / 2 - 0.005]}>
+            <mesh position={[x, cabinetH / 2, depth / 2 - 0.005]} material={cabMat}>
               <boxGeometry args={[cabW, cabinetH - 0.06, 0.016]} />
-              <meshStandardMaterial color={color} roughness={0.6} metalness={STYLISED_METALNESS} />
             </mesh>
             <mesh position={[x + (i % 2 ? -1 : 1) * (cabW / 2 - 0.04), cabinetH - 0.12, depth / 2 + 0.01]}>
               <boxGeometry args={[0.018, 0.12, 0.018]} />
