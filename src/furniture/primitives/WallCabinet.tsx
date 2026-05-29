@@ -9,6 +9,7 @@ export function WallCabinet({ props }: { props: ParamProps }) {
   const mountH = readNum(props, 'mountHeight', 1.45); // underside height
   const color = readStr(props, 'color', '#e3dfd6');
   const finish = readStr(props, 'finish', 'painted');
+  const sheen = readNum(props, 'sheen', 0);
 
   const h = 0.7;
   const d = 0.35;
@@ -16,7 +17,7 @@ export function WallCabinet({ props }: { props: ParamProps }) {
   const gap = 0.012;
   const doorW = (length - gap * (doors + 1)) / doors;
   const cy = mountH + h / 2;
-  const cabMat = getSurfaceMaterial(finish, color);
+  const cabMat = getSurfaceMaterial(finish, color, 1, sheen);
 
   return (
     <group>

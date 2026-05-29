@@ -14,10 +14,11 @@ export function FloorMirror({ props }: { props: ParamProps }) {
   const height = readNum(props, 'height', 1.6);
   const frameColor = readStr(props, 'frameColor', '#6f553f');
   const frameFinish = readStr(props, 'frameFinish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const lean = 0.12; // radians, top tilts back toward the wall
   const frameD = 0.05;
-  const frameMat = getSurfaceMaterial(frameFinish, frameColor, 1);
+  const frameMat = getSurfaceMaterial(frameFinish, frameColor, 1, sheen);
 
   return (
     // Pivot at the floor so the lean rotates about the base.

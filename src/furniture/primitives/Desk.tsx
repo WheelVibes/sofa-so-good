@@ -15,6 +15,7 @@ export function Desk({ props }: DeskProps) {
   const depth = readNum(props, 'depth', 0.6);
   const color = readStr(props, 'color', '#d5c2a3');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const height = 0.74;
   const topThickness = 0.04;
@@ -22,7 +23,7 @@ export function Desk({ props }: DeskProps) {
   const drawerW = 0.34;
   const drawerH = 0.36;
 
-  const wood = getSurfaceMaterial(finish, color, 1.5);
+  const wood = getSurfaceMaterial(finish, color, 1.5, sheen);
   return (
     <group>
       {/* Top */}

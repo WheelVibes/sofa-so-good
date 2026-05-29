@@ -1,4 +1,4 @@
-import { readStr } from './shared';
+import { readNum, readStr } from './shared';
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
@@ -7,13 +7,14 @@ export function BarStool({ props }: { props: ParamProps }) {
   const seatColor = readStr(props, 'seatColor', '#7a5c3c');
   const legColor = readStr(props, 'legColor', '#3a3d42');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
   const seatH = 0.66;
   const r = 0.18;
 
   return (
     <group>
       {/* Seat */}
-      <mesh castShadow position={[0, seatH, 0]} material={getSurfaceMaterial(finish, seatColor, 0.5)}>
+      <mesh castShadow position={[0, seatH, 0]} material={getSurfaceMaterial(finish, seatColor, 0.5, sheen)}>
         <cylinderGeometry args={[r, r, 0.05, 24]} />
       </mesh>
       {/* Legs (splayed) */}

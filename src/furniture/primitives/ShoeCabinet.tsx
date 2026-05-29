@@ -11,11 +11,12 @@ export function ShoeCabinet({ props }: { props: ParamProps }) {
   const tiers = Math.max(2, Math.round(readNum(props, 'tiers', 3)));
   const bodyColor = readStr(props, 'color', '#9a8a72');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const plinthH = 0.06;
   const bodyH = 0.94;
   const topThk = 0.025;
-  const wood = getSurfaceMaterial(finish, bodyColor, 1.4);
+  const wood = getSurfaceMaterial(finish, bodyColor, 1.4, sheen);
 
   const gap = 0.015;
   const frontsH = bodyH - topThk;

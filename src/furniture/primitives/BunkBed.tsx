@@ -1,4 +1,4 @@
-import { readStr } from './shared';
+import { readNum, readStr } from './shared';
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
@@ -8,6 +8,7 @@ import type { ParamProps } from '../types';
 export function BunkBed({ props }: { props: ParamProps }) {
   const frameColor = readStr(props, 'frameColor', '#b8895a');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
   const lowerBed = readStr(props, 'lowerBedding', '#c9d3da');
   const upperBed = readStr(props, 'upperBedding', '#d9c3b0');
 
@@ -18,7 +19,7 @@ export function BunkBed({ props }: { props: ParamProps }) {
   const lowerY = 0.32;
   const upperY = 1.18;
   const mattT = 0.14;
-  const frame = getSurfaceMaterial(finish, frameColor, 1.4);
+  const frame = getSurfaceMaterial(finish, frameColor, 1.4, sheen);
   const matFab = (c: string) => ({ color: c, roughness: 0.92, metalness: 0 });
 
   const px = W / 2 - postR;

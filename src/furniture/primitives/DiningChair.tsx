@@ -1,4 +1,4 @@
-import { readStr } from './shared';
+import { readNum, readStr } from './shared';
 import { getWoodMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
@@ -7,6 +7,7 @@ export function DiningChair({ props }: { props: ParamProps }) {
   const seatColor = readStr(props, 'seatColor', '#7a5c3c');
   const legColor = readStr(props, 'legColor', '#4e3a24');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const seatH = 0.46;
   const seatW = 0.44;
@@ -22,7 +23,7 @@ export function DiningChair({ props }: { props: ParamProps }) {
   const legs: [number, number, number][] = [];
   for (const x of xs) for (const z of zs) legs.push([x, legY, z]);
 
-  const seatMat = getSurfaceMaterial(finish, seatColor, 1);
+  const seatMat = getSurfaceMaterial(finish, seatColor, 1, sheen);
   const legMat = getWoodMaterial(legColor, 0.4);
 
   return (

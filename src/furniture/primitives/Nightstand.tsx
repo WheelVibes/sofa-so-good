@@ -8,10 +8,11 @@ export function Nightstand({ props }: { props: ParamProps }) {
   const depth = readNum(props, 'depth', 0.4);
   const color = readStr(props, 'color', '#8a6b48');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const legH = 0.1;
   const bodyH = 0.42;
-  const wood = getSurfaceMaterial(finish, color, 1);
+  const wood = getSurfaceMaterial(finish, color, 1, sheen);
 
   return (
     <group>

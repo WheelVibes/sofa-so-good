@@ -11,9 +11,10 @@ export function WallShelf({ props }: { props: ParamProps }) {
   const centerY = readNum(props, 'mountHeight', 1.4);
   const color = readStr(props, 'color', '#8a6b48');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const plankT = 0.035;
-  const wood = getSurfaceMaterial(finish, color, 1.2);
+  const wood = getSurfaceMaterial(finish, color, 1.2, sheen);
   // Brackets sit a little in from each end.
   const bx = width / 2 - 0.08;
   const bracketColor = '#2b2b2b';

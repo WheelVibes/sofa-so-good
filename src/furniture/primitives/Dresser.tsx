@@ -11,10 +11,11 @@ export function Dresser({ props }: { props: ParamProps }) {
   const cols = Math.max(1, Math.round(readNum(props, 'cols', 2)));
   const color = readStr(props, 'color', '#8a6b48');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const legH = 0.08;
   const bodyH = 0.85;
-  const wood = getSurfaceMaterial(finish, color, 1.6);
+  const wood = getSurfaceMaterial(finish, color, 1.6, sheen);
   const gap = 0.02;
   const dw = (width - gap * (cols + 1)) / cols;
   const dh = (bodyH - gap * (rows + 1)) / rows;

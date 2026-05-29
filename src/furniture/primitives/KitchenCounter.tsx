@@ -17,12 +17,13 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
   const hasSink = readStr(props, 'hasSink', 'no') === 'yes';
   const color = readStr(props, 'color', '#e3dfd6');
   const finish = readStr(props, 'finish', 'painted');
+  const sheen = readNum(props, 'sheen', 0);
 
   const depth = 0.6;
   const cabinetH = 0.85;
   const topThickness = 0.05;
   const totalH = cabinetH + topThickness;
-  const cabMat = getSurfaceMaterial(finish, color);
+  const cabMat = getSurfaceMaterial(finish, color, 1, sheen);
 
   // Cabinet door fronts with handles along the base run.
   const cabs = Math.max(1, Math.round(length / 0.6));

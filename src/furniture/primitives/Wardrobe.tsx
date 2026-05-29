@@ -16,6 +16,7 @@ export function Wardrobe({ props }: WardrobeProps) {
   const doorCount = Math.max(2, Math.min(4, Math.round(readNum(props, 'doorCount', 3))));
   const color = readStr(props, 'color', '#caa478');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const depth = 0.6;
   const height = 2.1;
@@ -24,7 +25,7 @@ export function Wardrobe({ props }: WardrobeProps) {
   const doorPanelH = height - 0.1;
   const doorPanelW = (width - doorGap * (doorCount + 1) - 0.02) / doorCount;
 
-  const wood = getSurfaceMaterial(finish, color, 2);
+  const wood = getSurfaceMaterial(finish, color, 2, sheen);
   const doors = Array.from({ length: doorCount }, (_, i) => {
     const x = -width / 2 + doorGap + doorPanelW / 2 + i * (doorPanelW + doorGap);
     // Handle on the inner edge of each door (toward the centre gap).

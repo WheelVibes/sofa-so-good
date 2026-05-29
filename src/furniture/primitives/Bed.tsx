@@ -20,6 +20,7 @@ export function Bed({ props }: BedProps) {
   const throwColor = readStr(props, 'throwColor', '#b08968');
   const frameColor = readStr(props, 'frameColor', '#6f553f');
   const frameFinish = readStr(props, 'frameFinish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
   const headboardStyle = readStr(props, 'headboardStyle', 'flat');
 
   const frameH = 0.30;
@@ -28,7 +29,7 @@ export function Bed({ props }: BedProps) {
   const headboardThickness = 0.06;
   const mattressTop = frameH + mattressH;
 
-  const frameMat = getSurfaceMaterial(frameFinish, frameColor, 2);
+  const frameMat = getSurfaceMaterial(frameFinish, frameColor, 2, sheen);
   const fabric = { roughness: 0.92, metalness: 0 };
   // Pillows: two for anything queen-width or wider, otherwise one.
   const twoPillows = width >= 1.3;

@@ -13,13 +13,14 @@ export function TVConsole({ props }: TVConsoleProps) {
   const width = readNum(props, 'width', 1.8);
   const color = readStr(props, 'color', '#3a2f24');
   const finish = readStr(props, 'finish', 'wood');
+  const sheen = readNum(props, 'sheen', 0);
 
   const depth = 0.4;
   const height = 0.45;
   const drawerInset = 0.015;
   const drawerW = (width - 0.06) / 2;
 
-  const wood = getSurfaceMaterial(finish, color, 1.6);
+  const wood = getSurfaceMaterial(finish, color, 1.6, sheen);
   return (
     <group>
       {/* Body */}
