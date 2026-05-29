@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../state/store';
 import { useCatalog } from '../../furniture/catalog';
@@ -5,6 +6,54 @@ import { canPlace } from '../../collision/placement';
 import { ParametricBody } from './ParametricBody';
 import { GltfBody } from './GltfBody';
 import { SourceLine } from './SourceLine';
+
+/** A small numeric field that shows the live value but lets the user type a
+ *  precise one; commits on blur / Enter (collision-checked by the caller). */
+function PosField({
+  label,
+  value,
+  step,
+  onCommit,
+  integer,
+}: {
+  label: string;
+  value: number;
+  step: number;
+  onCommit: (v: number) => void;
+  integer?: boolean;
+}) {
+  const fmt = (v: number) => (integer ? Math.round(v).toString() : v.toFixed(2));
+  const [text, setText] = useState(fmt(value));
+  // Re-sync when the underlying value changes (drag, rotate key, etc.) and
+  // the field isn't being edited.
+  const [editing, setEditing] = useState(false);
+  useEffect(() => {
+    if (!editing) setText(fmt(value));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value, editing]);
+  const commit = () => {
+    setEditing(false);
+    const v = Number(text);
+    if (!Number.isNaN(v)) onCommit(v);
+  };
+  return (
+    <label className="flex flex-col gap-0.5">
+      <span className="text-neutral-500">{label}</span>
+      <input
+        type="number"
+        step={step}
+        value={text}
+        onFocus={() => setEditing(true)}
+        onChange={(e) => setText(e.target.value)}
+        onBlur={commit}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+        }}
+        className="w-full rounded border border-neutral-200 bg-white px-1 py-0.5 font-mono text-[11px] focus:border-neutral-400 focus:outline-none"
+      />
+    </label>
+  );
+}
 
 /** Right-side panel shown when an item is selected. Maps the selected
  *  def kind to either ParametricBody or GltfBody, plus a small header
@@ -29,6 +78,26 @@ export function InspectorPanel() {
     if (canPlace({ ...it, rotation: next }, def, { others: st.items, defs: catalog, doors: st.doors })) {
       st.pushHistory();
       st.rotateItem(it.id, next);
+    }
+  };
+
+  const tryMove = (x: number, z: number) => {
+    const st = useStore.getState();
+    const it = st.items.find((i) => i.id === item.id);
+    if (!it || Number.isNaN(x) || Number.isNaN(z)) return;
+    if (canPlace({ ...it, position: [x, z] }, def, { others: st.items, defs: catalog, doors: st.doors })) {
+      st.pushHistory();
+      st.moveItem(it.id, [x, z]);
+    }
+  };
+  const trySetRot = (deg: number) => {
+    const st = useStore.getState();
+    const it = st.items.find((i) => i.id === item.id);
+    if (!it || Number.isNaN(deg)) return;
+    const rot = (deg * Math.PI) / 180;
+    if (canPlace({ ...it, rotation: rot }, def, { others: st.items, defs: catalog, doors: st.doors })) {
+      st.pushHistory();
+      st.rotateItem(it.id, rot);
     }
   };
 
@@ -67,13 +136,13 @@ export function InspectorPanel() {
           ×
         </button>
       </header>
-      <div className="mb-3 grid grid-cols-[auto_1fr] gap-x-2 gap-y-0.5 text-[11px]">
-        <span className="text-neutral-500">x</span>
-        <span className="font-mono">{item.position[0].toFixed(2)} m</span>
-        <span className="text-neutral-500">z</span>
-        <span className="font-mono">{item.position[1].toFixed(2)} m</span>
-        <span className="text-neutral-500">rot</span>
-        <span className="font-mono">{((item.rotation * 180) / Math.PI).toFixed(0)}°</span>
+      <div className="mb-3 grid grid-cols-3 gap-2 text-[11px]">
+        <PosField label="X (m)" value={item.position[0]} step={0.05}
+          onCommit={(v) => tryMove(v, item.position[1])} />
+        <PosField label="Z (m)" value={item.position[1]} step={0.05}
+          onCommit={(v) => tryMove(item.position[0], v)} />
+        <PosField label="Rot°" value={(item.rotation * 180) / Math.PI} step={15}
+          onCommit={trySetRot} integer />
       </div>
       {def.kind === 'parametric' ? (
         <ParametricBody item={item} def={def} />
