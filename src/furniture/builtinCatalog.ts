@@ -524,6 +524,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: '32', label: '32"' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'screen',
+        label: 'Screen',
+        default: 'off',
+        options: [
+          { value: 'off', label: 'Off' },
+          { value: 'on', label: 'On' },
+        ],
+      },
     ],
   },
   'aircon-unit': {

@@ -1,4 +1,5 @@
 import { readNum, readStr } from './shared';
+import { getScreenContent } from './screenContent';
 import type { ParamProps } from '../types';
 
 /** Desktop monitor that sits on a desk: base + stem + panel. Its geometry
@@ -8,6 +9,7 @@ export function Monitor({ props }: { props: ParamProps }) {
   const diagIn = Number(readStr(props, 'size', '27')) || 27;
   const deskH = readNum(props, 'deskHeight', 0.74);
   const screenColor = readStr(props, 'screenColor', '#10131a');
+  const on = readStr(props, 'screen', 'off') === 'on';
 
   const diagM = diagIn * 0.0254;
   const w = diagM * 0.87;
@@ -31,10 +33,22 @@ export function Monitor({ props }: { props: ParamProps }) {
         <boxGeometry args={[w, h, 0.03]} />
         <meshStandardMaterial color="#15171b" roughness={0.5} metalness={0.3} />
       </mesh>
-      {/* Screen */}
+      {/* Screen — dark when off, lit wallpaper that self-illuminates when on. */}
       <mesh position={[0, panelY, 0.017]}>
         <planeGeometry args={[w - 0.02, h - 0.02]} />
-        <meshStandardMaterial color={screenColor} roughness={0.16} metalness={0.1} emissive={screenColor} emissiveIntensity={0.15} />
+        {on ? (
+          <meshStandardMaterial
+            map={getScreenContent()}
+            emissiveMap={getScreenContent()}
+            emissive="#ffffff"
+            emissiveIntensity={0.8}
+            roughness={0.2}
+            metalness={0}
+            toneMapped={false}
+          />
+        ) : (
+          <meshStandardMaterial color={screenColor} roughness={0.16} metalness={0.1} emissive={screenColor} emissiveIntensity={0.15} />
+        )}
       </mesh>
     </group>
   );
