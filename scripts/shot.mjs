@@ -47,6 +47,18 @@ if (actionsArg) {
         await new Promise((r) => setTimeout(r, 8));
       }
       await page.mouse.up();
+    } else if (a.type === 'rdrag') {
+      await page.mouse.move(a.from[0], a.from[1]);
+      await page.mouse.down({ button: 'right' });
+      const steps = 20;
+      for (let i = 1; i <= steps; i++) {
+        await page.mouse.move(
+          a.from[0] + ((a.to[0] - a.from[0]) * i) / steps,
+          a.from[1] + ((a.to[1] - a.from[1]) * i) / steps,
+        );
+        await new Promise((r) => setTimeout(r, 8));
+      }
+      await page.mouse.up({ button: 'right' });
     } else if (a.type === 'wheel') {
       await page.mouse.move(a.x, a.y);
       await page.mouse.wheel({ deltaY: a.dy });
