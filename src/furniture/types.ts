@@ -78,7 +78,8 @@ export type PrimitiveKind =
   | 'Shower'
   | 'Mirror'
   | 'Monitor'
-  | 'RangeHood';
+  | 'RangeHood'
+  | 'TableLamp';
 
 export type ParamField =
   | {

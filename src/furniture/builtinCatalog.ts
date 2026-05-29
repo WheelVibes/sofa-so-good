@@ -545,6 +545,20 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Lighting ────────────────────────────────────────────────────────────
+  'table-lamp': {
+    kind: 'parametric',
+    id: 'table-lamp',
+    name: 'Table lamp',
+    category: 'lighting',
+    primitive: 'TableLamp',
+    defaultFootprint: { w: 0.3, d: 0.3, h: 0.44 },
+    verticalSpan: { base: 0.52, top: 0.98 },
+    paramSchema: [
+      { kind: 'number', key: 'surfaceHeight', label: 'Sits at', min: 0, max: 1.0, step: 0.02, default: 0.52, unit: 'm' },
+      { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f0e4c4' },
+      { kind: 'color', key: 'baseColor', label: 'Base', default: '#33363b' },
+    ],
+  },
   'floor-lamp': {
     kind: 'parametric',
     id: 'floor-lamp',

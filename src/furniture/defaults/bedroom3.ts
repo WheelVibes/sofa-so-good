@@ -18,6 +18,7 @@ export const bedroom3: LayoutEntry[] = [
     props: { width: 0.9, height: 1.6 },
   },
   { id: 'default-b3-nightstand', defId: 'nightstand', position: [8.1, 0.7], rotation: 0, props: {} },
+  { id: 'default-b3-tablelamp', defId: 'table-lamp', position: [8.1, 0.7], rotation: 0, props: { surfaceHeight: 0.52 } },
   { id: 'default-b3-plant', defId: 'potted-plant', position: [6.5, 3.1], rotation: 0, props: { size: 'small' } },
   { id: 'default-b3-rug', defId: 'rug', position: [7.4, 2.9], rotation: 0, props: { width: 1.6, depth: 1.0, color: '#7e8a86', borderColor: '#566460' } },
   { id: 'default-b3-pendant', defId: 'ceiling-light', position: [7.5, 2.4], rotation: 0, props: { style: 'flush' } },

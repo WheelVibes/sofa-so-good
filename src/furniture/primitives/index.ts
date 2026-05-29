@@ -41,6 +41,7 @@ import { Shower } from './Shower';
 import { Mirror } from './Mirror';
 import { Monitor } from './Monitor';
 import { RangeHood } from './RangeHood';
+import { TableLamp } from './TableLamp';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -79,4 +80,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Mirror,
   Monitor,
   RangeHood,
+  TableLamp,
 };

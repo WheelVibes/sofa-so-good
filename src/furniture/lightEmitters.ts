@@ -17,6 +17,12 @@ export interface EmitterSpec {
 }
 
 export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
+  'table-lamp': {
+    height: (p) => (typeof p.surfaceHeight === 'number' ? p.surfaceHeight : 0.5) + 0.32,
+    color: '#ffe6b8',
+    intensity: 4,
+    distance: 3.2,
+  },
   'floor-lamp': {
     height: () => 1.5,
     color: '#ffdfae',
