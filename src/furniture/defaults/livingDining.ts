@@ -37,6 +37,7 @@ export const livingDining: LayoutEntry[] = [
   // Lounge zone in front of the sofa.
   { id: 'default-ld-rug', defId: 'rug', position: [10.65, 3.55], rotation: 0, props: { width: 2.2, depth: 1.5 } },
   { id: 'default-ld-coffee', defId: 'coffee-table', position: [10.65, 3.55], rotation: 0, props: {} },
+  { id: 'default-ld-decor', defId: 'tabletop-decor', position: [10.65, 3.55], rotation: 0.3, props: { surfaceHeight: 0.42 } },
   { id: 'default-ld-armchair', defId: 'armchair', position: [11.4, 7.3], rotation: Math.PI, props: {} },
   { id: 'default-ld-plant', defId: 'potted-plant', position: [12.2, 6.3], rotation: 0, props: { size: 'large' } },
   { id: 'default-ld-lamp', defId: 'floor-lamp', position: [9.35, 1.95], rotation: 0, props: {} },

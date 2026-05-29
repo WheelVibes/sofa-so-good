@@ -621,6 +621,20 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Decor ───────────────────────────────────────────────────────────────
+  'tabletop-decor': {
+    kind: 'parametric',
+    id: 'tabletop-decor',
+    name: 'Decor set',
+    category: 'decor',
+    primitive: 'TabletopDecor',
+    defaultFootprint: { w: 0.34, d: 0.22, h: 0.22 },
+    verticalSpan: { base: 0.42, top: 0.66 },
+    paramSchema: [
+      { kind: 'number', key: 'surfaceHeight', label: 'Sits at', min: 0, max: 1.2, step: 0.02, default: 0.42, unit: 'm' },
+      { kind: 'color', key: 'bookColor', label: 'Books', default: '#8a5a3c' },
+      { kind: 'color', key: 'vaseColor', label: 'Vase', default: '#cfd3d6' },
+    ],
+  },
   rug: {
     kind: 'parametric',
     id: 'rug',
