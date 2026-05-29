@@ -585,6 +585,23 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Lighting ────────────────────────────────────────────────────────────
+  'cove-light': {
+    kind: 'parametric',
+    id: 'cove-light',
+    name: 'Cove light (LED)',
+    category: 'lighting',
+    primitive: 'CoveLight',
+    defaultFootprint: { w: 2.0, d: 0.16, h: 0.12 },
+    footprintParams: { w: 'length' },
+    mounted: true,
+    verticalSpan: { base: 2.2, top: 2.45 },
+    paramSchema: [
+      { kind: 'number', key: 'length', label: 'Length', min: 0.6, max: 4.0, step: 0.1, default: 2.0, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 2.0, max: 2.55, step: 0.05, default: 2.3, unit: 'm' },
+      { kind: 'color', key: 'ledColor', label: 'LED', default: '#ffcf94' },
+      { kind: 'color', key: 'boxColor', label: 'Box', default: '#f1efea' },
+    ],
+  },
   'wall-sconce': {
     kind: 'parametric',
     id: 'wall-sconce',

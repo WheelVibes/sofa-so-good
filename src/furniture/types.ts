@@ -85,7 +85,8 @@ export type PrimitiveKind =
   | 'TabletopDecor'
   | 'ShoeCabinet'
   | 'WallShelf'
-  | 'WallSconce';
+  | 'WallSconce'
+  | 'CoveLight';
 
 export type ParamField =
   | {

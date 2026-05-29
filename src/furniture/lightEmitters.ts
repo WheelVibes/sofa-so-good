@@ -51,6 +51,13 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 3.5,
     distance: 3,
   },
+  'cove-light': {
+    // Just above the lip, washing the ceiling with soft indirect warm light.
+    height: (p) => (typeof p.mountHeight === 'number' ? p.mountHeight : 2.3) + 0.2,
+    color: '#ffd9a0',
+    intensity: 2.6,
+    distance: 3.2,
+  },
 };
 
 export function isEmitter(defId: FurnitureType): boolean {
