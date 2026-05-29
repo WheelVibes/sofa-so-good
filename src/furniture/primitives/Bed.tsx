@@ -1,6 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
-import { getWoodMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface BedProps {
@@ -19,6 +19,7 @@ export function Bed({ props }: BedProps) {
   const beddingColor = readStr(props, 'beddingColor', '#c9d3da');
   const throwColor = readStr(props, 'throwColor', '#b08968');
   const frameColor = readStr(props, 'frameColor', '#6f553f');
+  const frameFinish = readStr(props, 'frameFinish', 'wood');
   const headboardStyle = readStr(props, 'headboardStyle', 'flat');
 
   const frameH = 0.30;
@@ -27,7 +28,7 @@ export function Bed({ props }: BedProps) {
   const headboardThickness = 0.06;
   const mattressTop = frameH + mattressH;
 
-  const frameMat = getWoodMaterial(frameColor, 2);
+  const frameMat = getSurfaceMaterial(frameFinish, frameColor, 2);
   const fabric = { roughness: 0.92, metalness: 0 };
   // Pillows: two for anything queen-width or wider, otherwise one.
   const twoPillows = width >= 1.3;

@@ -1,4 +1,5 @@
 import { readNum, readStr } from './shared';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /**
@@ -12,18 +13,19 @@ export function FloorMirror({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 0.6);
   const height = readNum(props, 'height', 1.6);
   const frameColor = readStr(props, 'frameColor', '#6f553f');
+  const frameFinish = readStr(props, 'frameFinish', 'wood');
 
   const lean = 0.12; // radians, top tilts back toward the wall
   const frameD = 0.05;
+  const frameMat = getSurfaceMaterial(frameFinish, frameColor, 1);
 
   return (
     // Pivot at the floor so the lean rotates about the base.
     <group rotation={[lean, 0, 0]}>
       <group position={[0, height / 2, 0]}>
         {/* Frame */}
-        <mesh castShadow receiveShadow position={[0, 0, 0]}>
+        <mesh castShadow receiveShadow position={[0, 0, 0]} material={frameMat}>
           <boxGeometry args={[width + 0.06, height + 0.06, frameD]} />
-          <meshStandardMaterial color={frameColor} roughness={0.5} metalness={0.2} />
         </mesh>
         {/* Reflective pane, slightly proud of the frame face */}
         <mesh position={[0, 0, frameD / 2 + 0.005]}>

@@ -31,6 +31,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
+        key: 'frameFinish',
+        label: 'Frame finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'headboardStyle',
         label: 'Headboard',
         default: 'flat',
@@ -53,6 +64,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
       { kind: 'color', key: 'throwColor', label: 'Throw', default: '#b08968' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
+      {
+        kind: 'enum',
+        key: 'frameFinish',
+        label: 'Frame finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
       {
         kind: 'enum',
         key: 'headboardStyle',
@@ -79,6 +101,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
       {
         kind: 'enum',
+        key: 'frameFinish',
+        label: 'Frame finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'headboardStyle',
         label: 'Headboard',
         default: 'paneled',
@@ -101,6 +134,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'beddingColor', label: 'Bedding', default: '#c9d3da' },
       { kind: 'color', key: 'throwColor', label: 'Throw', default: '#b08968' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
+      {
+        kind: 'enum',
+        key: 'frameFinish',
+        label: 'Frame finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
       {
         kind: 'enum',
         key: 'headboardStyle',
@@ -999,6 +1043,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 0.4, max: 0.9, step: 0.05, default: 0.6, unit: 'm' },
       { kind: 'number', key: 'height', label: 'Height', min: 1.2, max: 2.0, step: 0.05, default: 1.6, unit: 'm' },
       { kind: 'color', key: 'frameColor', label: 'Frame', default: '#6f553f' },
+      {
+        kind: 'enum',
+        key: 'frameFinish',
+        label: 'Frame finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
     ],
   },
   'potted-plant': {
