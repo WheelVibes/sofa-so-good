@@ -7,18 +7,14 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 // call at boot. The test therefore asserts the real, available mechanism.
 const setDecoderPath = vi.fn();
 
+// vi.mock is hoisted above the imports and persists across vi.resetModules(),
+// so the re-imported module below shares this same mocked useGLTF.
 vi.mock('@react-three/drei', () => ({
   useGLTF: Object.assign(
     // useGLTF is callable; we never call it here, just read its statics.
     vi.fn(),
     { setDecoderPath },
   ),
-}));
-
-// MeshoptDecoder from three-stdlib is a function in this version. We don't
-// rely on calling it (drei does that per-load), but keep the import resolvable.
-vi.mock('three-stdlib', () => ({
-  MeshoptDecoder: vi.fn(() => ({ supported: true })),
 }));
 
 async function freshModule() {

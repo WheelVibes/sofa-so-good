@@ -1,8 +1,4 @@
 import { useGLTF } from '@react-three/drei';
-// Imported so the dependency is pinned/resolvable and to document the source of
-// the meshopt decoder drei applies under the hood. drei wires this itself on
-// every useGLTF() call, so we don't invoke it here.
-import { MeshoptDecoder } from 'three-stdlib';
 
 /**
  * What `registerGltfDecoders` wired (or confirmed) for compressed-GLB loading.
@@ -19,7 +15,7 @@ export interface DecoderReport {
   /** Meshopt buffer decoder is applied by drei on every load (default on). */
   meshopt: boolean;
   /** Set when a prior call already performed registration; setters are skipped. */
-  alreadyRegistered?: boolean;
+  alreadyRegistered?: true;
 }
 
 /**
@@ -27,7 +23,11 @@ export interface DecoderReport {
  * ship the ~1 MB decoder. drei lazily constructs a single shared `DRACOLoader`
  * the first time a Draco-compressed GLB is loaded and points it at this path.
  */
-const DRACO_DECODER_PATH = 'https://www.gstatic.com/draco/versioned/decoders/1.5.6/';
+// Defaults to drei's tested Draco version; override via VITE_DRACO_DECODER_PATH
+// for offline/CSP-restricted or self-hosted deployments.
+const DRACO_DECODER_PATH =
+  import.meta.env.VITE_DRACO_DECODER_PATH ??
+  'https://www.gstatic.com/draco/versioned/decoders/1.5.5/';
 
 /** Module-level idempotency guard — see {@link registerGltfDecoders}. */
 let registered = false;
@@ -75,10 +75,8 @@ export function registerGltfDecoders(): DecoderReport {
   // DRACOLoader created on first Draco GLB load.
   useGLTF.setDecoderPath(DRACO_DECODER_PATH);
 
-  // Meshopt: reference the decoder so the import is retained; drei applies it
-  // itself per useGLTF() call (useMeshopt defaults to true). No setter needed.
-  void MeshoptDecoder;
-
+  // Meshopt: nothing to register at boot — drei auto-wires the three-stdlib
+  // MeshoptDecoder itself on every useGLTF() call (useMeshopt defaults to true).
   registered = true;
   return { draco: true, ktx2: true, meshopt: true };
 }
