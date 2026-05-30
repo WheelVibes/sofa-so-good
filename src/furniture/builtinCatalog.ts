@@ -1724,9 +1724,12 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'solid', label: 'Solid' },
           { value: 'gradient', label: 'Gradient' },
+          { value: 'stripes', label: 'Stripes' },
+          { value: 'blocks', label: 'Colour blocks' },
+          { value: 'chevron', label: 'Chevron' },
         ],
       },
-      { kind: 'color', key: 'artColor2', label: 'Art 2 (gradient)', default: '#d8c7a0' },
+      { kind: 'color', key: 'artColor2', label: 'Art 2 (accent)', default: '#d8c7a0' },
     ],
   },
   'wall-clock': {

@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getGradientMaterial } from '../../materials/furnitureMaterials';
+import { getGradientMaterial, getPrintMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /** Framed wall art / picture. Mounted on a wall (group offset up to the
@@ -21,7 +21,13 @@ export function WallArt({ props }: { props: ParamProps }) {
   const frameDepth = frameStyle === 'box' ? 0.07 : 0.03;
   const showFrame = frameStyle !== 'none';
   const showMat = frameStyle === 'thin' || frameStyle === 'gallery';
-  const gradientMat = pattern === 'gradient' ? getGradientMaterial(artColor, artColor2) : null;
+  const printKinds = ['stripes', 'blocks', 'chevron'];
+  const gradientMat =
+    pattern === 'gradient'
+      ? getGradientMaterial(artColor, artColor2)
+      : printKinds.includes(pattern)
+        ? getPrintMaterial(artColor, artColor2, pattern)
+        : null;
   // The print sits just proud of the frame face (or its own slab when frameless).
   const artZ = showFrame ? frameDepth / 2 + 0.003 : 0.008;
   const artInset = showFrame ? frameW * 2 : 0;

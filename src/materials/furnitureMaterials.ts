@@ -230,6 +230,55 @@ export function getGradientMaterial(a: string, b: string): MeshStandardMaterial 
   return m;
 }
 
+/** Two-colour art print for wall art: a crisp canvas pattern (vertical
+ *  'stripes', a Mondrian-ish 'blocks' grid, or diagonal 'chevron') in colours
+ *  a + b. Cached per (a, b, kind). */
+export function getPrintMaterial(a: string, b: string, kind: string): MeshStandardMaterial {
+  const key = `print:${a}:${b}:${kind}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const S = 128;
+  const c = document.createElement('canvas');
+  c.width = c.height = S;
+  const ctx = c.getContext('2d')!;
+  ctx.fillStyle = a;
+  ctx.fillRect(0, 0, S, S);
+  ctx.fillStyle = b;
+  if (kind === 'stripes') {
+    for (let i = 1; i < 6; i += 2) ctx.fillRect((i / 6) * S, 0, S / 6, S);
+  } else if (kind === 'chevron') {
+    const bandH = S / 5;
+    ctx.lineWidth = bandH * 0.5;
+    ctx.strokeStyle = b;
+    for (let y = -S; y < S * 2; y += bandH) {
+      ctx.beginPath();
+      ctx.moveTo(0, y);
+      ctx.lineTo(S / 2, y + bandH);
+      ctx.lineTo(S, y);
+      ctx.stroke();
+    }
+  } else {
+    // blocks: a few colour-blocked rectangles + tonal accents (abstract).
+    const shade = (hex: string, f: number) => {
+      const [r, g, bl] = hexToRgb(hex);
+      return `rgb(${Math.round(r * f)},${Math.round(g * f)},${Math.round(bl * f)})`;
+    };
+    ctx.fillStyle = b;
+    ctx.fillRect(0, 0, S * 0.55, S * 0.6);
+    ctx.fillStyle = shade(a, 0.7);
+    ctx.fillRect(S * 0.55, 0, S * 0.45, S * 0.4);
+    ctx.fillStyle = shade(b, 1.25);
+    ctx.fillRect(S * 0.55, S * 0.4, S * 0.45, S * 0.6);
+    ctx.fillStyle = shade(a, 1.15);
+    ctx.fillRect(0, S * 0.6, S * 0.55, S * 0.4);
+  }
+  const tex = new CanvasTexture(c);
+  tex.colorSpace = SRGBColorSpace;
+  const m = new MeshStandardMaterial({ map: tex, roughness: 0.82, metalness: 0 });
+  cache.set(key, m);
+  return m;
+}
+
 /** Smooth leather upholstery — pebbled grain, low roughness for a soft sheen. */
 export function getLeatherMaterial(color: string, rough = 0.42): MeshStandardMaterial {
   const key = `leath:${color}:${rough.toFixed(2)}`;
