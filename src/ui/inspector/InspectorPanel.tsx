@@ -3,9 +3,94 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../state/store';
 import { useCatalog } from '../../furniture/catalog';
 import { canPlace } from '../../collision/placement';
+import { planCollisionWalls, isDefaultPlan } from '../../floorplan/planGeometry';
 import { ParametricBody } from './ParametricBody';
 import { GltfBody } from './GltfBody';
 import { SourceLine } from './SourceLine';
+
+/** Panel shown when 2+ items are selected: count + align / distribute / bulk
+ *  actions (the marquee/shift-click multi-selection). */
+function MultiSelectPanel() {
+  const count = useStore((s) => s.selectedItemIds.length);
+  const catalog = useCatalog();
+
+  const wallsFor = (s: ReturnType<typeof useStore.getState>) =>
+    isDefaultPlan(s.floorPlan) ? undefined : planCollisionWalls(s.floorPlan, s.doors);
+
+  const tryMove = (id: string, pos: [number, number]) => {
+    const s = useStore.getState();
+    const it = s.items.find((i) => i.id === id);
+    const def = it && catalog[it.defId];
+    if (!it || !def) return;
+    if (canPlace({ ...it, position: pos }, def, { others: s.items.filter((o) => o.id !== id), defs: catalog, doors: s.doors, walls: wallsFor(s) }))
+      s.moveItem(id, pos);
+  };
+
+  const align = (axis: 0 | 1) => {
+    const s = useStore.getState();
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked);
+    if (sel.length < 2) return;
+    const mean = sel.reduce((a, i) => a + i.position[axis], 0) / sel.length;
+    s.pushHistory();
+    for (const it of sel) {
+      const pos: [number, number] = axis === 0 ? [mean, it.position[1]] : [it.position[0], mean];
+      tryMove(it.id, pos);
+    }
+  };
+
+  const distribute = (axis: 0 | 1) => {
+    const s = useStore.getState();
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked).sort((a, b) => a.position[axis] - b.position[axis]);
+    if (sel.length < 3) return;
+    const lo = sel[0].position[axis];
+    const hi = sel[sel.length - 1].position[axis];
+    const step = (hi - lo) / (sel.length - 1);
+    s.pushHistory();
+    sel.forEach((it, i) => {
+      if (i === 0 || i === sel.length - 1) return;
+      const v = lo + step * i;
+      tryMove(it.id, axis === 0 ? [v, it.position[1]] : [it.position[0], v]);
+    });
+  };
+
+  const deleteAll = () => {
+    const s = useStore.getState();
+    for (const id of [...s.selectedItemIds]) s.deleteItem(id);
+  };
+
+  const Btn = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (
+    <button onClick={onClick} className="rounded bg-neutral-100 py-1 text-[11px] text-neutral-700 hover:bg-neutral-200">
+      {children}
+    </button>
+  );
+
+  return (
+    <aside className="absolute right-3 top-3 z-10 w-64 rounded-lg bg-white/95 p-4 text-xs text-neutral-700 shadow">
+      <header className="mb-3 flex items-center justify-between">
+        <span className="text-sm font-semibold text-neutral-900">{count} items selected</span>
+        <button onClick={() => useStore.getState().selectItem(null)} className="text-neutral-400 hover:text-neutral-700" aria-label="Clear selection">
+          ×
+        </button>
+      </header>
+      <div className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Align centres</div>
+      <div className="mb-2 grid grid-cols-2 gap-1.5">
+        <Btn onClick={() => align(0)}>↔ Align X</Btn>
+        <Btn onClick={() => align(1)}>↕ Align Z</Btn>
+      </div>
+      <div className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Distribute evenly</div>
+      <div className="mb-3 grid grid-cols-2 gap-1.5">
+        <Btn onClick={() => distribute(0)}>↔ Across X</Btn>
+        <Btn onClick={() => distribute(1)}>↕ Across Z</Btn>
+      </div>
+      <button onClick={deleteAll} className="w-full rounded bg-rose-50 py-1 text-rose-700 hover:bg-rose-100">
+        🗑 Delete all
+      </button>
+      <p className="mt-2 text-[10px] leading-snug text-neutral-400">
+        Tip: <kbd className="font-mono">R</kbd> rotates the group around its centre.
+      </p>
+    </aside>
+  );
+}
 
 /** A small numeric field that shows the live value but lets the user type a
  *  precise one; commits on blur / Enter (collision-checked by the caller). */
@@ -59,6 +144,7 @@ function PosField({
  *  def kind to either ParametricBody or GltfBody, plus a small header
  *  for category + position + delete. */
 export function InspectorPanel() {
+  const multiCount = useStore((s) => s.selectedItemIds.length);
   const item = useStore(
     useShallow((s) => s.items.find((i) => i.id === s.selectedItemId) ?? null),
   );
@@ -73,6 +159,8 @@ export function InspectorPanel() {
     flipItem(item!.id, axis);
   };
 
+  // All hooks above run unconditionally; branch only after them.
+  if (multiCount > 1) return <MultiSelectPanel />;
   if (!item) return null;
   const def = catalog[item.defId];
   if (!def) return null;
