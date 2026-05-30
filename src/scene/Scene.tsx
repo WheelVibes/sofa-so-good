@@ -24,6 +24,7 @@ import { AlignmentGuides } from './AlignmentGuides';
 import { ClearanceOverlay } from './ClearanceOverlay';
 import { DragController } from './DragController';
 import { Effects } from './Effects';
+import { ShowcaseController } from './ShowcaseController';
 import { QualityController } from './QualityController';
 import { ScreenshotController } from './ScreenshotController';
 import { RecordController } from './RecordController';
@@ -68,6 +69,7 @@ export function Scene() {
       <CameraForwardTracker />
       <MeasurementOverlay />
       <Effects />
+      <ShowcaseController />
       <QualityController />
       <ScreenshotController />
       <RecordController />
