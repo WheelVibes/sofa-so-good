@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { useStore } from '../../state/store';
 import { planRoomArea, planTotalArea, wallLength, planBounds } from '../../floorplan/types';
-import type { PlanOpening, PlanWall } from '../../floorplan/types';
+import type { PlanWall } from '../../floorplan/types';
 import { PlanInspector } from './PlanInspector';
 import { PLAN_TEMPLATES } from '../../floorplan/templates';
 
@@ -161,16 +161,6 @@ export function FloorPlanEditor() {
       }
     }
     setDraft(null);
-  };
-
-  const openingPoint = (o: PlanOpening): { x: number; z: number; wall: PlanWall } | null => {
-    const wall = plan.walls.find((w) => w.id === o.wallId);
-    if (!wall) return null;
-    const dx = wall.end[0] - wall.start[0];
-    const dz = wall.end[1] - wall.start[1];
-    const len = Math.hypot(dx, dz) || 1;
-    const t = (o.offset + o.width / 2) / len;
-    return { x: wall.start[0] + dx * t, z: wall.start[1] + dz * t, wall };
   };
 
   const total = planTotalArea(plan);
@@ -333,24 +323,64 @@ export function FloorPlanEditor() {
               );
             })}
 
-            {/* Openings */}
+            {/* Openings — architectural symbols (door swing / window double-line) */}
             {plan.openings.map((o) => {
-              const p = openingPoint(o);
-              if (!p) return null;
+              const wall = plan.walls.find((w) => w.id === o.wallId);
+              if (!wall) return null;
+              const len = wallLength(wall);
+              if (len === 0) return null;
+              const ux = (wall.end[0] - wall.start[0]) / len;
+              const uz = (wall.end[1] - wall.start[1]) / len;
+              const nx = -uz; // wall normal
+              const nz = ux;
+              const sPt: [number, number] = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset];
+              const ePt: [number, number] = [wall.start[0] + ux * (o.offset + o.width), wall.start[1] + uz * (o.offset + o.width)];
               const isSel = sel?.type === 'opening' && sel.id === o.id;
               const color = o.kind === 'door' ? '#f59e0b' : '#38bdf8';
+              const strokeW = wall.thickness === 'external' ? 7 : 4;
+              const onPD = (e: React.PointerEvent) => {
+                if (tool === 'select') { e.stopPropagation(); a.setPlanSelection({ type: 'opening', id: o.id }); }
+              };
               return (
-                <circle
-                  key={o.id}
-                  cx={toPx(p.x)}
-                  cy={toPx(p.z)}
-                  r={isSel ? 7 : 5}
-                  fill={color}
-                  stroke={isSel ? '#fff' : 'none'}
-                  strokeWidth={2}
-                  onPointerDown={(e) => { if (tool === 'select') { e.stopPropagation(); a.setPlanSelection({ type: 'opening', id: o.id }); } }}
-                  style={{ cursor: 'pointer' }}
-                />
+                <g key={o.id} onPointerDown={onPD} style={{ cursor: 'pointer' }}>
+                  {/* Mask the wall under the opening */}
+                  <line x1={toPx(sPt[0])} y1={toPx(sPt[1])} x2={toPx(ePt[0])} y2={toPx(ePt[1])} stroke="#262626" strokeWidth={strokeW + 2} strokeLinecap="butt" />
+                  {o.kind === 'door' ? (
+                    <>
+                      {/* Door leaf + swing arc (hinge at the opening start) */}
+                      <line
+                        x1={toPx(sPt[0])}
+                        y1={toPx(sPt[1])}
+                        x2={toPx(sPt[0] + nx * o.width)}
+                        y2={toPx(sPt[1] + nz * o.width)}
+                        stroke={color}
+                        strokeWidth={isSel ? 3 : 2}
+                      />
+                      <path
+                        d={`M ${toPx(ePt[0])} ${toPx(ePt[1])} A ${o.width * PX} ${o.width * PX} 0 0 ${nx * uz - nz * ux > 0 ? 1 : 0} ${toPx(sPt[0] + nx * o.width)} ${toPx(sPt[1] + nz * o.width)}`}
+                        fill="none"
+                        stroke={color}
+                        strokeWidth={1}
+                        opacity={0.7}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      {/* Window double line across the opening */}
+                      {[-1, 1].map((s) => (
+                        <line
+                          key={s}
+                          x1={toPx(sPt[0] + nx * 0.04 * s)}
+                          y1={toPx(sPt[1] + nz * 0.04 * s)}
+                          x2={toPx(ePt[0] + nx * 0.04 * s)}
+                          y2={toPx(ePt[1] + nz * 0.04 * s)}
+                          stroke={color}
+                          strokeWidth={isSel ? 2.5 : 1.5}
+                        />
+                      ))}
+                    </>
+                  )}
+                </g>
               );
             })}
 
