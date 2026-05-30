@@ -10,12 +10,13 @@ export function OfficeChair({ props }: { props: ParamProps }) {
   const color = readStr(props, 'color', '#2b2f33');
   const material = readStr(props, 'material', 'fabric');
   const sheen = readNum(props, 'sheen', 0);
+  const pattern = readStr(props, 'pattern', 'plain');
   const style = readStr(props, 'style', 'task');
 
   const seatH = 0.48;
   const seatW = 0.46;
   const seatD = 0.46;
-  const mat = getUpholsteryMaterial(material, color, sheen);
+  const mat = getUpholsteryMaterial(material, color, sheen, pattern);
   const plastic = { color: '#1d1f22', roughness: 0.5, metalness: 0.2 };
   const meshMat = { color, roughness: 0.85, metalness: 0, transparent: true, opacity: 0.82 };
 

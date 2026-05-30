@@ -10,6 +10,7 @@ export function DiningChair({ props }: { props: ParamProps }) {
   const legColor = readStr(props, 'legColor', '#4e3a24');
   const finish = readStr(props, 'finish', 'wood');
   const sheen = readNum(props, 'sheen', 0);
+  const pattern = readStr(props, 'pattern', 'plain');
   const style = readStr(props, 'style', 'wood');
   const upholstered = style === 'upholstered';
 
@@ -28,7 +29,7 @@ export function DiningChair({ props }: { props: ParamProps }) {
   for (const x of xs) for (const z of zs) legs.push([x, legY, z]);
 
   const seatMat = upholstered
-    ? getUpholsteryMaterial('fabric', seatColor, sheen)
+    ? getUpholsteryMaterial('fabric', seatColor, sheen, pattern)
     : getSurfaceMaterial(finish, seatColor, 1, sheen);
   const legMat = getWoodMaterial(legColor, 0.4);
 

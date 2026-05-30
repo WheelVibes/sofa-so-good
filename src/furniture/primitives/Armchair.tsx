@@ -14,9 +14,10 @@ export function Armchair({ props }: { props: ParamProps }) {
   const color = readStr(props, 'color', '#b06a52');
   const material = readStr(props, 'material', 'fabric');
   const sheen = readNum(props, 'sheen', 0);
+  const pattern = readStr(props, 'pattern', 'plain');
   const style = readStr(props, 'style', 'standard');
 
-  const mat = getUpholsteryMaterial(material, color, sheen);
+  const mat = getUpholsteryMaterial(material, color, sheen, pattern);
   // The open-ended barrel shell needs both faces lit; clone so we don't
   // mutate the shared cached material (which other items reuse).
   const shellMat = useMemo(() => {

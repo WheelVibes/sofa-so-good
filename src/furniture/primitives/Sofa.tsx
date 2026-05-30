@@ -20,6 +20,7 @@ export function Sofa({ props }: SofaProps) {
   const pillowColor = readStr(props, 'pillowColor', '#c8775c');
   const material = readStr(props, 'material', 'fabric');
   const sheen = readNum(props, 'sheen', 0);
+  const pattern = readStr(props, 'pattern', 'plain');
   const armStyle = readStr(props, 'armStyle', 'standard');
 
   // Proportions grounded in real 3-seater dimensions: seat surface ~44cm,
@@ -42,7 +43,7 @@ export function Sofa({ props }: SofaProps) {
   const cushionD = depth - 0.26;
   const backThick = 0.16;
 
-  const mat = getUpholsteryMaterial(material, color, sheen);
+  const mat = getUpholsteryMaterial(material, color, sheen, pattern);
   const r = 0.05;
 
   return (

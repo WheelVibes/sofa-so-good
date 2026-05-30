@@ -96,6 +96,42 @@ function getLeatherNormal(): Texture {
   return leatherNormal;
 }
 
+// Tone-on-tone weave patterns: a near-white luminance albedo (so the
+// material colour tints it) carrying striped or herringbone structure.
+const patternTex = new Map<string, Texture>();
+function getPatternTexture(pattern: string): Texture {
+  const hit = patternTex.get(pattern);
+  if (hit) return hit;
+  const fine = makeFbm(0x2b1a, 3, 90);
+  const data = new Uint8ClampedArray(N * N * 4);
+  const band = 26; // px per stripe / herringbone block
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      let lum: number;
+      if (pattern === 'striped') {
+        // Soft vertical stripes, two tones close in value (tonal stripe).
+        const s = Math.sin((x / band) * Math.PI);
+        lum = 0.9 + 0.1 * (s > 0 ? 1 : -1) * 0.5;
+      } else {
+        // Herringbone: diagonals that flip direction every block row.
+        const row = Math.floor(y / band);
+        const dir = row % 2 === 0 ? 1 : -1;
+        const t = ((x + dir * y) % band + band) % band;
+        lum = t < band / 2 ? 0.97 : 0.83;
+      }
+      lum = clamp01(lum + (fine(x / N, y / N) - 0.5) * 0.05);
+      const i = (y * N + x) * 4;
+      const c = Math.round(lum * 255);
+      data[i] = data[i + 1] = data[i + 2] = c;
+      data[i + 3] = 255;
+    }
+  }
+  const tex = canvasFrom(data);
+  tex.colorSpace = SRGBColorSpace;
+  patternTex.set(pattern, tex);
+  return tex;
+}
+
 const cache = new Map<string, MeshStandardMaterial>();
 
 /** Continuous "shine" 0..1 → roughness: 0 keeps the material's natural matte
@@ -108,15 +144,17 @@ function sheenRough(base: number, sheen: number): number {
 
 /** Soft-fabric material tinted to `color` (upholstery). `rough` overrides the
  *  natural roughness (for the shine control). */
-export function getFabricMaterial(color: string, rough = 0.95): MeshStandardMaterial {
-  const key = `fab:${color}:${rough.toFixed(2)}`;
+export function getFabricMaterial(color: string, rough = 0.95, pattern = 'plain'): MeshStandardMaterial {
+  const key = `fab:${color}:${rough.toFixed(2)}:${pattern}`;
   const hit = cache.get(key);
   if (hit) return hit;
+  const patterned = pattern === 'striped' || pattern === 'herringbone';
   const m = new MeshStandardMaterial({
     color,
     roughness: rough,
     metalness: 0,
     normalMap: getFabricNormal(),
+    map: patterned ? getPatternTexture(pattern) : null,
   });
   m.normalScale.set(0.5, 0.5);
   cache.set(key, m);
@@ -206,11 +244,13 @@ export function getVelvetMaterial(color: string, rough = 0.62): MeshStandardMate
 }
 
 /** Dispatch upholstery material by finish kind ('fabric' | 'leather' |
- *  'velvet'), tinted to `color`. `sheen` (0..1) tunes matte → glossy. */
-export function getUpholsteryMaterial(kind: string, color: string, sheen = 0): MeshStandardMaterial {
+ *  'velvet'), tinted to `color`. `sheen` (0..1) tunes matte → glossy.
+ *  `pattern` ('plain' | 'striped' | 'herringbone') applies a tone-on-tone
+ *  weave to woven fabric only (leather/velvet ignore it). */
+export function getUpholsteryMaterial(kind: string, color: string, sheen = 0, pattern = 'plain'): MeshStandardMaterial {
   if (kind === 'leather') return getLeatherMaterial(color, sheen > 0 ? sheenRough(0.42, sheen) : 0.42);
   if (kind === 'velvet') return getVelvetMaterial(color, sheen > 0 ? sheenRough(0.62, sheen) : 0.62);
-  return getFabricMaterial(color, sheen > 0 ? sheenRough(0.95, sheen) : 0.95);
+  return getFabricMaterial(color, sheen > 0 ? sheenRough(0.95, sheen) : 0.95, pattern);
 }
 
 /** Flat painted material — matte by default, or glossy (lacquered) when
