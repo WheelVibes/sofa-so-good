@@ -506,6 +506,35 @@ def extract_included_articles(html, set_article):
     return members
 
 
+# Role -> the singular/plural noun(s) it appears as in a type_name, so we can
+# find a leading count ("2 folding chairs" -> 2 for the chair role).
+_ROLE_NOUNS = {
+    "table": r"tables?",
+    "chair": r"chairs?",
+    "bench": r"benches?",
+    "stool": r"stools?",
+}
+
+
+def quantity_for_role(role, type_name, included_count):
+    """
+    Resolve how many of this member the set contains, in priority order:
+      1. explicit count from the included list (included_count), if given;
+      2. a leading integer before this role's noun in type_name
+         ("table and 2 folding chairs" -> chair=2; table has no count -> falls
+         through);
+      3. default 1.
+    """
+    if included_count is not None:
+        return included_count
+    noun = _ROLE_NOUNS.get(role)
+    if noun and type_name:
+        m = re.search(rf"\b(\d+)\s+(?:[a-z]+\s+)?{noun}\b", type_name, re.I)
+        if m:
+            return int(m.group(1))
+    return 1
+
+
 async def scrape_complete_with(page):
     """
     Scrape the 'Complete with' compatibility module.

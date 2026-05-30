@@ -95,3 +95,27 @@ def test_extract_included_captures_name_count_url():
 def test_extract_included_empty_when_section_absent():
     assert scraper.extract_included_articles("<html><body></body></html>",
                                              set_article="s69599421") == []
+
+
+# ---------------------------------------------------------------------------
+# Task 4: quantity_for_role
+# ---------------------------------------------------------------------------
+
+def test_quantity_explicit_included_count_wins():
+    assert scraper.quantity_for_role("chair", "table and 4 chairs", included_count=2) == 2
+
+
+def test_quantity_from_type_name():
+    assert scraper.quantity_for_role("chair", "table and 2 folding chairs", None) == 2
+
+
+def test_quantity_role_word_without_count_defaults_one():
+    assert scraper.quantity_for_role("chair", "table and chair", None) == 1
+
+
+def test_quantity_table_default_one():
+    assert scraper.quantity_for_role("table", "table and 2 folding chairs", None) == 1
+
+
+def test_quantity_default_when_nothing_matches():
+    assert scraper.quantity_for_role("other", None, None) == 1
