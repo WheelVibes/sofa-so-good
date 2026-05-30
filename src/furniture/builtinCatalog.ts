@@ -295,6 +295,53 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  crib: {
+    kind: 'parametric',
+    id: 'crib',
+    name: 'Baby crib',
+    category: 'beds',
+    primitive: 'Crib',
+    defaultFootprint: { w: 1.32, d: 0.72, h: 0.96 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Length', min: 1.1, max: 1.4, step: 0.02, default: 1.32, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Width', min: 0.6, max: 0.8, step: 0.02, default: 0.72, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Frame', default: '#cdb89c' },
+      { kind: 'color', key: 'mattressColor', label: 'Mattress', default: '#eef1f4' },
+      {
+        kind: 'enum',
+        key: 'mattressLevel',
+        label: 'Base height',
+        default: 'low',
+        options: [
+          { value: 'low', label: 'Low (sitting)' },
+          { value: 'high', label: 'High (newborn)' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'endStyle',
+        label: 'Ends',
+        default: 'slat',
+        options: [
+          { value: 'slat', label: 'Slatted' },
+          { value: 'solid', label: 'Solid panel' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
 
   // ── Seating ─────────────────────────────────────────────────────────────
   'sofa-3seat': {

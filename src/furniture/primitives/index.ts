@@ -65,6 +65,7 @@ import { WallClock } from './WallClock';
 import { StandingFan } from './StandingFan';
 import { TowelRail } from './TowelRail';
 import { BunkBed } from './BunkBed';
+import { Crib } from './Crib';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -127,4 +128,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   StandingFan,
   TowelRail,
   BunkBed,
+  Crib,
 };

@@ -88,6 +88,14 @@ flats) shipped — see
 [src/furniture/primitives/Ottoman.tsx](src/furniture/primitives/Ottoman.tsx),
 [src/furniture/primitives/RoomDivider.tsx](src/furniture/primitives/RoomDivider.tsx).
 
+## Family living (2026-05-30)
+
+- ~~Baby crib / cot~~ (slatted sides, slatted or solid-panel ends, low/high
+  mattress base, wood / painted / gloss) shipped — see
+  [src/furniture/primitives/Crib.tsx](src/furniture/primitives/Crib.tsx).
+  Arranger treats it as a `bed` (wall-flush). Follow-up: changing table,
+  highchair, toy storage; a nursery preset.
+
 ## Realism & content pass (2026-05-29)
 
 Shipped this iteration — recorded here for follow-up polish:
