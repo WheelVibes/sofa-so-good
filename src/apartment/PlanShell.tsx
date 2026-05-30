@@ -111,6 +111,16 @@ export function PlanShell() {
         <FadeWall key={i} box={b} cx={ew / 2} cz={ed / 2} />
       ))}
 
+      {/* Skirting along floor-reaching wall spans */}
+      {boxes
+        .filter((b) => b.cy - b.height / 2 < 0.01)
+        .map((b, i) => (
+          <mesh key={`sk${i}`} position={[b.cx, 0.045, b.cz]} rotation={[0, b.angle, 0]} receiveShadow>
+            <boxGeometry args={[b.thickness + 0.024, 0.09, b.length]} />
+            <meshStandardMaterial color="#eceae4" roughness={0.7} />
+          </mesh>
+        ))}
+
       {/* Window glass */}
       {windows.map((w) => (
         <mesh key={w.id} position={[w.cx, w.cy, w.cz]} rotation={[0, w.angle, 0]}>
