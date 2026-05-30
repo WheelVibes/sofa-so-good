@@ -91,11 +91,7 @@ export function Toolbar() {
           <PresetPicker />
           <TidyHomeButton />
           <StylePicker />
-          <BudgetToggle />
-          <ChecksToggle />
-          <SunStudyToggle />
-          <WalkthroughButton />
-          <ReportButton />
+          <ToolsMenu />
           <Divider />
           <SaveButton />
           <LoadButton />
@@ -557,6 +553,39 @@ function WalkthroughButton() {
     >
       {touring ? '⏹ Stop tour' : '🎬 Walkthrough'}
     </button>
+  );
+}
+
+/** Groups the analysis / presentation tools into one popover to keep the main
+ *  bar uncluttered. Reuses the individual buttons unchanged (they keep their
+ *  own active styling). Shows a dot when any tool is active. */
+function ToolsMenu() {
+  const [open, setOpen] = useState(false);
+  const active = useStore(
+    (s) => s.budgetOpen || s.clearanceOn || s.touring || s.recording,
+  );
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Design tools — budget, clearance checks, sun study, walkthrough, report"
+        className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open || active ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+      >
+        Tools ▾
+      </button>
+      {open ? (
+        <div
+          className="absolute left-0 top-full z-20 mt-1 flex w-44 flex-col gap-1 rounded-lg bg-white p-1.5 shadow"
+          onClick={() => setOpen(false)}
+        >
+          <BudgetToggle />
+          <ChecksToggle />
+          <SunStudyToggle />
+          <WalkthroughButton />
+          <ReportButton />
+        </div>
+      ) : null}
+    </div>
   );
 }
 
