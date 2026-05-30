@@ -261,7 +261,7 @@ export function InspectorPanel() {
       ) : (
         <GltfBody item={item} def={def} />
       )}
-      {def.kind === 'gltf' && def.source === 'builtin' && (
+      {def.kind === 'gltf' && (def.source === 'builtin' || def.source === 'ikea') && (
         <SourceLine
           attribution={def.attribution}
           license={def.license}
