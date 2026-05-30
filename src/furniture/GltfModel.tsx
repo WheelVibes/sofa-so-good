@@ -21,6 +21,24 @@ export function getCachedGltfFootprint(
   return FOOTPRINT_CACHE.get(url) ?? null;
 }
 
+/** Pre-seed the footprint cache from known GLB accessor data (e.g. the IKEA
+ *  scraper's footprint) so collision is correct before first render. No-op if
+ *  the key is already cached. anchorOffset is the local-space center [x,y,z];
+ *  only x/z (→ ox/oz) matter for the OBB. */
+export function seedGltfFootprint(
+  url: string,
+  fp: { w: number; d: number; h: number; anchorOffset: [number, number, number] },
+): void {
+  if (FOOTPRINT_CACHE.has(url)) return;
+  FOOTPRINT_CACHE.set(url, {
+    w: Math.max(0.05, fp.w),
+    d: Math.max(0.05, fp.d),
+    h: Math.max(0.05, fp.h),
+    ox: fp.anchorOffset[0],
+    oz: fp.anchorOffset[2],
+  });
+}
+
 interface GltfModelProps {
   url: string;
   scale?: number;
