@@ -1,8 +1,10 @@
 import { useStore } from '../store';
 import { IdbAssetStore, type AssetRecord } from './IdbAssetStore';
+import { seedGltfFootprint } from '../../furniture/GltfModel';
 import {
   FURNITURE_CATEGORIES,
   type UserGltfDef,
+  type IkeaGltfDef,
   type FurnitureCategory,
 } from '../../furniture/types';
 import type { TexturedMaterialDef, MaterialCategory } from '../../materials/types';
@@ -27,6 +29,30 @@ function safeParse<T>(s: unknown): T | undefined {
  * autosaved layout from localStorage. The split (binaries from IDB,
  * state from localStorage) means each can be wired independently.
  */
+/** Re-attach runtime blob URLs to persisted IKEA defs (binaries live in IDB by
+ *  assetId; the def itself comes from the layout save). Seeds the active
+ *  variant's footprint cache so collision is correct before first render. */
+export async function resolveIkeaRuntimeUrls(defs: IkeaGltfDef[]): Promise<IkeaGltfDef[]> {
+  if (typeof indexedDB === 'undefined') return defs;
+  const out: IkeaGltfDef[] = [];
+  for (const def of defs) {
+    const variants = await Promise.all(
+      def.variants.map(async (v) => {
+        if (!v.assetId) return v;
+        const rec = await IdbAssetStore.get(v.assetId).catch(() => null);
+        if (!rec) return v;
+        return { ...v, runtimeUrl: URL.createObjectURL(rec.blob) };
+      }),
+    );
+    const resolved = { ...def, variants };
+    const active =
+      variants.find((v) => v.finish === def.activeVariant) ?? variants.find((v) => v.runtimeUrl);
+    if (active?.runtimeUrl && active.footprint) seedGltfFootprint(active.runtimeUrl, active.footprint);
+    out.push(resolved);
+  }
+  return out;
+}
+
 export async function hydrateUserAssets(): Promise<void> {
   // IndexedDB is unavailable in some test environments; fail soft so
   // the app still boots in those cases.

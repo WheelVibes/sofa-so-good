@@ -10,8 +10,9 @@
 import { applySerialized } from '../schema';
 import { useStore } from '../store';
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog';
-import { hydrateUserAssets } from './hydrateAssets';
+import { hydrateUserAssets, resolveIkeaRuntimeUrls } from './hydrateAssets';
 import { hydratePacks } from './hydratePacks';
+import type { IkeaGltfDef } from '../../furniture/types';
 import { LocalStorageAdapter, AUTOSAVE_SLOT } from './LocalStorageAdapter';
 import { StorageError } from './StorageAdapter';
 
@@ -42,8 +43,26 @@ export async function hydrate(): Promise<HydrateResult> {
     return { hydratedFromAutosave: false, droppedItemIds: [], errors };
   }
 
+  // IKEA defs are NOT rebuildable from IDB blob meta alone — their rich
+  // metadata (variants/productInfo/compatibility) lives only in the saved
+  // layout JSON. Pull them out, re-resolve each variant's runtime blob URL
+  // from IDB, and merge into the store WITHOUT clobbering the user defs that
+  // hydrateUserAssets already loaded. This must happen BEFORE the `known`
+  // set below is computed, otherwise placed IKEA items get dropped as orphans.
+  const ikeaDefs = saved.userFurniture.filter(
+    (d) => d.source === 'ikea',
+  ) as unknown as IkeaGltfDef[];
+  if (ikeaDefs.length > 0) {
+    const resolved = await resolveIkeaRuntimeUrls(ikeaDefs).catch(() => ikeaDefs);
+    const existing = useStore.getState().userFurniture;
+    const ids = new Set(resolved.map((d) => d.id));
+    useStore
+      .getState()
+      .setUserFurniture([...existing.filter((d) => !ids.has(d.id)), ...resolved]);
+  }
+
   // Build the set of resolvable def ids (built-ins + already-hydrated
-  // user uploads). Items referencing missing defs are dropped.
+  // user uploads + restored IKEA defs). Items referencing missing defs are dropped.
   const userIds = useStore.getState().userFurniture.map((d) => d.id);
   const packIds = useStore.getState().packFurniture.map((d) => d.id);
   const known = new Set<string>([...Object.keys(BUILTIN_CATALOG), ...userIds, ...packIds]);
