@@ -111,6 +111,13 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
       position={[item.position[0], 0, item.position[1]]}
       rotation={[0, item.rotation, 0]}
       onClick={onClick}
+      onDoubleClick={(e) => {
+        if (passive) return;
+        const state = useStore.getState();
+        if (state.cameraMode !== 'orbit') return;
+        e.stopPropagation();
+        state.focusOn(item.position);
+      }}
       onPointerDown={onPointerDown}
     >
       {/* Mirror flips in local space. three.js flips winding/normals for the

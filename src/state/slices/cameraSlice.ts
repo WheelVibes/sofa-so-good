@@ -9,15 +9,26 @@ export interface CameraSlice {
   topViewNonce: number;
   /** Slow auto-orbit for presentation / recording a turntable clip. */
   autoRotate: boolean;
+  /** Bumped to request the orbit camera re-focus on `focusPoint`. */
+  focusNonce: number;
+  /** World [x, z] the orbit camera should frame on the next focus request. */
+  focusPoint: [number, number] | null;
   setCameraMode: (m: CameraMode) => void;
   requestTopView: () => void;
   toggleAutoRotate: () => void;
+  /** Re-target the orbit camera onto a world point (double-click an item). */
+  focusOn: (point: [number, number]) => void;
 }
 
-export const CAMERA_INITIAL: Pick<CameraSlice, 'cameraMode' | 'topViewNonce' | 'autoRotate'> = {
+export const CAMERA_INITIAL: Pick<
+  CameraSlice,
+  'cameraMode' | 'topViewNonce' | 'autoRotate' | 'focusNonce' | 'focusPoint'
+> = {
   cameraMode: 'orbit',
   topViewNonce: 0,
   autoRotate: false,
+  focusNonce: 0,
+  focusPoint: null,
 };
 
 export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set) => ({
@@ -26,4 +37,5 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set) => 
   requestTopView: () =>
     set((s) => ({ topViewNonce: s.topViewNonce + 1, cameraMode: 'orbit' })),
   toggleAutoRotate: () => set((s) => ({ autoRotate: !s.autoRotate })),
+  focusOn: (point) => set((s) => ({ focusPoint: point, focusNonce: s.focusNonce + 1 })),
 });

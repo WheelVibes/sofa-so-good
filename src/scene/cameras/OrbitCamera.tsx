@@ -38,6 +38,24 @@ export function OrbitCamera() {
     c.update();
   }, [topViewNonce, camera]);
 
+  // Double-click an item → smoothly re-target the orbit pivot onto it and
+  // dolly in to a comfortable framing distance (keeps the current view angle).
+  const focusNonce = useStore((s) => s.focusNonce);
+  useEffect(() => {
+    if (focusNonce === 0) return;
+    const c = controlsRef.current;
+    const p = useStore.getState().focusPoint;
+    if (!c || !p) return;
+    const dest = new Vector3(p[0], 0.6, p[1]);
+    const offset = camera.position.clone().sub(c.target);
+    const dist = offset.length();
+    const targetDist = Math.min(dist, 4.5); // dolly in if far
+    offset.setLength(targetDist);
+    c.target.copy(dest);
+    camera.position.copy(dest).add(offset);
+    c.update();
+  }, [focusNonce, camera]);
+
   // Shift + two-finger trackpad scroll → pan. Wheel events fire in capture
   // phase before OrbitControls' listener so we can swallow them and translate
   // camera + target in screen space ourselves.
