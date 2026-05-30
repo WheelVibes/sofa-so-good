@@ -57,8 +57,22 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     get().pushHistoryCoalesced('delete');
     set((s) => {
       const ids = s.selectedItemIds.filter((x) => x !== id);
+      const deleted = s.items.find((it) => it.id === id);
+      // Auto-dissolve: if deleting this item leaves its group with a single
+      // member, that lone member is no longer a group either.
+      const dissolveGroup =
+        deleted?.groupId != null &&
+        s.items.filter((it) => it.groupId === deleted.groupId && it.id !== id).length < 2
+          ? deleted.groupId
+          : null;
       return {
-        items: s.items.filter((it) => it.id !== id),
+        items: s.items
+          .filter((it) => it.id !== id)
+          .map((it) =>
+            dissolveGroup != null && it.groupId === dissolveGroup
+              ? { ...it, groupId: undefined }
+              : it,
+          ),
         selectedItemId:
           s.selectedItemId === id
             ? ids.length > 0
