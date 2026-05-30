@@ -36,7 +36,7 @@ export function buildReportHtml(
   for (const it of items) {
     const def = catalog[it.defId];
     if (!def) continue;
-    const each = itemPrice(def.id, def.category);
+    const each = itemPrice(def, def.category);
     budget += each;
     if (!byCat.has(def.category)) byCat.set(def.category, new Map());
     const m = byCat.get(def.category)!;

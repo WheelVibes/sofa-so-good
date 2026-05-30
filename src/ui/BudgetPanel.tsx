@@ -44,7 +44,7 @@ export function BudgetPanel() {
       const def = catalog[it.defId];
       if (!def) continue;
       const cat = def.category;
-      const each = itemPrice(def.id, cat);
+      const each = itemPrice(def, cat);
       total += each;
       count += 1;
       if (!byCat.has(cat)) byCat.set(cat, new Map());

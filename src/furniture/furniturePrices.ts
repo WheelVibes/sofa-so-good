@@ -4,7 +4,7 @@
  * for a "what would furnishing this cost?" ballpark, clearly labelled as an
  * estimate in the UI. A per-item table overrides a per-category fallback.
  */
-import type { FurnitureCategory, FurnitureType } from './types';
+import type { FurnitureCategory, FurnitureDef } from './types';
 
 /** Fallback price by category when an item has no explicit entry. */
 const CATEGORY_BASE: Record<FurnitureCategory, number> = {
@@ -91,7 +91,15 @@ const ITEM_PRICE: Record<string, number> = {
   'wall-shelf': 60,
 };
 
-/** Estimated price (SGD) for one item of `defId` in `category`. */
-export function itemPrice(defId: FurnitureType, category: FurnitureCategory): number {
-  return ITEM_PRICE[defId] ?? CATEGORY_BASE[category] ?? 100;
+/** Estimated price (SGD) for one item. An IKEA def's active-variant price wins;
+ *  else a per-item table entry; else the per-category base; else 100. */
+export function itemPrice(
+  def: Pick<FurnitureDef, 'id' | 'category'> & Partial<FurnitureDef>,
+  category: FurnitureCategory,
+): number {
+  if (def.kind === 'gltf' && def.source === 'ikea' && def.variants) {
+    const active = def.variants.find((v) => v.finish === def.activeVariant) ?? def.variants[0];
+    if (typeof active?.price === 'number') return active.price;
+  }
+  return ITEM_PRICE[def.id] ?? CATEGORY_BASE[category] ?? 100;
 }
