@@ -45,7 +45,7 @@ export function Scene() {
         // Record (.webm) capture features reliably grab rendered frames.
         preserveDrawingBuffer: true,
         toneMapping: ACESFilmicToneMapping,
-        toneMappingExposure: 1.05,
+        toneMappingExposure: 1.05, // initial only — Lighting.tsx drives this per-frame from grade(altitude)
       }}
     >
       <Sky />
