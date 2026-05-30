@@ -158,6 +158,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
     },
     extraItems: [
       { id: 'japandi-feature', defId: 'feature-wall', position: [12.53, 2.45], rotation: -Math.PI / 2, props: { width: 3.0, height: 2.55, style: 'fluted', color: '#a8855a', finish: 'wood' } },
+      { id: 'japandi-bench', defId: 'bench', position: [1.05, 2.55], rotation: 0, props: { style: 'upholstered', material: 'fabric', color: '#cdb696', legColor: '#3a3026' } },
     ],
   },
   {
@@ -220,6 +221,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       { id: 'ol-armchair', defId: 'armchair', position: [11.5, 7.3], rotation: Math.PI, props: { style: 'wingback', material: 'velvet', color: '#3f6b5e', sheen: 0.3 } },
       { id: 'ol-sidetable', defId: 'side-table', position: [10.7, 7.3], rotation: 0, props: { shape: 'drum', topColor: '#5a3f2a' } },
       { id: 'ol-shoe', defId: 'shoe-cabinet', position: [12.35, 7.45], rotation: -Math.PI / 2, props: { width: 0.9, depth: 0.3 } },
+    ],
+    extraItems: [
+      { id: 'ol-bench', defId: 'bench', position: [1.05, 2.55], rotation: 0, props: { style: 'storage', material: 'fabric', color: '#8a6b48', legColor: '#4a3722' } },
     ],
   },
   {
