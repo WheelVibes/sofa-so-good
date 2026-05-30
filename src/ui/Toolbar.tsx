@@ -16,6 +16,8 @@ import { arrangeAllRooms, arrangeAllRoomsForPlan } from '../layout/autoArrange';
 import { blockedDoorItems } from '../layout/clearance';
 import { isDefaultPlan } from '../floorplan/planGeometry';
 import { buildReportHtml } from './report';
+import { FURNITURE_SETS } from '../furniture/furnitureSets';
+import { planRoomArea } from '../floorplan/types';
 import { canRecord } from '../scene/RecordController';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
@@ -87,6 +89,7 @@ export function Toolbar() {
           <SnapToggle />
           <Divider />
           <CatalogToggle />
+          <SetsMenu />
           <FloorPlanButton />
           <PresetPicker />
           <TidyHomeButton />
@@ -690,6 +693,58 @@ function ChecksToggle() {
         <span className="ml-1 rounded-full bg-rose-500 px-1.5 text-[11px] font-semibold text-white">{count}</span>
       )}
     </button>
+  );
+}
+
+/** Drops a pre-arranged furniture set (group-selected, ready to drag). */
+function SetsMenu() {
+  const [open, setOpen] = useState(false);
+  const drop = (setId: string) => {
+    const set = FURNITURE_SETS.find((s) => s.id === setId);
+    if (!set) return;
+    const st = useStore.getState();
+    // Drop at the centre of the largest room in the active plan.
+    const rooms = st.floorPlan.rooms;
+    const big = rooms.reduce((a, b) => (planRoomArea(b) > planRoomArea(a) ? b : a), rooms[0]);
+    const base: [number, number] = big
+      ? [big.origin[0] + big.width / 2, big.origin[1] + big.depth / 2]
+      : [st.floorPlan.extent[0] / 2, st.floorPlan.extent[1] / 2];
+    st.pushHistory();
+    const stamp = Date.now().toString(36);
+    const newItems = set.items.map((e, i) => ({
+      id: `set-${stamp}-${i}`,
+      defId: e.defId,
+      position: [base[0] + e.dx, base[1] + e.dz] as [number, number],
+      rotation: e.rotation,
+      props: e.props ?? {},
+    }));
+    st.setItems([...st.items, ...newItems]);
+    st.setSelectedItemIds(newItems.map((n) => n.id));
+    setOpen(false);
+  };
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Drop a pre-arranged furniture set (then drag it into place)"
+        className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+      >
+        Sets ▾
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-1 w-44 rounded-lg bg-white p-1 text-xs shadow">
+          {FURNITURE_SETS.map((s) => (
+            <button
+              key={s.id}
+              onClick={() => drop(s.id)}
+              className="block w-full rounded px-2 py-1.5 text-left hover:bg-neutral-100"
+            >
+              {s.name}
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
   );
 }
 
