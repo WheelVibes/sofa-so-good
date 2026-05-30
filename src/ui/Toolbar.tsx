@@ -83,6 +83,7 @@ export function Toolbar() {
           <SnapToggle />
           <Divider />
           <CatalogToggle />
+          <FloorPlanButton />
           <PresetPicker />
           <TidyHomeButton />
           <StylePicker />
@@ -489,6 +490,21 @@ function CatalogToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Catalog
+    </button>
+  );
+}
+
+/** Opens the 2D floor-plan editor (design a different apartment shell). */
+function FloorPlanButton() {
+  const editing = useStore((s) => s.floorPlanEditing);
+  const toggle = useStore((s) => s.toggleFloorPlanEditing);
+  return (
+    <button
+      onClick={toggle}
+      title="Edit the floor plan — walls, rooms, doors, windows + room areas"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${editing ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      Floor plan
     </button>
   );
 }
