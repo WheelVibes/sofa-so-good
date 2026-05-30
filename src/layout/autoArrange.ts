@@ -480,7 +480,7 @@ function arrangeBedroom(
   for (const it of get(['storage', 'desk'])) {
     snapToWall(it, rect, [...otherEdges, bedEdge], world, ctx);
   }
-  for (const it of get(['deskChair'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx);
+  placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx);
 
   // Foot-of-bed bench, centred at the foot if there's room.
   for (const b of get(['lowTable'])) {
@@ -494,12 +494,43 @@ function arrangeBedroom(
   tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx);
 }
 
+/** Place each desk chair just in front of its nearest desk, facing it (so a
+ *  study nook reads as a set rather than a chair stranded against a wall). */
+function placeDeskChairs(
+  desks: FurnitureItem[],
+  chairs: FurnitureItem[],
+  rect: Rect,
+  world: FurnitureItem[],
+  ctx: Ctx,
+) {
+  for (const ch of chairs) {
+    // Use the desk's PLACED transform from `world` where available.
+    let best: FurnitureItem | undefined;
+    let bestD = Infinity;
+    for (const d of desks) {
+      const placed = world.find((w) => w.id === d.id) ?? d;
+      const dist = Math.hypot(placed.position[0] - ch.position[0], placed.position[1] - ch.position[1]);
+      if (dist < bestD) {
+        bestD = dist;
+        best = placed;
+      }
+    }
+    if (best) {
+      const f: [number, number] = [Math.sin(best.rotation), Math.cos(best.rotation)];
+      const pos: [number, number] = [best.position[0] + f[0] * 0.55, best.position[1] + f[1] * 0.55];
+      if (tryPlace(ch, pos, best.rotation + Math.PI, world, ctx) !== ch) continue;
+    }
+    snapToWall(ch, rect, [nearestEdge(ch.position, rect)], world, ctx);
+  }
+}
+
 /** Generic (kitchen / bathroom / utility): push wall-backed pieces flush to
  *  their nearest wall facing in, tuck accents into corners. */
 function arrangeGeneric(rect: Rect, get: Getter, world: FurnitureItem[], ctx: Ctx) {
   for (const it of get(['storage', 'desk', 'bed', 'mediaConsole', 'shoe'])) {
     snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx);
   }
+  placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx);
   for (const it of get(['seating', 'armchair', 'diningChair'])) {
     snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx);
   }
