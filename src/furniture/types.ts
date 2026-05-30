@@ -47,6 +47,7 @@ export type FurnitureType = string;
 export type PrimitiveKind =
   | 'Bed'
   | 'Sofa'
+  | 'SofaSectional'
   | 'DiningTable'
   | 'KitchenCounter'
   | 'Wardrobe'

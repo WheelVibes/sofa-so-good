@@ -451,6 +451,57 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'sofa-lshape': {
+    kind: 'parametric',
+    id: 'sofa-lshape',
+    name: 'L-shaped sectional',
+    category: 'seating',
+    primitive: 'SofaSectional',
+    defaultFootprint: { w: 2.5, d: 1.95, h: 0.85 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Main width', min: 2.0, max: 3.0, step: 0.1, default: 2.5, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.9, max: 1.05, step: 0.05, default: 0.95, unit: 'm' },
+      { kind: 'number', key: 'chaise', label: 'Chaise', min: 0.7, max: 1.4, step: 0.05, default: 1.0, unit: 'm' },
+      {
+        kind: 'enum',
+        key: 'chaiseSide',
+        label: 'Chaise side',
+        default: 'right',
+        options: [
+          { value: 'right', label: 'Right' },
+          { value: 'left', label: 'Left' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Upholstery', default: '#8a9098' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'pattern',
+        label: 'Weave',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain' },
+          { value: 'striped', label: 'Striped' },
+          { value: 'herringbone', label: 'Herringbone' },
+          { value: 'checkered', label: 'Checkered' },
+          { value: 'plaid', label: 'Plaid' },
+          { value: 'dots', label: 'Dots' },
+        ],
+      },
+      { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#b5683f' },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
 
   // ── Tables ──────────────────────────────────────────────────────────────
   'dining-table-4': {

@@ -24,6 +24,10 @@ export interface LayoutPreset {
   wall: MaterialId;
   /** Per-defId cosmetic prop overrides merged onto the default items. */
   style: Record<string, ParamProps>;
+  /** Optional re-modelled living/dining arrangement (a researched real-world
+   *  layout). When present these REPLACE the default `default-ld-*` items;
+   *  other rooms keep their default placements (restyled by `style`). */
+  livingDining?: LayoutEntry[];
 }
 
 /** Rooms a preset restyles (the "designed" living spaces; wet/utility rooms
@@ -177,6 +181,41 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
     },
   },
   {
+    id: 'open-lounge',
+    name: 'Open-Concept Lounge',
+    description: 'Re-modelled L/D: L-sectional facing a media wall, open dining.',
+    dryFloor: 'floor-wood-oak',
+    wall: 'wall-paint-greige',
+    style: {},
+    livingDining: [
+      // ── Lounge zone (north), seating faces the east media wall ──
+      { id: 'ol-sectional', defId: 'sofa-lshape', position: [9.95, 2.75], rotation: -Math.PI / 2, props: { width: 2.6, depth: 0.95, chaise: 1.0, chaiseSide: 'right', color: '#6f7a74', material: 'fabric', pattern: 'herringbone', pillowColor: '#c4683f' } },
+      { id: 'ol-rug', defId: 'rug', position: [11.0, 2.75], rotation: 0, props: { width: 2.2, depth: 2.6, color: '#cfc6b4', borderColor: '#5a4a32', pattern: 'plain' } },
+      { id: 'ol-coffee', defId: 'coffee-table', position: [11.05, 2.75], rotation: 0, props: { shape: 'oval', width: 1.1, depth: 0.6, color: '#5a3f2a', finish: 'wood' } },
+      { id: 'ol-media', defId: 'tv-console', position: [12.2, 2.75], rotation: -Math.PI / 2, props: { width: 2.0, base: 'legs', front: 'doors', color: '#4a3a2c', finish: 'wood' } },
+      { id: 'ol-tv', defId: 'tv-wall', position: [12.48, 2.75], rotation: -Math.PI / 2, props: { size: '65', mount: 'wall', mountHeight: 1.3, screen: 'on', screenContent: 'landscape' } },
+      { id: 'ol-cove', defId: 'cove-light', position: [12.5, 2.6], rotation: -Math.PI / 2, props: { length: 3.4, mountHeight: 2.38 } },
+      { id: 'ol-plant', defId: 'potted-plant', position: [9.0, 4.5], rotation: 0, props: { type: 'fiddle', size: 'large', potShape: 'square', leafColor: '#3f7a3f' } },
+      { id: 'ol-lamp', defId: 'floor-lamp', position: [11.5, 1.85], rotation: 0, props: { base: 'tripod', shade: 'drum' } },
+      { id: 'ol-fan', defId: 'ceiling-fan', position: [10.7, 2.75], rotation: 0, props: {} },
+      { id: 'ol-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
+      { id: 'ol-curtain', defId: 'curtains', position: [10.85, 1.5], rotation: 0, props: { width: 2.8, height: 2.3, color: '#cfc6b4' } },
+      // ── Dining zone (south), open to the lounge ──
+      { id: 'ol-dining', defId: 'dining-table-4', position: [10.7, 5.75], rotation: 0, props: { seats: '6', shape: 'oval', topColor: '#5a3f2a', legColor: '#3a2c1d' } },
+      { id: 'ol-dc-n1', defId: 'dining-chair', position: [9.95, 5.05], rotation: 0, props: { style: 'upholstered', seatColor: '#8a7f70' } },
+      { id: 'ol-dc-n2', defId: 'dining-chair', position: [10.7, 5.05], rotation: 0, props: { style: 'upholstered', seatColor: '#8a7f70' } },
+      { id: 'ol-dc-n3', defId: 'dining-chair', position: [11.45, 5.05], rotation: 0, props: { style: 'upholstered', seatColor: '#8a7f70' } },
+      { id: 'ol-dc-s1', defId: 'dining-chair', position: [9.95, 6.45], rotation: Math.PI, props: { style: 'upholstered', seatColor: '#8a7f70' } },
+      { id: 'ol-dc-s2', defId: 'dining-chair', position: [10.7, 6.45], rotation: Math.PI, props: { style: 'upholstered', seatColor: '#8a7f70' } },
+      { id: 'ol-dc-s3', defId: 'dining-chair', position: [11.45, 6.45], rotation: Math.PI, props: { style: 'upholstered', seatColor: '#8a7f70' } },
+      { id: 'ol-pendant', defId: 'ceiling-light', position: [10.7, 5.75], rotation: 0, props: { style: 'pendant', shade: 'drum' } },
+      // ── Entry alcove (SE): reading nook + shoe storage ──
+      { id: 'ol-armchair', defId: 'armchair', position: [11.5, 7.3], rotation: Math.PI, props: { style: 'wingback', material: 'velvet', color: '#3f6b5e', sheen: 0.3 } },
+      { id: 'ol-sidetable', defId: 'side-table', position: [10.7, 7.3], rotation: 0, props: { shape: 'drum', topColor: '#5a3f2a' } },
+      { id: 'ol-shoe', defId: 'shoe-cabinet', position: [12.35, 7.45], rotation: -Math.PI / 2, props: { width: 0.9, depth: 0.3 } },
+    ],
+  },
+  {
     id: 'modern-mono',
     name: 'Modern Mono',
     description: 'Grey porcelain, charcoal walls, glossy monochrome.',
@@ -204,14 +243,26 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
   },
 ];
 
-/** Build the fully-hydrated, restyled item list for a preset (default
- *  positions + schema defaults + the item's own overrides + the preset
- *  style override, in increasing precedence). */
+/** Hydrate one entry: schema defaults < the entry's own props < an optional
+ *  per-defId style override (highest precedence). */
+function hydrate(entry: LayoutEntry, style: Record<string, ParamProps>): LayoutEntry {
+  const def = BUILTIN_CATALOG[entry.defId];
+  const base = def?.kind === 'parametric' ? defaultParamProps(def) : {};
+  const override = style[entry.defId] ?? {};
+  return { ...entry, props: { ...base, ...entry.props, ...override } };
+}
+
+/** Build the fully-hydrated, restyled item list for a preset. With a
+ *  `livingDining` arrangement the default `default-ld-*` items are swapped
+ *  for it (those explicit items are taken as authored — no style override);
+ *  otherwise every default item is restyled in place. */
 export function buildPresetItems(preset: LayoutPreset): LayoutEntry[] {
-  return defaultLayout().map((entry) => {
-    const def = BUILTIN_CATALOG[entry.defId];
-    const base = def?.kind === 'parametric' ? defaultParamProps(def) : {};
-    const override = preset.style[entry.defId] ?? {};
-    return { ...entry, props: { ...base, ...entry.props, ...override } };
-  });
+  if (preset.livingDining) {
+    const others = defaultLayout()
+      .filter((e) => !e.id.startsWith('default-ld-'))
+      .map((e) => hydrate(e, preset.style));
+    const ld = preset.livingDining.map((e) => hydrate(e, {}));
+    return [...others, ...ld];
+  }
+  return defaultLayout().map((e) => hydrate(e, preset.style));
 }

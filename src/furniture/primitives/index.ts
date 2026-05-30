@@ -9,6 +9,7 @@ import type { ComponentType } from 'react';
 import type { ParamProps, PrimitiveKind } from '../types';
 import { Bed } from './Bed';
 import { Sofa } from './Sofa';
+import { SofaSectional } from './SofaSectional';
 import { DiningTable } from './DiningTable';
 import { KitchenCounter } from './KitchenCounter';
 import { Wardrobe } from './Wardrobe';
@@ -62,6 +63,7 @@ export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Bed,
   Sofa,
+  SofaSectional,
   DiningTable,
   KitchenCounter,
   Wardrobe,
