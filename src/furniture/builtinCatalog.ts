@@ -2788,6 +2788,40 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Kitchen ─────────────────────────────────────────────────────────────
+  piano: {
+    kind: 'parametric',
+    id: 'piano',
+    name: 'Piano',
+    category: 'decor',
+    keywords: ['upright', 'digital piano', 'keyboard', 'music'],
+    primitive: 'Piano',
+    defaultFootprint: { w: 1.45, d: 0.6, h: 1.28 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'upright',
+        options: [
+          { value: 'upright', label: 'Upright' },
+          { value: 'digital', label: 'Digital console' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Body', default: '#23211f' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'gloss',
+        options: [
+          { value: 'gloss', label: 'Polished' },
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Matte' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.6 },
+    ],
+  },
   'kitchen-island': {
     kind: 'parametric',
     id: 'kitchen-island',
