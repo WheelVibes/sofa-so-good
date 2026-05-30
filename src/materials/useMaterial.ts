@@ -24,9 +24,26 @@ export function useMaterials(): Record<MaterialId, MaterialDef> {
   return merged;
 }
 
+/** A custom user-chosen colour is encoded directly as a `#RRGGBB` finish id;
+ *  synthesise a tinted plaster def for it so any wall/floor can be painted an
+ *  arbitrary colour without a catalog entry. The id doubles as the cache key,
+ *  so each colour caches its own material. */
+export function customColorDef(id: string): MaterialDef {
+  return {
+    id,
+    name: 'Custom colour',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: id,
+    uvScale: [2.5, 2.5],
+  };
+}
+
 /** Resolves a MaterialId to a def, falling back to the first builtin. */
 export function useMaterialDef(id: MaterialId): MaterialDef {
   const materials = useMaterials();
+  if (typeof id === 'string' && id.startsWith('#')) return customColorDef(id);
   const def = materials[id];
   if (def) return def;
   const firstKey = Object.keys(materials)[0]!;

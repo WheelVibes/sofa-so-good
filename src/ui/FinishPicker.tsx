@@ -117,6 +117,7 @@ export function FinishPicker() {
             active={finishes.floor[roomId]}
             onSelect={(id) => handleSelect('floor', id)}
             onRemoveUser={removeUserMaterial}
+            onCustom={(hex) => handleSelect('floor', hex)}
           />
           <SwatchGroup
             label="Walls"
@@ -124,6 +125,7 @@ export function FinishPicker() {
             active={finishes.walls[roomId]}
             onSelect={(id) => handleSelect('wall', id)}
             onRemoveUser={removeUserMaterial}
+            onCustom={(hex) => handleSelect('wall', hex)}
           />
           <div className="mt-2 flex gap-2">
             <button
@@ -156,6 +158,7 @@ interface SwatchGroupProps {
   active: string;
   onSelect: (id: string) => void;
   onRemoveUser: (id: string) => void;
+  onCustom?: (hex: string) => void;
 }
 
 function providerTag(def: MaterialDef): { label: string; cls: string } | null {
@@ -166,7 +169,8 @@ function providerTag(def: MaterialDef): { label: string; cls: string } | null {
   return null;
 }
 
-function SwatchGroup({ label, items, active, onSelect, onRemoveUser }: SwatchGroupProps) {
+function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom }: SwatchGroupProps) {
+  const customActive = typeof active === 'string' && active.startsWith('#');
   return (
     <section className="mb-4 last:mb-0">
       <div className="mb-2 font-semibold text-neutral-700">{label}</div>
@@ -224,6 +228,33 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser }: SwatchGro
             </div>
           );
         })}
+        {/* Custom colour: a native colour picker styled as a swatch tile. */}
+        {onCustom ? (
+          <label
+            className={
+              'group relative flex cursor-pointer flex-col overflow-hidden rounded border ' +
+              (customActive ? 'border-blue-500 ring-2 ring-blue-200' : 'border-neutral-200 hover:border-neutral-400')
+            }
+            title="Custom colour"
+          >
+            <span
+              className="block h-10 w-full"
+              style={{
+                background: customActive
+                  ? (active as string)
+                  : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
+              }}
+            />
+            <span className="block px-1 py-1 text-[10px] leading-tight">Custom…</span>
+            <input
+              type="color"
+              value={customActive ? (active as string) : '#cccccc'}
+              onChange={(e) => onCustom(e.target.value)}
+              className="absolute inset-0 cursor-pointer opacity-0"
+              aria-label={`Custom ${label.toLowerCase()} colour`}
+            />
+          </label>
+        ) : null}
       </div>
     </section>
   );
