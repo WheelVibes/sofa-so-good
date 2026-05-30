@@ -49,6 +49,7 @@ export type PrimitiveKind =
   | 'Sofa'
   | 'SofaSectional'
   | 'FeatureWall'
+  | 'ConsoleTable'
   | 'DiningTable'
   | 'KitchenCounter'
   | 'Wardrobe'

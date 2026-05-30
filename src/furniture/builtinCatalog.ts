@@ -1049,6 +1049,42 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'console-table': {
+    kind: 'parametric',
+    id: 'console-table',
+    name: 'Console table',
+    category: 'tables',
+    primitive: 'ConsoleTable',
+    defaultFootprint: { w: 1.2, d: 0.35, h: 0.8 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 1.6, step: 0.05, default: 1.2, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.28, max: 0.45, step: 0.02, default: 0.35, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Top / body', default: '#6f553f' },
+      { kind: 'color', key: 'legColor', label: 'Legs', default: '#4a3722' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'shelf',
+        options: [
+          { value: 'shelf', label: 'Lower shelf' },
+          { value: 'drawers', label: 'Drawers' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
   'side-table': {
     kind: 'parametric',
     id: 'side-table',
