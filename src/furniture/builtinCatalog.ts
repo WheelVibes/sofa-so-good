@@ -1753,10 +1753,12 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 1.0, d: 0.1, h: 0.08 },
     footprintParams: { w: 'width' },
     mounted: true,
-    verticalSpan: { base: 0.92, top: 1.08 },
+    // Sits just below a standard wall TV (whose span starts ~0.9 m) and above
+    // a media console — a slim band so it clears both.
+    verticalSpan: { base: 0.7, top: 0.86 },
     paramSchema: [
       { kind: 'number', key: 'width', label: 'Width', min: 0.6, max: 1.4, step: 0.05, default: 1.0, unit: 'm' },
-      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 0.5, max: 1.6, step: 0.05, default: 1.0, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 0.5, max: 1.6, step: 0.05, default: 0.78, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Body', default: '#202024' },
       {
         kind: 'enum',
