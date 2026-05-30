@@ -54,6 +54,27 @@ export const FURNITURE_SETS: FurnitureSet[] = [
     ],
   },
   {
+    id: 'nursery',
+    name: 'Nursery set',
+    items: [
+      { defId: 'crib', dx: 0, dz: 0, rotation: 0 },
+      { defId: 'changing-table', dx: 1.55, dz: 0, rotation: 0 },
+      { defId: 'armchair', dx: -1.4, dz: 0.1, rotation: Math.PI / 2, props: { style: 'standard' } },
+      { defId: 'floor-lamp', dx: -1.4, dz: -0.9, rotation: 0 },
+    ],
+  },
+  {
+    id: 'reading-nook',
+    name: 'Reading nook',
+    items: [
+      { defId: 'armchair', dx: 0, dz: 0, rotation: 0, props: { style: 'wingback' } },
+      { defId: 'floor-lamp', dx: 0.75, dz: -0.35, rotation: 0, props: { base: 'arc' } },
+      { defId: 'side-table', dx: -0.6, dz: 0.05, rotation: 0 },
+      { defId: 'ottoman', dx: 0, dz: 0.7, rotation: 0, props: { shape: 'round' } },
+      { defId: 'potted-plant', dx: 1.0, dz: 0.4, rotation: 0, props: { size: 'large', type: 'fiddle' } },
+    ],
+  },
+  {
     id: 'study',
     name: 'Study nook',
     items: [
