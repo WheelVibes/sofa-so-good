@@ -120,6 +120,15 @@ export function PlanShell() {
             <meshStandardMaterial color="#eceae4" roughness={0.7} />
           </mesh>
         ))}
+      {/* Crown molding along ceiling-reaching wall spans */}
+      {boxes
+        .filter((b) => b.cy + b.height / 2 > plan.ceilingHeight - 0.01)
+        .map((b, i) => (
+          <mesh key={`cr${i}`} position={[b.cx, plan.ceilingHeight - 0.04, b.cz]} rotation={[0, b.angle, 0]} receiveShadow>
+            <boxGeometry args={[b.thickness + 0.024, 0.08, b.length]} />
+            <meshStandardMaterial color="#eceae4" roughness={0.7} />
+          </mesh>
+        ))}
 
       {/* Window glass */}
       {windows.map((w) => (
