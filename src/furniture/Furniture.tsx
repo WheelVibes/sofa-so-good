@@ -107,6 +107,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
                   : def.scale) ?? 1
               }
               tint={typeof item.props['tint'] === 'string' ? item.props['tint'] : undefined}
+              finishOverrides={'finishOverrides' in def ? def.finishOverrides : undefined}
             />
           );
         })()}
