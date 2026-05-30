@@ -341,3 +341,19 @@ seamless tiler); real planar mirror reflections (cost).
   recolour, placement-semantics → collision/auto-arrange, footprint pre-seed,
   pricing, compatibility resolver port, import pipeline, IKEA licensing caveat)
   in [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md).
+- ~~**Tiered GLB LOD pipeline (done, 2026-05-31)**~~ — offline `npm run optimize:glb`
+  ([python/scripts/optimize_glb_lod.mjs](python/scripts/optimize_glb_lod.mjs))
+  writes `-low`/`-medium` variants (≤512/≤1024px tex + ~50/75% tris, WebP);
+  app picks by quality tier ([src/furniture/gltf/lod.ts](src/furniture/gltf/lod.ts))
+  with a runtime texture-downscale fallback
+  ([src/furniture/gltf/textureBudget.ts](src/furniture/gltf/textureBudget.ts)).
+  See [docs/ikea-import-app-support.md §11](docs/ikea-import-app-support.md).
+- **LOD KTX2 upgrade (deferred)** — `optimize_glb_lod.mjs` always emits WebP; it
+  does NOT yet use KTX2. To get the further GPU-VRAM win, install a `toktx`/basisu
+  binary (KTX-Software; not in apt — use the official `.deb` release or
+  `brew install ktx`, **staying on the 4.3.x line** since 4.4+ replaces `toktx`
+  with the unified `ktx` CLI) and switch `textureCompress` to
+  `targetFormat: 'ktx2'` (gate on the binary being on PATH, else fall back to
+  WebP). The app already decodes KTX2 (drei auto-wires it). Note KTX2/Basis
+  encoding is seconds/texture vs ms for WebP — the full re-run gets much slower.
+  Related: the older asset-pipeline KTX2 TODO under §Assets.
