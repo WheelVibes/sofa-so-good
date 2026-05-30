@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../state/store';
 import { useCatalog } from '../furniture/catalog';
 import { canPlace, itemFootprint } from '../collision/placement';
+import { snapToGrid } from './snap';
 import { Furniture } from '../furniture/Furniture';
 import {
   defaultParamProps,
@@ -76,8 +77,14 @@ export function PlacementGhost() {
     raycaster.current.setFromCamera(pointerNDC.current, camera);
     const hit = raycaster.current.ray.intersectPlane(FLOOR_PLANE, target.current);
     if (!hit) return;
-    groupRef.current.position.set(target.current.x, 0, target.current.z);
-    ghostItem.position = [target.current.x, target.current.z];
+    // Snap the drop preview to the alignment grid when enabled, so what the
+    // user sees (and the committed position) lands on the grid.
+    const st = useStore.getState();
+    let px = target.current.x;
+    let pz = target.current.z;
+    if (st.snapEnabled) [px, pz] = snapToGrid([px, pz], st.gridSize);
+    groupRef.current.position.set(px, 0, pz);
+    ghostItem.position = [px, pz];
     const valid = canPlace(ghostItem, def, {
       others: items,
       defs: catalog,
@@ -87,9 +94,7 @@ export function PlacementGhost() {
       validRef.current = valid;
       tintMaterial.color.copy(valid ? greenColor : redColor);
     }
-    useStore
-      .getState()
-      .setGhostWorld([target.current.x, target.current.z], valid);
+    useStore.getState().setGhostWorld([px, pz], valid);
   });
 
   if (!def || !ghostItem) return null;

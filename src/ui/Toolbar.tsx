@@ -242,18 +242,30 @@ function StylePicker() {
   );
 }
 
-/** Toggles snap-to-grid for precise furniture alignment while dragging. */
+/** Toggles snap-to-grid (and the floor grid overlay) plus a cell-size cycle. */
 function SnapToggle() {
   const snapEnabled = useStore((s) => s.snapEnabled);
   const toggleSnap = useStore((s) => s.toggleSnap);
+  const gridSize = useStore((s) => s.gridSize);
+  const cycleGridSize = useStore((s) => s.cycleGridSize);
+  const label = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`;
   return (
-    <button
-      onClick={toggleSnap}
-      title="Snap dragged furniture to a 10 cm grid for precise alignment"
-      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${snapEnabled ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
-    >
-      Snap
-    </button>
+    <div className="flex items-stretch overflow-hidden rounded">
+      <button
+        onClick={toggleSnap}
+        title="Snap furniture to the alignment grid and show the floor grid"
+        className={`whitespace-nowrap px-3 py-1 text-sm ${snapEnabled ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+      >
+        Snap
+      </button>
+      <button
+        onClick={cycleGridSize}
+        title="Grid cell size — click to cycle 10 / 25 / 50 cm / 1 m"
+        className={`whitespace-nowrap border-l px-2 py-1 text-xs ${snapEnabled ? 'border-neutral-700 bg-neutral-700 text-neutral-100 hover:bg-neutral-600' : 'border-neutral-300 bg-neutral-100 text-neutral-500 hover:bg-neutral-200'}`}
+      >
+        {label}
+      </button>
+    </div>
   );
 }
 

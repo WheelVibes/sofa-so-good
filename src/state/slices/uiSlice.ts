@@ -28,8 +28,11 @@ export interface UiSlice {
   qualityOverrides: Partial<QualitySettings>;
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode;
-  /** Snap dragged furniture to a fixed grid for precise alignment. */
+  /** Snap dragged/placed furniture to the alignment grid, and show the grid
+   *  overlay on the floor while it's on. */
   snapEnabled: boolean;
+  /** Alignment-grid cell size in metres (e.g. 0.1 = 10 cm, 1 = 1 m). */
+  gridSize: number;
   /** True while recording the canvas to a downloadable video clip. */
   recording: boolean;
   /** Recently-used custom finish colours (hex), most-recent first. Ephemeral. */
@@ -59,6 +62,10 @@ export interface UiSlice {
   cycleLightsMode: () => void;
   setAutoShadowsOff: (v: boolean) => void;
   toggleSnap: () => void;
+  /** Set the alignment-grid cell size (metres). */
+  setGridSize: (m: number) => void;
+  /** Cycle the grid cell size through the preset sizes. */
+  cycleGridSize: () => void;
   setRecording: (v: boolean) => void;
   /** Record a custom colour as recently-used (deduped, capped at 8). */
   pushRecentColor: (hex: string) => void;
@@ -75,6 +82,7 @@ export const UI_INITIAL: Pick<
   | 'lightsMode'
   | 'autoShadowsOff'
   | 'snapEnabled'
+  | 'gridSize'
   | 'recording'
   | 'recentColors'
 > = {
@@ -87,9 +95,13 @@ export const UI_INITIAL: Pick<
   lightsMode: 'auto',
   autoShadowsOff: false,
   snapEnabled: false,
+  gridSize: 0.5,
   recording: false,
   recentColors: [],
 };
+
+/** Preset alignment-grid cell sizes (metres) the size button cycles through. */
+export const GRID_SIZES = [0.1, 0.25, 0.5, 1] as const;
 
 const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
 const LIGHTS_CYCLE: LightsMode[] = ['auto', 'on', 'off'];
@@ -127,6 +139,12 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
     })),
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
+  setGridSize: (m) => set({ gridSize: m }),
+  cycleGridSize: () =>
+    set((s) => {
+      const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number]);
+      return { gridSize: GRID_SIZES[(i + 1) % GRID_SIZES.length] };
+    }),
   setRecording: (v) => set({ recording: v }),
   pushRecentColor: (hex) =>
     set((s) => ({

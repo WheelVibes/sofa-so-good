@@ -15,6 +15,7 @@ import { FurnitureLayer } from '../furniture/FurnitureLayer';
 import { SelectionOutline } from './selection/SelectionOutline';
 import { MarqueeCameraTracker } from './selection/MarqueeSelector';
 import { PlacementGhost } from './PlacementGhost';
+import { GridOverlay } from './GridOverlay';
 import { DragController } from './DragController';
 import { Effects } from './Effects';
 import { QualityController } from './QualityController';
@@ -46,6 +47,7 @@ export function Scene() {
       <Lighting />
       <FurnitureLights />
       <Apartment />
+      <GridOverlay />
       <FurnitureLayer />
       <SelectionOutline />
       <PlacementGhost />

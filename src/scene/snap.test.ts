@@ -16,4 +16,11 @@ describe('snapToGrid', () => {
     expect(x).toBeCloseTo(3.3, 6);
     expect(z).toBeCloseTo(4.4, 6);
   });
+
+  it('snaps to coarser custom grids (0.5 m, 1 m)', () => {
+    expect(snapToGrid([1.2, 1.8], 0.5)).toEqual([1.0, 2.0]);
+    const [x, z] = snapToGrid([1.4, 2.6], 1);
+    expect(x).toBeCloseTo(1, 6);
+    expect(z).toBeCloseTo(3, 6);
+  });
 });
