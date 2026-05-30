@@ -332,6 +332,14 @@ export function FloorPlanEditor() {
                 stroke="#22c55e"
               />
             )}
+            {/* Live dimension readout while drawing. */}
+            {draft && (
+              <text x={toPx(draft.x) + 8} y={toPx(draft.z) - 8} fontSize={12} fill="#22c55e" className="select-none">
+                {tool === 'wall'
+                  ? `${Math.hypot(draft.x - draft.x0, draft.z - draft.z0).toFixed(2)} m`
+                  : `${Math.abs(draft.x - draft.x0).toFixed(2)} × ${Math.abs(draft.z - draft.z0).toFixed(2)} m  (${(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0)).toFixed(1)} m²)`}
+              </text>
+            )}
           </svg>
         </div>
 
