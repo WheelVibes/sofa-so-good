@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { BufferGeometry, Float32BufferAttribute } from 'three';
 import { useStore } from '../state/store';
-import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../apartment/constants';
+import { planBounds } from '../floorplan/types';
 
 /**
  * Floor alignment grid. Shown while snap-to-grid is enabled so the user can
@@ -12,12 +12,14 @@ import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../apartment/constants';
 export function GridOverlay() {
   const snapEnabled = useStore((s) => s.snapEnabled);
   const gridSize = useStore((s) => s.gridSize);
+  const plan = useStore((s) => s.floorPlan);
+  const [boundW, boundD] = useMemo(() => planBounds(plan), [plan]);
 
   const { minor, major } = useMemo(() => {
     const g = gridSize > 0 ? gridSize : 0.5;
     // Pad one cell beyond the footprint so the grid fully covers the floor.
-    const W = Math.ceil(APARTMENT_EXT_W / g) * g;
-    const D = Math.ceil(APARTMENT_EXT_D / g) * g;
+    const W = Math.ceil(boundW / g) * g;
+    const D = Math.ceil(boundD / g) * g;
     const minorPts: number[] = [];
     const majorPts: number[] = [];
     const isMetre = (v: number) => Math.abs(v - Math.round(v)) < 1e-6;
@@ -37,7 +39,7 @@ export function GridOverlay() {
       return geo;
     };
     return { minor: mk(minorPts), major: mk(majorPts) };
-  }, [gridSize]);
+  }, [gridSize, boundW, boundD]);
 
   if (!snapEnabled) return null;
   return (
