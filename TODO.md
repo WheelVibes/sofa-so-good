@@ -36,9 +36,13 @@ checkered) on sofa, armchair, dining + office chair, rug, curtains, bedding~~;
 mirror rect/round/frameless~~; ~~walk-in shower~~.
 
 The catalogue is now broadly configurable across colour × material × finish ×
-sheen × form/shape × weave. Possible further polish: per-cushion accent
-pillow patterns; abstract/print wall-art textures; more weave motifs (plaid,
-dots); heated-ladder towel rail.
+sheen × form/shape × weave. ~~Custom wall/floor/accent colour picker~~ (any
+hex, no catalog entry, persists as a free string) and an expanded curated
+palette shipped; ~~plaid + dots weave motifs~~; ~~per-cushion accent pillow
+weave~~. Furniture colours were already free (inspector colour inputs).
+
+Possible further polish: abstract/print wall-art textures; heated-ladder
+towel rail; custom-colour swatch could remember recent colours.
 
 ## Realism & content pass (2026-05-29)
 
