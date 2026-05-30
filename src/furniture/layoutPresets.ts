@@ -217,9 +217,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       { id: 'ol-dc-s2', defId: 'dining-chair', position: [10.7, 6.45], rotation: Math.PI, props: { style: 'upholstered', seatColor: '#8a7f70' } },
       { id: 'ol-dc-s3', defId: 'dining-chair', position: [11.45, 6.45], rotation: Math.PI, props: { style: 'upholstered', seatColor: '#8a7f70' } },
       { id: 'ol-pendant', defId: 'ceiling-light', position: [10.7, 5.75], rotation: 0, props: { style: 'pendant', shade: 'drum' } },
-      // ── Entry alcove (SE): reading nook + shoe storage ──
-      { id: 'ol-armchair', defId: 'armchair', position: [11.5, 7.3], rotation: Math.PI, props: { style: 'wingback', material: 'velvet', color: '#3f6b5e', sheen: 0.3 } },
-      { id: 'ol-sidetable', defId: 'side-table', position: [10.7, 7.3], rotation: 0, props: { shape: 'drum', topColor: '#5a3f2a' } },
+      // ── Entry alcove (SE): shoe storage only — kept clear for the door. ──
       { id: 'ol-shoe', defId: 'shoe-cabinet', position: [12.35, 7.45], rotation: -Math.PI / 2, props: { width: 0.9, depth: 0.3 } },
     ],
     extraItems: [
