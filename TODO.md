@@ -170,7 +170,9 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 ## Editor / Selection
 
 - ~~**Multi-select rotate**~~ — done. `R` rotates a multi-selection rigidly around the group centroid (positions orbit the centroid, each item's rotation advances), applied only if all rotated items still fit. See [src/App.tsx](src/App.tsx).
-- **Inspector for multi-selection** — currently shows the primary item only. Could show a "N items selected" placeholder with bulk actions (delete all, clear). See [src/ui/inspector/InspectorPanel.tsx](src/ui/inspector/InspectorPanel.tsx).
+- ~~**Inspector for multi-selection**~~ — done. A "N items selected" panel with
+  Align-centres (X/Z), Distribute-evenly (X/Z) and Delete-all (collision-checked,
+  skips locked, follows the active plan). See [src/ui/inspector/InspectorPanel.tsx](src/ui/inspector/InspectorPanel.tsx).
 - **Marquee strictness** — selection is membership-by-centre; partial-overlap (Lasso-style) may be preferred for large items. Revisit if users complain. See [src/scene/selection/MarqueeSelector.tsx](src/scene/selection/MarqueeSelector.tsx).
 
 ## UI
@@ -257,3 +259,20 @@ Shipped this round (all tested + pushed):
 
 Follow-ups: generalise the living-room focal logic to non-east focal walls for
 custom plans; consider grouping the growing toolbar into menus.
+
+## More tools, finishes & content (2026-05-30, cont.)
+
+Shipped (all tested + pushed):
+
+- ~~Skirting boards~~ (default flat + PlanShell) · ~~contact shadows~~ under floor
+  items · ~~wallpaper finishes~~ (stripe / grasscloth procedural patterns) ·
+  ~~checkerboard floor~~ · ~~linear bar pendant~~ ceiling-light style.
+- ~~Furniture Sets~~ (dining/bedroom/lounge/study/nursery/reading-nook one-click
+  vignettes, group-selected) · ~~saved-layout thumbnails~~ in the Load dialog ·
+  ~~multi-select align/distribute~~.
+- ~~Edge-generic living arranger~~ for custom plans (any TV wall) ·
+  ~~wall mirror~~, ~~floor vase~~, ~~high chair~~, ~~changing table~~.
+
+Remaining ideas: crown molding (ceiling cornice); kitchen work-triangle /
+bath fixture-order arrange templates; herringbone/parquet floor (needs a
+seamless tiler); real planar mirror reflections (cost).
