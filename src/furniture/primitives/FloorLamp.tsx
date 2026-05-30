@@ -5,9 +5,10 @@ import { readStr } from './shared';
 import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
 import type { ParamProps } from '../types';
 
-/** Floor lamp: a disc base + slim pole, or a splayed tripod, topped with an
- *  emissive shade (empire / drum / cone). The shade emissive tracks scene
- *  darkness (bright at night, off in day). */
+/** Floor lamp: a disc base + slim pole, a splayed tripod, or an arched 'arc'
+ *  (Arco-style) pole that reaches the shade out over a sofa. Topped with an
+ *  emissive shade (empire / drum / cone) whose glow tracks scene darkness
+ *  (bright at night, off in day). The arc reaches toward +X (local). */
 export function FloorLamp({ props }: { props: ParamProps }) {
   const shadeColor = readStr(props, 'shadeColor', '#f3e6c8');
   const poleColor = readStr(props, 'poleColor', '#2b2b2b');
@@ -20,6 +21,7 @@ export function FloorLamp({ props }: { props: ParamProps }) {
   const profile: [number, number] =
     shade === 'drum' ? [0.2, 0.2] : shade === 'cone' ? [0.07, 0.26] : [0.16, 0.21];
   const tripod = base === 'tripod';
+  const arc = base === 'arc';
   const shadeRef = useRef<MeshStandardMaterial>(null);
   const bulbRef = useRef<MeshStandardMaterial>(null);
   useFrame(() => {
@@ -28,9 +30,61 @@ export function FloorLamp({ props }: { props: ParamProps }) {
     if (bulbRef.current) bulbRef.current.emissiveIntensity = g * 1.1;
   });
 
+  // Arc geometry: a riser then a quarter-circle that carries the shade out to
+  // a horizontal `reach`, the shade hanging down at the end of the arch.
+  const reach = 1.35;
+  const riserTop = 1.0;
+  const archTopY = riserTop + reach;
+  const metal = { color: poleColor, roughness: 0.35, metalness: 0.7 } as const;
+  const arcSegs: { pos: [number, number, number]; len: number; rot: number }[] = [];
+  if (arc) {
+    const N = 12;
+    let prev: [number, number] = [0, riserTop];
+    for (let i = 1; i <= N; i++) {
+      const th = Math.PI - (Math.PI / 2) * (i / N);
+      const p: [number, number] = [reach + reach * Math.cos(th), riserTop + reach * Math.sin(th)];
+      const dx = p[0] - prev[0];
+      const dy = p[1] - prev[1];
+      const len = Math.hypot(dx, dy);
+      arcSegs.push({ pos: [(p[0] + prev[0]) / 2, (p[1] + prev[1]) / 2, 0], len: len + 0.01, rot: Math.atan2(-dx, dy) });
+      prev = p;
+    }
+  }
+  const shadePos: [number, number, number] = arc
+    ? [reach, archTopY - shadeH / 2 - 0.04, 0]
+    : [0, poleH + shadeH / 2 - 0.02, 0];
+  const bulbPos: [number, number, number] = arc
+    ? [reach, archTopY - shadeH - 0.06, 0]
+    : [0, poleH + 0.02, 0];
+
   return (
     <group>
-      {tripod ? (
+      {arc ? (
+        <>
+          {/* Heavy round base (marble-look), offset under the riser */}
+          <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
+            <cylinderGeometry args={[0.22, 0.24, 0.1, 28]} />
+            <meshStandardMaterial color="#e9e6df" roughness={0.5} metalness={0.05} />
+          </mesh>
+          {/* Riser */}
+          <mesh castShadow position={[0, (riserTop + 0.1) / 2, 0]}>
+            <cylinderGeometry args={[0.02, 0.022, riserTop - 0.1, 12]} />
+            <meshStandardMaterial {...metal} />
+          </mesh>
+          {/* Arched segments */}
+          {arcSegs.map((s, i) => (
+            <mesh key={i} castShadow position={s.pos} rotation={[0, 0, s.rot]}>
+              <cylinderGeometry args={[0.02, 0.02, s.len, 10]} />
+              <meshStandardMaterial {...metal} />
+            </mesh>
+          ))}
+          {/* Short drop stem into the shade */}
+          <mesh castShadow position={[reach, archTopY - 0.05, 0]}>
+            <cylinderGeometry args={[0.016, 0.016, 0.12, 10]} />
+            <meshStandardMaterial {...metal} />
+          </mesh>
+        </>
+      ) : tripod ? (
         <>
           {/* Three splayed legs meeting just below the shade */}
           {[0, 1, 2].map((i) => {
@@ -73,7 +127,7 @@ export function FloorLamp({ props }: { props: ParamProps }) {
         </>
       )}
       {/* Shade */}
-      <mesh castShadow position={[0, poleH + shadeH / 2 - 0.02, 0]}>
+      <mesh castShadow position={shadePos}>
         <cylinderGeometry args={[profile[0], profile[1], shadeH, 28, 1, true]} />
         <meshStandardMaterial
           ref={shadeRef}
@@ -85,7 +139,7 @@ export function FloorLamp({ props }: { props: ParamProps }) {
         />
       </mesh>
       {/* Bulb glow disc at the bottom of the shade (faces down) */}
-      <mesh position={[0, poleH + 0.02, 0]} rotation={[Math.PI / 2, 0, 0]}>
+      <mesh position={bulbPos} rotation={[Math.PI / 2, 0, 0]}>
         <circleGeometry args={[0.15, 20]} />
         <meshStandardMaterial ref={bulbRef} color="#fff6e0" emissive="#fff0d0" emissiveIntensity={0.1} />
       </mesh>

@@ -70,9 +70,14 @@ export function FurnitureLights() {
         const spec = LIGHT_EMITTERS[item.defId]!;
         // Per-item bulb colour (warm/neutral/cool) overrides the emitter default.
         const bulb = typeof item.props.lightColor === 'string' ? item.props.lightColor : spec.color;
+        // Local bulb offset (e.g. an arc lamp's reach) → world, via rotation.
+        const [ox, oz] = spec.offset?.(item.props) ?? [0, 0];
+        const r = item.rotation;
+        const wx = item.position[0] + ox * Math.cos(r) + oz * Math.sin(r);
+        const wz = item.position[1] - ox * Math.sin(r) + oz * Math.cos(r);
         return {
           id: item.id,
-          position: [item.position[0], spec.height(item.props), item.position[1]],
+          position: [wx, spec.height(item.props), wz],
           color: bulb,
           baseIntensity: spec.intensity,
           distance: spec.distance,

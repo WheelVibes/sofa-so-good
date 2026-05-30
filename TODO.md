@@ -29,7 +29,8 @@ colour/finish/material/sheen controls):
   ~~Armchair~~ lounge / wingback / tub; ~~Bookshelf~~ open / closed-base-cabinet
   + plinth; ~~TV console~~ base (block/plinth/legs) × front (drawers/doors).
 - ~~Ceiling pendant~~ dome / globe / cone / drum shades; ~~Table + floor lamp~~
-  empire / drum / cone shades, floor lamp disc / tripod base; ~~Nightstand~~
+  empire / drum / cone shades, floor lamp disc / tripod / **arc (Arco-style,
+  reaches over a sofa; its night point-light follows the offset shade)** base; ~~Nightstand~~
   drawers / drawer-shelf / open; ~~Potted plant~~ + fiddle-leaf type, tapered /
   cylinder / square planter; ~~Desk~~ panel / four-leg / hairpin.
 - ~~Bar stool~~ splayed / pedestal / backed; ~~Dresser~~ knob/bar/recessed

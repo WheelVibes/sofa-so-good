@@ -14,6 +14,11 @@ export interface EmitterSpec {
   intensity: number;
   /** Falloff distance in metres. */
   distance: number;
+  /** Optional in-plane offset of the bulb from the item origin, in LOCAL
+   *  metres ([rightX, forwardZ]); rotated by the item's rotation when placed.
+   *  Used by fixtures whose bulb is offset from their footprint centre (e.g.
+   *  an arc floor lamp whose shade reaches out over a sofa). */
+  offset?: (props: ParamProps) => [number, number];
 }
 
 export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
@@ -24,7 +29,10 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     distance: 3.2,
   },
   'floor-lamp': {
-    height: () => 1.5,
+    // An arc lamp's bulb hangs ~2 m up at the end of the arch, reaching out
+    // over a sofa; disc/tripod bulbs sit at the pole top.
+    height: (p) => (p.base === 'arc' ? 2.05 : 1.5),
+    offset: (p) => (p.base === 'arc' ? [1.35, 0] : [0, 0]),
     color: '#ffdfae',
     intensity: 7,
     distance: 5.5,

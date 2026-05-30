@@ -2025,6 +2025,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'disc', label: 'Disc + pole' },
           { value: 'tripod', label: 'Tripod' },
+          { value: 'arc', label: 'Arc (over-sofa)' },
         ],
       },
       {
