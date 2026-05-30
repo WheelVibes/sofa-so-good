@@ -26,7 +26,9 @@ export type FurnitureCategory =
   | 'bathroom'
   | 'appliances'
   | 'lighting'
-  | 'decor';
+  | 'decor'
+  | 'textiles'
+  | 'outdoor';
 
 export const FURNITURE_CATEGORIES: readonly FurnitureCategory[] = [
   'beds',
@@ -38,6 +40,8 @@ export const FURNITURE_CATEGORIES: readonly FurnitureCategory[] = [
   'appliances',
   'lighting',
   'decor',
+  'textiles',
+  'outdoor',
 ];
 
 export type FurnitureType = string;
