@@ -32,6 +32,10 @@ export interface PlacementSlice {
    *  invalid). The anchor (= `draggingItemId`) is included. Empty array
    *  for single-item drags. */
   dragGroupOriginals: Array<{ id: string; position: [number, number]; rotation: number }>;
+  /** Active alignment guides (world lines) shown while dragging — each is a
+   *  constant-X or constant-Z line the dragged item snapped to. */
+  dragGuides: Array<{ axis: 'x' | 'z'; value: number }>;
+  setDragGuides: (guides: Array<{ axis: 'x' | 'z'; value: number }>) => void;
   setActiveDefId: (id: string | null) => void;
   setCursor: (cursor: { x: number; y: number } | null) => void;
   setGhostWorld: (pos: [number, number] | null, valid: boolean) => void;
@@ -57,6 +61,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'dragValid'
   | 'dragOffset'
   | 'dragGroupOriginals'
+  | 'dragGuides'
 > = {
   activeDefId: null,
   cursor: null,
@@ -67,6 +72,7 @@ export const PLACEMENT_INITIAL: Pick<
   dragValid: true,
   dragOffset: [0, 0],
   dragGroupOriginals: [],
+  dragGuides: [],
 };
 
 export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (set, get) => ({
@@ -89,6 +95,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
     });
   },
   setDragValid: (valid) => set({ dragValid: valid }),
+  setDragGuides: (dragGuides) => set({ dragGuides }),
   endDrag: () =>
     set({
       draggingItemId: null,
@@ -96,5 +103,6 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       dragOffset: [0, 0],
       dragValid: true,
       dragGroupOriginals: [],
+      dragGuides: [],
     }),
 });

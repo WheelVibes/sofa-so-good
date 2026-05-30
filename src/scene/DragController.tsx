@@ -57,6 +57,31 @@ export function DragController() {
       if (state.snapEnabled) next = snapToGrid(next, state.gridSize);
 
       const group = state.dragGroupOriginals;
+      // Smart alignment guides: for a single-item drag, snap the centre to
+      // another item's centre axis when close, and surface guide lines.
+      const guides: Array<{ axis: 'x' | 'z'; value: number }> = [];
+      if (group.length <= 1) {
+        const TH = 0.1; // snap threshold (m)
+        let bestX: { v: number; d: number } | null = null;
+        let bestZ: { v: number; d: number } | null = null;
+        for (const it of state.items) {
+          if (it.id === id) continue;
+          const dx = Math.abs(it.position[0] - next[0]);
+          if (dx < TH && (!bestX || dx < bestX.d)) bestX = { v: it.position[0], d: dx };
+          const dz = Math.abs(it.position[1] - next[1]);
+          if (dz < TH && (!bestZ || dz < bestZ.d)) bestZ = { v: it.position[1], d: dz };
+        }
+        if (bestX) {
+          next = [bestX.v, next[1]];
+          guides.push({ axis: 'x', value: bestX.v });
+        }
+        if (bestZ) {
+          next = [next[0], bestZ.v];
+          guides.push({ axis: 'z', value: bestZ.v });
+        }
+      }
+      state.setDragGuides(guides);
+
       if (group.length > 1 && state.dragOriginal) {
         // Translate every group member by the same delta as the anchor.
         const dx = next[0] - state.dragOriginal.position[0];
