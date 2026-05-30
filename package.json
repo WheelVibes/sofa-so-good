@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "fetch-assets": "tsx scripts/fetch-assets.ts",
     "fetch-assets:quick": "tsx scripts/fetch-assets.ts --quick",
-    "index-assets": "tsx scripts/index-assets-cli.ts"
+    "index-assets": "tsx scripts/index-assets-cli.ts",
+    "optimize:glb": "node python/scripts/optimize_glb_lod.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
@@ -41,6 +42,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "@vitest/ui": "^4.1.5",
     "autoprefixer": "^10.5.0",
+    "draco3dgltf": "^1.5.7",
     "fake-indexeddb": "^6.2.5",
     "happy-dom": "^20.9.0",
     "jsdom": "^27.0.1",
