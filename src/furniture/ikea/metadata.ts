@@ -1,7 +1,8 @@
 import { z } from 'zod';
 
 const GlbMaterialZ = z.object({
-  name: z.string(),
+  // some scraped GLBs have unnamed materials
+  name: z.string().optional(),
   hex: z.string().optional(),
   metallic: z.number().optional(),
   roughness: z.number().optional(),
@@ -11,7 +12,8 @@ const GlbMaterialZ = z.object({
 
 const VariantZ = z.object({
   article_number: z.string(),
-  finish: z.string(),
+  // single-SKU products (e.g. a knob) have no colour finish
+  finish: z.string().optional(),
   url: z.string(),
   product_title: z.string().optional(),
   price_numeral: z.number().optional(),
@@ -28,7 +30,8 @@ const VariantZ = z.object({
     anchor_offset: z.tuple([z.number(), z.number(), z.number()]),
   }).optional(),
   glb_materials: z.array(GlbMaterialZ).optional(),
-  glb_segments: z.array(z.object({ mesh: z.string(), material: z.string() })).optional(),
+  // scraper emits null when segment→material mapping is unresolved
+  glb_segments: z.array(z.object({ mesh: z.string().nullable(), material: z.string().nullable() })).optional(),
 }).passthrough();
 
 const DesignZ = z.object({

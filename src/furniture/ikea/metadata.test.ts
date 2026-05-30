@@ -44,3 +44,31 @@ describe('parseMetadata', () => {
     expect(r.ok).toBe(true);
   });
 });
+
+describe('parseMetadata real-data tolerances', () => {
+  const base = {
+    group_key: 'g', product_name: 'P',
+    design: { category: 'lighting', placement: 'ceiling' },
+    variants: [{ article_number: '1', finish: 'a', url: 'u', glb: 'a.glb' }],
+  };
+  it('accepts glb_materials without a name', () => {
+    const r = parseMetadata({ ...base, variants: [{ ...base.variants[0],
+      glb_materials: [{ roughness: 2.96, textured: true, sampled_hex: '#cfd0cd' }] }] });
+    expect(r.ok).toBe(true);
+  });
+  it('accepts glb_materials: [{ textured: true }] only', () => {
+    const r = parseMetadata({ ...base, variants: [{ ...base.variants[0],
+      glb_materials: [{ textured: true }] }] });
+    expect(r.ok).toBe(true);
+  });
+  it('accepts glb_segments with null mesh/material', () => {
+    const r = parseMetadata({ ...base, variants: [{ ...base.variants[0],
+      glb_segments: [{ mesh: null, material: null }] }] });
+    expect(r.ok).toBe(true);
+  });
+  it('accepts a variant with no finish field (single-SKU products)', () => {
+    const r = parseMetadata({ ...base, variants: [{ article_number: '00437228',
+      url: 'u', product_title: 'VINNSET Knob', glb: null }] });
+    expect(r.ok).toBe(true);
+  });
+});
