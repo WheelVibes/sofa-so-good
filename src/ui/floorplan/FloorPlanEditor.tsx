@@ -3,6 +3,7 @@ import { useStore } from '../../state/store';
 import { planRoomArea, planTotalArea, wallLength, planBounds } from '../../floorplan/types';
 import type { PlanOpening, PlanWall } from '../../floorplan/types';
 import { PlanInspector } from './PlanInspector';
+import { PLAN_TEMPLATES } from '../../floorplan/templates';
 
 type Tool = 'select' | 'wall' | 'room' | 'door' | 'window';
 
@@ -211,6 +212,26 @@ export function FloorPlanEditor() {
         <button onClick={() => a.resetFloorPlan()} className="rounded bg-neutral-800 px-2.5 py-1 text-xs hover:bg-neutral-700">
           Reset to HDB
         </button>
+        <select
+          value=""
+          onChange={(e) => {
+            const tpl = PLAN_TEMPLATES.find((t) => t.id === e.target.value);
+            if (!tpl) return;
+            a.pushHistory();
+            a.setItems([]);
+            a.setFloorPlan(JSON.parse(JSON.stringify(tpl)));
+            a.setPlanSelection(null);
+          }}
+          title="Start from a template apartment"
+          className="rounded bg-neutral-800 px-1.5 py-1 text-xs text-neutral-200"
+        >
+          <option value="">Template…</option>
+          {PLAN_TEMPLATES.map((t) => (
+            <option key={t.id} value={t.id}>
+              {t.name}
+            </option>
+          ))}
+        </select>
         <PlanLibrary />
         <div className="ml-auto flex items-center gap-3">
           <span className="text-xs text-neutral-400">

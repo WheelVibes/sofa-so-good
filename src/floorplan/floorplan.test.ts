@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { buildDefaultPlan } from './defaultPlan';
 import { planRoomArea, planTotalArea, wallLength } from './types';
+import { PLAN_TEMPLATES } from './templates';
 import { INTERIOR_AREA_M2 } from '../apartment/constants';
 
 describe('floor plan model', () => {
@@ -29,5 +30,21 @@ describe('floor plan model', () => {
 
   it('measures wall length', () => {
     expect(wallLength({ id: 'w', start: [0, 0], end: [3, 4], thickness: 'internal' })).toBe(5);
+  });
+});
+
+describe('plan templates', () => {
+  it('each template is well-formed (unique ids, positive areas)', () => {
+    for (const tpl of PLAN_TEMPLATES) {
+      expect(tpl.walls.length).toBeGreaterThanOrEqual(4);
+      expect(tpl.rooms.length).toBeGreaterThan(0);
+      expect(planTotalArea(tpl)).toBeGreaterThan(5);
+      const wallIds = new Set(tpl.walls.map((w) => w.id));
+      expect(wallIds.size).toBe(tpl.walls.length);
+      // Every opening references a real wall in the template.
+      for (const o of tpl.openings) {
+        expect(tpl.walls.some((w) => w.id === o.wallId)).toBe(true);
+      }
+    }
   });
 });

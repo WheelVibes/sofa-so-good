@@ -33,6 +33,11 @@ async function boot() {
       const s = useStore.getState();
       s.setItems(arrangeAllRooms(s.items, BUILTIN_CATALOG as never, s.doors));
     };
+    const { PLAN_TEMPLATES } = await import('./floorplan/templates');
+    (window as unknown as { __loadTemplate?: unknown }).__loadTemplate = (id: string) => {
+      const tpl = PLAN_TEMPLATES.find((t) => t.id === id);
+      if (tpl) useStore.getState().setFloorPlan(JSON.parse(JSON.stringify(tpl)));
+    };
   }
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
