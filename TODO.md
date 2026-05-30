@@ -93,8 +93,15 @@ flats) shipped — see
 - ~~Baby crib / cot~~ (slatted sides, slatted or solid-panel ends, low/high
   mattress base, wood / painted / gloss) shipped — see
   [src/furniture/primitives/Crib.tsx](src/furniture/primitives/Crib.tsx).
-  Arranger treats it as a `bed` (wall-flush). Follow-up: changing table,
-  highchair, toy storage; a nursery preset.
+  Arranger treats it as a `bed` (wall-flush). ~~Nursery preset~~ — "Family
+  Nursery" re-models Bedroom 3 (crib + changing dresser + nursing chair with
+  arc lamp). Follow-up: changing table, highchair, toy storage.
+- ~~Per-room researched preset layouts~~ — `buildPresetItems` now supports a
+  `rooms: Partial<Record<RoomId, LayoutEntry[]>>` override (the old
+  `livingDining` field is sugar for `rooms.livingDining`); each listed room's
+  default items are dropped by id prefix and replaced by the authored entries.
+  Unlocks researched bedroom / nursery layouts. See
+  [src/furniture/layoutPresets.ts](src/furniture/layoutPresets.ts).
 
 ## Realism & content pass (2026-05-29)
 
