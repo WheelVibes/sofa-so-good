@@ -20,6 +20,9 @@ export interface QualitySettings {
   dprMax: number;
   /** Fade exterior walls between camera and interior (cheap; always on). */
   wallReveal: boolean;
+  /** Soft contact-shadow blobs under furniture (transparent overdraw; off on
+   *  the low tier to save fill rate on weak GPUs). */
+  contactShadows: boolean;
 }
 
 export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
@@ -30,6 +33,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     maxFixtureLights: 3,
     dprMax: 1,
     wallReveal: true,
+    contactShadows: false,
   },
   medium: {
     shadowMapSize: 2048,
@@ -38,6 +42,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     maxFixtureLights: 6,
     dprMax: 1.5,
     wallReveal: true,
+    contactShadows: true,
   },
   high: {
     shadowMapSize: 2048,
@@ -46,6 +51,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     maxFixtureLights: 8,
     dprMax: 2,
     wallReveal: true,
+    contactShadows: true,
   },
 };
 

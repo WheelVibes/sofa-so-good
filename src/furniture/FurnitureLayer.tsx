@@ -2,6 +2,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { Furniture } from './Furniture';
 import { useCatalog } from './catalog';
 import { useStore } from '../state/store';
+import { useQuality } from '../scene/useQuality';
 
 /**
  * Mounts one <Furniture> per item in the store. Each instance receives
@@ -11,12 +12,13 @@ import { useStore } from '../state/store';
 export function FurnitureLayer() {
   const items = useStore(useShallow((s) => s.items));
   const catalog = useCatalog();
+  const contactShadow = useQuality().contactShadows;
   return (
     <group>
       {items.map((item) => {
         const def = catalog[item.defId];
         if (!def) return null;
-        return <Furniture key={item.id} item={item} def={def} />;
+        return <Furniture key={item.id} item={item} def={def} contactShadow={contactShadow} />;
       })}
     </group>
   );

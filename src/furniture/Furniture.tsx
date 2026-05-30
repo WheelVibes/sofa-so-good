@@ -13,9 +13,11 @@ interface FurnitureProps {
   /** When true, the click handler does NOT mutate selection — used by
    *  ghost previews. */
   passive?: boolean;
+  /** Render a soft contact shadow under floor items (off on the low tier). */
+  contactShadow?: boolean;
 }
 
-function FurnitureInner({ item, def, passive }: FurnitureProps) {
+function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       if (passive) return;
@@ -137,6 +139,7 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
     >
       {/* Soft contact shadow grounding floor-standing pieces. */}
       {(() => {
+        if (!contactShadow) return null;
         const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h };
         if (passive || def.mounted || def.noClip || span.base >= 0.4) return null;
         const obb = itemFootprint(item, def);
@@ -161,6 +164,7 @@ export const Furniture = memo(FurnitureInner, (prev, next) => {
   return (
     prev.item === next.item &&
     prev.def === next.def &&
-    prev.passive === next.passive
+    prev.passive === next.passive &&
+    prev.contactShadow === next.contactShadow
   );
 });
