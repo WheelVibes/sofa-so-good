@@ -2,6 +2,21 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+## Layout / placement (2026-05-30)
+
+- ~~**Interior-design rules baked in**~~ — clearances in
+  [src/layout/designRules.ts](src/layout/designRules.ts), guidance in
+  [docs/interior-design-guidelines.md](docs/interior-design-guidelines.md),
+  CLAUDE.md convention. Authoring layouts/presets must follow them.
+- ~~**Per-room auto-arranger ("Tidy up room")**~~ —
+  [src/layout/autoArrange.ts](src/layout/autoArrange.ts), living/bedroom/
+  generic strategies, Finish-picker button. ~~Asset mirror-flip~~ (F / Shift+F).
+- ~~**Default lounge re-oriented**~~ — sofa faces the (windowless) east TV
+  wall; coffee table long-side parallel to the sofa.
+- Follow-up: extend the arranger with kitchen/bath-specific templates (work
+  triangle / fixture order); run it over the researched presets so their
+  bedrooms are auto-spaced; add a desk-chair-at-desk rule.
+
 ## Catalogue configurability pass (2026-05-29)
 
 Goal: make every catalogue item as configurable as possible (colour ×
