@@ -11,6 +11,7 @@ import { CreditsModal } from './CreditsModal';
 import { QUALITY_LABEL } from '../scene/quality';
 import { GraphicsSettings } from './GraphicsSettings';
 import { STYLE_PRESETS, applyStyle } from '../materials/stylePresets';
+import { LAYOUT_PRESETS } from '../furniture/layoutPresets';
 import { canRecord } from '../scene/RecordController';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
@@ -81,6 +82,7 @@ export function Toolbar() {
           <SnapToggle />
           <Divider />
           <CatalogToggle />
+          <PresetPicker />
           <StylePicker />
           <Divider />
           <SaveButton />
@@ -152,6 +154,41 @@ function RecordButton() {
 
 /** One-click design styles — apply a coordinated floor + wall palette across
  *  the living spaces. */
+/** Applies a full-flat layout preset: restyled furniture + a coordinated
+ *  floor/wall palette. Distinct from StylePicker, which only repaints. */
+function PresetPicker() {
+  const [open, setOpen] = useState(false);
+  const applyLayoutPreset = useStore((s) => s.applyLayoutPreset);
+  return (
+    <div className="relative">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        title="Load a complete furnished + finished interior preset"
+        className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+      >
+        Presets
+      </button>
+      {open ? (
+        <div className="absolute left-0 top-full z-20 mt-1 w-56 rounded-lg bg-white p-1 text-xs shadow">
+          {LAYOUT_PRESETS.map((p) => (
+            <button
+              key={p.id}
+              onClick={() => {
+                applyLayoutPreset(p.id);
+                setOpen(false);
+              }}
+              className="block w-full rounded px-2 py-1.5 text-left hover:bg-neutral-100"
+            >
+              <div className="font-medium text-neutral-800">{p.name}</div>
+              <div className="text-[10px] leading-tight text-neutral-500">{p.description}</div>
+            </button>
+          ))}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
 function StylePicker() {
   const [open, setOpen] = useState(false);
   const setFloorFinish = useStore((s) => s.setFloorFinish);
