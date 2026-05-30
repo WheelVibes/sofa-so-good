@@ -4,8 +4,9 @@ import json
 import asyncio
 import argparse
 import xml.etree.ElementTree as ET
-import httpx
-from playwright.async_api import async_playwright
+# httpx and playwright are imported lazily inside the functions that use them
+# (harvest_product_urls and main) so the pure helpers and the pytest suite can
+# import this module without those packages installed.
 
 from glb_analysis import analyze_glb
 from categorize import design_classification
@@ -497,6 +498,7 @@ async def log_processed_url(url):
             f.write(f"{url}\n")
 
 async def harvest_product_urls(sitemap_urls):
+    import httpx
     product_urls = []
     namespace = {"ns": "http://www.sitemaps.org/schemas/sitemap/0.9"}
     async with httpx.AsyncClient(follow_redirects=True) as client:
@@ -881,6 +883,8 @@ async def queue_worker(queue, context, http_client, state, is_test_mode=False):
             queue.task_done()
 
 async def main(limit, target_url):
+    import httpx
+    from playwright.async_api import async_playwright
     state = ScraperState(limit)
     is_test_mode = target_url is not None
 
