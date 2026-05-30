@@ -104,7 +104,8 @@ export type PrimitiveKind =
   | 'TowelRail'
   | 'BunkBed'
   | 'Crib'
-  | 'Soundbar';
+  | 'Soundbar'
+  | 'WallMirror';
 
 export type ParamField =
   | {

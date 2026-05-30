@@ -67,6 +67,7 @@ import { TowelRail } from './TowelRail';
 import { BunkBed } from './BunkBed';
 import { Crib } from './Crib';
 import { Soundbar } from './Soundbar';
+import { WallMirror } from './WallMirror';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -131,4 +132,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   BunkBed,
   Crib,
   Soundbar,
+  WallMirror,
 };

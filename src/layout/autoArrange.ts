@@ -82,6 +82,7 @@ const ROLE: Record<string, ArrangeRole> = {
   'standing-fan': 'floorLamp',
   bench: 'lowTable',
   'wall-art': 'mounted',
+  'wall-mirror': 'mounted',
   'bathroom-mirror': 'mounted',
   'wall-clock': 'mounted',
   'wall-shelf': 'mounted',
