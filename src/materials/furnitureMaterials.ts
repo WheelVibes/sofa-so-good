@@ -112,6 +112,11 @@ function getPatternTexture(pattern: string): Texture {
         // Soft vertical stripes, two tones close in value (tonal stripe).
         const s = Math.sin((x / band) * Math.PI);
         lum = 0.9 + 0.1 * (s > 0 ? 1 : -1) * 0.5;
+      } else if (pattern === 'checkered') {
+        // Gingham-style check: overlapping light/dark in both axes.
+        const cx = Math.floor(x / band) % 2;
+        const cy = Math.floor(y / band) % 2;
+        lum = cx && cy ? 0.8 : cx || cy ? 0.9 : 0.99;
       } else {
         // Herringbone: diagonals that flip direction every block row.
         const row = Math.floor(y / band);
@@ -148,7 +153,7 @@ export function getFabricMaterial(color: string, rough = 0.95, pattern = 'plain'
   const key = `fab:${color}:${rough.toFixed(2)}:${pattern}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const patterned = pattern === 'striped' || pattern === 'herringbone';
+  const patterned = pattern === 'striped' || pattern === 'herringbone' || pattern === 'checkered';
   const m = new MeshStandardMaterial({
     color,
     roughness: rough,
