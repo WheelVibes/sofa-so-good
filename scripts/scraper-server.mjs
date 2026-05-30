@@ -64,9 +64,13 @@ function startRun(limit) {
     submitOptimize: (group, glb) => optimize.submit(path.join(SERVED_DIR, group, glb)),
   });
 
-  const args = [SCRAPER, '--out', SERVED_DIR, '--progress-ndjson'];
+  // Command + leading args to run the scraper. Default: the real Python
+  // scraper. `SCRAPER_CMD` (space-separated) overrides it — a testability seam
+  // for stubbing the scraper in local end-to-end verification without network.
+  const [cmd, ...cmdArgs] = (process.env.SCRAPER_CMD ?? `python3 ${SCRAPER}`).split(' ');
+  const args = [...cmdArgs, '--out', SERVED_DIR, '--progress-ndjson'];
   if (limit > 0) args.push('--limit', String(limit));
-  const child = spawn('python3', args, { cwd: path.join(REPO, 'python', 'scripts') });
+  const child = spawn(cmd, args, { cwd: path.join(REPO, 'python', 'scripts') });
 
   const split = createLineSplitter((line) => {
     const ev = parseEvent(line);
