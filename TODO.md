@@ -227,3 +227,33 @@ Shipped — a data-driven, editable apartment shell + 2D editor:
   plan library (save/load multiple apartments) + persistence; route `roomOf`
   / the auto-arranger / finishes through the active plan so custom plans are
   fully furnish-aware; L-shaped room editing UI; angled (non-orthogonal) walls.
+
+## Design tools & quality upgrades (2026-05-30)
+
+Shipped this round (all tested + pushed):
+
+- ~~**Budget estimator**~~ — `furniturePrices.ts` (per-item/category SGD model) +
+  [BudgetPanel](src/ui/BudgetPanel.tsx) (grouped shopping list + total, copyable).
+- ~~**Smart alignment guides**~~ while dragging — centre + edge + butt-adjacent
+  snapping with magenta guide lines (DragController + [AlignmentGuides](src/scene/AlignmentGuides.tsx)).
+- ~~**Walk-mode minimap**~~ ([Minimap](src/ui/Minimap.tsx)) — shell + furniture dots +
+  live camera arrow; camera pose via `cameraPosXZ`/`cameraForwardXZ`.
+- ~~**Lock/pin items**~~ — `FurnitureItem.locked`; drag/nudge/rotate/delete skip
+  locked; inspector toggle; persisted.
+- ~~**Double-click focus**~~ — `focusOn`/`focusNonce` retargets the orbit camera.
+- ~~**Clearance checks**~~ — [layout/clearance.ts](src/layout/clearance.ts) flags
+  furniture in a door swing (probe points); [ClearanceOverlay](src/scene/ClearanceOverlay.tsx)
+  + toolbar count.
+- ~~**Inspector dimensions**~~ (W×D×H cm) + ~~**Sun study**~~ time-lapse toggle.
+- ~~**Design report**~~ — [ui/report.ts](src/ui/report.ts) printable areas + budget
+  + hero render (Report button).
+- ~~**Walkthrough tour**~~ — auto camera tour of every room (OrbitCamera), auto-records
+  a clip; works on default + custom plans.
+- ~~**Hover highlight**~~ ([HoverHighlight](src/scene/selection/HoverHighlight.tsx)).
+- ~~**Auto-arrange custom plans**~~ — `arrangeAllRoomsForPlan` (shared `arrangeCore`);
+  mounted fixtures are obstacles during arranging.
+- ~~**Save/Load captures the custom floor plan**~~ (schema `floorPlan`).
+- ~~**Wall mirror**~~ decor (round / arched / rect).
+
+Follow-ups: generalise the living-room focal logic to non-east focal walls for
+custom plans; consider grouping the growing toolbar into menus.
