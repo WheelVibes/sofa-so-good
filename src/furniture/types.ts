@@ -115,7 +115,8 @@ export type PrimitiveKind =
   | 'ChaiseLounge'
   | 'KitchenIsland'
   | 'Piano'
-  | 'Fireplace';
+  | 'Fireplace'
+  | 'Vanity';
 
 export type ParamField =
   | {

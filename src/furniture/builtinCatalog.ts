@@ -2788,6 +2788,53 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Kitchen ─────────────────────────────────────────────────────────────
+  vanity: {
+    kind: 'parametric',
+    id: 'vanity',
+    name: 'Dressing table',
+    category: 'storage',
+    keywords: ['vanity', 'dresser table', 'makeup', 'dressing'],
+    primitive: 'Vanity',
+    defaultFootprint: { w: 1.0, d: 0.42, h: 1.35 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 1.3, step: 0.05, default: 1.0, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.35, max: 0.5, step: 0.02, default: 0.42, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#e7ddca' },
+      {
+        kind: 'enum',
+        key: 'mirror',
+        label: 'Mirror',
+        default: 'round',
+        options: [
+          { value: 'round', label: 'Round' },
+          { value: 'rect', label: 'Rectangle' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'lights',
+        label: 'Vanity bulbs',
+        default: 'no',
+        options: [
+          { value: 'no', label: 'No' },
+          { value: 'yes', label: 'Hollywood bulbs' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
+        options: [
+          { value: 'painted', label: 'Painted' },
+          { value: 'wood', label: 'Wood' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.1 },
+    ],
+  },
   fireplace: {
     kind: 'parametric',
     id: 'fireplace',
