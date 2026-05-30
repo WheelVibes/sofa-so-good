@@ -1306,6 +1306,43 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'room-divider': {
+    kind: 'parametric',
+    id: 'room-divider',
+    name: 'Room divider',
+    category: 'decor',
+    primitive: 'RoomDivider',
+    defaultFootprint: { w: 1.6, d: 0.06, h: 2.0 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 3.0, step: 0.1, default: 1.6, unit: 'm' },
+      { kind: 'number', key: 'height', label: 'Height', min: 1.2, max: 2.4, step: 0.1, default: 2.0, unit: 'm' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'slat',
+        options: [
+          { value: 'slat', label: 'Vertical slats' },
+          { value: 'fluted', label: 'Fluted panel' },
+          { value: 'grid', label: 'Grid lattice' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#7a5c3c' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
   'side-table': {
     kind: 'parametric',
     id: 'side-table',

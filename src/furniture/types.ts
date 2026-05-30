@@ -53,6 +53,7 @@ export type PrimitiveKind =
   | 'Sideboard'
   | 'BarCart'
   | 'Ottoman'
+  | 'RoomDivider'
   | 'Bench'
   | 'CubeShelf'
   | 'DiningTable'

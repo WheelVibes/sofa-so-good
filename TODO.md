@@ -79,10 +79,13 @@ tapered / hairpin / plinth base × bar / knob / recessed / push handles) +
 ~~bar cart~~ (2–3 tiers × brass / black / chrome frame × glass / wood / marble
 shelves, guard rail + handle + castors) + ~~ottoman / pouf~~ (round / square /
 rect × fabric / leather / velvet × smooth / buttoned × wood feet / flush)
-shipped — see
++ ~~freestanding room divider~~ (vertical slats / fluted panel / grid lattice ×
+wood / painted / gloss — a real collidable obstacle for zoning open-concept
+flats) shipped — see
 [src/furniture/primitives/Sideboard.tsx](src/furniture/primitives/Sideboard.tsx),
 [src/furniture/primitives/BarCart.tsx](src/furniture/primitives/BarCart.tsx),
-[src/furniture/primitives/Ottoman.tsx](src/furniture/primitives/Ottoman.tsx).
+[src/furniture/primitives/Ottoman.tsx](src/furniture/primitives/Ottoman.tsx),
+[src/furniture/primitives/RoomDivider.tsx](src/furniture/primitives/RoomDivider.tsx).
 
 ## Realism & content pass (2026-05-29)
 

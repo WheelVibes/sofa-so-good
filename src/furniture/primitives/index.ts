@@ -15,6 +15,7 @@ import { ConsoleTable } from './ConsoleTable';
 import { Sideboard } from './Sideboard';
 import { BarCart } from './BarCart';
 import { Ottoman } from './Ottoman';
+import { RoomDivider } from './RoomDivider';
 import { Bench } from './Bench';
 import { CubeShelf } from './CubeShelf';
 import { DiningTable } from './DiningTable';
@@ -76,6 +77,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Sideboard,
   BarCart,
   Ottoman,
+  RoomDivider,
   Bench,
   CubeShelf,
   DiningTable,
