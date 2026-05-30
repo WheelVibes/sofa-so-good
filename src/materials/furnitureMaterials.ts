@@ -117,6 +117,16 @@ function getPatternTexture(pattern: string): Texture {
         const cx = Math.floor(x / band) % 2;
         const cy = Math.floor(y / band) % 2;
         lum = cx && cy ? 0.8 : cx || cy ? 0.9 : 0.99;
+      } else if (pattern === 'plaid') {
+        // Tartan: thin darker lines crossing a lighter ground.
+        const vx = ((x % band) < 3) || ((x % (band * 2)) < 6 && (x % (band * 2)) > 2);
+        const vy = ((y % band) < 3) || ((y % (band * 2)) < 6 && (y % (band * 2)) > 2);
+        lum = vx && vy ? 0.78 : vx || vy ? 0.86 : 0.97;
+      } else if (pattern === 'dots') {
+        // Regular polka dots: darker discs on a light ground.
+        const cx = (x % band) - band / 2;
+        const cy = (y % band) - band / 2;
+        lum = Math.hypot(cx, cy) < band * 0.28 ? 0.82 : 0.97;
       } else {
         // Herringbone: diagonals that flip direction every block row.
         const row = Math.floor(y / band);
@@ -153,7 +163,12 @@ export function getFabricMaterial(color: string, rough = 0.95, pattern = 'plain'
   const key = `fab:${color}:${rough.toFixed(2)}:${pattern}`;
   const hit = cache.get(key);
   if (hit) return hit;
-  const patterned = pattern === 'striped' || pattern === 'herringbone' || pattern === 'checkered';
+  const patterned =
+    pattern === 'striped' ||
+    pattern === 'herringbone' ||
+    pattern === 'checkered' ||
+    pattern === 'plaid' ||
+    pattern === 'dots';
   const m = new MeshStandardMaterial({
     color,
     roughness: rough,
