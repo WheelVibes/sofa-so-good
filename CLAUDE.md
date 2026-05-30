@@ -15,6 +15,16 @@ state, Vite build, Vitest tests.
   `window.__store` for scripting. `scripts/crop.mjs` crops at full res;
   `scripts/perf.mjs` reports heap/fps under load.
 
+## REQUIRED: visual verification after any app change
+For **any** change to the app (not docs/tests-only), you MUST, before
+considering the work done: (1) run the app, (2) exercise the functionality you
+added or changed — driving the store via `window.__store` and the `scripts/shot.mjs`
+actions where UI interaction is needed, (3) capture screenshot(s) of the result,
+and (4) **visually review** the screenshots yourself for UI/UX bugs, rendering
+artifacts, or regressions. `npm test` + `tsc` passing is NOT sufficient — a green
+suite never proves the rendered result looks right. Report what you saw in the
+screenshots, not just that you took them.
+
 ## Layout of the code
 - `src/state/` — Zustand store split into slices (`slices/*`): items,
   selection, finishes, doors, time, location, camera, ui (incl. quality +
