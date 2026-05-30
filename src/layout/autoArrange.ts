@@ -290,7 +290,7 @@ function placeFlush(
   along: number,
   world: FurnitureItem[],
   ctx: Ctx,
-  gap = CLEARANCE.wallGap,
+  gap: number = CLEARANCE.wallGap,
 ): FurnitureItem {
   const def = ctx.catalog[item.defId];
   if (!def) return item;
@@ -371,11 +371,13 @@ function arrangeCore(opts: {
   inRoom: (i: FurnitureItem) => boolean;
   kind: RoomKind;
   focal: Edge | undefined;
+  /** Use the edge-generic living arranger (custom plans) vs the tuned default. */
+  genericLiving?: boolean;
   allItems: FurnitureItem[];
   catalog: Record<string, FurnitureDef>;
   doors: Record<string, { open: boolean }>;
 }): FurnitureItem[] {
-  const { rect, keepOut, inRoom, kind, focal, allItems, catalog, doors } = opts;
+  const { rect, keepOut, inRoom, kind, focal, genericLiving, allItems, catalog, doors } = opts;
   const ctx: Ctx = { catalog, doors, keepOut };
   const isFixed = (i: FurnitureItem) => {
     const r = roleOf(i.defId);
@@ -389,8 +391,10 @@ function arrangeCore(opts: {
   const roomItems = allItems.filter((i) => inRoom(i) && !isFixed(i)).map((i) => ({ ...i }));
   const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId)));
 
-  if (kind === 'living') arrangeLiving(rect, focal, get, world, ctx, catalog);
-  else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog);
+  if (kind === 'living') {
+    if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog);
+    else arrangeLiving(rect, focal, get, world, ctx, catalog);
+  } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog);
   else arrangeGeneric(rect, get, world, ctx);
 
   // Safety settle: any room item not yet placed (unhandled role or no slot)
@@ -407,6 +411,115 @@ function arrangeCore(opts: {
   // transform from `world`; an unplaced room item keeps its original transform.
   const byId = new Map(world.map((w) => [w.id, w]));
   return allItems.map((orig) => byId.get(orig.id) ?? orig);
+}
+
+/** Opposite of a wall edge. */
+function opposite(e: Edge): Edge {
+  return e === 'N' ? 'S' : e === 'S' ? 'N' : e === 'E' ? 'W' : 'E';
+}
+
+/**
+ * Edge-generic living/dining arranger (any focal wall, not just east). Used for
+ * user-authored plans whose TV wall can face any direction. Places media flush
+ * to the focal wall, seating flush to the opposite wall facing it, rug+coffee
+ * between them, the dining set at the far end, accents to walls/corners.
+ */
+function arrangeLivingAnyEdge(
+  rect: Rect,
+  focal: Edge | undefined,
+  get: Getter,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  catalog: Record<string, FurnitureDef>,
+) {
+  const cx = (rect.x0 + rect.x1) / 2;
+  const cz = (rect.z0 + rect.z1) / 2;
+  const fpOf = (it: FurnitureItem) => baseFootprint(it, catalog[it.defId]);
+
+  const vertical = focal === 'E' || focal === 'W'; // focal wall runs along Z
+  const alongMin = vertical ? rect.z0 : rect.x0;
+  const alongMax = vertical ? rect.z1 : rect.x1;
+  const depthMin = vertical ? rect.x0 : rect.z0;
+  const depthMax = vertical ? rect.x1 : rect.z1;
+  const depthOf = (p: [number, number]) => (vertical ? p[0] : p[1]);
+  const alongOf = (p: [number, number]) => (vertical ? p[1] : p[0]);
+  const build = (along: number, depth: number): [number, number] => (vertical ? [depth, along] : [along, depth]);
+  const inSign = (e: Edge) => (e === 'E' || e === 'S' ? -1 : 1);
+
+  const sofa = get(['seating'])[0];
+  const alongCenter = sofa ? clamp(alongOf(sofa.position), alongMin + 1, alongMax - 1) : (alongMin + alongMax) / 2;
+
+  // 1. Media + TV + feature wall flush to the focal wall.
+  let consoleFront: number | null = null;
+  if (focal) {
+    const console = get(['mediaConsole'])[0];
+    if (console) {
+      const placed = placeFlush(console, rect, focal, alongCenter, world, ctx);
+      if (placed !== console) consoleFront = depthOf(placed.position) + inSign(focal) * (fpOf(console).d / 2);
+    }
+    for (const m of get(['media', 'featureWall'])) {
+      placeFlush(m, rect, focal, alongCenter, world, ctx, m.defId === 'feature-wall' ? 0.02 : 0.1);
+    }
+  }
+
+  // 2. Seating flush to the opposite wall, facing the focal wall.
+  let sofaFront: number | null = null;
+  if (sofa) {
+    let placed: FurnitureItem | null = null;
+    if (focal) placed = placeFlush(sofa, rect, opposite(focal), alongCenter, world, ctx);
+    if (placed && placed !== sofa) sofaFront = depthOf(placed.position) + inSign(opposite(focal!)) * (fpOf(sofa).d / 2);
+    else snapToWall(sofa, rect, [nearestEdge(sofa.position, rect)], world, ctx);
+  }
+
+  // 3. Rug + coffee between sofa and media (long side parallel to the sofa).
+  const depthMid = consoleFront != null && sofaFront != null ? (consoleFront + sofaFront) / 2 : (depthMin + depthMax) / 2;
+  for (const rug of get(['rug'])) tryPlace(rug, build(alongCenter, depthMid), 0, world, ctx);
+  for (const t of get(['lowTable'])) {
+    const fp = fpOf(t);
+    const rot = vertical ? (fp.w > fp.d ? Math.PI / 2 : 0) : fp.w > fp.d ? 0 : Math.PI / 2;
+    tryPlace(t, build(alongCenter, depthMid), rot, world, ctx);
+  }
+
+  // 4. Dining at the far end of the along axis; chairs on the two depth sides.
+  const dining = get(['diningTable'])[0];
+  if (dining) {
+    const mid = (alongMin + alongMax) / 2;
+    const span = alongMax - alongMin;
+    const diningAlong = alongCenter < mid ? alongMax - span * 0.26 : alongMin + span * 0.26;
+    const diningDepth = clamp((depthMin + depthMax) / 2, depthMin + 1, depthMax - 1);
+    const fp0 = fpOf(dining);
+    const tableRot = vertical ? (fp0.w > fp0.d ? Math.PI / 2 : 0) : fp0.w > fp0.d ? 0 : Math.PI / 2;
+    const placed = tryPlace(dining, build(diningAlong, diningDepth), tableRot, world, ctx);
+    const fp = fpOf(placed);
+    const c = Math.abs(Math.cos(tableRot));
+    const s = Math.abs(Math.sin(tableRot));
+    const exAlong = vertical ? (s * fp.w + c * fp.d) / 2 : (c * fp.w + s * fp.d) / 2;
+    const exDepth = vertical ? (c * fp.w + s * fp.d) / 2 : (s * fp.w + c * fp.d) / 2;
+    const tAlong = alongOf(placed.position);
+    const tDepth = depthOf(placed.position);
+    const chairs = get(['diningChair']);
+    const nA = Math.ceil(chairs.length / 2);
+    const spread = (n: number, w: number) =>
+      Array.from({ length: n }, (_, i) => (n === 1 ? 0 : -w / 2 + (w * i) / (n - 1)));
+    const sideA = spread(nA, exAlong * 2 - 0.4);
+    const sideB = spread(chairs.length - nA, exAlong * 2 - 0.4);
+    const faceToward = (sign: number): number =>
+      vertical ? (sign > 0 ? Math.PI / 2 : -Math.PI / 2) : sign > 0 ? 0 : Math.PI;
+    chairs.forEach((ch, i) => {
+      if (i < nA) tryPlace(ch, build(tAlong + sideA[i], tDepth - (exDepth + 0.32)), faceToward(1), world, ctx);
+      else tryPlace(ch, build(tAlong + sideB[i - nA], tDepth + (exDepth + 0.32)), faceToward(-1), world, ctx);
+    });
+  }
+
+  // 5. Storage / desk / shoe / accents → walls + corners.
+  for (const it of get(['storage', 'desk'])) {
+    snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx);
+  }
+  for (const it of get(['shoe'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx);
+  tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx);
+  for (const it of get(['armchair'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx);
+  void cx;
+  void cz;
 }
 
 /** Living/dining: media on focal wall, seating facing it, coffee+rug centred,
@@ -729,10 +842,10 @@ export function arrangeAllRoomsForPlan(
       keepOut,
       inRoom,
       kind,
-      // The living strategy's media/seating logic is east-edge based; use it
-      // only when the windowless wall IS the east edge, else fall back to the
-      // generic (non-focal) path so media/seating aren't misplaced.
-      focal: kind === 'living' && inferFocal(rect, windows) === 'E' ? 'E' : undefined,
+      // Custom living rooms use the edge-generic arranger, facing seating to a
+      // windowless wall in whatever direction it lies.
+      focal: kind === 'living' ? inferFocal(rect, windows) : undefined,
+      genericLiving: true,
       allItems: items,
       catalog,
       doors,
