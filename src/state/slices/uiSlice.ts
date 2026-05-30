@@ -32,6 +32,8 @@ export interface UiSlice {
   snapEnabled: boolean;
   /** True while recording the canvas to a downloadable video clip. */
   recording: boolean;
+  /** Recently-used custom finish colours (hex), most-recent first. Ephemeral. */
+  recentColors: string[];
   /** Adaptive last-resort: when the FPS guard is already at the Low tier and
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
@@ -58,6 +60,8 @@ export interface UiSlice {
   setAutoShadowsOff: (v: boolean) => void;
   toggleSnap: () => void;
   setRecording: (v: boolean) => void;
+  /** Record a custom colour as recently-used (deduped, capped at 8). */
+  pushRecentColor: (hex: string) => void;
 }
 
 export const UI_INITIAL: Pick<
@@ -72,6 +76,7 @@ export const UI_INITIAL: Pick<
   | 'autoShadowsOff'
   | 'snapEnabled'
   | 'recording'
+  | 'recentColors'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -83,6 +88,7 @@ export const UI_INITIAL: Pick<
   autoShadowsOff: false,
   snapEnabled: false,
   recording: false,
+  recentColors: [],
 };
 
 const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
@@ -122,4 +128,8 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setRecording: (v) => set({ recording: v }),
+  pushRecentColor: (hex) =>
+    set((s) => ({
+      recentColors: [hex, ...s.recentColors.filter((c) => c.toLowerCase() !== hex.toLowerCase())].slice(0, 8),
+    })),
 });

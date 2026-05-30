@@ -41,6 +41,8 @@ export function FinishPicker() {
   const setWallFinish = useStore((s) => s.setWallFinish);
   const selectRoom = useStore((s) => s.selectRoom);
   const removeUserMaterial = useStore((s) => s.removeUserMaterial);
+  const recentColors = useStore(useShallow((s) => s.recentColors));
+  const pushRecentColor = useStore((s) => s.pushRecentColor);
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog);
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status);
   const materials = useMaterials();
@@ -64,6 +66,7 @@ export function FinishPicker() {
 
   const handleSelect = (surface: Surface, id: string) => {
     setLastSurface(surface);
+    if (id.startsWith('#')) pushRecentColor(id);
     if (surface === 'floor') setFloorFinish(roomId, id);
     else setWallFinish(roomId, id);
   };
@@ -118,6 +121,7 @@ export function FinishPicker() {
             onSelect={(id) => handleSelect('floor', id)}
             onRemoveUser={removeUserMaterial}
             onCustom={(hex) => handleSelect('floor', hex)}
+            recent={recentColors}
           />
           <SwatchGroup
             label="Walls"
@@ -126,6 +130,7 @@ export function FinishPicker() {
             onSelect={(id) => handleSelect('wall', id)}
             onRemoveUser={removeUserMaterial}
             onCustom={(hex) => handleSelect('wall', hex)}
+            recent={recentColors}
           />
           <div className="mt-2 flex gap-2">
             <button
@@ -159,6 +164,7 @@ interface SwatchGroupProps {
   onSelect: (id: string) => void;
   onRemoveUser: (id: string) => void;
   onCustom?: (hex: string) => void;
+  recent?: string[];
 }
 
 function providerTag(def: MaterialDef): { label: string; cls: string } | null {
@@ -169,7 +175,7 @@ function providerTag(def: MaterialDef): { label: string; cls: string } | null {
   return null;
 }
 
-function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom }: SwatchGroupProps) {
+function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom, recent }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#');
   return (
     <section className="mb-4 last:mb-0">
@@ -256,6 +262,23 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom }:
           </label>
         ) : null}
       </div>
+      {onCustom && recent && recent.length > 0 ? (
+        <div className="mt-2">
+          <div className="mb-1 text-[10px] uppercase tracking-wide text-neutral-400">Recent</div>
+          <div className="flex flex-wrap gap-1.5">
+            {recent.map((hex) => (
+              <button
+                key={hex}
+                onClick={() => onCustom(hex)}
+                title={hex}
+                aria-label={`Recent colour ${hex}`}
+                className={`h-5 w-5 rounded border ${active === hex ? 'border-blue-500 ring-1 ring-blue-300' : 'border-neutral-300'}`}
+                style={{ backgroundColor: hex }}
+              />
+            ))}
+          </div>
+        </div>
+      ) : null}
     </section>
   );
 }
