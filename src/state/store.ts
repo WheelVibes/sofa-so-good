@@ -81,6 +81,11 @@ import {
   INSTALLED_PACKS_INITIAL,
   type InstalledPacksSlice,
 } from './slices/installedPacksSlice';
+import {
+  createFloorPlanSlice,
+  FLOOR_PLAN_INITIAL,
+  type FloorPlanSlice,
+} from './slices/floorPlanSlice';
 
 export type { CameraMode } from './slices/cameraSlice';
 export type { TimeMode, TimePreset } from './slices/timeSlice';
@@ -105,7 +110,8 @@ export interface RootState
     RemoteCatalogSlice,
     OrientationSlice,
     NotificationsSlice,
-    InstalledPacksSlice {
+    InstalledPacksSlice,
+    FloorPlanSlice {
   __resetForTest: () => void;
 }
 
@@ -127,6 +133,7 @@ const INITIAL = {
   ...ORIENTATION_INITIAL,
   ...NOTIFICATIONS_INITIAL,
   ...INSTALLED_PACKS_INITIAL,
+  ...FLOOR_PLAN_INITIAL,
 };
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -148,5 +155,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createOrientationSlice(set, get, api),
   ...createNotificationsSlice(set, get, api),
   ...createInstalledPacksSlice(set, get, api),
+  ...createFloorPlanSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }));
