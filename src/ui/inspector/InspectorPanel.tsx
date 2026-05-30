@@ -13,6 +13,10 @@ import { SourceLine } from './SourceLine';
  *  actions (the marquee/shift-click multi-selection). */
 function MultiSelectPanel() {
   const count = useStore((s) => s.selectedItemIds.length);
+  const selectedItemIds = useStore((s) => s.selectedItemIds);
+  const activeGroupId = useStore((s) => s.activeGroupId);
+  const groupItems = useStore((s) => s.groupItems);
+  const ungroup = useStore((s) => s.ungroup);
   const catalog = useCatalog();
 
   const wallsFor = (s: ReturnType<typeof useStore.getState>) =>
@@ -83,6 +87,23 @@ function MultiSelectPanel() {
         <Btn onClick={() => distribute(0)}>↔ Across X</Btn>
         <Btn onClick={() => distribute(1)}>↕ Across Z</Btn>
       </div>
+      {activeGroupId ? (
+        <button
+          onClick={() => ungroup(activeGroupId)}
+          className="mb-2 w-full rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
+        >
+          Ungroup
+        </button>
+      ) : (
+        selectedItemIds.length > 1 && (
+          <button
+            onClick={() => groupItems(selectedItemIds)}
+            className="mb-2 w-full rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
+          >
+            Group
+          </button>
+        )
+      )}
       <button onClick={deleteAll} className="w-full rounded bg-rose-50 py-1 text-rose-700 hover:bg-rose-100">
         🗑 Delete all
       </button>
@@ -155,6 +176,8 @@ export function InspectorPanel() {
   const flipItem = useStore((s) => s.flipItem);
   const toggleLock = useStore((s) => s.toggleLock);
   const pushHistory = useStore((s) => s.pushHistory);
+  const activeGroupId = useStore((s) => s.activeGroupId);
+  const addToGroup = useStore((s) => s.addToGroup);
   const flip = (axis: 'x' | 'z') => {
     pushHistory();
     flipItem(item!.id, axis);
@@ -296,6 +319,15 @@ export function InspectorPanel() {
       >
         {item.locked ? '🔒 Locked — click to unlock' : '🔓 Lock in place'}
       </button>
+      {activeGroupId && item.groupId !== activeGroupId && (
+        <button
+          onClick={() => addToGroup(item.id, activeGroupId)}
+          title="Add this item to the active group"
+          className="mt-1.5 w-full rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
+        >
+          ➕ Add to group
+        </button>
+      )}
       <footer className="mt-1.5 grid grid-cols-3 gap-1.5 pt-0">
         <button
           onClick={rotate90}

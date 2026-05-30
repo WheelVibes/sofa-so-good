@@ -32,6 +32,9 @@ export interface GroupsSlice {
    *  caller is responsible for any collision rejection before calling.
    *  Pushes history. No-op for an empty group. */
   groupRotate: (groupId: string, delta: number) => void;
+  /** Add a single existing item into a group (pushes history). No-op if the
+   *  item is unknown or groupId is empty. */
+  addToGroup: (itemId: string, groupId: string) => void;
 }
 
 export const createGroupsSlice: SliceCreator<GroupsSlice, RootState> = (set, get) => ({
@@ -122,6 +125,14 @@ export const createGroupsSlice: SliceCreator<GroupsSlice, RootState> = (set, get
         const t = next.get(it.id);
         return t ? { ...it, position: t.position, rotation: t.rotation } : it;
       }),
+    }));
+  },
+  addToGroup: (itemId, groupId) => {
+    if (!groupId) return;
+    if (!get().items.some((it) => it.id === itemId)) return;
+    get().pushHistory();
+    set((s) => ({
+      items: s.items.map((it) => (it.id === itemId ? { ...it, groupId } : it)),
     }));
   },
 });

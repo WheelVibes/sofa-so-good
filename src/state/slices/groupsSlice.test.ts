@@ -167,3 +167,21 @@ describe('groupsSlice.groupRotate (rigid about centroid)', () => {
     expect(useStore.getState().items[0].rotation).toBe(0);
   });
 });
+
+describe('groupsSlice.addToGroup', () => {
+  beforeEach(() => useStore.getState().__resetForTest());
+
+  it('stamps the given groupId on the item', () => {
+    useStore.getState().setItems([item('a', [0, 0], 'g1'), item('b', [1, 0], 'g1'), item('c', [2, 0])]);
+    useStore.getState().addToGroup('c', 'g1');
+    expect(useStore.getState().items.find((i) => i.id === 'c')?.groupId).toBe('g1');
+  });
+
+  it('is a no-op for an unknown item or empty group id', () => {
+    useStore.getState().setItems([item('a', [0, 0])]);
+    useStore.getState().addToGroup('a', '');
+    expect(useStore.getState().items[0].groupId).toBeUndefined();
+    useStore.getState().addToGroup('nope', 'g1');
+    expect(useStore.getState().items[0].groupId).toBeUndefined();
+  });
+});
