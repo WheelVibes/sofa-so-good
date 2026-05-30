@@ -83,5 +83,21 @@ export function CategoryIcon({ category, className }: CategoryIconProps) {
           <path d="M8 2.5l1.7 3.45 3.8.55-2.75 2.68.65 3.78L8 11.18l-3.4 1.78.65-3.78L2.5 6.5l3.8-.55z" />
         </svg>
       );
+    case 'textiles':
+      return (
+        <svg {...common}>
+          <ellipse cx="8" cy="8" rx="5.5" ry="3" />
+          <ellipse cx="8" cy="8" rx="3" ry="1.5" />
+          <path d="M2.5 8h11" />
+        </svg>
+      );
+    case 'outdoor':
+      return (
+        <svg {...common}>
+          <path d="M8 13.5V8" />
+          <path d="M8 8C8 8 4 7 4 4.5a4 4 0 0 1 8 0C12 7 8 8 8 8z" />
+          <path d="M5.5 13.5h5" />
+        </svg>
+      );
   }
 }

@@ -16,6 +16,8 @@ const DOT: Partial<Record<FurnitureCategory, string>> = {
   appliances: '#ef4444',
   kitchen: '#ec4899',
   bathroom: '#06b6d4',
+  textiles: '#f97316',
+  outdoor: '#84cc16',
 };
 
 /**

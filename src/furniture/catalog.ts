@@ -67,6 +67,8 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
     appliances: [...(BUILTIN_BY_CATEGORY.appliances ?? [])],
     lighting: [...(BUILTIN_BY_CATEGORY.lighting ?? [])],
     decor: [...(BUILTIN_BY_CATEGORY.decor ?? [])],
+    textiles: [...(BUILTIN_BY_CATEGORY.textiles ?? [])],
+    outdoor: [...(BUILTIN_BY_CATEGORY.outdoor ?? [])],
   };
   for (const def of GENERATED_FURNITURE) (out[def.category] ??= []).push(def);
   for (const def of userFurniture) (out[def.category] ??= []).push(resolveUserDefFootprint(def));

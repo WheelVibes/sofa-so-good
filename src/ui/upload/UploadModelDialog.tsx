@@ -26,6 +26,8 @@ const CATEGORY_LABEL: Record<FurnitureCategory, string> = {
   appliances: 'Appliances',
   lighting: 'Lighting',
   decor: 'Decor',
+  textiles: 'Textiles',
+  outdoor: 'Outdoor',
 };
 
 export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {

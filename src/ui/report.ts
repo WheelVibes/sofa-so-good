@@ -12,7 +12,7 @@ import { FURNITURE_CATEGORIES } from '../furniture/types';
 const CAT_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds', seating: 'Seating', tables: 'Tables', storage: 'Storage',
   kitchen: 'Kitchen', bathroom: 'Bathroom', appliances: 'Appliances',
-  lighting: 'Lighting', decor: 'Decor',
+  lighting: 'Lighting', decor: 'Decor', textiles: 'Textiles', outdoor: 'Outdoor',
 };
 
 const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));

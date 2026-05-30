@@ -17,6 +17,8 @@ const CATEGORY_BASE: Record<FurnitureCategory, number> = {
   appliances: 700,
   lighting: 90,
   decor: 60,
+  textiles: 200,
+  outdoor: 300,
 };
 
 /** Notable per-item prices (SGD). */

@@ -20,6 +20,8 @@ const LABELS: Record<FurnitureCategory, string> = {
   appliances: 'Appliances',
   lighting: 'Lighting',
   decor: 'Decor',
+  textiles: 'Textiles',
+  outdoor: 'Outdoor',
 };
 
 export function CategoryTabs({ active, onSelect, byCategory }: CategoryTabsProps) {
