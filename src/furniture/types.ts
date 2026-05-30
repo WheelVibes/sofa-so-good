@@ -106,7 +106,9 @@ export type PrimitiveKind =
   | 'Crib'
   | 'Soundbar'
   | 'WallMirror'
-  | 'FloorVase';
+  | 'FloorVase'
+  | 'HighChair'
+  | 'ChangingTable';
 
 export type ParamField =
   | {

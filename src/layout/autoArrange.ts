@@ -69,6 +69,7 @@ const ROLE: Record<string, ArrangeRole> = {
   bookshelf: 'storage',
   'cube-shelf': 'storage',
   dresser: 'storage',
+  'changing-table': 'storage',
   wardrobe: 'storage',
   'wardrobe-3door': 'storage',
   'shoe-cabinet': 'shoe',

@@ -69,6 +69,8 @@ import { Crib } from './Crib';
 import { Soundbar } from './Soundbar';
 import { WallMirror } from './WallMirror';
 import { FloorVase } from './FloorVase';
+import { HighChair } from './HighChair';
+import { ChangingTable } from './ChangingTable';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -135,4 +137,6 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Soundbar,
   WallMirror,
   FloorVase,
+  HighChair,
+  ChangingTable,
 };
