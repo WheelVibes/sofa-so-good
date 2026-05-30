@@ -1,4 +1,4 @@
-import { useFrame } from '@react-three/fiber';
+import { useFrame, useThree } from '@react-three/fiber';
 import { useMemo, useRef } from 'react';
 import { Object3D, type DirectionalLight, type AmbientLight, type HemisphereLight } from 'three';
 import { useStore } from '../../state/store';
@@ -7,6 +7,7 @@ import { sunDirectionToScene, type SunPosition } from './sunPosition';
 import { lightingFromAltitude } from './altitudeCurve';
 import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../../apartment/constants';
 import { useQuality } from '../useQuality';
+import { grade, SOFT_SHADOW } from '../look';
 
 /** Distance from the apartment centre where the directional light sits (m). */
 const SUN_DISTANCE = 25;
@@ -62,6 +63,7 @@ export function Lighting() {
   const sunPos = useSunPosition();
   const orientation = useStore((s) => s.orientationDeg);
   const shadowMapSize = useQuality().shadowMapSize;
+  const gl = useThree((s) => s.gl);
   const sunRef = useRef<DirectionalLight>(null!);
   const ambientRef = useRef<AmbientLight>(null!);
   const hemiRef = useRef<HemisphereLight>(null!);
@@ -93,6 +95,10 @@ export function Lighting() {
       a[1] = approach(a[1], b[1]);
       a[2] = approach(a[2], b[2]);
     };
+
+    // Drive tone-mapping exposure from the sun altitude every frame — cheap,
+    // and it must keep tracking even after the light tween settles.
+    gl.toneMappingExposure = grade(sunPos.altitude).exposure;
 
     // Cheap settle check on the dominant channels.
     const settled =
@@ -137,8 +143,9 @@ export function Lighting() {
         target={sunTarget}
         shadow-mapSize-width={shadowMapSize || 1024}
         shadow-mapSize-height={shadowMapSize || 1024}
-        shadow-bias={-0.0002}
-        shadow-normalBias={0.035}
+        shadow-bias={SOFT_SHADOW.bias}
+        shadow-normalBias={SOFT_SHADOW.normalBias}
+        shadow-radius={SOFT_SHADOW.radius}
         shadow-camera-near={1}
         shadow-camera-far={SUN_DISTANCE * 2}
         shadow-camera-left={-SHADOW_HALF}

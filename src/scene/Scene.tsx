@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber';
 import { Stats } from '@react-three/drei';
-import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
+import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three';
 import { useStore } from '../state/store';
 import { Apartment } from '../apartment/Apartment';
 import { PlanShell } from '../apartment/PlanShell';
@@ -34,7 +34,7 @@ export function Scene() {
   const customPlan = useStore((s) => !isDefaultPlan(s.floorPlan));
   return (
     <Canvas
-      shadows={{ type: PCFShadowMap }}
+      shadows={{ type: PCFSoftShadowMap }}
       dpr={[1, 1.75]}
       camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 400 }}
       gl={{
