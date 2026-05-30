@@ -137,8 +137,10 @@ export default function App() {
       }
       if (code === KEYBINDINGS.deleteSelected && state.selectedItemIds.length > 0) {
         // Snapshot ids before deleting — deleteItem mutates the set as it goes.
+        // Locked items are skipped (pinned).
+        const lockedIds = new Set(state.items.filter((i) => i.locked).map((i) => i.id));
         for (const id of [...state.selectedItemIds]) {
-          useStore.getState().deleteItem(id);
+          if (!lockedIds.has(id)) useStore.getState().deleteItem(id);
         }
       }
       if (mod && code === KEYBINDINGS.copySelected && state.selectedItemId) {
@@ -184,7 +186,7 @@ export default function App() {
       if (!mod && code === KEYBINDINGS.rotate && state.selectedItemId) {
         const step = e.shiftKey ? ROTATE_FINE_STEP : ROTATE_STEP;
         const ids = state.selectedItemIds.length > 0 ? state.selectedItemIds : [state.selectedItemId];
-        const group = state.items.filter((i) => ids.includes(i.id));
+        const group = state.items.filter((i) => ids.includes(i.id) && !i.locked);
         if (group.length === 0) return;
 
         if (group.length === 1) {
@@ -276,7 +278,7 @@ export default function App() {
       const state = useStore.getState();
       if (state.cameraMode !== 'orbit' || state.selectedItemIds.length === 0) return;
       const movingIds = state.selectedItemIds;
-      const movingItems = state.items.filter((i) => movingIds.includes(i.id));
+      const movingItems = state.items.filter((i) => movingIds.includes(i.id) && !i.locked);
       if (movingItems.length === 0) return;
       let dx = 0;
       let dz = 0;

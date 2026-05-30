@@ -48,6 +48,8 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
       if (!e.shiftKey && !state.selectedItemIds.includes(item.id)) {
         state.selectItem(item.id);
       }
+      // Locked items can be selected (to unlock) but not dragged.
+      if (item.locked) return;
       const offset: [number, number] = [
         e.point.x - item.position[0],
         e.point.z - item.position[1],

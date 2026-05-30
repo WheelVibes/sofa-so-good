@@ -21,6 +21,8 @@ export interface ItemsSlice {
   updateItemProps: (id: string, props: ParamProps) => void;
   /** Mirror-flip an item along its local X ('x') or Z ('z') axis. */
   flipItem: (id: string, axis: 'x' | 'z') => void;
+  /** Toggle the locked (pinned) state of an item. */
+  toggleLock: (id: string) => void;
   setItems: (items: FurnitureItem[]) => void;
 }
 
@@ -83,6 +85,12 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     const key = axis === 'x' ? 'flipX' : 'flipZ';
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, [key]: !it[key] } : it)),
+    }));
+  },
+  toggleLock: (id) => {
+    get().pushHistory();
+    set((s) => ({
+      items: s.items.map((it) => (it.id === id ? { ...it, locked: !it.locked } : it)),
     }));
   },
   setItems: (items) => set({ items }),

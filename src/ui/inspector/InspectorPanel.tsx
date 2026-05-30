@@ -66,6 +66,7 @@ export function InspectorPanel() {
   const deleteItem = useStore((s) => s.deleteItem);
   const selectItem = useStore((s) => s.selectItem);
   const flipItem = useStore((s) => s.flipItem);
+  const toggleLock = useStore((s) => s.toggleLock);
   const pushHistory = useStore((s) => s.pushHistory);
   const flip = (axis: 'x' | 'z') => {
     pushHistory();
@@ -165,24 +166,34 @@ export function InspectorPanel() {
       <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-neutral-200 pt-2">
         <button
           onClick={() => flip('x')}
+          disabled={item.locked}
           title="Flip left ↔ right (F)"
-          className={`rounded py-1 hover:bg-neutral-200 ${item.flipX ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-700'}`}
+          className={`rounded py-1 enabled:hover:bg-neutral-200 disabled:opacity-40 ${item.flipX ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-700'}`}
         >
           ⇆ Flip H
         </button>
         <button
           onClick={() => flip('z')}
+          disabled={item.locked}
           title="Flip front ↔ back (Shift+F)"
-          className={`rounded py-1 hover:bg-neutral-200 ${item.flipZ ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-700'}`}
+          className={`rounded py-1 enabled:hover:bg-neutral-200 disabled:opacity-40 ${item.flipZ ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-700'}`}
         >
           ⇅ Flip V
         </button>
       </div>
+      <button
+        onClick={() => toggleLock(item.id)}
+        title="Lock pins the item so it can't be moved, rotated or deleted"
+        className={`mt-1.5 w-full rounded py-1 hover:opacity-90 ${item.locked ? 'bg-amber-100 text-amber-800' : 'bg-neutral-100 text-neutral-700'}`}
+      >
+        {item.locked ? '🔒 Locked — click to unlock' : '🔓 Lock in place'}
+      </button>
       <footer className="mt-1.5 grid grid-cols-3 gap-1.5 pt-0">
         <button
           onClick={rotate90}
+          disabled={item.locked}
           title="Rotate 90° (R)"
-          className="rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
+          className="rounded bg-neutral-100 py-1 text-neutral-700 enabled:hover:bg-neutral-200 disabled:opacity-40"
         >
           ↻ Rotate
         </button>
@@ -194,9 +205,10 @@ export function InspectorPanel() {
           ⧉ Copy
         </button>
         <button
-          onClick={() => deleteItem(item.id)}
+          onClick={() => !item.locked && deleteItem(item.id)}
+          disabled={item.locked}
           title="Delete (Del)"
-          className="rounded bg-rose-50 py-1 text-rose-700 hover:bg-rose-100"
+          className="rounded bg-rose-50 py-1 text-rose-700 enabled:hover:bg-rose-100 disabled:opacity-40"
         >
           🗑 Delete
         </button>

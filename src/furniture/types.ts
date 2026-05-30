@@ -252,6 +252,10 @@ export interface FurnitureItem {
    *  Optional + default false so saved layouts stay backward-compatible. */
   flipX?: boolean;
   flipZ?: boolean;
+  /** When true the item is pinned: it can't be dragged, nudged, rotated or
+   *  deleted until unlocked (good for fixed appliances / fixtures). Optional
+   *  + default false so saved layouts stay backward-compatible. */
+  locked?: boolean;
   props: ParamProps;
 }
 

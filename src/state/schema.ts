@@ -21,6 +21,8 @@ const FurnitureItemZ = z.object({
   // Optional mirror flips (backward-compatible with pre-flip saves).
   flipX: z.boolean().optional(),
   flipZ: z.boolean().optional(),
+  // Optional lock/pin flag (backward-compatible).
+  locked: z.boolean().optional(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
 });
 
