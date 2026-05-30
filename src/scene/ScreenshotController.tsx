@@ -15,8 +15,15 @@ export function ScreenshotController() {
   useEffect(() => {
     const onExport = () => {
       const store = useStore.getState();
-      const prevTier = store.qualityTier;
-      const prevOverrides = store.qualityOverrides;
+      // Snapshot the full quality state so the export is side-effect-free —
+      // restoring via setQualityTier would clobber qualityUserSet/autoShadowsOff
+      // and could pin an auto-quality user out of adaptive adjustment.
+      const prev = {
+        qualityTier: store.qualityTier,
+        qualityUserSet: store.qualityUserSet,
+        qualityOverrides: store.qualityOverrides,
+        autoShadowsOff: store.autoShadowsOff,
+      };
       try {
         // Force the highest-fidelity look for the exported frame regardless of
         // the live tier: high tier + every capability on.
@@ -39,11 +46,8 @@ export function ScreenshotController() {
       } catch {
         /* tainted canvas / unsupported — ignore */
       } finally {
-        // Always restore the user's live settings, even if capture threw.
-        // setQualityTier resets overrides to {}, so restore the tier FIRST,
-        // then overwrite qualityOverrides with the saved object.
-        store.setQualityTier(prevTier);
-        useStore.setState({ qualityOverrides: prevOverrides });
+        // Always restore the exact prior quality state, even if capture threw.
+        useStore.setState(prev);
       }
     };
     window.addEventListener(EXPORT_EVENT, onExport);
