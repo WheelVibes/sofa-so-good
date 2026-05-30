@@ -46,14 +46,18 @@ Presets toolbar menu + applyLayoutPreset(); collision-valid + tested. Two
 kinds: restyle-in-place (Move-in Default, Scandi, Warm Industrial, Cozy
 Tropical, Japandi, Coastal, Modern Mono) and **researched re-modelled L/D
 arrangements** (Open-Concept Lounge, Work-From-Home) via an explicit
-`livingDining` array in LayoutPreset. New asset for these: an **L-shaped
-sectional sofa** (sofa-lshape / SofaSectional). To add a researched layout:
-author `livingDining` entries + run the preset collision test. ~~Venetian
-blind~~, ~~bulb temperature~~, ~~TV/monitor screen content~~, ~~room area in
-Finish picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
+`livingDining` array, plus an `extraItems` layer for add-on pieces (feature
+walls). Researched layouts: Open-Concept Lounge, Work-From-Home, Social
+Lounge. New assets for these: an **L-shaped sectional sofa** (sofa-lshape)
+and a **fluted/slat feature wall** (feature-wall / FeatureWall), used as
+media walls in several presets. To add a researched layout: author
+`livingDining` entries + run the preset collision test. ~~Venetian blind~~,
+~~bulb temperature~~, ~~TV/monitor screen content~~, ~~room area in Finish
+picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
 
 Possible further polish: heated-ladder towel rail; user-saved style presets;
-more researched layouts (entertainer / minimalist).
+researched bedroom layout (feature-wall headboard); sideboard / bar-cart /
+console-table assets.
 
 ## Realism & content pass (2026-05-29)
 
