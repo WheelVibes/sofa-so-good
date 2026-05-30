@@ -441,6 +441,71 @@ def glb_from_ld_json(html_content):
     return None
 
 
+# A "What's included" list item wraps a member product. We slice the HTML into
+# per-wrapper chunks and, inside each, read the dotted article (705.957.33), an
+# optional name, an optional quantity ("2 ×" / "Qty 2"), and an optional member
+# anchor. Dotted -> 8-digit article by stripping the dots.
+_WRAPPER_SPLIT_RE = re.compile(r'pipf-list-view-item__wrapper')
+_DOTTED_ART_RE = re.compile(r'\b(\d{3}\.\d{3}\.\d{2})\b')
+_INCLUDED_NAME_RE = re.compile(
+    r'pipf-list-view-item__name[^>]*>\s*(.*?)\s*<', re.I | re.DOTALL)
+_INCLUDED_QTY_RE = re.compile(
+    r'(?:qty\s*|x\s*)?(\d+)\s*(?:&times;|×|x\b)', re.I)
+_INCLUDED_HREF_RE = re.compile(r'href="([^"]*/p/[^"]*-\d{8}/?[^"]*)"', re.I)
+
+
+def _dotted_to_article(dotted):
+    """'705.957.33' -> '70595733'."""
+    return dotted.replace(".", "")
+
+
+def extract_included_articles(html, set_article):
+    """
+    Parse the page's "What's included" section for member products.
+
+    Returns a list of dicts (page order, de-duplicated by article):
+      { "article_number": "70595733",
+        "name": "VIHALS gateleg table, white" | None,
+        "included_count": 2 | None,
+        "url": "https://www.ikea.com/sg/en/p/...-70595733/" | None }
+
+    The set's own article (set_article, with any leading 's' / dots stripped)
+    is excluded. Returns [] when the section is absent.
+    """
+    own = re.sub(r"\D", "", set_article or "")  # 's69599421' -> '69599421'
+    chunks = _WRAPPER_SPLIT_RE.split(html)
+    members, seen = [], set()
+    # chunks[0] is everything before the first wrapper; skip it.
+    for chunk in chunks[1:]:
+        m = _DOTTED_ART_RE.search(chunk)
+        if not m:
+            continue
+        art = _dotted_to_article(m.group(1))
+        if art == own or art in seen:
+            continue
+        seen.add(art)
+
+        name_m = _INCLUDED_NAME_RE.search(chunk)
+        name = name_m.group(1).strip() if name_m else None
+
+        qty_m = _INCLUDED_QTY_RE.search(chunk)
+        included_count = int(qty_m.group(1)) if qty_m else None
+
+        href_m = _INCLUDED_HREF_RE.search(chunk)
+        url = None
+        if href_m:
+            href = href_m.group(1).split("#")[0]
+            url = f"https://www.ikea.com{href}" if href.startswith("/") else href
+
+        members.append({
+            "article_number": art,
+            "name": name,
+            "included_count": included_count,
+            "url": url,
+        })
+    return members
+
+
 async def scrape_complete_with(page):
     """
     Scrape the 'Complete with' compatibility module.

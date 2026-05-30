@@ -63,3 +63,35 @@ def test_is_set_product_negative_single_chair():
     # A single chair is not a set: no "and chairs", no leading count.
     pj = {"typeName": "folding chair"}
     assert scraper.is_set_product(pj, ["Chairs", "Tables, chairs & dining furniture"]) is False
+
+
+# ---------------------------------------------------------------------------
+# Task 3: extract_included_articles
+# ---------------------------------------------------------------------------
+
+def test_extract_included_articles_basic():
+    html = _fixture("whats_included.html")
+    members = scraper.extract_included_articles(html, set_article="s69599421")
+    arts = [m["article_number"] for m in members]
+    assert arts == ["70595733", "40592745"]  # page order preserved
+
+
+def test_extract_included_excludes_set_own_number():
+    html = _fixture("whats_included.html")
+    members = scraper.extract_included_articles(html, set_article="s69599421")
+    assert "69599421" not in [m["article_number"] for m in members]
+
+
+def test_extract_included_captures_name_count_url():
+    html = _fixture("whats_included.html")
+    members = scraper.extract_included_articles(html, set_article="s69599421")
+    table, chair = members
+    assert table["name"] == "VIHALS gateleg table, white"
+    assert table["included_count"] is None
+    assert chair["included_count"] == 2
+    assert chair["url"].endswith("-40592745/")
+
+
+def test_extract_included_empty_when_section_absent():
+    assert scraper.extract_included_articles("<html><body></body></html>",
+                                             set_article="s69599421") == []
