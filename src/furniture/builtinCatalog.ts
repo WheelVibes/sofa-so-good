@@ -2788,6 +2788,45 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Kitchen ─────────────────────────────────────────────────────────────
+  'kitchen-island': {
+    kind: 'parametric',
+    id: 'kitchen-island',
+    name: 'Kitchen island',
+    category: 'kitchen',
+    keywords: ['island', 'breakfast bar', 'peninsula'],
+    primitive: 'KitchenIsland',
+    defaultFootprint: { w: 1.6, d: 0.95, h: 0.9 },
+    footprintParams: { w: 'length', d: 'depth' },
+    paramSchema: [
+      { kind: 'number', key: 'length', label: 'Length', min: 1.0, max: 2.4, step: 0.1, default: 1.6, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.8, max: 1.1, step: 0.05, default: 0.95, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Cabinet', default: '#3a4754' },
+      { kind: 'color', key: 'worktopColor', label: 'Worktop', default: '#2c2f34' },
+      {
+        kind: 'enum',
+        key: 'top',
+        label: 'Top',
+        default: 'plain',
+        options: [
+          { value: 'plain', label: 'Plain' },
+          { value: 'sink', label: 'With sink' },
+          { value: 'hob', label: 'With hob' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
+        options: [
+          { value: 'painted', label: 'Painted' },
+          { value: 'wood', label: 'Wood' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.1 },
+    ],
+  },
   'kitchen-counter-l': {
     kind: 'parametric',
     id: 'kitchen-counter-l',
