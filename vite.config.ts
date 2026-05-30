@@ -50,6 +50,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/kenney/, ''),
       },
+      // Local IKEA scraper sidecar (`npm run scraper-server`). Same-origin
+      // path so the browser avoids CORS; only resolves while it's running.
+      '/ikea': {
+        target: 'http://localhost:5174',
+        changeOrigin: true,
+      },
     },
   },
 });

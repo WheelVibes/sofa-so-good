@@ -26,3 +26,6 @@ python/scripts/ikea_sg_3d_models/**/*-low.glb
 python/scripts/ikea_sg_3d_models/**/*-medium.glb
 
 .superpowers/
+
+# Live-scraped IKEA assets (non-CC0, local/dev-only)
+public/assets/ikea/

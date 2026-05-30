@@ -12,7 +12,8 @@
     "fetch-assets": "tsx scripts/fetch-assets.ts",
     "fetch-assets:quick": "tsx scripts/fetch-assets.ts --quick",
     "index-assets": "tsx scripts/index-assets-cli.ts",
-    "optimize:glb": "node python/scripts/optimize_glb_lod.mjs"
+    "optimize:glb": "node python/scripts/optimize_glb_lod.mjs",
+    "scraper-server": "node scripts/scraper-server.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^9.122.0",
