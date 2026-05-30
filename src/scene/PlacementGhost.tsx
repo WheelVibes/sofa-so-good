@@ -5,6 +5,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../state/store';
 import { useCatalog } from '../furniture/catalog';
 import { canPlace, itemFootprint } from '../collision/placement';
+import { planCollisionWalls, isDefaultPlan } from '../floorplan/planGeometry';
 import { snapToGrid } from './snap';
 import { Furniture } from '../furniture/Furniture';
 import {
@@ -89,6 +90,7 @@ export function PlacementGhost() {
       others: items,
       defs: catalog,
       doors,
+      walls: isDefaultPlan(st.floorPlan) ? undefined : planCollisionWalls(st.floorPlan, doors),
     });
     if (valid !== validRef.current) {
       validRef.current = valid;

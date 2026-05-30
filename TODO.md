@@ -206,3 +206,24 @@ Out-of-scope items deferred from the spec:
 ## Process
 
 - Update this file every time a plan is designed or work is implemented (see `MEMORY.md` feedback rule).
+
+## Floor plan editor (2026-05-30)
+
+Shipped — a data-driven, editable apartment shell + 2D editor:
+
+- ~~**Editable FloorPlan model**~~ — [src/floorplan/types.ts](src/floorplan/types.ts)
+  (walls / openings / rooms + area helpers), seeded from the fixed flat via
+  [defaultPlan.ts](src/floorplan/defaultPlan.ts); held in
+  [floorPlanSlice.ts](src/state/slices/floorPlanSlice.ts).
+- ~~**2D Floor Plan Editor**~~ — [src/ui/floorplan/FloorPlanEditor.tsx](src/ui/floorplan/FloorPlanEditor.tsx):
+  draw interior/exterior walls, rectangular rooms (live auto area + total),
+  doors/windows on walls; grid-snapped; property inspector; New / Reset-to-HDB.
+  Toolbar "Floor plan" button.
+- ~~**3D rendering of custom plans**~~ — [PlanShell.tsx](src/apartment/PlanShell.tsx)
+  extrudes plan walls (door/window openings + glass) + per-room floors; shown
+  in place of the curated <Apartment/> for non-default plans. Furniture
+  collision follows the plan ([planGeometry.ts](src/floorplan/planGeometry.ts)).
+- Follow-ups: per-room finishes/floor materials for custom plans; a named
+  plan library (save/load multiple apartments) + persistence; route `roomOf`
+  / the auto-arranger / finishes through the active plan so custom plans are
+  fully furnish-aware; L-shaped room editing UI; angled (non-orthogonal) walls.

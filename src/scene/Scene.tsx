@@ -3,6 +3,8 @@ import { Stats } from '@react-three/drei';
 import { ACESFilmicToneMapping, PCFShadowMap } from 'three';
 import { useStore } from '../state/store';
 import { Apartment } from '../apartment/Apartment';
+import { PlanShell } from '../apartment/PlanShell';
+import { isDefaultPlan } from '../floorplan/planGeometry';
 import { CameraRig } from './cameras/CameraRig';
 import { CameraForwardTracker } from './cameras/cameraForward';
 import { Lighting } from './lighting/Lighting';
@@ -25,6 +27,7 @@ import { DevCameraExpose } from './DevCameraExpose';
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps);
+  const customPlan = useStore((s) => !isDefaultPlan(s.floorPlan));
   return (
     <Canvas
       shadows={{ type: PCFShadowMap }}
@@ -46,7 +49,7 @@ export function Scene() {
       <SceneEnvironment />
       <Lighting />
       <FurnitureLights />
-      <Apartment />
+      {customPlan ? <PlanShell /> : <Apartment />}
       <GridOverlay />
       <FurnitureLayer />
       <SelectionOutline />

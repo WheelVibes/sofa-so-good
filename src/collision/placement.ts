@@ -86,6 +86,9 @@ interface PlacementContext {
   others: FurnitureItem[];
   defs: Record<string, FurnitureDef>;
   doors: Record<string, { open: boolean }>;
+  /** Optional collision walls override (e.g. a user-authored floor plan).
+   *  When omitted, the fixed flat's door-aware walls are used. */
+  walls?: CollisionWall[];
 }
 
 /** Vertical extent of an item in metres above the floor, for height-aware
@@ -128,7 +131,7 @@ export function canPlace(
   // against the visible interior face still has to clear the wall body.
   // Mounted items (wall aircon, ceiling lights) are exempt.
   if (!def.mounted) {
-    const walls = buildCollisionWalls(ctx.doors);
+    const walls = ctx.walls ?? buildCollisionWalls(ctx.doors);
     for (const seg of walls) {
       if (obbVsObb(obb, wallToObb(seg))) return false;
     }

@@ -4,6 +4,7 @@ import { Plane, Raycaster, Vector2, Vector3 } from 'three';
 import { useStore } from '../state/store';
 import { useCatalog } from '../furniture/catalog';
 import { canPlace } from '../collision/placement';
+import { planCollisionWalls, isDefaultPlan } from '../floorplan/planGeometry';
 import { snapToGrid } from './snap';
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0);
@@ -76,6 +77,10 @@ export function DragController() {
       // still apply.
       const inGroup = new Set(movedIds);
       const others = group.length > 1 ? after.items.filter((it) => !inGroup.has(it.id)) : after.items;
+      // On a user-authored plan, collide against its walls (not the fixed flat).
+      const planWalls = isDefaultPlan(after.floorPlan)
+        ? undefined
+        : planCollisionWalls(after.floorPlan, after.doors);
       let valid = true;
       for (const mid of movedIds) {
         const item = after.items.find((i) => i.id === mid);
@@ -86,6 +91,7 @@ export function DragController() {
             others,
             defs: catalogRef.current,
             doors: after.doors,
+            walls: planWalls,
           })
         ) {
           valid = false;
