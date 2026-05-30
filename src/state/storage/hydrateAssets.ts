@@ -56,6 +56,8 @@ export async function hydrateUserAssets(): Promise<void> {
         uploadedAt: m.uploadedAt,
         defaultFootprint: { w: 1.0, d: 1.0, h: 1.0 },
         runtimeUrl: URL.createObjectURL(rec.blob),
+        mounted: m.meta?.['mounted'] as boolean | undefined,
+        noClip: m.meta?.['noClip'] as boolean | undefined,
       });
     } else if (m.kind === 'texture') {
       const matId = m.meta?.['matId'];

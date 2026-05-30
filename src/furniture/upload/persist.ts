@@ -40,7 +40,7 @@ export async function persistUserGlb(
     name: opts.name,
     uploadedAt: new Date().toISOString(),
     blob,
-    meta: { category: opts.category },
+    meta: { category: opts.category, mounted: opts.mounted, noClip: opts.noClip },
   });
 
   const def: UserGltfDef = {

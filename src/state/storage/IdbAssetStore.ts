@@ -25,7 +25,7 @@ export interface AssetRecord {
    *  this carries `category`; for materials (Phase 3) it carries the
    *  texture role + uvScale. Keeping this open-ended avoids needing a
    *  new IDB schema migration when a new asset kind is added. */
-  meta?: Record<string, string | number | boolean>;
+  meta?: Record<string, string | number | boolean | undefined>;
 }
 
 export interface AssetMeta {
@@ -35,7 +35,7 @@ export interface AssetMeta {
   name: string;
   uploadedAt: string;
   size: number;
-  meta?: Record<string, string | number | boolean>;
+  meta?: Record<string, string | number | boolean | undefined>;
 }
 
 function open(): Promise<IDBDatabase> {
