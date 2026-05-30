@@ -71,6 +71,7 @@ import { WallMirror } from './WallMirror';
 import { FloorVase } from './FloorVase';
 import { HighChair } from './HighChair';
 import { ChangingTable } from './ChangingTable';
+import { Bathtub } from './Bathtub';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -139,4 +140,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   FloorVase,
   HighChair,
   ChangingTable,
+  Bathtub,
 };

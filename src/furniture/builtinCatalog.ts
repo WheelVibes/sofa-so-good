@@ -1592,6 +1592,42 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       },
     ],
   },
+  bathtub: {
+    kind: 'parametric',
+    id: 'bathtub',
+    name: 'Bathtub',
+    category: 'bathroom',
+    keywords: ['tub', 'soaker', 'bath'],
+    primitive: 'Bathtub',
+    defaultFootprint: { w: 1.6, d: 0.75, h: 0.58 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Length', min: 1.3, max: 1.9, step: 0.05, default: 1.6, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Width', min: 0.65, max: 0.85, step: 0.02, default: 0.75, unit: 'm' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'builtin',
+        options: [
+          { value: 'builtin', label: 'Built-in (alcove)' },
+          { value: 'freestanding', label: 'Freestanding' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Tub', default: '#f3f1ec' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'gloss',
+        options: [
+          { value: 'gloss', label: 'Glossy acrylic' },
+          { value: 'painted', label: 'Matte' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.4 },
+    ],
+  },
   shower: {
     kind: 'parametric',
     id: 'shower',

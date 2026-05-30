@@ -108,7 +108,8 @@ export type PrimitiveKind =
   | 'WallMirror'
   | 'FloorVase'
   | 'HighChair'
-  | 'ChangingTable';
+  | 'ChangingTable'
+  | 'Bathtub';
 
 export type ParamField =
   | {
