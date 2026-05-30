@@ -17,11 +17,13 @@ const FOOTPRINT_CACHE = new Map<
   { w: number; d: number; h: number; ox: number; oz: number }
 >();
 
-/** Reads the cached footprint for a GLB if available, else returns null. */
+/** Reads the cached footprint for a GLB if available, else returns null.
+ *  Normalises tier-variant urls to their base key, since the cache is always
+ *  written under the base url (high-tier footprint is authoritative). */
 export function getCachedGltfFootprint(
   url: string,
 ): { w: number; d: number; h: number; ox: number; oz: number } | null {
-  return FOOTPRINT_CACHE.get(url) ?? null;
+  return FOOTPRINT_CACHE.get(baseUrl(url)) ?? null;
 }
 
 /** Pre-seed the footprint cache from known GLB accessor data (e.g. the IKEA
