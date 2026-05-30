@@ -2,6 +2,7 @@ import { Ceiling } from './Ceiling';
 import { Doors } from './Door';
 import { Floor } from './floor/Floor';
 import { Walls } from './walls/Walls';
+import { Skirting } from './Skirting';
 import { Windows } from './Window';
 import { APARTMENT_EXT_W, APARTMENT_EXT_D } from './constants';
 
@@ -17,6 +18,7 @@ export function Apartment() {
       <Floor />
       <Ceiling />
       <Walls />
+      <Skirting />
       <Windows />
       <Doors />
     </group>
