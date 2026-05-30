@@ -1,11 +1,46 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
+import { useFrame, useThree } from '@react-three/fiber';
+import type { Mesh, MeshStandardMaterial } from 'three';
 import { useStore } from '../state/store';
-import { wallBoxes } from '../floorplan/planGeometry';
+import { wallBoxes, type WallBox } from '../floorplan/planGeometry';
 import { wallLength, planBounds } from '../floorplan/types';
 import { PlanRoomFloor } from './floor/PlanRoomFloor';
 import type { MaterialId } from '../materials/types';
 
 const DEFAULT_PLAN_FLOOR = 'floor-wood-oak';
+
+/**
+ * One plan wall, fading out in orbit mode when it sits between the camera and
+ * the plan centre (so the dollhouse view isn't blocked by near walls).
+ */
+function FadeWall({ box, cx, cz }: { box: WallBox; cx: number; cz: number }) {
+  const ref = useRef<Mesh>(null);
+  const { camera } = useThree();
+  const cameraMode = useStore((s) => s.cameraMode);
+  useFrame(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    const mat = mesh.material as MeshStandardMaterial;
+    let target = 1;
+    if (cameraMode === 'orbit') {
+      // Wall is "between" camera and centre when (K-W)·(C-W) < 0.
+      const kx = camera.position.x - box.cx;
+      const kz = camera.position.z - box.cz;
+      const dx = cx - box.cx;
+      const dz = cz - box.cz;
+      if (kx * dx + kz * dz < 0) target = 0.12;
+    }
+    mat.opacity += (target - mat.opacity) * 0.18;
+    mat.transparent = mat.opacity < 0.98;
+    mat.depthWrite = mat.opacity > 0.6;
+  });
+  return (
+    <mesh ref={ref} position={[box.cx, box.cy, box.cz]} rotation={[0, box.angle, 0]} castShadow receiveShadow>
+      <boxGeometry args={[box.thickness, box.height, box.length]} />
+      <meshStandardMaterial color="#ede9e2" roughness={0.9} transparent opacity={1} />
+    </mesh>
+  );
+}
 
 /**
  * Lightweight 3D shell for a user-authored floor plan: a grounding slab,
@@ -71,12 +106,9 @@ export function PlanShell() {
         );
       })}
 
-      {/* Walls */}
+      {/* Walls (fade when between the orbit camera and the plan centre) */}
       {boxes.map((b, i) => (
-        <mesh key={i} position={[b.cx, b.cy, b.cz]} rotation={[0, b.angle, 0]} castShadow receiveShadow>
-          <boxGeometry args={[b.thickness, b.height, b.length]} />
-          <meshStandardMaterial color="#ede9e2" roughness={0.9} />
-        </mesh>
+        <FadeWall key={i} box={b} cx={ew / 2} cz={ed / 2} />
       ))}
 
       {/* Window glass */}
