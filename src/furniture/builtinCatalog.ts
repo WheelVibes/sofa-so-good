@@ -1210,6 +1210,43 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'bar-cart': {
+    kind: 'parametric',
+    id: 'bar-cart',
+    name: 'Bar cart',
+    category: 'tables',
+    primitive: 'BarCart',
+    defaultFootprint: { w: 0.72, d: 0.42, h: 0.82 },
+    footprintParams: { w: 'width', d: 'depth' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.55, max: 0.95, step: 0.01, default: 0.72, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.34, max: 0.5, step: 0.01, default: 0.42, unit: 'm' },
+      { kind: 'integer', key: 'tiers', label: 'Tiers', min: 2, max: 3, default: 2 },
+      {
+        kind: 'enum',
+        key: 'frame',
+        label: 'Frame',
+        default: 'brass',
+        options: [
+          { value: 'brass', label: 'Brass' },
+          { value: 'black', label: 'Matte black' },
+          { value: 'chrome', label: 'Chrome' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'shelf',
+        label: 'Shelves',
+        default: 'glass',
+        options: [
+          { value: 'glass', label: 'Glass' },
+          { value: 'wood', label: 'Wood' },
+          { value: 'marble', label: 'Marble' },
+        ],
+      },
+      { kind: 'color', key: 'shelfColor', label: 'Wood shelf', default: '#6f553f' },
+    ],
+  },
   'side-table': {
     kind: 'parametric',
     id: 'side-table',

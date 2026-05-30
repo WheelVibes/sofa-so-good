@@ -71,10 +71,13 @@ media walls in several presets. To add a researched layout: author
 picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
 
 Possible further polish: heated-ladder towel rail; user-saved style presets;
-researched bedroom layout (feature-wall headboard); bar-cart asset.
+researched bedroom layout (feature-wall headboard).
 ~~Console-table~~ + ~~sideboard / credenza~~ (doors / drawers / mixed fronts ×
-tapered / hairpin / plinth base × bar / knob / recessed / push handles)
-shipped — see [src/furniture/primitives/Sideboard.tsx](src/furniture/primitives/Sideboard.tsx).
+tapered / hairpin / plinth base × bar / knob / recessed / push handles) +
+~~bar cart~~ (2–3 tiers × brass / black / chrome frame × glass / wood / marble
+shelves, guard rail + handle + castors) shipped — see
+[src/furniture/primitives/Sideboard.tsx](src/furniture/primitives/Sideboard.tsx),
+[src/furniture/primitives/BarCart.tsx](src/furniture/primitives/BarCart.tsx).
 
 ## Realism & content pass (2026-05-29)
 

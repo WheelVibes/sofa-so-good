@@ -13,6 +13,7 @@ import { SofaSectional } from './SofaSectional';
 import { FeatureWall } from './FeatureWall';
 import { ConsoleTable } from './ConsoleTable';
 import { Sideboard } from './Sideboard';
+import { BarCart } from './BarCart';
 import { Bench } from './Bench';
 import { CubeShelf } from './CubeShelf';
 import { DiningTable } from './DiningTable';
@@ -72,6 +73,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   FeatureWall,
   ConsoleTable,
   Sideboard,
+  BarCart,
   Bench,
   CubeShelf,
   DiningTable,

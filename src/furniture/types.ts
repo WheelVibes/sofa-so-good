@@ -51,6 +51,7 @@ export type PrimitiveKind =
   | 'FeatureWall'
   | 'ConsoleTable'
   | 'Sideboard'
+  | 'BarCart'
   | 'Bench'
   | 'CubeShelf'
   | 'DiningTable'
