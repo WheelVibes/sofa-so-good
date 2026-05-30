@@ -13,6 +13,7 @@ import { WallAccentPicker } from './ui/WallAccentPicker';
 import { InspectorPanel } from './ui/inspector/InspectorPanel';
 import { FloorPlanEditor } from './ui/floorplan/FloorPlanEditor';
 import { BudgetPanel } from './ui/BudgetPanel';
+import { Minimap } from './ui/Minimap';
 import { LocationPrompt } from './ui/LocationPrompt';
 import { WebGLFallback } from './ui/WebGLFallback';
 import { NotificationContainer } from './ui/notifications/NotificationContainer';
@@ -381,6 +382,7 @@ export default function App() {
         <Scene />
         <MarqueeSelector />
         <Compass />
+        <Minimap />
         <Crosshair />
         <DoorPrompt />
         <HelpHint />
