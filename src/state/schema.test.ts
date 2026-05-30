@@ -290,4 +290,35 @@ describe('schema', () => {
     expect(patch.location).toEqual({ lat: 35.68, lon: 139.69, label: 'Tokyo' });
     expect(patch.locationPromptDismissed).toBe(true);
   });
+
+  it('round-trips groupId on items and serializes as version 2', () => {
+    useStore.getState().__resetForTest();
+    useStore.getState().setItems([
+      { id: 'g-a', defId: 'dining-chair', position: [0, 0], rotation: 0, groupId: 'grp-1', props: {} },
+      { id: 'g-b', defId: 'dining-chair', position: [1, 0], rotation: 0, groupId: 'grp-1', props: {} },
+    ]);
+    const out = serialize(useStore.getState());
+    expect(out.version).toBe(2);
+    const parsed = SerializedStateZ.safeParse(out);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      const a = parsed.data.items.find((i) => i.id === 'g-a');
+      const b = parsed.data.items.find((i) => i.id === 'g-b');
+      expect(a?.groupId).toBe('grp-1');
+      expect(b?.groupId).toBe('grp-1');
+    }
+  });
+
+  it('accepts an item with no groupId (back-compat)', () => {
+    useStore.getState().__resetForTest();
+    useStore.getState().setItems([
+      { id: 'plain', defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} },
+    ]);
+    const out = serialize(useStore.getState());
+    const parsed = SerializedStateZ.safeParse(out);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      expect(parsed.data.items.find((i) => i.id === 'plain')?.groupId).toBeUndefined();
+    }
+  });
 });

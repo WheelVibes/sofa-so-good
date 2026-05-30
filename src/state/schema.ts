@@ -25,6 +25,8 @@ const FurnitureItemZ = z.object({
   flipZ: z.boolean().optional(),
   // Optional lock/pin flag (backward-compatible).
   locked: z.boolean().optional(),
+  // Optional group membership (introduced in save v2; absent = ungrouped).
+  groupId: z.string().optional(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
 });
 
@@ -155,7 +157,7 @@ const FloorPlanZ = z.object({
 });
 
 const RawSerializedStateZ = z.object({
-  version: z.literal(1),
+  version: z.literal(2),
   apartmentId: z.literal('serangoon-north-vista-4r'),
   items: z.array(FurnitureItemZ),
   // Optional custom apartment shell (omitted for the default flat).
@@ -197,7 +199,13 @@ const LEGACY_TIME_HOUR: Record<string, number> = {
  *  in manual mode. */
 export const SerializedStateZ = z.preprocess((input) => {
   if (input && typeof input === 'object' && !Array.isArray(input)) {
-    const obj = input as Record<string, unknown>;
+    let obj = input as Record<string, unknown>;
+    // v1 -> v2 was a no-op on items (the optional groupId); accept legacy v1
+    // payloads by bumping the version so the literal(2) check passes. (The
+    // full migrate() chain still runs on the autosave-load path.)
+    if (obj.version === 1) {
+      obj = { ...obj, version: 2 };
+    }
     if (!('timeMode' in obj) && typeof obj.timeOfDay === 'string') {
       const hour = LEGACY_TIME_HOUR[obj.timeOfDay];
       if (typeof hour === 'number') {
@@ -206,6 +214,7 @@ export const SerializedStateZ = z.preprocess((input) => {
         return { ...rest, timeMode: 'manual', manualHour: hour };
       }
     }
+    return obj;
   }
   return input;
 }, RawSerializedStateZ);
@@ -217,7 +226,7 @@ export type SerializedState = z.infer<typeof SerializedStateZ>;
  *  user defs, catalogOpen). */
 export function serialize(state: RootState): SerializedState {
   return {
-    version: 1,
+    version: 2,
     apartmentId: 'serangoon-north-vista-4r',
     items: state.items,
     // Persist a custom shell; the default flat is rebuilt from constants.

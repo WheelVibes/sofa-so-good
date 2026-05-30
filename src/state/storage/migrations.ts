@@ -10,12 +10,19 @@
  * future versions throw a typed error.
  */
 
-export const CURRENT_VERSION = 1;
+export const CURRENT_VERSION = 2;
 
 type Migration = (raw: unknown) => unknown;
 
 export const MIGRATIONS: Record<number, Migration> = {
-  // Empty in v1 — nothing to migrate from yet.
+  // v1 -> v2: introduced the optional FurnitureItem.groupId. Absent groupId is
+  // already valid (a group is emergent from shared ids), so this is a no-op on
+  // items — the bump exists so older readers reject v2 and the registry records
+  // the field's introduction.
+  1: (raw) => {
+    const r = raw as Record<string, unknown>;
+    return { ...r, version: 2 };
+  },
 };
 
 export class VersionMismatchError extends Error {

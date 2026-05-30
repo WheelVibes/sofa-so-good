@@ -4,7 +4,7 @@ import type { SerializedState } from '../schema';
 
 function fakeState(savedAt: string): SerializedState {
   return {
-    version: 1,
+    version: 2,
     apartmentId: 'serangoon-north-vista-4r',
     items: [],
     doors: {},
