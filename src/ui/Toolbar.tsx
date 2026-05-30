@@ -18,6 +18,7 @@ import { isDefaultPlan } from '../floorplan/planGeometry';
 import { buildReportHtml } from './report';
 import { FURNITURE_SETS } from '../furniture/furnitureSets';
 import { planRoomArea } from '../floorplan/types';
+import { captureThumb, saveThumb, getThumb, deleteThumb } from '../state/storage/slotThumbs';
 import { canRecord } from '../scene/RecordController';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
@@ -773,6 +774,7 @@ function SaveButton() {
         if (!slot) return;
         try {
           await LocalStorageAdapter.save(slot, serialize(useStore.getState()));
+          saveThumb(slot, captureThumb());
         } catch (e) {
           alert('Could not save: ' + (e as Error).message);
         }
@@ -849,16 +851,24 @@ function LoadButton() {
                       useStore.setState(applySerialized(data, known));
                       setOpen(false);
                     }}
-                    className="flex-1 truncate text-left"
+                    className="flex flex-1 items-center gap-2 truncate text-left"
                   >
-                    <div className="font-medium">{s.slot}</div>
-                    <div className="text-[10px] text-neutral-500">
-                      {new Date(s.savedAt).toLocaleString()}
-                    </div>
+                    {getThumb(s.slot) ? (
+                      <img src={getThumb(s.slot)!} alt="" className="h-9 w-12 shrink-0 rounded object-cover" />
+                    ) : (
+                      <div className="h-9 w-12 shrink-0 rounded bg-neutral-100" />
+                    )}
+                    <span className="min-w-0 flex-1">
+                      <div className="truncate font-medium">{s.slot}</div>
+                      <div className="text-[10px] text-neutral-500">
+                        {new Date(s.savedAt).toLocaleString()}
+                      </div>
+                    </span>
                   </button>
                   <button
                     onClick={async () => {
                       await LocalStorageAdapter.delete(s.slot);
+                      deleteThumb(s.slot);
                       setSlots(await LocalStorageAdapter.list());
                     }}
                     className="rounded text-rose-600 hover:bg-rose-50 hover:px-1"
