@@ -1,5 +1,6 @@
 import { readNum, readStr } from './shared';
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
+import { useDetail, seg } from './useDetail';
 import type { ParamProps } from '../types';
 
 /**
@@ -15,6 +16,7 @@ export function FloorVase({ props }: { props: ParamProps }) {
   const shape = readStr(props, 'shape', 'tall');
   const stems = readStr(props, 'stems', 'pampas');
   const stemColor = readStr(props, 'stemColor', '#cdbb93');
+  const r = seg(24, useDetail());
 
   const mat = getSurfaceMaterial(finish, color, 1.0, sheen);
   // Body profile by shape: [bottomR, midR, topR].
@@ -29,11 +31,11 @@ export function FloorVase({ props }: { props: ParamProps }) {
     <group>
       {/* Lower body (bottom → belly) */}
       <mesh castShadow receiveShadow position={[0, h1 / 2, 0]} material={mat}>
-        <cylinderGeometry args={[mr, br, h1, 24]} />
+        <cylinderGeometry args={[mr, br, h1, r]} />
       </mesh>
       {/* Upper body (belly → neck) */}
       <mesh castShadow receiveShadow position={[0, h1 + h2 / 2, 0]} material={mat}>
-        <cylinderGeometry args={[tr, mr, h2, 24]} />
+        <cylinderGeometry args={[tr, mr, h2, r]} />
       </mesh>
 
       {/* Stems */}

@@ -1,5 +1,6 @@
 import { readStr } from './shared';
 import { hexToRgb } from '../../materials/procedural/noise';
+import { useDetail, seg } from './useDetail';
 import type { ParamProps } from '../types';
 
 /** Potted foliage plant: pot + soil + foliage. The `type` enum picks the
@@ -18,6 +19,7 @@ export function PottedPlant({ props }: { props: ParamProps }) {
   const potH = 0.32;
   const potRTop = 0.2;
   const potRBot = potShape === 'tapered' ? 0.14 : 0.2;
+  const potSeg = seg(24, useDetail());
 
   // Shade a hex by a factor for canopy depth variation.
   const [lr, lg, lb] = hexToRgb(leafColor);
@@ -65,15 +67,15 @@ export function PottedPlant({ props }: { props: ParamProps }) {
       ) : (
         <>
           <mesh castShadow receiveShadow position={[0, potH / 2, 0]}>
-            <cylinderGeometry args={[potRTop, potRBot, potH, 24]} />
+            <cylinderGeometry args={[potRTop, potRBot, potH, potSeg]} />
             <meshStandardMaterial color={potColor} roughness={0.85} metalness={0.02} />
           </mesh>
           <mesh castShadow position={[0, potH, 0]}>
-            <cylinderGeometry args={[potRTop + 0.012, potRTop, 0.04, 24]} />
+            <cylinderGeometry args={[potRTop + 0.012, potRTop, 0.04, potSeg]} />
             <meshStandardMaterial color={potColor} roughness={0.8} metalness={0.02} />
           </mesh>
           <mesh position={[0, potH - 0.02, 0]}>
-            <cylinderGeometry args={[potRTop - 0.02, potRTop - 0.02, 0.03, 24]} />
+            <cylinderGeometry args={[potRTop - 0.02, potRTop - 0.02, 0.03, potSeg]} />
             <meshStandardMaterial color="#3a2a1c" roughness={1} />
           </mesh>
         </>

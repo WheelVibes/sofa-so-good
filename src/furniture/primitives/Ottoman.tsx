@@ -1,6 +1,7 @@
 import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
 import { getUpholsteryMaterial, getWoodMaterial } from '../../materials/furnitureMaterials';
+import { useDetail, seg } from './useDetail';
 import type { ParamProps } from '../types';
 
 /**
@@ -23,6 +24,7 @@ export function Ottoman({ props }: { props: ParamProps }) {
 
   const uphol = getUpholsteryMaterial(material, color, sheen);
   const legMat = getWoodMaterial(legColor, 0.4);
+  const detail = useDetail();
 
   const footH = feet === 'wood' ? 0.07 : 0;
   const bodyH = height - footH;
@@ -51,7 +53,7 @@ export function Ottoman({ props }: { props: ParamProps }) {
       {/* Body */}
       {shape === 'round' ? (
         <mesh castShadow receiveShadow position={[0, bodyY, 0]} material={uphol}>
-          <cylinderGeometry args={[r, r * 0.96, bodyH, 32]} />
+          <cylinderGeometry args={[r, r * 0.96, bodyH, seg(32, detail)]} />
         </mesh>
       ) : (
         <RoundedBox

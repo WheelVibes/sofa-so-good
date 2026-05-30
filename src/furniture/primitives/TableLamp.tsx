@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import type { MeshStandardMaterial } from 'three';
 import { readNum, readStr } from './shared';
 import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
+import { useDetail, seg } from './useDetail';
 import type { ParamProps } from '../types';
 
 /** Table/bedside lamp: base + slim stem + tapered shade. Its geometry starts
@@ -19,6 +20,7 @@ export function TableLamp({ props }: { props: ParamProps }) {
   const profile: [number, number] =
     shade === 'drum' ? [0.14, 0.14] : shade === 'cone' ? [0.05, 0.17] : [0.11, 0.15];
   const shadeRef = useRef<MeshStandardMaterial>(null);
+  const detail = useDetail();
   useFrame(() => {
     if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7;
   });
@@ -27,7 +29,7 @@ export function TableLamp({ props }: { props: ParamProps }) {
     <group position={[0, surfaceH, 0]}>
       {/* Base */}
       <mesh castShadow receiveShadow position={[0, 0.02, 0]}>
-        <cylinderGeometry args={[0.09, 0.1, 0.04, 20]} />
+        <cylinderGeometry args={[0.09, 0.1, 0.04, seg(20, detail)]} />
         <meshStandardMaterial color={baseColor} roughness={0.4} metalness={0.5} />
       </mesh>
       {/* Stem */}
@@ -37,7 +39,7 @@ export function TableLamp({ props }: { props: ParamProps }) {
       </mesh>
       {/* Shade */}
       <mesh castShadow position={[0, stemH + shadeH / 2 - 0.02, 0]}>
-        <cylinderGeometry args={[profile[0], profile[1], shadeH, 24, 1, true]} />
+        <cylinderGeometry args={[profile[0], profile[1], shadeH, seg(24, detail), 1, true]} />
         <meshStandardMaterial
           ref={shadeRef}
           color={shadeColor}

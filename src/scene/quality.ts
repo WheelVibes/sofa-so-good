@@ -23,6 +23,10 @@ export interface QualitySettings {
   /** Soft contact-shadow blobs under furniture (transparent overdraw; off on
    *  the low tier to save fill rate on weak GPUs). */
   contactShadows: boolean;
+  /** Tessellation multiplier for furniture curved geometry (cylinders, lathes,
+   *  rounded boxes). Scales segment counts so the High tier renders smoother
+   *  legs/shades/vases while Low keeps polys down. 1 = baseline. */
+  geometryDetail: number;
 }
 
 export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
@@ -34,6 +38,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     dprMax: 1,
     wallReveal: true,
     contactShadows: false,
+    geometryDetail: 0.7,
   },
   medium: {
     shadowMapSize: 2048,
@@ -43,6 +48,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     dprMax: 1.5,
     wallReveal: true,
     contactShadows: true,
+    geometryDetail: 1,
   },
   high: {
     shadowMapSize: 2048,
@@ -52,6 +58,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     dprMax: 2,
     wallReveal: true,
     contactShadows: true,
+    geometryDetail: 1.8,
   },
 };
 

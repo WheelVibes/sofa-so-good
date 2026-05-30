@@ -1,6 +1,7 @@
 import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
+import { useDetail, seg } from './useDetail';
 import type { ParamProps } from '../types';
 
 /** Small side / end table beside a sofa, armchair, or bed. Shapes:
@@ -21,6 +22,7 @@ export function SideTable({ props }: { props: ParamProps }) {
   const topMat = getSurfaceMaterial(finish, topColor, 0.8, sheen);
   const legMat = getSurfaceMaterial(finish, legColor, 0.8, sheen);
   const legH = totalH - topThk;
+  const detail = useDetail();
 
   if (shape === 'square') {
     const legT = 0.04;
@@ -47,11 +49,11 @@ export function SideTable({ props }: { props: ParamProps }) {
       <group>
         {/* Recessed plinth */}
         <mesh castShadow position={[0, baseH / 2, 0]} material={legMat}>
-          <cylinderGeometry args={[r - 0.04, r - 0.04, baseH, 32]} />
+          <cylinderGeometry args={[r - 0.04, r - 0.04, baseH, seg(32, detail)]} />
         </mesh>
         {/* Drum body */}
         <mesh castShadow receiveShadow position={[0, baseH + (totalH - baseH) / 2, 0]} material={topMat}>
-          <cylinderGeometry args={[r, r, totalH - baseH, 36]} />
+          <cylinderGeometry args={[r, r, totalH - baseH, seg(36, detail)]} />
         </mesh>
       </group>
     );
@@ -63,7 +65,7 @@ export function SideTable({ props }: { props: ParamProps }) {
   return (
     <group>
       <mesh castShadow receiveShadow position={[0, totalH - topThk / 2, 0]} material={topMat}>
-        <cylinderGeometry args={[r, r, topThk, 28]} />
+        <cylinderGeometry args={[r, r, topThk, seg(28, detail)]} />
       </mesh>
       {[0, 1, 2].map((i) => {
         const a = (i / 3) * Math.PI * 2 + Math.PI / 6;

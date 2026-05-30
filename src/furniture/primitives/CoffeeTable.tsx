@@ -1,5 +1,6 @@
 import { readNum, readStr } from './shared';
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
+import { useDetail, seg } from './useDetail';
 import type { ParamProps } from '../types';
 
 /** Low coffee table. A 'rect' top has a lower shelf + four square legs; a
@@ -21,6 +22,7 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
   const shelfY = 0.12;
 
   const wood = getSurfaceMaterial(finish, color, 1.6, sheen);
+  const detail = useDetail();
 
   if (shape === 'round' || shape === 'oval') {
     // Round uses width as diameter; oval stretches along X (width) and is
@@ -48,7 +50,7 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
           scale={[1, 1, shape === 'oval' ? rz / rx : 1]}
           material={wood}
         >
-          <cylinderGeometry args={[rx, rx, topT, 48]} />
+          <cylinderGeometry args={[rx, rx, topT, seg(44, detail)]} />
         </mesh>
         {/* Splayed round legs */}
         {corners.map(([x, z], i) => {
@@ -61,7 +63,7 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
               rotation={[Math.sign(z) * -ang, 0, Math.sign(x) * ang]}
               material={wood}
             >
-              <cylinderGeometry args={[legR * 0.8, legR, legH, 16]} />
+              <cylinderGeometry args={[legR * 0.8, legR, legH, seg(16, detail, 8)]} />
             </mesh>
           );
         })}
