@@ -17,6 +17,25 @@ Single source of truth for deferred work across this project. Each entry links b
   triangle / fixture order); run it over the researched presets so their
   bedrooms are auto-spaced; add a desk-chair-at-desk rule.
 
+## Asset realism + structural audit (2026-05-30)
+
+- ~~**Structural audit of every primitive**~~ — fixed floating/overlapping
+  parts: SofaSectional cushion overlap, Vanity round-mirror post, OfficeChair
+  gas-lift gap, ConsoleTable band/shelf overhang; replaced plain-object
+  `material=` props (CoatRack/Soundbar) with real `getSolidMaterial` instances.
+- ~~**Richer furniture materials**~~ — wood-grain generator rewritten (warped
+  latewood lines + lengthwise pores + roughness map); new procedural
+  stone/marble; `marble` finish on tables / kitchen-island / bar-cart.
+- ~~**Real CC0 textures as DLC on furniture**~~ — `mat:<id>` finish applies any
+  catalog/downloaded ambientCG/Poly Haven material to a piece
+  (`FurnitureMaterialLoader`, `getSurfaceMaterial`, inspector dropdown).
+- Follow-up: a curated "furniture materials" shortlist (oak/walnut/teak/marble
+  slugs) surfaced as one-tap finishes so users don't have to browse the full
+  remote catalog; quality-gated mesh subdivision for primitives on the High
+  tier; verify the runtime download end-to-end behind the prod reverse-proxy
+  (the build sandbox's network allowlist blocks ambientCG/Poly Haven, so this
+  path is currently covered only by mocked unit tests).
+
 ## Catalogue configurability pass (2026-05-29)
 
 Goal: make every catalogue item as configurable as possible (colour ×

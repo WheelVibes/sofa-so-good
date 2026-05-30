@@ -40,8 +40,10 @@ state, Vite build, Vitest tests.
   `lightEmitters.ts` registers which items emit light at night.
 - `src/materials/` — finishes. `builtinCatalog.ts` (floors/walls), runtime
   `procedural/` PBR generators (wood/tile/marble/carpet/concrete/terrazzo/
-  plaster), `furnitureMaterials.ts` (tintable fabric + wood for furniture),
-  `worldUv.ts` (metre-space UVs so finishes tile consistently).
+  plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
+  for furniture, plus `getSolidMaterial` for metal/plastic and the `mat:<id>`
+  DLC-finish resolver), `worldUv.ts` (metre-space UVs so finishes tile
+  consistently).
 - `src/scene/` — the R3F `<Canvas>` and systems: `lighting/` (sun astronomy,
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
@@ -54,6 +56,20 @@ state, Vite build, Vitest tests.
   tiling tile (albedo+normal+roughness) per finish from seeded noise; plaster
   wall paints share one normal map (tinted by colour) to save memory.
   Surfaces use world-space UVs so a finish tiles at a fixed physical scale.
+  Furniture (`furnitureMaterials.ts`) has its own tintable grain generators:
+  wood (warped latewood lines + lengthwise pores + roughness map), stone/marble
+  (turbulent veins), fabric/leather/velvet, plus `getSolidMaterial` for
+  metal/plastic parts — always pass a real `Material` instance to a `material=`
+  prop, never a plain props object (three.js ignores those).
+- **DLC materials on furniture**: a furniture finish value of `mat:<materialId>`
+  applies any catalog finish — including a downloaded CC0 PBR set from the
+  ambientCG/Poly Haven remote catalog — to the piece. `FurnitureMaterialLoader`
+  (mounted in the scene) watches items, builds the referenced material into the
+  shared cache (procedural synchronously; textured via `<Suspense>`+`useTexture`)
+  under a furniture-scoped id, and bumps `materialEpoch` so memoised furniture
+  re-render. `getSurfaceMaterial` returns the built material, falling back to
+  procedural wood until it's ready. The inspector's wood/surface `finish`
+  dropdown lists these (labelled “CC0 DLC”).
 - **Lighting / time of day**: SunCalc drives sun altitude → `altitudeCurve.ts`
   → directional sun + hemisphere fill + IBL intensity + sky. Light fixtures
   emit capped, day-gated point lights at night and their shades glow via the
@@ -106,6 +122,12 @@ state, Vite build, Vitest tests.
 ## Conventions
 - Furniture primitives are floor-anchored, centred on the footprint, facing
   +Z; geometry is built at real-world metres.
+- **Structural soundness**: parts must connect (no floating members), supports
+  reach floor→underside, legs sit inside the top/seat footprint, and seats
+  cover the span their legs bound. `material=` props need a real three `Material`
+  (use the `furnitureMaterials.ts` helpers), not a plain `{color,roughness}`
+  object. Don't invent bespoke texture art — for photoreal surfaces apply a CC0
+  DLC material (`mat:<id>`) over the procedural fallback.
 - **Placement follows the interior-design rules in
   [docs/interior-design-guidelines.md](docs/interior-design-guidelines.md)**:
   storage/appliances/beds flush to walls, TVs on windowless walls, seating
