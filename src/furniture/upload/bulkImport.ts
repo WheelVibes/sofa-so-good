@@ -20,7 +20,7 @@ export interface BulkImportResult {
 
 interface PlannedFile {
   file: File;
-  display: string;
+  errorName: string;
   name: string;
 }
 
@@ -37,6 +37,8 @@ export async function importGlbFiles(
   let done = 0;
   const tick = () => onProgress?.(++done, total);
 
+  // Dedupe set is snapshotted once at call start; assumes importGlbFiles is not
+  // invoked concurrently with itself (the UI enforces single-import at a time).
   const used = new Set(useStore.getState().userFurniture.map((d) => d.name));
 
   const planned: PlannedFile[] = [];
@@ -59,7 +61,7 @@ export async function importGlbFiles(
         : file;
     planned.push({
       file: fileForPersist,
-      display: file.name,
+      errorName: basename,
       name: dedupeName(modelName(path), used),
     });
   }
@@ -74,9 +76,9 @@ export async function importGlbFiles(
       try {
         const result = await persistUserGlb(job.file, { name: job.name, category: opts.category });
         if (result.ok) imported++;
-        else skipped.push({ name: job.display, reason: result.reason });
+        else skipped.push({ name: job.errorName, reason: result.reason });
       } catch (e) {
-        skipped.push({ name: job.display, reason: e instanceof Error ? e.message : String(e) });
+        skipped.push({ name: job.errorName, reason: e instanceof Error ? e.message : String(e) });
       }
       tick();
     }

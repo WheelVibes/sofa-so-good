@@ -19,7 +19,7 @@ function textFile(name: string): File {
   return new File(['hello'], name, { type: 'text/plain' });
 }
 function badGlb(name: string): File {
-  return new File([new Uint8Array(12)], name, { type: 'model/gltf-binary' });
+  return new File([new Uint8Array(12)], name, { type: 'model/gltf-binary' }); // 12 bytes, no glTF magic header → validateGlbFile rejects
 }
 
 describe('bulkImport file filtering', () => {
@@ -113,6 +113,16 @@ describe('importGlbFiles', () => {
     );
     expect(calls.at(-1)).toEqual([3, 3]);
     expect(calls.every(([, t]) => t === 3)).toBe(true);
+    expect(calls.length).toBe(3);
+  });
+
+  it('reports a failed folder-picked file by its real basename', async () => {
+    const bad = new File([new Uint8Array(12)], 'blob', { type: 'model/gltf-binary' });
+    Object.defineProperty(bad, 'webkitRelativePath', { value: 'Folder/Broken Chair.glb' });
+    const res = await importGlbFiles([bad], { category: 'decor' });
+    expect(res.imported).toBe(0);
+    expect(res.skipped).toHaveLength(1);
+    expect(res.skipped[0].name).toBe('Broken Chair.glb');
   });
 
   it('imports every valid file even when the batch exceeds the pool size', async () => {
