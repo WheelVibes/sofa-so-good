@@ -348,6 +348,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#c8775c' },
       {
         kind: 'enum',
+        key: 'accentPillows',
+        label: 'Pillows',
+        default: 'two',
+        options: [
+          { value: 'none', label: 'None' },
+          { value: 'two', label: 'Two' },
+          { value: 'four', label: 'Four' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'pillowPattern',
         label: 'Pillow weave',
         default: 'plain',
@@ -412,6 +423,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         ],
       },
       { kind: 'color', key: 'pillowColor', label: 'Throw pillows', default: '#c8775c' },
+      {
+        kind: 'enum',
+        key: 'accentPillows',
+        label: 'Pillows',
+        default: 'two',
+        options: [
+          { value: 'none', label: 'None' },
+          { value: 'two', label: 'Two' },
+          { value: 'four', label: 'Four' },
+        ],
+      },
       {
         kind: 'enum',
         key: 'pillowPattern',

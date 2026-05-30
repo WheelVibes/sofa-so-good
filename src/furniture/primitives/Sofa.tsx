@@ -22,6 +22,7 @@ export function Sofa({ props }: SofaProps) {
   const sheen = readNum(props, 'sheen', 0);
   const pattern = readStr(props, 'pattern', 'plain');
   const pillowPattern = readStr(props, 'pillowPattern', 'plain');
+  const accentPillows = readStr(props, 'accentPillows', 'two');
   const armStyle = readStr(props, 'armStyle', 'standard');
 
   // Proportions grounded in real 3-seater dimensions: seat surface ~44cm,
@@ -99,19 +100,21 @@ export function Sofa({ props }: SofaProps) {
           />
         );
       })}
-      {/* Accent throw pillows against the back, near each arm */}
-      {[-1, 1].map((s) => (
-        <RoundedBox
-          key={`p${s}`}
-          args={[0.34, 0.34, 0.12]}
-          radius={0.05}
-          smoothness={2}
-          castShadow
-          position={[s * (innerW / 2 - 0.22), seatTop + 0.16, -depth / 2 + 0.32]}
-          rotation={[0.32, s * 0.18, s * 0.12]}
-          material={getFabricMaterial(pillowColor, 0.95, pillowPattern)}
-        />
-      ))}
+      {/* Accent throw pillows against the back. 'two' near each arm; 'four'
+          adds an inner pair; 'none' leaves the sofa bare. */}
+      {accentPillows !== 'none' &&
+        (accentPillows === 'four' ? [-1, -0.45, 0.45, 1] : [-1, 1]).map((s, i) => (
+          <RoundedBox
+            key={`p${i}`}
+            args={[0.34, 0.34, 0.12]}
+            radius={0.05}
+            smoothness={2}
+            castShadow
+            position={[s * (innerW / 2 - 0.22), seatTop + 0.16, -depth / 2 + 0.32]}
+            rotation={[0.32, s * 0.18, s * 0.12]}
+            material={getFabricMaterial(pillowColor, 0.95, pillowPattern)}
+          />
+        ))}
       {/* Tapered feet */}
       {[-1, 1].map((sx) =>
         [-1, 1].map((sz) => (
