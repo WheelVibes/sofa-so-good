@@ -29,9 +29,16 @@ platform / storage~~, ~~wardrobe open interior (rail + clothes + shelves)~~,
 ~~bathroom basin pedestal/vanity/wall-hung~~, ~~appliance finish matte/steel/
 gloss (fridge, washer, stove, microwave, hood)~~ — all shipped (2026-05-29).
 
-Possible further polish: patterned upholstery textures (stripes / herringbone
-needs new procedural generators); toilet one-piece/wall-hung; shower enclosure
-glass vs open; kitchen counter door/drawer fronts.
+Shipped since: ~~tone-on-tone weave patterns (plain/striped/herringbone/
+checkered) on sofa, armchair, dining + office chair, rug, curtains, bedding~~;
+~~appliance finish~~; ~~bathroom basin styles~~; ~~toilet wall-hung~~;
+~~kitchen counter worktop colour + slab/shaker/drawer fronts~~; ~~bathroom
+mirror rect/round/frameless~~; ~~walk-in shower~~.
+
+The catalogue is now broadly configurable across colour × material × finish ×
+sheen × form/shape × weave. Possible further polish: per-cushion accent
+pillow patterns; abstract/print wall-art textures; more weave motifs (plaid,
+dots); heated-ladder towel rail.
 
 ## Realism & content pass (2026-05-29)
 
