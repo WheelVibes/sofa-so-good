@@ -207,8 +207,9 @@ export default function App() {
           return;
         }
 
-        // Group rotate: spin every selected item around the group centroid by
-        // `step`, preserving the arrangement. Apply only if all fit.
+        // Group rotate about the centroid (rigid). Pre-check canPlace on the
+        // rotated candidates; commit via the store's groupRotate helper if all
+        // fit (groupRotate preserves the arrangement + pushes history).
         const cx = group.reduce((a, i) => a + i.position[0], 0) / group.length;
         const cz = group.reduce((a, i) => a + i.position[1], 0) / group.length;
         const cos = Math.cos(step);
@@ -229,10 +230,21 @@ export default function App() {
           return def && canPlace(c, def, { others: merged, defs: catalog, doors: state.doors });
         });
         if (allFit) {
-          state.pushHistory();
-          for (const c of candidates) {
-            state.rotateItem(c.id, c.rotation);
-            state.moveItem(c.id, c.position);
+          // All selected members share one group when this path is reached via
+          // a group selection; rotate it about the shared centroid the
+          // candidates were computed from. In practice the selection is one
+          // group, so rotate it via the helper.
+          const gid = group[0].groupId;
+          if (gid && group.every((i) => i.groupId === gid)) {
+            state.groupRotate(gid, step);
+          } else {
+            // Heterogeneous multi-select (spans groups / ungrouped): keep the
+            // historical inline behaviour so a flat marquee still rotates.
+            state.pushHistory();
+            for (const c of candidates) {
+              state.rotateItem(c.id, c.rotation);
+              state.moveItem(c.id, c.position);
+            }
           }
         }
       }

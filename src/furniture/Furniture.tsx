@@ -31,9 +31,10 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       if (state.editorTool !== 'select') return;
       e.stopPropagation();
       // Shift-click extends/toggles the multi-selection; plain click
-      // replaces it with just this item.
+      // selects the item's group (or the item, if ungrouped) with drill-in
+      // on a repeat/Alt click (see selectItemGrouped).
       if (e.shiftKey) state.toggleSelectedItem(item.id);
-      else state.selectItem(item.id);
+      else state.selectItemGrouped(item.id, { alt: e.altKey });
     },
     [item.id, passive],
   );
@@ -54,7 +55,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       // toggles). Plain click preserves an existing multi-selection if
       // the grabbed item is already part of it; only collapse otherwise.
       if (!e.shiftKey && !state.selectedItemIds.includes(item.id)) {
-        state.selectItem(item.id);
+        state.selectItemGrouped(item.id, { alt: e.altKey });
       }
       // Locked items can be selected (to unlock) but not dragged.
       if (item.locked) return;
