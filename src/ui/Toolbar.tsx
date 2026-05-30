@@ -90,6 +90,7 @@ export function Toolbar() {
           <StylePicker />
           <BudgetToggle />
           <ChecksToggle />
+          <SunStudyToggle />
           <Divider />
           <SaveButton />
           <LoadButton />
@@ -508,6 +509,44 @@ function BudgetToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Budget
+    </button>
+  );
+}
+
+/** Time-lapses the sun from dawn to dusk so you can watch daylight move
+ *  through the flat; restores the previous time when stopped. */
+function SunStudyToggle() {
+  const [active, setActive] = useState(false);
+  const setTimeMode = useStore((s) => s.setTimeMode);
+  const setManualHour = useStore((s) => s.setManualHour);
+  useEffect(() => {
+    if (!active) return;
+    const prev = { mode: useStore.getState().timeMode, hour: useStore.getState().manualHour };
+    setTimeMode('manual');
+    let raf = 0;
+    let last = performance.now();
+    let hour = 6;
+    const tick = (t: number) => {
+      hour += ((t - last) / 1000) * 1.4; // ~1.4 sim-hours / real-second
+      last = t;
+      if (hour >= 20) hour = 6;
+      setManualHour(hour);
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => {
+      cancelAnimationFrame(raf);
+      setTimeMode(prev.mode);
+      setManualHour(prev.hour);
+    };
+  }, [active, setTimeMode, setManualHour]);
+  return (
+    <button
+      onClick={() => setActive((v) => !v)}
+      title="Time-lapse the sun from dawn to dusk"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${active ? 'bg-amber-500 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      ☀ Sun study
     </button>
   );
 }
