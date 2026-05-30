@@ -1762,6 +1762,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'height', label: 'Top height', min: 1.8, max: 2.5, step: 0.05, default: 2.3, unit: 'm' },
       { kind: 'number', key: 'drop', label: 'Drop', min: 0.4, max: 2.2, step: 0.1, default: 1.7, unit: 'm' },
       { kind: 'color', key: 'color', label: 'Fabric', default: '#d8d2c4' },
+      {
+        kind: 'enum',
+        key: 'kind',
+        label: 'Type',
+        default: 'roller',
+        options: [
+          { value: 'roller', label: 'Roller' },
+          { value: 'venetian', label: 'Venetian slats' },
+        ],
+      },
     ],
   },
   curtains: {

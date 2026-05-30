@@ -11,30 +11,46 @@ export function RollerBlind({ props }: { props: ParamProps }) {
   const height = readNum(props, 'height', 2.3);
   const drop = readNum(props, 'drop', 1.7);
   const color = readStr(props, 'color', '#d8d2c4');
+  const kind = readStr(props, 'kind', 'roller');
 
   const fabricMat = getFabricMaterial(color);
   const cassetteY = height - 0.04;
   const fabricTop = cassetteY - 0.04;
   const fabricBottom = fabricTop - drop;
   const metal = { color: '#9a9da2', roughness: 0.4, metalness: 0.6 } as const;
+  const slatMat = { color, roughness: 0.5, metalness: 0.15 } as const;
 
   return (
     <group>
-      {/* Top cassette housing the roller */}
+      {/* Top cassette / headrail */}
       <mesh castShadow position={[0, cassetteY, 0.02]}>
         <boxGeometry args={[width + 0.04, 0.08, 0.1]} />
         <meshStandardMaterial {...metal} />
       </mesh>
-      {/* Fabric panel */}
-      <mesh castShadow position={[0, (fabricTop + fabricBottom) / 2, 0.04]} material={fabricMat}>
-        <boxGeometry args={[width, drop, 0.012]} />
-      </mesh>
+      {kind === 'venetian' ? (
+        // Horizontal slats spaced down the drop (tilted slightly open).
+        (() => {
+          const n = Math.max(4, Math.round(drop / 0.08));
+          const step = drop / n;
+          return Array.from({ length: n }, (_, i) => (
+            <mesh key={i} castShadow position={[0, fabricTop - step * (i + 0.5), 0.045]} rotation={[0.5, 0, 0]}>
+              <boxGeometry args={[width, 0.006, 0.06]} />
+              <meshStandardMaterial {...slatMat} />
+            </mesh>
+          ));
+        })()
+      ) : (
+        // Flat fabric panel
+        <mesh castShadow position={[0, (fabricTop + fabricBottom) / 2, 0.04]} material={fabricMat}>
+          <boxGeometry args={[width, drop, 0.012]} />
+        </mesh>
+      )}
       {/* Weighted bottom rail */}
       <mesh castShadow position={[0, fabricBottom, 0.04]}>
         <boxGeometry args={[width + 0.02, 0.03, 0.03]} />
         <meshStandardMaterial {...metal} />
       </mesh>
-      {/* Side chain */}
+      {/* Side chain / tilt cord */}
       <mesh position={[width / 2 + 0.03, cassetteY - 0.35, 0.04]}>
         <cylinderGeometry args={[0.004, 0.004, 0.7, 6]} />
         <meshStandardMaterial color="#b8bcc0" roughness={0.5} metalness={0.4} />
