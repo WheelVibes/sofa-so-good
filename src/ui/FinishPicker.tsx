@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
-import { ROOMS } from '../apartment/constants';
+import { ROOMS, roomArea } from '../apartment/constants';
 import { useMaterials } from '../materials/useMaterial';
 import { useStore } from '../state/store';
 import type { MaterialCategory, MaterialDef } from '../materials/types';
@@ -99,7 +99,7 @@ export function FinishPicker() {
               {view === 'browse' ? 'Browse materials' : room.name}
             </div>
             <div className="text-[10px] uppercase tracking-wide text-neutral-500">
-              {view === 'browse' ? `Apply to ${lastSurface}` : 'Finishes'}
+              {view === 'browse' ? `Apply to ${lastSurface}` : `Finishes · ${roomArea(room).toFixed(1)} m²`}
             </div>
           </div>
         </div>

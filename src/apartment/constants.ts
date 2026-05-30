@@ -602,7 +602,7 @@ export const WINDOWS: WindowSpec[] = [
 // Total interior area, summing each room's main rectangle plus any extension. Should
 // be ≈ 82.5 m² ± 0.5 m² (service yard counted as external per HDB convention; tolerance
 // enforced by the constants test).
-function roomArea(r: RoomDef): number {
+export function roomArea(r: RoomDef): number {
   const main = r.width * r.depth;
   const ext = r.extension ? r.extension.width * r.extension.depth : 0;
   return main + ext;
