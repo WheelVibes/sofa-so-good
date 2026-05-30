@@ -16,7 +16,11 @@ export function Rug({ props }: { props: ParamProps }) {
   const shape = readStr(props, 'shape', 'rectangular');
 
   const fieldMat =
-    pattern === 'gradient' ? getGradientFabricMaterial(color, color2) : getFabricMaterial(color);
+    pattern === 'gradient'
+      ? getGradientFabricMaterial(color, color2)
+      : pattern === 'striped' || pattern === 'herringbone'
+        ? getFabricMaterial(color, 0.95, pattern)
+        : getFabricMaterial(color);
   const borderMat = getFabricMaterial(border);
 
   if (shape === 'round' || shape === 'oval') {

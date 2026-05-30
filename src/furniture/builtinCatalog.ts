@@ -1503,6 +1503,8 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'solid', label: 'Solid' },
           { value: 'gradient', label: 'Gradient' },
+          { value: 'striped', label: 'Striped' },
+          { value: 'herringbone', label: 'Herringbone' },
         ],
       },
       { kind: 'color', key: 'color2', label: 'Field 2 (gradient)', default: '#c4b9a6' },
