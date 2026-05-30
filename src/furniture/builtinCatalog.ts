@@ -708,6 +708,32 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'cube-shelf': {
+    kind: 'parametric',
+    id: 'cube-shelf',
+    name: 'Cube shelf / divider',
+    category: 'storage',
+    primitive: 'CubeShelf',
+    // Footprint sized for the default 3×2 grid; collision uses this box.
+    defaultFootprint: { w: 1.29, d: 0.34, h: 0.85 },
+    paramSchema: [
+      { kind: 'integer', key: 'cols', label: 'Columns', min: 1, max: 5, default: 3 },
+      { kind: 'integer', key: 'rows', label: 'Rows', min: 1, max: 4, default: 2 },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#caa478' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
   bookshelf: {
     kind: 'parametric',
     id: 'bookshelf',
