@@ -1,6 +1,6 @@
 import type { SliceCreator } from './types';
 import type { RootState } from '../store';
-import type { UserGltfDef } from '../../furniture/types';
+import type { UserGltfDef, IkeaGltfDef } from '../../furniture/types';
 import type { TexturedMaterialDef } from '../../materials/types';
 import { IdbAssetStore } from '../storage/IdbAssetStore';
 
@@ -15,10 +15,10 @@ import { IdbAssetStore } from '../storage/IdbAssetStore';
  */
 
 export interface UserAssetsSlice {
-  userFurniture: UserGltfDef[];
-  addUserFurniture: (def: UserGltfDef) => void;
+  userFurniture: (UserGltfDef | IkeaGltfDef)[];
+  addUserFurniture: (def: UserGltfDef | IkeaGltfDef) => void;
   removeUserFurniture: (id: string) => void;
-  setUserFurniture: (defs: UserGltfDef[]) => void;
+  setUserFurniture: (defs: (UserGltfDef | IkeaGltfDef)[]) => void;
   userMaterials: TexturedMaterialDef[];
   addUserMaterial: (def: TexturedMaterialDef) => void;
   removeUserMaterial: (id: string) => void;
@@ -55,8 +55,15 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
       };
     });
     if (def) {
-      if (def.runtimeUrl) URL.revokeObjectURL(def.runtimeUrl);
-      void IdbAssetStore.delete(def.assetId);
+      if (def.source === 'ikea') {
+        for (const variant of def.variants) {
+          if (variant.runtimeUrl) URL.revokeObjectURL(variant.runtimeUrl);
+          if (variant.assetId) void IdbAssetStore.delete(variant.assetId);
+        }
+      } else {
+        if (def.runtimeUrl) URL.revokeObjectURL(def.runtimeUrl);
+        void IdbAssetStore.delete(def.assetId);
+      }
     }
   },
   setUserFurniture: (defs) => set({ userFurniture: defs }),

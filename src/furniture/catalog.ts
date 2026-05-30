@@ -15,6 +15,7 @@ import type {
   FurnitureCategory,
   FurnitureDef,
   FurnitureType,
+  IkeaGltfDef,
   UserGltfDef,
 } from './types';
 
@@ -39,6 +40,25 @@ function resolveUserDefFootprint(def: UserGltfDef): UserGltfDef {
   return { ...def, defaultFootprint, verticalSpan: def.verticalSpan ?? verticalSpan };
 }
 
+/**
+ * Same footprint refresh as {@link resolveUserDefFootprint} but for an IKEA def:
+ * resolve from the active variant's cached bbox once the GLB has loaded.
+ * Falls back to the seeded footprint carried from import when the cache is empty.
+ */
+function resolveIkeaDefFootprint(def: IkeaGltfDef): IkeaGltfDef {
+  const variant =
+    def.variants.find((v) => v.finish === def.activeVariant) ??
+    def.variants.find((v) => v.runtimeUrl);
+  const url = variant?.runtimeUrl;
+  const cached = url ? getCachedGltfFootprint(url) : null;
+  if (!cached) return def;
+  const { defaultFootprint, verticalSpan } = spanFromFootprint(
+    cached,
+    def.mounted ? { baseY: def.verticalSpan?.base ?? 0 } : undefined,
+  );
+  return { ...def, defaultFootprint, verticalSpan: def.verticalSpan ?? verticalSpan };
+}
+
 /** Reactive hook returning the complete catalog (built-ins + user uploads + resolved remote + installed packs). */
 export function useCatalog(): Record<FurnitureType, FurnitureDef> {
   const userFurniture = useStore(useShallow((s) => s.userFurniture));
@@ -46,7 +66,8 @@ export function useCatalog(): Record<FurnitureType, FurnitureDef> {
   const packFurniture = useStore(useShallow((s) => s.packFurniture));
   const merged: Record<FurnitureType, FurnitureDef> = { ...BUILTIN_CATALOG };
   for (const def of GENERATED_FURNITURE) merged[def.id] = def;
-  for (const def of userFurniture) merged[def.id] = resolveUserDefFootprint(def);
+  for (const def of userFurniture)
+    merged[def.id] = isIkeaDef(def) ? resolveIkeaDefFootprint(def) : resolveUserDefFootprint(def);
   for (const def of Object.values(remote)) merged[def.id] = def;
   for (const def of packFurniture) merged[def.id] = def;
   return merged;
@@ -71,7 +92,10 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
     outdoor: [...(BUILTIN_BY_CATEGORY.outdoor ?? [])],
   };
   for (const def of GENERATED_FURNITURE) (out[def.category] ??= []).push(def);
-  for (const def of userFurniture) (out[def.category] ??= []).push(resolveUserDefFootprint(def));
+  for (const def of userFurniture)
+    (out[def.category] ??= []).push(
+      isIkeaDef(def) ? resolveIkeaDefFootprint(def) : resolveUserDefFootprint(def),
+    );
   for (const def of Object.values(remote)) (out[def.category] ??= []).push(def);
   for (const def of packFurniture) (out[def.category] ??= []).push(def);
   return out;
@@ -88,4 +112,8 @@ export function getDef(
 
 export function isUserDef(def: FurnitureDef): def is UserGltfDef {
   return def.kind === 'gltf' && def.source === 'user';
+}
+
+export function isIkeaDef(def: FurnitureDef): def is IkeaGltfDef {
+  return def.kind === 'gltf' && def.source === 'ikea';
 }

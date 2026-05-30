@@ -171,21 +171,25 @@ export function serialize(state: RootState): SerializedState {
     ...(isDefaultPlan(state.floorPlan) ? {} : { floorPlan: state.floorPlan }),
     doors: state.doors,
     finishes: state.finishes,
-    userFurniture: state.userFurniture.map((d) => ({
-      id: d.id,
-      name: d.name,
-      category: d.category,
-      kind: 'gltf',
-      source: 'user',
-      assetId: d.assetId,
-      uploadedAt: d.uploadedAt,
-      defaultFootprint: d.defaultFootprint,
-      mounted: d.mounted,
-      noClip: d.noClip,
-      verticalSpan: d.verticalSpan,
-      finishTargets: d.finishTargets,
-      finishOverrides: d.finishOverrides,
-    })),
+    // Only user-uploaded defs persist through this schema version; IKEA defs
+    // (source: 'ikea') carry a different shape and are out of scope here.
+    userFurniture: state.userFurniture
+      .filter((d): d is Extract<typeof d, { source: 'user' }> => d.source === 'user')
+      .map((d) => ({
+        id: d.id,
+        name: d.name,
+        category: d.category,
+        kind: 'gltf',
+        source: 'user',
+        assetId: d.assetId,
+        uploadedAt: d.uploadedAt,
+        defaultFootprint: d.defaultFootprint,
+        mounted: d.mounted,
+        noClip: d.noClip,
+        verticalSpan: d.verticalSpan,
+        finishTargets: d.finishTargets,
+        finishOverrides: d.finishOverrides,
+      })),
     userMaterials: state.userMaterials.map((d) => ({
       id: d.id,
       name: d.name,
