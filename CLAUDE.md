@@ -17,14 +17,23 @@ state, Vite build, Vitest tests.
 
 ## Layout of the code
 - `src/state/` — Zustand store split into slices (`slices/*`): items,
-  selection, finishes, doors, time, location, camera, ui (incl. quality),
-  placement, clipboard, history, remote catalog, installed packs. Persistence
-  + migrations under `storage/` (layout autosave; `qualityPrefs.ts` for
-  graphics prefs). `schema.ts` is the save/load serializer.
-- `src/apartment/` — the fixed flat. `constants.ts` is the source of truth
+  selection, finishes, doors, time, location, camera, ui (incl. quality +
+  snap grid), placement, clipboard, history, remote catalog, installed packs,
+  **floorPlan** (editable apartment shell + editor state + saved-plan library).
+  Persistence + migrations under `storage/` (layout autosave; `qualityPrefs.ts`
+  graphics prefs; `editorPrefs.ts` snap/grid; `floorPlanStore.ts` plan library
+  + active custom plan). `schema.ts` is the save/load serializer.
+- `src/apartment/` — the default flat. `constants.ts` is the source of truth
   for walls/doors/windows/rooms (derived from the floor-plan SVG). `walls/`,
   `floor/`, `Window.tsx`, `Door.tsx`, `Ceiling.tsx`, plus a grounding slab in
-  `Apartment.tsx`.
+  `Apartment.tsx`. `PlanShell.tsx` renders a user-authored plan instead (walls
+  extruded with openings + `floor/PlanRoomFloor.tsx` per-room finishes) when a
+  non-default plan is active.
+- `src/floorplan/` — the editable floor-plan model: `types.ts` (FloorPlan =
+  walls/openings/rooms + area/bounds helpers), `defaultPlan.ts` (seeds the
+  plan from `apartment/constants`), `planGeometry.ts` (plan → renderable wall
+  boxes + door-aware collision walls; `isDefaultPlan`), `templates.ts` (starter
+  apartments). The 2D editor is `ui/floorplan/` (FloorPlanEditor + PlanInspector).
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` lists every
   item; parametric items map to a component in `primitives/` (registered in
   `primitives/index.ts`). `defaults/` is the move-in-ready layout.
@@ -60,6 +69,16 @@ state, Vite build, Vitest tests.
 - **Wall reveal** (`apartment/walls/`): exterior walls between the orbit
   camera and the interior fade out; windows/doors fade with them via the
   `wallReveal` registry.
+- **Floor plan editor** (`ui/floorplan/`, `floorplan/`): a 2D top-down editor
+  (toolbar "Floor plan") edits the store `floorPlan` — walls (interior/
+  exterior), rectangular rooms (auto area + total), doors/windows, grid +
+  corner snapping, drag-move, per-room floor finishes. A non-default plan
+  renders via `PlanShell` and furniture/walk collision follow it (optional
+  `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
+  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`).
+- **Snap grid** (`scene/snap.ts`, `GridOverlay.tsx`, ui `snapEnabled`/
+  `gridSize`): drag + initial placement quantise to a customizable grid
+  (10/25/50 cm, 1 m); the floor overlay shows it. Persisted via `editorPrefs`.
 
 ## Adding content
 - **Furniture**: add a `primitives/<Name>.tsx` (a function taking
