@@ -120,6 +120,12 @@ export function roleForCategory(cat: FurnitureCategory): ArrangeRole {
       return 'seating';
     case 'textiles':
       return 'rug';
+    case 'electronics':
+      return 'media';
+    case 'kids':
+      return 'storage';
+    case 'laundry':
+      return 'storage';
     default:
       return 'other';
   }

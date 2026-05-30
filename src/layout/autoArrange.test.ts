@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { arrangeRoom, arrangeAllRooms, arrangeAllRoomsForPlan, roomOf } from './autoArrange';
+import { arrangeRoom, arrangeAllRooms, arrangeAllRoomsForPlan, roomOf, roleForCategory } from './autoArrange';
 import { buildDefaultPlan } from '../floorplan/defaultPlan';
 import { blockedDoorItems } from './clearance';
 import { defaultLayout } from '../furniture/defaultLayout';
@@ -128,5 +128,14 @@ describe('arrangeRoom', () => {
         if (overlaps(box, k)) throw new Error(`${it.id} (${it.defId}) blocks a door/opening at [${it.position}]`);
       }
     }
+  });
+});
+
+describe('roleForCategory new categories', () => {
+  it('maps the new IKEA-department categories to sensible roles', () => {
+    expect(roleForCategory('electronics')).toBe('media');
+    expect(roleForCategory('kids')).toBe('storage');
+    expect(roleForCategory('laundry')).toBe('storage');
+    expect(roleForCategory('others')).toBe('other');
   });
 });
