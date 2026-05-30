@@ -8,11 +8,13 @@ import type { LayoutEntry } from './types';
  *  corridor opens westward at x=[8.55, 9.00], so dining items also
  *  stay east of x=9.10 to avoid blocking the corridor entrance. */
 export const livingDining: LayoutEntry[] = [
+  // Sofa on the west side, FACING THE TV on the east wall (back to the solid
+  // b3 partition). Seating faces the screen; the TV is on a windowless wall.
   {
     id: 'default-ld-sofa',
     defId: 'sofa-3seat',
-    position: [10.65, 2.45],
-    rotation: 0,
+    position: [9.6, 2.55],
+    rotation: Math.PI / 2,
     props: {},
   },
   {
@@ -34,16 +36,16 @@ export const livingDining: LayoutEntry[] = [
   { id: 'default-ld-chair-n2', defId: 'dining-chair', position: [10.9, 4.45], rotation: 0, props: {} },
   { id: 'default-ld-chair-s1', defId: 'dining-chair', position: [10.2, 5.95], rotation: Math.PI, props: {} },
   { id: 'default-ld-chair-s2', defId: 'dining-chair', position: [10.9, 5.95], rotation: Math.PI, props: {} },
-  // Lounge zone in front of the sofa.
-  { id: 'default-ld-rug', defId: 'rug', position: [10.65, 3.55], rotation: 0, props: { width: 2.2, depth: 1.5 } },
-  { id: 'default-ld-coffee', defId: 'coffee-table', position: [10.65, 3.55], rotation: 0, props: {} },
-  { id: 'default-ld-decor', defId: 'tabletop-decor', position: [10.65, 3.55], rotation: 0.3, props: { surfaceHeight: 0.42 } },
+  // Lounge zone between the sofa and the TV wall.
+  { id: 'default-ld-rug', defId: 'rug', position: [10.95, 2.55], rotation: 0, props: { width: 2.0, depth: 1.8 } },
+  { id: 'default-ld-coffee', defId: 'coffee-table', position: [10.95, 2.55], rotation: 0, props: {} },
+  { id: 'default-ld-decor', defId: 'tabletop-decor', position: [10.95, 2.55], rotation: 0.3, props: { surfaceHeight: 0.42 } },
   { id: 'default-ld-armchair', defId: 'armchair', position: [11.4, 7.3], rotation: Math.PI, props: {} },
   { id: 'default-ld-sidetable', defId: 'side-table', position: [10.6, 7.25], rotation: 0, props: {} },
   { id: 'default-ld-sidelamp', defId: 'table-lamp', position: [10.6, 7.25], rotation: 0, props: { surfaceHeight: 0.5 } },
   { id: 'default-ld-plant', defId: 'potted-plant', position: [12.2, 6.3], rotation: 0, props: { size: 'large', type: 'snake' } },
-  { id: 'default-ld-lamp', defId: 'floor-lamp', position: [9.35, 1.95], rotation: 0, props: {} },
-  { id: 'default-ld-fan', defId: 'ceiling-fan', position: [10.65, 3.55], rotation: 0, props: {} },
+  { id: 'default-ld-lamp', defId: 'floor-lamp', position: [12.3, 3.55], rotation: 0, props: {} },
+  { id: 'default-ld-fan', defId: 'ceiling-fan', position: [10.95, 2.55], rotation: 0, props: {} },
   { id: 'default-ld-pendant-dining', defId: 'ceiling-light', position: [10.55, 5.20], rotation: 0, props: { style: 'pendant' } },
   { id: 'default-ld-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
   { id: 'default-ld-art', defId: 'wall-art', position: [12.5, 4.4], rotation: -Math.PI / 2, props: { width: 1.0, height: 0.7 } },
