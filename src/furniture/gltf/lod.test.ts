@@ -1,5 +1,5 @@
-import { describe, it, expect } from 'vitest';
-import { lodSuffix, lodUrl, baseUrl, TIER_BUDGETS } from './lod';
+import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { lodSuffix, lodUrl, baseUrl, TIER_BUDGETS, resolveLodUrlSync, prewarmLod, __resetLodCacheForTest } from './lod';
 
 describe('lod url helpers', () => {
   it('maps tiers to suffixes', () => {
@@ -29,5 +29,36 @@ describe('lod url helpers', () => {
     expect(TIER_BUDGETS.low.triangleRatio).toBe(0.5);
     expect(TIER_BUDGETS.medium.maxTexture).toBe(1024);
     expect(TIER_BUDGETS.medium.triangleRatio).toBe(0.75);
+  });
+});
+
+describe('lod resolution', () => {
+  beforeEach(() => __resetLodCacheForTest());
+
+  it('returns base url on high regardless of cache', () => {
+    expect(resolveLodUrlSync('/m/foo.glb', 'high')).toBe('/m/foo.glb');
+  });
+
+  it('returns base url before the variant is known to exist', () => {
+    expect(resolveLodUrlSync('/m/foo.glb', 'low')).toBe('/m/foo.glb');
+  });
+
+  it('returns the variant url after prewarm confirms it exists', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    await prewarmLod('/m/foo.glb', 'low');
+    expect(resolveLodUrlSync('/m/foo.glb', 'low')).toBe('/m/foo-low.glb');
+    expect(fetchMock).toHaveBeenCalledWith('/m/foo-low.glb', { method: 'HEAD' });
+    vi.unstubAllGlobals();
+  });
+
+  it('keeps base url and does not re-probe after a miss', async () => {
+    const fetchMock = vi.fn().mockResolvedValue({ ok: false } as Response);
+    vi.stubGlobal('fetch', fetchMock);
+    await prewarmLod('/m/foo.glb', 'low');
+    expect(resolveLodUrlSync('/m/foo.glb', 'low')).toBe('/m/foo.glb');
+    await prewarmLod('/m/foo.glb', 'low'); // second call cached
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    vi.unstubAllGlobals();
   });
 });
