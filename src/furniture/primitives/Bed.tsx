@@ -17,6 +17,7 @@ export function Bed({ props }: BedProps) {
   const length = readNum(props, 'length', 2.0);
   const mattressColor = readStr(props, 'mattressColor', '#e8e2d4');
   const beddingColor = readStr(props, 'beddingColor', '#c9d3da');
+  const pillowColor = readStr(props, 'pillowColor', '#fbfaf6');
   const throwColor = readStr(props, 'throwColor', '#b08968');
   const frameColor = readStr(props, 'frameColor', '#6f553f');
   const frameFinish = readStr(props, 'frameFinish', 'wood');
@@ -102,7 +103,7 @@ export function Bed({ props }: BedProps) {
           castShadow
           position={[twoPillows ? s * (pillowW / 2 + 0.04) : 0, mattressTop + 0.07, pillowZ]}
         >
-          <meshStandardMaterial color="#fbfaf6" roughness={0.95} metalness={0} />
+          <meshStandardMaterial color={pillowColor} roughness={0.95} metalness={0} />
         </RoundedBox>
       ))}
       {/* Folded throw blanket draped across the foot */}
