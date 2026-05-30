@@ -8,6 +8,48 @@ import { planCollisionWalls, isDefaultPlan } from '../floorplan/planGeometry';
 import { snapToGrid } from './snap';
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0);
+const ALIGN_TH = 0.1; // alignment snap threshold (m)
+
+/** Axis-aligned half-extents [hx, hz] of an item's footprint at its rotation. */
+function halfExtents(item: { rotation: number; props: Record<string, unknown> }, def: import('../furniture/types').FurnitureDef): [number, number] {
+  let w = def.defaultFootprint.w;
+  let d = def.defaultFootprint.d;
+  if (def.kind === 'parametric') {
+    const map = def.footprintParams ?? {};
+    const wv = item.props[map.w ?? 'width'];
+    const dv = item.props[map.d ?? 'depth'];
+    if (typeof wv === 'number') w = wv;
+    if (typeof dv === 'number') d = dv;
+  }
+  const c = Math.abs(Math.cos(item.rotation));
+  const s = Math.abs(Math.sin(item.rotation));
+  return [(c * w + s * d) / 2, (s * w + c * d) / 2];
+}
+
+/** Best 1-D snap of a dragged centre (half-extent `dh`) to others' centres and
+ *  edges — centre-align, edge-align, or butt-adjacent. Returns the snapped
+ *  centre + the guide-line coordinate, or null if nothing's within threshold. */
+function snapAxis(
+  center: number,
+  dh: number,
+  others: Array<{ c: number; h: number }>,
+): { center: number; guide: number } | null {
+  let best: { center: number; guide: number; d: number } | null = null;
+  for (const o of others) {
+    const cands: Array<{ center: number; guide: number }> = [
+      { center: o.c, guide: o.c }, // centres aligned
+      { center: o.c - o.h + dh, guide: o.c - o.h }, // near edges aligned
+      { center: o.c + o.h - dh, guide: o.c + o.h }, // far edges aligned
+      { center: o.c - o.h - dh, guide: o.c - o.h }, // butt against o's near side
+      { center: o.c + o.h + dh, guide: o.c + o.h }, // butt against o's far side
+    ];
+    for (const cand of cands) {
+      const d = Math.abs(cand.center - center);
+      if (d < ALIGN_TH && (!best || d < best.d)) best = { ...cand, d };
+    }
+  }
+  return best;
+}
 
 /**
  * Tracks the active furniture drag started by Furniture.onPointerDown.
@@ -57,27 +99,28 @@ export function DragController() {
       if (state.snapEnabled) next = snapToGrid(next, state.gridSize);
 
       const group = state.dragGroupOriginals;
-      // Smart alignment guides: for a single-item drag, snap the centre to
-      // another item's centre axis when close, and surface guide lines.
+      // Smart alignment guides: for a single-item drag, snap centres AND edges
+      // to nearby items (line up rows / butt pieces together), surfacing guide
+      // lines. Edge + adjacency candidates make pieces sit flush.
       const guides: Array<{ axis: 'x' | 'z'; value: number }> = [];
       if (group.length <= 1) {
-        const TH = 0.1; // snap threshold (m)
-        let bestX: { v: number; d: number } | null = null;
-        let bestZ: { v: number; d: number } | null = null;
-        for (const it of state.items) {
-          if (it.id === id) continue;
-          const dx = Math.abs(it.position[0] - next[0]);
-          if (dx < TH && (!bestX || dx < bestX.d)) bestX = { v: it.position[0], d: dx };
-          const dz = Math.abs(it.position[1] - next[1]);
-          if (dz < TH && (!bestZ || dz < bestZ.d)) bestZ = { v: it.position[1], d: dz };
-        }
-        if (bestX) {
-          next = [bestX.v, next[1]];
-          guides.push({ axis: 'x', value: bestX.v });
-        }
-        if (bestZ) {
-          next = [next[0], bestZ.v];
-          guides.push({ axis: 'z', value: bestZ.v });
+        const dragDef = catalogRef.current[state.items.find((i) => i.id === id)?.defId ?? ''];
+        const dragItem = state.items.find((i) => i.id === id);
+        if (dragDef && dragItem) {
+          const dh = halfExtents(dragItem, dragDef);
+          const others = state.items
+            .filter((i) => i.id !== id && catalogRef.current[i.defId])
+            .map((i) => ({ c: i.position, h: halfExtents(i, catalogRef.current[i.defId]) }));
+          const sx = snapAxis(next[0], dh[0], others.map((o) => ({ c: o.c[0], h: o.h[0] })));
+          const sz = snapAxis(next[1], dh[1], others.map((o) => ({ c: o.c[1], h: o.h[1] })));
+          if (sx) {
+            next = [sx.center, next[1]];
+            guides.push({ axis: 'x', value: sx.guide });
+          }
+          if (sz) {
+            next = [next[0], sz.center];
+            guides.push({ axis: 'z', value: sz.guide });
+          }
         }
       }
       state.setDragGuides(guides);

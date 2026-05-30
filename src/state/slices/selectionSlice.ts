@@ -3,6 +3,9 @@ import type { RootState } from '../store';
 
 export interface SelectionSlice {
   selectedItemId: string | null;
+  /** Item under the cursor (orbit + select mode) for a hover highlight. */
+  hoveredItemId: string | null;
+  setHovered: (id: string | null) => void;
   /** Multi-selection set, populated by marquee drag and shift-click.
    *  When a single item is selected this contains exactly that id; when
    *  empty, no items are selected. `selectedItemId` mirrors the "primary"
@@ -22,16 +25,18 @@ export interface SelectionSlice {
 
 export const SELECTION_INITIAL: Pick<
   SelectionSlice,
-  'selectedItemId' | 'selectedItemIds' | 'selectedRoomId' | 'selectedWall'
+  'selectedItemId' | 'selectedItemIds' | 'selectedRoomId' | 'selectedWall' | 'hoveredItemId'
 > = {
   selectedItemId: null,
   selectedItemIds: [],
   selectedRoomId: null,
   selectedWall: null,
+  hoveredItemId: null,
 };
 
 export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (set) => ({
   ...SELECTION_INITIAL,
+  setHovered: (id) => set((s) => (s.hoveredItemId === id ? {} : { hoveredItemId: id })),
   /** Selecting an item clears the room selection (and vice versa) so the
    *  Inspector / FinishPicker never both render at once. */
   selectItem: (id) =>

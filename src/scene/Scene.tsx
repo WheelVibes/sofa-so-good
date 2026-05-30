@@ -15,6 +15,7 @@ import { CityBackdrop } from './CityBackdrop';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
 import { SelectionOutline } from './selection/SelectionOutline';
+import { HoverHighlight } from './selection/HoverHighlight';
 import { MarqueeCameraTracker } from './selection/MarqueeSelector';
 import { PlacementGhost } from './PlacementGhost';
 import { GridOverlay } from './GridOverlay';
@@ -57,6 +58,7 @@ export function Scene() {
       <ClearanceOverlay />
       <FurnitureLayer />
       <SelectionOutline />
+      <HoverHighlight />
       <PlacementGhost />
       <DragController />
       <MarqueeCameraTracker />

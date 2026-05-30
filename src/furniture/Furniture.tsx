@@ -111,6 +111,19 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
       position={[item.position[0], 0, item.position[1]]}
       rotation={[0, item.rotation, 0]}
       onClick={onClick}
+      onPointerOver={(e) => {
+        if (passive) return;
+        const state = useStore.getState();
+        if (state.cameraMode !== 'orbit' || state.editorTool !== 'select') return;
+        if (state.draggingItemId || state.activeDefId) return;
+        e.stopPropagation();
+        state.setHovered(item.id);
+      }}
+      onPointerOut={() => {
+        if (passive) return;
+        const state = useStore.getState();
+        if (state.hoveredItemId === item.id) state.setHovered(null);
+      }}
       onDoubleClick={(e) => {
         if (passive) return;
         const state = useStore.getState();
