@@ -1,5 +1,15 @@
 # Supporting scraped IKEA metadata in the app — future work
 
+> **STATUS (2026-05-31): IMPLEMENTED.** The app side described below is now
+> built and shipped — import pipeline, category mapping, finish/variant
+> switching, placement semantics + `frontClearance`, def-level pricing,
+> attribution, compatibility resolver, and the product-info panel. See the
+> executed plan [docs/superpowers/plans/2026-05-31-ikea-model-import.md](superpowers/plans/2026-05-31-ikea-model-import.md)
+> and the code under `src/furniture/ikea/` (metadata/translate/importGroup/
+> compatibility/detectGroup). The remaining planning content below is kept for
+> reference. Genuinely-deferred items (e.g. KTX2 LOD) are still tracked in
+> `TODO.md`.
+
 The IKEA scraper (`python/scripts/`) now produces rich, design-grade metadata
 per product **variant group**. This document specifies the app-side changes
 needed for `sofa-so-good` to consume **everything** the scraper emits, so an

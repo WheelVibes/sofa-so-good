@@ -336,11 +336,18 @@ seamless tiler); real planar mirror reflections (cost).
   geometry/footprint + per-component GLB palette (`glb_analysis.py`), functional
   category + placement semantics (`categorize.py`), colour/finish variant groups,
   and a category-rule compatibility model + runtime resolver (`compatibility.py`).
-- **App support (deferred)** — full spec of the app-side changes to consume this
-  metadata (category enum extension, finish/variant picker + per-component
-  recolour, placement-semantics → collision/auto-arrange, footprint pre-seed,
-  pricing, compatibility resolver port, import pipeline, IKEA licensing caveat)
-  in [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md).
+- ~~**App support (done, 2026-05-31)**~~ — the app now consumes the scraped
+  metadata as first-class design objects. Done: ~~import pipeline~~ (auto-detects
+  a `metadata.json` group folder in the Upload dialog → one `IkeaGltfDef` per
+  group), ~~category mapping~~, ~~finish/variant switching~~ (per-instance active
+  finish in `props.variant`; loads sibling GLBs), ~~placement semantics +
+  `frontClearance`~~, ~~def-level pricing~~, ~~attribution~~ (non-CC0 IKEA license,
+  not redistributed), ~~compatibility resolver port~~, ~~product-info panel~~.
+  Code under `src/furniture/ikea/`; spec/plan in
+  [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md) +
+  [docs/superpowers/plans/2026-05-31-ikea-model-import.md](docs/superpowers/plans/2026-05-31-ikea-model-import.md).
+  Also done: per-component GLB-material recolour + global tint in the inspector
+  (`ui/inspector/IkeaBody.tsx`).
 - ~~**Tiered GLB LOD pipeline (done, 2026-05-31)**~~ — offline `npm run optimize:glb`
   ([python/scripts/optimize_glb_lod.mjs](python/scripts/optimize_glb_lod.mjs))
   writes `-low`/`-medium` variants (≤512/≤1024px tex + ~50/75% tris, WebP);

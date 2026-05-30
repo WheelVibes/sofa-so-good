@@ -14,6 +14,18 @@ state, Vite build, Vitest tests.
   drag/rdrag/wheel/click/type/key/wait. In dev the store is exposed on
   `window.__store` for scripting. `scripts/crop.mjs` crops at full res;
   `scripts/perf.mjs` reports heap/fps under load.
+- `npm run optimize:glb` — offline GLB LOD pass
+  (`python/scripts/optimize_glb_lod.mjs`): generates `-low`/`-medium` tier
+  variants of every GLB under the IKEA model dir (see **GLB LOD pipeline**).
+- `python/scripts/` — offline IKEA SG scraper + asset tooling (Python +
+  Node). Not part of the app build; see **IKEA scraper (offline)** below.
+
+## REQUIRED: keep CLAUDE.md + README.md current
+Both files have drifted from the code before. After **any** change that adds,
+removes, or reshapes a system, command, layout area, or user-facing feature,
+update **both** this architecture guide and `README.md` in the same change so
+they never lag the repo. (`TODO.md` tracks deferred work per the Process rule;
+these two track the *current* state.)
 
 ## REQUIRED: visual verification after any app change
 For **any** change to the app (not docs/tests-only), you MUST, before
@@ -29,10 +41,14 @@ screenshots, not just that you took them.
 - `src/state/` — Zustand store split into slices (`slices/*`): items,
   selection, finishes, doors, time, location, camera, ui (incl. quality +
   snap grid), placement, clipboard, history, remote catalog, installed packs,
+  measurements, orientation, notifications, reset, **userAssets**
+  (user-uploaded GLBs + imported `IkeaGltfDef`s — see **IKEA models**), and
   **floorPlan** (editable apartment shell + editor state + saved-plan library).
   Persistence + migrations under `storage/` (layout autosave; `qualityPrefs.ts`
   graphics prefs; `editorPrefs.ts` snap/grid; `floorPlanStore.ts` plan library
-  + active custom plan). `schema.ts` is the save/load serializer.
+  + active custom plan; `hydrate.ts`/`hydrateAssets.ts` re-resolve user/IKEA
+  defs + their IDB blobs on boot). `schema.ts` is the save/load serializer
+  (round-trips parametric items, user GLBs, and IKEA defs).
 - `src/apartment/` — the default flat. `constants.ts` is the source of truth
   for walls/doors/windows/rooms (derived from the floor-plan SVG). `walls/`,
   `floor/`, `Window.tsx`, `Door.tsx`, `Ceiling.tsx`, plus a grounding slab in
@@ -45,9 +61,27 @@ screenshots, not just that you took them.
   boxes + door-aware collision walls; `isDefaultPlan`), `templates.ts` (starter
   apartments). The 2D editor is `ui/floorplan/` (FloorPlanEditor + PlanInspector).
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` lists every
-  item; parametric items map to a component in `primitives/` (registered in
-  `primitives/index.ts`). `defaults/` is the move-in-ready layout.
-  `lightEmitters.ts` registers which items emit light at night.
+  parametric item; `catalog.ts` merges built-ins, installed packs, and user/
+  IKEA defs (footprints resolved). Parametric items map to a component in
+  `primitives/` (registered in `primitives/index.ts`); GLB items (bundled CC0,
+  user uploads, IKEA) render through `GltfModel.tsx` (`gltfRender.ts` picks the
+  url/scale/tint/finish-overrides per item). `defaults/` is the move-in-ready
+  layout; `lightEmitters.ts` registers which items emit light at night.
+  - `gltf/` — GLB plumbing shared by every GLB item: `decoders.ts` (Draco at
+    boot, meshopt/KTX2 auto-wired), `lod.ts` (tier budgets + `-low`/`-medium`
+    url helpers + sync probe cache + prewarm), `textureBudget.ts` (runtime
+    texture downscale fallback), `finishTargets.ts` (named meshes for
+    per-component recolour).
+  - `ikea/` — consumes IKEA scraper output: `metadata.ts` (zod parse +
+    `looksLikeIkeaMetadata`), `translate.ts` (scraper category/placement → app
+    category + collision flags + `frontClearance`), `importGroup.ts` (metadata +
+    GLB files → one `IkeaGltfDef`, writes blobs to IDB, seeds footprints),
+    `compatibility.ts` (category-rule "accepts" resolver), `detectGroup.ts`
+    (`findMetadataFile` — auto-detects a `metadata.json` group folder among
+    picked files, used by the Upload dialog). Wired end-to-end (see **IKEA
+    models**).
+  - `upload/` — user-GLB import: `validate.ts`, `bulkImport.ts`, `persist.ts`
+    (drive `ui/upload/UploadModelDialog.tsx`).
 - `src/materials/` — finishes. `builtinCatalog.ts` (floors/walls), runtime
   `procedural/` PBR generators (wood/tile/marble/carpet/concrete/terrazzo/
   plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
@@ -59,7 +93,16 @@ screenshots, not just that you took them.
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
   adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection.
 - `src/ui/` — DOM overlays: Toolbar, CatalogDrawer, InspectorPanel,
-  FinishPicker, GraphicsSettings, measurement/credits/help.
+  FinishPicker, GraphicsSettings, measurement/credits/help, `upload/`
+  (GLB/material import dialogs), `floorplan/` (2D editor), `inspector/`,
+  `catalog/`.
+- `python/scripts/` — **offline** asset tooling, not part of the app build:
+  `ikea_model_scraper.py` (IKEA SG → per-variant-group `metadata.json` +
+  `<finish>.glb`), `glb_analysis.py` (stdlib GLB parser → footprint + material
+  palette + segments), `categorize.py` (breadcrumb/type → functional category
+  + placement semantics), `compatibility.py` (local "complete with" resolver),
+  and `optimize_glb_lod.mjs` (the `npm run optimize:glb` LOD pass). See
+  **IKEA scraper (offline)** and **GLB LOD pipeline**.
 
 ## Key systems
 - **Procedural materials**: `materials/procedural/generators.ts` paints one
@@ -89,6 +132,40 @@ screenshots, not just that you took them.
   tier and steps it down if FPS sustains < 30; every setting is overridable in
   the Graphics panel (persisted). Baseline (low/medium) targets integrated/CPU
   hardware; high adds GPU-intensive effects.
+- **GLB models + LOD** (`furniture/gltf/`, `GltfModel.tsx`): bundled CC0 GLBs,
+  user uploads, and IKEA imports all render through one loader. `decoders.ts`
+  registers Draco at boot (meshopt/KTX2 auto-wired by drei). The offline
+  `npm run optimize:glb` pass writes `-low`/`-medium` variants (≤512/≤1024px
+  WebP textures + ~50/75% triangles, Draco) beside each `.glb`; at runtime
+  `lod.ts` picks the variant for the active quality tier (sync probe cache +
+  `prewarmLod`), and `textureBudget.ts` downscales any oversized texture as a
+  last-resort fallback. `finishTargets.ts` enumerates named meshes so a GLB can
+  be recoloured per component. KTX2 encoding in the offline pass is deferred
+  (WebP only today — see `TODO.md`).
+- **IKEA model import** (`furniture/ikea/`, `state/userAssetsSlice.ts`): the
+  Python scraper (below) emits per-variant-group `metadata.json` + `<finish>.glb`.
+  The Upload dialog auto-detects an IKEA group folder (`detectGroup.ts`
+  `findMetadataFile`) and `importGroup.ts` turns it into **one** `IkeaGltfDef`
+  per group — `variants[]` (each with footprint + per-component GLB palette,
+  blobs in IDB), with category/placement/`frontClearance`/price/compatibility
+  all derived from the scraped `metadata.json` (`translate.ts`,
+  `compatibility.ts`). One catalog card per group; the per-instance active
+  finish lives in `props.variant` (loads the sibling GLB). Renders via
+  `gltfRender.ts` (active variant + per-component `finish:<target>`/global tint
+  overrides — inspector `ui/inspector/IkeaBody.tsx`); read-only product info in
+  a panel. License is non-CC0 `IKEA` (attribution shown, assets not
+  redistributed). `IkeaGltfDef`s live in `userAssets`, round-trip through
+  `schema.ts`, and re-resolve their blob URLs on boot (`storage/hydrate*`).
+  Plan: [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md).
+- **IKEA scraper (offline)** (`python/scripts/`): `ikea_model_scraper.py`
+  (Playwright) harvests IKEA SG products → `<group>/metadata.json` +
+  `<finish>.glb`, grouping colour/finish variants and detecting multi-piece
+  **sets** (writes `sets/<set_key>.json` recipes from the "What's included"
+  list). `glb_analysis.py` (pure stdlib) extracts footprint + per-component
+  material palette + segment map; `categorize.py` assigns functional category +
+  placement semantics; `compatibility.py` resolves "complete with" suggestions
+  locally. This is offline tooling — its output is what `furniture/ikea/`
+  consumes.
 - **Height-aware collision** (`collision/placement.ts`): items carry a vertical
   span plus `mounted` (skip wall checks) / `noClip` (rugs) flags so pendants
   hang over tables, wall units mount above furniture, rugs slide under.
@@ -126,8 +203,17 @@ screenshots, not just that you took them.
   `verticalSpan`/`mounted`/`noClip` for non-floor items. To emit light, add to
   `lightEmitters.ts`. To ship in the default flat, add to `furniture/defaults/`
   (every entry is collision-checked by `defaultLayout.test.ts`).
+  The catalog spans 11 categories (`FurnitureCategory` in
+  `furniture/types.ts`): beds, seating, tables, storage, kitchen, bathroom,
+  appliances, lighting, decor, **textiles**, **outdoor**. A new category must be
+  added to that union, `FURNITURE_CATEGORIES`, and the catalog UI
+  (`ui/catalog/CategoryTabs.tsx` + `CategoryIcon.tsx`).
 - **Finish**: add an entry to `materials/builtinCatalog.ts` (`procedural` with
   a pattern, or `solid`). New patterns go in `procedural/generators.ts`.
+- **GLB models**: bundled CC0 GLBs and user uploads go through the generic
+  `GltfModel` loader; set the same `verticalSpan`/`mounted`/`noClip` flags. Run
+  `npm run optimize:glb` to generate the `-low`/`-medium` LOD variants. IKEA
+  imports come from the offline scraper as `IkeaGltfDef`s (see **IKEA models**).
 
 ## Conventions
 - Furniture primitives are floor-anchored, centred on the footprint, facing
