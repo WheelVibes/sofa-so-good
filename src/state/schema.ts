@@ -48,6 +48,59 @@ const UserGltfDefZ = z.object({
   finishOverrides: z.record(z.string(), z.string()).optional(),
 });
 
+const IkeaVariantZ = z.object({
+  finish: z.string(),
+  label: z.string(),
+  articleNumber: z.string(),
+  url: z.string(),
+  assetId: z.string().nullable(),
+  price: z.number().optional(),
+  currency: z.string().optional(),
+  swatchHex: z.string().optional(),
+  footprint: z
+    .object({
+      w: z.number(),
+      d: z.number(),
+      h: z.number(),
+      anchorOffset: z.tuple([z.number(), z.number(), z.number()]),
+    })
+    .optional(),
+  glbMaterials: z.array(
+    z.object({
+      name: z.string(),
+      hex: z.string(),
+      metallic: z.number(),
+      roughness: z.number(),
+      textured: z.boolean(),
+      sampledHex: z.string().optional(),
+    }),
+  ),
+}); // runtimeUrl intentionally omitted — rebuilt from assetId at hydration
+
+const IkeaGltfDefZ = z.object({
+  id: z.string(),
+  name: z.string(),
+  category: z.string(),
+  kind: z.literal('gltf'),
+  source: z.literal('ikea'),
+  groupKey: z.string(),
+  activeVariant: z.string(),
+  variants: z.array(IkeaVariantZ),
+  defaultFootprint: z.object({ w: z.number(), d: z.number(), h: z.number() }),
+  verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
+  mounted: z.boolean().optional(),
+  noClip: z.boolean().optional(),
+  frontClearance: z.number().optional(),
+  productInfo: z.record(z.string(), z.unknown()).optional(),
+  compatibility: z
+    .object({ acceptsCategories: z.array(z.string()), size: z.string().optional() })
+    .optional(),
+  uploadedAt: z.string(),
+  license: z.literal('IKEA'),
+  attribution: z.string(),
+  sourceUrl: z.string().optional(),
+});
+
 const UserMaterialDefZ = z.object({
   id: z.string(),
   name: z.string(),
@@ -114,7 +167,7 @@ const RawSerializedStateZ = z.object({
     // Optional for backward compat with payloads saved before accent walls.
     wallAccents: z.record(z.string(), z.string()).optional(),
   }),
-  userFurniture: z.array(UserGltfDefZ),
+  userFurniture: z.array(z.union([UserGltfDefZ, IkeaGltfDefZ])),
   userMaterials: z.array(UserMaterialDefZ),
   timeMode: z.enum(['system', 'manual']),
   manualHour: z.number().min(0).max(24),
@@ -171,25 +224,56 @@ export function serialize(state: RootState): SerializedState {
     ...(isDefaultPlan(state.floorPlan) ? {} : { floorPlan: state.floorPlan }),
     doors: state.doors,
     finishes: state.finishes,
-    // Only user-uploaded defs persist through this schema version; IKEA defs
-    // (source: 'ikea') carry a different shape and are out of scope here.
+    // User-uploaded and IKEA-imported defs persist; runtime-only blob URLs
+    // (the def's `runtimeUrl` and each IKEA variant's `runtimeUrl`) are
+    // stripped and rebuilt from the assetId at hydration.
     userFurniture: state.userFurniture
-      .filter((d): d is Extract<typeof d, { source: 'user' }> => d.source === 'user')
-      .map((d) => ({
-        id: d.id,
-        name: d.name,
-        category: d.category,
-        kind: 'gltf',
-        source: 'user',
-        assetId: d.assetId,
-        uploadedAt: d.uploadedAt,
-        defaultFootprint: d.defaultFootprint,
-        mounted: d.mounted,
-        noClip: d.noClip,
-        verticalSpan: d.verticalSpan,
-        finishTargets: d.finishTargets,
-        finishOverrides: d.finishOverrides,
-      })),
+      .filter(
+        (d): d is Extract<typeof d, { source: 'user' | 'ikea' }> =>
+          d.source === 'user' || d.source === 'ikea',
+      )
+      .map((d) =>
+        d.source === 'ikea'
+          ? {
+              id: d.id,
+              name: d.name,
+              category: d.category,
+              kind: 'gltf' as const,
+              source: 'ikea' as const,
+              groupKey: d.groupKey,
+              activeVariant: d.activeVariant,
+              variants: d.variants.map(({ runtimeUrl, ...v }) => {
+                void runtimeUrl;
+                return v;
+              }),
+              defaultFootprint: d.defaultFootprint,
+              verticalSpan: d.verticalSpan,
+              mounted: d.mounted,
+              noClip: d.noClip,
+              frontClearance: d.frontClearance,
+              productInfo: d.productInfo as Record<string, unknown> | undefined,
+              compatibility: d.compatibility,
+              uploadedAt: d.uploadedAt,
+              license: d.license,
+              attribution: d.attribution,
+              sourceUrl: d.sourceUrl,
+            }
+          : {
+              id: d.id,
+              name: d.name,
+              category: d.category,
+              kind: 'gltf' as const,
+              source: 'user' as const,
+              assetId: d.assetId,
+              uploadedAt: d.uploadedAt,
+              defaultFootprint: d.defaultFootprint,
+              mounted: d.mounted,
+              noClip: d.noClip,
+              verticalSpan: d.verticalSpan,
+              finishTargets: d.finishTargets,
+              finishOverrides: d.finishOverrides,
+            },
+      ),
     userMaterials: state.userMaterials.map((d) => ({
       id: d.id,
       name: d.name,

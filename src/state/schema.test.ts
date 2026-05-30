@@ -43,11 +43,83 @@ describe('schema', () => {
     if (parsed.success) {
       const def = parsed.data.userFurniture.find((d) => d.id === 'user-abc');
       expect(def).toBeDefined();
+      expect(def?.source).toBe('user');
       expect(def?.mounted).toBe(true);
       expect(def?.noClip).toBe(true);
       expect(def?.verticalSpan).toEqual({ base: 1.5, top: 2.1 });
-      expect(def?.finishTargets).toEqual([{ key: 'shade', label: 'Shade' }]);
-      expect(def?.finishOverrides).toEqual({ shade: 'mat:brass-01' });
+      if (def?.source === 'user') {
+        expect(def.finishTargets).toEqual([{ key: 'shade', label: 'Shade' }]);
+        expect(def.finishOverrides).toEqual({ shade: 'mat:brass-01' });
+      }
+    }
+  });
+
+  it('round-trips an IkeaGltfDef and strips variant runtime URLs', () => {
+    useStore.getState().__resetForTest();
+    useStore.getState().setUserFurniture([
+      {
+        id: 'user-abc',
+        name: 'Wall Sconce',
+        category: 'decor',
+        kind: 'gltf',
+        source: 'user',
+        assetId: 'abc',
+        uploadedAt: '2026-04-01T00:00:00.000Z',
+        defaultFootprint: { w: 0.5, d: 0.3, h: 0.4 },
+        mounted: true,
+        noClip: true,
+        verticalSpan: { base: 1.5, top: 2.1 },
+        finishTargets: [{ key: 'shade', label: 'Shade' }],
+        finishOverrides: { shade: 'mat:brass-01' },
+      },
+      {
+        id: 'ikea-malm',
+        name: 'MALM',
+        category: 'beds',
+        kind: 'gltf',
+        source: 'ikea',
+        groupKey: 'malm',
+        activeVariant: 'black-brown',
+        variants: [
+          {
+            finish: 'black-brown',
+            label: 'Black-brown',
+            articleNumber: '1',
+            url: 'https://x',
+            assetId: 'a1',
+            runtimeUrl: 'blob:should-be-stripped',
+            price: 204,
+            swatchHex: '#504c4b',
+            footprint: { w: 1, d: 2, h: 1, anchorOffset: [0, 0.5, 0] },
+            glbMaterials: [
+              { name: 'material_0', hex: '#fff', metallic: 1, roughness: 1, textured: true },
+            ],
+          },
+        ],
+        defaultFootprint: { w: 1, d: 2, h: 1 },
+        uploadedAt: '2026-05-31T00:00:00Z',
+        license: 'IKEA',
+        attribution: 'IKEA — imported model',
+        sourceUrl: 'https://x',
+      },
+    ]);
+    const ser = serialize(useStore.getState());
+    const reparsed = SerializedStateZ.parse(JSON.parse(JSON.stringify(ser)));
+    const out = reparsed.userFurniture.find((d) => d.id === 'ikea-malm');
+    expect(out).toBeTruthy();
+    expect(out?.source).toBe('ikea');
+    if (out?.source === 'ikea') {
+      // runtimeUrl is stripped from the serialized shape (not in the type).
+      expect((out.variants[0] as Record<string, unknown>).runtimeUrl).toBeUndefined();
+      expect(out.variants[0].assetId).toBe('a1');
+    }
+    // The existing user def must still round-trip alongside the IKEA one.
+    const userOut = reparsed.userFurniture.find((d) => d.id === 'user-abc');
+    expect(userOut).toBeTruthy();
+    expect(userOut?.source).toBe('user');
+    if (userOut?.source === 'user') {
+      expect(userOut.assetId).toBe('abc');
+      expect(userOut.mounted).toBe(true);
     }
   });
 
