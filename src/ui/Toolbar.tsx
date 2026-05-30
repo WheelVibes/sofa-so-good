@@ -93,6 +93,7 @@ export function Toolbar() {
           <BudgetToggle />
           <ChecksToggle />
           <SunStudyToggle />
+          <WalkthroughButton />
           <ReportButton />
           <Divider />
           <SaveButton />
@@ -500,6 +501,31 @@ function CatalogToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Catalog
+    </button>
+  );
+}
+
+/** Plays an automated walkthrough tour (and records it to a clip if able). */
+function WalkthroughButton() {
+  const touring = useStore((s) => s.touring);
+  const start = () => {
+    const s = useStore.getState();
+    if (s.touring) {
+      s.setTouring(false);
+      if (s.recording) s.setRecording(false);
+      return;
+    }
+    s.setCameraMode('orbit');
+    if (canRecord()) s.setRecording(true);
+    s.setTouring(true);
+  };
+  return (
+    <button
+      onClick={start}
+      title="Fly a tour through every room (records a video clip if supported)"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${touring ? 'bg-rose-600 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      {touring ? '⏹ Stop tour' : '🎬 Walkthrough'}
     </button>
   );
 }
