@@ -311,7 +311,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       { id: 'sl-console', defId: 'tv-console', position: [12.2, 2.5], rotation: -Math.PI / 2, props: { width: 1.6, base: 'plinth', color: '#5a3f2a', finish: 'wood' } },
       { id: 'sl-tv', defId: 'tv-wall', position: [12.42, 2.5], rotation: -Math.PI / 2, props: { size: '55', mount: 'wall', mountHeight: 1.3, screen: 'on', screenContent: 'sunset' } },
       { id: 'sl-cove', defId: 'cove-light', position: [12.5, 2.6], rotation: -Math.PI / 2, props: { length: 3.4, mountHeight: 2.38 } },
-      { id: 'sl-lamp', defId: 'floor-lamp', position: [9.4, 3.0], rotation: 0, props: { base: 'tripod', shade: 'cone' } },
+      { id: 'sl-lamp', defId: 'floor-lamp', position: [9.4, 3.0], rotation: 0, props: { base: 'arc', shade: 'drum', poleColor: '#1c1c1e' } },
       { id: 'sl-plant', defId: 'potted-plant', position: [12.2, 5.2], rotation: 0, props: { type: 'fiddle', size: 'large', potShape: 'cylinder', leafColor: '#3f7a3f' } },
       { id: 'sl-fan', defId: 'ceiling-fan', position: [10.6, 2.8], rotation: 0, props: {} },
       { id: 'sl-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
