@@ -77,9 +77,12 @@ researched bedroom layout (feature-wall headboard).
 ~~Console-table~~ + ~~sideboard / credenza~~ (doors / drawers / mixed fronts ×
 tapered / hairpin / plinth base × bar / knob / recessed / push handles) +
 ~~bar cart~~ (2–3 tiers × brass / black / chrome frame × glass / wood / marble
-shelves, guard rail + handle + castors) shipped — see
+shelves, guard rail + handle + castors) + ~~ottoman / pouf~~ (round / square /
+rect × fabric / leather / velvet × smooth / buttoned × wood feet / flush)
+shipped — see
 [src/furniture/primitives/Sideboard.tsx](src/furniture/primitives/Sideboard.tsx),
-[src/furniture/primitives/BarCart.tsx](src/furniture/primitives/BarCart.tsx).
+[src/furniture/primitives/BarCart.tsx](src/furniture/primitives/BarCart.tsx),
+[src/furniture/primitives/Ottoman.tsx](src/furniture/primitives/Ottoman.tsx).
 
 ## Realism & content pass (2026-05-29)
 
