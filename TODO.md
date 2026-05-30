@@ -2,6 +2,39 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+## Render fidelity + GLTF hardening (2026-05-31)
+
+Milestone 1 of the IKEA-grade fidelity program. Spec:
+[docs/superpowers/specs/2026-05-30-render-fidelity-gltf-hardening-design.md](docs/superpowers/specs/2026-05-30-render-fidelity-gltf-hardening-design.md);
+plan: [docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md](docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md).
+
+- ~~**Look calibration**~~ — pure grading curves
+  ([src/scene/look.ts](src/scene/look.ts)): soft PCF shadows + altitude-driven
+  tone-mapping exposure, richer IBL probe, deeper AO, vignette + saturation
+  finishing post.
+- ~~**Showcase still mode**~~ — parked-camera shadow accumulation
+  ([src/scene/ShowcaseController.tsx](src/scene/ShowcaseController.tsx),
+  pure idle machine [src/scene/showcase.ts](src/scene/showcase.ts)); contact
+  shadows suppressed while accumulating; PNG export forces max fidelity then
+  restores exact prior quality state.
+- ~~**GLTF hardening**~~ — Draco decoder registered at boot (env-overridable;
+  meshopt/KTX2 auto-wired by drei) [src/furniture/gltf/decoders.ts]; collision
+  span/footprint from cached bbox [src/collision/gltfSpan.ts]; named finish
+  targets + per-target tint on imported GLBs [src/furniture/gltf/finishTargets.ts].
+- ~~**Imported-model catalog citizenship**~~ — user GLBs already render as
+  categorized, searchable, placeable cards; mounted/noClip + finishTargets/
+  finishOverrides persist through IDB meta + save schema.
+- Follow-ups: **per-file mounted/noClip on bulk import** (currently one choice
+  per batch); **thumbnail capture for user GLBs** (name-only card today);
+  **dispose replaced materials** in GltfModel tint/finish effects (consistent
+  with existing tint effect — matters once the configurator churns overrides);
+  verify the runtime Draco CDN fetch behind the prod reverse-proxy / CSP.
+
+**Next milestone — slot-based product configurator** (mattress-on-frame,
+modular sofa): base + named slots with anchor points, swappable compatible
+options, live reprice. Reuses the unit-3 finish-target mechanism
+([src/furniture/gltf/finishTargets.ts](src/furniture/gltf/finishTargets.ts)).
+
 ## Layout / placement (2026-05-30)
 
 - ~~**Interior-design rules baked in**~~ — clearances in
@@ -295,3 +328,16 @@ Shipped (all tested + pushed):
 Remaining ideas: crown molding (ceiling cornice); kitchen work-triangle /
 bath fixture-order arrange templates; herringbone/parquet floor (needs a
 seamless tiler); real planar mirror reflections (cost).
+
+## IKEA model import (2026-05-31)
+
+- **Scraper (done)** — `python/scripts/` scrapes IKEA SG products into
+  per-variant-group folders (`<group>/metadata.json` + `<finish>.glb`):
+  geometry/footprint + per-component GLB palette (`glb_analysis.py`), functional
+  category + placement semantics (`categorize.py`), colour/finish variant groups,
+  and a category-rule compatibility model + runtime resolver (`compatibility.py`).
+- **App support (deferred)** — full spec of the app-side changes to consume this
+  metadata (category enum extension, finish/variant picker + per-component
+  recolour, placement-semantics → collision/auto-arrange, footprint pre-seed,
+  pricing, compatibility resolver port, import pipeline, IKEA licensing caveat)
+  in [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md).
