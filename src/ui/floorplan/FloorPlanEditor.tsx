@@ -64,7 +64,22 @@ export function FloorPlanEditor() {
     const rect = svgRef.current!.getBoundingClientRect();
     const x = ((e.clientX - rect.left) / rect.width) * W;
     const y = ((e.clientY - rect.top) / rect.height) * H;
-    return [snap(x / PX - PAD), snap(y / PX - PAD)];
+    let wx = snap(x / PX - PAD);
+    let wz = snap(y / PX - PAD);
+    // Vertex snap: prefer an existing wall endpoint within ~0.3 m so walls
+    // connect cleanly at corners.
+    let best = 0.3;
+    for (const w of plan.walls) {
+      for (const p of [w.start, w.end]) {
+        const dd = Math.hypot(p[0] - wx, p[1] - wz);
+        if (dd < best) {
+          best = dd;
+          wx = p[0];
+          wz = p[1];
+        }
+      }
+    }
+    return [wx, wz];
   };
 
   /** Find the nearest wall to a world point, with the projected offset along it. */
