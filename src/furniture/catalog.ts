@@ -11,6 +11,7 @@ import { GENERATED_FURNITURE } from './generatedCatalog';
 import { getCachedGltfFootprint } from './GltfModel';
 import { spanFromFootprint } from '../collision/gltfSpan';
 import { useStore } from '../state/store';
+import { FURNITURE_CATEGORIES } from './types';
 import type {
   FurnitureCategory,
   FurnitureDef,
@@ -78,19 +79,9 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
   const userFurniture = useStore(useShallow((s) => s.userFurniture));
   const remote = useStore(useShallow((s) => s.resolvedRemoteFurniture));
   const packFurniture = useStore(useShallow((s) => s.packFurniture));
-  const out: Record<FurnitureCategory, FurnitureDef[]> = {
-    beds: [...(BUILTIN_BY_CATEGORY.beds ?? [])],
-    seating: [...(BUILTIN_BY_CATEGORY.seating ?? [])],
-    tables: [...(BUILTIN_BY_CATEGORY.tables ?? [])],
-    storage: [...(BUILTIN_BY_CATEGORY.storage ?? [])],
-    kitchen: [...(BUILTIN_BY_CATEGORY.kitchen ?? [])],
-    bathroom: [...(BUILTIN_BY_CATEGORY.bathroom ?? [])],
-    appliances: [...(BUILTIN_BY_CATEGORY.appliances ?? [])],
-    lighting: [...(BUILTIN_BY_CATEGORY.lighting ?? [])],
-    decor: [...(BUILTIN_BY_CATEGORY.decor ?? [])],
-    textiles: [...(BUILTIN_BY_CATEGORY.textiles ?? [])],
-    outdoor: [...(BUILTIN_BY_CATEGORY.outdoor ?? [])],
-  };
+  const out = Object.fromEntries(
+    FURNITURE_CATEGORIES.map((c) => [c, [...(BUILTIN_BY_CATEGORY[c] ?? [])]]),
+  ) as Record<FurnitureCategory, FurnitureDef[]>;
   for (const def of GENERATED_FURNITURE) (out[def.category] ??= []).push(def);
   for (const def of userFurniture)
     (out[def.category] ??= []).push(

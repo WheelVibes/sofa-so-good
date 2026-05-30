@@ -99,5 +99,37 @@ export function CategoryIcon({ category, className }: CategoryIconProps) {
           <path d="M5.5 13.5h5" />
         </svg>
       );
+    case 'electronics':
+      return (
+        <svg {...common}>
+          <rect x="2.5" y="3.5" width="11" height="7.5" rx="0.75" />
+          <path d="M6 13h4" />
+          <path d="M8 11v2" />
+        </svg>
+      );
+    case 'kids':
+      return (
+        <svg {...common}>
+          <circle cx="8" cy="5" r="2.25" />
+          <path d="M4 13c0-2.2 1.8-4 4-4s4 1.8 4 4" />
+        </svg>
+      );
+    case 'laundry':
+      return (
+        <svg {...common}>
+          <rect x="3.5" y="2.75" width="9" height="10.5" rx="1" />
+          <circle cx="8" cy="8.5" r="2.75" />
+          <path d="M5.5 4.5h0.01M7.5 4.5h0.01" />
+        </svg>
+      );
+    case 'others':
+      return (
+        <svg {...common}>
+          <rect x="3" y="3" width="10" height="10" rx="1" strokeDasharray="2 1.5" />
+          <circle cx="6" cy="8" r="0.6" fill="currentColor" stroke="none" />
+          <circle cx="8" cy="8" r="0.6" fill="currentColor" stroke="none" />
+          <circle cx="10" cy="8" r="0.6" fill="currentColor" stroke="none" />
+        </svg>
+      );
   }
 }

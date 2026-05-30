@@ -13,6 +13,7 @@ const CAT_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds', seating: 'Seating', tables: 'Tables', storage: 'Storage',
   kitchen: 'Kitchen', bathroom: 'Bathroom', appliances: 'Appliances',
   lighting: 'Lighting', decor: 'Decor', textiles: 'Textiles', outdoor: 'Outdoor',
+  electronics: 'Electronics', kids: 'Baby & Kids', laundry: 'Laundry', others: 'Others',
 };
 
 const esc = (s: string) => s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' }[c]!));

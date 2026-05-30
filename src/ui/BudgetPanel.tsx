@@ -16,6 +16,10 @@ const CATEGORY_LABEL: Record<FurnitureCategory, string> = {
   decor: 'Decor',
   textiles: 'Textiles',
   outdoor: 'Outdoor',
+  electronics: 'Electronics',
+  kids: 'Baby & Kids',
+  laundry: 'Laundry',
+  others: 'Others',
 };
 
 interface Line {
