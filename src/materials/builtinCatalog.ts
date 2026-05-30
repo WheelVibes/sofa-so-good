@@ -33,6 +33,11 @@ function wall(id: string, name: string, swatch: string): MaterialDef {
   return { id, name, category: 'wall', kind: 'procedural', pattern: 'plaster', swatch, uvScale: [2.5, 2.5] };
 }
 
+/** Patterned wallpaper finish (stripe / grasscloth). Tiles at ~1 m. */
+function wallpaper(id: string, name: string, swatch: string, pattern: ProceduralPattern): MaterialDef {
+  return { id, name, category: 'wall', kind: 'procedural', pattern, swatch, uvScale: [1.2, 1.2] };
+}
+
 export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   // ── Floors (procedural PBR) ─────────────────────────────────────────────
   'floor-concrete': floor('floor-concrete', 'Concrete (bare)', '#bcb9b3', 'concrete', [2.2, 2.2]),
@@ -168,6 +173,14 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'wall-paint-slate': wall('wall-paint-slate', 'Slate', '#6a6f76'),
   'wall-paint-graphite': wall('wall-paint-graphite', 'Graphite', '#454a50'),
   'wall-paint-ink': wall('wall-paint-ink', 'Ink', '#2b3340'),
+
+  // Wallpapers — tone-on-tone vertical stripe + natural grasscloth weave.
+  'wall-stripe-greige': wallpaper('wall-stripe-greige', 'Striped greige', '#cfc7ba', 'stripe'),
+  'wall-stripe-sage': wallpaper('wall-stripe-sage', 'Striped sage', '#aebaa6', 'stripe'),
+  'wall-stripe-blue': wallpaper('wall-stripe-blue', 'Striped blue', '#9fb1c4', 'stripe'),
+  'wall-grasscloth-natural': wallpaper('wall-grasscloth-natural', 'Grasscloth natural', '#cdbf9e', 'grasscloth'),
+  'wall-grasscloth-olive': wallpaper('wall-grasscloth-olive', 'Grasscloth olive', '#9a9466', 'grasscloth'),
+  'wall-grasscloth-charcoal': wallpaper('wall-grasscloth-charcoal', 'Grasscloth charcoal', '#5a5852', 'grasscloth'),
 };
 
 export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak';

@@ -27,7 +27,9 @@ export type ProceduralPattern =
   | 'concrete'
   | 'marble'
   | 'plaster'
-  | 'terrazzo';
+  | 'terrazzo'
+  | 'stripe'
+  | 'grasscloth';
 
 export interface ProceduralResult {
   albedo: Texture;
@@ -339,6 +341,49 @@ function terrazzoFields(base: [number, number, number], seed: number): Fields {
   return f;
 }
 
+/** Tone-on-tone vertical stripe wallpaper — alternating slightly lighter
+ *  bands over a faint paper texture. Subtle, tasteful (an accent wall). */
+function stripeFields(base: [number, number, number], seed: number): Fields {
+  const f = blank();
+  f.normalStrength = 0.7;
+  const stripes = 6;
+  const sw = S / stripes;
+  const paper = makeFbm(seed + 11, 3, 40);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const band = Math.floor(x / sw) % 2;
+      const edge = Math.min(x % sw, sw - (x % sw)) < 2 ? 0.97 : 1; // faint seam
+      const alt = band === 0 ? 1.0 : 1.07;
+      const n = paper(x / S, y / S);
+      const factor = alt * edge * (0.99 + (n - 0.5) * 0.02);
+      const [r, g, b] = shade(base, clamp01(factor));
+      setPx(f, y * S + x, r, g, b, 0.2 + n * 0.1, 0.86);
+    }
+  }
+  return f;
+}
+
+/** Grasscloth wallpaper — fine horizontal woven striation with subtle warp,
+ *  reading as a natural textured paper. */
+function grasscloth(base: [number, number, number], seed: number): Fields {
+  const f = blank();
+  f.normalStrength = 1.4;
+  const warp = makeFbm(seed + 7, 3, 70);
+  const slub = makeFbm(seed + 13, 2, 14);
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const u = x / S;
+      const v = y / S;
+      const line = Math.sin((v * S) * 0.85 + warp(u, v) * 3) * 0.5 + 0.5; // horizontal weave
+      const sl = slub(u, v);
+      const factor = 0.95 + line * 0.05 + (sl - 0.5) * 0.05;
+      const [r, g, b] = shade(base, clamp01(factor));
+      setPx(f, y * S + x, r, g, b, line * 0.5, 0.82 + line * 0.06);
+    }
+  }
+  return f;
+}
+
 const PATTERN_FN: Record<
   ProceduralPattern,
   (base: [number, number, number], seed: number) => Fields
@@ -350,6 +395,8 @@ const PATTERN_FN: Record<
   marble: marbleFields,
   plaster: plasterFields,
   terrazzo: terrazzoFields,
+  stripe: stripeFields,
+  grasscloth,
 };
 
 /** Generate the three PBR maps for a procedural material. Browser-only
