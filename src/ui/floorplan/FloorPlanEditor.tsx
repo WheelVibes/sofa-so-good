@@ -25,6 +25,7 @@ export function FloorPlanEditor() {
   const a = useStore.getState();
 
   const [tool, setTool] = useState<Tool>('select');
+  const [wallType, setWallType] = useState<'internal' | 'external'>('internal');
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null);
   // Active room drag (select tool): grab offset from the room origin.
   const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null);
@@ -146,7 +147,7 @@ export function FloorPlanEditor() {
     const st = useStore.getState();
     if (tool === 'wall') {
       if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.2) {
-        const id = st.addWall({ start: [draft.x0, draft.z0], end: [draft.x, draft.z], thickness: 'internal' });
+        const id = st.addWall({ start: [draft.x0, draft.z0], end: [draft.x, draft.z], thickness: wallType });
         st.setPlanSelection({ type: 'wall', id });
       }
     } else if (tool === 'room') {
@@ -186,6 +187,20 @@ export function FloorPlanEditor() {
             </button>
           ))}
         </div>
+        {tool === 'wall' && (
+          <div className="flex gap-1">
+            {(['external', 'internal'] as const).map((t) => (
+              <button
+                key={t}
+                onClick={() => setWallType(t)}
+                title="Thickness of newly-drawn walls"
+                className={`rounded px-2 py-1 text-[11px] capitalize ${wallType === t ? 'bg-neutral-200 text-neutral-900' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
+              >
+                {t}
+              </button>
+            ))}
+          </div>
+        )}
         <button
           onClick={() => {
             // Fresh apartment: clear the inherited furniture (undoable) so the
