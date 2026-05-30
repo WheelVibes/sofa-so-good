@@ -961,6 +961,43 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  bench: {
+    kind: 'parametric',
+    id: 'bench',
+    name: 'Bench',
+    category: 'seating',
+    primitive: 'Bench',
+    defaultFootprint: { w: 1.2, d: 0.4, h: 0.45 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 1.8, step: 0.05, default: 1.2, unit: 'm' },
+      { kind: 'number', key: 'depth', label: 'Depth', min: 0.3, max: 0.5, step: 0.02, default: 0.4, unit: 'm' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'upholstered',
+        options: [
+          { value: 'upholstered', label: 'Upholstered' },
+          { value: 'storage', label: 'Storage ottoman' },
+          { value: 'slat', label: 'Wood slat' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Top', default: '#b08968' },
+      { kind: 'color', key: 'legColor', label: 'Legs', default: '#3a2c1d' },
+      {
+        kind: 'enum',
+        key: 'material',
+        label: 'Material',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Fabric' },
+          { value: 'leather', label: 'Leather' },
+          { value: 'velvet', label: 'Velvet' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
   armchair: {
     kind: 'parametric',
     id: 'armchair',
