@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import 'fake-indexeddb/auto';
 import { dedupeName, isModelFile, modelName } from './bulkImport';
 
 describe('bulkImport file filtering', () => {
@@ -15,6 +14,7 @@ describe('bulkImport file filtering', () => {
     expect(modelName('chair.glb')).toBe('chair');
     expect(modelName('models/sofas/Big Sofa.gltf')).toBe('Big Sofa');
     expect(modelName('a.b.glb')).toBe('a.b');
+    expect(modelName('.glb')).toBe('.glb');
   });
 });
 
