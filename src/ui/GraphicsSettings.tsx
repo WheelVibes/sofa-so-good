@@ -87,6 +87,7 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
           <Toggle label="Reflections (IBL)" hint="Image-based lighting probe" checked={eff.ibl} onChange={(v) => setOverride('ibl', v)} />
           <Toggle label="Bloom, AO + antialiasing" hint="GPU post-processing (loaded on demand)" checked={eff.postprocessing} onChange={(v) => setOverride('postprocessing', v)} />
           <Toggle label="Auto-reveal walls" hint="Fade near walls when orbiting" checked={eff.wallReveal} onChange={(v) => setOverride('wallReveal', v)} />
+          <Toggle label="Contact shadows" hint="Soft grounding under furniture" checked={eff.contactShadows} onChange={(v) => setOverride('contactShadows', v)} />
 
           <Row label="Night light fixtures" hint={`${eff.maxFixtureLights} max`}>
             <input
