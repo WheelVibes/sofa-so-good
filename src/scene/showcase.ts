@@ -16,6 +16,11 @@ export interface ShowcaseState {
 
 export interface ShowcaseInput {
   moved: boolean;
+  /**
+   * Monotonically increasing clock in ms (e.g. `performance.now()`).
+   * The state machine fails open to 'live' if `now` ever regresses, because a
+   * regression makes `idleFor` negative, which is never `> IDLE_MS`.
+   */
   now: number;
 }
 

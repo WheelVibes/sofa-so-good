@@ -18,6 +18,12 @@ describe('nextShowcaseState', () => {
     expect(s2.mode).toBe('accumulate');
   });
 
+  it('stays live at exactly IDLE_MS (strict greater-than boundary)', () => {
+    const s1 = nextShowcaseState(live, { moved: false, now: 1000 });
+    const s2 = nextShowcaseState(s1, { moved: false, now: 1000 + IDLE_MS });
+    expect(s2.mode).toBe('live');
+  });
+
   it('resets to live the moment the camera moves', () => {
     const acc: ShowcaseState = { mode: 'accumulate', stillSince: 0 };
     const s = nextShowcaseState(acc, { moved: true, now: 5000 });
