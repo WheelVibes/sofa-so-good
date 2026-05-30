@@ -84,19 +84,32 @@ async function makeVariant(io, src, tier, cfg) {
 
 async function main() {
   const arg = process.argv[2];
+  if (arg && !existsSync(arg)) {
+    console.error(`Path not found: ${arg}`);
+    process.exit(1);
+  }
   const srcs = arg
     ? (statSync(arg).isDirectory() ? listGlbs(arg) : [arg])
     : listGlbs(ROOT);
   const io = await buildIO();
-  let made = 0, skipped = 0;
+  let made = 0, skipped = 0, degraded = 0, failed = 0;
   for (const src of srcs) {
     for (const [tier, cfg] of Object.entries(TIERS)) {
-      const r = await makeVariant(io, src, tier, cfg);
-      r.skipped ? skipped++ : made++;
-      if (!r.skipped) console.log(`  ${tier.padEnd(6)}${r.degraded ? '*' : ' '} ${r.out}`);
+      // One unreadable/corrupt GLB must not abort the whole batch.
+      try {
+        const r = await makeVariant(io, src, tier, cfg);
+        r.skipped ? skipped++ : made++;
+        if (r.degraded) degraded++;
+        if (!r.skipped) console.log(`  ${tier.padEnd(6)}${r.degraded ? '*' : ' '} ${r.out}`);
+      } catch (err) {
+        failed++;
+        console.warn(`  FAILED ${tier} ${src}: ${err.message}`);
+      }
     }
   }
-  console.log(`\nDone. ${made} variants written, ${skipped} up-to-date.`);
+  console.log(
+    `\nDone. ${made} written (${degraded} texture-only), ${skipped} up-to-date, ${failed} failed.`,
+  );
 }
 
 main().catch((e) => { console.error(e); process.exit(1); });
