@@ -1,7 +1,8 @@
 import { describe, it, expect } from 'vitest';
 import type { SetRecipe, SetMemberInstance, MemberFootprint } from './ikeaSets';
-import { expandMembers, arrangeSet } from './ikeaSets';
+import { expandMembers, arrangeSet, buildSetGroup } from './ikeaSets';
 import { CLEARANCE } from '../layout/designRules';
+import type { FurnitureDef } from './types';
 
 /** Fixture: VIHALS dining set — 1 gateleg table + 2 folding chairs (spec §1.5). */
 const VIHALS: SetRecipe = {
@@ -176,5 +177,55 @@ describe('arrangeSet — bench / stool / other', () => {
     expect(other.rotation).toBe(0);
     // Clear of the table edge.
     expect(Math.abs(other.dx)).toBeGreaterThanOrEqual(TABLE.w / 2 + OTHER.w / 2 - 1e-9);
+  });
+});
+
+/** Minimal parametric catalog entries for the two VIHALS members. */
+const FIXTURE_CATALOG: Record<string, FurnitureDef> = {
+  'vihals-gateleg-table': {
+    kind: 'parametric', primitive: 'DiningTable', id: 'vihals-gateleg-table',
+    name: 'VIHALS gateleg table', category: 'tables', paramSchema: [],
+    defaultFootprint: { w: 1.4, d: 0.85, h: 0.75 },
+  },
+  'vihals-folding-chair': {
+    kind: 'parametric', primitive: 'DiningChair', id: 'vihals-folding-chair',
+    name: 'VIHALS folding chair', category: 'seating', paramSchema: [],
+    defaultFootprint: { w: 0.45, d: 0.5, h: 0.9 },
+  },
+};
+
+describe('buildSetGroup', () => {
+  it('produces 1 table + 2 chairs = 3 items, all sharing one groupId', () => {
+    const items = buildSetGroup(VIHALS, { x: 6, z: 4 }, FIXTURE_CATALOG, 'grp-test');
+    expect(items).toHaveLength(3);
+
+    const groupIds = new Set(items.map((i) => i.groupId));
+    expect(groupIds.size).toBe(1);
+    expect([...groupIds][0]).toBe('grp-test');
+
+    // defIds map to member groupKeys.
+    const defCounts = items.reduce<Record<string, number>>((a, i) => {
+      a[i.defId] = (a[i.defId] ?? 0) + 1; return a;
+    }, {});
+    expect(defCounts['vihals-gateleg-table']).toBe(1);
+    expect(defCounts['vihals-folding-chair']).toBe(2);
+  });
+
+  it('positions the table at the drop centre and chairs offset around it', () => {
+    const items = buildSetGroup(VIHALS, { x: 6, z: 4 }, FIXTURE_CATALOG, 'g');
+    const table = items.find((i) => i.defId === 'vihals-gateleg-table')!;
+    expect(table.position[0]).toBeCloseTo(6, 5);
+    expect(table.position[1]).toBeCloseTo(4, 5);
+    const chairs = items.filter((i) => i.defId === 'vihals-folding-chair');
+    // Chairs on opposite sides of the table in Z (table.w >= table.d -> +/-Z).
+    const dzs = chairs.map((c) => c.position[1] - 4).sort((a, b) => a - b);
+    expect(dzs[0]).toBeLessThan(0);
+    expect(dzs[1]).toBeGreaterThan(0);
+  });
+
+  it('gives every item a unique id', () => {
+    const items = buildSetGroup(VIHALS, { x: 0, z: 0 }, FIXTURE_CATALOG, 'g');
+    const ids = new Set(items.map((i) => i.id));
+    expect(ids.size).toBe(items.length);
   });
 });

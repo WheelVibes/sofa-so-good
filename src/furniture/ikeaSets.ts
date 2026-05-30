@@ -10,6 +10,8 @@
  */
 
 import { CLEARANCE } from '../layout/designRules';
+import type { FurnitureDef, FurnitureItem, ParamProps } from './types';
+import { defaultParamProps } from './types';
 
 export type SetRole = 'table' | 'chair' | 'bench' | 'stool' | 'other';
 
@@ -144,4 +146,90 @@ export function arrangeSet(
   }
 
   return out;
+}
+
+/** Footprint of a member def + its params (mirrors autoArrange.baseFootprint). */
+function defFootprint(def: FurnitureDef, props: ParamProps): MemberFootprint {
+  let w = def.defaultFootprint.w;
+  let d = def.defaultFootprint.d;
+  if (def.kind === 'parametric') {
+    const map = def.footprintParams ?? {};
+    const wv = props[map.w ?? 'width'];
+    const dv = props[map.d ?? 'depth'];
+    if (typeof wv === 'number') w = wv;
+    if (typeof dv === 'number') d = dv;
+  }
+  return { w, d };
+}
+
+export interface DropCentre {
+  x: number;
+  z: number;
+}
+
+/**
+ * Resolve a recipe member's `groupKey` to its catalog def. The live catalog
+ * (`useCatalog()` / `BUILTIN_CATALOG_PLUS_IKEA`) is keyed by `def.id`, and an
+ * imported IKEA def's id is `ikea-<groupKey>` (see `furniture/ikea/importGroup.ts`,
+ * `id: \`ikea-${meta.group_key}\``). So we try the bare `groupKey` first (which
+ * matches a fixture catalog or any def whose id IS the groupKey) and then the
+ * `ikea-` prefixed id. Returns the def (or null if the member isn't imported yet).
+ */
+function resolveMemberDef(
+  catalog: Record<string, FurnitureDef>,
+  groupKey: string,
+): FurnitureDef | null {
+  return catalog[groupKey] ?? catalog[`ikea-${groupKey}`] ?? null;
+}
+
+/**
+ * Expand a set recipe into arranged, grouped `FurnitureItem`s ready to append
+ * to the store. The table lands at `dropCentre`; chairs/benches/stools/other
+ * arrange around it (`arrangeSet`). Every item is stamped with `groupId` so
+ * they select/move as a unit. `groupId` is supplied by the caller (the Toolbar
+ * mints it via the plan-2 `groupItems` helper); when omitted a local fallback
+ * id is generated (used only by unit tests / non-store callers).
+ *
+ * Each item's `defId` is the RESOLVED catalog def id (e.g. `ikea-vihals-…`),
+ * not the bare recipe `groupKey` — `defId` must be a real catalog key or the
+ * item won't render. A member with no matching imported def is skipped (logged
+ * by the caller); the set is still placed with whatever members resolved.
+ */
+export function buildSetGroup(
+  recipe: SetRecipe,
+  dropCentre: DropCentre,
+  catalog: Record<string, FurnitureDef>,
+  groupId: string = `set-${Date.now().toString(36)}`,
+): FurnitureItem[] {
+  const instances = expandMembers(recipe);
+
+  // Resolve def + props + footprint per instance. Drop instances whose member
+  // def isn't in the catalog (not imported) so we never emit an unrenderable
+  // defId.
+  const resolved: { m: SetMemberInstance; defId: string; props: ParamProps }[] = [];
+  const footprints: Record<number, MemberFootprint> = {};
+  for (const m of instances) {
+    const def = resolveMemberDef(catalog, m.groupKey);
+    if (!def) continue;
+    const props: ParamProps = def.kind === 'parametric' ? defaultParamProps(def) : {};
+    footprints[m.index] = defFootprint(def, props);
+    resolved.push({ m, defId: def.id, props });
+  }
+
+  const keptInstances = resolved.map((r) => r.m);
+  const placements = arrangeSet(keptInstances, footprints);
+  const placementByIndex = new Map(placements.map((p) => [p.index, p]));
+  const stamp = groupId.replace(/[^a-z0-9]/gi, '');
+
+  return resolved.map(({ m, defId, props }) => {
+    const p = placementByIndex.get(m.index) ?? { index: m.index, dx: 0, dz: 0, rotation: 0 };
+    return {
+      id: `${stamp}-${m.index}`,
+      defId,
+      position: [dropCentre.x + p.dx, dropCentre.z + p.dz] as [number, number],
+      rotation: p.rotation,
+      props,
+      groupId,
+    };
+  });
 }
