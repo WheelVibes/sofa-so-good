@@ -861,7 +861,19 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'bathroom',
     primitive: 'Toilet',
     defaultFootprint: { w: 0.4, d: 0.66, h: 0.78 },
-    paramSchema: [{ kind: 'color', key: 'color', label: 'Finish', default: '#f4f4f1' }],
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Finish', default: '#f4f4f1' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'close-coupled',
+        options: [
+          { value: 'close-coupled', label: 'Close-coupled' },
+          { value: 'wall-hung', label: 'Wall-hung' },
+        ],
+      },
+    ],
   },
   'bathroom-sink': {
     kind: 'parametric',
@@ -1703,6 +1715,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         ],
       },
       { kind: 'color', key: 'color', label: 'Cabinet', default: '#e3dfd6' },
+      { kind: 'color', key: 'worktopColor', label: 'Worktop', default: '#34373d' },
+      {
+        kind: 'enum',
+        key: 'frontStyle',
+        label: 'Fronts',
+        default: 'slab',
+        options: [
+          { value: 'slab', label: 'Slab doors' },
+          { value: 'shaker', label: 'Shaker doors' },
+          { value: 'drawers', label: 'Drawers' },
+        ],
+      },
       {
         kind: 'enum',
         key: 'finish',
