@@ -34,6 +34,7 @@ import {
   SELECTION_INITIAL,
   type SelectionSlice,
 } from './slices/selectionSlice';
+import { createGroupsSlice, type GroupsSlice } from './slices/groupsSlice';
 import {
   createUserAssetsSlice,
   USER_ASSETS_INITIAL,
@@ -100,6 +101,7 @@ export interface RootState
     DoorsSlice,
     ItemsSlice,
     SelectionSlice,
+    GroupsSlice,
     UserAssetsSlice,
     ResetSlice,
     UiSlice,
@@ -144,6 +146,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createDoorsSlice(set, get, api),
   ...createItemsSlice(set, get, api),
   ...createSelectionSlice(set, get, api),
+  ...createGroupsSlice(set, get, api),
   ...createUserAssetsSlice(set, get, api),
   ...createResetSlice(set, get, api),
   ...createUiSlice(set, get, api),
