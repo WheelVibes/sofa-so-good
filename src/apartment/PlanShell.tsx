@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { useStore } from '../state/store';
 import { wallBoxes } from '../floorplan/planGeometry';
-import { wallLength } from '../floorplan/types';
+import { wallLength, planBounds } from '../floorplan/types';
 import { PlanRoomFloor } from './floor/PlanRoomFloor';
 import type { MaterialId } from '../materials/types';
 
@@ -15,7 +15,7 @@ const DEFAULT_PLAN_FLOOR = 'floor-wood-oak';
  */
 export function PlanShell() {
   const plan = useStore((s) => s.floorPlan);
-  const [ew, ed] = plan.extent;
+  const [ew, ed] = planBounds(plan);
 
   const boxes = useMemo(() => plan.walls.flatMap((w) => wallBoxes(plan, w)), [plan]);
 

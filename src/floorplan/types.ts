@@ -76,3 +76,27 @@ export function planTotalArea(plan: FloorPlan): number {
 export function wallLength(w: PlanWall): number {
   return Math.hypot(w.end[0] - w.start[0], w.end[1] - w.start[1]);
 }
+
+/**
+ * Effective footprint that covers everything in the plan — the max of the
+ * declared `extent` and the bounding box of all walls and rooms. Used for the
+ * floor slab / grid / editor viewport so drawing beyond the initial extent
+ * still renders fully.
+ */
+export function planBounds(plan: FloorPlan): PlanVec2 {
+  let mx = plan.extent[0];
+  let mz = plan.extent[1];
+  for (const w of plan.walls) {
+    mx = Math.max(mx, w.start[0], w.end[0]);
+    mz = Math.max(mz, w.start[1], w.end[1]);
+  }
+  for (const r of plan.rooms) {
+    mx = Math.max(mx, r.origin[0] + r.width);
+    mz = Math.max(mz, r.origin[1] + r.depth);
+    if (r.extension) {
+      mx = Math.max(mx, r.origin[0] + r.extension.offset[0] + r.extension.width);
+      mz = Math.max(mz, r.origin[1] + r.extension.offset[1] + r.extension.depth);
+    }
+  }
+  return [mx, mz];
+}

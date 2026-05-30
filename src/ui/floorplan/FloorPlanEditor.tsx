@@ -1,6 +1,6 @@
 import { useMemo, useRef, useState, useEffect } from 'react';
 import { useStore } from '../../state/store';
-import { planRoomArea, planTotalArea, wallLength } from '../../floorplan/types';
+import { planRoomArea, planTotalArea, wallLength, planBounds } from '../../floorplan/types';
 import type { PlanOpening, PlanWall } from '../../floorplan/types';
 import { PlanInspector } from './PlanInspector';
 
@@ -29,7 +29,7 @@ export function FloorPlanEditor() {
   const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  const [ew, ed] = plan.extent;
+  const [ew, ed] = planBounds(plan);
   const PX = useMemo(() => {
     const fitW = MAX_W / (ew + PAD * 2);
     const fitH = MAX_H / (ed + PAD * 2);
