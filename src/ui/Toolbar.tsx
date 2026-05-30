@@ -31,6 +31,7 @@ export function Toolbar() {
   const toggleShowFps = useStore((s) => s.toggleShowFps);
   const qualityTier = useStore((s) => s.qualityTier);
   const requestTopView = useStore((s) => s.requestTopView);
+  const requestHomeView = useStore((s) => s.requestHomeView);
   const [creditsOpen, setCreditsOpen] = useState(false);
   const [graphicsOpen, setGraphicsOpen] = useState(false);
 
@@ -82,6 +83,13 @@ export function Toolbar() {
             className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
           >
             Top view
+          </button>
+          <button
+            onClick={requestHomeView}
+            title="Reset to the 3D overview"
+            className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+          >
+            Reset view
           </button>
           <TurntableToggle />
           <Divider />

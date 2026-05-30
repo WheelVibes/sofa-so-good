@@ -45,6 +45,17 @@ export function OrbitCamera() {
     c.update();
   }, [topViewNonce, camera]);
 
+  // "Reset view" → snap back to the default 3/4 dollhouse overview.
+  const homeViewNonce = useStore((s) => s.homeViewNonce);
+  useEffect(() => {
+    if (homeViewNonce === 0) return;
+    const c = controlsRef.current;
+    if (!c) return;
+    c.target.set(...INITIAL_TARGET);
+    camera.position.set(12, 8, 12);
+    c.update();
+  }, [homeViewNonce, camera]);
+
   // Double-click an item → smoothly re-target the orbit pivot onto it and
   // dolly in to a comfortable framing distance (keeps the current view angle).
   const focusNonce = useStore((s) => s.focusNonce);

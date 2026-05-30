@@ -7,6 +7,8 @@ export interface CameraSlice {
   cameraMode: CameraMode;
   /** Bumped to request the orbit camera snap to a top-down plan view. */
   topViewNonce: number;
+  /** Bumped to request the orbit camera return to the default 3/4 overview. */
+  homeViewNonce: number;
   /** Slow auto-orbit for presentation / recording a turntable clip. */
   autoRotate: boolean;
   /** Bumped to request the orbit camera re-focus on `focusPoint`. */
@@ -17,6 +19,7 @@ export interface CameraSlice {
   touring: boolean;
   setCameraMode: (m: CameraMode) => void;
   requestTopView: () => void;
+  requestHomeView: () => void;
   toggleAutoRotate: () => void;
   /** Re-target the orbit camera onto a world point (double-click an item). */
   focusOn: (point: [number, number]) => void;
@@ -25,10 +28,11 @@ export interface CameraSlice {
 
 export const CAMERA_INITIAL: Pick<
   CameraSlice,
-  'cameraMode' | 'topViewNonce' | 'autoRotate' | 'focusNonce' | 'focusPoint' | 'touring'
+  'cameraMode' | 'topViewNonce' | 'homeViewNonce' | 'autoRotate' | 'focusNonce' | 'focusPoint' | 'touring'
 > = {
   cameraMode: 'orbit',
   topViewNonce: 0,
+  homeViewNonce: 0,
   autoRotate: false,
   focusNonce: 0,
   focusPoint: null,
@@ -40,6 +44,8 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set) => 
   setCameraMode: (m) => set({ cameraMode: m }),
   requestTopView: () =>
     set((s) => ({ topViewNonce: s.topViewNonce + 1, cameraMode: 'orbit' })),
+  requestHomeView: () =>
+    set((s) => ({ homeViewNonce: s.homeViewNonce + 1, cameraMode: 'orbit' })),
   toggleAutoRotate: () => set((s) => ({ autoRotate: !s.autoRotate })),
   focusOn: (point) => set((s) => ({ focusPoint: point, focusNonce: s.focusNonce + 1 })),
   setTouring: (v) => set({ touring: v }),
