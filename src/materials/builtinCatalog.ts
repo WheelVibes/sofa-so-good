@@ -55,6 +55,8 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-wood-ash': floor('floor-wood-ash', 'Pale ash planks', '#cdb696', 'wood', [1.9, 1.2]),
   'floor-wood-ebony': floor('floor-wood-ebony', 'Ebony planks', '#43342a', 'wood', [1.9, 1.2]),
   'floor-tile-sand': floor('floor-tile-sand', 'Sand porcelain', '#cdbfa6', 'tile', [0.8, 0.8]),
+  'floor-checker-mono': floor('floor-checker-mono', 'Checkerboard', '#e8e6e0', 'checker', [1.2, 1.2]),
+  'floor-checker-terracotta': floor('floor-checker-terracotta', 'Checker terracotta', '#c79a78', 'checker', [1.2, 1.2]),
   'floor-terrazzo-dark': floor('floor-terrazzo-dark', 'Dark terrazzo', '#5a564e', 'terrazzo', [1.0, 1.0]),
   'floor-carpet-blue': floor('floor-carpet-blue', 'Navy carpet', '#3f4a63', 'carpet', [1.5, 1.5]),
   'floor-carpet-greige': floor('floor-carpet-greige', 'Greige carpet', '#b3a89a', 'carpet', [1.5, 1.5]),

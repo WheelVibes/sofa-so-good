@@ -29,7 +29,8 @@ export type ProceduralPattern =
   | 'plaster'
   | 'terrazzo'
   | 'stripe'
-  | 'grasscloth';
+  | 'grasscloth'
+  | 'checker';
 
 export interface ProceduralResult {
   albedo: Texture;
@@ -384,11 +385,36 @@ function grasscloth(base: [number, number, number], seed: number): Fields {
   return f;
 }
 
+/** Checkerboard tile floor — `base` is the light square, a dark derivative the
+ *  other, with grout seams. Polished (low roughness). */
+function checkerFields(base: [number, number, number], seed: number): Fields {
+  const f = blank();
+  f.normalStrength = 0.6;
+  const cells = 4;
+  const cs = S / cells;
+  const grain = makeFbm(seed + 3, 3, 30);
+  const dark: [number, number, number] = [base[0] * 0.26, base[1] * 0.26, base[2] * 0.28];
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const cell = (Math.floor(x / cs) + Math.floor(y / cs)) % 2;
+      const col = cell === 0 ? base : dark;
+      const g = grain(x / S, y / S);
+      const ex = Math.min(x % cs, cs - (x % cs));
+      const ey = Math.min(y % cs, cs - (y % cs));
+      const grout = Math.min(ex, ey) < 1.5 ? 0.8 : 1;
+      const [r, gg, b] = shade(col, clamp01((0.98 + (g - 0.5) * 0.04) * grout));
+      setPx(f, y * S + x, r, gg, b, grout < 1 ? 0.2 : 0.08, 0.32);
+    }
+  }
+  return f;
+}
+
 const PATTERN_FN: Record<
   ProceduralPattern,
   (base: [number, number, number], seed: number) => Fields
 > = {
   wood: woodFields,
+  checker: checkerFields,
   tile: tileFields,
   carpet: carpetFields,
   concrete: concreteFields,
