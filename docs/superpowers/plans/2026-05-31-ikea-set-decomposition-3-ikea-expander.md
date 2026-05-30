@@ -733,12 +733,32 @@ export interface DropCentre {
 }
 
 /**
+ * Resolve a recipe member's `groupKey` to its catalog def. The live catalog
+ * (`useCatalog()` / `BUILTIN_CATALOG_PLUS_IKEA`) is keyed by `def.id`, and an
+ * imported IKEA def's id is `ikea-<groupKey>` (see `furniture/ikea/importGroup.ts`,
+ * `id: \`ikea-${meta.group_key}\``). So we try the bare `groupKey` first (which
+ * matches a fixture catalog or any def whose id IS the groupKey) and then the
+ * `ikea-` prefixed id. Returns the def (or null if the member isn't imported yet).
+ */
+function resolveMemberDef(
+  catalog: Record<string, FurnitureDef>,
+  groupKey: string,
+): FurnitureDef | null {
+  return catalog[groupKey] ?? catalog[`ikea-${groupKey}`] ?? null;
+}
+
+/**
  * Expand a set recipe into arranged, grouped `FurnitureItem`s ready to append
  * to the store. The table lands at `dropCentre`; chairs/benches/stools/other
  * arrange around it (`arrangeSet`). Every item is stamped with `groupId` so
  * they select/move as a unit. `groupId` is supplied by the caller (the Toolbar
  * mints it via the plan-2 `groupItems` helper); when omitted a local fallback
  * id is generated (used only by unit tests / non-store callers).
+ *
+ * Each item's `defId` is the RESOLVED catalog def id (e.g. `ikea-vihals-…`),
+ * not the bare recipe `groupKey` — `defId` must be a real catalog key or the
+ * item won't render. A member with no matching imported def is skipped (logged
+ * by the caller); the set is still placed with whatever members resolved.
  */
 export function buildSetGroup(
   recipe: SetRecipe,
@@ -748,28 +768,32 @@ export function buildSetGroup(
 ): FurnitureItem[] {
   const instances = expandMembers(recipe);
 
-  // Resolve props + footprint per instance.
-  const propsByIndex: Record<number, ParamProps> = {};
+  // Resolve def + props + footprint per instance. Drop instances whose member
+  // def isn't in the catalog (not imported) so we never emit an unrenderable
+  // defId.
+  const resolved: { m: SetMemberInstance; defId: string; props: ParamProps }[] = [];
   const footprints: Record<number, MemberFootprint> = {};
   for (const m of instances) {
-    const def = catalog[m.groupKey];
-    const props: ParamProps = def && def.kind === 'parametric' ? defaultParamProps(def) : {};
-    propsByIndex[m.index] = props;
-    footprints[m.index] = def ? defFootprint(def, props) : { w: 0.5, d: 0.5 };
+    const def = resolveMemberDef(catalog, m.groupKey);
+    if (!def) continue;
+    const props: ParamProps = def.kind === 'parametric' ? defaultParamProps(def) : {};
+    footprints[m.index] = defFootprint(def, props);
+    resolved.push({ m, defId: def.id, props });
   }
 
-  const placements = arrangeSet(instances, footprints);
+  const keptInstances = resolved.map((r) => r.m);
+  const placements = arrangeSet(keptInstances, footprints);
   const placementByIndex = new Map(placements.map((p) => [p.index, p]));
   const stamp = groupId.replace(/[^a-z0-9]/gi, '');
 
-  return instances.map((m) => {
+  return resolved.map(({ m, defId, props }) => {
     const p = placementByIndex.get(m.index) ?? { index: m.index, dx: 0, dz: 0, rotation: 0 };
     return {
       id: `${stamp}-${m.index}`,
-      defId: m.groupKey,
+      defId,
       position: [dropCentre.x + p.dx, dropCentre.z + p.dz] as [number, number],
       rotation: p.rotation,
-      props: propsByIndex[m.index] ?? {},
+      props,
       groupId,
     };
   });
@@ -1130,7 +1154,7 @@ function BUILTIN_CATALOG_PLUS_IKEA(): Record<string, FurnitureDef> {
 }
 ```
 
-> If the store slice that holds imported defs is named differently in plan 2 / the IKEA-import plan (e.g. `userDefs`, `catalogDefs`), use that exact accessor. Verify with `grep -rn "userFurniture\|userDefs" src/state/slices` before writing.
+> **Verified (2026-05-31):** the store slice is `userFurniture: (UserGltfDef | IkeaGltfDef)[]` (`src/state/slices/userAssetsSlice.ts`). This map is keyed by `def.id`, and an imported IKEA def's id is `ikea-<groupKey>` (`furniture/ikea/importGroup.ts`). `buildSetGroup`'s `resolveMemberDef` already tries both the bare `groupKey` and the `ikea-` prefix, so members resolve against this id-keyed map correctly — no change needed here. `BUILTIN_CATALOG` imports from `./builtinCatalog` (the same source `catalog.ts` uses).
 
 - [ ] **Step 4: Typecheck + build**
 
@@ -1157,6 +1181,20 @@ Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
 ## Task 8: REQUIRED visual verification pass (MANDATORY — per CLAUDE.md)
 
 **This task is not optional and not satisfied by green tests.** Per CLAUDE.md and spec §2.7, every app change must be run, exercised, screenshotted, and **visually reviewed by you**. For each step below: run the command, **open the PNG and actually look at it**, then write 1–3 sentences in your task report describing what you saw (arrangement correct? overlaps? selection highlight? moved as a unit?). Do not write "screenshot captured" — describe the pixels.
+
+> **VERIFIED MECHANICS (2026-05-31) — read before running any command below.** `scripts/shot.mjs` action types are ONLY `drag | wheel | click | key | wait` (see its header comment). **There is NO `{"type":"eval",...}` action** — the `eval` actions written in the command blocks below DO NOT WORK. Instead, every state mutation must run via the **`evalFile` (4th CLI arg)**, which `shot.mjs` executes in the page *before* it screenshots. So the pattern is **one evalFile per screenshot**: write `/tmp/ikea-set-<step>.js` that (a) seeds the recipe/defs if needed and (b) applies that step's mutation against `window.__store.getState()`, then call `node scripts/shot.mjs <out.png> 2500 /tmp/ikea-set-<step>.js '[{"type":"wait","ms":1200}]'`. Translate each `eval` action's `js` payload below into the body of that step's evalFile. Because page state does NOT persist across `shot.mjs` invocations (each reloads the app), every step's evalFile must re-seed + re-apply all prior mutations up to that step (or, simpler, re-build the post-state directly). Use the **store-only path** (next paragraph) so no real GLB/import is required.
+>
+> **Store-only seeding (no real scrape/import needed).** Drive everything through `buildSetGroup` + the store. In `src/main.tsx`, under `if (import.meta.env.DEV)`, temporarily expose: `window.__buildSetGroup = buildSetGroup; window.__catalog = BUILTIN_CATALOG; window.__groupItems = useStore.getState().groupItems;` (import `buildSetGroup` from `./furniture/ikeaSets`, `BUILTIN_CATALOG` from `./furniture/builtinCatalog`). **Remove this dev hook before any commit — Task 8 does not commit.** Then each evalFile builds an arranged group from BUILTIN substitutes (`dining-table-4` table + `dining-chair` chairs — both exist in `BUILTIN_CATALOG`, so they render without an IKEA import) and applies the step's change. Example seed body (drop):
+> ```js
+> const recipe = { setKey:'demo', setName:'Demo dining set', members:[
+>   { groupKey:'dining-table-4', role:'table', qty:1, articleNumber:'1' },
+>   { groupKey:'dining-chair',   role:'chair', qty:4, articleNumber:'2' } ] };
+> const st = window.__store.getState();
+> const items = window.__buildSetGroup(recipe, { x: 10.8, z: 4 }, window.__catalog, 'demo-grp');
+> st.setItems([...st.items, ...items]);
+> st.setSelectedItemIds(items.map(i => i.id));
+> ```
+> This exercises the real `buildSetGroup` + `arrangeSet` + `groupId` stamping (the actual code under test) end-to-end in the rendered app. The IKEA-specific path (recipe registry + `ikea-`-prefixed defs) is covered by the unit tests; this visual pass proves the arrangement + grouping render correctly. In each step below, IGNORE the literal `{"type":"eval",...}` action JSON and instead put its `js` into the step's evalFile as described here.
 
 **Files:**
 - Create (scratch, do not commit): `/tmp/ikea-set-seed.js` (an eval file that registers a fixture recipe + imported member defs so the Sets menu shows an IKEA set in dev).
