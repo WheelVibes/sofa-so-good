@@ -27,6 +27,12 @@ function floor(
   return { id, name, category: 'floor', kind: 'procedural', pattern, swatch, uvScale, sourceUrl };
 }
 
+/** Painted plaster wall in an arbitrary colour (shares the plaster normal,
+ *  tinted by `swatch`) — used to widen the curated wall palette. */
+function wall(id: string, name: string, swatch: string): MaterialDef {
+  return { id, name, category: 'wall', kind: 'procedural', pattern: 'plaster', swatch, uvScale: [2.5, 2.5] };
+}
+
 export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   // ── Floors (procedural PBR) ─────────────────────────────────────────────
   'floor-concrete': floor('floor-concrete', 'Concrete (bare)', '#bcb9b3', 'concrete', [2.2, 2.2]),
@@ -41,7 +47,12 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-tile-grey': floor('floor-tile-grey', 'Grey porcelain', '#b9b9b6', 'tile', [0.8, 0.8]),
   'floor-tile-charcoal': floor('floor-tile-charcoal', 'Charcoal porcelain', '#4c4e52', 'tile', [0.8, 0.8]),
   'floor-wood-teak': floor('floor-wood-teak', 'Teak planks', '#9a6b3f', 'wood', [1.9, 1.2]),
+  'floor-wood-ash': floor('floor-wood-ash', 'Pale ash planks', '#cdb696', 'wood', [1.9, 1.2]),
+  'floor-wood-ebony': floor('floor-wood-ebony', 'Ebony planks', '#43342a', 'wood', [1.9, 1.2]),
+  'floor-tile-sand': floor('floor-tile-sand', 'Sand porcelain', '#cdbfa6', 'tile', [0.8, 0.8]),
+  'floor-terrazzo-dark': floor('floor-terrazzo-dark', 'Dark terrazzo', '#5a564e', 'terrazzo', [1.0, 1.0]),
   'floor-carpet-blue': floor('floor-carpet-blue', 'Navy carpet', '#3f4a63', 'carpet', [1.5, 1.5]),
+  'floor-carpet-greige': floor('floor-carpet-greige', 'Greige carpet', '#b3a89a', 'carpet', [1.5, 1.5]),
 
   // ── Walls ───────────────────────────────────────────────────────────────
   // Default white is a subtly textured plaster (orange-peel normal) so walls
@@ -136,6 +147,27 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     swatch: '#4a5e4a',
     uvScale: [2.5, 2.5],
   },
+
+  // Expanded curated palette — popular contemporary interior wall colours.
+  'wall-paint-soft-white': wall('wall-paint-soft-white', 'Soft white', '#efece4'),
+  'wall-paint-almond': wall('wall-paint-almond', 'Almond', '#e7ddca'),
+  'wall-paint-oat': wall('wall-paint-oat', 'Oat', '#d8cdb8'),
+  'wall-paint-mushroom': wall('wall-paint-mushroom', 'Mushroom', '#b6aa9a'),
+  'wall-paint-clay': wall('wall-paint-clay', 'Clay', '#b98a6e'),
+  'wall-paint-rust': wall('wall-paint-rust', 'Rust', '#a85a3c'),
+  'wall-paint-mustard': wall('wall-paint-mustard', 'Mustard', '#c69a45'),
+  'wall-paint-olive': wall('wall-paint-olive', 'Olive', '#7d7a4a'),
+  'wall-paint-eucalyptus': wall('wall-paint-eucalyptus', 'Eucalyptus', '#8fa79a'),
+  'wall-paint-teal': wall('wall-paint-teal', 'Teal', '#3f6b6a'),
+  'wall-paint-petrol': wall('wall-paint-petrol', 'Petrol blue', '#345a66'),
+  'wall-paint-denim': wall('wall-paint-denim', 'Denim', '#5a7088'),
+  'wall-paint-lavender': wall('wall-paint-lavender', 'Lavender', '#b3aac4'),
+  'wall-paint-mauve': wall('wall-paint-mauve', 'Mauve', '#9a7d86'),
+  'wall-paint-dusty-rose': wall('wall-paint-dusty-rose', 'Dusty rose', '#c9a0a0'),
+  'wall-paint-stone-grey': wall('wall-paint-stone-grey', 'Stone grey', '#a8a6a1'),
+  'wall-paint-slate': wall('wall-paint-slate', 'Slate', '#6a6f76'),
+  'wall-paint-graphite': wall('wall-paint-graphite', 'Graphite', '#454a50'),
+  'wall-paint-ink': wall('wall-paint-ink', 'Ink', '#2b3340'),
 };
 
 export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak';
