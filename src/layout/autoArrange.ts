@@ -678,6 +678,17 @@ function arrangeBedroom(
   }
   placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx);
 
+  // Rug: centred under the lower half of the bed, extending toward the foot
+  // (noClip, so it always places — it just sits under everything).
+  for (const rug of get(['rug'])) {
+    if (bedEdge === 'N' || bedEdge === 'S') {
+      const rz = bedEdge === 'N' ? bedFootZ - 0.4 : bedFootZ + 0.4;
+      tryPlace(rug, [bedAlong, rz], 0, world, ctx);
+    } else {
+      tryPlace(rug, [(rect.x0 + rect.x1) / 2, bedAlong], 0, world, ctx);
+    }
+  }
+
   // Foot-of-bed bench, centred at the foot if there's room.
   for (const b of get(['lowTable'])) {
     if (bedEdge === 'N' || bedEdge === 'S') {
