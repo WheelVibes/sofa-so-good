@@ -99,8 +99,21 @@ export function BudgetPanel() {
           ))
         )}
       </div>
-      <footer className="border-t border-neutral-200 px-4 py-2 text-[10px] leading-snug text-neutral-400">
-        Approximate mid-market retail (SGD). Finishes &amp; renovation not included.
+      <footer className="flex items-center justify-between gap-2 border-t border-neutral-200 px-4 py-2 text-[10px] leading-snug text-neutral-400">
+        <span>Approx. mid-market retail (SGD). Finishes &amp; reno excluded.</span>
+        <button
+          onClick={() => {
+            const lines = groups.flatMap((g) => [
+              `# ${CATEGORY_LABEL[g.cat]}`,
+              ...g.lines.map((l) => `${l.name}${l.count > 1 ? ` x${l.count}` : ''}\t${fmt(l.each * l.count)}`),
+            ]);
+            lines.push('', `TOTAL\t${fmt(total)} (${count} items)`);
+            void navigator.clipboard?.writeText(lines.join('\n'));
+          }}
+          className="shrink-0 rounded bg-neutral-200 px-2 py-1 text-[10px] font-medium text-neutral-700 hover:bg-neutral-300"
+        >
+          Copy list
+        </button>
       </footer>
     </aside>
   );

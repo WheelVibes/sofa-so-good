@@ -134,6 +134,23 @@ export function InspectorPanel() {
           <div className="text-[10px] uppercase tracking-wide text-neutral-500">
             {def.category}
           </div>
+          {(() => {
+            let w = def.defaultFootprint.w;
+            let d = def.defaultFootprint.d;
+            if (def.kind === 'parametric') {
+              const map = def.footprintParams ?? {};
+              const wv = item.props[map.w ?? 'width'];
+              const dv = item.props[map.d ?? 'depth'];
+              if (typeof wv === 'number') w = wv;
+              if (typeof dv === 'number') d = dv;
+            }
+            const cm = (m: number) => Math.round(m * 100);
+            return (
+              <div className="mt-0.5 text-[10px] tabular-nums text-neutral-400" title="Width × Depth × Height">
+                {cm(w)} × {cm(d)} × {cm(def.defaultFootprint.h)} cm
+              </div>
+            );
+          })()}
         </div>
         <button
           onClick={() => selectItem(null)}
