@@ -79,6 +79,19 @@ state, Vite build, Vitest tests.
 - **Snap grid** (`scene/snap.ts`, `GridOverlay.tsx`, ui `snapEnabled`/
   `gridSize`): drag + initial placement quantise to a customizable grid
   (10/25/50 cm, 1 m); the floor overlay shows it. Persisted via `editorPrefs`.
+- **Drag aids**: `DragController` snaps a single drag to other items' centres/
+  edges (magenta `AlignmentGuides`) and shows the nearest-wall gap (`DragHud`
+  via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
+- **Design tools** (toolbar): a **Sets** menu drops pre-arranged vignettes
+  (`furnitureSets.ts`); **Tools ▾** groups the Budget panel
+  (`furniturePrices.ts`), **Checks** (door-swing clearance, `layout/clearance.ts`
+  + `ClearanceOverlay`), **Sun study** (time-lapse), **Walkthrough** (auto camera
+  tour + record, in `OrbitCamera`), and **Report** (`ui/report.ts`, printable).
+  Multi-select shows an align/distribute panel; items can be **locked**;
+  double-click focuses the camera; saved layouts get thumbnails (`slotThumbs`).
+- **Visual**: per-item **contact shadows** (`ContactShadow`, quality-gated) +
+  **skirting/crown** wall trim (`apartment/Skirting.tsx`, `PlanShell`).
+  Procedural finishes include **wallpapers** (stripe/grasscloth) + **checker**.
 
 ## Adding content
 - **Furniture**: add a `primitives/<Name>.tsx` (a function taking
