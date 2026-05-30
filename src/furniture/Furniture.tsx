@@ -15,6 +15,9 @@ interface FurnitureProps {
   passive?: boolean;
   /** Render a soft contact shadow under floor items (off on the low tier). */
   contactShadow?: boolean;
+  /** Bumped when a DLC/catalog material is (re)built; forces a re-render so
+   *  the primitive's synchronous material lookup finds the new material. */
+  materialEpoch?: number;
 }
 
 function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
@@ -165,6 +168,7 @@ export const Furniture = memo(FurnitureInner, (prev, next) => {
     prev.item === next.item &&
     prev.def === next.def &&
     prev.passive === next.passive &&
-    prev.contactShadow === next.contactShadow
+    prev.contactShadow === next.contactShadow &&
+    prev.materialEpoch === next.materialEpoch
   );
 });

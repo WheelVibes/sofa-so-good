@@ -45,6 +45,11 @@ export interface UiSlice {
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
   autoShadowsOff: boolean;
+  /** Bumped whenever a DLC/catalog furniture material finishes building into
+   *  the shared cache, so memoised furniture re-renders to pick it up. */
+  materialEpoch: number;
+  /** Signal that a furniture material was (re)built and is now in the cache. */
+  bumpMaterialEpoch: () => void;
   setCatalogOpen: (open: boolean) => void;
   toggleCatalogOpen: () => void;
   setEditorTool: (tool: EditorTool) => void;
@@ -93,6 +98,7 @@ export const UI_INITIAL: Pick<
   | 'clearanceOn'
   | 'recording'
   | 'recentColors'
+  | 'materialEpoch'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -108,6 +114,7 @@ export const UI_INITIAL: Pick<
   clearanceOn: false,
   recording: false,
   recentColors: [],
+  materialEpoch: 0,
 };
 
 /** Preset alignment-grid cell sizes (metres) the size button cycles through. */
@@ -125,6 +132,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
     set((s) => ({ editorTool: s.editorTool === 'orbit' ? 'select' : 'orbit' })),
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
+  bumpMaterialEpoch: () => set((s) => ({ materialEpoch: s.materialEpoch + 1 })),
   setQualityTier: (t) =>
     set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false }),
   cycleQuality: () =>

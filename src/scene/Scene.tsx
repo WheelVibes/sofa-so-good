@@ -14,6 +14,7 @@ import { Sky } from './lighting/Sky';
 import { CityBackdrop } from './CityBackdrop';
 import { MeasurementOverlay } from '../ui/MeasurementOverlay';
 import { FurnitureLayer } from '../furniture/FurnitureLayer';
+import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader';
 import { SelectionOutline } from './selection/SelectionOutline';
 import { HoverHighlight } from './selection/HoverHighlight';
 import { MarqueeCameraTracker } from './selection/MarqueeSelector';
@@ -57,6 +58,7 @@ export function Scene() {
       <AlignmentGuides />
       <ClearanceOverlay />
       <FurnitureLayer />
+      <FurnitureMaterialLoader />
       <SelectionOutline />
       <HoverHighlight />
       <PlacementGhost />

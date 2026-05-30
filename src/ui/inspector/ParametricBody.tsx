@@ -1,5 +1,6 @@
-import type { FurnitureItem, ParametricDef, ParamValue } from '../../furniture/types';
+import type { FurnitureItem, ParametricDef, ParamField, ParamValue } from '../../furniture/types';
 import { useStore } from '../../state/store';
+import { useMaterials } from '../../materials/useMaterial';
 import { ColorField, EnumField, IntegerField, NumberField } from './fields';
 
 interface ParametricBodyProps {
@@ -7,18 +8,42 @@ interface ParametricBodyProps {
   def: ParametricDef;
 }
 
+/** Builds the extra "apply a catalog / downloaded CC0 material" options for a
+ *  wood/surface `finish` dropdown. Offers surface-like procedural finishes
+ *  (wood, marble, tile, …) and any downloaded PBR materials, encoded as
+ *  `mat:<materialId>` so the furniture material loader picks them up. */
+function useSurfaceMaterialOptions(): { value: string; label: string }[] {
+  const materials = useMaterials();
+  return Object.values(materials)
+    .filter((m) => m.kind === 'textured' || m.category === 'floor')
+    .map((m) => ({
+      value: `mat:${m.id}`,
+      label: m.kind === 'textured' ? `${m.name} — CC0 DLC` : `${m.name}`,
+    }));
+}
+
 /** Renders one schema-driven control per ParamField. dispatches via
  *  updateItemProps so the change is reflected in the scene immediately
  *  (memoised Furniture re-renders only this item). */
 export function ParametricBody({ item, def }: ParametricBodyProps) {
   const updateItemProps = useStore((s) => s.updateItemProps);
+  const surfaceMaterials = useSurfaceMaterialOptions();
 
   const setProp = (key: string, value: ParamValue) =>
     updateItemProps(item.id, { [key]: value });
 
   return (
     <div className="space-y-2">
-      {def.paramSchema.map((field) => {
+      {def.paramSchema.map((rawField) => {
+        // Surface "finish" enums (those offering a Wood option) gain extra
+        // entries for any catalog / downloaded CC0 PBR material.
+        const field: ParamField =
+          rawField.kind === 'enum' &&
+          rawField.key === 'finish' &&
+          rawField.options.some((o) => o.value === 'wood') &&
+          surfaceMaterials.length > 0
+            ? { ...rawField, options: [...rawField.options, ...surfaceMaterials] }
+            : rawField;
         const v = item.props[field.key] ?? field.default;
         switch (field.kind) {
           case 'number':

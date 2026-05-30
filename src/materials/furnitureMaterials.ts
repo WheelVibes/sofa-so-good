@@ -13,6 +13,19 @@ import {
   type Texture,
 } from 'three';
 import { makeFbm, heightToNormalRGBA, hexToRgb, clamp01 } from './procedural/noise';
+import { getCachedMaterial } from './cache';
+
+/** A furniture finish that points at a catalog/DLC material is encoded as
+ *  `mat:<materialId>`. The material itself is built (from its procedural
+ *  generator or its downloaded CC0 PBR textures) by FurnitureMaterialLoader
+ *  into the shared cache under this furniture-scoped id. */
+export const FURNITURE_MAT_PREFIX = 'mat:';
+export const furnitureMaterialCacheId = (materialId: string) => `furn:${materialId}`;
+export function parseFurnitureMaterialFinish(finish: string): string | null {
+  return finish.startsWith(FURNITURE_MAT_PREFIX)
+    ? finish.slice(FURNITURE_MAT_PREFIX.length)
+    : null;
+}
 
 const N = 256;
 
@@ -53,9 +66,10 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   // arches; mid-freq carries figure; high-freq scratches the surface and
   // draws open pores along the grain.
   const warpN = makeFbm(7777, 4, 3);
-  const figureN = makeFbm(0x51ed, 4, 10);
-  const poreN = makeFbm(0x2c7a, 3, 64);
-  const flecks = makeFbm(0x91b3, 2, 40);
+  const figureN = makeFbm(0x51ed, 4, 8);
+  // Pores: high frequency across the grain, very low along it → fine streaks
+  // that run lengthwise (the v axis) instead of an isotropic speckle.
+  const poreN = makeFbm(0x2c7a, 3, 48);
   const albedo = new Uint8ClampedArray(N * N * 4);
   const height = new Float32Array(N * N);
   const rough = new Uint8ClampedArray(N * N * 4);
@@ -63,31 +77,31 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
     for (let x = 0; x < N; x++) {
       const u = x / N;
       const v = y / N;
-      // Warp the ring coordinate so bands are not perfectly straight; the
-      // strong x-warp makes flatsawn "cathedral" arching down the board.
-      const warp = (warpN(u * 1.3, v * 1.0) - 0.5) * 1.6;
-      const ring = (u + warp) * Math.PI * 9;
+      // Straight grain running along v, with only a slight lengthwise waver so
+      // the lines stay parallel (clean sawn board, not a knotty burl).
+      const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * 0.25;
+      const ring = (u + waver) * Math.PI * 11;
       // Latewood lines: sharp dark bands where the ring turns over. Raising
       // the sine to a power tightens the dark line so earlywood stays pale.
       const s = Math.abs(Math.sin(ring));
-      const late = Math.pow(s, 3.5); // 0 earlywood … 1 dark latewood line
-      // Long open pores streaking along the grain (the v axis).
-      const pore = clamp01((poreN(u * 8, v * 1.2) - 0.55) * 4);
-      const figure = (figureN(u * 2, v * 2.5) - 0.5) * 0.12;
-      const fleck = Math.max(0, flecks(u * 6, v * 6) - 0.62) * 0.4;
+      const late = Math.pow(s, 4); // 0 earlywood … 1 dark latewood line
+      // Long open pores streaking along the grain (sampled wide in u, narrow
+      // in v so the noise smears into lengthwise hairlines, not dots).
+      const pore = clamp01((poreN(u * 18, v * 1.2) - 0.6) * 2.5);
+      const figure = (figureN(u * 1.2, v * 3) - 0.5) * 0.05;
       // White-ish luminance so material.color tints it into real wood; the
-      // latewood lines and pores darken it, flecks lighten it.
-      const lum = clamp01(0.99 - late * 0.34 - pore * 0.12 + figure + fleck);
+      // latewood lines and pores darken it.
+      const lum = clamp01(0.99 - late * 0.3 - pore * 0.1 + figure);
       const i = y * N + x;
       const c = Math.round(lum * 255);
       albedo[i * 4] = c;
       albedo[i * 4 + 1] = c;
       albedo[i * 4 + 2] = c;
       albedo[i * 4 + 3] = 255;
-      // Pores + latewood sit slightly proud/recessed for a tactile normal.
-      height[i] = late * 0.6 + pore * 0.5 + figure;
+      // Pores + latewood sit slightly recessed for a tactile normal.
+      height[i] = late * 0.5 + pore * 0.4 + figure;
       // Open pores and latewood scatter more (rougher); earlywood is smoother.
-      const r = clamp01(0.42 + late * 0.28 + pore * 0.22 - fleck * 0.3);
+      const r = clamp01(0.4 + late * 0.24 + pore * 0.2);
       const rc = Math.round(r * 255);
       rough[i * 4] = rough[i * 4 + 1] = rough[i * 4 + 2] = rc;
       rough[i * 4 + 3] = 255;
@@ -428,6 +442,15 @@ export function getPaintedMaterial(color: string, gloss = false, rough?: number)
  *  'gloss'), tinted to `color`. `sheen` (0..1) tunes matte → glossy across all
  *  three. Wood keeps its grain; painted/gloss are flat. */
 export function getSurfaceMaterial(kind: string, color: string, repeat = 1, sheen = 0): MeshStandardMaterial {
+  // DLC / catalog material applied to furniture (`mat:<id>`). The loader builds
+  // it into the cache once its (possibly downloaded) textures are ready; until
+  // then fall back to a procedural wood so the piece always renders.
+  const matId = parseFurnitureMaterialFinish(kind);
+  if (matId) {
+    const built = getCachedMaterial(furnitureMaterialCacheId(matId));
+    if (built) return built;
+    return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5);
+  }
   if (kind === 'painted') return getPaintedMaterial(color, false, sheen > 0 ? sheenRough(0.72, sheen) : undefined);
   if (kind === 'gloss') return getPaintedMaterial(color, true, sheen > 0 ? sheenRough(0.16, sheen) : undefined);
   if (kind === 'marble' || kind === 'stone')
