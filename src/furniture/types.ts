@@ -370,6 +370,10 @@ export interface FurnitureItem {
    *  deleted until unlocked (good for fixed appliances / fixtures). Optional
    *  + default false so saved layouts stay backward-compatible. */
   locked?: boolean;
+  /** Items sharing a groupId move/rotate as a unit and select together.
+   *  A group IS the set of items with this id — there is no separate entity.
+   *  Optional + default undefined so existing saves stay valid. */
+  groupId?: string;
   props: ParamProps;
 }
 
