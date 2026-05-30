@@ -57,6 +57,33 @@ describe('importGroup', () => {
     expect(put).toHaveBeenCalledTimes(1);
     expect(added).toHaveLength(1);
   });
+  it('preserves a real material name (incl. a real "material_0")', async () => {
+    const parsed = parseMetadata(META);
+    if (!parsed.ok) return;
+    const r = await importGroup(parsed.data, [glb('black-brown.glb')]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.def.variants[0].glbMaterials[0].name).toBe('material_0');
+  });
+  it('maps an unnamed scraper material to an empty name (no dead recolour control)', async () => {
+    const meta = {
+      ...META,
+      variants: [
+        {
+          ...META.variants[0],
+          glb_materials: [{ hex: '#ffffff', metallic: 1, roughness: 1, textured: true, sampled_hex: '#504c4b' }],
+        },
+        META.variants[1],
+      ],
+    };
+    const parsed = parseMetadata(meta);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const r = await importGroup(parsed.data, [glb('black-brown.glb')]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.def.variants[0].glbMaterials[0].name).toBe('');
+  });
   it('fails when no crawled variant has a matching file', async () => {
     const parsed = parseMetadata(META);
     if (!parsed.ok) return;

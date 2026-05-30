@@ -18,12 +18,13 @@ function newId(): string {
 }
 
 /** Map the scraper's per-GLB materials to our finish-target descriptors. The
- *  scraper may emit unnamed materials; synthesise a stable `material_<i>` name
- *  so the (required) `name` holds — those entries simply aren't useful as
- *  re-skin targets later. */
+ *  scraper may emit unnamed materials; keep an empty `name` for those — they
+ *  can't be matched to a real GLB material name, so the per-component recolour
+ *  UI filters them out (a name-based override would silently do nothing). Real
+ *  names (including a real `material_0`) are preserved verbatim. */
 function matsFrom(v: IkeaMetadataVariant): IkeaGlbMaterial[] {
-  return (v.glb_materials ?? []).map((m, i) => ({
-    name: m.name ?? `material_${i}`,
+  return (v.glb_materials ?? []).map((m) => ({
+    name: m.name ?? '',
     hex: m.hex ?? '#ffffff',
     metallic: m.metallic ?? 1,
     roughness: m.roughness ?? 1,

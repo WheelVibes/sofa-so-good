@@ -111,7 +111,12 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
   const matchedCategories = Object.entries(matches).filter(([, list]) => list.length > 0);
   const showCompleteWith = (def.compatibility?.acceptsCategories?.length ?? 0) > 0;
 
-  const multiMaterial = (variant?.glbMaterials.length ?? 0) > 1;
+  // Only materials with a real scraper name can be recoloured: the override is
+  // matched against the GLB's actual material name, so a synthesised/empty name
+  // would never match any mesh (a dead control). Fall back to global tint when
+  // fewer than two materials are individually recolourable.
+  const recolourable = variant?.glbMaterials.filter((m) => m.name.trim() !== '') ?? [];
+  const multiMaterial = recolourable.length > 1;
 
   return (
     <div className="space-y-2">
@@ -150,7 +155,7 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
         <div>
           <div className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Recolour</div>
           <div className="space-y-1">
-            {variant.glbMaterials.map((m) => {
+            {recolourable.map((m) => {
               const key = finishOverrideKey(m.name);
               const override = typeof item.props[key] === 'string' ? (item.props[key] as string) : '';
               const value = override || m.hex || m.sampledHex || '#ffffff';
