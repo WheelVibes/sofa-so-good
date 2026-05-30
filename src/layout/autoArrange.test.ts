@@ -55,4 +55,41 @@ describe('arrangeRoom', () => {
     const kitchenAfter = out.filter((i) => i.id && roomOf(i.position) === 'kitchen');
     expect(kitchenAfter.length).toBe(kitchenBefore.length);
   });
+
+  it('never parks furniture in the main-door swing / kitchen opening', () => {
+    // Scramble L/D furniture into the entrance + openings, then tidy.
+    const base = hydrate().map((i) =>
+      i.id === 'default-ld-sofa'
+        ? { ...i, position: [11.3, 7.4] as [number, number], rotation: 0 }
+        : i.id === 'default-ld-coffee'
+          ? { ...i, position: [9.4, 6.6] as [number, number] }
+          : i,
+    );
+    const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {});
+    const keepouts = [
+      { x0: 10.7, z0: 6.95, x1: 12.1, z1: 8.0 },
+      { x0: 8.9, z0: 6.25, x1: 10.2, z1: 6.95 },
+    ];
+    const overlaps = (b: { x0: number; z0: number; x1: number; z1: number }, k: typeof keepouts[number]) =>
+      b.x0 < k.x1 && b.x1 > k.x0 && b.z0 < k.z1 && b.z1 > k.z0;
+    for (const it of out) {
+      const def = BUILTIN_CATALOG[it.defId];
+      if (!def || def.kind !== 'parametric' || def.mounted) continue;
+      if (roomOf(it.position) !== 'livingDining') continue;
+      let w = def.defaultFootprint.w;
+      let d = def.defaultFootprint.d;
+      const wv = it.props[def.footprintParams?.w ?? 'width'];
+      const dv = it.props[def.footprintParams?.d ?? 'depth'];
+      if (typeof wv === 'number') w = wv;
+      if (typeof dv === 'number') d = dv;
+      const c = Math.abs(Math.cos(it.rotation));
+      const s = Math.abs(Math.sin(it.rotation));
+      const hx = (c * w + s * d) / 2;
+      const hz = (s * w + c * d) / 2;
+      const box = { x0: it.position[0] - hx, z0: it.position[1] - hz, x1: it.position[0] + hx, z1: it.position[1] + hz };
+      for (const k of keepouts) {
+        if (overlaps(box, k)) throw new Error(`${it.id} (${it.defId}) blocks a door/opening at [${it.position}]`);
+      }
+    }
+  });
 });

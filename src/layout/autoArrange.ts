@@ -131,6 +131,22 @@ export function roomOf(position: [number, number]): RoomId | null {
 interface Ctx {
   catalog: Record<string, FurnitureDef>;
   doors: Record<string, { open: boolean }>;
+  /** Keep-clear rects (door swings + room openings) no item may overlap. */
+  keepOut: Rect[];
+}
+
+/** Axis-aligned footprint AABB of a candidate (accounts for rotation). */
+function aabbOf(item: FurnitureItem, def: FurnitureDef, pos: [number, number], rot: number): Rect {
+  const { w, d } = baseFootprint(item, def);
+  const c = Math.abs(Math.cos(rot));
+  const s = Math.abs(Math.sin(rot));
+  const hx = (c * w + s * d) / 2;
+  const hz = (s * w + c * d) / 2;
+  return { x0: pos[0] - hx, z0: pos[1] - hz, x1: pos[0] + hx, z1: pos[1] + hz };
+}
+
+function rectsOverlap(a: Rect, b: Rect): boolean {
+  return a.x0 < b.x1 && a.x1 > b.x0 && a.z0 < b.z1 && a.z1 > b.z0;
 }
 
 /** Try to set an item's transform; accept only if it doesn't collide with the
@@ -145,6 +161,12 @@ function tryPlace(
 ): FurnitureItem {
   const def = ctx.catalog[item.defId];
   if (!def) return item;
+  // Never place into a door swing / room opening (mounted/ceiling items are
+  // exempt — they're on walls/ceiling, not the floor path).
+  if (def.kind === 'parametric' && !def.mounted) {
+    const box = aabbOf(item, def, pos, rot);
+    if (ctx.keepOut.some((k) => rectsOverlap(box, k))) return item;
+  }
   const candidate = { ...item, position: pos, rotation: rot };
   // `world` holds only obstacles: other-room items + already-placed items in
   // this room. Items still pending placement are NOT in `world`, so a messy
@@ -166,7 +188,7 @@ interface Rect { x0: number; z0: number; x1: number; z1: number; }
  *  floor (e.g. the L/D lounge is bounded east of the b3 partition at x≈9.05,
  *  not the room origin at x=8.55). */
 const RECT_OVERRIDE: Partial<Record<RoomId, Rect>> = {
-  livingDining: { x0: 9.2, z0: 1.5, x1: 12.45, z1: 6.65 },
+  livingDining: { x0: 9.15, z0: 1.5, x1: 12.5, z1: 6.65 },
 };
 
 /** Usable rect for a room — main rectangle inset from the walls. */
@@ -185,6 +207,19 @@ function usableRect(roomId: RoomId): Rect {
 
 /** Rooms whose seating should face a focal (TV) wall, and which edge it is. */
 const FOCAL: Partial<Record<RoomId, Edge>> = { livingDining: 'E' };
+
+/** Keep-clear rects per room: door swings + open passages between rooms, so
+ *  the auto-arranger never blocks an entrance. Grounded in the fixed apartment
+ *  geometry (DOORS/WALLS in apartment/constants.ts). */
+const KEEPOUT: Partial<Record<RoomId, Rect[]>> = {
+  livingDining: [
+    { x0: 10.7, z0: 6.95, x1: 12.1, z1: 8.0 }, // main entrance + door swing
+    { x0: 8.5, z0: 3.65, x1: 9.15, z1: 4.5 }, // corridor → L/D opening (SW)
+    { x0: 8.9, z0: 6.25, x1: 10.2, z1: 6.95 }, // kitchen → L/D opening (S)
+  ],
+  bedroom2: [{ x0: 4.95, z0: 2.7, x1: 6.0, z1: 3.65 }], // bedroom-2 door swing
+  bedroom3: [{ x0: 6.05, z0: 2.7, x1: 7.05, z1: 3.65 }], // bedroom-3 door swing
+};
 
 /** Inward-facing rotation + perpendicular extent for an edge. */
 function inward(edge: Edge): number {
@@ -307,7 +342,7 @@ export function arrangeRoom(
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
 ): FurnitureItem[] {
-  const ctx: Ctx = { catalog, doors };
+  const ctx: Ctx = { catalog, doors, keepOut: KEEPOUT[roomId] ?? [] };
   const rect = usableRect(roomId);
   const inRoom = (i: FurnitureItem) => roomOf(i.position) === roomId;
   // `world` starts with only the OTHER rooms' items (the fixed obstacles).
@@ -378,7 +413,8 @@ function arrangeLiving(
   if (sofa && focal === 'E') {
     const def = catalog[sofa.defId];
     const d = def ? baseFootprint(sofa, def).d : 0.9;
-    const px = rect.x0 + d / 2 + 0.1;
+    // Back flush to the west wall (rect.x0 is the wall face + tiny gap).
+    const px = rect.x0 + d / 2 + CLEARANCE.wallGap;
     tryPlace(sofa, [px, consoleZ], Math.PI / 2, world, ctx);
     sofaFrontX = px + d / 2;
   } else if (sofa) {

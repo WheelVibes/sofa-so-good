@@ -41,10 +41,9 @@ export const livingDining: LayoutEntry[] = [
   { id: 'default-ld-rug', defId: 'rug', position: [10.95, 2.55], rotation: 0, props: { width: 2.0, depth: 1.8 } },
   { id: 'default-ld-coffee', defId: 'coffee-table', position: [10.95, 2.55], rotation: Math.PI / 2, props: {} },
   { id: 'default-ld-decor', defId: 'tabletop-decor', position: [10.95, 2.55], rotation: 0.3, props: { surfaceHeight: 0.42 } },
-  { id: 'default-ld-armchair', defId: 'armchair', position: [11.4, 7.3], rotation: Math.PI, props: {} },
-  { id: 'default-ld-sidetable', defId: 'side-table', position: [10.6, 7.25], rotation: 0, props: {} },
-  { id: 'default-ld-sidelamp', defId: 'table-lamp', position: [10.6, 7.25], rotation: 0, props: { surfaceHeight: 0.5 } },
-  { id: 'default-ld-plant', defId: 'potted-plant', position: [12.2, 6.3], rotation: 0, props: { size: 'large', type: 'snake' } },
+  // (Entry alcove kept clear for the main door swing — only a flush shoe
+  // cabinet + a corner plant live here, no seating in the doorway.)
+  { id: 'default-ld-plant', defId: 'potted-plant', position: [12.2, 6.35], rotation: 0, props: { size: 'large', type: 'snake' } },
   { id: 'default-ld-lamp', defId: 'floor-lamp', position: [12.3, 3.55], rotation: 0, props: {} },
   { id: 'default-ld-fan', defId: 'ceiling-fan', position: [10.95, 2.55], rotation: 0, props: {} },
   { id: 'default-ld-pendant-dining', defId: 'ceiling-light', position: [10.55, 5.20], rotation: 0, props: { style: 'pendant' } },
