@@ -89,6 +89,7 @@ const ROLE: Record<string, ArrangeRole> = {
   'roller-blind': 'mounted',
   'aircon-unit': 'mounted',
   'range-hood': 'mounted',
+  soundbar: 'mounted',
   'ceiling-light': 'ceiling',
   'ceiling-fan': 'ceiling',
   'cove-light': 'mounted',

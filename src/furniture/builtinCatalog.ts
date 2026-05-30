@@ -1744,6 +1744,42 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       },
     ],
   },
+  soundbar: {
+    kind: 'parametric',
+    id: 'soundbar',
+    name: 'Soundbar',
+    category: 'appliances',
+    primitive: 'Soundbar',
+    defaultFootprint: { w: 1.0, d: 0.1, h: 0.08 },
+    footprintParams: { w: 'width' },
+    mounted: true,
+    verticalSpan: { base: 0.92, top: 1.08 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.6, max: 1.4, step: 0.05, default: 1.0, unit: 'm' },
+      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 0.5, max: 1.6, step: 0.05, default: 1.0, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Body', default: '#202024' },
+      {
+        kind: 'enum',
+        key: 'grille',
+        label: 'Grille',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Speaker cloth' },
+          { value: 'metal', label: 'Perforated metal' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'sub',
+        label: 'Subwoofer',
+        default: 'none',
+        options: [
+          { value: 'none', label: 'None' },
+          { value: 'wireless', label: 'Wireless sub' },
+        ],
+      },
+    ],
+  },
   monitor: {
     kind: 'parametric',
     id: 'monitor',
