@@ -111,7 +111,13 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
       onClick={onClick}
       onPointerDown={onPointerDown}
     >
-      {body}
+      {/* Mirror flips in local space. three.js flips winding/normals for the
+          negative-determinant matrix, so lighting + culling stay correct. */}
+      {item.flipX || item.flipZ ? (
+        <group scale={[item.flipX ? -1 : 1, 1, item.flipZ ? -1 : 1]}>{body}</group>
+      ) : (
+        body
+      )}
     </group>
   );
 }

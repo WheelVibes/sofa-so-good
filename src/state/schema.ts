@@ -18,6 +18,9 @@ const FurnitureItemZ = z.object({
   defId: z.string(),
   position: z.tuple([z.number(), z.number()]),
   rotation: z.number(),
+  // Optional mirror flips (backward-compatible with pre-flip saves).
+  flipX: z.boolean().optional(),
+  flipZ: z.boolean().optional(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
 });
 

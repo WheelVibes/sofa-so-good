@@ -15,6 +15,7 @@ const ORBIT_CONTROLS: Binding[] = [
   { keys: '⇧ click', desc: 'Toggle item in selection' },
   { keys: 'C', desc: 'Toggle catalog' },
   { keys: 'R / ⇧R', desc: 'Rotate (90° / 15°)' },
+  { keys: 'F / ⇧F', desc: 'Flip (left↔right / front↔back)' },
   { keys: 'Del', desc: 'Delete selected' },
   { keys: '⌃C / ⌃V', desc: 'Copy / paste item' },
   { keys: '⌃D', desc: 'Duplicate selected' },

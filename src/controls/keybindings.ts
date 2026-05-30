@@ -9,6 +9,7 @@ export const KEYBINDINGS = {
   interact: 'KeyE',
   // Editor (Phase 2 — only active in orbit mode):
   rotate: 'KeyR',          // R: 90°  |  Shift+R: 15°
+  flip: 'KeyF',            // F: flip left↔right | Shift+F: flip front↔back
   deleteSelected: 'Delete',
   copySelected: 'KeyC',    // Ctrl/Cmd+C
   pasteClipboard: 'KeyV',  // Ctrl/Cmd+V

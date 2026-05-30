@@ -236,6 +236,10 @@ export interface FurnitureItem {
   position: [number, number];
   /** Y-axis rotation in radians. */
   rotation: number;
+  /** Mirror flips in the item's local frame (left↔right / front↔back).
+   *  Optional + default false so saved layouts stay backward-compatible. */
+  flipX?: boolean;
+  flipZ?: boolean;
   props: ParamProps;
 }
 

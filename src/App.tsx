@@ -167,6 +167,17 @@ export default function App() {
           pasteClipboard();
         }
       }
+      if (!mod && code === KEYBINDINGS.flip && state.selectedItemId) {
+        // F flips left↔right; Shift+F flips front↔back. Applies to the whole
+        // selection. Flipping is a mirror — footprint is unchanged, so no
+        // collision check is needed.
+        e.preventDefault();
+        const axis = e.shiftKey ? 'z' : 'x';
+        const ids = state.selectedItemIds.length > 0 ? state.selectedItemIds : [state.selectedItemId];
+        state.pushHistory();
+        for (const id of ids) useStore.getState().flipItem(id, axis);
+        return;
+      }
       if (!mod && code === KEYBINDINGS.rotate && state.selectedItemId) {
         const step = e.shiftKey ? ROTATE_FINE_STEP : ROTATE_STEP;
         const ids = state.selectedItemIds.length > 0 ? state.selectedItemIds : [state.selectedItemId];

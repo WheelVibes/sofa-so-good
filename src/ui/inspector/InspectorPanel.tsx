@@ -65,6 +65,12 @@ export function InspectorPanel() {
   const catalog = useCatalog();
   const deleteItem = useStore((s) => s.deleteItem);
   const selectItem = useStore((s) => s.selectItem);
+  const flipItem = useStore((s) => s.flipItem);
+  const pushHistory = useStore((s) => s.pushHistory);
+  const flip = (axis: 'x' | 'z') => {
+    pushHistory();
+    flipItem(item!.id, axis);
+  };
 
   if (!item) return null;
   const def = catalog[item.defId];
@@ -156,7 +162,23 @@ export function InspectorPanel() {
           sourceUrl={def.sourceUrl}
         />
       )}
-      <footer className="mt-3 grid grid-cols-3 gap-1.5 border-t border-neutral-200 pt-2">
+      <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-neutral-200 pt-2">
+        <button
+          onClick={() => flip('x')}
+          title="Flip left ↔ right (F)"
+          className={`rounded py-1 hover:bg-neutral-200 ${item.flipX ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-700'}`}
+        >
+          ⇆ Flip H
+        </button>
+        <button
+          onClick={() => flip('z')}
+          title="Flip front ↔ back (Shift+F)"
+          className={`rounded py-1 hover:bg-neutral-200 ${item.flipZ ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-700'}`}
+        >
+          ⇅ Flip V
+        </button>
+      </div>
+      <footer className="mt-1.5 grid grid-cols-3 gap-1.5 pt-0">
         <button
           onClick={rotate90}
           title="Rotate 90° (R)"

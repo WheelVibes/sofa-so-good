@@ -19,6 +19,8 @@ export interface ItemsSlice {
   rotateItem: (id: string, rotation: number) => void;
   deleteItem: (id: string) => void;
   updateItemProps: (id: string, props: ParamProps) => void;
+  /** Mirror-flip an item along its local X ('x') or Z ('z') axis. */
+  flipItem: (id: string, axis: 'x' | 'z') => void;
   setItems: (items: FurnitureItem[]) => void;
 }
 
@@ -73,6 +75,14 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
       items: s.items.map((it) =>
         it.id === id ? { ...it, props: { ...it.props, ...props } } : it,
       ),
+    }));
+  },
+  // History is pushed by callers (Inspector button / F key) so a multi-select
+  // flip collapses into a single undo step.
+  flipItem: (id, axis) => {
+    const key = axis === 'x' ? 'flipX' : 'flipZ';
+    set((s) => ({
+      items: s.items.map((it) => (it.id === id ? { ...it, [key]: !it[key] } : it)),
     }));
   },
   setItems: (items) => set({ items }),
