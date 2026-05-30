@@ -21,6 +21,7 @@ export function Sofa({ props }: SofaProps) {
   const material = readStr(props, 'material', 'fabric');
   const sheen = readNum(props, 'sheen', 0);
   const pattern = readStr(props, 'pattern', 'plain');
+  const pillowPattern = readStr(props, 'pillowPattern', 'plain');
   const armStyle = readStr(props, 'armStyle', 'standard');
 
   // Proportions grounded in real 3-seater dimensions: seat surface ~44cm,
@@ -108,7 +109,7 @@ export function Sofa({ props }: SofaProps) {
           castShadow
           position={[s * (innerW / 2 - 0.22), seatTop + 0.16, -depth / 2 + 0.32]}
           rotation={[0.32, s * 0.18, s * 0.12]}
-          material={getFabricMaterial(pillowColor)}
+          material={getFabricMaterial(pillowColor, 0.95, pillowPattern)}
         />
       ))}
       {/* Tapered feet */}
