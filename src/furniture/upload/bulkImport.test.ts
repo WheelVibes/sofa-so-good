@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import 'fake-indexeddb/auto';
-import { isModelFile, modelName } from './bulkImport';
+import { dedupeName, isModelFile, modelName } from './bulkImport';
 
 describe('bulkImport file filtering', () => {
   it('recognises .glb and .gltf case-insensitively, rejects others', () => {
@@ -15,5 +15,19 @@ describe('bulkImport file filtering', () => {
     expect(modelName('chair.glb')).toBe('chair');
     expect(modelName('models/sofas/Big Sofa.gltf')).toBe('Big Sofa');
     expect(modelName('a.b.glb')).toBe('a.b');
+  });
+});
+
+describe('bulkImport name dedupe', () => {
+  it('returns the name unchanged when unused', () => {
+    const used = new Set<string>();
+    expect(dedupeName('Chair', used)).toBe('Chair');
+  });
+
+  it('suffixes (2), (3) on collision and reserves each result', () => {
+    const used = new Set<string>(['Chair']);
+    expect(dedupeName('Chair', used)).toBe('Chair (2)');
+    expect(dedupeName('Chair', used)).toBe('Chair (3)');
+    expect(dedupeName('Sofa', used)).toBe('Sofa');
   });
 });
