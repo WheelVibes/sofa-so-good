@@ -45,6 +45,8 @@ export interface PlanRoom {
   extension?: { offset: PlanVec2; width: number; depth: number };
   /** Optional per-room ceiling height. */
   ceilingHeight?: number;
+  /** Optional floor finish (catalog material id); defaults to oak in the shell. */
+  floor?: string;
 }
 
 export interface FloorPlan {

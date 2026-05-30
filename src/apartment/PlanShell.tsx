@@ -2,6 +2,10 @@ import { useMemo } from 'react';
 import { useStore } from '../state/store';
 import { wallBoxes } from '../floorplan/planGeometry';
 import { wallLength } from '../floorplan/types';
+import { PlanRoomFloor } from './floor/PlanRoomFloor';
+import type { MaterialId } from '../materials/types';
+
+const DEFAULT_PLAN_FLOOR = 'floor-wood-oak';
 
 /**
  * Lightweight 3D shell for a user-authored floor plan: a grounding slab,
@@ -49,25 +53,23 @@ export function PlanShell() {
         <meshStandardMaterial color="#9a958d" roughness={0.95} />
       </mesh>
 
-      {/* Per-room floors */}
-      {plan.rooms.map((r) => (
-        <group key={r.id}>
-          <mesh position={[r.origin[0] + r.width / 2, 0.005, r.origin[1] + r.depth / 2]} rotation={[-Math.PI / 2, 0, 0]} receiveShadow>
-            <planeGeometry args={[r.width, r.depth]} />
-            <meshStandardMaterial color="#c9b89d" roughness={0.85} />
-          </mesh>
-          {r.extension && (
-            <mesh
-              position={[r.origin[0] + r.extension.offset[0] + r.extension.width / 2, 0.005, r.origin[1] + r.extension.offset[1] + r.extension.depth / 2]}
-              rotation={[-Math.PI / 2, 0, 0]}
-              receiveShadow
-            >
-              <planeGeometry args={[r.extension.width, r.extension.depth]} />
-              <meshStandardMaterial color="#c9b89d" roughness={0.85} />
-            </mesh>
-          )}
-        </group>
-      ))}
+      {/* Per-room floors (catalog finish, defaulting to oak) */}
+      {plan.rooms.map((r) => {
+        const mat = (r.floor ?? DEFAULT_PLAN_FLOOR) as MaterialId;
+        return (
+          <group key={r.id}>
+            <PlanRoomFloor origin={r.origin} width={r.width} depth={r.depth} materialId={mat} />
+            {r.extension && (
+              <PlanRoomFloor
+                origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
+                width={r.extension.width}
+                depth={r.extension.depth}
+                materialId={mat}
+              />
+            )}
+          </group>
+        );
+      })}
 
       {/* Walls */}
       {boxes.map((b, i) => (

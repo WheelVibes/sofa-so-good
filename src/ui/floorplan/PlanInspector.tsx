@@ -1,5 +1,8 @@
 import { useStore } from '../../state/store';
 import { planRoomArea, wallLength } from '../../floorplan/types';
+import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog';
+
+const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? [];
 
 /** Numeric field with a label, editing one metre value. */
 function Num({ label, value, onChange, step = 0.1, min }: { label: string; value: number; onChange: (v: number) => void; step?: number; min?: number }) {
@@ -55,6 +58,20 @@ export function PlanInspector() {
           <Num label="Z (m)" value={r.origin[1]} onChange={(v) => a.updateRoom(r.id, { origin: [r.origin[0], v] })} />
           <Num label="Width (m)" value={r.width} min={0.1} onChange={(v) => a.updateRoom(r.id, { width: Math.max(0.1, v) })} />
           <Num label="Depth (m)" value={r.depth} min={0.1} onChange={(v) => a.updateRoom(r.id, { depth: Math.max(0.1, v) })} />
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="text-neutral-400">Floor finish</span>
+            <select
+              value={r.floor ?? 'floor-wood-oak'}
+              onChange={(e) => a.updateRoom(r.id, { floor: e.target.value })}
+              className="rounded bg-neutral-800 px-2 py-1 text-neutral-100"
+            >
+              {FLOOR_MATERIALS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
           <div className="rounded bg-neutral-800 px-2 py-1.5 text-xs">
             Area: <span className="font-semibold text-blue-300">{planRoomArea(r).toFixed(2)} m²</span>
           </div>
