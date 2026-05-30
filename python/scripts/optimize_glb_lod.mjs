@@ -56,7 +56,10 @@ async function makeVariant(io, src, tier, cfg) {
         resize: [cfg.maxTexture, cfg.maxTexture],
       }),
       weld(),
-      simplify({ simplifier: MeshoptSimplifier, ratio: cfg.triangleRatio, error: 0.001 }),
+      // error: 0.01 is the gltf-transform default — at the tighter 0.001 most
+      // models barely decimate (geometry win lost); 0.01 reaches the ratio
+      // target where topology allows and is visually safe at LOD distances.
+      simplify({ simplifier: MeshoptSimplifier, ratio: cfg.triangleRatio, error: 0.01 }),
       dedup(),
       prune(),
       draco(),
