@@ -6,6 +6,8 @@ import type { EditorTool } from '../state/slices/uiSlice';
 import { LocalStorageAdapter } from '../state/storage/LocalStorageAdapter';
 import { serialize, applySerialized } from '../state/schema';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
+import { buildSetGroup, ikeaSetRecipes } from '../furniture/ikeaSets';
+import type { FurnitureItem, FurnitureDef } from '../furniture/types';
 import type { SlotMeta } from '../state/storage/StorageAdapter';
 import { CreditsModal } from './CreditsModal';
 import { QUALITY_LABEL } from '../scene/quality';
@@ -705,32 +707,67 @@ function ChecksToggle() {
   );
 }
 
-/** Drops a pre-arranged furniture set (group-selected, ready to drag). */
+/** Catalog for set expansion: built-ins + the store's imported (IKEA/user) defs. */
+function BUILTIN_CATALOG_PLUS_IKEA(): Record<string, FurnitureDef> {
+  const st = useStore.getState();
+  const merged: Record<string, FurnitureDef> = { ...BUILTIN_CATALOG };
+  for (const def of st.userFurniture ?? []) merged[def.id] = def;
+  return merged;
+}
+
+/** Drops a pre-arranged furniture set (group-selected, ready to drag). Lists
+ *  the built-in vignettes and any imported IKEA set recipes; both land as a
+ *  real group (shared groupId) so they move/select as a unit. */
 function SetsMenu() {
   const [open, setOpen] = useState(false);
-  const drop = (setId: string) => {
-    const set = FURNITURE_SETS.find((s) => s.id === setId);
-    if (!set) return;
+
+  /** Append items, group them, select the group, push one history entry. */
+  const dropArranged = (items: FurnitureItem[]) => {
     const st = useStore.getState();
-    // Drop at the centre of the largest room in the active plan.
+    st.pushHistory();
+    st.setItems([...st.items, ...items]);
+    const ids = items.map((i) => i.id);
+    // Stamp a fresh shared groupId via the plan-2 helper (single source of ids).
+    st.groupItems(ids);
+    st.setSelectedItemIds(ids);
+    setOpen(false);
+  };
+
+  /** Centre of the largest room in the active plan (the drop target). */
+  const dropCentre = (): [number, number] => {
+    const st = useStore.getState();
     const rooms = st.floorPlan.rooms;
     const big = rooms.reduce((a, b) => (planRoomArea(b) > planRoomArea(a) ? b : a), rooms[0]);
-    const base: [number, number] = big
+    return big
       ? [big.origin[0] + big.width / 2, big.origin[1] + big.depth / 2]
       : [st.floorPlan.extent[0] / 2, st.floorPlan.extent[1] / 2];
-    st.pushHistory();
+  };
+
+  const dropBuiltin = (setId: string) => {
+    const set = FURNITURE_SETS.find((s) => s.id === setId);
+    if (!set) return;
+    const [bx, bz] = dropCentre();
     const stamp = Date.now().toString(36);
-    const newItems = set.items.map((e, i) => ({
+    const items: FurnitureItem[] = set.items.map((e, i) => ({
       id: `set-${stamp}-${i}`,
       defId: e.defId,
-      position: [base[0] + e.dx, base[1] + e.dz] as [number, number],
+      position: [bx + e.dx, bz + e.dz] as [number, number],
       rotation: e.rotation,
       props: e.props ?? {},
     }));
-    st.setItems([...st.items, ...newItems]);
-    st.setSelectedItemIds(newItems.map((n) => n.id));
-    setOpen(false);
+    dropArranged(items);
   };
+
+  const dropIkea = (setKey: string) => {
+    const recipe = ikeaSetRecipes().find((r) => r.setKey === setKey);
+    if (!recipe) return;
+    const [bx, bz] = dropCentre();
+    const items = buildSetGroup(recipe, { x: bx, z: bz }, BUILTIN_CATALOG_PLUS_IKEA());
+    dropArranged(items);
+  };
+
+  const recipes = ikeaSetRecipes();
+
   return (
     <div className="relative">
       <button
@@ -741,16 +778,32 @@ function SetsMenu() {
         Sets ▾
       </button>
       {open ? (
-        <div className="absolute left-0 top-full z-20 mt-1 w-44 rounded-lg bg-white p-1 text-xs shadow">
+        <div className="absolute left-0 top-full z-20 mt-1 w-52 rounded-lg bg-white p-1 text-xs shadow">
           {FURNITURE_SETS.map((s) => (
             <button
               key={s.id}
-              onClick={() => drop(s.id)}
+              onClick={() => dropBuiltin(s.id)}
               className="block w-full rounded px-2 py-1.5 text-left hover:bg-neutral-100"
             >
               {s.name}
             </button>
           ))}
+          {recipes.length > 0 ? (
+            <>
+              <div className="mt-1 border-t border-neutral-200 px-2 pt-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-400">
+                IKEA sets
+              </div>
+              {recipes.map((r) => (
+                <button
+                  key={r.setKey}
+                  onClick={() => dropIkea(r.setKey)}
+                  className="block w-full rounded px-2 py-1.5 text-left hover:bg-neutral-100"
+                >
+                  {r.setName}
+                </button>
+              ))}
+            </>
+          ) : null}
         </div>
       ) : null}
     </div>
