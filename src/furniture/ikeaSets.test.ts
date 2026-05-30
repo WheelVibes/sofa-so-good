@@ -1,6 +1,14 @@
 import { describe, it, expect } from 'vitest';
 import type { SetRecipe, SetMemberInstance, MemberFootprint } from './ikeaSets';
-import { expandMembers, arrangeSet, buildSetGroup } from './ikeaSets';
+import {
+  expandMembers,
+  arrangeSet,
+  buildSetGroup,
+  ikeaSetRecipes,
+  registerIkeaSetRecipes,
+  _clearIkeaSetRecipes,
+  parseSetRecipe,
+} from './ikeaSets';
 import { CLEARANCE } from '../layout/designRules';
 import type { FurnitureDef } from './types';
 
@@ -227,5 +235,56 @@ describe('buildSetGroup', () => {
     const items = buildSetGroup(VIHALS, { x: 0, z: 0 }, FIXTURE_CATALOG, 'g');
     const ids = new Set(items.map((i) => i.id));
     expect(ids.size).toBe(items.length);
+  });
+});
+
+describe('ikeaSetRecipes registry', () => {
+  it('starts empty and returns registered recipes', () => {
+    _clearIkeaSetRecipes();
+    expect(ikeaSetRecipes()).toEqual([]);
+    registerIkeaSetRecipes([VIHALS]);
+    expect(ikeaSetRecipes()).toHaveLength(1);
+    expect(ikeaSetRecipes()[0].setKey).toBe(VIHALS.setKey);
+  });
+
+  it('dedupes by setKey on re-register', () => {
+    _clearIkeaSetRecipes();
+    registerIkeaSetRecipes([VIHALS]);
+    registerIkeaSetRecipes([VIHALS]);
+    expect(ikeaSetRecipes()).toHaveLength(1);
+  });
+});
+
+describe('parseSetRecipe', () => {
+  const raw = {
+    set_key: 'vihals-vihals-table-and-2-folding-chairs',
+    set_name: 'VIHALS / VIHALS table and 2 folding chairs',
+    set_article: 's69599421',
+    member_source: 'included',
+    members: [
+      { group_key: 'vihals-gateleg-table', role: 'table', qty: 1, article_number: '70595733' },
+      { group_key: 'vihals-folding-chair', role: 'chair', qty: 2, article_number: '40592745' },
+    ],
+  };
+
+  it('maps snake_case JSON to a camelCase SetRecipe', () => {
+    const r = parseSetRecipe(raw);
+    expect(r.setKey).toBe('vihals-vihals-table-and-2-folding-chairs');
+    expect(r.setName).toBe('VIHALS / VIHALS table and 2 folding chairs');
+    expect(r.members).toHaveLength(2);
+    expect(r.members[0]).toMatchObject({ groupKey: 'vihals-gateleg-table', role: 'table', qty: 1 });
+    expect(r.members[1]).toMatchObject({ groupKey: 'vihals-folding-chair', role: 'chair', qty: 2 });
+  });
+
+  it('defaults a missing qty to 1 and an unknown role to "other"', () => {
+    const r = parseSetRecipe({
+      set_key: 'x', set_name: 'X',
+      members: [{ group_key: 'g', role: 'sideboard' }],
+    });
+    expect(r.members[0]).toMatchObject({ groupKey: 'g', role: 'other', qty: 1 });
+  });
+
+  it('throws on a recipe with no members', () => {
+    expect(() => parseSetRecipe({ set_key: 'x', set_name: 'X', members: [] })).toThrow();
   });
 });

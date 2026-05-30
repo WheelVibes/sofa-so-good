@@ -233,3 +233,54 @@ export function buildSetGroup(
     };
   });
 }
+
+// ── Imported-recipe registry ────────────────────────────────────────────────
+// Recipes are fed in by the IKEA import path (plan 1 emits sets/<key>.json; the
+// importer parses + registers them). Kept module-level + pure so the Sets menu
+// reads them without importing the IDB/import layer.
+const RECIPES = new Map<string, SetRecipe>();
+
+/** All currently-known imported set recipes, in insertion order. */
+export function ikeaSetRecipes(): SetRecipe[] {
+  return [...RECIPES.values()];
+}
+
+/** Register imported recipes (deduped by setKey; later wins). */
+export function registerIkeaSetRecipes(recipes: SetRecipe[]): void {
+  for (const r of recipes) RECIPES.set(r.setKey, r);
+}
+
+/** Test-only: clear the registry. */
+export function _clearIkeaSetRecipes(): void {
+  RECIPES.clear();
+}
+
+const KNOWN_ROLES: ReadonlySet<string> = new Set(['table', 'chair', 'bench', 'stool', 'other']);
+
+function asRole(v: unknown): SetRole {
+  return typeof v === 'string' && KNOWN_ROLES.has(v) ? (v as SetRole) : 'other';
+}
+
+/** Parse a scraper `sets/<key>.json` (snake_case) into a typed SetRecipe. */
+export function parseSetRecipe(raw: unknown): SetRecipe {
+  const o = (raw ?? {}) as Record<string, unknown>;
+  const rawMembers = Array.isArray(o.members) ? o.members : [];
+  const members: SetMember[] = rawMembers.map((m) => {
+    const mo = (m ?? {}) as Record<string, unknown>;
+    const qty = Number(mo.qty);
+    return {
+      groupKey: String(mo.group_key ?? ''),
+      role: asRole(mo.role),
+      qty: Number.isFinite(qty) && qty > 0 ? Math.floor(qty) : 1,
+      articleNumber: mo.article_number != null ? String(mo.article_number) : '',
+    };
+  }).filter((m) => m.groupKey);
+  if (members.length === 0) {
+    throw new Error(`parseSetRecipe: recipe "${String(o.set_key)}" has no usable members`);
+  }
+  return {
+    setKey: String(o.set_key ?? ''),
+    setName: String(o.set_name ?? o.set_key ?? ''),
+    members,
+  };
+}
