@@ -88,6 +88,7 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
           <Toggle label="Bloom, AO + antialiasing" hint="GPU post-processing (loaded on demand)" checked={eff.postprocessing} onChange={(v) => setOverride('postprocessing', v)} />
           <Toggle label="Auto-reveal walls" hint="Fade near walls when orbiting" checked={eff.wallReveal} onChange={(v) => setOverride('wallReveal', v)} />
           <Toggle label="Contact shadows" hint="Soft grounding under furniture" checked={eff.contactShadows} onChange={(v) => setOverride('contactShadows', v)} />
+          <Toggle label="Showcase stills" hint="Sharpen shadows when the camera is still" checked={eff.showcase} onChange={(v) => setOverride('showcase', v)} />
 
           <Row label="Night light fixtures" hint={`${eff.maxFixtureLights} max`}>
             <input

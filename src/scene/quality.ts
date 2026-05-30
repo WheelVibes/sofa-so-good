@@ -27,6 +27,9 @@ export interface QualitySettings {
    *  rounded boxes). Scales segment counts so the High tier renders smoother
    *  legs/shades/vases while Low keeps polys down. 1 = baseline. */
   geometryDetail: number;
+  /** Accumulate soft, noise-free shadows while the camera is parked
+   *  (drei AccumulativeShadows). Off on low; forced on during capture. */
+  showcase: boolean;
 }
 
 export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
@@ -39,6 +42,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     wallReveal: true,
     contactShadows: false,
     geometryDetail: 0.7,
+    showcase: false,
   },
   medium: {
     shadowMapSize: 2048,
@@ -49,6 +53,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     wallReveal: true,
     contactShadows: true,
     geometryDetail: 1,
+    showcase: true,
   },
   high: {
     shadowMapSize: 2048,
@@ -59,6 +64,7 @@ export const QUALITY_PRESETS: Record<QualityTier, QualitySettings> = {
     wallReveal: true,
     contactShadows: true,
     geometryDetail: 1.8,
+    showcase: true,
   },
 };
 
