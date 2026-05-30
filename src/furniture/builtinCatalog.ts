@@ -1384,7 +1384,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'number', key: 'length', label: 'Length', min: 0.6, max: 4.0, step: 0.1, default: 2.4, unit: 'm' },
       { kind: 'number', key: 'mountHeight', label: 'Underside', min: 1.2, max: 1.7, step: 0.05, default: 1.45, unit: 'm' },
-      { kind: 'color', key: 'color', label: 'Finish', default: '#e3dfd6' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#e3dfd6' },
+      {
+        kind: 'enum',
+        key: 'frontStyle',
+        label: 'Fronts',
+        default: 'slab',
+        options: [
+          { value: 'slab', label: 'Slab doors' },
+          { value: 'shaker', label: 'Shaker doors' },
+        ],
+      },
       {
         kind: 'enum',
         key: 'finish',

@@ -41,8 +41,14 @@ hex, no catalog entry, persists as a free string) and an expanded curated
 palette shipped; ~~plaid + dots weave motifs~~; ~~per-cushion accent pillow
 weave~~. Furniture colours were already free (inspector colour inputs).
 
-Possible further polish: abstract/print wall-art textures; heated-ladder
-towel rail; custom-colour swatch could remember recent colours.
+~~Layout presets~~ shipped — full-flat furnished+finished presets (Move-in
+Default + Scandi/Industrial/Tropical/Mono) via a Presets toolbar menu and
+applyLayoutPreset(); collision-valid by construction + tested. ~~Venetian
+blind~~, ~~per-fixture bulb temperature~~, ~~TV/monitor screen content~~,
+~~room area in Finish picker~~ also shipped.
+
+Possible further polish: heated-ladder towel rail; user-saved style presets;
+kitchen wall-cabinet front style to match base counters.
 
 ## Realism & content pass (2026-05-29)
 
