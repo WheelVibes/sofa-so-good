@@ -10,6 +10,10 @@ import {
   modelName,
   type BulkImportResult,
 } from '../../furniture/upload/bulkImport';
+import { findMetadataFile } from '../../furniture/ikea/detectGroup';
+import { parseMetadata } from '../../furniture/ikea/metadata';
+import { importGroup } from '../../furniture/ikea/importGroup';
+import { mapCategory } from '../../furniture/ikea/translate';
 
 interface UploadModelDialogProps {
   open: boolean;
@@ -41,6 +45,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const [result, setResult] = useState<BulkImportResult | null>(null);
   const [showSkipped, setShowSkipped] = useState(false);
+  const [ikeaMeta, setIkeaMeta] = useState<Record<string, unknown> | null>(null);
+  const [ikeaSuccess, setIkeaSuccess] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -62,6 +68,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setProgress(null);
     setResult(null);
     setShowSkipped(false);
+    setIkeaMeta(null);
+    setIkeaSuccess(null);
   };
 
   const onPick = (list: FileList | null) => {
@@ -69,6 +77,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setFiles(picked);
     setResult(null);
     setError(null);
+    setIkeaSuccess(null);
+    setIkeaMeta(null);
     const models = picked.filter((f) => {
       const path = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
       return isModelFile(path);
@@ -78,6 +88,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     } else {
       setName('');
     }
+    // Auto-detect an IKEA group folder (contains a metadata.json w/ group_key).
+    void findMetadataFile(picked).then((meta) => setIkeaMeta(meta));
   };
 
   const submit = async () => {
@@ -88,6 +100,25 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setBusy(true);
     setError(null);
     setResult(null);
+    setIkeaSuccess(null);
+
+    // IKEA group folder takes priority over the generic single/bulk paths.
+    if (ikeaMeta) {
+      const parsed = parseMetadata(ikeaMeta);
+      if (!parsed.ok) {
+        setError(parsed.reason);
+        setBusy(false);
+        return;
+      }
+      const r = await importGroup(parsed.data, modelFiles);
+      setBusy(false);
+      if (!r.ok) {
+        setError(r.reason);
+        return;
+      }
+      setIkeaSuccess(`Imported ${r.def.name}. Find it in the catalog under ${CATEGORY_LABEL[r.def.category]}.`);
+      return;
+    }
 
     if (single) {
       if (!name.trim()) {
@@ -130,7 +161,9 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
           25&nbsp;MB each). Files are stored locally in your browser only.
         </p>
 
-        {result ? (
+        {ikeaSuccess ? (
+          <p className="rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">{ikeaSuccess}</p>
+        ) : result ? (
           <div className="space-y-2">
             <p className="rounded bg-emerald-50 px-2 py-1 text-xs text-emerald-700">
               Imported {result.imported}, skipped {result.skipped.length} of {result.total}.
@@ -190,50 +223,56 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                 .
               </p>
             ) : null}
-            {single ? (
-              <label className="block">
-                <span className="mb-1 block text-xs text-neutral-600">Name</span>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Vintage armchair"
-                  className="block w-full rounded border border-neutral-300 px-2 py-1 text-sm"
-                />
-              </label>
-            ) : null}
-            <label className="block">
-              <span className="mb-1 block text-xs text-neutral-600">Category</span>
-              <select
-                value={category}
-                onChange={(e) => setCategory(e.target.value as FurnitureCategory)}
-                disabled={busy}
-                className="block w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm"
-              >
-                {FURNITURE_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>
-                    {CATEGORY_LABEL[c]}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className="flex items-center gap-2 text-xs text-neutral-600">
-              <input
-                type="checkbox"
-                checked={mounted}
-                onChange={(e) => setMounted(e.target.checked)}
-                disabled={busy}
-              />
-              Wall / ceiling mounted (skip wall collision)
-            </label>
-            <label className="flex items-center gap-2 text-xs text-neutral-600">
-              <input
-                type="checkbox"
-                checked={noClip}
-                onChange={(e) => setNoClip(e.target.checked)}
-                disabled={busy}
-              />
-              Flat floor covering (rug — never collides)
-            </label>
+            {ikeaMeta ? (
+              <IkeaPanel meta={ikeaMeta} />
+            ) : (
+              <>
+                {single ? (
+                  <label className="block">
+                    <span className="mb-1 block text-xs text-neutral-600">Name</span>
+                    <input
+                      value={name}
+                      onChange={(e) => setName(e.target.value)}
+                      placeholder="e.g. Vintage armchair"
+                      className="block w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+                    />
+                  </label>
+                ) : null}
+                <label className="block">
+                  <span className="mb-1 block text-xs text-neutral-600">Category</span>
+                  <select
+                    value={category}
+                    onChange={(e) => setCategory(e.target.value as FurnitureCategory)}
+                    disabled={busy}
+                    className="block w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm"
+                  >
+                    {FURNITURE_CATEGORIES.map((c) => (
+                      <option key={c} value={c}>
+                        {CATEGORY_LABEL[c]}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+                <label className="flex items-center gap-2 text-xs text-neutral-600">
+                  <input
+                    type="checkbox"
+                    checked={mounted}
+                    onChange={(e) => setMounted(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Wall / ceiling mounted (skip wall collision)
+                </label>
+                <label className="flex items-center gap-2 text-xs text-neutral-600">
+                  <input
+                    type="checkbox"
+                    checked={noClip}
+                    onChange={(e) => setNoClip(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Flat floor covering (rug — never collides)
+                </label>
+              </>
+            )}
             {progress ? (
               <p className="text-xs text-neutral-600">
                 Importing {progress.done} / {progress.total}…
@@ -254,9 +293,9 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
             className="rounded px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100"
             disabled={busy}
           >
-            {result ? 'Close' : 'Cancel'}
+            {result || ikeaSuccess ? 'Close' : 'Cancel'}
           </button>
-          {result ? (
+          {result || ikeaSuccess ? (
             <button
               onClick={reset}
               className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700"
@@ -266,14 +305,57 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
           ) : (
             <button
               onClick={submit}
-              disabled={busy || modelFiles.length === 0 || (single && !name.trim())}
+              disabled={busy || modelFiles.length === 0 || (single && !ikeaMeta && !name.trim())}
               className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
             >
-              {busy ? 'Importing…' : single ? 'Save' : `Import ${modelFiles.length}`}
+              {busy ? 'Importing…' : ikeaMeta ? 'Import IKEA model' : single ? 'Save' : `Import ${modelFiles.length}`}
             </button>
           )}
         </footer>
       </div>
+    </div>
+  );
+}
+
+function IkeaPanel({ meta }: { meta: Record<string, unknown> }) {
+  const parsed = parseMetadata(meta);
+  if (!parsed.ok) {
+    return (
+      <div className="rounded border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">
+        IKEA group detected, but its metadata is invalid: {parsed.reason}
+      </div>
+    );
+  }
+  const data = parsed.data;
+  const mapped = mapCategory(data.design.category);
+  const totalVariants = data.variants.length;
+  const withGlb = data.variants.filter((v) => v.glb != null).length;
+  const lowConfidence = mapped.confidence === 'low' || data.design.category_confidence === 'low';
+
+  return (
+    <div className="space-y-2 rounded border border-blue-200 bg-blue-50 px-3 py-2">
+      <p className="text-xs font-semibold text-blue-800">IKEA group detected</p>
+      <dl className="space-y-1 text-xs text-neutral-700">
+        <div className="flex justify-between gap-2">
+          <dt className="text-neutral-500">Product</dt>
+          <dd className="text-right font-medium text-neutral-900">{data.product_name}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-neutral-500">Category</dt>
+          <dd className="text-right text-neutral-900">{CATEGORY_LABEL[mapped.category]}</dd>
+        </div>
+        <div className="flex justify-between gap-2">
+          <dt className="text-neutral-500">Finishes</dt>
+          <dd className="text-right text-neutral-900">
+            {withGlb} of {totalVariants} finish{totalVariants === 1 ? '' : 'es'} have a 3D model
+          </dd>
+        </div>
+      </dl>
+      {lowConfidence ? (
+        <p className="rounded bg-amber-100 px-2 py-1 text-xs text-amber-800">
+          Category auto-detected — review after import.
+        </p>
+      ) : null}
     </div>
   );
 }
