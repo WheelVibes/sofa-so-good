@@ -3,6 +3,8 @@ import type { ThreeEvent } from '@react-three/fiber';
 import { GltfModel } from './GltfModel';
 import { PRIMITIVE_COMPONENTS } from './primitives';
 import { useStore } from '../state/store';
+import { itemFootprint } from '../collision/placement';
+import { ContactShadow } from '../scene/ContactShadow';
 import type { FurnitureDef, FurnitureItem } from './types';
 
 interface FurnitureProps {
@@ -133,6 +135,13 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
       }}
       onPointerDown={onPointerDown}
     >
+      {/* Soft contact shadow grounding floor-standing pieces. */}
+      {(() => {
+        const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h };
+        if (passive || def.mounted || def.noClip || span.base >= 0.4) return null;
+        const obb = itemFootprint(item, def);
+        return <ContactShadow w={obb.hx * 2} d={obb.hz * 2} />;
+      })()}
       {/* Mirror flips in local space. three.js flips winding/normals for the
           negative-determinant matrix, so lighting + culling stay correct. */}
       {item.flipX || item.flipZ ? (
