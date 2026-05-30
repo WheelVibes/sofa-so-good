@@ -2217,6 +2217,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         default: 'pendant',
         options: [
           { value: 'pendant', label: 'Pendant' },
+          { value: 'linear', label: 'Linear bar' },
           { value: 'flush', label: 'Flush mount' },
         ],
       },
