@@ -302,10 +302,13 @@ New `src/ui/inspector/IkeaBody.tsx` (rendered by `InspectorPanel` when
 
 - `IkeaGltfDef.license = 'IKEA'`, `attribution = "IKEA — imported model"`,
   `sourceUrl` = active variant url.
-- `src/ui/CreditsModal.tsx`: include IKEA-sourced defs in the credits list with
-  their non-CC0 label ("IKEA · imported, not for redistribution"). The modal
-  currently assumes `license:'CC0'`; add an IKEA section or widen the entry type.
-- `IkeaBody` shows the same inline.
+- `CreditsModal` reads a **static** `/assets/CREDITS.json` and reflects only
+  bundled assets — it is **not** runtime-def aware, so IKEA attribution does not
+  belong there. Attribution for imported IKEA items is surfaced **in the
+  inspector** via the widened `SourceLine` (`license:'IKEA'`), shown by `IkeaBody`
+  and by `InspectorPanel`'s existing source-line block (widen its
+  `def.source === 'builtin'` guard to also show for `source === 'ikea'`). No
+  CreditsModal change.
 
 ## 11. Compatibility resolver (§7)
 
