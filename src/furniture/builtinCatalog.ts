@@ -2430,6 +2430,33 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.2 },
     ],
   },
+  'hanging-plant': {
+    kind: 'parametric',
+    id: 'hanging-plant',
+    name: 'Hanging plant',
+    category: 'decor',
+    keywords: ['trailing', 'pothos', 'ceiling plant', 'macrame'],
+    primitive: 'HangingPlant',
+    defaultFootprint: { w: 0.36, d: 0.36, h: 0.5 },
+    mounted: true,
+    verticalSpan: { base: 1.6, top: 2.5 },
+    paramSchema: [
+      { kind: 'number', key: 'mountHeight', label: 'Hang from', min: 2.0, max: 2.6, step: 0.05, default: 2.45, unit: 'm' },
+      { kind: 'number', key: 'drop', label: 'Cord drop', min: 0.2, max: 0.8, step: 0.05, default: 0.4, unit: 'm' },
+      { kind: 'color', key: 'potColor', label: 'Pot', default: '#cdbb9a' },
+      { kind: 'color', key: 'leafColor', label: 'Foliage', default: '#4a7a44' },
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: 'medium',
+        options: [
+          { value: 'medium', label: 'Medium' },
+          { value: 'large', label: 'Large' },
+        ],
+      },
+    ],
+  },
   'floor-vase': {
     kind: 'parametric',
     id: 'floor-vase',
