@@ -16,6 +16,14 @@ interface UploadModelDialogProps {
   onClose: () => void;
 }
 
+function pickModelFiles(list: File[]): File[] {
+  return list.filter((f) => {
+    const path =
+      (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
+    return isModelFile(path);
+  });
+}
+
 const CATEGORY_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds',
   seating: 'Seating',
@@ -41,10 +49,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   if (!open) return null;
 
   // Files that will actually be imported (folder picks include junk).
-  const modelFiles = files.filter((f) => {
-    const path = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
-    return isModelFile(path);
-  });
+  const modelFiles = pickModelFiles(files);
   const single = modelFiles.length === 1 && files.length === 1;
 
   const reset = () => {
@@ -63,10 +68,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setFiles(picked);
     setResult(null);
     setError(null);
-    const models = picked.filter((f) => {
-      const path = (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name;
-      return isModelFile(path);
-    });
+    const models = pickModelFiles(picked);
     if (models.length === 1 && picked.length === 1) {
       setName(modelName(picked[0].name));
     } else {
@@ -79,16 +81,15 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
       setError('Pick at least one .glb or .gltf file.');
       return;
     }
+    if (single && !name.trim()) {
+      setError('Enter a name.');
+      return;
+    }
     setBusy(true);
     setError(null);
     setResult(null);
 
     if (single) {
-      if (!name.trim()) {
-        setError('Enter a name.');
-        setBusy(false);
-        return;
-      }
       const r = await persistUserGlb(files[0], { name: name.trim(), category });
       setBusy(false);
       if (!r.ok) {
