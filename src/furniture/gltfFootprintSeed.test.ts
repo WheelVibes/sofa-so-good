@@ -11,4 +11,10 @@ describe('seedGltfFootprint', () => {
     seedGltfFootprint('blob:test-2', { w: 9, d: 9, h: 9, anchorOffset: [0, 0, 0] });
     expect(getCachedGltfFootprint('blob:test-2')?.w).toBe(1);
   });
+  it('keys by the base url so tier-variant lookups hit the seeded entry', () => {
+    seedGltfFootprint('/m/sofa.glb', { w: 2, d: 1, h: 0.8, anchorOffset: [0, 0, 0] });
+    // A low/medium variant url must resolve to the same (base-keyed) footprint.
+    expect(getCachedGltfFootprint('/m/sofa-low.glb')?.w).toBe(2);
+    expect(getCachedGltfFootprint('/m/sofa-medium.glb')?.w).toBe(2);
+  });
 });

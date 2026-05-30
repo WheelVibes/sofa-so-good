@@ -8,22 +8,33 @@ import { useStore } from '../state/store';
 import { resolveLodUrlSync, prewarmLod, baseUrl } from './gltf/lod';
 import { applyTextureBudget } from './gltf/textureBudget';
 
-/** Module-level bbox cache: GLB url → axis-aligned size in metres at scale=1,
- *  plus the local-space center offset of that bbox. Many GLBs are not
- *  centered on their local origin, so consumers must add (ox, oz) — rotated
- *  by the item's yaw — to item.position when computing the OBB. */
+/** Public footprint shape: axis-aligned size in metres at scale=1, plus the
+ *  local-space center offset of that bbox. Many GLBs are not centered on their
+ *  local origin, so consumers must add (ox, oz) — rotated by the item's yaw —
+ *  to item.position when computing the OBB. */
+export interface GltfFootprint {
+  w: number;
+  d: number;
+  h: number;
+  ox: number;
+  oz: number;
+}
+
+/** Module-level bbox cache, keyed by base (high-tier) url. `authoritative` is
+ *  true when the footprint came from original (unsimplified) geometry or a
+ *  scraper seed; a low/medium variant may seed a non-authoritative footprint
+ *  that the original later overwrites. */
 const FOOTPRINT_CACHE = new Map<
   string,
-  { w: number; d: number; h: number; ox: number; oz: number }
+  GltfFootprint & { authoritative: boolean }
 >();
 
 /** Reads the cached footprint for a GLB if available, else returns null.
  *  Normalises tier-variant urls to their base key, since the cache is always
  *  written under the base url (high-tier footprint is authoritative). */
-export function getCachedGltfFootprint(
-  url: string,
-): { w: number; d: number; h: number; ox: number; oz: number } | null {
-  return FOOTPRINT_CACHE.get(baseUrl(url)) ?? null;
+export function getCachedGltfFootprint(url: string): GltfFootprint | null {
+  const e = FOOTPRINT_CACHE.get(baseUrl(url));
+  return e ? { w: e.w, d: e.d, h: e.h, ox: e.ox, oz: e.oz } : null;
 }
 
 /** Pre-seed the footprint cache from known GLB accessor data (e.g. the IKEA
@@ -34,13 +45,16 @@ export function seedGltfFootprint(
   url: string,
   fp: { w: number; d: number; h: number; anchorOffset: [number, number, number] },
 ): void {
-  if (FOOTPRINT_CACHE.has(url)) return;
-  FOOTPRINT_CACHE.set(url, {
+  const key = baseUrl(url);
+  if (FOOTPRINT_CACHE.has(key)) return;
+  // Scraper footprint is from the original GLB accessors → authoritative.
+  FOOTPRINT_CACHE.set(key, {
     w: Math.max(0.05, fp.w),
     d: Math.max(0.05, fp.d),
     h: Math.max(0.05, fp.h),
     ox: fp.anchorOffset[0],
     oz: fp.anchorOffset[2],
+    authoritative: true,
   });
 }
 
@@ -78,10 +92,17 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
   );
   const tintRef = useRef<string | undefined>();
 
-  // Cache footprint once.
+  // Cache footprint, keyed by the base (high-tier) url so collision is
+  // consistent across tiers. Simplified low/medium variants can shift the bbox
+  // slightly, so the original geometry is authoritative: a variant may seed the
+  // cache (so collision works if only it ever renders), but the original
+  // overwrites it when loaded. `servingOriginal` is true on high and on the
+  // runtime-texture fallback (geometry untouched there).
   useEffect(() => {
     const fpKey = baseUrl(url);
-    if (FOOTPRINT_CACHE.has(fpKey)) return;
+    const existing = FOOTPRINT_CACHE.get(fpKey);
+    // Skip only when an authoritative (original-geometry) footprint is cached.
+    if (existing && (existing.authoritative || !servingOriginal)) return;
     // Compute bbox from visible meshes only. setFromObject traverses every
     // descendant including lights, empties, collision proxies, and hidden
     // helper geometry that some GLBs ship with — those can inflate the
@@ -111,8 +132,9 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
       h: Math.max(0.05, size.y),
       ox: center.x,
       oz: center.z,
+      authoritative: servingOriginal,
     });
-  }, [url, cloned]);
+  }, [url, cloned, servingOriginal]);
 
   // Apply tint by walking the cloned tree once when it changes.
   useEffect(() => {

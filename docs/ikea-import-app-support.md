@@ -306,9 +306,11 @@ not per instance.)
   skipped, not fatal. Re-run after importing new models. Variants are gitignored
   (non-CC0, local-only). Verified: a 2-seat sofa went 3.68MB→1.03MB (medium)
   →502KB (low); 21.8k→16.4k→12.7k tris; 2617→1024→512px textures.
-  - *KTX2 (GPU-compressed textures) is a documented future upgrade — the app
-    already supports KTX2 decoding; the generator switches to it automatically
-    if a `toktx`/basisu encoder is on PATH.*
+  - *KTX2 (GPU-compressed textures) is a future upgrade, not yet wired: the app
+    already supports KTX2 decoding, but the generator currently always emits
+    WebP. Switching `textureCompress` to `targetFormat: 'ktx2'` (gated on a
+    `toktx`/basisu encoder) is the remaining step — it would cut VRAM further
+    beyond the resolution win.*
 
 - **App-side selection** — `src/furniture/gltf/lod.ts` rewrites a model URL to
   its tier variant by **sibling filename suffix** (`foo.glb` → `foo-low.glb`),
