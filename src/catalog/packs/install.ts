@@ -21,6 +21,14 @@ const glbKey = (packId: string, entryId: string) => `pack:${packId}:${entryId}:g
 const thumbKey = (packId: string, entryId: string) => `pack:${packId}:${entryId}:thumb`;
 
 export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<InstalledPack> {
+  if (pack.kind === 'ikea-live' || !pack.downloadUrl || !pack.parseEntries) {
+    throw new Error(
+      `installPack is for zip packs; "${pack.id}" (kind=${pack.kind ?? 'zip'}) has no downloadUrl/parseEntries.`,
+    );
+  }
+  const downloadUrl = pack.downloadUrl;
+  const parseEntries = pack.parseEntries;
+  const sizeBytes = pack.sizeBytes ?? 0;
   const fetchImpl = opts.fetchImpl ?? fetch;
   const { notify } = useStore.getState();
   const notifId =
@@ -28,12 +36,12 @@ export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<I
     notify.start({ title: `Installing ${pack.name}`, kind: 'progress', message: 'Downloading…' });
 
   try {
-    const res = await fetchImpl(pack.downloadUrl, { signal: opts.signal });
+    const res = await fetchImpl(downloadUrl, { signal: opts.signal });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const total = Number(res.headers.get('Content-Length') ?? pack.sizeBytes);
-    if (Math.abs(total - pack.sizeBytes) / pack.sizeBytes > 0.05) {
+    const total = Number(res.headers.get('Content-Length') ?? sizeBytes);
+    if (Math.abs(total - sizeBytes) / sizeBytes > 0.05) {
       throw new Error(
-        `Pack size mismatch — server says ${total}B, registry says ${pack.sizeBytes}B (>5% drift). The pack URL may have moved; please report.`,
+        `Pack size mismatch — server says ${total}B, registry says ${sizeBytes}B (>5% drift). The pack URL may have moved; please report.`,
       );
     }
     const reader = res.body?.getReader();
@@ -62,7 +70,7 @@ export async function installPack(pack: Pack, opts: InstallOpts = {}): Promise<I
     const files = unzipSync(zipBytes);
     notify.update(notifId, { progress: 0.6, message: 'Processing entries…' });
 
-    const descriptors = pack.parseEntries(files);
+    const descriptors = parseEntries(files);
     const renderer = new ThumbnailRenderer();
     const entries: InstalledPackEntry[] = [];
     const newDefs: PackGltfDef[] = [];

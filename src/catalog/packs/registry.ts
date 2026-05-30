@@ -15,4 +15,16 @@ export const AVAILABLE_PACKS: Pack[] = [
     sizeBytes: 5_130_729,
     parseEntries: parseKenneyFurnitureKit,
   },
+  {
+    id: 'ikea-sg-live',
+    kind: 'ikea-live',
+    name: 'IKEA Singapore (live scrape)',
+    description:
+      'Scrapes IKEA SG product models on demand via the local scraper sidecar, optimizing each model as it downloads. Requires `npm run scraper-server`.',
+    // Not a CC0 claim — the literal only satisfies the Pack type; the card shows
+    // the IKEA attribution. IKEA models are IKEA IP, local/dev-only.
+    attribution: 'IKEA — ikea.com/sg (imported models, local/dev-only)',
+    license: 'CC0',
+    sourceUrl: 'https://www.ikea.com/sg/en/',
+  },
 ];
