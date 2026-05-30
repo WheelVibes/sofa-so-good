@@ -54,6 +54,25 @@ export function WallAccentPicker() {
             style={{ backgroundColor: m.swatch, backgroundImage: swatchImage(m), backgroundSize: 'cover' }}
           />
         ))}
+        {/* Custom colour */}
+        <label
+          title="Custom colour"
+          className={`relative aspect-square cursor-pointer rounded border ${typeof current === 'string' && current.startsWith('#') ? 'border-neutral-800 ring-1 ring-neutral-800' : 'border-neutral-200'}`}
+          style={{
+            background:
+              typeof current === 'string' && current.startsWith('#')
+                ? current
+                : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
+          }}
+        >
+          <input
+            type="color"
+            value={typeof current === 'string' && current.startsWith('#') ? current : '#cccccc'}
+            onChange={(e) => setWallAccent(key, e.target.value)}
+            className="absolute inset-0 cursor-pointer opacity-0"
+            aria-label="Custom accent colour"
+          />
+        </label>
       </div>
       <div className="border-t border-neutral-200 px-3 py-2">
         <button
