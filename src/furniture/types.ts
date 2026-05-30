@@ -284,10 +284,23 @@ export interface IkeaVariant {
   price?: number;                 // price_numeral
   currency?: string;
   swatchHex?: string;             // sampled_hex of material_0, for the picker
+  /**
+   * Bounding-box footprint of this variant's GLB at scale=1, in metres.
+   * `anchorOffset` is the GLB's local-space geometric centre `[x, y, z]` in
+   * metres — only the x/z components are used for placement OBB computations
+   * (they map to the FOOTPRINT_CACHE `ox`/`oz` fields in GltfModel.tsx and the
+   * `CachedBox` ox/oz in collision/gltfSpan.ts). Placement.ts adds the rotated
+   * x/z offset to item.position when constructing the OBB; y is ignored.
+   */
   footprint?: { w: number; d: number; h: number; anchorOffset: [number, number, number] };
   glbMaterials: IkeaGlbMaterial[];
 }
 
+/**
+ * Read-only IKEA product metadata from the scraper payload (series, materials,
+ * care instructions, documents, rating, images, measurements). Surfaced in the
+ * inspector's product-info panel; no behavioural impact.
+ */
 export interface IkeaProductInfo {
   series?: string;
   styleGroup?: string;
@@ -316,6 +329,7 @@ export interface IkeaGltfDef extends FurnitureDefBase {
   kind: 'gltf';
   source: 'ikea';
   groupKey: string;
+  /** Must match one of `variants[].finish`; drives which GLB asset is loaded. */
   activeVariant: string;
   variants: IkeaVariant[];
   productInfo?: IkeaProductInfo;
