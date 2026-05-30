@@ -109,6 +109,36 @@ def parse_category_breadcrumbs(product_json):
     return names
 
 
+# A product is treated as a set when EITHER signal fires. Detection is
+# intentionally eager: a "set" that resolves to <2 members after discovery is
+# demoted back to a normal product (see process_product_page), so false
+# positives are self-correcting.
+_SET_CATEGORY_RE = re.compile(r"\bsets?\b", re.I)
+# "table and 2 folding chairs" / "...and chair"
+_SET_TYPE_AND_RE = re.compile(r"\band\b.*\bchairs?\b", re.I)
+# "2 folding chairs" / "4 chairs" — a leading count before a chair role word.
+_SET_TYPE_COUNT_RE = re.compile(r"\b\d+\s+(?:folding\s+)?chairs?\b", re.I)
+
+
+def is_set_product(product_json, category_hierarchy):
+    """
+    True if this product looks like a multi-piece set (table + chairs, dining
+    set, etc.). Fires on EITHER:
+      * category signal — any breadcrumb name matches /\\bsets?\\b/i;
+      * type signal — type_name matches "<...> and chair(s)" or a leading
+        count before a chair role word ("2 folding chairs").
+    """
+    type_name = (product_json or {}).get("typeName") or ""
+    for crumb in category_hierarchy or []:
+        if crumb and _SET_CATEGORY_RE.search(crumb):
+            return True
+    if _SET_TYPE_AND_RE.search(type_name):
+        return True
+    if _SET_TYPE_COUNT_RE.search(type_name):
+        return True
+    return False
+
+
 def extract_product_json_fields(product_json):
     """
     Pull the rich structured fields IKEA exposes in the product JSON feed:
