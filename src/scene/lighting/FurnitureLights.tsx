@@ -68,10 +68,12 @@ export function FurnitureLights() {
     setActive(
       chosen.map(({ item }) => {
         const spec = LIGHT_EMITTERS[item.defId]!;
+        // Per-item bulb colour (warm/neutral/cool) overrides the emitter default.
+        const bulb = typeof item.props.lightColor === 'string' ? item.props.lightColor : spec.color;
         return {
           id: item.id,
           position: [item.position[0], spec.height(item.props), item.position[1]],
-          color: spec.color,
+          color: bulb,
           baseIntensity: spec.intensity,
           distance: spec.distance,
         };

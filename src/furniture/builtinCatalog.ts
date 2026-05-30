@@ -1470,6 +1470,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'length', label: 'Length', min: 0.6, max: 4.0, step: 0.1, default: 2.0, unit: 'm' },
       { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 2.0, max: 2.55, step: 0.05, default: 2.3, unit: 'm' },
       { kind: 'color', key: 'ledColor', label: 'LED', default: '#ffcf94' },
+      {
+        kind: 'enum',
+        key: 'lightColor',
+        label: 'Bulb',
+        default: '#ffd9a0',
+        options: [
+          { value: '#ffd9a0', label: 'Warm' },
+          { value: '#fff1da', label: 'Neutral' },
+          { value: '#e6efff', label: 'Cool' },
+        ],
+      },
       { kind: 'color', key: 'boxColor', label: 'Box', default: '#f1efea' },
     ],
   },
@@ -1485,6 +1496,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 1.2, max: 2.2, step: 0.05, default: 1.7, unit: 'm' },
       { kind: 'color', key: 'shadeColor', label: 'Diffuser', default: '#f3e7c6' },
+      {
+        kind: 'enum',
+        key: 'lightColor',
+        label: 'Bulb',
+        default: '#ffd9a0',
+        options: [
+          { value: '#ffd9a0', label: 'Warm' },
+          { value: '#fff1da', label: 'Neutral' },
+          { value: '#e6efff', label: 'Cool' },
+        ],
+      },
       { kind: 'color', key: 'metalColor', label: 'Fitting', default: '#2c2f33' },
     ],
   },
@@ -1499,6 +1521,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'number', key: 'surfaceHeight', label: 'Sits at', min: 0, max: 1.0, step: 0.02, default: 0.52, unit: 'm' },
       { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f0e4c4' },
+      {
+        kind: 'enum',
+        key: 'lightColor',
+        label: 'Bulb',
+        default: '#ffd9a0',
+        options: [
+          { value: '#ffd9a0', label: 'Warm' },
+          { value: '#fff1da', label: 'Neutral' },
+          { value: '#e6efff', label: 'Cool' },
+        ],
+      },
       { kind: 'color', key: 'baseColor', label: 'Base', default: '#33363b' },
       {
         kind: 'enum',
@@ -1522,6 +1555,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     defaultFootprint: { w: 0.42, d: 0.42, h: 1.8 },
     paramSchema: [
       { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f3e6c8' },
+      {
+        kind: 'enum',
+        key: 'lightColor',
+        label: 'Bulb',
+        default: '#ffd9a0',
+        options: [
+          { value: '#ffd9a0', label: 'Warm' },
+          { value: '#fff1da', label: 'Neutral' },
+          { value: '#e6efff', label: 'Cool' },
+        ],
+      },
       { kind: 'color', key: 'poleColor', label: 'Pole / legs', default: '#2b2b2b' },
       {
         kind: 'enum',
@@ -1579,6 +1623,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         ],
       },
       { kind: 'color', key: 'shadeColor', label: 'Shade', default: '#f2ead6' },
+      {
+        kind: 'enum',
+        key: 'lightColor',
+        label: 'Bulb',
+        default: '#ffd9a0',
+        options: [
+          { value: '#ffd9a0', label: 'Warm' },
+          { value: '#fff1da', label: 'Neutral' },
+          { value: '#e6efff', label: 'Cool' },
+        ],
+      },
     ],
   },
 
