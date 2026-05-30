@@ -47,8 +47,8 @@ export function doorSwingRects(plan: FloorPlan): Rect[] {
   return rects;
 }
 
-/** Footprint AABB of an item (accounts for rotation + parametric size). */
-function footprintAabb(item: FurnitureItem, def: FurnitureDef): Rect {
+/** Unrotated footprint width/depth of an item (accounts for parametric size). */
+function footprintSize(item: FurnitureItem, def: FurnitureDef): { w: number; d: number } {
   let w = def.defaultFootprint.w;
   let d = def.defaultFootprint.d;
   if (def.kind === 'parametric') {
@@ -58,11 +58,57 @@ function footprintAabb(item: FurnitureItem, def: FurnitureDef): Rect {
     if (typeof wv === 'number') w = wv;
     if (typeof dv === 'number') d = dv;
   }
+  return { w, d };
+}
+
+/** Footprint AABB of an item (accounts for rotation + parametric size). */
+function footprintAabb(item: FurnitureItem, def: FurnitureDef): Rect {
+  const { w, d } = footprintSize(item, def);
   const c = Math.abs(Math.cos(item.rotation));
   const s = Math.abs(Math.sin(item.rotation));
   const hx = (c * w + s * d) / 2;
   const hz = (s * w + c * d) / 2;
   return { x0: item.position[0] - hx, z0: item.position[1] - hz, x1: item.position[0] + hx, z1: item.position[1] + hz };
+}
+
+/**
+ * Keep-clear strip directly IN FRONT of an item (its facing direction), as an
+ * AABB. Furniture faces local +Z, so at yaw `rotation` the front unit vector is
+ * `(sin, cos)` in (x,z). The strip starts at the item's front face
+ * (centre + front·d/2) and reaches `def.frontClearance` metres further forward,
+ * spanning the item's full width `w` across the front. Returns `null` when the
+ * def has no positive `frontClearance`. The returned AABB is the bounding box of
+ * the oriented strip — coarse but consistent with `doorSwingRects`, fine for the
+ * overlay + a rough blocker check.
+ */
+export function frontClearanceRect(item: FurnitureItem, def: FurnitureDef | undefined): Rect | null {
+  if (!def) return null;
+  const clearance = def.frontClearance;
+  if (!clearance || clearance <= 0) return null;
+  const { w, d } = footprintSize(item, def);
+  const r = item.rotation;
+  // Front (local +Z) and width (local +X) unit vectors in world (x,z).
+  const fx = Math.sin(r);
+  const fz = Math.cos(r);
+  const rx = Math.cos(r);
+  const rz = -Math.sin(r);
+  // Strip centre: front face of item, pushed out by half the clearance depth.
+  const cx = item.position[0] + fx * (d / 2 + clearance / 2);
+  const cz = item.position[1] + fz * (d / 2 + clearance / 2);
+  const hf = clearance / 2; // half-extent along front
+  const hw = w / 2; // half-extent across width
+  const pts: Array<[number, number]> = [];
+  for (const sf of [-hf, hf]) {
+    for (const sw of [-hw, hw]) {
+      pts.push([cx + fx * sf + rx * sw, cz + fz * sf + rz * sw]);
+    }
+  }
+  return {
+    x0: Math.min(...pts.map((p) => p[0])),
+    z0: Math.min(...pts.map((p) => p[1])),
+    x1: Math.max(...pts.map((p) => p[0])),
+    z1: Math.max(...pts.map((p) => p[1])),
+  };
 }
 
 function contains(r: Rect, x: number, z: number): boolean {
