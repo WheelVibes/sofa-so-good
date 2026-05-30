@@ -12,6 +12,7 @@ import { QUALITY_LABEL } from '../scene/quality';
 import { GraphicsSettings } from './GraphicsSettings';
 import { STYLE_PRESETS, applyStyle } from '../materials/stylePresets';
 import { LAYOUT_PRESETS } from '../furniture/layoutPresets';
+import { arrangeAllRooms } from '../layout/autoArrange';
 import { canRecord } from '../scene/RecordController';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
@@ -83,6 +84,7 @@ export function Toolbar() {
           <Divider />
           <CatalogToggle />
           <PresetPicker />
+          <TidyHomeButton />
           <StylePicker />
           <Divider />
           <SaveButton />
@@ -154,6 +156,24 @@ function RecordButton() {
 
 /** One-click design styles — apply a coordinated floor + wall palette across
  *  the living spaces. */
+/** Auto-arranges every room at once by the interior-design rules. */
+function TidyHomeButton() {
+  const tidy = () => {
+    const s = useStore.getState();
+    s.pushHistory();
+    s.setItems(arrangeAllRooms(s.items, BUILTIN_CATALOG, s.doors));
+  };
+  return (
+    <button
+      onClick={tidy}
+      title="Auto-arrange every room: flush storage, seating facing the TV, walkways + door clearances kept"
+      className="whitespace-nowrap rounded bg-emerald-600 px-3 py-1 text-sm font-medium text-white hover:bg-emerald-700"
+    >
+      ✨ Tidy home
+    </button>
+  );
+}
+
 /** Applies a full-flat layout preset: restyled furniture + a coordinated
  *  floor/wall palette. Distinct from StylePicker, which only repaints. */
 function PresetPicker() {

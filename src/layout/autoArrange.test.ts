@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { arrangeRoom, roomOf } from './autoArrange';
+import { arrangeRoom, arrangeAllRooms, roomOf } from './autoArrange';
 import { defaultLayout } from '../furniture/defaultLayout';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import { defaultParamProps } from '../furniture/types';
@@ -54,6 +54,12 @@ describe('arrangeRoom', () => {
     const kitchenBefore = base.filter((i) => roomOf(i.position) === 'kitchen');
     const kitchenAfter = out.filter((i) => i.id && roomOf(i.position) === 'kitchen');
     expect(kitchenAfter.length).toBe(kitchenBefore.length);
+  });
+
+  it('arrangeAllRooms produces a collision-valid whole-home layout', () => {
+    const out = arrangeAllRooms(hydrate(), BUILTIN_CATALOG, {});
+    expect(out.length).toBe(hydrate().length);
+    assertValid(out);
   });
 
   it('never parks furniture in the main-door swing / kitchen opening', () => {

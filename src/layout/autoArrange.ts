@@ -572,3 +572,26 @@ function arrangeGeneric(rect: Rect, get: Getter, world: FurnitureItem[], ctx: Ct
   }
   tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx);
 }
+
+/** Rooms the "Tidy home" action arranges (every furnished interior room;
+ *  skips the corridor passage and the external AC ledge). */
+const ARRANGEABLE_ROOMS: RoomId[] = [
+  'livingDining',
+  'mainBedroom',
+  'bedroom2',
+  'bedroom3',
+  'kitchen',
+  'bath1',
+  'bath2',
+  'householdShelter',
+  'serviceYard',
+];
+
+/** Arrange every room in turn, threading each result into the next. */
+export function arrangeAllRooms(
+  allItems: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+  doors: Record<string, { open: boolean }>,
+): FurnitureItem[] {
+  return ARRANGEABLE_ROOMS.reduce((items, room) => arrangeRoom(room, items, catalog, doors), allItems);
+}
