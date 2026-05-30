@@ -48,6 +48,25 @@ describe('arrangeRoom', () => {
     }
   });
 
+  it('places a bed and a crib against walls in the same bedroom', () => {
+    // A parents' room: just a double bed + a crib (clear floor) → both should
+    // be placed validly (the crib snaps to a free wall, not left floating).
+    const mk = (defId: string, id: string, pos: [number, number]): FurnitureItem => ({
+      id,
+      defId,
+      position: pos,
+      rotation: 0,
+      props: { ...defaultParamProps(BUILTIN_CATALOG[defId] as never) },
+    });
+    const items = [mk('bed-double', 'test-bed', [7.1, 1.3]), mk('crib', 'test-crib', [7.5, 2.6])];
+    const out = arrangeRoom('bedroom3', items, BUILTIN_CATALOG, {});
+    assertValid(out);
+    for (const id of ['test-bed', 'test-crib']) {
+      const it = out.find((i) => i.id === id)!;
+      expect(roomOf(it.position)).toBe('bedroom3');
+    }
+  });
+
   it('leaves items in untouched rooms unchanged', () => {
     const base = hydrate();
     const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {});

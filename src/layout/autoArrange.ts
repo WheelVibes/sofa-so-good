@@ -521,6 +521,12 @@ function arrangeBedroom(
   for (const it of get(['storage', 'desk'])) {
     snapToWall(it, rect, [...otherEdges, bedEdge], world, ctx);
   }
+  // Additional beds / cribs (e.g. a cot in the parents' room) snap to a free
+  // wall — they aren't the primary bed so they read as a secondary sleeping
+  // station against the perimeter.
+  for (const extra of get(['bed']).slice(1)) {
+    snapToWall(extra, rect, [...otherEdges, bedEdge], world, ctx);
+  }
   placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx);
 
   // Foot-of-bed bench, centred at the foot if there's room.
