@@ -109,7 +109,8 @@ export type PrimitiveKind =
   | 'FloorVase'
   | 'HighChair'
   | 'ChangingTable'
-  | 'Bathtub';
+  | 'Bathtub'
+  | 'CoatRack';
 
 export type ParamField =
   | {

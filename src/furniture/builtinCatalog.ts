@@ -2405,6 +2405,31 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       },
     ],
   },
+  'coat-rack': {
+    kind: 'parametric',
+    id: 'coat-rack',
+    name: 'Coat rack',
+    category: 'storage',
+    keywords: ['hat stand', 'coat tree', 'hooks', 'entry'],
+    primitive: 'CoatRack',
+    defaultFootprint: { w: 0.4, d: 0.4, h: 1.8 },
+    verticalSpan: { base: 0, top: 1.85 },
+    paramSchema: [
+      { kind: 'number', key: 'height', label: 'Height', min: 1.5, max: 1.9, step: 0.05, default: 1.75, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#6f553f' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood tree' },
+          { value: 'metal', label: 'Metal stand' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0.2 },
+    ],
+  },
   'floor-vase': {
     kind: 'parametric',
     id: 'floor-vase',
