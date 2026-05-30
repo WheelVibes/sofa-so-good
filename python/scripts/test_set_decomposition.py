@@ -223,3 +223,13 @@ def test_discover_members_no_section_no_series():
         "<html><body></body></html>", "s69599421", series=None)
     assert members == []
     assert source == "included"
+
+
+def test_should_demote_when_fewer_than_two_members():
+    assert scraper.should_demote_set([{"article_number": "70595733"}]) is True
+    assert scraper.should_demote_set([]) is True
+
+
+def test_should_not_demote_with_two_members():
+    members = [{"article_number": "70595733"}, {"article_number": "40592745"}]
+    assert scraper.should_demote_set(members) is False

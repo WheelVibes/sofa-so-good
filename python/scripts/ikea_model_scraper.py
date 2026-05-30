@@ -653,6 +653,15 @@ async def discover_set_members(page, product_json, set_article):
     return members, source
 
 
+def should_demote_set(members):
+    """
+    A "set" with fewer than 2 resolved members is demoted to a normal product
+    (Part 1 §1.5): no recipe is written and the combined GLB IS downloaded
+    (it's the only model we have). Returns True to demote.
+    """
+    return len(members) < 2
+
+
 async def scrape_complete_with(page):
     """
     Scrape the 'Complete with' compatibility module.
