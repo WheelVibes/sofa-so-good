@@ -141,6 +141,10 @@ interface FurnitureDefBase {
   id: FurnitureType;
   name: string;
   category: FurnitureCategory;
+  /** Extra search terms / synonyms (e.g. "credenza" for a sideboard) so the
+   *  catalog search finds an item even when the user types a common alias.
+   *  Matched alongside the display name. */
+  keywords?: string[];
   /** Default Y-axis rotation in radians, applied at placement. */
   defaultRotation?: number;
   /**

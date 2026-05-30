@@ -37,7 +37,11 @@ export function CatalogDrawer() {
   const cards = q
     ? Object.values(byCategory)
         .flat()
-        .filter((d) => d.name.toLowerCase().includes(q))
+        .filter(
+          (d) =>
+            d.name.toLowerCase().includes(q) ||
+            d.keywords?.some((k) => k.toLowerCase().includes(q)),
+        )
     : byCategory[active] ?? [];
 
   return (
