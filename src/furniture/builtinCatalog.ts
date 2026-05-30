@@ -744,6 +744,46 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'feature-wall': {
+    kind: 'parametric',
+    id: 'feature-wall',
+    name: 'Feature wall (fluted)',
+    category: 'decor',
+    primitive: 'FeatureWall',
+    defaultFootprint: { w: 1.8, d: 0.08, h: 2.5 },
+    footprintParams: { w: 'width' },
+    mounted: true,
+    // A flush wall treatment — never blocks placing furniture in front of it.
+    noClip: true,
+    verticalSpan: { base: 0, top: 2.6 },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 3.4, step: 0.1, default: 1.8, unit: 'm' },
+      { kind: 'number', key: 'height', label: 'Height', min: 2.0, max: 2.7, step: 0.05, default: 2.5, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Colour', default: '#8a6b48' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Profile',
+        default: 'fluted',
+        options: [
+          { value: 'fluted', label: 'Fluted (half-round)' },
+          { value: 'slat', label: 'Slat (square)' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
   'tv-console': {
     kind: 'parametric',
     id: 'tv-console',
