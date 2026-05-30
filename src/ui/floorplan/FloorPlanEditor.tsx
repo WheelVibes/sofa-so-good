@@ -25,6 +25,8 @@ export function FloorPlanEditor() {
 
   const [tool, setTool] = useState<Tool>('select');
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null);
+  // Active room drag (select tool): grab offset from the room origin.
+  const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
   const [ew, ed] = plan.extent;
@@ -109,12 +111,21 @@ export function FloorPlanEditor() {
   };
 
   const onMove = (e: React.PointerEvent) => {
+    if (moving) {
+      const [wx, wz] = pointerWorld(e);
+      useStore.getState().updateRoom(moving.id, { origin: [snap(wx - moving.gx), snap(wz - moving.gz)] });
+      return;
+    }
     if (!draft) return;
     const [wx, wz] = pointerWorld(e);
     setDraft({ ...draft, x: wx, z: wz });
   };
 
   const onUp = () => {
+    if (moving) {
+      setMoving(null);
+      return;
+    }
     if (!draft) return;
     const st = useStore.getState();
     if (tool === 'wall') {
@@ -208,7 +219,18 @@ export function FloorPlanEditor() {
             {plan.rooms.map((r) => {
               const isSel = sel?.type === 'room' && sel.id === r.id;
               return (
-                <g key={r.id} onPointerDown={(e) => { if (tool === 'select') { e.stopPropagation(); a.setPlanSelection({ type: 'room', id: r.id }); } }}>
+                <g
+                  key={r.id}
+                  style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                  onPointerDown={(e) => {
+                    if (tool !== 'select') return;
+                    e.stopPropagation();
+                    const [wx, wz] = pointerWorld(e);
+                    a.setPlanSelection({ type: 'room', id: r.id });
+                    setMoving({ id: r.id, gx: wx - r.origin[0], gz: wz - r.origin[1] });
+                    svgRef.current?.setPointerCapture(e.pointerId);
+                  }}
+                >
                   <rect
                     x={toPx(r.origin[0])}
                     y={toPx(r.origin[1])}
