@@ -180,7 +180,17 @@ export function FloorPlanEditor() {
             </button>
           ))}
         </div>
-        <button onClick={() => a.newFloorPlan()} className="rounded bg-neutral-800 px-2.5 py-1 text-xs hover:bg-neutral-700">
+        <button
+          onClick={() => {
+            // Fresh apartment: clear the inherited furniture (undoable) so the
+            // new shell starts empty rather than full of the old layout.
+            a.pushHistory();
+            a.setItems([]);
+            a.newFloorPlan();
+          }}
+          title="Start a fresh, empty apartment shell"
+          className="rounded bg-neutral-800 px-2.5 py-1 text-xs hover:bg-neutral-700"
+        >
           New
         </button>
         <button onClick={() => a.resetFloorPlan()} className="rounded bg-neutral-800 px-2.5 py-1 text-xs hover:bg-neutral-700">
