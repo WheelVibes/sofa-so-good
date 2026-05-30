@@ -41,14 +41,19 @@ hex, no catalog entry, persists as a free string) and an expanded curated
 palette shipped; ~~plaid + dots weave motifs~~; ~~per-cushion accent pillow
 weave~~. Furniture colours were already free (inspector colour inputs).
 
-~~Layout presets~~ shipped — full-flat furnished+finished presets (Move-in
-Default + Scandi/Industrial/Tropical/Mono) via a Presets toolbar menu and
-applyLayoutPreset(); collision-valid by construction + tested. ~~Venetian
-blind~~, ~~per-fixture bulb temperature~~, ~~TV/monitor screen content~~,
-~~room area in Finish picker~~ also shipped.
+~~Layout presets~~ shipped — full-flat furnished+finished presets via a
+Presets toolbar menu + applyLayoutPreset(); collision-valid + tested. Two
+kinds: restyle-in-place (Move-in Default, Scandi, Warm Industrial, Cozy
+Tropical, Japandi, Coastal, Modern Mono) and **researched re-modelled L/D
+arrangements** (Open-Concept Lounge, Work-From-Home) via an explicit
+`livingDining` array in LayoutPreset. New asset for these: an **L-shaped
+sectional sofa** (sofa-lshape / SofaSectional). To add a researched layout:
+author `livingDining` entries + run the preset collision test. ~~Venetian
+blind~~, ~~bulb temperature~~, ~~TV/monitor screen content~~, ~~room area in
+Finish picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
 
 Possible further polish: heated-ladder towel rail; user-saved style presets;
-kitchen wall-cabinet front style to match base counters.
+more researched layouts (entertainer / minimalist).
 
 ## Realism & content pass (2026-05-29)
 
