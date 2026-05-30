@@ -1,11 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../../state/store';
-import { useCatalog } from '../../furniture/catalog';
+import { useCatalog, isIkeaDef } from '../../furniture/catalog';
 import { canPlace } from '../../collision/placement';
 import { planCollisionWalls, isDefaultPlan } from '../../floorplan/planGeometry';
 import { ParametricBody } from './ParametricBody';
 import { GltfBody } from './GltfBody';
+import { IkeaBody } from './IkeaBody';
 import { SourceLine } from './SourceLine';
 
 /** Panel shown when 2+ items are selected: count + align / distribute / bulk
@@ -258,6 +259,8 @@ export function InspectorPanel() {
       </div>
       {def.kind === 'parametric' ? (
         <ParametricBody item={item} def={def} />
+      ) : isIkeaDef(def) ? (
+        <IkeaBody item={item} def={def} />
       ) : (
         <GltfBody item={item} def={def} />
       )}
