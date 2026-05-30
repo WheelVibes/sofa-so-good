@@ -10,6 +10,7 @@ export function Monitor({ props }: { props: ParamProps }) {
   const deskH = readNum(props, 'deskHeight', 0.74);
   const screenColor = readStr(props, 'screenColor', '#10131a');
   const on = readStr(props, 'screen', 'off') === 'on';
+  const content = readStr(props, 'screenContent', 'landscape');
 
   const diagM = diagIn * 0.0254;
   const w = diagM * 0.87;
@@ -38,8 +39,8 @@ export function Monitor({ props }: { props: ParamProps }) {
         <planeGeometry args={[w - 0.02, h - 0.02]} />
         {on ? (
           <meshStandardMaterial
-            map={getScreenContent()}
-            emissiveMap={getScreenContent()}
+            map={getScreenContent(content)}
+            emissiveMap={getScreenContent(content)}
             emissive="#ffffff"
             emissiveIntensity={0.8}
             roughness={0.2}

@@ -9,6 +9,7 @@ export function FlatscreenTV({ props }: { props: ParamProps }) {
   const diagIn = Number(readStr(props, 'size', '55')) || 55;
   const screenColor = readStr(props, 'screenColor', '#0e1014');
   const on = readStr(props, 'screen', 'off') === 'on';
+  const content = readStr(props, 'screenContent', 'landscape');
   const wallMounted = readStr(props, 'mount', 'stand') === 'wall';
 
   // 16:9 panel from the diagonal (inches → metres).
@@ -46,8 +47,8 @@ export function FlatscreenTV({ props }: { props: ParamProps }) {
         <planeGeometry args={[w - 0.03, h - 0.03]} />
         {on ? (
           <meshStandardMaterial
-            map={getScreenContent()}
-            emissiveMap={getScreenContent()}
+            map={getScreenContent(content)}
+            emissiveMap={getScreenContent(content)}
             emissive="#ffffff"
             emissiveIntensity={0.85}
             roughness={0.2}

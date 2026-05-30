@@ -1243,6 +1243,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'on', label: 'On' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'screenContent',
+        label: 'On-screen',
+        default: 'landscape',
+        options: [
+          { value: 'landscape', label: 'Landscape' },
+          { value: 'sunset', label: 'Sunset' },
+          { value: 'abstract', label: 'Abstract' },
+        ],
+      },
     ],
   },
   'tv-wall': {
@@ -1288,6 +1299,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'on', label: 'On' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'screenContent',
+        label: 'On-screen',
+        default: 'landscape',
+        options: [
+          { value: 'landscape', label: 'Landscape' },
+          { value: 'sunset', label: 'Sunset' },
+          { value: 'abstract', label: 'Abstract' },
+        ],
+      },
     ],
   },
   monitor: {
@@ -1318,6 +1340,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'off', label: 'Off' },
           { value: 'on', label: 'On' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'screenContent',
+        label: 'On-screen',
+        default: 'landscape',
+        options: [
+          { value: 'landscape', label: 'Landscape' },
+          { value: 'sunset', label: 'Sunset' },
+          { value: 'abstract', label: 'Abstract' },
         ],
       },
     ],
