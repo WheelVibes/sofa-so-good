@@ -180,6 +180,8 @@ interface FurnitureDefBase {
   mounted?: boolean;
   /** Flat floor covering (e.g. a rug): never collides with walls or items. */
   noClip?: boolean;
+  /** Clear floor (m) the layout must preserve in front of this piece; from IKEA design semantics. */
+  frontClearance?: number;
 }
 
 export interface ParametricDef extends FurnitureDefBase {
@@ -261,7 +263,74 @@ export interface PackGltfDef extends FurnitureDefBase {
   sourceUrl: string;
 }
 
-export type GltfDef = BuiltinGltfDef | UserGltfDef | RemoteGltfDef | PackGltfDef;
+export interface IkeaGlbMaterial {
+  name: string;          // glb_materials[].name → finish-target key
+  hex: string;
+  metallic: number;
+  roughness: number;
+  textured: boolean;
+  sampledHex?: string;   // representative colour for the swatch
+}
+
+export interface IkeaVariant {
+  finish: string;                 // raw scraper finish, e.g. "black-brown"
+  label: string;                  // display label (title-cased finish)
+  articleNumber: string;
+  url: string;
+  /** IDB key for this finish's GLB; null = not crawled (stub). */
+  assetId: string | null;
+  /** Runtime blob URL, hydrated from assetId (not persisted). */
+  runtimeUrl?: string;
+  price?: number;                 // price_numeral
+  currency?: string;
+  swatchHex?: string;             // sampled_hex of material_0, for the picker
+  footprint?: { w: number; d: number; h: number; anchorOffset: [number, number, number] };
+  glbMaterials: IkeaGlbMaterial[];
+}
+
+export interface IkeaProductInfo {
+  series?: string;
+  styleGroup?: string;
+  typeName?: string;              // scraper type_name — used by the compatibility resolver
+  designer?: string;
+  description?: string;
+  goodToKnow?: string[];
+  categoryHierarchy?: string[];
+  size?: string;
+  productMeasurements?: Record<string, string>;
+  materials?: { part: string; composition: string }[];
+  careInstructions?: string;
+  documents?: { name: string; url: string }[];
+  rating?: { value: number; max: number; count: number };
+  mainImageUrl?: string;
+  contextualImageUrl?: string;
+  categoryConfidence?: 'high' | 'low';
+}
+
+export interface IkeaCompatibility {
+  acceptsCategories: string[];
+  size?: string;
+}
+
+export interface IkeaGltfDef extends FurnitureDefBase {
+  kind: 'gltf';
+  source: 'ikea';
+  groupKey: string;
+  activeVariant: string;
+  variants: IkeaVariant[];
+  productInfo?: IkeaProductInfo;
+  compatibility?: IkeaCompatibility;
+  uploadedAt: string;
+  license: 'IKEA';
+  attribution: string;
+  sourceUrl?: string;
+  /** Uniform scale override applied at render time (same semantics as other GltfDef variants). */
+  scale?: number;
+  /** Runtime blob URL for the active variant's GLB; hydrated from the active variant's assetId (not persisted). */
+  runtimeUrl?: string;
+}
+
+export type GltfDef = BuiltinGltfDef | UserGltfDef | RemoteGltfDef | PackGltfDef | IkeaGltfDef;
 export type FurnitureDef = ParametricDef | GltfDef;
 
 export interface FurnitureItem {
