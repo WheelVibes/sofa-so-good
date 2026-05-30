@@ -35,6 +35,8 @@ export interface UiSlice {
   gridSize: number;
   /** Whether the budget / shopping-list panel is open. */
   budgetOpen: boolean;
+  /** Whether clearance checks (door-swing blocking) are shown. */
+  clearanceOn: boolean;
   /** True while recording the canvas to a downloadable video clip. */
   recording: boolean;
   /** Recently-used custom finish colours (hex), most-recent first. Ephemeral. */
@@ -69,6 +71,7 @@ export interface UiSlice {
   /** Cycle the grid cell size through the preset sizes. */
   cycleGridSize: () => void;
   toggleBudget: () => void;
+  toggleClearance: () => void;
   setRecording: (v: boolean) => void;
   /** Record a custom colour as recently-used (deduped, capped at 8). */
   pushRecentColor: (hex: string) => void;
@@ -87,6 +90,7 @@ export const UI_INITIAL: Pick<
   | 'snapEnabled'
   | 'gridSize'
   | 'budgetOpen'
+  | 'clearanceOn'
   | 'recording'
   | 'recentColors'
 > = {
@@ -101,6 +105,7 @@ export const UI_INITIAL: Pick<
   snapEnabled: false,
   gridSize: 0.5,
   budgetOpen: false,
+  clearanceOn: false,
   recording: false,
   recentColors: [],
 };
@@ -151,6 +156,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
       return { gridSize: GRID_SIZES[(i + 1) % GRID_SIZES.length] };
     }),
   toggleBudget: () => set((s) => ({ budgetOpen: !s.budgetOpen })),
+  toggleClearance: () => set((s) => ({ clearanceOn: !s.clearanceOn })),
   setRecording: (v) => set({ recording: v }),
   pushRecentColor: (hex) =>
     set((s) => ({

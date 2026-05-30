@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from 'react';
 import { createPortal } from 'react-dom';
 import { useStore, type CameraMode, PRESET_HOURS, type TimePreset } from '../state/store';
 import { useEffectiveHour } from '../scene/lighting/useEffectiveHour';
@@ -13,6 +13,7 @@ import { GraphicsSettings } from './GraphicsSettings';
 import { STYLE_PRESETS, applyStyle } from '../materials/stylePresets';
 import { LAYOUT_PRESETS } from '../furniture/layoutPresets';
 import { arrangeAllRooms } from '../layout/autoArrange';
+import { blockedDoorItems } from '../layout/clearance';
 import { canRecord } from '../scene/RecordController';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
@@ -88,6 +89,7 @@ export function Toolbar() {
           <TidyHomeButton />
           <StylePicker />
           <BudgetToggle />
+          <ChecksToggle />
           <Divider />
           <SaveButton />
           <LoadButton />
@@ -506,6 +508,27 @@ function BudgetToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Budget
+    </button>
+  );
+}
+
+/** Toggles clearance checks (door-swing blocking) + shows the live issue count. */
+function ChecksToggle() {
+  const on = useStore((s) => s.clearanceOn);
+  const toggle = useStore((s) => s.toggleClearance);
+  const items = useStore((s) => s.items);
+  const plan = useStore((s) => s.floorPlan);
+  const count = useMemo(() => blockedDoorItems(items, BUILTIN_CATALOG, plan).length, [items, plan]);
+  return (
+    <button
+      onClick={toggle}
+      title="Highlight furniture that blocks a door's swing"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${on ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      Checks
+      {count > 0 && (
+        <span className="ml-1 rounded-full bg-rose-500 px-1.5 text-[11px] font-semibold text-white">{count}</span>
+      )}
     </button>
   );
 }
