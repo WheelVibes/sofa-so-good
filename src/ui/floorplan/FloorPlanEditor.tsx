@@ -175,6 +175,7 @@ export function FloorPlanEditor() {
         <button onClick={() => a.resetFloorPlan()} className="rounded bg-neutral-800 px-2.5 py-1 text-xs hover:bg-neutral-700">
           Reset to HDB
         </button>
+        <PlanLibrary />
         <div className="ml-auto flex items-center gap-3">
           <span className="text-xs text-neutral-400">
             Total: <span className="font-semibold text-neutral-100">{total.toFixed(1)} m²</span> · {plan.rooms.length} rooms
@@ -305,6 +306,53 @@ export function FloorPlanEditor() {
         {/* Inspector */}
         <PlanInspector />
       </div>
+    </div>
+  );
+}
+
+/** Save / load / delete named apartments (the plan library). */
+function PlanLibrary() {
+  const saved = useStore((s) => s.savedPlans);
+  const plan = useStore((s) => s.floorPlan);
+  const a = useStore.getState();
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        onClick={() => a.saveCurrentPlan(plan.name)}
+        title="Save this apartment to your library"
+        className="rounded bg-emerald-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-600"
+      >
+        Save
+      </button>
+      {saved.length > 0 && (
+        <select
+          value=""
+          onChange={(e) => {
+            if (e.target.value) a.loadSavedPlan(e.target.value);
+          }}
+          title="Load a saved apartment"
+          className="rounded bg-neutral-800 px-1.5 py-1 text-xs text-neutral-200"
+        >
+          <option value="">Load… ({saved.length})</option>
+          {saved.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name}
+            </option>
+          ))}
+        </select>
+      )}
+      {saved.some((p) => p.name === plan.name) && (
+        <button
+          onClick={() => {
+            const m = saved.find((p) => p.name === plan.name);
+            if (m) a.deleteSavedPlan(m.id);
+          }}
+          title="Delete this saved apartment from the library"
+          className="rounded bg-neutral-800 px-2 py-1 text-xs text-red-300 hover:bg-neutral-700"
+        >
+          Delete
+        </button>
+      )}
     </div>
   );
 }

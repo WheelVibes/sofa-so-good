@@ -6,6 +6,7 @@ import { hydrate } from './state/storage/hydrate';
 import { startAutosave } from './state/storage/autosave';
 import { loadQualityPrefs, watchQualityPrefs } from './state/storage/qualityPrefs';
 import { loadEditorPrefs, watchEditorPrefs } from './state/storage/editorPrefs';
+import { loadFloorPlans, watchFloorPlans } from './state/storage/floorPlanStore';
 import { useStore } from './state/store';
 
 async function boot() {
@@ -16,6 +17,8 @@ async function boot() {
   watchQualityPrefs();
   loadEditorPrefs();
   watchEditorPrefs();
+  loadFloorPlans();
+  watchFloorPlans();
   startAutosave();
   // Dev-only: expose the store + auto-arranger for screenshot/automation.
   if (import.meta.env.DEV) {

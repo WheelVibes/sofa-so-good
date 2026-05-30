@@ -17,6 +17,11 @@ function planId(prefix: string): string {
   return `${prefix}-${Date.now().toString(36)}-${idCounter}`;
 }
 
+/** Deep clone a plan (plain serialisable data). */
+function clonePlan(p: FloorPlan): FloorPlan {
+  return JSON.parse(JSON.stringify(p)) as FloorPlan;
+}
+
 export interface FloorPlanSlice {
   /** The active, rendered floor plan. */
   floorPlan: FloorPlan;
@@ -24,6 +29,14 @@ export interface FloorPlanSlice {
   floorPlanEditing: boolean;
   /** Currently-selected element in the editor. */
   planSelection: PlanSelection;
+  /** Saved named floor plans (the apartment library). */
+  savedPlans: FloorPlan[];
+  /** Save the active plan into the library (new entry; returns its id). */
+  saveCurrentPlan: (name?: string) => string;
+  /** Load a saved plan as the active plan (deep-copied). */
+  loadSavedPlan: (id: string) => void;
+  /** Remove a saved plan from the library. */
+  deleteSavedPlan: (id: string) => void;
 
   setFloorPlan: (plan: FloorPlan) => void;
   setFloorPlanEditing: (open: boolean) => void;
@@ -51,11 +64,12 @@ export interface FloorPlanSlice {
 
 export const FLOOR_PLAN_INITIAL: Pick<
   FloorPlanSlice,
-  'floorPlan' | 'floorPlanEditing' | 'planSelection'
+  'floorPlan' | 'floorPlanEditing' | 'planSelection' | 'savedPlans'
 > = {
   floorPlan: buildDefaultPlan(),
   floorPlanEditing: false,
   planSelection: null,
+  savedPlans: [],
 };
 
 /** A minimal starter plan: one 5×4 m room inside a 5.4×4.4 m external shell. */
@@ -83,6 +97,29 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   ...FLOOR_PLAN_INITIAL,
 
   setFloorPlan: (plan) => set({ floorPlan: plan }),
+  saveCurrentPlan: (name) => {
+    const id = planId('plan');
+    let savedId = id;
+    set((s) => {
+      const snapshot: FloorPlan = { ...clonePlan(s.floorPlan), id, name: name ?? s.floorPlan.name };
+      // Replace an existing library entry with the same name, else append.
+      const existing = s.savedPlans.findIndex((p) => p.name === snapshot.name);
+      if (existing >= 0) {
+        savedId = s.savedPlans[existing].id;
+        const next = s.savedPlans.slice();
+        next[existing] = { ...snapshot, id: savedId };
+        return { savedPlans: next };
+      }
+      return { savedPlans: [...s.savedPlans, snapshot] };
+    });
+    return savedId;
+  },
+  loadSavedPlan: (id) =>
+    set((s) => {
+      const found = s.savedPlans.find((p) => p.id === id);
+      return found ? { floorPlan: clonePlan(found), planSelection: null } : {};
+    }),
+  deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
   setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
   toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
   setPlanSelection: (sel) => set({ planSelection: sel }),
