@@ -4,6 +4,9 @@ import { Box3, Color, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { SkeletonUtils } from 'three-stdlib';
 import type { Object3D } from 'three';
 import { meshMatchesTarget } from './gltf/finishTargets';
+import { useStore } from '../state/store';
+import { resolveLodUrlSync, prewarmLod, baseUrl } from './gltf/lod';
+import { applyTextureBudget } from './gltf/textureBudget';
 
 /** Module-level bbox cache: GLB url → axis-aligned size in metres at scale=1,
  *  plus the local-space center offset of that bbox. Many GLBs are not
@@ -58,7 +61,15 @@ interface GltfModelProps {
  * applied to keep the common case (no tint) cheap.
  */
 export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelProps) {
-  const gltf = useGLTF(url);
+  const qualityTier = useStore((s) => s.qualityTier);
+  // Kick the existence probe outside render so a future render upgrades to the
+  // variant url; harmless/no-op if already cached or on 'high'.
+  useEffect(() => {
+    void prewarmLod(url, qualityTier);
+  }, [url, qualityTier]);
+  const resolvedUrl = resolveLodUrlSync(url, qualityTier);
+  const servingOriginal = resolvedUrl === url;
+  const gltf = useGLTF(resolvedUrl);
   const cloned = useMemo(
     () => SkeletonUtils.clone(gltf.scene as unknown as Object3D),
     [gltf.scene],
@@ -67,7 +78,8 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
 
   // Cache footprint once.
   useEffect(() => {
-    if (FOOTPRINT_CACHE.has(url)) return;
+    const fpKey = baseUrl(url);
+    if (FOOTPRINT_CACHE.has(fpKey)) return;
     // Compute bbox from visible meshes only. setFromObject traverses every
     // descendant including lights, empties, collision proxies, and hidden
     // helper geometry that some GLBs ship with — those can inflate the
@@ -91,7 +103,7 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
     }
     box.getSize(size);
     box.getCenter(center);
-    FOOTPRINT_CACHE.set(url, {
+    FOOTPRINT_CACHE.set(fpKey, {
       w: Math.max(0.05, size.x),
       d: Math.max(0.05, size.z),
       h: Math.max(0.05, size.y),
@@ -152,6 +164,14 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
       }
     });
   }, [cloned, finishOverrides]);
+
+  // Runtime texture-budget fallback: only when we're serving the original asset
+  // (no offline variant exists) on a non-high tier.
+  useEffect(() => {
+    if (servingOriginal && qualityTier !== 'high') {
+      applyTextureBudget(cloned, qualityTier);
+    }
+  }, [cloned, servingOriginal, qualityTier]);
 
   return <primitive object={cloned} scale={scale} dispose={null} />;
 }
