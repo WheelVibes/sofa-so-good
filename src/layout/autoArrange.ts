@@ -34,6 +34,7 @@ export type ArrangeRole =
   | 'deskChair'
   | 'plant'
   | 'floorLamp'
+  | 'barCart'
   | 'shoe'
   | 'mounted'
   | 'ceiling'
@@ -73,6 +74,7 @@ const ROLE: Record<string, ArrangeRole> = {
   desk: 'desk',
   'office-chair': 'deskChair',
   'potted-plant': 'plant',
+  'bar-cart': 'barCart',
   'floor-lamp': 'floorLamp',
   'standing-fan': 'floorLamp',
   bench: 'lowTable',
@@ -466,7 +468,7 @@ function arrangeLiving(
   for (const it of get(['shoe'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx);
 
   // 6. Plants + floor lamps + armchairs → corners / nearest wall.
-  tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx);
+  tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx);
   for (const it of get(['armchair'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx);
   void cx;
 }
@@ -528,7 +530,7 @@ function arrangeBedroom(
     snapToWall(b, rect, [nearestEdge(b.position, rect)], world, ctx);
   }
 
-  tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx);
+  tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx);
 }
 
 /** Place each desk chair just in front of its nearest desk, facing it (so a
@@ -571,7 +573,7 @@ function arrangeGeneric(rect: Rect, get: Getter, world: FurnitureItem[], ctx: Ct
   for (const it of get(['seating', 'armchair', 'diningChair'])) {
     snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx);
   }
-  tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx);
+  tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx);
 }
 
 /** Rooms the "Tidy home" action arranges (every furnished interior room;
