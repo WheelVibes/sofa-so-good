@@ -535,6 +535,34 @@ def quantity_for_role(role, type_name, included_count):
     return 1
 
 
+# A member's role in the set. type_name keywords are checked first (most
+# specific), then the functional design.category as a fallback.
+_ROLE_TYPE_RULES = [
+    (re.compile(r"\bstool\b", re.I), "stool"),
+    (re.compile(r"\bbench\b", re.I), "bench"),
+    (re.compile(r"\bchair\b", re.I), "chair"),
+    (re.compile(r"\b(table|desk)\b", re.I), "table"),
+]
+# Functional category (from categorize.py) -> role, when type_name is unhelpful.
+_ROLE_CATEGORY_FALLBACK = {
+    "tables": "table",
+    "seating": "chair",
+}
+
+
+def classify_member_role(design_category, type_name):
+    """
+    Classify a set member as one of: table | chair | bench | stool | other.
+    Prefers explicit type_name keywords; falls back to the member's functional
+    design.category (tables->table, seating->chair); else "other".
+    """
+    t = type_name or ""
+    for pattern, role in _ROLE_TYPE_RULES:
+        if pattern.search(t):
+            return role
+    return _ROLE_CATEGORY_FALLBACK.get(design_category, "other")
+
+
 async def scrape_complete_with(page):
     """
     Scrape the 'Complete with' compatibility module.

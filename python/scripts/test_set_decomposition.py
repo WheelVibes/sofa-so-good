@@ -119,3 +119,35 @@ def test_quantity_table_default_one():
 
 def test_quantity_default_when_nothing_matches():
     assert scraper.quantity_for_role("other", None, None) == 1
+
+
+# ---------------------------------------------------------------------------
+# Task 5: classify_member_role
+# ---------------------------------------------------------------------------
+
+def test_role_table_from_type_name():
+    assert scraper.classify_member_role("tables", "gateleg table") == "table"
+
+
+def test_role_chair_from_type_name():
+    assert scraper.classify_member_role("seating", "folding chair") == "chair"
+
+
+def test_role_bench():
+    assert scraper.classify_member_role("seating", "bench") == "bench"
+
+
+def test_role_stool():
+    assert scraper.classify_member_role("seating", "bar stool") == "stool"
+
+
+def test_role_chair_from_seating_category_fallback():
+    assert scraper.classify_member_role("seating", None) == "chair"
+
+
+def test_role_table_from_tables_category_fallback():
+    assert scraper.classify_member_role("tables", None) == "table"
+
+
+def test_role_other_when_unknown():
+    assert scraper.classify_member_role("storage", "sideboard") == "other"
