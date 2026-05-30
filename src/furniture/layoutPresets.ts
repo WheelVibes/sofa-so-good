@@ -233,9 +233,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
     style: {},
     livingDining: [
       // ── Compact lounge (north) facing the east media wall ──
-      { id: 'wfh-sofa', defId: 'sofa-2seat', position: [10.5, 2.2], rotation: 0, props: { width: 1.6, depth: 0.9, color: '#8a9aa0', material: 'fabric', pattern: 'plain', pillowColor: '#3b5a7d' } },
-      { id: 'wfh-rug', defId: 'rug', position: [10.7, 3.3], rotation: 0, props: { width: 1.9, depth: 1.5, color: '#dfd8c8', borderColor: '#5a4a32', pattern: 'striped' } },
-      { id: 'wfh-coffee', defId: 'coffee-table', position: [10.7, 3.3], rotation: 0, props: { shape: 'round', width: 0.9, depth: 0.9, color: '#9a6b3f', finish: 'wood' } },
+      { id: 'wfh-sofa', defId: 'sofa-2seat', position: [9.65, 2.5], rotation: Math.PI / 2, props: { width: 1.6, depth: 0.9, color: '#8a9aa0', material: 'fabric', pattern: 'plain', pillowColor: '#3b5a7d' } },
+      { id: 'wfh-rug', defId: 'rug', position: [11.0, 2.5], rotation: 0, props: { width: 1.7, depth: 1.7, color: '#dfd8c8', borderColor: '#5a4a32', pattern: 'striped' } },
+      { id: 'wfh-coffee', defId: 'coffee-table', position: [11.0, 2.5], rotation: 0, props: { shape: 'round', width: 0.9, depth: 0.9, color: '#9a6b3f', finish: 'wood' } },
       { id: 'wfh-media', defId: 'tv-console', position: [12.2, 2.5], rotation: -Math.PI / 2, props: { width: 1.6, base: 'legs', color: '#9a6b3f', finish: 'wood' } },
       { id: 'wfh-tv', defId: 'tv-wall', position: [12.48, 2.5], rotation: -Math.PI / 2, props: { size: '55', mount: 'wall', mountHeight: 1.3, screen: 'on', screenContent: 'abstract' } },
       { id: 'wfh-cove', defId: 'cove-light', position: [12.5, 2.6], rotation: -Math.PI / 2, props: { length: 3.4, mountHeight: 2.38 } },
@@ -247,7 +247,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       { id: 'wfh-chair', defId: 'office-chair', position: [10.3, 4.4], rotation: -Math.PI / 2, props: { style: 'mesh', color: '#3a3f45' } },
       { id: 'wfh-monitor', defId: 'monitor', position: [9.35, 4.4], rotation: Math.PI / 2, props: { screen: 'on', screenContent: 'abstract' } },
       { id: 'wfh-shelf', defId: 'bookshelf', position: [9.35, 5.7], rotation: Math.PI / 2, props: { width: 0.9, height: 1.8, shelfCount: 5, color: '#caa46a', finish: 'wood' } },
-      { id: 'wfh-plant', defId: 'potted-plant', position: [9.42, 3.35], rotation: 0, props: { type: 'palm', size: 'large', leafColor: '#4a7a44' } },
+      { id: 'wfh-plant', defId: 'potted-plant', position: [12.1, 5.2], rotation: 0, props: { type: 'palm', size: 'large', leafColor: '#4a7a44' } },
       // ── Round dining (south alcove) ──
       { id: 'wfh-dining', defId: 'dining-table-4', position: [10.95, 6.0], rotation: 0, props: { seats: '4', shape: 'round', topColor: '#9a6b3f', legColor: '#6b4f34' } },
       { id: 'wfh-dc-1', defId: 'dining-chair', position: [10.95, 5.25], rotation: 0, props: { style: 'wood', seatColor: '#9a6b3f' } },
@@ -299,13 +299,13 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
     style: {},
     // Subset of the proven default positions (omits clutter) → always valid.
     livingDining: [
-      { id: 'mn-sofa', defId: 'sofa-3seat', position: [10.65, 2.45], rotation: 0, props: { armStyle: 'low', color: '#dad7cf', material: 'fabric', accentPillows: 'none' } },
+      { id: 'mn-sofa', defId: 'sofa-3seat', position: [9.6, 2.55], rotation: Math.PI / 2, props: { armStyle: 'low', color: '#dad7cf', material: 'fabric', accentPillows: 'none' } },
       { id: 'mn-console', defId: 'tv-console', position: [12.1, 2.45], rotation: -Math.PI / 2, props: { width: 1.6, base: 'plinth', color: '#cdb696', finish: 'wood' } },
       { id: 'mn-tv', defId: 'tv-wall', position: [12.45, 2.45], rotation: -Math.PI / 2, props: { size: '55', mount: 'wall', mountHeight: 1.3, screen: 'off' } },
       { id: 'mn-cove', defId: 'cove-light', position: [12.5, 2.6], rotation: -Math.PI / 2, props: { length: 3.4, mountHeight: 2.38 } },
-      { id: 'mn-rug', defId: 'rug', position: [10.65, 3.55], rotation: 0, props: { width: 2.2, depth: 1.5, color: '#e6e0d2', borderColor: '#d8cdb8', pattern: 'plain' } },
-      { id: 'mn-coffee', defId: 'coffee-table', position: [10.65, 3.55], rotation: 0, props: { shape: 'oval', width: 1.0, depth: 0.55, color: '#cdb696', finish: 'wood' } },
-      { id: 'mn-fan', defId: 'ceiling-fan', position: [10.65, 3.55], rotation: 0, props: {} },
+      { id: 'mn-rug', defId: 'rug', position: [10.95, 2.55], rotation: 0, props: { width: 2.0, depth: 1.8, color: '#e6e0d2', borderColor: '#d8cdb8', pattern: 'plain' } },
+      { id: 'mn-coffee', defId: 'coffee-table', position: [10.95, 2.55], rotation: Math.PI / 2, props: { shape: 'oval', width: 1.0, depth: 0.55, color: '#cdb696', finish: 'wood' } },
+      { id: 'mn-fan', defId: 'ceiling-fan', position: [10.95, 2.55], rotation: 0, props: {} },
       { id: 'mn-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
       { id: 'mn-curtain', defId: 'curtains', position: [10.85, 1.5], rotation: 0, props: { width: 2.8, height: 2.3, color: '#e6e0d2' } },
       { id: 'mn-dining', defId: 'dining-table-4', position: [10.55, 5.2], rotation: 0, props: { seats: '4', shape: 'round', topColor: '#cdb696', legColor: '#b39a72' } },
