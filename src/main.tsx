@@ -8,8 +8,12 @@ import { loadQualityPrefs, watchQualityPrefs } from './state/storage/qualityPref
 import { loadEditorPrefs, watchEditorPrefs } from './state/storage/editorPrefs';
 import { loadFloorPlans, watchFloorPlans } from './state/storage/floorPlanStore';
 import { useStore } from './state/store';
+import { registerGltfDecoders } from './furniture/gltf/decoders';
 
 async function boot() {
+  // Wire the Draco/KTX2/meshopt decoders into the shared drei useGLTF loader
+  // before any model is requested, so compressed GLBs decode correctly.
+  registerGltfDecoders();
   // Pull user assets + autosaved layout before React paints. Failures
   // are silent; the app falls back to default layout via App.tsx.
   await hydrate();
