@@ -21,8 +21,11 @@ export interface Grade {
 
 /** Map sun altitude → exposure + white-balance warmth. */
 export function grade(altitude: number): Grade {
+  // Smoothstep ramps from civil dusk (~-0.12 rad) to mid-morning (~0.5 rad).
   const day = smoothstep(-0.12, 0.5, altitude);
+  // Exposure spans 0.78 (night floor) → 1.20 (full day), clamped to [0.7, 1.25].
   const exposure = clamp(0.78 + day * 0.42, 0.7, 1.25);
+  // The 0.08 rad offset places peak warmth ~5° above the true horizon (golden-hour knee).
   const horizonBand = 1 - smoothstep(0.0, 0.35, Math.abs(altitude - 0.08));
   const warmth = clamp(0.2 + horizonBand * 0.6, 0, 1);
   return { exposure, warmth };
@@ -32,6 +35,7 @@ export function grade(altitude: number): Grade {
 export const SOFT_SHADOW = {
   radius: 4,
   normalBias: 0.04,
+  // Small negative depth bias counteracts self-shadowing/acne on PCFSoftShadowMap.
   bias: -0.0002,
 } as const;
 

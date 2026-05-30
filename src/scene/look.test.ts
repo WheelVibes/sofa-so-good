@@ -20,12 +20,17 @@ describe('grade', () => {
 
   it('white balance is warmer (lower kelvin factor) near the horizon', () => {
     expect(grade(0.03).warmth).toBeGreaterThan(grade(1.2).warmth);
+    // peak warmth sits just above the horizon, not at night or midday
+    expect(grade(0.08).warmth).toBeGreaterThan(grade(0.03).warmth);
+    expect(grade(0.08).warmth).toBeGreaterThan(grade(1.2).warmth);
   });
 
   it('exposes tuned shadow + AO constants', () => {
     expect(SOFT_SHADOW.radius).toBeGreaterThan(0);
     expect(SOFT_SHADOW.normalBias).toBeGreaterThan(0);
+    expect(SOFT_SHADOW.bias).toBeLessThan(0);
     expect(AO.aoRadius).toBeGreaterThan(0);
+    expect(AO.distanceFalloff).toBeGreaterThan(0);
     expect(AO.intensity).toBeGreaterThan(0);
   });
 });
