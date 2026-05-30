@@ -6,6 +6,8 @@ import type { ParamProps } from '../types';
 export function Shower({ props }: { props: ParamProps }) {
   const size = readNum(props, 'size', 0.9);
   const trayColor = readStr(props, 'trayColor', '#eceae6');
+  const style = readStr(props, 'style', 'corner');
+  const corner = style === 'corner';
   const h = 2.0;
   const half = size / 2;
   const glass = { color: '#bcd4e6', roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22 };
@@ -28,19 +30,31 @@ export function Shower({ props }: { props: ParamProps }) {
         <planeGeometry args={[size, h]} />
         <meshStandardMaterial {...glass} side={2} />
       </mesh>
-      <mesh position={[0, h / 2, half]}>
-        <planeGeometry args={[size, h]} />
-        <meshStandardMaterial {...glass} side={2} />
-      </mesh>
+      {/* Second panel only on the corner enclosure; walk-in leaves +Z open */}
+      {corner && (
+        <mesh position={[0, h / 2, half]}>
+          <planeGeometry args={[size, h]} />
+          <meshStandardMaterial {...glass} side={2} />
+        </mesh>
+      )}
       {/* Glass frame edges */}
       <mesh position={[half, h, 0]}>
         <boxGeometry args={[0.02, 0.02, size]} />
         <meshStandardMaterial {...chrome} />
       </mesh>
-      <mesh position={[0, h, half]}>
-        <boxGeometry args={[size, 0.02, 0.02]} />
-        <meshStandardMaterial {...chrome} />
-      </mesh>
+      {corner && (
+        <mesh position={[0, h, half]}>
+          <boxGeometry args={[size, 0.02, 0.02]} />
+          <meshStandardMaterial {...chrome} />
+        </mesh>
+      )}
+      {/* Walk-in: a stabiliser bar from the screen top to the back wall */}
+      {!corner && (
+        <mesh position={[half, h - 0.05, -half + 0.1]}>
+          <boxGeometry args={[0.02, 0.02, size - 0.2]} />
+          <meshStandardMaterial {...chrome} />
+        </mesh>
+      )}
       {/* Riser rail on the −X/−Z corner wall */}
       <mesh castShadow position={[-half + 0.05, 1.1, -half + 0.05]}>
         <cylinderGeometry args={[0.015, 0.015, 1.2, 10]} />

@@ -1027,6 +1027,16 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     paramSchema: [
       { kind: 'number', key: 'size', label: 'Size', min: 0.8, max: 1.2, step: 0.05, default: 0.9, unit: 'm' },
       { kind: 'color', key: 'trayColor', label: 'Tray', default: '#eceae6' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Enclosure',
+        default: 'corner',
+        options: [
+          { value: 'corner', label: 'Corner (2 panels)' },
+          { value: 'walkin', label: 'Walk-in screen' },
+        ],
+      },
     ],
   },
   'towel-rail': {
