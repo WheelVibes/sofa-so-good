@@ -46,36 +46,124 @@ function getFabricNormal(): Texture {
   return fabricNormal;
 }
 
-let woodMaps: { albedo: Texture; normal: Texture } | null = null;
-function getWoodMaps(): { albedo: Texture; normal: Texture } {
+let woodMaps: { albedo: Texture; normal: Texture; rough: Texture } | null = null;
+function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   if (woodMaps) return woodMaps;
-  const grain = makeFbm(7777, 4, 4);
-  const fine = makeFbm(0x51ed, 3, 26);
+  // Layered noise: low-freq warp bends the growth rings into cathedral
+  // arches; mid-freq carries figure; high-freq scratches the surface and
+  // draws open pores along the grain.
+  const warpN = makeFbm(7777, 4, 3);
+  const figureN = makeFbm(0x51ed, 4, 10);
+  const poreN = makeFbm(0x2c7a, 3, 64);
+  const flecks = makeFbm(0x91b3, 2, 40);
   const albedo = new Uint8ClampedArray(N * N * 4);
   const height = new Float32Array(N * N);
+  const rough = new Uint8ClampedArray(N * N * 4);
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const u = x / N;
       const v = y / N;
-      // Bands running along x (grain), warped by low-freq noise.
-      const warp = grain(u * 1.2, v * 1.5) - 0.5;
-      const band = Math.abs(Math.sin((v + warp * 0.5) * Math.PI * 7));
-      const fg = fine(u * 3, v);
-      // White-ish luminance so material.color tints it into real wood.
-      const lum = clamp01(0.96 - band * 0.18 + (fg - 0.5) * 0.07);
+      // Warp the ring coordinate so bands are not perfectly straight; the
+      // strong x-warp makes flatsawn "cathedral" arching down the board.
+      const warp = (warpN(u * 1.3, v * 1.0) - 0.5) * 1.6;
+      const ring = (u + warp) * Math.PI * 9;
+      // Latewood lines: sharp dark bands where the ring turns over. Raising
+      // the sine to a power tightens the dark line so earlywood stays pale.
+      const s = Math.abs(Math.sin(ring));
+      const late = Math.pow(s, 3.5); // 0 earlywood … 1 dark latewood line
+      // Long open pores streaking along the grain (the v axis).
+      const pore = clamp01((poreN(u * 8, v * 1.2) - 0.55) * 4);
+      const figure = (figureN(u * 2, v * 2.5) - 0.5) * 0.12;
+      const fleck = Math.max(0, flecks(u * 6, v * 6) - 0.62) * 0.4;
+      // White-ish luminance so material.color tints it into real wood; the
+      // latewood lines and pores darken it, flecks lighten it.
+      const lum = clamp01(0.99 - late * 0.34 - pore * 0.12 + figure + fleck);
       const i = y * N + x;
       const c = Math.round(lum * 255);
       albedo[i * 4] = c;
       albedo[i * 4 + 1] = c;
       albedo[i * 4 + 2] = c;
       albedo[i * 4 + 3] = 255;
-      height[i] = band * 0.5 + fg * 0.2;
+      // Pores + latewood sit slightly proud/recessed for a tactile normal.
+      height[i] = late * 0.6 + pore * 0.5 + figure;
+      // Open pores and latewood scatter more (rougher); earlywood is smoother.
+      const r = clamp01(0.42 + late * 0.28 + pore * 0.22 - fleck * 0.3);
+      const rc = Math.round(r * 255);
+      rough[i * 4] = rough[i * 4 + 1] = rough[i * 4 + 2] = rc;
+      rough[i * 4 + 3] = 255;
     }
   }
   const a = canvasFrom(albedo);
   const n = canvasFrom(heightToNormalRGBA(height, N, 3));
-  woodMaps = { albedo: a, normal: n };
+  const rg = canvasFrom(rough);
+  woodMaps = { albedo: a, normal: n, rough: rg };
   return woodMaps;
+}
+
+// ---- Stone / marble -------------------------------------------------------
+// Turbulent veins on a pale ground. Like wood, the albedo is near-white
+// luminance so the material colour tints it (white marble, green, etc.).
+let marbleMaps: { albedo: Texture; normal: Texture } | null = null;
+function getMarbleMaps(): { albedo: Texture; normal: Texture } {
+  if (marbleMaps) return marbleMaps;
+  const baseN = makeFbm(0x5a17, 5, 4);
+  const veinWarp = makeFbm(0x7d31, 4, 6);
+  const grime = makeFbm(0x1133, 4, 20);
+  const albedo = new Uint8ClampedArray(N * N * 4);
+  const height = new Float32Array(N * N);
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N;
+      const v = y / N;
+      // A directional coordinate warped by turbulence; veins fall where the
+      // warped sine crosses zero, giving thin meandering cracks.
+      const warp = (veinWarp(u * 2, v * 2) - 0.5) * 2.2;
+      const field = Math.sin((u * 2.2 + v * 0.6 + warp) * Math.PI * 2.5);
+      const vein = clamp01(1 - Math.abs(field) * 7); // thin ridge near 0
+      // Secondary fainter vein network at a different angle.
+      const warp2 = (baseN(u * 3 + 4, v * 3) - 0.5) * 2.5;
+      const field2 = Math.sin((v * 1.8 - u * 0.4 + warp2) * Math.PI * 3.1);
+      const vein2 = clamp01(1 - Math.abs(field2) * 11) * 0.5;
+      const mottle = (grime(u * 4, v * 4) - 0.5) * 0.06;
+      const lum = clamp01(0.97 - vein * 0.4 - vein2 * 0.22 + mottle);
+      const i = y * N + x;
+      const c = Math.round(lum * 255);
+      albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = c;
+      albedo[i * 4 + 3] = 255;
+      height[i] = vein * 0.4 + vein2 * 0.2;
+    }
+  }
+  const a = canvasFrom(albedo);
+  a.colorSpace = SRGBColorSpace;
+  const n = canvasFrom(heightToNormalRGBA(height, N, 1.6));
+  marbleMaps = { albedo: a, normal: n };
+  return marbleMaps;
+}
+
+/** Polished stone / marble material tinted to `color` (near-white veins on a
+ *  tinted ground). Low roughness + faint metalness give a polished sheen;
+ *  `rough` overrides for honed/matte stone. */
+export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshStandardMaterial {
+  const key = `stone:${color}:${repeat}:${rough.toFixed(2)}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const maps = getMarbleMaps();
+  const map = maps.albedo.clone();
+  const normal = maps.normal.clone();
+  map.repeat.set(repeat, repeat);
+  normal.repeat.set(repeat, repeat);
+  map.needsUpdate = normal.needsUpdate = true;
+  const [r, g, b] = hexToRgb(color);
+  const m = new MeshStandardMaterial({
+    color: `rgb(${r},${g},${b})`,
+    roughness: rough,
+    metalness: 0.04,
+    map,
+    normalMap: normal,
+  });
+  m.normalScale.set(0.3, 0.3);
+  cache.set(key, m);
+  return m;
 }
 
 let leatherNormal: Texture | null = null;
@@ -342,6 +430,8 @@ export function getPaintedMaterial(color: string, gloss = false, rough?: number)
 export function getSurfaceMaterial(kind: string, color: string, repeat = 1, sheen = 0): MeshStandardMaterial {
   if (kind === 'painted') return getPaintedMaterial(color, false, sheen > 0 ? sheenRough(0.72, sheen) : undefined);
   if (kind === 'gloss') return getPaintedMaterial(color, true, sheen > 0 ? sheenRough(0.16, sheen) : undefined);
+  if (kind === 'marble' || kind === 'stone')
+    return getStoneMaterial(color, repeat, sheen > 0 ? sheenRough(0.12, sheen) : 0.12);
   return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5);
 }
 
@@ -355,9 +445,11 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
   // Clone so per-repeat tiling doesn't clobber the shared source.
   const map = maps.albedo.clone();
   const normal = maps.normal.clone();
+  const roughMap = maps.rough.clone();
   map.repeat.set(repeat, repeat);
   normal.repeat.set(repeat, repeat);
-  map.needsUpdate = normal.needsUpdate = true;
+  roughMap.repeat.set(repeat, repeat);
+  map.needsUpdate = normal.needsUpdate = roughMap.needsUpdate = true;
   const [r, g, b] = hexToRgb(color);
   const m = new MeshStandardMaterial({
     color: `rgb(${r},${g},${b})`,
@@ -365,8 +457,21 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
     metalness: 0.04,
     map,
     normalMap: normal,
+    roughnessMap: roughMap,
   });
-  m.normalScale.set(0.4, 0.4);
+  m.normalScale.set(0.55, 0.55);
+  cache.set(key, m);
+  return m;
+}
+
+/** Cached plain solid material (metal pole, plastic body, etc.) so primitives
+ *  can pass a real `Material` instance to a `material=` prop instead of a plain
+ *  props object (which three.js silently ignores). */
+export function getSolidMaterial(color: string, roughness: number, metalness: number): MeshStandardMaterial {
+  const key = `solid:${color}:${roughness.toFixed(2)}:${metalness.toFixed(2)}`;
+  const hit = cache.get(key);
+  if (hit) return hit;
+  const m = new MeshStandardMaterial({ color, roughness, metalness });
   cache.set(key, m);
   return m;
 }

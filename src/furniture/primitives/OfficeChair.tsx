@@ -43,11 +43,31 @@ export function OfficeChair({ props }: { props: ParamProps }) {
           </group>
         );
       })}
-      {/* Gas lift */}
-      <mesh castShadow position={[0, seatH - 0.12, 0]}>
-        <cylinderGeometry args={[0.03, 0.03, seatH - 0.2, 12]} />
-        <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
-      </mesh>
+      {/* Gas lift — runs from the base hub (~0.06) up to the seat underside */}
+      {(() => {
+        const liftBottom = 0.05;
+        const liftTop = seatH - 0.05;
+        const liftH = liftTop - liftBottom;
+        return (
+          <>
+            {/* Telescoping column */}
+            <mesh castShadow position={[0, (liftBottom + liftTop) / 2, 0]}>
+              <cylinderGeometry args={[0.03, 0.032, liftH, 16]} />
+              <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
+            </mesh>
+            {/* Black plastic shroud over the lower half */}
+            <mesh castShadow position={[0, liftBottom + liftH * 0.28, 0]}>
+              <cylinderGeometry args={[0.04, 0.045, liftH * 0.5, 16]} />
+              <meshStandardMaterial color="#1d1f22" roughness={0.5} metalness={0.2} />
+            </mesh>
+            {/* Central hub the legs radiate from */}
+            <mesh castShadow position={[0, 0.055, 0]}>
+              <cylinderGeometry args={[0.05, 0.055, 0.06, 16]} />
+              <meshStandardMaterial color="#1d1f22" roughness={0.5} metalness={0.2} />
+            </mesh>
+          </>
+        );
+      })()}
       {/* Seat (contoured padded cushion) */}
       <RoundedBox args={[seatW, 0.11, seatD]} radius={0.03} smoothness={3} castShadow position={[0, seatH, 0]} material={mat} />
 

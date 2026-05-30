@@ -22,7 +22,7 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
   const overhang = 0.28;
   const cabDepth = depth - overhang;
   const cabMat = getSurfaceMaterial(finish, color, 1.2, sheen);
-  const stone = getSurfaceMaterial('gloss', worktopColor, 0.8, 0.5);
+  const stone = getSurfaceMaterial('marble', worktopColor, 1.4, 0.55);
   const handle = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const;
   const metal = { color: '#cfd2d6', roughness: 0.2, metalness: 0.85 } as const;
 

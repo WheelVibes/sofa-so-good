@@ -45,13 +45,15 @@ export function SofaSectional({ props }: { props: ParamProps }) {
   const chaiseCz = backZ + depth + chaise / 2; // forward of the main seat
   const chaiseDepthZ = chaise + 0.02;
 
-  // Seat cushions across the main run, excluding the end occupied by the chaise.
-  const innerW = width - armW; // one outer arm (far from chaise)
+  // Seat cushions fill the main run between the outer arm (one side) and the
+  // chaise return (the other), so the usable span excludes both.
   const cushionCount = 3;
   const cushionGap = 0.03;
-  const usableW = width - armW - chaiseW * 0.0; // cushions span minus the single arm
+  const usableW = width - armW - chaiseW;
   const cw = (usableW - cushionGap * (cushionCount - 1)) / cushionCount;
-  void innerW;
+  // Left edge of the cushion run: inboard of the arm when the chaise is on the
+  // right (arm on the left), inboard of the chaise when it's on the left.
+  const cushionLeft = chaiseSide > 0 ? -width / 2 + armW : -width / 2 + chaiseW;
 
   return (
     <group>
@@ -69,16 +71,14 @@ export function SofaSectional({ props }: { props: ParamProps }) {
 
       {/* Main seat cushions */}
       {Array.from({ length: cushionCount }, (_, i) => {
-        const startX = -width / 2 + (chaiseSide < 0 ? armW : 0) + cw / 2;
-        const x = startX + i * (cw + cushionGap);
+        const x = cushionLeft + cw / 2 + i * (cw + cushionGap);
         return (
           <RoundedBox key={i} args={[cw, cushionH, depth - 0.26]} radius={0.06} smoothness={3} castShadow position={[x, baseTop + cushionH / 2, mainCz + 0.04]} material={mat} />
         );
       })}
       {/* Main back cushions */}
       {Array.from({ length: cushionCount }, (_, i) => {
-        const startX = -width / 2 + (chaiseSide < 0 ? armW : 0) + cw / 2;
-        const x = startX + i * (cw + cushionGap);
+        const x = cushionLeft + cw / 2 + i * (cw + cushionGap);
         return (
           <RoundedBox key={`b${i}`} args={[cw - 0.02, 0.34, 0.14]} radius={0.06} smoothness={3} castShadow position={[x, seatTop + 0.15, backZ + 0.2]} rotation={[recline, 0, 0]} material={mat} />
         );

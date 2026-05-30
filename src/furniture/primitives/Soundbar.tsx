@@ -1,5 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
+import { getSolidMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /**
@@ -17,7 +18,7 @@ export function Soundbar({ props }: { props: ParamProps }) {
 
   const h = 0.075;
   const d = 0.09;
-  const bodyMat = { color, roughness: 0.5, metalness: 0.2 } as const;
+  const bodyMat = getSolidMaterial(color, 0.5, 0.2);
   // Speaker cloth (woven grey) vs a perforated metal grille.
   const grilleMat =
     grille === 'metal'
@@ -27,7 +28,7 @@ export function Soundbar({ props }: { props: ParamProps }) {
   return (
     <group position={[0, centerY, 0]}>
       {/* Enclosure */}
-      <RoundedBox args={[width, h, d]} radius={0.015} smoothness={3} castShadow receiveShadow material={bodyMat as never} />
+      <RoundedBox args={[width, h, d]} radius={0.015} smoothness={3} castShadow receiveShadow material={bodyMat} />
       {/* Speaker-cloth front face */}
       <mesh position={[0, 0, d / 2 + 0.002]}>
         <planeGeometry args={[width - 0.03, h - 0.018]} />
@@ -47,7 +48,7 @@ export function Soundbar({ props }: { props: ParamProps }) {
           castShadow
           receiveShadow
           position={[width / 2 + 0.3, -centerY + 0.17, 0.06]}
-          material={bodyMat as never}
+          material={bodyMat}
         />
       )}
     </group>

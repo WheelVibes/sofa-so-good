@@ -32,7 +32,7 @@ export function BarCart({ props }: { props: ParamProps }) {
     shelf === 'glass'
       ? { color: '#bfd6d8', roughness: 0.05, metalness: 0, transparent: true, opacity: 0.34 }
       : shelf === 'marble'
-        ? getSurfaceMaterial('gloss', '#e9e6df', 0.6, 0.7)
+        ? getSurfaceMaterial('marble', '#e9e6df', 1.0, 0.6)
         : getSurfaceMaterial('wood', shelfColor, 0.8, 0.1);
 
   // Shelf Y positions: bottom just above wheels, top below the handle.

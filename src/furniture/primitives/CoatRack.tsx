@@ -1,5 +1,5 @@
 import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial, getSolidMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 /**
@@ -15,10 +15,10 @@ export function CoatRack({ props }: { props: ParamProps }) {
 
   const poleMat =
     style === 'metal'
-      ? { color, roughness: 0.35, metalness: 0.8 }
+      ? getSolidMaterial(color, 0.35, 0.8)
       : getSurfaceMaterial('wood', color, 0.6, sheen);
   const poleR = style === 'metal' ? 0.018 : 0.028;
-  const hookMat = style === 'metal' ? { color, roughness: 0.35, metalness: 0.8 } : getSurfaceMaterial('wood', color, 0.6, sheen);
+  const hookMat = poleMat;
 
   // Hooks at two heights for coats + hats.
   const tiers = [
@@ -29,11 +29,11 @@ export function CoatRack({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Central pole */}
-      <mesh castShadow position={[0, height / 2, 0]} material={poleMat as never}>
+      <mesh castShadow position={[0, height / 2, 0]} material={poleMat}>
         <cylinderGeometry args={[poleR, poleR * 1.2, height, 12]} />
       </mesh>
       {/* Top knob */}
-      <mesh castShadow position={[0, height + 0.02, 0]} material={poleMat as never}>
+      <mesh castShadow position={[0, height + 0.02, 0]} material={poleMat}>
         <sphereGeometry args={[poleR * 1.6, 12, 10]} />
       </mesh>
       {/* Three splayed feet */}
@@ -45,7 +45,7 @@ export function CoatRack({ props }: { props: ParamProps }) {
             castShadow
             position={[Math.cos(a) * 0.14, 0.03, Math.sin(a) * 0.14]}
             rotation={[Math.sin(a) * 0.5, -a, Math.cos(a) * 0.5]}
-            material={poleMat as never}
+            material={poleMat}
           >
             <cylinderGeometry args={[0.018, 0.014, 0.32, 8]} />
           </mesh>
@@ -61,7 +61,7 @@ export function CoatRack({ props }: { props: ParamProps }) {
               castShadow
               position={[Math.cos(a) * 0.04, t.y, Math.sin(a) * 0.04]}
               rotation={[Math.sin(a) * t.tilt, -a, Math.cos(a) * t.tilt]}
-              material={hookMat as never}
+              material={hookMat}
             >
               <cylinderGeometry args={[0.01, 0.008, t.len, 8]} />
             </mesh>

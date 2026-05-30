@@ -45,7 +45,7 @@ export function ConsoleTable({ props }: { props: ParamProps }) {
         <>
           {/* Drawer band just under the top, with two fronts + bar pulls */}
           <mesh castShadow position={[0, h - topT - 0.09, 0]} material={wood}>
-            <boxGeometry args={[width - inset, 0.16, depth - 0.04]} />
+            <boxGeometry args={[width - inset * 2, 0.16, depth - inset * 2]} />
           </mesh>
           {[-1, 1].map((s) => (
             <mesh key={s} position={[s * width * 0.22, h - topT - 0.09, depth / 2 + 0.012]}>
@@ -57,7 +57,7 @@ export function ConsoleTable({ props }: { props: ParamProps }) {
       ) : (
         /* Lower display shelf */
         <mesh castShadow receiveShadow position={[0, 0.18, 0]} material={wood}>
-          <boxGeometry args={[width - inset * 2, 0.03, depth - inset]} />
+          <boxGeometry args={[width - inset * 2, 0.03, depth - inset * 2]} />
         </mesh>
       )}
     </group>

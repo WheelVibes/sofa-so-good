@@ -63,8 +63,8 @@ export function Vanity({ props }: { props: ParamProps }) {
             <circleGeometry args={[mR - 0.03, 32]} />
             <meshStandardMaterial {...glass} />
           </mesh>
-          {/* support post */}
-          <mesh position={[0, -(mY - tableH) / 2 - mR / 2, 0]} material={wood}>
+          {/* support post — bridges the table top up to the mirror centre */}
+          <mesh position={[0, -(mY - tableH) / 2, 0]} material={wood}>
             <boxGeometry args={[0.03, mY - tableH, 0.03]} />
           </mesh>
         </group>
