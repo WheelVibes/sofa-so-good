@@ -9,6 +9,13 @@
 > compatibility/detectGroup). The remaining planning content below is kept for
 > reference. Genuinely-deferred items (e.g. KTX2 LOD) are still tracked in
 > `TODO.md`.
+>
+> **Also shipped (categories + live pack):** the category mapping (§3) now
+> targets **15** categories with an `others` catch-all (electronics/kids/laundry
+> added; unmatched → `others`, not `decor`). A one-click **IKEA live-scrape
+> pack** (`catalog/packs/ikeaLive.ts` + `scripts/scraper-server.mjs`) serves
+> scraped assets over HTTP paths under `public/assets/ikea/`, which realizes the
+> pre-baked-LOD path §11 noted was blocked by blob URLs.
 
 The IKEA scraper (`python/scripts/`) now produces rich, design-grade metadata
 per product **variant group**. This document specifies the app-side changes

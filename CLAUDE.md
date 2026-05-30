@@ -17,6 +17,12 @@ state, Vite build, Vitest tests.
 - `npm run optimize:glb` — offline GLB LOD pass
   (`python/scripts/optimize_glb_lod.mjs`): generates `-low`/`-medium` tier
   variants of every GLB under the IKEA model dir (see **GLB LOD pipeline**).
+- `npm run scraper-server` — local Node sidecar (`scripts/scraper-server.mjs`)
+  that drives the IKEA scraper for the one-click **IKEA Singapore (live scrape)**
+  pack: spawns `ikea_model_scraper.py --out public/assets/ikea --progress-ndjson`,
+  runs `optimize_glb_lod.mjs` on each finish GLB the moment it lands (bounded
+  parallel pool), and streams per-product progress to the browser over SSE.
+  Local/dev-only (default port 5174; `SCRAPER_PORT` overrides). See **IKEA models**.
 - `python/scripts/` — offline IKEA SG scraper + asset tooling (Python +
   Node). Not part of the app build; see **IKEA scraper (offline)** below.
 
@@ -157,9 +163,22 @@ screenshots, not just that you took them.
   redistributed). `IkeaGltfDef`s live in `userAssets`, round-trip through
   `schema.ts`, and re-resolve their blob URLs on boot (`storage/hydrate*`).
   Plan: [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md).
+- **IKEA live-scrape pack** (`catalog/packs/ikeaLive.ts`, `scripts/scraper-server.mjs`):
+  the **IKEA Singapore (live scrape)** pack (a `kind:'ikea-live'` entry in
+  `catalog/packs/registry.ts`) downloads the catalogue on demand instead of a
+  hosted zip. Its button calls the local sidecar (`npm run scraper-server`),
+  which scrapes products one-by-one (parallelized), LOD-optimizes each finish
+  GLB the instant it lands (bounded pool), and writes to Vite-served
+  `public/assets/ikea/<group>/` (HTTP paths → the pre-baked LOD siblings apply).
+  Progress streams per-product over SSE (`PacksTab.tsx` shows a bar + phase
+  list); each finished group is fetched over HTTP and registered through the
+  existing `importGroup()` → full `IkeaGltfDef`. Sidecar is local/dev-only;
+  served IKEA assets are gitignored (non-CC0).
 - **IKEA scraper (offline)** (`python/scripts/`): `ikea_model_scraper.py`
   (Playwright) harvests IKEA SG products → `<group>/metadata.json` +
-  `<finish>.glb`, grouping colour/finish variants and detecting multi-piece
+  `<finish>.glb` (`--out <dir>` redirects the output root; `--progress-ndjson`
+  emits per-product phase events on stdout — both used by the live-scrape
+  sidecar), grouping colour/finish variants and detecting multi-piece
   **sets** (writes `sets/<set_key>.json` recipes from the "What's included"
   list). `glb_analysis.py` (pure stdlib) extracts footprint + per-component
   material palette + segment map; `categorize.py` assigns functional category +
@@ -203,11 +222,18 @@ screenshots, not just that you took them.
   `verticalSpan`/`mounted`/`noClip` for non-floor items. To emit light, add to
   `lightEmitters.ts`. To ship in the default flat, add to `furniture/defaults/`
   (every entry is collision-checked by `defaultLayout.test.ts`).
-  The catalog spans 11 categories (`FurnitureCategory` in
-  `furniture/types.ts`): beds, seating, tables, storage, kitchen, bathroom,
-  appliances, lighting, decor, **textiles**, **outdoor**. A new category must be
-  added to that union, `FURNITURE_CATEGORIES`, and the catalog UI
-  (`ui/catalog/CategoryTabs.tsx` + `CategoryIcon.tsx`).
+  The catalog spans 15 categories (`FurnitureCategory` in
+  `furniture/types.ts`), mirroring IKEA's top-level departments: beds, seating,
+  tables, storage, kitchen, bathroom, appliances, lighting, decor, textiles,
+  outdoor, **electronics**, **kids**, **laundry**, and **others** (the
+  auto-detect catch-all, always sorted last). A new category must be added to
+  that union, `FURNITURE_CATEGORIES`, and the exhaustive
+  `Record<FurnitureCategory,…>` consumers the type-checker flags
+  (`furniturePrices.ts`, `BudgetPanel.tsx`, `report.ts`, `UploadModelDialog.tsx`,
+  catalog grouping) plus the catalog UI (`ui/catalog/CategoryTabs.tsx` +
+  `CategoryIcon.tsx`). Category is auto-detected for imports, never entered by
+  hand (`ikea/translate.ts` + `python/scripts/categorize.py`; unmatched →
+  `others`).
 - **Finish**: add an entry to `materials/builtinCatalog.ts` (`procedural` with
   a pattern, or `solid`). New patterns go in `procedural/generators.ts`.
 - **GLB models**: bundled CC0 GLBs and user uploads go through the generic
