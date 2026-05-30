@@ -1,6 +1,6 @@
 import { RoundedBox } from '@react-three/drei';
 import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
+import { getSurfaceMaterial, getFabricMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
 
 interface BedProps {
@@ -31,8 +31,9 @@ export function Bed({ props }: BedProps) {
   const headboardThickness = upholstered ? 0.12 : 0.06;
   const mattressTop = frameH + mattressH;
 
+  const beddingPattern = readStr(props, 'beddingPattern', 'plain');
   const frameMat = getSurfaceMaterial(frameFinish, frameColor, 2, sheen);
-  const fabric = { roughness: 0.92, metalness: 0 };
+  const duvetMat = getFabricMaterial(beddingColor, 0.92, beddingPattern);
   // Pillows: two for anything queen-width or wider, otherwise one.
   const twoPillows = width >= 1.3;
   const pillowW = twoPillows ? width * 0.4 : width * 0.6;
@@ -82,20 +83,15 @@ export function Bed({ props }: BedProps) {
       </mesh>
       {/* Duvet — covers the foot ~62% of the bed, sits slightly proud and
           overhangs the mattress so it reads as draped bedding. */}
-      <RoundedBox args={[width + 0.08, 0.1, length * 0.64]} radius={0.04} smoothness={2} castShadow receiveShadow position={[0, mattressTop + 0.04, length * 0.18]}>
-        <meshStandardMaterial color={beddingColor} {...fabric} />
-      </RoundedBox>
+      <RoundedBox args={[width + 0.08, 0.1, length * 0.64]} radius={0.04} smoothness={2} castShadow receiveShadow position={[0, mattressTop + 0.04, length * 0.18]} material={duvetMat} />
       {/* Duvet side drape over the rails */}
       {[-1, 1].map((s) => (
-        <mesh key={`dr${s}`} castShadow position={[s * (width / 2 + 0.02), mattressTop - 0.04, length * 0.18]}>
+        <mesh key={`dr${s}`} castShadow position={[s * (width / 2 + 0.02), mattressTop - 0.04, length * 0.18]} material={duvetMat}>
           <boxGeometry args={[0.04, 0.16, length * 0.62]} />
-          <meshStandardMaterial color={beddingColor} {...fabric} />
         </mesh>
       ))}
       {/* Folded top edge of the duvet */}
-      <RoundedBox args={[width - 0.02, 0.05, 0.12]} radius={0.025} smoothness={2} castShadow position={[0, mattressTop + 0.06, -length * 0.14]}>
-        <meshStandardMaterial color={beddingColor} {...fabric} />
-      </RoundedBox>
+      <RoundedBox args={[width - 0.02, 0.05, 0.12]} radius={0.025} smoothness={2} castShadow position={[0, mattressTop + 0.06, -length * 0.14]} material={duvetMat} />
       {/* Pillows */}
       {(twoPillows ? [-1, 1] : [0]).map((s) => (
         <RoundedBox

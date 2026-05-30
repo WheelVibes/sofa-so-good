@@ -11,7 +11,8 @@ export function Curtain({ props }: { props: ParamProps }) {
   const height = readNum(props, 'height', 2.3);
   const color = readStr(props, 'color', '#c4b9a6');
   const style = readStr(props, 'style', 'drawn');
-  const fabricMat = getFabricMaterial(color);
+  const pattern = readStr(props, 'pattern', 'plain');
+  const fabricMat = getFabricMaterial(color, 0.95, pattern);
 
   const rod = (
     <>
