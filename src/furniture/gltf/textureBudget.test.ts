@@ -28,7 +28,7 @@ describe('applyTextureBudget', () => {
       return { width: 512, height: 256 } as unknown as HTMLCanvasElement;
     });
     expect(resized).toEqual([[tex, 512]]);
-    expect(tex.needsUpdate).toBe(true);
+    expect(tex.image).toEqual({ width: 512, height: 256 });
   });
 
   it('leaves textures already within budget alone', () => {

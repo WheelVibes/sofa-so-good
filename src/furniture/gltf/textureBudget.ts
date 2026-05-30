@@ -67,14 +67,6 @@ function shrinkMaterial(
     const next = resize(tex, cap);
     if (!next) continue;
     tex.image = next;
-    // Increment Three.js internal version via the prototype setter, then
-    // shadow with an own property so callers can read needsUpdate as true.
     tex.needsUpdate = true;
-    Object.defineProperty(tex, 'needsUpdate', {
-      value: true,
-      writable: true,
-      configurable: true,
-      enumerable: true,
-    });
   }
 }
