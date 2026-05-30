@@ -16,9 +16,10 @@ export type ValidateResult =
 
 const GLB_MAGIC = 0x46546c67; // 'glTF' little-endian
 
-export async function validateGlbFile(file: File): Promise<ValidateResult> {
-  if (file.size > MAX_GLB_BYTES) {
-    return { ok: false, reason: `File too large (${(file.size / 1_048_576).toFixed(1)} MB > ${MAX_GLB_BYTES / 1_048_576} MB).` };
+export async function validateGlbFile(file: File, opts?: { maxBytes?: number }): Promise<ValidateResult> {
+  const maxBytes = opts?.maxBytes ?? MAX_GLB_BYTES;
+  if (file.size > maxBytes) {
+    return { ok: false, reason: `File too large (${(file.size / 1_048_576).toFixed(1)} MB > ${maxBytes / 1_048_576} MB).` };
   }
   const lower = file.name.toLowerCase();
   if (lower.endsWith('.glb')) {

@@ -61,3 +61,18 @@ describe('validateGlbFile', () => {
     expect(r.ok).toBe(false);
   });
 });
+
+describe('validateGlbFile maxBytes', () => {
+  it('rejects above default cap', async () => {
+    const big = new Uint8Array(26 * 1024 * 1024);
+    big.set(makeGlbHeader());
+    const r = await validateGlbFile(makeFile('big.glb', big));
+    expect(r.ok).toBe(false);
+  });
+  it('accepts above default cap when a larger maxBytes is passed', async () => {
+    const big = new Uint8Array(26 * 1024 * 1024);
+    big.set(makeGlbHeader());
+    const r = await validateGlbFile(makeFile('big.glb', big), { maxBytes: 50 * 1024 * 1024 });
+    expect(r.ok).toBe(true);
+  });
+});
