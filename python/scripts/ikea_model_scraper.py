@@ -21,6 +21,28 @@ TIMEOUT_MS = 30000
 os.makedirs(OUTPUT_DIR, exist_ok=True)
 file_lock = asyncio.Lock()
 
+# Active output root: defaults to OUTPUT_DIR but can be overridden at runtime via
+# main(out_dir=...) / the --out CLI flag. All runtime write paths go through
+# output_root() so a sidecar can redirect group folders + processed_urls.txt.
+_ACTIVE_OUTPUT_DIR = OUTPUT_DIR
+
+
+def output_root():
+    return _ACTIVE_OUTPUT_DIR
+
+
+# NDJSON progress stream: when enabled (main(progress_ndjson=True) / the
+# --progress-ndjson flag), emit one JSON line per phase transition on stdout so a
+# Node sidecar can track per-product progress. Off by default; emits are no-ops.
+_PROGRESS_NDJSON = False
+
+
+def emit_progress(event):
+    if _PROGRESS_NDJSON:
+        import json as _json, sys as _sys
+        _sys.stdout.write(_json.dumps(event) + "\n")
+        _sys.stdout.flush()
+
 class ScraperState:
     """Manages application-wide download metrics globally across concurrent tasks."""
     def __init__(self, limit):
@@ -737,15 +759,24 @@ async def scrape_complete_with(page):
     return groups
 
 
+def processed_urls_path():
+    # Default behaviour: bare relative PROGRESS_FILE (CWD), byte-for-byte as
+    # before. Only when --out overrides the output root does the file follow it.
+    if _ACTIVE_OUTPUT_DIR == OUTPUT_DIR:
+        return PROGRESS_FILE
+    return os.path.join(output_root(), PROGRESS_FILE)
+
 def load_processed_urls():
-    if os.path.exists(PROGRESS_FILE):
-        with open(PROGRESS_FILE, "r", encoding="utf-8") as f:
+    path = processed_urls_path()
+    if os.path.exists(path):
+        with open(path, "r", encoding="utf-8") as f:
             return set(line.strip() for line in f if line.strip())
     return set()
 
 async def log_processed_url(url):
+    path = processed_urls_path()
     async with file_lock:
-        with open(PROGRESS_FILE, "a", encoding="utf-8") as f:
+        with open(path, "a", encoding="utf-8") as f:
             f.write(f"{url}\n")
 
 async def harvest_product_urls(sitemap_urls):
@@ -1008,7 +1039,7 @@ async def process_product_page(context, http_client, url, state,
                     member_source=member_source,
                     members=resolved,
                 )
-                await write_set_recipe(OUTPUT_DIR, recipe)
+                await write_set_recipe(output_root(), recipe)
                 if not is_test_mode:
                     await log_processed_url(url)
                 await page.close()
@@ -1117,12 +1148,16 @@ async def process_product_page(context, http_client, url, state,
             group_key = variant_group_key(json_fields.get("product_name"),
                                           json_fields.get("type_name"), size,
                                           product_title)
-            group_dir = os.path.join(OUTPUT_DIR, group_key)
+            group_dir = os.path.join(output_root(), group_key)
             os.makedirs(group_dir, exist_ok=True)
 
             glb_stem = finish_slug(active_finish, item_id)
+            emit_progress({"group": group_key, "finish": active_finish,
+                           "glb": f"{glb_stem}.glb", "phase": "scraping"})
             glb_filename = await download_glb(http_client, glb_url, group_dir, glb_stem)
             if glb_filename:
+                emit_progress({"group": group_key, "finish": active_finish,
+                               "glb": glb_filename, "phase": "glb_written"})
                 description = details.get("description") or summary_description
 
                 # Analyse the downloaded GLB for geometry (footprint/anchor) and
@@ -1186,10 +1221,16 @@ async def process_product_page(context, http_client, url, state,
 
                 await merge_variant_group(group_dir, shared_meta, variant_entry,
                                           sibling_finishes)
+                emit_progress({"group": group_key, "phase": "metadata_written"})
 
                 counted = await state.increment_if_under_limit()
                 if counted:
                     print(f"[==>] Saved: {product_title} ({state.model_count} total models)")
+                emit_progress({"group": group_key, "finish": active_finish,
+                               "glb": glb_filename, "phase": "done"})
+            else:
+                emit_progress({"group": group_key, "finish": active_finish,
+                               "phase": "failed"})
         else:
             print(f"[-] Could not extract GLB asset path array link for: {url}")
 
@@ -1215,9 +1256,16 @@ async def queue_worker(queue, context, http_client, state, is_test_mode=False,
         finally:
             queue.task_done()
 
-async def main(limit, target_url):
+async def main(limit, target_url, out_dir=None, progress_ndjson=False):
     import httpx
     from playwright.async_api import async_playwright
+
+    global _ACTIVE_OUTPUT_DIR, _PROGRESS_NDJSON
+    _PROGRESS_NDJSON = progress_ndjson
+    if out_dir:
+        _ACTIVE_OUTPUT_DIR = out_dir
+        os.makedirs(_ACTIVE_OUTPUT_DIR, exist_ok=True)
+
     state = ScraperState(limit)
     is_test_mode = target_url is not None
 
@@ -1233,6 +1281,8 @@ async def main(limit, target_url):
     if not pending_urls:
         print("[+] Content up to date.")
         return
+
+    emit_progress({"phase": "run_started", "total": len(pending_urls)})
 
     url_queue = asyncio.Queue()
     for url in pending_urls:
@@ -1264,5 +1314,10 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", "--limit", type=int, default=0)
     parser.add_argument("-u", "--url", type=str, default=None)
+    parser.add_argument("--out", type=str, default=None,
+                        help="Output root for group folders + processed_urls.txt")
+    parser.add_argument("--progress-ndjson", action="store_true",
+                        help="Emit one JSON line per phase transition on stdout")
     args = parser.parse_args()
-    asyncio.run(main(args.limit, args.url))
+    asyncio.run(main(args.limit, args.url, out_dir=args.out,
+                     progress_ndjson=args.progress_ndjson))
