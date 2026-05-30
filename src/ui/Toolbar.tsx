@@ -15,6 +15,7 @@ import { LAYOUT_PRESETS } from '../furniture/layoutPresets';
 import { arrangeAllRooms, arrangeAllRoomsForPlan } from '../layout/autoArrange';
 import { blockedDoorItems } from '../layout/clearance';
 import { isDefaultPlan } from '../floorplan/planGeometry';
+import { buildReportHtml } from './report';
 import { canRecord } from '../scene/RecordController';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
@@ -92,6 +93,7 @@ export function Toolbar() {
           <BudgetToggle />
           <ChecksToggle />
           <SunStudyToggle />
+          <ReportButton />
           <Divider />
           <SaveButton />
           <LoadButton />
@@ -498,6 +500,36 @@ function CatalogToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Catalog
+    </button>
+  );
+}
+
+/** Generates a printable design report (areas + budget + hero render). */
+function ReportButton() {
+  const open = () => {
+    const s = useStore.getState();
+    const canvas = document.querySelector('canvas');
+    let hero: string | null = null;
+    try {
+      hero = canvas ? canvas.toDataURL('image/png') : null;
+    } catch {
+      hero = null; // tainted canvas — skip the image
+    }
+    const html = buildReportHtml(s.floorPlan, s.items, BUILTIN_CATALOG, hero);
+    const win = window.open('', '_blank');
+    if (!win) return;
+    win.document.write(html);
+    win.document.close();
+    win.focus();
+    setTimeout(() => win.print(), 400);
+  };
+  return (
+    <button
+      onClick={open}
+      title="Generate a printable design report (room areas, furniture budget, render)"
+      className="whitespace-nowrap rounded bg-neutral-100 px-3 py-1 text-sm text-neutral-700 hover:bg-neutral-200"
+    >
+      Report
     </button>
   );
 }
