@@ -6,6 +6,8 @@ import { validateGlbFile } from './validate';
 export interface PersistOptions {
   name: string;
   category: FurnitureCategory;
+  mounted?: boolean;
+  noClip?: boolean;
 }
 
 export type PersistResult =
@@ -51,6 +53,8 @@ export async function persistUserGlb(
     uploadedAt: new Date().toISOString(),
     defaultFootprint: { w: 1.0, d: 1.0, h: 1.0 },
     runtimeUrl: URL.createObjectURL(blob),
+    mounted: opts.mounted,
+    noClip: opts.noClip,
   };
   useStore.getState().addUserFurniture(def);
   return { ok: true, def };

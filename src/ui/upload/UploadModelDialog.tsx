@@ -32,6 +32,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   const [files, setFiles] = useState<File[]>([]);
   const [name, setName] = useState('');
   const [category, setCategory] = useState<FurnitureCategory>('decor');
+  const [mounted, setMounted] = useState(false);
+  const [noClip, setNoClip] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
@@ -51,6 +53,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setFiles([]);
     setName('');
     setCategory('decor');
+    setMounted(false);
+    setNoClip(false);
     setError(null);
     setBusy(false);
     setProgress(null);
@@ -89,7 +93,12 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
         setBusy(false);
         return;
       }
-      const r = await persistUserGlb(files[0], { name: name.trim(), category });
+      const r = await persistUserGlb(files[0], {
+        name: name.trim(),
+        category,
+        mounted,
+        noClip,
+      });
       setBusy(false);
       if (!r.ok) {
         setError(r.reason);
@@ -101,7 +110,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     }
 
     setProgress({ done: 0, total: files.length });
-    const r = await importGlbFiles(files, { category }, (done, total) =>
+    const r = await importGlbFiles(files, { category, mounted, noClip }, (done, total) =>
       setProgress({ done, total }),
     );
     setBusy(false);
@@ -204,6 +213,24 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                   </option>
                 ))}
               </select>
+            </label>
+            <label className="flex items-center gap-2 text-xs text-neutral-600">
+              <input
+                type="checkbox"
+                checked={mounted}
+                onChange={(e) => setMounted(e.target.checked)}
+                disabled={busy}
+              />
+              Wall / ceiling mounted (skip wall collision)
+            </label>
+            <label className="flex items-center gap-2 text-xs text-neutral-600">
+              <input
+                type="checkbox"
+                checked={noClip}
+                onChange={(e) => setNoClip(e.target.checked)}
+                disabled={busy}
+              />
+              Flat floor covering (rug — never collides)
             </label>
             {progress ? (
               <p className="text-xs text-neutral-600">

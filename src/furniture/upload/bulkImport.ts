@@ -4,6 +4,8 @@ import type { FurnitureCategory } from '../types';
 
 export interface BulkImportOptions {
   category: FurnitureCategory;
+  mounted?: boolean;
+  noClip?: boolean;
   concurrency?: number;
 }
 
@@ -74,7 +76,12 @@ export async function importGlbFiles(
     while (cursor < planned.length) {
       const job = planned[cursor++];
       try {
-        const result = await persistUserGlb(job.file, { name: job.name, category: opts.category });
+        const result = await persistUserGlb(job.file, {
+          name: job.name,
+          category: opts.category,
+          mounted: opts.mounted,
+          noClip: opts.noClip,
+        });
         if (result.ok) imported++;
         else skipped.push({ name: job.errorName, reason: result.reason });
       } catch (e) {
