@@ -3,6 +3,7 @@ import { useGLTF } from '@react-three/drei';
 import { Box3, Color, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { SkeletonUtils } from 'three-stdlib';
 import type { Object3D } from 'three';
+import { meshMatchesTarget } from './gltf/finishTargets';
 
 /** Module-level bbox cache: GLB url → axis-aligned size in metres at scale=1,
  *  plus the local-space center offset of that bbox. Many GLBs are not
@@ -25,6 +26,8 @@ interface GltfModelProps {
   scale?: number;
   /** Optional hex tint multiplied into every cloned material's base colour. */
   tint?: string;
+  /** Per-finish-target hex tint, keyed by target key. */
+  finishOverrides?: Record<string, string>;
 }
 
 /**
@@ -36,7 +39,7 @@ interface GltfModelProps {
  * same GLB don't share transforms. Materials are cloned only when a tint is
  * applied to keep the common case (no tint) cheap.
  */
-export function GltfModel({ url, scale = 1, tint }: GltfModelProps) {
+export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelProps) {
   const gltf = useGLTF(url);
   const cloned = useMemo(
     () => SkeletonUtils.clone(gltf.scene as unknown as Object3D),
@@ -102,6 +105,35 @@ export function GltfModel({ url, scale = 1, tint }: GltfModelProps) {
       }
     });
   }, [cloned, tint]);
+
+  // Per-target finish overrides (key → hex tint). Cloned so instances don't
+  // share materials. (The configurator milestone will extend this to full
+  // mat:<id>/procedural finishes via getSurfaceMaterial.)
+  //
+  // NOTE: this effect and the global `tint` effect above both mutate `cloned`
+  // materials. In normal use a piece sets one or the other. If both are set,
+  // last-effect-wins on any overlapping meshes (this effect runs after the
+  // tint effect) — acceptable for this task.
+  useEffect(() => {
+    if (!finishOverrides || Object.keys(finishOverrides).length === 0) return;
+    cloned.traverse((obj) => {
+      const mesh = obj as Mesh;
+      if (!mesh.isMesh) return;
+      for (const [key, hex] of Object.entries(finishOverrides)) {
+        if (!meshMatchesTarget(mesh, key)) continue;
+        const c = new Color(hex);
+        const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material];
+        mesh.material = mats.map((m) => {
+          const clone = (m as MeshStandardMaterial).clone();
+          if ('color' in clone && clone.color) clone.color = c.clone();
+          return clone;
+        }) as MeshStandardMaterial | MeshStandardMaterial[];
+        if (!Array.isArray(mesh.material) || mesh.material.length === 1) {
+          mesh.material = (mesh.material as MeshStandardMaterial[])[0];
+        }
+      }
+    });
+  }, [cloned, finishOverrides]);
 
   return <primitive object={cloned} scale={scale} dispose={null} />;
 }

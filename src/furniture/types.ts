@@ -218,6 +218,13 @@ export interface UserGltfDef extends FurnitureDefBase {
    * hydration recreates it from the IndexedDB blob.
    */
   runtimeUrl?: string;
+  /** Named material/mesh groups discovered in the GLB that the user can
+   *  re-skin (populated at import). */
+  finishTargets?: { key: string; label: string }[];
+  /** Map of finish-target key → finish value. For now a hex tint; the
+   *  configurator milestone extends this to `mat:<id>` DLC + procedural ids.
+   *  Applied by GltfModel. */
+  finishOverrides?: Record<string, string>;
 }
 
 export interface RemoteGltfDef extends FurnitureDefBase {
