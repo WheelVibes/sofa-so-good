@@ -23,7 +23,8 @@ async function boot() {
   // Dev-only: expose the store + auto-arranger for screenshot/automation.
   if (import.meta.env.DEV) {
     (window as unknown as { __store?: typeof useStore }).__store = useStore;
-    const { arrangeRoom, arrangeAllRooms } = await import('./layout/autoArrange');
+    const { arrangeRoom, arrangeAllRooms, arrangeAllRoomsForPlan } = await import('./layout/autoArrange');
+    const { isDefaultPlan } = await import('./floorplan/planGeometry');
     const { BUILTIN_CATALOG } = await import('./furniture/builtinCatalog');
     (window as unknown as { __arrangeRoom?: unknown }).__arrangeRoom = (roomId: string) => {
       const s = useStore.getState();
@@ -31,7 +32,10 @@ async function boot() {
     };
     (window as unknown as { __tidyHome?: unknown }).__tidyHome = () => {
       const s = useStore.getState();
-      s.setItems(arrangeAllRooms(s.items, BUILTIN_CATALOG as never, s.doors));
+      const next = isDefaultPlan(s.floorPlan)
+        ? arrangeAllRooms(s.items, BUILTIN_CATALOG as never, s.doors)
+        : arrangeAllRoomsForPlan(s.floorPlan, s.items, BUILTIN_CATALOG as never, s.doors);
+      s.setItems(next);
     };
     const { PLAN_TEMPLATES } = await import('./floorplan/templates');
     (window as unknown as { __loadTemplate?: unknown }).__loadTemplate = (id: string) => {

@@ -12,8 +12,9 @@ import { QUALITY_LABEL } from '../scene/quality';
 import { GraphicsSettings } from './GraphicsSettings';
 import { STYLE_PRESETS, applyStyle } from '../materials/stylePresets';
 import { LAYOUT_PRESETS } from '../furniture/layoutPresets';
-import { arrangeAllRooms } from '../layout/autoArrange';
+import { arrangeAllRooms, arrangeAllRoomsForPlan } from '../layout/autoArrange';
 import { blockedDoorItems } from '../layout/clearance';
+import { isDefaultPlan } from '../floorplan/planGeometry';
 import { canRecord } from '../scene/RecordController';
 import { EXPORT_EVENT } from '../scene/ScreenshotController';
 
@@ -166,7 +167,10 @@ function TidyHomeButton() {
   const tidy = () => {
     const s = useStore.getState();
     s.pushHistory();
-    s.setItems(arrangeAllRooms(s.items, BUILTIN_CATALOG, s.doors));
+    const next = isDefaultPlan(s.floorPlan)
+      ? arrangeAllRooms(s.items, BUILTIN_CATALOG, s.doors)
+      : arrangeAllRoomsForPlan(s.floorPlan, s.items, BUILTIN_CATALOG, s.doors);
+    s.setItems(next);
   };
   return (
     <button

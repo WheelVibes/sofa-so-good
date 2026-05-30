@@ -1,6 +1,8 @@
 import { ROOMS } from '../apartment/constants';
 import { canPlace } from '../collision/placement';
 import { CLEARANCE } from './designRules';
+import { doorSwingRects } from './clearance';
+import { wallLength, type FloorPlan, type PlanRoom } from '../floorplan/types';
 import type { FurnitureDef, FurnitureItem } from '../furniture/types';
 import type { RoomId } from '../apartment/types';
 
@@ -347,17 +349,45 @@ export function arrangeRoom(
   catalog: Record<string, FurnitureDef>,
   doors: Record<string, { open: boolean }>,
 ): FurnitureItem[] {
-  const ctx: Ctx = { catalog, doors, keepOut: KEEPOUT[roomId] ?? [] };
-  const rect = usableRect(roomId);
-  const inRoom = (i: FurnitureItem) => roomOf(i.position) === roomId;
-  // `world` starts with only the OTHER rooms' items (the fixed obstacles).
-  // Room items are placed into it one-by-one so pending ones can't block.
-  const world: FurnitureItem[] = allItems.filter((i) => !inRoom(i)).map((i) => ({ ...i }));
-  const roomItems = allItems.filter(inRoom).map((i) => ({ ...i }));
+  return arrangeCore({
+    rect: usableRect(roomId),
+    keepOut: KEEPOUT[roomId] ?? [],
+    inRoom: (i) => roomOf(i.position) === roomId,
+    kind: roomKind(roomId),
+    focal: FOCAL[roomId],
+    allItems,
+    catalog,
+    doors,
+  });
+}
+
+/** Shared arranger core: place every item matching `inRoom` within `rect`
+ *  using the strategy for `kind`, against the other items as obstacles. */
+function arrangeCore(opts: {
+  rect: Rect;
+  keepOut: Rect[];
+  inRoom: (i: FurnitureItem) => boolean;
+  kind: RoomKind;
+  focal: Edge | undefined;
+  allItems: FurnitureItem[];
+  catalog: Record<string, FurnitureDef>;
+  doors: Record<string, { open: boolean }>;
+}): FurnitureItem[] {
+  const { rect, keepOut, inRoom, kind, focal, allItems, catalog, doors } = opts;
+  const ctx: Ctx = { catalog, doors, keepOut };
+  const isFixed = (i: FurnitureItem) => {
+    const r = roleOf(i.defId);
+    return r === 'mounted' || r === 'ceiling';
+  };
+  // `world` starts with the OTHER rooms' items + this room's FIXED pieces
+  // (wall/ceiling mounts — aircon, range hood, sconces…), all kept at their
+  // current transform as obstacles so floor furniture isn't parked under them.
+  const world: FurnitureItem[] = allItems.filter((i) => !inRoom(i) || isFixed(i)).map((i) => ({ ...i }));
+  // Movable room items are placed one-by-one so pending ones can't block.
+  const roomItems = allItems.filter((i) => inRoom(i) && !isFixed(i)).map((i) => ({ ...i }));
   const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId)));
 
-  const kind = roomKind(roomId);
-  if (kind === 'living') arrangeLiving(rect, FOCAL[roomId], get, world, ctx, catalog);
+  if (kind === 'living') arrangeLiving(rect, focal, get, world, ctx, catalog);
   else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog);
   else arrangeGeneric(rect, get, world, ctx);
 
@@ -372,8 +402,7 @@ export function arrangeRoom(
   }
 
   // Rebuild the full list in original order: a placed item takes its new
-  // transform from `world`; an unplaced room item (unhandled role or no valid
-  // spot) keeps its original transform.
+  // transform from `world`; an unplaced room item keeps its original transform.
   const byId = new Map(world.map((w) => [w.id, w]));
   return allItems.map((orig) => byId.get(orig.id) ?? orig);
 }
@@ -402,9 +431,12 @@ function arrangeLiving(
       const def = catalog[console.defId];
       const d = def ? baseFootprint(console, def).d : 0.4;
       snapToWall(console, rect, [focal], world, ctx);
-      // shift to the seating z band
-      tryPlace(world.find((w) => w.id === console.id)!, [rect.x1 - d / 2 - 0.06, consoleZ], inward(focal), world, ctx);
-      consoleFrontX = rect.x1 - d - 0.06;
+      // shift to the seating z band (only if it actually got placed)
+      const placedConsole = world.find((w) => w.id === console.id);
+      if (placedConsole) {
+        tryPlace(placedConsole, [rect.x1 - d / 2 - 0.06, consoleZ], inward(focal), world, ctx);
+        consoleFrontX = rect.x1 - d - 0.06;
+      }
     }
     for (const m of get(['media', 'featureWall'])) {
       const off = m.defId === 'feature-wall' ? 0.02 : 0.12;
@@ -605,4 +637,104 @@ export function arrangeAllRooms(
   doors: Record<string, { open: boolean }>,
 ): FurnitureItem[] {
   return ARRANGEABLE_ROOMS.reduce((items, room) => arrangeRoom(room, items, catalog, doors), allItems);
+}
+
+// ── User-authored floor plans ──────────────────────────────────────────────
+
+/** Usable rect for a plan room — its interior rectangle inset from the walls. */
+function planRoomRect(r: PlanRoom): Rect {
+  const inset = 0.12;
+  return {
+    x0: r.origin[0] + inset,
+    z0: r.origin[1] + inset,
+    x1: r.origin[0] + r.width - inset,
+    z1: r.origin[1] + r.depth - inset,
+  };
+}
+
+/** Is a point inside a plan room (main rect or its L-shape extension)? */
+function pointInPlanRoom(r: PlanRoom, x: number, z: number): boolean {
+  const inMain = x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth;
+  if (inMain) return true;
+  if (r.extension) {
+    const ex = r.origin[0] + r.extension.offset[0];
+    const ez = r.origin[1] + r.extension.offset[1];
+    return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth;
+  }
+  return false;
+}
+
+/** Classify a custom room from the items currently in it. */
+function roomKindFromItems(items: FurnitureItem[]): RoomKind {
+  const roles = new Set(items.map((i) => roleOf(i.defId)));
+  if (roles.has('bed')) return 'bedroom';
+  if (roles.has('seating') || roles.has('media') || roles.has('mediaConsole')) return 'living';
+  return 'generic';
+}
+
+/** World centre of a window opening (for focal-wall inference). */
+function windowCentres(plan: FloorPlan): Array<[number, number]> {
+  const pts: Array<[number, number]> = [];
+  for (const o of plan.openings) {
+    if (o.kind !== 'window') continue;
+    const wall = plan.walls.find((w) => w.id === o.wallId);
+    if (!wall) continue;
+    const len = wallLength(wall);
+    if (len === 0) continue;
+    const ux = (wall.end[0] - wall.start[0]) / len;
+    const uz = (wall.end[1] - wall.start[1]) / len;
+    pts.push([wall.start[0] + ux * (o.offset + o.width / 2), wall.start[1] + uz * (o.offset + o.width / 2)]);
+  }
+  return pts;
+}
+
+/** Pick a windowless edge of `rect` for a TV/media wall (prefer E, N, S, W). */
+function inferFocal(rect: Rect, windows: Array<[number, number]>): Edge | undefined {
+  const tol = 0.5;
+  const hasWindow = (edge: Edge): boolean =>
+    windows.some(([wx, wz]) => {
+      if (edge === 'N') return Math.abs(wz - rect.z0) < tol && wx > rect.x0 - tol && wx < rect.x1 + tol;
+      if (edge === 'S') return Math.abs(wz - rect.z1) < tol && wx > rect.x0 - tol && wx < rect.x1 + tol;
+      if (edge === 'W') return Math.abs(wx - rect.x0) < tol && wz > rect.z0 - tol && wz < rect.z1 + tol;
+      return Math.abs(wx - rect.x1) < tol && wz > rect.z0 - tol && wz < rect.z1 + tol;
+    });
+  for (const e of ['E', 'N', 'S', 'W'] as Edge[]) if (!hasWindow(e)) return e;
+  return undefined;
+}
+
+/**
+ * Tidy a user-authored floor plan: arrange each plan room with the room-type
+ * strategy (inferred from its contents), keeping clear of every door swing.
+ * Used by "Tidy home" when a non-default plan is active.
+ */
+export function arrangeAllRoomsForPlan(
+  plan: FloorPlan,
+  allItems: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+  doors: Record<string, { open: boolean }>,
+): FurnitureItem[] {
+  const keepOut = doorSwingRects(plan);
+  const windows = windowCentres(plan);
+  let items = allItems;
+  for (const room of plan.rooms) {
+    const inRoom = (i: FurnitureItem) => pointInPlanRoom(room, i.position[0], i.position[1]);
+    const roomItems = items.filter(inRoom);
+    if (roomItems.length === 0) continue;
+    const rect = planRoomRect(room);
+    const kind = roomKindFromItems(roomItems);
+    items = arrangeCore({
+      rect,
+      keepOut,
+      inRoom,
+      kind,
+      // The living strategy's media/seating logic is east-edge based; use it
+      // only when the windowless wall IS the east edge, else fall back to the
+      // generic (non-focal) path so media/seating aren't misplaced.
+      focal: kind === 'living' && inferFocal(rect, windows) === 'E' ? 'E' : undefined,
+      allItems: items,
+      catalog,
+      doors,
+    });
+  }
+  return items;
 }

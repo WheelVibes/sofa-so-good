@@ -1,5 +1,7 @@
 import { describe, it, expect } from 'vitest';
-import { arrangeRoom, arrangeAllRooms, roomOf } from './autoArrange';
+import { arrangeRoom, arrangeAllRooms, arrangeAllRoomsForPlan, roomOf } from './autoArrange';
+import { buildDefaultPlan } from '../floorplan/defaultPlan';
+import { blockedDoorItems } from './clearance';
 import { defaultLayout } from '../furniture/defaultLayout';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import { defaultParamProps } from '../furniture/types';
@@ -79,6 +81,16 @@ describe('arrangeRoom', () => {
     const out = arrangeAllRooms(hydrate(), BUILTIN_CATALOG, {});
     expect(out.length).toBe(hydrate().length);
     assertValid(out);
+  });
+
+  it('arrangeAllRoomsForPlan tidies a custom plan validly, clearing door swings', () => {
+    // The default flat as a plan, with its furniture distributed per room.
+    const plan = buildDefaultPlan();
+    const out = arrangeAllRoomsForPlan(plan, hydrate(), BUILTIN_CATALOG, {});
+    expect(out.length).toBe(hydrate().length);
+    assertValid(out);
+    // No floor item ends up squarely in a door's path.
+    expect(blockedDoorItems(out, BUILTIN_CATALOG, plan)).toHaveLength(0);
   });
 
   it('never parks furniture in the main-door swing / kitchen opening', () => {
