@@ -3,7 +3,7 @@ import { canPlace } from '../collision/placement';
 import { CLEARANCE } from './designRules';
 import { doorSwingRects } from './clearance';
 import { wallLength, type FloorPlan, type PlanRoom } from '../floorplan/types';
-import type { FurnitureDef, FurnitureItem } from '../furniture/types';
+import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types';
 import type { RoomId } from '../apartment/types';
 
 /**
@@ -106,8 +106,30 @@ const ROLE: Record<string, ArrangeRole> = {
   'tabletop-decor': 'other',
 };
 
-function roleOf(defId: string): ArrangeRole {
-  return ROLE[defId] ?? 'other';
+/** Fallback arrange role for an item by its catalog category, when the defId
+ *  isn't in the explicit ROLE map (e.g. imported IKEA defs, textiles, outdoor). */
+export function roleForCategory(cat: FurnitureCategory): ArrangeRole {
+  switch (cat) {
+    case 'beds':
+      return 'bed';
+    case 'storage':
+      return 'storage';
+    case 'appliances':
+      return 'storage';
+    case 'seating':
+      return 'seating';
+    case 'textiles':
+      return 'rug';
+    default:
+      return 'other';
+  }
+}
+
+function roleOf(defId: string, catalog: Record<string, FurnitureDef>): ArrangeRole {
+  const explicit = ROLE[defId];
+  if (explicit) return explicit;
+  const cat = catalog[defId]?.category;
+  return cat ? roleForCategory(cat) : 'other';
 }
 
 /** Base (unrotated) footprint from the def + parametric overrides. */
@@ -384,7 +406,7 @@ function arrangeCore(opts: {
   const { rect, keepOut, inRoom, kind, focal, genericLiving, allItems, catalog, doors } = opts;
   const ctx: Ctx = { catalog, doors, keepOut };
   const isFixed = (i: FurnitureItem) => {
-    const r = roleOf(i.defId);
+    const r = roleOf(i.defId, catalog);
     return r === 'mounted' || r === 'ceiling';
   };
   // `world` starts with the OTHER rooms' items + this room's FIXED pieces
@@ -393,7 +415,7 @@ function arrangeCore(opts: {
   const world: FurnitureItem[] = allItems.filter((i) => !inRoom(i) || isFixed(i)).map((i) => ({ ...i }));
   // Movable room items are placed one-by-one so pending ones can't block.
   const roomItems = allItems.filter((i) => inRoom(i) && !isFixed(i)).map((i) => ({ ...i }));
-  const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId)));
+  const get: Getter = (roles) => roomItems.filter((i) => roles.includes(roleOf(i.defId, catalog)));
 
   if (kind === 'living') {
     if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog);
@@ -407,7 +429,7 @@ function arrangeCore(opts: {
   const inWorld = new Set(world.map((w) => w.id));
   for (const it of roomItems) {
     if (inWorld.has(it.id)) continue;
-    if (roleOf(it.defId) === 'mounted' || roleOf(it.defId) === 'ceiling') continue;
+    if (roleOf(it.defId, catalog) === 'mounted' || roleOf(it.defId, catalog) === 'ceiling') continue;
     settle(it, rect, world, ctx);
   }
 
@@ -795,8 +817,8 @@ function pointInPlanRoom(r: PlanRoom, x: number, z: number): boolean {
 }
 
 /** Classify a custom room from the items currently in it. */
-function roomKindFromItems(items: FurnitureItem[]): RoomKind {
-  const roles = new Set(items.map((i) => roleOf(i.defId)));
+function roomKindFromItems(items: FurnitureItem[], catalog: Record<string, FurnitureDef>): RoomKind {
+  const roles = new Set(items.map((i) => roleOf(i.defId, catalog)));
   if (roles.has('bed')) return 'bedroom';
   if (roles.has('seating') || roles.has('media') || roles.has('mediaConsole')) return 'living';
   return 'generic';
@@ -851,7 +873,7 @@ export function arrangeAllRoomsForPlan(
     const roomItems = items.filter(inRoom);
     if (roomItems.length === 0) continue;
     const rect = planRoomRect(room);
-    const kind = roomKindFromItems(roomItems);
+    const kind = roomKindFromItems(roomItems, catalog);
     items = arrangeCore({
       rect,
       keepOut,
