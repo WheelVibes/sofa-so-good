@@ -33,6 +33,8 @@ export interface UiSlice {
   snapEnabled: boolean;
   /** Alignment-grid cell size in metres (e.g. 0.1 = 10 cm, 1 = 1 m). */
   gridSize: number;
+  /** Whether the budget / shopping-list panel is open. */
+  budgetOpen: boolean;
   /** True while recording the canvas to a downloadable video clip. */
   recording: boolean;
   /** Recently-used custom finish colours (hex), most-recent first. Ephemeral. */
@@ -66,6 +68,7 @@ export interface UiSlice {
   setGridSize: (m: number) => void;
   /** Cycle the grid cell size through the preset sizes. */
   cycleGridSize: () => void;
+  toggleBudget: () => void;
   setRecording: (v: boolean) => void;
   /** Record a custom colour as recently-used (deduped, capped at 8). */
   pushRecentColor: (hex: string) => void;
@@ -83,6 +86,7 @@ export const UI_INITIAL: Pick<
   | 'autoShadowsOff'
   | 'snapEnabled'
   | 'gridSize'
+  | 'budgetOpen'
   | 'recording'
   | 'recentColors'
 > = {
@@ -96,6 +100,7 @@ export const UI_INITIAL: Pick<
   autoShadowsOff: false,
   snapEnabled: false,
   gridSize: 0.5,
+  budgetOpen: false,
   recording: false,
   recentColors: [],
 };
@@ -145,6 +150,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
       const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number]);
       return { gridSize: GRID_SIZES[(i + 1) % GRID_SIZES.length] };
     }),
+  toggleBudget: () => set((s) => ({ budgetOpen: !s.budgetOpen })),
   setRecording: (v) => set({ recording: v }),
   pushRecentColor: (hex) =>
     set((s) => ({

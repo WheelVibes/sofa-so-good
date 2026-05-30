@@ -87,6 +87,7 @@ export function Toolbar() {
           <PresetPicker />
           <TidyHomeButton />
           <StylePicker />
+          <BudgetToggle />
           <Divider />
           <SaveButton />
           <LoadButton />
@@ -490,6 +491,21 @@ function CatalogToggle() {
       className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
     >
       Catalog
+    </button>
+  );
+}
+
+/** Toggles the live budget / shopping-list panel. */
+function BudgetToggle() {
+  const open = useStore((s) => s.budgetOpen);
+  const toggle = useStore((s) => s.toggleBudget);
+  return (
+    <button
+      onClick={toggle}
+      title="Estimate the furniture cost (SGD) of the current layout"
+      className={`whitespace-nowrap rounded px-3 py-1 text-sm ${open ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'}`}
+    >
+      Budget
     </button>
   );
 }
