@@ -77,6 +77,7 @@ import { HangingPlant } from './HangingPlant';
 import { ChaiseLounge } from './ChaiseLounge';
 import { KitchenIsland } from './KitchenIsland';
 import { Piano } from './Piano';
+import { Fireplace } from './Fireplace';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -151,4 +152,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   ChaiseLounge,
   KitchenIsland,
   Piano,
+  Fireplace,
 };

@@ -2788,6 +2788,43 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Kitchen ─────────────────────────────────────────────────────────────
+  fireplace: {
+    kind: 'parametric',
+    id: 'fireplace',
+    name: 'Electric fireplace',
+    category: 'decor',
+    keywords: ['fire', 'hearth', 'flame', 'mantel'],
+    primitive: 'Fireplace',
+    defaultFootprint: { w: 1.2, d: 0.34, h: 0.6 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      { kind: 'number', key: 'width', label: 'Width', min: 0.8, max: 1.8, step: 0.1, default: 1.2, unit: 'm' },
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Style',
+        default: 'wall',
+        options: [
+          { value: 'wall', label: 'Wall-mounted' },
+          { value: 'console', label: 'Console + mantel' },
+        ],
+      },
+      { kind: 'number', key: 'mountHeight', label: 'Mount height', min: 0.6, max: 1.4, step: 0.05, default: 1.0, unit: 'm' },
+      { kind: 'color', key: 'color', label: 'Surround', default: '#23242a' },
+      { kind: 'color', key: 'flameColor', label: 'Flame', default: '#ff7a1a' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'gloss',
+        options: [
+          { value: 'gloss', label: 'Gloss' },
+          { value: 'painted', label: 'Matte' },
+          { value: 'wood', label: 'Wood' },
+        ],
+      },
+    ],
+  },
   piano: {
     kind: 'parametric',
     id: 'piano',
