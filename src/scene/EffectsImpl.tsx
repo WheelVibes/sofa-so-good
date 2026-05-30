@@ -1,23 +1,21 @@
-import { EffectComposer, Bloom, SMAA, N8AO } from '@react-three/postprocessing';
+import { EffectComposer, Bloom, SMAA, N8AO, Vignette, HueSaturation } from '@react-three/postprocessing';
+import { AO } from './look';
 
 /**
- * High-tier post-processing stack. Split into its own module so the heavy
- * postprocessing + n8ao code is lazy-loaded only when the high tier is active
- * (see Effects.tsx) — low/medium users never download it.
- *
- *   - N8AO: screen-space ambient occlusion. Grounds furniture with soft
- *     contact darkening and deepens corners/recesses. halfRes keeps it cheap.
- *   - Bloom: gentle glow on emissive fixtures (lamps, screens) at night —
- *     thresholded so daytime diffuse surfaces don't bloom.
- *   - SMAA: edge antialiasing (the composer renders off-screen, so the canvas
- *     MSAA doesn't apply).
- * The renderer's ACES tone mapping carries through the render pass.
+ * High-tier post-processing stack.
+ *   - N8AO: SSAO, tuned via look.AO so corners/recesses ground deeply.
+ *   - Bloom: gentle glow on emissive fixtures at night (thresholded).
+ *   - HueSaturation: a touch of saturation so finishes read rich, not muddy.
+ *   - Vignette: subtle edge darkening so the frame reads "shot, not rendered".
+ *   - SMAA: edge antialiasing (composer renders off-screen).
  */
 export default function EffectsImpl() {
   return (
     <EffectComposer multisampling={0}>
-      <N8AO aoRadius={0.6} distanceFalloff={1} intensity={2.4} quality="medium" halfRes />
+      <N8AO aoRadius={AO.aoRadius} distanceFalloff={AO.distanceFalloff} intensity={AO.intensity} quality="medium" halfRes />
       <Bloom mipmapBlur luminanceThreshold={1.05} luminanceSmoothing={0.15} intensity={0.6} />
+      <HueSaturation saturation={0.06} hue={0} />
+      <Vignette eskil={false} offset={0.32} darkness={0.55} />
       <SMAA />
     </EffectComposer>
   );

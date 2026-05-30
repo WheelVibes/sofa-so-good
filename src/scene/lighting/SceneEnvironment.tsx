@@ -37,6 +37,10 @@ export function SceneEnvironment() {
       <Lightformer form="rect" intensity={0.45} color="#b8c2cf" scale={[6, 6, 1]} position={[9, 2, 0]} rotation={[0, -Math.PI / 2, 0]} />
       {/* Warm ground bounce. */}
       <Lightformer form="rect" intensity={0.25} color="#6b5b48" scale={[14, 14, 1]} position={[0, -3, 0]} rotation={[-Math.PI / 2, 0, 0]} />
+      {/* Warm key from the sun side for stronger spec variation on wood/metal. */}
+      <Lightformer form="rect" intensity={0.8} color="#ffe6c2" scale={[5, 5, 1]} position={[5, 5, 5]} rotation={[Math.PI / 2, 0, 0]} />
+      {/* Cool counter-fill so reflections aren't flat. */}
+      <Lightformer form="rect" intensity={0.35} color="#c2d4ff" scale={[5, 5, 1]} position={[-5, 4, -5]} rotation={[Math.PI / 2, 0, 0]} />
     </Environment>
   );
 }
