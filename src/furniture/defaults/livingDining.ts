@@ -45,6 +45,8 @@ export const livingDining: LayoutEntry[] = [
   // cabinet + a corner plant live here, no seating in the doorway.)
   { id: 'default-ld-plant', defId: 'potted-plant', position: [12.2, 6.35], rotation: 0, props: { size: 'large', type: 'snake' } },
   { id: 'default-ld-lamp', defId: 'floor-lamp', position: [12.3, 3.55], rotation: 0, props: {} },
+  // Footstool pouf by the floor lamp — a reading-nook accent in the SE lounge.
+  { id: 'default-ld-ottoman', defId: 'ottoman', position: [11.55, 3.5], rotation: 0, props: { shape: 'round', width: 0.5, depth: 0.5, color: '#9b8f7e', material: 'fabric', tufting: 'buttons' } },
   { id: 'default-ld-fan', defId: 'ceiling-fan', position: [10.95, 2.55], rotation: 0, props: {} },
   { id: 'default-ld-pendant-dining', defId: 'ceiling-light', position: [10.55, 5.20], rotation: 0, props: { style: 'pendant' } },
   { id: 'default-ld-aircon', defId: 'aircon-unit', position: [10.6, 1.55], rotation: 0, props: {} },
