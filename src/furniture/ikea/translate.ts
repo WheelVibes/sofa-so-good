@@ -18,14 +18,15 @@ export interface PlacementFlags {
 }
 
 /** Map the scraper's functional category to the app enum. Known categories
- *  (including textiles/outdoor) pass through; anything else → decor/low. */
+ *  (including textiles/outdoor/electronics/kids/laundry) pass through; anything
+ *  else → others/low (the catch-all for un-categorised imports). */
 export function mapCategory(
   scraperCategory: string,
 ): { category: FurnitureCategory; confidence: 'high' | 'low' } {
   if ((FURNITURE_CATEGORIES as readonly string[]).includes(scraperCategory)) {
     return { category: scraperCategory as FurnitureCategory, confidence: 'high' };
   }
-  return { category: 'decor', confidence: 'low' };
+  return { category: 'others', confidence: 'low' };
 }
 
 /** Translate design.placement + semantics into collision flags. `footprint.h`

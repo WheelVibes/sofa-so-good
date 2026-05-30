@@ -10,8 +10,13 @@ describe('mapCategory', () => {
     expect(mapCategory('textiles').category).toBe('textiles');
     expect(mapCategory('outdoor').category).toBe('outdoor');
   });
-  it('falls back unknown to decor/low', () => {
-    expect(mapCategory('spaceships')).toEqual({ category: 'decor', confidence: 'low' });
+  it('falls back unknown to others/low', () => {
+    expect(mapCategory('spaceships')).toEqual({ category: 'others', confidence: 'low' });
+  });
+  it('passes new IKEA-department categories through as high', () => {
+    expect(mapCategory('electronics')).toEqual({ category: 'electronics', confidence: 'high' });
+    expect(mapCategory('kids')).toEqual({ category: 'kids', confidence: 'high' });
+    expect(mapCategory('laundry')).toEqual({ category: 'laundry', confidence: 'high' });
   });
 });
 
