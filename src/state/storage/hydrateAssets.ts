@@ -7,6 +7,17 @@ import {
 } from '../../furniture/types';
 import type { TexturedMaterialDef, MaterialCategory } from '../../materials/types';
 
+/** JSON.parse that never throws: returns undefined on any parse error so a
+ *  corrupt meta string can't abort hydration of the remaining assets. */
+function safeParse<T>(s: unknown): T | undefined {
+  if (typeof s !== 'string') return undefined;
+  try {
+    return JSON.parse(s) as T;
+  } catch {
+    return undefined;
+  }
+}
+
 /**
  * Reloads user-uploaded furniture defs from IndexedDB and populates the
  * user-assets store slice. Called once at app boot before the first
@@ -58,6 +69,8 @@ export async function hydrateUserAssets(): Promise<void> {
         runtimeUrl: URL.createObjectURL(rec.blob),
         mounted: m.meta?.['mounted'] as boolean | undefined,
         noClip: m.meta?.['noClip'] as boolean | undefined,
+        finishTargets: safeParse<{ key: string; label: string }[]>(m.meta?.['finishTargets']),
+        finishOverrides: safeParse<Record<string, string>>(m.meta?.['finishOverrides']),
       });
     } else if (m.kind === 'texture') {
       const matId = m.meta?.['matId'];

@@ -8,6 +8,8 @@ export interface PersistOptions {
   category: FurnitureCategory;
   mounted?: boolean;
   noClip?: boolean;
+  finishTargets?: { key: string; label: string }[];
+  finishOverrides?: Record<string, string>;
 }
 
 export type PersistResult =
@@ -40,7 +42,15 @@ export async function persistUserGlb(
     name: opts.name,
     uploadedAt: new Date().toISOString(),
     blob,
-    meta: { category: opts.category, mounted: opts.mounted, noClip: opts.noClip },
+    meta: {
+      category: opts.category,
+      mounted: opts.mounted,
+      noClip: opts.noClip,
+      // finishTargets/finishOverrides are arrays/objects → JSON-encode into the
+      // primitive meta store; hydrateAssets decodes them back.
+      ...(opts.finishTargets ? { finishTargets: JSON.stringify(opts.finishTargets) } : {}),
+      ...(opts.finishOverrides ? { finishOverrides: JSON.stringify(opts.finishOverrides) } : {}),
+    },
   });
 
   const def: UserGltfDef = {
@@ -55,6 +65,8 @@ export async function persistUserGlb(
     runtimeUrl: URL.createObjectURL(blob),
     mounted: opts.mounted,
     noClip: opts.noClip,
+    finishTargets: opts.finishTargets,
+    finishOverrides: opts.finishOverrides,
   };
   useStore.getState().addUserFurniture(def);
   return { ok: true, def };
