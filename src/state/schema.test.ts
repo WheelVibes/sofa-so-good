@@ -126,6 +126,25 @@ describe('schema', () => {
     expect(patch.manualHour).toBe(7.5);
   });
 
+  it('omits the floor plan for the default flat, round-trips a custom one', () => {
+    useStore.getState().__resetForTest();
+    // Default flat → no floorPlan in the payload (rebuilt from constants).
+    expect(serialize(useStore.getState()).floorPlan).toBeUndefined();
+    // A custom plan is persisted and restored.
+    useStore.getState().newFloorPlan('Saved Studio');
+    const customId = useStore.getState().floorPlan.id;
+    const out = serialize(useStore.getState());
+    expect(out.floorPlan?.name).toBe('Saved Studio');
+    const parsed = SerializedStateZ.safeParse(out);
+    expect(parsed.success).toBe(true);
+    const patch = applySerialized(out, new Set());
+    expect(patch.floorPlan?.id).toBe(customId);
+    // Applying a default-flat payload restores the default plan.
+    useStore.getState().__resetForTest();
+    const defPatch = applySerialized(serialize(useStore.getState()), new Set());
+    expect(defPatch.floorPlan?.id).toBe('default-hdb-4room');
+  });
+
   it('round-trips a location with a label', () => {
     useStore.getState().__resetForTest();
     useStore.getState().setLocation({ lat: 51.5, lon: 0, label: 'London, UK' });

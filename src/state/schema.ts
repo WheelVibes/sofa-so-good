@@ -10,6 +10,8 @@
 
 import { z } from 'zod';
 import { ROOMS } from '../apartment/constants';
+import { buildDefaultPlan } from '../floorplan/defaultPlan';
+import { isDefaultPlan } from '../floorplan/planGeometry';
 import type { RootState } from './store';
 import type { RoomId } from '../apartment/types';
 
@@ -57,10 +59,49 @@ const UserMaterialDefZ = z.object({
   }),
 });
 
+const Vec2Z = z.tuple([z.number(), z.number()]);
+const PlanWallZ = z.object({
+  id: z.string(),
+  start: Vec2Z,
+  end: Vec2Z,
+  thickness: z.enum(['external', 'internal']),
+  topHeight: z.number().optional(),
+});
+const PlanOpeningZ = z.object({
+  id: z.string(),
+  kind: z.enum(['door', 'window']),
+  wallId: z.string(),
+  offset: z.number(),
+  width: z.number(),
+  sill: z.number(),
+  head: z.number(),
+});
+const PlanRoomZ = z.object({
+  id: z.string(),
+  name: z.string(),
+  origin: Vec2Z,
+  width: z.number(),
+  depth: z.number(),
+  extension: z.object({ offset: Vec2Z, width: z.number(), depth: z.number() }).optional(),
+  ceilingHeight: z.number().optional(),
+  floor: z.string().optional(),
+});
+const FloorPlanZ = z.object({
+  id: z.string(),
+  name: z.string(),
+  ceilingHeight: z.number(),
+  extent: Vec2Z,
+  walls: z.array(PlanWallZ),
+  openings: z.array(PlanOpeningZ),
+  rooms: z.array(PlanRoomZ),
+});
+
 const RawSerializedStateZ = z.object({
   version: z.literal(1),
   apartmentId: z.literal('serangoon-north-vista-4r'),
   items: z.array(FurnitureItemZ),
+  // Optional custom apartment shell (omitted for the default flat).
+  floorPlan: FloorPlanZ.optional(),
   doors: z.record(z.string(), z.object({ open: z.boolean() })),
   finishes: z.object({
     floor: z.record(z.string(), z.string()),
@@ -121,6 +162,8 @@ export function serialize(state: RootState): SerializedState {
     version: 1,
     apartmentId: 'serangoon-north-vista-4r',
     items: state.items,
+    // Persist a custom shell; the default flat is rebuilt from constants.
+    ...(isDefaultPlan(state.floorPlan) ? {} : { floorPlan: state.floorPlan }),
     doors: state.doors,
     finishes: state.finishes,
     userFurniture: state.userFurniture.map((d) => ({
@@ -171,6 +214,8 @@ export function applySerialized(
   }
   return {
     items: state.items.filter((it) => knownDefIds.has(it.defId)),
+    // Restore a saved custom shell, else fall back to the default flat.
+    floorPlan: state.floorPlan ?? buildDefaultPlan(),
     doors: state.doors,
     finishes: {
       floor: floor as Record<RoomId, string>,
