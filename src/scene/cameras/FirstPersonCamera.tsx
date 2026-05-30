@@ -5,6 +5,7 @@ import { PerspectiveCamera, Vector3 } from 'three';
 import { DOORS, WALLS } from '../../apartment/constants';
 import { isLineOfSightBlocked, resolveMovement, type CollisionWall } from '../../collision/walls';
 import { buildCollisionWalls } from '../../collision/wallsFromState';
+import { planCollisionWalls, isDefaultPlan } from '../../floorplan/planGeometry';
 import { KEYBINDINGS } from '../../controls/keybindings';
 import { isEditableTarget } from '../../controls/useKeyboard';
 import { useStore } from '../../state/store';
@@ -56,11 +57,15 @@ export function FirstPersonCamera() {
   const { camera } = useThree();
   const pressed = useRef<Record<string, boolean>>({});
   const doors = useStore((s) => s.doors);
+  const floorPlan = useStore((s) => s.floorPlan);
   const collisionWalls = useRef<CollisionWall[]>([]);
 
   useEffect(() => {
-    collisionWalls.current = buildCollisionWalls(doors);
-  }, [doors]);
+    // Walk-mode collision follows the active plan (custom apartments included).
+    collisionWalls.current = isDefaultPlan(floorPlan)
+      ? buildCollisionWalls(doors)
+      : planCollisionWalls(floorPlan, doors);
+  }, [doors, floorPlan]);
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
