@@ -72,6 +72,17 @@ export const FURNITURE_SETS: FurnitureSet[] = [
       { defId: 'side-table', dx: -0.6, dz: 0.05, rotation: 0 },
       { defId: 'ottoman', dx: 0, dz: 0.7, rotation: 0, props: { shape: 'round' } },
       { defId: 'potted-plant', dx: 1.0, dz: 0.4, rotation: 0, props: { size: 'large', type: 'fiddle' } },
+      { defId: 'hanging-plant', dx: -0.5, dz: -0.5, rotation: 0, props: { size: 'medium' } },
+    ],
+  },
+  {
+    id: 'entryway',
+    name: 'Entryway set',
+    items: [
+      { defId: 'shoe-cabinet', dx: 0, dz: 0, rotation: 0, props: { width: 0.9 } },
+      { defId: 'coat-rack', dx: -0.9, dz: 0.05, rotation: 0, props: {} },
+      { defId: 'bench', dx: 0.9, dz: 0.05, rotation: 0, props: { style: 'upholstered' } },
+      { defId: 'floor-vase', dx: 1.7, dz: 0.05, rotation: 0, props: { shape: 'tall', stems: 'pampas' } },
     ],
   },
   {
