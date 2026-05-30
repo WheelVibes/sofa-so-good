@@ -12,4 +12,10 @@ describe('spanFromFootprint', () => {
     const r = spanFromFootprint({ w: 0.8, d: 0.3, h: 0.5, ox: 0, oz: 0 }, { baseY: 1.4 });
     expect(r.verticalSpan).toEqual({ base: 1.4, top: 1.9 });
   });
+
+  it('ignores ox/oz (placement.ts applies the center offset, not the footprint)', () => {
+    const centered = spanFromFootprint({ w: 1, d: 1, h: 1, ox: 0, oz: 0 });
+    const offset = spanFromFootprint({ w: 1, d: 1, h: 1, ox: 0.5, oz: -0.3 });
+    expect(offset).toEqual(centered);
+  });
 });

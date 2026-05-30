@@ -9,6 +9,11 @@ export interface CachedBox {
   w: number;
   d: number;
   h: number;
+  // ox/oz mirror the GltfModel FOOTPRINT_CACHE shape (geometric center offset
+  // from the mesh origin in the XZ plane). spanFromFootprint intentionally
+  // ignores them — placement.ts applies the center offset when computing the
+  // OBB, so it must NOT be baked into defaultFootprint here (else it would be
+  // double-counted).
   ox: number;
   oz: number;
 }
