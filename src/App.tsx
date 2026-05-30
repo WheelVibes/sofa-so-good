@@ -14,6 +14,7 @@ import { InspectorPanel } from './ui/inspector/InspectorPanel';
 import { FloorPlanEditor } from './ui/floorplan/FloorPlanEditor';
 import { BudgetPanel } from './ui/BudgetPanel';
 import { Minimap } from './ui/Minimap';
+import { DragHud } from './ui/DragHud';
 import { LocationPrompt } from './ui/LocationPrompt';
 import { WebGLFallback } from './ui/WebGLFallback';
 import { NotificationContainer } from './ui/notifications/NotificationContainer';
@@ -385,6 +386,7 @@ export default function App() {
         <MarqueeSelector />
         <Compass />
         <Minimap />
+        <DragHud />
         <Crosshair />
         <DoorPrompt />
         <HelpHint />

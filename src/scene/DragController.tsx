@@ -4,6 +4,8 @@ import { Plane, Raycaster, Vector2, Vector3 } from 'three';
 import { useStore } from '../state/store';
 import { useCatalog } from '../furniture/catalog';
 import { canPlace } from '../collision/placement';
+import { buildCollisionWalls } from '../collision/wallsFromState';
+import { nearestWallGap } from '../collision/clearanceGap';
 import { planCollisionWalls, isDefaultPlan } from '../floorplan/planGeometry';
 import { snapToGrid } from './snap';
 
@@ -167,6 +169,23 @@ export function DragController() {
         }
       }
       if (valid !== after.dragValid) state.setDragValid(valid);
+
+      // Live wall-clearance readout for a single-item drag.
+      if (group.length <= 1) {
+        const item = after.items.find((i) => i.id === id);
+        const def = item ? catalogRef.current[item.defId] : null;
+        if (item && def) {
+          const [hx, hz] = halfExtents(item, def);
+          const box = {
+            x0: item.position[0] - hx,
+            z0: item.position[1] - hz,
+            x1: item.position[0] + hx,
+            z1: item.position[1] + hz,
+          };
+          const walls = planWalls ?? buildCollisionWalls(after.doors);
+          state.setDragClearance(nearestWallGap(box, walls));
+        }
+      }
     };
 
     const onUp = () => {

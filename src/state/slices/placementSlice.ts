@@ -36,6 +36,9 @@ export interface PlacementSlice {
    *  constant-X or constant-Z line the dragged item snapped to. */
   dragGuides: Array<{ axis: 'x' | 'z'; value: number }>;
   setDragGuides: (guides: Array<{ axis: 'x' | 'z'; value: number }>) => void;
+  /** Live gap (metres) from the dragged item to the nearest wall, or null. */
+  dragClearance: number | null;
+  setDragClearance: (gap: number | null) => void;
   setActiveDefId: (id: string | null) => void;
   setCursor: (cursor: { x: number; y: number } | null) => void;
   setGhostWorld: (pos: [number, number] | null, valid: boolean) => void;
@@ -62,6 +65,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'dragOffset'
   | 'dragGroupOriginals'
   | 'dragGuides'
+  | 'dragClearance'
 > = {
   activeDefId: null,
   cursor: null,
@@ -73,6 +77,7 @@ export const PLACEMENT_INITIAL: Pick<
   dragOffset: [0, 0],
   dragGroupOriginals: [],
   dragGuides: [],
+  dragClearance: null,
 };
 
 export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (set, get) => ({
@@ -96,6 +101,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
   },
   setDragValid: (valid) => set({ dragValid: valid }),
   setDragGuides: (dragGuides) => set({ dragGuides }),
+  setDragClearance: (dragClearance) => set({ dragClearance }),
   endDrag: () =>
     set({
       draggingItemId: null,
@@ -104,5 +110,6 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       dragValid: true,
       dragGroupOriginals: [],
       dragGuides: [],
+      dragClearance: null,
     }),
 });
