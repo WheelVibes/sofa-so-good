@@ -1,0 +1,31 @@
+import { describe, it, expect } from 'vitest';
+import { grade, SOFT_SHADOW, AO } from './look';
+
+describe('grade', () => {
+  it('exposure rises monotonically with sun altitude', () => {
+    const night = grade(-0.3).exposure;
+    const dawn = grade(0.05).exposure;
+    const noon = grade(1.2).exposure;
+    expect(night).toBeLessThan(dawn);
+    expect(dawn).toBeLessThan(noon);
+  });
+
+  it('clamps exposure to a sane range', () => {
+    for (const alt of [-1.5, -0.2, 0, 0.4, 1.57]) {
+      const e = grade(alt).exposure;
+      expect(e).toBeGreaterThanOrEqual(0.7);
+      expect(e).toBeLessThanOrEqual(1.25);
+    }
+  });
+
+  it('white balance is warmer (lower kelvin factor) near the horizon', () => {
+    expect(grade(0.03).warmth).toBeGreaterThan(grade(1.2).warmth);
+  });
+
+  it('exposes tuned shadow + AO constants', () => {
+    expect(SOFT_SHADOW.radius).toBeGreaterThan(0);
+    expect(SOFT_SHADOW.normalBias).toBeGreaterThan(0);
+    expect(AO.aoRadius).toBeGreaterThan(0);
+    expect(AO.intensity).toBeGreaterThan(0);
+  });
+});
