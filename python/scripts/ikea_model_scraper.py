@@ -892,7 +892,15 @@ async def download_glb(client, url, product_dir, filename_stem):
         print(f"[-] Network transaction failure grabbing asset: {e}")
     return None
 
-async def process_product_page(context, http_client, url, state, is_test_mode=False):
+async def process_product_page(context, http_client, url, state,
+                               is_test_mode=False, visited=None, depth=0):
+    if visited is None:
+        visited = set()
+    canon = url.split("#")[0]
+    if canon in visited:
+        print(f"[~] Skipping already-visited product: {canon}")
+        return
+    visited.add(canon)
     page = await context.new_page()
     glb_url = None
     product_title = "unnamed_product"
@@ -935,6 +943,76 @@ async def process_product_page(context, http_client, url, state, is_test_mode=Fa
                 ".pipf-breadcrumb__link, .pip-breadcrumbs__list-item-link, .pip-breadcrumbs__link")
             category_breadcrumbs = [(await bc.inner_text()).strip()
                                     for bc in bc_elements if (await bc.inner_text())]
+
+        # 2b. SET DECOMPOSITION — a multi-piece set (e.g. "table and 2 folding
+        # chairs") is delivered as one fused GLB we can't split, so instead we
+        # discover its standalone member products, scrape each via this same
+        # path (reusing `visited`), and emit a sets/<set_key>.json recipe. The
+        # set's own fused GLB is NOT downloaded. A set that resolves to <2
+        # members is demoted: we fall through and scrape it as a normal product.
+        if depth == 0 and is_set_product(product_json, category_breadcrumbs):
+            members, member_source = await discover_set_members(
+                page, product_json, item_id)
+
+            if should_demote_set(members):
+                print(f"[-] Set {item_id} resolved to {len(members)} member(s) "
+                      f"(<2): demoting to a normal product (downloading its GLB).")
+                # fall through to the standard single-product flow below.
+            else:
+                resolved = []
+                for mem in members:
+                    member_url = mem.get("url") or (
+                        f"https://www.ikea.com/sg/en/p/-{mem['article_number']}/")
+                    # Scrape the member as an ordinary standalone product. The
+                    # bare -<art>/ slug 301-redirects to the canonical URL;
+                    # Playwright follows it and the extractor reads the canonical
+                    # URL after navigation. Reuses `visited` so a member already
+                    # scraped standalone is not re-downloaded.
+                    await process_product_page(context, http_client, member_url,
+                                               state, is_test_mode, visited,
+                                               depth=depth + 1)
+                    # Resolve the member's group_key + role from its own JSON.
+                    member_json = await fetch_product_json(http_client,
+                                                           mem["article_number"])
+                    member_fields = extract_product_json_fields(member_json)
+                    member_crumbs = parse_category_breadcrumbs(member_json)
+                    member_size = extract_size(member_fields.get("type_name"),
+                                               member_fields.get("design_text"))
+                    member_group_key = variant_group_key(
+                        member_fields.get("product_name"),
+                        member_fields.get("type_name"), member_size)
+                    member_design = design_classification(
+                        member_crumbs, member_fields.get("type_name"))
+                    role = classify_member_role(member_design.get("category"),
+                                                member_fields.get("type_name"))
+                    qty = quantity_for_role(role, json_fields.get("type_name"),
+                                            mem.get("included_count"))
+                    resolved.append({
+                        "group_key": member_group_key,
+                        "role": role,
+                        "qty": qty,
+                        "article_number": mem["article_number"],
+                    })
+
+                set_key = variant_group_key(json_fields.get("product_name"),
+                                            json_fields.get("type_name"), None,
+                                            product_title)
+                set_name = json_fields.get("product_name") or product_title
+                recipe = build_set_recipe(
+                    set_key=set_key,
+                    set_name=set_name,
+                    set_article=item_id,
+                    series=json_fields.get("series"),
+                    style_group=json_fields.get("style_group"),
+                    design_text=json_fields.get("design_text"),
+                    member_source=member_source,
+                    members=resolved,
+                )
+                await write_set_recipe(OUTPUT_DIR, recipe)
+                if not is_test_mode:
+                    await log_processed_url(url)
+                await page.close()
+                return
 
         # 3. PRODUCT SUMMARY DESCRIPTION (visible, above the fold)
         summary_description = await page.evaluate(
@@ -1123,13 +1201,17 @@ async def process_product_page(context, http_client, url, state, is_test_mode=Fa
     finally:
         await page.close()
 
-async def queue_worker(queue, context, http_client, state, is_test_mode=False):
+async def queue_worker(queue, context, http_client, state, is_test_mode=False,
+                       visited=None):
+    if visited is None:
+        visited = set()
     while not queue.empty():
         if await state.is_limit_reached():
             break
         url = await queue.get()
         try:
-            await process_product_page(context, http_client, url, state, is_test_mode)
+            await process_product_page(context, http_client, url, state,
+                                       is_test_mode, visited)
         finally:
             queue.task_done()
 
@@ -1168,8 +1250,10 @@ async def main(limit, target_url):
 
         async with httpx.AsyncClient(follow_redirects=True) as http_client:
             num_workers = 1 if is_test_mode else CONCURRENT_PAGES
+            visited = set()
             workers = [
-                asyncio.create_task(queue_worker(url_queue, context, http_client, state, is_test_mode))
+                asyncio.create_task(queue_worker(url_queue, context, http_client,
+                                                 state, is_test_mode, visited))
                 for _ in range(num_workers)
             ]
             await asyncio.gather(*workers)
