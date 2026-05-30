@@ -52,6 +52,20 @@ placement stays consistent. Keep this doc and that module in sync.
 - **Kitchen / bath / utility:** counters, appliances and fixtures run flush
   along the walls; nothing floats; circulation kept clear.
 
+## Space-saving practices (small HDB rooms)
+
+- **Sliding / pocket doors** on wardrobes where a hinged leaf would eat scarce
+  floor — no swing clearance needed. Default bedroom wardrobes use
+  `doorStyle: 'sliding'`.
+- **Push to the perimeter, keep the centre open**; prefer corner placement for
+  the bed (two sides to walls) so circulation collapses to one path.
+- **Wall-mounted / floating** pieces (TV, floating console, wall shelves) free
+  the floor and read lighter.
+- **Multi-functional / nesting** pieces (storage bench/ottoman, console with
+  drawers) earn their footprint twice.
+- **Right-size to the room**: a queen + wardrobe already fills a 2.85 m-wide
+  HDB bedroom — don't crowd it with extra pieces.
+
 ## Sources
 
 - [Cheat Sheet: Key Measurements for Space Planning — Mix & Match Design](https://mixandmatchdesign.com/design-school-101/cheat-sheet-key-measurements-for-space-planning)

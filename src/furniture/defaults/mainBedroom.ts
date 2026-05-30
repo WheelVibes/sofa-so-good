@@ -11,11 +11,12 @@ export const mainBedroom: LayoutEntry[] = [
     props: {},
   },
   {
+    // Sliding doors — no swing clearance needed in a tight bedroom.
     id: 'default-main-wardrobe',
     defId: 'wardrobe-3door',
     position: [2.70, 1.90],
     rotation: -Math.PI / 2,
-    props: { width: 1.4 },
+    props: { width: 1.4, doorStyle: 'sliding' },
   },
   { id: 'default-main-nightstand', defId: 'nightstand', position: [2.05, 0.75], rotation: 0, props: {} },
   { id: 'default-main-tablelamp', defId: 'table-lamp', position: [2.05, 0.75], rotation: 0, props: { surfaceHeight: 0.52 } },
