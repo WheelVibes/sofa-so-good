@@ -1,11 +1,12 @@
 import { Suspense, memo, useCallback } from 'react';
 import type { ThreeEvent } from '@react-three/fiber';
 import { GltfModel } from './GltfModel';
+import { selectGltfRender } from './gltfRender';
 import { PRIMITIVE_COMPONENTS } from './primitives';
 import { useStore } from '../state/store';
 import { itemFootprint } from '../collision/placement';
 import { ContactShadow } from '../scene/ContactShadow';
-import type { FurnitureDef, FurnitureItem } from './types';
+import type { FurnitureDef, FurnitureItem, GltfDef } from './types';
 
 interface FurnitureProps {
   item: FurnitureItem;
@@ -96,20 +97,9 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
     ) : (
       <Suspense fallback={null}>
         {(() => {
-          const url = def.source === 'builtin' ? def.url : def.runtimeUrl;
-          if (!url) return null;
-          return (
-            <GltfModel
-              url={url}
-              scale={
-                (typeof item.props['scale'] === 'number'
-                  ? item.props['scale']
-                  : def.scale) ?? 1
-              }
-              tint={typeof item.props['tint'] === 'string' ? item.props['tint'] : undefined}
-              finishOverrides={'finishOverrides' in def ? def.finishOverrides : undefined}
-            />
-          );
+          const r = selectGltfRender(item, def as GltfDef);
+          if (!r) return null;
+          return <GltfModel url={r.url} scale={r.scale} tint={r.tint} finishOverrides={r.finishOverrides} />;
         })()}
       </Suspense>
     );
