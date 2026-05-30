@@ -202,3 +202,24 @@ def test_write_set_recipe_creates_file(tmp_path):
     assert os.path.exists(path)
     with open(path, encoding="utf-8") as f:
         assert json.load(f)["set_key"] == "demo-set"
+
+
+def test_discover_members_from_included_html():
+    html = _fixture("whats_included.html")
+    members, source = scraper.discover_set_members_from_html(html, "s69599421")
+    assert source == "included"
+    assert [m["article_number"] for m in members] == ["70595733", "40592745"]
+
+
+def test_discover_members_series_fallback_stub():
+    members, source = scraper.discover_set_members_from_html(
+        "<html><body></body></html>", "s69599421", series="VIHALS series")
+    assert members == []
+    assert source == "series"
+
+
+def test_discover_members_no_section_no_series():
+    members, source = scraper.discover_set_members_from_html(
+        "<html><body></body></html>", "s69599421", series=None)
+    assert members == []
+    assert source == "included"

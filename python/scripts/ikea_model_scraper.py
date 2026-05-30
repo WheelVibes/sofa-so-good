@@ -602,6 +602,57 @@ async def write_set_recipe(output_root, recipe):
     return path
 
 
+def _series_fallback_members(series):
+    """
+    Series-match fallback (Part 1 §1.2 B) — LOWER PRIORITY, intentionally a
+    minimal stub. A full implementation would query the IKEA series/category
+    listing for standalone table + chair members and match by series + finish.
+    For now it returns [] and is flagged member_source="series" so such sets are
+    logged for manual review rather than silently shipped.
+    """
+    # TODO(part1-followup): query series listing + match roles by finish text.
+    return []
+
+
+def discover_set_members_from_html(html, set_article, series=None):
+    """
+    Decide the member list + source from already-fetched page HTML (no network).
+      * Primary: "What's included" articles (page order, set excluded).
+      * Fallback: series match (stub) when the section is absent AND a series
+        is known -> source "series".
+    Returns (members, member_source) where member_source is "included"|"series".
+    """
+    included = extract_included_articles(html, set_article)
+    if included:
+        return included, "included"
+    if series:
+        fallback = _series_fallback_members(series)
+        return fallback, "series"
+    return [], "included"
+
+
+async def discover_set_members(page, product_json, set_article):
+    """
+    Discover a set's member products from the live page. Reads the page HTML and
+    delegates to discover_set_members_from_html. Returns (members, source);
+    each member is a dict {article_number, name, included_count, url}.
+    """
+    html = await page.content()
+    series = None
+    series_elements = ((product_json or {}).get("catalogRefs", {})
+                       .get("series", {}).get("elements", []))
+    if series_elements:
+        series = series_elements[0].get("name")
+    members, source = discover_set_members_from_html(html, set_article, series)
+    if source == "series":
+        print(f"[-] Set {set_article}: 'What's included' absent; using "
+              f"lower-confidence series fallback (members={len(members)})")
+    else:
+        print(f"[+] Set {set_article}: discovered {len(members)} member(s) "
+              f"from 'What's included'")
+    return members, source
+
+
 async def scrape_complete_with(page):
     """
     Scrape the 'Complete with' compatibility module.
