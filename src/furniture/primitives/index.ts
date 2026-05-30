@@ -74,6 +74,7 @@ import { ChangingTable } from './ChangingTable';
 import { Bathtub } from './Bathtub';
 import { CoatRack } from './CoatRack';
 import { HangingPlant } from './HangingPlant';
+import { ChaiseLounge } from './ChaiseLounge';
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
 
@@ -145,4 +146,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Bathtub,
   CoatRack,
   HangingPlant,
+  ChaiseLounge,
 };

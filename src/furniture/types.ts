@@ -111,7 +111,8 @@ export type PrimitiveKind =
   | 'ChangingTable'
   | 'Bathtub'
   | 'CoatRack'
-  | 'HangingPlant';
+  | 'HangingPlant'
+  | 'ChaiseLounge';
 
 export type ParamField =
   | {
