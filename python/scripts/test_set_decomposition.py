@@ -29,6 +29,7 @@ def test_module_imports_without_heavy_deps():
 # ---------------------------------------------------------------------------
 # Task 2: is_set_product
 # ---------------------------------------------------------------------------
+import asyncio
 import json
 
 
@@ -151,3 +152,53 @@ def test_role_table_from_tables_category_fallback():
 
 def test_role_other_when_unknown():
     assert scraper.classify_member_role("storage", "sideboard") == "other"
+
+
+# ---------------------------------------------------------------------------
+# Task 6: build_set_recipe + write_set_recipe
+
+def _resolved_members():
+    # Shape produced by the orchestrator (Task 8) after scraping each member.
+    return [
+        {"group_key": "vihals-gateleg-table", "role": "table", "qty": 1,
+         "article_number": "70595733"},
+        {"group_key": "vihals-folding-chair", "role": "chair", "qty": 2,
+         "article_number": "40592745"},
+    ]
+
+
+def test_build_set_recipe_schema():
+    recipe = scraper.build_set_recipe(
+        set_key="vihals-vihals-table-and-2-folding-chairs",
+        set_name="VIHALS / VIHALS table and 2 folding chairs",
+        set_article="s69599421",
+        series="VIHALS series",
+        style_group="Scandinavian",
+        design_text="gateleg table white/red",
+        member_source="included",
+        members=_resolved_members(),
+    )
+    assert recipe == {
+        "set_key": "vihals-vihals-table-and-2-folding-chairs",
+        "set_name": "VIHALS / VIHALS table and 2 folding chairs",
+        "set_article": "s69599421",
+        "series": "VIHALS series",
+        "style_group": "Scandinavian",
+        "design_text": "gateleg table white/red",
+        "member_source": "included",
+        "members": [
+            {"group_key": "vihals-gateleg-table", "role": "table", "qty": 1,
+             "article_number": "70595733"},
+            {"group_key": "vihals-folding-chair", "role": "chair", "qty": 2,
+             "article_number": "40592745"},
+        ],
+    }
+
+
+def test_write_set_recipe_creates_file(tmp_path):
+    recipe = {"set_key": "demo-set", "members": []}
+    path = asyncio.run(scraper.write_set_recipe(str(tmp_path), recipe))
+    assert path == os.path.join(str(tmp_path), "sets", "demo-set.json")
+    assert os.path.exists(path)
+    with open(path, encoding="utf-8") as f:
+        assert json.load(f)["set_key"] == "demo-set"

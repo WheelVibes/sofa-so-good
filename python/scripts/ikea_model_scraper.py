@@ -563,6 +563,45 @@ def classify_member_role(design_category, type_name):
     return _ROLE_CATEGORY_FALLBACK.get(design_category, "other")
 
 
+def build_set_recipe(set_key, set_name, set_article, series, style_group,
+                     design_text, member_source, members):
+    """
+    Assemble the set recipe object written to sets/<set_key>.json. Members are
+    referenced by group_key (not duplicated). Keys with None values for the
+    optional descriptive fields are kept (the spec schema lists them), but
+    callers pass through whatever the product JSON had.
+
+    members: list of {group_key, role, qty, article_number}.
+    """
+    return {
+        "set_key": set_key,
+        "set_name": set_name,
+        "set_article": set_article,
+        "series": series,
+        "style_group": style_group,
+        "design_text": design_text,
+        "member_source": member_source,
+        "members": members,
+    }
+
+
+async def write_set_recipe(output_root, recipe):
+    """
+    Write a set recipe to <output_root>/sets/<set_key>.json. Returns the path.
+    Concurrency-safe via groups_lock (shares the variant-group writer's lock).
+    """
+    sets_dir = os.path.join(output_root, "sets")
+    path = os.path.join(sets_dir, f"{recipe['set_key']}.json")
+    async with groups_lock:
+        os.makedirs(sets_dir, exist_ok=True)
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(recipe, f, indent=4, ensure_ascii=False)
+    print(f"[==>] Wrote set recipe: {path} "
+          f"({len(recipe.get('members', []))} members, "
+          f"source={recipe.get('member_source')})")
+    return path
+
+
 async def scrape_complete_with(page):
     """
     Scrape the 'Complete with' compatibility module.
