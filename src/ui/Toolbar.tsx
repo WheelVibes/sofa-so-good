@@ -83,6 +83,7 @@ export function Toolbar() {
           <TurntableToggle />
           <Divider />
           <EditorToolToggle />
+          <UndoRedo />
           <SnapToggle />
           <Divider />
           <CatalogToggle />
@@ -250,6 +251,35 @@ function StylePicker() {
           ))}
         </div>
       ) : null}
+    </div>
+  );
+}
+
+/** Undo / redo buttons (mirror the Ctrl+Z / Ctrl+Shift+Z shortcuts). */
+function UndoRedo() {
+  const canUndo = useStore((s) => s.past.length > 0);
+  const canRedo = useStore((s) => s.future.length > 0);
+  const undo = useStore((s) => s.undo);
+  const redo = useStore((s) => s.redo);
+  const base = 'rounded px-2 py-1 text-sm';
+  return (
+    <div className="flex items-stretch gap-0.5">
+      <button
+        onClick={undo}
+        disabled={!canUndo}
+        title="Undo (Ctrl+Z)"
+        className={`${base} ${canUndo ? 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200' : 'bg-neutral-100 text-neutral-300'}`}
+      >
+        ↶
+      </button>
+      <button
+        onClick={redo}
+        disabled={!canRedo}
+        title="Redo (Ctrl+Shift+Z)"
+        className={`${base} ${canRedo ? 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200' : 'bg-neutral-100 text-neutral-300'}`}
+      >
+        ↷
+      </button>
     </div>
   );
 }
