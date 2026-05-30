@@ -12,7 +12,11 @@ import { useQuality } from '../scene/useQuality';
 export function FurnitureLayer() {
   const items = useStore(useShallow((s) => s.items));
   const catalog = useCatalog();
-  const contactShadow = useQuality().contactShadows;
+  // Suppress per-item contact-shadow blobs while the showcase
+  // AccumulativeShadows ground plane is converging, so contacts don't
+  // double-darken.
+  const accumulating = useStore((s) => s.showcaseAccumulating);
+  const contactShadow = useQuality().contactShadows && !accumulating;
   // Re-render furniture whenever a DLC/catalog material finishes building so
   // the primitives' synchronous material lookup picks up the new texture.
   const materialEpoch = useStore((s) => s.materialEpoch);

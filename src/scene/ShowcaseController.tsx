@@ -3,6 +3,7 @@ import { useFrame } from '@react-three/fiber';
 import { AccumulativeShadows, RandomizedLight } from '@react-three/drei';
 import { Vector3 } from 'three';
 import { useQuality } from './useQuality';
+import { useStore } from '../state/store';
 import { nextShowcaseState, type ShowcaseState } from './showcase';
 import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../apartment/constants';
 
@@ -17,19 +18,26 @@ export function ShowcaseController() {
   const [state, setState] = useState<ShowcaseState>({ mode: 'live', stillSince: null });
   const prevPos = useRef(new Vector3());
   const stateRef = useRef(state);
-  stateRef.current = state;
+  stateRef.current = state; // keep the frame-loop closure reading current state without re-subscribing
 
-  useFrame(({ camera, clock }) => {
+  useFrame(({ camera }) => {
     if (!enabled) {
       if (stateRef.current.mode !== 'live') setState({ mode: 'live', stillSince: null });
+      if (useStore.getState().showcaseAccumulating !== false) {
+        useStore.getState().setShowcaseAccumulating(false);
+      }
       return;
     }
     const moved = prevPos.current.distanceToSquared(camera.position) > 1e-6;
     prevPos.current.copy(camera.position);
-    const now = clock.getElapsedTime() * 1000;
+    const now = performance.now();
     const next = nextShowcaseState(stateRef.current, { moved, now });
     if (next.mode !== stateRef.current.mode || next.stillSince !== stateRef.current.stillSince) {
       setState(next);
+    }
+    const accumulating = enabled && next.mode === 'accumulate';
+    if (useStore.getState().showcaseAccumulating !== accumulating) {
+      useStore.getState().setShowcaseAccumulating(accumulating);
     }
   });
 

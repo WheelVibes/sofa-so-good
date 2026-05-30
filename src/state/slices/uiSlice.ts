@@ -50,6 +50,11 @@ export interface UiSlice {
   materialEpoch: number;
   /** Signal that a furniture material was (re)built and is now in the cache. */
   bumpMaterialEpoch: () => void;
+  /** True while the showcase AccumulativeShadows ground plane is converging.
+   *  Used to suppress per-item ContactShadow blobs so contacts don't
+   *  double-darken. Ephemeral runtime state — never persisted. */
+  showcaseAccumulating: boolean;
+  setShowcaseAccumulating: (v: boolean) => void;
   setCatalogOpen: (open: boolean) => void;
   toggleCatalogOpen: () => void;
   setEditorTool: (tool: EditorTool) => void;
@@ -99,6 +104,7 @@ export const UI_INITIAL: Pick<
   | 'recording'
   | 'recentColors'
   | 'materialEpoch'
+  | 'showcaseAccumulating'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -115,6 +121,7 @@ export const UI_INITIAL: Pick<
   recording: false,
   recentColors: [],
   materialEpoch: 0,
+  showcaseAccumulating: false,
 };
 
 /** Preset alignment-grid cell sizes (metres) the size button cycles through. */
@@ -133,6 +140,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
   bumpMaterialEpoch: () => set((s) => ({ materialEpoch: s.materialEpoch + 1 })),
+  setShowcaseAccumulating: (v) => set({ showcaseAccumulating: v }),
   setQualityTier: (t) =>
     set({ qualityTier: t, qualityUserSet: true, qualityOverrides: {}, autoShadowsOff: false }),
   cycleQuality: () =>
