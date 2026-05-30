@@ -63,9 +63,11 @@ Tropical, Japandi, Coastal, Modern Mono) and **researched re-modelled L/D
 arrangements** (Open-Concept Lounge, Work-From-Home) via an explicit
 `livingDining` array, plus an `extraItems` layer for add-on pieces (feature
 walls). Researched layouts: Open-Concept Lounge, Work-From-Home, Social
-Lounge. New assets for these: an **L-shaped sectional sofa** (sofa-lshape)
-and a **fluted/slat feature wall** (feature-wall / FeatureWall), used as
-media walls in several presets. To add a researched layout: author
+Lounge, Entertainer's Lounge (sideboard media credenza + bar cart). New
+assets for these: an **L-shaped sectional sofa** (sofa-lshape), a
+**fluted/slat feature wall** (feature-wall / FeatureWall), a **sideboard /
+credenza** (sideboard / Sideboard) and a **bar cart** (bar-cart / BarCart),
+used as media walls / serving pieces in several presets. To add a researched layout: author
 `livingDining` entries + run the preset collision test. ~~Venetian blind~~,
 ~~bulb temperature~~, ~~TV/monitor screen content~~, ~~room area in Finish
 picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
