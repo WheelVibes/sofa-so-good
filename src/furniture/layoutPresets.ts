@@ -28,6 +28,9 @@ export interface LayoutPreset {
    *  layout). When present these REPLACE the default `default-ld-*` items;
    *  other rooms keep their default placements (restyled by `style`). */
   livingDining?: LayoutEntry[];
+  /** Extra items ADDED on top of the layout (e.g. feature walls). Taken as
+   *  authored — typically noClip wall treatments so they always place. */
+  extraItems?: LayoutEntry[];
 }
 
 /** Rooms a preset restyles (the "designed" living spaces; wet/utility rooms
@@ -153,6 +156,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       'wardrobe-3door': { color: '#cdbfa6', doorStyle: 'sliding' },
       curtains: { color: '#e0d8c8' },
     },
+    extraItems: [
+      { id: 'japandi-feature', defId: 'feature-wall', position: [12.53, 2.45], rotation: -Math.PI / 2, props: { width: 3.0, height: 2.55, style: 'fluted', color: '#a8855a', finish: 'wood' } },
+    ],
   },
   {
     id: 'coastal',
@@ -307,6 +313,9 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       'wardrobe-3door': { color: '#2b2e33', doorStyle: 'sliding' },
       curtains: { color: '#4a4e54' },
     },
+    extraItems: [
+      { id: 'mono-feature', defId: 'feature-wall', position: [12.53, 2.45], rotation: -Math.PI / 2, props: { width: 3.0, height: 2.55, style: 'slat', color: '#23262b', finish: 'gloss' } },
+    ],
   },
 ];
 
@@ -324,12 +333,15 @@ function hydrate(entry: LayoutEntry, style: Record<string, ParamProps>): LayoutE
  *  for it (those explicit items are taken as authored — no style override);
  *  otherwise every default item is restyled in place. */
 export function buildPresetItems(preset: LayoutPreset): LayoutEntry[] {
+  let items: LayoutEntry[];
   if (preset.livingDining) {
     const others = defaultLayout()
       .filter((e) => !e.id.startsWith('default-ld-'))
       .map((e) => hydrate(e, preset.style));
-    const ld = preset.livingDining.map((e) => hydrate(e, {}));
-    return [...others, ...ld];
+    items = [...others, ...preset.livingDining.map((e) => hydrate(e, {}))];
+  } else {
+    items = defaultLayout().map((e) => hydrate(e, preset.style));
   }
-  return defaultLayout().map((e) => hydrate(e, preset.style));
+  if (preset.extraItems) items = [...items, ...preset.extraItems.map((e) => hydrate(e, {}))];
+  return items;
 }
