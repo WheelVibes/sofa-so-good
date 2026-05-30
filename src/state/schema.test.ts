@@ -18,6 +18,39 @@ describe('schema', () => {
     }
   });
 
+  it('round-trips imported-GLB metadata on user furniture defs', () => {
+    useStore.getState().__resetForTest();
+    useStore.getState().setUserFurniture([
+      {
+        id: 'user-abc',
+        name: 'Wall Sconce',
+        category: 'decor',
+        kind: 'gltf',
+        source: 'user',
+        assetId: 'abc',
+        uploadedAt: '2026-04-01T00:00:00.000Z',
+        defaultFootprint: { w: 0.5, d: 0.3, h: 0.4 },
+        mounted: true,
+        noClip: true,
+        verticalSpan: { base: 1.5, top: 2.1 },
+        finishTargets: [{ key: 'shade', label: 'Shade' }],
+        finishOverrides: { shade: 'mat:brass-01' },
+      },
+    ]);
+    const out = serialize(useStore.getState());
+    const parsed = SerializedStateZ.safeParse(out);
+    expect(parsed.success).toBe(true);
+    if (parsed.success) {
+      const def = parsed.data.userFurniture.find((d) => d.id === 'user-abc');
+      expect(def).toBeDefined();
+      expect(def?.mounted).toBe(true);
+      expect(def?.noClip).toBe(true);
+      expect(def?.verticalSpan).toEqual({ base: 1.5, top: 2.1 });
+      expect(def?.finishTargets).toEqual([{ key: 'shade', label: 'Shade' }]);
+      expect(def?.finishOverrides).toEqual({ shade: 'mat:brass-01' });
+    }
+  });
+
   it('applySerialized drops items whose def is missing from the catalog', () => {
     useStore.getState().__resetForTest();
     useStore.getState().addItem({

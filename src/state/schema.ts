@@ -41,6 +41,11 @@ const UserGltfDefZ = z.object({
     d: z.number(),
     h: z.number(),
   }),
+  mounted: z.boolean().optional(),
+  noClip: z.boolean().optional(),
+  verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
+  finishTargets: z.array(z.object({ key: z.string(), label: z.string() })).optional(),
+  finishOverrides: z.record(z.string(), z.string()).optional(),
 });
 
 const UserMaterialDefZ = z.object({
@@ -175,6 +180,11 @@ export function serialize(state: RootState): SerializedState {
       assetId: d.assetId,
       uploadedAt: d.uploadedAt,
       defaultFootprint: d.defaultFootprint,
+      mounted: d.mounted,
+      noClip: d.noClip,
+      verticalSpan: d.verticalSpan,
+      finishTargets: d.finishTargets,
+      finishOverrides: d.finishOverrides,
     })),
     userMaterials: state.userMaterials.map((d) => ({
       id: d.id,
