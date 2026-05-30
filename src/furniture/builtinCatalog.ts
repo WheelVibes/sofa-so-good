@@ -1058,6 +1058,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'width', label: 'Width', min: 0.4, max: 1.2, step: 0.05, default: 0.6, unit: 'm' },
       { kind: 'number', key: 'height', label: 'Height', min: 0.5, max: 1.2, step: 0.05, default: 0.9, unit: 'm' },
       { kind: 'number', key: 'mountHeight', label: 'Hang height', min: 1.1, max: 1.8, step: 0.05, default: 1.5, unit: 'm' },
+      {
+        kind: 'enum',
+        key: 'shape',
+        label: 'Shape',
+        default: 'rect',
+        options: [
+          { value: 'rect', label: 'Rectangular' },
+          { value: 'round', label: 'Round' },
+          { value: 'frameless', label: 'Frameless' },
+        ],
+      },
+      { kind: 'color', key: 'frameColor', label: 'Frame', default: '#c9ccd1' },
     ],
   },
 
