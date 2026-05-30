@@ -1,0 +1,61 @@
+# Interior-design guidelines (placement rules)
+
+Space-planning rules this project follows when authoring default layouts,
+presets, and the auto-arranger (`src/layout/autoArrange.ts`). Clearances are
+codified as metric constants in **`src/layout/designRules.ts`** (`CLEARANCE`,
+`tvViewingDistance`) — reference those rather than hard-coding gaps so all
+placement stays consistent. Keep this doc and that module in sync.
+
+## Core principles
+
+- **Anchor big pieces to walls.** Storage (wardrobes, bookshelves, dressers,
+  shoe/cube cabinets, consoles), appliances (fridge, washer), kitchen
+  counters, beds and desks sit **flush against a wall** (≈5 cm skirting gap),
+  facing into the room. Never float them mid-room.
+- **TVs go on a solid, windowless wall** — never in front of a window (glare +
+  you can't wall-mount on glazing). Check `WINDOWS`/`DOORS` in
+  `apartment/constants.ts` before choosing the wall.
+- **Seating faces the focal point.** The sofa faces the TV; a sofa + TV are on
+  opposite walls. A coffee table sits centred between them.
+- **Keep circulation clear.** Maintain walkways and never block a door's or
+  window's swing/operation.
+- **Minimise clutter / maximise space.** Push pieces to the perimeter, leave
+  the centre open, group by function (lounge zone vs. dining zone).
+
+## Clearances (metres) — `CLEARANCE`
+
+| Rule | Ideal | Min | Notes |
+|------|-------|-----|-------|
+| Main walkway between big pieces | 0.90 (`walkwayIdeal`) | 0.60 (`walkwayMin`) | 30–36″ / 18–24″ |
+| Through-passage / doorway route | 0.75 (`passage`) | — | single-file |
+| Sofa front ↔ coffee table | 0.40 (`sofaToCoffee`) | — | 14–18″, within reach |
+| Door / drawer / cabinet swing | 0.85 (`doorSwing`) | — | ≈ the leaf width |
+| Walk-around at a bed | 0.60 (`bedSurround`) | — | ≥1 long side + foot |
+| Flush-to-wall gap | 0.05 (`wallGap`) | — | skirting / AC trunking |
+| Clear floor in front of storage | 0.75 (`storageFront`) | — | open + pass |
+
+## TV viewing distance — `tvViewingDistance(diagonalInches)`
+
+4K rule of thumb: **1.2–1.6 × the screen diagonal**. e.g. 55″ ≈ 1.7–2.1 m,
+65″ ≈ 2.0–2.5 m. Place the sofa within this band of the TV wall.
+
+## Per-room patterns (used by the auto-arranger)
+
+- **Living / dining:** TV + console flush on the windowless wall; sofa on the
+  opposite wall facing it; coffee table + rug centred (a rectangular coffee
+  table's **long side runs parallel to the sofa**); dining set in the
+  secondary zone with chairs tucked in; storage flush to side walls; plants /
+  floor lamps in corners.
+- **Bedroom:** bed **headboard centred & flush to a wall**, with nightstands
+  flanking it; wardrobe/storage on a *different* wall (keeping door-swing
+  clearance); optional bench at the foot if it fits; lamps/plants in corners.
+- **Kitchen / bath / utility:** counters, appliances and fixtures run flush
+  along the walls; nothing floats; circulation kept clear.
+
+## Sources
+
+- [Cheat Sheet: Key Measurements for Space Planning — Mix & Match Design](https://mixandmatchdesign.com/design-school-101/cheat-sheet-key-measurements-for-space-planning)
+- [The Essential Furniture Spacing Guide — Craft'n Build](https://craftnbuild.com/en-us/blogs/interior-styles/furniture-spacing)
+- [Common Clearances — Space Stylists & Co](https://www.spacestylistsco.com/blog/commonclearances)
+- [The Perfect Sofa Distance From Your TV — Castlery](https://www.castlery.com/us/blog/distance-from-tv-to-sofa)
+- [How Much Space Does a Swing Door Need? — Doors & Beyond](https://doorsandbeyond.com/blogs/blog/how-much-space-does-a-swing-door-need-door-clearance-explained)

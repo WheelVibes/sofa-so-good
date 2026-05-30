@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 import { ROOMS, roomArea } from '../apartment/constants';
 import { useMaterials } from '../materials/useMaterial';
+import { useCatalog } from '../furniture/catalog';
+import { arrangeRoom } from '../layout/autoArrange';
 import { useStore } from '../state/store';
 import type { MaterialCategory, MaterialDef } from '../materials/types';
 import type { RoomId } from '../apartment/types';
@@ -43,6 +45,13 @@ export function FinishPicker() {
   const removeUserMaterial = useStore((s) => s.removeUserMaterial);
   const recentColors = useStore(useShallow((s) => s.recentColors));
   const pushRecentColor = useStore((s) => s.pushRecentColor);
+  const furnitureCatalog = useCatalog();
+  const tidyRoom = () => {
+    if (!roomId) return;
+    const s = useStore.getState();
+    s.pushHistory();
+    s.setItems(arrangeRoom(roomId, s.items, furnitureCatalog, s.doors));
+  };
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog);
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status);
   const materials = useMaterials();
@@ -132,6 +141,13 @@ export function FinishPicker() {
             onCustom={(hex) => handleSelect('wall', hex)}
             recent={recentColors}
           />
+          <button
+            onClick={tidyRoom}
+            title="Auto-arrange this room's furniture: storage flush to walls, seating facing the TV, walkways + door clearances kept"
+            className="mt-3 w-full whitespace-nowrap rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+          >
+            ✨ Tidy up room
+          </button>
           <div className="mt-2 flex gap-2">
             <button
               onClick={() => setView('browse')}

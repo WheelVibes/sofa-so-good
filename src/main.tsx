@@ -14,9 +14,15 @@ async function boot() {
   loadQualityPrefs();
   watchQualityPrefs();
   startAutosave();
-  // Dev-only: expose the store for screenshot/automation harnesses.
+  // Dev-only: expose the store + auto-arranger for screenshot/automation.
   if (import.meta.env.DEV) {
     (window as unknown as { __store?: typeof useStore }).__store = useStore;
+    const { arrangeRoom } = await import('./layout/autoArrange');
+    const { BUILTIN_CATALOG } = await import('./furniture/builtinCatalog');
+    (window as unknown as { __arrangeRoom?: unknown }).__arrangeRoom = (roomId: string) => {
+      const s = useStore.getState();
+      s.setItems(arrangeRoom(roomId as never, s.items, BUILTIN_CATALOG as never, s.doors));
+    };
   }
   createRoot(document.getElementById('root')!).render(
     <StrictMode>

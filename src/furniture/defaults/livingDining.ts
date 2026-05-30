@@ -36,9 +36,10 @@ export const livingDining: LayoutEntry[] = [
   { id: 'default-ld-chair-n2', defId: 'dining-chair', position: [10.9, 4.45], rotation: 0, props: {} },
   { id: 'default-ld-chair-s1', defId: 'dining-chair', position: [10.2, 5.95], rotation: Math.PI, props: {} },
   { id: 'default-ld-chair-s2', defId: 'dining-chair', position: [10.9, 5.95], rotation: Math.PI, props: {} },
-  // Lounge zone between the sofa and the TV wall.
+  // Lounge zone between the sofa and the TV wall. Coffee table rotated so its
+  // long side runs parallel to the (north-south) sofa.
   { id: 'default-ld-rug', defId: 'rug', position: [10.95, 2.55], rotation: 0, props: { width: 2.0, depth: 1.8 } },
-  { id: 'default-ld-coffee', defId: 'coffee-table', position: [10.95, 2.55], rotation: 0, props: {} },
+  { id: 'default-ld-coffee', defId: 'coffee-table', position: [10.95, 2.55], rotation: Math.PI / 2, props: {} },
   { id: 'default-ld-decor', defId: 'tabletop-decor', position: [10.95, 2.55], rotation: 0.3, props: { surfaceHeight: 0.42 } },
   { id: 'default-ld-armchair', defId: 'armchair', position: [11.4, 7.3], rotation: Math.PI, props: {} },
   { id: 'default-ld-sidetable', defId: 'side-table', position: [10.6, 7.25], rotation: 0, props: {} },

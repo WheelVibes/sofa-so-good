@@ -74,6 +74,14 @@ state, Vite build, Vitest tests.
 ## Conventions
 - Furniture primitives are floor-anchored, centred on the footprint, facing
   +Z; geometry is built at real-world metres.
+- **Placement follows the interior-design rules in
+  [docs/interior-design-guidelines.md](docs/interior-design-guidelines.md)**:
+  storage/appliances/beds flush to walls, TVs on windowless walls, seating
+  faces the TV, walkways + door/window clearances preserved. Clearance values
+  live in `src/layout/designRules.ts` (`CLEARANCE`) and drive the per-room
+  auto-arranger in `src/layout/autoArrange.ts` (`arrangeRoom`, exposed in-app
+  as the Finish-picker "Tidy up room" button). Author default layouts/presets
+  to these rules and reuse the constants.
 - Keep `TODO.md` current when deferring work (see superpowers specs/plans
   under `docs/`).
 - All bundled assets are procedurally generated (CC0-equivalent); downloadable
