@@ -73,8 +73,10 @@ used as media walls / serving pieces in several presets. To add a researched lay
 ~~bulb temperature~~, ~~TV/monitor screen content~~, ~~room area in Finish
 picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
 
-Possible further polish: heated-ladder towel rail; user-saved style presets;
-researched bedroom layout (feature-wall headboard).
+Possible further polish: heated-ladder towel rail; user-saved style presets.
+~~Researched bedroom layout~~ — "Boutique Suite" preset re-models the main
+bedroom into a symmetric hotel layout (queen centred with twin nightstands +
+lamps, foot bench, wardrobe on the solid wall) via the new `rooms` override.
 ~~Console-table~~ + ~~sideboard / credenza~~ (doors / drawers / mixed fronts ×
 tapered / hairpin / plinth base × bar / knob / recessed / push handles) +
 ~~bar cart~~ (2–3 tiers × brass / black / chrome frame × glass / wood / marble
