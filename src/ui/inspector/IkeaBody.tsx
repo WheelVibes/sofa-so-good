@@ -3,7 +3,7 @@ import { useStore } from '../../state/store';
 import { useCatalog, isIkeaDef } from '../../furniture/catalog';
 import { resolveCompatible } from '../../furniture/ikea/compatibility';
 import { seedGltfFootprint } from '../../furniture/GltfModel';
-import { stackOnto } from '../../furniture/ikea/stacking';
+import { combineOnto } from '../../furniture/ikea/stacking';
 import { variantProps, finishOverrideKey } from './ikeaBodyProps';
 
 interface IkeaBodyProps {
@@ -119,20 +119,21 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
   const recolourable = variant?.glbMaterials.filter((m) => m.name.trim() !== '') ?? [];
   const multiMaterial = recolourable.length > 1;
 
-  /** Drop a compatible model stacked snug on the base, stamping the base's
-   *  groupId (if any) + adding the new item in one history step — mirrors the
-   *  set-drop idiom in Toolbar's dropArranged. */
-  const placeOnThis = (matchDef: IkeaGltfDef, finish: string) => {
+  /** Combine a compatible model with the base per the matched category
+   *  (vertical stack or around-placement), stamping the base's groupId (if any)
+   *  + adding the new item(s) in one history step — mirrors the set-drop idiom
+   *  in Toolbar's dropArranged. */
+  const placeOnThis = (matchDef: IkeaGltfDef, finish: string, category: string) => {
     const variant = matchDef.variants.find((v) => v.finish === finish) ?? matchDef.variants[0];
-    const res = stackOnto(item, def, matchDef, variant);
+    const res = combineOnto(item, def, matchDef, variant, category);
     if ('error' in res) return; // defensive; button is disabled in that case
     const st = useStore.getState();
     st.pushHistory();
     const withBaseGroup = item.groupId
       ? st.items
       : st.items.map((it) => (it.id === item.id ? { ...it, groupId: res.groupId } : it));
-    st.setItems([...withBaseGroup, res.item]);
-    st.setSelectedItemIds([res.item.id]);
+    st.setItems([...withBaseGroup, ...res.items]);
+    st.setSelectedItemIds(res.items.map((i) => i.id));
   };
 
   return (
@@ -242,14 +243,14 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
                       const finish0 = m.finishes[0]?.finish ?? m.def.activeVariant;
                       const variant0 =
                         m.def.variants.find((v) => v.finish === finish0) ?? m.def.variants[0];
-                      const canPlace = !('error' in stackOnto(item, def, m.def, variant0));
+                      const canPlace = !('error' in combineOnto(item, def, m.def, variant0, category));
                       return (
                         <div key={m.def.id} className="flex flex-wrap items-center gap-1">
                           <button
-                            onClick={() => placeOnThis(m.def, finish0)}
+                            onClick={() => placeOnThis(m.def, finish0, category)}
                             disabled={!canPlace}
                             className="rounded border border-blue-500 px-1.5 py-1 text-[10px] text-blue-600 hover:bg-blue-50 disabled:cursor-not-allowed disabled:opacity-40"
-                            title="Drop this onto the selected item, snug"
+                            title="Combine this with the selected item"
                           >
                             Place on this
                           </button>
