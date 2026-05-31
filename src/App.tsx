@@ -29,6 +29,7 @@ import {
 import { useCatalog } from './furniture/catalog';
 import { canPlace } from './collision/placement';
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard';
+import { tidyHome } from './layout/tidyHome';
 import { cameraForwardXZ } from './scene/cameras/cameraForward';
 
 export default function App() {
@@ -133,6 +134,9 @@ export default function App() {
       if (!mod && code === KEYBINDINGS.toggleCatalog) {
         state.toggleCatalogOpen();
       }
+      if (!mod && code === KEYBINDINGS.topView) state.requestTopView();
+      if (!mod && code === KEYBINDINGS.resetView) state.requestHomeView();
+      if (!mod && code === KEYBINDINGS.tidyHome) tidyHome();
       if (code === KEYBINDINGS.deselect) {
         state.selectItem(null);
       }
