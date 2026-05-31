@@ -71,4 +71,12 @@ describe('parseMetadata real-data tolerances', () => {
       url: 'u', product_title: 'VINNSET Knob', glb: null }] });
     expect(r.ok).toBe(true);
   });
+  it('parses variant main_image / context_image filenames', () => {
+    const r = parseMetadata({ ...base, variants: [{ ...base.variants[0],
+      main_image: 'white-main.jpg', context_image: 'white-context.jpg' }] });
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.data.variants[0].main_image).toBe('white-main.jpg');
+    expect(r.data.variants[0].context_image).toBe('white-context.jpg');
+  });
 });

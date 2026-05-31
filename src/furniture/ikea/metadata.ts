@@ -24,6 +24,8 @@ const VariantZ = z.object({
   documents: z.array(z.object({ name: z.string(), url: z.string() })).optional(),
   main_image_url: z.string().optional(),
   contextual_image_url: z.string().optional(),
+  main_image: z.string().nullable().optional(),
+  context_image: z.string().nullable().optional(),
   glb: z.string().nullable(),
   footprint: z.object({
     w: z.number(), d: z.number(), h: z.number(),
