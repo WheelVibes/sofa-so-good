@@ -292,9 +292,12 @@ rediscover it.
   inside the room (`furniture/roomFilter.ts`). `OrbitCamera` frames the room
   (centre + sized 3/4 offset) on enter / room switch. The **toolbar trims to the
   planner essentials** while active — the Scene (time/sun), Tools, and Lights
-  clusters are hidden (`Toolbar` gates them on `roomEditor.active`). Walk-mode
-  collision currently uses the full-flat wall set (the room's walls are a subset,
-  so they still block) — true room-only bounding is a follow-up.
+  clusters are hidden (`Toolbar` gates them on `roomEditor.active`). **Walk mode
+  is bounded to the room**: `FirstPersonCamera` spawns the player at the room
+  centre and feeds `collision/roomCollisionWalls.ts` `buildRoomCollisionWalls`
+  (door-aware solid segments built from the room's *clipped* walls) into the
+  movement resolver, so the player can't leave the room (an open door is a gap,
+  same as the full flat).
 - **Snap grid** (`scene/snap.ts`, `GridOverlay.tsx`, ui `snapEnabled`/
   `gridSize`): drag + initial placement quantise to a customizable grid
   (10/25/50 cm, 1 m); the floor overlay shows it. Persisted via `editorPrefs`.

@@ -5,7 +5,9 @@ import { PerspectiveCamera, Vector3 } from 'three';
 import { DOORS, WALLS } from '../../apartment/constants';
 import { isLineOfSightBlocked, resolveMovement, type CollisionWall } from '../../collision/walls';
 import { buildCollisionWalls } from '../../collision/wallsFromState';
+import { buildRoomCollisionWalls } from '../../collision/roomCollisionWalls';
 import { planCollisionWalls, isDefaultPlan } from '../../floorplan/planGeometry';
+import { roomShell } from '../../apartment/roomShell';
 import { KEYBINDINGS } from '../../controls/keybindings';
 import { isEditableTarget } from '../../controls/useKeyboard';
 import { useStore } from '../../state/store';
@@ -58,14 +60,19 @@ export function FirstPersonCamera() {
   const pressed = useRef<Record<string, boolean>>({});
   const doors = useStore((s) => s.doors);
   const floorPlan = useStore((s) => s.floorPlan);
+  const roomEditorId = useStore((s) => s.roomEditor.roomId);
   const collisionWalls = useRef<CollisionWall[]>([]);
 
   useEffect(() => {
-    // Walk-mode collision follows the active plan (custom apartments included).
-    collisionWalls.current = isDefaultPlan(floorPlan)
-      ? buildCollisionWalls(doors)
-      : planCollisionWalls(floorPlan, doors);
-  }, [doors, floorPlan]);
+    // In the per-room editor, bound the player to the isolated room's clipped
+    // walls. Otherwise walk-mode collision follows the active plan (custom
+    // apartments included).
+    collisionWalls.current = roomEditorId
+      ? buildRoomCollisionWalls(roomEditorId, doors)
+      : isDefaultPlan(floorPlan)
+        ? buildCollisionWalls(doors)
+        : planCollisionWalls(floorPlan, doors);
+  }, [doors, floorPlan, roomEditorId]);
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
@@ -91,9 +98,17 @@ export function FirstPersonCamera() {
   }, []);
 
   useEffect(() => {
-    camera.position.set(11, EYE_HEIGHT, 6);
-    // Face into the living/dining instead of inheriting the orbit angle.
-    camera.lookAt(10.4, EYE_HEIGHT, 2.5);
+    if (roomEditorId) {
+      // Spawn in the centre of the isolated room, looking toward its far edge.
+      const shell = roomShell(roomEditorId);
+      const [cx, cz] = shell.center;
+      camera.position.set(cx, EYE_HEIGHT, cz);
+      camera.lookAt(cx, EYE_HEIGHT, cz - 1);
+    } else {
+      camera.position.set(11, EYE_HEIGHT, 6);
+      // Face into the living/dining instead of inheriting the orbit angle.
+      camera.lookAt(10.4, EYE_HEIGHT, 2.5);
+    }
     yPos.current = EYE_HEIGHT;
     yVel.current = 0;
     groundY.current = EYE_HEIGHT;
@@ -110,7 +125,7 @@ export function FirstPersonCamera() {
         camera.updateProjectionMatrix();
       }
     };
-  }, [camera]);
+  }, [camera, roomEditorId]);
 
   const tmpForward = useRef(new Vector3());
   const tmpRight = useRef(new Vector3());
