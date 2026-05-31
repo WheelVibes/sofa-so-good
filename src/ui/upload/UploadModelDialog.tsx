@@ -76,8 +76,12 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   const [dragOver, setDragOver] = useState(false)
   // Live count while the recursive directory walk reads a dropped folder.
   const [scanCount, setScanCount] = useState<number | null>(null)
-  // True while detectGroups() reads + parses metadata.json after a pick/drop.
-  const [detecting, setDetecting] = useState(false)
+  // Detection progress while detectGroups() reads + parses metadata.json after
+  // a pick/drop: { parsed, total }. null when not detecting.
+  const [detectProgress, setDetectProgress] = useState<{ parsed: number; total: number } | null>(
+    null,
+  )
+  const detecting = detectProgress !== null
   // When the user tries to leave mid-scan/import, confirm before discarding.
   const [confirmClose, setConfirmClose] = useState(false)
   const folderInput = useRef<HTMLInputElement>(null)
@@ -133,7 +137,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setIkeaGroups([])
     setDragOver(false)
     setScanCount(null)
-    setDetecting(false)
+    setDetectProgress(null)
     setConfirmClose(false)
   }
 
@@ -145,11 +149,11 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     if (models.length === 1 && picked.length === 1) setName(modelName(picked[0].name))
     else setName('')
     // Auto-detect every model-group folder (each has a metadata.json w/
-    // group_key). Reads + parses each metadata.json, so flag it for the UI.
-    setDetecting(true)
-    void detectGroups(picked)
+    // group_key). Reads + parses each metadata.json — report progress for the UI.
+    setDetectProgress({ parsed: 0, total: 0 })
+    void detectGroups(picked, (parsed, total) => setDetectProgress({ parsed, total }))
       .then(setIkeaGroups)
-      .finally(() => setDetecting(false))
+      .finally(() => setDetectProgress(null))
   }
 
   const onPick = (list: FileList | null) => ingest(list ? Array.from(list) : [])
@@ -191,6 +195,10 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
       setBusy(false)
       if (!r.ok) {
         setError(r.reason)
+        return
+      }
+      if (r.duplicate) {
+        setError(`“${r.def.name}” is already in your catalog — nothing to import.`)
         return
       }
       doClose()
@@ -290,11 +298,25 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
               </p>
             ) : null}
 
-            {detecting ? (
-              <p className="flex items-center gap-2 text-xs text-neutral-600">
-                <Spinner small />
-                Detecting model groups…
-              </p>
+            {detectProgress ? (
+              <div className="space-y-1">
+                <p className="flex items-center gap-2 text-xs text-neutral-600">
+                  <Spinner small />
+                  {detectProgress.total > 0
+                    ? `Detecting model groups… ${detectProgress.parsed} / ${detectProgress.total}`
+                    : 'Detecting model groups…'}
+                </p>
+                {detectProgress.total > 0 ? (
+                  <div className="h-1 w-full overflow-hidden rounded bg-neutral-200">
+                    <div
+                      className="h-full bg-blue-600 transition-all"
+                      style={{
+                        width: `${(detectProgress.parsed / detectProgress.total) * 100}%`,
+                      }}
+                    />
+                  </div>
+                ) : null}
+              </div>
             ) : null}
 
             {hasGroups ? <GroupPanel groups={ikeaGroups} looseCount={looseModels.length} /> : null}

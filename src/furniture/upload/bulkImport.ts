@@ -1,5 +1,6 @@
 import { useStore } from '../../state/store'
 import type { FurnitureCategory } from '../types'
+import { hashFile } from './hashFile'
 import { persistUserGlb } from './persist'
 
 export interface BulkImportOptions {
@@ -17,6 +18,8 @@ export interface SkippedFile {
 export interface BulkImportResult {
   total: number
   imported: number
+  /** Files whose content was already in the catalog (skipped, not an error). */
+  duplicates: number
   skipped: SkippedFile[]
 }
 
@@ -69,20 +72,33 @@ export async function importGlbFiles(
   }
 
   let imported = 0
+  let duplicates = 0
   const concurrency = Math.max(1, opts.concurrency ?? 4)
   let cursor = 0
+  // Hashes already imported THIS batch — guards the concurrent race where two
+  // identical files both pass persist's not-yet-committed existence check.
+  const seenHashes = new Set<string>()
 
   async function worker(): Promise<void> {
     while (cursor < planned.length) {
       const job = planned[cursor++]
       try {
+        const contentHash = await hashFile(job.file)
+        if (seenHashes.has(contentHash)) {
+          duplicates++
+          tick()
+          continue
+        }
+        seenHashes.add(contentHash)
         const result = await persistUserGlb(job.file, {
           name: job.name,
           category: opts.category,
           mounted: opts.mounted,
           noClip: opts.noClip,
+          contentHash,
         })
-        if (result.ok) imported++
+        if (result.ok && result.duplicate) duplicates++
+        else if (result.ok) imported++
         else skipped.push({ name: job.errorName, reason: result.reason })
       } catch (e) {
         skipped.push({ name: job.errorName, reason: e instanceof Error ? e.message : String(e) })
@@ -93,7 +109,7 @@ export async function importGlbFiles(
 
   await Promise.all(Array.from({ length: Math.min(concurrency, planned.length) }, () => worker()))
 
-  return { total, imported, skipped }
+  return { total, imported, duplicates, skipped }
 }
 
 /** True when the basename ends in .glb or .gltf (case-insensitive). */

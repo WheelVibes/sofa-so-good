@@ -106,10 +106,12 @@ export function startBackgroundImport(plan: ImportPlan): Promise<ImportOutcome> 
       const ok = outcome.groups.filter((g) => g.ok).length
       const failed = outcome.groups.filter((g) => !g.ok).length
       const looseN = outcome.loose?.imported ?? 0
+      const dupes = outcome.loose?.duplicates ?? 0
       const parts: string[] = []
       if (ok > 0) parts.push(`${ok} group${ok === 1 ? '' : 's'}`)
       if (looseN > 0) parts.push(`${looseN} model${looseN === 1 ? '' : 's'}`)
-      const summary = parts.length ? `Imported ${parts.join(', ')}` : 'Nothing imported'
+      let summary = parts.length ? `Imported ${parts.join(', ')}` : 'Nothing new imported'
+      if (dupes > 0) summary += ` · ${dupes} already in catalog`
       if (failed > 0) notify.error(id, `${summary} · ${failed} failed`)
       else notify.success(id, summary)
       return outcome
