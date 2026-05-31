@@ -169,25 +169,36 @@ screenshots, not just that you took them.
   `schema.ts` (incl. `imageAssetId`), and re-resolve their GLB + thumbnail blob
   URLs on boot (`storage/hydrate*`).
   Plan: [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md).
-- **Stacking compatible models** (`furniture/ikea/stacking.ts`): a compatible
-  model drops onto a base snug — e.g. a mattress onto a bed frame. `resolveStack`
-  derives the support-surface Y from the scraped `productMeasurements` (bed:
-  mattress top flush with `Footboard height`, i.e. `supportY = footboard −
-  thickness`; clamped to `Free height under furniture` if the rail is shorter
-  than the mattress), with per-category fallbacks in `layout/designRules.ts`
-  (`STACK`); it also returns an XZ centre offset (anchor-aware, so the mattress
-  centres on the sleeping area, not the headboard-skewed bbox) and inherits the
-  base rotation. `stackOnto` builds the stacked `FurnitureItem` with
-  `props.surfaceHeight = supportY` (the Y lift — GLB items lift by it in
-  `Furniture.tsx`; primitives self-lift, so the lift is gated `kind !==
-  'parametric'`) and a shared `groupId` (reused from the base or minted). Two
-  triggers: the inspector **"Complete with → Place on this"** action
-  (`ui/inspector/IkeaBody.tsx`) and **drag-snap** (`scene/DragController.tsx`
-  highlights a compatible base under the drag — via `itemFootprint`
-  containment + `resolveCompatible` — and routes the drop through `stackOnto`).
-  Group-mates skip mutual collision in `collision/placement.ts` (a mattress sits
-  inside the frame OBB by design). `surfaceHeight`/`groupId` already persist —
-  no schema change.
+- **Combining compatible models** (`furniture/ikea/stacking.ts`,
+  `placementSemantics.ts`, `supportPlane.ts`): a compatible model combines with a
+  base per a **placement kind** classified from the matched "Complete with"
+  category (`placementKind`: vertical / around / modular / null→gated off):
+  - **vertical** (mattress→bed frame, cushion→sofa): rests the item's BOTTOM on
+    the base's true support surface. That Y is detected **geometrically** from
+    the base GLB — `supportPlane.ts` `detectSupportPlaneY` histograms near-
+    horizontal triangle area by Y over the footprint interior and picks the
+    highest substantial band below the head/footboard region (the slat plane,
+    ~0.24 m for MALM), computed + cached by URL in `GltfModel` (`SUPPORT_PLANE_
+    CACHE`, its own effect so the footprint short-circuit can't skip it; computed
+    from any LOD tier, original-geometry marked authoritative). IKEA publishes no
+    slat height, so geometry — not the old footboard-minus-thickness estimate —
+    is the source of truth. Fallback `STACK.bedSlatDefault` in `designRules.ts`.
+  - **around** (chairs/stools/benches→table): places the seating on the FLOOR at
+    the base's front edge, facing it (no Y lift).
+  - **modular** (sofa sections→sections): snaps a section to the base's first
+    mating edge (from the scraped `IkeaModular` block — role + mating edges),
+    flush on the floor, same rotation — extend-a-sofa / L-shape.
+  `combineOnto` builds the item(s) with `props.surfaceHeight` (vertical only),
+  inherited rotation, and a shared `groupId`. GLB items lift by `surfaceHeight`
+  in `Furniture.tsx` (gated `kind !== 'parametric'`; the ContactShadow counter-
+  translates by `-liftY` to stay grounded). Two triggers: inspector
+  **"Complete with → Place on this"** (`ui/inspector/IkeaBody.tsx`) and
+  **drag-snap** (`scene/DragController.tsx` — `itemFootprint` containment +
+  `resolveCompatible`, routed through `combineOnto`). Group-mates skip mutual
+  collision (`collision/placement.ts`). `surfaceHeight`/`groupId`/`modular`
+  round-trip with no schema change. The scraper grows a `--phrase-index` mode
+  (harvest accepts-category phrases, no GLBs) and a name-inferred `modular` block
+  for sofa sections (`ikea_model_scraper.py`).
 - **IKEA live-scrape pack** (`catalog/packs/ikeaLive.ts`, `scripts/scraper-server.mjs`):
   the **IKEA Singapore (live scrape)** pack (a `kind:'ikea-live'` entry in
   `catalog/packs/registry.ts`) downloads the catalogue on demand instead of a

@@ -66,9 +66,13 @@ export the result — all in the browser.
   run. Categories are auto-detected — no manual tagging — so the whole catalogue
   imports in one click. Local/dev-only; IKEA assets are not redistributed.
 - **Combine compatible pieces** — drag a mattress onto a bed frame (or select
-  the frame and use *Complete with → Place on this*) and it snaps snug onto the
-  support surface: the mattress top sits flush with the footboard rail, centred
-  on the sleeping area, and the two are grouped so they move and rotate together.
+  the frame and use *Complete with → Place on this*) and it rests snug on the
+  frame's actual slatted base (detected from the model's geometry, so a thick
+  mattress sits proud above the footboard, as in real life), centred on the
+  sleeping area and grouped so the pair moves together. Combining is
+  context-aware: dining chairs, stools, and benches arrange **around** a table
+  on the floor (not on top), and modular sofa sections snap **edge-to-edge**
+  side by side to extend a sofa or form an L-shape.
 - **Performance** — CPU-first quality tiers with auto-detection, an adaptive
   guard that holds 30+ fps (shedding the shadow pass as a last resort), and a
   Graphics panel exposing every setting (shadows, reflections, post-processing,
