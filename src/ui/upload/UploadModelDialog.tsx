@@ -53,6 +53,24 @@ function pathOf(f: File): string {
   return (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
 }
 
+function Spinner() {
+  return (
+    <svg
+      className="h-6 w-6 animate-spin text-blue-600"
+      viewBox="0 0 24 24"
+      fill="none"
+      aria-hidden="true"
+    >
+      <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+      <path
+        className="opacity-75"
+        fill="currentColor"
+        d="M4 12a8 8 0 0 1 8-8V0C5.4 0 0 5.4 0 12h4z"
+      />
+    </svg>
+  )
+}
+
 export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   const [files, setFiles] = useState<File[]>([])
   const [name, setName] = useState('')
@@ -66,7 +84,8 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   const [showSkipped, setShowSkipped] = useState(false)
   const [ikeaGroups, setIkeaGroups] = useState<DetectedGroup[]>([])
   const [dragOver, setDragOver] = useState(false)
-  const fileInput = useRef<HTMLInputElement>(null)
+  // Live count while the recursive directory walk reads a dropped folder.
+  const [scanCount, setScanCount] = useState<number | null>(null)
   const folderInput = useRef<HTMLInputElement>(null)
 
   if (!open) return null
@@ -91,6 +110,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setShowSkipped(false)
     setIkeaGroups([])
     setDragOver(false)
+    setScanCount(null)
   }
 
   const ingest = (picked: File[]) => {
@@ -110,9 +130,14 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   const onDrop = async (e: React.DragEvent) => {
     e.preventDefault()
     setDragOver(false)
-    if (busy) return
-    const picked = await readDroppedItems(e.dataTransfer)
-    if (picked.length > 0) ingest(picked)
+    if (busy || scanCount !== null) return
+    setScanCount(0)
+    try {
+      const picked = await readDroppedItems(e.dataTransfer, (n) => setScanCount(n))
+      if (picked.length > 0) ingest(picked)
+    } finally {
+      setScanCount(null)
+    }
   }
 
   const submit = async () => {
@@ -252,56 +277,48 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
             </div>
           ) : (
             <div className="space-y-3">
-              <button
-                type="button"
-                onClick={() => fileInput.current?.click()}
+              {/* A <div> (not <button>) is the drop target — native buttons
+                  mishandle drag-drop and won't populate dataTransfer entries. */}
+              <div
                 onDragOver={(e) => {
                   e.preventDefault()
-                  setDragOver(true)
+                  if (!busy && scanCount === null) setDragOver(true)
                 }}
-                onDragLeave={() => setDragOver(false)}
+                onDragEnter={(e) => e.preventDefault()}
+                onDragLeave={(e) => {
+                  // Only clear when the cursor actually leaves the zone, not when
+                  // it crosses onto a child element.
+                  if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setDragOver(false)
+                }}
                 onDrop={onDrop}
-                disabled={busy}
                 className={`flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors ${
-                  dragOver
-                    ? 'border-blue-500 bg-blue-50'
-                    : 'border-neutral-300 bg-neutral-50 hover:border-neutral-400'
+                  dragOver ? 'border-blue-500 bg-blue-50' : 'border-neutral-300 bg-neutral-50'
                 }`}
               >
-                <span className="text-sm font-medium text-neutral-700">
-                  {dragOver ? 'Drop to upload' : 'Drag files or folders here'}
-                </span>
-                <span className="text-xs text-neutral-400">or</span>
-                <span className="flex gap-2">
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      fileInput.current?.click()
-                    }}
-                    className="rounded bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-neutral-300 hover:bg-neutral-50"
-                  >
-                    Choose files
-                  </span>
-                  <span
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      folderInput.current?.click()
-                    }}
-                    className="rounded bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-neutral-300 hover:bg-neutral-50"
-                  >
-                    Choose folder
-                  </span>
-                </span>
-              </button>
-              <input
-                ref={fileInput}
-                type="file"
-                multiple
-                accept=".glb,.gltf,model/gltf-binary,model/gltf+json"
-                onChange={(e) => onPick(e.target.files)}
-                disabled={busy}
-                className="hidden"
-              />
+                {scanCount !== null ? (
+                  <>
+                    <Spinner />
+                    <span className="text-sm font-medium text-neutral-700">
+                      Scanning folder… {scanCount} file{scanCount === 1 ? '' : 's'}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="text-sm font-medium text-neutral-700">
+                      {dragOver ? 'Drop to upload' : 'Drag files or a folder here'}
+                    </span>
+                    <span className="text-xs text-neutral-400">or</span>
+                    <button
+                      type="button"
+                      onClick={() => folderInput.current?.click()}
+                      disabled={busy}
+                      className="rounded bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
+                    >
+                      Choose folder…
+                    </button>
+                  </>
+                )}
+              </div>
               <input
                 ref={folderInput}
                 type="file"

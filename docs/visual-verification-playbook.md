@@ -131,6 +131,19 @@ when the camera is on its outward side** (camera-facing wall reveal, a per-frame
 the camera on the room centre (`OrbitCamera` keys this off `roomEditor.roomId`),
 or a far room like `livingDining` loads off-screen to one side.
 
+### Drag-and-drop won't work on a `<button>` drop target
+A native `<button>` makes an unreliable drop zone — browsers mishandle drag
+events on it and `dataTransfer.items` / `webkitGetAsEntry()` may not populate, so
+dropped **folders** silently do nothing. Use a `<div>` with `onDragOver`
+(`preventDefault`) + `onDrop`; put any picker button *inside* it. The harness has
+no native drop action, but you can verify the handler wiring + loose-file
+fallback in an evalFile by dispatching a synthetic event:
+`zone.dispatchEvent(new DragEvent('drop',{bubbles:true,cancelable:true,dataTransfer:dt}))`
+where `dt` is a `DataTransfer` with `dt.items.add(new File(...))`. A synthetic DT
+has no real `webkitGetAsEntry` entries, so it exercises the `dt.files` fallback,
+not directory recursion — unit-test the recursion separately with faked
+`FileSystemEntry` objects.
+
 ## A known-good template
 
 ```js

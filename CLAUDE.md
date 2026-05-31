@@ -111,9 +111,14 @@ rediscover it.
     `looseModelFiles` is the non-group remainder — used by the Upload dialog).
     Wired end-to-end (see **IKEA models**).
   - `upload/` — user-GLB import: `validate.ts`, `bulkImport.ts`, `persist.ts`,
-    `readDrop.ts` (recurse dropped folders → `File[]` with relative paths) —
-    drive `ui/upload/UploadModelDialog.tsx` (a portaled, viewport-centred modal
-    with a single drag-and-drop area that accepts loose files **and** folders).
+    `readDrop.ts` (recurse dropped folders → `File[]` with relative paths, with
+    an `onProgress(count)` callback for live scan feedback; entries are captured
+    synchronously in the drop event before any await) — drive
+    `ui/upload/UploadModelDialog.tsx` (a portaled, viewport-centred modal whose
+    single drag-and-drop **`<div>`** zone — not a `<button>`, which mishandles
+    native drops — accepts loose files **and** whole folders, shows a spinner +
+    file count while the recursive walk runs, and falls back to a single
+    "Choose folder…" picker button).
 - `src/materials/` — finishes. `builtinCatalog.ts` (floors/walls), runtime
   `procedural/` PBR generators (wood/tile/marble/carpet/concrete/terrazzo/
   plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
