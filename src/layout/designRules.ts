@@ -24,6 +24,16 @@ export const CLEARANCE = {
   storageFront: 0.75,
 } as const;
 
+/** Fallback support-surface heights (metres) for stacking a compatible model
+ *  onto a base when the base exposes no usable measurement. Keyed by the base's
+ *  FurnitureCategory. `supportY` is where the BOTTOM of the stacked item rests. */
+export const STACK = {
+  /** Slatted-base top for a bed frame with no "Footboard height" field. */
+  bedSlatDefault: 0.13,
+  /** Seat height for a sofa accepting seat cushions. */
+  seatDefault: 0.42,
+} as const;
+
 /** Comfortable TV viewing distance band for a screen of `diagonalInches`
  *  (4K rule of thumb: 1.2–1.6× the diagonal). Returns metres. */
 export function tvViewingDistance(diagonalInches: number): { min: number; max: number } {
