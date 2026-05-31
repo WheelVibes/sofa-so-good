@@ -1,12 +1,13 @@
 import { useMemo, useEffect, useRef } from 'react';
 import { useGLTF } from '@react-three/drei';
-import { Box3, Color, Mesh, MeshStandardMaterial, Vector3 } from 'three';
+import { Box3, Color, Mesh, MeshStandardMaterial, Triangle, Vector3 } from 'three';
 import { SkeletonUtils } from 'three-stdlib';
 import type { Object3D } from 'three';
 import { meshMatchesTarget } from './gltf/finishTargets';
 import { useStore } from '../state/store';
 import { resolveLodUrlSync, prewarmLod, baseUrl } from './gltf/lod';
 import { applyTextureBudget } from './gltf/textureBudget';
+import { detectSupportPlaneY, type HorizontalBand } from './ikea/supportPlane';
 
 /** Public footprint shape: axis-aligned size in metres at scale=1, plus the
  *  local-space center offset of that bbox. Many GLBs are not centered on their
@@ -35,6 +36,17 @@ const FOOTPRINT_CACHE = new Map<
 export function getCachedGltfFootprint(url: string): GltfFootprint | null {
   const e = FOOTPRINT_CACHE.get(baseUrl(url));
   return e ? { w: e.w, d: e.d, h: e.h, ox: e.ox, oz: e.oz } : null;
+}
+
+const SUPPORT_PLANE_CACHE = new Map<string, number | null>();
+
+export function getCachedSupportPlaneY(url: string): number | null {
+  return SUPPORT_PLANE_CACHE.get(baseUrl(url)) ?? null;
+}
+
+/** Pre-seed a known support plane (e.g. from a test). */
+export function seedGltfSupportPlane(url: string, y: number | null): void {
+  SUPPORT_PLANE_CACHE.set(baseUrl(url), y);
 }
 
 /** Pre-seed the footprint cache from known GLB accessor data (e.g. the IKEA
@@ -134,6 +146,48 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
       oz: center.z,
       authoritative: servingOriginal,
     });
+
+    // Support-plane detection: histogram near-horizontal triangle area by Y
+    // (2cm bins), restricted to triangles whose centroid is inside the footprint
+    // interior (within 80% of half-extents, to drop rim/rail overhangs). Used to
+    // rest a stacked item (mattress) on the real slat plane, not the bbox top.
+    const fpKeyPlane = baseUrl(url);
+    if (!SUPPORT_PLANE_CACHE.has(fpKeyPlane) && servingOriginal) {
+      const bins = new Map<number, number>();
+      const a = new Vector3(); const b = new Vector3(); const c = new Vector3();
+      const tri = new Triangle();
+      const nrm = new Vector3();
+      const cen = new Vector3();
+      const halfX = (size.x / 2) * 0.8;
+      const halfZ = (size.z / 2) * 0.8;
+      const BIN = 0.02;
+      cloned.traverse((obj) => {
+        const mesh = obj as Mesh;
+        if (!mesh.isMesh || !mesh.visible || !mesh.geometry) return;
+        const pos = mesh.geometry.attributes.position;
+        const idx = mesh.geometry.index;
+        if (!pos) return;
+        const triCount = idx ? idx.count / 3 : pos.count / 3;
+        for (let t = 0; t < triCount; t++) {
+          const i0 = idx ? idx.getX(t * 3) : t * 3;
+          const i1 = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
+          const i2 = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+          a.fromBufferAttribute(pos, i0).applyMatrix4(mesh.matrixWorld);
+          b.fromBufferAttribute(pos, i1).applyMatrix4(mesh.matrixWorld);
+          c.fromBufferAttribute(pos, i2).applyMatrix4(mesh.matrixWorld);
+          tri.set(a, b, c);
+          tri.getNormal(nrm);
+          if (Math.abs(nrm.y) < 0.9) continue;
+          tri.getMidpoint(cen);
+          if (Math.abs(cen.x - center.x) > halfX || Math.abs(cen.z - center.z) > halfZ) continue;
+          const area = tri.getArea();
+          const bin = Math.round(cen.y / BIN) * BIN;
+          bins.set(bin, (bins.get(bin) ?? 0) + area);
+        }
+      });
+      const bands: HorizontalBand[] = [...bins.entries()].map(([y, area]) => ({ y, area }));
+      SUPPORT_PLANE_CACHE.set(fpKeyPlane, detectSupportPlaneY(bands, Math.max(0.05, size.y)));
+    }
   }, [url, cloned, servingOriginal]);
 
   // Apply tint by walking the cloned tree once when it changes.
