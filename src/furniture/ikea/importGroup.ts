@@ -40,6 +40,95 @@ function fileByBasename(files: File[], basename: string): File | undefined {
   })
 }
 
+/** Build one IkeaVariant: validate + write its GLB blob and downscale + write
+ *  its thumbnail to IDB. Independent per variant, so callers run these
+ *  concurrently. A missing/invalid GLB yields a stub variant (assetId null). */
+async function buildVariant(
+  meta: IkeaMetadata,
+  files: File[],
+  v: IkeaMetadataVariant,
+): Promise<IkeaVariant> {
+  // single-SKU products (e.g. a knob) carry no colour finish — synthesise a
+  // stable key from the article number so dedupe + active selection work.
+  const finishKey = v.finish ?? `variant-${v.article_number}`
+  let assetId: string | null = null
+  let runtimeUrl: string | undefined
+  if (v.glb) {
+    const file = fileByBasename(files, v.glb)
+    if (file) {
+      const valid = await validateGlbFile(file, { maxBytes: IKEA_MAX_BYTES })
+      if (valid.ok) {
+        assetId = newId()
+        const blob = new Blob([await file.arrayBuffer()], { type: valid.mime })
+        await IdbAssetStore.put({
+          assetId,
+          kind: 'gltf',
+          mime: valid.mime,
+          name: `${meta.product_name} — ${finishKey}`,
+          uploadedAt: new Date().toISOString(),
+          blob,
+          meta: {
+            source: 'ikea',
+            groupKey: meta.group_key,
+            articleNumber: v.article_number,
+            finish: v.finish,
+          },
+        })
+        runtimeUrl = URL.createObjectURL(blob)
+      }
+    }
+  }
+  // Catalog thumbnail: downscale the scraped main image once and store the
+  // small blob in IDB. Best-effort — any failure leaves imageAssetId null and
+  // the card falls back to the category icon.
+  let imageAssetId: string | null = null
+  let runtimeImageUrl: string | undefined
+  if (v.main_image) {
+    const imgFile = fileByBasename(files, v.main_image)
+    if (imgFile) {
+      try {
+        const thumb = await downscaleImageFile(imgFile, 256)
+        imageAssetId = newId()
+        await IdbAssetStore.put({
+          assetId: imageAssetId,
+          kind: 'texture',
+          mime: thumb.type || 'image/webp',
+          name: `${meta.product_name} — ${finishKey} thumb`,
+          uploadedAt: new Date().toISOString(),
+          blob: thumb,
+          meta: { source: 'ikea', groupKey: meta.group_key, role: 'ikea-image' },
+        })
+        runtimeImageUrl = URL.createObjectURL(thumb)
+      } catch {
+        imageAssetId = null
+        runtimeImageUrl = undefined
+      }
+    }
+  }
+  return {
+    finish: finishKey,
+    label: titleCaseFinish(v.finish ?? v.product_title ?? v.article_number),
+    articleNumber: v.article_number,
+    url: v.url,
+    assetId,
+    runtimeUrl,
+    price: v.price_numeral,
+    currency: v.currency,
+    swatchHex: v.glb_materials?.[0]?.sampled_hex,
+    footprint: v.footprint
+      ? {
+          w: v.footprint.w,
+          d: v.footprint.d,
+          h: v.footprint.h,
+          anchorOffset: v.footprint.anchor_offset,
+        }
+      : undefined,
+    glbMaterials: matsFrom(v),
+    imageAssetId,
+    runtimeImageUrl,
+  }
+}
+
 /** Build + register one IkeaGltfDef from parsed metadata + the group's files.
  *  Writes each crawled finish's GLB to IDB; stub finishes (glb:null or a
  *  missing/invalid file) become greyed variants with a null assetId. The
@@ -49,96 +138,23 @@ function fileByBasename(files: File[], basename: string): File | undefined {
 export async function importGroup(meta: IkeaMetadata, files: File[]): Promise<ImportGroupResult> {
   const { category, confidence } = mapCategory(meta.design.category)
 
-  const variants: IkeaVariant[] = []
-  let wroteOne = false
-  let activeMeta: IkeaMetadataVariant | undefined
-  for (const v of meta.variants) {
-    // single-SKU products (e.g. a knob) carry no colour finish — synthesise a
-    // stable key from the article number so dedupe + active selection work.
-    const finishKey = v.finish ?? `variant-${v.article_number}`
-    let assetId: string | null = null
-    let runtimeUrl: string | undefined
-    if (v.glb) {
-      const file = fileByBasename(files, v.glb)
-      if (file) {
-        const valid = await validateGlbFile(file, { maxBytes: IKEA_MAX_BYTES })
-        if (valid.ok) {
-          assetId = newId()
-          const blob = new Blob([await file.arrayBuffer()], { type: valid.mime })
-          await IdbAssetStore.put({
-            assetId,
-            kind: 'gltf',
-            mime: valid.mime,
-            name: `${meta.product_name} — ${finishKey}`,
-            uploadedAt: new Date().toISOString(),
-            blob,
-            meta: {
-              source: 'ikea',
-              groupKey: meta.group_key,
-              articleNumber: v.article_number,
-              finish: v.finish,
-            },
-          })
-          runtimeUrl = URL.createObjectURL(blob)
-          wroteOne = true
-          if (!activeMeta) activeMeta = v
-        }
-      }
-    }
-    // Catalog thumbnail: downscale the scraped main image once and store the
-    // small blob in IDB. Best-effort — any failure leaves imageAssetId null and
-    // the card falls back to the category icon.
-    let imageAssetId: string | null = null
-    let runtimeImageUrl: string | undefined
-    if (v.main_image) {
-      const imgFile = fileByBasename(files, v.main_image)
-      if (imgFile) {
-        try {
-          const thumb = await downscaleImageFile(imgFile, 256)
-          imageAssetId = newId()
-          await IdbAssetStore.put({
-            assetId: imageAssetId,
-            kind: 'texture',
-            mime: thumb.type || 'image/webp',
-            name: `${meta.product_name} — ${finishKey} thumb`,
-            uploadedAt: new Date().toISOString(),
-            blob: thumb,
-            meta: { source: 'ikea', groupKey: meta.group_key, role: 'ikea-image' },
-          })
-          runtimeImageUrl = URL.createObjectURL(thumb)
-        } catch {
-          imageAssetId = null
-          runtimeImageUrl = undefined
-        }
-      }
-    }
-    variants.push({
-      finish: finishKey,
-      label: titleCaseFinish(v.finish ?? v.product_title ?? v.article_number),
-      articleNumber: v.article_number,
-      url: v.url,
-      assetId,
-      runtimeUrl,
-      price: v.price_numeral,
-      currency: v.currency,
-      swatchHex: v.glb_materials?.[0]?.sampled_hex,
-      footprint: v.footprint
-        ? {
-            w: v.footprint.w,
-            d: v.footprint.d,
-            h: v.footprint.h,
-            anchorOffset: v.footprint.anchor_offset,
-          }
-        : undefined,
-      glbMaterials: matsFrom(v),
-      imageAssetId,
-      runtimeImageUrl,
-    })
-  }
+  // Build every variant concurrently — each does a validate + full-file
+  // arrayBuffer read + one or two IDB writes + a thumbnail downscale, all
+  // independent across variants, so a serial loop wastes most of the wall-clock
+  // on I/O waits. `Promise.all` over `map` preserves array order (so "first
+  // variant with a blob" stays deterministic regardless of completion order).
+  const variants: IkeaVariant[] = await Promise.all(
+    meta.variants.map((v) => buildVariant(meta, files, v)),
+  )
 
-  if (!wroteOne) return { ok: false, reason: 'No crawled GLB file matched the metadata variants.' }
+  if (!variants.some((v) => v.assetId))
+    return { ok: false, reason: 'No crawled GLB file matched the metadata variants.' }
 
   const active = variants.find((v) => v.assetId)!
+  // The metadata for the active variant — product-info fields below read from it.
+  const activeMeta = meta.variants.find(
+    (mv) => (mv.finish ?? `variant-${mv.article_number}`) === active.finish,
+  )
   if (active.runtimeUrl && active.footprint) seedGltfFootprint(active.runtimeUrl, active.footprint)
 
   const flags = placementFlags(

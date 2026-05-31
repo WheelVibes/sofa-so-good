@@ -111,14 +111,24 @@ rediscover it.
     `looseModelFiles` is the non-group remainder — used by the Upload dialog).
     Wired end-to-end (see **IKEA models**).
   - `upload/` — user-GLB import: `validate.ts`, `bulkImport.ts`, `persist.ts`,
-    `readDrop.ts` (recurse dropped folders → `File[]` with relative paths, with
-    an `onProgress(count)` callback for live scan feedback; entries are captured
-    synchronously in the drop event before any await) — drive
+    `readDrop.ts` (recurse dropped folders → `File[]` with relative paths via a
+    **bounded worker pool** (`READ_CONCURRENCY`) so a big folder reads its
+    entries concurrently, not one-at-a-time; entries captured synchronously in
+    the drop event before any await; `onProgress(count)` for live scan feedback),
+    and `runImport.ts` (`runImport`/`startBackgroundImport` — the import engine:
+    imports detected groups through a bounded pool (`GROUP_CONCURRENCY`, parallel
+    — was a serial loop) + loose files through the bulk path, all **off the
+    modal** as a background job tracked by one `notify` progress notification, so
+    closing the dialog doesn't cancel it). These drive
     `ui/upload/UploadModelDialog.tsx` (a portaled, viewport-centred modal whose
     single drag-and-drop **`<div>`** zone — not a `<button>`, which mishandles
-    native drops — accepts loose files **and** whole folders, shows a spinner +
-    file count while the recursive walk runs, and falls back to a single
-    "Choose folder…" picker button).
+    native drops — accepts loose files **and** whole folders; shows spinners for
+    the recursive scan + group auto-detection; a **Category** select defaulting to
+    **Auto** (groups keep their own detected category, loose files → `others`);
+    falls back to a single "Choose folder…" picker; and on close mid-scan/detect
+    pops `ui/upload/ConfirmDialog.tsx` — a loading-screen-styled warm-gradient
+    confirm). Background-import progress shows in the bottom-left
+    `NotificationContainer`.
 - `src/materials/` — finishes. `builtinCatalog.ts` (floors/walls), runtime
   `procedural/` PBR generators (wood/tile/marble/carpet/concrete/terrazzo/
   plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
