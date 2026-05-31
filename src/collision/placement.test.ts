@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import { canPlace, itemFootprint } from './placement';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import { ROOMS } from '../apartment/constants';
-import type { FurnitureItem } from '../furniture/types';
+import type { FurnitureItem, BuiltinGltfDef } from '../furniture/types';
 
 const sofa = BUILTIN_CATALOG['sofa-3seat'];
 const bed = BUILTIN_CATALOG['bed-double'];
@@ -70,5 +70,67 @@ describe('placement', () => {
     };
     const moved: FurnitureItem = { ...a, position: [a.position[0] + 0.01, a.position[1]] };
     expect(canPlace(moved, sofa, ctx([a]))).toBe(true);
+  });
+
+  describe('group-mates skip mutual collision (snug stacking)', () => {
+    // A stacked mattress sits inside the bed frame's OBB by design, so its
+    // footprint + vertical span both overlap the frame. Group-mates must not
+    // collide; a different/no group must still be blocked.
+    const baseDef: BuiltinGltfDef = {
+      id: 'bed-frame-glb',
+      name: 'Bed frame',
+      category: 'beds',
+      kind: 'gltf',
+      source: 'builtin',
+      url: '/assets/test/bed-frame.glb',
+      license: 'CC0',
+      defaultFootprint: { w: 1, d: 2, h: 1 },
+    };
+    const topDef: BuiltinGltfDef = {
+      id: 'mattress-glb',
+      name: 'Mattress',
+      category: 'beds',
+      kind: 'gltf',
+      source: 'builtin',
+      url: '/assets/test/mattress.glb',
+      license: 'CC0',
+      defaultFootprint: { w: 1, d: 2, h: 0.25 },
+    };
+
+    // Place the top piece centred on the base, raised onto its surface
+    // (span 0.13..0.38) so it overlaps the base frame in both footprint
+    // and vertical span — the case that would falsely block placement.
+    const base: FurnitureItem = {
+      id: 'base',
+      defId: baseDef.id,
+      position: [0, 0],
+      rotation: 0,
+      groupId: 'g1',
+      props: {},
+    };
+    const grouped: FurnitureItem = {
+      id: 'top',
+      defId: topDef.id,
+      position: [0, 0],
+      rotation: 0,
+      groupId: 'g1',
+      props: { surfaceHeight: 0.13 },
+    };
+    const ungrouped: FurnitureItem = { ...grouped, groupId: undefined };
+
+    const stackCtx = {
+      others: [base],
+      defs: { [baseDef.id]: baseDef, [topDef.id]: topDef },
+      doors: {},
+      walls: [], // no wall collision in this test
+    };
+
+    it('allows a group-mate to overlap (mutual collision skipped)', () => {
+      expect(canPlace(grouped, topDef, stackCtx)).toBe(true);
+    });
+
+    it('still blocks an overlapping item with no shared group', () => {
+      expect(canPlace(ungrouped, topDef, stackCtx)).toBe(false);
+    });
   });
 });

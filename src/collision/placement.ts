@@ -143,6 +143,9 @@ export function canPlace(
   const span = verticalSpan(item, def);
   for (const other of ctx.others) {
     if (other.id === item.id) continue;
+    // Group-mates never collide with each other — a stacked mattress sits inside
+    // its frame's OBB by design, and grouped pieces move as a unit.
+    if (item.groupId && other.groupId === item.groupId) continue;
     const oDef = ctx.defs[other.defId];
     if (!oDef) continue;
     if (oDef.noClip) continue;
