@@ -3,6 +3,13 @@ import type { SliceCreator } from './types'
 
 export type NotificationKind = 'info' | 'progress' | 'success' | 'error'
 
+/** A per-item line shown when a notification is expanded (e.g. each failed
+ *  import: which item, and why). */
+export interface NotificationDetail {
+  name: string
+  reason: string
+}
+
 export interface Notification {
   id: string
   kind: NotificationKind
@@ -10,6 +17,9 @@ export interface Notification {
   message?: string
   /** 0..1, only for kind: 'progress' */
   progress?: number
+  /** Optional per-item breakdown — when present the notification is clickable
+   *  and opens a details panel (e.g. the list of failed imports + reasons). */
+  details?: NotificationDetail[]
   dismissable: boolean
   /** Auto-dismiss timeout in ms; null = never auto-dismiss. */
   autoDismissMs: number | null
@@ -33,7 +43,7 @@ export interface NotificationsSlice {
       patch: Partial<Pick<Notification, 'progress' | 'message' | 'title'>>,
     ) => void
     success: (id: string, message?: string) => void
-    error: (id: string, message: string) => void
+    error: (id: string, message: string, details?: NotificationDetail[]) => void
     dismiss: (id: string) => void
   }
 }
@@ -92,7 +102,7 @@ export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootStat
             : n,
         ),
       })),
-    error: (id, message) =>
+    error: (id, message, details) =>
       set((s) => ({
         notifications: s.notifications.map((n) =>
           n.id === id
@@ -100,6 +110,7 @@ export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootStat
                 ...n,
                 kind: 'error',
                 message,
+                details: details && details.length > 0 ? details : undefined,
                 dismissable: true,
                 autoDismissMs: null,
                 progress: undefined,
