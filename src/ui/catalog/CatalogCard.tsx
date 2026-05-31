@@ -30,7 +30,9 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
           category={def.category}
           className="h-4 w-4 shrink-0 text-neutral-500 group-hover:text-blue-600"
         />
-        <span className="truncate font-medium text-neutral-800">{def.name}</span>
+        <span className="truncate font-medium text-neutral-800" title={def.name}>
+          {def.name}
+        </span>
       </div>
       <span className="text-[10px] text-neutral-500">
         {def.defaultFootprint.w.toFixed(2)} × {def.defaultFootprint.d.toFixed(2)} m

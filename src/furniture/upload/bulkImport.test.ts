@@ -10,10 +10,21 @@ const duckBytes = readFileSync(
   resolve(__dirname, '../../../scripts/asset-pipeline/__tests__/fixtures/duck.glb'),
 )
 
+let glbSeq = 0
 function glbFile(name: string, relPath?: string): File {
-  const f = new File([new Uint8Array(duckBytes)], name, { type: 'model/gltf-binary' })
+  // Append a per-CALL unique suffix so each fixture has DISTINCT content —
+  // otherwise the content-hash dedup would collapse them (these tests exercise
+  // NAME disambiguation, with genuinely different files). Trailing bytes after
+  // the GLB header don't affect validateGlbFile (it checks the magic at off 0).
+  const f = new File([new Uint8Array(duckBytes), `#${glbSeq++}`], name, {
+    type: 'model/gltf-binary',
+  })
   if (relPath) Object.defineProperty(f, 'webkitRelativePath', { value: relPath })
   return f
+}
+/** Two files with identical bytes (same content hash) — for dedup tests. */
+function sameContentGlb(name: string): File {
+  return new File([new Uint8Array(duckBytes)], name, { type: 'model/gltf-binary' })
 }
 function textFile(name: string): File {
   return new File(['hello'], name, { type: 'text/plain' })
@@ -127,6 +138,24 @@ describe('importGlbFiles', () => {
     const files = Array.from({ length: 10 }, (_, i) => glbFile(`m${i}.glb`))
     const res = await importGlbFiles(files, { category: 'decor', concurrency: 3 })
     expect(res.imported).toBe(10)
+    expect(res.duplicates).toBe(0)
     expect(useStore.getState().userFurniture).toHaveLength(10)
+  })
+
+  it('skips identical-content files within a batch (counts them as duplicates)', async () => {
+    const files = [sameContentGlb('a.glb'), sameContentGlb('b.glb'), sameContentGlb('c.glb')]
+    const res = await importGlbFiles(files, { category: 'decor' })
+    expect(res.imported).toBe(1)
+    expect(res.duplicates).toBe(2)
+    expect(useStore.getState().userFurniture).toHaveLength(1)
+  })
+
+  it('skips a re-upload of a file already in the catalog', async () => {
+    const first = await importGlbFiles([sameContentGlb('dup.glb')], { category: 'decor' })
+    expect(first.imported).toBe(1)
+    const again = await importGlbFiles([sameContentGlb('dup-again.glb')], { category: 'decor' })
+    expect(again.imported).toBe(0)
+    expect(again.duplicates).toBe(1)
+    expect(useStore.getState().userFurniture).toHaveLength(1)
   })
 })

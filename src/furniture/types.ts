@@ -224,6 +224,9 @@ export interface UserGltfDef extends FurnitureDefBase {
   source: 'user'
   /** IndexedDB key in the asset store. Resolved to a blob URL at render time. */
   assetId: string
+  /** SHA-256 of the GLB bytes — used to skip re-uploading an identical file.
+   *  Persisted in the asset's IDB meta and rehydrated on boot. */
+  contentHash?: string
   scale?: number
   uploadedAt: string
   /**

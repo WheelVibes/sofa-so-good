@@ -2,6 +2,10 @@
 
 :root { color-scheme: light; }
 html, body, #root { height: 100%; }
+/* Warm neutral (not white) behind the WebGL canvas: if the R3F render loop
+ * misses a frame during a heavy main-thread task (e.g. a big import), the page
+ * shows this instead of a jarring white flash. Matches the loading overlay. */
+html, body { background: #f6efe4; }
 body { @apply font-sans antialiased; }
 
 /* Toolbar island: a slim, always-present horizontal scrollbar so the

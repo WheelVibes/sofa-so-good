@@ -5,11 +5,15 @@ import { useStore } from '../../state/store'
 import { UploadModelDialog } from '../upload/UploadModelDialog'
 import { CatalogCard } from './CatalogCard'
 import { CategoryTabs } from './CategoryTabs'
+import { fuzzySearch } from './fuzzySearch'
 import { PacksTab } from './PacksTab'
 import { RemoteBrowseTab } from './RemoteBrowseTab'
 import { ThumbnailHost } from './thumbnails'
 
 type Mode = 'builtin' | 'browse-furniture' | 'packs'
+
+/** Cards per page in the built-in catalog grid (2-col layout → 12 = 6 rows). */
+const PAGE_SIZE = 12
 
 /** Sliding left-side drawer. Toggle via toolbar or the C key (handled
  *  in App.tsx). Click a card to drop the item near the L/D centre and
@@ -27,22 +31,35 @@ export function CatalogDrawer() {
   const [mode, setMode] = useState<Mode>('builtin')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [query, setQuery] = useState('')
+  const [page, setPage] = useState(0)
 
   useEffect(() => {
     if (open && phStatus === 'idle') void bootstrapRemote()
   }, [open, phStatus, bootstrapRemote])
 
+  // Reset to page 1 when the visible list changes; both setters live here so the
+  // page never lands out of range (the render also clamps via safePage).
+  const selectCategory = (c: FurnitureCategory) => {
+    setActive(c)
+    setPage(0)
+  }
+  const onSearch = (v: string) => {
+    setQuery(v)
+    setPage(0)
+  }
+
   if (!open || cameraMode !== 'orbit') return null
-  const q = query.trim().toLowerCase()
-  const cards = q
-    ? Object.values(byCategory)
-        .flat()
-        .filter(
-          (d) =>
-            d.name.toLowerCase().includes(q) ||
-            d.keywords?.some((k) => k.toLowerCase().includes(q)),
-        )
+  const q = query.trim()
+  // Fuzzy (typo-tolerant, ranked best-first) search across name + keywords when
+  // there's a query; otherwise just the active category.
+  const allCards = q
+    ? fuzzySearch(q, Object.values(byCategory).flat(), (d) => [d.name, ...(d.keywords ?? [])])
     : (byCategory[active] ?? [])
+
+  // Paginate so a big category/search doesn't render hundreds of cards at once.
+  const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
+  const safePage = Math.min(page, pageCount - 1)
+  const cards = allCards.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
 
   return (
     <aside className="absolute left-3 top-3 z-10 flex w-80 max-h-[85vh] flex-col rounded-lg bg-white/95 text-neutral-700 shadow">
@@ -81,12 +98,14 @@ export function CatalogDrawer() {
             <input
               type="search"
               value={query}
-              onChange={(e) => setQuery(e.target.value)}
+              onChange={(e) => onSearch(e.target.value)}
               placeholder="Search furniture…"
               className="w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
             />
           </div>
-          {q ? null : <CategoryTabs active={active} onSelect={setActive} byCategory={byCategory} />}
+          {q ? null : (
+            <CategoryTabs active={active} onSelect={selectCategory} byCategory={byCategory} />
+          )}
           <div className="grid grid-cols-2 gap-2 overflow-y-auto p-3">
             {cards.length === 0 ? (
               <p className="col-span-2 py-6 text-center text-xs text-neutral-500">
@@ -98,6 +117,29 @@ export function CatalogDrawer() {
               ))
             )}
           </div>
+          {pageCount > 1 ? (
+            <div className="flex items-center justify-between border-t border-neutral-200 px-3 py-1.5 text-[11px] text-neutral-600">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+                className="rounded px-2 py-0.5 hover:bg-neutral-100 disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                ← Prev
+              </button>
+              <span>
+                Page {safePage + 1} of {pageCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                disabled={safePage >= pageCount - 1}
+                className="rounded px-2 py-0.5 hover:bg-neutral-100 disabled:opacity-40 disabled:hover:bg-transparent"
+              >
+                Next →
+              </button>
+            </div>
+          ) : null}
           <footer className="flex flex-col gap-1 border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
             <div className="flex items-center justify-between">
               <span>

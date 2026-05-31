@@ -21,19 +21,28 @@ function dirOf(path: string): string {
 /** Find every `metadata.json` among the picked files that looks like an IKEA
  *  group, scoped to the folder it lives in. A folder of several groups yields
  *  one DetectedGroup per group. */
-export async function detectGroups(files: File[]): Promise<DetectedGroup[]> {
+export async function detectGroups(
+  files: File[],
+  onProgress?: (parsed: number, totalMetadata: number) => void,
+): Promise<DetectedGroup[]> {
   const groups: DetectedGroup[] = []
-  for (const f of files) {
+  // Pre-count metadata.json candidates so progress has a denominator (parsing
+  // each — read + JSON.parse — is the cost; non-metadata files are skipped free).
+  const metaFiles = files.filter((f) => {
     const path = pathOf(f)
-    const base = path.split('/').pop() ?? f.name
-    if (base.toLowerCase() !== 'metadata.json') continue
+    return (path.split('/').pop() ?? f.name).toLowerCase() === 'metadata.json'
+  })
+  onProgress?.(0, metaFiles.length)
+  let parsed = 0
+  for (const f of metaFiles) {
     try {
       const json = JSON.parse(await f.text())
       if (looksLikeIkeaMetadata(json))
-        groups.push({ dir: dirOf(path), meta: json as Record<string, unknown> })
+        groups.push({ dir: dirOf(pathOf(f)), meta: json as Record<string, unknown> })
     } catch {
       // ignore unparseable metadata.json
     }
+    onProgress?.(++parsed, metaFiles.length)
   }
   return groups
 }

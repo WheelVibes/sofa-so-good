@@ -37,6 +37,7 @@ const UserGltfDefZ = z.object({
   kind: z.literal('gltf'),
   source: z.literal('user'),
   assetId: z.string(),
+  contentHash: z.string().optional(),
   uploadedAt: z.string(),
   defaultFootprint: z.object({
     w: z.number(),
