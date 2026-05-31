@@ -1,12 +1,15 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useThree } from '@react-three/fiber';
-import { Plane, Raycaster, Vector2, Vector3 } from 'three';
+import { BoxGeometry, EdgesGeometry, Plane, Raycaster, Vector2, Vector3 } from 'three';
 import { useStore } from '../state/store';
-import { useCatalog } from '../furniture/catalog';
-import { canPlace } from '../collision/placement';
+import { useCatalog, isIkeaDef } from '../furniture/catalog';
+import { canPlace, itemFootprint } from '../collision/placement';
 import { buildCollisionWalls } from '../collision/wallsFromState';
 import { nearestWallGap } from '../collision/clearanceGap';
 import { planCollisionWalls, isDefaultPlan } from '../floorplan/planGeometry';
+import { resolveCompatible } from '../furniture/ikea/compatibility';
+import { stackOnto } from '../furniture/ikea/stacking';
+import type { FurnitureDef, FurnitureItem } from '../furniture/types';
 import { snapToGrid } from './snap';
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0);
@@ -53,6 +56,34 @@ function snapAxis(
   return best;
 }
 
+/** True when world point (px,pz) falls inside item `it`'s footprint OBB. */
+function pointInFootprint(px: number, pz: number, it: FurnitureItem, def: FurnitureDef): boolean {
+  const obb = itemFootprint(it, def);
+  const dx = px - obb.cx;
+  const dz = pz - obb.cz;
+  const cos = Math.cos(obb.rot);
+  const sin = Math.sin(obb.rot);
+  // Rotate the offset into the OBB's local (axis-aligned) frame.
+  const lx = dx * cos + dz * sin;
+  const lz = -dx * sin + dz * cos;
+  return Math.abs(lx) <= obb.hx && Math.abs(lz) <= obb.hz;
+}
+
+/** Snug-stack candidate: the dragged item is the TOP, the hovered item the
+ *  BASE — engages only when the base IKEA def accepts the dragged IKEA def's
+ *  category (a confirmed compatibility match). Returns the base item or null. */
+function snapBase(
+  draggedDef: FurnitureDef | undefined,
+  hoveredItem: FurnitureItem | null,
+  hoveredDef: FurnitureDef | undefined,
+): FurnitureItem | null {
+  if (!hoveredItem || !draggedDef || !hoveredDef) return null;
+  if (!isIkeaDef(draggedDef) || !isIkeaDef(hoveredDef)) return null;
+  const matches = resolveCompatible(hoveredDef, [draggedDef]);
+  const any = Object.values(matches).some((list) => list.length > 0);
+  return any ? hoveredItem : null;
+}
+
 /**
  * Tracks the active furniture drag started by Furniture.onPointerDown.
  * Each pointer-move unprojects to the floor, live-updates the item's
@@ -72,6 +103,17 @@ export function DragController() {
   const ndc = useMemo(() => new Vector2(), []);
   const raycaster = useMemo(() => new Raycaster(), []);
   const target = useMemo(() => new Vector3(), []);
+
+  // Id of the compatible base the dragged item would snug-stack onto, or null.
+  // Mirrored in a ref so the window listeners (which read it on drop) see the
+  // latest value without re-subscribing; state drives the highlight render.
+  const [snapBaseId, setSnapBaseId] = useState<string | null>(null);
+  const snapBaseIdRef = useRef<string | null>(null);
+  const setSnap = (id: string | null) => {
+    if (snapBaseIdRef.current === id) return;
+    snapBaseIdRef.current = id;
+    setSnapBaseId(id);
+  };
 
   useEffect(() => {
     const dom = gl.domElement;
@@ -126,6 +168,30 @@ export function DragController() {
         }
       }
       state.setDragGuides(guides);
+
+      // Snug-stacking candidate (single-item drag only): if the dragged item's
+      // centre lands over a compatible base item's footprint, flag that base
+      // for a highlight + a snap commit on release. Otherwise behave as a
+      // normal free drag.
+      let snap: FurnitureItem | null = null;
+      if (group.length <= 1) {
+        const draggedItem = state.items.find((i) => i.id === id);
+        const draggedDef = draggedItem ? catalogRef.current[draggedItem.defId] : undefined;
+        if (draggedItem && draggedDef) {
+          for (const cand of state.items) {
+            if (cand.id === id) continue;
+            const candDef = catalogRef.current[cand.defId];
+            if (!candDef) continue;
+            if (!pointInFootprint(next[0], next[1], cand, candDef)) continue;
+            const base = snapBase(draggedDef, cand, candDef);
+            if (base) {
+              snap = base;
+              break;
+            }
+          }
+        }
+      }
+      setSnap(snap ? snap.id : null);
 
       if (group.length > 1 && state.dragOriginal) {
         // Translate every group member by the same delta as the anchor.
@@ -191,7 +257,55 @@ export function DragController() {
     const onUp = () => {
       const state = useStore.getState();
       const id = state.draggingItemId;
-      if (!id) return;
+      if (!id) {
+        setSnap(null);
+        return;
+      }
+
+      // Snug-stack commit: a compatible base is under the dragged item — snap
+      // it onto the base (support height, centred, grouped) instead of writing
+      // the free floor position. Reuses the dragged item's id (moves it; no
+      // duplicate) and adopts the resolved transform/props/groupId.
+      const baseId = snapBaseIdRef.current;
+      if (baseId) {
+        const draggedItem = state.items.find((i) => i.id === id);
+        const draggedDef = draggedItem ? catalogRef.current[draggedItem.defId] : undefined;
+        const base = state.items.find((i) => i.id === baseId);
+        const baseDef = base ? catalogRef.current[base.defId] : undefined;
+        if (draggedItem && draggedDef && base && baseDef && isIkeaDef(draggedDef) && isIkeaDef(baseDef)) {
+          const draggedVariant =
+            draggedDef.variants.find(
+              (v) => v.finish === (draggedItem.props['variant'] ?? draggedDef.activeVariant),
+            ) ?? draggedDef.variants[0];
+          const res = stackOnto(base, baseDef, draggedDef, draggedVariant);
+          if ('item' in res) {
+            const st = useStore.getState();
+            st.pushHistory();
+            const groupId = res.groupId;
+            const baseHadGroup = !!base.groupId;
+            st.setItems(
+              st.items.map((it) => {
+                if (it.id === draggedItem.id)
+                  return {
+                    ...it,
+                    position: res.item.position,
+                    rotation: res.item.rotation,
+                    groupId,
+                    props: { ...it.props, ...res.item.props },
+                  };
+                if (it.id === base.id && !baseHadGroup) return { ...it, groupId };
+                return it;
+              }),
+            );
+            st.setSelectedItemIds([draggedItem.id]);
+            setSnap(null);
+            state.endDrag();
+            return; // skip normal free-placement commit
+          }
+        }
+      }
+      setSnap(null);
+
       if (!state.dragValid) {
         const group = state.dragGroupOriginals;
         if (group.length > 1) {
@@ -217,5 +331,33 @@ export function DragController() {
     };
   }, [camera, gl, ndc, raycaster, target]);
 
-  return null;
+  return <SnapBaseHighlight baseId={snapBaseId} catalog={catalog} />;
+}
+
+/** Outline around the compatible base the dragged item will snug-stack onto —
+ *  mirrors HoverHighlight's edges-box styling, tinted green to read as a valid
+ *  snap target. Rendered only while a snap candidate is active mid-drag. */
+function SnapBaseHighlight({
+  baseId,
+  catalog,
+}: {
+  baseId: string | null;
+  catalog: ReturnType<typeof useCatalog>;
+}) {
+  const items = useStore((s) => s.items);
+  const item = baseId ? items.find((i) => i.id === baseId) : null;
+  const def = item ? catalog[item.defId] : null;
+  const obb = useMemo(() => (item && def ? itemFootprint(item, def) : null), [item, def]);
+  const geom = useMemo(
+    () => (obb ? new EdgesGeometry(new BoxGeometry(obb.hx * 2 + 0.08, 0.001, obb.hz * 2 + 0.08)) : null),
+    [obb],
+  );
+  useEffect(() => () => geom?.dispose(), [geom]);
+
+  if (!obb || !geom) return null;
+  return (
+    <lineSegments geometry={geom} position={[obb.cx, 0.02, obb.cz]} rotation={[0, obb.rot, 0]} renderOrder={3}>
+      <lineBasicMaterial color="#34d399" transparent opacity={0.9} depthWrite={false} />
+    </lineSegments>
+  );
 }
