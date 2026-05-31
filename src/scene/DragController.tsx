@@ -8,7 +8,7 @@ import { buildCollisionWalls } from '../collision/wallsFromState';
 import { nearestWallGap } from '../collision/clearanceGap';
 import { planCollisionWalls, isDefaultPlan } from '../floorplan/planGeometry';
 import { resolveCompatible } from '../furniture/ikea/compatibility';
-import { stackOnto } from '../furniture/ikea/stacking';
+import { combineOnto } from '../furniture/ikea/stacking';
 import type { FurnitureDef, FurnitureItem } from '../furniture/types';
 import { snapToGrid } from './snap';
 
@@ -273,26 +273,33 @@ export function DragController() {
         const base = state.items.find((i) => i.id === baseId);
         const baseDef = base ? catalogRef.current[base.defId] : undefined;
         if (draggedItem && draggedDef && base && baseDef && isIkeaDef(draggedDef) && isIkeaDef(baseDef)) {
+          // The base "accepts" the dragged item under some category; combineOnto
+          // branches on it (vertical stack vs around-placement).
+          const matches = resolveCompatible(baseDef, [draggedDef]);
+          const category = Object.entries(matches).find(([, l]) => l.length > 0)?.[0];
           const draggedVariant =
             draggedDef.variants.find(
               (v) => v.finish === (draggedItem.props['variant'] ?? draggedDef.activeVariant),
             ) ?? draggedDef.variants[0];
-          const res = stackOnto(base, baseDef, draggedDef, draggedVariant);
-          if ('item' in res) {
+          const res = category
+            ? combineOnto(base, baseDef, draggedDef, draggedVariant, category)
+            : { error: 'no category' as const };
+          if ('items' in res && res.items.length) {
             const st = useStore.getState();
             st.pushHistory();
             const groupId = res.groupId;
             const baseHadGroup = !!base.groupId;
+            const placed = res.items[0]; // single item for a drag
             st.setItems(
               st.items.map((it) => {
-                if (it.id === draggedItem.id)
-                  return {
-                    ...it,
-                    position: res.item.position,
-                    rotation: res.item.rotation,
-                    groupId,
-                    props: { ...it.props, ...res.item.props },
-                  };
+                if (it.id === draggedItem.id) {
+                  // Merge resolved props, but drop a stale surfaceHeight when the
+                  // new placement is floor-standing (e.g. re-dragging a once-
+                  // stacked item onto a table → 'around', no lift).
+                  const mergedProps = { ...it.props, ...placed.props };
+                  if (!('surfaceHeight' in placed.props)) delete mergedProps['surfaceHeight'];
+                  return { ...it, position: placed.position, rotation: placed.rotation, groupId, props: mergedProps };
+                }
                 if (it.id === base.id && !baseHadGroup) return { ...it, groupId };
                 return it;
               }),
