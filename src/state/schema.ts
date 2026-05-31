@@ -56,6 +56,7 @@ const IkeaVariantZ = z.object({
   articleNumber: z.string(),
   url: z.string(),
   assetId: z.string().nullable(),
+  imageAssetId: z.string().nullable().optional(),
   price: z.number().optional(),
   currency: z.string().optional(),
   swatchHex: z.string().optional(),
@@ -251,8 +252,9 @@ export function serialize(state: RootState): SerializedState {
               source: 'ikea' as const,
               groupKey: d.groupKey,
               activeVariant: d.activeVariant,
-              variants: d.variants.map(({ runtimeUrl, ...v }) => {
+              variants: d.variants.map(({ runtimeUrl, runtimeImageUrl, ...v }) => {
                 void runtimeUrl;
+                void runtimeImageUrl;
                 return v;
               }),
               defaultFootprint: d.defaultFootprint,

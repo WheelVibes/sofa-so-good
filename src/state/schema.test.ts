@@ -88,6 +88,8 @@ describe('schema', () => {
             url: 'https://x',
             assetId: 'a1',
             runtimeUrl: 'blob:should-be-stripped',
+            imageAssetId: 'img-1',
+            runtimeImageUrl: 'blob:img-should-be-stripped',
             price: 204,
             swatchHex: '#504c4b',
             footprint: { w: 1, d: 2, h: 1, anchorOffset: [0, 0.5, 0] },
@@ -111,7 +113,10 @@ describe('schema', () => {
     if (out?.source === 'ikea') {
       // runtimeUrl is stripped from the serialized shape (not in the type).
       expect((out.variants[0] as Record<string, unknown>).runtimeUrl).toBeUndefined();
+      expect((out.variants[0] as Record<string, unknown>).runtimeImageUrl).toBeUndefined();
       expect(out.variants[0].assetId).toBe('a1');
+      // imageAssetId persists so the thumbnail re-resolves on boot.
+      expect((out.variants[0] as Record<string, unknown>).imageAssetId).toBe('img-1');
     }
     // The existing user def must still round-trip alongside the IKEA one.
     const userOut = reparsed.userFurniture.find((d) => d.id === 'user-abc');
