@@ -64,6 +64,10 @@ export the result — all in the browser.
   LOD-optimized the moment it lands, and a per-product progress bar shows the
   run. Categories are auto-detected — no manual tagging — so the whole catalogue
   imports in one click. Local/dev-only; IKEA assets are not redistributed.
+- **Combine compatible pieces** — drag a mattress onto a bed frame (or select
+  the frame and use *Complete with → Place on this*) and it snaps snug onto the
+  support surface: the mattress top sits flush with the footboard rail, centred
+  on the sleeping area, and the two are grouped so they move and rotate together.
 - **Performance** — CPU-first quality tiers with auto-detection, an adaptive
   guard that holds 30+ fps (shedding the shadow pass as a last resort), and a
   Graphics panel exposing every setting (shadows, reflections, post-processing,

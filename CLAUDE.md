@@ -163,6 +163,25 @@ screenshots, not just that you took them.
   redistributed). `IkeaGltfDef`s live in `userAssets`, round-trip through
   `schema.ts`, and re-resolve their blob URLs on boot (`storage/hydrate*`).
   Plan: [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md).
+- **Stacking compatible models** (`furniture/ikea/stacking.ts`): a compatible
+  model drops onto a base snug — e.g. a mattress onto a bed frame. `resolveStack`
+  derives the support-surface Y from the scraped `productMeasurements` (bed:
+  mattress top flush with `Footboard height`, i.e. `supportY = footboard −
+  thickness`; clamped to `Free height under furniture` if the rail is shorter
+  than the mattress), with per-category fallbacks in `layout/designRules.ts`
+  (`STACK`); it also returns an XZ centre offset (anchor-aware, so the mattress
+  centres on the sleeping area, not the headboard-skewed bbox) and inherits the
+  base rotation. `stackOnto` builds the stacked `FurnitureItem` with
+  `props.surfaceHeight = supportY` (the Y lift — GLB items lift by it in
+  `Furniture.tsx`; primitives self-lift, so the lift is gated `kind !==
+  'parametric'`) and a shared `groupId` (reused from the base or minted). Two
+  triggers: the inspector **"Complete with → Place on this"** action
+  (`ui/inspector/IkeaBody.tsx`) and **drag-snap** (`scene/DragController.tsx`
+  highlights a compatible base under the drag — via `itemFootprint`
+  containment + `resolveCompatible` — and routes the drop through `stackOnto`).
+  Group-mates skip mutual collision in `collision/placement.ts` (a mattress sits
+  inside the frame OBB by design). `surfaceHeight`/`groupId` already persist —
+  no schema change.
 - **IKEA live-scrape pack** (`catalog/packs/ikeaLive.ts`, `scripts/scraper-server.mjs`):
   the **IKEA Singapore (live scrape)** pack (a `kind:'ikea-live'` entry in
   `catalog/packs/registry.ts`) downloads the catalogue on demand instead of a
