@@ -1,0 +1,32 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  quality:
+    name: Format / Lint / Typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+      - run: npm ci
+
+      # Formatting is enforced — `npm run format` fixes any failures locally.
+      - name: Check formatting
+        run: npm run format:check
+
+      # Typecheck (tsc) must pass.
+      - name: Typecheck
+        run: npx tsc --noEmit
+
+      # Lint surfaces findings but does not block yet — there is a known
+      # backlog of ~26 pre-existing findings. Tighten to blocking once cleared.
+      - name: Lint
+        run: npm run lint
+        continue-on-error: true
