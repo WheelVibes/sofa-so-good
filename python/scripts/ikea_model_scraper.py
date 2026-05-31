@@ -36,6 +36,14 @@ def output_root():
 # Node sidecar can track per-product progress. Off by default; emits are no-ops.
 _PROGRESS_NDJSON = False
 
+# When set (via --phrase-index), the scraper skips GLB download/optimize and
+# instead accumulates one lightweight row per product — {group_key, product_name,
+# category, accepts_categories[]} — written to this path at the end of the run.
+# Used to build the placement-kind classifier (vertical/around/modular) from the
+# real distribution of "Complete with" category phrases, without downloading GLBs.
+_PHRASE_INDEX_PATH = None
+_PHRASE_INDEX_ROWS = []
+
 
 def emit_progress(event):
     if _PROGRESS_NDJSON:
@@ -1152,6 +1160,27 @@ async def process_product_page(context, http_client, url, state,
         except Exception as e:
             print(f"[-] Complete-with scrape omitted: {e}")
 
+        # Phrase-index mode: capture {category, accepts_categories} and stop here
+        # (no GLB download/optimize). This is the cheap catalogue-wide harvest
+        # used to author the placement-kind classifier from real phrases.
+        if _PHRASE_INDEX_PATH is not None:
+            pi_category = None
+            try:
+                pi_category = design_classification(
+                    category_breadcrumbs, json_fields.get("type_name"),
+                    json_fields.get("design_text")).get("category")
+            except Exception:
+                pi_category = json_fields.get("type_name")
+            _PHRASE_INDEX_ROWS.append({
+                "product_name": json_fields.get("product_name") or product_title,
+                "type_name": json_fields.get("type_name"),
+                "category": pi_category,
+                "accepts_categories": (compatibility or {}).get("accepts_categories", []),
+            })
+            if not is_test_mode:
+                await log_processed_url(url)
+            return
+
         # 8. 3D MODEL — prefer the ld+json 3DModel block, then the viewer button,
         # then any .glb seen on the wire or embedded in the HTML.
         glb_url = glb_url or glb_from_ld_json(html_content)
@@ -1313,12 +1342,15 @@ async def queue_worker(queue, context, http_client, state, is_test_mode=False,
         finally:
             queue.task_done()
 
-async def main(limit, target_url, out_dir=None, progress_ndjson=False):
+async def main(limit, target_url, out_dir=None, progress_ndjson=False,
+               phrase_index=None):
     import httpx
     from playwright.async_api import async_playwright
 
-    global _ACTIVE_OUTPUT_DIR, _PROGRESS_NDJSON
+    global _ACTIVE_OUTPUT_DIR, _PROGRESS_NDJSON, _PHRASE_INDEX_PATH, _PHRASE_INDEX_ROWS
     _PROGRESS_NDJSON = progress_ndjson
+    _PHRASE_INDEX_PATH = phrase_index
+    _PHRASE_INDEX_ROWS = []
     if out_dir:
         _ACTIVE_OUTPUT_DIR = out_dir
         os.makedirs(_ACTIVE_OUTPUT_DIR, exist_ok=True)
@@ -1367,6 +1399,11 @@ async def main(limit, target_url, out_dir=None, progress_ndjson=False):
 
         await browser.close()
 
+    if _PHRASE_INDEX_PATH is not None:
+        with open(_PHRASE_INDEX_PATH, "w", encoding="utf-8") as f:
+            json.dump(_PHRASE_INDEX_ROWS, f, indent=2, ensure_ascii=False)
+        print(f"[+] Wrote {len(_PHRASE_INDEX_ROWS)} phrase rows to {_PHRASE_INDEX_PATH}")
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("-n", "--limit", type=int, default=0)
@@ -1375,6 +1412,11 @@ if __name__ == "__main__":
                         help="Output root for group folders + processed_urls.txt")
     parser.add_argument("--progress-ndjson", action="store_true",
                         help="Emit one JSON line per phase transition on stdout")
+    parser.add_argument("--phrase-index", type=str, default=None,
+                        help="Crawl pages and dump {product_name, type_name, "
+                             "category, accepts_categories[]} to this JSON file. "
+                             "Skips GLB download/optimize (no models written).")
     args = parser.parse_args()
     asyncio.run(main(args.limit, args.url, out_dir=args.out,
-                     progress_ndjson=args.progress_ndjson))
+                     progress_ndjson=args.progress_ndjson,
+                     phrase_index=args.phrase_index))
