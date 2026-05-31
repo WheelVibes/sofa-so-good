@@ -28,3 +28,12 @@ export const AVAILABLE_PACKS: Pack[] = [
     sourceUrl: 'https://www.ikea.com/sg/en/',
   },
 ]
+
+/** Packs to surface in the UI. The IKEA Singapore live-scrape pack is dev-only —
+ *  it depends on the local scraper sidecar and exposes IKEA-branded, non-CC0
+ *  content, so it must never appear in a production build. (Importing IKEA model
+ *  folders, grouping, and sets still work in production — only this discoverable
+ *  scrape entry is hidden.) */
+export function visiblePacks(isDev: boolean): Pack[] {
+  return AVAILABLE_PACKS.filter((p) => isDev || p.kind !== 'ikea-live')
+}

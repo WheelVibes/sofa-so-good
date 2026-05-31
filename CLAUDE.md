@@ -105,12 +105,15 @@ rediscover it.
     `looksLikeIkeaMetadata`), `translate.ts` (scraper category/placement → app
     category + collision flags + `frontClearance`), `importGroup.ts` (metadata +
     GLB files → one `IkeaGltfDef`, writes blobs to IDB, seeds footprints),
-    `compatibility.ts` (category-rule "accepts" resolver), `detectGroup.ts`
-    (`findMetadataFile` — auto-detects a `metadata.json` group folder among
-    picked files, used by the Upload dialog). Wired end-to-end (see **IKEA
-    models**).
-  - `upload/` — user-GLB import: `validate.ts`, `bulkImport.ts`, `persist.ts`
-    (drive `ui/upload/UploadModelDialog.tsx`).
+    `compatibility.ts` (category-rule "accepts" resolver), `detectGroups.ts`
+    (`detectGroups` — auto-detects **every** `metadata.json` IKEA group folder
+    among picked files, each scoped to its own folder via `filesUnder`;
+    `looseModelFiles` is the non-group remainder — used by the Upload dialog).
+    Wired end-to-end (see **IKEA models**).
+  - `upload/` — user-GLB import: `validate.ts`, `bulkImport.ts`, `persist.ts`,
+    `readDrop.ts` (recurse dropped folders → `File[]` with relative paths) —
+    drive `ui/upload/UploadModelDialog.tsx` (a portaled, viewport-centred modal
+    with a single drag-and-drop area that accepts loose files **and** folders).
 - `src/materials/` — finishes. `builtinCatalog.ts` (floors/walls), runtime
   `procedural/` PBR generators (wood/tile/marble/carpet/concrete/terrazzo/
   plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
@@ -195,9 +198,10 @@ rediscover it.
   (`decoders.ts`).
 - **IKEA model import** (`furniture/ikea/`, `state/userAssetsSlice.ts`): the
   Python scraper (below) emits per-variant-group `metadata.json` + `<finish>.glb`.
-  The Upload dialog auto-detects an IKEA group folder (`detectGroup.ts`
-  `findMetadataFile`) and `importGroup.ts` turns it into **one** `IkeaGltfDef`
-  per group — `variants[]` (each with footprint + per-component GLB palette,
+  The Upload dialog auto-detects IKEA group folders (`detectGroups.ts`
+  `detectGroups` — handles a parent folder of **many** groups, importing each
+  via path-scoped `filesUnder`; any non-group GLBs import via the bulk path) and
+  `importGroup.ts` turns each group into **one** `IkeaGltfDef` — `variants[]` (each with footprint + per-component GLB palette,
   blobs in IDB), with category/placement/`frontClearance`/price/compatibility
   all derived from the scraped `metadata.json` (`translate.ts`,
   `compatibility.ts`). One catalog card per group; the per-instance active
@@ -254,7 +258,11 @@ rediscover it.
   Progress streams per-product over SSE (`PacksTab.tsx` shows a bar + phase
   list); each finished group is fetched over HTTP and registered through the
   existing `importGroup()` → full `IkeaGltfDef`. Sidecar is local/dev-only;
-  served IKEA assets are gitignored (non-CC0).
+  served IKEA assets are gitignored (non-CC0). The pack card is **dev-only**:
+  `registry.ts` `visiblePacks(isDev)` filters the `ikea-live` entry out of the
+  Packs tab unless `import.meta.env.DEV`, so a production build never surfaces
+  the IKEA-branded scrape entry. (Importing IKEA model folders, grouping, and
+  sets all still work in production — only this discoverable card is hidden.)
 - **IKEA scraper (offline)** (`python/scripts/`): `ikea_model_scraper.py`
   (Playwright) harvests IKEA SG products → `<group>/metadata.json` +
   `<finish>.glb` + `<finish>-main`/`<finish>-context` product images

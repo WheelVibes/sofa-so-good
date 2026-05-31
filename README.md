@@ -80,7 +80,9 @@ export the result — all in the browser.
   (`npm run scraper-server`): products scrape one-by-one (parallelized), each is
   LOD-optimized the moment it lands, and a per-product progress bar shows the
   run. Categories are auto-detected — no manual tagging — so the whole catalogue
-  imports in one click. Local/dev-only; IKEA assets are not redistributed.
+  imports in one click. Local/dev-only — the pack card only appears in a dev
+  build; production hides it (importing IKEA model folders still works there).
+  IKEA assets are not redistributed.
 - **Combine compatible pieces** — drag a mattress onto a bed frame (or select
   the frame and use *Complete with → Place on this*) and it rests snug on the
   frame's actual slatted base (detected from the model's geometry, so a thick
