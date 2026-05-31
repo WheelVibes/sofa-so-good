@@ -65,11 +65,22 @@ export async function registerGroup(group: string): Promise<boolean> {
 
   const files: File[] = [];
   for (const v of meta.variants) {
-    if (!v.glb) continue;
-    const glbRes = await fetch(`${baseUrl}/${v.glb}`);
-    if (!glbRes.ok) continue;
-    const blob = await glbRes.blob();
-    files.push(new File([blob], v.glb, { type: 'model/gltf-binary' }));
+    if (v.glb) {
+      const glbRes = await fetch(`${baseUrl}/${v.glb}`);
+      if (glbRes.ok) {
+        const blob = await glbRes.blob();
+        files.push(new File([blob], v.glb, { type: 'model/gltf-binary' }));
+      }
+    }
+    // Fetch the product images too so the served-asset path produces the same
+    // self-contained File[] as the Upload dialog (importGroup ignores unused files).
+    for (const name of [v.main_image, v.context_image]) {
+      if (!name) continue;
+      const imgRes = await fetch(`${baseUrl}/${name}`);
+      if (!imgRes.ok) continue;
+      const imgBlob = await imgRes.blob();
+      files.push(new File([imgBlob], name, { type: imgBlob.type || 'image/jpeg' }));
+    }
   }
   if (files.length === 0) return false;
   const result = await importGroup(meta, files);
