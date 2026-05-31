@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { readDroppedItems } from './readDrop'
+import { READ_CONCURRENCY, readDroppedItems } from './readDrop'
 
 // Minimal fakes for the (non-standard) HTML5 entries API.
 function fileEntry(fullPath: string, bytes = 4): FileSystemFileEntry {
@@ -80,5 +80,49 @@ describe('readDroppedItems', () => {
     } as unknown as DataTransfer
     const files = await readDroppedItems(dt)
     expect(files.map((f) => f.name)).toEqual(['loose.glb'])
+  })
+
+  it('collects every file from a large folder and reports progress per file', async () => {
+    const kids = Array.from({ length: 50 }, (_, i) => fileEntry(`/big/f${i}.glb`))
+    const dt = dataTransfer([dirEntry('/big', kids)])
+    const seen: number[] = []
+    const files = await readDroppedItems(dt, (n) => seen.push(n))
+    expect(files).toHaveLength(50)
+    // progress fires once per file, ending at the total
+    expect(seen).toHaveLength(50)
+    expect(Math.max(...seen)).toBe(50)
+  })
+
+  it('bounds concurrency — never more than the cap of reads in flight', async () => {
+    let inFlight = 0
+    let maxInFlight = 0
+    // A file entry whose .file() resolves only after a microtask, so overlap is
+    // observable: each call bumps a counter we watch for the peak.
+    const slowFile = (fullPath: string): FileSystemFileEntry => {
+      const name = fullPath.split('/').pop() ?? fullPath
+      return {
+        isFile: true,
+        isDirectory: false,
+        name,
+        fullPath,
+        file: (cb: (f: File) => void) => {
+          inFlight++
+          maxInFlight = Math.max(maxInFlight, inFlight)
+          // resolve on a later microtask so siblings can start concurrently
+          Promise.resolve()
+            .then(() => Promise.resolve())
+            .then(() => {
+              inFlight--
+              cb(new File([new Uint8Array(2)], name))
+            })
+        },
+      } as unknown as FileSystemFileEntry
+    }
+    const kids = Array.from({ length: 100 }, (_, i) => slowFile(`/big/f${i}.glb`))
+    const dt = dataTransfer([dirEntry('/big', kids)])
+    const files = await readDroppedItems(dt)
+    expect(files).toHaveLength(100)
+    expect(maxInFlight).toBeGreaterThan(1) // actually parallel…
+    expect(maxInFlight).toBeLessThanOrEqual(READ_CONCURRENCY) // …but capped
   })
 })
