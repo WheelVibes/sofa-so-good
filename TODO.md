@@ -355,12 +355,14 @@ seamless tiler); real planar mirror reflections (cost).
   with a runtime texture-downscale fallback
   ([src/furniture/gltf/textureBudget.ts](src/furniture/gltf/textureBudget.ts)).
   See [docs/ikea-import-app-support.md §11](docs/ikea-import-app-support.md).
-- **LOD KTX2 upgrade (deferred)** — `optimize_glb_lod.mjs` always emits WebP; it
-  does NOT yet use KTX2. To get the further GPU-VRAM win, install a `toktx`/basisu
-  binary (KTX-Software; not in apt — use the official `.deb` release or
-  `brew install ktx`, **staying on the 4.3.x line** since 4.4+ replaces `toktx`
-  with the unified `ktx` CLI) and switch `textureCompress` to
-  `targetFormat: 'ktx2'` (gate on the binary being on PATH, else fall back to
-  WebP). The app already decodes KTX2 (drei auto-wires it). Note KTX2/Basis
-  encoding is seconds/texture vs ms for WebP — the full re-run gets much slower.
-  Related: the older asset-pipeline KTX2 TODO under §Assets.
+- **LOD KTX2 upgrade (wiring done; needs the binary)** — `optimize_glb_lod.mjs`
+  now takes an opt-in **`--ktx2`** flag that switches `textureCompress` to
+  `targetFormat: 'ktx2'` (ETC1S colour / UASTC data maps); it detects whether
+  the `toktx` binary is on PATH and falls back to WebP with a notice if not.
+  **Remaining work is just installing the encoder** to actually bake the KTX2
+  siblings: KTX-Software (not in apt — use the official `.deb` release or
+  `brew install ktx`), **staying on the 4.3.x line** since 4.4+ replaces `toktx`
+  with the unified `ktx` CLI (our detector looks for `toktx`). The app already
+  decodes KTX2 (drei auto-wires it). Note KTX2/Basis encoding is seconds/texture
+  vs ms for WebP — a full `--ktx2` re-run is much slower. Related: the older
+  asset-pipeline KTX2 TODO under §Assets.

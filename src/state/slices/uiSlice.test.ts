@@ -29,8 +29,21 @@ describe('uiSlice lights mode', () => {
   it('picking a tier manually clears the adaptive shadow-shed fallback', () => {
     useStore.getState().setAutoShadowsOff(true);
     expect(useStore.getState().autoShadowsOff).toBe(true);
-    useStore.getState().setQualityTier('low');
+    useStore.getState().setQualityTier('performance');
     expect(useStore.getState().autoShadowsOff).toBe(false);
+  });
+
+  it('cycleQuality steps performance → medium → high → maximum → performance', () => {
+    useStore.getState().setQualityTier('performance');
+    const cycle = () => useStore.getState().cycleQuality();
+    cycle();
+    expect(useStore.getState().qualityTier).toBe('medium');
+    cycle();
+    expect(useStore.getState().qualityTier).toBe('high');
+    cycle();
+    expect(useStore.getState().qualityTier).toBe('maximum');
+    cycle();
+    expect(useStore.getState().qualityTier).toBe('performance');
   });
 });
 
@@ -50,7 +63,7 @@ describe('uiSlice asset quality', () => {
 
   it('an FPS auto-downgrade of the render tier leaves an explicit asset tier unchanged', () => {
     useStore.getState().setAssetTier('high');
-    useStore.getState().autoSetQualityTier('low');
+    useStore.getState().autoSetQualityTier('performance');
     expect(useStore.getState().assetTier).toBe('high');
   });
 });

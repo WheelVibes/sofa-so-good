@@ -8,14 +8,24 @@ describe('qualityPrefs persistence', () => {
     localStorage.clear();
   });
 
-  it('loads a persisted explicit asset tier', () => {
+  it('loads a persisted explicit asset tier and migrates legacy "low" render tier → "performance"', () => {
     localStorage.setItem(
       'sofa.graphics.v1',
       JSON.stringify({ tier: 'low', overrides: {}, userSet: true, assetTier: 'high' }),
     );
     loadQualityPrefs();
     expect(useStore.getState().assetTier).toBe('high');
-    expect(useStore.getState().qualityTier).toBe('low');
+    // Legacy 'low' render tier → 'performance' (the new flat tier).
+    expect(useStore.getState().qualityTier).toBe('performance');
+  });
+
+  it('preserves a persisted "maximum" render tier as-is', () => {
+    localStorage.setItem(
+      'sofa.graphics.v1',
+      JSON.stringify({ tier: 'maximum', overrides: {}, userSet: true }),
+    );
+    loadQualityPrefs();
+    expect(useStore.getState().qualityTier).toBe('maximum');
   });
 
   it('defaults asset tier to Auto (null) when absent from saved prefs', () => {

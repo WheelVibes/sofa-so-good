@@ -4,14 +4,16 @@ import { useShallow } from 'zustand/react/shallow';
 import { useStore } from '../state/store';
 import {
   QUALITY_LABEL,
+  QUALITY_DESCRIPTION,
+  RENDER_TIERS,
   resolveQuality,
-  type QualityTier,
+  type AssetTier,
 } from '../scene/quality';
 
-const TIERS: QualityTier[] = ['low', 'medium', 'high'];
+const TIERS = RENDER_TIERS;
 /** Asset-quality options: Auto (follow render tier) + the three asset tiers
  *  ('high' surfaces as "Original" — full-resolution GLB + untouched textures). */
-const ASSET_OPTIONS: { value: QualityTier | null; label: string }[] = [
+const ASSET_OPTIONS: { value: AssetTier | null; label: string }[] = [
   { value: null, label: 'Auto' },
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
@@ -56,23 +58,26 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
           <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700">×</button>
         </div>
 
-        {/* Tier presets */}
+        {/* Tier presets — 2×2 grid; labels are too long for one row. */}
         <div className="mb-1 text-xs font-medium text-neutral-500">Quality preset</div>
-        <div className="mb-1 flex overflow-hidden rounded border border-neutral-200">
+        <div className="mb-1 grid grid-cols-2 gap-1">
           {TIERS.map((t) => (
             <button
               key={t}
               onClick={() => setTier(t)}
-              className={`flex-1 px-2 py-1.5 text-xs ${
+              className={`rounded px-2 py-1.5 text-xs ${
                 tier === t && !hasOverrides
                   ? 'bg-neutral-800 text-white'
-                  : 'bg-white text-neutral-700 hover:bg-neutral-100'
+                  : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
               }`}
             >
               {QUALITY_LABEL[t]}
             </button>
           ))}
         </div>
+        <p className="mb-1 text-[11px] leading-snug text-neutral-500">
+          {QUALITY_DESCRIPTION[tier]}
+        </p>
         <p className="mb-3 text-[11px] leading-snug text-neutral-400">
           {userSet
             ? hasOverrides

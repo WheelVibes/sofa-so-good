@@ -79,14 +79,19 @@ export the result — all in the browser.
   context-aware: dining chairs, stools, and benches arrange **around** a table
   on the floor (not on top), and modular sofa sections snap **edge-to-edge**
   side by side to extend a sofa or form an L-shape.
-- **Performance** — CPU-first quality tiers with auto-detection, an adaptive
-  guard that holds 30+ fps (shedding the shadow pass as a last resort), and a
-  Graphics panel exposing every setting (shadows, reflections, post-processing,
-  light cap, resolution) — all persisted. A separate **Asset quality** control
-  (Auto / Low / Medium / Original) sets model + texture detail independently of
-  the render effects, so you can view full-resolution assets (e.g. IKEA
-  products) without the GPU-heavy render settings. Optional GPU realism on the
-  High tier (ambient occlusion + bloom) is lazy-loaded so the baseline stays lean.
+- **Performance** — four render quality tiers: **Performance / Medium / High /
+  Maximum**. **Performance is the default for everyone** — a flat, IKEA-style
+  renderer with no real-time shadows, reflections, or post-processing, so the
+  scene loads instantly and stays fluid even on laptops/phones without a GPU.
+  Medium adds sun shadows + soft reflections; High adds bloom, ambient
+  occlusion & antialiasing (lazy-loaded); Maximum maxes everything out for
+  strong GPUs. Heavier tiers are opt-in from the Graphics panel; an adaptive
+  guard only ever steps *down* to hold 30+ fps, and every setting is overridable
+  and persisted. A separate **Asset quality** control (Auto / Low / Medium /
+  Original) sets model + texture detail independently of the render effects, so
+  you can view full-resolution assets (e.g. IKEA products) on any render tier.
+  The offline LOD pass can bake **KTX2 / Basis** GPU-compressed textures
+  (`optimize:glb --ktx2`) for a further runtime-memory win.
 
 ## Controls
 
@@ -102,7 +107,8 @@ npm install
 npm run dev          # localhost:5173
 npm test             # vitest
 npm run build        # typecheck + production build
-npm run optimize:glb # generate low/medium LOD variants for imported GLBs
+npm run optimize:glb          # generate low/medium LOD variants (WebP textures)
+npm run optimize:glb -- --ktx2 # …with KTX2/Basis GPU-compressed textures (needs `toktx` on PATH)
 npm run scraper-server # local sidecar for the IKEA live-scrape pack (dev-only)
 ```
 

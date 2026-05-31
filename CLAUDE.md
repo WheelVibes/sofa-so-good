@@ -142,16 +142,26 @@ rediscover it.
   → directional sun + hemisphere fill + IBL intensity + sky. Light fixtures
   emit capped, day-gated point lights at night and their shades glow via the
   shared `fixtureGlow` signal.
-- **Quality tiers** (`quality.ts`): low/medium/high gate shadow-map size, IBL,
-  bloom+SMAA, fixture-light cap, and DPR. `QualityController` auto-detects the
-  tier and steps it down if FPS sustains < 30; every setting is overridable in
-  the Graphics panel (persisted). Baseline (low/medium) targets integrated/CPU
-  hardware; high adds GPU-intensive effects. **Asset quality** is a separate
-  control (`assetTier`, `effectiveAssetTier`): GLB mesh/texture detail follows
-  the render tier by default (`null` = Auto) but can be pinned to Low/Medium/
-  Original independently — so "Original" loads full-resolution assets without
-  the GPU-heavy render effects, and is immune to the FPS auto-downgrade (which
-  only moves the render tier). Persisted alongside the tier in `qualityPrefs`.
+- **Quality tiers** (`quality.ts`): the user-facing **render** tier is a
+  4-value `RenderTier` — **Performance / Medium / High / Maximum** (`RENDER_TIERS`,
+  `QUALITY_PRESETS`, `QUALITY_LABEL`/`QUALITY_DESCRIPTION`). **Performance is the
+  default for everyone, regardless of hardware** — a deliberately *flat*,
+  IKEA-style renderer (`shadowMapSize: 0`, no IBL, no post-processing, DPR 1) so
+  first load is instant and fluid even on a GPU-less laptop. Medium adds sun
+  shadows + an IBL probe; High layers on the GPU post stack (bloom + AO + SMAA);
+  Maximum maxes shadow resolution, DPR, light count and geometry detail.
+  `detectDefaultTier` always returns `'performance'` (capability no longer
+  influences it); higher tiers are strictly opt-in from the Graphics panel.
+  `QualityController` only ever steps the tier **down** to hold 30 fps and
+  disables itself once the user pins a tier; every setting is overridable
+  (persisted; legacy stored `'low'` migrates to `'performance'`). **Asset
+  quality** is the separate `AssetTier` axis (`assetTier`, `effectiveAssetTier`,
+  `renderToAssetTier`) — low/medium/high(=Original) GLB mesh/texture LOD. It
+  follows the render tier by default (`null` = Auto, mapped
+  performance→low / medium→medium / high&maximum→Original) but can be pinned
+  independently and is immune to the FPS auto-downgrade. Persisted in
+  `qualityPrefs`. NB: `QualityTier` is now an alias of `AssetTier` (the LOD axis
+  the `gltf/*` files key on); render code uses `RenderTier`.
 - **GLB models + LOD** (`furniture/gltf/`, `GltfModel.tsx`): bundled CC0 GLBs,
   user uploads, and IKEA imports all render through one loader. `decoders.ts`
   registers Draco at boot (meshopt/KTX2 auto-wired by drei). The offline
@@ -161,8 +171,14 @@ rediscover it.
   panel's Asset quality control, decoupled from render effects — sync probe
   cache + `prewarmLod`), and `textureBudget.ts` downscales any oversized
   texture as a last-resort fallback (also gated on the asset tier). `finishTargets.ts` enumerates named meshes so a GLB can
-  be recoloured per component. KTX2 encoding in the offline pass is deferred
-  (WebP only today — see `TODO.md`).
+  be recoloured per component. The offline pass defaults to **WebP** textures
+  but takes an opt-in **`--ktx2`** flag (`optimize_glb_lod.mjs`) to emit
+  **KTX2 / Basis Universal** GPU-compressed textures instead (ETC1S colour /
+  UASTC data maps) — these stay compressed in VRAM, the biggest runtime-memory
+  win on integrated GPUs. KTX2 encoding requires the KTX-Software `toktx`
+  binary on PATH; the script detects its absence and falls back to WebP with a
+  notice. The runtime KTX2 transcoder is already auto-wired by drei
+  (`decoders.ts`).
 - **IKEA model import** (`furniture/ikea/`, `state/userAssetsSlice.ts`): the
   Python scraper (below) emits per-variant-group `metadata.json` + `<finish>.glb`.
   The Upload dialog auto-detects an IKEA group folder (`detectGroup.ts`

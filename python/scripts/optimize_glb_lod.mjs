@@ -9,8 +9,35 @@ import { MeshoptSimplifier } from 'meshoptimizer';
 import draco3d from 'draco3dgltf';
 import sharp from 'sharp';
 import { readdirSync, statSync, existsSync } from 'node:fs';
+import { execSync } from 'node:child_process';
 import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+
+/**
+ * KTX2 / Basis Universal GPU-texture compression (opt-in `--ktx2`).
+ *
+ * WebP (the default) only shrinks the *download* — the GPU still expands it to
+ * full RGBA in VRAM, which is the real ceiling on integrated GPUs. KTX2 stays
+ * GPU-compressed *in VRAM* (ETC1S for colour, UASTC for normal/data maps), the
+ * single biggest runtime-memory win for the LOD pipeline. The runtime decoder
+ * (KTX2Loader) is already auto-wired by drei via `furniture/gltf/decoders.ts`.
+ *
+ * Encoding needs the KTX-Software `toktx` binary on PATH (gltf-transform shells
+ * out to it). If it's absent we log a clear notice and fall back to WebP for
+ * that run rather than producing broken variants — so this stays runnable on
+ * machines without the toolchain, and a CI box / contributor with `toktx`
+ * installed bakes the KTX2 siblings.
+ */
+const WANT_KTX2 = process.argv.includes('--ktx2');
+function hasToktx() {
+  try {
+    execSync('toktx --version', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+const KTX2_ENABLED = WANT_KTX2 && hasToktx();
 
 const ROOT = join(
   dirname(fileURLToPath(import.meta.url)),
@@ -42,6 +69,17 @@ async function buildIO() {
     });
 }
 
+/** The texture-compression transform for a tier: KTX2 when enabled (ETC1S for
+ *  colour, UASTC for normal/data maps, auto-selected per slot by
+ *  textureCompress), else WebP. Both resize to the tier's texture cap. */
+function texturePass(cfg) {
+  const resize = [cfg.maxTexture, cfg.maxTexture];
+  if (KTX2_ENABLED) {
+    return textureCompress({ encoder: sharp, targetFormat: 'ktx2', resize });
+  }
+  return textureCompress({ encoder: sharp, targetFormat: 'webp', resize });
+}
+
 async function makeVariant(io, src, tier, cfg) {
   const out = src.replace(/\.glb$/, `-${tier}.glb`);
   if (existsSync(out) && statSync(out).mtimeMs >= statSync(src).mtimeMs) {
@@ -50,11 +88,7 @@ async function makeVariant(io, src, tier, cfg) {
   const doc = await io.read(src);
   try {
     await doc.transform(
-      textureCompress({
-        encoder: sharp,
-        targetFormat: 'webp',
-        resize: [cfg.maxTexture, cfg.maxTexture],
-      }),
+      texturePass(cfg),
       weld(),
       // error: 0.01 is the gltf-transform default — at the tighter 0.001 most
       // models barely decimate (geometry win lost); 0.01 reaches the ratio
@@ -70,7 +104,7 @@ async function makeVariant(io, src, tier, cfg) {
     console.warn(`  simplify failed for ${src} (${tier}): ${err.message}; texture-only`);
     const doc2 = await io.read(src);
     await doc2.transform(
-      textureCompress({ encoder: sharp, targetFormat: 'webp', resize: [cfg.maxTexture, cfg.maxTexture] }),
+      texturePass(cfg),
       dedup(),
       prune(),
       draco(),
@@ -91,6 +125,14 @@ async function main() {
   const srcs = arg
     ? (statSync(arg).isDirectory() ? listGlbs(arg) : [arg])
     : listGlbs(ROOT);
+  if (WANT_KTX2 && !KTX2_ENABLED) {
+    console.warn(
+      'KTX2 requested (--ktx2) but the `toktx` binary was not found on PATH.\n' +
+      'Install KTX-Software (https://github.com/KhronosGroup/KTX-Software) to enable\n' +
+      'GPU-compressed textures; falling back to WebP for this run.',
+    );
+  }
+  console.log(`Texture format: ${KTX2_ENABLED ? 'KTX2 (Basis Universal, GPU-compressed)' : 'WebP'}`);
   const io = await buildIO();
   let made = 0, skipped = 0, degraded = 0, failed = 0;
   for (const src of srcs) {

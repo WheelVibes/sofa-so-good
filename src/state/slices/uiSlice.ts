@@ -1,6 +1,7 @@
 import type { SliceCreator } from './types';
 import type { RootState } from '../store';
-import type { QualityTier, QualitySettings } from '../../scene/quality';
+import type { RenderTier, AssetTier, QualitySettings } from '../../scene/quality';
+import { RENDER_TIERS } from '../../scene/quality';
 
 /** Editor tool while in orbit camera mode. 'orbit' lets click-drag rotate
  *  the camera (current default). 'select' disables camera rotation so a
@@ -20,7 +21,7 @@ export interface UiSlice {
   showFps: boolean;
   /** Graphics quality tier. Auto-detected on boot, auto-downgraded by the
    *  adaptive performance monitor, and user-overridable from the toolbar. */
-  qualityTier: QualityTier;
+  qualityTier: RenderTier;
   /** True once the user picks a tier manually — stops the adaptive monitor
    *  from overriding their choice. */
   qualityUserSet: boolean;
@@ -29,7 +30,7 @@ export interface UiSlice {
   /** GLB asset detail (mesh/texture LOD), decoupled from the render tier.
    *  `null` = Auto (follow `qualityTier`); an explicit tier pins asset detail
    *  independently and is immune to the FPS auto-downgrade. */
-  assetTier: QualityTier | null;
+  assetTier: AssetTier | null;
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode;
   /** Snap dragged/placed furniture to the alignment grid, and show the grid
@@ -66,17 +67,17 @@ export interface UiSlice {
   setShowFps: (show: boolean) => void;
   toggleShowFps: () => void;
   /** Manual tier change — clears overrides and marks qualityUserSet. */
-  setQualityTier: (t: QualityTier) => void;
-  /** Cycle Low → Medium → High → Low (manual). */
+  setQualityTier: (t: RenderTier) => void;
+  /** Cycle Performance → Medium → High → Maximum → Performance (manual). */
   cycleQuality: () => void;
   /** Adaptive auto-adjust (does not set qualityUserSet). */
-  autoSetQualityTier: (t: QualityTier) => void;
+  autoSetQualityTier: (t: RenderTier) => void;
   /** Override a single quality setting (marks qualityUserSet). */
   setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void;
   /** Drop all overrides so settings follow the tier preset again. */
   resetQualityOverrides: () => void;
   /** Set the GLB asset detail tier (`null` = Auto / follow the render tier). */
-  setAssetTier: (t: QualityTier | null) => void;
+  setAssetTier: (t: AssetTier | null) => void;
   setLightsMode: (m: LightsMode) => void;
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void;
@@ -116,7 +117,7 @@ export const UI_INITIAL: Pick<
   catalogOpen: false,
   editorTool: 'orbit',
   showFps: false,
-  qualityTier: 'medium',
+  qualityTier: 'performance',
   qualityUserSet: false,
   qualityOverrides: {},
   assetTier: null,
@@ -135,7 +136,7 @@ export const UI_INITIAL: Pick<
 /** Preset alignment-grid cell sizes (metres) the size button cycles through. */
 export const GRID_SIZES = [0.1, 0.25, 0.5, 1] as const;
 
-const CYCLE: QualityTier[] = ['low', 'medium', 'high'];
+const CYCLE: RenderTier[] = RENDER_TIERS;
 const LIGHTS_CYCLE: LightsMode[] = ['auto', 'on', 'off'];
 
 export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({

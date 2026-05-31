@@ -12,6 +12,7 @@ import { FileMenu } from './menus/FileMenu';
 import { GraphicsSettings } from '../GraphicsSettings';
 import { CreditsModal } from '../CreditsModal';
 import { shortcutLabel } from './shortcuts';
+import { QUALITY_LABEL } from '../../scene/quality';
 
 function Divider() {
   return <div className="mx-1 h-6 w-px shrink-0 bg-neutral-300/70" />;
@@ -92,7 +93,7 @@ export function Toolbar() {
 
             <Divider />
             {/* Render */}
-            <IconButton icon="Quality" label={`Graphics — ${qualityTier}`} onClick={() => setGraphicsOpen(true)} />
+            <IconButton icon="Quality" label={`Graphics — ${QUALITY_LABEL[qualityTier]}`} onClick={() => setGraphicsOpen(true)} />
             <IconButton icon="Lights" label={`Lights: ${LIGHTS_LABEL[lightsMode]}`} active={lightsMode !== 'auto'} onClick={cycleLightsMode} />
 
             <Divider />
