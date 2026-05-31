@@ -3,13 +3,18 @@ import { Furniture } from './Furniture';
 import { useCatalog } from './catalog';
 import { useStore } from '../state/store';
 import { useQuality } from '../scene/useQuality';
+import type { RoomShell } from '../apartment/roomShell';
+import { isItemInRoom } from './roomFilter';
 
 /**
  * Mounts one <Furniture> per item in the store. Each instance receives
  * its def by reference so memoised children only re-render when the
  * item or its def actually changes.
+ *
+ * When `room` is given (per-room editor), only items whose footprint center
+ * lies inside that room render — the rest are filtered out.
  */
-export function FurnitureLayer() {
+export function FurnitureLayer({ room }: { room?: RoomShell } = {}) {
   const items = useStore(useShallow((s) => s.items));
   const catalog = useCatalog();
   // Suppress per-item contact-shadow blobs while the showcase
@@ -25,6 +30,7 @@ export function FurnitureLayer() {
       {items.map((item) => {
         const def = catalog[item.defId];
         if (!def) return null;
+        if (room && !isItemInRoom(item, room)) return null;
         return (
           <Furniture
             key={item.id}
