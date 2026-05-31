@@ -159,9 +159,15 @@ screenshots, not just that you took them.
   finish lives in `props.variant` (loads the sibling GLB). Renders via
   `gltfRender.ts` (active variant + per-component `finish:<target>`/global tint
   overrides — inspector `ui/inspector/IkeaBody.tsx`); read-only product info in
-  a panel. License is non-CC0 `IKEA` (attribution shown, assets not
+  a panel. The **catalog-card thumbnail** is the scraped product photo: import
+  downscales each finish's `main_image` once to a ~256 px blob (`thumbnail.ts`
+  `downscaleImageFile`) stored in IDB (`kind:'texture'`, `role:'ikea-image'`,
+  keyed on the variant's `imageAssetId`), and `ui/catalog/thumbnails.tsx` shows
+  the active variant's photo (falling back to the category icon when absent).
+  License is non-CC0 `IKEA` (attribution shown, assets not
   redistributed). `IkeaGltfDef`s live in `userAssets`, round-trip through
-  `schema.ts`, and re-resolve their blob URLs on boot (`storage/hydrate*`).
+  `schema.ts` (incl. `imageAssetId`), and re-resolve their GLB + thumbnail blob
+  URLs on boot (`storage/hydrate*`).
   Plan: [docs/ikea-import-app-support.md](docs/ikea-import-app-support.md).
 - **Stacking compatible models** (`furniture/ikea/stacking.ts`): a compatible
   model drops onto a base snug — e.g. a mattress onto a bed frame. `resolveStack`
@@ -195,9 +201,12 @@ screenshots, not just that you took them.
   served IKEA assets are gitignored (non-CC0).
 - **IKEA scraper (offline)** (`python/scripts/`): `ikea_model_scraper.py`
   (Playwright) harvests IKEA SG products → `<group>/metadata.json` +
-  `<finish>.glb` (`--out <dir>` redirects the output root; `--progress-ndjson`
-  emits per-product phase events on stdout — both used by the live-scrape
-  sidecar), grouping colour/finish variants and detecting multi-piece
+  `<finish>.glb` + `<finish>-main`/`<finish>-context` product images
+  (original resolution, recorded as `variants[].main_image`/`context_image`;
+  the app downscales the main image for the catalog thumbnail) (`--out <dir>`
+  redirects the output root; `--progress-ndjson` emits per-product phase events
+  on stdout — both used by the live-scrape sidecar), grouping colour/finish
+  variants and detecting multi-piece
   **sets** (writes `sets/<set_key>.json` recipes from the "What's included"
   list). `glb_analysis.py` (pure stdlib) extracts footprint + per-component
   material palette + segment map; `categorize.py` assigns functional category +

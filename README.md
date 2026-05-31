@@ -56,8 +56,9 @@ export the result — all in the browser.
 - **Bring your own models** — import your own `.glb` furniture (categorised,
   searchable, recolourable like the built-ins). An offline pipeline also turns
   scraped IKEA SG products into rich catalog items (colour/finish variants,
-  per-component recolouring, real footprints), with automatic **low/medium/high
-  LOD variants** so heavy models stay smooth on modest hardware.
+  per-component recolouring, real footprints, and the **real product photo** as
+  the catalog thumbnail), with automatic **low/medium/high LOD variants** so
+  heavy models stay smooth on modest hardware.
 - **One-click IKEA catalogue** — the *IKEA Singapore (live scrape)* pack
   (catalog → Packs) downloads models on demand via a local sidecar
   (`npm run scraper-server`): products scrape one-by-one (parallelized), each is
