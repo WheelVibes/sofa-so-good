@@ -5,6 +5,7 @@ import { useStore } from '../../state/store'
 import { UploadModelDialog } from '../upload/UploadModelDialog'
 import { CatalogCard } from './CatalogCard'
 import { CategoryTabs } from './CategoryTabs'
+import { fuzzySearch } from './fuzzySearch'
 import { PacksTab } from './PacksTab'
 import { RemoteBrowseTab } from './RemoteBrowseTab'
 import { ThumbnailHost } from './thumbnails'
@@ -48,15 +49,11 @@ export function CatalogDrawer() {
   }
 
   if (!open || cameraMode !== 'orbit') return null
-  const q = query.trim().toLowerCase()
+  const q = query.trim()
+  // Fuzzy (typo-tolerant, ranked best-first) search across name + keywords when
+  // there's a query; otherwise just the active category.
   const allCards = q
-    ? Object.values(byCategory)
-        .flat()
-        .filter(
-          (d) =>
-            d.name.toLowerCase().includes(q) ||
-            d.keywords?.some((k) => k.toLowerCase().includes(q)),
-        )
+    ? fuzzySearch(q, Object.values(byCategory).flat(), (d) => [d.name, ...(d.keywords ?? [])])
     : (byCategory[active] ?? [])
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
