@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { Scene } from './scene/Scene';
+import { RoomEditorScene } from './scene/RoomEditorScene';
+import { RoomEditorBar } from './ui/RoomEditorBar';
 import { MarqueeSelector } from './scene/selection/MarqueeSelector';
 import { Compass } from './ui/Compass';
 import { Crosshair } from './ui/Crosshair';
@@ -36,6 +38,7 @@ export default function App() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements);
   const cameraMode = useStore((s) => s.cameraMode);
   const setCameraMode = useStore((s) => s.setCameraMode);
+  const roomEditorActive = useStore((s) => s.roomEditor.active);
   const catalog = useCatalog();
   usePlacementController();
 
@@ -398,7 +401,8 @@ export default function App() {
     <WebGLFallback>
       <div className="relative h-screen w-screen overflow-hidden">
         <Toolbar />
-        <Scene />
+        {roomEditorActive ? <RoomEditorScene /> : <Scene />}
+        <RoomEditorBar />
         <MarqueeSelector />
         <Compass />
         <Minimap />
