@@ -105,9 +105,14 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       </Suspense>
     );
 
+  // GLB items lift by props.surfaceHeight so a stacked model (mattress on a
+  // frame) renders at its support surface. Parametric primitives self-lift in
+  // local space, so they stay at group-Y 0 to avoid double-counting.
+  const liftY = typeof item.props['surfaceHeight'] === 'number' ? (item.props['surfaceHeight'] as number) : 0;
+
   return (
     <group
-      position={[item.position[0], 0, item.position[1]]}
+      position={[item.position[0], def.kind === 'parametric' ? 0 : liftY, item.position[1]]}
       rotation={[0, item.rotation, 0]}
       onClick={onClick}
       onPointerOver={(e) => {
