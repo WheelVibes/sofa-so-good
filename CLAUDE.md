@@ -107,10 +107,10 @@ rediscover it.
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
   adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection.
-- `src/ui/` — DOM overlays: Toolbar, CatalogDrawer, InspectorPanel,
+- `src/ui/` — DOM overlays: CatalogDrawer, InspectorPanel,
   FinishPicker, GraphicsSettings, measurement/credits/help, `upload/`
   (GLB/material import dialogs), `floorplan/` (2D editor), `inspector/`,
-  `catalog/`.
+  `catalog/`, and `toolbar/` — the icon-island toolbar (see **Toolbar** below).
 - `python/scripts/` — **offline** asset tooling, not part of the app build:
   `ikea_model_scraper.py` (IKEA SG → per-variant-group `metadata.json` +
   `<finish>.glb`), `glb_analysis.py` (stdlib GLB parser → footprint + material
@@ -258,13 +258,28 @@ rediscover it.
 - **Drag aids**: `DragController` snaps a single drag to other items' centres/
   edges (magenta `AlignmentGuides`) and shows the nearest-wall gap (`DragHud`
   via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
-- **Design tools** (toolbar): a **Sets** menu drops pre-arranged vignettes
-  (`furnitureSets.ts`) plus any imported **IKEA set recipes** (`ikeaSets.ts`:
-  `parseSetRecipe`/`buildSetGroup`/`arrangeSet` expand a scraped `sets/<key>.json`
-  into a footprint-arranged group); **Tools ▾** groups the Budget panel
-  (`furniturePrices.ts`), **Checks** (door-swing clearance, `layout/clearance.ts`
-  + `ClearanceOverlay`), **Sun study** (time-lapse), **Walkthrough** (auto camera
-  tour + record, in `OrbitCamera`), and **Report** (`ui/report.ts`, printable).
+- **Toolbar** (`ui/toolbar/`): a streamlined, horizontally-scrollable **icon
+  island**. Frequent actions are direct icon buttons (`IconButton`); busy
+  clusters collapse into labelled dropdown menus (`ToolbarMenu` + `MenuItem`):
+  **View** (top/reset/turntable), **Scene** (time presets + sun-direction
+  `CompassModal`), **Arrange** (Sets/Presets/Style/Floor plan/Tidy), **Tools**
+  (Budget/Checks/Sun study/Walkthrough/Report), **File** (Save/Load/Export/
+  Record). Every control has a custom portaled **Tooltip** showing its name +
+  a keyboard-shortcut chip (label from `shortcuts.ts`, sourced from
+  `controls/keybindings.ts` — never hardcoded). Tooltips and menus both render
+  through `Popover` (a `createPortal` + fixed-position primitive) so the
+  scrollable island never clips them. Editing clusters show only in orbit mode;
+  Walk mode keeps the camera essentials. New view shortcuts: Top view **O**,
+  Reset **H**, Tidy **L**. `ui/Toolbar.tsx` re-exports `ui/toolbar` so the
+  import path is stable.
+- **Design tools** (in the toolbar's **Arrange**/**Tools** menus): the **Sets**
+  list drops pre-arranged vignettes (`furnitureSets.ts`) plus any imported
+  **IKEA set recipes** (`ikeaSets.ts`: `parseSetRecipe`/`buildSetGroup`/
+  `arrangeSet` expand a scraped `sets/<key>.json` into a footprint-arranged
+  group); the **Tools** menu groups the Budget panel (`furniturePrices.ts`),
+  **Checks** (door-swing clearance, `layout/clearance.ts` + `ClearanceOverlay`),
+  **Sun study** (time-lapse), **Walkthrough** (auto camera tour + record, in
+  `OrbitCamera`), and **Report** (`ui/report.ts`, printable).
   Multi-select shows an align/distribute panel; items can be **locked**;
   double-click focuses the camera; saved layouts get thumbnails (`slotThumbs`).
 - **Furniture groups** (`state/slices/groupsSlice.ts`): items sharing an optional

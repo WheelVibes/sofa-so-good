@@ -46,6 +46,12 @@ export the result — all in the browser.
   (move/rotate as a unit, click again to edit one piece), lock,
   copy/duplicate, numeric position/rotation, undo/redo, save/load named layouts
   (with thumbnails), and PNG export.
+- **Streamlined toolbar** — a compact, scrollable **icon island**: frequent
+  actions are one-click icons; related tools tuck into labelled dropdown menus
+  (View, Scene, Arrange, Tools, File). Hover any control for its name and
+  keyboard shortcut. New view shortcuts: Top view **O**, Reset **H**, Tidy **L**
+  (alongside Measurements **M**, Catalog **C**, camera **V**, and the editing
+  keys).
 - **Editable floor plan** — a 2D top-down editor to redraw the apartment shell
   (walls, rooms with live areas, doors/windows) or start from a template; the
   3D flat, finishes, and furniture collision all follow your custom plan, and
