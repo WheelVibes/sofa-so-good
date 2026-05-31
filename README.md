@@ -98,7 +98,14 @@ export the result — all in the browser.
   Original) sets model + texture detail independently of the render effects, so
   you can view full-resolution assets (e.g. IKEA products) on any render tier.
   The offline LOD pass can bake **KTX2 / Basis** GPU-compressed textures
-  (`optimize:glb --ktx2`) for a further runtime-memory win.
+  (`optimize:glb --ktx2`) for a further runtime-memory win. The app also
+  **paints its UI instantly** instead of waiting on saved-data restore, so
+  there's no blank-screen gap on first load.
+- **Loading screen** — an aesthetic overlay (soft warm gradient + a looping
+  line-art room that furnishes itself) covers the initial load and masks the
+  transitions into walkthrough and the per-room editor, with a contextual
+  caption ("Furnishing your flat…", "Entering walkthrough…", "Entering room…").
+  It fades quickly on fast loads and respects reduced-motion preferences.
 
 ## Controls
 

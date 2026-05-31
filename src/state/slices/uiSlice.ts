@@ -14,7 +14,11 @@ export type EditorTool = 'select' | 'orbit';
  *  forced off. */
 export type LightsMode = 'auto' | 'on' | 'off';
 
-/** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
+/** Boot lifecycle phase. `'hydrating'` until the async bootstrap (IDB user
+ *  assets, packs, autosave) resolves; then `'ready'`. Drives the initial
+ *  loading overlay. */
+export type BootPhase = 'hydrating' | 'ready';
+
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
 export interface UiSlice {
   catalogOpen: boolean;
@@ -61,6 +65,18 @@ export interface UiSlice {
    *  double-darken. Ephemeral runtime state — never persisted. */
   showcaseAccumulating: boolean;
   setShowcaseAccumulating: (v: boolean) => void;
+  /** Boot lifecycle phase — `'hydrating'` until the async bootstrap resolves. */
+  bootPhase: BootPhase;
+  /** Mark the boot bootstrap finished (flips the initial loading overlay off). */
+  setBootReady: () => void;
+  /** Transition loading overlay (orbit↔walk, room editor enter/exit). The
+   *  initial-boot overlay is driven by `bootPhase`, not this. Ephemeral. */
+  loading: { active: boolean; label: string };
+  /** Show the transition loading overlay with a phase label. */
+  showLoading: (label: string) => void;
+  /** Hide the transition loading overlay (min-display time is handled by the
+   *  overlay component, so callers can call this on the next tick). */
+  hideLoading: () => void;
   /** Per-room editor: isolates a single room (IKEA-planner style). Ephemeral. */
   roomEditor: { active: boolean; roomId: RoomId | null };
   /** Enter the room editor for `roomId`: pins Performance + Original assets
@@ -122,6 +138,8 @@ export const UI_INITIAL: Pick<
   | 'materialEpoch'
   | 'showcaseAccumulating'
   | 'roomEditor'
+  | 'bootPhase'
+  | 'loading'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -141,6 +159,8 @@ export const UI_INITIAL: Pick<
   materialEpoch: 0,
   showcaseAccumulating: false,
   roomEditor: { active: false, roomId: null },
+  bootPhase: 'hydrating',
+  loading: { active: false, label: '' },
 };
 
 /** Preset alignment-grid cell sizes (metres) the size button cycles through. */
@@ -154,6 +174,9 @@ let priorTiers: { tier: RenderTier; userSet: boolean; asset: AssetTier | null } 
 
 export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   ...UI_INITIAL,
+  setBootReady: () => set({ bootPhase: 'ready' }),
+  showLoading: (label) => set({ loading: { active: true, label } }),
+  hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   enterRoomEditor: (roomId) => {
     const s = get();
     priorTiers = { tier: s.qualityTier, userSet: s.qualityUserSet, asset: s.assetTier };
@@ -164,6 +187,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       qualityOverrides: {},
       assetTier: 'high',
       cameraMode: 'orbit',
+      loading: { active: true, label: 'Entering room…' },
     });
   },
   exitRoomEditor: () => {
@@ -171,6 +195,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     priorTiers = null;
     set({
       roomEditor: { active: false, roomId: null },
+      loading: { active: true, label: 'Exiting room…' },
       ...(restore
         ? { qualityTier: restore.tier, qualityUserSet: restore.userSet, assetTier: restore.asset }
         : {}),

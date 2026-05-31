@@ -20,6 +20,8 @@ import { DragHud } from './ui/DragHud';
 import { LocationPrompt } from './ui/LocationPrompt';
 import { WebGLFallback } from './ui/WebGLFallback';
 import { NotificationContainer } from './ui/notifications/NotificationContainer';
+import { LoadingOverlay } from './ui/loading/LoadingOverlay';
+import { runBootstrap } from './state/storage/bootstrap';
 import { useStore } from './state/store';
 import {
   KEYBINDINGS,
@@ -39,19 +41,28 @@ export default function App() {
   const cameraMode = useStore((s) => s.cameraMode);
   const setCameraMode = useStore((s) => s.setCameraMode);
   const roomEditorActive = useStore((s) => s.roomEditor.active);
+  const bootPhase = useStore((s) => s.bootPhase);
+  const loading = useStore((s) => s.loading);
+  const hideLoading = useStore((s) => s.hideLoading);
   const catalog = useCatalog();
   usePlacementController();
 
-  // Seed the default layout on first mount when nothing has been
-  // hydrated. Phase 3 autosave will short-circuit this once it lands.
+  // Kick off the async boot bootstrap (hydration + default-layout seed) once.
+  // Runs after the first paint, so the loading overlay shows immediately
+  // instead of a blank screen. Flips bootPhase → 'ready' when done.
   useEffect(() => {
-    if (useStore.getState().items.length === 0) {
-      useStore.getState().resetToDefault();
-    }
-    // Drop the seed/hydrate snapshot so the first user undo doesn't pop
-    // the layout back to a blank apartment they never saw.
-    useStore.getState().clearHistory();
+    void runBootstrap();
   }, []);
+
+  // Transition overlays (orbit↔walk, room editor enter/exit) set loading.active
+  // true synchronously; clear it on the next frame after the swap commits, so
+  // the overlay's own min-time + fade handles the visible duration. Keying the
+  // effect on the changed state means each transition re-triggers the hide.
+  useEffect(() => {
+    if (!loading.active) return;
+    const id = requestAnimationFrame(() => hideLoading());
+    return () => cancelAnimationFrame(id);
+  }, [loading.active, loading.label, cameraMode, roomEditorActive, hideLoading]);
 
   const pasteClipboard = useCallback(() => {
     const state = useStore.getState();
@@ -423,6 +434,10 @@ export default function App() {
         <NotificationContainer />
         <LocationPrompt />
         <FloorPlanEditor />
+        <LoadingOverlay
+          active={bootPhase !== 'ready' || loading.active}
+          label={bootPhase !== 'ready' ? 'Furnishing your flat…' : loading.label}
+        />
       </div>
     </WebGLFallback>
   );

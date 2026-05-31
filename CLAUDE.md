@@ -339,6 +339,27 @@ rediscover it.
 - **Visual**: per-item **contact shadows** (`ContactShadow`, quality-gated) +
   **skirting/crown** wall trim (`apartment/Skirting.tsx`, `PlanShell`).
   Procedural finishes include **wallpapers** (stripe/grasscloth) + **checker**.
+- **Loading overlay + fast boot** (`ui/loading/`, `state/storage/bootstrap.ts`,
+  uiSlice `bootPhase`/`loading`): `main.tsx` registers the GLB decoders
+  (synchronous, must precede any model load) then renders React **immediately**
+  — no longer awaiting hydration, so the page is never a blank screen. The
+  async boot work (IDB user assets + packs, autosave restore, pref loaders,
+  and the default-layout seed — which now runs *after* hydration so it can't
+  clobber a restored layout) lives in `runBootstrap()`, kicked off once from
+  `App`'s `<BootHydrator>` effect; it flips `bootPhase` `'hydrating'→'ready'`
+  in a `finally`. `LoadingOverlay` is a single fixed DOM overlay (soft warm
+  gradient + a looping SVG line-art room that furnishes itself — walls draw in,
+  then sofa→table→lamp→plant pop in staggered; pure CSS keyframes, respects
+  `prefers-reduced-motion`). It covers three triggers: **initial boot**
+  (`bootPhase !== 'ready'`, label "Furnishing your flat…"), **orbit↔walk**
+  (`setCameraMode` calls `showLoading` on a real mode change, skipped inside the
+  room editor), and **per-room editor enter/exit** (`enterRoomEditor`/
+  `exitRoomEditor` set a labelled `loading`). Transition triggers set
+  `loading.active` synchronously; `App` clears it on the next rAF, and the
+  overlay's own **min-time (600ms) + fade (250ms)** lifecycle
+  (`useOverlayLifecycle`) holds it visible long enough to avoid flicker on fast
+  swaps. Boot uses `bootPhase`; transitions use `loading` — kept separate so
+  each is independently testable.
 
 ## Adding content
 - **Furniture**: add a `primitives/<Name>.tsx` (a function taking

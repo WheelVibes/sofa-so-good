@@ -39,9 +39,17 @@ export const CAMERA_INITIAL: Pick<
   touring: false,
 };
 
-export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set) => ({
+export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get) => ({
   ...CAMERA_INITIAL,
-  setCameraMode: (m) => set({ cameraMode: m }),
+  setCameraMode: (m) => {
+    const changed = get().cameraMode !== m;
+    set({ cameraMode: m });
+    // Mask the orbit↔walk transition with the loading overlay. Only on a real
+    // mode change, and not while the room editor is active (it owns the overlay).
+    if (changed && !get().roomEditor.active) {
+      get().showLoading(m === 'firstPerson' ? 'Entering walkthrough…' : 'Switching to overview…');
+    }
+  },
   requestTopView: () =>
     set((s) => ({ topViewNonce: s.topViewNonce + 1, cameraMode: 'orbit' })),
   requestHomeView: () =>

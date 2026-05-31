@@ -2,56 +2,18 @@ import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';
 import './index.css';
 import App from './App';
-import { hydrate } from './state/storage/hydrate';
-import { startAutosave } from './state/storage/autosave';
-import { loadQualityPrefs, watchQualityPrefs } from './state/storage/qualityPrefs';
-import { loadEditorPrefs, watchEditorPrefs } from './state/storage/editorPrefs';
-import { loadFloorPlans, watchFloorPlans } from './state/storage/floorPlanStore';
-import { useStore } from './state/store';
 import { registerGltfDecoders } from './furniture/gltf/decoders';
 
-async function boot() {
-  // Wire the Draco/KTX2/meshopt decoders into the shared drei useGLTF loader
-  // before any model is requested, so compressed GLBs decode correctly.
-  registerGltfDecoders();
-  // Pull user assets + autosaved layout before React paints. Failures
-  // are silent; the app falls back to default layout via App.tsx.
-  await hydrate();
-  loadQualityPrefs();
-  watchQualityPrefs();
-  loadEditorPrefs();
-  watchEditorPrefs();
-  loadFloorPlans();
-  watchFloorPlans();
-  startAutosave();
-  // Dev-only: expose the store + auto-arranger for screenshot/automation.
-  if (import.meta.env.DEV) {
-    (window as unknown as { __store?: typeof useStore }).__store = useStore;
-    const { arrangeRoom, arrangeAllRooms, arrangeAllRoomsForPlan } = await import('./layout/autoArrange');
-    const { isDefaultPlan } = await import('./floorplan/planGeometry');
-    const { BUILTIN_CATALOG } = await import('./furniture/builtinCatalog');
-    (window as unknown as { __arrangeRoom?: unknown }).__arrangeRoom = (roomId: string) => {
-      const s = useStore.getState();
-      s.setItems(arrangeRoom(roomId as never, s.items, BUILTIN_CATALOG as never, s.doors));
-    };
-    (window as unknown as { __tidyHome?: unknown }).__tidyHome = () => {
-      const s = useStore.getState();
-      const next = isDefaultPlan(s.floorPlan)
-        ? arrangeAllRooms(s.items, BUILTIN_CATALOG as never, s.doors)
-        : arrangeAllRoomsForPlan(s.floorPlan, s.items, BUILTIN_CATALOG as never, s.doors);
-      s.setItems(next);
-    };
-    const { PLAN_TEMPLATES } = await import('./floorplan/templates');
-    (window as unknown as { __loadTemplate?: unknown }).__loadTemplate = (id: string) => {
-      const tpl = PLAN_TEMPLATES.find((t) => t.id === id);
-      if (tpl) useStore.getState().setFloorPlan(JSON.parse(JSON.stringify(tpl)));
-    };
-  }
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-}
+// Wire the Draco/KTX2/meshopt decoders into the shared drei useGLTF loader
+// before any model is requested, so compressed GLBs decode correctly. This is
+// cheap + synchronous, so it stays on the critical path.
+registerGltfDecoders();
 
-void boot();
+// Render immediately — App shows the loading overlay and kicks off the async
+// boot bootstrap (IDB user assets, packs, autosave) from <BootHydrator>, so
+// the page is never a blank screen while IndexedDB/localStorage resolve.
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+);
