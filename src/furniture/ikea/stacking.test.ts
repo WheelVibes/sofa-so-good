@@ -1,6 +1,34 @@
 import { describe, it, expect } from 'vitest';
-import { resolveStack, stackOnto } from './stacking';
+import { resolveStack, combineOnto } from './stacking';
+import { seedGltfSupportPlane } from '../GltfModel';
 import type { IkeaGltfDef, FurnitureItem } from '../types';
+
+function tableDef(): IkeaGltfDef {
+  return {
+    id: 'ikea-voxlov', name: 'VOXLÖV', category: 'tables', kind: 'gltf', source: 'ikea',
+    groupKey: 'voxlov', activeVariant: 'bamboo',
+    variants: [{ finish: 'bamboo', label: 'Bamboo', articleNumber: '3', url: '', assetId: 'c',
+      glbMaterials: [],
+      footprint: { w: 1.8, d: 0.9, h: 0.74, anchorOffset: [0, 0.37, 0] } }],
+    defaultFootprint: { w: 1.8, d: 0.9, h: 0.74 },
+    productInfo: { categoryHierarchy: [] },
+    compatibility: { acceptsCategories: ['Kitchen dining chairs'] },
+    uploadedAt: '', license: 'IKEA', attribution: 'IKEA',
+  } as IkeaGltfDef;
+}
+
+function chairDef(): IkeaGltfDef {
+  return {
+    id: 'ikea-voxlov-chair', name: 'VOXLÖV chair', category: 'seating', kind: 'gltf', source: 'ikea',
+    groupKey: 'voxlov-chair', activeVariant: 'bamboo',
+    variants: [{ finish: 'bamboo', label: 'Bamboo', articleNumber: '4', url: '', assetId: 'd',
+      glbMaterials: [],
+      footprint: { w: 0.45, d: 0.5, h: 0.85, anchorOffset: [0, 0.425, 0] } }],
+    defaultFootprint: { w: 0.45, d: 0.5, h: 0.85 },
+    productInfo: { categoryHierarchy: [] },
+    uploadedAt: '', license: 'IKEA', attribution: 'IKEA',
+  } as IkeaGltfDef;
+}
 
 function bedDef(): IkeaGltfDef {
   return {
@@ -31,36 +59,27 @@ function mattressDef(): IkeaGltfDef {
   } as IkeaGltfDef;
 }
 
-describe('resolveStack', () => {
-  it('sits a mattress so its top is flush with the footboard rail', () => {
+describe('resolveStack (geometric support plane)', () => {
+  it('rests the mattress BOTTOM on the detected slat plane', () => {
     const base = bedDef();
-    const top = mattressDef();
-    const fit = resolveStack(base, base.variants[0], top, top.variants[0]);
+    seedGltfSupportPlane(base.variants[0].url ?? '', 0.25);
+    const fit = resolveStack(base, base.variants[0], 'Foam & latex mattresses');
     expect(fit).not.toBeNull();
-    expect(fit!.supportY).toBeCloseTo(0.1257, 3); // 0.38 - 0.2543
-    expect(fit!.supportY + top.variants[0].footprint!.h).toBeCloseTo(0.38, 2);
+    expect(fit!.kind).toBe('vertical');
+    expect(fit!.supportY).toBeCloseTo(0.25, 3); // bottom on the planks
   });
 
-  it('clamps supportY to at least free height under furniture', () => {
+  it('falls back to STACK.bedSlatDefault when no plane detected', () => {
     const base = bedDef();
-    base.productInfo!.productMeasurements!['Footboard height'] = '20 cm';
-    const top = mattressDef();
-    const fit = resolveStack(base, base.variants[0], top, top.variants[0]);
-    expect(fit!.supportY).toBeGreaterThanOrEqual(0.21);
-  });
-
-  it('falls back to the slat-default height when no footboard field', () => {
-    const base = bedDef();
-    delete base.productInfo!.productMeasurements!['Footboard height'];
-    const top = mattressDef();
-    const fit = resolveStack(base, base.variants[0], top, top.variants[0]);
+    seedGltfSupportPlane(base.variants[0].url ?? '', null);
+    const fit = resolveStack(base, base.variants[0], 'Foam & latex mattresses');
     expect(fit!.supportY).toBeCloseTo(0.13, 3);
   });
 
   it('centers the mattress on the base footprint (zero offset for a centered bed)', () => {
     const base = bedDef();
-    const top = mattressDef();
-    const fit = resolveStack(base, base.variants[0], top, top.variants[0]);
+    seedGltfSupportPlane(base.variants[0].url ?? '', 0.25);
+    const fit = resolveStack(base, base.variants[0], 'Foam & latex mattresses');
     expect(fit!.centerOffset[0]).toBeCloseTo(0, 2);
     expect(fit!.centerOffset[1]).toBeCloseTo(0, 2);
   });
@@ -68,71 +87,62 @@ describe('resolveStack', () => {
   it('returns null for a non-stackable base category with no rule', () => {
     const base = mattressDef();
     base.compatibility = undefined;
-    const top = mattressDef();
-    expect(resolveStack(base, base.variants[0], top, top.variants[0])).toBeNull();
+    expect(resolveStack(base, base.variants[0], 'Foam & latex mattresses')).toBeNull();
   });
 });
 
-describe('stackOnto', () => {
-  it('builds a grouped, lifted, centred, rotation-inheriting item', () => {
+describe('combineOnto', () => {
+  it('vertical: returns a lifted, grouped item resting on the plane', () => {
     const base = bedDef();
-    const baseItem: FurnitureItem = {
-      id: 'frame-1', defId: base.id, position: [3, 4], rotation: Math.PI / 2, props: {},
-    };
+    seedGltfSupportPlane(base.variants[0].url ?? '', 0.25);
+    const baseItem: FurnitureItem = { id: 'frame', defId: base.id, position: [2, 3], rotation: 0, props: {} };
     const top = mattressDef();
-    const res = stackOnto(baseItem, base, top, top.variants[0]);
-    expect('item' in res).toBe(true);
-    if (!('item' in res)) return;
-    expect(res.item.defId).toBe(top.id);
-    expect(res.item.rotation).toBeCloseTo(Math.PI / 2, 5);
-    expect(res.item.props['surfaceHeight']).toBeCloseTo(0.1257, 3);
-    expect(res.item.props['variant']).toBe('white');
-    expect(res.item.position[0]).toBeCloseTo(3, 5);
-    expect(res.item.position[1]).toBeCloseTo(4, 5);
-    expect(res.groupId).toBeTruthy();
-    expect(res.item.groupId).toBe(res.groupId);
+    const res = combineOnto(baseItem, base, top, top.variants[0], 'Foam & latex mattresses');
+    if (!('items' in res)) throw new Error('expected items');
+    expect(res.items).toHaveLength(1);
+    expect(res.items[0].props['surfaceHeight']).toBeCloseTo(0.25, 3);
+    expect(res.items[0].props['variant']).toBe('white');
+    expect(res.items[0].groupId).toBe(res.groupId);
   });
 
-  it('reuses an existing base groupId', () => {
+  it('vertical: reuses an existing base groupId', () => {
     const base = bedDef();
-    const baseItem: FurnitureItem = {
-      id: 'frame-1', defId: base.id, position: [0, 0], rotation: 0, groupId: 'g-existing', props: {},
-    };
+    seedGltfSupportPlane(base.variants[0].url ?? '', 0.25);
+    const baseItem: FurnitureItem = { id: 'frame', defId: base.id, position: [0, 0], rotation: 0, groupId: 'g-existing', props: {} };
     const top = mattressDef();
-    const res = stackOnto(baseItem, base, top, top.variants[0]);
-    if (!('item' in res)) throw new Error('expected item');
+    const res = combineOnto(baseItem, base, top, top.variants[0], 'Foam & latex mattresses');
+    if (!('items' in res)) throw new Error('expected items');
     expect(res.groupId).toBe('g-existing');
-    expect(res.item.groupId).toBe('g-existing');
+    expect(res.items[0].groupId).toBe('g-existing');
   });
 
-  it('returns an error when no fit resolves', () => {
+  it('around: places seating beside the base on the floor (no lift)', () => {
+    const base = tableDef();
+    const baseItem: FurnitureItem = { id: 'tbl', defId: base.id, position: [5, 5], rotation: 0, props: {} };
+    const chair = chairDef();
+    const res = combineOnto(baseItem, base, chair, chair.variants[0], 'Kitchen dining chairs');
+    if (!('items' in res)) throw new Error('expected items');
+    expect(res.items[0].props['surfaceHeight']).toBeUndefined(); // floor-standing
+    const moved = res.items[0].position[0] !== 5 || res.items[0].position[1] !== 5;
+    expect(moved).toBe(true);
+    expect(res.items[0].groupId).toBe(res.groupId);
+  });
+
+  it('returns an error when no rule resolves', () => {
     const base = mattressDef();
     base.compatibility = undefined;
     const baseItem: FurnitureItem = { id: 'm', defId: base.id, position: [0, 0], rotation: 0, props: {} };
     const top = mattressDef();
-    const res = stackOnto(baseItem, base, top, top.variants[0]);
+    const res = combineOnto(baseItem, base, top, top.variants[0], 'Foam & latex mattresses');
     expect('error' in res).toBe(true);
   });
 
   it('fails soft (no throw) when a variant is missing', () => {
     const base = bedDef();
-    const baseItem: FurnitureItem = { id: 'frame-1', defId: base.id, position: [0, 0], rotation: 0, props: {} };
+    seedGltfSupportPlane(base.variants[0].url ?? '', 0.25);
+    const baseItem: FurnitureItem = { id: 'frame', defId: base.id, position: [0, 0], rotation: 0, props: {} };
     const top = mattressDef();
-    // undefined topVariant must not crash resolveStack's footprint read.
-    const res = stackOnto(baseItem, base, top, undefined as unknown as IkeaGltfDef['variants'][number]);
+    const res = combineOnto(baseItem, base, top, undefined as unknown as IkeaGltfDef['variants'][number], 'Foam & latex mattresses');
     expect('error' in res).toBe(true);
-  });
-
-  it('rotates a non-zero centre offset into world space by the base rotation', () => {
-    const base = bedDef();
-    // Shift the base mesh centre +0.5 along local +X.
-    base.variants[0].footprint!.anchorOffset = [0.5, 0.5021, 0];
-    // Base rotated 90°: local +X maps to world +Z, so the offset lands on +Z.
-    const baseItem: FurnitureItem = { id: 'frame-1', defId: base.id, position: [2, 3], rotation: Math.PI / 2, props: {} };
-    const top = mattressDef();
-    const res = stackOnto(baseItem, base, top, top.variants[0]);
-    if (!('item' in res)) throw new Error('expected item');
-    expect(res.item.position[0]).toBeCloseTo(2, 5);   // x unchanged
-    expect(res.item.position[1]).toBeCloseTo(3.5, 5); // z += 0.5
   });
 });

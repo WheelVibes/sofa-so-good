@@ -1,62 +1,27 @@
 /**
- * Snug-stacking math for compatible IKEA models. resolveStack derives where the
- * BOTTOM of a stacked item (mattress) rests on a base (bed frame): the support
- * surface Y, an XZ centre offset (so the mattress centres on the support area,
- * not the headboard-skewed bbox), and the inherited rotation. Measurement-
- * derived where IKEA exposes the numbers, else a per-category fallback.
- * Pure + render-free — see stacking.test.ts.
+ * Combine math for compatible IKEA models. resolveStack classifies HOW an
+ * accepted item is placed relative to its base (vertical / around) and, for
+ * vertical, where its BOTTOM rests — the support surface Y derived GEOMETRICALLY
+ * from the base GLB's slat plane (cached by GltfModel; IKEA publishes no slat
+ * height), with a per-category fallback. combineOnto turns that into ready-to-
+ * place FurnitureItems sharing a groupId. Pure + render-free — see
+ * stacking.test.ts.
  */
-import type { FurnitureCategory, FurnitureItem } from '../types';
+import type { FurnitureItem } from '../types';
 import type { IkeaGltfDef, IkeaVariant } from '../types';
 import { STACK } from '../../layout/designRules';
 import { variantProps } from '../../ui/inspector/ikeaBodyProps';
+import { getCachedSupportPlaneY } from '../GltfModel';
+import { placementKind } from './placementSemantics';
 
 export interface StackFit {
-  /** Y (metres) where the bottom of the stacked item rests. */
+  kind: 'vertical' | 'around';
+  /** VERTICAL only: Y (metres) where the bottom of the stacked item rests. */
   supportY: number;
-  /** [dx, dz] in the BASE's local (unrotated) frame, base-centre → support-centre. */
+  /** VERTICAL only: [dx, dz] base-local centre offset (centres on the support area). */
   centerOffset: [number, number];
-  /** Stacked item inherits the base rotation (delta is 0 here; caller adds base rotation). */
+  /** Delta rotation relative to the base (0 — the caller adds the base rotation). */
   rotation: number;
-}
-
-/** Parse "38 cm" → metres; undefined when absent/unparseable. */
-function cmToM(value: string | undefined): number | undefined {
-  if (!value) return undefined;
-  const m = /([\d.]+)\s*cm/i.exec(value);
-  return m ? parseFloat(m[1]) / 100 : undefined;
-}
-
-function measurements(def: IkeaGltfDef): Record<string, string> {
-  return def.productInfo?.productMeasurements ?? {};
-}
-
-/** Support-surface Y for the bottom of the stacked item, by base category. */
-function supportSurfaceY(
-  baseDef: IkeaGltfDef,
-  baseVariant: IkeaVariant,
-  topThickness: number,
-): number | null {
-  const pm = measurements(baseDef);
-  const baseH = baseVariant.footprint?.h ?? baseDef.defaultFootprint.h;
-  const freeUnder = cmToM(pm['Free height under furniture']) ?? 0;
-
-  switch (baseDef.category as FurnitureCategory) {
-    case 'beds': {
-      const footboard = cmToM(pm['Footboard height']);
-      // Top is flush with the footboard rail: the mattress bottom rests
-      // `footboard - thickness` above the floor. When the footboard is shorter
-      // than the mattress (implausible / missing rail) that goes negative, so
-      // clamp up to the free height under the frame (the slatted-base plane).
-      if (footboard === undefined) return STACK.bedSlatDefault;
-      const y = footboard - topThickness;
-      return y < 0 ? freeUnder : y;
-    }
-    case 'seating':
-      return STACK.seatDefault;
-    default:
-      return baseH;
-  }
 }
 
 /** XZ offset (base local frame) centring the top on the base's support area. */
@@ -68,18 +33,25 @@ function centerOffset(baseVariant: IkeaVariant): [number, number] {
 export function resolveStack(
   baseDef: IkeaGltfDef,
   baseVariant: IkeaVariant,
-  topDef: IkeaGltfDef,
-  topVariant: IkeaVariant,
+  acceptedCategory: string,
 ): StackFit | null {
   if (!baseDef.compatibility?.acceptsCategories?.length) return null;
-  const topThickness = topVariant.footprint?.h ?? topDef.defaultFootprint.h;
-  const supportY = supportSurfaceY(baseDef, baseVariant, topThickness);
-  if (supportY === null) return null;
-  return { supportY, centerOffset: centerOffset(baseVariant), rotation: 0 };
+  const kind = placementKind(acceptedCategory);
+  if (kind === null || kind === 'modular') return null; // unclassified/modular handled elsewhere
+
+  if (kind === 'around') {
+    return { kind: 'around', supportY: 0, centerOffset: [0, 0], rotation: 0 };
+  }
+
+  // vertical: rest the top's BOTTOM on the detected slat/support plane.
+  const url = baseVariant.runtimeUrl ?? baseVariant.url ?? '';
+  const plane = getCachedSupportPlaneY(url);
+  const supportY = plane ?? STACK.bedSlatDefault;
+  return { kind: 'vertical', supportY, centerOffset: centerOffset(baseVariant), rotation: 0 };
 }
 
-export type StackResult =
-  | { item: FurnitureItem; groupId: string }
+export type CombineResult =
+  | { items: FurnitureItem[]; groupId: string }
   | { error: string };
 
 function newStackId(): string {
@@ -87,41 +59,56 @@ function newStackId(): string {
   return `stack-${Math.random().toString(36).slice(2, 10)}`;
 }
 
-/** Build the FurnitureItem for `topDef`/`topVariant` stacked on `baseItem`.
- *  Position centres on the base support area (offset rotated by base rotation),
- *  rotation inherits the base, Y lift via props.surfaceHeight, and a shared
- *  groupId (reused from the base if it already has one). The caller adds the
- *  item to the store and stamps the base's groupId in one history step. */
-export function stackOnto(
+/** Rotate a base-local [dx, dz] offset into world XZ by the base rotation. */
+function toWorld(baseItem: FurnitureItem, dx: number, dz: number): [number, number] {
+  const cos = Math.cos(baseItem.rotation);
+  const sin = Math.sin(baseItem.rotation);
+  return [baseItem.position[0] + dx * cos - dz * sin, baseItem.position[1] + dx * sin + dz * cos];
+}
+
+/** Place `topDef`/`topVariant` onto/around `baseItem` per the matched category.
+ *  VERTICAL → one item resting on the support plane (props.surfaceHeight).
+ *  AROUND  → one seat at the base's front edge, on the floor, facing it.
+ *  Shared groupId (reused from the base or minted). The caller commits the items
+ *  + the base's groupId in one history step. Fails soft (returns {error}) so a
+ *  malformed def or unclassified rule can never wedge a drag or crash. */
+export function combineOnto(
   baseItem: FurnitureItem,
   baseDef: IkeaGltfDef,
   topDef: IkeaGltfDef,
   topVariant: IkeaVariant,
-): StackResult {
-  const baseVariant =
-    baseDef.variants.find((v) => v.finish === (baseItem.props['variant'] ?? baseDef.activeVariant)) ??
-    baseDef.variants[0];
-  // A malformed def with no variants would make resolveStack read footprint off
-  // undefined; fail soft so a stuck drag / crash can't result.
-  if (!baseVariant || !topVariant) return { error: `Missing variant for ${topDef.name} on ${baseDef.name}.` };
-  const fit = resolveStack(baseDef, baseVariant, topDef, topVariant);
-  if (!fit) return { error: `No snug fit for ${topDef.name} on ${baseDef.name}.` };
-
-  const [dx, dz] = fit.centerOffset;
-  const cos = Math.cos(baseItem.rotation);
-  const sin = Math.sin(baseItem.rotation);
-  const wx = baseItem.position[0] + dx * cos - dz * sin;
-  const wz = baseItem.position[1] + dx * sin + dz * cos;
-
+  acceptedCategory: string,
+): CombineResult {
+  if (!topVariant) return { error: `Missing variant for ${topDef.name}.` };
+  const fit = resolveStack(baseDef, baseDef.variants[0], acceptedCategory);
+  if (!fit) return { error: `No combine rule for ${topDef.name} on ${baseDef.name}.` };
   const groupId = baseItem.groupId ?? newStackId();
 
+  if (fit.kind === 'vertical') {
+    const [wx, wz] = toWorld(baseItem, fit.centerOffset[0], fit.centerOffset[1]);
+    const item: FurnitureItem = {
+      id: newStackId(),
+      defId: topDef.id,
+      position: [wx, wz],
+      rotation: baseItem.rotation + fit.rotation,
+      groupId,
+      props: { ...variantProps(topVariant.finish), surfaceHeight: fit.supportY },
+    };
+    return { items: [item], groupId };
+  }
+
+  // around: one seat at the base's front (local +Z) edge, on the floor, facing it.
+  const baseFp = baseDef.defaultFootprint;
+  const longAlongX = baseFp.w >= baseFp.d;
+  const perp = (longAlongX ? baseFp.d : baseFp.w) / 2 + topDef.defaultFootprint.d / 2 + 0.05;
+  const [wx, wz] = toWorld(baseItem, 0, perp);
   const item: FurnitureItem = {
     id: newStackId(),
     defId: topDef.id,
     position: [wx, wz],
-    rotation: baseItem.rotation + fit.rotation,
+    rotation: baseItem.rotation + Math.PI, // face the base
     groupId,
-    props: { ...variantProps(topVariant.finish), surfaceHeight: fit.supportY },
+    props: { ...variantProps(topVariant.finish) }, // no surfaceHeight → floor
   };
-  return { item, groupId };
+  return { items: [item], groupId };
 }
