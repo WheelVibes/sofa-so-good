@@ -41,6 +41,13 @@ export the result — all in the browser.
   top-down plan (pair with Measurements for an annotated floor plan), a
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a
   presentation clip.
+- **Per-room editor** — an IKEA-planner-style mode that isolates one room to
+  plan its furniture (toolbar **View → Edit room: …**; the "← Exit room" pill or
+  **Esc** leaves). It shows just that room's walls + floor + its own furniture,
+  with the camera-facing walls hidden so you always see in, supports orbit **and**
+  walk, and keeps the full catalog/placement/measurement tools. It's deliberately
+  lightweight — locked to the fast Performance renderer with full-resolution
+  models, and skips all the time-of-day/sun/shadow machinery.
 - **Editing** — drag to place (with optional **snap-to-grid** and alignment
   guides), move, rotate, mirror, multi-select with align/distribute, **group**
   (move/rotate as a unit, click again to edit one piece), lock,

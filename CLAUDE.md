@@ -268,6 +268,29 @@ rediscover it.
   renders via `PlanShell` and furniture/walk collision follow it (optional
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
   curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`).
+- **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
+  `RoomShell.tsx`, `ui/RoomEditorBar.tsx`, `uiSlice.roomEditor`): an IKEA-planner-
+  style mode that isolates one room for furniture planning. Entered from the
+  toolbar **View** menu (one "Edit room: …" entry per non-external room); the
+  top-left "← Exit room" pill or **Esc** exits. It mounts a **separate
+  lightweight `<Canvas>`** (own flat hemisphere/ambient light, DPR 1, no shadows/
+  IBL/post — none of the sun/time/Effects systems are even mounted) in place of
+  `<Scene>` while active, and is **pinned to the Performance render tier +
+  Original (`assetTier:'high'`) assets** on enter (prior tiers restored on exit).
+  It reuses every store-driven interaction controller (FurnitureLayer with a room
+  filter, DragController, PlacementGhost, selection, CameraRig orbit+walk,
+  MeasurementOverlay) so catalog/placement/measurement work unchanged, editing
+  the **same live `store.items`** (no scratch layout). `roomShell(roomId)` derives
+  the room's footprint rect(s) (main + `extension`), **clips each shared wall to
+  that footprint span**, and attributes windows/doors by world-position-within-
+  clip; `<RoomShell>` renders clipped wall boxes that **hide themselves when the
+  camera is on their outward side** (camera-facing wall reveal) plus a per-rect
+  floor and the room's own openings. `FurnitureLayer({room})` renders only items
+  whose footprint centre is inside the room (`furniture/roomFilter.ts`).
+  `OrbitCamera` frames the room (centre + sized 3/4 offset) on enter / room
+  switch. Walk-mode collision currently uses the full-flat wall set (the room's
+  walls are a subset, so they still block) — true room-only bounding is a
+  follow-up.
 - **Snap grid** (`scene/snap.ts`, `GridOverlay.tsx`, ui `snapEnabled`/
   `gridSize`): drag + initial placement quantise to a customizable grid
   (10/25/50 cm, 1 m); the floor overlay shows it. Persisted via `editorPrefs`.

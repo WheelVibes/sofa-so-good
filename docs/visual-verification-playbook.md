@@ -118,6 +118,19 @@ the stdlib `glb_analysis.py` can't decode Draco geometry, only the container).
 The browser already has Draco wired — do geometry probing in-page via an
 evalFile that loads through the app's own loader, not in a standalone script.
 
+### An isolated room renders as a closed box you can't see into
+The per-room editor (`enterRoomEditor(roomId)`) renders only that room's walls.
+A naive "render the matched walls" gives a fully-enclosed box — from any orbit
+angle the near walls occlude the interior, so the first shot looks like a blank
+cube. Two things make it usable, both already in `apartment/RoomShell.tsx` /
+`roomShell.ts`: (1) **clip shared walls** to the room footprint span (the
+bedroom north wall is one 9 m segment shared by all three bedrooms — render the
+whole thing and you get the neighbours' windows too), and (2) **hide each wall
+when the camera is on its outward side** (camera-facing wall reveal, a per-frame
+`mesh.visible` toggle). If you add a similar isolated view, do both — and frame
+the camera on the room centre (`OrbitCamera` keys this off `roomEditor.roomId`),
+or a far room like `livingDining` loads off-screen to one side.
+
 ## A known-good template
 
 ```js
