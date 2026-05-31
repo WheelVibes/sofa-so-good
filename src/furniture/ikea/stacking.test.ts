@@ -30,6 +30,21 @@ function chairDef(): IkeaGltfDef {
   } as IkeaGltfDef;
 }
 
+function sectionDef(role: 'seat' | 'corner' | 'chaise' | 'armrest'): IkeaGltfDef {
+  return {
+    id: `ikea-vimle-${role}`, name: `VIMLE ${role} section`, category: 'seating', kind: 'gltf', source: 'ikea',
+    groupKey: `vimle-${role}`, activeVariant: 'grey',
+    variants: [{ finish: 'grey', label: 'Grey', articleNumber: '9', url: '', assetId: 'e',
+      glbMaterials: [],
+      footprint: { w: 0.9, d: 0.95, h: 0.8, anchorOffset: [0, 0.4, 0] } }],
+    defaultFootprint: { w: 0.9, d: 0.95, h: 0.8 },
+    productInfo: { categoryHierarchy: [] },
+    compatibility: { acceptsCategories: ['Sofa sections'] },
+    modular: { role, mates: [{ edge: 'right', accepts: ['seat', 'corner', 'chaise', 'armrest'] }] },
+    uploadedAt: '', license: 'IKEA', attribution: 'IKEA',
+  } as IkeaGltfDef;
+}
+
 function bedDef(): IkeaGltfDef {
   return {
     id: 'ikea-malm', name: 'MALM', category: 'beds', kind: 'gltf', source: 'ikea',
@@ -144,5 +159,20 @@ describe('combineOnto', () => {
     const top = mattressDef();
     const res = combineOnto(baseItem, base, top, undefined as unknown as IkeaGltfDef['variants'][number], 'Foam & latex mattresses');
     expect('error' in res).toBe(true);
+  });
+
+  it('modular: snaps a section to the base section edge, on the floor, sharing rotation, grouped', () => {
+    const base = sectionDef('seat'); // mates on the right edge
+    const baseItem: FurnitureItem = { id: 's1', defId: base.id, position: [4, 4], rotation: 0, props: {} };
+    const add = sectionDef('seat');
+    const res = combineOnto(baseItem, base, add, add.variants[0], 'Sofa sections');
+    if (!('items' in res)) throw new Error('expected items');
+    const it = res.items[0];
+    expect(it.props['surfaceHeight']).toBeUndefined();   // floor
+    expect(it.rotation).toBeCloseTo(0, 5);               // shares rotation
+    // right edge → +X by base half-width + add half-width (0.45 + 0.45 = 0.9)
+    expect(it.position[0]).toBeCloseTo(4.9, 5);
+    expect(it.position[1]).toBeCloseTo(4, 5);
+    expect(it.groupId).toBe(res.groupId);
   });
 });

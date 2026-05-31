@@ -80,9 +80,33 @@ export function combineOnto(
   acceptedCategory: string,
 ): CombineResult {
   if (!topVariant) return { error: `Missing variant for ${topDef.name}.` };
+  const groupId = baseItem.groupId ?? newStackId();
+
+  // MODULAR sofa sections snap edge-to-edge on the floor (resolveStack returns
+  // null for modular). Handled before the vertical/around path.
+  if (placementKind(acceptedCategory) === 'modular' && baseDef.modular) {
+    const edge = baseDef.modular.mates[0]?.edge ?? 'right';
+    const baseHalfW = baseDef.defaultFootprint.w / 2;
+    const addHalfW = topDef.defaultFootprint.w / 2;
+    const baseHalfD = baseDef.defaultFootprint.d / 2;
+    const addHalfD = topDef.defaultFootprint.d / 2;
+    // left/right run along the base's local X; back along its local -Z.
+    const dx = edge === 'back' ? 0 : (edge === 'left' ? -1 : 1) * (baseHalfW + addHalfW);
+    const dz = edge === 'back' ? -(baseHalfD + addHalfD) : 0;
+    const [wx, wz] = toWorld(baseItem, dx, dz);
+    const item: FurnitureItem = {
+      id: newStackId(),
+      defId: topDef.id,
+      position: [wx, wz],
+      rotation: baseItem.rotation, // sections align, same orientation
+      groupId,
+      props: { ...variantProps(topVariant.finish) }, // floor-standing
+    };
+    return { items: [item], groupId };
+  }
+
   const fit = resolveStack(baseDef, baseDef.variants[0], acceptedCategory);
   if (!fit) return { error: `No combine rule for ${topDef.name} on ${baseDef.name}.` };
-  const groupId = baseItem.groupId ?? newStackId();
 
   if (fit.kind === 'vertical') {
     const [wx, wz] = toWorld(baseItem, fit.centerOffset[0], fit.centerOffset[1]);
