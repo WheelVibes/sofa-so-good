@@ -26,6 +26,7 @@ const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 
 export function Toolbar() {
   const cameraMode = useStore((s) => s.cameraMode);
   const setCameraMode = useStore((s) => s.setCameraMode);
+  const roomEditorActive = useStore((s) => s.roomEditor.active);
   const editorTool = useStore((s) => s.editorTool);
   const setEditorTool = useStore((s) => s.setEditorTool);
   const catalogOpen = useStore((s) => s.catalogOpen);
@@ -60,7 +61,7 @@ export function Toolbar() {
           <>
             <Divider />
             <ViewMenu />
-            <SceneMenu />
+            {!roomEditorActive && <SceneMenu />}
 
             <Divider />
             {/* Edit */}
@@ -89,12 +90,14 @@ export function Toolbar() {
             {/* Design */}
             <IconButton icon="Catalog" label="Catalog" shortcut={shortcutLabel('toggleCatalog')} active={catalogOpen} onClick={toggleCatalogOpen} />
             <ArrangeMenu />
-            <ToolsMenu />
+            {!roomEditorActive && <ToolsMenu />}
 
             <Divider />
             {/* Render */}
             <IconButton icon="Quality" label={`Graphics — ${QUALITY_LABEL[qualityTier]}`} onClick={() => setGraphicsOpen(true)} />
-            <IconButton icon="Lights" label={`Lights: ${LIGHTS_LABEL[lightsMode]}`} active={lightsMode !== 'auto'} onClick={cycleLightsMode} />
+            {!roomEditorActive && (
+              <IconButton icon="Lights" label={`Lights: ${LIGHTS_LABEL[lightsMode]}`} active={lightsMode !== 'auto'} onClick={cycleLightsMode} />
+            )}
 
             <Divider />
             <FileMenu />

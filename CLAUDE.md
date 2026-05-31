@@ -285,12 +285,16 @@ rediscover it.
   that footprint span**, and attributes windows/doors by world-position-within-
   clip; `<RoomShell>` renders clipped wall boxes that **hide themselves when the
   camera is on their outward side** (camera-facing wall reveal) plus a per-rect
-  floor and the room's own openings. `FurnitureLayer({room})` renders only items
-  whose footprint centre is inside the room (`furniture/roomFilter.ts`).
-  `OrbitCamera` frames the room (centre + sized 3/4 offset) on enter / room
-  switch. Walk-mode collision currently uses the full-flat wall set (the room's
-  walls are a subset, so they still block) — true room-only bounding is a
-  follow-up.
+  floor and the room's own openings. Floor + wall surfaces use the store's
+  **per-room finishes** (`RoomShell` reuses `floor/RoomFloor` and resolves the
+  room's `finishes.walls[roomId]` / accent material the same way `WallSegment`
+  does). `FurnitureLayer({room})` renders only items whose footprint centre is
+  inside the room (`furniture/roomFilter.ts`). `OrbitCamera` frames the room
+  (centre + sized 3/4 offset) on enter / room switch. The **toolbar trims to the
+  planner essentials** while active — the Scene (time/sun), Tools, and Lights
+  clusters are hidden (`Toolbar` gates them on `roomEditor.active`). Walk-mode
+  collision currently uses the full-flat wall set (the room's walls are a subset,
+  so they still block) — true room-only bounding is a follow-up.
 - **Snap grid** (`scene/snap.ts`, `GridOverlay.tsx`, ui `snapEnabled`/
   `gridSize`): drag + initial placement quantise to a customizable grid
   (10/25/50 cm, 1 m); the floor overlay shows it. Persisted via `editorPrefs`.
