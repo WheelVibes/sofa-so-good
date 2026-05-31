@@ -45,6 +45,25 @@ describe('notificationsSlice', () => {
     expect(n?.dismissable).toBe(true)
   })
 
+  it('error() attaches details when provided', () => {
+    const { notify } = useStore.getState()
+    const id = notify.start({ title: 'Import', kind: 'progress' })
+    notify.error(id, '2 failed', [
+      { name: 'malm', reason: 'No GLB matched' },
+      { name: 'billy', reason: 'Invalid metadata' },
+    ])
+    const n = useStore.getState().notifications.find((x) => x.id === id)
+    expect(n?.details).toHaveLength(2)
+    expect(n?.details?.[0]).toEqual({ name: 'malm', reason: 'No GLB matched' })
+  })
+
+  it('error() leaves details undefined when none/empty', () => {
+    const { notify } = useStore.getState()
+    const id = notify.start({ title: 'X', kind: 'progress' })
+    notify.error(id, 'broken', [])
+    expect(useStore.getState().notifications.find((x) => x.id === id)?.details).toBeUndefined()
+  })
+
   it('dismiss() removes the notification', () => {
     const { notify } = useStore.getState()
     const id = notify.start({ title: 'X', kind: 'info' })

@@ -112,8 +112,17 @@ export function startBackgroundImport(plan: ImportPlan): Promise<ImportOutcome> 
       if (looseN > 0) parts.push(`${looseN} model${looseN === 1 ? '' : 's'}`)
       let summary = parts.length ? `Imported ${parts.join(', ')}` : 'Nothing new imported'
       if (dupes > 0) summary += ` · ${dupes} already in catalog`
-      if (failed > 0) notify.error(id, `${summary} · ${failed} failed`)
-      else notify.success(id, summary)
+      if (failed > 0) {
+        // Attach each failure (name + reason) so the notification expands into a
+        // detailed list — also fold in any loose-file skips.
+        const details = [
+          ...outcome.groups
+            .filter((g) => !g.ok)
+            .map((g) => ({ name: g.name, reason: g.reason ?? 'Unknown error' })),
+          ...(outcome.loose?.skipped ?? []).map((s) => ({ name: s.name, reason: s.reason })),
+        ]
+        notify.error(id, `${summary} · ${failed} failed (click for details)`, details)
+      } else notify.success(id, summary)
       return outcome
     })
     .catch((e) => {
