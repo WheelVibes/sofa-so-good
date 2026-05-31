@@ -7,7 +7,7 @@ import {
   streamProgress,
 } from '../../catalog/packs/ikeaLive'
 import { installPack } from '../../catalog/packs/install'
-import { AVAILABLE_PACKS } from '../../catalog/packs/registry'
+import { visiblePacks } from '../../catalog/packs/registry'
 import type { Pack } from '../../catalog/packs/types'
 import { uninstallPack } from '../../catalog/packs/uninstall'
 import { useStore } from '../../state/store'
@@ -189,7 +189,7 @@ export function PacksTab() {
   return (
     <div className="flex flex-col gap-3 overflow-y-auto p-3">
       <h2 className="text-xs font-semibold text-neutral-700">Downloadable content</h2>
-      {AVAILABLE_PACKS.map((pack) =>
+      {visiblePacks(import.meta.env.DEV).map((pack) =>
         pack.kind === 'ikea-live' ? (
           <IkeaLiveCard key={pack.id} pack={pack} />
         ) : (

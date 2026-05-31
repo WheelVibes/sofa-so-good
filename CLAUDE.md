@@ -258,7 +258,11 @@ rediscover it.
   Progress streams per-product over SSE (`PacksTab.tsx` shows a bar + phase
   list); each finished group is fetched over HTTP and registered through the
   existing `importGroup()` → full `IkeaGltfDef`. Sidecar is local/dev-only;
-  served IKEA assets are gitignored (non-CC0).
+  served IKEA assets are gitignored (non-CC0). The pack card is **dev-only**:
+  `registry.ts` `visiblePacks(isDev)` filters the `ikea-live` entry out of the
+  Packs tab unless `import.meta.env.DEV`, so a production build never surfaces
+  the IKEA-branded scrape entry. (Importing IKEA model folders, grouping, and
+  sets all still work in production — only this discoverable card is hidden.)
 - **IKEA scraper (offline)** (`python/scripts/`): `ikea_model_scraper.py`
   (Playwright) harvests IKEA SG products → `<group>/metadata.json` +
   `<finish>.glb` + `<finish>-main`/`<finish>-context` product images
