@@ -2,6 +2,7 @@ import type { SliceCreator } from './types';
 import type { RootState } from '../store';
 import type { RenderTier, AssetTier, QualitySettings } from '../../scene/quality';
 import { RENDER_TIERS } from '../../scene/quality';
+import type { RoomId } from '../../apartment/types';
 
 /** Editor tool while in orbit camera mode. 'orbit' lets click-drag rotate
  *  the camera (current default). 'select' disables camera rotation so a
@@ -60,6 +61,13 @@ export interface UiSlice {
    *  double-darken. Ephemeral runtime state — never persisted. */
   showcaseAccumulating: boolean;
   setShowcaseAccumulating: (v: boolean) => void;
+  /** Per-room editor: isolates a single room (IKEA-planner style). Ephemeral. */
+  roomEditor: { active: boolean; roomId: RoomId | null };
+  /** Enter the room editor for `roomId`: pins Performance + Original assets
+   *  (remembering prior tiers), resets camera to orbit. */
+  enterRoomEditor: (roomId: RoomId) => void;
+  /** Leave the room editor, restoring the render + asset tiers in effect on enter. */
+  exitRoomEditor: () => void;
   setCatalogOpen: (open: boolean) => void;
   toggleCatalogOpen: () => void;
   setEditorTool: (tool: EditorTool) => void;
@@ -113,6 +121,7 @@ export const UI_INITIAL: Pick<
   | 'recentColors'
   | 'materialEpoch'
   | 'showcaseAccumulating'
+  | 'roomEditor'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -131,6 +140,7 @@ export const UI_INITIAL: Pick<
   recentColors: [],
   materialEpoch: 0,
   showcaseAccumulating: false,
+  roomEditor: { active: false, roomId: null },
 };
 
 /** Preset alignment-grid cell sizes (metres) the size button cycles through. */
@@ -139,8 +149,33 @@ export const GRID_SIZES = [0.1, 0.25, 0.5, 1] as const;
 const CYCLE: RenderTier[] = RENDER_TIERS;
 const LIGHTS_CYCLE: LightsMode[] = ['auto', 'on', 'off'];
 
-export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
+/** Render/asset tiers in effect when the room editor was entered, restored on exit. */
+let priorTiers: { tier: RenderTier; userSet: boolean; asset: AssetTier | null } | null = null;
+
+export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   ...UI_INITIAL,
+  enterRoomEditor: (roomId) => {
+    const s = get();
+    priorTiers = { tier: s.qualityTier, userSet: s.qualityUserSet, asset: s.assetTier };
+    set({
+      roomEditor: { active: true, roomId },
+      qualityTier: 'performance',
+      qualityUserSet: true,
+      qualityOverrides: {},
+      assetTier: 'high',
+      cameraMode: 'orbit',
+    });
+  },
+  exitRoomEditor: () => {
+    const restore = priorTiers;
+    priorTiers = null;
+    set({
+      roomEditor: { active: false, roomId: null },
+      ...(restore
+        ? { qualityTier: restore.tier, qualityUserSet: restore.userSet, assetTier: restore.asset }
+        : {}),
+    });
+  },
   setCatalogOpen: (open) => set({ catalogOpen: open }),
   toggleCatalogOpen: () => set((s) => ({ catalogOpen: !s.catalogOpen })),
   setEditorTool: (tool) => set({ editorTool: tool }),
