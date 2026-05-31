@@ -1,16 +1,16 @@
-import { readStr } from './shared';
-import type { ParamProps } from '../types';
+import type { ParamProps } from '../types'
+import { readStr } from './shared'
 
 /** WC. `style: 'close-coupled'` is a two-piece pedestal bowl + cistern;
  *  'wall-hung' floats the bowl off an in-wall cistern panel with a flush
  *  plate. Faces +Z (cistern/panel at −Z, against the wall). */
 export function Toilet({ props }: { props: ParamProps }) {
-  const color = readStr(props, 'color', '#f4f4f1');
-  const style = readStr(props, 'style', 'close-coupled');
-  const porcelain = { color, roughness: 0.18, metalness: 0.02 };
+  const color = readStr(props, 'color', '#f4f4f1')
+  const style = readStr(props, 'style', 'close-coupled')
+  const porcelain = { color, roughness: 0.18, metalness: 0.02 }
 
   if (style === 'wall-hung') {
-    const bowlY = 0.42; // floating bowl height (rim ~0.43m)
+    const bowlY = 0.42 // floating bowl height (rim ~0.43m)
     return (
       <group>
         {/* In-wall cistern panel against the back wall */}
@@ -38,7 +38,7 @@ export function Toilet({ props }: { props: ParamProps }) {
           <meshStandardMaterial {...porcelain} />
         </mesh>
       </group>
-    );
+    )
   }
 
   return (
@@ -74,5 +74,5 @@ export function Toilet({ props }: { props: ParamProps }) {
         <meshStandardMaterial color="#c0c4c8" roughness={0.3} metalness={0.6} />
       </mesh>
     </group>
-  );
+  )
 }

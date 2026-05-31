@@ -1,54 +1,63 @@
-import { describe, it, expect } from 'vitest';
-import { arrangeRoom, arrangeAllRooms, arrangeAllRoomsForPlan, roomOf, roleForCategory, roleOf } from './autoArrange';
-import { buildDefaultPlan } from '../floorplan/defaultPlan';
-import { blockedDoorItems } from './clearance';
-import { defaultLayout } from '../furniture/defaultLayout';
-import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
-import { defaultParamProps } from '../furniture/types';
-import { canPlace } from '../collision/placement';
-import type { FurnitureItem, FurnitureDef } from '../furniture/types';
+import { describe, expect, it } from 'vitest'
+import { canPlace } from '../collision/placement'
+import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
+import { defaultLayout } from '../furniture/defaultLayout'
+import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { defaultParamProps } from '../furniture/types'
+import {
+  arrangeAllRooms,
+  arrangeAllRoomsForPlan,
+  arrangeRoom,
+  roleForCategory,
+  roleOf,
+  roomOf,
+} from './autoArrange'
+import { blockedDoorItems } from './clearance'
 
 function hydrate(): FurnitureItem[] {
   return defaultLayout().map((e) => {
-    const def = BUILTIN_CATALOG[e.defId];
-    return def?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(def), ...e.props } } : e;
-  });
+    const def = BUILTIN_CATALOG[e.defId]
+    return def?.kind === 'parametric'
+      ? { ...e, props: { ...defaultParamProps(def), ...e.props } }
+      : e
+  })
 }
 
 function assertValid(items: FurnitureItem[]) {
-  const placed: FurnitureItem[] = [];
+  const placed: FurnitureItem[] = []
   for (const it of items) {
-    const def = BUILTIN_CATALOG[it.defId];
-    expect(def).toBeDefined();
-    const ok = canPlace(it, def!, { others: placed, defs: BUILTIN_CATALOG, doors: {} });
-    if (!ok) throw new Error(`${it.id} (${it.defId}) invalid at [${it.position}]`);
-    placed.push(it);
+    const def = BUILTIN_CATALOG[it.defId]
+    expect(def).toBeDefined()
+    const ok = canPlace(it, def!, { others: placed, defs: BUILTIN_CATALOG, doors: {} })
+    if (!ok) throw new Error(`${it.id} (${it.defId}) invalid at [${it.position}]`)
+    placed.push(it)
   }
 }
 
 describe('arrangeRoom', () => {
   it('produces a collision-valid layout for the living/dining', () => {
-    const out = arrangeRoom('livingDining', hydrate(), BUILTIN_CATALOG, {});
-    assertValid(out);
-  });
+    const out = arrangeRoom('livingDining', hydrate(), BUILTIN_CATALOG, {})
+    assertValid(out)
+  })
 
   it('orients the living-room sofa to face the east TV wall', () => {
-    const out = arrangeRoom('livingDining', hydrate(), BUILTIN_CATALOG, {});
-    const sofa = out.find((i) => i.defId === 'sofa-3seat' && roomOf(i.position) === 'livingDining');
-    expect(sofa).toBeDefined();
+    const out = arrangeRoom('livingDining', hydrate(), BUILTIN_CATALOG, {})
+    const sofa = out.find((i) => i.defId === 'sofa-3seat' && roomOf(i.position) === 'livingDining')
+    expect(sofa).toBeDefined()
     // Facing +X (east) ≈ rotation PI/2.
-    expect(Math.abs(Math.sin(sofa!.rotation) - 1)).toBeLessThan(0.1);
+    expect(Math.abs(Math.sin(sofa!.rotation) - 1)).toBeLessThan(0.1)
     // Sofa sits west of the TV.
-    const tv = out.find((i) => i.defId === 'tv-wall');
-    expect(sofa!.position[0]).toBeLessThan(tv!.position[0]);
-  });
+    const tv = out.find((i) => i.defId === 'tv-wall')
+    expect(sofa!.position[0]).toBeLessThan(tv!.position[0])
+  })
 
   it('keeps bedrooms collision-valid and beds against a wall', () => {
     for (const room of ['mainBedroom', 'bedroom2', 'bedroom3'] as const) {
-      const out = arrangeRoom(room, hydrate(), BUILTIN_CATALOG, {});
-      assertValid(out);
+      const out = arrangeRoom(room, hydrate(), BUILTIN_CATALOG, {})
+      assertValid(out)
     }
-  });
+  })
 
   it('places a bed and a crib against walls in the same bedroom', () => {
     // A parents' room: just a double bed + a crib (clear floor) → both should
@@ -59,39 +68,39 @@ describe('arrangeRoom', () => {
       position: pos,
       rotation: 0,
       props: { ...defaultParamProps(BUILTIN_CATALOG[defId] as never) },
-    });
-    const items = [mk('bed-double', 'test-bed', [7.1, 1.3]), mk('crib', 'test-crib', [7.5, 2.6])];
-    const out = arrangeRoom('bedroom3', items, BUILTIN_CATALOG, {});
-    assertValid(out);
+    })
+    const items = [mk('bed-double', 'test-bed', [7.1, 1.3]), mk('crib', 'test-crib', [7.5, 2.6])]
+    const out = arrangeRoom('bedroom3', items, BUILTIN_CATALOG, {})
+    assertValid(out)
     for (const id of ['test-bed', 'test-crib']) {
-      const it = out.find((i) => i.id === id)!;
-      expect(roomOf(it.position)).toBe('bedroom3');
+      const it = out.find((i) => i.id === id)!
+      expect(roomOf(it.position)).toBe('bedroom3')
     }
-  });
+  })
 
   it('leaves items in untouched rooms unchanged', () => {
-    const base = hydrate();
-    const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {});
-    const kitchenBefore = base.filter((i) => roomOf(i.position) === 'kitchen');
-    const kitchenAfter = out.filter((i) => i.id && roomOf(i.position) === 'kitchen');
-    expect(kitchenAfter.length).toBe(kitchenBefore.length);
-  });
+    const base = hydrate()
+    const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {})
+    const kitchenBefore = base.filter((i) => roomOf(i.position) === 'kitchen')
+    const kitchenAfter = out.filter((i) => i.id && roomOf(i.position) === 'kitchen')
+    expect(kitchenAfter.length).toBe(kitchenBefore.length)
+  })
 
   it('arrangeAllRooms produces a collision-valid whole-home layout', () => {
-    const out = arrangeAllRooms(hydrate(), BUILTIN_CATALOG, {});
-    expect(out.length).toBe(hydrate().length);
-    assertValid(out);
-  });
+    const out = arrangeAllRooms(hydrate(), BUILTIN_CATALOG, {})
+    expect(out.length).toBe(hydrate().length)
+    assertValid(out)
+  })
 
   it('arrangeAllRoomsForPlan tidies a custom plan validly, clearing door swings', () => {
     // The default flat as a plan, with its furniture distributed per room.
-    const plan = buildDefaultPlan();
-    const out = arrangeAllRoomsForPlan(plan, hydrate(), BUILTIN_CATALOG, {});
-    expect(out.length).toBe(hydrate().length);
-    assertValid(out);
+    const plan = buildDefaultPlan()
+    const out = arrangeAllRoomsForPlan(plan, hydrate(), BUILTIN_CATALOG, {})
+    expect(out.length).toBe(hydrate().length)
+    assertValid(out)
     // No floor item ends up squarely in a door's path.
-    expect(blockedDoorItems(out, BUILTIN_CATALOG, plan)).toHaveLength(0);
-  });
+    expect(blockedDoorItems(out, BUILTIN_CATALOG, plan)).toHaveLength(0)
+  })
 
   it('never parks furniture in the main-door swing / kitchen opening', () => {
     // Scramble L/D furniture into the entrance + openings, then tidy.
@@ -101,79 +110,96 @@ describe('arrangeRoom', () => {
         : i.id === 'default-ld-coffee'
           ? { ...i, position: [9.4, 6.6] as [number, number] }
           : i,
-    );
-    const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {});
+    )
+    const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {})
     const keepouts = [
       { x0: 10.7, z0: 6.95, x1: 12.1, z1: 8.0 },
       { x0: 8.9, z0: 6.25, x1: 10.2, z1: 6.95 },
-    ];
-    const overlaps = (b: { x0: number; z0: number; x1: number; z1: number }, k: typeof keepouts[number]) =>
-      b.x0 < k.x1 && b.x1 > k.x0 && b.z0 < k.z1 && b.z1 > k.z0;
+    ]
+    const overlaps = (
+      b: { x0: number; z0: number; x1: number; z1: number },
+      k: (typeof keepouts)[number],
+    ) => b.x0 < k.x1 && b.x1 > k.x0 && b.z0 < k.z1 && b.z1 > k.z0
     for (const it of out) {
-      const def = BUILTIN_CATALOG[it.defId];
-      if (!def || def.kind !== 'parametric' || def.mounted) continue;
-      if (roomOf(it.position) !== 'livingDining') continue;
-      let w = def.defaultFootprint.w;
-      let d = def.defaultFootprint.d;
-      const wv = it.props[def.footprintParams?.w ?? 'width'];
-      const dv = it.props[def.footprintParams?.d ?? 'depth'];
-      if (typeof wv === 'number') w = wv;
-      if (typeof dv === 'number') d = dv;
-      const c = Math.abs(Math.cos(it.rotation));
-      const s = Math.abs(Math.sin(it.rotation));
-      const hx = (c * w + s * d) / 2;
-      const hz = (s * w + c * d) / 2;
-      const box = { x0: it.position[0] - hx, z0: it.position[1] - hz, x1: it.position[0] + hx, z1: it.position[1] + hz };
+      const def = BUILTIN_CATALOG[it.defId]
+      if (def?.kind !== 'parametric' || def.mounted) continue
+      if (roomOf(it.position) !== 'livingDining') continue
+      let w = def.defaultFootprint.w
+      let d = def.defaultFootprint.d
+      const wv = it.props[def.footprintParams?.w ?? 'width']
+      const dv = it.props[def.footprintParams?.d ?? 'depth']
+      if (typeof wv === 'number') w = wv
+      if (typeof dv === 'number') d = dv
+      const c = Math.abs(Math.cos(it.rotation))
+      const s = Math.abs(Math.sin(it.rotation))
+      const hx = (c * w + s * d) / 2
+      const hz = (s * w + c * d) / 2
+      const box = {
+        x0: it.position[0] - hx,
+        z0: it.position[1] - hz,
+        x1: it.position[0] + hx,
+        z1: it.position[1] + hz,
+      }
       for (const k of keepouts) {
-        if (overlaps(box, k)) throw new Error(`${it.id} (${it.defId}) blocks a door/opening at [${it.position}]`);
+        if (overlaps(box, k))
+          throw new Error(`${it.id} (${it.defId}) blocks a door/opening at [${it.position}]`)
       }
     }
-  });
-});
+  })
+})
 
 describe('roleForCategory new categories', () => {
   it('maps the new IKEA-department categories to sensible roles', () => {
-    expect(roleForCategory('electronics')).toBe('media');
-    expect(roleForCategory('kids')).toBe('storage');
-    expect(roleForCategory('laundry')).toBe('storage');
-    expect(roleForCategory('others')).toBe('other');
-    expect(roleForCategory('tables')).toBe('lowTable');
-    expect(roleForCategory('lighting')).toBe('floorLamp');
-  });
-});
+    expect(roleForCategory('electronics')).toBe('media')
+    expect(roleForCategory('kids')).toBe('storage')
+    expect(roleForCategory('laundry')).toBe('storage')
+    expect(roleForCategory('others')).toBe('other')
+    expect(roleForCategory('tables')).toBe('lowTable')
+    expect(roleForCategory('lighting')).toBe('floorLamp')
+  })
+})
 
 describe('roleOf honours def collision flags (imported IKEA/user defs)', () => {
   function gltfDef(over: Partial<FurnitureDef>): FurnitureDef {
     return {
-      kind: 'gltf', id: 'ikea-x', name: 'X', category: 'lighting', source: 'ikea',
-      groupKey: 'x', activeVariant: 'a', variants: [],
-      defaultFootprint: { w: 0.4, d: 0.4, h: 0.4 }, uploadedAt: 't',
-      license: 'IKEA', attribution: 'IKEA', ...over,
-    } as FurnitureDef;
+      kind: 'gltf',
+      id: 'ikea-x',
+      name: 'X',
+      category: 'lighting',
+      source: 'ikea',
+      groupKey: 'x',
+      activeVariant: 'a',
+      variants: [],
+      defaultFootprint: { w: 0.4, d: 0.4, h: 0.4 },
+      uploadedAt: 't',
+      license: 'IKEA',
+      attribution: 'IKEA',
+      ...over,
+    } as FurnitureDef
   }
 
   it('treats a mounted IKEA def as a fixed wall/ceiling fixture, not a floor item', () => {
     // A ceiling pendant: category lighting, mounted. Without the flag check it
     // would resolve to a floor role and get parked on the floor by settle().
-    const def = gltfDef({ id: 'ikea-pendant', category: 'lighting', mounted: true });
-    expect(roleOf('ikea-pendant', { 'ikea-pendant': def })).toBe('mounted');
-  });
+    const def = gltfDef({ id: 'ikea-pendant', category: 'lighting', mounted: true })
+    expect(roleOf('ikea-pendant', { 'ikea-pendant': def })).toBe('mounted')
+  })
 
   it('treats a mounted appliance (range hood / aircon) as fixed', () => {
-    const def = gltfDef({ id: 'ikea-hood', category: 'appliances', mounted: true });
-    expect(roleOf('ikea-hood', { 'ikea-hood': def })).toBe('mounted');
-  });
+    const def = gltfDef({ id: 'ikea-hood', category: 'appliances', mounted: true })
+    expect(roleOf('ikea-hood', { 'ikea-hood': def })).toBe('mounted')
+  })
 
   it('treats a noClip IKEA def (rug) as a rug', () => {
-    const def = gltfDef({ id: 'ikea-rug', category: 'textiles', noClip: true });
-    expect(roleOf('ikea-rug', { 'ikea-rug': def })).toBe('rug');
-  });
+    const def = gltfDef({ id: 'ikea-rug', category: 'textiles', noClip: true })
+    expect(roleOf('ikea-rug', { 'ikea-rug': def })).toBe('rug')
+  })
 
   it('falls back to the category role for an unflagged imported def', () => {
-    const def = gltfDef({ id: 'ikea-lamp', category: 'lighting' });
-    expect(roleOf('ikea-lamp', { 'ikea-lamp': def })).toBe('floorLamp');
-  });
-});
+    const def = gltfDef({ id: 'ikea-lamp', category: 'lighting' })
+    expect(roleOf('ikea-lamp', { 'ikea-lamp': def })).toBe('floorLamp')
+  })
+})
 
 describe('arrangeAllRooms with imported IKEA defs (whole-home Tidy regression guard)', () => {
   // Mirrors what TidyHomeButton does once a real IKEA catalogue is loaded: the
@@ -183,60 +209,81 @@ describe('arrangeAllRooms with imported IKEA defs (whole-home Tidy regression gu
   // catalogue grows. See [[arrange-needs-merged-catalog]].
   function ikeaDef(over: Partial<FurnitureDef>): FurnitureDef {
     return {
-      kind: 'gltf', id: 'ikea-x', name: 'X', category: 'others', source: 'ikea',
-      groupKey: 'x', activeVariant: 'a', variants: [],
-      defaultFootprint: { w: 0.4, d: 0.4, h: 0.4 }, uploadedAt: 't',
-      license: 'IKEA', attribution: 'IKEA', ...over,
-    } as FurnitureDef;
+      kind: 'gltf',
+      id: 'ikea-x',
+      name: 'X',
+      category: 'others',
+      source: 'ikea',
+      groupKey: 'x',
+      activeVariant: 'a',
+      variants: [],
+      defaultFootprint: { w: 0.4, d: 0.4, h: 0.4 },
+      uploadedAt: 't',
+      license: 'IKEA',
+      attribution: 'IKEA',
+      ...over,
+    } as FurnitureDef
   }
 
   // A point well inside the living/dining room rect { x0:9.15, z0:1.5, x1:12.5, z1:6.65 }.
-  const IN_LIVING: [number, number] = [10.8, 4.0];
+  const IN_LIVING: [number, number] = [10.8, 4.0]
 
   it('does NOT relocate a mounted IKEA fixture (pendant stays put, not floor-placed)', () => {
-    const pendant = ikeaDef({ id: 'ikea-pendant', category: 'lighting', mounted: true });
-    const catalog = { ...BUILTIN_CATALOG, [pendant.id]: pendant };
+    const pendant = ikeaDef({ id: 'ikea-pendant', category: 'lighting', mounted: true })
+    const catalog = { ...BUILTIN_CATALOG, [pendant.id]: pendant }
     const mountedItem: FurnitureItem = {
-      id: 'm1', defId: 'ikea-pendant', position: IN_LIVING, rotation: 0, props: {},
-    };
+      id: 'm1',
+      defId: 'ikea-pendant',
+      position: IN_LIVING,
+      rotation: 0,
+      props: {},
+    }
 
-    const out = arrangeAllRooms([...hydrate(), mountedItem], catalog, {});
-    const after = out.find((i) => i.id === 'm1');
-    expect(after).toBeDefined();
+    const out = arrangeAllRooms([...hydrate(), mountedItem], catalog, {})
+    const after = out.find((i) => i.id === 'm1')
+    expect(after).toBeDefined()
     // Fixed obstacle: its transform is preserved exactly (never parked on the floor).
-    expect(after!.position).toEqual(IN_LIVING);
-    expect(after!.rotation).toBe(0);
-  });
+    expect(after!.position).toEqual(IN_LIVING)
+    expect(after!.rotation).toBe(0)
+  })
 
   it('does NOT relocate a noClip IKEA rug', () => {
-    const rug = ikeaDef({ id: 'ikea-rug', category: 'textiles', noClip: true });
-    const catalog = { ...BUILTIN_CATALOG, [rug.id]: rug };
+    const rug = ikeaDef({ id: 'ikea-rug', category: 'textiles', noClip: true })
+    const catalog = { ...BUILTIN_CATALOG, [rug.id]: rug }
     const rugItem: FurnitureItem = {
-      id: 'r1', defId: 'ikea-rug', position: IN_LIVING, rotation: 0, props: {},
-    };
-    const out = arrangeAllRooms([...hydrate(), rugItem], catalog, {});
-    const after = out.find((i) => i.id === 'r1');
+      id: 'r1',
+      defId: 'ikea-rug',
+      position: IN_LIVING,
+      rotation: 0,
+      props: {},
+    }
+    const out = arrangeAllRooms([...hydrate(), rugItem], catalog, {})
+    const after = out.find((i) => i.id === 'r1')
     // 'rug' role is not 'mounted'/'ceiling', so it's arrangeable — but it must
     // still survive the pass (present, with a finite position), never dropped.
-    expect(after).toBeDefined();
-    expect(Number.isFinite(after!.position[0])).toBe(true);
-    expect(Number.isFinite(after!.position[1])).toBe(true);
-  });
+    expect(after).toBeDefined()
+    expect(Number.isFinite(after!.position[0])).toBe(true)
+    expect(Number.isFinite(after!.position[1])).toBe(true)
+  })
 
   it('keeps every item across the pass and never throws on an IKEA-laden catalog', () => {
-    const sofa = ikeaDef({ id: 'ikea-sofa', category: 'seating' });
-    const bed = ikeaDef({ id: 'ikea-bed', category: 'beds', defaultFootprint: { w: 1.5, d: 2.0, h: 0.5 } });
-    const catalog = { ...BUILTIN_CATALOG, [sofa.id]: sofa, [bed.id]: bed };
+    const sofa = ikeaDef({ id: 'ikea-sofa', category: 'seating' })
+    const bed = ikeaDef({
+      id: 'ikea-bed',
+      category: 'beds',
+      defaultFootprint: { w: 1.5, d: 2.0, h: 0.5 },
+    })
+    const catalog = { ...BUILTIN_CATALOG, [sofa.id]: sofa, [bed.id]: bed }
     const items: FurnitureItem[] = [
       ...hydrate(),
       { id: 's1', defId: 'ikea-sofa', position: [10.5, 3.0], rotation: 0, props: {} },
       { id: 'b1', defId: 'ikea-bed', position: [10.5, 5.0], rotation: 0, props: {} },
-    ];
-    const out = arrangeAllRooms(items, catalog, {});
+    ]
+    const out = arrangeAllRooms(items, catalog, {})
     // No item dropped or duplicated.
-    expect(out).toHaveLength(items.length);
-    expect(new Set(out.map((i) => i.id)).size).toBe(items.length);
-    expect(out.find((i) => i.id === 's1')).toBeDefined();
-    expect(out.find((i) => i.id === 'b1')).toBeDefined();
-  });
-});
+    expect(out).toHaveLength(items.length)
+    expect(new Set(out.map((i) => i.id)).size).toBe(items.length)
+    expect(out.find((i) => i.id === 's1')).toBeDefined()
+    expect(out.find((i) => i.id === 'b1')).toBeDefined()
+  })
+})

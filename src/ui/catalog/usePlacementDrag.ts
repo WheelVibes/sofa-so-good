@@ -1,6 +1,6 @@
-import { useCallback } from 'react';
-import { useStore } from '../../state/store';
-import type { FurnitureDef } from '../../furniture/types';
+import { useCallback } from 'react'
+import type { FurnitureDef } from '../../furniture/types'
+import { useStore } from '../../state/store'
 
 /**
  * Click handler that arms catalog placement. After a click, the ghost
@@ -14,17 +14,16 @@ import type { FurnitureDef } from '../../furniture/types';
 export function usePlacementDrag(def: FurnitureDef) {
   return useCallback(
     (e: React.MouseEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const { activeDefId, setActiveDefId, setCursor, cancelPlacement } =
-        useStore.getState();
+      e.preventDefault()
+      e.stopPropagation()
+      const { activeDefId, setActiveDefId, setCursor, cancelPlacement } = useStore.getState()
       if (activeDefId === def.id) {
-        cancelPlacement();
-        return;
+        cancelPlacement()
+        return
       }
-      setActiveDefId(def.id);
-      setCursor({ x: e.clientX, y: e.clientY });
+      setActiveDefId(def.id)
+      setCursor({ x: e.clientX, y: e.clientY })
     },
     [def],
-  );
+  )
 }

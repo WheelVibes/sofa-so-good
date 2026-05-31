@@ -1,10 +1,10 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import type { MeshStandardMaterial } from 'three';
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
-import type { ParamProps } from '../types';
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+import type { MeshStandardMaterial } from 'three'
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Electric fireplace — a wall-mounted linear unit (or a floor console with a
@@ -13,26 +13,26 @@ import type { ParamProps } from '../types';
  * 'console' (floor, with a hearth + mantel). Faces +Z.
  */
 export function Fireplace({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 1.2);
-  const color = readStr(props, 'color', '#23242a');
-  const finish = readStr(props, 'finish', 'gloss');
-  const flameColor = readStr(props, 'flameColor', '#ff7a1a');
-  const style = readStr(props, 'style', 'wall');
-  const mountH = readNum(props, 'mountHeight', 1.0);
+  const width = readNum(props, 'width', 1.2)
+  const color = readStr(props, 'color', '#23242a')
+  const finish = readStr(props, 'finish', 'gloss')
+  const flameColor = readStr(props, 'flameColor', '#ff7a1a')
+  const style = readStr(props, 'style', 'wall')
+  const mountH = readNum(props, 'mountHeight', 1.0)
 
-  const surround = getSurfaceMaterial(finish, color, 1.4, 0.4);
-  const flameRef = useRef<MeshStandardMaterial>(null);
-  const emberRef = useRef<MeshStandardMaterial>(null);
+  const surround = getSurfaceMaterial(finish, color, 1.4, 0.4)
+  const flameRef = useRef<MeshStandardMaterial>(null)
+  const emberRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
-    const g = getFixtureGlow();
+    const g = getFixtureGlow()
     // Flames read faintly even in daylight, blaze at night.
-    if (flameRef.current) flameRef.current.emissiveIntensity = 0.5 + g * 1.6;
-    if (emberRef.current) emberRef.current.emissiveIntensity = 0.3 + g * 1.0;
-  });
+    if (flameRef.current) flameRef.current.emissiveIntensity = 0.5 + g * 1.6
+    if (emberRef.current) emberRef.current.emissiveIntensity = 0.3 + g * 1.0
+  })
 
-  const h = 0.52;
-  const depth = style === 'console' ? 0.34 : 0.16;
-  const baseY = style === 'console' ? 0.45 : mountH; // centre Y of the firebox
+  const h = 0.52
+  const depth = style === 'console' ? 0.34 : 0.16
+  const baseY = style === 'console' ? 0.45 : mountH // centre Y of the firebox
 
   return (
     <group>
@@ -54,12 +54,24 @@ export function Fireplace({ props }: { props: ParamProps }) {
       {/* Flame bed (emissive) */}
       <mesh position={[0, baseY - (h - 0.12) / 2 + 0.1, depth / 2 + 0.006]}>
         <planeGeometry args={[width - 0.18, 0.18]} />
-        <meshStandardMaterial ref={flameRef} color={flameColor} emissive={flameColor} emissiveIntensity={0.6} transparent opacity={0.92} />
+        <meshStandardMaterial
+          ref={flameRef}
+          color={flameColor}
+          emissive={flameColor}
+          emissiveIntensity={0.6}
+          transparent
+          opacity={0.92}
+        />
       </mesh>
       {/* Ember strip along the base */}
       <mesh position={[0, baseY - (h - 0.12) / 2 + 0.03, depth / 2 + 0.008]}>
         <planeGeometry args={[width - 0.16, 0.05]} />
-        <meshStandardMaterial ref={emberRef} color="#ff4a10" emissive="#ff4a10" emissiveIntensity={0.4} />
+        <meshStandardMaterial
+          ref={emberRef}
+          color="#ff4a10"
+          emissive="#ff4a10"
+          emissiveIntensity={0.4}
+        />
       </mesh>
       {/* Mantel shelf (console style) */}
       {style === 'console' && (
@@ -68,5 +80,5 @@ export function Fireplace({ props }: { props: ParamProps }) {
         </mesh>
       )}
     </group>
-  );
+  )
 }

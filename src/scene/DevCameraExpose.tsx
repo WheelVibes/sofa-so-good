@@ -1,5 +1,5 @@
-import { useEffect } from 'react';
-import { useThree } from '@react-three/fiber';
+import { useThree } from '@react-three/fiber'
+import { useEffect } from 'react'
 
 /**
  * Dev-only: expose the live r3f camera + controls + gl on `window.__three`
@@ -9,9 +9,9 @@ import { useThree } from '@react-three/fiber';
  * mount site.
  */
 export function DevCameraExpose() {
-  const { camera, gl, controls } = useThree();
+  const { camera, gl, controls } = useThree()
   useEffect(() => {
-    (window as unknown as { __three?: unknown }).__three = { camera, gl, controls };
-  }, [camera, gl, controls]);
-  return null;
+    ;(window as unknown as { __three?: unknown }).__three = { camera, gl, controls }
+  }, [camera, gl, controls])
+  return null
 }

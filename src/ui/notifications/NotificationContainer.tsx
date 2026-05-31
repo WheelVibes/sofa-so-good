@@ -1,38 +1,38 @@
-import { useEffect } from 'react';
-import { useStore } from '../../state/store';
-import type { Notification } from '../../state/slices/notificationsSlice';
+import { useEffect } from 'react'
+import type { Notification } from '../../state/slices/notificationsSlice'
+import { useStore } from '../../state/store'
 
 const KIND_STYLES: Record<Notification['kind'], string> = {
   info: 'bg-slate-700 text-white',
   progress: 'bg-slate-700 text-white',
   success: 'bg-emerald-700 text-white',
   error: 'bg-rose-700 text-white',
-};
+}
 
 const KIND_ICON: Record<Notification['kind'], string> = {
   info: 'i',
   progress: '↻',
   success: '✓',
   error: '!',
-};
+}
 
 export function NotificationContainer() {
-  const notifications = useStore((s) => s.notifications);
-  const dismiss = useStore((s) => s.notify.dismiss);
+  const notifications = useStore((s) => s.notifications)
+  const dismiss = useStore((s) => s.notify.dismiss)
 
   useEffect(() => {
-    const timers: number[] = [];
+    const timers: number[] = []
     for (const n of notifications) {
-      if (n.autoDismissMs == null) continue;
-      const elapsed = Date.now() - n.createdAt;
-      const remaining = Math.max(0, n.autoDismissMs - elapsed);
-      const t = window.setTimeout(() => dismiss(n.id), remaining);
-      timers.push(t);
+      if (n.autoDismissMs == null) continue
+      const elapsed = Date.now() - n.createdAt
+      const remaining = Math.max(0, n.autoDismissMs - elapsed)
+      const t = window.setTimeout(() => dismiss(n.id), remaining)
+      timers.push(t)
     }
-    return () => timers.forEach(window.clearTimeout);
-  }, [notifications, dismiss]);
+    return () => timers.forEach(window.clearTimeout)
+  }, [notifications, dismiss])
 
-  if (notifications.length === 0) return null;
+  if (notifications.length === 0) return null
 
   return (
     <div className="fixed bottom-4 right-4 z-50 flex flex-col gap-2 max-w-sm">
@@ -75,5 +75,5 @@ export function NotificationContainer() {
         </div>
       ))}
     </div>
-  );
+  )
 }

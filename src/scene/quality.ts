@@ -16,41 +16,41 @@
  *    `-medium`/original variants on. Decoupled from the render tier (see
  *    `effectiveAssetTier`). `high` == the original, un-suffixed asset.
  */
-export type RenderTier = 'performance' | 'medium' | 'high' | 'maximum';
+export type RenderTier = 'performance' | 'medium' | 'high' | 'maximum'
 
 /** GLB asset-LOD tier. `high` = original (no suffix). NOT the render tier. */
-export type AssetTier = 'low' | 'medium' | 'high';
+export type AssetTier = 'low' | 'medium' | 'high'
 
 /** @deprecated Use {@link RenderTier} (render) or {@link AssetTier} (GLB LOD).
  *  Retained as an alias for the asset-LOD axis so `gltf/*` keep compiling. */
-export type QualityTier = AssetTier;
+export type QualityTier = AssetTier
 
 /** All render tiers, lowest → highest. Source of truth for ordering. */
-export const RENDER_TIERS: RenderTier[] = ['performance', 'medium', 'high', 'maximum'];
+export const RENDER_TIERS: RenderTier[] = ['performance', 'medium', 'high', 'maximum']
 
 export interface QualitySettings {
   /** Sun shadow map resolution (px). 0 disables sun shadows. */
-  shadowMapSize: number;
+  shadowMapSize: number
   /** Render the procedural image-based-lighting probe. */
-  ibl: boolean;
+  ibl: boolean
   /** Run the post-processing stack (bloom + AO + SMAA). GPU-intensive. */
-  postprocessing: boolean;
+  postprocessing: boolean
   /** Max simultaneous furniture point lights at night. */
-  maxFixtureLights: number;
+  maxFixtureLights: number
   /** Upper device-pixel-ratio clamp. */
-  dprMax: number;
+  dprMax: number
   /** Fade exterior walls between camera and interior (cheap; always on). */
-  wallReveal: boolean;
+  wallReveal: boolean
   /** Soft contact-shadow blobs under furniture (transparent overdraw; off on
    *  the performance tier to save fill rate on weak GPUs). */
-  contactShadows: boolean;
+  contactShadows: boolean
   /** Tessellation multiplier for furniture curved geometry (cylinders, lathes,
    *  rounded boxes). Scales segment counts so higher tiers render smoother
    *  legs/shades/vases while performance keeps polys down. 1 = baseline. */
-  geometryDetail: number;
+  geometryDetail: number
   /** Accumulate soft, noise-free shadows while the camera is parked
    *  (drei AccumulativeShadows). Off on performance; forced on during capture. */
-  showcase: boolean;
+  showcase: boolean
 }
 
 export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
@@ -101,14 +101,14 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     geometryDetail: 1.8,
     showcase: true,
   },
-};
+}
 
 export const QUALITY_LABEL: Record<RenderTier, string> = {
   performance: 'Performance',
   medium: 'Medium',
   high: 'High',
   maximum: 'Maximum',
-};
+}
 
 /** One-line description per tier for the Graphics panel. */
 export const QUALITY_DESCRIPTION: Record<RenderTier, string> = {
@@ -116,19 +116,19 @@ export const QUALITY_DESCRIPTION: Record<RenderTier, string> = {
   medium: 'Sun shadows + soft reflections. Good all-round default.',
   high: 'Adds bloom, ambient occlusion & antialiasing. Needs a dedicated GPU.',
   maximum: 'Everything maxed — sharpest shadows, full resolution. Strong GPUs only.',
-};
+}
 
 /** Map a render tier to the asset-LOD tier it implies when asset quality is on
  *  "Auto". performance→low, medium→medium, high & maximum→original. */
 export function renderToAssetTier(render: RenderTier): AssetTier {
   switch (render) {
     case 'performance':
-      return 'low';
+      return 'low'
     case 'medium':
-      return 'medium';
+      return 'medium'
     case 'high':
     case 'maximum':
-      return 'high';
+      return 'high'
   }
 }
 
@@ -137,11 +137,8 @@ export function renderToAssetTier(render: RenderTier): AssetTier {
  *  (via {@link renderToAssetTier}); an explicit tier pins asset detail
  *  independently (and is immune to the FPS auto-downgrade, which only mutates
  *  the render tier). */
-export function effectiveAssetTier(
-  assetTier: AssetTier | null,
-  renderTier: RenderTier,
-): AssetTier {
-  return assetTier ?? renderToAssetTier(renderTier);
+export function effectiveAssetTier(assetTier: AssetTier | null, renderTier: RenderTier): AssetTier {
+  return assetTier ?? renderToAssetTier(renderTier)
 }
 
 /** Effective settings = the tier preset with any per-setting user overrides
@@ -150,7 +147,7 @@ export function resolveQuality(
   tier: RenderTier,
   overrides: Partial<QualitySettings> | undefined,
 ): QualitySettings {
-  return { ...QUALITY_PRESETS[tier], ...(overrides ?? {}) };
+  return { ...QUALITY_PRESETS[tier], ...(overrides ?? {}) }
 }
 
 /**
@@ -166,5 +163,5 @@ export function resolveQuality(
 export function detectDefaultTier(
   _gl?: WebGLRenderingContext | WebGL2RenderingContext,
 ): RenderTier {
-  return 'performance';
+  return 'performance'
 }

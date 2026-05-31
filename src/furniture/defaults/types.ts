@@ -1,5 +1,5 @@
-import type { FurnitureItem } from '../types';
+import type { FurnitureItem } from '../types'
 
 /** Layout entry: same shape as a FurnitureItem but with a deterministic
  *  id so re-running resetToDefault is idempotent. */
-export type LayoutEntry = FurnitureItem;
+export type LayoutEntry = FurnitureItem

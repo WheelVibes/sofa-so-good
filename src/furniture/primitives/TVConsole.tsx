@@ -1,9 +1,9 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 interface TVConsoleProps {
-  props: ParamProps;
+  props: ParamProps
 }
 
 /**
@@ -13,22 +13,22 @@ interface TVConsoleProps {
  * Faces +Z.
  */
 export function TVConsole({ props }: TVConsoleProps) {
-  const width = readNum(props, 'width', 1.8);
-  const color = readStr(props, 'color', '#3a2f24');
-  const finish = readStr(props, 'finish', 'wood');
-  const sheen = readNum(props, 'sheen', 0);
-  const base = readStr(props, 'base', 'block');
-  const front = readStr(props, 'front', 'drawers');
+  const width = readNum(props, 'width', 1.8)
+  const color = readStr(props, 'color', '#3a2f24')
+  const finish = readStr(props, 'finish', 'wood')
+  const sheen = readNum(props, 'sheen', 0)
+  const base = readStr(props, 'base', 'block')
+  const front = readStr(props, 'front', 'drawers')
 
-  const depth = 0.4;
-  const bodyH = 0.42;
-  const legH = base === 'legs' ? 0.14 : base === 'plinth' ? 0.05 : 0;
-  const bodyY = legH; // body bottom sits on the base
-  const faceW = (width - 0.06) / 2;
-  const faceInset = 0.015;
+  const depth = 0.4
+  const bodyH = 0.42
+  const legH = base === 'legs' ? 0.14 : base === 'plinth' ? 0.05 : 0
+  const bodyY = legH // body bottom sits on the base
+  const faceW = (width - 0.06) / 2
+  const faceInset = 0.015
 
-  const wood = getSurfaceMaterial(finish, color, 1.6, sheen);
-  const metal = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 };
+  const wood = getSurfaceMaterial(finish, color, 1.6, sheen)
+  const metal = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 }
 
   return (
     <group>
@@ -60,8 +60,8 @@ export function TVConsole({ props }: TVConsoleProps) {
 
       {/* Fronts: two drawers (bar handles) or two doors (edge pulls) */}
       {[-1, 1].map((s) => {
-        const cx = s * (faceW / 2 + 0.015);
-        const faceY = bodyY + bodyH / 2;
+        const cx = s * (faceW / 2 + 0.015)
+        const faceY = bodyY + bodyH / 2
         return (
           <group key={s}>
             <mesh castShadow position={[cx, faceY, depth / 2 - faceInset]} material={wood}>
@@ -80,8 +80,8 @@ export function TVConsole({ props }: TVConsoleProps) {
               </mesh>
             )}
           </group>
-        );
+        )
       })}
     </group>
-  );
+  )
 }

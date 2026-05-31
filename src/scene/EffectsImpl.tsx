@@ -1,5 +1,12 @@
-import { EffectComposer, Bloom, SMAA, N8AO, Vignette, HueSaturation } from '@react-three/postprocessing';
-import { AO } from './look';
+import {
+  Bloom,
+  EffectComposer,
+  HueSaturation,
+  N8AO,
+  SMAA,
+  Vignette,
+} from '@react-three/postprocessing'
+import { AO } from './look'
 
 /**
  * High-tier post-processing stack.
@@ -12,11 +19,17 @@ import { AO } from './look';
 export default function EffectsImpl() {
   return (
     <EffectComposer multisampling={0}>
-      <N8AO aoRadius={AO.aoRadius} distanceFalloff={AO.distanceFalloff} intensity={AO.intensity} quality="medium" halfRes />
+      <N8AO
+        aoRadius={AO.aoRadius}
+        distanceFalloff={AO.distanceFalloff}
+        intensity={AO.intensity}
+        quality="medium"
+        halfRes
+      />
       <Bloom mipmapBlur luminanceThreshold={1.05} luminanceSmoothing={0.15} intensity={0.6} />
       <HueSaturation saturation={0.06} hue={0} />
       <Vignette eskil={false} offset={0.32} darkness={0.55} />
       <SMAA />
     </EffectComposer>
-  );
+  )
 }

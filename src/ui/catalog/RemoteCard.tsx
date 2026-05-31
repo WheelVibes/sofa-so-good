@@ -1,37 +1,37 @@
-import { useEffect, useRef, useState } from 'react';
-import { useStore } from '../../state/store';
-import { useThumbnail, useResolveStatus } from '../../catalog/remote/hooks';
-import type { RemoteEntry } from '../../catalog/remote/types';
+import { useEffect, useRef, useState } from 'react'
+import { useResolveStatus, useThumbnail } from '../../catalog/remote/hooks'
+import type { RemoteEntry } from '../../catalog/remote/types'
+import { useStore } from '../../state/store'
 
 interface Props {
-  entry: RemoteEntry;
-  onResolved: (id: string) => void;
+  entry: RemoteEntry
+  onResolved: (id: string) => void
 }
 
 export function RemoteCard({ entry, onResolved }: Props) {
-  const [visible, setVisible] = useState(false);
-  const cardRef = useRef<HTMLDivElement | null>(null);
-  const thumb = useThumbnail(entry, visible);
-  const resolution = useStore((s) => s.preferredResolution);
-  const resolve = useStore((s) => s.resolveRemoteAsset);
-  const key = `${entry.provider}:${entry.slug}:${resolution}`;
-  const status = useResolveStatus(key);
+  const [visible, setVisible] = useState(false)
+  const cardRef = useRef<HTMLDivElement | null>(null)
+  const thumb = useThumbnail(entry, visible)
+  const resolution = useStore((s) => s.preferredResolution)
+  const resolve = useStore((s) => s.resolveRemoteAsset)
+  const key = `${entry.provider}:${entry.slug}:${resolution}`
+  const status = useResolveStatus(key)
 
   useEffect(() => {
-    const el = cardRef.current;
-    if (!el || visible) return;
+    const el = cardRef.current
+    if (!el || visible) return
     const obs = new IntersectionObserver(
       ([e]) => {
         if (e.isIntersecting) {
-          setVisible(true);
-          obs.disconnect();
+          setVisible(true)
+          obs.disconnect()
         }
       },
       { rootMargin: '200px' },
-    );
-    obs.observe(el);
-    return () => obs.disconnect();
-  }, [visible]);
+    )
+    obs.observe(el)
+    return () => obs.disconnect()
+  }, [visible])
 
   return (
     <div
@@ -54,11 +54,11 @@ export function RemoteCard({ entry, onResolved }: Props) {
       <button
         onClick={async () => {
           if (status === 'ready') {
-            onResolved(key);
-            return;
+            onResolved(key)
+            return
           }
-          await resolve(entry, resolution);
-          onResolved(key);
+          await resolve(entry, resolution)
+          onResolved(key)
         }}
         disabled={status === 'fetching'}
         className="rounded bg-blue-600 px-2 py-0.5 text-white disabled:bg-neutral-300"
@@ -72,5 +72,5 @@ export function RemoteCard({ entry, onResolved }: Props) {
               : 'Add'}
       </button>
     </div>
-  );
+  )
 }

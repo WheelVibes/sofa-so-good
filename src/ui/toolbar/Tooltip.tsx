@@ -1,22 +1,30 @@
-import { useRef, useState, type ReactNode } from 'react';
-import { Popover } from './Popover';
+import { type ReactNode, useRef, useState } from 'react'
+import { Popover } from './Popover'
 
-const DELAY_MS = 400;
+const DELAY_MS = 400
 
 /** Wraps a trigger; shows a portaled dark tooltip (label + optional shortcut
  *  chip) after a hover delay. Hidden on leave / pointer-down. */
-export function Tooltip({ label, shortcut, children }: { label: string; shortcut: string; children: ReactNode }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  const [open, setOpen] = useState(false);
+export function Tooltip({
+  label,
+  shortcut,
+  children,
+}: {
+  label: string
+  shortcut: string
+  children: ReactNode
+}) {
+  const ref = useRef<HTMLSpanElement>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
+  const [open, setOpen] = useState(false)
 
   const enter = () => {
-    timer.current = setTimeout(() => setOpen(true), DELAY_MS);
-  };
+    timer.current = setTimeout(() => setOpen(true), DELAY_MS)
+  }
   const leave = () => {
-    clearTimeout(timer.current);
-    setOpen(false);
-  };
+    clearTimeout(timer.current)
+    setOpen(false)
+  }
 
   return (
     <span
@@ -41,5 +49,5 @@ export function Tooltip({ label, shortcut, children }: { label: string; shortcut
         </div>
       </Popover>
     </span>
-  );
+  )
 }

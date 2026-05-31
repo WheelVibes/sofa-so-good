@@ -1,8 +1,8 @@
-import { Fragment, useState } from 'react';
-import { AC_LEDGE_AREA_M2, INTERIOR_AREA_M2, TOTAL_AREA_M2 } from '../apartment/constants';
-import { useStore } from '../state/store';
+import { Fragment, useState } from 'react'
+import { AC_LEDGE_AREA_M2, INTERIOR_AREA_M2, TOTAL_AREA_M2 } from '../apartment/constants'
+import { useStore } from '../state/store'
 
-type Binding = { keys: string; desc: string };
+type Binding = { keys: string; desc: string }
 
 const ORBIT_CONTROLS: Binding[] = [
   { keys: 'drag', desc: 'Rotate (orbit)' },
@@ -21,45 +21,45 @@ const ORBIT_CONTROLS: Binding[] = [
   { keys: '⌃D', desc: 'Duplicate selected' },
   { keys: '⌃Z / ⇧⌃Z', desc: 'Undo / redo' },
   { keys: 'Esc', desc: 'Deselect' },
-];
+]
 
 const FIRST_PERSON_CONTROLS: Binding[] = [
   { keys: 'drag', desc: 'Look around' },
   { keys: 'WASD', desc: 'Walk' },
   { keys: 'E', desc: 'Open / close nearby door' },
   { keys: 'Esc', desc: 'Exit pointer lock' },
-];
+]
 
 const SHARED_CONTROLS: Binding[] = [
   { keys: 'V', desc: 'Toggle camera mode' },
   { keys: 'M', desc: 'Toggle measurements' },
   { keys: 'T', desc: 'Cycle time of day' },
-];
+]
 
-const HELP_DISMISSED_KEY = 'sofa.helpHint.dismissed';
+const HELP_DISMISSED_KEY = 'sofa.helpHint.dismissed'
 
 export function HelpHint() {
   // Default open, but stay collapsed across reloads once the user closes it
   // so the Controls panel doesn't re-cover the view every session.
   const [open, setOpen] = useState(() => {
     try {
-      return localStorage.getItem(HELP_DISMISSED_KEY) !== '1';
+      return localStorage.getItem(HELP_DISMISSED_KEY) !== '1'
     } catch {
-      return true;
+      return true
     }
-  });
+  })
   const setOpenPersist = (v: boolean) => {
-    setOpen(v);
+    setOpen(v)
     try {
-      localStorage.setItem(HELP_DISMISSED_KEY, v ? '0' : '1');
+      localStorage.setItem(HELP_DISMISSED_KEY, v ? '0' : '1')
     } catch {
       /* ignore */
     }
-  };
-  const showMeasurements = useStore((s) => s.showMeasurements);
-  const cameraMode = useStore((s) => s.cameraMode);
-  const modeControls = cameraMode === 'orbit' ? ORBIT_CONTROLS : FIRST_PERSON_CONTROLS;
-  const controls = [...modeControls, ...SHARED_CONTROLS];
+  }
+  const showMeasurements = useStore((s) => s.showMeasurements)
+  const cameraMode = useStore((s) => s.cameraMode)
+  const modeControls = cameraMode === 'orbit' ? ORBIT_CONTROLS : FIRST_PERSON_CONTROLS
+  const controls = [...modeControls, ...SHARED_CONTROLS]
   if (!open) {
     return (
       <button
@@ -68,7 +68,7 @@ export function HelpHint() {
       >
         ?
       </button>
-    );
+    )
   }
   return (
     <div className="absolute bottom-3 right-3 z-10 max-w-xs rounded-lg bg-white/95 p-4 text-xs text-neutral-700 shadow">
@@ -87,7 +87,10 @@ export function HelpHint() {
       )}
       <div className="mb-2 flex items-center justify-between">
         <span className="font-semibold">Controls</span>
-        <button onClick={() => setOpenPersist(false)} className="text-neutral-400 hover:text-neutral-700">
+        <button
+          onClick={() => setOpenPersist(false)}
+          className="text-neutral-400 hover:text-neutral-700"
+        >
           ×
         </button>
       </div>
@@ -100,5 +103,5 @@ export function HelpHint() {
         ))}
       </dl>
     </div>
-  );
+  )
 }

@@ -1,97 +1,69 @@
-import { create } from 'zustand';
+import { create } from 'zustand'
+import { CAMERA_INITIAL, type CameraSlice, createCameraSlice } from './slices/cameraSlice'
 import {
-  createCameraSlice,
-  CAMERA_INITIAL,
-  type CameraSlice,
-} from './slices/cameraSlice';
-import {
-  createTimeSlice,
-  TIME_INITIAL,
-  type TimeSlice,
-} from './slices/timeSlice';
-import {
-  createLocationSlice,
-  LOCATION_INITIAL,
-  type LocationSlice,
-} from './slices/locationSlice';
-import {
-  createMeasurementsSlice,
-  MEASUREMENTS_INITIAL,
-  type MeasurementsSlice,
-} from './slices/measurementsSlice';
-import {
-  createDoorsSlice,
-  DOORS_INITIAL,
-  type DoorsSlice,
-} from './slices/doorsSlice';
-import {
-  createItemsSlice,
-  ITEMS_INITIAL,
-  type ItemsSlice,
-} from './slices/itemsSlice';
-import {
-  createSelectionSlice,
-  SELECTION_INITIAL,
-  type SelectionSlice,
-} from './slices/selectionSlice';
-import { createGroupsSlice, type GroupsSlice } from './slices/groupsSlice';
-import {
-  createUserAssetsSlice,
-  USER_ASSETS_INITIAL,
-  type UserAssetsSlice,
-} from './slices/userAssetsSlice';
-import { createResetSlice, type ResetSlice } from './slices/resetSlice';
-import { createUiSlice, UI_INITIAL, type UiSlice } from './slices/uiSlice';
-import {
-  createFinishesSlice,
-  FINISHES_INITIAL,
-  type FinishesSlice,
-} from './slices/finishesSlice';
-import {
-  createPlacementSlice,
-  PLACEMENT_INITIAL,
-  type PlacementSlice,
-} from './slices/placementSlice';
-import {
-  createClipboardSlice,
   CLIPBOARD_INITIAL,
   type ClipboardSlice,
-} from './slices/clipboardSlice';
-import {
-  createHistorySlice,
-  HISTORY_INITIAL,
-  type HistorySlice,
-} from './slices/historySlice';
-import {
-  createRemoteCatalogSlice,
-  REMOTE_CATALOG_INITIAL,
-  type RemoteCatalogSlice,
-} from './slices/remoteCatalogSlice';
-import {
-  createOrientationSlice,
-  ORIENTATION_INITIAL,
-  type OrientationSlice,
-} from './slices/orientationSlice';
-import {
-  createNotificationsSlice,
-  NOTIFICATIONS_INITIAL,
-  type NotificationsSlice,
-} from './slices/notificationsSlice';
-import {
-  createInstalledPacksSlice,
-  INSTALLED_PACKS_INITIAL,
-  type InstalledPacksSlice,
-} from './slices/installedPacksSlice';
+  createClipboardSlice,
+} from './slices/clipboardSlice'
+import { createDoorsSlice, DOORS_INITIAL, type DoorsSlice } from './slices/doorsSlice'
+import { createFinishesSlice, FINISHES_INITIAL, type FinishesSlice } from './slices/finishesSlice'
 import {
   createFloorPlanSlice,
   FLOOR_PLAN_INITIAL,
   type FloorPlanSlice,
-} from './slices/floorPlanSlice';
+} from './slices/floorPlanSlice'
+import { createGroupsSlice, type GroupsSlice } from './slices/groupsSlice'
+import { createHistorySlice, HISTORY_INITIAL, type HistorySlice } from './slices/historySlice'
+import {
+  createInstalledPacksSlice,
+  INSTALLED_PACKS_INITIAL,
+  type InstalledPacksSlice,
+} from './slices/installedPacksSlice'
+import { createItemsSlice, ITEMS_INITIAL, type ItemsSlice } from './slices/itemsSlice'
+import { createLocationSlice, LOCATION_INITIAL, type LocationSlice } from './slices/locationSlice'
+import {
+  createMeasurementsSlice,
+  MEASUREMENTS_INITIAL,
+  type MeasurementsSlice,
+} from './slices/measurementsSlice'
+import {
+  createNotificationsSlice,
+  NOTIFICATIONS_INITIAL,
+  type NotificationsSlice,
+} from './slices/notificationsSlice'
+import {
+  createOrientationSlice,
+  ORIENTATION_INITIAL,
+  type OrientationSlice,
+} from './slices/orientationSlice'
+import {
+  createPlacementSlice,
+  PLACEMENT_INITIAL,
+  type PlacementSlice,
+} from './slices/placementSlice'
+import {
+  createRemoteCatalogSlice,
+  REMOTE_CATALOG_INITIAL,
+  type RemoteCatalogSlice,
+} from './slices/remoteCatalogSlice'
+import { createResetSlice, type ResetSlice } from './slices/resetSlice'
+import {
+  createSelectionSlice,
+  SELECTION_INITIAL,
+  type SelectionSlice,
+} from './slices/selectionSlice'
+import { createTimeSlice, TIME_INITIAL, type TimeSlice } from './slices/timeSlice'
+import { createUiSlice, UI_INITIAL, type UiSlice } from './slices/uiSlice'
+import {
+  createUserAssetsSlice,
+  USER_ASSETS_INITIAL,
+  type UserAssetsSlice,
+} from './slices/userAssetsSlice'
 
-export type { CameraMode } from './slices/cameraSlice';
-export type { TimeMode, TimePreset } from './slices/timeSlice';
-export { PRESET_HOURS } from './slices/timeSlice';
-export type { Location } from './slices/locationSlice';
+export type { CameraMode } from './slices/cameraSlice'
+export type { Location } from './slices/locationSlice'
+export type { TimeMode, TimePreset } from './slices/timeSlice'
+export { PRESET_HOURS } from './slices/timeSlice'
 
 export interface RootState
   extends CameraSlice,
@@ -114,7 +86,7 @@ export interface RootState
     NotificationsSlice,
     InstalledPacksSlice,
     FloorPlanSlice {
-  __resetForTest: () => void;
+  __resetForTest: () => void
 }
 
 const INITIAL = {
@@ -136,7 +108,7 @@ const INITIAL = {
   ...NOTIFICATIONS_INITIAL,
   ...INSTALLED_PACKS_INITIAL,
   ...FLOOR_PLAN_INITIAL,
-};
+}
 
 export const useStore = create<RootState>((set, get, api) => ({
   ...createCameraSlice(set, get, api),
@@ -160,4 +132,4 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createInstalledPacksSlice(set, get, api),
   ...createFloorPlanSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
-}));
+}))

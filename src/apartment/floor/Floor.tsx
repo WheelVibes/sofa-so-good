@@ -1,10 +1,10 @@
-import { useMemo } from 'react';
-import { useShallow } from 'zustand/react/shallow';
-import { ROOMS } from '../constants';
-import { useStore } from '../../state/store';
-import type { RoomId } from '../types';
-import { RoomFloor } from './RoomFloor';
-import { computeRoomFloorRects } from './floorRects';
+import { useMemo } from 'react'
+import { useShallow } from 'zustand/react/shallow'
+import { useStore } from '../../state/store'
+import { ROOMS } from '../constants'
+import type { RoomId } from '../types'
+import { computeRoomFloorRects } from './floorRects'
+import { RoomFloor } from './RoomFloor'
 
 /**
  * Renders one mesh per non-overlapping floor sub-rect, grouped by room.
@@ -19,16 +19,16 @@ import { computeRoomFloorRects } from './floorRects';
  * visible seam.
  */
 export function Floor() {
-  const finishes = useStore(useShallow((s) => s.finishes.floor));
-  const roomRects = useMemo(() => computeRoomFloorRects(), []);
+  const finishes = useStore(useShallow((s) => s.finishes.floor))
+  const roomRects = useMemo(() => computeRoomFloorRects(), [])
 
   return (
     <group>
       {(Object.keys(ROOMS) as RoomId[]).map((id) => {
-        const r = ROOMS[id];
-        if (r.external) return null;
-        const matId = finishes[id];
-        const rects = roomRects[id];
+        const r = ROOMS[id]
+        if (r.external) return null
+        const matId = finishes[id]
+        const rects = roomRects[id]
         return (
           <group key={id}>
             {rects.map((rect, i) => (
@@ -42,8 +42,8 @@ export function Floor() {
               />
             ))}
           </group>
-        );
+        )
       })}
     </group>
-  );
+  )
 }

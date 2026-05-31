@@ -1,34 +1,26 @@
-import type {
-  AssetBundle,
-  RemoteEntry,
-  RemoteProvider,
-  Resolution,
-} from '../types';
-import { mapPolyHavenFurnitureCategory } from '../category-map';
-import type { MaterialCategory } from '../../../materials/types';
+import type { MaterialCategory } from '../../../materials/types'
+import { mapPolyHavenFurnitureCategory } from '../category-map'
+import type { AssetBundle, RemoteEntry, RemoteProvider, Resolution } from '../types'
 
-const API = 'https://api.polyhaven.com';
+const API = 'https://api.polyhaven.com'
 const CDN_THUMB = (slug: string) =>
-  `https://cdn.polyhaven.com/asset_img/thumbs/${slug}.png?height=150`;
-const PAGE_URL = (slug: string) => `https://polyhaven.com/a/${slug}`;
+  `https://cdn.polyhaven.com/asset_img/thumbs/${slug}.png?height=150`
+const PAGE_URL = (slug: string) => `https://polyhaven.com/a/${slug}`
 
 interface PHAssetMeta {
-  name: string;
-  categories?: string[];
-  authors?: Record<string, string>;
-  tags?: string[];
+  name: string
+  categories?: string[]
+  authors?: Record<string, string>
+  tags?: string[]
 }
 
-const tagsFor = (m: PHAssetMeta): string[] => [
-  ...(m.tags ?? []),
-  ...(m.categories ?? []),
-];
-type PHIndex = Record<string, PHAssetMeta>;
+const tagsFor = (m: PHAssetMeta): string[] => [...(m.tags ?? []), ...(m.categories ?? [])]
+type PHIndex = Record<string, PHAssetMeta>
 
 interface PHFile {
-  url: string;
-  md5?: string;
-  size?: number;
+  url: string
+  md5?: string
+  size?: number
 }
 
 /**
@@ -45,57 +37,57 @@ interface PHFile {
  */
 interface PHFiles {
   // Channel keys (textures & per-channel files for models).
-  Diffuse?: Record<string, Record<string, PHFile>>;
-  nor_gl?: Record<string, Record<string, PHFile>>;
-  Rough?: Record<string, Record<string, PHFile>>;
-  arm?: Record<string, Record<string, PHFile>>; // AO/Rough/Metal packed
-  AO?: Record<string, Record<string, PHFile>>;
+  Diffuse?: Record<string, Record<string, PHFile>>
+  nor_gl?: Record<string, Record<string, PHFile>>
+  Rough?: Record<string, Record<string, PHFile>>
+  arm?: Record<string, Record<string, PHFile>> // AO/Rough/Metal packed
+  AO?: Record<string, Record<string, PHFile>>
   // Packaged formats.
   gltf?: Record<
     string,
     {
-      gltf?: PHFile & { include?: Record<string, PHFile> };
+      gltf?: PHFile & { include?: Record<string, PHFile> }
     }
-  >;
+  >
 }
 
-const FALLBACK_ORDER: Resolution[] = ['2k', '1k', '4k'];
+const FALLBACK_ORDER: Resolution[] = ['2k', '1k', '4k']
 
 function pickResolution<T>(
   byRes: Record<string, T> | undefined,
   preferred: Resolution,
 ): T | undefined {
-  if (!byRes) return undefined;
-  if (byRes[preferred]) return byRes[preferred];
-  for (const r of FALLBACK_ORDER) if (byRes[r]) return byRes[r];
-  const first = Object.keys(byRes)[0];
-  return first ? byRes[first] : undefined;
+  if (!byRes) return undefined
+  if (byRes[preferred]) return byRes[preferred]
+  for (const r of FALLBACK_ORDER) if (byRes[r]) return byRes[r]
+  const first = Object.keys(byRes)[0]
+  return first ? byRes[first] : undefined
 }
 
 function pickJpg(byFormat: Record<string, PHFile> | undefined): PHFile | undefined {
-  return byFormat?.jpg ?? byFormat?.png ?? Object.values(byFormat ?? {})[0];
+  return byFormat?.jpg ?? byFormat?.png ?? Object.values(byFormat ?? {})[0]
 }
 
 const attrib = (a: PHAssetMeta) =>
-  `Poly Haven — ${Object.keys(a.authors ?? { Unknown: '' }).join(', ')}`;
+  `Poly Haven — ${Object.keys(a.authors ?? { Unknown: '' }).join(', ')}`
 
 function materialCategoryFor(meta: PHAssetMeta): MaterialCategory {
-  const cats = meta.categories ?? [];
-  return cats.some((c) => /wall|brick|plaster|paint/i.test(c)) ? 'wall' : 'floor';
+  const cats = meta.categories ?? []
+  return cats.some((c) => /wall|brick|plaster|paint/i.test(c)) ? 'wall' : 'floor'
 }
 
 async function fetchJson<T>(url: string, signal?: AbortSignal): Promise<T> {
-  const res = await fetch(url, { signal });
-  if (!res.ok) throw new Error(`Poly Haven ${res.status}: ${url}`);
-  return (await res.json()) as T;
+  const res = await fetch(url, { signal })
+  if (!res.ok) throw new Error(`Poly Haven ${res.status}: ${url}`)
+  return (await res.json()) as T
 }
 
 async function fetchIndex(signal?: AbortSignal): Promise<RemoteEntry[]> {
   const [models, textures] = await Promise.all([
     fetchJson<PHIndex>(`${API}/assets?t=models`, signal),
     fetchJson<PHIndex>(`${API}/assets?t=textures`, signal),
-  ]);
-  const out: RemoteEntry[] = [];
+  ])
+  const out: RemoteEntry[] = []
   for (const [slug, meta] of Object.entries(models)) {
     out.push({
       provider: 'polyhaven',
@@ -108,7 +100,7 @@ async function fetchIndex(signal?: AbortSignal): Promise<RemoteEntry[]> {
       attribution: attrib(meta),
       sourceUrl: PAGE_URL(slug),
       tags: tagsFor(meta),
-    });
+    })
   }
   for (const [slug, meta] of Object.entries(textures)) {
     out.push({
@@ -122,21 +114,21 @@ async function fetchIndex(signal?: AbortSignal): Promise<RemoteEntry[]> {
       attribution: attrib(meta),
       sourceUrl: PAGE_URL(slug),
       tags: tagsFor(meta),
-    });
+    })
   }
-  return out;
+  return out
 }
 
 async function fetchThumbnail(entry: RemoteEntry, signal?: AbortSignal): Promise<Blob> {
-  const r = await fetch(entry.thumbUrl, { signal });
-  if (!r.ok) throw new Error(`Thumb ${r.status}`);
-  return r.blob();
+  const r = await fetch(entry.thumbUrl, { signal })
+  if (!r.ok) throw new Error(`Thumb ${r.status}`)
+  return r.blob()
 }
 
 async function fetchBlob(url: string, signal?: AbortSignal): Promise<Blob> {
-  const r = await fetch(url, { signal });
-  if (!r.ok) throw new Error(`Poly Haven ${r.status}: ${url}`);
-  return r.blob();
+  const r = await fetch(url, { signal })
+  if (!r.ok) throw new Error(`Poly Haven ${r.status}: ${url}`)
+  return r.blob()
 }
 
 async function fetchAsset(
@@ -144,45 +136,45 @@ async function fetchAsset(
   resolution: Resolution,
   signal?: AbortSignal,
 ): Promise<AssetBundle> {
-  const files = await fetchJson<PHFiles>(`${API}/files/${entry.slug}`, signal);
+  const files = await fetchJson<PHFiles>(`${API}/files/${entry.slug}`, signal)
   if (entry.kind === 'material') {
-    const channels: Record<string, Blob> = {};
+    const channels: Record<string, Blob> = {}
     // Albedo (Diffuse).
-    const diff = pickJpg(pickResolution(files.Diffuse, resolution));
-    if (!diff) throw new Error(`No diffuse texture for ${entry.slug}`);
-    channels.albedo = await fetchBlob(diff.url, signal);
+    const diff = pickJpg(pickResolution(files.Diffuse, resolution))
+    if (!diff) throw new Error(`No diffuse texture for ${entry.slug}`)
+    channels.albedo = await fetchBlob(diff.url, signal)
     // Normal (OpenGL convention preferred).
-    const nor = pickJpg(pickResolution(files.nor_gl, resolution));
-    if (nor) channels.normal = await fetchBlob(nor.url, signal);
+    const nor = pickJpg(pickResolution(files.nor_gl, resolution))
+    if (nor) channels.normal = await fetchBlob(nor.url, signal)
     // Roughness — either standalone Rough channel or G of the packed ARM.
-    const rough = pickJpg(pickResolution(files.Rough, resolution));
-    if (rough) channels.roughness = await fetchBlob(rough.url, signal);
+    const rough = pickJpg(pickResolution(files.Rough, resolution))
+    if (rough) channels.roughness = await fetchBlob(rough.url, signal)
     // AO — standalone or R of the ARM channel.
-    const ao = pickJpg(pickResolution(files.AO, resolution));
-    if (ao) channels.ao = await fetchBlob(ao.url, signal);
-    return { kind: 'material', channels };
+    const ao = pickJpg(pickResolution(files.AO, resolution))
+    if (ao) channels.ao = await fetchBlob(ao.url, signal)
+    return { kind: 'material', channels }
   }
 
   // Furniture (model) path.
-  const bucket = pickResolution(files.gltf, resolution);
-  const gltfFile = bucket?.gltf;
+  const bucket = pickResolution(files.gltf, resolution)
+  const gltfFile = bucket?.gltf
   if (!gltfFile?.url) {
     throw new Error(
       `No .gltf for ${entry.slug} (resolutions available: ${
         Object.keys(files.gltf ?? {}).join(', ') || 'none'
       })`,
-    );
+    )
   }
-  const gltfRes = await fetch(gltfFile.url, { signal });
-  if (!gltfRes.ok) throw new Error(`Poly Haven gltf ${gltfRes.status}`);
-  const gltfJson = (await gltfRes.json()) as object;
+  const gltfRes = await fetch(gltfFile.url, { signal })
+  if (!gltfRes.ok) throw new Error(`Poly Haven gltf ${gltfRes.status}`)
+  const gltfJson = (await gltfRes.json()) as object
 
-  let bin: Blob | undefined;
-  const textures: Record<string, Blob> = {};
+  let bin: Blob | undefined
+  const textures: Record<string, Blob> = {}
   for (const [path, file] of Object.entries(gltfFile.include ?? {})) {
-    const blob = await fetchBlob(file.url, signal);
-    if (path.endsWith('.bin')) bin = blob;
-    else textures[path] = blob;
+    const blob = await fetchBlob(file.url, signal)
+    if (path.endsWith('.bin')) bin = blob
+    else textures[path] = blob
   }
 
   return {
@@ -191,7 +183,7 @@ async function fetchAsset(
     bin,
     textures,
     rootPath: gltfFile.url.split('/').pop() ?? `${entry.slug}.gltf`,
-  };
+  }
 }
 
 export const polyhaven: RemoteProvider = {
@@ -199,4 +191,4 @@ export const polyhaven: RemoteProvider = {
   fetchIndex,
   fetchThumbnail,
   fetchAsset,
-};
+}

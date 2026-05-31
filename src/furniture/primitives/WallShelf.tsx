@@ -1,29 +1,29 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Floating wall shelf — a single plank on two L-brackets, wall-mounted.
  *  Sits flat against the wall behind it (group offset to the mount height)
  *  and extends forward in +Z. Pair with tabletop decor to style a wall. */
 export function WallShelf({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 0.8);
-  const depth = readNum(props, 'depth', 0.22);
-  const centerY = readNum(props, 'mountHeight', 1.4);
-  const color = readStr(props, 'color', '#8a6b48');
-  const finish = readStr(props, 'finish', 'wood');
-  const sheen = readNum(props, 'sheen', 0);
-  const style = readStr(props, 'style', 'bracket');
+  const width = readNum(props, 'width', 0.8)
+  const depth = readNum(props, 'depth', 0.22)
+  const centerY = readNum(props, 'mountHeight', 1.4)
+  const color = readStr(props, 'color', '#8a6b48')
+  const finish = readStr(props, 'finish', 'wood')
+  const sheen = readNum(props, 'sheen', 0)
+  const style = readStr(props, 'style', 'bracket')
 
-  const plankT = 0.035;
-  const wood = getSurfaceMaterial(finish, color, 1.2, sheen);
-  const bx = width / 2 - 0.08;
-  const bracketColor = '#2b2b2b';
+  const plankT = 0.035
+  const wood = getSurfaceMaterial(finish, color, 1.2, sheen)
+  const bx = width / 2 - 0.08
+  const bracketColor = '#2b2b2b'
 
   const plank = (y: number) => (
     <mesh castShadow receiveShadow position={[0, y, depth / 2]} material={wood}>
       <boxGeometry args={[width, plankT, depth]} />
     </mesh>
-  );
+  )
 
   return (
     <group position={[0, centerY, 0]}>
@@ -58,5 +58,5 @@ export function WallShelf({ props }: { props: ParamProps }) {
         </>
       )}
     </group>
-  );
+  )
 }

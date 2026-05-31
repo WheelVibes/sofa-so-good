@@ -1,7 +1,7 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { useStore } from '../../../state/store';
-import { resetCacheForTest } from '../cache/db';
-import type { RemoteEntry } from '../types';
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { useStore } from '../../../state/store'
+import { resetCacheForTest } from '../cache/db'
+import type { RemoteEntry } from '../types'
 
 const sample: RemoteEntry = {
   provider: 'polyhaven',
@@ -13,7 +13,7 @@ const sample: RemoteEntry = {
   resolutions: ['2k'],
   attribution: 'Poly Haven',
   sourceUrl: 'https://x',
-};
+}
 
 vi.mock('../providers', () => ({
   PROVIDERS: {
@@ -36,11 +36,11 @@ vi.mock('../providers', () => ({
       })),
     },
   },
-}));
+}))
 
 describe('remote catalog integration', () => {
   beforeEach(async () => {
-    await resetCacheForTest();
+    await resetCacheForTest()
     useStore.setState({
       remoteIndexes: {
         polyhaven: { status: 'idle', entries: [] },
@@ -50,17 +50,17 @@ describe('remote catalog integration', () => {
       resolvedRemoteFurniture: {},
       resolvedRemoteMaterials: {},
       remoteCacheBytes: 0,
-    });
-  });
+    })
+  })
 
   it('bootstraps, resolves, and registers in catalog', async () => {
-    await useStore.getState().bootstrapRemoteCatalog();
-    expect(useStore.getState().remoteIndexes.polyhaven.status).toBe('ready');
-    expect(useStore.getState().remoteIndexes.polyhaven.entries[0].slug).toBe('wood');
-    await useStore.getState().resolveRemoteAsset(sample, '2k');
-    const def = useStore.getState().resolvedRemoteMaterials['polyhaven:wood:2k'];
-    expect(def).toBeDefined();
-    expect(def.kind).toBe('textured');
-    expect(def.source).toBe('polyhaven');
-  });
-});
+    await useStore.getState().bootstrapRemoteCatalog()
+    expect(useStore.getState().remoteIndexes.polyhaven.status).toBe('ready')
+    expect(useStore.getState().remoteIndexes.polyhaven.entries[0].slug).toBe('wood')
+    await useStore.getState().resolveRemoteAsset(sample, '2k')
+    const def = useStore.getState().resolvedRemoteMaterials['polyhaven:wood:2k']
+    expect(def).toBeDefined()
+    expect(def.kind).toBe('textured')
+    expect(def.source).toBe('polyhaven')
+  })
+})

@@ -1,16 +1,16 @@
-import { readStr } from './shared';
-import { applianceFinish } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { applianceFinish } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readStr } from './shared'
 
 /** Front-load washing machine: body + recessed circular door + control
  *  panel. Faces +Z. */
 export function WashingMachine({ props }: { props: ParamProps }) {
-  const color = readStr(props, 'color', '#eef0f2');
-  const finish = readStr(props, 'finish', 'matte');
-  const w = 0.6;
-  const d = 0.6;
-  const h = 0.85;
-  const body = { color, ...applianceFinish(finish) };
+  const color = readStr(props, 'color', '#eef0f2')
+  const finish = readStr(props, 'finish', 'matte')
+  const w = 0.6
+  const d = 0.6
+  const h = 0.85
+  const body = { color, ...applianceFinish(finish) }
 
   return (
     <group>
@@ -26,7 +26,13 @@ export function WashingMachine({ props }: { props: ParamProps }) {
       {/* Door glass */}
       <mesh position={[0, h * 0.45, d / 2 + 0.004]}>
         <circleGeometry args={[0.15, 24]} />
-        <meshStandardMaterial color="#28323a" roughness={0.15} metalness={0.2} transparent opacity={0.7} />
+        <meshStandardMaterial
+          color="#28323a"
+          roughness={0.15}
+          metalness={0.2}
+          transparent
+          opacity={0.7}
+        />
       </mesh>
       {/* Control panel */}
       <mesh position={[0, h * 0.86, d / 2 + 0.003]}>
@@ -38,5 +44,5 @@ export function WashingMachine({ props }: { props: ParamProps }) {
         <meshStandardMaterial color="#3a3d42" roughness={0.4} metalness={0.3} />
       </mesh>
     </group>
-  );
+  )
 }

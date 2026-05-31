@@ -1,13 +1,13 @@
-import { readNum, readStr } from './shared';
-import type { ParamProps } from '../types';
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** A small styling vignette for surfaces (coffee tables, consoles, shelves):
  *  a stacked pair of books, a short vase with a sprig, and a tray. Sits at
  *  `surfaceHeight`. */
 export function TabletopDecor({ props }: { props: ParamProps }) {
-  const surfaceH = readNum(props, 'surfaceHeight', 0.42);
-  const bookColor = readStr(props, 'bookColor', '#8a5a3c');
-  const vaseColor = readStr(props, 'vaseColor', '#cfd3d6');
+  const surfaceH = readNum(props, 'surfaceHeight', 0.42)
+  const bookColor = readStr(props, 'bookColor', '#8a5a3c')
+  const vaseColor = readStr(props, 'vaseColor', '#cfd3d6')
 
   return (
     <group position={[0, surfaceH, 0]}>
@@ -36,5 +36,5 @@ export function TabletopDecor({ props }: { props: ParamProps }) {
         <meshStandardMaterial color="#4f6b43" roughness={0.85} flatShading />
       </mesh>
     </group>
-  );
+  )
 }

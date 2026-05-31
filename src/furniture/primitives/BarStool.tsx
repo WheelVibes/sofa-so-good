@@ -1,39 +1,44 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Counter-height bar stool. Styles: 'splayed' (round seat on four splayed
  *  legs + footrest ring), 'pedestal' (central column on a weighted disc base,
  *  gas-lift look), and 'backed' (splayed legs + a low curved backrest).
  *  Faces +Z. */
 export function BarStool({ props }: { props: ParamProps }) {
-  const seatColor = readStr(props, 'seatColor', '#7a5c3c');
-  const legColor = readStr(props, 'legColor', '#3a3d42');
-  const finish = readStr(props, 'finish', 'wood');
-  const sheen = readNum(props, 'sheen', 0);
-  const style = readStr(props, 'style', 'splayed');
-  const seatH = 0.66;
-  const r = 0.18;
+  const seatColor = readStr(props, 'seatColor', '#7a5c3c')
+  const legColor = readStr(props, 'legColor', '#3a3d42')
+  const finish = readStr(props, 'finish', 'wood')
+  const sheen = readNum(props, 'sheen', 0)
+  const style = readStr(props, 'style', 'splayed')
+  const seatH = 0.66
+  const r = 0.18
 
-  const seatMat = getSurfaceMaterial(finish, seatColor, 0.5, sheen);
-  const metal = { color: legColor, roughness: 0.4, metalness: 0.6 };
+  const seatMat = getSurfaceMaterial(finish, seatColor, 0.5, sheen)
+  const metal = { color: legColor, roughness: 0.4, metalness: 0.6 }
 
   const splayedLegs = [0, 1, 2, 3].map((i) => {
-    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
-    const tx = Math.sin(a) * (r - 0.03);
-    const tz = Math.cos(a) * (r - 0.03);
-    const bx = Math.sin(a) * (r + 0.06);
-    const bz = Math.cos(a) * (r + 0.06);
-    const mx = (tx + bx) / 2;
-    const mz = (tz + bz) / 2;
-    const lean = Math.atan2(Math.hypot(bx - tx, bz - tz), seatH);
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4
+    const tx = Math.sin(a) * (r - 0.03)
+    const tz = Math.cos(a) * (r - 0.03)
+    const bx = Math.sin(a) * (r + 0.06)
+    const bz = Math.cos(a) * (r + 0.06)
+    const mx = (tx + bx) / 2
+    const mz = (tz + bz) / 2
+    const lean = Math.atan2(Math.hypot(bx - tx, bz - tz), seatH)
     return (
-      <mesh key={i} castShadow position={[mx, seatH / 2, mz]} rotation={[Math.cos(a) * lean, 0, -Math.sin(a) * lean]}>
+      <mesh
+        key={i}
+        castShadow
+        position={[mx, seatH / 2, mz]}
+        rotation={[Math.cos(a) * lean, 0, -Math.sin(a) * lean]}
+      >
         <cylinderGeometry args={[0.014, 0.014, seatH, 8]} />
         <meshStandardMaterial {...metal} />
       </mesh>
-    );
-  });
+    )
+  })
 
   return (
     <group>
@@ -87,5 +92,5 @@ export function BarStool({ props }: { props: ParamProps }) {
         </>
       )}
     </group>
-  );
+  )
 }

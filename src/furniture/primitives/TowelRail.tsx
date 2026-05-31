@@ -1,19 +1,19 @@
-import { readNum, readStr } from './shared';
-import { getFabricMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getFabricMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Wall-mounted towel rail — a chromed bar on two brackets with a folded
  *  towel draped over it. Mounted on a wall (group offset to height); faces
  *  +Z so the towel hangs into the room. */
 export function TowelRail({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 0.6);
-  const centerY = readNum(props, 'mountHeight', 1.1);
-  const towelColor = readStr(props, 'towelColor', '#d9e2e6');
+  const width = readNum(props, 'width', 0.6)
+  const centerY = readNum(props, 'mountHeight', 1.1)
+  const towelColor = readStr(props, 'towelColor', '#d9e2e6')
 
-  const metal = { color: '#c6c9cd', roughness: 0.3, metalness: 0.8 } as const;
-  const towelMat = getFabricMaterial(towelColor);
-  const barR = 0.012;
-  const proj = 0.07; // bracket projection from wall
+  const metal = { color: '#c6c9cd', roughness: 0.3, metalness: 0.8 } as const
+  const towelMat = getFabricMaterial(towelColor)
+  const barR = 0.012
+  const proj = 0.07 // bracket projection from wall
 
   return (
     <group position={[0, centerY, 0]}>
@@ -44,5 +44,5 @@ export function TowelRail({ props }: { props: ParamProps }) {
         </mesh>
       </group>
     </group>
-  );
+  )
 }

@@ -22,7 +22,7 @@ export const CLEARANCE = {
   wallGap: 0.05,
   /** Clear floor in front of storage so it can be opened and passed. */
   storageFront: 0.75,
-} as const;
+} as const
 
 /** Fallback support-surface heights (metres) for stacking a compatible model
  *  onto a base when the base exposes no usable measurement. Keyed by the base's
@@ -32,11 +32,11 @@ export const STACK = {
   bedSlatDefault: 0.13,
   /** Seat height for a sofa accepting seat cushions. */
   seatDefault: 0.42,
-} as const;
+} as const
 
 /** Comfortable TV viewing distance band for a screen of `diagonalInches`
  *  (4K rule of thumb: 1.2–1.6× the diagonal). Returns metres. */
 export function tvViewingDistance(diagonalInches: number): { min: number; max: number } {
-  const diagM = diagonalInches * 0.0254;
-  return { min: diagM * 1.2, max: diagM * 1.6 };
+  const diagM = diagonalInches * 0.0254
+  return { min: diagM * 1.2, max: diagM * 1.6 }
 }

@@ -1,9 +1,9 @@
-import type { ParamField } from '../../../furniture/types';
+import type { ParamField } from '../../../furniture/types'
 
 interface ColorFieldProps {
-  field: Extract<ParamField, { kind: 'color' }>;
-  value: string;
-  onChange: (value: string) => void;
+  field: Extract<ParamField, { kind: 'color' }>
+  value: string
+  onChange: (value: string) => void
 }
 
 export function ColorField({ field, value, onChange }: ColorFieldProps) {
@@ -17,5 +17,5 @@ export function ColorField({ field, value, onChange }: ColorFieldProps) {
         className="h-6 w-10 cursor-pointer rounded border border-neutral-300"
       />
     </label>
-  );
+  )
 }

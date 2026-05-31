@@ -1,26 +1,26 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import type { Group } from 'three';
-import { readNum, readStr } from './shared';
-import type { ParamProps } from '../types';
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+import type { Group } from 'three'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Pedestal / standing fan — a near-universal Singapore-home fixture: round
  *  weighted base, telescopic pole, and a circular head (hub + blades behind a
  *  wire guard). Faces +Z (blows toward +Z). */
 export function StandingFan({ props }: { props: ParamProps }) {
-  const headH = readNum(props, 'height', 1.1);
-  const bodyColor = readStr(props, 'bodyColor', '#e8e6e1');
-  const bladeColor = readStr(props, 'bladeColor', '#dcddd8');
+  const headH = readNum(props, 'height', 1.1)
+  const bodyColor = readStr(props, 'bodyColor', '#e8e6e1')
+  const bladeColor = readStr(props, 'bladeColor', '#dcddd8')
 
-  const r = 0.21; // head radius
-  const body = { color: bodyColor, roughness: 0.5, metalness: 0.2 } as const;
-  const guard = { color: '#c2c4c0', roughness: 0.4, metalness: 0.5 } as const;
+  const r = 0.21 // head radius
+  const body = { color: bodyColor, roughness: 0.5, metalness: 0.2 } as const
+  const guard = { color: '#c2c4c0', roughness: 0.4, metalness: 0.5 } as const
 
   // Gentle blade spin, matching the ceiling fan's "alive" motion.
-  const bladesRef = useRef<Group>(null);
+  const bladesRef = useRef<Group>(null)
   useFrame((_, dt) => {
-    if (bladesRef.current) bladesRef.current.rotation.z += dt * 4;
-  });
+    if (bladesRef.current) bladesRef.current.rotation.z += dt * 4
+  })
 
   return (
     <group>
@@ -50,13 +50,17 @@ export function StandingFan({ props }: { props: ParamProps }) {
           </mesh>
           {/* Five blades fanning around the hub */}
           {Array.from({ length: 5 }, (_, i) => {
-            const a = (i / 5) * Math.PI * 2;
+            const a = (i / 5) * Math.PI * 2
             return (
-              <mesh key={i} position={[Math.sin(a) * 0.1, Math.cos(a) * 0.1, 0.01]} rotation={[0, 0, -a]}>
+              <mesh
+                key={i}
+                position={[Math.sin(a) * 0.1, Math.cos(a) * 0.1, 0.01]}
+                rotation={[0, 0, -a]}
+              >
                 <boxGeometry args={[0.09, 0.17, 0.006]} />
                 <meshStandardMaterial color={bladeColor} roughness={0.5} metalness={0.1} side={2} />
               </mesh>
-            );
+            )
           })}
         </group>
         {/* Wire guard (front + rim) */}
@@ -70,5 +74,5 @@ export function StandingFan({ props }: { props: ParamProps }) {
         </mesh>
       </group>
     </group>
-  );
+  )
 }

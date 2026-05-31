@@ -1,27 +1,27 @@
-import { useState, type ChangeEvent } from 'react';
-import { useStore } from '../../../state/store';
-import { PRESET_HOURS, type TimePreset } from '../../../state/slices/timeSlice';
-import { useEffectiveHour } from '../../../scene/lighting/useEffectiveHour';
-import { ToolbarMenu, MenuItem } from '../ToolbarMenu';
-import { CompassModal } from '../CompassModal';
+import { type ChangeEvent, useState } from 'react'
+import { useEffectiveHour } from '../../../scene/lighting/useEffectiveHour'
+import { PRESET_HOURS, type TimePreset } from '../../../state/slices/timeSlice'
+import { useStore } from '../../../state/store'
+import { CompassModal } from '../CompassModal'
+import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
-const PRESETS: TimePreset[] = ['morning', 'noon', 'dusk', 'night'];
+const PRESETS: TimePreset[] = ['morning', 'noon', 'dusk', 'night']
 
 /** Scene cluster: time of day (system / presets / custom) + sun direction. */
 export function SceneMenu() {
-  const timeMode = useStore((s) => s.timeMode);
-  const manualHour = useStore((s) => s.manualHour);
-  const setTimeMode = useStore((s) => s.setTimeMode);
-  const setPresetTime = useStore((s) => s.setPresetTime);
-  const setManualHour = useStore((s) => s.setManualHour);
-  const orientationDeg = useStore((s) => s.orientationDeg);
-  const effectiveHour = useEffectiveHour();
-  const [compassOpen, setCompassOpen] = useState(false);
+  const timeMode = useStore((s) => s.timeMode)
+  const manualHour = useStore((s) => s.manualHour)
+  const setTimeMode = useStore((s) => s.setTimeMode)
+  const setPresetTime = useStore((s) => s.setPresetTime)
+  const setManualHour = useStore((s) => s.setManualHour)
+  const orientationDeg = useStore((s) => s.orientationDeg)
+  const effectiveHour = useEffectiveHour()
+  const [compassOpen, setCompassOpen] = useState(false)
 
   const onCustomChange = (e: ChangeEvent<HTMLInputElement>) => {
-    const [hh, mm] = e.target.value.split(':').map((n) => Number.parseInt(n, 10));
-    if (Number.isFinite(hh) && Number.isFinite(mm)) setManualHour(hh + mm / 60);
-  };
+    const [hh, mm] = e.target.value.split(':').map((n) => Number.parseInt(n, 10))
+    if (Number.isFinite(hh) && Number.isFinite(mm)) setManualHour(hh + mm / 60)
+  }
 
   return (
     <>
@@ -64,23 +64,23 @@ export function SceneMenu() {
       </ToolbarMenu>
       <CompassModal open={compassOpen} onClose={() => setCompassOpen(false)} />
     </>
-  );
+  )
 }
 
 function formatClock(hour: number): string {
-  const h = ((hour % 24) + 24) % 24;
-  const totalMinutes = Math.round(h * 60) % (24 * 60);
-  const hh = Math.floor(totalMinutes / 60);
-  const mm = totalMinutes % 60;
-  const period = hh < 12 ? 'AM' : 'PM';
-  const display = hh % 12 === 0 ? 12 : hh % 12;
-  return `${display}:${String(mm).padStart(2, '0')} ${period}`;
+  const h = ((hour % 24) + 24) % 24
+  const totalMinutes = Math.round(h * 60) % (24 * 60)
+  const hh = Math.floor(totalMinutes / 60)
+  const mm = totalMinutes % 60
+  const period = hh < 12 ? 'AM' : 'PM'
+  const display = hh % 12 === 0 ? 12 : hh % 12
+  return `${display}:${String(mm).padStart(2, '0')} ${period}`
 }
 
 function formatTimeInput(hour: number): string {
-  const h = ((hour % 24) + 24) % 24;
-  const totalMinutes = Math.round(h * 60) % (24 * 60);
-  const hh = Math.floor(totalMinutes / 60);
-  const mm = totalMinutes % 60;
-  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`;
+  const h = ((hour % 24) + 24) % 24
+  const totalMinutes = Math.round(h * 60) % (24 * 60)
+  const hh = Math.floor(totalMinutes / 60)
+  const mm = totalMinutes % 60
+  return `${String(hh).padStart(2, '0')}:${String(mm).padStart(2, '0')}`
 }

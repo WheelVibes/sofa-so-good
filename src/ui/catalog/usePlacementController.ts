@@ -1,16 +1,12 @@
-import { useEffect } from 'react';
-import { useStore } from '../../state/store';
-import { useCatalog } from '../../furniture/catalog';
-import { isEditableTarget } from '../../controls/useKeyboard';
-import {
-  defaultParamProps,
-  type FurnitureDef,
-  type ParamProps,
-} from '../../furniture/types';
+import { useEffect } from 'react'
+import { isEditableTarget } from '../../controls/useKeyboard'
+import { useCatalog } from '../../furniture/catalog'
+import { defaultParamProps, type FurnitureDef, type ParamProps } from '../../furniture/types'
+import { useStore } from '../../state/store'
 
 function defaultProps(def: FurnitureDef): ParamProps {
-  if (def.kind === 'parametric') return defaultParamProps(def);
-  return def.scale != null ? { scale: def.scale } : {};
+  if (def.kind === 'parametric') return defaultParamProps(def)
+  return def.scale != null ? { scale: def.scale } : {}
 }
 
 /**
@@ -24,57 +20,56 @@ function defaultProps(def: FurnitureDef): ParamProps {
  * through so the user can switch defs or interact with UI freely.
  */
 export function usePlacementController() {
-  const activeDefId = useStore((s) => s.activeDefId);
-  const catalog = useCatalog();
+  const activeDefId = useStore((s) => s.activeDefId)
+  const catalog = useCatalog()
 
   useEffect(() => {
-    if (!activeDefId) return;
-    const def = catalog[activeDefId];
-    if (!def) return;
+    if (!activeDefId) return
+    const def = catalog[activeDefId]
+    if (!def) return
 
     const onMove = (ev: PointerEvent) => {
-      useStore.getState().setCursor({ x: ev.clientX, y: ev.clientY });
-    };
+      useStore.getState().setCursor({ x: ev.clientX, y: ev.clientY })
+    }
     const onClick = (ev: MouseEvent) => {
-      if (ev.button !== 0) return;
-      if (!(ev.target instanceof HTMLCanvasElement)) return;
-      const { ghostWorld, ghostValid, addItem, cancelPlacement } =
-        useStore.getState();
+      if (ev.button !== 0) return
+      if (!(ev.target instanceof HTMLCanvasElement)) return
+      const { ghostWorld, ghostValid, addItem, cancelPlacement } = useStore.getState()
       if (!ghostWorld || !ghostValid) {
         // Red ghost — swallow the click so it doesn't deselect or do
         // anything else; user must move to a green spot first.
-        ev.preventDefault();
-        ev.stopPropagation();
-        return;
+        ev.preventDefault()
+        ev.stopPropagation()
+        return
       }
-      ev.preventDefault();
-      ev.stopPropagation();
+      ev.preventDefault()
+      ev.stopPropagation()
       addItem({
         defId: def.id,
         position: ghostWorld,
         rotation: def.defaultRotation ?? 0,
         props: defaultProps(def),
-      });
-      cancelPlacement();
-    };
+      })
+      cancelPlacement()
+    }
     const onContext = (ev: MouseEvent) => {
-      ev.preventDefault();
-      useStore.getState().cancelPlacement();
-    };
+      ev.preventDefault()
+      useStore.getState().cancelPlacement()
+    }
     const onKey = (ev: KeyboardEvent) => {
-      if (isEditableTarget(ev)) return;
-      if (ev.code === 'Escape') useStore.getState().cancelPlacement();
-    };
+      if (isEditableTarget(ev)) return
+      if (ev.code === 'Escape') useStore.getState().cancelPlacement()
+    }
 
-    window.addEventListener('pointermove', onMove);
-    window.addEventListener('click', onClick, true);
-    window.addEventListener('contextmenu', onContext);
-    window.addEventListener('keydown', onKey);
+    window.addEventListener('pointermove', onMove)
+    window.addEventListener('click', onClick, true)
+    window.addEventListener('contextmenu', onContext)
+    window.addEventListener('keydown', onKey)
     return () => {
-      window.removeEventListener('pointermove', onMove);
-      window.removeEventListener('click', onClick, true);
-      window.removeEventListener('contextmenu', onContext);
-      window.removeEventListener('keydown', onKey);
-    };
-  }, [activeDefId, catalog]);
+      window.removeEventListener('pointermove', onMove)
+      window.removeEventListener('click', onClick, true)
+      window.removeEventListener('contextmenu', onContext)
+      window.removeEventListener('keydown', onKey)
+    }
+  }, [activeDefId, catalog])
 }

@@ -1,15 +1,17 @@
-import { useShallow } from 'zustand/react/shallow';
-import { useMaterials } from '../materials/useMaterial';
-import { useStore } from '../state/store';
-import type { MaterialDef } from '../materials/types';
-import { ROOMS } from '../apartment/constants';
-import type { RoomId } from '../apartment/types';
-import { proceduralThumbnailDataUrl } from '../materials/procedural/generators';
+import { useShallow } from 'zustand/react/shallow'
+import { ROOMS } from '../apartment/constants'
+import type { RoomId } from '../apartment/types'
+import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
+import type { MaterialDef } from '../materials/types'
+import { useMaterials } from '../materials/useMaterial'
+import { useStore } from '../state/store'
 
 function swatchImage(m: MaterialDef): string | undefined {
-  if (m.kind === 'procedural') return `url("${proceduralThumbnailDataUrl(m.id, m.pattern, m.swatch)}")`;
-  if (m.kind === 'textured') return `url("${m.thumbUrl ?? m.runtimeUrls?.albedo ?? m.textures.albedo}")`;
-  return undefined;
+  if (m.kind === 'procedural')
+    return `url("${proceduralThumbnailDataUrl(m.id, m.pattern, m.swatch)}")`
+  if (m.kind === 'textured')
+    return `url("${m.thumbUrl ?? m.runtimeUrls?.albedo ?? m.textures.albedo}")`
+  return undefined
 }
 
 /**
@@ -19,19 +21,19 @@ function swatchImage(m: MaterialDef): string | undefined {
  * clears the override so the wall follows the room default again.
  */
 export function WallAccentPicker() {
-  const selectedWall = useStore((s) => s.selectedWall);
-  const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents));
-  const roomWall = useStore(useShallow((s) => s.finishes.walls));
-  const setWallAccent = useStore((s) => s.setWallAccent);
-  const clearWallAccent = useStore((s) => s.clearWallAccent);
-  const selectItem = useStore((s) => s.selectItem);
-  const materials = useMaterials();
+  const selectedWall = useStore((s) => s.selectedWall)
+  const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents))
+  const roomWall = useStore(useShallow((s) => s.finishes.walls))
+  const setWallAccent = useStore((s) => s.setWallAccent)
+  const clearWallAccent = useStore((s) => s.clearWallAccent)
+  const selectItem = useStore((s) => s.selectItem)
+  const materials = useMaterials()
 
-  if (!selectedWall) return null;
-  const key = `${selectedWall.wallId}:${selectedWall.roomId}`;
-  const roomName = ROOMS[selectedWall.roomId as RoomId]?.name ?? selectedWall.roomId;
-  const current = wallAccents[key] ?? roomWall[selectedWall.roomId as RoomId];
-  const walls = Object.values(materials).filter((m) => m.category === 'wall');
+  if (!selectedWall) return null
+  const key = `${selectedWall.wallId}:${selectedWall.roomId}`
+  const roomName = ROOMS[selectedWall.roomId as RoomId]?.name ?? selectedWall.roomId
+  const current = wallAccents[key] ?? roomWall[selectedWall.roomId as RoomId]
+  const walls = Object.values(materials).filter((m) => m.category === 'wall')
 
   return (
     <aside className="absolute right-3 top-3 z-10 w-64 rounded-lg bg-white/95 text-xs text-neutral-700 shadow">
@@ -40,7 +42,11 @@ export function WallAccentPicker() {
           <div className="text-sm font-semibold text-neutral-800">Accent wall</div>
           <div className="text-neutral-500">{roomName} side</div>
         </div>
-        <button onClick={() => selectItem(null)} className="text-neutral-400 hover:text-neutral-700" aria-label="Close">
+        <button
+          onClick={() => selectItem(null)}
+          className="text-neutral-400 hover:text-neutral-700"
+          aria-label="Close"
+        >
           ×
         </button>
       </header>
@@ -51,7 +57,11 @@ export function WallAccentPicker() {
             onClick={() => setWallAccent(key, m.id)}
             title={m.name}
             className={`aspect-square rounded border ${current === m.id ? 'border-neutral-800 ring-1 ring-neutral-800' : 'border-neutral-200'}`}
-            style={{ backgroundColor: m.swatch, backgroundImage: swatchImage(m), backgroundSize: 'cover' }}
+            style={{
+              backgroundColor: m.swatch,
+              backgroundImage: swatchImage(m),
+              backgroundSize: 'cover',
+            }}
           />
         ))}
         {/* Custom colour */}
@@ -83,5 +93,5 @@ export function WallAccentPicker() {
         </button>
       </div>
     </aside>
-  );
+  )
 }

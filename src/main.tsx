@@ -1,13 +1,13 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import './index.css';
-import App from './App';
-import { registerGltfDecoders } from './furniture/gltf/decoders';
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App'
+import { registerGltfDecoders } from './furniture/gltf/decoders'
 
 // Wire the Draco/KTX2/meshopt decoders into the shared drei useGLTF loader
 // before any model is requested, so compressed GLBs decode correctly. This is
 // cheap + synchronous, so it stays on the critical path.
-registerGltfDecoders();
+registerGltfDecoders()
 
 // Render immediately — App shows the loading overlay and kicks off the async
 // boot bootstrap (IDB user assets, packs, autosave) from <BootHydrator>, so
@@ -16,4 +16,4 @@ createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>,
-);
+)

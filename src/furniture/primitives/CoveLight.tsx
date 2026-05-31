@@ -1,9 +1,9 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import type { MeshStandardMaterial } from 'three';
-import { readNum, readStr } from './shared';
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
-import type { ParamProps } from '../types';
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+import type { MeshStandardMaterial } from 'three'
+import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Cove light — the L-box false-ceiling lip with a concealed warm LED strip
@@ -13,17 +13,17 @@ import type { ParamProps } from '../types';
  * emitter registry washes the ceiling above it with warm light.
  */
 export function CoveLight({ props }: { props: ParamProps }) {
-  const length = readNum(props, 'length', 2.0);
-  const centerY = readNum(props, 'mountHeight', 2.3);
-  const boxColor = readStr(props, 'boxColor', '#f1efea');
-  const ledColor = readStr(props, 'ledColor', '#ffcf94');
+  const length = readNum(props, 'length', 2.0)
+  const centerY = readNum(props, 'mountHeight', 2.3)
+  const boxColor = readStr(props, 'boxColor', '#f1efea')
+  const ledColor = readStr(props, 'ledColor', '#ffcf94')
 
-  const lipH = 0.12; // face height of the L-box lip
-  const lipD = 0.16; // projection into the room
-  const stripRef = useRef<MeshStandardMaterial>(null);
+  const lipH = 0.12 // face height of the L-box lip
+  const lipD = 0.16 // projection into the room
+  const stripRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
-    if (stripRef.current) stripRef.current.emissiveIntensity = 0.04 + getFixtureGlow() * 1.6;
-  });
+    if (stripRef.current) stripRef.current.emissiveIntensity = 0.04 + getFixtureGlow() * 1.6
+  })
 
   return (
     <group position={[0, centerY, 0]}>
@@ -50,5 +50,5 @@ export function CoveLight({ props }: { props: ParamProps }) {
         />
       </mesh>
     </group>
-  );
+  )
 }

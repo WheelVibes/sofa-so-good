@@ -1,6 +1,6 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial, getSolidMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSolidMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Standing coat / hat rack — a central pole on splayed feet with a ring of
@@ -8,23 +8,23 @@ import type { ParamProps } from '../types';
  * `style` is a wood tree or a slim metal stand. Floor-anchored, centred.
  */
 export function CoatRack({ props }: { props: ParamProps }) {
-  const height = readNum(props, 'height', 1.75);
-  const color = readStr(props, 'color', '#6f553f');
-  const style = readStr(props, 'style', 'wood');
-  const sheen = readNum(props, 'sheen', 0.2);
+  const height = readNum(props, 'height', 1.75)
+  const color = readStr(props, 'color', '#6f553f')
+  const style = readStr(props, 'style', 'wood')
+  const sheen = readNum(props, 'sheen', 0.2)
 
   const poleMat =
     style === 'metal'
       ? getSolidMaterial(color, 0.35, 0.8)
-      : getSurfaceMaterial('wood', color, 0.6, sheen);
-  const poleR = style === 'metal' ? 0.018 : 0.028;
-  const hookMat = poleMat;
+      : getSurfaceMaterial('wood', color, 0.6, sheen)
+  const poleR = style === 'metal' ? 0.018 : 0.028
+  const hookMat = poleMat
 
   // Hooks at two heights for coats + hats.
   const tiers = [
     { y: height - 0.05, n: 4, len: 0.12, tilt: 0.5 },
     { y: height - 0.28, n: 4, len: 0.14, tilt: 0.7 },
-  ];
+  ]
 
   return (
     <group>
@@ -38,7 +38,7 @@ export function CoatRack({ props }: { props: ParamProps }) {
       </mesh>
       {/* Three splayed feet */}
       {[0, 1, 2].map((i) => {
-        const a = (i / 3) * Math.PI * 2;
+        const a = (i / 3) * Math.PI * 2
         return (
           <mesh
             key={i}
@@ -49,12 +49,12 @@ export function CoatRack({ props }: { props: ParamProps }) {
           >
             <cylinderGeometry args={[0.018, 0.014, 0.32, 8]} />
           </mesh>
-        );
+        )
       })}
       {/* Hooks */}
       {tiers.flatMap((t, ti) =>
         Array.from({ length: t.n }, (_, i) => {
-          const a = (i / t.n) * Math.PI * 2 + (ti === 0 ? 0 : Math.PI / t.n);
+          const a = (i / t.n) * Math.PI * 2 + (ti === 0 ? 0 : Math.PI / t.n)
           return (
             <mesh
               key={`${ti}.${i}`}
@@ -65,9 +65,9 @@ export function CoatRack({ props }: { props: ParamProps }) {
             >
               <cylinderGeometry args={[0.01, 0.008, t.len, 8]} />
             </mesh>
-          );
+          )
         }),
       )}
     </group>
-  );
+  )
 }

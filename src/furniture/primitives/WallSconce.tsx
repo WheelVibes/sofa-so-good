@@ -1,22 +1,22 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import type { MeshStandardMaterial } from 'three';
-import { readNum, readStr } from './shared';
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
-import type { ParamProps } from '../types';
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+import type { MeshStandardMaterial } from 'three'
+import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Wall sconce — a small up/down wall light. Mounted flat against the wall
  *  (group offset to the mount height), with a frosted diffuser that glows at
  *  night (emissive tracks scene darkness). Faces +Z into the room. */
 export function WallSconce({ props }: { props: ParamProps }) {
-  const centerY = readNum(props, 'mountHeight', 1.7);
-  const shadeColor = readStr(props, 'shadeColor', '#f3e7c6');
-  const metalColor = readStr(props, 'metalColor', '#2c2f33');
+  const centerY = readNum(props, 'mountHeight', 1.7)
+  const shadeColor = readStr(props, 'shadeColor', '#f3e7c6')
+  const metalColor = readStr(props, 'metalColor', '#2c2f33')
 
-  const shadeRef = useRef<MeshStandardMaterial>(null);
+  const shadeRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
-    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.05 + getFixtureGlow() * 0.9;
-  });
+    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.05 + getFixtureGlow() * 0.9
+  })
 
   return (
     <group position={[0, centerY, 0]}>
@@ -43,5 +43,5 @@ export function WallSconce({ props }: { props: ParamProps }) {
         />
       </mesh>
     </group>
-  );
+  )
 }

@@ -1,22 +1,19 @@
-import { useState } from 'react';
-import {
-  persistUserMaterial,
-  type MaterialUploadFiles,
-} from '../../materials/upload/persist';
-import type { MaterialCategory } from '../../materials/types';
+import { useState } from 'react'
+import type { MaterialCategory } from '../../materials/types'
+import { type MaterialUploadFiles, persistUserMaterial } from '../../materials/upload/persist'
 
 interface UploadMaterialDialogProps {
-  open: boolean;
-  onClose: () => void;
+  open: boolean
+  onClose: () => void
 }
 
-const SWATCH_DEFAULT = '#cccccc';
+const SWATCH_DEFAULT = '#cccccc'
 
 interface ChannelSlotProps {
-  label: string;
-  required?: boolean;
-  file: File | null;
-  onPick: (f: File | null) => void;
+  label: string
+  required?: boolean
+  file: File | null
+  onPick: (f: File | null) => void
 }
 
 function ChannelSlot({ label, required, file, onPick }: ChannelSlotProps) {
@@ -36,72 +33,72 @@ function ChannelSlot({ label, required, file, onPick }: ChannelSlotProps) {
         {file ? file.name : '—'}
       </span>
     </label>
-  );
+  )
 }
 
 export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProps) {
-  const [albedo, setAlbedo] = useState<File | null>(null);
-  const [normal, setNormal] = useState<File | null>(null);
-  const [roughness, setRoughness] = useState<File | null>(null);
-  const [ao, setAo] = useState<File | null>(null);
-  const [name, setName] = useState('');
-  const [category, setCategory] = useState<MaterialCategory>('floor');
-  const [uvW, setUvW] = useState(1);
-  const [uvH, setUvH] = useState(1);
-  const [swatch, setSwatch] = useState(SWATCH_DEFAULT);
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
+  const [albedo, setAlbedo] = useState<File | null>(null)
+  const [normal, setNormal] = useState<File | null>(null)
+  const [roughness, setRoughness] = useState<File | null>(null)
+  const [ao, setAo] = useState<File | null>(null)
+  const [name, setName] = useState('')
+  const [category, setCategory] = useState<MaterialCategory>('floor')
+  const [uvW, setUvW] = useState(1)
+  const [uvH, setUvH] = useState(1)
+  const [swatch, setSwatch] = useState(SWATCH_DEFAULT)
+  const [error, setError] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
 
-  if (!open) return null;
+  if (!open) return null
 
   const reset = () => {
-    setAlbedo(null);
-    setNormal(null);
-    setRoughness(null);
-    setAo(null);
-    setName('');
-    setCategory('floor');
-    setUvW(1);
-    setUvH(1);
-    setSwatch(SWATCH_DEFAULT);
-    setError(null);
-    setBusy(false);
-  };
+    setAlbedo(null)
+    setNormal(null)
+    setRoughness(null)
+    setAo(null)
+    setName('')
+    setCategory('floor')
+    setUvW(1)
+    setUvH(1)
+    setSwatch(SWATCH_DEFAULT)
+    setError(null)
+    setBusy(false)
+  }
 
   const submit = async () => {
     if (!albedo) {
-      setError('Albedo is required.');
-      return;
+      setError('Albedo is required.')
+      return
     }
     if (!name.trim()) {
-      setError('Pick a name.');
-      return;
+      setError('Pick a name.')
+      return
     }
-    setBusy(true);
-    setError(null);
-    const files: MaterialUploadFiles = { albedo, normal, roughness, ao };
+    setBusy(true)
+    setError(null)
+    const files: MaterialUploadFiles = { albedo, normal, roughness, ao }
     const result = await persistUserMaterial(files, {
       name,
       category,
       uvScale: [uvW, uvH],
       swatch,
-    });
-    setBusy(false);
+    })
+    setBusy(false)
     if (!result.ok) {
-      setError(result.reason);
-      return;
+      setError(result.reason)
+      return
     }
-    reset();
-    onClose();
-  };
+    reset()
+    onClose()
+  }
 
   return (
     <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40">
       <div className="w-[28rem] rounded-lg bg-white p-5 text-sm shadow-xl">
         <h2 className="mb-3 text-base font-semibold text-neutral-900">Upload material</h2>
         <p className="mb-4 text-xs text-neutral-500">
-          Drop in PBR texture maps (PNG / JPG / WebP, max 4096² and 8 MB
-          each). Albedo is required; normal, roughness, and AO are optional.
+          Drop in PBR texture maps (PNG / JPG / WebP, max 4096² and 8 MB each). Albedo is required;
+          normal, roughness, and AO are optional.
         </p>
         <div className="space-y-2">
           <ChannelSlot label="Albedo" required file={albedo} onPick={setAlbedo} />
@@ -165,15 +162,13 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
           </label>
         </div>
         {error ? (
-          <p className="mt-3 rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">
-            {error}
-          </p>
+          <p className="mt-3 rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">{error}</p>
         ) : null}
         <footer className="mt-5 flex justify-end gap-2">
           <button
             onClick={() => {
-              reset();
-              onClose();
+              reset()
+              onClose()
             }}
             className="rounded px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100"
             disabled={busy}
@@ -190,5 +185,5 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
         </footer>
       </div>
     </div>
-  );
+  )
 }

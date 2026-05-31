@@ -4,40 +4,41 @@
  * furniture layout autosave — the shell is a different concern from its
  * contents.
  */
-import { useStore } from '../store';
-import type { FloorPlan } from '../../floorplan/types';
-import { isDefaultPlan } from '../../floorplan/planGeometry';
 
-const KEY = 'sofa.floorplans.v1';
+import { isDefaultPlan } from '../../floorplan/planGeometry'
+import type { FloorPlan } from '../../floorplan/types'
+import { useStore } from '../store'
+
+const KEY = 'sofa.floorplans.v1'
 
 export function loadFloorPlans(): void {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return;
-    const p = JSON.parse(raw) as { saved?: FloorPlan[]; active?: FloorPlan };
-    const patch: { savedPlans?: FloorPlan[]; floorPlan?: FloorPlan } = {};
-    if (Array.isArray(p.saved)) patch.savedPlans = p.saved;
+    const raw = localStorage.getItem(KEY)
+    if (!raw) return
+    const p = JSON.parse(raw) as { saved?: FloorPlan[]; active?: FloorPlan }
+    const patch: { savedPlans?: FloorPlan[]; floorPlan?: FloorPlan } = {}
+    if (Array.isArray(p.saved)) patch.savedPlans = p.saved
     // Only restore a non-default active plan (the default is always rebuilt).
-    if (p.active && !isDefaultPlan(p.active)) patch.floorPlan = p.active;
-    if (Object.keys(patch).length) useStore.setState(patch);
+    if (p.active && !isDefaultPlan(p.active)) patch.floorPlan = p.active
+    if (Object.keys(patch).length) useStore.setState(patch)
   } catch {
     /* ignore corrupt data */
   }
 }
 
 export function watchFloorPlans(): void {
-  let last = '';
+  let last = ''
   useStore.subscribe((s) => {
     const snap = JSON.stringify({
       saved: s.savedPlans,
       active: isDefaultPlan(s.floorPlan) ? undefined : s.floorPlan,
-    });
-    if (snap === last) return;
-    last = snap;
+    })
+    if (snap === last) return
+    last = snap
     try {
-      localStorage.setItem(KEY, snap);
+      localStorage.setItem(KEY, snap)
     } catch {
       /* storage full / unavailable */
     }
-  });
+  })
 }

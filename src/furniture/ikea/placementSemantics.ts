@@ -11,31 +11,42 @@
  * phrases the scraper's phrase-index harvests). Unknown phrases stay null so an
  * unforeseen relationship is never wrongly combined.
  */
-export type PlacementKind = 'vertical' | 'around' | 'modular';
+export type PlacementKind = 'vertical' | 'around' | 'modular'
 
 // MODULAR is checked FIRST: a "corner section" contains neither chair/stool nor
 // mattress keywords, but a hypothetical "section stool" should read as modular.
-const MODULAR = ['section', 'sections', 'corner section', 'chaise', 'armrest'];
+const MODULAR = ['section', 'sections', 'corner section', 'chaise', 'armrest']
 // VERTICAL — items that rest ON the base's support surface.
 const VERTICAL = [
-  'mattress', 'bed base', 'slatted', 'topper', 'mattress pad', 'mattress protector',
-  'cushion', 'seat pad', 'chair pad', 'back cushion', 'seat cushion', 'pad',
-  'quilt', 'pillow',
-];
+  'mattress',
+  'bed base',
+  'slatted',
+  'topper',
+  'mattress pad',
+  'mattress protector',
+  'cushion',
+  'seat pad',
+  'chair pad',
+  'back cushion',
+  'seat cushion',
+  'pad',
+  'quilt',
+  'pillow',
+]
 // AROUND — floor-standing seating placed beside/around the base (e.g. a table).
-const AROUND = ['chair', 'stool', 'bench'];
+const AROUND = ['chair', 'stool', 'bench']
 
 function norm(s: string): string {
-  return s.replace(/\s+/g, ' ').trim().toLowerCase();
+  return s.replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
 export function placementKind(acceptedCategory: string): PlacementKind | null {
-  const p = norm(acceptedCategory);
-  if (MODULAR.some((k) => p.includes(k))) return 'modular';
+  const p = norm(acceptedCategory)
+  if (MODULAR.some((k) => p.includes(k))) return 'modular'
   // VERTICAL before AROUND: a "chair pad" / "seat pad" rests ON a chair (vertical)
   // and contains "chair"/"seat"; bare seating phrases ("dining chairs", "stools",
   // "benches") carry no vertical keyword, so AROUND still wins for them.
-  if (VERTICAL.some((k) => p.includes(k))) return 'vertical';
-  if (AROUND.some((k) => p.includes(k))) return 'around';
-  return null;
+  if (VERTICAL.some((k) => p.includes(k))) return 'vertical'
+  if (AROUND.some((k) => p.includes(k))) return 'around'
+  return null
 }

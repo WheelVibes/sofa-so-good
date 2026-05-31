@@ -1,6 +1,6 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Upright piano — a tall cabinet body with a keyboard, fall-board, music desk
@@ -8,22 +8,22 @@ import type { ParamProps } from '../types';
  * Faces +Z (keyboard toward the player at +Z). Floor-anchored, centred.
  */
 export function Piano({ props }: { props: ParamProps }) {
-  const color = readStr(props, 'color', '#23211f');
-  const finish = readStr(props, 'finish', 'gloss');
-  const sheen = readNum(props, 'sheen', 0.6);
-  const style = readStr(props, 'style', 'upright');
+  const color = readStr(props, 'color', '#23211f')
+  const finish = readStr(props, 'finish', 'gloss')
+  const sheen = readNum(props, 'sheen', 0.6)
+  const style = readStr(props, 'style', 'upright')
 
-  const width = 1.45;
-  const depth = style === 'digital' ? 0.34 : 0.6;
-  const bodyH = style === 'digital' ? 0.85 : 1.2;
-  const body = getSurfaceMaterial(finish, color, 1.4, sheen);
-  const keyW = { color: '#f4f1ea', roughness: 0.35 } as const;
-  const keyB = { color: '#1a1a1a', roughness: 0.3 } as const;
-  const plinthH = 0.06;
+  const width = 1.45
+  const depth = style === 'digital' ? 0.34 : 0.6
+  const bodyH = style === 'digital' ? 0.85 : 1.2
+  const body = getSurfaceMaterial(finish, color, 1.4, sheen)
+  const keyW = { color: '#f4f1ea', roughness: 0.35 } as const
+  const keyB = { color: '#1a1a1a', roughness: 0.3 } as const
+  const plinthH = 0.06
 
-  const keyY = 0.62;
-  const kbDepth = 0.16;
-  const kbZ = depth / 2 - 0.02;
+  const keyY = 0.62
+  const kbDepth = 0.16
+  const kbZ = depth / 2 - 0.02
 
   return (
     <group>
@@ -46,16 +46,16 @@ export function Piano({ props }: { props: ParamProps }) {
       </mesh>
       {/* Black keys (a strip with gaps faked by a darker row set back) */}
       {Array.from({ length: 18 }, (_, i) => {
-        const span = width - 0.22;
-        const x = -span / 2 + (span * i) / 17;
+        const span = width - 0.22
+        const x = -span / 2 + (span * i) / 17
         // skip a couple to fake the 2-3 grouping
-        if (i % 7 === 2 || i % 7 === 6) return null;
+        if (i % 7 === 2 || i % 7 === 6) return null
         return (
           <mesh key={i} position={[x, keyY + 0.035, kbZ - kbDepth / 2 - 0.03]}>
             <boxGeometry args={[0.018, 0.02, kbDepth * 0.6]} />
             <meshStandardMaterial {...keyB} />
           </mesh>
-        );
+        )
       })}
       {/* Music desk (upright only) */}
       {style === 'upright' && (
@@ -65,11 +65,15 @@ export function Piano({ props }: { props: ParamProps }) {
       )}
       {/* Pedals */}
       {[-0.08, 0.08].map((x) => (
-        <mesh key={x} position={[x, plinthH + 0.04, depth / 2 - 0.04]} rotation={[Math.PI / 2.2, 0, 0]}>
+        <mesh
+          key={x}
+          position={[x, plinthH + 0.04, depth / 2 - 0.04]}
+          rotation={[Math.PI / 2.2, 0, 0]}
+        >
           <boxGeometry args={[0.03, 0.08, 0.012]} />
           <meshStandardMaterial color="#c9a24b" roughness={0.3} metalness={0.7} />
         </mesh>
       ))}
     </group>
-  );
+  )
 }

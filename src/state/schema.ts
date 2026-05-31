@@ -8,12 +8,12 @@
  * canonical "shape today" so consumers don't have to discriminate.
  */
 
-import { z } from 'zod';
-import { ROOMS } from '../apartment/constants';
-import { buildDefaultPlan } from '../floorplan/defaultPlan';
-import { isDefaultPlan } from '../floorplan/planGeometry';
-import type { RootState } from './store';
-import type { RoomId } from '../apartment/types';
+import { z } from 'zod'
+import { ROOMS } from '../apartment/constants'
+import type { RoomId } from '../apartment/types'
+import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { isDefaultPlan } from '../floorplan/planGeometry'
+import type { RootState } from './store'
 
 const FurnitureItemZ = z.object({
   id: z.string(),
@@ -28,7 +28,7 @@ const FurnitureItemZ = z.object({
   // Optional group membership (introduced in save v2; absent = ungrouped).
   groupId: z.string().optional(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
-});
+})
 
 const UserGltfDefZ = z.object({
   id: z.string(),
@@ -48,7 +48,7 @@ const UserGltfDefZ = z.object({
   verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
   finishTargets: z.array(z.object({ key: z.string(), label: z.string() })).optional(),
   finishOverrides: z.record(z.string(), z.string()).optional(),
-});
+})
 
 const IkeaVariantZ = z.object({
   finish: z.string(),
@@ -78,7 +78,7 @@ const IkeaVariantZ = z.object({
       sampledHex: z.string().optional(),
     }),
   ),
-}); // runtimeUrl intentionally omitted — rebuilt from assetId at hydration
+}) // runtimeUrl intentionally omitted — rebuilt from assetId at hydration
 
 const IkeaGltfDefZ = z.object({
   id: z.string(),
@@ -102,7 +102,7 @@ const IkeaGltfDefZ = z.object({
   license: z.literal('IKEA'),
   attribution: z.string(),
   sourceUrl: z.string().optional(),
-});
+})
 
 const UserMaterialDefZ = z.object({
   id: z.string(),
@@ -118,16 +118,16 @@ const UserMaterialDefZ = z.object({
     roughness: z.string().optional(),
     ao: z.string().optional(),
   }),
-});
+})
 
-const Vec2Z = z.tuple([z.number(), z.number()]);
+const Vec2Z = z.tuple([z.number(), z.number()])
 const PlanWallZ = z.object({
   id: z.string(),
   start: Vec2Z,
   end: Vec2Z,
   thickness: z.enum(['external', 'internal']),
   topHeight: z.number().optional(),
-});
+})
 const PlanOpeningZ = z.object({
   id: z.string(),
   kind: z.enum(['door', 'window']),
@@ -136,7 +136,7 @@ const PlanOpeningZ = z.object({
   width: z.number(),
   sill: z.number(),
   head: z.number(),
-});
+})
 const PlanRoomZ = z.object({
   id: z.string(),
   name: z.string(),
@@ -146,7 +146,7 @@ const PlanRoomZ = z.object({
   extension: z.object({ offset: Vec2Z, width: z.number(), depth: z.number() }).optional(),
   ceilingHeight: z.number().optional(),
   floor: z.string().optional(),
-});
+})
 const FloorPlanZ = z.object({
   id: z.string(),
   name: z.string(),
@@ -155,7 +155,7 @@ const FloorPlanZ = z.object({
   walls: z.array(PlanWallZ),
   openings: z.array(PlanOpeningZ),
   rooms: z.array(PlanRoomZ),
-});
+})
 
 const RawSerializedStateZ = z.object({
   version: z.literal(2),
@@ -187,40 +187,40 @@ const RawSerializedStateZ = z.object({
     .default(null),
   locationPromptDismissed: z.boolean().optional().default(false),
   savedAt: z.string(),
-});
+})
 
 const LEGACY_TIME_HOUR: Record<string, number> = {
   day: 12,
   dusk: 18,
   night: 0,
-};
+}
 
 /** Accepts both new (`timeMode`/`manualHour`) and legacy (`timeOfDay`)
  *  payload shapes. Legacy values map: day→12, dusk→18, night→0, all
  *  in manual mode. */
 export const SerializedStateZ = z.preprocess((input) => {
   if (input && typeof input === 'object' && !Array.isArray(input)) {
-    let obj = input as Record<string, unknown>;
+    let obj = input as Record<string, unknown>
     // v1 -> v2 was a no-op on items (the optional groupId); accept legacy v1
     // payloads by bumping the version so the literal(2) check passes. (The
     // full migrate() chain still runs on the autosave-load path.)
     if (obj.version === 1) {
-      obj = { ...obj, version: 2 };
+      obj = { ...obj, version: 2 }
     }
     if (!('timeMode' in obj) && typeof obj.timeOfDay === 'string') {
-      const hour = LEGACY_TIME_HOUR[obj.timeOfDay];
+      const hour = LEGACY_TIME_HOUR[obj.timeOfDay]
       if (typeof hour === 'number') {
-        const { timeOfDay: _legacy, ...rest } = obj;
-        void _legacy;
-        return { ...rest, timeMode: 'manual', manualHour: hour };
+        const { timeOfDay: _legacy, ...rest } = obj
+        void _legacy
+        return { ...rest, timeMode: 'manual', manualHour: hour }
       }
     }
-    return obj;
+    return obj
   }
-  return input;
-}, RawSerializedStateZ);
+  return input
+}, RawSerializedStateZ)
 
-export type SerializedState = z.infer<typeof SerializedStateZ>;
+export type SerializedState = z.infer<typeof SerializedStateZ>
 
 /** Picks the persistable subset of the live store. Strips runtime-only
  *  fields (selectedItemId, selectedRoomId, nearbyDoorId, runtimeUrl on
@@ -253,9 +253,9 @@ export function serialize(state: RootState): SerializedState {
               groupKey: d.groupKey,
               activeVariant: d.activeVariant,
               variants: d.variants.map(({ runtimeUrl, runtimeImageUrl, ...v }) => {
-                void runtimeUrl;
-                void runtimeImageUrl;
-                return v;
+                void runtimeUrl
+                void runtimeImageUrl
+                return v
               }),
               defaultFootprint: d.defaultFootprint,
               verticalSpan: d.verticalSpan,
@@ -302,7 +302,7 @@ export function serialize(state: RootState): SerializedState {
     location: state.location,
     locationPromptDismissed: state.locationPromptDismissed,
     savedAt: new Date().toISOString(),
-  };
+  }
 }
 
 /** Applies a parsed save to the live store. Skips items whose def is
@@ -312,14 +312,14 @@ export function applySerialized(
   state: SerializedState,
   knownDefIds: Set<string>,
 ): Partial<RootState> {
-  const validRoom = (k: string): k is RoomId => k in ROOMS;
-  const floor: Partial<Record<RoomId, string>> = {};
+  const validRoom = (k: string): k is RoomId => k in ROOMS
+  const floor: Partial<Record<RoomId, string>> = {}
   for (const [k, v] of Object.entries(state.finishes.floor)) {
-    if (validRoom(k)) floor[k] = v;
+    if (validRoom(k)) floor[k] = v
   }
-  const walls: Partial<Record<RoomId, string>> = {};
+  const walls: Partial<Record<RoomId, string>> = {}
   for (const [k, v] of Object.entries(state.finishes.walls)) {
-    if (validRoom(k)) walls[k] = v;
+    if (validRoom(k)) walls[k] = v
   }
   return {
     items: state.items.filter((it) => knownDefIds.has(it.defId)),
@@ -337,5 +337,5 @@ export function applySerialized(
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,
     locationPromptDismissed: state.locationPromptDismissed ?? false,
-  };
+  }
 }

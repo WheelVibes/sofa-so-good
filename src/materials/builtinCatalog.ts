@@ -8,13 +8,8 @@
  * HDB interior palettes. Adding a material = one entry here.
  */
 
-import type {
-  MaterialCategory,
-  MaterialDef,
-  MaterialId,
-  ProceduralPattern,
-} from './types';
-import type { RoomId } from '../apartment/types';
+import type { RoomId } from '../apartment/types'
+import type { MaterialCategory, MaterialDef, MaterialId, ProceduralPattern } from './types'
 
 function floor(
   id: string,
@@ -24,18 +19,31 @@ function floor(
   uvScale: [number, number],
   sourceUrl?: string,
 ): MaterialDef {
-  return { id, name, category: 'floor', kind: 'procedural', pattern, swatch, uvScale, sourceUrl };
+  return { id, name, category: 'floor', kind: 'procedural', pattern, swatch, uvScale, sourceUrl }
 }
 
 /** Painted plaster wall in an arbitrary colour (shares the plaster normal,
  *  tinted by `swatch`) — used to widen the curated wall palette. */
 function wall(id: string, name: string, swatch: string): MaterialDef {
-  return { id, name, category: 'wall', kind: 'procedural', pattern: 'plaster', swatch, uvScale: [2.5, 2.5] };
+  return {
+    id,
+    name,
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch,
+    uvScale: [2.5, 2.5],
+  }
 }
 
 /** Patterned wallpaper finish (stripe / grasscloth). Tiles at ~1 m. */
-function wallpaper(id: string, name: string, swatch: string, pattern: ProceduralPattern): MaterialDef {
-  return { id, name, category: 'wall', kind: 'procedural', pattern, swatch, uvScale: [1.2, 1.2] };
+function wallpaper(
+  id: string,
+  name: string,
+  swatch: string,
+  pattern: ProceduralPattern,
+): MaterialDef {
+  return { id, name, category: 'wall', kind: 'procedural', pattern, swatch, uvScale: [1.2, 1.2] }
 }
 
 export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
@@ -50,18 +58,48 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
   // Large-format porcelain — ubiquitous in modern HDB renovations.
   'floor-tile-grey': floor('floor-tile-grey', 'Grey porcelain', '#b9b9b6', 'tile', [0.8, 0.8]),
-  'floor-tile-charcoal': floor('floor-tile-charcoal', 'Charcoal porcelain', '#4c4e52', 'tile', [0.8, 0.8]),
+  'floor-tile-charcoal': floor(
+    'floor-tile-charcoal',
+    'Charcoal porcelain',
+    '#4c4e52',
+    'tile',
+    [0.8, 0.8],
+  ),
   'floor-wood-teak': floor('floor-wood-teak', 'Teak planks', '#9a6b3f', 'wood', [1.9, 1.2]),
   'floor-wood-ash': floor('floor-wood-ash', 'Pale ash planks', '#cdb696', 'wood', [1.9, 1.2]),
   'floor-wood-ebony': floor('floor-wood-ebony', 'Ebony planks', '#43342a', 'wood', [1.9, 1.2]),
   'floor-tile-sand': floor('floor-tile-sand', 'Sand porcelain', '#cdbfa6', 'tile', [0.8, 0.8]),
   'floor-wood-merbau': floor('floor-wood-merbau', 'Merbau', '#7a3f2a', 'wood', [1.9, 1.2]),
   'floor-wood-maple': floor('floor-wood-maple', 'Maple', '#d8c19a', 'wood', [1.9, 1.2]),
-  'floor-checker-mono': floor('floor-checker-mono', 'Checkerboard', '#e8e6e0', 'checker', [1.2, 1.2]),
-  'floor-checker-terracotta': floor('floor-checker-terracotta', 'Checker terracotta', '#c79a78', 'checker', [1.2, 1.2]),
-  'floor-terrazzo-dark': floor('floor-terrazzo-dark', 'Dark terrazzo', '#5a564e', 'terrazzo', [1.0, 1.0]),
+  'floor-checker-mono': floor(
+    'floor-checker-mono',
+    'Checkerboard',
+    '#e8e6e0',
+    'checker',
+    [1.2, 1.2],
+  ),
+  'floor-checker-terracotta': floor(
+    'floor-checker-terracotta',
+    'Checker terracotta',
+    '#c79a78',
+    'checker',
+    [1.2, 1.2],
+  ),
+  'floor-terrazzo-dark': floor(
+    'floor-terrazzo-dark',
+    'Dark terrazzo',
+    '#5a564e',
+    'terrazzo',
+    [1.0, 1.0],
+  ),
   'floor-carpet-blue': floor('floor-carpet-blue', 'Navy carpet', '#3f4a63', 'carpet', [1.5, 1.5]),
-  'floor-carpet-greige': floor('floor-carpet-greige', 'Greige carpet', '#b3a89a', 'carpet', [1.5, 1.5]),
+  'floor-carpet-greige': floor(
+    'floor-carpet-greige',
+    'Greige carpet',
+    '#b3a89a',
+    'carpet',
+    [1.5, 1.5],
+  ),
 
   // ── Walls ───────────────────────────────────────────────────────────────
   // Default white is a subtly textured plaster (orange-peel normal) so walls
@@ -182,13 +220,28 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'wall-stripe-greige': wallpaper('wall-stripe-greige', 'Striped greige', '#cfc7ba', 'stripe'),
   'wall-stripe-sage': wallpaper('wall-stripe-sage', 'Striped sage', '#aebaa6', 'stripe'),
   'wall-stripe-blue': wallpaper('wall-stripe-blue', 'Striped blue', '#9fb1c4', 'stripe'),
-  'wall-grasscloth-natural': wallpaper('wall-grasscloth-natural', 'Grasscloth natural', '#cdbf9e', 'grasscloth'),
-  'wall-grasscloth-olive': wallpaper('wall-grasscloth-olive', 'Grasscloth olive', '#9a9466', 'grasscloth'),
-  'wall-grasscloth-charcoal': wallpaper('wall-grasscloth-charcoal', 'Grasscloth charcoal', '#5a5852', 'grasscloth'),
-};
+  'wall-grasscloth-natural': wallpaper(
+    'wall-grasscloth-natural',
+    'Grasscloth natural',
+    '#cdbf9e',
+    'grasscloth',
+  ),
+  'wall-grasscloth-olive': wallpaper(
+    'wall-grasscloth-olive',
+    'Grasscloth olive',
+    '#9a9466',
+    'grasscloth',
+  ),
+  'wall-grasscloth-charcoal': wallpaper(
+    'wall-grasscloth-charcoal',
+    'Grasscloth charcoal',
+    '#5a5852',
+    'grasscloth',
+  ),
+}
 
-export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak';
-export const DEFAULT_WALL: MaterialId = 'wall-paint-white';
+export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak'
+export const DEFAULT_WALL: MaterialId = 'wall-paint-white'
 
 /** Sensible move-in-ready finishes per room: wood through the living spaces
  *  and bedrooms, tile in the wet rooms and kitchen, hard-wearing surfaces in
@@ -205,22 +258,22 @@ export const DEFAULT_ROOM_FLOOR: Partial<Record<RoomId, MaterialId>> = {
   householdShelter: 'floor-vinyl-light',
   serviceYard: 'floor-concrete',
   acLedge: 'floor-concrete',
-};
+}
 
 export const DEFAULT_ROOM_WALL: Partial<Record<RoomId, MaterialId>> = {
   livingDining: 'wall-paint-warm',
   bath1: 'wall-paint-blue',
   bath2: 'wall-paint-blue',
   kitchen: 'wall-paint-white',
-};
+}
 
 export const BUILTIN_MATERIALS_BY_CATEGORY: Readonly<Record<MaterialCategory, MaterialDef[]>> =
   Object.freeze(
     (Object.values(BUILTIN_MATERIALS) as MaterialDef[]).reduce(
       (acc, m) => {
-        (acc[m.category] ??= []).push(m);
-        return acc;
+        ;(acc[m.category] ??= []).push(m)
+        return acc
       },
       {} as Record<MaterialCategory, MaterialDef[]>,
     ),
-  );
+  )

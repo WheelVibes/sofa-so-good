@@ -1,30 +1,30 @@
-import { useEffect, useState } from 'react';
-import { useShallow } from 'zustand/react/shallow';
-import { ROOMS, roomArea } from '../apartment/constants';
-import { useMaterials } from '../materials/useMaterial';
-import { useCatalog } from '../furniture/catalog';
-import { arrangeRoom } from '../layout/autoArrange';
-import { useStore } from '../state/store';
-import type { MaterialCategory, MaterialDef } from '../materials/types';
-import type { RoomId } from '../apartment/types';
-import { UploadMaterialDialog } from './upload/UploadMaterialDialog';
-import { RemoteBrowseTab } from './catalog/RemoteBrowseTab';
-import { proceduralThumbnailDataUrl } from '../materials/procedural/generators';
+import { useEffect, useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
+import { ROOMS, roomArea } from '../apartment/constants'
+import type { RoomId } from '../apartment/types'
+import { useCatalog } from '../furniture/catalog'
+import { arrangeRoom } from '../layout/autoArrange'
+import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
+import type { MaterialCategory, MaterialDef } from '../materials/types'
+import { useMaterials } from '../materials/useMaterial'
+import { useStore } from '../state/store'
+import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
+import { UploadMaterialDialog } from './upload/UploadMaterialDialog'
 
 /** Background-image URL for a swatch tile: the generated texture preview for
  *  procedural finishes, the provider thumbnail/albedo for textured ones. */
 function swatchImage(m: MaterialDef): string | undefined {
   if (m.kind === 'procedural') {
-    return `url("${proceduralThumbnailDataUrl(m.id, m.pattern, m.swatch)}")`;
+    return `url("${proceduralThumbnailDataUrl(m.id, m.pattern, m.swatch)}")`
   }
   if (m.kind === 'textured') {
-    return `url("${m.thumbUrl ?? m.runtimeUrls?.albedo ?? m.textures.albedo}")`;
+    return `url("${m.thumbUrl ?? m.runtimeUrls?.albedo ?? m.textures.albedo}")`
   }
-  return undefined;
+  return undefined
 }
 
-type View = 'swatch' | 'browse';
-type Surface = 'floor' | 'wall';
+type View = 'swatch' | 'browse'
+type Surface = 'floor' | 'wall'
 
 /**
  * Right-side panel shown when a room is selected. Floor / wall tabs
@@ -37,56 +37,56 @@ type Surface = 'floor' | 'wall';
  * last-edited surface and returns to the swatch view.
  */
 export function FinishPicker() {
-  const roomId = useStore((s) => s.selectedRoomId) as RoomId | null;
-  const finishes = useStore(useShallow((s) => s.finishes));
-  const setFloorFinish = useStore((s) => s.setFloorFinish);
-  const setWallFinish = useStore((s) => s.setWallFinish);
-  const selectRoom = useStore((s) => s.selectRoom);
-  const removeUserMaterial = useStore((s) => s.removeUserMaterial);
-  const recentColors = useStore(useShallow((s) => s.recentColors));
-  const pushRecentColor = useStore((s) => s.pushRecentColor);
-  const furnitureCatalog = useCatalog();
+  const roomId = useStore((s) => s.selectedRoomId) as RoomId | null
+  const finishes = useStore(useShallow((s) => s.finishes))
+  const setFloorFinish = useStore((s) => s.setFloorFinish)
+  const setWallFinish = useStore((s) => s.setWallFinish)
+  const selectRoom = useStore((s) => s.selectRoom)
+  const removeUserMaterial = useStore((s) => s.removeUserMaterial)
+  const recentColors = useStore(useShallow((s) => s.recentColors))
+  const pushRecentColor = useStore((s) => s.pushRecentColor)
+  const furnitureCatalog = useCatalog()
   const tidyRoom = () => {
-    if (!roomId) return;
-    const s = useStore.getState();
-    s.pushHistory();
-    s.setItems(arrangeRoom(roomId, s.items, furnitureCatalog, s.doors));
-  };
-  const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog);
-  const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status);
-  const materials = useMaterials();
-  const [uploadOpen, setUploadOpen] = useState(false);
-  const [view, setView] = useState<View>('swatch');
-  const [lastSurface, setLastSurface] = useState<Surface>('floor');
+    if (!roomId) return
+    const s = useStore.getState()
+    s.pushHistory()
+    s.setItems(arrangeRoom(roomId, s.items, furnitureCatalog, s.doors))
+  }
+  const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
+  const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
+  const materials = useMaterials()
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [view, setView] = useState<View>('swatch')
+  const [lastSurface, setLastSurface] = useState<Surface>('floor')
 
   useEffect(() => {
-    if (view === 'browse' && phStatus === 'idle') void bootstrapRemote();
-  }, [view, phStatus, bootstrapRemote]);
+    if (view === 'browse' && phStatus === 'idle') void bootstrapRemote()
+  }, [view, phStatus, bootstrapRemote])
 
-  if (!roomId) return null;
-  const room = ROOMS[roomId];
-  if (!room || room.external) return null;
+  if (!roomId) return null
+  const room = ROOMS[roomId]
+  if (!room || room.external) return null
 
   const groups: Record<MaterialCategory, MaterialDef[]> = {
     floor: [],
     wall: [],
-  };
-  for (const m of Object.values(materials)) groups[m.category].push(m);
+  }
+  for (const m of Object.values(materials)) groups[m.category].push(m)
 
   const handleSelect = (surface: Surface, id: string) => {
-    setLastSurface(surface);
-    if (id.startsWith('#')) pushRecentColor(id);
-    if (surface === 'floor') setFloorFinish(roomId, id);
-    else setWallFinish(roomId, id);
-  };
+    setLastSurface(surface)
+    if (id.startsWith('#')) pushRecentColor(id)
+    if (surface === 'floor') setFloorFinish(roomId, id)
+    else setWallFinish(roomId, id)
+  }
 
   const handleResolved = (id: string) => {
-    if (lastSurface === 'floor') setFloorFinish(roomId, id);
-    else setWallFinish(roomId, id);
-    setView('swatch');
-  };
+    if (lastSurface === 'floor') setFloorFinish(roomId, id)
+    else setWallFinish(roomId, id)
+    setView('swatch')
+  }
 
-  const widthClass = view === 'browse' ? 'w-80' : 'w-64';
+  const widthClass = view === 'browse' ? 'w-80' : 'w-64'
 
   return (
     <aside
@@ -108,7 +108,9 @@ export function FinishPicker() {
               {view === 'browse' ? 'Browse materials' : room.name}
             </div>
             <div className="text-[10px] uppercase tracking-wide text-neutral-500">
-              {view === 'browse' ? `Apply to ${lastSurface}` : `Finishes · ${roomArea(room).toFixed(1)} m²`}
+              {view === 'browse'
+                ? `Apply to ${lastSurface}`
+                : `Finishes · ${roomArea(room).toFixed(1)} m²`}
             </div>
           </div>
         </div>
@@ -170,37 +172,45 @@ export function FinishPicker() {
         </div>
       )}
     </aside>
-  );
+  )
 }
 
 interface SwatchGroupProps {
-  label: string;
-  items: MaterialDef[];
-  active: string;
-  onSelect: (id: string) => void;
-  onRemoveUser: (id: string) => void;
-  onCustom?: (hex: string) => void;
-  recent?: string[];
+  label: string
+  items: MaterialDef[]
+  active: string
+  onSelect: (id: string) => void
+  onRemoveUser: (id: string) => void
+  onCustom?: (hex: string) => void
+  recent?: string[]
 }
 
 function providerTag(def: MaterialDef): { label: string; cls: string } | null {
-  if (def.kind !== 'textured') return null;
-  if (def.source === 'user') return { label: 'user', cls: 'bg-amber-100 text-amber-800' };
-  if (def.source === 'polyhaven') return { label: 'PH', cls: 'bg-emerald-100 text-emerald-800' };
-  if (def.source === 'ambientcg') return { label: 'ACG', cls: 'bg-sky-100 text-sky-800' };
-  return null;
+  if (def.kind !== 'textured') return null
+  if (def.source === 'user') return { label: 'user', cls: 'bg-amber-100 text-amber-800' }
+  if (def.source === 'polyhaven') return { label: 'PH', cls: 'bg-emerald-100 text-emerald-800' }
+  if (def.source === 'ambientcg') return { label: 'ACG', cls: 'bg-sky-100 text-sky-800' }
+  return null
 }
 
-function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom, recent }: SwatchGroupProps) {
-  const customActive = typeof active === 'string' && active.startsWith('#');
+function SwatchGroup({
+  label,
+  items,
+  active,
+  onSelect,
+  onRemoveUser,
+  onCustom,
+  recent,
+}: SwatchGroupProps) {
+  const customActive = typeof active === 'string' && active.startsWith('#')
   return (
     <section className="mb-4 last:mb-0">
       <div className="mb-2 font-semibold text-neutral-700">{label}</div>
       <div className="grid grid-cols-3 gap-2">
         {items.map((m) => {
-          const isUser = m.kind === 'textured' && m.source === 'user';
-          const isActive = m.id === active;
-          const tag = providerTag(m);
+          const isUser = m.kind === 'textured' && m.source === 'user'
+          const isActive = m.id === active
+          const tag = providerTag(m)
           return (
             <div
               key={m.id}
@@ -208,7 +218,7 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom, r
               tabIndex={0}
               onClick={() => onSelect(m.id)}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') onSelect(m.id);
+                if (e.key === 'Enter' || e.key === ' ') onSelect(m.id)
               }}
               className={
                 'group relative flex cursor-pointer flex-col overflow-hidden rounded border ' +
@@ -225,9 +235,7 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom, r
                   backgroundImage: swatchImage(m),
                 }}
               />
-              <span className="block px-1 py-1 text-[10px] leading-tight">
-                {m.name}
-              </span>
+              <span className="block px-1 py-1 text-[10px] leading-tight">{m.name}</span>
               {tag ? (
                 <span
                   className={`absolute right-0 top-0 rounded-bl px-1 text-[8px] uppercase tracking-wide ${tag.cls}`}
@@ -238,8 +246,8 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom, r
               {isUser ? (
                 <button
                   onClick={(e) => {
-                    e.stopPropagation();
-                    onRemoveUser(m.id);
+                    e.stopPropagation()
+                    onRemoveUser(m.id)
                   }}
                   className="absolute right-0 bottom-0 hidden text-[10px] text-rose-600 group-hover:inline"
                   aria-label="Remove uploaded material"
@@ -248,14 +256,16 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom, r
                 </button>
               ) : null}
             </div>
-          );
+          )
         })}
         {/* Custom colour: a native colour picker styled as a swatch tile. */}
         {onCustom ? (
           <label
             className={
               'group relative flex cursor-pointer flex-col overflow-hidden rounded border ' +
-              (customActive ? 'border-blue-500 ring-2 ring-blue-200' : 'border-neutral-200 hover:border-neutral-400')
+              (customActive
+                ? 'border-blue-500 ring-2 ring-blue-200'
+                : 'border-neutral-200 hover:border-neutral-400')
             }
             title="Custom colour"
           >
@@ -296,5 +306,5 @@ function SwatchGroup({ label, items, active, onSelect, onRemoveUser, onCustom, r
         </div>
       ) : null}
     </section>
-  );
+  )
 }

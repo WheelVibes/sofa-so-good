@@ -1,24 +1,24 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import type { MeshStandardMaterial } from 'three';
-import { readNum, readStr } from './shared';
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
-import type { ParamProps } from '../types';
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+import type { MeshStandardMaterial } from 'three'
+import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Ceiling-mounted fixture: a flush disc or a pendant dome hung from the
  *  ceiling. Floor-anchored group → body offset up in Y to the mount height.
  *  Emissive so it reads as lit. */
 export function CeilingLight({ props }: { props: ParamProps }) {
-  const style = readStr(props, 'style', 'pendant');
-  const shade = readStr(props, 'shade', 'dome');
-  const shadeColor = readStr(props, 'shadeColor', '#f2ead6');
-  const mountH = readNum(props, 'mountHeight', 2.55);
-  const drop = style === 'pendant' || style === 'linear' ? readNum(props, 'drop', 0.45) : 0;
-  const fixtureY = mountH - drop;
-  const shadeRef = useRef<MeshStandardMaterial>(null);
+  const style = readStr(props, 'style', 'pendant')
+  const shade = readStr(props, 'shade', 'dome')
+  const shadeColor = readStr(props, 'shadeColor', '#f2ead6')
+  const mountH = readNum(props, 'mountHeight', 2.55)
+  const drop = style === 'pendant' || style === 'linear' ? readNum(props, 'drop', 0.45) : 0
+  const fixtureY = mountH - drop
+  const shadeRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
-    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7;
-  });
+    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7
+  })
 
   return (
     <group position={[0, fixtureY, 0]}>
@@ -44,7 +44,13 @@ export function CeilingLight({ props }: { props: ParamProps }) {
           {/* Emissive underside (the light) */}
           <mesh position={[0, -0.032, 0]} rotation={[Math.PI / 2, 0, 0]}>
             <planeGeometry args={[1.04, 0.07]} />
-            <meshStandardMaterial ref={shadeRef} color={shadeColor} emissive={shadeColor} emissiveIntensity={0.1} side={2} />
+            <meshStandardMaterial
+              ref={shadeRef}
+              color={shadeColor}
+              emissive={shadeColor}
+              emissiveIntensity={0.1}
+              side={2}
+            />
           </mesh>
         </>
       ) : style === 'pendant' ? (
@@ -90,5 +96,5 @@ export function CeilingLight({ props }: { props: ParamProps }) {
         </mesh>
       )}
     </group>
-  );
+  )
 }

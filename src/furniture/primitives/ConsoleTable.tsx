@@ -1,6 +1,6 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Console table — a narrow, waist-height table for an entryway or behind a
@@ -8,24 +8,24 @@ import type { ParamProps } from '../types';
  * fronts under the top). Slim depth; four square legs. Faces +Z.
  */
 export function ConsoleTable({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 1.2);
-  const depth = readNum(props, 'depth', 0.35);
-  const color = readStr(props, 'color', '#6f553f');
-  const legColor = readStr(props, 'legColor', '#4a3722');
-  const finish = readStr(props, 'finish', 'wood');
-  const sheen = readNum(props, 'sheen', 0);
-  const style = readStr(props, 'style', 'shelf');
+  const width = readNum(props, 'width', 1.2)
+  const depth = readNum(props, 'depth', 0.35)
+  const color = readStr(props, 'color', '#6f553f')
+  const legColor = readStr(props, 'legColor', '#4a3722')
+  const finish = readStr(props, 'finish', 'wood')
+  const sheen = readNum(props, 'sheen', 0)
+  const style = readStr(props, 'style', 'shelf')
 
-  const h = 0.8;
-  const topT = 0.04;
-  const legT = 0.05;
-  const inset = legT / 2 + 0.02;
-  const wood = getSurfaceMaterial(finish, color, 1.4, sheen);
-  const legMat = getWoodMaterial(legColor, 0.45);
-  const metal = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const;
+  const h = 0.8
+  const topT = 0.04
+  const legT = 0.05
+  const inset = legT / 2 + 0.02
+  const wood = getSurfaceMaterial(finish, color, 1.4, sheen)
+  const legMat = getWoodMaterial(legColor, 0.45)
+  const metal = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const
 
-  const xs = [-width / 2 + inset, width / 2 - inset];
-  const zs = [-depth / 2 + inset, depth / 2 - inset];
+  const xs = [-width / 2 + inset, width / 2 - inset]
+  const zs = [-depth / 2 + inset, depth / 2 - inset]
 
   return (
     <group>
@@ -61,5 +61,5 @@ export function ConsoleTable({ props }: { props: ParamProps }) {
         </mesh>
       )}
     </group>
-  );
+  )
 }

@@ -8,50 +8,52 @@
  *     so a malicious payload can't pull in remote assets.
  */
 
-export const MAX_GLB_BYTES = 25 * 1024 * 1024;
+export const MAX_GLB_BYTES = 25 * 1024 * 1024
 
-export type ValidateResult =
-  | { ok: true; mime: string }
-  | { ok: false; reason: string };
+export type ValidateResult = { ok: true; mime: string } | { ok: false; reason: string }
 
-const GLB_MAGIC = 0x46546c67; // 'glTF' little-endian
+const GLB_MAGIC = 0x46546c67 // 'glTF' little-endian
 
-export async function validateGlbFile(file: File, opts?: { maxBytes?: number }): Promise<ValidateResult> {
-  const maxBytes = opts?.maxBytes ?? MAX_GLB_BYTES;
+export async function validateGlbFile(
+  file: File,
+  opts?: { maxBytes?: number },
+): Promise<ValidateResult> {
+  const maxBytes = opts?.maxBytes ?? MAX_GLB_BYTES
   if (file.size > maxBytes) {
-    return { ok: false, reason: `File too large (${(file.size / 1_048_576).toFixed(1)} MB > ${maxBytes / 1_048_576} MB).` };
-  }
-  const lower = file.name.toLowerCase();
-  if (lower.endsWith('.glb')) {
-    const head = await file.slice(0, 12).arrayBuffer();
-    const view = new DataView(head);
-    if (view.getUint32(0, true) !== GLB_MAGIC) {
-      return { ok: false, reason: 'Not a GLB file (missing glTF magic header).' };
+    return {
+      ok: false,
+      reason: `File too large (${(file.size / 1_048_576).toFixed(1)} MB > ${maxBytes / 1_048_576} MB).`,
     }
-    return { ok: true, mime: 'model/gltf-binary' };
+  }
+  const lower = file.name.toLowerCase()
+  if (lower.endsWith('.glb')) {
+    const head = await file.slice(0, 12).arrayBuffer()
+    const view = new DataView(head)
+    if (view.getUint32(0, true) !== GLB_MAGIC) {
+      return { ok: false, reason: 'Not a GLB file (missing glTF magic header).' }
+    }
+    return { ok: true, mime: 'model/gltf-binary' }
   }
   if (lower.endsWith('.gltf')) {
-    const text = await file.text();
-    let json: unknown;
+    const text = await file.text()
+    let json: unknown
     try {
-      json = JSON.parse(text);
+      json = JSON.parse(text)
     } catch {
-      return { ok: false, reason: 'GLTF JSON failed to parse.' };
+      return { ok: false, reason: 'GLTF JSON failed to parse.' }
     }
     const hasExternalUris = (() => {
-      const j = json as { buffers?: { uri?: string }[]; images?: { uri?: string }[] };
-      const all = [...(j.buffers ?? []), ...(j.images ?? [])];
-      return all.some(
-        (e) => typeof e.uri === 'string' && !e.uri.startsWith('data:'),
-      );
-    })();
+      const j = json as { buffers?: { uri?: string }[]; images?: { uri?: string }[] }
+      const all = [...(j.buffers ?? []), ...(j.images ?? [])]
+      return all.some((e) => typeof e.uri === 'string' && !e.uri.startsWith('data:'))
+    })()
     if (hasExternalUris) {
       return {
         ok: false,
         reason: 'GLTF references external resources — only self-contained GLBs are allowed.',
-      };
+      }
     }
-    return { ok: true, mime: 'model/gltf+json' };
+    return { ok: true, mime: 'model/gltf+json' }
   }
-  return { ok: false, reason: 'Only .glb or .gltf files are supported.' };
+  return { ok: false, reason: 'Only .glb or .gltf files are supported.' }
 }

@@ -1,5 +1,5 @@
-import type { Pack } from './types';
-import { parseKenneyFurnitureKit } from './parsers';
+import { parseKenneyFurnitureKit } from './parsers'
+import type { Pack } from './types'
 
 export const AVAILABLE_PACKS: Pack[] = [
   {
@@ -27,4 +27,4 @@ export const AVAILABLE_PACKS: Pack[] = [
     license: 'CC0',
     sourceUrl: 'https://www.ikea.com/sg/en/',
   },
-];
+]

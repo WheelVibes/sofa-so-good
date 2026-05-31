@@ -6,27 +6,27 @@
  */
 
 export interface CachedBox {
-  w: number;
-  d: number;
-  h: number;
+  w: number
+  d: number
+  h: number
   // ox/oz mirror the GltfModel FOOTPRINT_CACHE shape (geometric center offset
   // from the mesh origin in the XZ plane). spanFromFootprint intentionally
   // ignores them — placement.ts applies the center offset when computing the
   // OBB, so it must NOT be baked into defaultFootprint here (else it would be
   // double-counted).
-  ox: number;
-  oz: number;
+  ox: number
+  oz: number
 }
 
 export interface SpanResult {
-  defaultFootprint: { w: number; d: number; h: number };
-  verticalSpan: { base: number; top: number };
+  defaultFootprint: { w: number; d: number; h: number }
+  verticalSpan: { base: number; top: number }
 }
 
 export function spanFromFootprint(box: CachedBox, opts?: { baseY?: number }): SpanResult {
-  const base = opts?.baseY ?? 0;
+  const base = opts?.baseY ?? 0
   return {
     defaultFootprint: { w: box.w, d: box.d, h: box.h },
     verticalSpan: { base, top: base + box.h },
-  };
+  }
 }

@@ -1,4 +1,4 @@
-import { FADE_MS, useOverlayLifecycle } from './useOverlayLifecycle';
+import { FADE_MS, useOverlayLifecycle } from './useOverlayLifecycle'
 
 /**
  * Full-viewport loading overlay: a soft warm gradient backdrop with a
@@ -10,8 +10,8 @@ import { FADE_MS, useOverlayLifecycle } from './useOverlayLifecycle';
  * never flickers on fast loads. Respects `prefers-reduced-motion`.
  */
 export function LoadingOverlay({ active, label }: { active: boolean; label: string }) {
-  const { mounted, fading } = useOverlayLifecycle(active);
-  if (!mounted) return null;
+  const { mounted, fading } = useOverlayLifecycle(active)
+  if (!mounted) return null
 
   return (
     <div
@@ -29,8 +29,7 @@ export function LoadingOverlay({ active, label }: { active: boolean; label: stri
         gap: '1.75rem',
         // Soft warm gradient — off-white → pale warm sand, matching the
         // flat IKEA-clean palette.
-        background:
-          'radial-gradient(120% 120% at 50% 30%, #fdfbf7 0%, #f6efe4 55%, #efe4d2 100%)',
+        background: 'radial-gradient(120% 120% at 50% 30%, #fdfbf7 0%, #f6efe4 55%, #efe4d2 100%)',
         opacity: fading ? 0 : 1,
         transition: `opacity ${FADE_MS}ms ease`,
         pointerEvents: active ? 'auto' : 'none',
@@ -54,12 +53,12 @@ export function LoadingOverlay({ active, label }: { active: boolean; label: stri
         </div>
       </div>
     </div>
-  );
+  )
 }
 
 /** Inline SVG line-art room that draws + furnishes itself on a 4s loop. */
 function FurnishingRoom() {
-  const stroke = '#6f6450';
+  const stroke = '#6f6450'
   return (
     <svg
       width="200"
@@ -77,7 +76,13 @@ function FurnishingRoom() {
       </g>
 
       {/* Furniture pops in one by one, staggered, then resets with the loop. */}
-      <g stroke={stroke} strokeWidth={2.2} strokeLinecap="round" strokeLinejoin="round" fill="#efe1c8">
+      <g
+        stroke={stroke}
+        strokeWidth={2.2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="#efe1c8"
+      >
         {/* Sofa (left) */}
         <g className="hdb-pop hdb-pop-1">
           <rect x="30" y="96" width="46" height="20" rx="4" />
@@ -103,7 +108,7 @@ function FurnishingRoom() {
         </g>
       </g>
     </svg>
-  );
+  )
 }
 
 /* One module-level stylesheet; keyframes Tailwind can't express. The room
@@ -136,4 +141,4 @@ const KEYFRAMES = `
   .hdb-pop { animation: hdb-rm-pulse 2.2s ease-in-out infinite; opacity: 1; }
   @keyframes hdb-rm-pulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
 }
-`;
+`

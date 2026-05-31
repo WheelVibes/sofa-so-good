@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect } from 'react'
 
 /**
  * True when the event target is a text input, textarea, select, or any
@@ -6,11 +6,11 @@ import { useEffect } from 'react';
  * "trigger an app shortcut".
  */
 export function isEditableTarget(e: KeyboardEvent): boolean {
-  const t = e.target as HTMLElement | null;
-  if (!t) return false;
-  if (t.isContentEditable) return true;
-  const tag = t.tagName;
-  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT';
+  const t = e.target as HTMLElement | null
+  if (!t) return false
+  if (t.isContentEditable) return true
+  const tag = t.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT'
 }
 
 /**
@@ -22,11 +22,11 @@ export function isEditableTarget(e: KeyboardEvent): boolean {
 export function useKeyboard(handler: (code: string, e: KeyboardEvent) => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.repeat) return;
-      if (isEditableTarget(e)) return;
-      handler(e.code, e);
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [handler]);
+      if (e.repeat) return
+      if (isEditableTarget(e)) return
+      handler(e.code, e)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [handler])
 }

@@ -14,7 +14,7 @@
  * real-world dimension — see [src/catalog/packs/__tests__/scaleHeuristic
  * .test.ts] for the cross-check against measured GLB bounding boxes.
  */
-import type { Footprint } from './footprint';
+import type { Footprint } from './footprint'
 
 const KENNEY_FURNITURE_KIT_SCALES: Record<string, number> = {
   // ── Seating (sofas, armchairs, benches, stools, dining chairs) ──────────
@@ -110,11 +110,11 @@ const KENNEY_FURNITURE_KIT_SCALES: Record<string, number> = {
   dryer: 1.5,
   washerDryerStacked: 1.5,
   // ── Decor / electronics: leave at 1 (small accessories are stylised). ───
-};
+}
 
 const KIT_SCALE_TABLES: Record<string, Record<string, number>> = {
   'kenney-furniture-kit': KENNEY_FURNITURE_KIT_SCALES,
-};
+}
 
 /**
  * Returns the multiplier to apply to a pack entry's GLB at render time.
@@ -123,12 +123,12 @@ const KIT_SCALE_TABLES: Record<string, Record<string, number>> = {
  * collision.
  */
 export function packEntryScale(packId: string, entryId: string): number {
-  const table = KIT_SCALE_TABLES[packId];
-  if (!table) return 1;
-  return table[entryId] ?? 1;
+  const table = KIT_SCALE_TABLES[packId]
+  if (!table) return 1
+  return table[entryId] ?? 1
 }
 
 /** Convenience: scaled footprint = raw bbox × scale, axis-wise. */
 export function scaledFootprint(raw: Footprint, scale: number): Footprint {
-  return { w: raw.w * scale, d: raw.d * scale, h: raw.h * scale };
+  return { w: raw.w * scale, d: raw.d * scale, h: raw.h * scale }
 }

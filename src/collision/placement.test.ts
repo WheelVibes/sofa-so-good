@@ -1,11 +1,11 @@
-import { describe, it, expect } from 'vitest';
-import { canPlace, itemFootprint } from './placement';
-import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
-import { ROOMS } from '../apartment/constants';
-import type { FurnitureItem, BuiltinGltfDef } from '../furniture/types';
+import { describe, expect, it } from 'vitest'
+import { ROOMS } from '../apartment/constants'
+import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
+import type { BuiltinGltfDef, FurnitureItem } from '../furniture/types'
+import { canPlace, itemFootprint } from './placement'
 
-const sofa = BUILTIN_CATALOG['sofa-3seat'];
-const bed = BUILTIN_CATALOG['bed-double'];
+const sofa = BUILTIN_CATALOG['sofa-3seat']
+const bed = BUILTIN_CATALOG['bed-double']
 
 const placedSofa = (cx: number, cz: number, rot = 0): FurnitureItem => ({
   id: 's1',
@@ -13,7 +13,7 @@ const placedSofa = (cx: number, cz: number, rot = 0): FurnitureItem => ({
   position: [cx, cz],
   rotation: rot,
   props: {},
-});
+})
 
 const placedBed = (cx: number, cz: number, rot = 0): FurnitureItem => ({
   id: 'b1',
@@ -21,56 +21,53 @@ const placedBed = (cx: number, cz: number, rot = 0): FurnitureItem => ({
   position: [cx, cz],
   rotation: rot,
   props: {},
-});
+})
 
 const ctx = (others: FurnitureItem[] = []) => ({
   others,
   defs: BUILTIN_CATALOG,
   doors: {},
-});
+})
 
 describe('placement', () => {
   it('itemFootprint reflects parametric width/depth overrides', () => {
     const item: FurnitureItem = {
       ...placedSofa(5, 5),
       props: { width: 1.5, depth: 0.85 },
-    };
-    const obb = itemFootprint(item, sofa);
-    expect(obb.hx).toBeCloseTo(0.75);
-    expect(obb.hz).toBeCloseTo(0.425);
-  });
+    }
+    const obb = itemFootprint(item, sofa)
+    expect(obb.hx).toBeCloseTo(0.75)
+    expect(obb.hz).toBeCloseTo(0.425)
+  })
 
   it('rejects placement that overlaps a wall', () => {
     // Place a sofa straddling the apartment's external south wall (z=0).
-    const item: FurnitureItem = placedSofa(2, 0);
-    expect(canPlace(item, sofa, ctx())).toBe(false);
-  });
+    const item: FurnitureItem = placedSofa(2, 0)
+    expect(canPlace(item, sofa, ctx())).toBe(false)
+  })
 
   it('accepts placement well inside a room', () => {
-    const r = ROOMS.livingDining;
-    const item: FurnitureItem = placedSofa(
-      r.origin[0] + r.width / 2,
-      r.origin[1] + r.depth / 2,
-    );
-    expect(canPlace(item, sofa, ctx())).toBe(true);
-  });
+    const r = ROOMS.livingDining
+    const item: FurnitureItem = placedSofa(r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2)
+    expect(canPlace(item, sofa, ctx())).toBe(true)
+  })
 
   it('rejects two items overlapping', () => {
-    const r = ROOMS.livingDining;
-    const a = placedSofa(r.origin[0] + 1, r.origin[1] + 1);
-    const b = placedBed(r.origin[0] + 1.2, r.origin[1] + 1);
-    expect(canPlace(b, bed, ctx([a]))).toBe(false);
-  });
+    const r = ROOMS.livingDining
+    const a = placedSofa(r.origin[0] + 1, r.origin[1] + 1)
+    const b = placedBed(r.origin[0] + 1.2, r.origin[1] + 1)
+    expect(canPlace(b, bed, ctx([a]))).toBe(false)
+  })
 
   it('ignores the item itself when re-checking after a small move', () => {
-    const r = ROOMS.livingDining;
+    const r = ROOMS.livingDining
     const a: FurnitureItem = {
       ...placedSofa(r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2),
       id: 'same',
-    };
-    const moved: FurnitureItem = { ...a, position: [a.position[0] + 0.01, a.position[1]] };
-    expect(canPlace(moved, sofa, ctx([a]))).toBe(true);
-  });
+    }
+    const moved: FurnitureItem = { ...a, position: [a.position[0] + 0.01, a.position[1]] }
+    expect(canPlace(moved, sofa, ctx([a]))).toBe(true)
+  })
 
   describe('group-mates skip mutual collision (snug stacking)', () => {
     // A stacked mattress sits inside the bed frame's OBB by design, so its
@@ -85,7 +82,7 @@ describe('placement', () => {
       url: '/assets/test/bed-frame.glb',
       license: 'CC0',
       defaultFootprint: { w: 1, d: 2, h: 1 },
-    };
+    }
     const topDef: BuiltinGltfDef = {
       id: 'mattress-glb',
       name: 'Mattress',
@@ -95,7 +92,7 @@ describe('placement', () => {
       url: '/assets/test/mattress.glb',
       license: 'CC0',
       defaultFootprint: { w: 1, d: 2, h: 0.25 },
-    };
+    }
 
     // Place the top piece centred on the base, raised onto its surface
     // (span 0.13..0.38) so it overlaps the base frame in both footprint
@@ -107,7 +104,7 @@ describe('placement', () => {
       rotation: 0,
       groupId: 'g1',
       props: {},
-    };
+    }
     const grouped: FurnitureItem = {
       id: 'top',
       defId: topDef.id,
@@ -115,22 +112,22 @@ describe('placement', () => {
       rotation: 0,
       groupId: 'g1',
       props: { surfaceHeight: 0.13 },
-    };
-    const ungrouped: FurnitureItem = { ...grouped, groupId: undefined };
+    }
+    const ungrouped: FurnitureItem = { ...grouped, groupId: undefined }
 
     const stackCtx = {
       others: [base],
       defs: { [baseDef.id]: baseDef, [topDef.id]: topDef },
       doors: {},
       walls: [], // no wall collision in this test
-    };
+    }
 
     it('allows a group-mate to overlap (mutual collision skipped)', () => {
-      expect(canPlace(grouped, topDef, stackCtx)).toBe(true);
-    });
+      expect(canPlace(grouped, topDef, stackCtx)).toBe(true)
+    })
 
     it('still blocks an overlapping item with no shared group', () => {
-      expect(canPlace(ungrouped, topDef, stackCtx)).toBe(false);
-    });
-  });
-});
+      expect(canPlace(ungrouped, topDef, stackCtx)).toBe(false)
+    })
+  })
+})

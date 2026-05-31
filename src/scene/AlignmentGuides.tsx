@@ -1,8 +1,8 @@
-import { useMemo } from 'react';
-import { BufferGeometry, Float32BufferAttribute } from 'three';
-import { useShallow } from 'zustand/react/shallow';
-import { useStore } from '../state/store';
-import { planBounds } from '../floorplan/types';
+import { useMemo } from 'react'
+import { BufferGeometry, Float32BufferAttribute } from 'three'
+import { useShallow } from 'zustand/react/shallow'
+import { planBounds } from '../floorplan/types'
+import { useStore } from '../state/store'
 
 /**
  * Magenta alignment guides shown while dragging furniture: a constant-X or
@@ -10,25 +10,31 @@ import { planBounds } from '../floorplan/types';
  * obvious when pieces line up. Spans the apartment footprint.
  */
 export function AlignmentGuides() {
-  const guides = useStore(useShallow((s) => s.dragGuides));
-  const plan = useStore((s) => s.floorPlan);
-  const [W, D] = useMemo(() => planBounds(plan), [plan]);
+  const guides = useStore(useShallow((s) => s.dragGuides))
+  const plan = useStore((s) => s.floorPlan)
+  const [W, D] = useMemo(() => planBounds(plan), [plan])
 
   const geometry = useMemo(() => {
-    const pts: number[] = [];
+    const pts: number[] = []
     for (const g of guides) {
-      if (g.axis === 'x') pts.push(g.value, 0, 0, g.value, 0, D);
-      else pts.push(0, 0, g.value, W, 0, g.value);
+      if (g.axis === 'x') pts.push(g.value, 0, 0, g.value, 0, D)
+      else pts.push(0, 0, g.value, W, 0, g.value)
     }
-    const geo = new BufferGeometry();
-    geo.setAttribute('position', new Float32BufferAttribute(pts, 3));
-    return geo;
-  }, [guides, W, D]);
+    const geo = new BufferGeometry()
+    geo.setAttribute('position', new Float32BufferAttribute(pts, 3))
+    return geo
+  }, [guides, W, D])
 
-  if (guides.length === 0) return null;
+  if (guides.length === 0) return null
   return (
     <lineSegments geometry={geometry} position={[0, 0.03, 0]} renderOrder={5}>
-      <lineBasicMaterial color="#ff3df0" transparent opacity={0.9} depthWrite={false} depthTest={false} />
+      <lineBasicMaterial
+        color="#ff3df0"
+        transparent
+        opacity={0.9}
+        depthWrite={false}
+        depthTest={false}
+      />
     </lineSegments>
-  );
+  )
 }

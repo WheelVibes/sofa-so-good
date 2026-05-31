@@ -1,29 +1,29 @@
-import { useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import type { MeshStandardMaterial } from 'three';
-import { readNum, readStr } from './shared';
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow';
-import { useDetail, seg } from './useDetail';
-import type { ParamProps } from '../types';
+import { useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
+import type { MeshStandardMaterial } from 'three'
+import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Table/bedside lamp: base + slim stem + tapered shade. Its geometry starts
  *  at `surfaceHeight` so it rests on a nightstand/desk. Shade emissive tracks
  *  scene darkness (glows at night). */
 export function TableLamp({ props }: { props: ParamProps }) {
-  const shadeColor = readStr(props, 'shadeColor', '#f0e4c4');
-  const baseColor = readStr(props, 'baseColor', '#33363b');
-  const surfaceH = readNum(props, 'surfaceHeight', 0.5);
-  const shade = readStr(props, 'shade', 'empire');
+  const shadeColor = readStr(props, 'shadeColor', '#f0e4c4')
+  const baseColor = readStr(props, 'baseColor', '#33363b')
+  const surfaceH = readNum(props, 'surfaceHeight', 0.5)
+  const shade = readStr(props, 'shade', 'empire')
 
-  const stemH = 0.26;
-  const shadeH = 0.16;
+  const stemH = 0.26
+  const shadeH = 0.16
   const profile: [number, number] =
-    shade === 'drum' ? [0.14, 0.14] : shade === 'cone' ? [0.05, 0.17] : [0.11, 0.15];
-  const shadeRef = useRef<MeshStandardMaterial>(null);
-  const detail = useDetail();
+    shade === 'drum' ? [0.14, 0.14] : shade === 'cone' ? [0.05, 0.17] : [0.11, 0.15]
+  const shadeRef = useRef<MeshStandardMaterial>(null)
+  const detail = useDetail()
   useFrame(() => {
-    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7;
-  });
+    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7
+  })
 
   return (
     <group position={[0, surfaceH, 0]}>
@@ -50,5 +50,5 @@ export function TableLamp({ props }: { props: ParamProps }) {
         />
       </mesh>
     </group>
-  );
+  )
 }

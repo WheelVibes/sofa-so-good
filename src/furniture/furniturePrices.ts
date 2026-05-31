@@ -4,7 +4,7 @@
  * for a "what would furnishing this cost?" ballpark, clearly labelled as an
  * estimate in the UI. A per-item table overrides a per-category fallback.
  */
-import type { FurnitureCategory, FurnitureDef } from './types';
+import type { FurnitureCategory, FurnitureDef } from './types'
 
 /** Fallback price by category when an item has no explicit entry. */
 const CATEGORY_BASE: Record<FurnitureCategory, number> = {
@@ -23,7 +23,7 @@ const CATEGORY_BASE: Record<FurnitureCategory, number> = {
   kids: 80,
   laundry: 60,
   others: 100,
-};
+}
 
 /** Notable per-item prices (SGD). */
 const ITEM_PRICE: Record<string, number> = {
@@ -93,7 +93,7 @@ const ITEM_PRICE: Record<string, number> = {
   'roller-blind': 120,
   'wall-clock': 45,
   'wall-shelf': 60,
-};
+}
 
 /** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant
  *  (`variant` — the finish the user selected on that placed item) wins, so two
@@ -106,12 +106,12 @@ export function itemPrice(
   variant?: string,
 ): number {
   if (def.kind === 'gltf' && def.source === 'ikea' && def.variants) {
-    const wanted = variant ?? def.activeVariant;
+    const wanted = variant ?? def.activeVariant
     const chosen =
       def.variants.find((v) => v.finish === wanted && typeof v.price === 'number') ??
       def.variants.find((v) => v.finish === def.activeVariant && typeof v.price === 'number') ??
-      def.variants.find((v) => typeof v.price === 'number');
-    if (typeof chosen?.price === 'number') return chosen.price;
+      def.variants.find((v) => typeof v.price === 'number')
+    if (typeof chosen?.price === 'number') return chosen.price
   }
-  return ITEM_PRICE[def.id] ?? CATEGORY_BASE[category] ?? 100;
+  return ITEM_PRICE[def.id] ?? CATEGORY_BASE[category] ?? 100
 }

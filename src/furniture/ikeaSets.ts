@@ -9,9 +9,9 @@
  * centre into ready-to-place `FurnitureItem[]` stamped with one shared groupId.
  */
 
-import { CLEARANCE } from '../layout/designRules';
-import type { FurnitureDef, FurnitureItem, ParamProps } from './types';
-import { defaultParamProps } from './types';
+import { CLEARANCE } from '../layout/designRules'
+import type { FurnitureDef, FurnitureItem, ParamProps } from './types'
+import { defaultParamProps } from './types'
 
 /** Fresh per-item id. Must be globally unique — set items are appended via the
  *  store's `setItems`, which (unlike `addItem`) does NOT generate or check ids,
@@ -20,63 +20,63 @@ import { defaultParamProps } from './types';
  *  built-in Sets dropper too (same `setItems` append path). */
 export function newSetItemId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+    return crypto.randomUUID()
   }
-  return `set-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+  return `set-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
 }
 
-export type SetRole = 'table' | 'chair' | 'bench' | 'stool' | 'other';
+export type SetRole = 'table' | 'chair' | 'bench' | 'stool' | 'other'
 
 export interface SetMember {
-  groupKey: string;
-  role: SetRole;
-  qty: number;
-  articleNumber: string;
+  groupKey: string
+  role: SetRole
+  qty: number
+  articleNumber: string
 }
 
 export interface SetRecipe {
-  setKey: string;
-  setName: string;
-  members: SetMember[];
+  setKey: string
+  setName: string
+  members: SetMember[]
 }
 
 export interface SetMemberInstance {
-  index: number;
-  groupKey: string;
-  role: SetRole;
+  index: number
+  groupKey: string
+  role: SetRole
 }
 
 export interface MemberFootprint {
-  w: number;
-  d: number;
+  w: number
+  d: number
 }
 
 export interface MemberPlacement {
-  index: number;
-  dx: number;
-  dz: number;
-  rotation: number;
+  index: number
+  dx: number
+  dz: number
+  rotation: number
 }
 
 /** Flatten `members × qty` into a contiguous, indexed instance list. Members
  *  keep recipe order (the table tends to be listed first per spec §1.2). */
 export function expandMembers(recipe: SetRecipe): SetMemberInstance[] {
-  const out: SetMemberInstance[] = [];
-  let index = 0;
+  const out: SetMemberInstance[] = []
+  let index = 0
   for (const m of recipe.members) {
-    const qty = Math.max(1, Math.floor(m.qty));
+    const qty = Math.max(1, Math.floor(m.qty))
     for (let i = 0; i < qty; i++) {
-      out.push({ index: index++, groupKey: m.groupKey, role: m.role });
+      out.push({ index: index++, groupKey: m.groupKey, role: m.role })
     }
   }
-  return out;
+  return out
 }
 
 /** Evenly spaced offsets for `n` items centred on 0 across a usable span. */
 function spread(n: number, span: number): number[] {
-  if (n <= 0) return [];
-  if (n === 1) return [0];
-  return Array.from({ length: n }, (_, i) => -span / 2 + (span * i) / (n - 1));
+  if (n <= 0) return []
+  if (n === 1) return [0]
+  return Array.from({ length: n }, (_, i) => -span / 2 + (span * i) / (n - 1))
 }
 
 /**
@@ -91,92 +91,97 @@ export function arrangeSet(
   members: SetMemberInstance[],
   footprints: Record<number, MemberFootprint>,
 ): MemberPlacement[] {
-  const out: MemberPlacement[] = [];
+  const out: MemberPlacement[] = []
 
-  const table = members.find((m) => m.role === 'table');
-  const tableFp = table ? footprints[table.index] : undefined;
-  if (table) out.push({ index: table.index, dx: 0, dz: 0, rotation: 0 });
+  const table = members.find((m) => m.role === 'table')
+  const tableFp = table ? footprints[table.index] : undefined
+  if (table) out.push({ index: table.index, dx: 0, dz: 0, rotation: 0 })
 
-  const fp = tableFp ?? { w: 1.2, d: 0.8 };
+  const fp = tableFp ?? { w: 1.2, d: 0.8 }
   // Long edges run along the wider axis. longAlongX → chairs sit at ±Z.
-  const longAlongX = fp.w >= fp.d;
-  const halfPerp = (longAlongX ? fp.d : fp.w) / 2; // table half-extent toward the chair
-  const alongHalf = (longAlongX ? fp.w : fp.d) / 2; // usable half-length of the long edge
+  const longAlongX = fp.w >= fp.d
+  const halfPerp = (longAlongX ? fp.d : fp.w) / 2 // table half-extent toward the chair
+  const alongHalf = (longAlongX ? fp.w : fp.d) / 2 // usable half-length of the long edge
 
   // Chairs + stools share the around-the-edges distribution.
-  const seats = members.filter((m) => m.role === 'chair' || m.role === 'stool');
-  const nFirst = Math.ceil(seats.length / 2);
-  const sideA = seats.slice(0, nFirst);
-  const sideB = seats.slice(nFirst);
+  const seats = members.filter((m) => m.role === 'chair' || m.role === 'stool')
+  const nFirst = Math.ceil(seats.length / 2)
+  const sideA = seats.slice(0, nFirst)
+  const sideB = seats.slice(nFirst)
 
   const placeRow = (row: SetMemberInstance[], sidePerp: 1 | -1) => {
     // Usable span along the edge leaves a small inset so end chairs stay over
     // the table footprint rather than overhanging the corner. Widen if needed
     // so same-edge seats clear roughly a seat width apart.
-    const chairWGuess = 0.5;
-    const usable = Math.max(alongHalf * 2 - 0.4, (row.length - 1) * (chairWGuess + 0.05));
-    const offs = spread(row.length, usable);
+    const chairWGuess = 0.5
+    const usable = Math.max(alongHalf * 2 - 0.4, (row.length - 1) * (chairWGuess + 0.05))
+    const offs = spread(row.length, usable)
     row.forEach((m, i) => {
-      const chFp = footprints[m.index] ?? { w: 0.45, d: 0.5 };
-      const chPerp = (longAlongX ? chFp.d : chFp.w) / 2;
-      const perp = sidePerp * (halfPerp + CLEARANCE.sofaToCoffee + chPerp);
+      const chFp = footprints[m.index] ?? { w: 0.45, d: 0.5 }
+      const chPerp = (longAlongX ? chFp.d : chFp.w) / 2
+      const perp = sidePerp * (halfPerp + CLEARANCE.sofaToCoffee + chPerp)
       // Face the table: chair on -perp faces +; on +perp faces -.
       if (longAlongX) {
-        const rotation = sidePerp < 0 ? 0 : Math.PI; // -Z faces +Z(0); +Z faces -Z(PI)
-        out.push({ index: m.index, dx: offs[i], dz: perp, rotation });
+        const rotation = sidePerp < 0 ? 0 : Math.PI // -Z faces +Z(0); +Z faces -Z(PI)
+        out.push({ index: m.index, dx: offs[i], dz: perp, rotation })
       } else {
-        const rotation = sidePerp < 0 ? Math.PI / 2 : -Math.PI / 2; // -X faces +X; +X faces -X
-        out.push({ index: m.index, dx: perp, dz: offs[i], rotation });
+        const rotation = sidePerp < 0 ? Math.PI / 2 : -Math.PI / 2 // -X faces +X; +X faces -X
+        out.push({ index: m.index, dx: perp, dz: offs[i], rotation })
       }
-    });
-  };
-  placeRow(sideA, -1);
-  placeRow(sideB, 1);
+    })
+  }
+  placeRow(sideA, -1)
+  placeRow(sideB, 1)
 
   // Benches: at most one per long edge, centred, facing the table.
-  const benches = members.filter((m) => m.role === 'bench');
+  const benches = members.filter((m) => m.role === 'bench')
   benches.forEach((m, i) => {
-    const bFp = footprints[m.index] ?? { w: 1.0, d: 0.4 };
-    const sidePerp: 1 | -1 = i % 2 === 0 ? -1 : 1;
-    const bPerp = (longAlongX ? bFp.d : bFp.w) / 2;
-    const perp = sidePerp * (halfPerp + CLEARANCE.sofaToCoffee + bPerp);
+    const bFp = footprints[m.index] ?? { w: 1.0, d: 0.4 }
+    const sidePerp: 1 | -1 = i % 2 === 0 ? -1 : 1
+    const bPerp = (longAlongX ? bFp.d : bFp.w) / 2
+    const perp = sidePerp * (halfPerp + CLEARANCE.sofaToCoffee + bPerp)
     if (longAlongX) {
-      out.push({ index: m.index, dx: 0, dz: perp, rotation: sidePerp < 0 ? 0 : Math.PI });
+      out.push({ index: m.index, dx: 0, dz: perp, rotation: sidePerp < 0 ? 0 : Math.PI })
     } else {
-      out.push({ index: m.index, dx: perp, dz: 0, rotation: sidePerp < 0 ? Math.PI / 2 : -Math.PI / 2 });
+      out.push({
+        index: m.index,
+        dx: perp,
+        dz: 0,
+        rotation: sidePerp < 0 ? Math.PI / 2 : -Math.PI / 2,
+      })
     }
-  });
+  })
 
   // "Other" members tuck past the table's -X end, stacking outward.
-  const longHalfX = fp.w / 2;
-  let outerX = longHalfX;
+  const longHalfX = fp.w / 2
+  let outerX = longHalfX
   for (const m of members.filter((mm) => mm.role === 'other')) {
-    const oFp = footprints[m.index] ?? { w: 0.4, d: 0.4 };
-    const dx = -(outerX + CLEARANCE.wallGap + oFp.w / 2);
-    out.push({ index: m.index, dx, dz: 0, rotation: 0 });
-    outerX += CLEARANCE.wallGap + oFp.w;
+    const oFp = footprints[m.index] ?? { w: 0.4, d: 0.4 }
+    const dx = -(outerX + CLEARANCE.wallGap + oFp.w / 2)
+    out.push({ index: m.index, dx, dz: 0, rotation: 0 })
+    outerX += CLEARANCE.wallGap + oFp.w
   }
 
-  return out;
+  return out
 }
 
 /** Footprint of a member def + its params (mirrors autoArrange.baseFootprint). */
 function defFootprint(def: FurnitureDef, props: ParamProps): MemberFootprint {
-  let w = def.defaultFootprint.w;
-  let d = def.defaultFootprint.d;
+  let w = def.defaultFootprint.w
+  let d = def.defaultFootprint.d
   if (def.kind === 'parametric') {
-    const map = def.footprintParams ?? {};
-    const wv = props[map.w ?? 'width'];
-    const dv = props[map.d ?? 'depth'];
-    if (typeof wv === 'number') w = wv;
-    if (typeof dv === 'number') d = dv;
+    const map = def.footprintParams ?? {}
+    const wv = props[map.w ?? 'width']
+    const dv = props[map.d ?? 'depth']
+    if (typeof wv === 'number') w = wv
+    if (typeof dv === 'number') d = dv
   }
-  return { w, d };
+  return { w, d }
 }
 
 export interface DropCentre {
-  x: number;
-  z: number;
+  x: number
+  z: number
 }
 
 /**
@@ -191,7 +196,7 @@ function resolveMemberDef(
   catalog: Record<string, FurnitureDef>,
   groupKey: string,
 ): FurnitureDef | null {
-  return catalog[groupKey] ?? catalog[`ikea-${groupKey}`] ?? null;
+  return catalog[groupKey] ?? catalog[`ikea-${groupKey}`] ?? null
 }
 
 /**
@@ -213,27 +218,27 @@ export function buildSetGroup(
   catalog: Record<string, FurnitureDef>,
   groupId: string = `set-${Date.now().toString(36)}`,
 ): FurnitureItem[] {
-  const instances = expandMembers(recipe);
+  const instances = expandMembers(recipe)
 
   // Resolve def + props + footprint per instance. Drop instances whose member
   // def isn't in the catalog (not imported) so we never emit an unrenderable
   // defId.
-  const resolved: { m: SetMemberInstance; defId: string; props: ParamProps }[] = [];
-  const footprints: Record<number, MemberFootprint> = {};
+  const resolved: { m: SetMemberInstance; defId: string; props: ParamProps }[] = []
+  const footprints: Record<number, MemberFootprint> = {}
   for (const m of instances) {
-    const def = resolveMemberDef(catalog, m.groupKey);
-    if (!def) continue;
-    const props: ParamProps = def.kind === 'parametric' ? defaultParamProps(def) : {};
-    footprints[m.index] = defFootprint(def, props);
-    resolved.push({ m, defId: def.id, props });
+    const def = resolveMemberDef(catalog, m.groupKey)
+    if (!def) continue
+    const props: ParamProps = def.kind === 'parametric' ? defaultParamProps(def) : {}
+    footprints[m.index] = defFootprint(def, props)
+    resolved.push({ m, defId: def.id, props })
   }
 
-  const keptInstances = resolved.map((r) => r.m);
-  const placements = arrangeSet(keptInstances, footprints);
-  const placementByIndex = new Map(placements.map((p) => [p.index, p]));
+  const keptInstances = resolved.map((r) => r.m)
+  const placements = arrangeSet(keptInstances, footprints)
+  const placementByIndex = new Map(placements.map((p) => [p.index, p]))
 
   return resolved.map(({ m, defId, props }) => {
-    const p = placementByIndex.get(m.index) ?? { index: m.index, dx: 0, dz: 0, rotation: 0 };
+    const p = placementByIndex.get(m.index) ?? { index: m.index, dx: 0, dz: 0, rotation: 0 }
     return {
       id: newSetItemId(),
       defId,
@@ -241,57 +246,59 @@ export function buildSetGroup(
       rotation: p.rotation,
       props,
       groupId,
-    };
-  });
+    }
+  })
 }
 
 // ── Imported-recipe registry ────────────────────────────────────────────────
 // Recipes are fed in by the IKEA import path (plan 1 emits sets/<key>.json; the
 // importer parses + registers them). Kept module-level + pure so the Sets menu
 // reads them without importing the IDB/import layer.
-const RECIPES = new Map<string, SetRecipe>();
+const RECIPES = new Map<string, SetRecipe>()
 
 /** All currently-known imported set recipes, in insertion order. */
 export function ikeaSetRecipes(): SetRecipe[] {
-  return [...RECIPES.values()];
+  return [...RECIPES.values()]
 }
 
 /** Register imported recipes (deduped by setKey; later wins). */
 export function registerIkeaSetRecipes(recipes: SetRecipe[]): void {
-  for (const r of recipes) RECIPES.set(r.setKey, r);
+  for (const r of recipes) RECIPES.set(r.setKey, r)
 }
 
 /** Test-only: clear the registry. */
 export function _clearIkeaSetRecipes(): void {
-  RECIPES.clear();
+  RECIPES.clear()
 }
 
-const KNOWN_ROLES: ReadonlySet<string> = new Set(['table', 'chair', 'bench', 'stool', 'other']);
+const KNOWN_ROLES: ReadonlySet<string> = new Set(['table', 'chair', 'bench', 'stool', 'other'])
 
 function asRole(v: unknown): SetRole {
-  return typeof v === 'string' && KNOWN_ROLES.has(v) ? (v as SetRole) : 'other';
+  return typeof v === 'string' && KNOWN_ROLES.has(v) ? (v as SetRole) : 'other'
 }
 
 /** Parse a scraper `sets/<key>.json` (snake_case) into a typed SetRecipe. */
 export function parseSetRecipe(raw: unknown): SetRecipe {
-  const o = (raw ?? {}) as Record<string, unknown>;
-  const rawMembers = Array.isArray(o.members) ? o.members : [];
-  const members: SetMember[] = rawMembers.map((m) => {
-    const mo = (m ?? {}) as Record<string, unknown>;
-    const qty = Number(mo.qty);
-    return {
-      groupKey: String(mo.group_key ?? ''),
-      role: asRole(mo.role),
-      qty: Number.isFinite(qty) && qty > 0 ? Math.floor(qty) : 1,
-      articleNumber: mo.article_number != null ? String(mo.article_number) : '',
-    };
-  }).filter((m) => m.groupKey);
+  const o = (raw ?? {}) as Record<string, unknown>
+  const rawMembers = Array.isArray(o.members) ? o.members : []
+  const members: SetMember[] = rawMembers
+    .map((m) => {
+      const mo = (m ?? {}) as Record<string, unknown>
+      const qty = Number(mo.qty)
+      return {
+        groupKey: String(mo.group_key ?? ''),
+        role: asRole(mo.role),
+        qty: Number.isFinite(qty) && qty > 0 ? Math.floor(qty) : 1,
+        articleNumber: mo.article_number != null ? String(mo.article_number) : '',
+      }
+    })
+    .filter((m) => m.groupKey)
   if (members.length === 0) {
-    throw new Error(`parseSetRecipe: recipe "${String(o.set_key)}" has no usable members`);
+    throw new Error(`parseSetRecipe: recipe "${String(o.set_key)}" has no usable members`)
   }
   return {
     setKey: String(o.set_key ?? ''),
     setName: String(o.set_name ?? o.set_key ?? ''),
     members,
-  };
+  }
 }

@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod'
 
 const FURNITURE_CATEGORIES = [
   'beds',
@@ -8,7 +8,7 @@ const FURNITURE_CATEGORIES = [
   'kitchen',
   'lighting',
   'decor',
-] as const;
+] as const
 
 export const furnitureManifestSchema = z.object({
   id: z.string().min(1),
@@ -26,9 +26,9 @@ export const furnitureManifestSchema = z.object({
   }),
   scale: z.number().positive().default(1.0),
   anchor: z.enum(['floor-center', 'origin']).default('floor-center'),
-});
+})
 
-export type FurnitureManifestEntry = z.infer<typeof furnitureManifestSchema>;
+export type FurnitureManifestEntry = z.infer<typeof furnitureManifestSchema>
 
 export const materialManifestSchema = z.object({
   id: z.string().min(1),
@@ -45,9 +45,9 @@ export const materialManifestSchema = z.object({
   name: z.string().min(1),
   category: z.enum(['floor', 'wall']),
   uvScale: z.tuple([z.number().positive(), z.number().positive()]),
-});
+})
 
-export type MaterialManifestEntry = z.infer<typeof materialManifestSchema>;
+export type MaterialManifestEntry = z.infer<typeof materialManifestSchema>
 
-export const furnitureManifestFile = z.array(furnitureManifestSchema);
-export const materialManifestFile = z.array(materialManifestSchema);
+export const furnitureManifestFile = z.array(furnitureManifestSchema)
+export const materialManifestFile = z.array(materialManifestSchema)

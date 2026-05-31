@@ -1,8 +1,8 @@
-import { describe, it, expect, beforeEach } from 'vitest';
-import { renderHook, act } from '@testing-library/react';
-import { useCatalog, useCatalogByCategory } from './catalog';
-import { useStore } from '../state/store';
-import type { IkeaGltfDef } from './types';
+import { act, renderHook } from '@testing-library/react'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { useStore } from '../state/store'
+import { useCatalog, useCatalogByCategory } from './catalog'
+import type { IkeaGltfDef } from './types'
 
 /**
  * An imported IKEA group must surface as a SINGLE first-class catalog entry:
@@ -37,26 +37,26 @@ const IKEA_DEF: IkeaGltfDef = {
   uploadedAt: '2026-05-31T00:00:00.000Z',
   license: 'IKEA',
   attribution: 'IKEA — MALM bed frame, high',
-};
+}
 
 describe('catalog surfaces an imported IKEA group as one card', () => {
-  beforeEach(() => useStore.getState().__resetForTest());
+  beforeEach(() => useStore.getState().__resetForTest())
 
   it('merges an IKEA def into the flat catalog under its own id', () => {
-    const { result } = renderHook(() => useCatalog());
-    expect(result.current[IKEA_DEF.id]).toBeUndefined();
+    const { result } = renderHook(() => useCatalog())
+    expect(result.current[IKEA_DEF.id]).toBeUndefined()
 
-    act(() => useStore.getState().addUserFurniture(IKEA_DEF));
-    expect(result.current[IKEA_DEF.id]?.name).toBe('MALM bed frame, high');
-  });
+    act(() => useStore.getState().addUserFurniture(IKEA_DEF))
+    expect(result.current[IKEA_DEF.id]?.name).toBe('MALM bed frame, high')
+  })
 
   it('groups an IKEA def under its category (so the drawer renders ONE card)', () => {
-    const { result } = renderHook(() => useCatalogByCategory());
-    expect(result.current.beds.map((d) => d.id)).not.toContain(IKEA_DEF.id);
+    const { result } = renderHook(() => useCatalogByCategory())
+    expect(result.current.beds.map((d) => d.id)).not.toContain(IKEA_DEF.id)
 
-    act(() => useStore.getState().addUserFurniture(IKEA_DEF));
-    const beds = result.current.beds.filter((d) => d.id === IKEA_DEF.id);
-    expect(beds).toHaveLength(1);
-    expect(beds[0].name).toBe('MALM bed frame, high');
-  });
-});
+    act(() => useStore.getState().addUserFurniture(IKEA_DEF))
+    const beds = result.current.beds.filter((d) => d.id === IKEA_DEF.id)
+    expect(beds).toHaveLength(1)
+    expect(beds[0].name).toBe('MALM bed frame, high')
+  })
+})

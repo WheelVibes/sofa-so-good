@@ -1,6 +1,6 @@
-import { useEffect, useRef } from 'react';
-import { createPortal } from 'react-dom';
-import { useStore } from '../../state/store';
+import { useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
+import { useStore } from '../../state/store'
 
 const COMPASS_DIRS = [
   { label: 'N', deg: 0 },
@@ -11,67 +11,75 @@ const COMPASS_DIRS = [
   { label: 'SW', deg: 225 },
   { label: 'W', deg: 270 },
   { label: 'NW', deg: 315 },
-] as const;
+] as const
 
 /** Drag-to-set apartment sun orientation. Moved verbatim from the old Toolbar. */
 export function CompassModal({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const orientationDeg = useStore((s) => s.orientationDeg);
-  const setOrientationDeg = useStore((s) => s.setOrientationDeg);
-  const ref = useRef<SVGSVGElement>(null);
-  const draggingRef = useRef(false);
+  const orientationDeg = useStore((s) => s.orientationDeg)
+  const setOrientationDeg = useStore((s) => s.setOrientationDeg)
+  const ref = useRef<SVGSVGElement>(null)
+  const draggingRef = useRef(false)
 
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+      if (e.key === 'Escape') onClose()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
 
-  if (!open) return null;
+  if (!open) return null
 
   const updateFromPointer = (e: { clientX: number; clientY: number }) => {
-    const svg = ref.current;
-    if (!svg) return;
-    const rect = svg.getBoundingClientRect();
-    const cx = rect.left + rect.width / 2;
-    const cy = rect.top + rect.height / 2;
-    const dx = e.clientX - cx;
-    const dy = e.clientY - cy;
-    const deg = (Math.atan2(dx, -dy) * 180) / Math.PI;
-    setOrientationDeg(deg);
-  };
+    const svg = ref.current
+    if (!svg) return
+    const rect = svg.getBoundingClientRect()
+    const cx = rect.left + rect.width / 2
+    const cy = rect.top + rect.height / 2
+    const dx = e.clientX - cx
+    const dy = e.clientY - cy
+    const deg = (Math.atan2(dx, -dy) * 180) / Math.PI
+    setOrientationDeg(deg)
+  }
 
   const onPointerDown = (e: React.PointerEvent<SVGSVGElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId);
-    draggingRef.current = true;
-    updateFromPointer(e);
-  };
+    e.currentTarget.setPointerCapture(e.pointerId)
+    draggingRef.current = true
+    updateFromPointer(e)
+  }
   const onPointerMove = (e: React.PointerEvent<SVGSVGElement>) => {
-    if (!draggingRef.current) return;
-    updateFromPointer(e);
-  };
+    if (!draggingRef.current) return
+    updateFromPointer(e)
+  }
   const onPointerUp = (e: React.PointerEvent<SVGSVGElement>) => {
-    draggingRef.current = false;
-    e.currentTarget.releasePointerCapture(e.pointerId);
-  };
+    draggingRef.current = false
+    e.currentTarget.releasePointerCapture(e.pointerId)
+  }
 
-  const size = 260;
-  const r = size / 2 - 8;
-  const center = size / 2;
-  const sunR = r - 32;
-  const rad = (orientationDeg * Math.PI) / 180;
-  const sunX = center + Math.sin(rad) * sunR;
-  const sunY = center - Math.cos(rad) * sunR;
-  const rounded = Math.round(orientationDeg) % 360;
+  const size = 260
+  const r = size / 2 - 8
+  const center = size / 2
+  const sunR = r - 32
+  const rad = (orientationDeg * Math.PI) / 180
+  const sunX = center + Math.sin(rad) * sunR
+  const sunY = center - Math.cos(rad) * sunR
+  const rounded = Math.round(orientationDeg) % 360
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
-      <div className="max-h-[90vh] overflow-auto rounded-lg bg-white p-5 shadow-xl" onClick={(e) => e.stopPropagation()}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
+      <div
+        className="max-h-[90vh] overflow-auto rounded-lg bg-white p-5 shadow-xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-3 flex items-baseline justify-between gap-6">
           <h2 className="text-base font-semibold text-neutral-800">Sun direction</h2>
-          <span className="tabular-nums text-sm text-neutral-500">{Math.round(orientationDeg)}°</span>
+          <span className="tabular-nums text-sm text-neutral-500">
+            {Math.round(orientationDeg)}°
+          </span>
         </div>
         <svg
           ref={ref}
@@ -85,50 +93,90 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
           className="cursor-pointer touch-none select-none"
         >
           <circle cx={center} cy={center} r={r} fill="#fafafa" stroke="#d4d4d4" strokeWidth={1} />
-          <circle cx={center} cy={center} r={r - 18} fill="none" stroke="#e5e5e5" strokeWidth={1} strokeDasharray="2 3" />
+          <circle
+            cx={center}
+            cy={center}
+            r={r - 18}
+            fill="none"
+            stroke="#e5e5e5"
+            strokeWidth={1}
+            strokeDasharray="2 3"
+          />
           {Array.from({ length: 24 }, (_, i) => {
-            const a = (i * 15 * Math.PI) / 180;
-            const major = i % 6 === 0;
-            const inner = r - (major ? 8 : 4);
-            const x1 = center + Math.sin(a) * inner;
-            const y1 = center - Math.cos(a) * inner;
-            const x2 = center + Math.sin(a) * r;
-            const y2 = center - Math.cos(a) * r;
-            return <line key={i} x1={x1} y1={y1} x2={x2} y2={y2} stroke={major ? '#a3a3a3' : '#d4d4d4'} strokeWidth={major ? 1 : 0.75} />;
+            const a = (i * 15 * Math.PI) / 180
+            const major = i % 6 === 0
+            const inner = r - (major ? 8 : 4)
+            const x1 = center + Math.sin(a) * inner
+            const y1 = center - Math.cos(a) * inner
+            const x2 = center + Math.sin(a) * r
+            const y2 = center - Math.cos(a) * r
+            return (
+              <line
+                key={i}
+                x1={x1}
+                y1={y1}
+                x2={x2}
+                y2={y2}
+                stroke={major ? '#a3a3a3' : '#d4d4d4'}
+                strokeWidth={major ? 1 : 0.75}
+              />
+            )
           })}
-          <line x1={center} y1={center} x2={sunX} y2={sunY} stroke="#404040" strokeWidth={2} strokeLinecap="round" />
+          <line
+            x1={center}
+            y1={center}
+            x2={sunX}
+            y2={sunY}
+            stroke="#404040"
+            strokeWidth={2}
+            strokeLinecap="round"
+          />
           <circle cx={center} cy={center} r={3} fill="#404040" />
           <circle cx={sunX} cy={sunY} r={9} fill="#fbbf24" stroke="#92400e" strokeWidth={1.25} />
           {COMPASS_DIRS.map(({ label, deg }) => {
-            const a = (deg * Math.PI) / 180;
-            const lr = r - 18;
-            const lx = center + Math.sin(a) * lr;
-            const ly = center - Math.cos(a) * lr;
-            const isCardinal = label.length === 1;
-            const active = rounded === deg;
+            const a = (deg * Math.PI) / 180
+            const lr = r - 18
+            const lx = center + Math.sin(a) * lr
+            const ly = center - Math.cos(a) * lr
+            const isCardinal = label.length === 1
+            const active = rounded === deg
             return (
               <g
                 key={label}
                 onPointerDown={(e) => {
-                  e.stopPropagation();
-                  draggingRef.current = false;
-                  setOrientationDeg(deg);
+                  e.stopPropagation()
+                  draggingRef.current = false
+                  setOrientationDeg(deg)
                 }}
                 className="cursor-pointer"
               >
-                <circle cx={lx} cy={ly} r={isCardinal ? 14 : 12} fill={active ? '#fef3c7' : 'transparent'} />
-                <text x={lx} y={ly} textAnchor="middle" dominantBaseline="central" fontSize={isCardinal ? 16 : 12} fill={label === 'N' ? '#dc2626' : active ? '#171717' : '#525252'} fontWeight={isCardinal ? 700 : 600}>
+                <circle
+                  cx={lx}
+                  cy={ly}
+                  r={isCardinal ? 14 : 12}
+                  fill={active ? '#fef3c7' : 'transparent'}
+                />
+                <text
+                  x={lx}
+                  y={ly}
+                  textAnchor="middle"
+                  dominantBaseline="central"
+                  fontSize={isCardinal ? 16 : 12}
+                  fill={label === 'N' ? '#dc2626' : active ? '#171717' : '#525252'}
+                  fontWeight={isCardinal ? 700 : 600}
+                >
                   {label}
                 </text>
               </g>
-            );
+            )
           })}
         </svg>
         <p className="mt-3 max-w-[260px] text-xs leading-snug text-neutral-500">
-          Drag the sun or click a compass direction to set where the sun rises relative to the apartment.
+          Drag the sun or click a compass direction to set where the sun rises relative to the
+          apartment.
         </p>
       </div>
     </div>,
     document.body,
-  );
+  )
 }

@@ -1,28 +1,28 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Wide chest of drawers: body + a grid of drawer fronts. `handle` picks the
  *  hardware (round knob / horizontal bar pull / recessed top reveal) and
  *  `base` sits it on short legs or a recessed plinth. Faces +Z. */
 export function Dresser({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 1.2);
-  const depth = readNum(props, 'depth', 0.5);
-  const rows = Math.max(2, Math.round(readNum(props, 'rows', 3)));
-  const cols = Math.max(1, Math.round(readNum(props, 'cols', 2)));
-  const color = readStr(props, 'color', '#8a6b48');
-  const finish = readStr(props, 'finish', 'wood');
-  const sheen = readNum(props, 'sheen', 0);
-  const handle = readStr(props, 'handle', 'knob');
-  const base = readStr(props, 'base', 'legs');
+  const width = readNum(props, 'width', 1.2)
+  const depth = readNum(props, 'depth', 0.5)
+  const rows = Math.max(2, Math.round(readNum(props, 'rows', 3)))
+  const cols = Math.max(1, Math.round(readNum(props, 'cols', 2)))
+  const color = readStr(props, 'color', '#8a6b48')
+  const finish = readStr(props, 'finish', 'wood')
+  const sheen = readNum(props, 'sheen', 0)
+  const handle = readStr(props, 'handle', 'knob')
+  const base = readStr(props, 'base', 'legs')
 
-  const legH = 0.08;
-  const bodyH = 0.85;
-  const wood = getSurfaceMaterial(finish, color, 1.6, sheen);
-  const metal = { color: '#2b2b2b', roughness: 0.4, metalness: 0.6 };
-  const gap = 0.02;
-  const dw = (width - gap * (cols + 1)) / cols;
-  const dh = (bodyH - gap * (rows + 1)) / rows;
+  const legH = 0.08
+  const bodyH = 0.85
+  const wood = getSurfaceMaterial(finish, color, 1.6, sheen)
+  const metal = { color: '#2b2b2b', roughness: 0.4, metalness: 0.6 }
+  const gap = 0.02
+  const dw = (width - gap * (cols + 1)) / cols
+  const dh = (bodyH - gap * (rows + 1)) / rows
 
   return (
     <group>
@@ -31,8 +31,8 @@ export function Dresser({ props }: { props: ParamProps }) {
       </mesh>
       {Array.from({ length: rows }, (_, r) =>
         Array.from({ length: cols }, (_, c) => {
-          const x = -width / 2 + gap + dw / 2 + c * (dw + gap);
-          const y = legH + gap + dh / 2 + r * (dh + gap);
+          const x = -width / 2 + gap + dw / 2 + c * (dw + gap)
+          const y = legH + gap + dh / 2 + r * (dh + gap)
           return (
             <group key={`${r}.${c}`}>
               <mesh position={[x, y, depth / 2 + 0.003]} material={wood}>
@@ -57,13 +57,17 @@ export function Dresser({ props }: { props: ParamProps }) {
                 </mesh>
               )}
             </group>
-          );
+          )
         }),
       )}
       {base === 'legs' ? (
         [-1, 1].map((sx) =>
           [-1, 1].map((sz) => (
-            <mesh key={`${sx}.${sz}`} castShadow position={[sx * (width / 2 - 0.06), legH / 2, sz * (depth / 2 - 0.06)]}>
+            <mesh
+              key={`${sx}.${sz}`}
+              castShadow
+              position={[sx * (width / 2 - 0.06), legH / 2, sz * (depth / 2 - 0.06)]}
+            >
               <boxGeometry args={[0.05, legH, 0.05]} />
               <meshStandardMaterial color="#3a2c1d" roughness={0.5} metalness={0.1} />
             </mesh>
@@ -75,5 +79,5 @@ export function Dresser({ props }: { props: ParamProps }) {
         </mesh>
       )}
     </group>
-  );
+  )
 }

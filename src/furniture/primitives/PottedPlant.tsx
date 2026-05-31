@@ -1,30 +1,30 @@
-import { readStr } from './shared';
-import { hexToRgb } from '../../materials/procedural/noise';
-import { useDetail, seg } from './useDetail';
-import type { ParamProps } from '../types';
+import { hexToRgb } from '../../materials/procedural/noise'
+import type { ParamProps } from '../types'
+import { readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Potted foliage plant: pot + soil + foliage. The `type` enum picks the
  *  silhouette — a clustered bush, upright snake plant, arching palm, or a
  *  tall fiddle-leaf fig — `potShape` picks the planter (tapered / cylinder /
  *  square box), and `size` scales the whole plant. */
 export function PottedPlant({ props }: { props: ParamProps }) {
-  const sizeKey = readStr(props, 'size', 'medium');
-  const type = readStr(props, 'type', 'bush');
-  const potShape = readStr(props, 'potShape', 'tapered');
-  const potColor = readStr(props, 'potColor', '#b9743f');
-  const leafColor = readStr(props, 'leafColor', '#3f6b3a');
+  const sizeKey = readStr(props, 'size', 'medium')
+  const type = readStr(props, 'type', 'bush')
+  const potShape = readStr(props, 'potShape', 'tapered')
+  const potColor = readStr(props, 'potColor', '#b9743f')
+  const leafColor = readStr(props, 'leafColor', '#3f6b3a')
 
-  const scale = sizeKey === 'small' ? 0.7 : sizeKey === 'large' ? 1.35 : 1;
+  const scale = sizeKey === 'small' ? 0.7 : sizeKey === 'large' ? 1.35 : 1
 
-  const potH = 0.32;
-  const potRTop = 0.2;
-  const potRBot = potShape === 'tapered' ? 0.14 : 0.2;
-  const potSeg = seg(24, useDetail());
+  const potH = 0.32
+  const potRTop = 0.2
+  const potRBot = potShape === 'tapered' ? 0.14 : 0.2
+  const potSeg = seg(24, useDetail())
 
   // Shade a hex by a factor for canopy depth variation.
-  const [lr, lg, lb] = hexToRgb(leafColor);
+  const [lr, lg, lb] = hexToRgb(leafColor)
   const tint = (f: number) =>
-    `rgb(${Math.round(Math.min(255, lr * f))},${Math.round(Math.min(255, lg * f))},${Math.round(Math.min(255, lb * f))})`;
+    `rgb(${Math.round(Math.min(255, lr * f))},${Math.round(Math.min(255, lg * f))},${Math.round(Math.min(255, lb * f))})`
 
   // Fuller canopy: more blobs, varied size/shade. f<1 = shadowed interior.
   const blobs: { p: [number, number, number]; r: number; f: number }[] = [
@@ -37,14 +37,14 @@ export function PottedPlant({ props }: { props: ParamProps }) {
     { p: [-0.16, potH + 0.44, 0.1], r: 0.17, f: 0.95 },
     { p: [0.1, potH + 0.3, 0.17], r: 0.16, f: 0.9 },
     { p: [-0.02, potH + 0.66, 0.04], r: 0.14, f: 1.18 },
-  ];
+  ]
 
   // A few leaf fronds poking out of the canopy.
   const fronds: { p: [number, number, number]; rot: [number, number, number] }[] = [
     { p: [0.05, potH + 0.7, 0.0], rot: [0.2, 0, 0.2] },
     { p: [-0.1, potH + 0.6, 0.08], rot: [0.3, 1, -0.3] },
     { p: [0.12, potH + 0.58, -0.06], rot: [-0.2, -0.8, 0.4] },
-  ];
+  ]
 
   return (
     <group scale={scale}>
@@ -107,10 +107,10 @@ export function PottedPlant({ props }: { props: ParamProps }) {
         <>
           {/* Upright sword-like leaves fanning out of the pot. */}
           {Array.from({ length: 9 }, (_, i) => {
-            const a = (i / 9) * Math.PI * 2;
-            const ring = 0.06 + (i % 3) * 0.03;
-            const h = 0.7 + ((i * 37) % 5) * 0.09;
-            const lean = 0.12 + (i % 4) * 0.04;
+            const a = (i / 9) * Math.PI * 2
+            const ring = 0.06 + (i % 3) * 0.03
+            const h = 0.7 + ((i * 37) % 5) * 0.09
+            const lean = 0.12 + (i % 4) * 0.04
             return (
               <mesh
                 key={i}
@@ -119,9 +119,14 @@ export function PottedPlant({ props }: { props: ParamProps }) {
                 rotation={[Math.cos(a) * lean, a, -Math.sin(a) * lean]}
               >
                 <boxGeometry args={[0.07, h, 0.012]} />
-                <meshStandardMaterial color={tint(0.85 + (i % 3) * 0.12)} roughness={0.7} metalness={0} flatShading />
+                <meshStandardMaterial
+                  color={tint(0.85 + (i % 3) * 0.12)}
+                  roughness={0.7}
+                  metalness={0}
+                  flatShading
+                />
               </mesh>
-            );
+            )
           })}
         </>
       )}
@@ -133,8 +138,8 @@ export function PottedPlant({ props }: { props: ParamProps }) {
             <meshStandardMaterial color="#6a5230" roughness={0.9} />
           </mesh>
           {Array.from({ length: 7 }, (_, i) => {
-            const a = (i / 7) * Math.PI * 2;
-            const arch = 0.5 + (i % 3) * 0.06;
+            const a = (i / 7) * Math.PI * 2
+            const arch = 0.5 + (i % 3) * 0.06
             return (
               <mesh
                 key={i}
@@ -143,9 +148,14 @@ export function PottedPlant({ props }: { props: ParamProps }) {
                 rotation={[Math.cos(a) * 0.9, a, -Math.sin(a) * 0.9]}
               >
                 <coneGeometry args={[0.06, arch, 4]} />
-                <meshStandardMaterial color={tint(0.9 + (i % 3) * 0.1)} roughness={0.8} metalness={0} flatShading />
+                <meshStandardMaterial
+                  color={tint(0.9 + (i % 3) * 0.1)}
+                  roughness={0.8}
+                  metalness={0}
+                  flatShading
+                />
               </mesh>
-            );
+            )
           })}
         </>
       )}
@@ -158,10 +168,10 @@ export function PottedPlant({ props }: { props: ParamProps }) {
           </mesh>
           {/* Large broad oval leaves up the trunk, alternating sides */}
           {Array.from({ length: 7 }, (_, i) => {
-            const a = (i / 7) * Math.PI * 2 + (i % 2) * 0.6;
-            const h = potH + 0.55 + i * 0.12;
-            const out = 0.16 + (i % 2) * 0.05;
-            const tilt = 0.5 + (i % 3) * 0.12;
+            const a = (i / 7) * Math.PI * 2 + (i % 2) * 0.6
+            const h = potH + 0.55 + i * 0.12
+            const out = 0.16 + (i % 2) * 0.05
+            const tilt = 0.5 + (i % 3) * 0.12
             return (
               <mesh
                 key={i}
@@ -171,12 +181,16 @@ export function PottedPlant({ props }: { props: ParamProps }) {
                 scale={[0.16, 0.015, 0.24]}
               >
                 <icosahedronGeometry args={[1, 2]} />
-                <meshStandardMaterial color={tint(0.85 + (i % 3) * 0.12)} roughness={0.55} metalness={0} />
+                <meshStandardMaterial
+                  color={tint(0.85 + (i % 3) * 0.12)}
+                  roughness={0.55}
+                  metalness={0}
+                />
               </mesh>
-            );
+            )
           })}
         </>
       )}
     </group>
-  );
+  )
 }

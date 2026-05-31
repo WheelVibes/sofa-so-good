@@ -1,5 +1,5 @@
-import type { RoomId } from '../apartment/types';
-import type { MaterialId } from './types';
+import type { RoomId } from '../apartment/types'
+import type { MaterialId } from './types'
 
 /**
  * One-click design styles: a coordinated floor + wall palette applied to the
@@ -8,12 +8,12 @@ import type { MaterialId } from './types';
  * "designed" surfaces, not the bathroom tiling.
  */
 export interface StylePreset {
-  id: string;
-  name: string;
+  id: string
+  name: string
   /** Floor finish for the dry living spaces. */
-  dryFloor: MaterialId;
+  dryFloor: MaterialId
   /** Wall paint for the dry living spaces. */
-  wall: MaterialId;
+  wall: MaterialId
 }
 
 /** Rooms a style restyles (the "designed" living spaces). */
@@ -23,15 +23,20 @@ export const STYLE_ROOMS: RoomId[] = [
   'bedroom3',
   'livingDining',
   'corridor',
-];
+]
 
 export const STYLE_PRESETS: StylePreset[] = [
   { id: 'scandi', name: 'Scandinavian', dryFloor: 'floor-wood-oak', wall: 'wall-paint-white' },
   { id: 'warm', name: 'Warm Minimal', dryFloor: 'floor-wood-oak', wall: 'wall-paint-warm' },
-  { id: 'industrial', name: 'Industrial', dryFloor: 'floor-tile-charcoal', wall: 'wall-paint-greige' },
+  {
+    id: 'industrial',
+    name: 'Industrial',
+    dryFloor: 'floor-tile-charcoal',
+    wall: 'wall-paint-greige',
+  },
   { id: 'tropical', name: 'Tropical', dryFloor: 'floor-wood-teak', wall: 'wall-paint-sage' },
   { id: 'mono', name: 'Modern Mono', dryFloor: 'floor-tile-grey', wall: 'wall-paint-charcoal' },
-];
+]
 
 /** Apply a style across the living spaces via the finish setters. */
 export function applyStyle(
@@ -40,7 +45,7 @@ export function applyStyle(
   setWallFinish: (room: RoomId, id: MaterialId) => void,
 ): void {
   for (const room of STYLE_ROOMS) {
-    setFloorFinish(room, preset.dryFloor);
-    setWallFinish(room, preset.wall);
+    setFloorFinish(room, preset.dryFloor)
+    setWallFinish(room, preset.wall)
   }
 }

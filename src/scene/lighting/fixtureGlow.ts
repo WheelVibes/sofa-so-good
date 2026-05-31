@@ -4,12 +4,12 @@
  * shades glow at night and go dark in daylight. A plain module singleton (not
  * store state) keeps it out of React re-renders — it's polled in useFrame.
  */
-let glow = 0;
+let glow = 0
 
 export function setFixtureGlow(v: number): void {
-  glow = v;
+  glow = v
 }
 
 export function getFixtureGlow(): number {
-  return glow;
+  return glow
 }

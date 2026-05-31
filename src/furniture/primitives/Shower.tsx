@@ -1,17 +1,23 @@
-import { readNum, readStr } from './shared';
-import type { ParamProps } from '../types';
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Corner shower: low tray + two glass panels + wall riser with head and
  *  mixer. The glass faces +X/+Z (open corner toward −X/−Z walls). */
 export function Shower({ props }: { props: ParamProps }) {
-  const size = readNum(props, 'size', 0.9);
-  const trayColor = readStr(props, 'trayColor', '#eceae6');
-  const style = readStr(props, 'style', 'corner');
-  const corner = style === 'corner';
-  const h = 2.0;
-  const half = size / 2;
-  const glass = { color: '#bcd4e6', roughness: 0.05, metalness: 0.1, transparent: true, opacity: 0.22 };
-  const chrome = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 };
+  const size = readNum(props, 'size', 0.9)
+  const trayColor = readStr(props, 'trayColor', '#eceae6')
+  const style = readStr(props, 'style', 'corner')
+  const corner = style === 'corner'
+  const h = 2.0
+  const half = size / 2
+  const glass = {
+    color: '#bcd4e6',
+    roughness: 0.05,
+    metalness: 0.1,
+    transparent: true,
+    opacity: 0.22,
+  }
+  const chrome = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 }
 
   return (
     <group>
@@ -71,5 +77,5 @@ export function Shower({ props }: { props: ParamProps }) {
         <meshStandardMaterial {...chrome} />
       </mesh>
     </group>
-  );
+  )
 }

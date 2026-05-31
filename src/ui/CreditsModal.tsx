@@ -1,33 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from 'react'
 
 interface CreditEntry {
-  id: string;
-  name: string;
-  attribution: string;
-  sourceUrl: string;
-  license: 'CC0';
+  id: string
+  name: string
+  attribution: string
+  sourceUrl: string
+  license: 'CC0'
 }
 
 interface Credits {
-  furniture: CreditEntry[];
-  materials: CreditEntry[];
+  furniture: CreditEntry[]
+  materials: CreditEntry[]
 }
 
 interface Props {
-  open: boolean;
-  onClose: () => void;
+  open: boolean
+  onClose: () => void
 }
 
 export function CreditsModal({ open, onClose }: Props) {
-  const [credits, setCredits] = useState<Credits | null>(null);
+  const [credits, setCredits] = useState<Credits | null>(null)
   useEffect(() => {
-    if (!open) return;
+    if (!open) return
     fetch('/assets/CREDITS.json')
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
       .then(setCredits)
-      .catch(() => setCredits({ furniture: [], materials: [] }));
-  }, [open]);
-  if (!open) return null;
+      .catch(() => setCredits({ furniture: [], materials: [] }))
+  }, [open])
+  if (!open) return null
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
@@ -50,8 +50,8 @@ export function CreditsModal({ open, onClose }: Props) {
                   third-party assets are bundled, so none need attribution.
                 </p>
                 <p>
-                  Assets you download from the in-app libraries (Poly Haven, ambientCG,
-                  Kenney — all CC0) are credited on each item&rsquo;s catalog card.
+                  Assets you download from the in-app libraries (Poly Haven, ambientCG, Kenney — all
+                  CC0) are credited on each item&rsquo;s catalog card.
                 </p>
               </div>
             )}
@@ -64,23 +64,18 @@ export function CreditsModal({ open, onClose }: Props) {
         </button>
       </div>
     </div>
-  );
+  )
 }
 
 function Section({ title, entries }: { title: string; entries: CreditEntry[] }) {
-  if (!entries.length) return null;
+  if (!entries.length) return null
   return (
     <section className="mt-2">
       <h3 className="text-sm font-semibold">{title}</h3>
       <ul className="text-sm">
         {entries.map((e) => (
           <li key={e.id}>
-            <a
-              href={e.sourceUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
+            <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
               {e.name}
             </a>
             {' — '}
@@ -89,5 +84,5 @@ function Section({ title, entries }: { title: string; entries: CreditEntry[] }) 
         ))}
       </ul>
     </section>
-  );
+  )
 }

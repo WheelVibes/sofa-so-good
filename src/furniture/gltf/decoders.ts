@@ -1,4 +1,4 @@
-import { useGLTF } from '@react-three/drei';
+import { useGLTF } from '@react-three/drei'
 
 /**
  * What `registerGltfDecoders` wired (or confirmed) for compressed-GLB loading.
@@ -9,13 +9,13 @@ import { useGLTF } from '@react-three/drei';
  */
 export interface DecoderReport {
   /** Draco mesh-compression decoder path was pointed at the CDN. */
-  draco: boolean;
+  draco: boolean
   /** KTX2/Basis transcoder support is available (renderer-bound, auto-wired). */
-  ktx2: boolean;
+  ktx2: boolean
   /** Meshopt buffer decoder is applied by drei on every load (default on). */
-  meshopt: boolean;
+  meshopt: boolean
   /** Set when a prior call already performed registration; setters are skipped. */
-  alreadyRegistered?: true;
+  alreadyRegistered?: true
 }
 
 /**
@@ -27,10 +27,10 @@ export interface DecoderReport {
 // for offline/CSP-restricted or self-hosted deployments.
 const DRACO_DECODER_PATH =
   import.meta.env.VITE_DRACO_DECODER_PATH ??
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.5/';
+  'https://www.gstatic.com/draco/versioned/decoders/1.5.5/'
 
 /** Module-level idempotency guard — see {@link registerGltfDecoders}. */
-let registered = false;
+let registered = false
 
 /**
  * Register the geometry/texture decoders the shared drei `useGLTF` loader needs
@@ -68,15 +68,15 @@ let registered = false;
  */
 export function registerGltfDecoders(): DecoderReport {
   if (registered) {
-    return { draco: true, ktx2: true, meshopt: true, alreadyRegistered: true };
+    return { draco: true, ktx2: true, meshopt: true, alreadyRegistered: true }
   }
 
   // Draco: the one real boot-time hook. drei reuses this path for its shared
   // DRACOLoader created on first Draco GLB load.
-  useGLTF.setDecoderPath(DRACO_DECODER_PATH);
+  useGLTF.setDecoderPath(DRACO_DECODER_PATH)
 
   // Meshopt: nothing to register at boot — drei auto-wires the three-stdlib
   // MeshoptDecoder itself on every useGLTF() call (useMeshopt defaults to true).
-  registered = true;
-  return { draco: true, ktx2: true, meshopt: true };
+  registered = true
+  return { draco: true, ktx2: true, meshopt: true }
 }

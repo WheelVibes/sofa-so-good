@@ -1,6 +1,6 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Leaning full-length floor mirror: a tall framed reflective panel that
@@ -10,25 +10,32 @@ import type { ParamProps } from '../types';
  * the Low tier, boosted envMapIntensity to catch the IBL where it's on).
  */
 export function FloorMirror({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 0.6);
-  const height = readNum(props, 'height', 1.6);
-  const frameColor = readStr(props, 'frameColor', '#6f553f');
-  const frameFinish = readStr(props, 'frameFinish', 'wood');
-  const sheen = readNum(props, 'sheen', 0);
-  const shape = readStr(props, 'shape', 'rect');
+  const width = readNum(props, 'width', 0.6)
+  const height = readNum(props, 'height', 1.6)
+  const frameColor = readStr(props, 'frameColor', '#6f553f')
+  const frameFinish = readStr(props, 'frameFinish', 'wood')
+  const sheen = readNum(props, 'sheen', 0)
+  const shape = readStr(props, 'shape', 'rect')
 
-  const frameD = 0.05;
-  const frameMat = getSurfaceMaterial(frameFinish, frameColor, 1, sheen);
+  const frameD = 0.05
+  const frameMat = getSurfaceMaterial(frameFinish, frameColor, 1, sheen)
   const pane = (
-    <meshStandardMaterial color="#dfe8ee" roughness={0.07} metalness={0.7} envMapIntensity={2.0} emissive="#b9c6d0" emissiveIntensity={0.16} />
-  );
+    <meshStandardMaterial
+      color="#dfe8ee"
+      roughness={0.07}
+      metalness={0.7}
+      envMapIntensity={2.0}
+      emissive="#b9c6d0"
+      emissiveIntensity={0.16}
+    />
+  )
 
   if (shape === 'round') {
     // Cheval-style round mirror swivelling between two posts on a foot bar.
-    const r = width / 2;
-    const standH = 0.12; // foot clearance below the ring
-    const cy = standH + r;
-    const postX = r + 0.04;
+    const r = width / 2
+    const standH = 0.12 // foot clearance below the ring
+    const cy = standH + r
+    const postX = r + 0.04
     return (
       <group>
         <group position={[0, cy, 0]} rotation={[0.05, 0, 0]}>
@@ -56,10 +63,10 @@ export function FloorMirror({ props }: { props: ParamProps }) {
           </mesh>
         ))}
       </group>
-    );
+    )
   }
 
-  const lean = 0.12; // radians, top tilts back toward the wall
+  const lean = 0.12 // radians, top tilts back toward the wall
   return (
     // Pivot at the floor so the lean rotates about the base.
     <group rotation={[lean, 0, 0]}>
@@ -75,5 +82,5 @@ export function FloorMirror({ props }: { props: ParamProps }) {
         </mesh>
       </group>
     </group>
-  );
+  )
 }

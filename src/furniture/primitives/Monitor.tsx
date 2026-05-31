@@ -1,21 +1,21 @@
-import { readNum, readStr } from './shared';
-import { getScreenContent } from './screenContent';
-import type { ParamProps } from '../types';
+import type { ParamProps } from '../types'
+import { getScreenContent } from './screenContent'
+import { readNum, readStr } from './shared'
 
 /** Desktop monitor that sits on a desk: base + stem + panel. Its geometry
  *  starts at desk height (≈0.74 m) so it rests on a desktop when placed at a
  *  desk's position. Faces +Z (screen toward the viewer/seat at +Z). */
 export function Monitor({ props }: { props: ParamProps }) {
-  const diagIn = Number(readStr(props, 'size', '27')) || 27;
-  const deskH = readNum(props, 'deskHeight', 0.74);
-  const screenColor = readStr(props, 'screenColor', '#10131a');
-  const on = readStr(props, 'screen', 'off') === 'on';
-  const content = readStr(props, 'screenContent', 'landscape');
+  const diagIn = Number(readStr(props, 'size', '27')) || 27
+  const deskH = readNum(props, 'deskHeight', 0.74)
+  const screenColor = readStr(props, 'screenColor', '#10131a')
+  const on = readStr(props, 'screen', 'off') === 'on'
+  const content = readStr(props, 'screenContent', 'landscape')
 
-  const diagM = diagIn * 0.0254;
-  const w = diagM * 0.87;
-  const h = diagM * 0.49;
-  const panelY = deskH + 0.06 + h / 2;
+  const diagM = diagIn * 0.0254
+  const w = diagM * 0.87
+  const h = diagM * 0.49
+  const panelY = deskH + 0.06 + h / 2
 
   return (
     <group>
@@ -48,9 +48,15 @@ export function Monitor({ props }: { props: ParamProps }) {
             toneMapped={false}
           />
         ) : (
-          <meshStandardMaterial color={screenColor} roughness={0.16} metalness={0.1} emissive={screenColor} emissiveIntensity={0.15} />
+          <meshStandardMaterial
+            color={screenColor}
+            roughness={0.16}
+            metalness={0.1}
+            emissive={screenColor}
+            emissiveIntensity={0.15}
+          />
         )}
       </mesh>
     </group>
-  );
+  )
 }

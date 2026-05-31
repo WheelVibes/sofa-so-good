@@ -1,5 +1,5 @@
-import { WALLS } from '../constants';
-import { WallSegment } from './WallSegment';
+import { WALLS } from '../constants'
+import { WallSegment } from './WallSegment'
 
 /** Maps over the wall registry and mounts one WallSegment per wall.
  *  Each WallSegment renders its body box + per-side interior face
@@ -12,5 +12,5 @@ export function Walls() {
         <WallSegment key={w.id} wall={w} />
       ))}
     </group>
-  );
+  )
 }

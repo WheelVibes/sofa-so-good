@@ -1,7 +1,7 @@
-import { RoundedBox } from '@react-three/drei';
-import { readNum, readStr } from './shared';
-import { getSolidMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { RoundedBox } from '@react-three/drei'
+import { getSolidMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Soundbar — a slim media speaker that mounts on the wall just below a TV (or
@@ -10,25 +10,32 @@ import type { ParamProps } from '../types';
  * Mounted (faces +Z, offset to `mountHeight`); place it on the media wall.
  */
 export function Soundbar({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 1.0);
-  const centerY = readNum(props, 'mountHeight', 1.0);
-  const color = readStr(props, 'color', '#202024');
-  const grille = readStr(props, 'grille', 'fabric');
-  const sub = readStr(props, 'sub', 'none');
+  const width = readNum(props, 'width', 1.0)
+  const centerY = readNum(props, 'mountHeight', 1.0)
+  const color = readStr(props, 'color', '#202024')
+  const grille = readStr(props, 'grille', 'fabric')
+  const sub = readStr(props, 'sub', 'none')
 
-  const h = 0.075;
-  const d = 0.09;
-  const bodyMat = getSolidMaterial(color, 0.5, 0.2);
+  const h = 0.075
+  const d = 0.09
+  const bodyMat = getSolidMaterial(color, 0.5, 0.2)
   // Speaker cloth (woven grey) vs a perforated metal grille.
   const grilleMat =
     grille === 'metal'
       ? { color: '#3a3a3e', roughness: 0.4, metalness: 0.6 }
-      : { color: '#33332f', roughness: 0.95, metalness: 0 };
+      : { color: '#33332f', roughness: 0.95, metalness: 0 }
 
   return (
     <group position={[0, centerY, 0]}>
       {/* Enclosure */}
-      <RoundedBox args={[width, h, d]} radius={0.015} smoothness={3} castShadow receiveShadow material={bodyMat} />
+      <RoundedBox
+        args={[width, h, d]}
+        radius={0.015}
+        smoothness={3}
+        castShadow
+        receiveShadow
+        material={bodyMat}
+      />
       {/* Speaker-cloth front face */}
       <mesh position={[0, 0, d / 2 + 0.002]}>
         <planeGeometry args={[width - 0.03, h - 0.018]} />
@@ -52,5 +59,5 @@ export function Soundbar({ props }: { props: ParamProps }) {
         />
       )}
     </group>
-  );
+  )
 }

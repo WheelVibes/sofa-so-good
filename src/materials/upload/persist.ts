@@ -1,31 +1,29 @@
-import { IdbAssetStore } from '../../state/storage/IdbAssetStore';
-import { useStore } from '../../state/store';
-import type { MaterialCategory, TexturedMaterialDef } from '../types';
-import { validateImageFile } from './validate';
+import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
+import { useStore } from '../../state/store'
+import type { MaterialCategory, TexturedMaterialDef } from '../types'
+import { validateImageFile } from './validate'
 
 export interface MaterialUploadFiles {
-  albedo: File;
-  normal?: File | null;
-  roughness?: File | null;
-  ao?: File | null;
+  albedo: File
+  normal?: File | null
+  roughness?: File | null
+  ao?: File | null
 }
 
 export interface MaterialUploadOptions {
-  name: string;
-  category: MaterialCategory;
-  uvScale: [number, number];
-  swatch: string;
+  name: string
+  category: MaterialCategory
+  uvScale: [number, number]
+  swatch: string
 }
 
-export type PersistResult =
-  | { ok: true; def: TexturedMaterialDef }
-  | { ok: false; reason: string };
+export type PersistResult = { ok: true; def: TexturedMaterialDef } | { ok: false; reason: string }
 
 function newId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-    return crypto.randomUUID();
+    return crypto.randomUUID()
   }
-  return `mat-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+  return `mat-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`
 }
 
 async function persistChannel(
@@ -33,10 +31,10 @@ async function persistChannel(
   role: 'albedo' | 'normal' | 'roughness' | 'ao',
   file: File,
 ): Promise<{ assetId: string; url: string }> {
-  const v = await validateImageFile(file);
-  if (!v.ok) throw new Error(`${role}: ${v.reason}`);
-  const assetId = `${matAssetId}-${role}`;
-  const blob = new Blob([await file.arrayBuffer()], { type: v.mime });
+  const v = await validateImageFile(file)
+  if (!v.ok) throw new Error(`${role}: ${v.reason}`)
+  const assetId = `${matAssetId}-${role}`
+  const blob = new Blob([await file.arrayBuffer()], { type: v.mime })
   await IdbAssetStore.put({
     assetId,
     kind: 'texture',
@@ -45,8 +43,8 @@ async function persistChannel(
     uploadedAt: new Date().toISOString(),
     blob,
     meta: { matId: matAssetId, role },
-  });
-  return { assetId, url: URL.createObjectURL(blob) };
+  })
+  return { assetId, url: URL.createObjectURL(blob) }
 }
 
 /** Validates every channel, writes the blobs to IndexedDB (one record
@@ -57,25 +55,28 @@ export async function persistUserMaterial(
   files: MaterialUploadFiles,
   opts: MaterialUploadOptions,
 ): Promise<PersistResult> {
-  if (!opts.name.trim()) return { ok: false, reason: 'Name is required.' };
-  const matId = `user-${newId()}`;
+  if (!opts.name.trim()) return { ok: false, reason: 'Name is required.' }
+  const matId = `user-${newId()}`
 
-  const persisted: Partial<Record<'albedo' | 'normal' | 'roughness' | 'ao', { assetId: string; url: string }>> = {};
+  const persisted: Partial<
+    Record<'albedo' | 'normal' | 'roughness' | 'ao', { assetId: string; url: string }>
+  > = {}
   try {
-    persisted.albedo = await persistChannel(matId, 'albedo', files.albedo);
-    if (files.normal) persisted.normal = await persistChannel(matId, 'normal', files.normal);
-    if (files.roughness) persisted.roughness = await persistChannel(matId, 'roughness', files.roughness);
-    if (files.ao) persisted.ao = await persistChannel(matId, 'ao', files.ao);
+    persisted.albedo = await persistChannel(matId, 'albedo', files.albedo)
+    if (files.normal) persisted.normal = await persistChannel(matId, 'normal', files.normal)
+    if (files.roughness)
+      persisted.roughness = await persistChannel(matId, 'roughness', files.roughness)
+    if (files.ao) persisted.ao = await persistChannel(matId, 'ao', files.ao)
   } catch (e) {
     // Roll back any successful writes so a half-uploaded material doesn't
     // leak into IDB.
     for (const r of Object.values(persisted)) {
       if (r) {
-        URL.revokeObjectURL(r.url);
-        await IdbAssetStore.delete(r.assetId).catch(() => {});
+        URL.revokeObjectURL(r.url)
+        await IdbAssetStore.delete(r.assetId).catch(() => {})
       }
     }
-    return { ok: false, reason: (e as Error).message };
+    return { ok: false, reason: (e as Error).message }
   }
 
   const def: TexturedMaterialDef = {
@@ -98,7 +99,7 @@ export async function persistUserMaterial(
       roughness: persisted.roughness?.url,
       ao: persisted.ao?.url,
     },
-  };
-  useStore.getState().addUserMaterial(def);
-  return { ok: true, def };
+  }
+  useStore.getState().addUserMaterial(def)
+  return { ok: true, def }
 }

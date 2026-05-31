@@ -5,82 +5,82 @@
  * and one BUILTIN_CATALOG entry referencing the new PrimitiveKind.
  */
 
-import type { ComponentType } from 'react';
-import type { ParamProps, PrimitiveKind } from '../types';
-import { Bed } from './Bed';
-import { Sofa } from './Sofa';
-import { SofaSectional } from './SofaSectional';
-import { FeatureWall } from './FeatureWall';
-import { ConsoleTable } from './ConsoleTable';
-import { Sideboard } from './Sideboard';
-import { BarCart } from './BarCart';
-import { Ottoman } from './Ottoman';
-import { RoomDivider } from './RoomDivider';
-import { Bench } from './Bench';
-import { CubeShelf } from './CubeShelf';
-import { DiningTable } from './DiningTable';
-import { KitchenCounter } from './KitchenCounter';
-import { Wardrobe } from './Wardrobe';
-import { Desk } from './Desk';
-import { Bookshelf } from './Bookshelf';
-import { TVConsole } from './TVConsole';
-import { DiningChair } from './DiningChair';
-import { Armchair } from './Armchair';
-import { CoffeeTable } from './CoffeeTable';
-import { Nightstand } from './Nightstand';
-import { Rug } from './Rug';
-import { PottedPlant } from './PottedPlant';
-import { FlatscreenTV } from './FlatscreenTV';
-import { AirconUnit } from './AirconUnit';
-import { Refrigerator } from './Refrigerator';
-import { FloorLamp } from './FloorLamp';
-import { Toilet } from './Toilet';
-import { BathroomSink } from './BathroomSink';
-import { CeilingLight } from './CeilingLight';
-import { CeilingFan } from './CeilingFan';
-import { Stove } from './Stove';
-import { WashingMachine } from './WashingMachine';
-import { Curtain } from './Curtain';
-import { WallArt } from './WallArt';
-import { OfficeChair } from './OfficeChair';
-import { WallCabinet } from './WallCabinet';
-import { Dresser } from './Dresser';
-import { BarStool } from './BarStool';
-import { Shower } from './Shower';
-import { Mirror } from './Mirror';
-import { Monitor } from './Monitor';
-import { RangeHood } from './RangeHood';
-import { TableLamp } from './TableLamp';
-import { Microwave } from './Microwave';
-import { DryingRack } from './DryingRack';
-import { TabletopDecor } from './TabletopDecor';
-import { ShoeCabinet } from './ShoeCabinet';
-import { WallShelf } from './WallShelf';
-import { WallSconce } from './WallSconce';
-import { CoveLight } from './CoveLight';
-import { FloorMirror } from './FloorMirror';
-import { RollerBlind } from './RollerBlind';
-import { SideTable } from './SideTable';
-import { WallClock } from './WallClock';
-import { StandingFan } from './StandingFan';
-import { TowelRail } from './TowelRail';
-import { BunkBed } from './BunkBed';
-import { Crib } from './Crib';
-import { Soundbar } from './Soundbar';
-import { WallMirror } from './WallMirror';
-import { FloorVase } from './FloorVase';
-import { HighChair } from './HighChair';
-import { ChangingTable } from './ChangingTable';
-import { Bathtub } from './Bathtub';
-import { CoatRack } from './CoatRack';
-import { HangingPlant } from './HangingPlant';
-import { ChaiseLounge } from './ChaiseLounge';
-import { KitchenIsland } from './KitchenIsland';
-import { Piano } from './Piano';
-import { Fireplace } from './Fireplace';
-import { Vanity } from './Vanity';
+import type { ComponentType } from 'react'
+import type { ParamProps, PrimitiveKind } from '../types'
+import { AirconUnit } from './AirconUnit'
+import { Armchair } from './Armchair'
+import { BarCart } from './BarCart'
+import { BarStool } from './BarStool'
+import { BathroomSink } from './BathroomSink'
+import { Bathtub } from './Bathtub'
+import { Bed } from './Bed'
+import { Bench } from './Bench'
+import { Bookshelf } from './Bookshelf'
+import { BunkBed } from './BunkBed'
+import { CeilingFan } from './CeilingFan'
+import { CeilingLight } from './CeilingLight'
+import { ChaiseLounge } from './ChaiseLounge'
+import { ChangingTable } from './ChangingTable'
+import { CoatRack } from './CoatRack'
+import { CoffeeTable } from './CoffeeTable'
+import { ConsoleTable } from './ConsoleTable'
+import { CoveLight } from './CoveLight'
+import { Crib } from './Crib'
+import { CubeShelf } from './CubeShelf'
+import { Curtain } from './Curtain'
+import { Desk } from './Desk'
+import { DiningChair } from './DiningChair'
+import { DiningTable } from './DiningTable'
+import { Dresser } from './Dresser'
+import { DryingRack } from './DryingRack'
+import { FeatureWall } from './FeatureWall'
+import { Fireplace } from './Fireplace'
+import { FlatscreenTV } from './FlatscreenTV'
+import { FloorLamp } from './FloorLamp'
+import { FloorMirror } from './FloorMirror'
+import { FloorVase } from './FloorVase'
+import { HangingPlant } from './HangingPlant'
+import { HighChair } from './HighChair'
+import { KitchenCounter } from './KitchenCounter'
+import { KitchenIsland } from './KitchenIsland'
+import { Microwave } from './Microwave'
+import { Mirror } from './Mirror'
+import { Monitor } from './Monitor'
+import { Nightstand } from './Nightstand'
+import { OfficeChair } from './OfficeChair'
+import { Ottoman } from './Ottoman'
+import { Piano } from './Piano'
+import { PottedPlant } from './PottedPlant'
+import { RangeHood } from './RangeHood'
+import { Refrigerator } from './Refrigerator'
+import { RollerBlind } from './RollerBlind'
+import { RoomDivider } from './RoomDivider'
+import { Rug } from './Rug'
+import { ShoeCabinet } from './ShoeCabinet'
+import { Shower } from './Shower'
+import { Sideboard } from './Sideboard'
+import { SideTable } from './SideTable'
+import { Sofa } from './Sofa'
+import { SofaSectional } from './SofaSectional'
+import { Soundbar } from './Soundbar'
+import { StandingFan } from './StandingFan'
+import { Stove } from './Stove'
+import { TableLamp } from './TableLamp'
+import { TabletopDecor } from './TabletopDecor'
+import { Toilet } from './Toilet'
+import { TowelRail } from './TowelRail'
+import { TVConsole } from './TVConsole'
+import { Vanity } from './Vanity'
+import { WallArt } from './WallArt'
+import { WallCabinet } from './WallCabinet'
+import { WallClock } from './WallClock'
+import { WallMirror } from './WallMirror'
+import { WallSconce } from './WallSconce'
+import { WallShelf } from './WallShelf'
+import { Wardrobe } from './Wardrobe'
+import { WashingMachine } from './WashingMachine'
 
-export type PrimitiveComponent = ComponentType<{ props: ParamProps }>;
+export type PrimitiveComponent = ComponentType<{ props: ParamProps }>
 
 export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Bed,
@@ -155,4 +155,4 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Piano,
   Fireplace,
   Vanity,
-};
+}

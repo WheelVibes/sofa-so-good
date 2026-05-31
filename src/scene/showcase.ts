@@ -6,30 +6,30 @@
  * converge a noise-free soft shadow.
  */
 
-export const IDLE_MS = 400;
+export const IDLE_MS = 400
 
 export interface ShowcaseState {
-  mode: 'live' | 'accumulate';
+  mode: 'live' | 'accumulate'
   /** Clock (ms) when the camera last became still, or null while moving. */
-  stillSince: number | null;
+  stillSince: number | null
 }
 
 export interface ShowcaseInput {
-  moved: boolean;
+  moved: boolean
   /**
    * Monotonically increasing clock in ms (e.g. `performance.now()`).
    * The state machine fails open to 'live' if `now` ever regresses, because a
    * regression makes `idleFor` negative, which is never `> IDLE_MS`.
    */
-  now: number;
+  now: number
 }
 
 export function nextShowcaseState(prev: ShowcaseState, input: ShowcaseInput): ShowcaseState {
   if (input.moved) {
-    return { mode: 'live', stillSince: null };
+    return { mode: 'live', stillSince: null }
   }
-  const stillSince = prev.stillSince ?? input.now;
-  const idleFor = input.now - stillSince;
-  const mode = idleFor > IDLE_MS ? 'accumulate' : 'live';
-  return { mode, stillSince };
+  const stillSince = prev.stillSince ?? input.now
+  const idleFor = input.now - stillSince
+  const mode = idleFor > IDLE_MS ? 'accumulate' : 'live'
+  return { mode, stillSince }
 }

@@ -1,9 +1,9 @@
-import { defineConfig } from 'vitest/config';
-import react from '@vitejs/plugin-react';
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vitest/config'
 
 // Pin tests to Singapore time so wall-clock-dependent assertions
 // (e.g. useSunPosition with manualHour=0 expecting night) are deterministic.
-process.env.TZ = 'Asia/Singapore';
+process.env.TZ = 'Asia/Singapore'
 
 export default defineConfig({
   plugins: [react()],
@@ -15,4 +15,4 @@ export default defineConfig({
       TZ: 'Asia/Singapore',
     },
   },
-});
+})

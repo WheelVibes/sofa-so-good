@@ -1,55 +1,45 @@
-import type { StateCreator } from 'zustand';
-import type {
-  ProviderId,
-  RemoteEntry,
-  Resolution,
-} from '../../catalog/remote/types';
-import { PROVIDERS } from '../../catalog/remote/providers';
+import type { StateCreator } from 'zustand'
 import {
-  getIndex,
-  putIndex,
   getAsset,
-  putAsset,
+  getIndex,
   getMeta,
+  putAsset,
+  putIndex,
   resetCacheForTest,
-} from '../../catalog/remote/cache/db';
-import {
-  evictUntilUnder,
-  DEFAULT_ASSET_CAP_BYTES,
-} from '../../catalog/remote/cache/lru';
-import { writeShadow } from '../../catalog/remote/cache/shadow';
-import {
-  bundleToFurnitureDef,
-  bundleToMaterialDef,
-} from '../../catalog/remote/resolver';
-import type { RemoteGltfDef } from '../../furniture/types';
-import type { TexturedMaterialDef } from '../../materials/types';
+} from '../../catalog/remote/cache/db'
+import { DEFAULT_ASSET_CAP_BYTES, evictUntilUnder } from '../../catalog/remote/cache/lru'
+import { writeShadow } from '../../catalog/remote/cache/shadow'
+import { PROVIDERS } from '../../catalog/remote/providers'
+import { bundleToFurnitureDef, bundleToMaterialDef } from '../../catalog/remote/resolver'
+import type { ProviderId, RemoteEntry, Resolution } from '../../catalog/remote/types'
+import type { RemoteGltfDef } from '../../furniture/types'
+import type { TexturedMaterialDef } from '../../materials/types'
 
-const ONE_DAY = 24 * 60 * 60 * 1000;
-const STALE_AFTER = 7 * ONE_DAY;
+const ONE_DAY = 24 * 60 * 60 * 1000
+const STALE_AFTER = 7 * ONE_DAY
 
 export type RemoteIndexState = {
-  status: 'idle' | 'loading' | 'ready' | 'error';
-  entries: RemoteEntry[];
-  fetchedAt?: string;
-  error?: string;
-};
-
-export interface RemoteCatalogSlice {
-  remoteIndexes: Record<ProviderId, RemoteIndexState>;
-  remoteFetches: Record<string, 'fetching' | 'error' | undefined>;
-  resolvedRemoteFurniture: Record<string, RemoteGltfDef>;
-  resolvedRemoteMaterials: Record<string, TexturedMaterialDef>;
-  remoteCacheBytes: number;
-  preferredResolution: Resolution;
-  setPreferredResolution(r: Resolution): void;
-  bootstrapRemoteCatalog(): Promise<void>;
-  refreshProviderIndex(p: ProviderId): Promise<void>;
-  resolveRemoteAsset(entry: RemoteEntry, r: Resolution): Promise<void>;
-  clearRemoteCache(): Promise<void>;
+  status: 'idle' | 'loading' | 'ready' | 'error'
+  entries: RemoteEntry[]
+  fetchedAt?: string
+  error?: string
 }
 
-const emptyIdx = (): RemoteIndexState => ({ status: 'idle', entries: [] });
+export interface RemoteCatalogSlice {
+  remoteIndexes: Record<ProviderId, RemoteIndexState>
+  remoteFetches: Record<string, 'fetching' | 'error' | undefined>
+  resolvedRemoteFurniture: Record<string, RemoteGltfDef>
+  resolvedRemoteMaterials: Record<string, TexturedMaterialDef>
+  remoteCacheBytes: number
+  preferredResolution: Resolution
+  setPreferredResolution(r: Resolution): void
+  bootstrapRemoteCatalog(): Promise<void>
+  refreshProviderIndex(p: ProviderId): Promise<void>
+  resolveRemoteAsset(entry: RemoteEntry, r: Resolution): Promise<void>
+  clearRemoteCache(): Promise<void>
+}
+
+const emptyIdx = (): RemoteIndexState => ({ status: 'idle', entries: [] })
 
 export const REMOTE_CATALOG_INITIAL: Pick<
   RemoteCatalogSlice,
@@ -66,9 +56,9 @@ export const REMOTE_CATALOG_INITIAL: Pick<
   resolvedRemoteMaterials: {},
   remoteCacheBytes: 0,
   preferredResolution: '2k',
-};
+}
 
-const inFlight = new Map<string, Promise<void>>();
+const inFlight = new Map<string, Promise<void>>()
 
 export const createRemoteCatalogSlice: StateCreator<
   RemoteCatalogSlice,
@@ -79,15 +69,15 @@ export const createRemoteCatalogSlice: StateCreator<
   ...REMOTE_CATALOG_INITIAL,
 
   setPreferredResolution(r) {
-    set({ preferredResolution: r });
+    set({ preferredResolution: r })
   },
 
   async bootstrapRemoteCatalog() {
-    const meta = await getMeta();
-    set({ remoteCacheBytes: meta.totalBytes });
+    const meta = await getMeta()
+    set({ remoteCacheBytes: meta.totalBytes })
     await Promise.all(
       (Object.keys(PROVIDERS) as ProviderId[]).map(async (p) => {
-        const cached = await getIndex(p);
+        const cached = await getIndex(p)
         if (cached) {
           set((s) => ({
             remoteIndexes: {
@@ -98,13 +88,13 @@ export const createRemoteCatalogSlice: StateCreator<
                 fetchedAt: cached.fetchedAt,
               },
             },
-          }));
-          const age = Date.now() - new Date(cached.fetchedAt).getTime();
-          if (age < STALE_AFTER) return;
+          }))
+          const age = Date.now() - new Date(cached.fetchedAt).getTime()
+          if (age < STALE_AFTER) return
         }
-        await get().refreshProviderIndex(p);
+        await get().refreshProviderIndex(p)
       }),
-    );
+    )
   },
 
   async refreshProviderIndex(p) {
@@ -113,11 +103,11 @@ export const createRemoteCatalogSlice: StateCreator<
         ...s.remoteIndexes,
         [p]: { ...s.remoteIndexes[p], status: 'loading' },
       },
-    }));
+    }))
     try {
-      const entries = await PROVIDERS[p].fetchIndex();
-      await putIndex(p, entries);
-      writeShadow(p, { count: entries.length, fetchedAt: new Date().toISOString() });
+      const entries = await PROVIDERS[p].fetchIndex()
+      await putIndex(p, entries)
+      writeShadow(p, { count: entries.length, fetchedAt: new Date().toISOString() })
       set((s) => ({
         remoteIndexes: {
           ...s.remoteIndexes,
@@ -127,69 +117,66 @@ export const createRemoteCatalogSlice: StateCreator<
             fetchedAt: new Date().toISOString(),
           },
         },
-      }));
+      }))
     } catch (e) {
       set((s) => ({
         remoteIndexes: {
           ...s.remoteIndexes,
           [p]: { ...s.remoteIndexes[p], status: 'error', error: String(e) },
         },
-      }));
+      }))
     }
   },
 
   async resolveRemoteAsset(entry, resolution) {
-    const key = `${entry.provider}:${entry.slug}:${resolution}`;
-    if (
-      get().resolvedRemoteFurniture[key] ||
-      get().resolvedRemoteMaterials[key]
-    ) {
-      return;
+    const key = `${entry.provider}:${entry.slug}:${resolution}`
+    if (get().resolvedRemoteFurniture[key] || get().resolvedRemoteMaterials[key]) {
+      return
     }
-    const existing = inFlight.get(key);
-    if (existing) return existing;
+    const existing = inFlight.get(key)
+    if (existing) return existing
 
     const run = (async () => {
-      set((s) => ({ remoteFetches: { ...s.remoteFetches, [key]: 'fetching' } }));
+      set((s) => ({ remoteFetches: { ...s.remoteFetches, [key]: 'fetching' } }))
       try {
-        let bundle = await getAsset(key);
+        let bundle = await getAsset(key)
         if (!bundle) {
-          bundle = await PROVIDERS[entry.provider].fetchAsset(entry, resolution);
-          await putAsset(key, bundle);
-          await evictUntilUnder(DEFAULT_ASSET_CAP_BYTES);
-          const meta = await getMeta();
-          set({ remoteCacheBytes: meta.totalBytes });
+          bundle = await PROVIDERS[entry.provider].fetchAsset(entry, resolution)
+          await putAsset(key, bundle)
+          await evictUntilUnder(DEFAULT_ASSET_CAP_BYTES)
+          const meta = await getMeta()
+          set({ remoteCacheBytes: meta.totalBytes })
         }
         if (bundle.kind === 'material') {
-          const def = bundleToMaterialDef(entry, resolution, bundle);
+          const def = bundleToMaterialDef(entry, resolution, bundle)
           set((s) => ({
             resolvedRemoteMaterials: { ...s.resolvedRemoteMaterials, [key]: def },
             remoteFetches: { ...s.remoteFetches, [key]: undefined },
-          }));
+          }))
         } else {
-          const def = bundleToFurnitureDef(entry, resolution, bundle);
+          const def = bundleToFurnitureDef(entry, resolution, bundle)
           set((s) => ({
             resolvedRemoteFurniture: { ...s.resolvedRemoteFurniture, [key]: def },
             remoteFetches: { ...s.remoteFetches, [key]: undefined },
-          }));
+          }))
         }
       } catch (e) {
-        set((s) => ({ remoteFetches: { ...s.remoteFetches, [key]: 'error' } }));
-        throw e;
+        set((s) => ({ remoteFetches: { ...s.remoteFetches, [key]: 'error' } }))
+        throw e
       } finally {
-        inFlight.delete(key);
+        inFlight.delete(key)
       }
-    })();
-    inFlight.set(key, run);
-    return run;
+    })()
+    inFlight.set(key, run)
+    return run
   },
 
   async clearRemoteCache() {
-    await resetCacheForTest();
+    await resetCacheForTest()
     set({
       resolvedRemoteFurniture: {},
       resolvedRemoteMaterials: {},
       remoteCacheBytes: 0,
-    });
+    })
   },
-});
+})

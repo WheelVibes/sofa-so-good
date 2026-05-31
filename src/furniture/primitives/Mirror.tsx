@@ -1,25 +1,32 @@
-import { readNum, readStr } from './shared';
-import type { ParamProps } from '../types';
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Wall mirror: thin frame + a low-roughness reflective-looking pane.
  *  Mounted on a wall (group offset up); faces +Z. `shape` is 'rect' (framed
  *  rectangle), 'round' (framed circle, width = diameter) or 'frameless'. */
 export function Mirror({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 0.6);
-  const height = readNum(props, 'height', 0.9);
-  const centerY = readNum(props, 'mountHeight', 1.5);
-  const frameColor = readStr(props, 'frameColor', '#c9ccd1');
-  const shape = readStr(props, 'shape', 'rect');
+  const width = readNum(props, 'width', 0.6)
+  const height = readNum(props, 'height', 0.9)
+  const centerY = readNum(props, 'mountHeight', 1.5)
+  const frameColor = readStr(props, 'frameColor', '#c9ccd1')
+  const shape = readStr(props, 'shape', 'rect')
 
   // Shared reflective pane — low roughness + metalness picks up the IBL so it
   // reads as a mirror without a real probe; the light base + faint emissive
   // keeps it from going black on the Low tier (IBL off).
   const pane = (
-    <meshStandardMaterial color="#dfe8ee" roughness={0.07} metalness={0.7} envMapIntensity={2.0} emissive="#b9c6d0" emissiveIntensity={0.16} />
-  );
+    <meshStandardMaterial
+      color="#dfe8ee"
+      roughness={0.07}
+      metalness={0.7}
+      envMapIntensity={2.0}
+      emissive="#b9c6d0"
+      emissiveIntensity={0.16}
+    />
+  )
 
   if (shape === 'round') {
-    const r = width / 2;
+    const r = width / 2
     return (
       <group position={[0, centerY, 0]}>
         <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
@@ -31,7 +38,7 @@ export function Mirror({ props }: { props: ParamProps }) {
           {pane}
         </mesh>
       </group>
-    );
+    )
   }
 
   return (
@@ -54,5 +61,5 @@ export function Mirror({ props }: { props: ParamProps }) {
         </mesh>
       )}
     </group>
-  );
+  )
 }

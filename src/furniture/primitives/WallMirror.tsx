@@ -1,6 +1,6 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Decorative wall mirror — a framed reflective panel that visually opens up a
@@ -9,19 +9,19 @@ import type { ParamProps } from '../types';
  * material to read as a mirror under the scene lighting/IBL.
  */
 export function WallMirror({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 0.7);
-  const height = readNum(props, 'height', 1.0);
-  const centerY = readNum(props, 'mountHeight', 1.5);
-  const shape = readStr(props, 'shape', 'round');
-  const frameColor = readStr(props, 'frameColor', '#caa46a');
-  const finish = readStr(props, 'finish', 'wood');
-  const sheen = readNum(props, 'sheen', 0.2);
+  const width = readNum(props, 'width', 0.7)
+  const height = readNum(props, 'height', 1.0)
+  const centerY = readNum(props, 'mountHeight', 1.5)
+  const shape = readStr(props, 'shape', 'round')
+  const frameColor = readStr(props, 'frameColor', '#caa46a')
+  const finish = readStr(props, 'finish', 'wood')
+  const sheen = readNum(props, 'sheen', 0.2)
 
-  const frameMat = getSurfaceMaterial(finish, frameColor, 1.2, sheen);
-  const glass = { color: '#d6e0e6', roughness: 0.06, metalness: 0.9 } as const;
-  const ft = 0.04; // frame thickness (border)
-  const depth = 0.05;
-  const r = Math.min(width, height) / 2;
+  const frameMat = getSurfaceMaterial(finish, frameColor, 1.2, sheen)
+  const glass = { color: '#d6e0e6', roughness: 0.06, metalness: 0.9 } as const
+  const ft = 0.04 // frame thickness (border)
+  const depth = 0.05
+  const r = Math.min(width, height) / 2
 
   if (shape === 'round') {
     return (
@@ -34,7 +34,7 @@ export function WallMirror({ props }: { props: ParamProps }) {
           <meshStandardMaterial {...glass} />
         </mesh>
       </group>
-    );
+    )
   }
 
   // Rectangle (and arch = rectangle with a rounded cap on top).
@@ -49,7 +49,12 @@ export function WallMirror({ props }: { props: ParamProps }) {
       </mesh>
       {shape === 'arch' && (
         <>
-          <mesh castShadow position={[0, height / 2, 0]} rotation={[Math.PI / 2, 0, 0]} material={frameMat}>
+          <mesh
+            castShadow
+            position={[0, height / 2, 0]}
+            rotation={[Math.PI / 2, 0, 0]}
+            material={frameMat}
+          >
             <cylinderGeometry args={[width / 2, width / 2, depth, 32, 1, false, 0, Math.PI]} />
           </mesh>
           <mesh position={[0, height / 2, depth / 2 + 0.002]} rotation={[0, 0, 0]}>
@@ -59,5 +64,5 @@ export function WallMirror({ props }: { props: ParamProps }) {
         </>
       )}
     </group>
-  );
+  )
 }

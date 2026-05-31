@@ -1,63 +1,59 @@
-import { useMemo, useState } from 'react';
-import { RemoteCard } from './RemoteCard';
-import { ResolutionPicker } from './ResolutionPicker';
-import { CachePane } from './CachePane';
-import { useRemoteEntries } from '../../catalog/remote/hooks';
-import { useStore } from '../../state/store';
-import type { RemoteKind, ProviderId } from '../../catalog/remote/types';
+import { useMemo, useState } from 'react'
+import { useRemoteEntries } from '../../catalog/remote/hooks'
+import type { ProviderId, RemoteKind } from '../../catalog/remote/types'
+import { useStore } from '../../state/store'
+import { CachePane } from './CachePane'
+import { RemoteCard } from './RemoteCard'
+import { ResolutionPicker } from './ResolutionPicker'
 
-const ALL: 'all' = 'all';
+const ALL: 'all' = 'all'
 
-function matchesQuery(
-  entry: { name: string; slug: string; tags?: string[] },
-  q: string,
-): boolean {
-  if (!q) return true;
-  const ql = q.toLowerCase();
-  if (entry.name.toLowerCase().includes(ql)) return true;
-  if (entry.slug.toLowerCase().includes(ql)) return true;
-  if (entry.tags?.some((t) => t.toLowerCase().includes(ql))) return true;
-  return false;
+function matchesQuery(entry: { name: string; slug: string; tags?: string[] }, q: string): boolean {
+  if (!q) return true
+  const ql = q.toLowerCase()
+  if (entry.name.toLowerCase().includes(ql)) return true
+  if (entry.slug.toLowerCase().includes(ql)) return true
+  if (entry.tags?.some((t) => t.toLowerCase().includes(ql))) return true
+  return false
 }
 
 export function RemoteBrowseTab({
   kind,
   onResolved,
 }: {
-  kind: RemoteKind;
-  onResolved: (id: string) => void;
+  kind: RemoteKind
+  onResolved: (id: string) => void
 }) {
-  const [q, setQ] = useState('');
-  const [provider, setProvider] = useState<ProviderId | typeof ALL>(ALL);
-  const all = useRemoteEntries(kind);
-  const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status);
-  const phError = useStore((s) => s.remoteIndexes.polyhaven.error);
-  const acgStatus = useStore((s) => s.remoteIndexes.ambientcg.status);
-  const acgError = useStore((s) => s.remoteIndexes.ambientcg.error);
-  const refresh = useStore((s) => s.refreshProviderIndex);
+  const [q, setQ] = useState('')
+  const [provider, setProvider] = useState<ProviderId | typeof ALL>(ALL)
+  const all = useRemoteEntries(kind)
+  const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
+  const phError = useStore((s) => s.remoteIndexes.polyhaven.error)
+  const acgStatus = useStore((s) => s.remoteIndexes.ambientcg.status)
+  const acgError = useStore((s) => s.remoteIndexes.ambientcg.error)
+  const refresh = useStore((s) => s.refreshProviderIndex)
 
   const filtered = useMemo(() => {
-    let list = all;
-    if (provider !== ALL) list = list.filter((e) => e.provider === provider);
-    return list.filter((e) => matchesQuery(e, q));
-  }, [all, q, provider]);
+    let list = all
+    if (provider !== ALL) list = list.filter((e) => e.provider === provider)
+    return list.filter((e) => matchesQuery(e, q))
+  }, [all, q, provider])
 
   // Cap rendered nodes; show a "load more" tail so we don't slam the DOM
   // with 3000+ cards on first paint. Each card lazy-loads its own thumb.
-  const [limit, setLimit] = useState(120);
-  const visible = filtered.slice(0, limit);
-  const hiddenCount = Math.max(0, filtered.length - limit);
+  const [limit, setLimit] = useState(120)
+  const visible = filtered.slice(0, limit)
+  const hiddenCount = Math.max(0, filtered.length - limit)
 
   const phCount = useStore(
     (s) => s.remoteIndexes.polyhaven.entries.filter((e) => e.kind === kind).length,
-  );
-  const acgCount = useStore(
-    (s) =>
-      kind === 'material'
-        ? s.remoteIndexes.ambientcg.entries.filter((e) => e.kind === kind).length
-        : 0,
-  );
-  const totalLoaded = phCount + acgCount;
+  )
+  const acgCount = useStore((s) =>
+    kind === 'material'
+      ? s.remoteIndexes.ambientcg.entries.filter((e) => e.kind === kind).length
+      : 0,
+  )
+  const totalLoaded = phCount + acgCount
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -66,8 +62,8 @@ export function RemoteBrowseTab({
           <input
             value={q}
             onChange={(e) => {
-              setQ(e.target.value);
-              setLimit(120);
+              setQ(e.target.value)
+              setLimit(120)
             }}
             placeholder={`Search ${totalLoaded} ${kind === 'furniture' ? 'models' : 'textures'}…`}
             className="flex-1 rounded border border-neutral-200 px-2 py-1 text-xs"
@@ -81,9 +77,7 @@ export function RemoteBrowseTab({
                 key={p}
                 onClick={() => setProvider(p)}
                 className={`rounded px-2 py-0.5 ${
-                  provider === p
-                    ? 'bg-neutral-800 text-white'
-                    : 'bg-neutral-100 text-neutral-600'
+                  provider === p ? 'bg-neutral-800 text-white' : 'bg-neutral-100 text-neutral-600'
                 }`}
               >
                 {p === ALL ? 'All' : p === 'polyhaven' ? 'Poly Haven' : 'ambientCG'}
@@ -133,12 +127,18 @@ export function RemoteBrowseTab({
           <div className="rounded bg-red-50 p-2 text-[10px] text-red-700">
             <div className="font-medium">Couldn’t reach the online library.</div>
             <div className="text-red-600/80">
-              Online assets need an internet connection — the built-in catalog
-              works offline. Retry below.
+              Online assets need an internet connection — the built-in catalog works offline. Retry
+              below.
             </div>
-            {phError && <div className="truncate" title={phError}>Poly Haven: {phError}</div>}
+            {phError && (
+              <div className="truncate" title={phError}>
+                Poly Haven: {phError}
+              </div>
+            )}
             {acgError && kind === 'material' && (
-              <div className="truncate" title={acgError}>ambientCG: {acgError}</div>
+              <div className="truncate" title={acgError}>
+                ambientCG: {acgError}
+              </div>
             )}
             <div className="mt-1 flex gap-1">
               {phStatus === 'error' && (
@@ -194,5 +194,5 @@ export function RemoteBrowseTab({
       </div>
       <CachePane />
     </div>
-  );
+  )
 }

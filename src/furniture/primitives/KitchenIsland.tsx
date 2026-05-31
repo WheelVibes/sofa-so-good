@@ -1,6 +1,6 @@
-import { readNum, readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Freestanding kitchen island — a base cabinet with a stone worktop that
@@ -9,28 +9,28 @@ import type { ParamProps } from '../types';
  * (the seating/overhang side). Floor-anchored, centred, real-world metres.
  */
 export function KitchenIsland({ props }: { props: ParamProps }) {
-  const length = readNum(props, 'length', 1.6); // along X
-  const depth = readNum(props, 'depth', 0.95); // along Z (incl. overhang)
-  const color = readStr(props, 'color', '#3a4754');
-  const worktopColor = readStr(props, 'worktopColor', '#2c2f34');
-  const finish = readStr(props, 'finish', 'painted');
-  const sheen = readNum(props, 'sheen', 0.1);
-  const top = readStr(props, 'top', 'plain'); // plain / sink / hob
+  const length = readNum(props, 'length', 1.6) // along X
+  const depth = readNum(props, 'depth', 0.95) // along Z (incl. overhang)
+  const color = readStr(props, 'color', '#3a4754')
+  const worktopColor = readStr(props, 'worktopColor', '#2c2f34')
+  const finish = readStr(props, 'finish', 'painted')
+  const sheen = readNum(props, 'sheen', 0.1)
+  const top = readStr(props, 'top', 'plain') // plain / sink / hob
 
-  const cabinetH = 0.85;
-  const topT = 0.05;
-  const overhang = 0.28;
-  const cabDepth = depth - overhang;
-  const cabMat = getSurfaceMaterial(finish, color, 1.2, sheen);
-  const stone = getSurfaceMaterial('marble', worktopColor, 1.4, 0.55);
-  const handle = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const;
-  const metal = { color: '#cfd2d6', roughness: 0.2, metalness: 0.85 } as const;
+  const cabinetH = 0.85
+  const topT = 0.05
+  const overhang = 0.28
+  const cabDepth = depth - overhang
+  const cabMat = getSurfaceMaterial(finish, color, 1.2, sheen)
+  const stone = getSurfaceMaterial('marble', worktopColor, 1.4, 0.55)
+  const handle = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const
+  const metal = { color: '#cfd2d6', roughness: 0.2, metalness: 0.85 } as const
 
   // Cabinet sits toward −Z; worktop spans the full depth (overhangs +Z).
-  const cabCz = -overhang / 2;
-  const cabs = Math.max(1, Math.round(length / 0.6));
-  const gap = 0.012;
-  const cabW = (length - gap * (cabs + 1)) / cabs;
+  const cabCz = -overhang / 2
+  const cabs = Math.max(1, Math.round(length / 0.6))
+  const gap = 0.012
+  const cabW = (length - gap * (cabs + 1)) / cabs
 
   return (
     <group>
@@ -40,7 +40,7 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
       </mesh>
       {/* Cabinet door fronts on the −Z face */}
       {Array.from({ length: cabs }, (_, i) => {
-        const x = -length / 2 + gap + cabW / 2 + i * (cabW + gap);
+        const x = -length / 2 + gap + cabW / 2 + i * (cabW + gap)
         return (
           <group key={i}>
             <mesh position={[x, cabinetH / 2, cabCz - cabDepth / 2 - 0.003]} material={cabMat}>
@@ -51,7 +51,7 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
               <meshStandardMaterial {...handle} />
             </mesh>
           </group>
-        );
+        )
       })}
       {/* Worktop (overhangs +Z) */}
       <mesh castShadow receiveShadow position={[0, cabinetH + topT / 2, 0]} material={stone}>
@@ -74,12 +74,16 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
       {top === 'hob' &&
         [-1, 1].map((sx) =>
           [-1, 1].map((sz) => (
-            <mesh key={`${sx}.${sz}`} position={[sx * 0.16, cabinetH + topT + 0.005, cabCz + sz * 0.13]} rotation={[-Math.PI / 2, 0, 0]}>
+            <mesh
+              key={`${sx}.${sz}`}
+              position={[sx * 0.16, cabinetH + topT + 0.005, cabCz + sz * 0.13]}
+              rotation={[-Math.PI / 2, 0, 0]}
+            >
               <circleGeometry args={[0.08, 20]} />
               <meshStandardMaterial color="#1c1c1e" roughness={0.4} metalness={0.3} />
             </mesh>
           )),
         )}
     </group>
-  );
+  )
 }

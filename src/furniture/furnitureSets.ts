@@ -4,20 +4,20 @@
  * and group-selected, ready to drag into place. Offsets are metres relative to
  * the drop point; rotations in radians (items face +Z by default).
  */
-import type { ParamProps } from './types';
+import type { ParamProps } from './types'
 
 export interface SetItem {
-  defId: string;
-  dx: number;
-  dz: number;
-  rotation: number;
-  props?: ParamProps;
+  defId: string
+  dx: number
+  dz: number
+  rotation: number
+  props?: ParamProps
 }
 
 export interface FurnitureSet {
-  id: string;
-  name: string;
-  items: SetItem[];
+  id: string
+  name: string
+  items: SetItem[]
 }
 
 export const FURNITURE_SETS: FurnitureSet[] = [
@@ -71,7 +71,13 @@ export const FURNITURE_SETS: FurnitureSet[] = [
       { defId: 'floor-lamp', dx: 0.75, dz: -0.35, rotation: 0, props: { base: 'arc' } },
       { defId: 'side-table', dx: -0.6, dz: 0.05, rotation: 0 },
       { defId: 'ottoman', dx: 0, dz: 0.7, rotation: 0, props: { shape: 'round' } },
-      { defId: 'potted-plant', dx: 1.0, dz: 0.4, rotation: 0, props: { size: 'large', type: 'fiddle' } },
+      {
+        defId: 'potted-plant',
+        dx: 1.0,
+        dz: 0.4,
+        rotation: 0,
+        props: { size: 'large', type: 'fiddle' },
+      },
       { defId: 'hanging-plant', dx: -0.5, dz: -0.5, rotation: 0, props: { size: 'medium' } },
     ],
   },
@@ -82,7 +88,13 @@ export const FURNITURE_SETS: FurnitureSet[] = [
       { defId: 'shoe-cabinet', dx: 0, dz: 0, rotation: 0, props: { width: 0.9 } },
       { defId: 'coat-rack', dx: -0.9, dz: 0.05, rotation: 0, props: {} },
       { defId: 'bench', dx: 0.9, dz: 0.05, rotation: 0, props: { style: 'upholstered' } },
-      { defId: 'floor-vase', dx: 1.7, dz: 0.05, rotation: 0, props: { shape: 'tall', stems: 'pampas' } },
+      {
+        defId: 'floor-vase',
+        dx: 1.7,
+        dz: 0.05,
+        rotation: 0,
+        props: { shape: 'tall', stems: 'pampas' },
+      },
     ],
   },
   {
@@ -95,4 +107,4 @@ export const FURNITURE_SETS: FurnitureSet[] = [
       { defId: 'bookshelf', dx: 1.2, dz: -0.05, rotation: 0, props: { width: 0.9, height: 1.8 } },
     ],
   },
-];
+]

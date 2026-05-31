@@ -1,29 +1,29 @@
-import { existsSync, readFileSync, mkdirSync } from 'node:fs';
-import { join } from 'node:path';
+import { existsSync, mkdirSync, readFileSync } from 'node:fs'
+import { join } from 'node:path'
+import { downloadToCache } from './asset-pipeline/cache'
+import { emitCredits } from './asset-pipeline/emit-credits'
+import { indexAssets } from './asset-pipeline/index-assets'
 import {
-  furnitureManifestFile,
-  materialManifestFile,
   type FurnitureManifestEntry,
+  furnitureManifestFile,
   type MaterialManifestEntry,
-} from './asset-pipeline/manifest';
-import { downloadToCache } from './asset-pipeline/cache';
-import { processGlb } from './asset-pipeline/process-glb';
-import { processTexture } from './asset-pipeline/process-texture';
-import { writeSidecar } from './asset-pipeline/sidecar';
-import { indexAssets } from './asset-pipeline/index-assets';
-import { emitCredits } from './asset-pipeline/emit-credits';
+  materialManifestFile,
+} from './asset-pipeline/manifest'
+import { processGlb } from './asset-pipeline/process-glb'
+import { processTexture } from './asset-pipeline/process-texture'
+import { writeSidecar } from './asset-pipeline/sidecar'
 
-const args = new Set(process.argv.slice(2));
-const QUICK = args.has('--quick');
-const projectRoot = process.cwd();
-const cacheRoot = join(projectRoot, '.asset-cache');
+const args = new Set(process.argv.slice(2))
+const QUICK = args.has('--quick')
+const projectRoot = process.cwd()
+const cacheRoot = join(projectRoot, '.asset-cache')
 
 async function fetchFurniture(entries: FurnitureManifestEntry[]): Promise<void> {
   for (const e of entries) {
-    console.log(`[furniture] ${e.id}`);
-    const cached = await downloadToCache(cacheRoot, e.downloadUrl);
-    const out = join(projectRoot, 'public/assets/furniture', `${e.id}.glb`);
-    await processGlb(cached, out, { compress: !QUICK });
+    console.log(`[furniture] ${e.id}`)
+    const cached = await downloadToCache(cacheRoot, e.downloadUrl)
+    const out = join(projectRoot, 'public/assets/furniture', `${e.id}.glb`)
+    await processGlb(cached, out, { compress: !QUICK })
     writeSidecar(out, {
       id: e.id,
       name: e.name,
@@ -34,23 +34,26 @@ async function fetchFurniture(entries: FurnitureManifestEntry[]): Promise<void> 
       license: e.license,
       attribution: e.attribution,
       sourceUrl: e.sourceUrl,
-    });
+    })
   }
 }
 
 async function fetchMaterials(entries: MaterialManifestEntry[]): Promise<void> {
   for (const e of entries) {
-    console.log(`[material] ${e.id}`);
-    const dir = join(projectRoot, 'public/assets/materials', e.id);
-    mkdirSync(dir, { recursive: true });
-    const channels: Record<string, string> = {};
+    console.log(`[material] ${e.id}`)
+    const dir = join(projectRoot, 'public/assets/materials', e.id)
+    mkdirSync(dir, { recursive: true })
+    const channels: Record<string, string> = {}
     for (const [key, url] of Object.entries(e.downloads)) {
-      if (!url) continue;
-      const cached = await downloadToCache(cacheRoot, url);
-      const ext = cached.toLowerCase().endsWith('.jpg') || cached.toLowerCase().endsWith('.jpeg') ? 'jpg' : 'png';
-      const outName = `${key}.${ext}`;
-      await processTexture(cached, join(dir, outName), { maxSize: 2048 });
-      channels[key] = outName;
+      if (!url) continue
+      const cached = await downloadToCache(cacheRoot, url)
+      const ext =
+        cached.toLowerCase().endsWith('.jpg') || cached.toLowerCase().endsWith('.jpeg')
+          ? 'jpg'
+          : 'png'
+      const outName = `${key}.${ext}`
+      await processTexture(cached, join(dir, outName), { maxSize: 2048 })
+      channels[key] = outName
     }
     writeSidecar(join(dir, 'material'), {
       id: e.id,
@@ -61,21 +64,21 @@ async function fetchMaterials(entries: MaterialManifestEntry[]): Promise<void> {
       license: e.license,
       attribution: e.attribution,
       sourceUrl: e.sourceUrl,
-    });
+    })
   }
 }
 
 async function main(): Promise<void> {
-  const furniturePath = join(projectRoot, 'assets/manifest/furniture.json');
-  const materialPath = join(projectRoot, 'assets/manifest/materials.json');
+  const furniturePath = join(projectRoot, 'assets/manifest/furniture.json')
+  const materialPath = join(projectRoot, 'assets/manifest/materials.json')
   if (!existsSync(furniturePath) || !existsSync(materialPath)) {
-    throw new Error(`Missing manifest at ${furniturePath} or ${materialPath}`);
+    throw new Error(`Missing manifest at ${furniturePath} or ${materialPath}`)
   }
-  const furniture = furnitureManifestFile.parse(JSON.parse(readFileSync(furniturePath, 'utf8')));
-  const materials = materialManifestFile.parse(JSON.parse(readFileSync(materialPath, 'utf8')));
+  const furniture = furnitureManifestFile.parse(JSON.parse(readFileSync(furniturePath, 'utf8')))
+  const materials = materialManifestFile.parse(JSON.parse(readFileSync(materialPath, 'utf8')))
 
-  await fetchFurniture(furniture);
-  await fetchMaterials(materials);
+  await fetchFurniture(furniture)
+  await fetchMaterials(materials)
 
   emitCredits({
     projectRoot,
@@ -93,13 +96,13 @@ async function main(): Promise<void> {
       sourceUrl: e.sourceUrl,
       license: e.license,
     })),
-  });
+  })
 
-  await indexAssets({ projectRoot });
-  console.log('Done.');
+  await indexAssets({ projectRoot })
+  console.log('Done.')
 }
 
 main().catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+  console.error(err)
+  process.exit(1)
+})

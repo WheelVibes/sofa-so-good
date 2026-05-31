@@ -1,29 +1,29 @@
-import { persistUserGlb } from './persist';
-import { useStore } from '../../state/store';
-import type { FurnitureCategory } from '../types';
+import { useStore } from '../../state/store'
+import type { FurnitureCategory } from '../types'
+import { persistUserGlb } from './persist'
 
 export interface BulkImportOptions {
-  category: FurnitureCategory;
-  mounted?: boolean;
-  noClip?: boolean;
-  concurrency?: number;
+  category: FurnitureCategory
+  mounted?: boolean
+  noClip?: boolean
+  concurrency?: number
 }
 
 export interface SkippedFile {
-  name: string;
-  reason: string;
+  name: string
+  reason: string
 }
 
 export interface BulkImportResult {
-  total: number;
-  imported: number;
-  skipped: SkippedFile[];
+  total: number
+  imported: number
+  skipped: SkippedFile[]
 }
 
 interface PlannedFile {
-  file: File;
-  errorName: string;
-  name: string;
+  file: File
+  errorName: string
+  name: string
 }
 
 /** Imports a batch of user-selected files. Filters to .glb/.gltf, dedupes
@@ -34,93 +34,91 @@ export async function importGlbFiles(
   opts: BulkImportOptions,
   onProgress?: (done: number, total: number) => void,
 ): Promise<BulkImportResult> {
-  const total = files.length;
-  const skipped: SkippedFile[] = [];
-  let done = 0;
-  const tick = () => onProgress?.(++done, total);
+  const total = files.length
+  const skipped: SkippedFile[] = []
+  let done = 0
+  const tick = () => onProgress?.(++done, total)
 
   // Dedupe set is snapshotted once at call start; assumes importGlbFiles is not
   // invoked concurrently with itself (the UI enforces single-import at a time).
-  const used = new Set(useStore.getState().userFurniture.map((d) => d.name));
+  const used = new Set(useStore.getState().userFurniture.map((d) => d.name))
 
-  const planned: PlannedFile[] = [];
+  const planned: PlannedFile[] = []
   for (const file of files) {
-    const relPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath;
-    const path = relPath || file.name;
+    const relPath = (file as File & { webkitRelativePath?: string }).webkitRelativePath
+    const path = relPath || file.name
     if (!isModelFile(path)) {
-      skipped.push({ name: file.name, reason: 'not-a-model' });
-      tick();
-      continue;
+      skipped.push({ name: file.name, reason: 'not-a-model' })
+      tick()
+      continue
     }
     // When a folder-pick gives us a path like "folder/sub/Name.glb", the
     // browser may expose the blob under a generic name without the extension.
     // Reconstruct a File with the correct basename so validateGlbFile's
     // extension check works, then persist under the derived display name.
-    const basename = path.split('/').pop() ?? file.name;
+    const basename = path.split('/').pop() ?? file.name
     const fileForPersist =
       relPath && file.name !== basename
         ? new File([file], basename, { type: file.type, lastModified: file.lastModified })
-        : file;
+        : file
     planned.push({
       file: fileForPersist,
       errorName: basename,
       name: dedupeName(modelName(path), used),
-    });
+    })
   }
 
-  let imported = 0;
-  const concurrency = Math.max(1, opts.concurrency ?? 4);
-  let cursor = 0;
+  let imported = 0
+  const concurrency = Math.max(1, opts.concurrency ?? 4)
+  let cursor = 0
 
   async function worker(): Promise<void> {
     while (cursor < planned.length) {
-      const job = planned[cursor++];
+      const job = planned[cursor++]
       try {
         const result = await persistUserGlb(job.file, {
           name: job.name,
           category: opts.category,
           mounted: opts.mounted,
           noClip: opts.noClip,
-        });
-        if (result.ok) imported++;
-        else skipped.push({ name: job.errorName, reason: result.reason });
+        })
+        if (result.ok) imported++
+        else skipped.push({ name: job.errorName, reason: result.reason })
       } catch (e) {
-        skipped.push({ name: job.errorName, reason: e instanceof Error ? e.message : String(e) });
+        skipped.push({ name: job.errorName, reason: e instanceof Error ? e.message : String(e) })
       }
-      tick();
+      tick()
     }
   }
 
-  await Promise.all(
-    Array.from({ length: Math.min(concurrency, planned.length) }, () => worker()),
-  );
+  await Promise.all(Array.from({ length: Math.min(concurrency, planned.length) }, () => worker()))
 
-  return { total, imported, skipped };
+  return { total, imported, skipped }
 }
 
 /** True when the basename ends in .glb or .gltf (case-insensitive). */
 export function isModelFile(nameOrPath: string): boolean {
-  return /\.(glb|gltf)$/i.test(nameOrPath);
+  return /\.(glb|gltf)$/i.test(nameOrPath)
 }
 
 /** Basename without the .glb/.gltf extension, for the catalog display name.
  *  Falls back to the basename with extension if stripping leaves an empty string. */
 export function modelName(nameOrPath: string): string {
-  const base = nameOrPath.split('/').pop() ?? nameOrPath;
-  const stripped = base.replace(/\.(glb|gltf)$/i, '');
-  return stripped || base;
+  const base = nameOrPath.split('/').pop() ?? nameOrPath
+  const stripped = base.replace(/\.(glb|gltf)$/i, '')
+  return stripped || base
 }
 
 /** Returns `base`, or `base (2)`, `base (3)`… if already in `used`.
  *  Mutates `used` to reserve whatever it returns. */
 export function dedupeName(base: string, used: Set<string>): string {
   if (!used.has(base)) {
-    used.add(base);
-    return base;
+    used.add(base)
+    return base
   }
-  let n = 2;
-  while (used.has(`${base} (${n})`)) n++;
-  const result = `${base} (${n})`;
-  used.add(result);
-  return result;
+  let n = 2
+  while (used.has(`${base} (${n})`)) n++
+  const result = `${base} (${n})`
+  used.add(result)
+  return result
 }

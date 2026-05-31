@@ -1,19 +1,19 @@
-import { readStr } from './shared';
-import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readStr } from './shared'
 
 /** Bathroom basin with a chrome mixer tap. `style` picks the support: a
  *  classic 'pedestal', a 'vanity' counter cabinet (with doors), or a
  *  'wall-hung' basin on a bottle trap. Faces +Z. */
 export function BathroomSink({ props }: { props: ParamProps }) {
-  const color = readStr(props, 'color', '#f4f4f1');
-  const style = readStr(props, 'style', 'pedestal');
-  const cabinetColor = readStr(props, 'cabinetColor', '#8a6b48');
-  const cabinetFinish = readStr(props, 'cabinetFinish', 'wood');
+  const color = readStr(props, 'color', '#f4f4f1')
+  const style = readStr(props, 'style', 'pedestal')
+  const cabinetColor = readStr(props, 'cabinetColor', '#8a6b48')
+  const cabinetFinish = readStr(props, 'cabinetFinish', 'wood')
 
-  const porcelain = { color, roughness: 0.16, metalness: 0.02 };
-  const chrome = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 };
-  const basinY = 0.82;
+  const porcelain = { color, roughness: 0.16, metalness: 0.02 }
+  const chrome = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 }
+  const basinY = 0.82
 
   const tap = (
     <>
@@ -26,13 +26,13 @@ export function BathroomSink({ props }: { props: ParamProps }) {
         <meshStandardMaterial {...chrome} />
       </mesh>
     </>
-  );
+  )
 
   if (style === 'vanity') {
-    const cw = 0.6;
-    const cd = 0.46;
-    const cabH = basinY - 0.04;
-    const cabMat = getSurfaceMaterial(cabinetFinish, cabinetColor, 1.2, 0);
+    const cw = 0.6
+    const cd = 0.46
+    const cabH = basinY - 0.04
+    const cabMat = getSurfaceMaterial(cabinetFinish, cabinetColor, 1.2, 0)
     return (
       <group>
         {/* Cabinet carcass */}
@@ -62,7 +62,7 @@ export function BathroomSink({ props }: { props: ParamProps }) {
         </mesh>
         {tap}
       </group>
-    );
+    )
   }
 
   if (style === 'wall-hung') {
@@ -84,7 +84,7 @@ export function BathroomSink({ props }: { props: ParamProps }) {
         </mesh>
         {tap}
       </group>
-    );
+    )
   }
 
   // Pedestal (default)
@@ -104,5 +104,5 @@ export function BathroomSink({ props }: { props: ParamProps }) {
       </mesh>
       {tap}
     </group>
-  );
+  )
 }

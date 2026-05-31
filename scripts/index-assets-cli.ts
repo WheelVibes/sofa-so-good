@@ -1,7 +1,7 @@
-import { indexAssets } from './asset-pipeline/index-assets';
+import { indexAssets } from './asset-pipeline/index-assets'
 
-const projectRoot = process.cwd();
+const projectRoot = process.cwd()
 indexAssets({ projectRoot }).catch((err) => {
-  console.error(err);
-  process.exit(1);
-});
+  console.error(err)
+  process.exit(1)
+})

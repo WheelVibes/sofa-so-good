@@ -1,24 +1,24 @@
-import { readStr } from './shared';
-import { applianceFinish } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { applianceFinish } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readStr } from './shared'
 
 /** Freestanding cooker: oven body + cooktop with four burners and front
  *  control knobs. Faces +Z. */
 export function Stove({ props }: { props: ParamProps }) {
-  const color = readStr(props, 'color', '#cfd2d6');
-  const finish = readStr(props, 'finish', 'steel');
-  const w = 0.6;
-  const d = 0.6;
-  const cabinetH = 0.85;
-  const topT = 0.04;
-  const body = { color, ...applianceFinish(finish) };
+  const color = readStr(props, 'color', '#cfd2d6')
+  const finish = readStr(props, 'finish', 'steel')
+  const w = 0.6
+  const d = 0.6
+  const cabinetH = 0.85
+  const topT = 0.04
+  const body = { color, ...applianceFinish(finish) }
 
   const burners: [number, number][] = [
     [-0.14, -0.12],
     [0.14, -0.12],
     [-0.14, 0.14],
     [0.14, 0.14],
-  ];
+  ]
 
   return (
     <group>
@@ -57,5 +57,5 @@ export function Stove({ props }: { props: ParamProps }) {
         </mesh>
       ))}
     </group>
-  );
+  )
 }

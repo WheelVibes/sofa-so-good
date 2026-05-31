@@ -7,19 +7,19 @@
  * materials short-circuit the loader and render synchronously.
  */
 
-export type MaterialId = string;
-export type MaterialCategory = 'floor' | 'wall';
+export type MaterialId = string
+export type MaterialCategory = 'floor' | 'wall'
 
 export interface MaterialDefBase {
-  id: MaterialId;
-  name: string;
-  category: MaterialCategory;
+  id: MaterialId
+  name: string
+  category: MaterialCategory
   /** Hex colour for the picker thumb and the loading-fallback material. */
-  swatch: string;
+  swatch: string
 }
 
 export interface SolidMaterialDef extends MaterialDefBase {
-  kind: 'solid';
+  kind: 'solid'
 }
 
 /** Pattern name for runtime procedural texture generation. */
@@ -33,49 +33,46 @@ export type ProceduralPattern =
   | 'terrazzo'
   | 'stripe'
   | 'grasscloth'
-  | 'checker';
+  | 'checker'
 
 /** A finish whose PBR maps are generated on-device at runtime (no fetch).
  *  `swatch` doubles as the base tint fed to the generator. */
 export interface ProceduralMaterialDef extends MaterialDefBase {
-  kind: 'procedural';
-  pattern: ProceduralPattern;
+  kind: 'procedural'
+  pattern: ProceduralPattern
   /** CC0/attribution-free; generated locally. */
-  sourceUrl?: string;
+  sourceUrl?: string
   /** UV repeat in metres-per-tile. [1, 1] tiles 1×1 m per texture. */
-  uvScale: [number, number];
+  uvScale: [number, number]
 }
 
 export interface TexturedMaterialDef extends MaterialDefBase {
-  kind: 'textured';
-  source: 'polyhaven' | 'ambientcg' | 'user';
+  kind: 'textured'
+  source: 'polyhaven' | 'ambientcg' | 'user'
   /** CC0 attribution URL (built-ins and remote-resolved). */
-  sourceUrl?: string;
+  sourceUrl?: string
   /** Provider slug for runtime-resolved entries. */
-  slug?: string;
+  slug?: string
   /** Resolution variant for runtime-resolved entries. */
-  resolution?: '1k' | '2k' | '4k';
+  resolution?: '1k' | '2k' | '4k'
   /** Provider-hosted low-res preview URL (~128–150 px). Used by the
    *  finish picker swatch grid so we don't load the full albedo. */
-  thumbUrl?: string;
+  thumbUrl?: string
   textures: {
-    albedo: string;
-    normal?: string;
-    roughness?: string;
-    ao?: string;
-  };
+    albedo: string
+    normal?: string
+    roughness?: string
+    ao?: string
+  }
   /** UV repeat in metres-per-tile. [1, 1] tiles 1×1 m per texture. */
-  uvScale: [number, number];
+  uvScale: [number, number]
   /** Runtime-only blob URL set during hydration for user materials. */
   runtimeUrls?: {
-    albedo: string;
-    normal?: string;
-    roughness?: string;
-    ao?: string;
-  };
+    albedo: string
+    normal?: string
+    roughness?: string
+    ao?: string
+  }
 }
 
-export type MaterialDef =
-  | SolidMaterialDef
-  | TexturedMaterialDef
-  | ProceduralMaterialDef;
+export type MaterialDef = SolidMaterialDef | TexturedMaterialDef | ProceduralMaterialDef

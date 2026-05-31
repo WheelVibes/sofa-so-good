@@ -1,105 +1,105 @@
-import { useEffect, useRef, useState } from 'react';
-import { useStore } from '../state/store';
-import { searchPlaces, reverseGeocode, type Place } from '../services/geocoding';
+import { useEffect, useRef, useState } from 'react'
+import { type Place, reverseGeocode, searchPlaces } from '../services/geocoding'
+import { useStore } from '../state/store'
 
-const SEARCH_DEBOUNCE_MS = 300;
+const SEARCH_DEBOUNCE_MS = 300
 
 export function LocationPrompt() {
-  const location = useStore((s) => s.location);
-  const dismissed = useStore((s) => s.locationPromptDismissed);
-  const setLocation = useStore((s) => s.setLocation);
-  const dismiss = useStore((s) => s.dismissLocationPrompt);
+  const location = useStore((s) => s.location)
+  const dismissed = useStore((s) => s.locationPromptDismissed)
+  const setLocation = useStore((s) => s.setLocation)
+  const dismiss = useStore((s) => s.dismissLocationPrompt)
 
-  if (location !== null || dismissed) return null;
+  if (location !== null || dismissed) return null
 
-  return <LocationPromptContent onSetLocation={setLocation} onDismiss={dismiss} />;
+  return <LocationPromptContent onSetLocation={setLocation} onDismiss={dismiss} />
 }
 
 interface ContentProps {
-  onSetLocation: (loc: { lat: number; lon: number; label?: string }) => void;
-  onDismiss: () => void;
+  onSetLocation: (loc: { lat: number; lon: number; label?: string }) => void
+  onDismiss: () => void
 }
 
 function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
-  const [search, setSearch] = useState('');
-  const [results, setResults] = useState<Place[]>([]);
-  const [searching, setSearching] = useState(false);
-  const [searchError, setSearchError] = useState<string | null>(null);
-  const [latStr, setLatStr] = useState('');
-  const [lonStr, setLonStr] = useState('');
-  const [manualError, setManualError] = useState<string | null>(null);
-  const [geoError, setGeoError] = useState<string | null>(null);
-  const [geoBusy, setGeoBusy] = useState(false);
-  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [search, setSearch] = useState('')
+  const [results, setResults] = useState<Place[]>([])
+  const [searching, setSearching] = useState(false)
+  const [searchError, setSearchError] = useState<string | null>(null)
+  const [latStr, setLatStr] = useState('')
+  const [lonStr, setLonStr] = useState('')
+  const [manualError, setManualError] = useState<string | null>(null)
+  const [geoError, setGeoError] = useState<string | null>(null)
+  const [geoBusy, setGeoBusy] = useState(false)
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   useEffect(() => {
-    if (debounceRef.current) clearTimeout(debounceRef.current);
+    if (debounceRef.current) clearTimeout(debounceRef.current)
     if (search.trim().length < 2) {
-      setResults([]);
-      setSearchError(null);
-      return;
+      setResults([])
+      setSearchError(null)
+      return
     }
     debounceRef.current = setTimeout(async () => {
-      setSearching(true);
-      setSearchError(null);
+      setSearching(true)
+      setSearchError(null)
       try {
-        const r = await searchPlaces(search);
-        setResults(r);
+        const r = await searchPlaces(search)
+        setResults(r)
       } catch (e) {
-        setSearchError((e as Error).message);
-        setResults([]);
+        setSearchError((e as Error).message)
+        setResults([])
       } finally {
-        setSearching(false);
+        setSearching(false)
       }
-    }, SEARCH_DEBOUNCE_MS);
+    }, SEARCH_DEBOUNCE_MS)
     return () => {
-      if (debounceRef.current) clearTimeout(debounceRef.current);
-    };
-  }, [search]);
+      if (debounceRef.current) clearTimeout(debounceRef.current)
+    }
+  }, [search])
 
   const onUseGeolocation = () => {
     if (!('geolocation' in navigator)) {
-      setGeoError("Your browser doesn't expose geolocation.");
-      return;
+      setGeoError("Your browser doesn't expose geolocation.")
+      return
     }
-    setGeoBusy(true);
-    setGeoError(null);
+    setGeoBusy(true)
+    setGeoError(null)
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
-        const { latitude: lat, longitude: lon } = pos.coords;
-        const label = await reverseGeocode(lat, lon);
-        onSetLocation(label ? { lat, lon, label } : { lat, lon });
-        setGeoBusy(false);
+        const { latitude: lat, longitude: lon } = pos.coords
+        const label = await reverseGeocode(lat, lon)
+        onSetLocation(label ? { lat, lon, label } : { lat, lon })
+        setGeoBusy(false)
       },
       () => {
-        setGeoError("Couldn't get your location. Search by city or enter coordinates instead.");
-        setGeoBusy(false);
+        setGeoError("Couldn't get your location. Search by city or enter coordinates instead.")
+        setGeoBusy(false)
       },
-    );
-  };
+    )
+  }
 
   const onSubmitManual = () => {
-    const lat = Number.parseFloat(latStr);
-    const lon = Number.parseFloat(lonStr);
+    const lat = Number.parseFloat(latStr)
+    const lon = Number.parseFloat(lonStr)
     if (!Number.isFinite(lat) || lat < -90 || lat > 90) {
-      setManualError('Latitude must be between -90 and 90.');
-      return;
+      setManualError('Latitude must be between -90 and 90.')
+      return
     }
     if (!Number.isFinite(lon) || lon < -180 || lon > 180) {
-      setManualError('Longitude must be between -180 and 180.');
-      return;
+      setManualError('Longitude must be between -180 and 180.')
+      return
     }
-    setManualError(null);
-    onSetLocation({ lat, lon });
-  };
+    setManualError(null)
+    onSetLocation({ lat, lon })
+  }
 
   return (
     <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40">
       <div className="w-full max-w-md rounded-lg bg-white p-5 text-sm shadow-lg">
         <h2 className="mb-1 text-base font-semibold">Where are you?</h2>
         <p className="mb-4 text-xs text-neutral-600">
-          We use your location to position the sun realistically. The app stores
-          this only on your device.
+          We use your location to position the sun realistically. The app stores this only on your
+          device.
         </p>
 
         <div className="mb-4 space-y-2">
@@ -114,9 +114,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
         </div>
 
         <div className="mb-4">
-          <label className="mb-1 block text-xs font-medium text-neutral-700">
-            Search city
-          </label>
+          <label className="mb-1 block text-xs font-medium text-neutral-700">Search city</label>
           <input
             type="text"
             value={search}
@@ -131,9 +129,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
               {results.map((r) => (
                 <li key={`${r.lat},${r.lon}`}>
                   <button
-                    onClick={() =>
-                      onSetLocation({ lat: r.lat, lon: r.lon, label: r.label })
-                    }
+                    onClick={() => onSetLocation({ lat: r.lat, lon: r.lon, label: r.label })}
                     className="block w-full px-2 py-1 text-left hover:bg-neutral-100"
                   >
                     {r.label}
@@ -171,9 +167,7 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
           >
             Save coordinates
           </button>
-          {manualError ? (
-            <p className="col-span-2 text-xs text-rose-600">{manualError}</p>
-          ) : null}
+          {manualError ? <p className="col-span-2 text-xs text-rose-600">{manualError}</p> : null}
         </div>
 
         <button
@@ -184,5 +178,5 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
         </button>
       </div>
     </div>
-  );
+  )
 }

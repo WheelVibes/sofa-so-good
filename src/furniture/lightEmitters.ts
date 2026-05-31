@@ -4,21 +4,21 @@
  * number of active lights for performance rather than letting every fixture
  * add an unbounded light.
  */
-import type { FurnitureType, ParamProps } from './types';
+import type { FurnitureType, ParamProps } from './types'
 
 export interface EmitterSpec {
   /** Emit height above the floor, in metres. May read item params. */
-  height: (props: ParamProps) => number;
-  color: string;
+  height: (props: ParamProps) => number
+  color: string
   /** Peak intensity at full darkness (candela; renderer uses physical units). */
-  intensity: number;
+  intensity: number
   /** Falloff distance in metres. */
-  distance: number;
+  distance: number
   /** Optional in-plane offset of the bulb from the item origin, in LOCAL
    *  metres ([rightX, forwardZ]); rotated by the item's rotation when placed.
    *  Used by fixtures whose bulb is offset from their footprint centre (e.g.
    *  an arc floor lamp whose shade reaches out over a sofa). */
-  offset?: (props: ParamProps) => [number, number];
+  offset?: (props: ParamProps) => [number, number]
 }
 
 export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
@@ -39,9 +39,9 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
   },
   'ceiling-light': {
     height: (p) => {
-      const mount = typeof p.mountHeight === 'number' ? p.mountHeight : 2.55;
-      const drop = p.style === 'flush' ? 0 : typeof p.drop === 'number' ? p.drop : 0.45;
-      return mount - drop - 0.05;
+      const mount = typeof p.mountHeight === 'number' ? p.mountHeight : 2.55
+      const drop = p.style === 'flush' ? 0 : typeof p.drop === 'number' ? p.drop : 0.45
+      return mount - drop - 0.05
     },
     color: '#fff0d4',
     intensity: 9,
@@ -66,8 +66,8 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 2.6,
     distance: 3.2,
   },
-};
+}
 
 export function isEmitter(defId: FurnitureType): boolean {
-  return defId in LIGHT_EMITTERS;
+  return defId in LIGHT_EMITTERS
 }

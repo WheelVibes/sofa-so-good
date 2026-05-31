@@ -1,6 +1,6 @@
-import { useRef, useState, type ReactNode } from 'react';
-import { Icon, type IconName } from './icons';
-import { Popover } from './Popover';
+import { type ReactNode, useRef, useState } from 'react'
+import { Icon, type IconName } from './icons'
+import { Popover } from './Popover'
 
 /** A labelled dropdown trigger (icon + text + chevron) whose panel is portaled
  *  via Popover. Children are MenuItems (or richer custom content); choosing an
@@ -12,15 +12,15 @@ export function ToolbarMenu({
   active,
   width = 'w-60',
 }: {
-  icon: IconName;
-  label: string;
-  children: ReactNode;
-  active?: boolean;
-  width?: string;
+  icon: IconName
+  label: string
+  children: ReactNode
+  active?: boolean
+  width?: string
 }) {
-  const ref = useRef<HTMLButtonElement>(null);
-  const [open, setOpen] = useState(false);
-  const Cmp = Icon[icon];
+  const ref = useRef<HTMLButtonElement>(null)
+  const [open, setOpen] = useState(false)
+  const Cmp = Icon[icon]
   return (
     <>
       <button
@@ -48,7 +48,7 @@ export function ToolbarMenu({
         </div>
       </Popover>
     </>
-  );
+  )
 }
 
 /** A single row inside a ToolbarMenu: icon + label + optional description. */
@@ -59,13 +59,13 @@ export function MenuItem({
   active,
   onClick,
 }: {
-  icon: IconName;
-  label: string;
-  sub?: string;
-  active?: boolean;
-  onClick: () => void;
+  icon: IconName
+  label: string
+  sub?: string
+  active?: boolean
+  onClick: () => void
 }) {
-  const Cmp = Icon[icon];
+  const Cmp = Icon[icon]
   return (
     <button
       type="button"
@@ -75,11 +75,13 @@ export function MenuItem({
         active ? 'bg-neutral-100' : ''
       }`}
     >
-      <span className="text-neutral-600"><Cmp width={16} height={16} /></span>
+      <span className="text-neutral-600">
+        <Cmp width={16} height={16} />
+      </span>
       <span className="flex-1">
         <span className="block text-[13px] text-neutral-800">{label}</span>
         {sub ? <span className="block text-[10px] text-neutral-400">{sub}</span> : null}
       </span>
     </button>
-  );
+  )
 }

@@ -4,15 +4,15 @@
  * always shown, so the data-driven path can be validated against the original.
  */
 import {
-  WALLS,
-  DOORS,
-  WINDOWS,
-  ROOMS,
-  FLAT,
-  APARTMENT_EXT_W,
   APARTMENT_EXT_D,
-} from '../apartment/constants';
-import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types';
+  APARTMENT_EXT_W,
+  DOORS,
+  FLAT,
+  ROOMS,
+  WALLS,
+  WINDOWS,
+} from '../apartment/constants'
+import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 
 export function buildDefaultPlan(): FloorPlan {
   const walls: PlanWall[] = WALLS.map((w) => ({
@@ -21,7 +21,7 @@ export function buildDefaultPlan(): FloorPlan {
     end: [w.end[0], w.end[1]],
     thickness: w.thickness,
     ...(w.topHeight != null ? { topHeight: w.topHeight } : {}),
-  }));
+  }))
 
   const openings: PlanOpening[] = [
     ...DOORS.map(
@@ -46,7 +46,7 @@ export function buildDefaultPlan(): FloorPlan {
         head: w.head,
       }),
     ),
-  ];
+  ]
 
   const rooms: PlanRoom[] = Object.values(ROOMS).map((r) => ({
     id: r.id,
@@ -64,7 +64,7 @@ export function buildDefaultPlan(): FloorPlan {
         }
       : {}),
     ...(r.ceilingHeight != null ? { ceilingHeight: r.ceilingHeight } : {}),
-  }));
+  }))
 
   return {
     id: 'default-hdb-4room',
@@ -74,5 +74,5 @@ export function buildDefaultPlan(): FloorPlan {
     walls,
     openings,
     rooms,
-  };
+  }
 }

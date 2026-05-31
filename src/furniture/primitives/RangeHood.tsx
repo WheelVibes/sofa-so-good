@@ -1,19 +1,19 @@
-import { readNum, readStr } from './shared';
-import { applianceFinish } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { applianceFinish } from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /** Chimney range hood mounted above a stove: tapered canopy + duct cover.
  *  Mounted on the wall (group offset up in Y). Faces +Z (canopy opening down,
  *  duct against the wall at -Z). */
 export function RangeHood({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 0.7);
-  const mountH = readNum(props, 'mountHeight', 1.45); // canopy underside height
-  const color = readStr(props, 'color', '#c4c8cc');
-  const finish = readStr(props, 'finish', 'steel');
-  const metal = { color, ...applianceFinish(finish) };
+  const width = readNum(props, 'width', 0.7)
+  const mountH = readNum(props, 'mountHeight', 1.45) // canopy underside height
+  const color = readStr(props, 'color', '#c4c8cc')
+  const finish = readStr(props, 'finish', 'steel')
+  const metal = { color, ...applianceFinish(finish) }
 
-  const canopyH = 0.16;
-  const depth = 0.45;
+  const canopyH = 0.16
+  const depth = 0.45
 
   return (
     <group position={[0, mountH, 0]}>
@@ -38,5 +38,5 @@ export function RangeHood({ props }: { props: ParamProps }) {
         <meshStandardMaterial {...metal} />
       </mesh>
     </group>
-  );
+  )
 }

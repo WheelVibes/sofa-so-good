@@ -3,34 +3,34 @@
  * localStorage so they survive reloads. Like qualityPrefs, these are
  * per-device editing preferences, not part of a saved design.
  */
-import { useStore } from '../store';
+import { useStore } from '../store'
 
-const KEY = 'sofa.editor.v1';
+const KEY = 'sofa.editor.v1'
 
 export function loadEditorPrefs(): void {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (!raw) return;
-    const p = JSON.parse(raw) as { snapEnabled?: boolean; gridSize?: number };
+    const raw = localStorage.getItem(KEY)
+    if (!raw) return
+    const p = JSON.parse(raw) as { snapEnabled?: boolean; gridSize?: number }
     useStore.setState({
       snapEnabled: !!p.snapEnabled,
       gridSize: typeof p.gridSize === 'number' && p.gridSize > 0 ? p.gridSize : 0.5,
-    });
+    })
   } catch {
     /* ignore corrupt prefs */
   }
 }
 
 export function watchEditorPrefs(): void {
-  let last = '';
+  let last = ''
   useStore.subscribe((s) => {
-    const snap = JSON.stringify({ snapEnabled: s.snapEnabled, gridSize: s.gridSize });
-    if (snap === last) return;
-    last = snap;
+    const snap = JSON.stringify({ snapEnabled: s.snapEnabled, gridSize: s.gridSize })
+    if (snap === last) return
+    last = snap
     try {
-      localStorage.setItem(KEY, snap);
+      localStorage.setItem(KEY, snap)
     } catch {
       /* storage full / unavailable */
     }
-  });
+  })
 }

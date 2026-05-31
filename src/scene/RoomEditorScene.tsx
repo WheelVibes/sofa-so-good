@@ -1,34 +1,34 @@
-import { Canvas } from '@react-three/fiber';
-import { Stats } from '@react-three/drei';
-import { useStore } from '../state/store';
-import { roomShell } from '../apartment/roomShell';
-import { RoomShell } from '../apartment/RoomShell';
-import { CameraRig } from './cameras/CameraRig';
-import { CameraForwardTracker } from './cameras/cameraForward';
-import { FurnitureLayer } from '../furniture/FurnitureLayer';
-import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader';
-import { SelectionOutline } from './selection/SelectionOutline';
-import { HoverHighlight } from './selection/HoverHighlight';
-import { MarqueeCameraTracker } from './selection/MarqueeSelector';
-import { PlacementGhost } from './PlacementGhost';
-import { GridOverlay } from './GridOverlay';
-import { AlignmentGuides } from './AlignmentGuides';
-import { ClearanceOverlay } from './ClearanceOverlay';
-import { DragController } from './DragController';
-import { ScreenshotController } from './ScreenshotController';
-import { MeasurementOverlay } from '../ui/MeasurementOverlay';
-import { DevCameraExpose } from './DevCameraExpose';
+import { Stats } from '@react-three/drei'
+import { Canvas } from '@react-three/fiber'
+import { RoomShell } from '../apartment/RoomShell'
+import { roomShell } from '../apartment/roomShell'
+import { FurnitureLayer } from '../furniture/FurnitureLayer'
+import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
+import { useStore } from '../state/store'
+import { MeasurementOverlay } from '../ui/MeasurementOverlay'
+import { AlignmentGuides } from './AlignmentGuides'
+import { ClearanceOverlay } from './ClearanceOverlay'
+import { CameraRig } from './cameras/CameraRig'
+import { CameraForwardTracker } from './cameras/cameraForward'
+import { DevCameraExpose } from './DevCameraExpose'
+import { DragController } from './DragController'
+import { GridOverlay } from './GridOverlay'
+import { PlacementGhost } from './PlacementGhost'
+import { ScreenshotController } from './ScreenshotController'
+import { HoverHighlight } from './selection/HoverHighlight'
+import { MarqueeCameraTracker } from './selection/MarqueeSelector'
+import { SelectionOutline } from './selection/SelectionOutline'
 
 /** Lightweight per-room editor scene. Renders one isolated room with a flat,
  *  Performance-tier look (no sun/IBL/post). Reuses every store-driven
  *  interaction controller so catalog/placement/measurement work unchanged. */
 export function RoomEditorScene() {
-  const roomId = useStore((s) => s.roomEditor.roomId);
-  const showFps = useStore((s) => s.showFps);
-  if (!roomId) return null;
-  const shell = roomShell(roomId);
-  const [cx, cz] = shell.center;
-  const r = shell.radius;
+  const roomId = useStore((s) => s.roomEditor.roomId)
+  const showFps = useStore((s) => s.showFps)
+  if (!roomId) return null
+  const shell = roomShell(roomId)
+  const [cx, cz] = shell.center
+  const r = shell.radius
   return (
     <Canvas
       dpr={1}
@@ -66,5 +66,5 @@ export function RoomEditorScene() {
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
       {showFps ? <Stats /> : null}
     </Canvas>
-  );
+  )
 }

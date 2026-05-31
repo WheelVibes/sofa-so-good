@@ -1,26 +1,26 @@
-import { Suspense, useRef } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { Mesh, Vector2, type MeshStandardMaterial } from 'three';
-import { useShallow } from 'zustand/react/shallow';
-import { WINDOWS, DOORS, FLAT } from './constants';
-import { wallThicknessMetres } from './wallSegments';
-import { WindowPane } from './Window';
-import { DoorLeaf } from './Door';
-import { RoomFloor } from './floor/RoomFloor';
-import { useStore } from '../state/store';
-import {
-  useMaterialDef,
-  useProceduralMaterial,
-  useSolidMaterial,
-  useTexturedMaterial,
-} from '../materials/useMaterial';
+import { useFrame } from '@react-three/fiber'
+import { Suspense, useRef } from 'react'
+import { type Mesh, type MeshStandardMaterial, Vector2 } from 'three'
+import { useShallow } from 'zustand/react/shallow'
 import type {
   MaterialId,
   ProceduralMaterialDef,
   SolidMaterialDef,
   TexturedMaterialDef,
-} from '../materials/types';
-import type { ClippedWall, RoomShell as RoomShellData } from './roomShell';
+} from '../materials/types'
+import {
+  useMaterialDef,
+  useProceduralMaterial,
+  useSolidMaterial,
+  useTexturedMaterial,
+} from '../materials/useMaterial'
+import { useStore } from '../state/store'
+import { DOORS, FLAT, WINDOWS } from './constants'
+import { DoorLeaf } from './Door'
+import { RoomFloor } from './floor/RoomFloor'
+import type { ClippedWall, RoomShell as RoomShellData } from './roomShell'
+import { WindowPane } from './Window'
+import { wallThicknessMetres } from './wallSegments'
 
 /** A clipped wall box, painted with the room's wall finish, that hides itself
  *  when the orbit camera is on its outward side — so you always see into the
@@ -30,37 +30,37 @@ function WallBox({
   center,
   material,
 }: {
-  wall: ClippedWall;
-  center: [number, number];
-  material: MeshStandardMaterial;
+  wall: ClippedWall
+  center: [number, number]
+  material: MeshStandardMaterial
 }) {
-  const ref = useRef<Mesh>(null);
-  const [sx, sz] = wall.start;
-  const [ex, ez] = wall.end;
-  const len = Math.hypot(ex - sx, ez - sz);
-  const midX = (sx + ex) / 2;
-  const midZ = (sz + ez) / 2;
+  const ref = useRef<Mesh>(null)
+  const [sx, sz] = wall.start
+  const [ex, ez] = wall.end
+  const len = Math.hypot(ex - sx, ez - sz)
+  const midX = (sx + ex) / 2
+  const midZ = (sz + ez) / 2
 
   // Outward normal: from room centre toward the wall mid along the wall's
   // facing axis (the wall is axis-aligned).
-  const toMid = new Vector2(midX - center[0], midZ - center[1]);
-  const horizontal = Math.abs(ez - sz) < 1e-3; // runs along X → faces ±Z
+  const toMid = new Vector2(midX - center[0], midZ - center[1])
+  const horizontal = Math.abs(ez - sz) < 1e-3 // runs along X → faces ±Z
   const normal = horizontal
     ? new Vector2(0, Math.sign(toMid.y) || 1)
-    : new Vector2(Math.sign(toMid.x) || 1, 0);
+    : new Vector2(Math.sign(toMid.x) || 1, 0)
 
   useFrame((state) => {
-    const m = ref.current;
-    if (!m) return;
-    const cam = state.camera.position;
-    const camDir = new Vector2(cam.x - midX, cam.z - midZ);
-    m.visible = camDir.dot(normal) <= 0.05;
-  });
+    const m = ref.current
+    if (!m) return
+    const cam = state.camera.position
+    const camDir = new Vector2(cam.x - midX, cam.z - midZ)
+    m.visible = camDir.dot(normal) <= 0.05
+  })
 
-  if (len < 1e-6) return null;
-  const t = wallThicknessMetres(wall.spec);
-  const h = wall.spec.topHeight ?? FLAT.ceilingHeight;
-  const angle = Math.atan2(ez - sz, ex - sx);
+  if (len < 1e-6) return null
+  const t = wallThicknessMetres(wall.spec)
+  const h = wall.spec.topHeight ?? FLAT.ceilingHeight
+  const angle = Math.atan2(ez - sz, ex - sx)
   return (
     <mesh
       ref={ref}
@@ -71,19 +71,27 @@ function WallBox({
     >
       <boxGeometry args={[len, h, t]} />
     </mesh>
-  );
+  )
 }
 
 // Resolve a wall finish materialId to a MeshStandardMaterial, branching by
 // kind exactly like the floor path so procedural/textured/solid all work.
 function SolidWall(p: { def: SolidMaterialDef; wall: ClippedWall; center: [number, number] }) {
-  return <WallBox {...p} material={useSolidMaterial(p.def)} />;
+  return <WallBox {...p} material={useSolidMaterial(p.def)} />
 }
-function TexturedWall(p: { def: TexturedMaterialDef; wall: ClippedWall; center: [number, number] }) {
-  return <WallBox {...p} material={useTexturedMaterial(p.def)} />;
+function TexturedWall(p: {
+  def: TexturedMaterialDef
+  wall: ClippedWall
+  center: [number, number]
+}) {
+  return <WallBox {...p} material={useTexturedMaterial(p.def)} />
 }
-function ProceduralWall(p: { def: ProceduralMaterialDef; wall: ClippedWall; center: [number, number] }) {
-  return <WallBox {...p} material={useProceduralMaterial(p.def)} />;
+function ProceduralWall(p: {
+  def: ProceduralMaterialDef
+  wall: ClippedWall
+  center: [number, number]
+}) {
+  return <WallBox {...p} material={useProceduralMaterial(p.def)} />
 }
 
 function RoomWall({
@@ -91,11 +99,11 @@ function RoomWall({
   wall,
   center,
 }: {
-  materialId: MaterialId;
-  wall: ClippedWall;
-  center: [number, number];
+  materialId: MaterialId
+  wall: ClippedWall
+  center: [number, number]
 }) {
-  const def = useMaterialDef(materialId);
+  const def = useMaterialDef(materialId)
   const inner =
     def.kind === 'textured' ? (
       <TexturedWall def={def} wall={wall} center={center} />
@@ -103,8 +111,8 @@ function RoomWall({
       <ProceduralWall def={def} wall={wall} center={center} />
     ) : (
       <SolidWall def={def} wall={wall} center={center} />
-    );
-  return <Suspense fallback={null}>{inner}</Suspense>;
+    )
+  return <Suspense fallback={null}>{inner}</Suspense>
 }
 
 /** Renders only the walls of an isolated room (clipped to its footprint) plus
@@ -112,12 +120,12 @@ function RoomWall({
  *  (with accent-wall overrides). Lightweight: no ceiling, no skirting, no
  *  exterior. Windows/doors are filtered to the room's own openings. */
 export function RoomShell({ shell }: { shell: RoomShellData }) {
-  const roomId = shell.roomId;
-  const floorFinish = useStore((s) => s.finishes.floor[roomId]);
-  const wallFinish = useStore((s) => s.finishes.walls[roomId]);
-  const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents));
-  const windowSet = new Set(shell.windowIds);
-  const doorSet = new Set(shell.doorIds);
+  const roomId = shell.roomId
+  const floorFinish = useStore((s) => s.finishes.floor[roomId])
+  const wallFinish = useStore((s) => s.finishes.walls[roomId])
+  const wallAccents = useStore(useShallow((s) => s.finishes.wallAccents))
+  const windowSet = new Set(shell.windowIds)
+  const doorSet = new Set(shell.doorIds)
   return (
     <group>
       {shell.rects.map((r, i) => (
@@ -147,5 +155,5 @@ export function RoomShell({ shell }: { shell: RoomShellData }) {
         <DoorLeaf key={d.id} spec={d} />
       ))}
     </group>
-  );
+  )
 }

@@ -1,10 +1,10 @@
-import { Ceiling } from './Ceiling';
-import { Doors } from './Door';
-import { Floor } from './floor/Floor';
-import { Walls } from './walls/Walls';
-import { Skirting } from './Skirting';
-import { Windows } from './Window';
-import { APARTMENT_EXT_W, APARTMENT_EXT_D } from './constants';
+import { Ceiling } from './Ceiling'
+import { APARTMENT_EXT_D, APARTMENT_EXT_W } from './constants'
+import { Doors } from './Door'
+import { Floor } from './floor/Floor'
+import { Skirting } from './Skirting'
+import { Windows } from './Window'
+import { Walls } from './walls/Walls'
 
 export function Apartment() {
   return (
@@ -22,5 +22,5 @@ export function Apartment() {
       <Windows />
       <Doors />
     </group>
-  );
+  )
 }

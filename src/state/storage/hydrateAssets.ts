@@ -1,22 +1,22 @@
-import { useStore } from '../store';
-import { IdbAssetStore, type AssetRecord } from './IdbAssetStore';
-import { seedGltfFootprint } from '../../furniture/GltfModel';
+import { seedGltfFootprint } from '../../furniture/GltfModel'
 import {
   FURNITURE_CATEGORIES,
-  type UserGltfDef,
-  type IkeaGltfDef,
   type FurnitureCategory,
-} from '../../furniture/types';
-import type { TexturedMaterialDef, MaterialCategory } from '../../materials/types';
+  type IkeaGltfDef,
+  type UserGltfDef,
+} from '../../furniture/types'
+import type { MaterialCategory, TexturedMaterialDef } from '../../materials/types'
+import { useStore } from '../store'
+import { type AssetRecord, IdbAssetStore } from './IdbAssetStore'
 
 /** JSON.parse that never throws: returns undefined on any parse error so a
  *  corrupt meta string can't abort hydration of the remaining assets. */
 function safeParse<T>(s: unknown): T | undefined {
-  if (typeof s !== 'string') return undefined;
+  if (typeof s !== 'string') return undefined
   try {
-    return JSON.parse(s) as T;
+    return JSON.parse(s) as T
   } catch {
-    return undefined;
+    return undefined
   }
 }
 
@@ -33,62 +33,66 @@ function safeParse<T>(s: unknown): T | undefined {
  *  assetId; the def itself comes from the layout save). Seeds the active
  *  variant's footprint cache so collision is correct before first render. */
 export async function resolveIkeaRuntimeUrls(defs: IkeaGltfDef[]): Promise<IkeaGltfDef[]> {
-  if (typeof indexedDB === 'undefined') return defs;
-  const out: IkeaGltfDef[] = [];
+  if (typeof indexedDB === 'undefined') return defs
+  const out: IkeaGltfDef[] = []
   for (const def of defs) {
     const variants = await Promise.all(
       def.variants.map(async (v) => {
-        let next = v;
+        let next = v
         if (v.assetId) {
-          const rec = await IdbAssetStore.get(v.assetId).catch(() => null);
-          if (rec) next = { ...next, runtimeUrl: URL.createObjectURL(rec.blob) };
+          const rec = await IdbAssetStore.get(v.assetId).catch(() => null)
+          if (rec) next = { ...next, runtimeUrl: URL.createObjectURL(rec.blob) }
         }
         if (v.imageAssetId) {
-          const imgRec = await IdbAssetStore.get(v.imageAssetId).catch(() => null);
-          if (imgRec) next = { ...next, runtimeImageUrl: URL.createObjectURL(imgRec.blob) };
+          const imgRec = await IdbAssetStore.get(v.imageAssetId).catch(() => null)
+          if (imgRec) next = { ...next, runtimeImageUrl: URL.createObjectURL(imgRec.blob) }
         }
-        return next;
+        return next
       }),
-    );
-    const resolved = { ...def, variants };
+    )
+    const resolved = { ...def, variants }
     const active =
-      variants.find((v) => v.finish === def.activeVariant) ?? variants.find((v) => v.runtimeUrl);
-    if (active?.runtimeUrl && active.footprint) seedGltfFootprint(active.runtimeUrl, active.footprint);
-    out.push(resolved);
+      variants.find((v) => v.finish === def.activeVariant) ?? variants.find((v) => v.runtimeUrl)
+    if (active?.runtimeUrl && active.footprint)
+      seedGltfFootprint(active.runtimeUrl, active.footprint)
+    out.push(resolved)
   }
-  return out;
+  return out
 }
 
 export async function hydrateUserAssets(): Promise<void> {
   // IndexedDB is unavailable in some test environments; fail soft so
   // the app still boots in those cases.
-  if (typeof indexedDB === 'undefined') return;
+  if (typeof indexedDB === 'undefined') return
 
-  let metas;
+  let metas
   try {
-    metas = await IdbAssetStore.list();
+    metas = await IdbAssetStore.list()
   } catch {
-    return;
+    return
   }
-  if (metas.length === 0) return;
+  if (metas.length === 0) return
 
-  const furniture: UserGltfDef[] = [];
+  const furniture: UserGltfDef[] = []
   // Group texture records by their parent matId so we can rebuild
   // material defs from the channel records on disk.
-  const matChannels = new Map<string, Partial<Record<'albedo' | 'normal' | 'roughness' | 'ao', AssetRecord>>>();
+  const matChannels = new Map<
+    string,
+    Partial<Record<'albedo' | 'normal' | 'roughness' | 'ao', AssetRecord>>
+  >()
 
   for (const m of metas) {
     // Pack-installed assets share the IDB store; skip them here so they
     // don't surface as user uploads. hydratePacks() reconstructs them.
-    if (m.meta?.['source'] === 'pack') continue;
+    if (m.meta?.['source'] === 'pack') continue
     if (m.kind === 'gltf') {
-      const rec = await IdbAssetStore.get(m.assetId);
-      if (!rec) continue;
-      const cat = m.meta?.['category'];
+      const rec = await IdbAssetStore.get(m.assetId)
+      if (!rec) continue
+      const cat = m.meta?.['category']
       const category: FurnitureCategory =
         typeof cat === 'string' && (FURNITURE_CATEGORIES as readonly string[]).includes(cat)
           ? (cat as FurnitureCategory)
-          : 'decor';
+          : 'decor'
       furniture.push({
         id: `user-${m.assetId}`,
         name: m.name,
@@ -103,36 +107,41 @@ export async function hydrateUserAssets(): Promise<void> {
         noClip: m.meta?.['noClip'] as boolean | undefined,
         finishTargets: safeParse<{ key: string; label: string }[]>(m.meta?.['finishTargets']),
         finishOverrides: safeParse<Record<string, string>>(m.meta?.['finishOverrides']),
-      });
+      })
     } else if (m.kind === 'texture') {
       // IKEA catalog thumbnails share the texture kind but are owned by the
       // IKEA def (resolved via resolveIkeaRuntimeUrls), not a user material.
-      if (m.meta?.['role'] === 'ikea-image') continue;
-      const matId = m.meta?.['matId'];
-      const role = m.meta?.['role'];
-      if (typeof matId !== 'string' || typeof role !== 'string') continue;
-      if (role !== 'albedo' && role !== 'normal' && role !== 'roughness' && role !== 'ao') continue;
-      const rec = await IdbAssetStore.get(m.assetId);
-      if (!rec) continue;
-      const bucket = matChannels.get(matId) ?? {};
-      bucket[role] = rec;
-      matChannels.set(matId, bucket);
+      if (m.meta?.['role'] === 'ikea-image') continue
+      const matId = m.meta?.['matId']
+      const role = m.meta?.['role']
+      if (typeof matId !== 'string' || typeof role !== 'string') continue
+      if (role !== 'albedo' && role !== 'normal' && role !== 'roughness' && role !== 'ao') continue
+      const rec = await IdbAssetStore.get(m.assetId)
+      if (!rec) continue
+      const bucket = matChannels.get(matId) ?? {}
+      bucket[role] = rec
+      matChannels.set(matId, bucket)
     }
   }
-  useStore.getState().setUserFurniture(furniture);
+  useStore.getState().setUserFurniture(furniture)
 
-  const materials: TexturedMaterialDef[] = [];
+  const materials: TexturedMaterialDef[] = []
   for (const [matId, channels] of matChannels.entries()) {
-    if (!channels.albedo) continue;
+    if (!channels.albedo) continue
     const albedoMeta = channels.albedo.meta as
-      | { matId?: string; category?: string; uvScale?: [number, number]; swatch?: string; name?: string }
-      | undefined;
-    const category: MaterialCategory =
-      albedoMeta?.category === 'wall' ? 'wall' : 'floor';
-    const url = (rec: AssetRecord) => URL.createObjectURL(rec.blob);
+      | {
+          matId?: string
+          category?: string
+          uvScale?: [number, number]
+          swatch?: string
+          name?: string
+        }
+      | undefined
+    const category: MaterialCategory = albedoMeta?.category === 'wall' ? 'wall' : 'floor'
+    const url = (rec: AssetRecord) => URL.createObjectURL(rec.blob)
     materials.push({
       id: matId,
-      name: channels.albedo.meta?.['name'] as string ?? matId.slice(0, 8),
+      name: (channels.albedo.meta?.['name'] as string) ?? matId.slice(0, 8),
       category,
       kind: 'textured',
       source: 'user',
@@ -150,7 +159,7 @@ export async function hydrateUserAssets(): Promise<void> {
         roughness: channels.roughness ? url(channels.roughness) : undefined,
         ao: channels.ao ? url(channels.ao) : undefined,
       },
-    });
+    })
   }
-  useStore.getState().setUserMaterials(materials);
+  useStore.getState().setUserMaterials(materials)
 }

@@ -1,4 +1,4 @@
-export { NumberField } from './NumberField';
-export { IntegerField } from './IntegerField';
-export { ColorField } from './ColorField';
-export { EnumField } from './EnumField';
+export { ColorField } from './ColorField'
+export { EnumField } from './EnumField'
+export { IntegerField } from './IntegerField'
+export { NumberField } from './NumberField'

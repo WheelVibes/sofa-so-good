@@ -14,25 +14,26 @@
  * Groups with no crawled variant (no GLB) and the active group itself are skipped.
  */
 
-import type { IkeaGltfDef } from '../types';
+import type { IkeaGltfDef } from '../types'
 
 function norm(s: string | undefined): string {
-  return (s ?? '').replace(/\s+/g, ' ').trim().toLowerCase();
+  return (s ?? '').replace(/\s+/g, ' ').trim().toLowerCase()
 }
 
 /** Singularise each word so 'spring mattresses' == 'spring mattress'. */
 function depluralize(phrase: string): string {
-  return norm(phrase).split(' ')
+  return norm(phrase)
+    .split(' ')
     .map((w) => (w.length > 3 && w.endsWith('s') ? w.slice(0, -1) : w))
-    .join(' ');
+    .join(' ')
 }
 
 /** Category labels a product can be matched against: breadcrumb names + typeName. */
 export function productCategories(def: IkeaGltfDef): Set<string> {
-  const labels = new Set<string>();
-  for (const crumb of def.productInfo?.categoryHierarchy ?? []) labels.add(norm(crumb));
-  if (def.productInfo?.typeName) labels.add(norm(def.productInfo.typeName));
-  return labels;
+  const labels = new Set<string>()
+  for (const crumb of def.productInfo?.categoryHierarchy ?? []) labels.add(norm(crumb))
+  if (def.productInfo?.typeName) labels.add(norm(def.productInfo.typeName))
+  return labels
 }
 
 /**
@@ -42,25 +43,25 @@ export function productCategories(def: IkeaGltfDef): Set<string> {
  * 'Foam & latex mattresses' product just because both contain 'mattress'.
  */
 export function categoryMatches(acceptsCategory: string, labels: Set<string>): boolean {
-  const want = depluralize(acceptsCategory);
+  const want = depluralize(acceptsCategory)
   for (const label of labels) {
-    const lab = depluralize(label);
-    if (want === lab) return true;
+    const lab = depluralize(label)
+    if (want === lab) return true
     // Allow the accepted category to be the leaf within a longer label, but
     // require a full-word boundary match (mirrors python's (?:^|\W)…(?:\W|$)).
-    const re = new RegExp(`(?:^|\\W)${want.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\W|$)`);
-    if (re.test(lab)) return true;
+    const re = new RegExp(`(?:^|\\W)${want.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\W|$)`)
+    if (re.test(lab)) return true
   }
-  return false;
+  return false
 }
 
 function hasCrawledVariant(def: IkeaGltfDef): boolean {
-  return def.variants.some((v) => v.assetId);
+  return def.variants.some((v) => v.assetId)
 }
 
 export interface CompatibleMatch {
-  def: IkeaGltfDef;
-  finishes: { finish: string; label: string }[];
+  def: IkeaGltfDef
+  finishes: { finish: string; label: string }[]
 }
 
 /** Groups in `catalog` compatible with `active`, keyed by accepted category.
@@ -70,24 +71,26 @@ export function resolveCompatible(
   active: IkeaGltfDef,
   catalog: IkeaGltfDef[],
 ): Record<string, CompatibleMatch[]> {
-  const accepts = active.compatibility?.acceptsCategories ?? [];
-  const wantSize = active.compatibility?.size;
-  const out: Record<string, CompatibleMatch[]> = {};
-  for (const cat of accepts) out[cat] = [];
+  const accepts = active.compatibility?.acceptsCategories ?? []
+  const wantSize = active.compatibility?.size
+  const out: Record<string, CompatibleMatch[]> = {}
+  for (const cat of accepts) out[cat] = []
 
   for (const def of catalog) {
-    if (def.groupKey === active.groupKey) continue;
-    if (!hasCrawledVariant(def)) continue;
-    const labels = productCategories(def);
-    const gsize = def.productInfo?.size;
+    if (def.groupKey === active.groupKey) continue
+    if (!hasCrawledVariant(def)) continue
+    const labels = productCategories(def)
+    const gsize = def.productInfo?.size
     for (const cat of accepts) {
-      if (!categoryMatches(cat, labels)) continue;
-      if (wantSize && gsize && wantSize !== gsize) continue;
+      if (!categoryMatches(cat, labels)) continue
+      if (wantSize && gsize && wantSize !== gsize) continue
       out[cat].push({
         def,
-        finishes: def.variants.filter((v) => v.assetId).map((v) => ({ finish: v.finish, label: v.label })),
-      });
+        finishes: def.variants
+          .filter((v) => v.assetId)
+          .map((v) => ({ finish: v.finish, label: v.label })),
+      })
     }
   }
-  return out;
+  return out
 }

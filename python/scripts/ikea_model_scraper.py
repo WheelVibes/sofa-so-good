@@ -15,7 +15,7 @@ from categorize import design_classification
 TARGET_SITEMAPS = [f"https://www.ikea.com/sitemaps/prod-en-SG_{i}.xml" for i in range(1, 5)]
 OUTPUT_DIR = "./ikea_sg_3d_models"
 PROGRESS_FILE = "processed_urls.txt"
-CONCURRENT_PAGES = 3      # Reduced slightly to ensure domestic element rendering settles
+CONCURRENT_PAGES = int(os.environ.get("SCRAPER_CONCURRENCY", "3"))  # overridable; default settles domestic-element rendering
 TIMEOUT_MS = 30000
 
 os.makedirs(OUTPUT_DIR, exist_ok=True)

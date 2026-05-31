@@ -1,11 +1,11 @@
-import { useRef, useState } from 'react';
-import { useFrame } from '@react-three/fiber';
-import { AccumulativeShadows, RandomizedLight } from '@react-three/drei';
-import { Vector3 } from 'three';
-import { useQuality } from './useQuality';
-import { useStore } from '../state/store';
-import { nextShowcaseState, type ShowcaseState } from './showcase';
-import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../apartment/constants';
+import { AccumulativeShadows, RandomizedLight } from '@react-three/drei'
+import { useFrame } from '@react-three/fiber'
+import { useRef, useState } from 'react'
+import { Vector3 } from 'three'
+import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
+import { useStore } from '../state/store'
+import { nextShowcaseState, type ShowcaseState } from './showcase'
+import { useQuality } from './useQuality'
 
 /**
  * While the camera is parked (see showcase.ts), drop in AccumulativeShadows so
@@ -14,34 +14,34 @@ import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../apartment/constants';
  * `showcase` quality capability. Costs nothing while the camera moves.
  */
 export function ShowcaseController() {
-  const enabled = useQuality().showcase;
-  const [state, setState] = useState<ShowcaseState>({ mode: 'live', stillSince: null });
-  const prevPos = useRef(new Vector3());
-  const stateRef = useRef(state);
-  stateRef.current = state; // keep the frame-loop closure reading current state without re-subscribing
+  const enabled = useQuality().showcase
+  const [state, setState] = useState<ShowcaseState>({ mode: 'live', stillSince: null })
+  const prevPos = useRef(new Vector3())
+  const stateRef = useRef(state)
+  stateRef.current = state // keep the frame-loop closure reading current state without re-subscribing
 
   useFrame(({ camera }) => {
     if (!enabled) {
-      if (stateRef.current.mode !== 'live') setState({ mode: 'live', stillSince: null });
+      if (stateRef.current.mode !== 'live') setState({ mode: 'live', stillSince: null })
       if (useStore.getState().showcaseAccumulating !== false) {
-        useStore.getState().setShowcaseAccumulating(false);
+        useStore.getState().setShowcaseAccumulating(false)
       }
-      return;
+      return
     }
-    const moved = prevPos.current.distanceToSquared(camera.position) > 1e-6;
-    prevPos.current.copy(camera.position);
-    const now = performance.now();
-    const next = nextShowcaseState(stateRef.current, { moved, now });
+    const moved = prevPos.current.distanceToSquared(camera.position) > 1e-6
+    prevPos.current.copy(camera.position)
+    const now = performance.now()
+    const next = nextShowcaseState(stateRef.current, { moved, now })
     if (next.mode !== stateRef.current.mode || next.stillSince !== stateRef.current.stillSince) {
-      setState(next);
+      setState(next)
     }
-    const accumulating = enabled && next.mode === 'accumulate';
+    const accumulating = enabled && next.mode === 'accumulate'
     if (useStore.getState().showcaseAccumulating !== accumulating) {
-      useStore.getState().setShowcaseAccumulating(accumulating);
+      useStore.getState().setShowcaseAccumulating(accumulating)
     }
-  });
+  })
 
-  if (!enabled || state.mode !== 'accumulate') return null;
+  if (!enabled || state.mode !== 'accumulate') return null
 
   return (
     <AccumulativeShadows
@@ -52,7 +52,14 @@ export function ShowcaseController() {
       scale={Math.max(APARTMENT_EXT_W, APARTMENT_EXT_D) * 1.5}
       position={[APARTMENT_EXT_W / 2, 0.01, APARTMENT_EXT_D / 2]}
     >
-      <RandomizedLight amount={8} radius={6} ambient={0.5} intensity={1} position={[5, 8, -3]} bias={0.001} />
+      <RandomizedLight
+        amount={8}
+        radius={6}
+        ambient={0.5}
+        intensity={1}
+        position={[5, 8, -3]}
+        bias={0.001}
+      />
     </AccumulativeShadows>
-  );
+  )
 }

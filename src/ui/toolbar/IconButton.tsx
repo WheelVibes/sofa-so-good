@@ -1,22 +1,30 @@
-import { Icon, type IconName } from './icons';
-import { Tooltip } from './Tooltip';
+import { Icon, type IconName } from './icons'
+import { Tooltip } from './Tooltip'
 
 interface IconButtonProps {
-  icon: IconName;
-  label: string;
-  shortcut?: string;
-  active?: boolean;
-  chevron?: boolean;
-  badge?: string | number;
-  onClick?: () => void;
+  icon: IconName
+  label: string
+  shortcut?: string
+  active?: boolean
+  chevron?: boolean
+  badge?: string | number
+  onClick?: () => void
 }
 
 /** A single icon control with a hover tooltip. Active state mirrors the
  *  dark-pill highlight; optional chevron marks a dropdown; optional badge is a
  *  small rose count dot. */
-export function IconButton({ icon, label, shortcut = '', active, chevron, badge, onClick }: IconButtonProps) {
-  const Cmp = Icon[icon];
-  const hasBadge = badge != null && badge !== '' && badge !== 0;
+export function IconButton({
+  icon,
+  label,
+  shortcut = '',
+  active,
+  chevron,
+  badge,
+  onClick,
+}: IconButtonProps) {
+  const Cmp = Icon[icon]
+  const hasBadge = badge != null && badge !== '' && badge !== 0
   return (
     <Tooltip label={label} shortcut={shortcut}>
       <button
@@ -36,5 +44,5 @@ export function IconButton({ icon, label, shortcut = '', active, chevron, badge,
         ) : null}
       </button>
     </Tooltip>
-  );
+  )
 }

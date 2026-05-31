@@ -1,84 +1,84 @@
-import { useEffect, useRef, useState } from 'react';
-import { useStore } from '../../state/store';
-import { AVAILABLE_PACKS } from '../../catalog/packs/registry';
-import { installPack } from '../../catalog/packs/install';
-import { uninstallPack } from '../../catalog/packs/uninstall';
+import { useEffect, useRef, useState } from 'react'
 import {
+  type IkeaProgressEvent,
+  registerGroup,
   sidecarStatus,
   startScrape,
   streamProgress,
-  registerGroup,
-  type IkeaProgressEvent,
-} from '../../catalog/packs/ikeaLive';
-import type { Pack } from '../../catalog/packs/types';
+} from '../../catalog/packs/ikeaLive'
+import { installPack } from '../../catalog/packs/install'
+import { AVAILABLE_PACKS } from '../../catalog/packs/registry'
+import type { Pack } from '../../catalog/packs/types'
+import { uninstallPack } from '../../catalog/packs/uninstall'
+import { useStore } from '../../state/store'
 
-const fmtMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`;
+const fmtMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
 
 /** Live-scrape IKEA pack: drives the local sidecar, shows per-product progress. */
 function IkeaLiveCard({ pack }: { pack: Pack }) {
-  const [sidecarUp, setSidecarUp] = useState<boolean | null>(null);
-  const [running, setRunning] = useState(false);
-  const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 });
-  const [items, setItems] = useState<Record<string, IkeaProgressEvent>>({});
-  const [registered, setRegistered] = useState(0);
-  const cancelRef = useRef<null | (() => void)>(null);
+  const [sidecarUp, setSidecarUp] = useState<boolean | null>(null)
+  const [running, setRunning] = useState(false)
+  const [progress, setProgress] = useState<{ done: number; total: number }>({ done: 0, total: 0 })
+  const [items, setItems] = useState<Record<string, IkeaProgressEvent>>({})
+  const [registered, setRegistered] = useState(0)
+  const cancelRef = useRef<null | (() => void)>(null)
   // Distinct group keys already imported this run. A multi-finish group fires
   // `group_ready` once per landed finish (so we re-import with the fuller
   // metadata), but it must only count toward "N added" once. The in-flight set
   // also serialises re-registers of the same group so a later (fuller) import
   // can't be clobbered by an earlier one finishing last.
-  const registeredGroups = useRef<Set<string>>(new Set());
-  const registeringGroups = useRef<Set<string>>(new Set());
+  const registeredGroups = useRef<Set<string>>(new Set())
+  const registeringGroups = useRef<Set<string>>(new Set())
 
   useEffect(() => {
-    sidecarStatus().then((s) => setSidecarUp(!!s));
-    return () => cancelRef.current?.();
-  }, []);
+    sidecarStatus().then((s) => setSidecarUp(!!s))
+    return () => cancelRef.current?.()
+  }, [])
 
   async function onStart() {
-    setRunning(true);
-    setItems({});
-    setRegistered(0);
-    registeredGroups.current = new Set();
-    registeringGroups.current = new Set();
+    setRunning(true)
+    setItems({})
+    setRegistered(0)
+    registeredGroups.current = new Set()
+    registeringGroups.current = new Set()
     try {
-      await startScrape(0);
+      await startScrape(0)
     } catch {
-      setRunning(false);
-      setSidecarUp(false);
-      return;
+      setRunning(false)
+      setSidecarUp(false)
+      return
     }
     cancelRef.current = streamProgress(
       (ev) => {
         if (typeof ev.done === 'number' && typeof ev.total === 'number') {
-          setProgress({ done: ev.done, total: ev.total });
+          setProgress({ done: ev.done, total: ev.total })
         } else if (ev.phase === 'run_started' && typeof ev.total === 'number') {
-          setProgress((p) => ({ ...p, total: ev.total! }));
+          setProgress((p) => ({ ...p, total: ev.total! }))
         }
         if (ev.glb) {
-          setItems((m) => ({ ...m, [`${ev.group}/${ev.glb}`]: ev }));
+          setItems((m) => ({ ...m, [`${ev.group}/${ev.glb}`]: ev }))
         }
         if (ev.phase === 'run_complete') {
-          setRunning(false);
-          cancelRef.current?.();
+          setRunning(false)
+          cancelRef.current?.()
         }
       },
       (group) => {
         // Skip if a register for this group is already in flight (the next
         // group_ready will re-run with the fuller metadata once it frees up).
-        if (registeringGroups.current.has(group)) return;
-        registeringGroups.current.add(group);
+        if (registeringGroups.current.has(group)) return
+        registeringGroups.current.add(group)
         void registerGroup(group)
           .then((ok) => {
             // Count each distinct group once, even across re-imports.
             if (ok && !registeredGroups.current.has(group)) {
-              registeredGroups.current.add(group);
-              setRegistered((n) => n + 1);
+              registeredGroups.current.add(group)
+              setRegistered((n) => n + 1)
             }
           })
-          .finally(() => registeringGroups.current.delete(group));
+          .finally(() => registeringGroups.current.delete(group))
       },
-    );
+    )
   }
 
   if (sidecarUp === false) {
@@ -91,10 +91,10 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
           enable live IKEA scraping.
         </div>
       </div>
-    );
+    )
   }
 
-  const rows = Object.entries(items).slice(-12);
+  const rows = Object.entries(items).slice(-12)
   return (
     <div className="flex flex-col gap-2 rounded border border-neutral-200 bg-white p-3">
       <div className="text-sm font-semibold text-neutral-900">{pack.name}</div>
@@ -105,7 +105,9 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
           <div className="h-1.5 w-full overflow-hidden rounded bg-neutral-200">
             <div
               className="h-full bg-emerald-600 transition-all"
-              style={{ width: progress.total ? `${(progress.done / progress.total) * 100}%` : '0%' }}
+              style={{
+                width: progress.total ? `${(progress.done / progress.total) * 100}%` : '0%',
+              }}
             />
           </div>
           <div className="flex justify-between text-[10px] text-neutral-500">
@@ -133,17 +135,17 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
         </button>
       )}
     </div>
-  );
+  )
 }
 
 /** Hosted-zip pack card (Kenney etc.) — the original install flow. */
 function ZipPackCard({ pack }: { pack: Pack }) {
-  const installed = useStore((s) => s.installedPacks);
-  const installing = useStore((s) => s.installing);
-  const isInstalled = !!installed[pack.id];
-  const inflight = installing[pack.id];
-  const entryCount = installed[pack.id]?.entries.length ?? 0;
-  const size = pack.sizeBytes ?? 0;
+  const installed = useStore((s) => s.installedPacks)
+  const installing = useStore((s) => s.installing)
+  const isInstalled = !!installed[pack.id]
+  const inflight = installing[pack.id]
+  const entryCount = installed[pack.id]?.entries.length ?? 0
+  const size = pack.sizeBytes ?? 0
   return (
     <div className="flex flex-col gap-2 rounded border border-neutral-200 bg-white p-3">
       <div className="flex items-baseline justify-between">
@@ -180,7 +182,7 @@ function ZipPackCard({ pack }: { pack: Pack }) {
         </button>
       )}
     </div>
-  );
+  )
 }
 
 export function PacksTab() {
@@ -195,5 +197,5 @@ export function PacksTab() {
         ),
       )}
     </div>
-  );
+  )
 }

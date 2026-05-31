@@ -1,7 +1,11 @@
-import { RoundedBox } from '@react-three/drei';
-import { readNum, readStr } from './shared';
-import { getUpholsteryMaterial, getWoodMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials';
-import type { ParamProps } from '../types';
+import { RoundedBox } from '@react-three/drei'
+import {
+  getSurfaceMaterial,
+  getUpholsteryMaterial,
+  getWoodMaterial,
+} from '../../materials/furnitureMaterials'
+import type { ParamProps } from '../types'
+import { readNum, readStr } from './shared'
 
 /**
  * Bench — a backless seat for the foot of a bed or an entryway. Styles:
@@ -9,23 +13,23 @@ import type { ParamProps } from '../types';
  * with a lid + plinth) and 'slat' (a wood-slat top on legs). Faces +Z.
  */
 export function Bench({ props }: { props: ParamProps }) {
-  const width = readNum(props, 'width', 1.2);
-  const depth = readNum(props, 'depth', 0.4);
-  const height = readNum(props, 'height', 0.45);
-  const color = readStr(props, 'color', '#b08968');
-  const legColor = readStr(props, 'legColor', '#3a2c1d');
-  const material = readStr(props, 'material', 'fabric');
-  const sheen = readNum(props, 'sheen', 0);
-  const style = readStr(props, 'style', 'upholstered');
+  const width = readNum(props, 'width', 1.2)
+  const depth = readNum(props, 'depth', 0.4)
+  const height = readNum(props, 'height', 0.45)
+  const color = readStr(props, 'color', '#b08968')
+  const legColor = readStr(props, 'legColor', '#3a2c1d')
+  const material = readStr(props, 'material', 'fabric')
+  const sheen = readNum(props, 'sheen', 0)
+  const style = readStr(props, 'style', 'upholstered')
 
-  const legMat = getWoodMaterial(legColor, 0.4);
+  const legMat = getWoodMaterial(legColor, 0.4)
 
   if (style === 'storage') {
     // Closed ottoman box with a slightly proud lid on a recessed plinth.
-    const plinthH = 0.05;
-    const boxH = height - plinthH - 0.04;
-    const box = getSurfaceMaterial('wood', color, 1.4, sheen);
-    const lid = getUpholsteryMaterial(material, color, sheen);
+    const plinthH = 0.05
+    const boxH = height - plinthH - 0.04
+    const box = getSurfaceMaterial('wood', color, 1.4, sheen)
+    const lid = getUpholsteryMaterial(material, color, sheen)
     return (
       <group>
         <mesh castShadow receiveShadow position={[0, plinthH / 2, 0.01]} material={box}>
@@ -34,34 +38,55 @@ export function Bench({ props }: { props: ParamProps }) {
         <mesh castShadow receiveShadow position={[0, plinthH + boxH / 2, 0]} material={box}>
           <boxGeometry args={[width, boxH, depth]} />
         </mesh>
-        <RoundedBox args={[width + 0.02, 0.06, depth + 0.02]} radius={0.02} smoothness={2} castShadow position={[0, plinthH + boxH + 0.03, 0]} material={lid} />
+        <RoundedBox
+          args={[width + 0.02, 0.06, depth + 0.02]}
+          radius={0.02}
+          smoothness={2}
+          castShadow
+          position={[0, plinthH + boxH + 0.03, 0]}
+          material={lid}
+        />
       </group>
-    );
+    )
   }
 
   // Top on four splayed-ish legs (upholstered cushion or wood slats).
-  const legH = height - 0.1;
-  const legT = 0.05;
-  const inset = legT / 2 + 0.04;
-  const xs = [-width / 2 + inset, width / 2 - inset];
-  const zs = [-depth / 2 + inset, depth / 2 - inset];
-  const topY = legH + 0.05;
+  const legH = height - 0.1
+  const legT = 0.05
+  const inset = legT / 2 + 0.04
+  const xs = [-width / 2 + inset, width / 2 - inset]
+  const zs = [-depth / 2 + inset, depth / 2 - inset]
+  const topY = legH + 0.05
 
   return (
     <group>
       {style === 'slat' ? (
         (() => {
-          const n = Math.max(3, Math.round(depth / 0.09));
-          const sd = (depth - 0.04) / n;
-          const slatMat = getSurfaceMaterial('wood', color, 1.2, sheen);
+          const n = Math.max(3, Math.round(depth / 0.09))
+          const sd = (depth - 0.04) / n
+          const slatMat = getSurfaceMaterial('wood', color, 1.2, sheen)
           return Array.from({ length: n }, (_, i) => (
-            <mesh key={i} castShadow receiveShadow position={[0, topY, -depth / 2 + 0.02 + sd * (i + 0.5)]} material={slatMat}>
+            <mesh
+              key={i}
+              castShadow
+              receiveShadow
+              position={[0, topY, -depth / 2 + 0.02 + sd * (i + 0.5)]}
+              material={slatMat}
+            >
               <boxGeometry args={[width, 0.04, sd * 0.7]} />
             </mesh>
-          ));
+          ))
         })()
       ) : (
-        <RoundedBox args={[width, 0.12, depth]} radius={0.04} smoothness={3} castShadow receiveShadow position={[0, topY, 0]} material={getUpholsteryMaterial(material, color, sheen)} />
+        <RoundedBox
+          args={[width, 0.12, depth]}
+          radius={0.04}
+          smoothness={3}
+          castShadow
+          receiveShadow
+          position={[0, topY, 0]}
+          material={getUpholsteryMaterial(material, color, sheen)}
+        />
       )}
       {xs.map((x) =>
         zs.map((z) => (
@@ -71,5 +96,5 @@ export function Bench({ props }: { props: ParamProps }) {
         )),
       )}
     </group>
-  );
+  )
 }
