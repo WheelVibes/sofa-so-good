@@ -1,11 +1,22 @@
 import { ROOMS, WALLS, WINDOWS, DOORS } from './constants';
-import type { RoomDef, RoomId } from './types';
+import type { RoomDef, RoomId, WallSpec, WindowSpec, DoorSpec } from './types';
 
 export interface Rect {
   x0: number;
   z0: number;
   x1: number;
   z1: number;
+}
+
+/** A wall segment trimmed to the span that bounds the room. Shared long walls
+ *  (e.g. the full north wall over all three bedrooms) are clipped so only the
+ *  portion adjacent to the isolated room renders. */
+export interface ClippedWall {
+  /** Source wall id (multiple clips can share an id — keyed separately). */
+  wallId: string;
+  start: [number, number];
+  end: [number, number];
+  spec: WallSpec;
 }
 
 // Interior rect edges sit inside the wall centerlines by half the wall
@@ -44,41 +55,79 @@ function pointInRects(x: number, z: number, rects: Rect[]): boolean {
   );
 }
 
-/** True when a wall segment lies on the perimeter of any of the room's rects:
- *  it must be axis-aligned, sit on a rect edge line, and overlap that edge. */
-function wallOnRoomEdge(
-  start: readonly [number, number],
-  end: readonly [number, number],
+/** For an axis-aligned wall on a rect edge, the sub-segment overlapping that
+ *  rect's extent along the wall axis. Returns null when the wall isn't on any
+ *  edge of the rects, or the overlap is degenerate. A wall on a SHARED edge
+ *  (long span over several rooms) is clipped to the room's footprint here. */
+function clipWallToRects(
+  wall: WallSpec,
   rects: Rect[],
-): boolean {
-  const [sx, sz] = start;
-  const [ex, ez] = end;
+): { start: [number, number]; end: [number, number] } | null {
+  const [sx, sz] = wall.start;
+  const [ex, ez] = wall.end;
   const horizontal = Math.abs(sz - ez) < EDGE_EPS;
   const vertical = Math.abs(sx - ex) < EDGE_EPS;
-  if (!horizontal && !vertical) return false;
+  if (!horizontal && !vertical) return null;
+
+  let best: { start: [number, number]; end: [number, number]; len: number } | null = null;
   for (const r of rects) {
     if (horizontal) {
       const onEdge = Math.abs(sz - r.z0) < EDGE_EPS || Math.abs(sz - r.z1) < EDGE_EPS;
-      const lo = Math.min(sx, ex);
-      const hi = Math.max(sx, ex);
-      const overlaps = Math.min(hi, r.x1) - Math.max(lo, r.x0) > EDGE_EPS;
-      if (onEdge && overlaps) return true;
+      if (!onEdge) continue;
+      const lo = Math.max(Math.min(sx, ex), r.x0);
+      const hi = Math.min(Math.max(sx, ex), r.x1);
+      const len = hi - lo;
+      if (len > EDGE_EPS && (!best || len > best.len)) {
+        best = { start: [lo, sz], end: [hi, sz], len };
+      }
     }
     if (vertical) {
       const onEdge = Math.abs(sx - r.x0) < EDGE_EPS || Math.abs(sx - r.x1) < EDGE_EPS;
-      const lo = Math.min(sz, ez);
-      const hi = Math.max(sz, ez);
-      const overlaps = Math.min(hi, r.z1) - Math.max(lo, r.z0) > EDGE_EPS;
-      if (onEdge && overlaps) return true;
+      if (!onEdge) continue;
+      const lo = Math.max(Math.min(sz, ez), r.z0);
+      const hi = Math.min(Math.max(sz, ez), r.z1);
+      const len = hi - lo;
+      if (len > EDGE_EPS && (!best || len > best.len)) {
+        best = { start: [sx, lo], end: [sx, hi], len };
+      }
     }
   }
-  return false;
+  return best ? { start: best.start, end: best.end } : null;
+}
+
+/** World [x, z] center of an opening (window/door) along its parent wall. */
+function openingCenter(
+  spec: WindowSpec | DoorSpec,
+  wall: WallSpec,
+): [number, number] | null {
+  const wdx = wall.end[0] - wall.start[0];
+  const wdz = wall.end[1] - wall.start[1];
+  const len = Math.hypot(wdx, wdz);
+  if (len < 1e-6) return null;
+  const ux = wdx / len;
+  const uz = wdz / len;
+  const at = spec.offset + spec.width / 2;
+  return [wall.start[0] + ux * at, wall.start[1] + uz * at];
+}
+
+/** True when point p lies within the clipped span [a,b] (inclusive, tol). */
+function pointOnSpan(
+  p: [number, number],
+  a: [number, number],
+  b: [number, number],
+): boolean {
+  const minX = Math.min(a[0], b[0]) - POINT_EPS;
+  const maxX = Math.max(a[0], b[0]) + POINT_EPS;
+  const minZ = Math.min(a[1], b[1]) - POINT_EPS;
+  const maxZ = Math.max(a[1], b[1]) + POINT_EPS;
+  return p[0] >= minX && p[0] <= maxX && p[1] >= minZ && p[1] <= maxZ;
 }
 
 export interface RoomShell {
   roomId: RoomId;
   rects: Rect[];
-  wallIds: string[];
+  /** Wall segments clipped to the room footprint (shared walls trimmed). */
+  walls: ClippedWall[];
   windowIds: string[];
   doorIds: string[];
   /** Center of the bounding box over all rects, as [x, z]. */
@@ -92,11 +141,31 @@ export interface RoomShell {
 export function roomShell(roomId: RoomId): RoomShell {
   const room = ROOMS[roomId];
   const rects = roomRects(room);
-  const walls = WALLS.filter((w) => wallOnRoomEdge(w.start, w.end, rects));
-  const wallIds = walls.map((w) => w.id);
-  // Windows/doors belong to the room when their parent wall is a room wall.
-  const windowIds = WINDOWS.filter((win) => wallIds.includes(win.wallId)).map((w) => w.id);
-  const doorIds = DOORS.filter((d) => wallIds.includes(d.wallId)).map((d) => d.id);
+
+  const walls: ClippedWall[] = [];
+  for (const w of WALLS) {
+    const clip = clipWallToRects(w, rects);
+    if (clip) walls.push({ wallId: w.id, start: clip.start, end: clip.end, spec: w });
+  }
+
+  // An opening belongs to the room when its parent wall is a room wall AND its
+  // world position lies within that wall's clipped span — so a shared wall's
+  // far-room windows/doors are excluded.
+  const wallById = new Map(walls.map((cw) => [cw.wallId, cw]));
+  const windowIds: string[] = [];
+  for (const win of WINDOWS) {
+    const cw = wallById.get(win.wallId);
+    if (!cw) continue;
+    const c = openingCenter(win, cw.spec);
+    if (c && pointOnSpan(c, cw.start, cw.end)) windowIds.push(win.id);
+  }
+  const doorIds: string[] = [];
+  for (const d of DOORS) {
+    const cw = wallById.get(d.wallId);
+    if (!cw) continue;
+    const c = openingCenter(d, cw.spec);
+    if (c && pointOnSpan(c, cw.start, cw.end)) doorIds.push(d.id);
+  }
 
   const x0 = Math.min(...rects.map((r) => r.x0));
   const z0 = Math.min(...rects.map((r) => r.z0));
@@ -108,7 +177,7 @@ export function roomShell(roomId: RoomId): RoomShell {
   return {
     roomId,
     rects,
-    wallIds,
+    walls,
     windowIds,
     doorIds,
     center,

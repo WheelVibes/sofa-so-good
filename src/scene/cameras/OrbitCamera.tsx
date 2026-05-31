@@ -6,6 +6,7 @@ import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
 import { APARTMENT_EXT_W, APARTMENT_EXT_D } from '../../apartment/constants';
 import { useStore } from '../../state/store';
 import { planBounds, planRoomArea } from '../../floorplan/types';
+import { roomShell } from '../../apartment/roomShell';
 
 interface Framing {
   pos: Vector3;
@@ -27,11 +28,27 @@ export function OrbitCamera() {
   const { camera, gl } = useThree();
   const controlsRef = useRef<OrbitControlsImpl>(null);
 
+  const roomEditorId = useStore((s) => s.roomEditor.roomId);
+
   useEffect(() => {
+    // In the per-room editor, frame the isolated room (centre + a 3/4 offset
+    // sized to the room) instead of the whole-apartment default. Re-runs on
+    // room switch so each room loads framed.
+    if (roomEditorId) {
+      const c = controlsRef.current;
+      if (!c) return;
+      const shell = roomShell(roomEditorId);
+      const [cx, cz] = shell.center;
+      const r = Math.max(shell.radius, 1.5);
+      c.target.set(cx, 1.0, cz);
+      camera.position.set(cx + r * 1.5, r * 1.7, cz + r * 1.5);
+      c.update();
+      return;
+    }
     camera.position.set(12, 8, 12);
     controlsRef.current?.target.set(...INITIAL_TARGET);
     controlsRef.current?.update();
-  }, [camera]);
+  }, [camera, roomEditorId]);
 
   // Snap to a top-down plan view when requested from the toolbar. The tiny
   // +Z offset keeps OrbitControls out of gimbal lock at the pole.
