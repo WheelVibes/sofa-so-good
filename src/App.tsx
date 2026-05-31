@@ -118,6 +118,11 @@ export default function App() {
         useStore.getState().redo();
         return;
       }
+      // Escape leaves the per-room editor first (before it clears selection).
+      if (code === KEYBINDINGS.deselect && useStore.getState().roomEditor.active) {
+        useStore.getState().exitRoomEditor();
+        return;
+      }
       if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements();
       if (!mod && code === KEYBINDINGS.toggleCameraMode) {
         setCameraMode(cameraMode === 'orbit' ? 'firstPerson' : 'orbit');
