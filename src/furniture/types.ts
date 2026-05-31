@@ -302,6 +302,11 @@ export interface IkeaVariant {
    */
   footprint?: { w: number; d: number; h: number; anchorOffset: [number, number, number] };
   glbMaterials: IkeaGlbMaterial[];
+  /** Downscaled catalog-thumbnail blob in IDB (kind:'texture', role:'ikea-image').
+   *  Null/absent when no product image was scraped for this finish. Persisted. */
+  imageAssetId?: string | null;
+  /** Runtime blob URL for the thumbnail; hydrated from imageAssetId, NOT persisted. */
+  runtimeImageUrl?: string;
 }
 
 /**
