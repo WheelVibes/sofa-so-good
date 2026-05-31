@@ -205,12 +205,22 @@ screenshots, not just that you took them.
   edges (magenta `AlignmentGuides`) and shows the nearest-wall gap (`DragHud`
   via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
 - **Design tools** (toolbar): a **Sets** menu drops pre-arranged vignettes
-  (`furnitureSets.ts`); **Tools ▾** groups the Budget panel
+  (`furnitureSets.ts`) plus any imported **IKEA set recipes** (`ikeaSets.ts`:
+  `parseSetRecipe`/`buildSetGroup`/`arrangeSet` expand a scraped `sets/<key>.json`
+  into a footprint-arranged group); **Tools ▾** groups the Budget panel
   (`furniturePrices.ts`), **Checks** (door-swing clearance, `layout/clearance.ts`
   + `ClearanceOverlay`), **Sun study** (time-lapse), **Walkthrough** (auto camera
   tour + record, in `OrbitCamera`), and **Report** (`ui/report.ts`, printable).
   Multi-select shows an align/distribute panel; items can be **locked**;
   double-click focuses the camera; saved layouts get thumbnails (`slotThumbs`).
+- **Furniture groups** (`state/slices/groupsSlice.ts`): items sharing an optional
+  `FurnitureItem.groupId` are an emergent group (no separate entity). First click
+  selects the whole group (`selectItemGrouped` + transient `activeGroupId`); a
+  second/Alt click drills into one member. Group drag is the existing multi-drag;
+  rotate is rigid about the centroid (`groupRotate`). Group/Ungroup +
+  "Add to group" live in the inspector; deleting a member auto-dissolves a group
+  that drops below 2. Dropping a Set stamps one shared `groupId`. Persisted via
+  save schema **v2** (`groupId` optional; v1→v2 migration is a no-op on items).
 - **Visual**: per-item **contact shadows** (`ContactShadow`, quality-gated) +
   **skirting/crown** wall trim (`apartment/Skirting.tsx`, `PlanShell`).
   Procedural finishes include **wallpapers** (stripe/grasscloth) + **checker**.

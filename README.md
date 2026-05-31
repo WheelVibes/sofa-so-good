@@ -42,7 +42,8 @@ export the result — all in the browser.
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a
   presentation clip.
 - **Editing** — drag to place (with optional **snap-to-grid** and alignment
-  guides), move, rotate, mirror, multi-select with align/distribute, lock,
+  guides), move, rotate, mirror, multi-select with align/distribute, **group**
+  (move/rotate as a unit, click again to edit one piece), lock,
   copy/duplicate, numeric position/rotation, undo/redo, save/load named layouts
   (with thumbnails), and PNG export.
 - **Editable floor plan** — a 2D top-down editor to redraw the apartment shell
