@@ -767,6 +767,47 @@ async def scrape_complete_with(page):
     return groups
 
 
+# Canonical mating edges per modular sofa section role. A seat/sofa-bed section
+# connects on both side edges; a corner turns a row, so it connects on one side
+# plus the back-perpendicular run; a chaise/armrest terminates a row (one side).
+# This is the connectivity an L-shape / extend-a-sofa build relies on.
+_MODULAR_MATES = {
+    "seat": [{"edge": "left", "accepts": ["seat", "corner", "chaise", "armrest"]},
+             {"edge": "right", "accepts": ["seat", "corner", "chaise", "armrest"]}],
+    "corner": [{"edge": "right", "accepts": ["seat", "chaise", "armrest"]},
+               {"edge": "back", "accepts": ["seat", "chaise", "armrest"]}],
+    "chaise": [{"edge": "left", "accepts": ["seat", "corner"]}],
+    "armrest": [{"edge": "left", "accepts": ["seat", "corner", "chaise"]}],
+}
+
+
+def infer_modular_role(*texts):
+    """Role of a modular sofa section from its name/type text, or None when the
+    product isn't a recognised section. Name-based (reliable) — IKEA's sofa
+    configurator widget DOM isn't publicly documented, so we don't parse it;
+    role + canonical mates are enough for edge-snap in the app."""
+    blob = " ".join(t for t in texts if t).lower()
+    if "armrest" in blob:
+        return "armrest"
+    if "corner section" in blob or ("corner" in blob and "section" in blob):
+        return "corner"
+    if "chaise" in blob:
+        return "chaise"
+    if "section" in blob:
+        return "seat"
+    return None
+
+
+def modular_block(product_name, type_name):
+    """Build the metadata `modular` block for a sofa section, or None. The block
+    is {role, mates:[{edge, accepts[]}]} — additive; absent for non-modular
+    products so existing imports/saves stay valid."""
+    role = infer_modular_role(product_name, type_name)
+    if not role:
+        return None
+    return {"role": role, "mates": _MODULAR_MATES.get(role, [])}
+
+
 def processed_urls_path():
     # Default behaviour: bare relative PROGRESS_FILE (CWD), byte-for-byte as
     # before. Only when --out overrides the output root does the file follow it.
@@ -1276,6 +1317,11 @@ async def process_product_page(context, http_client, url, state,
                     "package_measurements": measurements.get("packages", []),
                     "compatibility": compatibility,
                 }
+                # Modular sofa section connectivity (additive; None → omitted).
+                _modular = modular_block(json_fields.get("product_name"),
+                                         json_fields.get("type_name"))
+                if _modular:
+                    shared_meta["modular"] = _modular
 
                 # Finish-specific data for this variant.
                 variant_entry = {
