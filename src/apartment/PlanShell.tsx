@@ -88,8 +88,9 @@ export function PlanShell() {
 
   return (
     <group>
-      {/* Grounding slab */}
-      <mesh position={[ew / 2, -0.1, ed / 2]} receiveShadow>
+      {/* Grounding slab — top kept 10 cm below the plan floors to avoid
+          z-fighting (see Apartment.tsx). */}
+      <mesh position={[ew / 2, -0.2, ed / 2]} receiveShadow>
         <boxGeometry args={[ew + 0.5, 0.2, ed + 0.5]} />
         <meshStandardMaterial color="#9a958d" roughness={0.95} />
       </mesh>
