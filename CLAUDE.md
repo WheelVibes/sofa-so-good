@@ -43,6 +43,15 @@ artifacts, or regressions. `npm test` + `tsc` passing is NOT sufficient — a gr
 suite never proves the rendered result looks right. Report what you saw in the
 screenshots, not just that you took them.
 
+**Before driving the app, read
+[docs/visual-verification-playbook.md](docs/visual-verification-playbook.md)** —
+it captures the harness rules, the known interaction gotchas (location-prompt
+modal, camera framing, on-screen-to-mount, exposing module functions, render-
+populated cache races, dev-server restarts, Draco decoding) and their fixes, plus
+a known-good evalFile template. **Whenever you solve a new interaction or
+screenshot problem, add the fix to that playbook** so the next agent doesn't
+rediscover it.
+
 ## Layout of the code
 - `src/state/` — Zustand store split into slices (`slices/*`): items,
   selection, finishes, doors, time, location, camera, ui (incl. quality +
