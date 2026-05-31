@@ -14,16 +14,21 @@ export interface HorizontalBand {
   area: number;
 }
 
-/** Minimum horizontal area (m^2) for a band to count as a real surface. */
-const MIN_AREA = 0.05;
 /** Fraction of bbox height below which a surface can be the mattress support
  *  (excludes the headboard/upper structure). */
 const SUPPORT_CUTOFF_FRAC = 0.6;
+/** A band qualifies as a real surface if its area is at least this fraction of
+ *  the largest band's area. RELATIVE (not an absolute m^2 floor) so the same
+ *  threshold works on dense original geometry and sparse decimated LOD meshes. */
+const AREA_FRAC = 0.3;
 
 export function detectSupportPlaneY(bands: HorizontalBand[], bboxHeight: number): number | null {
+  const maxArea = bands.reduce((m, b) => Math.max(m, b.area), 0);
+  if (maxArea <= 0) return null;
   const cutoff = bboxHeight * SUPPORT_CUTOFF_FRAC;
-  const candidates = bands.filter((b) => b.area >= MIN_AREA && b.y <= cutoff);
+  const candidates = bands.filter((b) => b.y <= cutoff && b.area >= maxArea * AREA_FRAC);
   if (!candidates.length) return null;
-  // Return the highest Y among candidates with substantial area (the slats, not the frame edges)
-  return candidates.reduce((best, b) => (b.area > best.area ? b : best)).y;
+  // The mattress rests on the HIGHEST qualifying interior surface (the slat
+  // plane sits above any lower structural shelf / the floor-contact feet).
+  return candidates.reduce((best, b) => (b.y > best.y ? b : best)).y;
 }

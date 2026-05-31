@@ -39,6 +39,9 @@ export function getCachedGltfFootprint(url: string): GltfFootprint | null {
 }
 
 const SUPPORT_PLANE_CACHE = new Map<string, number | null>();
+/** URLs whose cached plane came from original (non-LOD) geometry — never
+ *  recomputed/overwritten by a later low/medium-tier render. */
+const SUPPORT_PLANE_AUTH = new Set<string>();
 
 export function getCachedSupportPlaneY(url: string): number | null {
   return SUPPORT_PLANE_CACHE.get(baseUrl(url)) ?? null;
@@ -146,48 +149,69 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
       oz: center.z,
       authoritative: servingOriginal,
     });
+  }, [url, cloned, servingOriginal]);
 
-    // Support-plane detection: histogram near-horizontal triangle area by Y
-    // (2cm bins), restricted to triangles whose centroid is inside the footprint
-    // interior (within 80% of half-extents, to drop rim/rail overhangs). Used to
-    // rest a stacked item (mattress) on the real slat plane, not the bbox top.
+  // Support-plane detection (its own effect — must NOT be short-circuited by the
+  // footprint cache above). Histograms near-horizontal triangle area by Y (2cm
+  // bins) over triangles whose centroid lies inside the footprint interior
+  // (within 80% of half-extents, to drop rim/rail overhangs), then picks the
+  // highest substantial band below the head/footboard region — the slat plane a
+  // mattress rests on, not the bbox top. Computed from whatever LOD is loaded
+  // (the plane Y is robust to triangle decimation); an original-geometry result
+  // is marked authoritative and never overwritten by a later LOD render.
+  useEffect(() => {
     const fpKeyPlane = baseUrl(url);
-    if (!SUPPORT_PLANE_CACHE.has(fpKeyPlane) && servingOriginal) {
-      const bins = new Map<number, number>();
-      const a = new Vector3(); const b = new Vector3(); const c = new Vector3();
-      const tri = new Triangle();
-      const nrm = new Vector3();
-      const cen = new Vector3();
-      const halfX = (size.x / 2) * 0.8;
-      const halfZ = (size.z / 2) * 0.8;
-      const BIN = 0.02;
-      cloned.traverse((obj) => {
-        const mesh = obj as Mesh;
-        if (!mesh.isMesh || !mesh.visible || !mesh.geometry) return;
-        const pos = mesh.geometry.attributes.position;
-        const idx = mesh.geometry.index;
-        if (!pos) return;
-        const triCount = idx ? idx.count / 3 : pos.count / 3;
-        for (let t = 0; t < triCount; t++) {
-          const i0 = idx ? idx.getX(t * 3) : t * 3;
-          const i1 = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
-          const i2 = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
-          a.fromBufferAttribute(pos, i0).applyMatrix4(mesh.matrixWorld);
-          b.fromBufferAttribute(pos, i1).applyMatrix4(mesh.matrixWorld);
-          c.fromBufferAttribute(pos, i2).applyMatrix4(mesh.matrixWorld);
-          tri.set(a, b, c);
-          tri.getNormal(nrm);
-          if (Math.abs(nrm.y) < 0.9) continue;
-          tri.getMidpoint(cen);
-          if (Math.abs(cen.x - center.x) > halfX || Math.abs(cen.z - center.z) > halfZ) continue;
-          const area = tri.getArea();
-          const bin = Math.round(cen.y / BIN) * BIN;
-          bins.set(bin, (bins.get(bin) ?? 0) + area);
-        }
-      });
-      const bands: HorizontalBand[] = [...bins.entries()].map(([y, area]) => ({ y, area }));
-      SUPPORT_PLANE_CACHE.set(fpKeyPlane, detectSupportPlaneY(bands, Math.max(0.05, size.y)));
-    }
+    if (SUPPORT_PLANE_AUTH.has(fpKeyPlane)) return;
+    cloned.updateWorldMatrix(true, true);
+    const box = new Box3();
+    const meshBox = new Box3();
+    cloned.traverse((obj) => {
+      const mesh = obj as Mesh;
+      if (!mesh.isMesh || !mesh.visible || !mesh.geometry) return;
+      if (!mesh.geometry.boundingBox) mesh.geometry.computeBoundingBox();
+      const gb = mesh.geometry.boundingBox;
+      if (!gb) return;
+      meshBox.copy(gb).applyMatrix4(mesh.matrixWorld);
+      box.union(meshBox);
+    });
+    if (box.isEmpty()) return;
+    const size = new Vector3(); const center = new Vector3();
+    box.getSize(size); box.getCenter(center);
+
+    const bins = new Map<number, number>();
+    const a = new Vector3(); const b = new Vector3(); const c = new Vector3();
+    const tri = new Triangle();
+    const nrm = new Vector3();
+    const cen = new Vector3();
+    const halfX = (size.x / 2) * 0.8;
+    const halfZ = (size.z / 2) * 0.8;
+    const BIN = 0.02;
+    cloned.traverse((obj) => {
+      const mesh = obj as Mesh;
+      if (!mesh.isMesh || !mesh.visible || !mesh.geometry) return;
+      const pos = mesh.geometry.attributes.position;
+      const idx = mesh.geometry.index;
+      if (!pos) return;
+      const triCount = idx ? idx.count / 3 : pos.count / 3;
+      for (let t = 0; t < triCount; t++) {
+        const i0 = idx ? idx.getX(t * 3) : t * 3;
+        const i1 = idx ? idx.getX(t * 3 + 1) : t * 3 + 1;
+        const i2 = idx ? idx.getX(t * 3 + 2) : t * 3 + 2;
+        a.fromBufferAttribute(pos, i0).applyMatrix4(mesh.matrixWorld);
+        b.fromBufferAttribute(pos, i1).applyMatrix4(mesh.matrixWorld);
+        c.fromBufferAttribute(pos, i2).applyMatrix4(mesh.matrixWorld);
+        tri.set(a, b, c);
+        tri.getNormal(nrm);
+        if (Math.abs(nrm.y) < 0.9) continue;
+        tri.getMidpoint(cen);
+        if (Math.abs(cen.x - center.x) > halfX || Math.abs(cen.z - center.z) > halfZ) continue;
+        const bin = Math.round(cen.y / BIN) * BIN;
+        bins.set(bin, (bins.get(bin) ?? 0) + tri.getArea());
+      }
+    });
+    const bands: HorizontalBand[] = [...bins.entries()].map(([y, area]) => ({ y, area }));
+    SUPPORT_PLANE_CACHE.set(fpKeyPlane, detectSupportPlaneY(bands, Math.max(0.05, size.y)));
+    if (servingOriginal) SUPPORT_PLANE_AUTH.add(fpKeyPlane);
   }, [url, cloned, servingOriginal]);
 
   // Apply tint by walking the cloned tree once when it changes.
