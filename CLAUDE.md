@@ -9,6 +9,20 @@ state, Vite build, Vitest tests.
 - `npm run dev` — Vite dev server (localhost:5173).
 - `npm test` — Vitest (run once). `npm run test:watch` to watch.
 - `npm run build` — `tsc` typecheck + Vite production build.
+- `npm run check` / `npm run check:fix` — **Biome** (single Rust tool, replaces
+  Prettier + ESLint) format + lint; `check:fix` applies safe fixes. `npm run
+  format` (format-write) and `npm run lint` (lint only) are narrower variants.
+  Config in `biome.json`: 2-space / 100-col / single-quote / no-semicolons /
+  trailing-commas; recommended rules with noisy non-bug rules disabled (a11y
+  `useButtonType`/`noSvgWithoutTitle`/interactive rules, `noArrayIndexKey`,
+  `noNonNullAssertion`, `useLiteralKeys`; `noExplicitAny` is a warning).
+  `python/` is excluded. CI (`.github/workflows/ci.yml`) enforces format-check
+  + `tsc`; lint is reported non-blocking until the ~26-finding backlog clears.
+  A **pre-commit hook** (`.githooks/pre-commit`, auto-installed by the
+  package.json `prepare` script which runs `git config core.hooksPath
+  .githooks` on `npm install`) runs `biome check --staged` and blocks the
+  commit on any format/lint error in staged files — bypass with `git commit
+  --no-verify`.
 - `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` —
   Puppeteer screenshot harness (software WebGL). Actions support
   drag/rdrag/wheel/click/type/key/wait. In dev the store is exposed on
@@ -269,10 +283,12 @@ rediscover it.
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
   curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`).
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
-  `RoomShell.tsx`, `ui/RoomEditorBar.tsx`, `uiSlice.roomEditor`): an IKEA-planner-
+  `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-
   style mode that isolates one room for furniture planning. Entered from the
-  toolbar **View** menu (one "Edit room: …" entry per non-external room); the
-  top-left "← Exit room" pill or **Esc** exits. It mounts a **separate
+  toolbar **View** menu (one "Edit room: …" entry per non-external room); a
+  **left-arrow exit button at the leftmost of the toolbar** (`Icon.ExitRoom`,
+  shown only while the editor is active, labelled with the room name) or **Esc**
+  exits. It mounts a **separate
   lightweight `<Canvas>`** (own flat hemisphere/ambient light, DPR 1, no shadows/
   IBL/post — none of the sun/time/Effects systems are even mounted) in place of
   `<Scene>` while active, and is **pinned to the Performance render tier +
@@ -317,7 +333,15 @@ rediscover it.
   scrollable island never clips them. Editing clusters show only in orbit mode;
   Walk mode keeps the camera essentials. New view shortcuts: Top view **O**,
   Reset **H**, Tidy **L**. `ui/Toolbar.tsx` re-exports `ui/toolbar` so the
-  import path is stable.
+  import path is stable. The island **claims the wheel while the cursor is over
+  it** — a non-passive native `wheel` listener `preventDefault`s (so it never
+  reaches OrbitControls to zoom the scene) and turns vertical wheel into
+  horizontal scroll; the row is also **click-and-drag scrollable** (drag on the
+  island background, not a control) and shows a slim always-present horizontal
+  scrollbar (`.toolbar-scroll` in `index.css`). The FPS counter is no longer a
+  toolbar button — it's a **toggle in the Graphics panel** (`showFps`); asset
+  credits are surfaced per-item (inspector `SourceLine` + catalog cards), not as
+  a toolbar button.
 - **Design tools** (in the toolbar's **Arrange**/**Tools** menus): the **Sets**
   list drops pre-arranged vignettes (`furnitureSets.ts`) plus any imported
   **IKEA set recipes** (`ikeaSets.ts`: `parseSetRecipe`/`buildSetGroup`/

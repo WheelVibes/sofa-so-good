@@ -42,8 +42,8 @@ export the result — all in the browser.
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a
   presentation clip.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
-  plan its furniture (toolbar **View → Edit room: …**; the "← Exit room" pill or
-  **Esc** leaves). It shows just that room's walls + floor + its own furniture,
+  plan its furniture (toolbar **View → Edit room: …**; a **← exit button at the
+  far left of the toolbar** or **Esc** leaves). It shows just that room's walls + floor + its own furniture,
   with the camera-facing walls hidden so you always see in, supports orbit **and**
   walk, and keeps the full catalog/placement/measurement tools. It's deliberately
   lightweight — locked to the fast Performance renderer with full-resolution
@@ -56,9 +56,12 @@ export the result — all in the browser.
 - **Streamlined toolbar** — a compact, scrollable **icon island**: frequent
   actions are one-click icons; related tools tuck into labelled dropdown menus
   (View, Scene, Arrange, Tools, File). Hover any control for its name and
-  keyboard shortcut. New view shortcuts: Top view **O**, Reset **H**, Tidy **L**
-  (alongside Measurements **M**, Catalog **C**, camera **V**, and the editing
-  keys).
+  keyboard shortcut. Scroll the wheel over the island (or click-and-drag it) to
+  pan it — the canvas behind never zooms. New view shortcuts: Top view **O**,
+  Reset **H**, Tidy **L** (alongside Measurements **M**, Catalog **C**, camera
+  **V**, and the editing keys). Layout **presets** and furniture **sets** live in
+  the **Arrange** menu; the live **FPS counter** is a toggle in the **Graphics**
+  panel.
 - **Editable floor plan** — a 2D top-down editor to redraw the apartment shell
   (walls, rooms with live areas, doors/windows) or start from a template; the
   3D flat, finishes, and furniture collision all follow your custom plan, and
@@ -121,10 +124,19 @@ npm install
 npm run dev          # localhost:5173
 npm test             # vitest
 npm run build        # typecheck + production build
+npm run check        # Biome: format + lint (report only)
+npm run check:fix    # Biome: apply safe format + lint fixes
+npm run format       # Biome: format-write all files
+npm run lint         # Biome: lint only
 npm run optimize:glb          # generate low/medium LOD variants (WebP textures)
 npm run optimize:glb -- --ktx2 # …with KTX2/Basis GPU-compressed textures (needs `toktx` on PATH)
 npm run scraper-server # local sidecar for the IKEA live-scrape pack (dev-only)
 ```
+
+A **pre-commit hook** (`.githooks/pre-commit`, auto-installed by `npm install`
+via the `prepare` script) runs `biome check` on staged files and blocks any
+commit with formatting/lint errors. Bypass in a pinch with `git commit
+--no-verify`.
 
 Offline asset tooling (an IKEA SG model scraper + GLB analysis) lives under
 `python/scripts/` and is not part of the app build. The *IKEA Singapore (live

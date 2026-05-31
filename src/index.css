@@ -3,3 +3,18 @@
 :root { color-scheme: light; }
 html, body, #root { height: 100%; }
 body { @apply font-sans antialiased; }
+
+/* Toolbar island: a slim, always-present horizontal scrollbar so the
+ * overflow row is obviously scrollable (the wheel + drag handlers in
+ * Toolbar.tsx do the rest). */
+.toolbar-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: rgb(163 163 163 / 0.6) transparent;
+}
+.toolbar-scroll::-webkit-scrollbar { height: 6px; }
+.toolbar-scroll::-webkit-scrollbar-track { background: transparent; }
+.toolbar-scroll::-webkit-scrollbar-thumb {
+  background: rgb(163 163 163 / 0.55);
+  border-radius: 9999px;
+}
+.toolbar-scroll::-webkit-scrollbar-thumb:hover { background: rgb(115 115 115 / 0.7); }

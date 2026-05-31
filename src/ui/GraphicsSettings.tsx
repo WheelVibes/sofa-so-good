@@ -1,16 +1,16 @@
-import { useEffect } from 'react';
-import { createPortal } from 'react-dom';
-import { useShallow } from 'zustand/react/shallow';
-import { useStore } from '../state/store';
+import { useEffect } from 'react'
+import { createPortal } from 'react-dom'
+import { useShallow } from 'zustand/react/shallow'
 import {
-  QUALITY_LABEL,
+  type AssetTier,
   QUALITY_DESCRIPTION,
+  QUALITY_LABEL,
   RENDER_TIERS,
   resolveQuality,
-  type AssetTier,
-} from '../scene/quality';
+} from '../scene/quality'
+import { useStore } from '../state/store'
 
-const TIERS = RENDER_TIERS;
+const TIERS = RENDER_TIERS
 /** Asset-quality options: Auto (follow render tier) + the three asset tiers
  *  ('high' surfaces as "Original" — full-resolution GLB + untouched textures). */
 const ASSET_OPTIONS: { value: AssetTier | null; label: string }[] = [
@@ -18,44 +18,51 @@ const ASSET_OPTIONS: { value: AssetTier | null; label: string }[] = [
   { value: 'low', label: 'Low' },
   { value: 'medium', label: 'Medium' },
   { value: 'high', label: 'Original' },
-];
+]
 const SHADOW_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: 'Off' },
   { value: 1024, label: '1024' },
   { value: 2048, label: '2048' },
   { value: 4096, label: '4096' },
-];
+]
 
 export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const tier = useStore((s) => s.qualityTier);
-  const overrides = useStore(useShallow((s) => s.qualityOverrides));
-  const userSet = useStore((s) => s.qualityUserSet);
-  const assetTier = useStore((s) => s.assetTier);
-  const setTier = useStore((s) => s.setQualityTier);
-  const setOverride = useStore((s) => s.setQualityOverride);
-  const resetOverrides = useStore((s) => s.resetQualityOverrides);
-  const setAssetTier = useStore((s) => s.setAssetTier);
+  const tier = useStore((s) => s.qualityTier)
+  const overrides = useStore(useShallow((s) => s.qualityOverrides))
+  const userSet = useStore((s) => s.qualityUserSet)
+  const assetTier = useStore((s) => s.assetTier)
+  const setTier = useStore((s) => s.setQualityTier)
+  const setOverride = useStore((s) => s.setQualityOverride)
+  const resetOverrides = useStore((s) => s.resetQualityOverrides)
+  const setAssetTier = useStore((s) => s.setAssetTier)
+  const showFps = useStore((s) => s.showFps)
+  const toggleShowFps = useStore((s) => s.toggleShowFps)
 
   useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose();
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
+    if (!open) return
+    const onKey = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, onClose])
 
-  if (!open) return null;
-  const eff = resolveQuality(tier, overrides);
-  const hasOverrides = Object.keys(overrides).length > 0;
+  if (!open) return null
+  const eff = resolveQuality(tier, overrides)
+  const hasOverrides = Object.keys(overrides).length > 0
 
   return createPortal(
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40" onClick={onClose}>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
+      onClick={onClose}
+    >
       <div
         className="max-h-[90vh] w-80 overflow-auto rounded-lg bg-white p-5 text-sm shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-baseline justify-between">
           <h2 className="text-base font-semibold text-neutral-800">Graphics</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700">×</button>
+          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700">
+            ×
+          </button>
         </div>
 
         {/* Tier presets — 2×2 grid; labels are too long for one row. */}
@@ -104,8 +111,8 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
           ))}
         </div>
         <p className="mb-3 text-[11px] leading-snug text-neutral-400">
-          Model + texture detail, separate from render quality. “Original” loads
-          full-resolution assets even on Low.
+          Model + texture detail, separate from render quality. “Original” loads full-resolution
+          assets even on Low.
         </p>
 
         <div className="space-y-3 border-t border-neutral-100 pt-3">
@@ -116,16 +123,49 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
               className="rounded border border-neutral-200 px-1 py-0.5 text-xs"
             >
               {SHADOW_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>{o.label}</option>
+                <option key={o.value} value={o.value}>
+                  {o.label}
+                </option>
               ))}
             </select>
           </Row>
 
-          <Toggle label="Reflections (IBL)" hint="Image-based lighting probe" checked={eff.ibl} onChange={(v) => setOverride('ibl', v)} />
-          <Toggle label="Bloom, AO + antialiasing" hint="GPU post-processing (loaded on demand)" checked={eff.postprocessing} onChange={(v) => setOverride('postprocessing', v)} />
-          <Toggle label="Auto-reveal walls" hint="Fade near walls when orbiting" checked={eff.wallReveal} onChange={(v) => setOverride('wallReveal', v)} />
-          <Toggle label="Contact shadows" hint="Soft grounding under furniture" checked={eff.contactShadows} onChange={(v) => setOverride('contactShadows', v)} />
-          <Toggle label="Showcase stills" hint="Sharpen shadows when the camera is still" checked={eff.showcase} onChange={(v) => setOverride('showcase', v)} />
+          <Toggle
+            label="Reflections (IBL)"
+            hint="Image-based lighting probe"
+            checked={eff.ibl}
+            onChange={(v) => setOverride('ibl', v)}
+          />
+          <Toggle
+            label="Bloom, AO + antialiasing"
+            hint="GPU post-processing (loaded on demand)"
+            checked={eff.postprocessing}
+            onChange={(v) => setOverride('postprocessing', v)}
+          />
+          <Toggle
+            label="Auto-reveal walls"
+            hint="Fade near walls when orbiting"
+            checked={eff.wallReveal}
+            onChange={(v) => setOverride('wallReveal', v)}
+          />
+          <Toggle
+            label="Contact shadows"
+            hint="Soft grounding under furniture"
+            checked={eff.contactShadows}
+            onChange={(v) => setOverride('contactShadows', v)}
+          />
+          <Toggle
+            label="Showcase stills"
+            hint="Sharpen shadows when the camera is still"
+            checked={eff.showcase}
+            onChange={(v) => setOverride('showcase', v)}
+          />
+          <Toggle
+            label="FPS counter"
+            hint="Live frame-rate overlay"
+            checked={showFps}
+            onChange={toggleShowFps}
+          />
 
           <Row label="Night light fixtures" hint={`${eff.maxFixtureLights} max`}>
             <input
@@ -162,10 +202,18 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
       </div>
     </div>,
     document.body,
-  );
+  )
 }
 
-function Row({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function Row({
+  label,
+  hint,
+  children,
+}: {
+  label: string
+  hint?: string
+  children: React.ReactNode
+}) {
   return (
     <div className="flex items-center justify-between gap-3">
       <div>
@@ -174,10 +222,20 @@ function Row({ label, hint, children }: { label: string; hint?: string; children
       </div>
       {children}
     </div>
-  );
+  )
 }
 
-function Toggle({ label, hint, checked, onChange }: { label: string; hint?: string; checked: boolean; onChange: (v: boolean) => void }) {
+function Toggle({
+  label,
+  hint,
+  checked,
+  onChange,
+}: {
+  label: string
+  hint?: string
+  checked: boolean
+  onChange: (v: boolean) => void
+}) {
   return (
     <Row label={label} hint={hint}>
       <button
@@ -186,8 +244,10 @@ function Toggle({ label, hint, checked, onChange }: { label: string; hint?: stri
         onClick={() => onChange(!checked)}
         className={`relative h-5 w-9 rounded-full transition-colors ${checked ? 'bg-neutral-800' : 'bg-neutral-300'}`}
       >
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${checked ? 'left-4' : 'left-0.5'}`} />
+        <span
+          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${checked ? 'left-4' : 'left-0.5'}`}
+        />
       </button>
     </Row>
-  );
+  )
 }
