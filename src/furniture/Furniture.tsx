@@ -137,13 +137,15 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       }}
       onPointerDown={onPointerDown}
     >
-      {/* Soft contact shadow grounding floor-standing pieces. */}
+      {/* Soft contact shadow grounding floor-standing pieces. The outer group
+          may be lifted by `liftY` for a stacked GLB (mattress on a frame), so
+          counter-translate the shadow back to the floor (world Y≈0). */}
       {(() => {
         if (!contactShadow) return null;
         const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h };
         if (passive || def.mounted || def.noClip || span.base >= 0.4) return null;
         const obb = itemFootprint(item, def);
-        return <ContactShadow w={obb.hx * 2} d={obb.hz * 2} />;
+        return <ContactShadow w={obb.hx * 2} d={obb.hz * 2} y={-liftY} />;
       })()}
       {/* Mirror flips in local space. three.js flips winding/normals for the
           negative-determinant matrix, so lighting + culling stay correct. */}

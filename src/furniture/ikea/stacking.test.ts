@@ -113,4 +113,26 @@ describe('stackOnto', () => {
     const res = stackOnto(baseItem, base, top, top.variants[0]);
     expect('error' in res).toBe(true);
   });
+
+  it('fails soft (no throw) when a variant is missing', () => {
+    const base = bedDef();
+    const baseItem: FurnitureItem = { id: 'frame-1', defId: base.id, position: [0, 0], rotation: 0, props: {} };
+    const top = mattressDef();
+    // undefined topVariant must not crash resolveStack's footprint read.
+    const res = stackOnto(baseItem, base, top, undefined as unknown as IkeaGltfDef['variants'][number]);
+    expect('error' in res).toBe(true);
+  });
+
+  it('rotates a non-zero centre offset into world space by the base rotation', () => {
+    const base = bedDef();
+    // Shift the base mesh centre +0.5 along local +X.
+    base.variants[0].footprint!.anchorOffset = [0.5, 0.5021, 0];
+    // Base rotated 90°: local +X maps to world +Z, so the offset lands on +Z.
+    const baseItem: FurnitureItem = { id: 'frame-1', defId: base.id, position: [2, 3], rotation: Math.PI / 2, props: {} };
+    const top = mattressDef();
+    const res = stackOnto(baseItem, base, top, top.variants[0]);
+    if (!('item' in res)) throw new Error('expected item');
+    expect(res.item.position[0]).toBeCloseTo(2, 5);   // x unchanged
+    expect(res.item.position[1]).toBeCloseTo(3.5, 5); // z += 0.5
+  });
 });

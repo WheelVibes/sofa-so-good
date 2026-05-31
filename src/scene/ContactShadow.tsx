@@ -24,11 +24,13 @@ function shadowTexture(): CanvasTexture {
  * footprint — grounds the piece with ambient-occlusion-like contact that reads
  * even in flat daylight or on the software renderer. Cheap: one shared texture,
  * one transparent plane per item. Sized a touch larger than the footprint.
+ * `y` offsets the plane in the parent's local frame (defaults to floor level);
+ * a lifted parent group passes `-liftY` to keep the shadow grounded.
  */
-export function ContactShadow({ w, d }: { w: number; d: number }) {
+export function ContactShadow({ w, d, y = 0 }: { w: number; d: number; y?: number }) {
   const tex = useMemo(() => shadowTexture(), []);
   return (
-    <mesh position={[0, 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
+    <mesh position={[0, y + 0.006, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
       <planeGeometry args={[w * 1.5, d * 1.5]} />
       <meshBasicMaterial map={tex} transparent opacity={0.5} depthWrite={false} />
     </mesh>

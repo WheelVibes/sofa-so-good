@@ -101,6 +101,9 @@ export function stackOnto(
   const baseVariant =
     baseDef.variants.find((v) => v.finish === (baseItem.props['variant'] ?? baseDef.activeVariant)) ??
     baseDef.variants[0];
+  // A malformed def with no variants would make resolveStack read footprint off
+  // undefined; fail soft so a stuck drag / crash can't result.
+  if (!baseVariant || !topVariant) return { error: `Missing variant for ${topDef.name} on ${baseDef.name}.` };
   const fit = resolveStack(baseDef, baseVariant, topDef, topVariant);
   if (!fit) return { error: `No snug fit for ${topDef.name} on ${baseDef.name}.` };
 
