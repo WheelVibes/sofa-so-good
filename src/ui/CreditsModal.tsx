@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { withBase } from '../utils/assetUrl'
 
 interface CreditEntry {
   id: string
@@ -22,7 +23,7 @@ export function CreditsModal({ open, onClose }: Props) {
   const [credits, setCredits] = useState<Credits | null>(null)
   useEffect(() => {
     if (!open) return
-    fetch('/assets/CREDITS.json')
+    fetch(withBase('/assets/CREDITS.json'))
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(`${r.status}`))))
       .then(setCredits)
       .catch(() => setCredits({ furniture: [], materials: [] }))
