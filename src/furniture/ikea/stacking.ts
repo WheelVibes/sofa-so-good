@@ -6,9 +6,10 @@
  * derived where IKEA exposes the numbers, else a per-category fallback.
  * Pure + render-free — see stacking.test.ts.
  */
-import type { FurnitureCategory } from '../types';
+import type { FurnitureCategory, FurnitureItem } from '../types';
 import type { IkeaGltfDef, IkeaVariant } from '../types';
 import { STACK } from '../../layout/designRules';
+import { variantProps } from '../../ui/inspector/ikeaBodyProps';
 
 export interface StackFit {
   /** Y (metres) where the bottom of the stacked item rests. */
@@ -75,4 +76,49 @@ export function resolveStack(
   const supportY = supportSurfaceY(baseDef, baseVariant, topThickness);
   if (supportY === null) return null;
   return { supportY, centerOffset: centerOffset(baseVariant), rotation: 0 };
+}
+
+export type StackResult =
+  | { item: FurnitureItem; groupId: string }
+  | { error: string };
+
+function newStackId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') return crypto.randomUUID();
+  return `stack-${Math.random().toString(36).slice(2, 10)}`;
+}
+
+/** Build the FurnitureItem for `topDef`/`topVariant` stacked on `baseItem`.
+ *  Position centres on the base support area (offset rotated by base rotation),
+ *  rotation inherits the base, Y lift via props.surfaceHeight, and a shared
+ *  groupId (reused from the base if it already has one). The caller adds the
+ *  item to the store and stamps the base's groupId in one history step. */
+export function stackOnto(
+  baseItem: FurnitureItem,
+  baseDef: IkeaGltfDef,
+  topDef: IkeaGltfDef,
+  topVariant: IkeaVariant,
+): StackResult {
+  const baseVariant =
+    baseDef.variants.find((v) => v.finish === (baseItem.props['variant'] ?? baseDef.activeVariant)) ??
+    baseDef.variants[0];
+  const fit = resolveStack(baseDef, baseVariant, topDef, topVariant);
+  if (!fit) return { error: `No snug fit for ${topDef.name} on ${baseDef.name}.` };
+
+  const [dx, dz] = fit.centerOffset;
+  const cos = Math.cos(baseItem.rotation);
+  const sin = Math.sin(baseItem.rotation);
+  const wx = baseItem.position[0] + dx * cos - dz * sin;
+  const wz = baseItem.position[1] + dx * sin + dz * cos;
+
+  const groupId = baseItem.groupId ?? newStackId();
+
+  const item: FurnitureItem = {
+    id: newStackId(),
+    defId: topDef.id,
+    position: [wx, wz],
+    rotation: baseItem.rotation + fit.rotation,
+    groupId,
+    props: { ...variantProps(topVariant.finish), surfaceHeight: fit.supportY },
+  };
+  return { item, groupId };
 }

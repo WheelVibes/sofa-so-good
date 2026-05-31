@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
-import { resolveStack } from './stacking';
-import type { IkeaGltfDef } from '../types';
+import { resolveStack, stackOnto } from './stacking';
+import type { IkeaGltfDef, FurnitureItem } from '../types';
 
 function bedDef(): IkeaGltfDef {
   return {
@@ -70,5 +70,47 @@ describe('resolveStack', () => {
     base.compatibility = undefined;
     const top = mattressDef();
     expect(resolveStack(base, base.variants[0], top, top.variants[0])).toBeNull();
+  });
+});
+
+describe('stackOnto', () => {
+  it('builds a grouped, lifted, centred, rotation-inheriting item', () => {
+    const base = bedDef();
+    const baseItem: FurnitureItem = {
+      id: 'frame-1', defId: base.id, position: [3, 4], rotation: Math.PI / 2, props: {},
+    };
+    const top = mattressDef();
+    const res = stackOnto(baseItem, base, top, top.variants[0]);
+    expect('item' in res).toBe(true);
+    if (!('item' in res)) return;
+    expect(res.item.defId).toBe(top.id);
+    expect(res.item.rotation).toBeCloseTo(Math.PI / 2, 5);
+    expect(res.item.props['surfaceHeight']).toBeCloseTo(0.1257, 3);
+    expect(res.item.props['variant']).toBe('white');
+    expect(res.item.position[0]).toBeCloseTo(3, 5);
+    expect(res.item.position[1]).toBeCloseTo(4, 5);
+    expect(res.groupId).toBeTruthy();
+    expect(res.item.groupId).toBe(res.groupId);
+  });
+
+  it('reuses an existing base groupId', () => {
+    const base = bedDef();
+    const baseItem: FurnitureItem = {
+      id: 'frame-1', defId: base.id, position: [0, 0], rotation: 0, groupId: 'g-existing', props: {},
+    };
+    const top = mattressDef();
+    const res = stackOnto(baseItem, base, top, top.variants[0]);
+    if (!('item' in res)) throw new Error('expected item');
+    expect(res.groupId).toBe('g-existing');
+    expect(res.item.groupId).toBe('g-existing');
+  });
+
+  it('returns an error when no fit resolves', () => {
+    const base = mattressDef();
+    base.compatibility = undefined;
+    const baseItem: FurnitureItem = { id: 'm', defId: base.id, position: [0, 0], rotation: 0, props: {} };
+    const top = mattressDef();
+    const res = stackOnto(baseItem, base, top, top.variants[0]);
+    expect('error' in res).toBe(true);
   });
 });
