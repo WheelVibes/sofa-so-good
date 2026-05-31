@@ -2,6 +2,7 @@ import { useTexture } from '@react-three/drei'
 import type { MeshStandardMaterial } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../state/store'
+import { withBase } from '../utils/assetUrl'
 import { BUILTIN_MATERIALS } from './builtinCatalog'
 import { buildMaterial, getCachedMaterial } from './cache'
 import { GENERATED_MATERIALS } from './generatedCatalog'
@@ -70,7 +71,9 @@ export function useProceduralMaterial(def: ProceduralMaterialDef): MeshStandardM
  *  been cached. */
 export function useTexturedMaterial(def: TexturedMaterialDef): MeshStandardMaterial {
   const urls = def.runtimeUrls ?? def.textures
-  const list = [urls.albedo, urls.normal, urls.roughness].filter((u): u is string => !!u)
+  const list = [urls.albedo, urls.normal, urls.roughness]
+    .filter((u): u is string => !!u)
+    .map(withBase)
   const tex = useTexture(list)
   const cached = getCachedMaterial(def.id)
   if (cached) return cached
