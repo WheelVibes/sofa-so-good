@@ -5,6 +5,7 @@ import { useStore } from '../../state/store';
 import { validateGlbFile } from '../upload/validate';
 import { seedGltfFootprint } from '../GltfModel';
 import { mapCategory, placementFlags, titleCaseFinish } from './translate';
+import { downscaleImageFile } from './thumbnail';
 
 const IKEA_MAX_BYTES = 50 * 1024 * 1024;
 
@@ -76,6 +77,30 @@ export async function importGroup(meta: IkeaMetadata, files: File[]): Promise<Im
         }
       }
     }
+    // Catalog thumbnail: downscale the scraped main image once and store the
+    // small blob in IDB. Best-effort — any failure leaves imageAssetId null and
+    // the card falls back to the category icon.
+    let imageAssetId: string | null = null;
+    let runtimeImageUrl: string | undefined;
+    if (v.main_image) {
+      const imgFile = fileByBasename(files, v.main_image);
+      if (imgFile) {
+        try {
+          const thumb = await downscaleImageFile(imgFile, 256);
+          imageAssetId = newId();
+          await IdbAssetStore.put({
+            assetId: imageAssetId, kind: 'texture', mime: thumb.type || 'image/webp',
+            name: `${meta.product_name} — ${finishKey} thumb`,
+            uploadedAt: new Date().toISOString(), blob: thumb,
+            meta: { source: 'ikea', groupKey: meta.group_key, role: 'ikea-image' },
+          });
+          runtimeImageUrl = URL.createObjectURL(thumb);
+        } catch {
+          imageAssetId = null;
+          runtimeImageUrl = undefined;
+        }
+      }
+    }
     variants.push({
       finish: finishKey,
       label: titleCaseFinish(v.finish ?? v.product_title ?? v.article_number),
@@ -90,6 +115,8 @@ export async function importGroup(meta: IkeaMetadata, files: File[]): Promise<Im
         ? { w: v.footprint.w, d: v.footprint.d, h: v.footprint.h, anchorOffset: v.footprint.anchor_offset }
         : undefined,
       glbMaterials: matsFrom(v),
+      imageAssetId,
+      runtimeImageUrl,
     });
   }
 

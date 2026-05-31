@@ -48,6 +48,10 @@ function glb(name: string): File {
   return new File([buf], name, { type: 'model/gltf-binary' });
 }
 
+function img(name: string): File {
+  return new File([new Uint8Array([1, 2, 3, 4])], name, { type: 'image/jpeg' });
+}
+
 beforeEach(() => { put.mockClear(); added.length = 0; state.userFurniture = []; });
 
 describe('importGroup', () => {
@@ -67,6 +71,30 @@ describe('importGroup', () => {
     expect(r.def.defaultFootprint.d).toBeCloseTo(2.09, 2);
     expect(put).toHaveBeenCalledTimes(1);
     expect(added).toHaveLength(1);
+  });
+  it('stores a downscaled thumbnail for the active variant when an image file is supplied', async () => {
+    const meta = JSON.parse(JSON.stringify(META));
+    meta.variants[0].main_image = 'black-brown-main.jpg';
+    const parsed = parseMetadata(meta);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const r = await importGroup(parsed.data, [glb('black-brown.glb'), img('black-brown-main.jpg')]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const active = r.def.variants.find((v) => v.finish === 'black-brown')!;
+    expect(active.imageAssetId).toBeTruthy();
+    expect(active.runtimeImageUrl).toBe('blob:x');
+    // one GLB blob + one image blob
+    expect(put).toHaveBeenCalledTimes(2);
+  });
+  it('imports fine when no image file is present (imageAssetId null)', async () => {
+    const parsed = parseMetadata(META);
+    if (!parsed.ok) return;
+    const r = await importGroup(parsed.data, [glb('black-brown.glb')]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    const active = r.def.variants.find((v) => v.finish === 'black-brown')!;
+    expect(active.imageAssetId ?? null).toBeNull();
   });
   it('preserves a real material name (incl. a real "material_0")', async () => {
     const parsed = parseMetadata(META);
