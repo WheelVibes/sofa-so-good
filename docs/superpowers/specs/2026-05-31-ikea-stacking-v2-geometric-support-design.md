@@ -82,11 +82,12 @@ the **dominant interior horizontal surface**:
   to exclude the headboard) — the slat plane, not the rails.
 - Returns null if no clear plane (caller falls back to a category constant).
 
-Wire it into `GltfModel`'s existing geometry pass: when a def is a stack-capable
-base (has `compatibility.acceptsCategories` with a VERTICAL rule), compute and
-cache `supportPlaneY` alongside the footprint (`seedGltfSupportPlane` mirroring
-`seedGltfFootprint`). A pure `detectSupportPlaneY` keeps the math unit-testable
-with synthetic geometry (no GLB decode in tests).
+Wire it into `GltfModel`'s existing geometry pass: compute and cache the plane
+**by URL** in a `SUPPORT_PLANE_CACHE` that mirrors `FOOTPRINT_CACHE`
+(`getCachedSupportPlaneY(url)` / `seedGltfSupportPlane(url, y)`) — not a field on
+`IkeaGltfDef`, matching the existing footprint-cache pattern. A pure
+`detectSupportPlaneY` keeps the math unit-testable with synthetic geometry (no
+GLB decode in tests).
 
 ### B. Placement semantics — `furniture/ikea/placementSemantics.ts` (new)
 
