@@ -38,10 +38,16 @@ export async function resolveIkeaRuntimeUrls(defs: IkeaGltfDef[]): Promise<IkeaG
   for (const def of defs) {
     const variants = await Promise.all(
       def.variants.map(async (v) => {
-        if (!v.assetId) return v;
-        const rec = await IdbAssetStore.get(v.assetId).catch(() => null);
-        if (!rec) return v;
-        return { ...v, runtimeUrl: URL.createObjectURL(rec.blob) };
+        let next = v;
+        if (v.assetId) {
+          const rec = await IdbAssetStore.get(v.assetId).catch(() => null);
+          if (rec) next = { ...next, runtimeUrl: URL.createObjectURL(rec.blob) };
+        }
+        if (v.imageAssetId) {
+          const imgRec = await IdbAssetStore.get(v.imageAssetId).catch(() => null);
+          if (imgRec) next = { ...next, runtimeImageUrl: URL.createObjectURL(imgRec.blob) };
+        }
+        return next;
       }),
     );
     const resolved = { ...def, variants };
@@ -99,6 +105,9 @@ export async function hydrateUserAssets(): Promise<void> {
         finishOverrides: safeParse<Record<string, string>>(m.meta?.['finishOverrides']),
       });
     } else if (m.kind === 'texture') {
+      // IKEA catalog thumbnails share the texture kind but are owned by the
+      // IKEA def (resolved via resolveIkeaRuntimeUrls), not a user material.
+      if (m.meta?.['role'] === 'ikea-image') continue;
       const matId = m.meta?.['matId'];
       const role = m.meta?.['role'];
       if (typeof matId !== 'string' || typeof role !== 'string') continue;
