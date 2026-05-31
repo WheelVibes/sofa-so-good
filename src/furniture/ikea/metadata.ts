@@ -66,6 +66,13 @@ export const IkeaMetadataZ = z.object({
     size: z.string().nullable().optional(),
     example_products: z.array(z.unknown()).optional(),
   }).optional(),
+  modular: z.object({
+    role: z.enum(['seat', 'corner', 'chaise', 'armrest']),
+    mates: z.array(z.object({
+      edge: z.enum(['left', 'right', 'back']),
+      accepts: z.array(z.string()),
+    })),
+  }).optional(),
   variants: z.array(VariantZ).min(1),
 }).passthrough();
 

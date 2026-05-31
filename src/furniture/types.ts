@@ -338,6 +338,14 @@ export interface IkeaCompatibility {
   size?: string;
 }
 
+/** Modular sofa section connectivity (from the scraper). `role` is the section
+ *  kind; `mates` lists which local edges accept which neighbour roles. Absent for
+ *  non-modular products. Drives edge-snap when combining two sections. */
+export interface IkeaModular {
+  role: 'seat' | 'corner' | 'chaise' | 'armrest';
+  mates: { edge: 'left' | 'right' | 'back'; accepts: string[] }[];
+}
+
 export interface IkeaGltfDef extends FurnitureDefBase {
   kind: 'gltf';
   source: 'ikea';
@@ -347,6 +355,7 @@ export interface IkeaGltfDef extends FurnitureDefBase {
   variants: IkeaVariant[];
   productInfo?: IkeaProductInfo;
   compatibility?: IkeaCompatibility;
+  modular?: IkeaModular;
   uploadedAt: string;
   license: 'IKEA';
   attribution: string;

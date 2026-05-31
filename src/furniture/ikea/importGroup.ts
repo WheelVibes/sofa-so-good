@@ -157,6 +157,7 @@ export async function importGroup(meta: IkeaMetadata, files: File[]): Promise<Im
     compatibility: meta.compatibility
       ? { acceptsCategories: meta.compatibility.accepts_categories, size: meta.compatibility.size ?? undefined }
       : undefined,
+    ...(meta.modular ? { modular: meta.modular } : {}),
     uploadedAt: new Date().toISOString(),
     license: 'IKEA',
     attribution: 'IKEA — imported model',

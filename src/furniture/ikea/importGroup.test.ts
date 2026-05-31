@@ -129,4 +129,26 @@ describe('importGroup', () => {
     const r = await importGroup(parsed.data, []);
     expect(r.ok).toBe(false);
   });
+
+  it('carries a modular block onto the def (and omits it when absent)', async () => {
+    const modularMeta = {
+      ...META,
+      group_key: 'vimle-corner-section',
+      product_name: 'VIMLE corner section',
+      modular: { role: 'corner', mates: [{ edge: 'right', accepts: ['seat'] }] },
+    };
+    const parsed = parseMetadata(modularMeta);
+    expect(parsed.ok).toBe(true);
+    if (!parsed.ok) return;
+    const r = await importGroup(parsed.data, [glb('black-brown.glb')]);
+    expect(r.ok).toBe(true);
+    if (!r.ok) return;
+    expect(r.def.modular).toEqual({ role: 'corner', mates: [{ edge: 'right', accepts: ['seat'] }] });
+
+    // A non-modular import leaves modular undefined.
+    const plain = parseMetadata(META);
+    if (!plain.ok) return;
+    const r2 = await importGroup(plain.data, [glb('black-brown.glb')]);
+    expect(r2.ok && r2.def.modular).toBeUndefined();
+  });
 });
