@@ -16,12 +16,15 @@ export function loadQualityPrefs(): void {
       tier?: 'low' | 'medium' | 'high';
       overrides?: Record<string, unknown>;
       userSet?: boolean;
+      assetTier?: 'low' | 'medium' | 'high' | null;
     };
     useStore.setState({
       qualityTier: p.tier ?? 'medium',
       qualityOverrides: (p.overrides as never) ?? {},
       // If they'd customised before, keep auto-adjust off so we honour it.
       qualityUserSet: !!p.userSet,
+      // null = Auto (follow the render tier).
+      assetTier: p.assetTier ?? null,
     });
   } catch {
     /* ignore corrupt prefs */
@@ -35,6 +38,7 @@ export function watchQualityPrefs(): void {
       tier: s.qualityTier,
       overrides: s.qualityOverrides,
       userSet: s.qualityUserSet,
+      assetTier: s.assetTier,
     });
     if (snap === last) return;
     last = snap;

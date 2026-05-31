@@ -146,15 +146,21 @@ rediscover it.
   bloom+SMAA, fixture-light cap, and DPR. `QualityController` auto-detects the
   tier and steps it down if FPS sustains < 30; every setting is overridable in
   the Graphics panel (persisted). Baseline (low/medium) targets integrated/CPU
-  hardware; high adds GPU-intensive effects.
+  hardware; high adds GPU-intensive effects. **Asset quality** is a separate
+  control (`assetTier`, `effectiveAssetTier`): GLB mesh/texture detail follows
+  the render tier by default (`null` = Auto) but can be pinned to Low/Medium/
+  Original independently — so "Original" loads full-resolution assets without
+  the GPU-heavy render effects, and is immune to the FPS auto-downgrade (which
+  only moves the render tier). Persisted alongside the tier in `qualityPrefs`.
 - **GLB models + LOD** (`furniture/gltf/`, `GltfModel.tsx`): bundled CC0 GLBs,
   user uploads, and IKEA imports all render through one loader. `decoders.ts`
   registers Draco at boot (meshopt/KTX2 auto-wired by drei). The offline
   `npm run optimize:glb` pass writes `-low`/`-medium` variants (≤512/≤1024px
   WebP textures + ~50/75% triangles, Draco) beside each `.glb`; at runtime
-  `lod.ts` picks the variant for the active quality tier (sync probe cache +
-  `prewarmLod`), and `textureBudget.ts` downscales any oversized texture as a
-  last-resort fallback. `finishTargets.ts` enumerates named meshes so a GLB can
+  `lod.ts` picks the variant for the effective **asset** tier (the Graphics
+  panel's Asset quality control, decoupled from render effects — sync probe
+  cache + `prewarmLod`), and `textureBudget.ts` downscales any oversized
+  texture as a last-resort fallback (also gated on the asset tier). `finishTargets.ts` enumerates named meshes so a GLB can
   be recoloured per component. KTX2 encoding in the offline pass is deferred
   (WebP only today — see `TODO.md`).
 - **IKEA model import** (`furniture/ikea/`, `state/userAssetsSlice.ts`): the

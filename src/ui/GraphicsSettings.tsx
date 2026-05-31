@@ -9,6 +9,14 @@ import {
 } from '../scene/quality';
 
 const TIERS: QualityTier[] = ['low', 'medium', 'high'];
+/** Asset-quality options: Auto (follow render tier) + the three asset tiers
+ *  ('high' surfaces as "Original" — full-resolution GLB + untouched textures). */
+const ASSET_OPTIONS: { value: QualityTier | null; label: string }[] = [
+  { value: null, label: 'Auto' },
+  { value: 'low', label: 'Low' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'high', label: 'Original' },
+];
 const SHADOW_OPTIONS: { value: number; label: string }[] = [
   { value: 0, label: 'Off' },
   { value: 1024, label: '1024' },
@@ -20,9 +28,11 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
   const tier = useStore((s) => s.qualityTier);
   const overrides = useStore(useShallow((s) => s.qualityOverrides));
   const userSet = useStore((s) => s.qualityUserSet);
+  const assetTier = useStore((s) => s.assetTier);
   const setTier = useStore((s) => s.setQualityTier);
   const setOverride = useStore((s) => s.setQualityOverride);
   const resetOverrides = useStore((s) => s.resetQualityOverrides);
+  const setAssetTier = useStore((s) => s.setAssetTier);
 
   useEffect(() => {
     if (!open) return;
@@ -69,6 +79,28 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
               ? 'Custom settings (overriding the preset).'
               : 'Manual — auto fps-adjust is off.'
             : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
+        </p>
+
+        {/* Asset quality — GLB mesh/texture detail, decoupled from render tier. */}
+        <div className="mb-1 mt-1 text-xs font-medium text-neutral-500">Asset quality</div>
+        <div className="mb-1 flex overflow-hidden rounded border border-neutral-200">
+          {ASSET_OPTIONS.map((o) => (
+            <button
+              key={o.label}
+              onClick={() => setAssetTier(o.value)}
+              className={`flex-1 px-2 py-1.5 text-xs ${
+                assetTier === o.value
+                  ? 'bg-neutral-800 text-white'
+                  : 'bg-white text-neutral-700 hover:bg-neutral-100'
+              }`}
+            >
+              {o.label}
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 text-[11px] leading-snug text-neutral-400">
+          Model + texture detail, separate from render quality. “Original” loads
+          full-resolution assets even on Low.
         </p>
 
         <div className="space-y-3 border-t border-neutral-100 pt-3">

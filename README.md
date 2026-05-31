@@ -76,8 +76,11 @@ export the result — all in the browser.
 - **Performance** — CPU-first quality tiers with auto-detection, an adaptive
   guard that holds 30+ fps (shedding the shadow pass as a last resort), and a
   Graphics panel exposing every setting (shadows, reflections, post-processing,
-  light cap, resolution) — all persisted. Optional GPU realism on the High
-  tier (ambient occlusion + bloom) is lazy-loaded so the baseline stays lean.
+  light cap, resolution) — all persisted. A separate **Asset quality** control
+  (Auto / Low / Medium / Original) sets model + texture detail independently of
+  the render effects, so you can view full-resolution assets (e.g. IKEA
+  products) without the GPU-heavy render settings. Optional GPU realism on the
+  High tier (ambient occlusion + bloom) is lazy-loaded so the baseline stays lean.
 
 ## Controls
 

@@ -26,6 +26,10 @@ export interface UiSlice {
   qualityUserSet: boolean;
   /** Per-setting overrides layered on top of the active tier preset. */
   qualityOverrides: Partial<QualitySettings>;
+  /** GLB asset detail (mesh/texture LOD), decoupled from the render tier.
+   *  `null` = Auto (follow `qualityTier`); an explicit tier pins asset detail
+   *  independently and is immune to the FPS auto-downgrade. */
+  assetTier: QualityTier | null;
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode;
   /** Snap dragged/placed furniture to the alignment grid, and show the grid
@@ -71,6 +75,8 @@ export interface UiSlice {
   setQualityOverride: <K extends keyof QualitySettings>(key: K, value: QualitySettings[K]) => void;
   /** Drop all overrides so settings follow the tier preset again. */
   resetQualityOverrides: () => void;
+  /** Set the GLB asset detail tier (`null` = Auto / follow the render tier). */
+  setAssetTier: (t: QualityTier | null) => void;
   setLightsMode: (m: LightsMode) => void;
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void;
@@ -95,6 +101,7 @@ export const UI_INITIAL: Pick<
   | 'qualityTier'
   | 'qualityUserSet'
   | 'qualityOverrides'
+  | 'assetTier'
   | 'lightsMode'
   | 'autoShadowsOff'
   | 'snapEnabled'
@@ -112,6 +119,7 @@ export const UI_INITIAL: Pick<
   qualityTier: 'medium',
   qualityUserSet: false,
   qualityOverrides: {},
+  assetTier: null,
   lightsMode: 'auto',
   autoShadowsOff: false,
   snapEnabled: false,
@@ -158,6 +166,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set) => ({
       qualityUserSet: true,
     })),
   resetQualityOverrides: () => set({ qualityOverrides: {} }),
+  setAssetTier: (t) => set({ assetTier: t }),
   setLightsMode: (m) => set({ lightsMode: m }),
   cycleLightsMode: () =>
     set((s) => ({

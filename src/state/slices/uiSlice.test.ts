@@ -33,3 +33,24 @@ describe('uiSlice lights mode', () => {
     expect(useStore.getState().autoShadowsOff).toBe(false);
   });
 });
+
+describe('uiSlice asset quality', () => {
+  beforeEach(() => useStore.getState().__resetForTest());
+
+  it('defaults to Auto (null — follows the render tier)', () => {
+    expect(useStore.getState().assetTier).toBeNull();
+  });
+
+  it('setAssetTier sets and clears the explicit tier', () => {
+    useStore.getState().setAssetTier('high');
+    expect(useStore.getState().assetTier).toBe('high');
+    useStore.getState().setAssetTier(null);
+    expect(useStore.getState().assetTier).toBeNull();
+  });
+
+  it('an FPS auto-downgrade of the render tier leaves an explicit asset tier unchanged', () => {
+    useStore.getState().setAssetTier('high');
+    useStore.getState().autoSetQualityTier('low');
+    expect(useStore.getState().assetTier).toBe('high');
+  });
+});

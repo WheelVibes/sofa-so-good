@@ -6,6 +6,7 @@ import type { Object3D } from 'three';
 import { meshMatchesTarget } from './gltf/finishTargets';
 import { useStore } from '../state/store';
 import { resolveLodUrlSync, prewarmLod, baseUrl } from './gltf/lod';
+import { effectiveAssetTier } from '../scene/quality';
 import { applyTextureBudget } from './gltf/textureBudget';
 import { detectSupportPlaneY, type HorizontalBand } from './ikea/supportPlane';
 
@@ -92,7 +93,11 @@ interface GltfModelProps {
  * applied to keep the common case (no tint) cheap.
  */
 export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelProps) {
-  const qualityTier = useStore((s) => s.qualityTier);
+  // Asset detail (mesh/texture LOD) is decoupled from render effects: it
+  // follows `assetTier` when explicitly set, else the render `qualityTier`.
+  const renderTier = useStore((s) => s.qualityTier);
+  const assetTier = useStore((s) => s.assetTier);
+  const qualityTier = effectiveAssetTier(assetTier, renderTier);
   // Kick the existence probe outside render so a future render upgrades to the
   // variant url; harmless/no-op if already cached or on 'high'.
   useEffect(() => {

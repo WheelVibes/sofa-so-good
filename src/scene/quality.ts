@@ -74,6 +74,17 @@ export const QUALITY_LABEL: Record<QualityTier, string> = {
   high: 'High',
 };
 
+/** Resolve the effective GLB asset tier (mesh/texture LOD), which is decoupled
+ *  from the render quality tier. `null` means "Auto" — follow the render tier;
+ *  an explicit tier pins asset detail independently (and is immune to the FPS
+ *  auto-downgrade, which only mutates the render tier). */
+export function effectiveAssetTier(
+  assetTier: QualityTier | null,
+  renderTier: QualityTier,
+): QualityTier {
+  return assetTier ?? renderTier;
+}
+
 /** Effective settings = the tier preset with any per-setting user overrides
  *  layered on top. */
 export function resolveQuality(
