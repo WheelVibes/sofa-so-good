@@ -1,18 +1,18 @@
-import type { FurnitureItem, GltfDef } from '../../furniture/types';
-import { useStore } from '../../state/store';
+import type { FurnitureItem, GltfDef } from '../../furniture/types'
+import { useStore } from '../../state/store'
 
 interface GltfBodyProps {
-  item: FurnitureItem;
-  def: GltfDef;
+  item: FurnitureItem
+  def: GltfDef
 }
 
 /** GLTF-backed items expose a small set of generic controls — scale,
  *  optional tint, and (for built-ins) the attribution string so users
  *  can credit the asset author. */
 export function GltfBody({ item, def }: GltfBodyProps) {
-  const updateItemProps = useStore((s) => s.updateItemProps);
-  const scale = typeof item.props['scale'] === 'number' ? item.props['scale'] : (def.scale ?? 1);
-  const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : '';
+  const updateItemProps = useStore((s) => s.updateItemProps)
+  const scale = typeof item.props['scale'] === 'number' ? item.props['scale'] : (def.scale ?? 1)
+  const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : ''
 
   return (
     <div className="space-y-2">
@@ -47,9 +47,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         ) : null}
       </label>
       {def.source === 'builtin' && def.attribution ? (
-        <p className="pt-1 text-[10px] text-neutral-500">
-          CC0 — {def.attribution}
-        </p>
+        <p className="pt-1 text-[10px] text-neutral-500">CC0 — {def.attribution}</p>
       ) : null}
       {def.source === 'user' ? (
         <p className="pt-1 text-[10px] text-neutral-500">
@@ -57,5 +55,5 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         </p>
       ) : null}
     </div>
-  );
+  )
 }

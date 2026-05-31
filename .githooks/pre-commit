@@ -1,0 +1,12 @@
+#!/bin/sh
+# Auto-installed via the package.json "prepare" script (git config core.hooksPath .githooks).
+# Runs Biome on staged files only — fast, blocks the commit on any format/lint error.
+# Bypass in a pinch with: git commit --no-verify
+
+# Only check files in Biome's scope; skip if Biome isn't installed (e.g. fresh clone mid-install).
+if ! npx --no-install biome --version >/dev/null 2>&1; then
+  echo "biome not found — skipping pre-commit checks (run 'npm install')" >&2
+  exit 0
+fi
+
+npx --no-install biome check --staged --no-errors-on-unmatched

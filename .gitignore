@@ -19,3 +19,13 @@ public/assets/furniture/dropped/*
 public/assets/materials/dropped/*
 !public/assets/materials/dropped/.gitkeep
 !public/assets/materials/dropped/README.md
+
+# Imported IKEA GLB models (non-CC0) + their generated LOD variants — never commit
+python/scripts/ikea_sg_3d_models/**/*.glb
+python/scripts/ikea_sg_3d_models/**/*-low.glb
+python/scripts/ikea_sg_3d_models/**/*-medium.glb
+
+.superpowers/
+
+# Live-scraped IKEA assets (non-CC0, local/dev-only)
+public/assets/ikea/

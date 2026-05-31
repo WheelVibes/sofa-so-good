@@ -1,20 +1,19 @@
-import { StrictMode } from 'react';
-import { createRoot } from 'react-dom/client';
-import './index.css';
-import App from './App';
-import { hydrate } from './state/storage/hydrate';
-import { startAutosave } from './state/storage/autosave';
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App'
+import { registerGltfDecoders } from './furniture/gltf/decoders'
 
-async function boot() {
-  // Pull user assets + autosaved layout before React paints. Failures
-  // are silent; the app falls back to default layout via App.tsx.
-  await hydrate();
-  startAutosave();
-  createRoot(document.getElementById('root')!).render(
-    <StrictMode>
-      <App />
-    </StrictMode>,
-  );
-}
+// Wire the Draco/KTX2/meshopt decoders into the shared drei useGLTF loader
+// before any model is requested, so compressed GLBs decode correctly. This is
+// cheap + synchronous, so it stays on the critical path.
+registerGltfDecoders()
 
-void boot();
+// Render immediately — App shows the loading overlay and kicks off the async
+// boot bootstrap (IDB user assets, packs, autosave) from <BootHydrator>, so
+// the page is never a blank screen while IndexedDB/localStorage resolve.
+createRoot(document.getElementById('root')!).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)

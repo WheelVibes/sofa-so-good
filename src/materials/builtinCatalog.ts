@@ -1,162 +1,279 @@
 /**
- * Built-in material catalog. Floor textures source from Poly Haven and
- * ambientCG (CC0); wall paints are solid hex colours that match common
- * Singapore HDB interior palettes. Adding a material = one entry here
- * + (for textured) the asset files dropped under public/assets/materials/.
+ * Built-in material catalog.
  *
- * The current build ships solid placeholders for the textured entries
- * so the picker is fully functional even before the texture pipeline
- * is run. When the asset script lands, only the URL paths change.
+ * Floors and a few wall finishes are generated procedurally on-device at
+ * runtime (see materials/procedural) — real tiling PBR maps (albedo +
+ * normal + roughness) with no network fetch and a single shared tile per
+ * material. Wall paints are flat matte colours that match common Singapore
+ * HDB interior palettes. Adding a material = one entry here.
  */
 
-import type {
-  MaterialCategory,
-  MaterialDef,
-  MaterialId,
-  SolidMaterialDef,
-} from './types';
+import type { RoomId } from '../apartment/types'
+import type { MaterialCategory, MaterialDef, MaterialId, ProceduralPattern } from './types'
 
-// Solid placeholder until the texture pipeline ships real PBR maps under
-// public/assets/materials/<id>/. When that lands, swap this back to a
-// TexturedMaterialDef factory that points at /assets/materials/${id}/.
-function texFloor(
+function floor(
   id: string,
   name: string,
   swatch: string,
-  _source: 'polyhaven' | 'ambientcg',
-  _sourceUrl: string,
-  _uvScale: [number, number] = [1, 1],
-): SolidMaterialDef {
+  pattern: ProceduralPattern,
+  uvScale: [number, number],
+  sourceUrl?: string,
+): MaterialDef {
+  return { id, name, category: 'floor', kind: 'procedural', pattern, swatch, uvScale, sourceUrl }
+}
+
+/** Painted plaster wall in an arbitrary colour (shares the plaster normal,
+ *  tinted by `swatch`) — used to widen the curated wall palette. */
+function wall(id: string, name: string, swatch: string): MaterialDef {
   return {
     id,
     name,
-    category: 'floor',
-    kind: 'solid',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
     swatch,
-  };
+    uvScale: [2.5, 2.5],
+  }
+}
+
+/** Patterned wallpaper finish (stripe / grasscloth). Tiles at ~1 m. */
+function wallpaper(
+  id: string,
+  name: string,
+  swatch: string,
+  pattern: ProceduralPattern,
+): MaterialDef {
+  return { id, name, category: 'wall', kind: 'procedural', pattern, swatch, uvScale: [1.2, 1.2] }
 }
 
 export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
-  // ── Floors ──────────────────────────────────────────────────────────────
-  'floor-concrete': {
-    id: 'floor-concrete',
-    name: 'Concrete (bare)',
-    category: 'floor',
-    kind: 'solid',
-    swatch: '#bcb9b3',
-  },
-  'floor-wood-oak': texFloor(
-    'floor-wood-oak',
-    'Oak planks',
-    '#b88f5d',
-    'polyhaven',
-    'https://polyhaven.com/a/wood_floor_deck',
-    [1.5, 1.5],
+  // ── Floors (procedural PBR) ─────────────────────────────────────────────
+  'floor-concrete': floor('floor-concrete', 'Concrete (bare)', '#bcb9b3', 'concrete', [2.2, 2.2]),
+  'floor-wood-oak': floor('floor-wood-oak', 'Oak planks', '#b88f5d', 'wood', [1.9, 1.2]),
+  'floor-wood-walnut': floor('floor-wood-walnut', 'Walnut planks', '#6b4428', 'wood', [1.9, 1.2]),
+  'floor-tile-white': floor('floor-tile-white', 'White tiles', '#e6e3dc', 'tile', [0.6, 0.6]),
+  'floor-tile-marble': floor('floor-tile-marble', 'Marble', '#dcd6c8', 'marble', [1.6, 1.6]),
+  'floor-carpet-grey': floor('floor-carpet-grey', 'Grey carpet', '#7a7c7e', 'carpet', [1.5, 1.5]),
+  'floor-vinyl-light': floor('floor-vinyl-light', 'Light vinyl', '#c9b99c', 'wood', [1.4, 0.9]),
+  'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
+  // Large-format porcelain — ubiquitous in modern HDB renovations.
+  'floor-tile-grey': floor('floor-tile-grey', 'Grey porcelain', '#b9b9b6', 'tile', [0.8, 0.8]),
+  'floor-tile-charcoal': floor(
+    'floor-tile-charcoal',
+    'Charcoal porcelain',
+    '#4c4e52',
+    'tile',
+    [0.8, 0.8],
   ),
-  'floor-wood-walnut': texFloor(
-    'floor-wood-walnut',
-    'Walnut planks',
-    '#5a3924',
-    'polyhaven',
-    'https://polyhaven.com/a/wood_floor_worn',
-    [1.5, 1.5],
+  'floor-wood-teak': floor('floor-wood-teak', 'Teak planks', '#9a6b3f', 'wood', [1.9, 1.2]),
+  'floor-wood-ash': floor('floor-wood-ash', 'Pale ash planks', '#cdb696', 'wood', [1.9, 1.2]),
+  'floor-wood-ebony': floor('floor-wood-ebony', 'Ebony planks', '#43342a', 'wood', [1.9, 1.2]),
+  'floor-tile-sand': floor('floor-tile-sand', 'Sand porcelain', '#cdbfa6', 'tile', [0.8, 0.8]),
+  'floor-wood-merbau': floor('floor-wood-merbau', 'Merbau', '#7a3f2a', 'wood', [1.9, 1.2]),
+  'floor-wood-maple': floor('floor-wood-maple', 'Maple', '#d8c19a', 'wood', [1.9, 1.2]),
+  'floor-checker-mono': floor(
+    'floor-checker-mono',
+    'Checkerboard',
+    '#e8e6e0',
+    'checker',
+    [1.2, 1.2],
   ),
-  'floor-tile-white': texFloor(
-    'floor-tile-white',
-    'White tiles',
-    '#e6e3dc',
-    'polyhaven',
-    'https://polyhaven.com/a/square_tiles_03',
-    [0.6, 0.6],
+  'floor-checker-terracotta': floor(
+    'floor-checker-terracotta',
+    'Checker terracotta',
+    '#c79a78',
+    'checker',
+    [1.2, 1.2],
   ),
-  'floor-tile-marble': texFloor(
-    'floor-tile-marble',
-    'Marble',
-    '#dcd6c8',
-    'polyhaven',
-    'https://polyhaven.com/a/marble_01',
+  'floor-terrazzo-dark': floor(
+    'floor-terrazzo-dark',
+    'Dark terrazzo',
+    '#5a564e',
+    'terrazzo',
     [1.0, 1.0],
   ),
-  'floor-carpet-grey': texFloor(
-    'floor-carpet-grey',
-    'Grey carpet',
-    '#7a7c7e',
-    'ambientcg',
-    'https://ambientcg.com/view?id=Carpet001',
-    [2.0, 2.0],
-  ),
-  'floor-vinyl-light': texFloor(
-    'floor-vinyl-light',
-    'Light vinyl',
-    '#cdbfa5',
-    'ambientcg',
-    'https://ambientcg.com/view?id=Vinyl001',
+  'floor-carpet-blue': floor('floor-carpet-blue', 'Navy carpet', '#3f4a63', 'carpet', [1.5, 1.5]),
+  'floor-carpet-greige': floor(
+    'floor-carpet-greige',
+    'Greige carpet',
+    '#b3a89a',
+    'carpet',
     [1.5, 1.5],
-  ),
-  'floor-terrazzo': texFloor(
-    'floor-terrazzo',
-    'Terrazzo',
-    '#cfc8b8',
-    'polyhaven',
-    'https://polyhaven.com/a/terrazzo_01',
-    [1.0, 1.0],
   ),
 
-  // ── Walls (solid first; textured wall packs land in a follow-up) ────────
+  // ── Walls ───────────────────────────────────────────────────────────────
+  // Default white is a subtly textured plaster (orange-peel normal) so walls
+  // catch light like real painted plaster instead of reading dead flat.
   'wall-paint-white': {
     id: 'wall-paint-white',
     name: 'White paint',
     category: 'wall',
-    kind: 'solid',
+    kind: 'procedural',
+    pattern: 'plaster',
     swatch: '#f5f5f0',
+    uvScale: [2.5, 2.5],
   },
   'wall-paint-warm': {
     id: 'wall-paint-warm',
     name: 'Warm cream',
     category: 'wall',
-    kind: 'solid',
+    kind: 'procedural',
+    pattern: 'plaster',
     swatch: '#e9d8c4',
+    uvScale: [2.5, 2.5],
   },
   'wall-paint-sage': {
     id: 'wall-paint-sage',
     name: 'Sage',
     category: 'wall',
-    kind: 'solid',
+    kind: 'procedural',
+    pattern: 'plaster',
     swatch: '#a7b59a',
+    uvScale: [2.5, 2.5],
   },
   'wall-paint-charcoal': {
     id: 'wall-paint-charcoal',
     name: 'Charcoal',
     category: 'wall',
-    kind: 'solid',
+    kind: 'procedural',
+    pattern: 'plaster',
     swatch: '#3a3a3a',
+    uvScale: [2.5, 2.5],
   },
   'wall-paint-blue': {
     id: 'wall-paint-blue',
     name: 'Sky blue',
     category: 'wall',
-    kind: 'solid',
+    kind: 'procedural',
+    pattern: 'plaster',
     swatch: '#a9c1d6',
+    uvScale: [2.5, 2.5],
   },
   'wall-paint-blush': {
     id: 'wall-paint-blush',
     name: 'Blush',
     category: 'wall',
-    kind: 'solid',
+    kind: 'procedural',
+    pattern: 'plaster',
     swatch: '#e6c8c0',
+    uvScale: [2.5, 2.5],
   },
-};
+  'wall-paint-greige': {
+    id: 'wall-paint-greige',
+    name: 'Greige',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: '#cdc6ba',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-paint-terracotta': {
+    id: 'wall-paint-terracotta',
+    name: 'Terracotta',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: '#c08763',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-paint-navy': {
+    id: 'wall-paint-navy',
+    name: 'Navy',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: '#3b4a63',
+    uvScale: [2.5, 2.5],
+  },
+  'wall-paint-forest': {
+    id: 'wall-paint-forest',
+    name: 'Forest green',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'plaster',
+    swatch: '#4a5e4a',
+    uvScale: [2.5, 2.5],
+  },
 
-export const DEFAULT_FLOOR: MaterialId = 'floor-concrete';
-export const DEFAULT_WALL: MaterialId = 'wall-paint-white';
+  // Expanded curated palette — popular contemporary interior wall colours.
+  'wall-paint-soft-white': wall('wall-paint-soft-white', 'Soft white', '#efece4'),
+  'wall-paint-almond': wall('wall-paint-almond', 'Almond', '#e7ddca'),
+  'wall-paint-oat': wall('wall-paint-oat', 'Oat', '#d8cdb8'),
+  'wall-paint-mushroom': wall('wall-paint-mushroom', 'Mushroom', '#b6aa9a'),
+  'wall-paint-clay': wall('wall-paint-clay', 'Clay', '#b98a6e'),
+  'wall-paint-rust': wall('wall-paint-rust', 'Rust', '#a85a3c'),
+  'wall-paint-mustard': wall('wall-paint-mustard', 'Mustard', '#c69a45'),
+  'wall-paint-olive': wall('wall-paint-olive', 'Olive', '#7d7a4a'),
+  'wall-paint-eucalyptus': wall('wall-paint-eucalyptus', 'Eucalyptus', '#8fa79a'),
+  'wall-paint-teal': wall('wall-paint-teal', 'Teal', '#3f6b6a'),
+  'wall-paint-petrol': wall('wall-paint-petrol', 'Petrol blue', '#345a66'),
+  'wall-paint-denim': wall('wall-paint-denim', 'Denim', '#5a7088'),
+  'wall-paint-lavender': wall('wall-paint-lavender', 'Lavender', '#b3aac4'),
+  'wall-paint-mauve': wall('wall-paint-mauve', 'Mauve', '#9a7d86'),
+  'wall-paint-dusty-rose': wall('wall-paint-dusty-rose', 'Dusty rose', '#c9a0a0'),
+  'wall-paint-stone-grey': wall('wall-paint-stone-grey', 'Stone grey', '#a8a6a1'),
+  'wall-paint-slate': wall('wall-paint-slate', 'Slate', '#6a6f76'),
+  'wall-paint-graphite': wall('wall-paint-graphite', 'Graphite', '#454a50'),
+  'wall-paint-ink': wall('wall-paint-ink', 'Ink', '#2b3340'),
+
+  // Wallpapers — tone-on-tone vertical stripe + natural grasscloth weave.
+  'wall-stripe-greige': wallpaper('wall-stripe-greige', 'Striped greige', '#cfc7ba', 'stripe'),
+  'wall-stripe-sage': wallpaper('wall-stripe-sage', 'Striped sage', '#aebaa6', 'stripe'),
+  'wall-stripe-blue': wallpaper('wall-stripe-blue', 'Striped blue', '#9fb1c4', 'stripe'),
+  'wall-grasscloth-natural': wallpaper(
+    'wall-grasscloth-natural',
+    'Grasscloth natural',
+    '#cdbf9e',
+    'grasscloth',
+  ),
+  'wall-grasscloth-olive': wallpaper(
+    'wall-grasscloth-olive',
+    'Grasscloth olive',
+    '#9a9466',
+    'grasscloth',
+  ),
+  'wall-grasscloth-charcoal': wallpaper(
+    'wall-grasscloth-charcoal',
+    'Grasscloth charcoal',
+    '#5a5852',
+    'grasscloth',
+  ),
+}
+
+export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak'
+export const DEFAULT_WALL: MaterialId = 'wall-paint-white'
+
+/** Sensible move-in-ready finishes per room: wood through the living spaces
+ *  and bedrooms, tile in the wet rooms and kitchen, hard-wearing surfaces in
+ *  utility spaces. Rooms not listed fall back to DEFAULT_FLOOR. */
+export const DEFAULT_ROOM_FLOOR: Partial<Record<RoomId, MaterialId>> = {
+  mainBedroom: 'floor-wood-oak',
+  bedroom2: 'floor-wood-oak',
+  bedroom3: 'floor-wood-oak',
+  livingDining: 'floor-wood-oak',
+  corridor: 'floor-wood-oak',
+  kitchen: 'floor-tile-white',
+  bath1: 'floor-tile-white',
+  bath2: 'floor-tile-white',
+  householdShelter: 'floor-vinyl-light',
+  serviceYard: 'floor-concrete',
+  acLedge: 'floor-concrete',
+}
+
+export const DEFAULT_ROOM_WALL: Partial<Record<RoomId, MaterialId>> = {
+  livingDining: 'wall-paint-warm',
+  bath1: 'wall-paint-blue',
+  bath2: 'wall-paint-blue',
+  kitchen: 'wall-paint-white',
+}
 
 export const BUILTIN_MATERIALS_BY_CATEGORY: Readonly<Record<MaterialCategory, MaterialDef[]>> =
   Object.freeze(
     (Object.values(BUILTIN_MATERIALS) as MaterialDef[]).reduce(
       (acc, m) => {
-        (acc[m.category] ??= []).push(m);
-        return acc;
+        ;(acc[m.category] ??= []).push(m)
+        return acc
       },
       {} as Record<MaterialCategory, MaterialDef[]>,
     ),
-  );
+  )

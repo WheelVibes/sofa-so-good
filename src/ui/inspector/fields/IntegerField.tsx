@@ -1,9 +1,9 @@
-import type { ParamField } from '../../../furniture/types';
+import type { ParamField } from '../../../furniture/types'
 
 interface IntegerFieldProps {
-  field: Extract<ParamField, { kind: 'integer' }>;
-  value: number;
-  onChange: (value: number) => void;
+  field: Extract<ParamField, { kind: 'integer' }>
+  value: number
+  onChange: (value: number) => void
 }
 
 export function IntegerField({ field, value, onChange }: IntegerFieldProps) {
@@ -17,11 +17,11 @@ export function IntegerField({ field, value, onChange }: IntegerFieldProps) {
         step={1}
         value={value}
         onChange={(e) => {
-          const n = Number(e.target.value);
-          if (Number.isFinite(n)) onChange(Math.round(n));
+          const n = Number(e.target.value)
+          if (Number.isFinite(n)) onChange(Math.round(n))
         }}
         className="w-16 rounded border border-neutral-300 px-2 py-0.5 text-right font-mono"
       />
     </label>
-  );
+  )
 }

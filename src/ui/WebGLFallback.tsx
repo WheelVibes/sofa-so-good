@@ -1,11 +1,11 @@
-import type { ReactNode } from 'react';
+import type { ReactNode } from 'react'
 
 function isWebGL2Supported(): boolean {
   try {
-    const c = document.createElement('canvas');
-    return !!c.getContext('webgl2');
+    const c = document.createElement('canvas')
+    return !!c.getContext('webgl2')
   } catch {
-    return false;
+    return false
   }
 }
 
@@ -21,7 +21,7 @@ export function WebGLFallback({ children }: { children: ReactNode }) {
           </p>
         </div>
       </div>
-    );
+    )
   }
-  return <>{children}</>;
+  return <>{children}</>
 }

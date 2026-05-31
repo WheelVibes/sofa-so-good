@@ -1,9 +1,9 @@
-import type { ParamField } from '../../../furniture/types';
+import type { ParamField } from '../../../furniture/types'
 
 interface EnumFieldProps {
-  field: Extract<ParamField, { kind: 'enum' }>;
-  value: string;
-  onChange: (value: string) => void;
+  field: Extract<ParamField, { kind: 'enum' }>
+  value: string
+  onChange: (value: string) => void
 }
 
 export function EnumField({ field, value, onChange }: EnumFieldProps) {
@@ -22,5 +22,5 @@ export function EnumField({ field, value, onChange }: EnumFieldProps) {
         ))}
       </select>
     </label>
-  );
+  )
 }

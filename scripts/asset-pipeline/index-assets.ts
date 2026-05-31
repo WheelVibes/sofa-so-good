@@ -1,32 +1,32 @@
-import { readdirSync, statSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
-import { join, relative } from 'node:path';
+import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
+import { join, relative } from 'node:path'
+import { deriveBoundingBox } from './process-glb'
 import {
-  readSidecar,
-  resolveFurnitureMetadata,
   type FurnitureSidecar,
   type MaterialSidecar,
-} from './sidecar';
-import { deriveBoundingBox } from './process-glb';
+  readSidecar,
+  resolveFurnitureMetadata,
+} from './sidecar'
 
 export interface IndexOptions {
-  projectRoot: string;
+  projectRoot: string
 }
 
 function walk(dir: string, ext: RegExp): string[] {
-  if (!existsSync(dir)) return [];
-  const out: string[] = [];
+  if (!existsSync(dir)) return []
+  const out: string[] = []
   for (const name of readdirSync(dir)) {
-    const p = join(dir, name);
-    const s = statSync(p);
-    if (s.isDirectory()) out.push(...walk(p, ext));
-    else if (ext.test(name)) out.push(p);
+    const p = join(dir, name)
+    const s = statSync(p)
+    if (s.isDirectory()) out.push(...walk(p, ext))
+    else if (ext.test(name)) out.push(p)
   }
-  return out;
+  return out
 }
 
 function tsLiteralFurniture(meta: FurnitureSidecar, urlPath: string): string {
-  const attrLine = meta.attribution ? `    attribution: ${JSON.stringify(meta.attribution)},\n` : '';
-  const srcLine = meta.sourceUrl ? `    sourceUrl: ${JSON.stringify(meta.sourceUrl)},\n` : '';
+  const attrLine = meta.attribution ? `    attribution: ${JSON.stringify(meta.attribution)},\n` : ''
+  const srcLine = meta.sourceUrl ? `    sourceUrl: ${JSON.stringify(meta.sourceUrl)},\n` : ''
   return `  {
     kind: 'gltf',
     id: ${JSON.stringify(meta.id)},
@@ -37,22 +37,22 @@ function tsLiteralFurniture(meta: FurnitureSidecar, urlPath: string): string {
     license: 'CC0',
 ${attrLine}${srcLine}    defaultFootprint: { w: ${meta.footprint.w}, d: ${meta.footprint.d}, h: ${meta.footprint.h} },
     scale: ${meta.scale},
-  },\n`;
+  },\n`
 }
 
 function tsLiteralMaterial(meta: MaterialSidecar, baseUrl: string): string {
-  const albedo = `${baseUrl}/${meta.channels.albedo}`;
+  const albedo = `${baseUrl}/${meta.channels.albedo}`
   const normal = meta.channels.normal
     ? `\n      normal: ${JSON.stringify(`${baseUrl}/${meta.channels.normal}`)},`
-    : '';
+    : ''
   const rough = meta.channels.rough
     ? `\n      roughness: ${JSON.stringify(`${baseUrl}/${meta.channels.rough}`)},`
-    : '';
+    : ''
   const ao = meta.channels.ao
     ? `\n      ao: ${JSON.stringify(`${baseUrl}/${meta.channels.ao}`)},`
-    : '';
-  const srcUrl = meta.sourceUrl ? JSON.stringify(meta.sourceUrl) : "''";
-  const sourceField = `'${meta.sourceUrl?.includes('ambientcg') ? 'ambientcg' : 'polyhaven'}'`;
+    : ''
+  const srcUrl = meta.sourceUrl ? JSON.stringify(meta.sourceUrl) : "''"
+  const sourceField = `'${meta.sourceUrl?.includes('ambientcg') ? 'ambientcg' : 'polyhaven'}'`
   return `  {
     id: ${JSON.stringify(meta.id)},
     name: ${JSON.stringify(meta.name)},
@@ -65,64 +65,64 @@ function tsLiteralMaterial(meta: MaterialSidecar, baseUrl: string): string {
       albedo: ${JSON.stringify(albedo)},${normal}${rough}${ao}
     },
     uvScale: [${meta.uvScale[0]}, ${meta.uvScale[1]}],
-  },\n`;
+  },\n`
 }
 
 export async function indexAssets(opts: IndexOptions): Promise<void> {
-  const root = opts.projectRoot;
-  const furnitureDir = join(root, 'public/assets/furniture');
-  const materialsDir = join(root, 'public/assets/materials');
+  const root = opts.projectRoot
+  const furnitureDir = join(root, 'public/assets/furniture')
+  const materialsDir = join(root, 'public/assets/materials')
 
-  const glbs = walk(furnitureDir, /\.glb$/i);
-  const seen = new Set<string>();
-  const furnitureLits: string[] = [];
+  const glbs = walk(furnitureDir, /\.glb$/i)
+  const seen = new Set<string>()
+  const furnitureLits: string[] = []
   for (const glb of glbs) {
-    const sidecar = readSidecar<FurnitureSidecar>(glb);
+    const sidecar = readSidecar<FurnitureSidecar>(glb)
     const meta = await resolveFurnitureMetadata({
       glbPath: glb,
       sidecar,
       bboxFn: deriveBoundingBox,
-    });
+    })
     if (seen.has(meta.id)) {
-      throw new Error(`duplicate id "${meta.id}" in ${glb}`);
+      throw new Error(`duplicate id "${meta.id}" in ${glb}`)
     }
-    seen.add(meta.id);
-    const url = '/' + relative(join(root, 'public'), glb).replace(/\\/g, '/');
-    furnitureLits.push(tsLiteralFurniture(meta, url));
+    seen.add(meta.id)
+    const url = `/${relative(join(root, 'public'), glb).replace(/\\/g, '/')}`
+    furnitureLits.push(tsLiteralFurniture(meta, url))
   }
 
   const materialDirs = existsSync(materialsDir)
     ? readdirSync(materialsDir)
         .map((n) => join(materialsDir, n))
         .filter((p) => statSync(p).isDirectory())
-    : [];
-  const matSeen = new Set<string>();
-  const materialLits: string[] = [];
+    : []
+  const matSeen = new Set<string>()
+  const materialLits: string[] = []
   for (const md of materialDirs) {
-    const meta = readSidecar<MaterialSidecar>(join(md, 'material'));
-    if (!meta) continue;
-    if (matSeen.has(meta.id)) throw new Error(`duplicate id "${meta.id}" in ${md}`);
-    matSeen.add(meta.id);
-    const baseUrl = '/' + relative(join(root, 'public'), md).replace(/\\/g, '/');
-    materialLits.push(tsLiteralMaterial(meta, baseUrl));
+    const meta = readSidecar<MaterialSidecar>(join(md, 'material'))
+    if (!meta) continue
+    if (matSeen.has(meta.id)) throw new Error(`duplicate id "${meta.id}" in ${md}`)
+    matSeen.add(meta.id)
+    const baseUrl = `/${relative(join(root, 'public'), md).replace(/\\/g, '/')}`
+    materialLits.push(tsLiteralMaterial(meta, baseUrl))
   }
 
-  mkdirSync(join(root, 'src/furniture'), { recursive: true });
-  mkdirSync(join(root, 'src/materials'), { recursive: true });
+  mkdirSync(join(root, 'src/furniture'), { recursive: true })
+  mkdirSync(join(root, 'src/materials'), { recursive: true })
 
   const furnitureModule = `// AUTO-GENERATED by scripts/asset-pipeline/index-assets.ts. Do not edit.
 import type { FurnitureDef } from './types';
 
 export const GENERATED_FURNITURE: FurnitureDef[] = [
 ${furnitureLits.join('')}];
-`;
+`
   const materialModule = `// AUTO-GENERATED by scripts/asset-pipeline/index-assets.ts. Do not edit.
 import type { MaterialDef } from './types';
 
 export const GENERATED_MATERIALS: MaterialDef[] = [
 ${materialLits.join('')}];
-`;
+`
 
-  writeFileSync(join(root, 'src/furniture/generatedCatalog.ts'), furnitureModule);
-  writeFileSync(join(root, 'src/materials/generatedCatalog.ts'), materialModule);
+  writeFileSync(join(root, 'src/furniture/generatedCatalog.ts'), furnitureModule)
+  writeFileSync(join(root, 'src/materials/generatedCatalog.ts'), materialModule)
 }

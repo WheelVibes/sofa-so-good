@@ -5,25 +5,28 @@
  * localStorage directly.
  */
 
-import type { SerializedState } from '../schema';
+import type { SerializedState } from '../schema'
 
 export interface SlotMeta {
-  slot: string;
-  savedAt: string;
+  slot: string
+  savedAt: string
 }
 
-export type StorageErrorKind = 'quota' | 'corrupt' | 'version' | 'missing-asset';
+export type StorageErrorKind = 'quota' | 'corrupt' | 'version' | 'missing-asset'
 
 export class StorageError extends Error {
-  constructor(public kind: StorageErrorKind, message: string) {
-    super(message);
-    this.name = 'StorageError';
+  constructor(
+    public kind: StorageErrorKind,
+    message: string,
+  ) {
+    super(message)
+    this.name = 'StorageError'
   }
 }
 
 export interface StorageAdapter {
-  save(slot: string, state: SerializedState): Promise<void>;
-  load(slot: string): Promise<SerializedState | null>;
-  list(): Promise<SlotMeta[]>;
-  delete(slot: string): Promise<void>;
+  save(slot: string, state: SerializedState): Promise<void>
+  load(slot: string): Promise<SerializedState | null>
+  list(): Promise<SlotMeta[]>
+  delete(slot: string): Promise<void>
 }

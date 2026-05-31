@@ -1,31 +1,43 @@
-import { Suspense, memo, useCallback } from 'react';
-import type { ThreeEvent } from '@react-three/fiber';
-import { GltfModel } from './GltfModel';
-import { PRIMITIVE_COMPONENTS } from './primitives';
-import { useStore } from '../state/store';
-import type { FurnitureDef, FurnitureItem } from './types';
+import type { ThreeEvent } from '@react-three/fiber'
+import { memo, Suspense, useCallback } from 'react'
+import { itemFootprint } from '../collision/placement'
+import { ContactShadow } from '../scene/ContactShadow'
+import { useStore } from '../state/store'
+import { GltfModel } from './GltfModel'
+import { selectGltfRender } from './gltfRender'
+import { PRIMITIVE_COMPONENTS } from './primitives'
+import type { FurnitureDef, FurnitureItem, GltfDef } from './types'
 
 interface FurnitureProps {
-  item: FurnitureItem;
-  def: FurnitureDef;
+  item: FurnitureItem
+  def: FurnitureDef
   /** When true, the click handler does NOT mutate selection — used by
    *  ghost previews. */
-  passive?: boolean;
+  passive?: boolean
+  /** Render a soft contact shadow under floor items (off on the low tier). */
+  contactShadow?: boolean
+  /** Bumped when a DLC/catalog material is (re)built; forces a re-render so
+   *  the primitive's synchronous material lookup finds the new material. */
+  materialEpoch?: number
 }
 
-function FurnitureInner({ item, def, passive }: FurnitureProps) {
+function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
-      if (passive) return;
-      e.stopPropagation();
-      const state = useStore.getState();
+      if (passive) return
+      const state = useStore.getState()
+      // Walk mode and rotate-tool are view-only — clicks must not select.
+      if (state.cameraMode !== 'orbit') return
+      if (state.editorTool !== 'select') return
+      e.stopPropagation()
       // Shift-click extends/toggles the multi-selection; plain click
-      // replaces it with just this item.
-      if (e.shiftKey) state.toggleSelectedItem(item.id);
-      else state.selectItem(item.id);
+      // selects the item's group (or the item, if ungrouped) with drill-in
+      // on a repeat/Alt click (see selectItemGrouped).
+      if (e.shiftKey) state.toggleSelectedItem(item.id)
+      else state.selectItemGrouped(item.id, { alt: e.altKey })
     },
     [item.id, passive],
-  );
+  )
 
   // Pointer-down begins a drag in select mode. We capture the original
   // transform here so DragController can revert if the release lands on
@@ -33,27 +45,26 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
   // offset so the item doesn't snap-jump to the cursor.
   const onPointerDown = useCallback(
     (e: ThreeEvent<PointerEvent>) => {
-      if (passive) return;
-      const state = useStore.getState();
-      if (state.cameraMode !== 'orbit') return;
-      if (state.editorTool !== 'select') return;
-      if (state.activeDefId) return;
-      e.stopPropagation();
+      if (passive) return
+      const state = useStore.getState()
+      if (state.cameraMode !== 'orbit') return
+      if (state.editorTool !== 'select') return
+      if (state.activeDefId) return
+      e.stopPropagation()
       // Shift-pointerdown defers selection to the click handler (which
       // toggles). Plain click preserves an existing multi-selection if
       // the grabbed item is already part of it; only collapse otherwise.
       if (!e.shiftKey && !state.selectedItemIds.includes(item.id)) {
-        state.selectItem(item.id);
+        state.selectItemGrouped(item.id, { alt: e.altKey })
       }
-      const offset: [number, number] = [
-        e.point.x - item.position[0],
-        e.point.z - item.position[1],
-      ];
+      // Locked items can be selected (to unlock) but not dragged.
+      if (item.locked) return
+      const offset: [number, number] = [e.point.x - item.position[0], e.point.z - item.position[1]]
       // If the grabbed item is part of a multi-selection, snapshot every
       // member's transform so DragController can translate the whole
       // group in lock-step.
-      const post = useStore.getState();
-      const ids = post.selectedItemIds.includes(item.id) ? post.selectedItemIds : [item.id];
+      const post = useStore.getState()
+      const ids = post.selectedItemIds.includes(item.id) ? post.selectedItemIds : [item.id]
       const groupOriginals =
         ids.length > 1
           ? ids
@@ -64,53 +75,92 @@ function FurnitureInner({ item, def, passive }: FurnitureProps) {
                 position: [it.position[0], it.position[1]] as [number, number],
                 rotation: it.rotation,
               }))
-          : undefined;
+          : undefined
       state.startDrag(
         item.id,
         { position: [item.position[0], item.position[1]], rotation: item.rotation },
         offset,
         groupOriginals,
-      );
+      )
     },
     [item.id, item.position, item.rotation, passive],
-  );
+  )
 
   const body =
     def.kind === 'parametric' ? (
       (() => {
-        const Component = PRIMITIVE_COMPONENTS[def.primitive];
-        return <Component props={item.props} />;
+        const Component = PRIMITIVE_COMPONENTS[def.primitive]
+        return <Component props={item.props} />
       })()
     ) : (
       <Suspense fallback={null}>
         {(() => {
-          const url = def.source === 'builtin' ? def.url : def.runtimeUrl;
-          if (!url) return null;
+          const r = selectGltfRender(item, def as GltfDef)
+          if (!r) return null
           return (
             <GltfModel
-              url={url}
-              scale={
-                (typeof item.props['scale'] === 'number'
-                  ? item.props['scale']
-                  : def.scale) ?? 1
-              }
-              tint={typeof item.props['tint'] === 'string' ? item.props['tint'] : undefined}
+              url={r.url}
+              scale={r.scale}
+              tint={r.tint}
+              finishOverrides={r.finishOverrides}
             />
-          );
+          )
         })()}
       </Suspense>
-    );
+    )
+
+  // GLB items lift by props.surfaceHeight so a stacked model (mattress on a
+  // frame) renders at its support surface. Parametric primitives self-lift in
+  // local space, so they stay at group-Y 0 to avoid double-counting.
+  const liftY =
+    typeof item.props['surfaceHeight'] === 'number' ? (item.props['surfaceHeight'] as number) : 0
 
   return (
     <group
-      position={[item.position[0], 0, item.position[1]]}
+      position={[item.position[0], def.kind === 'parametric' ? 0 : liftY, item.position[1]]}
       rotation={[0, item.rotation, 0]}
       onClick={onClick}
+      onPointerOver={(e) => {
+        if (passive) return
+        const state = useStore.getState()
+        if (state.cameraMode !== 'orbit' || state.editorTool !== 'select') return
+        if (state.draggingItemId || state.activeDefId) return
+        e.stopPropagation()
+        state.setHovered(item.id)
+      }}
+      onPointerOut={() => {
+        if (passive) return
+        const state = useStore.getState()
+        if (state.hoveredItemId === item.id) state.setHovered(null)
+      }}
+      onDoubleClick={(e) => {
+        if (passive) return
+        const state = useStore.getState()
+        if (state.cameraMode !== 'orbit') return
+        e.stopPropagation()
+        state.focusOn(item.position)
+      }}
       onPointerDown={onPointerDown}
     >
-      {body}
+      {/* Soft contact shadow grounding floor-standing pieces. The outer group
+          may be lifted by `liftY` for a stacked GLB (mattress on a frame), so
+          counter-translate the shadow back to the floor (world Y≈0). */}
+      {(() => {
+        if (!contactShadow) return null
+        const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h }
+        if (passive || def.mounted || def.noClip || span.base >= 0.4) return null
+        const obb = itemFootprint(item, def)
+        return <ContactShadow w={obb.hx * 2} d={obb.hz * 2} y={-liftY} />
+      })()}
+      {/* Mirror flips in local space. three.js flips winding/normals for the
+          negative-determinant matrix, so lighting + culling stay correct. */}
+      {item.flipX || item.flipZ ? (
+        <group scale={[item.flipX ? -1 : 1, 1, item.flipZ ? -1 : 1]}>{body}</group>
+      ) : (
+        body
+      )}
     </group>
-  );
+  )
 }
 
 /**
@@ -121,6 +171,8 @@ export const Furniture = memo(FurnitureInner, (prev, next) => {
   return (
     prev.item === next.item &&
     prev.def === next.def &&
-    prev.passive === next.passive
-  );
-});
+    prev.passive === next.passive &&
+    prev.contactShadow === next.contactShadow &&
+    prev.materialEpoch === next.materialEpoch
+  )
+})

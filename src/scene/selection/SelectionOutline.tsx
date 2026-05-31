@@ -1,61 +1,57 @@
-import { useMemo } from 'react';
-import { useShallow } from 'zustand/react/shallow';
-import { BoxGeometry, EdgesGeometry } from 'three';
-import { useStore } from '../../state/store';
-import { useCatalog } from '../../furniture/catalog';
-import { itemFootprint } from '../../collision/placement';
-import type { FurnitureDef, FurnitureItem } from '../../furniture/types';
+import { useMemo } from 'react'
+import { BoxGeometry, EdgesGeometry } from 'three'
+import { useShallow } from 'zustand/react/shallow'
+import { itemFootprint } from '../../collision/placement'
+import { useCatalog } from '../../furniture/catalog'
+import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
+import { useStore } from '../../state/store'
 
-const OUTLINE_COLOR_DEFAULT = '#3b82f6';
-const OUTLINE_COLOR_VALID = '#22c55e';
-const OUTLINE_COLOR_INVALID = '#ef4444';
-const TINT_DEFAULT = '#3b82f6';
-const TINT_VALID = '#22c55e';
-const TINT_INVALID = '#ef4444';
-const OUTLINE_LIFT = 0.005;
-const OUTLINE_PAD = 0.06;
-const OUTLINE_PAD_OUTER = 0.18;
-const CORNER_LEN = 0.25;
-const CORNER_THICK = 0.04;
+const OUTLINE_COLOR_DEFAULT = '#3b82f6'
+const OUTLINE_COLOR_VALID = '#22c55e'
+const OUTLINE_COLOR_INVALID = '#ef4444'
+const TINT_DEFAULT = '#3b82f6'
+const TINT_VALID = '#22c55e'
+const TINT_INVALID = '#ef4444'
+const OUTLINE_LIFT = 0.005
+const OUTLINE_PAD = 0.06
+const OUTLINE_PAD_OUTER = 0.18
+const CORNER_LEN = 0.25
+const CORNER_THICK = 0.04
 
 interface ItemOutlineProps {
-  item: FurnitureItem;
-  def: FurnitureDef;
-  isDragging: boolean;
-  dragValid: boolean;
+  item: FurnitureItem
+  def: FurnitureDef
+  isDragging: boolean
+  dragValid: boolean
 }
 
 function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
-  const obb = itemFootprint(item, def);
-  const w = obb.hx * 2 + OUTLINE_PAD;
-  const d = obb.hz * 2 + OUTLINE_PAD;
-  const wOuter = obb.hx * 2 + OUTLINE_PAD_OUTER;
-  const dOuter = obb.hz * 2 + OUTLINE_PAD_OUTER;
-  const geom = useMemo(() => new EdgesGeometry(new BoxGeometry(w, 0.001, d)), [w, d]);
+  const obb = itemFootprint(item, def)
+  const w = obb.hx * 2 + OUTLINE_PAD
+  const d = obb.hz * 2 + OUTLINE_PAD
+  const wOuter = obb.hx * 2 + OUTLINE_PAD_OUTER
+  const dOuter = obb.hz * 2 + OUTLINE_PAD_OUTER
+  const geom = useMemo(() => new EdgesGeometry(new BoxGeometry(w, 0.001, d)), [w, d])
   const geomOuter = useMemo(
     () => new EdgesGeometry(new BoxGeometry(wOuter, 0.001, dOuter)),
     [wOuter, dOuter],
-  );
+  )
 
   const outlineColor = isDragging
     ? dragValid
       ? OUTLINE_COLOR_VALID
       : OUTLINE_COLOR_INVALID
-    : OUTLINE_COLOR_DEFAULT;
-  const tintColor = isDragging
-    ? dragValid
-      ? TINT_VALID
-      : TINT_INVALID
-    : TINT_DEFAULT;
+    : OUTLINE_COLOR_DEFAULT
+  const tintColor = isDragging ? (dragValid ? TINT_VALID : TINT_INVALID) : TINT_DEFAULT
 
-  const cx = w / 2;
-  const cz = d / 2;
+  const cx = w / 2
+  const cz = d / 2
   const corners = [
     [cx, cz, 1, 1],
     [-cx, cz, -1, 1],
     [cx, -cz, 1, -1],
     [-cx, -cz, -1, -1],
-  ] as const;
+  ] as const
 
   return (
     <group position={[obb.cx, OUTLINE_LIFT, obb.cz]} rotation={[0, obb.rot, 0]}>
@@ -95,7 +91,7 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
         </group>
       ))}
     </group>
-  );
+  )
 }
 
 /**
@@ -106,28 +102,26 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
  * validity; non-primary outlines stay default-coloured.
  */
 export function SelectionOutline() {
-  const ids = useStore(useShallow((s) => s.selectedItemIds));
-  const items = useStore(
-    useShallow((s) => s.items.filter((i) => s.selectedItemIds.includes(i.id))),
-  );
-  const draggingItemId = useStore((s) => s.draggingItemId);
-  const dragGroupIds = useStore(
-    useShallow((s) => s.dragGroupOriginals.map((g) => g.id)),
-  );
-  const dragValid = useStore((s) => s.dragValid);
-  const catalog = useCatalog();
+  const ids = useStore(useShallow((s) => s.selectedItemIds))
+  const items = useStore(useShallow((s) => s.items.filter((i) => s.selectedItemIds.includes(i.id))))
+  const draggingItemId = useStore((s) => s.draggingItemId)
+  const dragGroupIds = useStore(useShallow((s) => s.dragGroupOriginals.map((g) => g.id)))
+  const dragValid = useStore((s) => s.dragValid)
+  const catalog = useCatalog()
 
-  if (ids.length === 0) return null;
+  if (ids.length === 0) return null
 
   // During a group drag, colour every member's outline by validity (not
   // just the anchor) so the feedback matches the visual translation.
-  const draggingSet = new Set(dragGroupIds.length > 0 ? dragGroupIds : draggingItemId ? [draggingItemId] : []);
+  const draggingSet = new Set(
+    dragGroupIds.length > 0 ? dragGroupIds : draggingItemId ? [draggingItemId] : [],
+  )
 
   return (
     <>
       {items.map((item) => {
-        const def = catalog[item.defId];
-        if (!def) return null;
+        const def = catalog[item.defId]
+        if (!def) return null
         return (
           <ItemOutline
             key={item.id}
@@ -136,8 +130,8 @@ export function SelectionOutline() {
             isDragging={draggingSet.has(item.id)}
             dragValid={dragValid}
           />
-        );
+        )
       })}
     </>
-  );
+  )
 }

@@ -1,9 +1,9 @@
-import type { ParamField } from '../../../furniture/types';
+import type { ParamField } from '../../../furniture/types'
 
 interface NumberFieldProps {
-  field: Extract<ParamField, { kind: 'number' }>;
-  value: number;
-  onChange: (value: number) => void;
+  field: Extract<ParamField, { kind: 'number' }>
+  value: number
+  onChange: (value: number) => void
 }
 
 export function NumberField({ field, value, onChange }: NumberFieldProps) {
@@ -24,5 +24,5 @@ export function NumberField({ field, value, onChange }: NumberFieldProps) {
         {field.unit ? ` ${field.unit}` : ''}
       </span>
     </label>
-  );
+  )
 }

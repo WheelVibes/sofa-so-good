@@ -1,0 +1,22 @@
+{
+  "name": "VIHALS",
+  "typeName": "table and 2 folding chairs",
+  "validDesignText": "gateleg table white/red",
+  "styleGroup": "Scandinavian",
+  "globalId": "s69599421",
+  "catalogRefs": {
+    "products": {
+      "elements": [
+        {
+          "id": "55555",
+          "name": "Dining sets up to 2 seats",
+          "parents": {
+            "p1": { "id": "10", "name": "Tables, chairs & dining furniture" },
+            "p2": { "id": "20", "name": "Dining sets" }
+          }
+        }
+      ]
+    },
+    "series": { "elements": [ { "name": "VIHALS series" } ] }
+  }
+}

@@ -1,6 +1,6 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
-import { CreditsModal } from './CreditsModal';
+import { render, screen, waitFor } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import { CreditsModal } from './CreditsModal'
 
 beforeEach(() => {
   vi.stubGlobal(
@@ -28,23 +28,23 @@ beforeEach(() => {
         ],
       }),
     })),
-  );
-});
+  )
+})
 
 afterEach(() => {
-  vi.unstubAllGlobals();
-});
+  vi.unstubAllGlobals()
+})
 
 describe('CreditsModal', () => {
   it('renders nothing when closed', () => {
-    const { container } = render(<CreditsModal open={false} onClose={() => {}} />);
-    expect(container.firstChild).toBeNull();
-  });
+    const { container } = render(<CreditsModal open={false} onClose={() => {}} />)
+    expect(container.firstChild).toBeNull()
+  })
 
   it('fetches and displays credits when opened', async () => {
-    render(<CreditsModal open={true} onClose={() => {}} />);
-    await waitFor(() => expect(screen.getByText(/Armchair/)).toBeInTheDocument());
-    expect(screen.getByText(/Oak/)).toBeInTheDocument();
-    expect(screen.getAllByText(/CC0/).length).toBeGreaterThan(0);
-  });
-});
+    render(<CreditsModal open={true} onClose={() => {}} />)
+    await waitFor(() => expect(screen.getByText(/Armchair/)).toBeInTheDocument())
+    expect(screen.getByText(/Oak/)).toBeInTheDocument()
+    expect(screen.getAllByText(/CC0/).length).toBeGreaterThan(0)
+  })
+})

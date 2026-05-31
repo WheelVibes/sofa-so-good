@@ -1,5 +1,5 @@
-import { DOORS } from '../apartment/constants';
-import { useStore } from '../state/store';
+import { DOORS } from '../apartment/constants'
+import { useStore } from '../state/store'
 
 const LABELS: Record<string, string> = {
   'door-main': 'main door',
@@ -10,22 +10,20 @@ const LABELS: Record<string, string> = {
   'door-bath2': 'bath 2',
   'door-householdShelter': 'household shelter',
   'door-serviceYard': 'service yard',
-};
+}
 
 export function DoorPrompt() {
-  const cameraMode = useStore((s) => s.cameraMode);
-  const nearbyDoorId = useStore((s) => s.nearbyDoorId);
-  const isOpen = useStore((s) =>
-    nearbyDoorId ? (s.doors[nearbyDoorId]?.open ?? false) : false,
-  );
-  const toggleDoor = useStore((s) => s.toggleDoor);
+  const cameraMode = useStore((s) => s.cameraMode)
+  const nearbyDoorId = useStore((s) => s.nearbyDoorId)
+  const isOpen = useStore((s) => (nearbyDoorId ? (s.doors[nearbyDoorId]?.open ?? false) : false))
+  const toggleDoor = useStore((s) => s.toggleDoor)
 
-  if (cameraMode !== 'firstPerson' || !nearbyDoorId) return null;
+  if (cameraMode !== 'firstPerson' || !nearbyDoorId) return null
 
-  const spec = DOORS.find((d) => d.id === nearbyDoorId);
-  if (!spec) return null;
-  const label = LABELS[nearbyDoorId] ?? nearbyDoorId;
-  const action = isOpen ? 'Close' : 'Open';
+  const spec = DOORS.find((d) => d.id === nearbyDoorId)
+  if (!spec) return null
+  const label = LABELS[nearbyDoorId] ?? nearbyDoorId
+  const action = isOpen ? 'Close' : 'Open'
 
   return (
     <div className="pointer-events-none absolute inset-x-0 bottom-24 z-10 flex justify-center">
@@ -42,5 +40,5 @@ export function DoorPrompt() {
         </span>
       </button>
     </div>
-  );
+  )
 }

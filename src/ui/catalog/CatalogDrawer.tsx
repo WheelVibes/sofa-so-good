@@ -1,29 +1,51 @@
-import { useState } from 'react';
-import { useStore } from '../../state/store';
-import { useCatalogByCategory } from '../../furniture/catalog';
-import type { FurnitureCategory } from '../../furniture/types';
-import { CategoryTabs } from './CategoryTabs';
-import { CatalogCard } from './CatalogCard';
-import { UploadModelDialog } from '../upload/UploadModelDialog';
+import { useEffect, useState } from 'react'
+import { useCatalogByCategory } from '../../furniture/catalog'
+import type { FurnitureCategory } from '../../furniture/types'
+import { useStore } from '../../state/store'
+import { UploadModelDialog } from '../upload/UploadModelDialog'
+import { CatalogCard } from './CatalogCard'
+import { CategoryTabs } from './CategoryTabs'
+import { PacksTab } from './PacksTab'
+import { RemoteBrowseTab } from './RemoteBrowseTab'
+import { ThumbnailHost } from './thumbnails'
+
+type Mode = 'builtin' | 'browse-furniture' | 'packs'
 
 /** Sliding left-side drawer. Toggle via toolbar or the C key (handled
  *  in App.tsx). Click a card to drop the item near the L/D centre and
  *  open the inspector — this is the simpler alternative to drag-place
  *  ghost which we revisit when the gizmo lands. */
 export function CatalogDrawer() {
-  const open = useStore((s) => s.catalogOpen);
-  const cameraMode = useStore((s) => s.cameraMode);
-  const setOpen = useStore((s) => s.setCatalogOpen);
-  const removeUserFurniture = useStore((s) => s.removeUserFurniture);
-  const byCategory = useCatalogByCategory();
-  const [active, setActive] = useState<FurnitureCategory>('seating');
-  const [uploadOpen, setUploadOpen] = useState(false);
+  const open = useStore((s) => s.catalogOpen)
+  const cameraMode = useStore((s) => s.cameraMode)
+  const setOpen = useStore((s) => s.setCatalogOpen)
+  const removeUserFurniture = useStore((s) => s.removeUserFurniture)
+  const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
+  const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
+  const byCategory = useCatalogByCategory()
+  const [active, setActive] = useState<FurnitureCategory>('seating')
+  const [mode, setMode] = useState<Mode>('builtin')
+  const [uploadOpen, setUploadOpen] = useState(false)
+  const [query, setQuery] = useState('')
 
-  if (!open || cameraMode !== 'orbit') return null;
-  const cards = byCategory[active] ?? [];
+  useEffect(() => {
+    if (open && phStatus === 'idle') void bootstrapRemote()
+  }, [open, phStatus, bootstrapRemote])
+
+  if (!open || cameraMode !== 'orbit') return null
+  const q = query.trim().toLowerCase()
+  const cards = q
+    ? Object.values(byCategory)
+        .flat()
+        .filter(
+          (d) =>
+            d.name.toLowerCase().includes(q) ||
+            d.keywords?.some((k) => k.toLowerCase().includes(q)),
+        )
+    : (byCategory[active] ?? [])
 
   return (
-    <aside className="absolute left-3 top-3 z-10 flex w-72 max-h-[80vh] flex-col rounded-lg bg-white/95 text-neutral-700 shadow">
+    <aside className="absolute left-3 top-3 z-10 flex w-80 max-h-[85vh] flex-col rounded-lg bg-white/95 text-neutral-700 shadow">
       <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2">
         <span className="text-sm font-semibold text-neutral-900">Catalog</span>
         <button
@@ -34,34 +56,86 @@ export function CatalogDrawer() {
           ×
         </button>
       </header>
-      <CategoryTabs active={active} onSelect={setActive} byCategory={byCategory} />
-      <div className="grid grid-cols-2 gap-2 overflow-y-auto p-3">
-        {cards.length === 0 ? (
-          <p className="col-span-2 py-6 text-center text-xs text-neutral-500">
-            No items in this category yet.
-          </p>
-        ) : (
-          cards.map((def) => (
-            <CatalogCard
-              key={def.id}
-              def={def}
-              onDelete={() => removeUserFurniture(def.id)}
+      <nav className="flex gap-1 border-b border-neutral-200 px-3 py-2 text-[11px]">
+        {(
+          [
+            ['builtin', 'Built-in'],
+            ['browse-furniture', 'Browse furniture'],
+            ['packs', 'Packs'],
+          ] as const
+        ).map(([m, label]) => (
+          <button
+            key={m}
+            onClick={() => setMode(m)}
+            className={`rounded px-2 py-1 ${
+              mode === m ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'
+            }`}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      {mode === 'builtin' ? (
+        <>
+          <div className="px-3 pt-2">
+            <input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search furniture…"
+              className="w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
             />
-          ))
-        )}
-      </div>
-      <footer className="flex items-center justify-between border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
-        <span>
-          Drag onto the floor. <kbd className="font-mono">R</kbd> rotates after drop.
-        </span>
-        <button
-          onClick={() => setUploadOpen(true)}
-          className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-700"
-        >
-          Upload model…
-        </button>
-      </footer>
+          </div>
+          {q ? null : <CategoryTabs active={active} onSelect={setActive} byCategory={byCategory} />}
+          <div className="grid grid-cols-2 gap-2 overflow-y-auto p-3">
+            {cards.length === 0 ? (
+              <p className="col-span-2 py-6 text-center text-xs text-neutral-500">
+                {q ? `No matches for “${query.trim()}”.` : 'No items in this category yet.'}
+              </p>
+            ) : (
+              cards.map((def) => (
+                <CatalogCard key={def.id} def={def} onDelete={() => removeUserFurniture(def.id)} />
+              ))
+            )}
+          </div>
+          <footer className="flex flex-col gap-1 border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
+            <div className="flex items-center justify-between">
+              <span>
+                Drag onto the floor. <kbd className="font-mono">R</kbd> rotates after drop.
+              </span>
+              <button
+                onClick={() => setUploadOpen(true)}
+                className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-700"
+              >
+                Upload model…
+              </button>
+            </div>
+            <button
+              onClick={() => setMode('browse-furniture')}
+              className="text-left text-[10px] text-blue-700 hover:underline"
+            >
+              Want photoreal models? Browse free CC0 libraries →
+            </button>
+          </footer>
+        </>
+      ) : mode === 'packs' ? (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <PacksTab />
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <RemoteBrowseTab
+            kind="furniture"
+            onResolved={() => {
+              // Switch to built-in tab so the user can place the resolved item
+              // (it's already merged into the active catalog).
+              setMode('builtin')
+            }}
+          />
+        </div>
+      )}
       <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+      <ThumbnailHost />
     </aside>
-  );
+  )
 }
