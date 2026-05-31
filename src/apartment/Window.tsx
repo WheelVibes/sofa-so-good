@@ -64,7 +64,7 @@ function Grille({ w, h }: { w: number; h: number }) {
   );
 }
 
-function WindowPane({ spec }: { spec: WindowSpec }) {
+export function WindowPane({ spec }: { spec: WindowSpec }) {
   const wall = findWall(spec.wallId);
   const groupRef = useRef<Group>(null);
   // Hide the window once its host wall has faded most of the way out, so it

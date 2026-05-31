@@ -13,7 +13,7 @@ function findWall(wallId: string): WallSpec | undefined {
   return WALLS.find((w) => w.id === wallId);
 }
 
-function DoorLeaf({ spec }: { spec: DoorSpec }) {
+export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const wall = findWall(spec.wallId);
   const isOpen = useStore((s) => s.doors[spec.id]?.open ?? spec.defaultOpen);
   const toggle = useStore((s) => s.toggleDoor);
