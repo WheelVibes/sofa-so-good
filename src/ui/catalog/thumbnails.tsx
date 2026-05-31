@@ -54,6 +54,10 @@ export function useBuiltinThumbnail(def: FurnitureDef): string | null {
     () => cache.get(def.id) ?? null,
     () => null,
   );
+  if (def.kind === 'gltf' && def.source === 'ikea') {
+    const active = def.variants.find((v) => v.finish === def.activeVariant);
+    if (active?.runtimeImageUrl) return active.runtimeImageUrl;
+  }
   if (def.kind === 'gltf' && def.source === 'pack' && def.thumbUrl) {
     return def.thumbUrl;
   }
