@@ -16,7 +16,23 @@ describe('placementKind', () => {
     expect(placementKind('Storage benches')).toBe('around');
   });
 
+  it('classifies the broader vertical taxonomy', () => {
+    expect(placementKind('Mattress pads & toppers')).toBe('vertical');
+    expect(placementKind('Mattress protectors')).toBe('vertical');
+    expect(placementKind('Chair pads')).toBe('vertical');
+    expect(placementKind('Back cushions')).toBe('vertical');
+    expect(placementKind('Seat cushions')).toBe('vertical');
+  });
+
+  it('classifies sofa sections/corners as modular (checked before around/vertical)', () => {
+    expect(placementKind('Sofa sections')).toBe('modular');
+    expect(placementKind('Corner sections')).toBe('modular');
+    expect(placementKind('Chaise longue sections')).toBe('modular');
+    expect(placementKind('Armrests')).toBe('modular');
+  });
+
   it('returns null for unclassified phrases (gate the action off)', () => {
     expect(placementKind('Mysterious widgets')).toBeNull();
+    expect(placementKind('Curtains')).toBeNull();
   });
 });
