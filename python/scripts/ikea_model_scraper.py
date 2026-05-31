@@ -901,6 +901,48 @@ async def merge_variant_group(group_dir, shared_meta, variant_entry, sibling_fin
         except OSError as e:
             print(f"[-] Failed writing group metadata {path}: {e}")
 
+def image_filename(url, stem):
+    """
+    Derive a filesystem-safe image filename `<stem>.<ext>` for a product image
+    URL. The extension is taken from the URL *path* (query params stripped, so
+    the saved name reflects the original master asset, not a resized variant);
+    defaults to '.jpg' when the path has no usable image extension.
+    """
+    path = (url or "").split("?", 1)[0].split("#", 1)[0]
+    m = re.search(r'\.(jpg|jpeg|png|webp)$', path, re.I)
+    ext = m.group(1).lower() if m else "jpg"
+    clean_stem = re.sub(r'[\\/*?:"<>|]', "", (stem or "image").strip().split('\n')[0])
+    return f"{clean_stem}.{ext}"
+
+
+async def download_image(client, url, product_dir, stem):
+    """Download a product image at original resolution into product_dir as
+    <stem>.<ext>. Strips resize query params so the master asset is fetched.
+    Returns the relative filename on success, else None. Best-effort: any
+    failure is logged and yields None (the variant simply has no image)."""
+    if not url:
+        return None
+    if url.startswith("//"):
+        url = f"https:{url}"
+    elif url.startswith("/"):
+        url = f"https://www.ikea.com{url}"
+    fetch_url = url.split("?", 1)[0]  # original master, no resize params
+    filename = image_filename(url, stem)
+    filepath = os.path.join(product_dir, filename)
+    if os.path.exists(filepath):
+        return filename
+    try:
+        resp = await client.get(fetch_url, timeout=60.0)
+        if resp.status_code == 200:
+            with open(filepath, "wb") as f:
+                f.write(resp.content)
+            print(f"[+] Saved product image: {filepath}")
+            return filename
+    except Exception as e:
+        print(f"[-] Image download failed ({stem}): {e}")
+    return None
+
+
 async def download_glb(client, url, product_dir, filename_stem):
     """Download a GLB into product_dir as <filename_stem>.glb. Returns the
     relative filename on success (so it can be recorded in metadata), else None."""
@@ -1158,6 +1200,19 @@ async def process_product_page(context, http_client, url, state,
             if glb_filename:
                 emit_progress({"group": group_key, "finish": active_finish,
                                "glb": glb_filename, "phase": "glb_written"})
+
+                # Product images (original resolution) — self-contained group
+                # folder. Catalog uses the main image; contextual kept for later.
+                main_image = await download_image(
+                    http_client, json_fields.get("main_image_url"),
+                    group_dir, f"{glb_stem}-main")
+                context_image = await download_image(
+                    http_client, json_fields.get("contextual_image_url"),
+                    group_dir, f"{glb_stem}-context")
+                if main_image or context_image:
+                    emit_progress({"group": group_key, "finish": active_finish,
+                                   "phase": "image_written"})
+
                 description = details.get("description") or summary_description
 
                 # Analyse the downloaded GLB for geometry (footprint/anchor) and
@@ -1209,6 +1264,8 @@ async def process_product_page(context, http_client, url, state,
                     "documents": details.get("documents", []),
                     "main_image_url": json_fields.get("main_image_url"),
                     "contextual_image_url": json_fields.get("contextual_image_url"),
+                    "main_image": main_image,
+                    "context_image": context_image,
                     "global_model_id": json_fields.get("global_model_id"),
                     "model_asset_url": glb_url,
                     "glb": glb_filename,
