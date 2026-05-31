@@ -11,6 +11,9 @@
     "isolatedModules": true,
     "moduleDetection": "force",
     "noEmit": true,
+    // TS6 no longer auto-includes @types/node globals under moduleResolution
+    // 'bundler'; the test files import node 'fs'/'path' and use __dirname.
+    "types": ["node"],
     "jsx": "react-jsx",
     "strict": true,
     "noUnusedLocals": true,

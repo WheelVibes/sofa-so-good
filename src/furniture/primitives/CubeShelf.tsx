@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { readNum, readStr } from './shared';
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
@@ -41,7 +42,7 @@ export function CubeShelf({ props }: { props: ParamProps }) {
   });
 
   // Sparse decorative fills (deterministic).
-  const fills: JSX.Element[] = [];
+  const fills: ReactNode[] = [];
   let seed = cols * 131 + rows * 17;
   const rnd = () => {
     seed = (seed * 1103515245 + 12345) & 0x7fffffff;

@@ -7,7 +7,7 @@ const DELAY_MS = 400;
  *  chip) after a hover delay. Hidden on leave / pointer-down. */
 export function Tooltip({ label, shortcut, children }: { label: string; shortcut: string; children: ReactNode }) {
   const ref = useRef<HTMLSpanElement>(null);
-  const timer = useRef<ReturnType<typeof setTimeout>>();
+  const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
   const [open, setOpen] = useState(false);
 
   const enter = () => {

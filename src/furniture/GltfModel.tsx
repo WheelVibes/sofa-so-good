@@ -110,7 +110,7 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
     () => SkeletonUtils.clone(gltf.scene as unknown as Object3D),
     [gltf.scene],
   );
-  const tintRef = useRef<string | undefined>();
+  const tintRef = useRef<string | undefined>(undefined);
 
   // Cache footprint, keyed by the base (high-tier) url so collision is
   // consistent across tiers. Simplified low/medium variants can shift the bbox

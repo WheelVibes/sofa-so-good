@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react';
 import { readNum, readStr } from './shared';
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials';
 import type { ParamProps } from '../types';
@@ -47,7 +48,7 @@ export function Bookshelf({ props }: BookshelfProps) {
   // compartment (s === 0) is closed, so skip its books.
   const BOOK_COLORS = ['#7d3b3b', '#3b5a7d', '#5a7d3b', '#b08a3e', '#6b4a7d', '#3b6f6b', '#9c5a3c'];
   const usableW = width - sideThickness * 2 - 0.02;
-  const books: JSX.Element[] = [];
+  const books: ReactNode[] = [];
   let bookKey = 0;
   const firstBookShelf = hasCabinet ? 1 : 0;
   for (let s = firstBookShelf; s < shelfCount - 1; s++) {
@@ -79,7 +80,7 @@ export function Bookshelf({ props }: BookshelfProps) {
   }
 
   // Closed base cabinet: two doors filling the lowest compartment.
-  const cabinetDoors: JSX.Element[] = [];
+  const cabinetDoors: ReactNode[] = [];
   if (hasCabinet) {
     const doorGapH = shelfSpacing - shelfThickness;
     const doorH = doorGapH - 0.01;
