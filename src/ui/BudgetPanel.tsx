@@ -48,14 +48,18 @@ export function BudgetPanel() {
       const def = catalog[it.defId];
       if (!def) continue;
       const cat = def.category;
-      const each = itemPrice(def, cat);
+      // Per-instance IKEA finish (if any) — so two instances on different,
+      // differently-priced finishes price + group as distinct lines.
+      const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined;
+      const each = itemPrice(def, cat, variant);
       total += each;
       count += 1;
       if (!byCat.has(cat)) byCat.set(cat, new Map());
       const lines = byCat.get(cat)!;
-      const existing = lines.get(it.defId);
+      const lineKey = variant ? `${it.defId}::${variant}` : it.defId;
+      const existing = lines.get(lineKey);
       if (existing) existing.count += 1;
-      else lines.set(it.defId, { defId: it.defId, name: def.name, count: 1, each });
+      else lines.set(lineKey, { defId: it.defId, name: def.name, count: 1, each });
     }
     const groups = FURNITURE_CATEGORIES.filter((c) => byCat.has(c)).map((c) => {
       const lines = [...byCat.get(c)!.values()].sort((a, b) => b.each * b.count - a.each * a.count);

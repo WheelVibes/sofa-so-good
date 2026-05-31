@@ -37,13 +37,15 @@ export function buildReportHtml(
   for (const it of items) {
     const def = catalog[it.defId];
     if (!def) continue;
-    const each = itemPrice(def, def.category);
+    const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined;
+    const each = itemPrice(def, def.category, variant);
     budget += each;
     if (!byCat.has(def.category)) byCat.set(def.category, new Map());
     const m = byCat.get(def.category)!;
-    const ex = m.get(it.defId);
+    const lineKey = variant ? `${it.defId}::${variant}` : it.defId;
+    const ex = m.get(lineKey);
     if (ex) ex.count += 1;
-    else m.set(it.defId, { name: def.name, count: 1, each });
+    else m.set(lineKey, { name: def.name, count: 1, each });
   }
   const furnitureRows = FURNITURE_CATEGORIES.filter((c) => byCat.has(c))
     .map((c) => {

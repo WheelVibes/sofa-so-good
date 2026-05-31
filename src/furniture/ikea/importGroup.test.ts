@@ -8,7 +8,18 @@ vi.mock('../../state/storage/IdbAssetStore', () => ({
   IdbAssetStore: { put: (...a: unknown[]) => put(...a), delete: vi.fn() },
 }));
 const added: any[] = [];
-const state = { addUserFurniture: (d: unknown) => added.push(d), userFurniture: [] as any[], removeUserFurniture: vi.fn() };
+const state = {
+  addUserFurniture: (d: unknown) => added.push(d),
+  // importGroup now uses replaceUserFurniture (swap-or-append, keeps placements).
+  replaceUserFurniture: (d: any) => {
+    const i = state.userFurniture.findIndex((x) => x.id === d.id);
+    if (i >= 0) state.userFurniture[i] = d;
+    else state.userFurniture.push(d);
+    added.push(d);
+  },
+  userFurniture: [] as any[],
+  removeUserFurniture: vi.fn(),
+};
 vi.mock('../../state/store', () => ({ useStore: { getState: () => state } }));
 
 import { importGroup } from './importGroup';

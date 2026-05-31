@@ -13,6 +13,18 @@ import { CLEARANCE } from '../layout/designRules';
 import type { FurnitureDef, FurnitureItem, ParamProps } from './types';
 import { defaultParamProps } from './types';
 
+/** Fresh per-item id. Must be globally unique — set items are appended via the
+ *  store's `setItems`, which (unlike `addItem`) does NOT generate or check ids,
+ *  so a deterministic groupId-derived scheme would collide across two drops in
+ *  the same millisecond (identical timestamp → identical ids). Shared by the
+ *  built-in Sets dropper too (same `setItems` append path). */
+export function newSetItemId(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return `set-${Math.random().toString(36).slice(2, 10)}-${Date.now().toString(36)}`;
+}
+
 export type SetRole = 'table' | 'chair' | 'bench' | 'stool' | 'other';
 
 export interface SetMember {
@@ -219,12 +231,11 @@ export function buildSetGroup(
   const keptInstances = resolved.map((r) => r.m);
   const placements = arrangeSet(keptInstances, footprints);
   const placementByIndex = new Map(placements.map((p) => [p.index, p]));
-  const stamp = groupId.replace(/[^a-z0-9]/gi, '');
 
   return resolved.map(({ m, defId, props }) => {
     const p = placementByIndex.get(m.index) ?? { index: m.index, dx: 0, dz: 0, rotation: 0 };
     return {
-      id: `${stamp}-${m.index}`,
+      id: newSetItemId(),
       defId,
       position: [dropCentre.x + p.dx, dropCentre.z + p.dz] as [number, number],
       rotation: p.rotation,

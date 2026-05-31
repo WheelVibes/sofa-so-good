@@ -236,6 +236,16 @@ describe('buildSetGroup', () => {
     const ids = new Set(items.map((i) => i.id));
     expect(ids.size).toBe(items.length);
   });
+
+  it('mints ids that do not collide across two drops of the same recipe', () => {
+    // Two drops with the SAME groupId (worst case for a deterministic
+    // groupId-derived id scheme) must still yield disjoint item ids — the app
+    // appends both batches via setItems, which does no uniqueness check.
+    const a = buildSetGroup(VIHALS, { x: 0, z: 0 }, FIXTURE_CATALOG, 'g');
+    const b = buildSetGroup(VIHALS, { x: 0, z: 0 }, FIXTURE_CATALOG, 'g');
+    const all = new Set([...a, ...b].map((i) => i.id));
+    expect(all.size).toBe(a.length + b.length);
+  });
 });
 
 describe('ikeaSetRecipes registry', () => {

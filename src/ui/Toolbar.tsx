@@ -6,7 +6,9 @@ import type { EditorTool } from '../state/slices/uiSlice';
 import { LocalStorageAdapter } from '../state/storage/LocalStorageAdapter';
 import { serialize, applySerialized } from '../state/schema';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
-import { buildSetGroup, ikeaSetRecipes } from '../furniture/ikeaSets';
+import { buildMergedCatalog, useCatalog } from '../furniture/catalog';
+import { buildSetGroup, ikeaSetRecipes, newSetItemId as newItemId } from '../furniture/ikeaSets';
+import { newGroupId } from '../state/slices/groupsSlice';
 import type { FurnitureItem, FurnitureDef } from '../furniture/types';
 import type { SlotMeta } from '../state/storage/StorageAdapter';
 import { CreditsModal } from './CreditsModal';
@@ -181,9 +183,13 @@ function TidyHomeButton() {
   const tidy = () => {
     const s = useStore.getState();
     s.pushHistory();
+    // Merged catalog (incl. user + IKEA defs) so the arranger can see imported
+    // items' footprints + flags — with BUILTIN_CATALOG alone, IKEA imports were
+    // invisible (unknown defId → 'other' role) and mis-handled.
+    const catalog = buildMergedCatalog(s);
     const next = isDefaultPlan(s.floorPlan)
-      ? arrangeAllRooms(s.items, BUILTIN_CATALOG, s.doors)
-      : arrangeAllRoomsForPlan(s.floorPlan, s.items, BUILTIN_CATALOG, s.doors);
+      ? arrangeAllRooms(s.items, catalog, s.doors)
+      : arrangeAllRoomsForPlan(s.floorPlan, s.items, catalog, s.doors);
     s.setItems(next);
   };
   return (
@@ -614,7 +620,7 @@ function ReportButton() {
     } catch {
       hero = null; // tainted canvas — skip the image
     }
-    const html = buildReportHtml(s.floorPlan, s.items, BUILTIN_CATALOG, hero);
+    const html = buildReportHtml(s.floorPlan, s.items, buildMergedCatalog(s), hero);
     const win = window.open('', '_blank');
     if (!win) return;
     win.document.write(html);
@@ -692,7 +698,11 @@ function ChecksToggle() {
   const toggle = useStore((s) => s.toggleClearance);
   const items = useStore((s) => s.items);
   const plan = useStore((s) => s.floorPlan);
-  const count = useMemo(() => blockedDoorItems(items, BUILTIN_CATALOG, plan).length, [items, plan]);
+  const catalog = useCatalog();
+  const count = useMemo(
+    () => blockedDoorItems(items, catalog, plan).length,
+    [items, catalog, plan],
+  );
   return (
     <button
       onClick={toggle}
@@ -721,14 +731,16 @@ function BUILTIN_CATALOG_PLUS_IKEA(): Record<string, FurnitureDef> {
 function SetsMenu() {
   const [open, setOpen] = useState(false);
 
-  /** Append items, group them, select the group, push one history entry. */
+  /** Append items, group them, select the group, push ONE history entry. The
+   *  groupId is stamped inline (not via `groupItems`, which pushes its own
+   *  history — a second undo step that would leave the set placed-but-ungrouped). */
   const dropArranged = (items: FurnitureItem[]) => {
     const st = useStore.getState();
     st.pushHistory();
-    st.setItems([...st.items, ...items]);
-    const ids = items.map((i) => i.id);
-    // Stamp a fresh shared groupId via the plan-2 helper (single source of ids).
-    st.groupItems(ids);
+    const gid = newGroupId();
+    const grouped = items.map((i) => ({ ...i, groupId: gid }));
+    st.setItems([...st.items, ...grouped]);
+    const ids = grouped.map((i) => i.id);
     st.setSelectedItemIds(ids);
     setOpen(false);
   };
@@ -747,9 +759,8 @@ function SetsMenu() {
     const set = FURNITURE_SETS.find((s) => s.id === setId);
     if (!set) return;
     const [bx, bz] = dropCentre();
-    const stamp = Date.now().toString(36);
-    const items: FurnitureItem[] = set.items.map((e, i) => ({
-      id: `set-${stamp}-${i}`,
+    const items: FurnitureItem[] = set.items.map((e) => ({
+      id: newItemId(),
       defId: e.defId,
       position: [bx + e.dx, bz + e.dz] as [number, number],
       rotation: e.rotation,

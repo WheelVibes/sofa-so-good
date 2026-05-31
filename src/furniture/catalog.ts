@@ -60,18 +60,35 @@ function resolveIkeaDefFootprint(def: IkeaGltfDef): IkeaGltfDef {
   return { ...def, defaultFootprint, verticalSpan: def.verticalSpan ?? verticalSpan };
 }
 
+/** Build the complete merged catalog (built-ins + generated + user/IKEA uploads
+ *  + resolved remote + installed packs) from store slices. Non-reactive — call
+ *  from event handlers / non-hook code (e.g. the whole-home auto-arranger) that
+ *  must see user + IKEA defs, not just BUILTIN_CATALOG. The hook `useCatalog`
+ *  wraps this for reactive consumers. */
+export function buildMergedCatalog(slices: {
+  userFurniture: (UserGltfDef | IkeaGltfDef)[];
+  resolvedRemoteFurniture: Record<string, FurnitureDef>;
+  packFurniture: FurnitureDef[];
+}): Record<FurnitureType, FurnitureDef> {
+  const merged: Record<FurnitureType, FurnitureDef> = { ...BUILTIN_CATALOG };
+  for (const def of GENERATED_FURNITURE) merged[def.id] = def;
+  for (const def of slices.userFurniture)
+    merged[def.id] = isIkeaDef(def) ? resolveIkeaDefFootprint(def) : resolveUserDefFootprint(def);
+  for (const def of Object.values(slices.resolvedRemoteFurniture)) merged[def.id] = def;
+  for (const def of slices.packFurniture) merged[def.id] = def;
+  return merged;
+}
+
 /** Reactive hook returning the complete catalog (built-ins + user uploads + resolved remote + installed packs). */
 export function useCatalog(): Record<FurnitureType, FurnitureDef> {
   const userFurniture = useStore(useShallow((s) => s.userFurniture));
   const remote = useStore(useShallow((s) => s.resolvedRemoteFurniture));
   const packFurniture = useStore(useShallow((s) => s.packFurniture));
-  const merged: Record<FurnitureType, FurnitureDef> = { ...BUILTIN_CATALOG };
-  for (const def of GENERATED_FURNITURE) merged[def.id] = def;
-  for (const def of userFurniture)
-    merged[def.id] = isIkeaDef(def) ? resolveIkeaDefFootprint(def) : resolveUserDefFootprint(def);
-  for (const def of Object.values(remote)) merged[def.id] = def;
-  for (const def of packFurniture) merged[def.id] = def;
-  return merged;
+  return buildMergedCatalog({
+    userFurniture,
+    resolvedRemoteFurniture: remote,
+    packFurniture,
+  });
 }
 
 /** Reactive hook returning the catalog grouped by category. */

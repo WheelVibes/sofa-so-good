@@ -126,16 +126,32 @@ export function roleForCategory(cat: FurnitureCategory): ArrangeRole {
       return 'storage';
     case 'laundry':
       return 'storage';
+    case 'tables':
+      return 'lowTable';
+    case 'lighting':
+      // Non-mounted lighting (floor/table lamps) — ceiling/wall fixtures are
+      // already caught by the `mounted` flag in `roleOf` before this runs.
+      return 'floorLamp';
     default:
+      // kitchen / bathroom / decor / outdoor / others fall here: no curated
+      // floor slot, so `settle()` parks them collision-free.
       return 'other';
   }
 }
 
-function roleOf(defId: string, catalog: Record<string, FurnitureDef>): ArrangeRole {
+export function roleOf(defId: string, catalog: Record<string, FurnitureDef>): ArrangeRole {
   const explicit = ROLE[defId];
   if (explicit) return explicit;
-  const cat = catalog[defId]?.category;
-  return cat ? roleForCategory(cat) : 'other';
+  const def = catalog[defId];
+  if (!def) return 'other';
+  // Honour the def's collision flags first — an imported (IKEA/user) def gets
+  // no entry in ROLE, so without this a wall-mounted pendant or aircon would
+  // fall to a floor role (storage/other) and `settle()` would drop it on the
+  // floor. `mounted` defs are wall/ceiling fixtures (kept fixed, not relocated);
+  // `noClip` defs are rugs (laid flat, slide under everything).
+  if (def.mounted) return 'mounted';
+  if (def.noClip) return 'rug';
+  return roleForCategory(def.category);
 }
 
 /** Base (unrotated) footprint from the def + parametric overrides. */

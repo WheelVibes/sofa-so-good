@@ -23,23 +23,38 @@ function broadcast(event) {
 }
 
 /** Merge scraper NDJSON events into the broadcast stream: forward every event,
- *  submit each landed finish GLB for optimization, and emit `group_ready` once
- *  (metadata written AND ≥1 finish landed). Extracted + exported for unit tests. */
+ *  submit each landed finish GLB for optimization, and emit `group_ready` each
+ *  time the group's on-disk metadata.json gains a finish.
+ *
+ *  A multi-finish IKEA product is scraped one finish at a time — each finish is
+ *  a separate product page that re-writes the SHARED group metadata.json,
+ *  filling in its own variant (the others remain `glb:null` stubs until their
+ *  turn). So the FIRST `metadata_written` only has one usable variant. We
+ *  therefore re-emit `group_ready` on every `metadata_written` that follows a
+ *  newly-landed finish, so the client re-registers (idempotently, via
+ *  `replaceUserFurniture`) with the now-fuller metadata. Without this, every
+ *  multi-finish group imports with only its first finish usable.
+ *
+ *  Extracted + exported for unit tests. */
 export function createEventMerger({ onEmit, submitOptimize }) {
-  const groupsWithFinish = new Set();
-  const metadataWritten = new Set();
-  const groupsReady = new Set();
+  // Per-group count of finishes whose GLB has landed since we last emitted
+  // group_ready for it — lets us fire only when there's genuinely more to load.
+  const finishesLanded = new Map();
+  const finishesAtLastReady = new Map();
   return function handle(ev) {
     onEmit(ev);
     if (ev.phase === 'glb_written' && ev.group && ev.glb) {
-      groupsWithFinish.add(ev.group);
+      finishesLanded.set(ev.group, (finishesLanded.get(ev.group) ?? 0) + 1);
       submitOptimize(ev.group, ev.glb);
     }
-    if (ev.phase === 'metadata_written' && ev.group) metadataWritten.add(ev.group);
-    if (ev.group && metadataWritten.has(ev.group) && groupsWithFinish.has(ev.group)
-        && !groupsReady.has(ev.group)) {
-      groupsReady.add(ev.group);
-      onEmit({ phase: 'group_ready', group: ev.group });
+    if (ev.phase === 'metadata_written' && ev.group) {
+      const landed = finishesLanded.get(ev.group) ?? 0;
+      // Ready only once ≥1 finish has a GLB, and only if a new finish landed
+      // since the last emit (so we don't re-fire on a metadata-only refresh).
+      if (landed > 0 && landed > (finishesAtLastReady.get(ev.group) ?? 0)) {
+        finishesAtLastReady.set(ev.group, landed);
+        onEmit({ phase: 'group_ready', group: ev.group });
+      }
     }
   };
 }

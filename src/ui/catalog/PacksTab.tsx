@@ -22,6 +22,13 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
   const [items, setItems] = useState<Record<string, IkeaProgressEvent>>({});
   const [registered, setRegistered] = useState(0);
   const cancelRef = useRef<null | (() => void)>(null);
+  // Distinct group keys already imported this run. A multi-finish group fires
+  // `group_ready` once per landed finish (so we re-import with the fuller
+  // metadata), but it must only count toward "N added" once. The in-flight set
+  // also serialises re-registers of the same group so a later (fuller) import
+  // can't be clobbered by an earlier one finishing last.
+  const registeredGroups = useRef<Set<string>>(new Set());
+  const registeringGroups = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     sidecarStatus().then((s) => setSidecarUp(!!s));
@@ -32,6 +39,8 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
     setRunning(true);
     setItems({});
     setRegistered(0);
+    registeredGroups.current = new Set();
+    registeringGroups.current = new Set();
     try {
       await startScrape(0);
     } catch {
@@ -55,9 +64,19 @@ function IkeaLiveCard({ pack }: { pack: Pack }) {
         }
       },
       (group) => {
-        void registerGroup(group).then((ok) => {
-          if (ok) setRegistered((n) => n + 1);
-        });
+        // Skip if a register for this group is already in flight (the next
+        // group_ready will re-run with the fuller metadata once it frees up).
+        if (registeringGroups.current.has(group)) return;
+        registeringGroups.current.add(group);
+        void registerGroup(group)
+          .then((ok) => {
+            // Count each distinct group once, even across re-imports.
+            if (ok && !registeredGroups.current.has(group)) {
+              registeredGroups.current.add(group);
+              setRegistered((n) => n + 1);
+            }
+          })
+          .finally(() => registeringGroups.current.delete(group));
       },
     );
   }

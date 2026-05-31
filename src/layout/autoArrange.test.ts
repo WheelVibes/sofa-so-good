@@ -1,12 +1,12 @@
 import { describe, it, expect } from 'vitest';
-import { arrangeRoom, arrangeAllRooms, arrangeAllRoomsForPlan, roomOf, roleForCategory } from './autoArrange';
+import { arrangeRoom, arrangeAllRooms, arrangeAllRoomsForPlan, roomOf, roleForCategory, roleOf } from './autoArrange';
 import { buildDefaultPlan } from '../floorplan/defaultPlan';
 import { blockedDoorItems } from './clearance';
 import { defaultLayout } from '../furniture/defaultLayout';
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog';
 import { defaultParamProps } from '../furniture/types';
 import { canPlace } from '../collision/placement';
-import type { FurnitureItem } from '../furniture/types';
+import type { FurnitureItem, FurnitureDef } from '../furniture/types';
 
 function hydrate(): FurnitureItem[] {
   return defaultLayout().map((e) => {
@@ -137,5 +137,106 @@ describe('roleForCategory new categories', () => {
     expect(roleForCategory('kids')).toBe('storage');
     expect(roleForCategory('laundry')).toBe('storage');
     expect(roleForCategory('others')).toBe('other');
+    expect(roleForCategory('tables')).toBe('lowTable');
+    expect(roleForCategory('lighting')).toBe('floorLamp');
+  });
+});
+
+describe('roleOf honours def collision flags (imported IKEA/user defs)', () => {
+  function gltfDef(over: Partial<FurnitureDef>): FurnitureDef {
+    return {
+      kind: 'gltf', id: 'ikea-x', name: 'X', category: 'lighting', source: 'ikea',
+      groupKey: 'x', activeVariant: 'a', variants: [],
+      defaultFootprint: { w: 0.4, d: 0.4, h: 0.4 }, uploadedAt: 't',
+      license: 'IKEA', attribution: 'IKEA', ...over,
+    } as FurnitureDef;
+  }
+
+  it('treats a mounted IKEA def as a fixed wall/ceiling fixture, not a floor item', () => {
+    // A ceiling pendant: category lighting, mounted. Without the flag check it
+    // would resolve to a floor role and get parked on the floor by settle().
+    const def = gltfDef({ id: 'ikea-pendant', category: 'lighting', mounted: true });
+    expect(roleOf('ikea-pendant', { 'ikea-pendant': def })).toBe('mounted');
+  });
+
+  it('treats a mounted appliance (range hood / aircon) as fixed', () => {
+    const def = gltfDef({ id: 'ikea-hood', category: 'appliances', mounted: true });
+    expect(roleOf('ikea-hood', { 'ikea-hood': def })).toBe('mounted');
+  });
+
+  it('treats a noClip IKEA def (rug) as a rug', () => {
+    const def = gltfDef({ id: 'ikea-rug', category: 'textiles', noClip: true });
+    expect(roleOf('ikea-rug', { 'ikea-rug': def })).toBe('rug');
+  });
+
+  it('falls back to the category role for an unflagged imported def', () => {
+    const def = gltfDef({ id: 'ikea-lamp', category: 'lighting' });
+    expect(roleOf('ikea-lamp', { 'ikea-lamp': def })).toBe('floorLamp');
+  });
+});
+
+describe('arrangeAllRooms with imported IKEA defs (whole-home Tidy regression guard)', () => {
+  // Mirrors what TidyHomeButton does once a real IKEA catalogue is loaded: the
+  // arranger is handed a MERGED catalog containing IKEA defs (not BUILTIN_CATALOG
+  // alone). A mounted fixture must stay put; a floor item must be (re)placed
+  // validly. This guards the catalog-wiring + flag-aware role fix as the
+  // catalogue grows. See [[arrange-needs-merged-catalog]].
+  function ikeaDef(over: Partial<FurnitureDef>): FurnitureDef {
+    return {
+      kind: 'gltf', id: 'ikea-x', name: 'X', category: 'others', source: 'ikea',
+      groupKey: 'x', activeVariant: 'a', variants: [],
+      defaultFootprint: { w: 0.4, d: 0.4, h: 0.4 }, uploadedAt: 't',
+      license: 'IKEA', attribution: 'IKEA', ...over,
+    } as FurnitureDef;
+  }
+
+  // A point well inside the living/dining room rect { x0:9.15, z0:1.5, x1:12.5, z1:6.65 }.
+  const IN_LIVING: [number, number] = [10.8, 4.0];
+
+  it('does NOT relocate a mounted IKEA fixture (pendant stays put, not floor-placed)', () => {
+    const pendant = ikeaDef({ id: 'ikea-pendant', category: 'lighting', mounted: true });
+    const catalog = { ...BUILTIN_CATALOG, [pendant.id]: pendant };
+    const mountedItem: FurnitureItem = {
+      id: 'm1', defId: 'ikea-pendant', position: IN_LIVING, rotation: 0, props: {},
+    };
+
+    const out = arrangeAllRooms([...hydrate(), mountedItem], catalog, {});
+    const after = out.find((i) => i.id === 'm1');
+    expect(after).toBeDefined();
+    // Fixed obstacle: its transform is preserved exactly (never parked on the floor).
+    expect(after!.position).toEqual(IN_LIVING);
+    expect(after!.rotation).toBe(0);
+  });
+
+  it('does NOT relocate a noClip IKEA rug', () => {
+    const rug = ikeaDef({ id: 'ikea-rug', category: 'textiles', noClip: true });
+    const catalog = { ...BUILTIN_CATALOG, [rug.id]: rug };
+    const rugItem: FurnitureItem = {
+      id: 'r1', defId: 'ikea-rug', position: IN_LIVING, rotation: 0, props: {},
+    };
+    const out = arrangeAllRooms([...hydrate(), rugItem], catalog, {});
+    const after = out.find((i) => i.id === 'r1');
+    // 'rug' role is not 'mounted'/'ceiling', so it's arrangeable — but it must
+    // still survive the pass (present, with a finite position), never dropped.
+    expect(after).toBeDefined();
+    expect(Number.isFinite(after!.position[0])).toBe(true);
+    expect(Number.isFinite(after!.position[1])).toBe(true);
+  });
+
+  it('keeps every item across the pass and never throws on an IKEA-laden catalog', () => {
+    const sofa = ikeaDef({ id: 'ikea-sofa', category: 'seating' });
+    const bed = ikeaDef({ id: 'ikea-bed', category: 'beds', defaultFootprint: { w: 1.5, d: 2.0, h: 0.5 } });
+    const catalog = { ...BUILTIN_CATALOG, [sofa.id]: sofa, [bed.id]: bed };
+    const items: FurnitureItem[] = [
+      ...hydrate(),
+      { id: 's1', defId: 'ikea-sofa', position: [10.5, 3.0], rotation: 0, props: {} },
+      { id: 'b1', defId: 'ikea-bed', position: [10.5, 5.0], rotation: 0, props: {} },
+    ];
+    const out = arrangeAllRooms(items, catalog, {});
+    // No item dropped or duplicated.
+    expect(out).toHaveLength(items.length);
+    expect(new Set(out.map((i) => i.id)).size).toBe(items.length);
+    expect(out.find((i) => i.id === 's1')).toBeDefined();
+    expect(out.find((i) => i.id === 'b1')).toBeDefined();
   });
 });

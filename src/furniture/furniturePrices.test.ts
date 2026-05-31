@@ -27,6 +27,33 @@ describe('itemPrice', () => {
     const noPrice = { ...ikea, variants: [{ ...ikea.variants[0], price: undefined }] } as IkeaGltfDef;
     expect(itemPrice(noPrice, 'beds')).toBe(650); // CATEGORY_BASE.beds
   });
+
+  it('prices the per-INSTANCE variant when one is given (not just the def default)', () => {
+    const twoVariant = {
+      ...ikea,
+      activeVariant: 'bb',
+      variants: [
+        { finish: 'bb', label: 'BB', articleNumber: '1', url: 'u', assetId: 'a1', price: 204, glbMaterials: [] },
+        { finish: 'white', label: 'White', articleNumber: '2', url: 'u', assetId: 'a2', price: 299, glbMaterials: [] },
+      ],
+    } as IkeaGltfDef;
+    // Default (no instance variant) → active variant price.
+    expect(itemPrice(twoVariant, 'beds')).toBe(204);
+    // Instance switched to the pricier finish → its price.
+    expect(itemPrice(twoVariant, 'beds', 'white')).toBe(299);
+  });
+
+  it('falls back to the active variant when the instance variant has no price', () => {
+    const mixed = {
+      ...ikea,
+      activeVariant: 'bb',
+      variants: [
+        { finish: 'bb', label: 'BB', articleNumber: '1', url: 'u', assetId: 'a1', price: 204, glbMaterials: [] },
+        { finish: 'white', label: 'White', articleNumber: '2', url: 'u', assetId: 'a2', price: undefined, glbMaterials: [] },
+      ],
+    } as IkeaGltfDef;
+    expect(itemPrice(mixed, 'beds', 'white')).toBe(204);
+  });
 });
 
 describe('furniturePrices', () => {

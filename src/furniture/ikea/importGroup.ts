@@ -136,9 +136,10 @@ export async function importGroup(meta: IkeaMetadata, files: File[]): Promise<Im
     sourceUrl: active.url,
   };
 
-  // Replace an existing import of the same group (dedupe by id).
-  const existing = useStore.getState().userFurniture.find((d) => d.id === def.id);
-  if (existing) useStore.getState().removeUserFurniture(def.id);
-  useStore.getState().addUserFurniture(def);
+  // Replace an existing import of the same group (dedupe by id) WITHOUT
+  // deleting the user's placed instances — they reference the def by its
+  // stable `ikea-<group_key>` id and ride through the swap. (Using
+  // removeUserFurniture here would silently wipe every placement of the group.)
+  useStore.getState().replaceUserFurniture(def);
   return { ok: true, def };
 }

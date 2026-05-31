@@ -95,15 +95,23 @@ const ITEM_PRICE: Record<string, number> = {
   'wall-shelf': 60,
 };
 
-/** Estimated price (SGD) for one item. An IKEA def's active-variant price wins;
- *  else a per-item table entry; else the per-category base; else 100. */
+/** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant
+ *  (`variant` — the finish the user selected on that placed item) wins, so two
+ *  instances on different finishes are priced independently; it falls back to
+ *  the def's active variant, then any priced variant, then a per-item table
+ *  entry, then the per-category base, then 100. */
 export function itemPrice(
   def: Pick<FurnitureDef, 'id' | 'category'> & Partial<FurnitureDef>,
   category: FurnitureCategory,
+  variant?: string,
 ): number {
   if (def.kind === 'gltf' && def.source === 'ikea' && def.variants) {
-    const active = def.variants.find((v) => v.finish === def.activeVariant) ?? def.variants[0];
-    if (typeof active?.price === 'number') return active.price;
+    const wanted = variant ?? def.activeVariant;
+    const chosen =
+      def.variants.find((v) => v.finish === wanted && typeof v.price === 'number') ??
+      def.variants.find((v) => v.finish === def.activeVariant && typeof v.price === 'number') ??
+      def.variants.find((v) => typeof v.price === 'number');
+    if (typeof chosen?.price === 'number') return chosen.price;
   }
   return ITEM_PRICE[def.id] ?? CATEGORY_BASE[category] ?? 100;
 }

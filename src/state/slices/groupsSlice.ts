@@ -2,7 +2,10 @@ import type { SliceCreator } from './types';
 import type { RootState } from '../store';
 import type { FurnitureItem } from '../../furniture/types';
 
-function newGroupId(): string {
+/** Fresh, globally-unique group id. Exported so non-store droppers (the Sets
+ *  menu) can stamp a groupId inline in a single history step rather than via
+ *  `groupItems` (which pushes its own history). */
+export function newGroupId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return `grp-${crypto.randomUUID()}`;
   }
