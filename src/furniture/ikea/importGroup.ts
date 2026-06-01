@@ -134,8 +134,19 @@ async function buildVariant(
  *  missing/invalid file) become greyed variants with a null assetId. The
  *  active variant is the first finish whose blob was actually written; the
  *  whole import only fails when no blob was written at all. Pre-seeds the
- *  active variant's footprint cache so collision is correct before render. */
-export async function importGroup(meta: IkeaMetadata, files: File[]): Promise<ImportGroupResult> {
+ *  active variant's footprint cache so collision is correct before render.
+ *
+ *  `commit` (default true) writes the def into the store immediately. Bulk
+ *  import passes `commit:false` and batch-commits all groups in ONE store write
+ *  (addManyUserFurniture) — committing per group triggers an O(n²) catalog
+ *  rebuild storm across in-canvas subscribers that starves the render loop and
+ *  can cost the WebGL context (white flicker). */
+export async function importGroup(
+  meta: IkeaMetadata,
+  files: File[],
+  opts: { commit?: boolean } = {},
+): Promise<ImportGroupResult> {
+  const commit = opts.commit ?? true
   const { category, confidence } = mapCategory(meta.design.category)
 
   // Build every variant concurrently — each does a validate + full-file
@@ -219,6 +230,7 @@ export async function importGroup(meta: IkeaMetadata, files: File[]): Promise<Im
   // deleting the user's placed instances — they reference the def by its
   // stable `ikea-<group_key>` id and ride through the swap. (Using
   // removeUserFurniture here would silently wipe every placement of the group.)
-  useStore.getState().replaceUserFurniture(def)
+  // Skipped when commit:false — the bulk caller batch-commits all groups at once.
+  if (commit) useStore.getState().replaceUserFurniture(def)
   return { ok: true, def }
 }

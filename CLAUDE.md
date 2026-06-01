@@ -134,7 +134,20 @@ rediscover it.
     imports detected groups through a bounded pool (`GROUP_CONCURRENCY`, parallel
     — was a serial loop) + loose files through the bulk path, all **off the
     modal** as a background job tracked by one `notify` progress notification, so
-    closing the dialog doesn't cancel it). These drive
+    closing the dialog doesn't cancel it). **Store writes are batched**: groups
+    build with `importGroup(…, {commit:false})` and flush via
+    `addManyUserFurniture` every `COMMIT_BATCH` (bulk import + `persistUserGlb`
+    `{commit:false}` do the same) — committing *per* item re-ran
+    `buildMergedCatalog` (O(total)) in every subscriber for all N items (**O(n²)**),
+    starving the render loop on a multi-thousand import until the browser killed
+    the WebGL context (**white flicker**); batching makes it a few dozen rebuilds.
+    Progress is **rAF-coalesced** to one `notify.update` per frame. In-canvas
+    catalog consumers (`FurnitureLayer` excepted — it renders from it; but
+    `DragController`/`MarqueeSelector`) use `catalog.ts` **`useCatalogGetter`** (a
+    stable `(id)=>def` backed by a non-rendering store subscription) so catalog
+    churn never re-renders the R3F tree. `scene/ContextLossGuard.tsx` (mounted in
+    both Canvases) is the safety net: `preventDefault`s `webglcontextlost` so the
+    browser restores, and `invalidate`s on restore. These drive
     `ui/upload/UploadModelDialog.tsx` (a portaled, viewport-centred modal whose
     single drag-and-drop **`<div>`** zone — not a `<button>`, which mishandles
     native drops — accepts loose files **and** whole folders; shows progress for

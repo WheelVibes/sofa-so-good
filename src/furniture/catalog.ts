@@ -5,6 +5,7 @@
  * automatically in the drawer, inspector lookups, and serializer.
  */
 
+import { useEffect, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { spanFromFootprint } from '../collision/gltfSpan'
 import { useStore } from '../state/store'
@@ -107,6 +108,55 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
   for (const def of Object.values(remote)) (out[def.category] ??= []).push(def)
   for (const def of packFurniture) (out[def.category] ??= []).push(def)
   return out
+}
+
+/** Build the merged catalog from the CURRENT store state, without subscribing. */
+function snapshotCatalog(): Record<FurnitureType, FurnitureDef> {
+  const s = useStore.getState()
+  return buildMergedCatalog({
+    userFurniture: s.userFurniture,
+    resolvedRemoteFurniture: s.resolvedRemoteFurniture,
+    packFurniture: s.packFurniture,
+  })
+}
+
+/**
+ * Stable catalog accessor for components that must NOT re-render when the
+ * catalog changes — chiefly the in-canvas FurnitureLayer/DragController/
+ * MarqueeSelector. A reactive `useCatalog()` there means every import commit
+ * rebuilds the whole catalog AND re-renders the R3F tree; during a bulk import
+ * (thousands of commits) that starves the render loop and costs the WebGL
+ * context (white flicker). This keeps the merged catalog in a ref, refreshed by
+ * a non-rendering store subscription, and returns a stable `(id) => def` getter.
+ *
+ * `epoch` bumps when the catalog rebuilds, so a caller that DOES need to react
+ * (e.g. FurnitureLayer re-rendering placed items after their def resolves) can
+ * depend on it deliberately — without the full-catalog-identity churn.
+ */
+export function useCatalogGetter(): {
+  getDef: (id: FurnitureType) => FurnitureDef | undefined
+  ref: React.RefObject<Record<FurnitureType, FurnitureDef>>
+} {
+  const ref = useRef<Record<FurnitureType, FurnitureDef>>(undefined as never)
+  if (ref.current === undefined) ref.current = snapshotCatalog()
+  useEffect(() => {
+    // Refresh on any change to a catalog input slice. Imperative — no render.
+    const update = () => {
+      ref.current = snapshotCatalog()
+    }
+    update()
+    const unsub = useStore.subscribe((s, prev) => {
+      if (
+        s.userFurniture !== prev.userFurniture ||
+        s.resolvedRemoteFurniture !== prev.resolvedRemoteFurniture ||
+        s.packFurniture !== prev.packFurniture
+      )
+        update()
+    })
+    return unsub
+  }, [])
+  const getDefStable = useRef((id: FurnitureType) => ref.current[id])
+  return { getDef: getDefStable.current, ref }
 }
 
 /** Non-reactive lookup. Falls back to built-in catalog only — call sites

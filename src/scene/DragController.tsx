@@ -5,7 +5,7 @@ import { nearestWallGap } from '../collision/clearanceGap'
 import { canPlace, itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
-import { isIkeaDef, useCatalog } from '../furniture/catalog'
+import { isIkeaDef, useCatalogGetter } from '../furniture/catalog'
 import { resolveCompatible } from '../furniture/ikea/compatibility'
 import { combineOnto } from '../furniture/ikea/stacking'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -99,9 +99,11 @@ function snapBase(
  */
 export function DragController() {
   const { camera, gl } = useThree()
-  const catalog = useCatalog()
-  const catalogRef = useRef(catalog)
-  catalogRef.current = catalog
+  // Stable getter — does NOT re-render this in-canvas controller when the
+  // catalog changes (a bulk import would otherwise re-render it thousands of
+  // times, starving the render loop → white flicker). `catalogRef` mirrors the
+  // existing lazy-read pattern in the handlers below.
+  const { ref: catalogRef } = useCatalogGetter()
 
   const ndc = useMemo(() => new Vector2(), [])
   const raycaster = useMemo(() => new Raycaster(), [])
@@ -118,6 +120,7 @@ export function DragController() {
     setSnapBaseId(id)
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: catalogRef is a stable ref read lazily inside handlers (intentionally not a dep — re-subscribing per catalog change is exactly what we're avoiding); setSnap is a stable state setter.
   useEffect(() => {
     const dom = gl.domElement
 
@@ -363,7 +366,7 @@ export function DragController() {
     }
   }, [camera, gl, ndc, raycaster, target])
 
-  return <SnapBaseHighlight baseId={snapBaseId} catalog={catalog} />
+  return <SnapBaseHighlight baseId={snapBaseId} catalog={catalogRef.current} />
 }
 
 /** Outline around the compatible base the dragged item will snug-stack onto —
@@ -374,7 +377,7 @@ function SnapBaseHighlight({
   catalog,
 }: {
   baseId: string | null
-  catalog: ReturnType<typeof useCatalog>
+  catalog: Record<string, FurnitureDef>
 }) {
   const items = useStore((s) => s.items)
   const item = baseId ? items.find((i) => i.id === baseId) : null

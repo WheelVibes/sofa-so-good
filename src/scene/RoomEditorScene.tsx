@@ -8,6 +8,7 @@ import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
 import { ClearanceOverlay } from './ClearanceOverlay'
+import { ContextLossGuard } from './ContextLossGuard'
 import { CameraRig } from './cameras/CameraRig'
 import { CameraForwardTracker } from './cameras/cameraForward'
 import { DevCameraExpose } from './DevCameraExpose'
@@ -46,6 +47,7 @@ export function RoomEditorScene() {
         preserveDrawingBuffer: true,
       }}
     >
+      <ContextLossGuard />
       <hemisphereLight args={['#ffffff', '#b9b4aa', 2.2]} />
       <ambientLight intensity={0.6} />
       <RoomShell shell={shell} />
