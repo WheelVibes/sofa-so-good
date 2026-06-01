@@ -23,6 +23,11 @@ export interface UserAssetsSlice {
    *  them (unlike `removeUserFurniture`). Revokes/deletes only the old def's
    *  blob URLs + IDB blobs that the new def no longer references. */
   replaceUserFurniture: (def: UserGltfDef | IkeaGltfDef) => void
+  /** Upsert MANY defs in a single store write (one re-render / one catalog
+   *  rebuild for the whole batch). Used by bulk import to avoid an O(n²) storm
+   *  of per-def writes that starves the render loop. Like `replaceUserFurniture`
+   *  it keeps placed instances and frees resources of any replaced def. */
+  addManyUserFurniture: (defs: (UserGltfDef | IkeaGltfDef)[]) => void
   setUserFurniture: (defs: (UserGltfDef | IkeaGltfDef)[]) => void
   userMaterials: TexturedMaterialDef[]
   addUserMaterial: (def: TexturedMaterialDef) => void
@@ -97,6 +102,31 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
     for (const r of defResources(existing)) {
       if (r.url && !kept.has(`url:${r.url}`)) URL.revokeObjectURL(r.url)
       if (r.assetId && !kept.has(`asset:${r.assetId}`)) void IdbAssetStore.delete(r.assetId)
+    }
+  },
+  addManyUserFurniture: (defs) => {
+    if (defs.length === 0) return
+    const incoming = new Map(defs.map((d) => [d.id, d]))
+    const prev = get().userFurniture
+    const prevById = new Map(prev.map((d) => [d.id, d]))
+    // One new array: replace defs present by id, append the rest — a single
+    // store write → a single catalog rebuild for the whole batch.
+    const replaced = prev.map((d) => incoming.get(d.id) ?? d)
+    const appended = defs.filter((d) => !prevById.has(d.id))
+    set({ userFurniture: [...replaced, ...appended] })
+    // Free resources of any def we replaced that the new one no longer keeps.
+    for (const def of defs) {
+      const old = prevById.get(def.id)
+      if (!old) continue
+      const kept = new Set<string>()
+      for (const r of defResources(def)) {
+        if (r.url) kept.add(`url:${r.url}`)
+        if (r.assetId) kept.add(`asset:${r.assetId}`)
+      }
+      for (const r of defResources(old)) {
+        if (r.url && !kept.has(`url:${r.url}`)) URL.revokeObjectURL(r.url)
+        if (r.assetId && !kept.has(`asset:${r.assetId}`)) void IdbAssetStore.delete(r.assetId)
+      }
     }
   },
   setUserFurniture: (defs) => set({ userFurniture: defs }),

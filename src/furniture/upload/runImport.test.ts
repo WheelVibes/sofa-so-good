@@ -2,9 +2,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 // Mock the heavy collaborators so we test runImport's orchestration, not IDB.
 vi.mock('../ikea/importGroup', () => ({
-  importGroup: vi.fn(async (meta: { product_name: string }) => ({
+  importGroup: vi.fn(async (meta: { group_key: string; product_name: string }) => ({
     ok: true,
-    def: { name: meta.product_name },
+    def: { id: `ikea-${meta.group_key}`, name: meta.product_name },
   })),
 }))
 vi.mock('./bulkImport', async (orig) => {
@@ -73,13 +73,13 @@ describe('runImport', () => {
     let inFlight = 0
     let peak = 0
     ;(importGroup as ReturnType<typeof vi.fn>).mockImplementation(
-      async (meta: { product_name: string }) => {
+      async (meta: { group_key: string; product_name: string }) => {
         inFlight++
         peak = Math.max(peak, inFlight)
         await Promise.resolve()
         await Promise.resolve()
         inFlight--
-        return { ok: true, def: { name: meta.product_name } }
+        return { ok: true, def: { id: `ikea-${meta.group_key}`, name: meta.product_name } }
       },
     )
     await runImport(plan(['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']))
@@ -90,13 +90,32 @@ describe('runImport', () => {
   it('keeps a failed group from aborting the rest', async () => {
     const { importGroup } = await import('../ikea/importGroup')
     ;(importGroup as ReturnType<typeof vi.fn>).mockImplementation(
-      async (meta: { product_name: string }) =>
+      async (meta: { group_key: string; product_name: string }) =>
         meta.product_name === 'BILLY'
           ? { ok: false, reason: 'bad glb' }
-          : { ok: true, def: { name: meta.product_name } },
+          : { ok: true, def: { id: `ikea-${meta.group_key}`, name: meta.product_name } },
     )
     const out = await runImport(plan(['malm', 'billy', 'kallax']))
     expect(out.groups.filter((g) => g.ok)).toHaveLength(2)
     expect(out.groups.find((g) => !g.ok)?.reason).toBe('bad glb')
+  })
+
+  it('commits groups in batches (few store writes, not one per group)', async () => {
+    const { useStore } = await import('../../state/store')
+    const { COMMIT_BATCH } = await import('./bulkImport')
+    useStore.setState({ userFurniture: [] })
+    let writes = 0
+    const unsub = useStore.subscribe((s, prev) => {
+      if (s.userFurniture !== prev.userFurniture) writes++
+    })
+    const n = COMMIT_BATCH * 3 + 4 // spans several batches + a tail
+    const groups = Array.from({ length: n }, (_, i) => `g${i}`)
+    await runImport(plan(groups))
+    unsub()
+    // All committed…
+    expect(useStore.getState().userFurniture).toHaveLength(n)
+    // …but in a handful of writes, NOT one per group (the white-flicker fix).
+    expect(writes).toBeLessThanOrEqual(Math.ceil(n / COMMIT_BATCH) + 1)
+    expect(writes).toBeLessThan(n)
   })
 })

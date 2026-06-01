@@ -2,8 +2,8 @@ import { useStore } from '../../state/store'
 import { filesUnder, looseModelFiles } from '../ikea/detectGroups'
 import { importGroup } from '../ikea/importGroup'
 import { parseMetadata } from '../ikea/metadata'
-import type { FurnitureCategory } from '../types'
-import { type BulkImportResult, importGlbFiles } from './bulkImport'
+import type { FurnitureCategory, IkeaGltfDef } from '../types'
+import { type BulkImportResult, COMMIT_BATCH, importGlbFiles } from './bulkImport'
 
 export interface ImportPlan {
   files: File[]
@@ -47,8 +47,21 @@ export async function runImport(
   const tick = () => onProgress?.(++done, total)
   onProgress?.(0, total)
 
-  // Groups: bounded-concurrency pool over the group list.
+  // Groups: bounded-concurrency pool. Each worker builds its def WITHOUT
+  // committing (commit:false); built defs are flushed to the store in batches of
+  // COMMIT_BATCH via one addManyUserFurniture call each. Committing per group
+  // re-runs buildMergedCatalog (O(total)) in every subscriber — including the
+  // in-canvas FurnitureLayer/DragController — for all 3562 groups (O(n²)),
+  // starving the render loop until the browser kills the WebGL context (white
+  // flicker). Batching turns thousands of rebuilds into a few dozen.
+  const { addManyUserFurniture } = useStore.getState()
   const groupResults: ImportOutcome['groups'] = new Array(plan.groups.length)
+  let pending: IkeaGltfDef[] = []
+  const flush = () => {
+    if (pending.length === 0) return
+    addManyUserFurniture(pending)
+    pending = []
+  }
   let cursor = 0
   const worker = async (): Promise<void> => {
     while (cursor < plan.groups.length) {
@@ -62,10 +75,14 @@ export async function runImport(
           reason: parsed.reason,
         }
       } else {
-        const r = await importGroup(parsed.data, filesUnder(plan.files, g.dir))
-        groupResults[i] = r.ok
-          ? { name: r.def.name, ok: true }
-          : { name: parsed.data.product_name, ok: false, reason: r.reason }
+        const r = await importGroup(parsed.data, filesUnder(plan.files, g.dir), { commit: false })
+        if (r.ok) {
+          pending.push(r.def)
+          if (pending.length >= COMMIT_BATCH) flush()
+          groupResults[i] = { name: r.def.name, ok: true }
+        } else {
+          groupResults[i] = { name: parsed.data.product_name, ok: false, reason: r.reason }
+        }
       }
       tick()
     }
@@ -73,6 +90,7 @@ export async function runImport(
   await Promise.all(
     Array.from({ length: Math.min(GROUP_CONCURRENCY, plan.groups.length) }, () => worker()),
   )
+  flush() // commit any tail below the batch size
 
   // Loose files: bulk path (its own internal pool); advance the shared bar.
   let looseResult: BulkImportResult | null = null
@@ -99,8 +117,30 @@ export function startBackgroundImport(plan: ImportPlan): Promise<ImportOutcome> 
   const label = importLabel(plan)
   const id = notify.start({ title: label, kind: 'progress', message: 'Importing…' })
 
+  // Coalesce progress to ~one store write per animation frame: a 3562-group
+  // import fires onProgress thousands of times; one notify.update each would
+  // re-render the notification (and its subscribers) per group, piling onto the
+  // main thread we're trying to keep free.
+  let latest = { d: 0, t: planUnits(plan) }
+  let scheduled = false
+  const pushProgress = () => {
+    scheduled = false
+    notify.update(id, {
+      progress: latest.t ? latest.d / latest.t : 0,
+      message: `${latest.d} / ${latest.t}`,
+    })
+  }
+  const raf =
+    typeof requestAnimationFrame === 'function'
+      ? requestAnimationFrame
+      : (cb: () => void) => setTimeout(cb, 16) as unknown as number
+
   return runImport(plan, (d, t) => {
-    notify.update(id, { progress: t ? d / t : 0, message: `${d} / ${t}` })
+    latest = { d, t }
+    if (!scheduled) {
+      scheduled = true
+      raf(pushProgress)
+    }
   })
     .then((outcome) => {
       const ok = outcome.groups.filter((g) => g.ok).length

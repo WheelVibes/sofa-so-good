@@ -1,7 +1,12 @@
 import { useStore } from '../../state/store'
-import type { FurnitureCategory } from '../types'
+import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashFile } from './hashFile'
 import { persistUserGlb } from './persist'
+
+/** How many built defs to commit to the store per write during a bulk import.
+ *  One catalog rebuild per batch instead of per file — keeps the main thread
+ *  responsive so a huge import can't starve the render loop / WebGL context. */
+export const COMMIT_BATCH = 25
 
 export interface BulkImportOptions {
   category: FurnitureCategory
@@ -78,6 +83,16 @@ export async function importGlbFiles(
   // Hashes already imported THIS batch — guards the concurrent race where two
   // identical files both pass persist's not-yet-committed existence check.
   const seenHashes = new Set<string>()
+  // Persist blobs WITHOUT committing each def to the store; collect + flush in
+  // batches so the catalog rebuilds a few times, not once per file (the O(n²)
+  // render-loop starvation that costs the WebGL context — white flicker).
+  const { addManyUserFurniture } = useStore.getState()
+  let pending: UserGltfDef[] = []
+  const flush = () => {
+    if (pending.length === 0) return
+    addManyUserFurniture(pending)
+    pending = []
+  }
 
   async function worker(): Promise<void> {
     while (cursor < planned.length) {
@@ -96,10 +111,14 @@ export async function importGlbFiles(
           mounted: opts.mounted,
           noClip: opts.noClip,
           contentHash,
+          commit: false,
         })
         if (result.ok && result.duplicate) duplicates++
-        else if (result.ok) imported++
-        else skipped.push({ name: job.errorName, reason: result.reason })
+        else if (result.ok) {
+          imported++
+          pending.push(result.def)
+          if (pending.length >= COMMIT_BATCH) flush()
+        } else skipped.push({ name: job.errorName, reason: result.reason })
       } catch (e) {
         skipped.push({ name: job.errorName, reason: e instanceof Error ? e.message : String(e) })
       }
@@ -108,6 +127,7 @@ export async function importGlbFiles(
   }
 
   await Promise.all(Array.from({ length: Math.min(concurrency, planned.length) }, () => worker()))
+  flush() // commit the tail
 
   return { total, imported, duplicates, skipped }
 }

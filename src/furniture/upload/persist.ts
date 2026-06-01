@@ -14,6 +14,10 @@ export interface PersistOptions {
   /** Precomputed SHA-256 (hex) of the file bytes. When omitted it is computed
    *  here; the bulk path passes it so a batch hashes each file only once. */
   contentHash?: string
+  /** When false, build + persist the blob to IDB but DON'T add the def to the
+   *  store — the caller batch-commits (avoids per-file catalog rebuilds in a
+   *  large bulk import). The def is still returned. Default true. */
+  commit?: boolean
 }
 
 export type PersistResult =
@@ -90,6 +94,6 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
     finishTargets: opts.finishTargets,
     finishOverrides: opts.finishOverrides,
   }
-  useStore.getState().addUserFurniture(def)
+  if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
   return { ok: true, def }
 }

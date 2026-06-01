@@ -126,3 +126,90 @@ describe('replaceUserFurniture', () => {
     expect(useStore.getState().userFurniture.map((d) => d.id)).toContain('ikea-new')
   })
 })
+
+describe('addManyUserFurniture', () => {
+  it('appends a batch in a SINGLE store write (one userFurniture identity change)', () => {
+    let writes = 0
+    const unsub = useStore.subscribe((s, prev) => {
+      if (s.userFurniture !== prev.userFurniture) writes++
+    })
+    useStore
+      .getState()
+      .addManyUserFurniture([
+        ikeaDef({ id: 'ikea-a' }),
+        ikeaDef({ id: 'ikea-b' }),
+        ikeaDef({ id: 'ikea-c' }),
+      ])
+    unsub()
+    expect(writes).toBe(1)
+    expect(
+      useStore
+        .getState()
+        .userFurniture.map((d) => d.id)
+        .sort(),
+    ).toEqual(['ikea-a', 'ikea-b', 'ikea-c'])
+  })
+
+  it('upserts: replaces existing ids in place, appends new ones, keeps placements', () => {
+    useStore.getState().addUserFurniture(ikeaDef({ id: 'ikea-malm' }))
+    useStore.setState({ items: [placed('i1', 'ikea-malm')] })
+    useStore
+      .getState()
+      .addManyUserFurniture([
+        ikeaDef({ id: 'ikea-malm', name: 'MALM v2' }),
+        ikeaDef({ id: 'ikea-new' }),
+      ])
+    const fur = useStore.getState().userFurniture
+    expect(fur.map((d) => d.id).sort()).toEqual(['ikea-malm', 'ikea-new'])
+    expect(fur.find((d) => d.id === 'ikea-malm')?.name).toBe('MALM v2')
+    // placement survives the upsert
+    expect(useStore.getState().items.map((i) => i.id)).toEqual(['i1'])
+  })
+
+  it('frees resources of a replaced def the new one no longer references', () => {
+    useStore.getState().addUserFurniture(
+      ikeaDef({
+        id: 'ikea-malm',
+        variants: [
+          {
+            finish: 'f',
+            label: 'F',
+            articleNumber: '1',
+            url: 'u',
+            assetId: 'asset-old',
+            runtimeUrl: 'blob:old',
+            glbMaterials: [],
+          },
+        ],
+      }),
+    )
+    useStore.getState().addManyUserFurniture([
+      ikeaDef({
+        id: 'ikea-malm',
+        variants: [
+          {
+            finish: 'f',
+            label: 'F',
+            articleNumber: '1',
+            url: 'u',
+            assetId: 'asset-new',
+            runtimeUrl: 'blob:new',
+            glbMaterials: [],
+          },
+        ],
+      }),
+    ])
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:old')
+    expect(idbDelete).toHaveBeenCalledWith('asset-old')
+  })
+
+  it('is a no-op for an empty batch', () => {
+    let writes = 0
+    const unsub = useStore.subscribe((s, prev) => {
+      if (s.userFurniture !== prev.userFurniture) writes++
+    })
+    useStore.getState().addManyUserFurniture([])
+    unsub()
+    expect(writes).toBe(0)
+  })
+})
