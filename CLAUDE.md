@@ -576,6 +576,20 @@ rediscover it.
 - **Drag aids**: `DragController` snaps a single drag to other items' centres/
   edges (magenta `AlignmentGuides`) and shows the nearest-wall gap (`DragHud`
   via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
+- **Walk-mode controls** (`scene/cameras/FirstPersonCamera.tsx`,
+  `scene/walkInput.ts`, `ui/walk/WalkJoystick.tsx`, `ui/WalkHud.tsx`,
+  `ui/Crosshair.tsx`): first-person look/move adapts to the device.
+  **Fine pointer** uses Pointer Lock — click the canvas to capture the cursor,
+  mouse spins the view, WASD moves, **Esc** releases (the browser's native
+  "Press Esc to show your cursor" banner is browser chrome and **cannot** be
+  styled or suppressed — it's a Pointer-Lock security guarantee). **Coarse
+  pointer** (touch) has no Pointer Lock, so the bottom-left translucent
+  `WalkJoystick` writes a normalized move vector to the `walkInput` singleton
+  and a canvas drag spins the view. `WalkHud` is a themed, auto-fading (5 s)
+  controls banner shown on walk entry — bottom-centre `.walk-hud` pill whose
+  wording branches on `IS_COARSE_POINTER` (Joystick/Drag vs Click/WASD/Esc); it
+  reframes the unavoidable native banner with on-brand hints rather than
+  replacing it. `Crosshair` is the centre reticle.
 - **Toolbar** (`ui/toolbar/`): a streamlined, horizontally-scrollable **icon
   island**. Frequent actions are direct icon buttons (`IconButton`); busy
   clusters collapse into labelled dropdown menus (`ToolbarMenu` + `MenuItem`):

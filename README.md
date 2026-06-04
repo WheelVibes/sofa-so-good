@@ -49,7 +49,9 @@ export the result — all in the browser.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
   top-down plan (pair with Measurements for an annotated floor plan), a
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a
-  presentation clip.
+  presentation clip. Walking uses WASD + mouse-look (pointer-lock) on desktop
+  and an on-screen joystick + drag-to-look on touch; a themed, auto-fading
+  **controls banner** greets you on entry with the right hints for your device.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
   plan its furniture (toolbar **View → Edit room: …**; a **← exit button at the
   far left of the toolbar** or **Esc** leaves). It shows just that room's walls + floor + its own furniture,
