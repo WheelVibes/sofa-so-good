@@ -1,4 +1,5 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useLivePrices } from '../catalog/pricing/livePrice'
 import { useCatalog } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../furniture/types'
@@ -75,8 +76,24 @@ export function BudgetPanel() {
     return { groups, total, count }
   }, [items, catalog])
 
+  // Live SG retailer prices (dev-only, via the `npm run price-server` sidecar).
+  // Off by default; when on, each line shows the real top-match price + a buy
+  // link, falling back to the estimate for anything the sidecar can't resolve.
+  const [liveOn, setLiveOn] = useState(false)
+  const liveEntries = useMemo(
+    () => groups.flatMap((g) => g.lines.map((l) => ({ id: l.name, query: l.name }))),
+    [groups],
+  )
+  const livePrices = useLivePrices(liveEntries, liveOn && open)
+
   if (!open) return null
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`
+  const eachOf = (l: Line) => livePrices[l.name]?.price ?? l.each
+  const liveTotal = groups.reduce(
+    (s, g) => s + g.lines.reduce((t, l) => t + eachOf(l) * l.count, 0),
+    0,
+  )
+  const shownTotal = liveOn ? liveTotal : total
   const saved = collections.map((id) => catalog[id]).filter((d): d is NonNullable<typeof d> => !!d)
 
   return (
@@ -153,9 +170,31 @@ export function BudgetPanel() {
       ) : (
         <div className="panel-body">
           <div className="bud-total">
-            <span className="big mono">{fmt(total)}</span>
+            <span className="big mono">{fmt(shownTotal)}</span>
             <span className="panel-sub">{count} items</span>
           </div>
+          {import.meta.env.DEV && (
+            <label
+              className="panel-sub"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                textTransform: 'none',
+                letterSpacing: 0,
+                cursor: 'pointer',
+                marginTop: 4,
+              }}
+              title="Fetch real IKEA SG prices via the local price-server sidecar"
+            >
+              <input
+                type="checkbox"
+                checked={liveOn}
+                onChange={(e) => setLiveOn(e.target.checked)}
+              />
+              Live IKEA SG prices
+            </label>
+          )}
           <div className="bud-list" style={{ marginTop: 'var(--s-2)' }}>
             {groups.length === 0 ? (
               <p className="empty-mini">
@@ -166,25 +205,45 @@ export function BudgetPanel() {
                 <div key={g.cat} style={{ marginBottom: 'var(--s-4)' }}>
                   <div className="sec-h">
                     <span>{CATEGORY_LABEL[g.cat]}</span>
-                    <span className="mono">{fmt(g.subtotal)}</span>
+                    <span className="mono">
+                      {fmt(g.lines.reduce((t, l) => t + eachOf(l) * l.count, 0))}
+                    </span>
                   </div>
-                  {g.lines.map((l) => (
-                    <div className="row" key={l.defId} style={{ padding: '5px 0' }}>
-                      <span
-                        className="rk"
-                        style={{
-                          minWidth: 0,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
-                        }}
-                      >
-                        {l.name}
-                        {l.count > 1 ? ` ×${l.count}` : ''}
-                      </span>
-                      <span className="amt">{fmt(l.each * l.count)}</span>
-                    </div>
-                  ))}
+                  {g.lines.map((l) => {
+                    const lp = liveOn ? livePrices[l.name] : undefined
+                    return (
+                      <div className="row" key={l.defId} style={{ padding: '5px 0' }}>
+                        <span
+                          className="rk"
+                          style={{
+                            minWidth: 0,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {l.name}
+                          {l.count > 1 ? ` ×${l.count}` : ''}
+                          {lp?.url && (
+                            <a
+                              href={lp.url}
+                              target="_blank"
+                              rel="noreferrer"
+                              title={`${lp.title} · ${lp.retailer}`}
+                              style={{
+                                marginLeft: 6,
+                                fontSize: 'var(--t-xs)',
+                                color: 'var(--accent)',
+                              }}
+                            >
+                              {lp.retailer}↗
+                            </a>
+                          )}
+                        </span>
+                        <span className="amt">{fmt(eachOf(l) * l.count)}</span>
+                      </div>
+                    )
+                  })}
                 </div>
               ))
             )}
@@ -197,10 +256,11 @@ export function BudgetPanel() {
               const lines = groups.flatMap((g) => [
                 `# ${CATEGORY_LABEL[g.cat]}`,
                 ...g.lines.map(
-                  (l) => `${l.name}${l.count > 1 ? ` x${l.count}` : ''}\t${fmt(l.each * l.count)}`,
+                  (l) =>
+                    `${l.name}${l.count > 1 ? ` x${l.count}` : ''}\t${fmt(eachOf(l) * l.count)}`,
                 ),
               ])
-              lines.push('', `TOTAL\t${fmt(total)} (${count} items)`)
+              lines.push('', `TOTAL\t${fmt(shownTotal)} (${count} items)`)
               void navigator.clipboard?.writeText(lines.join('\n'))
             }}
           >
@@ -217,7 +277,9 @@ export function BudgetPanel() {
               lineHeight: 1.4,
             }}
           >
-            Approx. mid-market retail (SGD). Finishes &amp; reno excluded.
+            {liveOn
+              ? 'Live IKEA SG top-match prices where found, else estimate. Finishes & reno excluded.'
+              : 'Approx. mid-market retail (SGD). Finishes & reno excluded.'}
           </p>
         </div>
       )}

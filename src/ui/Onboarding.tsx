@@ -62,13 +62,15 @@ export function Onboarding() {
     setStep(0)
   }
 
-  const choose = (kind: 'catalog' | 'demo' | 'empty') => {
+  const choose = (kind: 'catalog' | 'demo' | 'empty' | 'smart') => {
     const s = useStore.getState()
     if (kind === 'empty') s.setItems([])
     else if (kind === 'demo') s.resetToDefault()
     else if (kind === 'catalog') {
       s.resetToDefault()
       s.setCatalogOpen(true)
+    } else if (kind === 'smart') {
+      s.setSmartStartOpen(true)
     }
     finish()
   }
@@ -130,6 +132,16 @@ export function Onboarding() {
             <div className="onb-body3">
               <h2 className="onb-title sm">Where would you like to start?</h2>
               <div className="onb-choices">
+                <button type="button" className="onb-choice" onClick={() => choose('smart')}>
+                  <span className="onb-choice-ic">
+                    <Icon.Palette width={20} height={20} />
+                  </span>
+                  <div>
+                    <b>Smart Start</b>
+                    <em>Pick a style — we furnish &amp; finish every room</em>
+                  </div>
+                  <Icon.ChevronRight width={18} height={18} />
+                </button>
                 <button type="button" className="onb-choice" onClick={() => choose('catalog')}>
                   <span className="onb-choice-ic">
                     <Icon.Catalog width={20} height={20} />

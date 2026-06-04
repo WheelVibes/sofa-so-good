@@ -1,8 +1,9 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3D } from 'three'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
 import { useStore } from '../../state/store'
+import { registerAnimatedSource } from '../animatedSources'
 import { grade, SOFT_SHADOW } from '../look'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
@@ -84,6 +85,12 @@ export function Lighting() {
     groundColor: [...initial.groundColor] as [number, number, number],
   })
 
+  // While the day/night tween is mid-transition it must keep rendering even in
+  // demand mode (a time change is one discrete store event but the light + sky
+  // ease over TWEEN_DURATION). Hold the render loop open until settled.
+  const holdRef = useRef<(() => void) | null>(null)
+  useEffect(() => () => holdRef.current?.(), [])
+
   useFrame((_, dt) => {
     const target = targetVals(sunPos, orientation)
     const cur = current.current
@@ -110,6 +117,13 @@ export function Lighting() {
       Math.abs(target.ambient - cur.ambient) < 1e-3 &&
       Math.abs(target.sunPos[1] - cur.sunPos[1]) < 1e-2 &&
       Math.abs(target.skyColor[2] - cur.skyColor[2]) < 1e-3
+
+    // Hold/release the demand-mode render loop around the tween.
+    if (!settled && !holdRef.current) holdRef.current = registerAnimatedSource()
+    else if (settled && holdRef.current) {
+      holdRef.current()
+      holdRef.current = null
+    }
 
     if (!settled) {
       cur.sun = approach(cur.sun, target.sun)

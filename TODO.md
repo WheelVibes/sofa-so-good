@@ -35,6 +35,27 @@ modular sofa): base + named slots with anchor points, swappable compatible
 options, live reprice. Reuses the unit-3 finish-target mechanism
 ([src/furniture/gltf/finishTargets.ts](src/furniture/gltf/finishTargets.ts)).
 
+## Multi-format import: convert-to-GLB + in-browser optimize (2026-06-04)
+
+Accept OBJ/FBX/STL/PLY/USDZ/DAE/3MF models + TGA/TIFF/BMP/EXR/HDR textures by
+converting/re-encoding in-browser, and optimize every imported GLB (converted +
+plain uploads). Spec:
+[docs/superpowers/specs/2026-06-04-multi-format-import-conversion-design.md](docs/superpowers/specs/2026-06-04-multi-format-import-conversion-design.md);
+plan:
+[docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md](docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md).
+
+- Deferred follow-ups (carried from the plan's honest-scope flags):
+  - **Real in-browser KTX2/UASTC encoder** — currently the `ktx2` opt-in
+    scaffolds the path but falls back to near-lossless WebP (no clean
+    browser basis-encoder dep in this stack), mirroring `optimize_glb_lod.mjs`
+    falling back when `toktx` is absent ([src/lib/ktx2encode.ts]).
+  - **KTX2/DDS standalone-material decode** — needs a WebGL readback; the model
+    importer handles embedded KTX2, but standalone KTX2/DDS material uploads are
+    not yet decoded ([src/materials/convert/decodeImage.ts]).
+  - **Multi-tier `-low`/`-medium` LOD generation for uploads** — the single
+    in-browser optimize pass already exceeds the old user-upload baseline; full
+    tiered LOD (like the offline `optimize:glb`) is still upload-side TODO.
+
 ## Layout / placement (2026-05-30)
 
 - ~~**Interior-design rules baked in**~~ — clearances in
@@ -367,3 +388,46 @@ seamless tiler); real planar mirror reflections (cost).
   decodes KTX2 (drei auto-wires it). Note KTX2/Basis encoding is seconds/texture
   vs ms for WebP — a full `--ktx2` re-run is much slower. Related: the older
   asset-pipeline KTX2 TODO under §Assets.
+
+## Multi-format model + texture import
+- ~~**Convert-to-GLB on import (done, 2026-06-04)**~~ — non-GLB model uploads
+  (`.obj`/`.fbx`/`.stl`/`.ply`/`.dae`/`.3mf`/`.usdz`) are converted to GLB in the
+  browser (`src/furniture/convert/`) and every imported model runs through an
+  in-browser optimize pass (`src/furniture/optimize/` — weld/dedup/prune + Draco +
+  WebP textures, in a Web Worker). Material uploads accept TGA/TIFF/EXR/HDR/BMP,
+  decoded + re-encoded to WebP (`src/materials/convert/`). Plan/spec:
+  [docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md](docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md).
+- **KTX2 in-browser encode (scaffold only)** — the model dialog's *Maximum
+  compression (KTX2)* toggle and `optimizeGlb`'s `ktx2` option are wired, but
+  `src/lib/ktx2encode.ts` is a stub (`isKtx2EncodeAvailable()` → false) so it
+  always falls back to WebP. To actually emit KTX2 in-browser, integrate a
+  Basis-Universal WASM encoder (e.g. the KTX-Software `libktx` wasm build or a
+  basis_encoder wasm) and have `encodeKtx2` produce UASTC/ETC1S payloads;
+  `KHRTextureBasisu` is already added when an encode succeeds.
+- **Standalone KTX2/DDS texture upload** — `materials/convert/decodeImage.ts`
+  decodes TGA/TIFF/EXR/HDR but not GPU-compressed `.ktx2`/`.dds` (those need a
+  WebGL transcode/readback to get RGBA pixels). Add via the drei KTX2 transcoder
+  → render-to-canvas readback if users ask for it.
+
+## Competitive-parity upgrade (2026-06-04)
+Spec: [docs/superpowers/specs/2026-06-04-competitive-parity-upgrade-design.md](docs/superpowers/specs/2026-06-04-competitive-parity-upgrade-design.md).
+Shipped: render-on-demand (A1), bookshelf instancing (A2), 2D furniture layout +
+2D⇄3D `P` toggle (G), Smart Start (B), live IKEA SG pricing sidecar (C),
+photo-trace backdrop (F), AI floor-plan recognition (E), AI photoreal export (D).
+Deferred / follow-ups:
+- **Instancing (A2) is scoped to bookshelf books only** — measured ~48→9 draw
+  calls/bookshelf. The crib (~65 calls, slat-heavy) and other repeat-geometry
+  primitives could reuse `primitives/InstancedBoxes.tsx` if profiling justifies
+  it; cross-item instancing was intentionally avoided (conflicts with per-item
+  material/finish/selection).
+- **Photo-trace backdrop (F) is session-scoped** — the reference image lives in
+  an object URL only; it isn't persisted to IDB or round-tripped with the saved
+  plan. Persist the blob + calibration if users want it to survive a reload.
+- **AI features (D/E) are bring-your-own-key + experimental** — the live calls
+  need a real key and may require a CORS proxy depending on provider (handled as
+  a clear error). D defaults to Replicate img2img; E to an OpenAI-compatible
+  vision endpoint. No key is ever bundled. Consider a dev proxy sidecar if CORS
+  blocks common providers.
+- **Live pricing (C) is dev-only + IKEA-only** — add more SG retailers
+  (Courts/HipVan/Castlery) as `RETAILERS` entries in `price-server.mjs`; the
+  name→SKU match is fuzzy (top search hit).

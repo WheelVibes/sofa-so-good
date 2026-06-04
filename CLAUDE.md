@@ -9,6 +9,24 @@ state, Vite build, Vitest tests.
 - `npm run dev` — Vite dev server (localhost:5173).
 - `npm test` — Vitest (run once). `npm run test:watch` to watch.
 - `npm run build` — `tsc` typecheck + Vite production build.
+- `npm run docs:dev` / `docs:build` / `build:all` — the **user guide** is a
+  VitePress site under `docs/user/` (config in `docs/user/.vitepress/config.ts`,
+  `base: '/sofa-so-good/docs/'`). `docs:build` writes it into the app's
+  `dist/docs/`; `build:all` = `npm run build` **then** `docs:build` (order
+  matters — the app build empties `dist/` first) and is what `deploy.yml` runs,
+  so the guide deploys at `/sofa-so-good/docs/`. An in-app **User guide** button
+  (toolbar + Help modal + ⌘K) opens it via `src/ui/docsUrl.ts` (host-agnostic
+  `${import.meta.env.BASE_URL}docs/`). (Dev caveat: the guide only exists in
+  a built `dist/`; use `docs:dev`/`docs:preview` to view it locally — those
+  default to port 5175, shared with `price-server`, so don't run both at once.)
+- **Developer docs** under `docs/developer/` are Markdown guides, **not
+  deployed**, with their own local-only VitePress site (config in
+  `docs/developer/.vitepress/`): `npm run docs:dev:developer` (port 5176) /
+  `docs:build:developer` / `docs:preview:developer` render them with VitePress's
+  nav/search/dark-mode. Both doc sites share a warm-clay palette + responsive CSS
+  in `docs/_shared/docs-theme.css` (imported via each `.vitepress/theme/`). The
+  developer site builds to its own gitignored `.vitepress/dist` and never enters
+  the app's `dist/` (no `base`/`outDir` overrides), so it can't leak into prod.
 - `npm run check` / `npm run check:fix` — **Biome** (single Rust tool, replaces
   Prettier + ESLint) format + lint; `check:fix` applies safe fixes. `npm run
   format` (format-write) and `npm run lint` (lint only) are narrower variants.
@@ -49,15 +67,31 @@ state, Vite build, Vitest tests.
   runs `optimize_glb_lod.mjs` on each finish GLB the moment it lands (bounded
   parallel pool), and streams per-product progress to the browser over SSE.
   Local/dev-only (default port 5174; `SCRAPER_PORT` overrides). See **IKEA models**.
+- `npm run price-server` — local Node sidecar (`scripts/price-server.mjs`) for
+  the Shopping panel's **dev-only "Live IKEA SG prices"** toggle: `GET /price?q=
+  <name>` resolves a furniture name to a real IKEA Singapore price + buy link via
+  IKEA's SIK search JSON API, disk-cached (`.cache/prices.json`). Local/dev-only
+  (default port 5175; `PRICE_PORT` overrides). See **Live retail pricing**.
 - `python/scripts/` — offline IKEA SG scraper + asset tooling (Python +
   Node). Not part of the app build; see **IKEA scraper (offline)** below.
 
-## REQUIRED: keep CLAUDE.md + README.md current
-Both files have drifted from the code before. After **any** change that adds,
+## REQUIRED: keep CLAUDE.md + README.md + docs current
+These have drifted from the code before. After **any** change that adds,
 removes, or reshapes a system, command, layout area, or user-facing feature,
-update **both** this architecture guide and `README.md` in the same change so
-they never lag the repo. (`TODO.md` tracks deferred work per the Process rule;
-these two track the *current* state.)
+update **all** of the following in the same change so they never lag the repo:
+- **`CLAUDE.md`** (this architecture index) and **`README.md`** — the terse,
+  always-current state.
+- **User docs** (`docs/user/`, the deployed VitePress guide) — if the change is
+  **user-facing** (a feature, control, panel, shortcut, or workflow a user sees),
+  add/update the relevant page(s) and capture a screenshot where it helps. Keep
+  pages accurate to the actual UI (verify labels/actions against the source, as
+  the catalog tabs / context-menu items are exact).
+- **Developer docs** (`docs/developer/`, the local-only VitePress guide) — if the
+  change touches **architecture, a system, or a how-to recipe**, update the
+  relevant guide and cross-link the spec under `docs/superpowers/specs/`.
+
+(`TODO.md` tracks deferred work per the Process rule; the above track the
+*current* state.)
 
 ## REQUIRED: visual verification after any app change
 For **any** change to the app (not docs/tests-only), you MUST, before
@@ -117,6 +151,28 @@ rediscover it.
     url helpers + sync probe cache + prewarm), `textureBudget.ts` (runtime
     texture downscale fallback), `finishTargets.ts` (named meshes for
     per-component recolour).
+  - `convert/` — **in-browser multi-format → GLB conversion** so non-GLB uploads
+    become a GLB before the unchanged `validateGlbFile → persistUserGlb` path:
+    `formats.ts` (`detectModelFormat` via magic bytes + extension,
+    `MODEL_EXTENSIONS`/`isModelEntryFile`, per-format size caps —
+    glb/gltf/obj/fbx/stl/ply/dae/3mf/usdz), `loadToObject.ts` (per-format three
+    example-loader registry + a `LoadingManager` sibling-blob-URL resolver so
+    OBJ→MTL→tex / DAE→tex / glTF→bin refs resolve from the dropped folder, missing
+    refs → a 1×1 transparent PNG), `toGlb.ts` (`GLTFExporter` → binary GLB), and
+    `convertModel.ts` (orchestrator: detect → size-check → load → export, throws
+    `ConvertError`; `needsConversion` is true for anything but a native GLB).
+  - `optimize/` — **in-browser GLB optimize pass** run on every imported model
+    (converted + plain GLB upload): `optimizeGlb.ts` (pure, worker-safe
+    gltf-transform pipeline — weld/dedup/prune + Draco, plus per-texture WebP
+    re-encode via OffscreenCanvas; **quality-first/codec-only** — geometry shape
+    preserved, no mesh simplify, textures keep resolution unless above
+    `maxTextureSize`; never throws — returns the input unchanged on any failure,
+    and skips Draco/textures gracefully when the wasm/canvas APIs are absent),
+    `optimize.worker.ts` (Web Worker entry), `runOptimize.ts` (main-thread wrapper
+    that posts to the worker and falls back to a direct call). KTX2/UASTC is an
+    opt-in routed through `src/lib/ktx2encode.ts` (see **Design system** /
+    `optimizeGlb`'s `ktx2` option), falling back to WebP when no encoder is
+    available.
   - `ikea/` — consumes IKEA scraper output: `metadata.ts` (zod parse +
     `looksLikeIkeaMetadata`), `translate.ts` (scraper category/placement → app
     category + collision flags + `frontClearance`), `importGroup.ts` (metadata +
@@ -126,7 +182,13 @@ rediscover it.
     among picked files, each scoped to its own folder via `filesUnder`;
     `looseModelFiles` is the non-group remainder — used by the Upload dialog).
     Wired end-to-end (see **IKEA models**).
-  - `upload/` — user-GLB import: `validate.ts`, `bulkImport.ts`, `persist.ts`,
+  - `upload/` — user-model import (now **any supported model format**, not just
+    GLB): `isModelFile` spans every `convert/formats.ts` extension, and
+    `bulkImport.ts`'s `prepareGlb` (exported as `prepareModelFile` for the
+    single-file dialog path) **converts (if non-GLB) + optimizes** each entry —
+    `convertModel` → `runOptimize` — before `persistUserGlb`, threading a sibling
+    file pool (for .mtl/.bin/texture resolution) and an opt-in `ktx2` flag through
+    `BulkImportOptions`/`ImportPlan`. Files: `validate.ts`, `bulkImport.ts`, `persist.ts`,
     `hashFile.ts` (SHA-256 content hash — `persist`/`bulkImport` skip a re-upload
     of identical bytes, counting it as a duplicate; the hash rides on
     `UserGltfDef.contentHash`, persisted in IDB meta + the save schema, rehydrated
@@ -166,11 +228,33 @@ rediscover it.
   plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
   for furniture, plus `getSolidMaterial` for metal/plastic and the `mat:<id>`
   DLC-finish resolver), `worldUv.ts` (metre-space UVs so finishes tile
-  consistently).
+  consistently). `convert/` — **in-browser texture decode + re-encode** for
+  uploaded materials: `decodeImage.ts` (`decodeImage` → straight RGBA8 for
+  PNG/JPG/WebP/BMP/GIF via `createImageBitmap`, plus **TGA/TIFF/EXR/HDR** via a
+  three loader / `utif`, tonemapping HDR/EXR floats to 8-bit; `isSupportedTexture`
+  + `EXTRA_TEXTURE_EXTENSIONS`) and `reencode.ts` (`reencodeToWebp` +
+  `normalizeTextureFile` — re-encodes everything except WebP to near-lossless
+  WebP, full resolution). `upload/persist.ts` normalizes each channel file
+  through `normalizeTextureFile` before `validateImageFile`/IDB write;
+  `upload/validate.ts` accepts the extra formats by extension (16 MB source cap).
+  KTX2/DDS standalone-texture decode is deferred (needs a WebGL readback — see
+  TODO.md).
 - `src/scene/` — the R3F `<Canvas>` and systems: `lighting/` (sun astronomy,
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
   adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection.
+  The main Canvas runs **`frameloop="demand"`**: `RenderPump.tsx` is one
+  always-on rAF loop that calls `invalidate()` only when a frame is wanted —
+  continuously while something animates (walk, turntable, tour, recording,
+  shadow accumulation, a drag, a spinning fan via `animatedSources.ts`, boot,
+  asset streaming) and for a short settle tail after any discrete store change;
+  idle scenes draw ~0 frames, a hidden tab draws none. `renderDecision.ts` is
+  the pure (unit-tested) `shouldRender`/`isContinuous`/`settleTailMs` logic;
+  `renderPumpSignal.ts` gates `QualityController` FPS sampling to continuous
+  spans (sparse idle frames would otherwise read as ~0 fps); `Lighting` holds
+  the loop open while its day/night tween is mid-transition. Repeated decoration
+  inside a primitive can collapse to one draw call via `primitives/InstancedBoxes.tsx`
+  (e.g. bookshelf books: ~48→~9 draw calls).
 - `src/ui/` — DOM overlays: CatalogDrawer (`catalog/`). The drawer is **one
   flat tab row — Catalog / Layers / Packs** (panel title tracks the active tab).
   **Catalog** is one **unified grid** (`useUnifiedCatalog.ts` → `GridItem` =
@@ -438,7 +522,40 @@ rediscover it.
   corner snapping, drag-move, per-room floor finishes. A non-default plan
   renders via `PlanShell` and furniture/walk collision follow it (optional
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
-  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`).
+  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). The editor
+  also renders the **live furniture as top-down footprints** (category-coloured
+  polygons from `itemFootprint`/`obbCorners`) — click to select (shared with the
+  3D selection), drag (select tool) to move (grid-snapped + `canPlace`-checked,
+  same path as the 3D `DragController`). **`P` toggles 2D⇄3D from anywhere**
+  (skipped while typing / in walk mode); leaving the editor frames the selected
+  item in 3D. A **reference photo/scan backdrop** (Wave F, no ML) can be loaded
+  (file pick or drag-drop) to trace over: calibrate real scale with the **Scale
+  tool** (drag a known dimension → type its length → `mPerPx`), adjust opacity,
+  trace walls on top. Session-scoped (object URL). **"AI walls"** (Wave E,
+  experimental, bring-your-own-key) sends the backdrop to an OpenAI-compatible
+  vision model (`ai/floorPlanAi.ts`) and seeds an editable draft plan from the
+  recognised segments; degrades to manual tracing on no key / CORS / no result.
+- **Smart Start** (`ui/wizard/SmartStartWizard.tsx`, featuresSlice
+  `smartStartOpen`): a friendly onboarding front end over the existing layout
+  presets — pick a style and the flat is furnished + walls/floors finished in one
+  click (`applyLayoutPreset`), with a complementary UI theme applied. Heuristic,
+  not AI. Launchable from onboarding (a "Smart Start" choice), the ⌘K command
+  palette, and the toolbar **Arrange** menu.
+- **Live retail pricing** (`catalog/pricing/livePrice.ts`, `scripts/price-server.mjs`):
+  a **dev-only** "Live IKEA SG prices" toggle in the Shopping panel resolves each
+  line's name to a real IKEA Singapore price + buy link via the local
+  `price-server` sidecar (IKEA SIK search JSON API, disk-cached). `useLivePrices`
+  fails soft — no sidecar / failed lookup keeps the bundled `furniturePrices.ts`
+  estimate; production always uses the estimate. Matched product title rides on
+  the buy-link tooltip so the fuzzy name→SKU match is auditable.
+- **AI photoreal export** (`ai/aiClient.ts`, `ui/ai/AiPhotorealSection.tsx`):
+  a **bring-your-own-key**, experimental "Make photoreal" section in the Share
+  modal — captures a hi-fi PNG of the current view (`scene/captureCanvas.ts`,
+  registered by `ScreenshotController`) and runs image-to-image (Replicate by
+  default) with the user's own API key (localStorage, never bundled), preserving
+  room structure. Async/honest UX, graceful no-key / CORS / error states. Pure
+  request-builder + output-parser are unit-tested; the live round-trip needs a
+  real key (and may need a proxy depending on provider CORS).
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
   `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-
   style mode that isolates one room for furniture planning. Entered from the
@@ -477,6 +594,20 @@ rediscover it.
 - **Drag aids**: `DragController` snaps a single drag to other items' centres/
   edges (magenta `AlignmentGuides`) and shows the nearest-wall gap (`DragHud`
   via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
+- **Walk-mode controls** (`scene/cameras/FirstPersonCamera.tsx`,
+  `scene/walkInput.ts`, `ui/walk/WalkJoystick.tsx`, `ui/WalkHud.tsx`,
+  `ui/Crosshair.tsx`): first-person look/move adapts to the device.
+  **Fine pointer** uses Pointer Lock — click the canvas to capture the cursor,
+  mouse spins the view, WASD moves, **Esc** releases (the browser's native
+  "Press Esc to show your cursor" banner is browser chrome and **cannot** be
+  styled or suppressed — it's a Pointer-Lock security guarantee). **Coarse
+  pointer** (touch) has no Pointer Lock, so the bottom-left translucent
+  `WalkJoystick` writes a normalized move vector to the `walkInput` singleton
+  and a canvas drag spins the view. `WalkHud` is a themed, auto-fading (5 s)
+  controls banner shown on walk entry — bottom-centre `.walk-hud` pill whose
+  wording branches on `IS_COARSE_POINTER` (Joystick/Drag vs Click/WASD/Esc); it
+  reframes the unavoidable native banner with on-brand hints rather than
+  replacing it. `Crosshair` is the centre reticle.
 - **Toolbar** (`ui/toolbar/`): a streamlined, horizontally-scrollable **icon
   island**. Frequent actions are direct icon buttons (`IconButton`); busy
   clusters collapse into labelled dropdown menus (`ToolbarMenu` + `MenuItem`):

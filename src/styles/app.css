@@ -104,6 +104,52 @@
   margin-right: 2px;
 }
 
+/* Walk-mode controls banner (auto-fading, themed). */
+.walk-hud {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 16px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--text-2);
+  white-space: nowrap;
+  opacity: 1;
+  transition: opacity 600ms ease;
+}
+.walk-hud.is-hidden {
+  opacity: 0;
+}
+.walk-hud-title {
+  color: var(--accent);
+  font-weight: 700;
+}
+.walk-hud-sep {
+  align-self: stretch;
+  width: 1px;
+  background: var(--border);
+}
+.walk-hud-grp {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.walk-hud-grp kbd {
+  margin-right: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .walk-hud {
+    transition: none;
+  }
+}
+
 /* Inspector / parametric schema field rows. */
 .fld {
   display: flex;

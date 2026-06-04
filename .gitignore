@@ -33,3 +33,13 @@ public/assets/ikea/
 # Local IKEA scrape corpus + derived copies (non-CC0, multi-GB — never commit)
 /ikea/
 /ikea_optimized/
+
+# Local price-server / sidecar cache
+.cache/
+
+# VitePress
+docs/user/.vitepress/cache
+docs/user/.vitepress/.temp
+docs/developer/.vitepress/cache
+docs/developer/.vitepress/.temp
+docs/developer/.vitepress/dist

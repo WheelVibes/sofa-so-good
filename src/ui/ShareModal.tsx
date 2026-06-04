@@ -1,5 +1,6 @@
 import { EXPORT_EVENT } from '../scene/ScreenshotController'
 import { useStore } from '../state/store'
+import { AiPhotorealSection } from './ai/AiPhotorealSection'
 import { Modal } from './Modal'
 import { Icon } from './toolbar/icons'
 
@@ -81,6 +82,8 @@ export function ShareModal() {
           </button>
         </div>
       </div>
+
+      <AiPhotorealSection />
     </Modal>
   )
 }

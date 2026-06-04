@@ -49,7 +49,9 @@ export the result — all in the browser.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
   top-down plan (pair with Measurements for an annotated floor plan), a
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a
-  presentation clip.
+  presentation clip. Walking uses WASD + mouse-look (pointer-lock) on desktop
+  and an on-screen joystick + drag-to-look on touch; a themed, auto-fading
+  **controls banner** greets you on entry with the right hints for your device.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
   plan its furniture (toolbar **View → Edit room: …**; a **← exit button at the
   far left of the toolbar** or **Esc** leaves). It shows just that room's walls + floor + its own furniture,
@@ -78,12 +80,22 @@ export the result — all in the browser.
 - **Design tools** — a SGD **budget** / shopping list, door-swing **clearance
   checks**, a **sun study** time-lapse, an auto **walkthrough** tour, and a
   printable **design report**.
-- **Bring your own models** — import your own `.glb` furniture (categorised,
-  searchable, recolourable like the built-ins). An offline pipeline also turns
-  scraped IKEA SG products into rich catalog items (colour/finish variants,
-  per-component recolouring, real footprints, and the **real product photo** as
-  the catalog thumbnail), with automatic **low/medium/high LOD variants** so
-  heavy models stay smooth on modest hardware.
+- **Bring your own models** — import your own furniture as
+  `.glb`/`.gltf` **or** `.obj` / `.fbx` / `.stl` / `.ply` / `.dae` / `.3mf` /
+  `.usdz`: non-GLB formats are **converted to GLB in your browser** (no upload,
+  no server), and every imported model then runs through an **in-browser
+  optimize pass** (mesh weld/dedup/prune + Draco, textures re-encoded to
+  near-lossless WebP — full resolution kept) so it stays small and smooth. An
+  optional **Maximum compression (KTX2)** toggle uses GPU-compressed textures
+  when an encoder is available and otherwise falls back to WebP. Uploaded
+  **textures/materials** accept the same breadth — PNG / JPG / WebP / BMP /
+  **TGA / TIFF / EXR / HDR** — decoded and re-encoded to WebP on import. Imports
+  are categorised, searchable, and recolourable like the built-ins. An offline
+  pipeline also turns scraped IKEA SG products into rich catalog items
+  (colour/finish variants, per-component recolouring, real footprints, and the
+  **real product photo** as the catalog thumbnail), with automatic
+  **low/medium/high LOD variants** so heavy models stay smooth on modest
+  hardware.
 - **One-click IKEA catalogue** — the *IKEA Singapore (live scrape)* pack
   (catalog → Packs) downloads models on demand via a local sidecar
   (`npm run scraper-server`): products scrape one-by-one (parallelized), each is
@@ -140,6 +152,22 @@ export the result — all in the browser.
   and **Share & export** (shareable link + a real PNG snapshot). The **2D
   floor-plan editor** and **upload dialogs** are fully theme-aware in light and
   dark.
+- **Smart Start** — pick a style and the whole flat is furnished + the walls and
+  floors finished in one click (from onboarding, the ⌘K palette, or the Arrange
+  menu).
+- **2D⇄3D layout** — the floor-plan editor shows your furniture as a top-down
+  layout (click to select, drag to move); press **P** to flip between the 2D
+  plan and the 3D scene. Drop a **floor-plan photo** to trace over (calibrate its
+  scale, adjust opacity), or — with your own API key — let **AI walls** draft the
+  plan for you.
+- **AI photoreal export** *(experimental, bring-your-own-key)* — turn the current
+  view into a photoreal image from the Share modal.
+- **Live SG prices** *(dev-only)* — toggle real IKEA Singapore prices + buy links
+  in the Shopping list (`npm run price-server`); falls back to a built-in estimate.
+
+The render loop is **on-demand** — the scene draws only while something is
+animating or you're interacting, and pauses entirely when the tab is hidden, so
+it stays cool and battery-friendly on low-end laptops.
 
 ## Controls
 
@@ -147,7 +175,7 @@ export the result — all in the browser.
 palette · `right-click` context menu · `R` rotate · `Del` delete ·
 `⌃Z`/`⇧⌃Z` undo/redo · `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate · `C` catalog ·
 `M` measurements · `T` cycle time · `O` top view · `H` reset view · `L` tidy ·
-`?` help · `V` orbit/walk · in walk: `WASD` move, `E` doors.
+`P` 2D⇄3D floor plan · `?` help · `V` orbit/walk · in walk: `WASD` move, `E` doors.
 
 ## Develop
 
@@ -163,6 +191,10 @@ npm run lint         # Biome: lint only
 npm run optimize:glb          # generate low/medium LOD variants (WebP textures)
 npm run optimize:glb -- --ktx2 # …with KTX2/Basis GPU-compressed textures (needs `toktx` on PATH)
 npm run scraper-server # local sidecar for the IKEA live-scrape pack (dev-only)
+npm run price-server   # local sidecar for live IKEA SG budget prices (dev-only)
+npm run docs:dev       # VitePress user guide (dev server)
+npm run docs:build     # build the user guide into dist/docs
+npm run build:all      # app + user guide together (used by the Pages deploy)
 ```
 
 A **pre-commit hook** (`.githooks/pre-commit`, auto-installed by `npm install`
@@ -175,6 +207,18 @@ Offline asset tooling (an IKEA SG model scraper + GLB analysis) lives under
 scrape)* pack drives that scraper through `npm run scraper-server`: start it
 alongside `npm run dev`, open the catalog's Packs tab, and click *Scrape IKEA
 catalogue* — assets land in (gitignored) `public/assets/ikea/`.
+
+## Documentation
+
+- **User guide** — a VitePress site under `docs/user/`, deployed at
+  `/sofa-so-good/docs/` and reachable in-app via the **User guide** (book) button
+  in the toolbar, the Help modal, and the ⌘K command palette. Build it with
+  `npm run docs:build` (or preview with `npm run docs:dev`).
+- **Developer guide** — maintainer docs under `docs/developer/` (plain Markdown,
+  not deployed): architecture, per-system guides, and how-to recipes. Start at
+  `docs/developer/index.md`. `CLAUDE.md` is the terse always-current index.
+
+## More
 
 Stack: React + TypeScript, three.js via @react-three/fiber, Zustand, Vite.
 See [CLAUDE.md](CLAUDE.md) for architecture and how to add content. Bundled

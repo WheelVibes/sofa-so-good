@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { useStore } from '../../state/store'
+import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { HelpModal } from '../HelpModal'
 import { BrandMark } from '../Logo'
@@ -250,6 +251,7 @@ export function Toolbar() {
         {/* Appearance + Help live on the right of the island in every mode. */}
         <Divider />
         <AppearancePopover />
+        <IconButton icon="Book" label="User guide" onClick={openDocs} />
         <IconButton
           icon="Help"
           label="Help & shortcuts"

@@ -1,11 +1,52 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AiPlanError, getVisionKey, recognizeFloorPlan, setVisionKey } from '../../ai/floorPlanAi'
+import { obbCorners } from '../../collision/obb'
+import { canPlace, itemFootprint } from '../../collision/placement'
+import { buildCollisionWalls } from '../../collision/wallsFromState'
+import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
 import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
+import { useCatalogGetter } from '../../furniture/catalog'
+import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { PlanInspector } from './PlanInspector'
 
-type Tool = 'select' | 'wall' | 'room' | 'door' | 'window'
+/** Muted top-down fill per furniture category for the 2D plan layer. */
+const CATEGORY_FILL: Record<FurnitureCategory, string> = {
+  beds: '#b08a6a',
+  seating: '#8a9a7a',
+  tables: '#c0a070',
+  storage: '#9a8470',
+  kitchen: '#9aa0a8',
+  bathroom: '#88a8b0',
+  appliances: '#8890a0',
+  lighting: '#d8c080',
+  decor: '#b89a8a',
+  textiles: '#b0907a',
+  outdoor: '#7a9a70',
+  electronics: '#7a8088',
+  kids: '#c89aa8',
+  laundry: '#90a0a8',
+  others: '#9a9488',
+}
+
+type Tool = 'select' | 'wall' | 'room' | 'door' | 'window' | 'scale'
+
+/** A reference photo/scan traced over to draw walls. Session-scoped (the object
+ *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */
+interface Backdrop {
+  url: string
+  /** Natural pixel dimensions of the loaded image. */
+  w: number
+  h: number
+  opacity: number
+  /** Metres per image pixel (set via the Scale tool). */
+  mPerPx: number
+  /** World position (m) of the image's top-left corner. */
+  ox: number
+  oz: number
+}
 
 const PAD = 0.6 // metres of margin around the plan in the view
 const MAX_W = 940
@@ -24,12 +65,117 @@ export function FloorPlanEditor() {
   const sel = useStore((s) => s.planSelection)
   const a = useStore.getState()
 
+  const items = useStore((s) => s.items)
+  const selectedItemId = useStore((s) => s.selectedItemId)
+  const { getDef, ref: catalogRef } = useCatalogGetter()
+
   const [tool, setTool] = useState<Tool>('select')
   const [wallType, setWallType] = useState<'internal' | 'external'>('internal')
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null)
   // Active room drag (select tool): grab offset from the room origin.
   const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null)
+  // Active furniture drag (select tool): grab offset from the item position.
+  const [movingItem, setMovingItem] = useState<{ id: string; gx: number; gz: number } | null>(null)
+  // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
+  const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
+  const fileRef = useRef<HTMLInputElement>(null)
+
+  // Experimental AI wall recognition (Wave E): send the backdrop to a vision
+  // model and seed an editable draft plan from the returned walls. Falls back
+  // to manual tracing on any failure.
+  const runAiWalls = async () => {
+    if (!backdrop || aiBusy) return
+    let key = getVisionKey()
+    if (!key) {
+      key = window.prompt('Vision-model API key (OpenAI-compatible, kept in this browser):') || ''
+      if (!key) return
+      setVisionKey(key)
+    }
+    setAiBusy(true)
+    try {
+      // The backdrop is an object URL; the remote model needs inline data.
+      const img = new Image()
+      img.src = backdrop.url
+      await img.decode().catch(() => {})
+      const c = document.createElement('canvas')
+      c.width = backdrop.w
+      c.height = backdrop.h
+      c.getContext('2d')?.drawImage(img, 0, 0)
+      const walls = await recognizeFloorPlan(c.toDataURL('image/png'), { key })
+      const st = useStore.getState()
+      st.pushHistory()
+      st.newFloorPlan('AI draft')
+      for (const w of walls) {
+        st.addWall({
+          start: [w.x1, w.z1],
+          end: [w.x2, w.z2],
+          thickness: w.external ? 'external' : 'internal',
+        })
+      }
+      st.notify.start({
+        title: `AI drafted ${walls.length} walls — adjust as needed`,
+        kind: 'success',
+      })
+    } catch (e) {
+      window.alert(e instanceof AiPlanError ? e.message : 'AI floor-plan recognition failed.')
+    } finally {
+      setAiBusy(false)
+    }
+  }
+
+  // Load a dropped/picked image as the trace backdrop (defaults to ~100 px/m;
+  // the user calibrates exactly with the Scale tool).
+  const loadBackdrop = (file: File) => {
+    if (!file.type.startsWith('image/')) return
+    const url = URL.createObjectURL(file)
+    const img = new Image()
+    img.onload = () => {
+      setBackdrop((prev) => {
+        if (prev) URL.revokeObjectURL(prev.url)
+        return {
+          url,
+          w: img.naturalWidth,
+          h: img.naturalHeight,
+          opacity: 0.5,
+          mPerPx: 0.01,
+          ox: 0,
+          oz: 0,
+        }
+      })
+      setTool('select')
+    }
+    img.src = url
+  }
+
+  // Frame the selected furniture in 3D when leaving the editor, so toggling
+  // 2D->3D lands on whatever you were working on (the seamless-toggle payoff).
+  const exitToScene = useCallback(() => {
+    const st = useStore.getState()
+    st.setFloorPlanEditing(false)
+    if (st.selectedItemId) {
+      const it = st.items.find((i) => i.id === st.selectedItemId)
+      if (it) st.focusOn(it.position)
+    }
+  }, [])
+
+  // `P` toggles the editor from anywhere (a persistent 2D<->3D switch), unless
+  // the user is typing or in walk mode. Always mounted so it works from 3D too.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyP' || e.metaKey || e.ctrlKey || e.altKey) return
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))
+        return
+      const st = useStore.getState()
+      if (st.cameraMode === 'firstPerson') return
+      if (st.floorPlanEditing) exitToScene()
+      else st.setFloorPlanEditing(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [exitToScene])
 
   const [ew, ed] = planBounds(plan)
   const PX = useMemo(() => {
@@ -48,7 +194,7 @@ export function FloorPlanEditor() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setDraft(null)
-        useStore.getState().setFloorPlanEditing(false)
+        exitToScene()
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
         const st = useStore.getState()
         if (sel.type === 'wall') st.removeWall(sel.id)
@@ -58,7 +204,7 @@ export function FloorPlanEditor() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing, sel])
+  }, [editing, sel, exitToScene])
 
   if (!editing) return null
 
@@ -108,7 +254,7 @@ export function FloorPlanEditor() {
   const onDown = (e: React.PointerEvent) => {
     const [wx, wz] = pointerWorld(e)
     const st = useStore.getState()
-    if (tool === 'wall' || tool === 'room') {
+    if (tool === 'wall' || tool === 'room' || tool === 'scale') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
@@ -131,6 +277,30 @@ export function FloorPlanEditor() {
   }
 
   const onMove = (e: React.PointerEvent) => {
+    if (movingItem) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const it = st.items.find((i) => i.id === movingItem.id)
+      const def = it ? catalogRef.current[it.defId] : undefined
+      if (!it || !def) return
+      const pos: [number, number] = [snap(wx - movingItem.gx), snap(wz - movingItem.gz)]
+      const planWalls = isDefaultPlan(st.floorPlan)
+        ? buildCollisionWalls(st.doors)
+        : planCollisionWalls(st.floorPlan, st.doors)
+      const others = st.items.filter((o) => o.id !== it.id)
+      // Only commit a move that doesn't collide with walls or other items —
+      // same rule the 3D DragController enforces.
+      if (
+        canPlace({ ...it, position: pos }, def, {
+          others,
+          defs: catalogRef.current,
+          doors: st.doors,
+          walls: planWalls,
+        })
+      )
+        st.moveItem(it.id, pos)
+      return
+    }
     if (moving) {
       const [wx, wz] = pointerWorld(e)
       useStore
@@ -144,12 +314,30 @@ export function FloorPlanEditor() {
   }
 
   const onUp = () => {
+    if (movingItem) {
+      setMovingItem(null)
+      return
+    }
     if (moving) {
       setMoving(null)
       return
     }
     if (!draft) return
     const st = useStore.getState()
+    if (tool === 'scale') {
+      // Calibrate: the dragged span equals a real length the user types, so the
+      // backdrop rescales (mPerPx) to match. No walls created.
+      const worldDist = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
+      if (backdrop && worldDist > 0.05) {
+        const input = window.prompt('Real length of the line you drew (metres):', '1')
+        const meters = input ? Number.parseFloat(input) : NaN
+        if (Number.isFinite(meters) && meters > 0) {
+          setBackdrop((b) => (b ? { ...b, mPerPx: (b.mPerPx * meters) / worldDist } : b))
+        }
+      }
+      setDraft(null)
+      return
+    }
     if (tool === 'wall') {
       if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.2) {
         const id = st.addWall({
@@ -259,6 +447,72 @@ export function FloorPlanEditor() {
           ))}
         </select>
         <PlanLibrary />
+
+        {/* Reference photo — trace walls over a floor-plan image / room scan. */}
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          style={{ display: 'none' }}
+          onChange={(e) => {
+            const f = e.target.files?.[0]
+            if (f) loadBackdrop(f)
+            e.target.value = ''
+          }}
+        />
+        {!backdrop ? (
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            title="Load a floor-plan photo / scan to trace over"
+            className="btn btn-sm"
+          >
+            Reference photo…
+          </button>
+        ) : (
+          <div className="seg" style={{ alignItems: 'center', gap: 6, paddingRight: 6 }}>
+            <button
+              type="button"
+              className={tool === 'scale' ? 'on' : ''}
+              onClick={() => setTool(tool === 'scale' ? 'select' : 'scale')}
+              title="Drag a line over a known dimension, then type its real length"
+            >
+              Set scale
+            </button>
+            <input
+              type="range"
+              min={0}
+              max={1}
+              step={0.05}
+              value={backdrop.opacity}
+              title="Reference opacity"
+              style={{ width: 70 }}
+              onChange={(e) =>
+                setBackdrop((b) => (b ? { ...b, opacity: Number(e.target.value) } : b))
+              }
+            />
+            <button
+              type="button"
+              onClick={runAiWalls}
+              disabled={aiBusy}
+              title="Experimental: recognise walls from the photo with a vision model (your API key)"
+            >
+              {aiBusy ? 'Recognising…' : 'AI walls'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                URL.revokeObjectURL(backdrop.url)
+                setBackdrop(null)
+                if (tool === 'scale') setTool('select')
+              }}
+              title="Remove reference photo"
+            >
+              ✕
+            </button>
+          </div>
+        )}
+
         <div className="ml-auto flex items-center gap-3">
           <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
             Total{' '}
@@ -267,11 +521,7 @@ export function FloorPlanEditor() {
             </b>{' '}
             · {plan.rooms.length} rooms
           </span>
-          <button
-            type="button"
-            onClick={() => a.setFloorPlanEditing(false)}
-            className="btn btn-accent btn-sm"
-          >
+          <button type="button" onClick={exitToScene} className="btn btn-accent btn-sm">
             Done
           </button>
         </div>
@@ -279,7 +529,20 @@ export function FloorPlanEditor() {
 
       <div className="flex min-h-0 flex-1">
         {/* Canvas */}
-        <div className="plan-canvas flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
+        {/* Canvas — also a drop zone for the reference image */}
+        <div
+          className="plan-canvas flex min-h-0 flex-1 items-center justify-center overflow-auto p-4"
+          onDragOver={(e) => {
+            if (e.dataTransfer.types.includes('Files')) e.preventDefault()
+          }}
+          onDrop={(e) => {
+            const f = e.dataTransfer.files?.[0]
+            if (f?.type.startsWith('image/')) {
+              e.preventDefault()
+              loadBackdrop(f)
+            }
+          }}
+        >
           <svg
             ref={svgRef}
             width={W}
@@ -290,6 +553,20 @@ export function FloorPlanEditor() {
             onPointerMove={onMove}
             onPointerUp={onUp}
           >
+            {/* Reference photo/scan to trace over (behind the grid). */}
+            {backdrop && (
+              <image
+                href={backdrop.url}
+                x={toPx(backdrop.ox)}
+                y={toPx(backdrop.oz)}
+                width={backdrop.w * backdrop.mPerPx * PX}
+                height={backdrop.h * backdrop.mPerPx * PX}
+                opacity={backdrop.opacity}
+                preserveAspectRatio="none"
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
+
             <GridLines W={W} H={H} PX={PX} gridSize={gridSize} pad={PAD} ew={ew} ed={ed} />
 
             {/* Rooms */}
@@ -342,6 +619,40 @@ export function FloorPlanEditor() {
                     </tspan>
                   </text>
                 </g>
+              )
+            })}
+
+            {/* Furniture footprints — the live 3D layout, top-down. Click to
+                select (shared with 3D); drag (select tool) to move. */}
+            {items.map((it) => {
+              const def = getDef(it.defId)
+              if (!def) return null
+              const obb = itemFootprint(it, def)
+              const pts = obbCorners(obb)
+                .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
+                .join(' ')
+              const isSel = selectedItemId === it.id
+              return (
+                <polygon
+                  key={it.id}
+                  points={pts}
+                  fill={isSel ? 'var(--accent-soft)' : (CATEGORY_FILL[def.category] ?? '#9a9488')}
+                  fillOpacity={isSel ? 0.95 : 0.55}
+                  stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                  strokeWidth={isSel ? 2 : 1}
+                  strokeLinejoin="round"
+                  style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                  onPointerDown={(e) => {
+                    if (tool !== 'select') return
+                    e.stopPropagation()
+                    const [wx, wz] = pointerWorld(e)
+                    const st = useStore.getState()
+                    st.selectItem(it.id)
+                    st.pushHistory()
+                    setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
+                    svgRef.current?.setPointerCapture(e.pointerId)
+                  }}
+                />
               )
             })}
 
@@ -452,6 +763,19 @@ export function FloorPlanEditor() {
                 </g>
               )
             })}
+
+            {/* Scale calibration line */}
+            {draft && tool === 'scale' && (
+              <line
+                x1={toPx(draft.x0)}
+                y1={toPx(draft.z0)}
+                x2={toPx(draft.x)}
+                y2={toPx(draft.z)}
+                stroke="var(--accent)"
+                strokeWidth={2}
+                strokeDasharray="5 4"
+              />
+            )}
 
             {/* Draft (in-progress draw) */}
             {draft && tool === 'wall' && (

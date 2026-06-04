@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useCatalogByCategory } from '../furniture/catalog'
 import { tidyHome } from '../layout/tidyHome'
 import { useStore } from '../state/store'
+import { openDocs } from './docsUrl'
 import { Icon, type IconName } from './toolbar/icons'
 
 interface Command {
@@ -59,6 +60,13 @@ export function CommandPalette() {
         hint: 'M',
         icon: 'Measure',
         run: () => s().toggleMeasurements(),
+      },
+      {
+        id: 'smart-start',
+        group: 'Actions',
+        label: 'Smart Start — furnish my flat',
+        icon: 'Presets',
+        run: () => s().setSmartStartOpen(true),
       },
       {
         id: 'tidy',
@@ -123,6 +131,13 @@ export function CommandPalette() {
         hint: '?',
         icon: 'Help',
         run: () => s().setHelpOpen(true),
+      },
+      {
+        id: 'docs',
+        group: 'Tools & panels',
+        label: 'Open the user guide',
+        icon: 'Book',
+        run: () => openDocs(),
       },
       {
         id: 'top',

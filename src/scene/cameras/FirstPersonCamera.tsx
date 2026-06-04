@@ -10,6 +10,7 @@ import { KEYBINDINGS } from '../../controls/keybindings'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { useStore } from '../../state/store'
+import { resetWalkMove, walkInput } from '../walkInput'
 
 interface DoorSegment {
   id: string
@@ -51,6 +52,11 @@ const JUMP_VELOCITY = 4.2
 const GRAVITY = 14
 /** Mouse-look sensitivity, radians of turn per pixel of pointer movement. */
 const LOOK_SENSITIVITY = 0.0024
+/** Touch drag look sensitivity (rad per CSS px) — a touch unit. */
+const TOUCH_LOOK_SENSITIVITY = 0.005
+/** True on touch-primary devices, where Pointer Lock is unavailable. */
+const IS_COARSE_POINTER =
+  typeof window !== 'undefined' && window.matchMedia('(pointer: coarse)').matches
 /** Pitch clamp so you can't roll past straight up/down. */
 const MAX_PITCH = 1.5
 const PLAYER_RADIUS = 0.25
@@ -100,16 +106,58 @@ export function FirstPersonCamera() {
     }
   }, [])
 
-  // Mouse-look via Pointer Lock: click the scene to capture the cursor, then
-  // moving the mouse/trackpad spins the view (true FPS spin-on-move) while WASD
-  // moves at the same time — they're independent input streams. The browser
-  // captures + hides the cursor so it can't drift onto the UI or stall at the
-  // window edge, and gives unbounded relative movement. Esc releases it.
+  // Look-around input. On touch devices Pointer Lock is unavailable, so a drag
+  // on the canvas spins the view (tracked by touch identifier so it's
+  // independent of the joystick thumb). On desktop, Pointer Lock is used: click
+  // the scene to capture the cursor, then mouse movement spins the view (true
+  // FPS spin-on-move) while WASD moves at the same time — independent streams.
   useEffect(() => {
     const dom = gl.domElement
     const clampPitch = (p: number) => Math.max(-MAX_PITCH, Math.min(MAX_PITCH, p))
-    const isLocked = () => document.pointerLockElement === dom
 
+    if (IS_COARSE_POINTER) {
+      let lookId: number | null = null
+      let lastX = 0
+      let lastY = 0
+      const onTouchStart = (e: TouchEvent) => {
+        if (lookId !== null) return
+        // A touch that lands on the canvas (not a UI control) becomes the look
+        // drag. The joystick stops propagation, so its touches never arrive here.
+        const t = e.changedTouches[0]
+        if (!t) return
+        lookId = t.identifier
+        lastX = t.clientX
+        lastY = t.clientY
+      }
+      const onTouchMove = (e: TouchEvent) => {
+        if (lookId === null) return
+        for (const t of Array.from(e.changedTouches)) {
+          if (t.identifier !== lookId) continue
+          yaw.current -= (t.clientX - lastX) * TOUCH_LOOK_SENSITIVITY
+          pitch.current = clampPitch(pitch.current - (t.clientY - lastY) * TOUCH_LOOK_SENSITIVITY)
+          lastX = t.clientX
+          lastY = t.clientY
+          e.preventDefault()
+        }
+      }
+      const onTouchEnd = (e: TouchEvent) => {
+        for (const t of Array.from(e.changedTouches)) {
+          if (t.identifier === lookId) lookId = null
+        }
+      }
+      dom.addEventListener('touchstart', onTouchStart, { passive: true })
+      dom.addEventListener('touchmove', onTouchMove, { passive: false })
+      dom.addEventListener('touchend', onTouchEnd)
+      dom.addEventListener('touchcancel', onTouchEnd)
+      return () => {
+        dom.removeEventListener('touchstart', onTouchStart)
+        dom.removeEventListener('touchmove', onTouchMove)
+        dom.removeEventListener('touchend', onTouchEnd)
+        dom.removeEventListener('touchcancel', onTouchEnd)
+      }
+    }
+
+    const isLocked = () => document.pointerLockElement === dom
     const onClick = () => {
       if (!isLocked()) void dom.requestPointerLock()
     }
@@ -123,7 +171,6 @@ export function FirstPersonCamera() {
       if (!isLocked()) pressed.current = {}
       dom.style.cursor = isLocked() ? 'none' : 'grab'
     }
-
     dom.style.cursor = 'grab'
     dom.addEventListener('click', onClick)
     document.addEventListener('mousemove', onMouseMove)
@@ -165,6 +212,7 @@ export function FirstPersonCamera() {
     }
     return () => {
       useStore.getState().setNearbyDoor(null)
+      resetWalkMove()
       if (camera instanceof PerspectiveCamera && prevFov !== null) {
         camera.fov = prevFov
         camera.updateProjectionMatrix()
@@ -197,7 +245,8 @@ export function FirstPersonCamera() {
     const back = pressed.current[KEYBINDINGS.walkBack] || pressed.current['ArrowDown']
     const left = pressed.current[KEYBINDINGS.walkLeft] || pressed.current['ArrowLeft']
     const rightKey = pressed.current[KEYBINDINGS.walkRight] || pressed.current['ArrowRight']
-    const moving = !!(forward || back || left || rightKey)
+    const joystickMoving = Math.hypot(walkInput.move.x, walkInput.move.y) > 0.01
+    const moving = !!(forward || back || left || rightKey) || joystickMoving
     const crouching = !!pressed.current['ShiftLeft'] || !!pressed.current['ShiftRight']
     const targetGround = crouching ? CROUCH_HEIGHT : EYE_HEIGHT
     const dy = targetGround - groundY.current
@@ -227,11 +276,18 @@ export function FirstPersonCamera() {
       dx -= right.x
       dz -= right.z
     }
+    // Mobile joystick: y = forward/back along heading, x = strafe along right.
+    const jv = walkInput.move
+    dx += dir.x * jv.y + right.x * jv.x
+    dz += dir.z * jv.y + right.z * jv.x
 
     if (dx !== 0 || dz !== 0) {
       const len = Math.hypot(dx, dz)
+      // Analog: keyboard pushes len≈1 (full speed); joystick scales by how far
+      // the thumb is pushed, capped at 1 so combined input never exceeds speed.
+      const throttle = Math.min(1, len)
       const stepDt = Math.min(dt, 0.05)
-      const speed = crouching ? SNEAK_SPEED : WALK_SPEED
+      const speed = (crouching ? SNEAK_SPEED : WALK_SPEED) * throttle
       dx = (dx / len) * speed * stepDt
       dz = (dz / len) * speed * stepDt
       const from: [number, number] = [camera.position.x, camera.position.z]

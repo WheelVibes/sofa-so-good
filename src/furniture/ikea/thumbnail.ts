@@ -9,9 +9,11 @@ export function fitDimensions(w: number, h: number, maxEdge: number): { w: numbe
 
 /** Downscale an image File to a thumbnail Blob whose longest edge is
  *  <= maxEdge (default 256). Decodes via createImageBitmap, draws to a
- *  canvas, and exports WebP (q=0.8). Resolves to the original file's blob
- *  if the browser image APIs are unavailable (e.g. jsdom) so callers can
- *  treat it as best-effort. */
+ *  canvas, and exports WebP (q=0.8). Best-effort: resolves to the original
+ *  file's blob — and never throws — when the browser image pipeline can't run.
+ *  That covers both APIs being absent (jsdom) AND present-but-non-functional
+ *  (happy-dom exposes createImageBitmap as a function that throws, and its
+ *  canvas has no 2D context), so callers always get a storable blob. */
 export async function downscaleImageFile(file: File, maxEdge = 256): Promise<Blob> {
   if (
     typeof createImageBitmap !== 'function' ||
@@ -20,20 +22,24 @@ export async function downscaleImageFile(file: File, maxEdge = 256): Promise<Blo
   ) {
     return file
   }
-  const bitmap = await createImageBitmap(file)
-  const { w, h } = fitDimensions(bitmap.width, bitmap.height, maxEdge)
-  const canvas = document.createElement('canvas')
-  canvas.width = w
-  canvas.height = h
-  const ctx = canvas.getContext('2d')
-  if (!ctx) {
+  try {
+    const bitmap = await createImageBitmap(file)
+    const { w, h } = fitDimensions(bitmap.width, bitmap.height, maxEdge)
+    const canvas = document.createElement('canvas')
+    canvas.width = w
+    canvas.height = h
+    const ctx = canvas.getContext('2d')
+    if (!ctx) {
+      bitmap.close()
+      return file
+    }
+    ctx.drawImage(bitmap, 0, 0, w, h)
     bitmap.close()
+    const blob: Blob | null = await new Promise((resolve) =>
+      canvas.toBlob((b) => resolve(b), 'image/webp', 0.8),
+    )
+    return blob ?? file
+  } catch {
     return file
   }
-  ctx.drawImage(bitmap, 0, 0, w, h)
-  bitmap.close()
-  const blob: Blob | null = await new Promise((resolve) =>
-    canvas.toBlob((b) => resolve(b), 'image/webp', 0.8),
-  )
-  return blob ?? file
 }

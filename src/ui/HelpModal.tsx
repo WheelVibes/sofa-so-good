@@ -1,3 +1,4 @@
+import { DOCS_URL } from './docsUrl'
 import { Modal } from './Modal'
 import { Icon } from './toolbar/icons'
 
@@ -59,6 +60,23 @@ export function HelpModal({ open, onClose }: { open: boolean; onClose: () => voi
               <span>{tip}</span>
             </li>
           ))}
+        </ul>
+      </div>
+      <div className="sec">
+        <div className="sec-h">
+          <span>Documentation</span>
+        </div>
+        <ul className="help-list">
+          <li>
+            <Icon.Book className="icn" width={16} height={16} />
+            <span>
+              Read the{' '}
+              <a href={DOCS_URL} target="_blank" rel="noopener noreferrer">
+                full user guide ↗
+              </a>{' '}
+              for step-by-step walkthroughs and examples.
+            </span>
+          </li>
         </ul>
       </div>
     </Modal>

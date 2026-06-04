@@ -1,0 +1,79 @@
+/*
+ * Shared VitePress theme tweaks for both the user guide (docs/user) and the
+ * developer guide (docs/developer). Echoes the app's warm, Singapore-rooted
+ * "Clay" palette and adds responsive polish so the docs read well on phones.
+ * Imported from each site's .vitepress/theme/index.ts.
+ */
+
+:root {
+  /* Warm clay brand, matching the app's default --accent (oklch 0.6 0.125 42). */
+  --vp-c-brand-1: oklch(0.54 0.13 42);
+  --vp-c-brand-2: oklch(0.5 0.13 41);
+  --vp-c-brand-3: oklch(0.6 0.125 42);
+  --vp-c-brand-soft: oklch(0.6 0.125 42 / 0.12);
+
+  /* Home hero: a soft clay gradient on the title + name. */
+  --vp-home-hero-name-color: transparent;
+  --vp-home-hero-name-background: -webkit-linear-gradient(
+    120deg,
+    oklch(0.62 0.14 44),
+    oklch(0.55 0.13 30)
+  );
+  --vp-home-hero-image-background-image: linear-gradient(
+    -45deg,
+    oklch(0.62 0.14 44 / 0.25),
+    oklch(0.6 0.1 70 / 0.2)
+  );
+  --vp-home-hero-image-filter: blur(44px);
+}
+
+.dark {
+  --vp-c-brand-1: oklch(0.76 0.12 46);
+  --vp-c-brand-2: oklch(0.72 0.13 46);
+  --vp-c-brand-3: oklch(0.68 0.13 44);
+  --vp-c-brand-soft: oklch(0.68 0.13 44 / 0.18);
+}
+
+/* ---- Responsive polish ------------------------------------------------ */
+
+/* Images never overflow their column on a phone, and get a soft frame. */
+.vp-doc img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 10px;
+}
+.vp-doc figure {
+  margin: 1.25rem 0;
+}
+
+/* Wide tables (e.g. keyboard-shortcut lists) scroll horizontally instead of
+ * forcing a tiny font or breaking the layout on narrow viewports. */
+.vp-doc table {
+  display: block;
+  overflow-x: auto;
+  white-space: normal;
+}
+
+/* Crisper inline keys. */
+.vp-doc kbd {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: 5px;
+  font-size: 0.8em;
+  line-height: 1.5;
+  border: 1px solid var(--vp-c-divider);
+  background: var(--vp-c-bg-soft);
+  box-shadow: 0 1px 0 var(--vp-c-divider);
+  white-space: nowrap;
+}
+
+/* Tighten the content rhythm a touch on small screens. */
+@media (max-width: 640px) {
+  .vp-doc h2 {
+    margin-top: 1.75rem;
+    padding-top: 1.5rem;
+  }
+  .vp-doc table {
+    font-size: 0.85em;
+  }
+}

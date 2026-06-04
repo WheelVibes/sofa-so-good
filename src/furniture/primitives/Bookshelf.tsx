@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
 
 interface BookshelfProps {
@@ -48,8 +49,10 @@ export function Bookshelf({ props }: BookshelfProps) {
   // compartment (s === 0) is closed, so skip its books.
   const BOOK_COLORS = ['#7d3b3b', '#3b5a7d', '#5a7d3b', '#b08a3e', '#6b4a7d', '#3b6f6b', '#9c5a3c']
   const usableW = width - sideThickness * 2 - 0.02
-  const books: ReactNode[] = []
-  let bookKey = 0
+  // Books are decorative repeats — collect them as instances and draw the whole
+  // set in ONE call (a full shelf is ~35 boxes; instancing drops the bookshelf
+  // from ~48 draw calls to ~13). Per-book size/colour ride on the instance.
+  const books: BoxInstance[] = []
   const firstBookShelf = hasCabinet ? 1 : 0
   for (let s = firstBookShelf; s < shelfCount - 1; s++) {
     const baseY = shelfThickness + s * shelfSpacing // top of this shelf
@@ -68,12 +71,11 @@ export function Bookshelf({ props }: BookshelfProps) {
       if (rnd() > 0.18) {
         const bh = gapH * (0.62 + rnd() * 0.3)
         const col = BOOK_COLORS[Math.floor(rnd() * BOOK_COLORS.length)]
-        books.push(
-          <mesh key={`bk-${bookKey++}`} position={[x + bw / 2, baseY + bh / 2, 0.02]}>
-            <boxGeometry args={[bw, bh, depth * 0.62]} />
-            <meshStandardMaterial color={col} roughness={0.8} metalness={0} />
-          </mesh>,
-        )
+        books.push({
+          position: [x + bw / 2, baseY + bh / 2, 0.02],
+          size: [bw, bh, depth * 0.62],
+          color: col,
+        })
       }
       x += bw + 0.004
     }
@@ -136,7 +138,9 @@ export function Bookshelf({ props }: BookshelfProps) {
           <boxGeometry args={[width - sideThickness * 2, carcassH, backThickness]} />
         </mesh>
         {shelves}
-        {books}
+        <InstancedBoxes instances={books} castShadow>
+          <meshStandardMaterial roughness={0.8} metalness={0} />
+        </InstancedBoxes>
         {cabinetDoors}
       </group>
     </group>

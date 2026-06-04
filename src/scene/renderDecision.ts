@@ -1,0 +1,60 @@
+/**
+ * Pure decision for the demand-mode render pump (see RenderPump.tsx). Kept free
+ * of React/three.js so it's unit-testable with explicit inputs.
+ *
+ * The main `<Canvas>` runs `frameloop="demand"` — it renders only when
+ * `invalidate()` is called. RenderPump runs one always-on rAF loop that calls
+ * `invalidate()` whenever this function returns true, so the scene draws every
+ * frame while something is animating and goes quiet (0 redraws) when idle.
+ */
+
+export interface PumpInputs {
+  /** Tab hidden / window minimised — never render (biggest battery win). */
+  hidden: boolean
+  /** Boot not finished — keep rendering so the scene warms + SceneReadySignal ticks. */
+  sceneReady: boolean
+  /** drei asset loader still streaming (GLBs/textures) — keep rendering. */
+  assetsActive: boolean
+  /** First-person walkthrough — the FPS camera needs every frame. */
+  walk: boolean
+  /** Turntable auto-orbit (OrbitControls.autoRotate). */
+  autoRotate: boolean
+  /** Automated walkthrough tour is flying the camera. */
+  touring: boolean
+  /** Recording the canvas to video — must capture frames. */
+  recording: boolean
+  /** AccumulativeShadows converging (high-tier showcase). */
+  showcaseAccumulating: boolean
+  /** A furniture drag gesture is in progress. */
+  dragging: boolean
+  /** Count of items running a continuous per-frame animation (spinning fans). */
+  animatedCount: number
+  /** Monotonic clock (performance.now()). */
+  now: number
+  /** Keep rendering until this clock value — the post-change "settle tail". */
+  dirtyUntil: number
+}
+
+/** True while a continuous animation source wants every frame (independent of
+ *  the settle tail). Used to know whether the scene is in continuous mode. */
+export function isContinuous(i: PumpInputs): boolean {
+  if (!i.sceneReady) return true
+  if (i.assetsActive) return true
+  if (i.walk || i.autoRotate || i.touring || i.recording || i.showcaseAccumulating || i.dragging)
+    return true
+  return i.animatedCount > 0
+}
+
+/** Should the pump request a render this rAF tick? */
+export function shouldRender(i: PumpInputs): boolean {
+  if (i.hidden) return false
+  if (isContinuous(i)) return true
+  return i.now < i.dirtyUntil
+}
+
+/** Settle-tail length (ms) after a discrete change. Long enough on showcase
+ *  tiers to bridge into AccumulativeShadows convergence (IDLE_MS=400 + damping
+ *  margin); short elsewhere (covers emissive-glow lerp + damping safety). */
+export function settleTailMs(showcaseEnabled: boolean): number {
+  return showcaseEnabled ? 700 : 300
+}

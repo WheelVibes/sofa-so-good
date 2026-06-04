@@ -26,6 +26,7 @@ import { Sky } from './lighting/Sky'
 import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
+import { RenderPump } from './RenderPump'
 import { ScreenshotController } from './ScreenshotController'
 import { ShowcaseController } from './ShowcaseController'
 import { HoverHighlight } from './selection/HoverHighlight'
@@ -52,6 +53,10 @@ export function Scene() {
   const customPlan = useStore((s) => !isDefaultPlan(s.floorPlan))
   return (
     <Canvas
+      // Demand mode: render only when RenderPump calls invalidate() — the scene
+      // draws 0 frames when idle (battery/thermal win) and continuously only
+      // while something animates. See RenderPump / renderDecision.
+      frameloop="demand"
       shadows={{ type: PCFSoftShadowMap }}
       dpr={[1, 1.75]}
       camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 400 }}
@@ -67,6 +72,7 @@ export function Scene() {
       }}
     >
       <ContextLossGuard />
+      <RenderPump />
       <Sky />
       <CityBackdrop />
       <SceneEnvironment />

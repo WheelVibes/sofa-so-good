@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { useStore } from '../state/store'
 import { detectDefaultTier, RENDER_TIERS } from './quality'
+import { isRenderingContinuously } from './renderPumpSignal'
 import { useQuality } from './useQuality'
 
 const ORDER = RENDER_TIERS
@@ -38,6 +39,14 @@ export function QualityController() {
   const acc = useRef({ t: 0, frames: 0, lowWindows: 0 })
   useFrame((_, dt) => {
     const a = acc.current
+    // Only measure FPS while the pump is rendering continuously. In demand mode
+    // idle frames are seconds apart, which would read as ~0 FPS and trigger a
+    // spurious tier downgrade — reset the window instead.
+    if (!isRenderingContinuously()) {
+      a.t = 0
+      a.frames = 0
+      return
+    }
     a.t += dt
     a.frames++
     if (a.t < 1.5) return

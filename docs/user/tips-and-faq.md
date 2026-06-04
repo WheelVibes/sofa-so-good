@@ -1,0 +1,46 @@
+# Tips & FAQ
+
+## Tips
+
+- **Drag to place, <kbd>R</kbd> to rotate** — drag a catalog card onto the floor
+  and press <kbd>R</kbd> while dragging.
+- **Click a surface to refinish it** — click any wall or the floor to repaint or
+  re‑material it from the picker.
+- **Walk for scale** — switch to Walk (<kbd>V</kbd>) to feel the flat at eye
+  level.
+- **Make it yours** — open the Appearance menu to switch between the four themes
+  and light / dark.
+- **Start fast** — use **Smart Start** to furnish and finish the whole flat in one
+  click, then tweak.
+
+## FAQ
+
+**Where are my designs saved?**
+In your browser. Your layout autosaves as you work, and you can keep named
+snapshots with **Versions** (Tools menu). Nothing is stored on a server.
+
+**Is my data uploaded anywhere?**
+No. Model and texture imports — including format conversion and optimization —
+run entirely in your browser. (The optional, experimental AI features are the
+only exception, and only when you supply your own API key.)
+
+**Why does the default look flat / simple?**
+The app starts on the **Performance** graphics tier so it loads instantly and
+stays smooth on any laptop. Raise the quality in **Graphics** (shadows, ambient
+lighting, post‑processing, higher‑detail assets) whenever you want a richer look.
+
+**Can I use my own models and textures?**
+Yes — see [Importing models](/importing-models) and
+[Importing textures](/importing-textures). Many formats are supported and
+converted automatically.
+
+**Does it work on my phone or tablet?**
+Yes. On small screens the panels become bottom sheets and the toolbar collapses
+to a compact bar with an action sheet, so everything stays reachable one‑handed.
+In walk mode you get an on‑screen joystick to move and drag‑to‑look instead of
+the keyboard and mouse. See [Navigating the flat](/navigating#walk-mode).
+
+**The flat looks too dark / too bright.**
+That's the time‑of‑day simulation. Press <kbd>T</kbd> to cycle morning → noon →
+dusk → night, or set the time and sun direction from the **Scene** menu. See
+[Lighting & time of day](/lighting-and-time).

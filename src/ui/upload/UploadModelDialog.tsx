@@ -8,7 +8,8 @@ import {
 import { parseMetadata } from '../../furniture/ikea/metadata'
 import { mapCategory } from '../../furniture/ikea/translate'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
-import { isModelFile, modelName } from '../../furniture/upload/bulkImport'
+import { isModelFile, modelName, prepareModelFile } from '../../furniture/upload/bulkImport'
+import { hashFile } from '../../furniture/upload/hashFile'
 import { persistUserGlb } from '../../furniture/upload/persist'
 import { readDroppedItems } from '../../furniture/upload/readDrop'
 import { startBackgroundImport } from '../../furniture/upload/runImport'
@@ -68,6 +69,9 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   const [category, setCategory] = useState<FurnitureCategory | 'auto'>('auto')
   const [mounted, setMounted] = useState(false)
   const [noClip, setNoClip] = useState(false)
+  // Opt-in: route the optimize pass through the KTX2/UASTC encoder (falls back
+  // to WebP when the encoder is unavailable, so it's safe to leave on).
+  const [ktx2, setKtx2] = useState(false)
   const [error, setError] = useState<string | null>(null)
   // The brief inline save of a single named loose file (groups + bulk run in
   // the background instead — see startBackgroundImport).
@@ -132,6 +136,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setCategory('auto')
     setMounted(false)
     setNoClip(false)
+    setKtx2(false)
     setError(null)
     setBusy(false)
     setIkeaGroups([])
@@ -173,12 +178,12 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
 
   const submit = async () => {
     if (modelFiles.length === 0) {
-      setError('Pick at least one .glb or .gltf file.')
+      setError('Pick at least one supported model file.')
       return
     }
 
     // A single named loose file keeps the inline rename path (it's fast and the
-    // user typed a name) — persist then close.
+    // user typed a name) — convert (if needed) + optimize, persist, then close.
     if (single) {
       if (!name.trim()) {
         setError('Enter a name.')
@@ -186,29 +191,39 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
       }
       setBusy(true)
       setError(null)
-      const r = await persistUserGlb(files[0], {
-        name: name.trim(),
-        category: looseCategory,
-        mounted,
-        noClip,
-      })
-      setBusy(false)
-      if (!r.ok) {
-        setError(r.reason)
-        return
+      try {
+        // Dedupe on the SOURCE bytes (matches the bulk path) so re-importing the
+        // same file is recognised regardless of optimizer non-determinism.
+        const contentHash = await hashFile(files[0])
+        const prepared = await prepareModelFile(files[0], files, ktx2)
+        const r = await persistUserGlb(prepared, {
+          name: name.trim(),
+          category: looseCategory,
+          mounted,
+          noClip,
+          contentHash,
+        })
+        setBusy(false)
+        if (!r.ok) {
+          setError(r.reason)
+          return
+        }
+        if (r.duplicate) {
+          setError(`“${r.def.name}” is already in your catalog — nothing to import.`)
+          return
+        }
+        doClose()
+      } catch (e) {
+        setBusy(false)
+        setError(e instanceof Error ? e.message : String(e))
       }
-      if (r.duplicate) {
-        setError(`“${r.def.name}” is already in your catalog — nothing to import.`)
-        return
-      }
-      doClose()
       return
     }
 
     // Everything else (groups and/or many loose files) imports in the
     // background: kick off a tracked job, then close the modal immediately so
     // the user can keep working while a persistent progress widget runs.
-    startBackgroundImport({ files, groups: ikeaGroups, looseCategory, mounted, noClip })
+    startBackgroundImport({ files, groups: ikeaGroups, looseCategory, mounted, noClip, ktx2 })
     doClose()
   }
 
@@ -229,8 +244,9 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <p className="mb-4 text-xs text-[var(--text-3)]">
             Drag in <span className="font-mono">.glb</span>/<span className="font-mono">.gltf</span>{' '}
-            files or whole folders — a folder of several model groups imports every group. Stored
-            locally in your browser only (max 25&nbsp;MB each).
+            or <span className="font-mono">.obj/.fbx/.stl/.ply/.dae/.3mf/.usdz</span> files (or
+            whole folders — a folder of several model groups imports every group). Non-GLB models
+            are converted to GLB and every model is optimized in your browser. Stored locally only.
           </p>
 
           <div className="space-y-3">
@@ -379,6 +395,21 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                   Flat floor covering (rug — never collides)
                 </label>
               </>
+            ) : null}
+
+            {/* KTX2 drives the in-browser optimize pass for uploaded models
+                (IKEA groups arrive pre-optimized), so it's shown whenever loose
+                models will be imported. */}
+            {looseModels.length > 0 ? (
+              <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
+                <input
+                  type="checkbox"
+                  checked={ktx2}
+                  onChange={(e) => setKtx2(e.target.checked)}
+                  disabled={busy}
+                />
+                Maximum compression (KTX2/UASTC textures — falls back to WebP if unavailable)
+              </label>
             ) : null}
 
             {error ? (
