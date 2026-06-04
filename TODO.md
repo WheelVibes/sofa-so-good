@@ -228,7 +228,7 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 - **Runtime catalog: production CORS proxy** — ambientCG's API and CDN do not send `Access-Control-Allow-Origin` (re-verified 2026-06). Dev uses Vite's reverse proxy ([vite.config.ts](vite.config.ts) `/acg` and `/acg-cdn`); production needs an equivalent proxy (Cloudflare Worker, Vercel edge function, or hosted reverse-proxy) to re-enable ambientCG in prod. Until then ambientCG is **dev-gated** (`catalog/remote/providers/index.ts` `activeProviderIds` / `PROD_PROVIDER_IDS`) so prod only bootstraps Poly Haven, whose API + CDN send CORS and work direct.
 - **Runtime catalog: Kenney support** — Kenney has no CORS-friendly API and ships single ZIPs. Add a build-time mirror (or proxy worker) before extending the runtime catalog to Kenney.
 - **Runtime catalog: Quaternius support** — same rationale as Kenney.
-- **Runtime catalog: per-asset bytes estimate** — surface Poly Haven file sizes on cards before clicking so users can avoid 50 MB downloads.
+- ~~**Runtime catalog: per-asset bytes estimate**~~ — done. `RemoteProvider.fetchSize` (Poly Haven sums exactly the files a download picks for the chosen resolution from `/files/{slug}`), a lazy per-visible-card `useAssetSize` hook (cached, gated by the same IntersectionObserver as thumbnails), and a size on each `RemoteCard` (`CC0 · 47 MB · tap`, warn-coloured ≥30 MB) so users see the cost before clicking. ambientCG returns nothing (no `fetchSize`) → graceful fallback. Verified via provider + RemoteCard component tests (live cards are network-gated in the sandbox).
 - **Runtime catalog: HDRI environment** — reconsider when scene lighting is exposed.
 
 ## Assets

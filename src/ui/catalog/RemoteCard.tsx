@@ -1,5 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
-import { useResolveStatus, useThumbnail } from '../../catalog/remote/hooks'
+import {
+  formatBytes,
+  useAssetSize,
+  useResolveStatus,
+  useThumbnail,
+} from '../../catalog/remote/hooks'
 import type { RemoteEntry } from '../../catalog/remote/types'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
@@ -25,6 +30,7 @@ export function RemoteCard({ entry, onResolved }: Props) {
   const key = `${entry.provider}:${entry.slug}:${resolution}`
   const favId = `${entry.provider}:${entry.slug}`
   const status = useResolveStatus(key)
+  const size = useAssetSize(entry, resolution, visible)
   const saved = useStore((s) => s.collections.includes(favId))
   const toggleCollection = useStore((s) => s.toggleCollection)
   // Furniture remote entries always carry a FurnitureCategory.
@@ -88,10 +94,26 @@ export function RemoteCard({ entry, onResolved }: Props) {
       </div>
       <span
         className="pr"
-        style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
-        title={entry.attribution}
+        style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          // Flag a heavy download (≥30 MB at the chosen resolution) so users
+          // don't blindly pull a large asset.
+          color:
+            status !== 'ready' && size != null && size >= 30 * 1024 * 1024 ? '#b8860b' : undefined,
+        }}
+        title={
+          size != null
+            ? `~${formatBytes(size)} at ${resolution.toUpperCase()} · ${entry.attribution}`
+            : entry.attribution
+        }
       >
-        {status === 'ready' ? 'Downloaded · place' : 'CC0 · tap to add'}
+        {status === 'ready'
+          ? 'Downloaded · place'
+          : size != null
+            ? `CC0 · ${formatBytes(size)} · tap`
+            : 'CC0 · tap to add'}
       </span>
       <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>
         CC0
