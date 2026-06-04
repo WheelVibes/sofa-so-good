@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { AiPlanError, getVisionKey, recognizeFloorPlan, setVisionKey } from '../../ai/floorPlanAi'
 import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
@@ -77,8 +78,52 @@ export function FloorPlanEditor() {
   const [movingItem, setMovingItem] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
+  const [aiBusy, setAiBusy] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Experimental AI wall recognition (Wave E): send the backdrop to a vision
+  // model and seed an editable draft plan from the returned walls. Falls back
+  // to manual tracing on any failure.
+  const runAiWalls = async () => {
+    if (!backdrop || aiBusy) return
+    let key = getVisionKey()
+    if (!key) {
+      key = window.prompt('Vision-model API key (OpenAI-compatible, kept in this browser):') || ''
+      if (!key) return
+      setVisionKey(key)
+    }
+    setAiBusy(true)
+    try {
+      // The backdrop is an object URL; the remote model needs inline data.
+      const img = new Image()
+      img.src = backdrop.url
+      await img.decode().catch(() => {})
+      const c = document.createElement('canvas')
+      c.width = backdrop.w
+      c.height = backdrop.h
+      c.getContext('2d')?.drawImage(img, 0, 0)
+      const walls = await recognizeFloorPlan(c.toDataURL('image/png'), { key })
+      const st = useStore.getState()
+      st.pushHistory()
+      st.newFloorPlan('AI draft')
+      for (const w of walls) {
+        st.addWall({
+          start: [w.x1, w.z1],
+          end: [w.x2, w.z2],
+          thickness: w.external ? 'external' : 'internal',
+        })
+      }
+      st.notify.start({
+        title: `AI drafted ${walls.length} walls — adjust as needed`,
+        kind: 'success',
+      })
+    } catch (e) {
+      window.alert(e instanceof AiPlanError ? e.message : 'AI floor-plan recognition failed.')
+    } finally {
+      setAiBusy(false)
+    }
+  }
 
   // Load a dropped/picked image as the trace backdrop (defaults to ~100 px/m;
   // the user calibrates exactly with the Scale tool).
@@ -446,6 +491,14 @@ export function FloorPlanEditor() {
                 setBackdrop((b) => (b ? { ...b, opacity: Number(e.target.value) } : b))
               }
             />
+            <button
+              type="button"
+              onClick={runAiWalls}
+              disabled={aiBusy}
+              title="Experimental: recognise walls from the photo with a vision model (your API key)"
+            >
+              {aiBusy ? 'Recognising…' : 'AI walls'}
+            </button>
             <button
               type="button"
               onClick={() => {
