@@ -36,3 +36,7 @@ public/assets/ikea/
 
 # Local price-server / sidecar cache
 .cache/
+
+# VitePress
+docs/user/.vitepress/cache
+docs/user/.vitepress/.temp

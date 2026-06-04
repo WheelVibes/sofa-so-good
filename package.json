@@ -21,7 +21,11 @@
     "optimize:glb": "node python/scripts/optimize_glb_lod.mjs",
     "compress:glb-textures": "node python/scripts/compress_glb_textures.mjs",
     "scraper-server": "node scripts/scraper-server.mjs",
-    "price-server": "node scripts/price-server.mjs"
+    "price-server": "node scripts/price-server.mjs",
+    "docs:dev": "vitepress dev docs/user --port 5175",
+    "docs:build": "vitepress build docs/user",
+    "docs:preview": "vitepress preview docs/user --port 5175",
+    "build:all": "npm run build && npm run docs:build"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
@@ -66,6 +70,7 @@
     "tsx": "^4.22.3",
     "typescript": "^6.0.3",
     "vite": "^8.0.14",
+    "vitepress": "^1.6.4",
     "vitest": "^4.1.7"
   }
 }
