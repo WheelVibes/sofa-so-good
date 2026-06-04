@@ -2,7 +2,6 @@ import { useTexture } from '@react-three/drei'
 import type { MeshStandardMaterial } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../state/store'
-import { withBase } from '../utils/assetUrl'
 import { BUILTIN_MATERIALS } from './builtinCatalog'
 import { buildMaterial, getCachedMaterial } from './cache'
 import { GENERATED_MATERIALS } from './generatedCatalog'
@@ -70,10 +69,13 @@ export function useProceduralMaterial(def: ProceduralMaterialDef): MeshStandardM
  *  order is stable across renders, including after the material has
  *  been cached. */
 export function useTexturedMaterial(def: TexturedMaterialDef): MeshStandardMaterial {
+  // Texture URLs already carry the Vite `base` — generated-catalog paths bake
+  // `${import.meta.env.BASE_URL}` in (same convention as the furniture GLB
+  // paths), and runtime (user/remote) URLs are absolute blob:/http: URLs. Do
+  // NOT re-apply withBase here or the sub-path doubles (`/sofa-so-good/
+  // sofa-so-good/…`) and 404s in production.
   const urls = def.runtimeUrls ?? def.textures
-  const list = [urls.albedo, urls.normal, urls.roughness]
-    .filter((u): u is string => !!u)
-    .map(withBase)
+  const list = [urls.albedo, urls.normal, urls.roughness].filter((u): u is string => !!u)
   const tex = useTexture(list)
   const cached = getCachedMaterial(def.id)
   if (cached) return cached
