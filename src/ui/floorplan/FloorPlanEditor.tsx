@@ -31,7 +31,7 @@ const CATEGORY_FILL: Record<FurnitureCategory, string> = {
   others: '#9a9488',
 }
 
-type Tool = 'select' | 'wall' | 'room' | 'door' | 'window' | 'scale'
+type Tool = 'select' | 'wall' | 'room' | 'split' | 'door' | 'window' | 'scale'
 
 /** A reference photo/scan traced over to draw walls. Session-scoped (the object
  *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */
@@ -76,6 +76,10 @@ export function FloorPlanEditor() {
   const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active furniture drag (select tool): grab offset from the item position.
   const [movingItem, setMovingItem] = useState<{ id: string; gx: number; gz: number } | null>(null)
+  // Active wall-vertex drag (select tool): which wall endpoint is being moved.
+  const [movingVertex, setMovingVertex] = useState<{ id: string; which: 'start' | 'end' } | null>(
+    null,
+  )
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
@@ -208,16 +212,18 @@ export function FloorPlanEditor() {
 
   if (!editing) return null
 
-  const pointerWorld = (e: React.PointerEvent): [number, number] => {
+  const pointerWorld = (e: React.PointerEvent, excludeWallId?: string): [number, number] => {
     const rect = svgRef.current!.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * W
     const y = ((e.clientY - rect.top) / rect.height) * H
     let wx = snap(x / PX - PAD)
     let wz = snap(y / PX - PAD)
     // Vertex snap: prefer an existing wall endpoint within ~0.3 m so walls
-    // connect cleanly at corners.
+    // connect cleanly at corners. Skip the wall being vertex-dragged so its own
+    // endpoints don't capture the cursor.
     let best = 0.3
     for (const w of plan.walls) {
+      if (w.id === excludeWallId) continue
       for (const p of [w.start, w.end]) {
         const dd = Math.hypot(p[0] - wx, p[1] - wz)
         if (dd < best) {
@@ -256,6 +262,13 @@ export function FloorPlanEditor() {
     const st = useStore.getState()
     if (tool === 'wall' || tool === 'room' || tool === 'scale') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
+    } else if (tool === 'split') {
+      // Split the wall nearest the click at the projected point.
+      const hit = nearestWall(wx, wz)
+      if (hit) {
+        const len = wallLength(hit.wall)
+        st.splitWall(hit.wall.id, len > 0 ? hit.offset / len : 0.5)
+      }
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
       if (hit) {
@@ -277,6 +290,11 @@ export function FloorPlanEditor() {
   }
 
   const onMove = (e: React.PointerEvent) => {
+    if (movingVertex) {
+      const [wx, wz] = pointerWorld(e, movingVertex.id)
+      useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz])
+      return
+    }
     if (movingItem) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -314,6 +332,10 @@ export function FloorPlanEditor() {
   }
 
   const onUp = () => {
+    if (movingVertex) {
+      setMovingVertex(null)
+      return
+    }
     if (movingItem) {
       setMovingItem(null)
       return
@@ -382,7 +404,7 @@ export function FloorPlanEditor() {
           style={{ width: 192 }}
         />
         <div className="seg accent" style={{ marginLeft: 4 }}>
-          {(['select', 'wall', 'room', 'door', 'window'] as Tool[]).map((t) => (
+          {(['select', 'wall', 'room', 'split', 'door', 'window'] as Tool[]).map((t) => (
             <button
               key={t}
               type="button"
@@ -685,6 +707,35 @@ export function FloorPlanEditor() {
                 />
               )
             })}
+
+            {/* Endpoint handles for the selected wall (drag to reshape; shared
+                corners move together). Lets the user pull a rectangle into an
+                L-shape by dragging one corner. */}
+            {tool === 'select' &&
+              sel?.type === 'wall' &&
+              (() => {
+                const w = plan.walls.find((x) => x.id === sel.id)
+                if (!w) return null
+                return (['start', 'end'] as const).map((which) => {
+                  const p = w[which]
+                  return (
+                    <circle
+                      key={which}
+                      cx={toPx(p[0])}
+                      cy={toPx(p[1])}
+                      r={6}
+                      fill="var(--accent)"
+                      stroke="var(--surface-solid)"
+                      strokeWidth={2}
+                      style={{ cursor: 'grab' }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation()
+                        setMovingVertex({ id: w.id, which })
+                      }}
+                    />
+                  )
+                })
+              })()}
 
             {/* Openings — architectural symbols (door swing / window double-line) */}
             {plan.openings.map((o) => {

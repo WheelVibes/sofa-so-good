@@ -12,9 +12,24 @@ between the 2D plan and the 3D scene at any time.
   snap to the grid and to nearby wall corners.
 - **Rooms** — drag a rectangle; its area is computed and added to the total.
 - **Doors / windows** — click on a wall to drop one.
+- **Split** — click a wall to cut it into two segments at that point. Any door or
+  window on it moves to the matching half.
 - **Select tool** — click to select, drag to move a room or a piece of furniture.
 - **Grid & corner snapping** keep everything aligned (cycle the grid size from the
   toolbar).
+
+## Non‑rectangular rooms (L‑shapes & angles)
+
+Rooms don't have to be plain rectangles:
+
+- **Reshape a wall** — select a wall with the **Select** tool and drag the round
+  handles at its ends. Walls that share that corner move with it, so the outline
+  stays joined. Drag a corner off the grid line and the wall takes an angle —
+  use this with **Split** to bend a straight run into an **L**.
+- **L‑shaped rooms** — with a room selected, click **Make L‑shaped** to add a
+  second rectangle (the “extension”), then set its offset and size. The room's
+  **area updates to include the extension**, and the 3D flat renders both parts.
+  **Remove extension** turns it back into a plain rectangle.
 
 ## Your furniture, top‑down
 

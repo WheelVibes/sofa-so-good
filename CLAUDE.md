@@ -519,7 +519,14 @@ rediscover it.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): a 2D top-down editor
   (toolbar "Floor plan") edits the store `floorPlan` — walls (interior/
   exterior), rectangular rooms (auto area + total), doors/windows, grid +
-  corner snapping, drag-move, per-room floor finishes. A non-default plan
+  corner snapping, drag-move, per-room floor finishes. **Non-rectangular
+  shapes**: the **Split** tool (`splitWall`) cuts a wall into two segments
+  (re-homing its openings) and dragging the selected wall's **endpoint handles**
+  (`moveWallVertex`, which drags every wall sharing that corner together) lets
+  you pull an outline into an L (or any non-orthogonal/angled shape). Rooms take
+  an optional **L-shape `extension`** (a second rectangle) edited in
+  `PlanInspector`; `planRoomArea` sums both so the area respects the shape, and
+  `PlanShell`/`roomShell` render both floor rects. A non-default plan
   renders via `PlanShell` and furniture/walk collision follow it (optional
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
   curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). The editor

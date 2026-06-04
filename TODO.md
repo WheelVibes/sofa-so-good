@@ -304,7 +304,12 @@ Shipped — a data-driven, editable apartment shell + 2D editor:
 - Follow-ups: per-room finishes/floor materials for custom plans; a named
   plan library (save/load multiple apartments) + persistence; route `roomOf`
   / the auto-arranger / finishes through the active plan so custom plans are
-  fully furnish-aware; L-shaped room editing UI; angled (non-orthogonal) walls.
+  fully furnish-aware. (~~L-shaped room editing UI~~ — done: room `extension`
+  editor in `PlanInspector` + area sums it. ~~angled / non-orthogonal walls~~ —
+  done: **Split** tool (`splitWall`) + draggable wall endpoint handles
+  (`moveWallVertex`, shared-corner aware) let walls take any angle/L-shape.)
+  Remaining: arbitrary free-polygon rooms (auto area from a wall loop, vs the
+  current rect + one extension) would still need a shoelace/triangulation pass.
 
 ## Design tools & quality upgrades (2026-05-30)
 
