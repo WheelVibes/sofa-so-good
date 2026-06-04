@@ -18,18 +18,27 @@ export the result — all in the browser.
   lighting, decor, textiles, outdoor, **electronics**, **kids**, **laundry**,
   and **others** (catch-all) — all parametric (resize / recolour / configure
   form, material, weave, and sheen in the inspector), searchable, with live 3D
-  thumbnails.
+  thumbnails. The catalog is **unified** — built-ins, your uploads, installed
+  packs, and the browsable CC0 library (Poly Haven) all live in one grid with a
+  single search that spans everything; **heart** any item (built-in or CC0) to
+  drop it into the **favourites** category (the star tab at the front).
   Includes an entryway shoe cabinet, floating + leaning mirrors, wall shelves,
-  L-shaped sectional, sideboard, bar cart, room divider, baby crib, and potted
-  plants in bush / snake-plant / palm forms. Comes furnished out of the box,
+  L-shaped sectional, sideboard, bar cart, room divider, baby crib, potted
+  plants in bush / snake-plant / palm forms, and bundled **pool tables in
+  6 / 7 / 8 / 9 ft** sizes (a CC-BY model credited in-app). Comes furnished out of the box,
   with one-click **Sets** (vignettes), full-flat **Presets**, and a per-room
   **Tidy up** auto-arranger that follows real interior-design clearances.
 - **Realistic materials** — procedurally generated PBR finishes (12 floors
   incl. oak/walnut/teak planks, white/grey/charcoal porcelain, marble,
   terrazzo, carpet, concrete; 10 wall paints) plus fabric and wood-grain on
   furniture and a polished-granite worktop. Per-room floor and wall finishes.
-  Photoreal CC0 textures/models can also be fetched in-app from Poly Haven /
-  ambientCG / Kenney.
+  Free textures/models can also be fetched in-app: the **Poly Pizza** pack
+  (paste a free API key in the Packs tab → search + download 10,000+ CC0/CC-BY
+  models, works on the published site) and the Poly Haven remote catalog
+  (CC0 models + textures) work in production; Kenney, ambientCG, the IKEA
+  live-scrape, and hand-download sources (Quaternius, Sketchfab, cgbookcase,
+  TextureCan, …) are dev-only link/proxy cards since they can't download from a
+  static host.
 - **Time-of-day lighting** — SunCalc-driven sun for your location, ACES tone
   mapping, image-based lighting, shadows, and real fixture lights
   (lamps, pendants, fans, wall sconces, and signature cove LEDs) that switch
@@ -168,6 +177,8 @@ alongside `npm run dev`, open the catalog's Packs tab, and click *Scrape IKEA
 catalogue* — assets land in (gitignored) `public/assets/ikea/`.
 
 Stack: React + TypeScript, three.js via @react-three/fiber, Zustand, Vite.
-See [CLAUDE.md](CLAUDE.md) for architecture and how to add content. All
-bundled assets are procedurally generated (CC0-equivalent); imported IKEA
-models retain IKEA's licensing and are not redistributed.
+See [CLAUDE.md](CLAUDE.md) for architecture and how to add content. Bundled
+assets are procedurally generated (CC0-equivalent) wherever possible; the few
+bundled GLBs (e.g. the pool tables) carry their real licence + attribution
+(CC-BY where required), surfaced in the inspector and `CREDITS.md`. Imported
+IKEA models retain IKEA's licensing and are not redistributed.

@@ -16,6 +16,8 @@ const sample: RemoteEntry = {
 }
 
 vi.mock('../providers', () => ({
+  activeProviderIds: () => ['polyhaven', 'ambientcg'],
+  PROD_PROVIDER_IDS: ['polyhaven'],
   PROVIDERS: {
     polyhaven: {
       id: 'polyhaven',

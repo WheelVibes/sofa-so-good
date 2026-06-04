@@ -9,7 +9,7 @@ import {
 } from '../../catalog/remote/cache/db'
 import { DEFAULT_ASSET_CAP_BYTES, evictUntilUnder } from '../../catalog/remote/cache/lru'
 import { writeShadow } from '../../catalog/remote/cache/shadow'
-import { PROVIDERS } from '../../catalog/remote/providers'
+import { activeProviderIds, PROVIDERS } from '../../catalog/remote/providers'
 import { bundleToFurnitureDef, bundleToMaterialDef } from '../../catalog/remote/resolver'
 import type { ProviderId, RemoteEntry, Resolution } from '../../catalog/remote/types'
 import type { RemoteGltfDef } from '../../furniture/types'
@@ -75,8 +75,10 @@ export const createRemoteCatalogSlice: StateCreator<
   async bootstrapRemoteCatalog() {
     const meta = await getMeta()
     set({ remoteCacheBytes: meta.totalBytes })
+    // ambientCG has no CORS headers (dev-only Vite proxy), so a production
+    // build only bootstraps the CORS-capable providers (Poly Haven).
     await Promise.all(
-      (Object.keys(PROVIDERS) as ProviderId[]).map(async (p) => {
+      activeProviderIds(import.meta.env.DEV).map(async (p) => {
         const cached = await getIndex(p)
         if (cached) {
           set((s) => ({

@@ -272,7 +272,9 @@ export interface PackGltfDef extends FurnitureDefBase {
   runtimeUrl?: string
   thumbUrl?: string
   scale?: number
-  license: 'CC0'
+  /** Most packs are CC0; API-sourced packs (Poly Pizza) may include CC-BY
+   *  models, which the catalog card credits via `attribution`. */
+  license: 'CC0' | 'CC-BY'
   attribution: string
   sourceUrl: string
 }
