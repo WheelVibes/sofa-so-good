@@ -168,7 +168,11 @@ export function FinishPicker() {
           className="panel-body"
           style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
         >
-          <RemoteBrowseTab kind="material" onResolved={handleResolved} />
+          <RemoteBrowseTab
+            kind="material"
+            onResolved={handleResolved}
+            defaultCategory={lastSurface}
+          />
         </div>
       )}
     </aside>

@@ -17,6 +17,18 @@ matter how big the surface is:
 - **Wall treatments** — wallpapers (stripe / grasscloth) and checker, plus a
   **wall accent** picker for a single feature wall.
 
+## Browse the online library
+
+Click **Browse** in the finishes panel to pull free CC0 textures from Poly Haven
+and ambientCG:
+
+- It opens **pre‑filtered to the surface you're editing** — refinishing a floor
+  shows floor textures first. Use the **All surfaces / Floor / Wall** chips to
+  switch, and the provider chips (All / Poly Haven / ambientCG) to narrow source.
+- Each card shows its **download size** at the chosen resolution (1K / 2K / 4K)
+  before you tap, so you can avoid pulling a large texture on a slow connection —
+  heavy downloads are flagged in amber.
+
 ## Materials on furniture (CC0 DLC)
 
 You can apply a real PBR material — including a CC0 set downloaded from Poly Haven
