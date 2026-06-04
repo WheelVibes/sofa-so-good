@@ -80,6 +80,14 @@ async function prepareGlb(
   return new File([ab], name, { type: 'model/gltf-binary' })
 }
 
+/** Convert (if needed) + optimize one entry file into an optimized GLB File.
+ *  Public wrapper over the bulk pipeline's prepare step so the single-file
+ *  upload path runs the same conversion/optimization. `allFiles` supplies the
+ *  sibling pool (.mtl/.bin/textures) for multi-file model formats. */
+export function prepareModelFile(entry: File, allFiles: File[], ktx2 = false): Promise<File> {
+  return prepareGlb(entry, dirOfPath(pathOfFile(entry)), allFiles, ktx2)
+}
+
 /** Imports a batch of user-selected files. Filters to .glb/.gltf, dedupes
  *  display names, and runs persistUserGlb through a bounded pool. One bad
  *  file never aborts the batch — it is recorded in `skipped`. */
