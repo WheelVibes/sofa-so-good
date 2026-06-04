@@ -1,5 +1,7 @@
 import { isUserDef } from '../../furniture/catalog'
 import type { FurnitureDef } from '../../furniture/types'
+import { useStore } from '../../state/store'
+import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 import { useBuiltinThumbnail } from './thumbnails'
 import { usePlacementDrag } from './usePlacementDrag'
@@ -13,32 +15,42 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const isUser = isUserDef(def)
   const onClick = usePlacementDrag(def)
   const thumb = useBuiltinThumbnail(def)
+  const saved = useStore((s) => s.collections.includes(def.id))
+  const toggleCollection = useStore((s) => s.toggleCollection)
   return (
-    <div
-      onClick={onClick}
-      className="group relative flex cursor-pointer flex-col items-stretch gap-1 rounded border border-neutral-200 bg-white p-2 text-left text-xs hover:border-blue-400 hover:bg-blue-50"
-    >
-      <div className="flex h-20 w-full items-center justify-center overflow-hidden rounded bg-neutral-100">
+    <div onClick={onClick} className="cat-card group">
+      <button
+        type="button"
+        className={`fav-btn${saved ? ' on' : ''}`}
+        aria-label={saved ? 'Remove from saved' : 'Save to collection'}
+        onClick={(e) => {
+          e.stopPropagation()
+          toggleCollection(def.id)
+        }}
+      >
+        <Icon.Heart width={14} height={14} />
+      </button>
+      <div className="card-thumb">
         {thumb ? (
-          <img src={thumb} alt={def.name} className="h-full w-full object-contain" />
+          <img src={thumb} alt={def.name} />
         ) : (
-          <CategoryIcon category={def.category} className="h-6 w-6 text-neutral-300" />
+          <CategoryIcon category={def.category} width={40} height={40} />
         )}
       </div>
-      <div className="flex items-center gap-1.5">
-        <CategoryIcon
-          category={def.category}
-          className="h-4 w-4 shrink-0 text-neutral-500 group-hover:text-blue-600"
-        />
-        <span className="truncate font-medium text-neutral-800" title={def.name}>
+      <div className="nm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <CategoryIcon category={def.category} width={14} height={14} style={{ flex: 'none' }} />
+        <span
+          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          title={def.name}
+        >
           {def.name}
         </span>
       </div>
-      <span className="text-[10px] text-neutral-500">
+      <span className="pr mono">
         {def.defaultFootprint.w.toFixed(2)} × {def.defaultFootprint.d.toFixed(2)} m
       </span>
       {isUser ? (
-        <span className="absolute right-1 top-1 rounded bg-amber-100 px-1 py-0.5 text-[9px] uppercase tracking-wide text-amber-800">
+        <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>
           Uploaded
         </span>
       ) : null}
@@ -49,10 +61,10 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
             e.stopPropagation()
             onDelete()
           }}
-          className="absolute right-1 bottom-1 hidden text-[10px] text-rose-600 group-hover:inline"
+          className="coll-x"
           aria-label="Remove uploaded asset"
         >
-          remove
+          <Icon.Close width={12} height={12} />
         </button>
       ) : null}
     </div>

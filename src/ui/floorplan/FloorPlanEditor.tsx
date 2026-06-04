@@ -176,34 +176,44 @@ export function FloorPlanEditor() {
   const total = planTotalArea(plan)
 
   return (
-    <div className="absolute inset-0 z-30 flex flex-col bg-neutral-900/95 text-neutral-100">
+    <div className="plan-screen absolute inset-0 z-30 flex flex-col">
       {/* Header / toolbar */}
-      <div className="flex flex-wrap items-center gap-2 border-b border-neutral-700 px-4 py-2 text-sm">
-        <span className="font-semibold">Floor Plan Editor</span>
+      <div
+        className="flex flex-wrap items-center gap-2 px-4 py-2"
+        style={{
+          borderBottom: '1px solid var(--border)',
+          background: 'var(--surface)',
+          backdropFilter: 'blur(var(--blur))',
+        }}
+      >
+        <span className="panel-title">Floor plan</span>
         <input
           value={plan.name}
           onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
-          className="w-48 rounded bg-neutral-800 px-2 py-1 text-xs"
+          className="input"
+          style={{ width: 192 }}
         />
-        <div className="mx-2 flex gap-1">
+        <div className="seg accent" style={{ marginLeft: 4 }}>
           {(['select', 'wall', 'room', 'door', 'window'] as Tool[]).map((t) => (
             <button
               key={t}
+              type="button"
               onClick={() => setTool(t)}
-              className={`rounded px-2.5 py-1 text-xs capitalize ${tool === t ? 'bg-blue-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
+              className={`capitalize${tool === t ? ' on' : ''}`}
             >
               {t}
             </button>
           ))}
         </div>
         {tool === 'wall' && (
-          <div className="flex gap-1">
+          <div className="seg">
             {(['external', 'internal'] as const).map((t) => (
               <button
                 key={t}
+                type="button"
                 onClick={() => setWallType(t)}
                 title="Thickness of newly-drawn walls"
-                className={`rounded px-2 py-1 text-[11px] capitalize ${wallType === t ? 'bg-neutral-200 text-neutral-900' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
+                className={`capitalize${wallType === t ? ' on' : ''}`}
               >
                 {t}
               </button>
@@ -211,6 +221,7 @@ export function FloorPlanEditor() {
           </div>
         )}
         <button
+          type="button"
           onClick={() => {
             // Fresh apartment: clear the inherited furniture (undoable) so the
             // new shell starts empty rather than full of the old layout.
@@ -219,14 +230,11 @@ export function FloorPlanEditor() {
             a.newFloorPlan()
           }}
           title="Start a fresh, empty apartment shell"
-          className="rounded bg-neutral-800 px-2.5 py-1 text-xs hover:bg-neutral-700"
+          className="btn btn-sm"
         >
           New
         </button>
-        <button
-          onClick={() => a.resetFloorPlan()}
-          className="rounded bg-neutral-800 px-2.5 py-1 text-xs hover:bg-neutral-700"
-        >
+        <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
           Reset to HDB
         </button>
         <select
@@ -240,7 +248,8 @@ export function FloorPlanEditor() {
             a.setPlanSelection(null)
           }}
           title="Start from a template apartment"
-          className="rounded bg-neutral-800 px-1.5 py-1 text-xs text-neutral-200"
+          className="input"
+          style={{ width: 'auto' }}
         >
           <option value="">Template…</option>
           {PLAN_TEMPLATES.map((t) => (
@@ -251,13 +260,17 @@ export function FloorPlanEditor() {
         </select>
         <PlanLibrary />
         <div className="ml-auto flex items-center gap-3">
-          <span className="text-xs text-neutral-400">
-            Total: <span className="font-semibold text-neutral-100">{total.toFixed(1)} m²</span> ·{' '}
-            {plan.rooms.length} rooms
+          <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
+            Total{' '}
+            <b className="mono" style={{ color: 'var(--text)' }}>
+              {total.toFixed(1)} m²
+            </b>{' '}
+            · {plan.rooms.length} rooms
           </span>
           <button
+            type="button"
             onClick={() => a.setFloorPlanEditing(false)}
-            className="rounded bg-blue-600 px-3 py-1 text-xs font-medium text-white hover:bg-blue-500"
+            className="btn btn-accent btn-sm"
           >
             Done
           </button>
@@ -266,13 +279,13 @@ export function FloorPlanEditor() {
 
       <div className="flex min-h-0 flex-1">
         {/* Canvas */}
-        <div className="flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
+        <div className="plan-canvas flex min-h-0 flex-1 items-center justify-center overflow-auto p-4">
           <svg
             ref={svgRef}
             width={W}
             height={H}
-            className="touch-none rounded bg-neutral-800 shadow-lg"
-            style={{ cursor: tool === 'select' ? 'default' : 'crosshair' }}
+            className="plan-paper touch-none"
+            style={{ cursor: tool === 'select' ? 'default' : 'crosshair', padding: 0 }}
             onPointerDown={onDown}
             onPointerMove={onMove}
             onPointerUp={onUp}
@@ -300,8 +313,8 @@ export function FloorPlanEditor() {
                     y={toPx(r.origin[1])}
                     width={r.width * PX}
                     height={r.depth * PX}
-                    fill={isSel ? 'rgba(59,130,246,0.28)' : 'rgba(148,163,184,0.16)'}
-                    stroke={isSel ? '#60a5fa' : '#64748b'}
+                    fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
+                    stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
                     strokeDasharray="4 3"
                   />
                   {r.extension && (
@@ -310,8 +323,8 @@ export function FloorPlanEditor() {
                       y={toPx(r.origin[1] + r.extension.offset[1])}
                       width={r.extension.width * PX}
                       height={r.extension.depth * PX}
-                      fill={isSel ? 'rgba(59,130,246,0.28)' : 'rgba(148,163,184,0.16)'}
-                      stroke={isSel ? '#60a5fa' : '#64748b'}
+                      fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
+                      stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
                       strokeDasharray="4 3"
                     />
                   )}
@@ -321,10 +334,10 @@ export function FloorPlanEditor() {
                     textAnchor="middle"
                     className="select-none"
                     fontSize={11}
-                    fill="#e2e8f0"
+                    fill="var(--text-2)"
                   >
                     <tspan x={toPx(r.origin[0] + r.width / 2)}>{r.name}</tspan>
-                    <tspan x={toPx(r.origin[0] + r.width / 2)} dy={14} fill="#94a3b8">
+                    <tspan x={toPx(r.origin[0] + r.width / 2)} dy={14} fill="var(--text-3)">
                       {planRoomArea(r).toFixed(1)} m²
                     </tspan>
                   </text>
@@ -342,7 +355,13 @@ export function FloorPlanEditor() {
                   y1={toPx(w.start[1])}
                   x2={toPx(w.end[0])}
                   y2={toPx(w.end[1])}
-                  stroke={isSel ? '#60a5fa' : w.thickness === 'external' ? '#e5e7eb' : '#9ca3af'}
+                  stroke={
+                    isSel
+                      ? 'var(--accent)'
+                      : w.thickness === 'external'
+                        ? 'var(--plan-wall)'
+                        : 'var(--text-3)'
+                  }
                   strokeWidth={w.thickness === 'external' ? 7 : 4}
                   strokeLinecap="round"
                   onPointerDown={(e) => {
@@ -375,7 +394,7 @@ export function FloorPlanEditor() {
                 wall.start[1] + uz * (o.offset + o.width),
               ]
               const isSel = sel?.type === 'opening' && sel.id === o.id
-              const color = o.kind === 'door' ? '#f59e0b' : '#38bdf8'
+              const color = o.kind === 'door' ? 'var(--accent)' : 'var(--accent-soft-text)'
               const strokeW = wall.thickness === 'external' ? 7 : 4
               const onPD = (e: React.PointerEvent) => {
                 if (tool === 'select') {
@@ -391,7 +410,7 @@ export function FloorPlanEditor() {
                     y1={toPx(sPt[1])}
                     x2={toPx(ePt[0])}
                     y2={toPx(ePt[1])}
-                    stroke="#262626"
+                    stroke="var(--surface-solid)"
                     strokeWidth={strokeW + 2}
                     strokeLinecap="butt"
                   />
@@ -441,7 +460,7 @@ export function FloorPlanEditor() {
                 y1={toPx(draft.z0)}
                 x2={toPx(draft.x)}
                 y2={toPx(draft.z)}
-                stroke="#22c55e"
+                stroke="var(--accent)"
                 strokeWidth={4}
                 strokeLinecap="round"
               />
@@ -452,8 +471,8 @@ export function FloorPlanEditor() {
                 y={toPx(Math.min(draft.z0, draft.z))}
                 width={Math.abs(draft.x - draft.x0) * PX}
                 height={Math.abs(draft.z - draft.z0) * PX}
-                fill="rgba(34,197,94,0.2)"
-                stroke="#22c55e"
+                fill="var(--accent-soft)"
+                stroke="var(--accent)"
               />
             )}
             {/* Live dimension readout while drawing. */}
@@ -462,7 +481,7 @@ export function FloorPlanEditor() {
                 x={toPx(draft.x) + 8}
                 y={toPx(draft.z) - 8}
                 fontSize={12}
-                fill="#22c55e"
+                fill="var(--accent-soft-text)"
                 className="select-none"
               >
                 {tool === 'wall'
@@ -488,9 +507,10 @@ function PlanLibrary() {
   return (
     <div className="flex items-center gap-1">
       <button
+        type="button"
         onClick={() => a.saveCurrentPlan(plan.name)}
         title="Save this apartment to your library"
-        className="rounded bg-emerald-700 px-2.5 py-1 text-xs font-medium text-white hover:bg-emerald-600"
+        className="btn btn-soft btn-sm"
       >
         Save
       </button>
@@ -501,7 +521,8 @@ function PlanLibrary() {
             if (e.target.value) a.loadSavedPlan(e.target.value)
           }}
           title="Load a saved apartment"
-          className="rounded bg-neutral-800 px-1.5 py-1 text-xs text-neutral-200"
+          className="input"
+          style={{ width: 'auto' }}
         >
           <option value="">Load… ({saved.length})</option>
           {saved.map((p) => (
@@ -518,7 +539,7 @@ function PlanLibrary() {
             if (m) a.deleteSavedPlan(m.id)
           }}
           title="Delete this saved apartment from the library"
-          className="rounded bg-neutral-800 px-2 py-1 text-xs text-red-300 hover:bg-neutral-700"
+          className="btn btn-danger btn-sm"
         >
           Delete
         </button>
@@ -556,7 +577,7 @@ function GridLines({
         y1={0}
         x2={px}
         y2={H}
-        stroke={major ? '#475569' : '#3a4453'}
+        stroke={major ? 'var(--border-2)' : 'var(--border)'}
         strokeWidth={major ? 1 : 0.5}
       />,
     )
@@ -571,7 +592,7 @@ function GridLines({
         y1={py}
         x2={W}
         y2={py}
-        stroke={major ? '#475569' : '#3a4453'}
+        stroke={major ? 'var(--border-2)' : 'var(--border)'}
         strokeWidth={major ? 1 : 0.5}
       />,
     )

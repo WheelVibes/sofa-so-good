@@ -67,17 +67,14 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
   const rounded = Math.round(orientationDeg) % 360
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
-    >
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="max-h-[90vh] overflow-auto rounded-lg bg-white p-5 shadow-xl"
+        className="max-h-[90vh] overflow-auto rounded-lg bg-[var(--surface-solid)] p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-baseline justify-between gap-6">
-          <h2 className="text-base font-semibold text-neutral-800">Sun direction</h2>
-          <span className="tabular-nums text-sm text-neutral-500">
+          <h2 className="text-base font-semibold text-[var(--text)]">Sun direction</h2>
+          <span className="tabular-nums text-sm text-[var(--text-3)]">
             {Math.round(orientationDeg)}°
           </span>
         </div>
@@ -171,7 +168,7 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
             )
           })}
         </svg>
-        <p className="mt-3 max-w-[260px] text-xs leading-snug text-neutral-500">
+        <p className="mt-3 max-w-[260px] text-xs leading-snug text-[var(--text-3)]">
           Drag the sun or click a compass direction to set where the sun rises relative to the
           apartment.
         </p>

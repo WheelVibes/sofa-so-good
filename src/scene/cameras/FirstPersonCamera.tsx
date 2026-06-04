@@ -1,7 +1,6 @@
-import { PointerLockControls } from '@react-three/drei'
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
-import { PerspectiveCamera, Vector3 } from 'three'
+import { Euler, PerspectiveCamera, Vector3 } from 'three'
 import { DOORS, WALLS } from '../../apartment/constants'
 import { roomShell } from '../../apartment/roomShell'
 import { buildRoomCollisionWalls } from '../../collision/roomCollisionWalls'
@@ -50,14 +49,20 @@ const BOB_AMPLITUDE = 0.022 // subtle vertical head-bob while walking
 const BOB_FREQUENCY = 9.0 // rad/s ≈ ~1.4 steps/s cadence
 const JUMP_VELOCITY = 4.2
 const GRAVITY = 14
-const POINTER_SPEED = 1.4
+/** Mouse-look sensitivity, radians of turn per pixel of pointer movement. */
+const LOOK_SENSITIVITY = 0.0024
+/** Pitch clamp so you can't roll past straight up/down. */
+const MAX_PITCH = 1.5
 const PLAYER_RADIUS = 0.25
 const INTERACT_RADIUS = 2.0
 const AIM_CHECK_INTERVAL = 0.1
 
 export function FirstPersonCamera() {
-  const { camera } = useThree()
+  const { camera, gl } = useThree()
   const pressed = useRef<Record<string, boolean>>({})
+  // Drag-to-look orientation (radians). Yaw about world-Y, pitch about local-X.
+  const yaw = useRef(0)
+  const pitch = useRef(0)
   const doors = useStore((s) => s.doors)
   const floorPlan = useStore((s) => s.floorPlan)
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
@@ -88,14 +93,49 @@ export function FirstPersonCamera() {
     window.addEventListener('keydown', onDown)
     window.addEventListener('keyup', onUp)
     window.addEventListener('blur', clearAll)
-    document.addEventListener('pointerlockchange', clearAll)
     return () => {
       window.removeEventListener('keydown', onDown)
       window.removeEventListener('keyup', onUp)
       window.removeEventListener('blur', clearAll)
-      document.removeEventListener('pointerlockchange', clearAll)
     }
   }, [])
+
+  // Mouse-look via Pointer Lock: click the scene to capture the cursor, then
+  // moving the mouse/trackpad spins the view (true FPS spin-on-move) while WASD
+  // moves at the same time — they're independent input streams. The browser
+  // captures + hides the cursor so it can't drift onto the UI or stall at the
+  // window edge, and gives unbounded relative movement. Esc releases it.
+  useEffect(() => {
+    const dom = gl.domElement
+    const clampPitch = (p: number) => Math.max(-MAX_PITCH, Math.min(MAX_PITCH, p))
+    const isLocked = () => document.pointerLockElement === dom
+
+    const onClick = () => {
+      if (!isLocked()) void dom.requestPointerLock()
+    }
+    const onMouseMove = (e: MouseEvent) => {
+      if (!isLocked()) return
+      yaw.current -= e.movementX * LOOK_SENSITIVITY
+      pitch.current = clampPitch(pitch.current - e.movementY * LOOK_SENSITIVITY)
+    }
+    const onLockChange = () => {
+      // Dropping the lock (Esc) shouldn't leave movement keys "stuck" down.
+      if (!isLocked()) pressed.current = {}
+      dom.style.cursor = isLocked() ? 'none' : 'grab'
+    }
+
+    dom.style.cursor = 'grab'
+    dom.addEventListener('click', onClick)
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('pointerlockchange', onLockChange)
+    return () => {
+      dom.style.cursor = ''
+      dom.removeEventListener('click', onClick)
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('pointerlockchange', onLockChange)
+      if (document.pointerLockElement === dom) document.exitPointerLock()
+    }
+  }, [gl])
 
   useEffect(() => {
     if (roomEditorId) {
@@ -109,6 +149,11 @@ export function FirstPersonCamera() {
       // Face into the living/dining instead of inheriting the orbit angle.
       camera.lookAt(10.4, EYE_HEIGHT, 2.5)
     }
+    // Seed drag-to-look yaw/pitch from the spawn orientation so the first drag
+    // continues smoothly from where the camera is already pointing.
+    const seed = new Euler().setFromQuaternion(camera.quaternion, 'YXZ')
+    yaw.current = seed.y
+    pitch.current = seed.x
     yPos.current = EYE_HEIGHT
     yVel.current = 0
     groundY.current = EYE_HEIGHT
@@ -129,6 +174,7 @@ export function FirstPersonCamera() {
 
   const tmpForward = useRef(new Vector3())
   const tmpRight = useRef(new Vector3())
+  const lookEuler = useRef(new Euler(0, 0, 0, 'YXZ'))
   const aimAccum = useRef(0)
   const yPos = useRef(EYE_HEIGHT)
   const yVel = useRef(0)
@@ -137,6 +183,10 @@ export function FirstPersonCamera() {
   const bobAmp = useRef(0)
 
   useFrame((_, dt) => {
+    // Apply the drag-to-look orientation, then derive movement from where the
+    // camera now points (so strafing/forward track the current heading).
+    camera.quaternion.setFromEuler(lookEuler.current.set(pitch.current, yaw.current, 0, 'YXZ'))
+
     const dir = tmpForward.current
     camera.getWorldDirection(dir)
     dir.y = 0
@@ -236,5 +286,5 @@ export function FirstPersonCamera() {
     setNearbyDoor(aimedId)
   })
 
-  return <PointerLockControls pointerSpeed={POINTER_SPEED} />
+  return null
 }

@@ -36,19 +36,19 @@ export function RemoteCard({ entry, onResolved }: Props) {
   return (
     <div
       ref={cardRef}
-      className="relative flex flex-col gap-1 rounded border border-neutral-200 p-2 text-[10px]"
+      className="relative flex flex-col gap-1 rounded border border-[var(--border)] p-2 text-[10px]"
     >
-      <div className="flex h-32 w-full items-center justify-center bg-neutral-100">
+      <div className="flex h-32 w-full items-center justify-center bg-[var(--surface-2)]">
         {thumb ? (
           <img src={thumb} alt={entry.name} className="h-full w-full object-contain" />
         ) : (
-          <span className="text-neutral-300">…</span>
+          <span className="text-[var(--text-3)]">…</span>
         )}
       </div>
-      <div className="truncate font-medium text-neutral-800" title={entry.name}>
+      <div className="truncate font-medium text-[var(--text)]" title={entry.name}>
         {entry.name}
       </div>
-      <div className="truncate text-[9px] text-neutral-400" title={entry.attribution}>
+      <div className="truncate text-[9px] text-[var(--text-3)]" title={entry.attribution}>
         {entry.attribution}
       </div>
       <button
@@ -61,7 +61,7 @@ export function RemoteCard({ entry, onResolved }: Props) {
           onResolved(key)
         }}
         disabled={status === 'fetching'}
-        className="rounded bg-blue-600 px-2 py-0.5 text-white disabled:bg-neutral-300"
+        className="rounded bg-[var(--accent)] px-2 py-0.5 text-[var(--on-accent)] disabled:bg-[var(--surface-3)]"
       >
         {status === 'ready'
           ? 'Place'

@@ -1,24 +1,52 @@
+/* Fonts must be the very first thing the browser sees. */
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
 @import 'tailwindcss';
 
-:root { color-scheme: light; }
-html, body, #root { height: 100%; }
-/* Warm neutral (not white) behind the WebGL canvas: if the R3F render loop
- * misses a frame during a heavy main-thread task (e.g. a big import), the page
- * shows this instead of a jarring white flash. Matches the loading overlay. */
-html, body { background: #f6efe4; }
-body { @apply font-sans antialiased; }
+/* ── HDB Sandbox design system ──────────────────────────────────────────
+ * One warm, Singapore-rooted system: 4 themes × light/dark, driven by
+ * [data-theme] + [data-mode] on <html>. Imported after Tailwind so the
+ * design component vocabulary (.panel/.btn/.toolbar/…) and the token
+ * palette win over preflight. Tailwind utilities still work for any
+ * component not yet migrated. */
+@import './styles/tokens.css';
+@import './styles/components.css';
+@import './styles/parts.css';
+@import './styles/features.css';
+@import './styles/flows.css';
+@import './styles/screens.css';
+@import './styles/responsive.css';
+@import './styles/app.css';
 
-/* Toolbar island: a slim, always-present horizontal scrollbar so the
- * overflow row is obviously scrollable (the wheel + drag handlers in
- * Toolbar.tsx do the rest). */
+html,
+body,
+#root {
+  height: 100%;
+}
+
+/* The app stage: tint the backdrop with the active theme's scene colour so
+ * the 3D canvas sits in a cohesive frame even before it paints. */
+#root {
+  background: var(--scene-b);
+  color: var(--text);
+}
+
+/* Keep the old toolbar-scroll helper available for the horizontally
+ * scrollable icon island; recoloured to track the theme. */
 .toolbar-scroll {
   scrollbar-width: thin;
-  scrollbar-color: rgb(163 163 163 / 0.6) transparent;
+  scrollbar-color: var(--border-2) transparent;
 }
-.toolbar-scroll::-webkit-scrollbar { height: 6px; }
-.toolbar-scroll::-webkit-scrollbar-track { background: transparent; }
+.toolbar-scroll::-webkit-scrollbar {
+  height: 6px;
+}
+.toolbar-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
 .toolbar-scroll::-webkit-scrollbar-thumb {
-  background: rgb(163 163 163 / 0.55);
+  background: var(--border-2);
   border-radius: 9999px;
 }
-.toolbar-scroll::-webkit-scrollbar-thumb:hover { background: rgb(115 115 115 / 0.7); }
+.toolbar-scroll::-webkit-scrollbar-thumb:hover {
+  background: var(--text-3);
+}

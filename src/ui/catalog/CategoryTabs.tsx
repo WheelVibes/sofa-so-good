@@ -3,6 +3,7 @@ import {
   type FurnitureCategory,
   type FurnitureDef,
 } from '../../furniture/types'
+import { CategoryIcon } from './CategoryIcon'
 
 interface CategoryTabsProps {
   active: FurnitureCategory
@@ -30,7 +31,7 @@ const LABELS: Record<FurnitureCategory, string> = {
 
 export function CategoryTabs({ active, onSelect, byCategory }: CategoryTabsProps) {
   return (
-    <nav className="flex flex-wrap gap-1 border-b border-neutral-200 px-3 py-2">
+    <nav className="cat-rail">
       {FURNITURE_CATEGORIES.map((c) => {
         const count = byCategory[c]?.length ?? 0
         if (count === 0) return null
@@ -38,15 +39,12 @@ export function CategoryTabs({ active, onSelect, byCategory }: CategoryTabsProps
         return (
           <button
             key={c}
+            type="button"
             onClick={() => onSelect(c)}
-            className={
-              'rounded px-2 py-1 text-xs ' +
-              (isActive
-                ? 'bg-neutral-900 text-white'
-                : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200')
-            }
+            className={`chip${isActive ? ' on' : ''}`}
           >
-            {LABELS[c]} <span className="opacity-60">{count}</span>
+            <CategoryIcon category={c} className="icn" width={14} height={14} />
+            {LABELS[c]}
           </button>
         )
       })}

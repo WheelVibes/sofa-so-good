@@ -83,7 +83,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
         groupOriginals,
       )
     },
-    [item.id, item.position, item.rotation, passive],
+    [item.id, item.position, item.rotation, passive, item.locked],
   )
 
   const body =
@@ -139,6 +139,19 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
         if (state.cameraMode !== 'orbit') return
         e.stopPropagation()
         state.focusOn(item.position)
+      }}
+      onContextMenu={(e) => {
+        if (passive) return
+        const state = useStore.getState()
+        if (state.cameraMode !== 'orbit') return
+        e.stopPropagation()
+        e.nativeEvent.preventDefault()
+        if (!state.selectedItemIds.includes(item.id)) state.selectItemGrouped(item.id, {})
+        state.openContextMenu({
+          x: e.nativeEvent.clientX,
+          y: e.nativeEvent.clientY,
+          itemId: item.id,
+        })
       }}
       onPointerDown={onPointerDown}
     >

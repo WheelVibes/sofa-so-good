@@ -10,11 +10,37 @@ import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
  *  Logic lifted from the previous Toolbar's ToolsMenu + its sub-buttons. */
 export function ToolsMenu() {
   const budgetOpen = useStore((s) => s.budgetOpen)
-  const toggleBudget = useStore((s) => s.toggleBudget)
-  const clearanceOn = useStore((s) => s.clearanceOn)
-  const toggleClearance = useStore((s) => s.toggleClearance)
+  const clearancePanelOpen = useStore((s) => s.clearancePanelOpen)
+  const setShareOpen = useStore((s) => s.setShareOpen)
+  const versionsOpen = useStore((s) => s.versionsOpen)
   const touring = useStore((s) => s.touring)
   const recording = useStore((s) => s.recording)
+
+  // The budget / clearance / versions panels all dock to the same centred-top
+  // `.aux` slot, so they're mutually exclusive — opening one closes the others.
+  const closeAux = () => {
+    const s = useStore.getState()
+    if (s.budgetOpen) s.toggleBudget()
+    s.setClearancePanelOpen(false)
+    s.setVersionsOpen(false)
+  }
+  const openBudget = () => {
+    const wasOpen = useStore.getState().budgetOpen
+    closeAux()
+    if (!wasOpen) useStore.getState().toggleBudget()
+  }
+  const toggleChecks = () => {
+    const s = useStore.getState()
+    const next = !s.clearancePanelOpen
+    closeAux()
+    s.setClearancePanelOpen(next)
+    if (next && !s.clearanceOn) s.toggleClearance()
+  }
+  const openVersions = () => {
+    const wasOpen = useStore.getState().versionsOpen
+    closeAux()
+    useStore.getState().setVersionsOpen(!wasOpen)
+  }
 
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
@@ -27,7 +53,8 @@ export function ToolsMenu() {
   const [sunStudy, setSunStudy] = useState(false)
   useSunStudy(sunStudy)
 
-  const anyActive = budgetOpen || clearanceOn || touring || recording || sunStudy
+  const anyActive =
+    budgetOpen || clearancePanelOpen || touring || recording || sunStudy || versionsOpen
 
   const startWalkthrough = () => {
     const s = useStore.getState()
@@ -66,14 +93,27 @@ export function ToolsMenu() {
         label="Budget"
         sub="Estimate furniture cost (SGD)"
         active={budgetOpen}
-        onClick={toggleBudget}
+        onClick={openBudget}
       />
       <MenuItem
         icon="Checks"
         label={blockedCount > 0 ? `Checks · ${blockedCount}` : 'Checks'}
-        sub="Highlight door-swing conflicts"
-        active={clearanceOn}
-        onClick={toggleClearance}
+        sub="Door-swing + walkway clearance"
+        active={clearancePanelOpen}
+        onClick={toggleChecks}
+      />
+      <MenuItem
+        icon="Versions"
+        label="Versions"
+        sub="Save, restore & compare layouts"
+        active={versionsOpen}
+        onClick={openVersions}
+      />
+      <MenuItem
+        icon="Share"
+        label="Share & export"
+        sub="Link, PNG snapshot, shoppable PDF"
+        onClick={() => setShareOpen(true)}
       />
       <MenuItem
         icon="SunStudy"

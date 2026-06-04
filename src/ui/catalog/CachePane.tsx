@@ -7,11 +7,11 @@ export function CachePane() {
   const bytes = useStore((s) => s.remoteCacheBytes)
   const clear = useStore((s) => s.clearRemoteCache)
   return (
-    <div className="flex items-center justify-between border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
+    <div className="flex items-center justify-between border-t border-[var(--border)] px-3 py-2 text-[10px] text-[var(--text-3)]">
       <span>Cache: {fmt(bytes)}</span>
       <button
         onClick={() => void clear()}
-        className="rounded bg-neutral-200 px-2 py-0.5 hover:bg-neutral-300"
+        className="rounded bg-[var(--surface-3)] px-2 py-0.5 hover:bg-[var(--surface-3)]"
       >
         Clear
       </button>

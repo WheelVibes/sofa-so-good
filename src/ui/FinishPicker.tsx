@@ -9,6 +9,7 @@ import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
 import { useStore } from '../state/store'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
+import { Icon } from './toolbar/icons'
 import { UploadMaterialDialog } from './upload/UploadMaterialDialog'
 
 /** Background-image URL for a swatch tile: the generated texture preview for
@@ -86,28 +87,23 @@ export function FinishPicker() {
     setView('swatch')
   }
 
-  const widthClass = view === 'browse' ? 'w-80' : 'w-64'
-
   return (
-    <aside
-      className={`absolute right-3 top-3 z-10 ${widthClass} flex max-h-[80vh] flex-col rounded-lg bg-white/95 text-xs text-neutral-700 shadow`}
-    >
-      <header className="flex items-start justify-between border-b border-neutral-200 px-4 py-2">
-        <div className="flex items-center gap-2">
+    <aside className="panel inspector" style={view === 'browse' ? { width: 320 } : undefined}>
+      <div className="panel-head">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, minWidth: 0 }}>
           {view === 'browse' && (
             <button
+              type="button"
               onClick={() => setView('swatch')}
-              className="text-neutral-500 hover:text-neutral-900"
+              className="icon-btn"
               aria-label="Back to swatches"
             >
-              ←
+              <Icon.ArrowLeft width={16} height={16} />
             </button>
           )}
-          <div>
-            <div className="text-sm font-semibold text-neutral-900">
-              {view === 'browse' ? 'Browse materials' : room.name}
-            </div>
-            <div className="text-[10px] uppercase tracking-wide text-neutral-500">
+          <div style={{ minWidth: 0 }}>
+            <div className="panel-title">{view === 'browse' ? 'Browse materials' : room.name}</div>
+            <div className="panel-sub">
               {view === 'browse'
                 ? `Apply to ${lastSurface}`
                 : `Finishes · ${roomArea(room).toFixed(1)} m²`}
@@ -115,16 +111,18 @@ export function FinishPicker() {
           </div>
         </div>
         <button
+          type="button"
           onClick={() => selectRoom(null)}
-          className="text-neutral-400 hover:text-neutral-700"
+          className="icon-btn"
           aria-label="Close finish picker"
         >
-          ×
+          <Icon.Close width={16} height={16} />
         </button>
-      </header>
+      </div>
+      <hr className="hr" />
 
       {view === 'swatch' ? (
-        <div className="overflow-y-auto p-4">
+        <div className="panel-body">
           <SwatchGroup
             label="Floor"
             items={groups.floor}
@@ -144,30 +142,32 @@ export function FinishPicker() {
             recent={recentColors}
           />
           <button
+            type="button"
             onClick={tidyRoom}
             title="Auto-arrange this room's furniture: storage flush to walls, seating facing the TV, walkways + door clearances kept"
-            className="mt-3 w-full whitespace-nowrap rounded bg-emerald-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-emerald-700"
+            className="btn btn-accent btn-block"
+            style={{ marginTop: 'var(--s-4)' }}
           >
-            ✨ Tidy up room
+            <Icon.Tidy width={14} height={14} />
+            Tidy up room
           </button>
-          <div className="mt-2 flex gap-2">
-            <button
-              onClick={() => setView('browse')}
-              className="flex-1 whitespace-nowrap rounded bg-neutral-800 px-3 py-1 text-xs font-medium text-white hover:bg-neutral-900"
-            >
+          <div className="export-row" style={{ marginTop: 'var(--s-2)' }}>
+            <button type="button" onClick={() => setView('browse')} className="btn btn-soft">
+              <Icon.Search width={14} height={14} />
               Browse
             </button>
-            <button
-              onClick={() => setUploadOpen(true)}
-              className="flex-1 whitespace-nowrap rounded bg-blue-600 px-2 py-1 text-xs font-medium text-white hover:bg-blue-700"
-            >
+            <button type="button" onClick={() => setUploadOpen(true)} className="btn btn-soft">
+              <Icon.Upload width={14} height={14} />
               Upload
             </button>
           </div>
           <UploadMaterialDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
         </div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
+        <div
+          className="panel-body"
+          style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
+        >
           <RemoteBrowseTab kind="material" onResolved={handleResolved} />
         </div>
       )}
@@ -187,9 +187,9 @@ interface SwatchGroupProps {
 
 function providerTag(def: MaterialDef): { label: string; cls: string } | null {
   if (def.kind !== 'textured') return null
-  if (def.source === 'user') return { label: 'user', cls: 'bg-amber-100 text-amber-800' }
-  if (def.source === 'polyhaven') return { label: 'PH', cls: 'bg-emerald-100 text-emerald-800' }
-  if (def.source === 'ambientcg') return { label: 'ACG', cls: 'bg-sky-100 text-sky-800' }
+  if (def.source === 'user') return { label: 'user', cls: 'badge neutral' }
+  if (def.source === 'polyhaven') return { label: 'PH', cls: 'badge ok' }
+  if (def.source === 'ambientcg') return { label: 'ACG', cls: 'badge warn' }
   return null
 }
 
@@ -204,14 +204,17 @@ function SwatchGroup({
 }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#')
   return (
-    <section className="mb-4 last:mb-0">
-      <div className="mb-2 font-semibold text-neutral-700">{label}</div>
-      <div className="grid grid-cols-3 gap-2">
+    <section className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+      <div className="sec-h">
+        <span>{label}</span>
+      </div>
+      <div className="finish-grid">
         {items.map((m) => {
           const isUser = m.kind === 'textured' && m.source === 'user'
           const isActive = m.id === active
           const tag = providerTag(m)
           return (
+            // biome-ignore lint/a11y/useSemanticElements: tile holds a nested remove button, so it can't be a <button>
             <div
               key={m.id}
               role="button"
@@ -220,39 +223,40 @@ function SwatchGroup({
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') onSelect(m.id)
               }}
-              className={
-                'group relative flex cursor-pointer flex-col overflow-hidden rounded border ' +
-                (isActive
-                  ? 'border-blue-500 ring-2 ring-blue-200'
-                  : 'border-neutral-200 hover:border-neutral-400')
-              }
+              className={`finish-cell group${isActive ? ' on' : ''}`}
+              style={{ position: 'relative', cursor: 'pointer' }}
               title={m.name}
             >
               <span
-                className="block h-10 w-full bg-cover bg-center"
+                className="swatch-lg"
                 style={{
                   backgroundColor: m.swatch,
                   backgroundImage: swatchImage(m),
+                  backgroundSize: 'cover',
+                  backgroundPosition: 'center',
                 }}
               />
-              <span className="block px-1 py-1 text-[10px] leading-tight">{m.name}</span>
+              <span className="name">{m.name}</span>
               {tag ? (
                 <span
-                  className={`absolute right-0 top-0 rounded-bl px-1 text-[8px] uppercase tracking-wide ${tag.cls}`}
+                  className="badge neutral"
+                  style={{ position: 'absolute', right: 4, top: 4, padding: '1px 5px' }}
                 >
                   {tag.label}
                 </span>
               ) : null}
               {isUser ? (
                 <button
+                  type="button"
                   onClick={(e) => {
                     e.stopPropagation()
                     onRemoveUser(m.id)
                   }}
-                  className="absolute right-0 bottom-0 hidden text-[10px] text-rose-600 group-hover:inline"
+                  className="coll-x"
+                  style={{ bottom: 4, top: 'auto' }}
                   aria-label="Remove uploaded material"
                 >
-                  ×
+                  <Icon.Close width={12} height={12} />
                 </button>
               ) : null}
             </div>
@@ -261,23 +265,19 @@ function SwatchGroup({
         {/* Custom colour: a native colour picker styled as a swatch tile. */}
         {onCustom ? (
           <label
-            className={
-              'group relative flex cursor-pointer flex-col overflow-hidden rounded border ' +
-              (customActive
-                ? 'border-blue-500 ring-2 ring-blue-200'
-                : 'border-neutral-200 hover:border-neutral-400')
-            }
+            className={`finish-cell${customActive ? ' on' : ''}`}
+            style={{ position: 'relative', cursor: 'pointer' }}
             title="Custom colour"
           >
             <span
-              className="block h-10 w-full"
+              className="swatch-lg"
               style={{
                 background: customActive
                   ? (active as string)
                   : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
               }}
             />
-            <span className="block px-1 py-1 text-[10px] leading-tight">Custom…</span>
+            <span className="name">Custom…</span>
             <input
               type="color"
               value={customActive ? (active as string) : '#cccccc'}
@@ -289,16 +289,19 @@ function SwatchGroup({
         ) : null}
       </div>
       {onCustom && recent && recent.length > 0 ? (
-        <div className="mt-2">
-          <div className="mb-1 text-[10px] uppercase tracking-wide text-neutral-400">Recent</div>
-          <div className="flex flex-wrap gap-1.5">
+        <div style={{ marginTop: 'var(--s-3)' }}>
+          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+            <span>Recent</span>
+          </div>
+          <div className="swatches">
             {recent.map((hex) => (
               <button
+                type="button"
                 key={hex}
                 onClick={() => onCustom(hex)}
                 title={hex}
                 aria-label={`Recent colour ${hex}`}
-                className={`h-5 w-5 rounded border ${active === hex ? 'border-blue-500 ring-1 ring-blue-300' : 'border-neutral-300'}`}
+                className={`swatch${active === hex ? ' on' : ''}`}
                 style={{ backgroundColor: hex }}
               />
             ))}

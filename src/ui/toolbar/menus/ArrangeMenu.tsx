@@ -73,7 +73,7 @@ export function ArrangeMenu() {
   }
 
   return (
-    <ToolbarMenu icon="Sets" label="Arrange" active={floorPlanEditing} width="w-64">
+    <ToolbarMenu icon="Sets" label="Arrange" active={floorPlanEditing} width={256}>
       <div className="max-h-[70vh] overflow-y-auto">
         <Action
           icon="Tidy"
@@ -130,7 +130,7 @@ export function ArrangeMenu() {
 
 function Header({ children }: { children: React.ReactNode }) {
   return (
-    <div className="mt-1 border-t border-neutral-100 px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-neutral-400 first:mt-0 first:border-t-0">
+    <div className="mt-1 border-t border-[var(--border)] px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)] first:mt-0 first:border-t-0">
       {children}
     </div>
   )
@@ -156,14 +156,14 @@ function Action({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-neutral-100 ${active ? 'bg-neutral-100' : ''}`}
+      className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-[var(--surface-2)] ${active ? 'bg-[var(--surface-2)]' : ''}`}
     >
-      <span className="text-neutral-600">
+      <span className="text-[var(--text-2)]">
         <Cmp width={16} height={16} />
       </span>
       <span className="flex-1">
-        <span className="block text-[13px] text-neutral-800">{label}</span>
-        {sub ? <span className="block text-[10px] text-neutral-400">{sub}</span> : null}
+        <span className="block text-[13px] text-[var(--text)]">{label}</span>
+        {sub ? <span className="block text-[10px] text-[var(--text-3)]">{sub}</span> : null}
       </span>
     </button>
   )

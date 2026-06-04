@@ -72,9 +72,13 @@ rediscover it.
   snap grid), placement, clipboard, history, remote catalog, installed packs,
   measurements, orientation, notifications, reset, **userAssets**
   (user-uploaded GLBs + imported `IkeaGltfDef`s — see **IKEA models**), and
-  **floorPlan** (editable apartment shell + editor state + saved-plan library).
-  Persistence + migrations under `storage/` (layout autosave; `qualityPrefs.ts`
-  graphics prefs; `editorPrefs.ts` snap/grid; `floorPlanStore.ts` plan library
+  **floorPlan** (editable apartment shell + editor state + saved-plan library),
+  **appearance** (theme + light/dark/auto mode — see **Design system**), and
+  **features** (command-palette / layers-mode / context-menu / onboarding UI
+  state). Persistence + migrations under `storage/` (layout autosave;
+  `qualityPrefs.ts` graphics prefs; `editorPrefs.ts` snap/grid;
+  `appearancePrefs.ts` theme+mode → `[data-theme]`/`[data-mode]` on `<html>`;
+  `floorPlanStore.ts` plan library
   + active custom plan; `hydrate.ts`/`hydrateAssets.ts` re-resolve user/IKEA
   defs + their IDB blobs on boot). `schema.ts` is the save/load serializer
   (round-trips parametric items, user GLBs, and IKEA defs).
@@ -142,10 +146,25 @@ rediscover it.
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
   adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection.
-- `src/ui/` — DOM overlays: CatalogDrawer, InspectorPanel,
-  FinishPicker, GraphicsSettings, measurement/credits/help, `upload/`
-  (GLB/material import dialogs), `floorplan/` (2D editor), `inspector/`,
-  `catalog/`, and `toolbar/` — the icon-island toolbar (see **Toolbar** below).
+- `src/ui/` — DOM overlays: CatalogDrawer (`catalog/`, incl. the **Layers**
+  panel `LayersPanel.tsx` — left-dock toggles catalog↔objects), InspectorPanel
+  (`inspector/`), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
+  NavCluster (fused compass + zoom rail + minimap, bottom-right), the
+  **CommandPalette** (⌘K), **ContextMenu** (right-click on a placed item),
+  **Onboarding** (first-run 3-step intro), **HelpModal**, a shared **Modal**
+  primitive, measurement/loading, `upload/` (GLB/material import dialogs),
+  `floorplan/` (2D editor), and `toolbar/` — the icon-island toolbar (see
+  **Toolbar** + **Design system** below; the toolbar's `AppearancePopover`
+  switches theme + light/dark/auto).
+- `src/styles/` — the **design-system CSS** (ported from `design/assets/`):
+  `tokens.css` (type/spacing/radii + the 8 OKLCH theme palettes),
+  `components.css` (`.panel`/`.btn`/`.toolbar`/`.menu`/inputs…), `parts.css`
+  (catalog/inspector/navcluster compound UI), `features.css` (layers/cmdk/
+  context-menu/toasts/badges), `flows.css` (onboarding/edit-room/presets),
+  `screens.css` (appearance popover/loading/plan/walk), `responsive.css`
+  (tablet/compact/`body.mobile` bottom-sheet breakpoints), and `app.css`
+  (React-port glue: portaled `.pop-panel`/`.tip-box`, `.fld` field rows,
+  `.hud-pill`). All imported from `src/index.css` after Tailwind.
 - `python/scripts/` — **offline** asset tooling, not part of the app build:
   `ikea_model_scraper.py` (IKEA SG → per-variant-group `metadata.json` +
   `<finish>.glb`), `glb_analysis.py` (stdlib GLB parser → footprint + material
@@ -155,6 +174,40 @@ rediscover it.
   **IKEA scraper (offline)** and **GLB LOD pipeline**.
 
 ## Key systems
+- **Design system & theming** (`src/styles/`, `state/slices/appearanceSlice.ts`,
+  `storage/appearancePrefs.ts`): one warm, Singapore-rooted system — **4 themes
+  (Clay / Kampong / Porcelain / Estate) × light/dark = 8 OKLCH palettes**,
+  switched by `[data-theme]` + `[data-mode]` on `<html>`. Every colour is a CSS
+  custom property (`--surface`/`--text`/`--accent`/`--border`/`--scene-*`/…) so
+  components never hardcode colour — UI is restyled to the design class
+  vocabulary (`.panel`, `.btn`, `.toolbar`/`.tool-btn`, `.menu-item`, `.seg`,
+  `.swatch`, `.act`, `.cmdk`, `.ctx-menu`, `.toast`, `.onb-*`, …) instead of
+  Tailwind colour utilities. The toolbar **Appearance** popover
+  (`ui/toolbar/AppearancePopover.tsx`) picks theme + Light/Dark/Auto; the choice
+  persists in `localStorage` (`hdb_appearance`) and is applied pre-paint by an
+  inline script in `index.html` (no flash). Auto follows the OS via `matchMedia`.
+  `body.mobile` (toggled in `App` at ≤640px) switches floating panels to
+  bottom-sheets and the toolbar to a collapsed bar + action sheet
+  (`toolbar/MobileToolbar.tsx`). A reference screenshot suite (every theme,
+  panel, modal, viewport) lives in `assets/screenshots/`. New feature surfaces wired through `featuresSlice`: the **⌘K
+  command palette** (`CommandPalette.tsx` — actions / panels / views / "add
+  furniture", keyboard-navigable), the **right-click context menu**
+  (`ContextMenu.tsx`), the first-run **onboarding** carousel (`Onboarding.tsx`,
+  gated on `localStorage.hdb_onboarded`), and the catalog drawer's **Objects /
+  Layers** mode (`catalog/LayersPanel.tsx`, items grouped by room with select /
+  lock / delete). Production-grade feature panels, all wired to real data and
+  mutually-exclusive in the centred-top `.aux` slot: **Swap with similar**
+  (`SwapModal.tsx` — same-category alternatives with footprint-fit badges,
+  replaces the def in place), **Clearance & fit checks** (`ClearancePanel.tsx`,
+  from `layout/clearance.ts` `blockedDoorItems`), **Versions**
+  (`VersionsPanel.tsx` — save / restore / delete over the real
+  `LocalStorageAdapter` slots + `slotThumbs`), **Shopping list + Collections**
+  (`BudgetPanel` List/Saved tabs + a heart `fav-btn` on every catalog card →
+  `collections`), and **Share & export** (`ShareModal.tsx` — link copy + a real
+  PNG snapshot via the `sofa:export` event). The **2D floor-plan editor**
+  (`ui/floorplan/`) and **upload dialogs** (`ui/upload/`) are fully token-themed
+  (light + dark) — the floor-plan editor hides the main toolbar while open (its
+  own header bar), and the upload dialogs portal to `document.body`.
 - **Procedural materials**: `materials/procedural/generators.ts` paints one
   tiling tile (albedo+normal+roughness) per finish from seeded noise; plaster
   wall paints share one normal map (tinted by colour) to save memory.

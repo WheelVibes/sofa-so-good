@@ -1,4 +1,9 @@
 import { create } from 'zustand'
+import {
+  APPEARANCE_INITIAL,
+  type AppearanceSlice,
+  createAppearanceSlice,
+} from './slices/appearanceSlice'
 import { CAMERA_INITIAL, type CameraSlice, createCameraSlice } from './slices/cameraSlice'
 import {
   CLIPBOARD_INITIAL,
@@ -6,6 +11,7 @@ import {
   createClipboardSlice,
 } from './slices/clipboardSlice'
 import { createDoorsSlice, DOORS_INITIAL, type DoorsSlice } from './slices/doorsSlice'
+import { createFeaturesSlice, FEATURES_INITIAL, type FeaturesSlice } from './slices/featuresSlice'
 import { createFinishesSlice, FINISHES_INITIAL, type FinishesSlice } from './slices/finishesSlice'
 import {
   createFloorPlanSlice,
@@ -85,7 +91,9 @@ export interface RootState
     OrientationSlice,
     NotificationsSlice,
     InstalledPacksSlice,
-    FloorPlanSlice {
+    FloorPlanSlice,
+    AppearanceSlice,
+    FeaturesSlice {
   __resetForTest: () => void
 }
 
@@ -108,6 +116,8 @@ const INITIAL = {
   ...NOTIFICATIONS_INITIAL,
   ...INSTALLED_PACKS_INITIAL,
   ...FLOOR_PLAN_INITIAL,
+  ...APPEARANCE_INITIAL,
+  ...FEATURES_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -131,5 +141,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createNotificationsSlice(set, get, api),
   ...createInstalledPacksSlice(set, get, api),
   ...createFloorPlanSlice(set, get, api),
+  ...createAppearanceSlice(set, get, api),
+  ...createFeaturesSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))

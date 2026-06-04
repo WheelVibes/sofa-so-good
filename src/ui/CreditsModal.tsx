@@ -30,21 +30,19 @@ export function CreditsModal({ open, onClose }: Props) {
   }, [open])
   if (!open) return null
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
-    >
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="max-h-[80vh] w-full max-w-lg overflow-y-auto rounded bg-white p-4 text-sm"
+        className="panel max-h-[80vh] w-full max-w-lg overflow-y-auto p-4 text-sm"
+        style={{ color: 'var(--text)' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <h2 className="mb-2 text-lg font-semibold">Asset credits</h2>
+        <h2 className="panel-title mb-2 text-lg">Asset credits</h2>
         {credits ? (
           <>
             <Section title="Furniture" entries={credits.furniture} />
             <Section title="Materials" entries={credits.materials} />
             {credits.furniture.length === 0 && credits.materials.length === 0 && (
-              <div className="space-y-2 text-neutral-600">
+              <div className="space-y-2" style={{ color: 'var(--text-2)' }}>
                 <p>
                   All built-in furniture and finishes are{' '}
                   <span className="font-medium">generated procedurally on-device</span> — no
@@ -60,7 +58,12 @@ export function CreditsModal({ open, onClose }: Props) {
         ) : (
           <p>Loading…</p>
         )}
-        <button onClick={onClose} className="mt-3 text-sm underline">
+        <button
+          type="button"
+          onClick={onClose}
+          className="btn btn-soft"
+          style={{ marginTop: 'var(--s-3)' }}
+        >
           Close
         </button>
       </div>

@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { type ReactNode, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
 import {
@@ -9,6 +9,7 @@ import {
   resolveQuality,
 } from '../scene/quality'
 import { useStore } from '../state/store'
+import { Icon } from './toolbar/icons'
 
 const TIERS = RENDER_TIERS
 /** Asset-quality options: Auto (follow render tier) + the three asset tiers
@@ -50,175 +51,190 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
   const hasOverrides = Object.keys(overrides).length > 0
 
   return createPortal(
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40"
-      onClick={onClose}
-    >
+    <div className="modal-overlay" onClick={onClose}>
       <div
-        className="max-h-[90vh] w-80 overflow-auto rounded-lg bg-white p-5 text-sm shadow-xl"
+        className="panel"
+        style={{ width: 320, maxHeight: 'min(640px, calc(100vh - 48px))' }}
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-3 flex items-baseline justify-between">
-          <h2 className="text-base font-semibold text-neutral-800">Graphics</h2>
-          <button onClick={onClose} className="text-neutral-400 hover:text-neutral-700">
-            ×
+        <div className="panel-head">
+          <div>
+            <div className="panel-title">Graphics</div>
+            <div className="panel-sub">Render & assets</div>
+          </div>
+          <button type="button" onClick={onClose} className="icon-btn" aria-label="Close">
+            <Icon.Close width={16} height={16} />
           </button>
         </div>
-
-        {/* Tier presets — 2×2 grid; labels are too long for one row. */}
-        <div className="mb-1 text-xs font-medium text-neutral-500">Quality preset</div>
-        <div className="mb-1 grid grid-cols-2 gap-1">
-          {TIERS.map((t) => (
-            <button
-              key={t}
-              onClick={() => setTier(t)}
-              className={`rounded px-2 py-1.5 text-xs ${
-                tier === t && !hasOverrides
-                  ? 'bg-neutral-800 text-white'
-                  : 'bg-neutral-100 text-neutral-700 hover:bg-neutral-200'
-              }`}
-            >
-              {QUALITY_LABEL[t]}
-            </button>
-          ))}
-        </div>
-        <p className="mb-1 text-[11px] leading-snug text-neutral-500">
-          {QUALITY_DESCRIPTION[tier]}
-        </p>
-        <p className="mb-3 text-[11px] leading-snug text-neutral-400">
-          {userSet
-            ? hasOverrides
-              ? 'Custom settings (overriding the preset).'
-              : 'Manual — auto fps-adjust is off.'
-            : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
-        </p>
-
-        {/* Asset quality — GLB mesh/texture detail, decoupled from render tier. */}
-        <div className="mb-1 mt-1 text-xs font-medium text-neutral-500">Asset quality</div>
-        <div className="mb-1 flex overflow-hidden rounded border border-neutral-200">
-          {ASSET_OPTIONS.map((o) => (
-            <button
-              key={o.label}
-              onClick={() => setAssetTier(o.value)}
-              className={`flex-1 px-2 py-1.5 text-xs ${
-                assetTier === o.value
-                  ? 'bg-neutral-800 text-white'
-                  : 'bg-white text-neutral-700 hover:bg-neutral-100'
-              }`}
-            >
-              {o.label}
-            </button>
-          ))}
-        </div>
-        <p className="mb-3 text-[11px] leading-snug text-neutral-400">
-          Model + texture detail, separate from render quality. “Original” loads full-resolution
-          assets even on Low.
-        </p>
-
-        <div className="space-y-3 border-t border-neutral-100 pt-3">
-          <Row label="Sun shadows" hint="Resolution; off is fastest">
-            <select
-              value={eff.shadowMapSize}
-              onChange={(e) => setOverride('shadowMapSize', Number(e.target.value))}
-              className="rounded border border-neutral-200 px-1 py-0.5 text-xs"
-            >
-              {SHADOW_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-          </Row>
-
-          <Toggle
-            label="Reflections (IBL)"
-            hint="Image-based lighting probe"
-            checked={eff.ibl}
-            onChange={(v) => setOverride('ibl', v)}
-          />
-          <Toggle
-            label="Bloom, AO + antialiasing"
-            hint="GPU post-processing (loaded on demand)"
-            checked={eff.postprocessing}
-            onChange={(v) => setOverride('postprocessing', v)}
-          />
-          <Toggle
-            label="Auto-reveal walls"
-            hint="Fade near walls when orbiting"
-            checked={eff.wallReveal}
-            onChange={(v) => setOverride('wallReveal', v)}
-          />
-          <Toggle
-            label="Contact shadows"
-            hint="Soft grounding under furniture"
-            checked={eff.contactShadows}
-            onChange={(v) => setOverride('contactShadows', v)}
-          />
-          <Toggle
-            label="Showcase stills"
-            hint="Sharpen shadows when the camera is still"
-            checked={eff.showcase}
-            onChange={(v) => setOverride('showcase', v)}
-          />
-          <Toggle
-            label="FPS counter"
-            hint="Live frame-rate overlay"
-            checked={showFps}
-            onChange={toggleShowFps}
-          />
-
-          <Row label="Night light fixtures" hint={`${eff.maxFixtureLights} max`}>
-            <input
-              type="range"
-              min={0}
-              max={12}
-              step={1}
-              value={eff.maxFixtureLights}
-              onChange={(e) => setOverride('maxFixtureLights', Number(e.target.value))}
-              className="w-28"
-            />
-          </Row>
-          <Row label="Resolution scale" hint={`${eff.dprMax.toFixed(2)}×`}>
-            <input
-              type="range"
-              min={0.75}
-              max={2}
-              step={0.25}
-              value={eff.dprMax}
-              onChange={(e) => setOverride('dprMax', Number(e.target.value))}
-              className="w-28"
-            />
-          </Row>
-        </div>
-
-        {hasOverrides && (
-          <button
-            onClick={resetOverrides}
-            className="mt-4 w-full rounded bg-neutral-100 px-2 py-1.5 text-xs text-neutral-600 hover:bg-neutral-200"
+        <hr className="hr" />
+        <div className="panel-body">
+          {/* Tier presets — 2×2 grid. */}
+          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+            <span>Quality preset</span>
+          </div>
+          <div className="action-grid two">
+            {TIERS.map((t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => setTier(t)}
+                className={`act${tier === t && !hasOverrides ? ' on' : ''}`}
+              >
+                {QUALITY_LABEL[t]}
+              </button>
+            ))}
+          </div>
+          <p
+            style={{
+              fontSize: 'var(--t-2xs)',
+              lineHeight: 1.45,
+              color: 'var(--text-3)',
+              margin: 'var(--s-2) 0 var(--s-3)',
+            }}
           >
-            Reset to {QUALITY_LABEL[tier]} preset
-          </button>
-        )}
+            {QUALITY_DESCRIPTION[tier]}{' '}
+            {userSet
+              ? hasOverrides
+                ? 'Custom settings (overriding the preset).'
+                : 'Manual — auto fps-adjust is off.'
+              : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
+          </p>
+
+          {/* Asset quality. */}
+          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+            <span>Asset quality</span>
+          </div>
+          <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+            {ASSET_OPTIONS.map((o) => (
+              <button
+                key={o.label}
+                type="button"
+                onClick={() => setAssetTier(o.value)}
+                className={assetTier === o.value ? 'on' : ''}
+                style={{ flex: 1 }}
+              >
+                {o.label}
+              </button>
+            ))}
+          </div>
+          <p
+            style={{
+              fontSize: 'var(--t-2xs)',
+              lineHeight: 1.45,
+              color: 'var(--text-3)',
+              margin: 'var(--s-2) 0 0',
+            }}
+          >
+            Model + texture detail, separate from render quality. “Original” loads full-resolution
+            assets even on Low.
+          </p>
+
+          <div className="sec">
+            <Row label="Sun shadows" hint="Resolution; off is fastest">
+              <select
+                value={eff.shadowMapSize}
+                onChange={(e) => setOverride('shadowMapSize', Number(e.target.value))}
+                className="input"
+                style={{ width: 'auto' }}
+              >
+                {SHADOW_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>
+                    {o.label}
+                  </option>
+                ))}
+              </select>
+            </Row>
+
+            <Toggle
+              label="Reflections (IBL)"
+              hint="Image-based lighting probe"
+              checked={eff.ibl}
+              onChange={(v) => setOverride('ibl', v)}
+            />
+            <Toggle
+              label="Bloom, AO + antialiasing"
+              hint="GPU post-processing (loaded on demand)"
+              checked={eff.postprocessing}
+              onChange={(v) => setOverride('postprocessing', v)}
+            />
+            <Toggle
+              label="Auto-reveal walls"
+              hint="Fade near walls when orbiting"
+              checked={eff.wallReveal}
+              onChange={(v) => setOverride('wallReveal', v)}
+            />
+            <Toggle
+              label="Contact shadows"
+              hint="Soft grounding under furniture"
+              checked={eff.contactShadows}
+              onChange={(v) => setOverride('contactShadows', v)}
+            />
+            <Toggle
+              label="Showcase stills"
+              hint="Sharpen shadows when the camera is still"
+              checked={eff.showcase}
+              onChange={(v) => setOverride('showcase', v)}
+            />
+            <Toggle
+              label="FPS counter"
+              hint="Live frame-rate overlay"
+              checked={showFps}
+              onChange={toggleShowFps}
+            />
+
+            <Row label="Night light fixtures" hint={`${eff.maxFixtureLights} max`}>
+              <input
+                type="range"
+                min={0}
+                max={12}
+                step={1}
+                value={eff.maxFixtureLights}
+                onChange={(e) => setOverride('maxFixtureLights', Number(e.target.value))}
+                className="slider"
+                style={{ width: 112 }}
+              />
+            </Row>
+            <Row label="Resolution scale" hint={`${eff.dprMax.toFixed(2)}×`}>
+              <input
+                type="range"
+                min={0.75}
+                max={2}
+                step={0.25}
+                value={eff.dprMax}
+                onChange={(e) => setOverride('dprMax', Number(e.target.value))}
+                className="slider"
+                style={{ width: 112 }}
+              />
+            </Row>
+          </div>
+
+          {hasOverrides && (
+            <button
+              type="button"
+              onClick={resetOverrides}
+              className="btn btn-soft btn-block"
+              style={{ marginTop: 'var(--s-4)' }}
+            >
+              Reset to {QUALITY_LABEL[tier]} preset
+            </button>
+          )}
+        </div>
       </div>
     </div>,
     document.body,
   )
 }
 
-function Row({
-  label,
-  hint,
-  children,
-}: {
-  label: string
-  hint?: string
-  children: React.ReactNode
-}) {
+function Row({ label, hint, children }: { label: string; hint?: string; children: ReactNode }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div>
-        <div className="text-xs text-neutral-700">{label}</div>
-        {hint && <div className="text-[10px] text-neutral-400">{hint}</div>}
+    <div className="row">
+      <div className="rk" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}>
+        <div>{label}</div>
+        {hint && (
+          <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
+            {hint}
+          </div>
+        )}
       </div>
       {children}
     </div>
@@ -239,15 +255,12 @@ function Toggle({
   return (
     <Row label={label} hint={hint}>
       <button
+        type="button"
         role="switch"
         aria-checked={checked}
         onClick={() => onChange(!checked)}
-        className={`relative h-5 w-9 rounded-full transition-colors ${checked ? 'bg-neutral-800' : 'bg-neutral-300'}`}
-      >
-        <span
-          className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${checked ? 'left-4' : 'left-0.5'}`}
-        />
-      </button>
+        className={`switch${checked ? ' on' : ''}`}
+      />
     </Row>
   )
 }

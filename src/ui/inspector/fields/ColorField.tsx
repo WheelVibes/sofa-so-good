@@ -8,14 +8,9 @@ interface ColorFieldProps {
 
 export function ColorField({ field, value, onChange }: ColorFieldProps) {
   return (
-    <label className="flex items-center justify-between gap-2 text-xs text-neutral-700">
-      <span className="flex-1">{field.label}</span>
-      <input
-        type="color"
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="h-6 w-10 cursor-pointer rounded border border-neutral-300"
-      />
+    <label className="fld">
+      <span className="lbl">{field.label}</span>
+      <input type="color" value={value} onChange={(e) => onChange(e.target.value)} />
     </label>
   )
 }

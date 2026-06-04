@@ -30,11 +30,9 @@ export function DoorPrompt() {
       <button
         type="button"
         onClick={() => toggleDoor(nearbyDoorId)}
-        className="pointer-events-auto flex items-center gap-3 rounded-full bg-black/70 px-5 py-2 text-sm text-white shadow-lg backdrop-blur"
+        className="hud-pill pointer-events-auto"
       >
-        <kbd className="rounded border border-white/40 bg-white/10 px-2 py-0.5 font-mono text-xs">
-          E
-        </kbd>
+        <kbd>E</kbd>
         <span>
           {action} {label}
         </span>

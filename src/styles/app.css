@@ -1,0 +1,160 @@
+/* ============================================================
+   App-specific glue for the React port.
+   The prototype's .menu / .tip use absolute positioning baked into
+   the class. The React app positions popovers via a portaled
+   <Popover> (fixed coords), so these are position-free variants of
+   the same look, reusing the design tokens.
+   ============================================================ */
+
+/* Portaled dropdown menu panel (positioned by Popover). */
+.pop-panel {
+  min-width: 220px;
+  padding: var(--s-2);
+  background: var(--elevated);
+  backdrop-filter: blur(var(--blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  border: 1px solid var(--border);
+  border-radius: var(--r-3);
+  box-shadow: var(--shadow-pop);
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  animation: pop var(--dur) var(--ease);
+  color: var(--text);
+}
+
+/* Portaled tooltip bubble (positioned by Popover). */
+.tip-box {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--s-2);
+  white-space: nowrap;
+  background: var(--elevated);
+  color: var(--text);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-pop);
+  padding: 4px 8px;
+  border-radius: var(--r-2);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  animation: pop var(--dur) var(--ease);
+}
+.tip-box .sk {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: var(--r-1);
+  background: var(--surface-3);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+
+/* Two-line menu rows (label + description) layered on the prototype's
+   single-line .menu-item. */
+.menu-item .mi-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  flex: 1;
+}
+.menu-item .mi-main {
+  font-size: var(--t-base);
+  font-weight: 500;
+  line-height: 1.25;
+}
+.menu-item .mi-sub {
+  font-size: var(--t-2xs);
+  color: var(--text-3);
+  font-weight: 500;
+  line-height: 1.3;
+}
+.menu-item.active {
+  background: var(--accent-soft);
+  color: var(--accent-soft-text);
+}
+.menu-item.active .icn,
+.menu-item.active .mi-sub {
+  color: var(--accent-soft-text);
+}
+
+/* Floating HUD pill (drag clearance readout, door prompt). */
+.hud-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--blur));
+  -webkit-backdrop-filter: blur(var(--blur));
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.hud-pill.warn {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+.hud-pill kbd {
+  margin-right: 2px;
+}
+
+/* Inspector / parametric schema field rows. */
+.fld {
+  display: flex;
+  align-items: center;
+  gap: var(--s-3);
+  padding: 5px 0;
+  font-size: var(--t-sm);
+  color: var(--text-2);
+  font-weight: 500;
+}
+.fld .lbl {
+  flex: 1;
+  min-width: 0;
+}
+.fld .slider {
+  flex: 1.2;
+}
+.fld .val {
+  font-family: var(--font-mono);
+  font-size: var(--t-xs);
+  color: var(--text-2);
+  min-width: 52px;
+  text-align: right;
+  flex: none;
+}
+.fld select.input,
+.fld .fld-input {
+  width: auto;
+  flex: none;
+  max-width: 56%;
+}
+.fld input[type='color'] {
+  width: 40px;
+  height: 24px;
+  padding: 2px;
+  border-radius: var(--r-2);
+  border: 1px solid var(--border-2);
+  background: var(--surface-2);
+  cursor: pointer;
+  flex: none;
+}
+
+/* The toolbar island needs horizontal scroll for overflow, which the
+   prototype's .toolbar doesn't declare. Layer it on. */
+.toolbar.toolbar-scroll {
+  overflow-x: auto;
+  flex-wrap: nowrap;
+}
+
+/* When the icon island scrolls, keep the scrollbar tucked under a few px so
+   it doesn't crowd the bottom row of buttons. */
+.toolbar.toolbar-scroll {
+  padding-bottom: calc(var(--s-2) + 2px);
+}

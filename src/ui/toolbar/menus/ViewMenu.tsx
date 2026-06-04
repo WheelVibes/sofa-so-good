@@ -33,7 +33,7 @@ export function ViewMenu() {
         active={autoRotate}
         onClick={toggleAutoRotate}
       />
-      <div className="my-1 border-t border-neutral-200" />
+      <div className="my-1 border-t border-[var(--border)]" />
       {Object.values(ROOMS)
         .filter((r) => !r.external)
         .map((r) => (

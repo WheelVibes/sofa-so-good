@@ -36,13 +36,10 @@ export function Tooltip({
     >
       {children}
       <Popover open={open} anchorRef={ref} onClose={() => setOpen(false)} align="center">
-        <div className="flex items-center whitespace-nowrap rounded-md bg-neutral-800 px-2 py-1 text-xs text-white shadow-lg">
+        <div className="tip-box">
           {label}
           {shortcut ? (
-            <span
-              data-testid="tooltip-chip"
-              className="ml-2 rounded bg-neutral-700 px-1.5 py-0.5 text-[10px] text-neutral-300"
-            >
+            <span data-testid="tooltip-chip" className="sk">
               {shortcut}
             </span>
           ) : null}

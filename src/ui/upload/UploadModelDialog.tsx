@@ -44,7 +44,7 @@ function pathOf(f: File): string {
 function Spinner({ small }: { small?: boolean }) {
   return (
     <svg
-      className={`${small ? 'h-4 w-4' : 'h-6 w-6'} animate-spin text-blue-600`}
+      className={`${small ? 'h-4 w-4' : 'h-6 w-6'} animate-spin text-[var(--accent-soft-text)]`}
       viewBox="0 0 24 24"
       fill="none"
       aria-hidden="true"
@@ -213,21 +213,21 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   }
 
   const dialog = (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="relative flex max-h-[85vh] w-[560px] max-w-[90vw] flex-col rounded-lg bg-white text-sm shadow-2xl">
-        <header className="flex items-center justify-between border-b border-neutral-200 px-5 py-3">
-          <h2 className="text-base font-semibold text-neutral-900">Upload models</h2>
+    <div className="modal-overlay">
+      <div className="relative flex max-h-[85vh] w-[560px] max-w-[90vw] flex-col rounded-lg bg-[var(--surface-solid)] text-sm shadow-2xl">
+        <header className="flex items-center justify-between border-b border-[var(--border)] px-5 py-3">
+          <h2 className="text-base font-semibold text-[var(--text)]">Upload models</h2>
           <button
             onClick={requestClose}
             aria-label="Close"
-            className="text-neutral-400 hover:text-neutral-700"
+            className="text-[var(--text-3)] hover:text-[var(--text-2)]"
           >
             ×
           </button>
         </header>
 
         <div className="flex-1 overflow-y-auto px-5 py-4">
-          <p className="mb-4 text-xs text-neutral-500">
+          <p className="mb-4 text-xs text-[var(--text-3)]">
             Drag in <span className="font-mono">.glb</span>/<span className="font-mono">.gltf</span>{' '}
             files or whole folders — a folder of several model groups imports every group. Stored
             locally in your browser only (max 25&nbsp;MB each).
@@ -249,27 +249,29 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
               }}
               onDrop={onDrop}
               className={`flex w-full flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-4 py-8 text-center transition-colors ${
-                dragOver ? 'border-blue-500 bg-blue-50' : 'border-neutral-300 bg-neutral-50'
+                dragOver
+                  ? 'border-blue-500 bg-[var(--accent-soft)]'
+                  : 'border-[var(--border-2)] bg-[var(--surface-2)]'
               }`}
             >
               {scanCount !== null ? (
                 <>
                   <Spinner />
-                  <span className="text-sm font-medium text-neutral-700">
+                  <span className="text-sm font-medium text-[var(--text-2)]">
                     Scanning folder… {scanCount} file{scanCount === 1 ? '' : 's'}
                   </span>
                 </>
               ) : (
                 <>
-                  <span className="text-sm font-medium text-neutral-700">
+                  <span className="text-sm font-medium text-[var(--text-2)]">
                     {dragOver ? 'Drop to upload' : 'Drag files or a folder here'}
                   </span>
-                  <span className="text-xs text-neutral-400">or</span>
+                  <span className="text-xs text-[var(--text-3)]">or</span>
                   <button
                     type="button"
                     onClick={() => folderInput.current?.click()}
                     disabled={busy}
-                    className="rounded bg-white px-3 py-1 text-xs font-medium text-neutral-700 shadow-sm ring-1 ring-neutral-300 hover:bg-neutral-50 disabled:opacity-50"
+                    className="rounded bg-[var(--surface-solid)] px-3 py-1 text-xs font-medium text-[var(--text-2)] shadow-sm ring-1 ring-[var(--border-2)] hover:bg-[var(--surface-2)] disabled:opacity-50"
                   >
                     Choose folder…
                   </button>
@@ -289,7 +291,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
             />
 
             {modelFiles.length > 0 ? (
-              <p className="text-xs text-neutral-500">
+              <p className="text-xs text-[var(--text-3)]">
                 {modelFiles.length} model file{modelFiles.length === 1 ? '' : 's'} selected
                 {files.length > modelFiles.length
                   ? ` (${files.length - modelFiles.length} non-model ignored)`
@@ -300,16 +302,16 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
 
             {detectProgress ? (
               <div className="space-y-1">
-                <p className="flex items-center gap-2 text-xs text-neutral-600">
+                <p className="flex items-center gap-2 text-xs text-[var(--text-2)]">
                   <Spinner small />
                   {detectProgress.total > 0
                     ? `Detecting model groups… ${detectProgress.parsed} / ${detectProgress.total}`
                     : 'Detecting model groups…'}
                 </p>
                 {detectProgress.total > 0 ? (
-                  <div className="h-1 w-full overflow-hidden rounded bg-neutral-200">
+                  <div className="h-1 w-full overflow-hidden rounded bg-[var(--surface-3)]">
                     <div
-                      className="h-full bg-blue-600 transition-all"
+                      className="h-full bg-[var(--accent)] transition-all"
                       style={{
                         width: `${(detectProgress.parsed / detectProgress.total) * 100}%`,
                       }}
@@ -326,24 +328,24 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
               <>
                 {single ? (
                   <label className="block">
-                    <span className="mb-1 block text-xs text-neutral-600">Name</span>
+                    <span className="mb-1 block text-xs text-[var(--text-2)]">Name</span>
                     <input
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g. Vintage armchair"
-                      className="block w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+                      className="block w-full rounded border border-[var(--border-2)] px-2 py-1 text-sm"
                     />
                   </label>
                 ) : null}
                 <label className="block">
-                  <span className="mb-1 block text-xs text-neutral-600">
+                  <span className="mb-1 block text-xs text-[var(--text-2)]">
                     Category {hasGroups ? '(loose models)' : ''}
                   </span>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as FurnitureCategory | 'auto')}
                     disabled={busy}
-                    className="block w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm"
+                    className="block w-full rounded border border-[var(--border-2)] bg-[var(--surface-solid)] px-2 py-1 text-sm"
                   >
                     <option value="auto">Auto (use detected, else Others)</option>
                     {FURNITURE_CATEGORIES.map((c) => (
@@ -353,12 +355,12 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                     ))}
                   </select>
                   {category === 'auto' ? (
-                    <span className="mt-1 block text-[10px] text-neutral-400">
+                    <span className="mt-1 block text-[10px] text-[var(--text-3)]">
                       Model groups keep their own detected category; loose files go to Others.
                     </span>
                   ) : null}
                 </label>
-                <label className="flex items-center gap-2 text-xs text-neutral-600">
+                <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
                   <input
                     type="checkbox"
                     checked={mounted}
@@ -367,7 +369,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                   />
                   Wall / ceiling mounted (skip wall collision)
                 </label>
-                <label className="flex items-center gap-2 text-xs text-neutral-600">
+                <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
                   <input
                     type="checkbox"
                     checked={noClip}
@@ -380,22 +382,24 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
             ) : null}
 
             {error ? (
-              <p className="rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">{error}</p>
+              <p className="rounded bg-[var(--danger-soft)] px-2 py-1 text-xs text-[var(--danger)]">
+                {error}
+              </p>
             ) : null}
           </div>
         </div>
 
-        <footer className="flex justify-end gap-2 border-t border-neutral-200 px-5 py-3">
+        <footer className="flex justify-end gap-2 border-t border-[var(--border)] px-5 py-3">
           <button
             onClick={requestClose}
-            className="rounded px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100"
+            className="rounded px-3 py-1 text-sm text-[var(--text-2)] hover:bg-[var(--surface-2)]"
           >
             Cancel
           </button>
           <button
             onClick={submit}
             disabled={busy || detecting || modelFiles.length === 0 || (single && !name.trim())}
-            className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+            className="rounded bg-[var(--accent)] px-3 py-1 text-sm text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:cursor-not-allowed disabled:bg-[var(--surface-3)]"
           >
             {busy
               ? 'Saving…'
@@ -440,8 +444,8 @@ function submitLabel(
 
 function GroupPanel({ groups, looseCount }: { groups: DetectedGroup[]; looseCount: number }) {
   return (
-    <div className="space-y-2 rounded border border-blue-200 bg-blue-50 px-3 py-2">
-      <p className="text-xs font-semibold text-blue-800">
+    <div className="space-y-2 rounded border border-[var(--border)] bg-[var(--accent-soft)] px-3 py-2">
+      <p className="text-xs font-semibold text-[var(--accent-soft-text)]">
         {groups.length} model group{groups.length === 1 ? '' : 's'} detected
         {looseCount > 0 ? ` + ${looseCount} loose model${looseCount === 1 ? '' : 's'}` : ''}
       </p>
@@ -458,7 +462,7 @@ function GroupRow({ group }: { group: DetectedGroup }) {
   const parsed = parseMetadata(group.meta)
   if (!parsed.ok) {
     return (
-      <li className="rounded border border-rose-200 bg-rose-50 px-2 py-1 text-xs text-rose-700">
+      <li className="rounded border border-[var(--danger)] bg-[var(--danger-soft)] px-2 py-1 text-xs text-[var(--danger)]">
         Invalid metadata in <span className="font-mono">{group.dir || '/'}</span>: {parsed.reason}
       </li>
     )
@@ -469,15 +473,15 @@ function GroupRow({ group }: { group: DetectedGroup }) {
   const withGlb = data.variants.filter((v) => v.glb != null).length
   const lowConfidence = mapped.confidence === 'low' || data.design.category_confidence === 'low'
   return (
-    <li className="text-xs text-neutral-700">
+    <li className="text-xs text-[var(--text-2)]">
       <div className="flex justify-between gap-2">
-        <span className="font-medium text-neutral-900">{data.product_name}</span>
-        <span className="text-neutral-500">
+        <span className="font-medium text-[var(--text)]">{data.product_name}</span>
+        <span className="text-[var(--text-3)]">
           {CATEGORY_LABEL[mapped.category]}
           {lowConfidence ? ' ⚠' : ''}
         </span>
       </div>
-      <div className="text-neutral-500">
+      <div className="text-[var(--text-3)]">
         {withGlb} of {totalVariants} finish{totalVariants === 1 ? '' : 'es'} have a 3D model
       </div>
     </li>

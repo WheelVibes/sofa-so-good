@@ -1,16 +1,29 @@
+import type { CSSProperties } from 'react'
 import type { FurnitureCategory } from '../../furniture/types'
 
 interface CategoryIconProps {
   category: FurnitureCategory
   className?: string
+  width?: number
+  height?: number
+  style?: CSSProperties
 }
 
 /** Tiny top-down SVG glyph per category. Uses currentColor so the parent
- *  controls hue via Tailwind text-* classes. Drawn on a 16×16 viewBox. */
-export function CategoryIcon({ category, className }: CategoryIconProps) {
+ *  controls hue. Drawn on a 16×16 viewBox; defaults to 16px square. */
+export function CategoryIcon({
+  category,
+  className,
+  width = 16,
+  height = 16,
+  style,
+}: CategoryIconProps) {
   const common = {
     viewBox: '0 0 16 16',
+    width,
+    height,
     className,
+    style,
     fill: 'none',
     stroke: 'currentColor',
     strokeWidth: 1.25,

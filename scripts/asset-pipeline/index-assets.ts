@@ -24,7 +24,16 @@ function walk(dir: string, ext: RegExp): string[] {
   return out
 }
 
-function tsLiteralFurniture(meta: FurnitureSidecar, urlPath: string): string {
+// Asset paths are relative to `public/` (no leading slash) and wrapped in a
+// `${BASE}` placeholder so the emitter can prepend Vite's `import.meta.env.
+// BASE_URL` (which is `/` in dev/test and the configured sub-path — e.g.
+// `/sofa-so-good/` — in a production build). A root-absolute `/assets/...`
+// literal would 404 under a non-root `base`. `BASE_URL` always ends in `/`.
+function baseUrlExpr(relPath: string): string {
+  return `\`\${import.meta.env.BASE_URL}${relPath}\``
+}
+
+function tsLiteralFurniture(meta: FurnitureSidecar, relPath: string): string {
   const attrLine = meta.attribution ? `    attribution: ${JSON.stringify(meta.attribution)},\n` : ''
   const srcLine = meta.sourceUrl ? `    sourceUrl: ${JSON.stringify(meta.sourceUrl)},\n` : ''
   return `  {
@@ -33,24 +42,22 @@ function tsLiteralFurniture(meta: FurnitureSidecar, urlPath: string): string {
     name: ${JSON.stringify(meta.name)},
     category: ${JSON.stringify(meta.category)},
     source: 'builtin',
-    url: ${JSON.stringify(urlPath)},
+    url: ${baseUrlExpr(relPath)},
     license: 'CC0',
 ${attrLine}${srcLine}    defaultFootprint: { w: ${meta.footprint.w}, d: ${meta.footprint.d}, h: ${meta.footprint.h} },
     scale: ${meta.scale},
   },\n`
 }
 
-function tsLiteralMaterial(meta: MaterialSidecar, baseUrl: string): string {
-  const albedo = `${baseUrl}/${meta.channels.albedo}`
+function tsLiteralMaterial(meta: MaterialSidecar, baseDir: string): string {
+  const albedo = baseUrlExpr(`${baseDir}/${meta.channels.albedo}`)
   const normal = meta.channels.normal
-    ? `\n      normal: ${JSON.stringify(`${baseUrl}/${meta.channels.normal}`)},`
+    ? `\n      normal: ${baseUrlExpr(`${baseDir}/${meta.channels.normal}`)},`
     : ''
   const rough = meta.channels.rough
-    ? `\n      roughness: ${JSON.stringify(`${baseUrl}/${meta.channels.rough}`)},`
+    ? `\n      roughness: ${baseUrlExpr(`${baseDir}/${meta.channels.rough}`)},`
     : ''
-  const ao = meta.channels.ao
-    ? `\n      ao: ${JSON.stringify(`${baseUrl}/${meta.channels.ao}`)},`
-    : ''
+  const ao = meta.channels.ao ? `\n      ao: ${baseUrlExpr(`${baseDir}/${meta.channels.ao}`)},` : ''
   const srcUrl = meta.sourceUrl ? JSON.stringify(meta.sourceUrl) : "''"
   const sourceField = `'${meta.sourceUrl?.includes('ambientcg') ? 'ambientcg' : 'polyhaven'}'`
   return `  {
@@ -62,7 +69,7 @@ function tsLiteralMaterial(meta: MaterialSidecar, baseUrl: string): string {
     swatch: '#888888',
     sourceUrl: ${srcUrl},
     textures: {
-      albedo: ${JSON.stringify(albedo)},${normal}${rough}${ao}
+      albedo: ${albedo},${normal}${rough}${ao}
     },
     uvScale: [${meta.uvScale[0]}, ${meta.uvScale[1]}],
   },\n`
@@ -87,8 +94,8 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
       throw new Error(`duplicate id "${meta.id}" in ${glb}`)
     }
     seen.add(meta.id)
-    const url = `/${relative(join(root, 'public'), glb).replace(/\\/g, '/')}`
-    furnitureLits.push(tsLiteralFurniture(meta, url))
+    const relPath = relative(join(root, 'public'), glb).replace(/\\/g, '/')
+    furnitureLits.push(tsLiteralFurniture(meta, relPath))
   }
 
   const materialDirs = existsSync(materialsDir)
@@ -103,8 +110,8 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
     if (!meta) continue
     if (matSeen.has(meta.id)) throw new Error(`duplicate id "${meta.id}" in ${md}`)
     matSeen.add(meta.id)
-    const baseUrl = `/${relative(join(root, 'public'), md).replace(/\\/g, '/')}`
-    materialLits.push(tsLiteralMaterial(meta, baseUrl))
+    const baseDir = relative(join(root, 'public'), md).replace(/\\/g, '/')
+    materialLits.push(tsLiteralMaterial(meta, baseDir))
   }
 
   mkdirSync(join(root, 'src/furniture'), { recursive: true })

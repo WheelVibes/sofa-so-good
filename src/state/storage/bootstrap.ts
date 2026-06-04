@@ -12,6 +12,7 @@
  */
 
 import { useStore } from '../store'
+import { loadAppearancePrefs, watchAppearancePrefs } from './appearancePrefs'
 import { startAutosave } from './autosave'
 import { loadEditorPrefs, watchEditorPrefs } from './editorPrefs'
 import { loadFloorPlans, watchFloorPlans } from './floorPlanStore'
@@ -29,6 +30,8 @@ export async function runBootstrap(): Promise<void> {
     // Pull user assets + autosaved layout. Failures are silent; the app falls
     // back to the default layout via the seed below.
     await hydrate()
+    loadAppearancePrefs()
+    watchAppearancePrefs()
     loadQualityPrefs()
     watchQualityPrefs()
     loadEditorPrefs()

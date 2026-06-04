@@ -111,13 +111,34 @@ export the result — all in the browser.
   transitions into walkthrough and the per-room editor, with a contextual
   caption ("Furnishing your flat…", "Entering walkthrough…", "Entering room…").
   It fades quickly on fast loads and respects reduced-motion preferences.
+- **One warm design system, four themes** — a domestic, Singapore-rooted
+  interface authored in OKLCH: **Clay** (terracotta), **Kampong** (garden
+  green), **Porcelain** (teal-jade), and **Estate** (HDB ochre), each in
+  light + dark (or **Auto**, following your OS). Switch from the toolbar's
+  **Appearance** menu; the whole UI — toolbar, catalog, inspector, nav cluster,
+  panels, modals — recolours instantly and your choice persists.
+- **Pro-tool interactions** — a **⌘K command palette** (fuzzy search across
+  actions, panels, views, and "add furniture"), a **right-click context menu**
+  on any placed piece, an **Objects / Layers** view (items grouped by room with
+  select / lock / delete), a first-run **onboarding** intro, and a fused
+  compass + zoom rail. Responsive down to phones, where floating panels become
+  bottom sheets.
+- **Production-grade panels** — **Swap with similar** (replace a piece in place
+  with same-category alternatives, each tagged with a footprint-fit badge),
+  **Clearance & fit checks** (HDB door-swing validation with a summary + fix
+  suggestions), **Versions** (save / restore named layout snapshots with
+  thumbnails), a **Shopping list + Saved collections** (heart any catalog card),
+  and **Share & export** (shareable link + a real PNG snapshot). The **2D
+  floor-plan editor** and **upload dialogs** are fully theme-aware in light and
+  dark.
 
 ## Controls
 
-`drag` orbit · `scroll` zoom · `click` select / open doors · `R` rotate ·
-`Del` delete · `⌃Z`/`⇧⌃Z` undo/redo · `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate ·
-`C` catalog · `M` measurements · `T` cycle time · `V` orbit/walk · in walk:
-`WASD` move, `E` doors.
+`drag` orbit · `scroll` zoom · `click` select / open doors · `⌘K` command
+palette · `right-click` context menu · `R` rotate · `Del` delete ·
+`⌃Z`/`⇧⌃Z` undo/redo · `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate · `C` catalog ·
+`M` measurements · `T` cycle time · `O` top view · `H` reset view · `L` tidy ·
+`?` help · `V` orbit/walk · in walk: `WASD` move, `E` doors.
 
 ## Develop
 

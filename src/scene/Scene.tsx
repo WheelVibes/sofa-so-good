@@ -1,5 +1,6 @@
-import { Stats } from '@react-three/drei'
-import { Canvas } from '@react-three/fiber'
+import { Stats, useProgress } from '@react-three/drei'
+import { Canvas, useFrame } from '@react-three/fiber'
+import { useRef } from 'react'
 import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three'
 import { Apartment } from '../apartment/Apartment'
 import { PlanShell } from '../apartment/PlanShell'
@@ -29,6 +30,21 @@ import { ShowcaseController } from './ShowcaseController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
 import { SelectionOutline } from './selection/SelectionOutline'
+
+/** Flips `sceneReady` once the scene has painted a few solid frames (so
+ *  shaders + procedural textures are warm) and nothing is still streaming
+ *  through the asset loaders (restored GLB layouts). The boot loading screen
+ *  waits on this so the scene is already nice when revealed. */
+function SceneReadySignal() {
+  const frames = useRef(0)
+  const { active } = useProgress()
+  useFrame(() => {
+    if (useStore.getState().sceneReady) return
+    frames.current += 1
+    if (frames.current >= 4 && !active) useStore.getState().setSceneReady(true)
+  })
+  return null
+}
 
 export function Scene() {
   const showFps = useStore((s) => s.showFps)
@@ -73,6 +89,7 @@ export function Scene() {
       <QualityController />
       <ScreenshotController />
       <RecordController />
+      <SceneReadySignal />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
       {showFps ? <Stats /> : null}
     </Canvas>

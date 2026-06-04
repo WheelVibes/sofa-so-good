@@ -38,7 +38,8 @@ describe('indexAssets', () => {
     const out = readFileSync(join(root, 'src/furniture/generatedCatalog.ts'), 'utf8')
     expect(out).toContain('"duck-fixture"')
     expect(out).toContain('"decor"')
-    expect(out).toContain('"/assets/furniture/duck.glb"')
+    // base-aware URL so it resolves under a non-root Vite `base` in production
+    expect(out).toContain('`${import.meta.env.BASE_URL}assets/furniture/duck.glb`')
     expect(out).toContain('"Khronos"')
   })
 

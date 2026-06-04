@@ -31,8 +31,12 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
 
   const setProp = (key: string, value: ParamValue) => updateItemProps(item.id, { [key]: value })
 
+  if (def.paramSchema.length === 0) return null
   return (
-    <div className="space-y-2">
+    <div className="sec">
+      <div className="sec-h">
+        <span>Properties</span>
+      </div>
       {def.paramSchema.map((rawField) => {
         // Surface "finish" enums (those offering a Wood option) gain extra
         // entries for any catalog / downloaded CC0 PBR material.
@@ -81,6 +85,8 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
                 onChange={(s) => setProp(field.key, s)}
               />
             )
+          default:
+            return null
         }
       })}
     </div>

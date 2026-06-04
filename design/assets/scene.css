@@ -1,0 +1,41 @@
+/* ============================================================
+   HDB Sandbox — Scene backdrop (flat-shaded isometric dollhouse)
+   The SVG itself is generated in scene.js from theme tokens.
+   ============================================================ */
+
+.scene {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 90% at 50% 8%, var(--scene-a), var(--scene-b) 70%);
+  display: grid; place-items: center;
+  overflow: hidden;
+}
+.scene::after {
+  /* soft vignette to seat the room */
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(80% 70% at 50% 60%, transparent 40%, oklch(0 0 0 / 0.06));
+  pointer-events: none;
+}
+.scene #sceneMount { width: 100%; height: 100%; display: grid; place-items: center; }
+.scene svg { width: min(1100px, 92%); height: auto; overflow: visible; filter: drop-shadow(0 40px 60px oklch(0 0 0 / 0.18)); }
+
+/* faint floating watermark caption under the room */
+.scene-caption {
+  position: absolute; bottom: 18px; left: 50%; transform: translateX(-50%);
+  font-size: var(--t-2xs); letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--text-3); font-weight: 600; opacity: 0.7;
+}
+
+/* selection ring drawn over a piece of furniture in the scene */
+.sel-ring {
+  position: absolute; border: 2px dashed var(--accent);
+  border-radius: var(--r-2); background: var(--accent-soft);
+  pointer-events: none; z-index: var(--z-hud);
+  box-shadow: 0 0 0 4px var(--accent-soft);
+}
+.sel-tag {
+  position: absolute; transform: translate(-50%, -50%);
+  background: var(--accent); color: var(--on-accent);
+  font-size: var(--t-2xs); font-weight: 700; padding: 2px 7px; border-radius: var(--r-pill);
+  white-space: nowrap; box-shadow: var(--shadow-pop);
+}

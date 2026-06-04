@@ -27,9 +27,8 @@ export function LoadingOverlay({ active, label }: { active: boolean; label: stri
         alignItems: 'center',
         justifyContent: 'center',
         gap: '1.75rem',
-        // Soft warm gradient — off-white → pale warm sand, matching the
-        // flat IKEA-clean palette.
-        background: 'radial-gradient(120% 120% at 50% 30%, #fdfbf7 0%, #f6efe4 55%, #efe4d2 100%)',
+        // Soft themed gradient — follows the active palette's scene colours.
+        background: 'radial-gradient(120% 90% at 50% 30%, var(--scene-a), var(--scene-b) 75%)',
         opacity: fading ? 0 : 1,
         transition: `opacity ${FADE_MS}ms ease`,
         pointerEvents: active ? 'auto' : 'none',
@@ -41,14 +40,14 @@ export function LoadingOverlay({ active, label }: { active: boolean; label: stri
         <div
           style={{
             fontSize: '1.35rem',
-            fontWeight: 700,
-            letterSpacing: '0.01em',
-            color: '#3a3127',
+            fontWeight: 800,
+            letterSpacing: '-0.02em',
+            color: 'var(--text)',
           }}
         >
-          HDB Sandbox
+          Sofa So Good
         </div>
-        <div style={{ marginTop: '0.35rem', fontSize: '0.95rem', color: '#8a7d68' }}>
+        <div style={{ marginTop: '0.35rem', fontSize: '0.95rem', color: 'var(--text-3)' }}>
           {label || 'Loading…'}
         </div>
       </div>
@@ -58,7 +57,7 @@ export function LoadingOverlay({ active, label }: { active: boolean; label: stri
 
 /** Inline SVG line-art room that draws + furnishes itself on a 4s loop. */
 function FurnishingRoom() {
-  const stroke = '#6f6450'
+  const stroke = 'var(--text-2)'
   return (
     <svg
       width="200"
@@ -81,7 +80,7 @@ function FurnishingRoom() {
         strokeWidth={2.2}
         strokeLinecap="round"
         strokeLinejoin="round"
-        fill="#efe1c8"
+        fill="var(--surface-3)"
       >
         {/* Sofa (left) */}
         <g className="hdb-pop hdb-pop-1">
@@ -96,13 +95,13 @@ function FurnishingRoom() {
         {/* Floor lamp (right) */}
         <g className="hdb-pop hdb-pop-3" fill="none">
           <path d="M156 132 V70" />
-          <path d="M148 70 H164 L160 56 H152 Z" fill="#f6e9cf" />
+          <path d="M148 70 H164 L160 56 H152 Z" fill="var(--accent-soft)" />
         </g>
-        {/* Potted plant (right-back) */}
+        {/* Potted plant (between the coffee table and the floor lamp) */}
         <g className="hdb-pop hdb-pop-4">
-          <path d="M150 96 h16 l-2 14 h-12 z" />
+          <path d="M127 96 h16 l-2 14 h-12 z" />
           <path
-            d="M158 96 C152 84 150 78 154 70 M158 96 C164 84 166 80 162 72 M158 96 V80"
+            d="M135 96 C129 84 127 78 131 70 M135 96 C141 84 143 80 139 72 M135 96 V80"
             fill="none"
           />
         </g>
