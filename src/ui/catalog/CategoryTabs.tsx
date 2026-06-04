@@ -1,14 +1,17 @@
-import {
-  FURNITURE_CATEGORIES,
-  type FurnitureCategory,
-  type FurnitureDef,
-} from '../../furniture/types'
+import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
+import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 
+/** The favourites pseudo-category sorts before every real category. */
+export type CatalogCategory = FurnitureCategory | 'favourites'
+
 interface CategoryTabsProps {
-  active: FurnitureCategory
-  onSelect: (category: FurnitureCategory) => void
-  byCategory: Record<FurnitureCategory, FurnitureDef[]>
+  active: CatalogCategory
+  onSelect: (category: CatalogCategory) => void
+  /** Card count per real category (drives which chips render). */
+  counts: Record<FurnitureCategory, number>
+  /** Number of favourited assets — shown on the star chip. */
+  favCount: number
 }
 
 const LABELS: Record<FurnitureCategory, string> = {
@@ -29,11 +32,21 @@ const LABELS: Record<FurnitureCategory, string> = {
   others: 'Others',
 }
 
-export function CategoryTabs({ active, onSelect, byCategory }: CategoryTabsProps) {
+export function CategoryTabs({ active, onSelect, counts, favCount }: CategoryTabsProps) {
   return (
     <nav className="cat-rail">
+      <button
+        type="button"
+        onClick={() => onSelect('favourites')}
+        className={`chip${active === 'favourites' ? ' on' : ''}`}
+        aria-label="Favourites"
+        title="Favourites"
+      >
+        <Icon.Star className="icn" width={14} height={14} />
+        {favCount > 0 ? favCount : null}
+      </button>
       {FURNITURE_CATEGORIES.map((c) => {
-        const count = byCategory[c]?.length ?? 0
+        const count = counts[c] ?? 0
         if (count === 0) return null
         const isActive = c === active
         return (

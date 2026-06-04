@@ -46,9 +46,8 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           </button>
         ) : null}
       </label>
-      {def.source === 'builtin' && def.attribution ? (
-        <p className="pt-1 text-[10px] text-[var(--text-3)]">CC0 — {def.attribution}</p>
-      ) : null}
+      {/* Built-in attribution + licence is rendered once by <SourceLine> in
+          InspectorPanel (with a source link), so it's not repeated here. */}
       {def.source === 'user' ? (
         <p className="pt-1 text-[10px] text-[var(--text-3)]">
           Uploaded {new Date(def.uploadedAt).toLocaleDateString()}

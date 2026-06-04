@@ -1,6 +1,6 @@
 interface SourceLineProps {
   attribution?: string
-  license?: 'CC0' | 'IKEA'
+  license?: 'CC0' | 'CC-BY' | 'IKEA'
   sourceUrl?: string
 }
 

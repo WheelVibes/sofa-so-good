@@ -6,7 +6,7 @@ export interface CreditEntry {
   name: string
   attribution: string
   sourceUrl: string
-  license: 'CC0'
+  license: 'CC0' | 'CC-BY'
 }
 
 export interface EmitCreditsArgs {
@@ -20,7 +20,12 @@ export function emitCredits(args: EmitCreditsArgs): void {
   mkdirSync(join(args.projectRoot, 'public/assets'), { recursive: true })
   writeFileSync(join(args.projectRoot, 'public/assets/CREDITS.json'), JSON.stringify(json, null, 2))
 
-  const lines: string[] = ['# Asset credits', '', 'All bundled assets are CC0.', '']
+  const lines: string[] = [
+    '# Asset credits',
+    '',
+    'Bundled assets are CC0 except where a per-item licence is noted below.',
+    '',
+  ]
   if (args.furniture.length) {
     lines.push('## Furniture', '')
     for (const e of args.furniture) {

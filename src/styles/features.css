@@ -59,9 +59,6 @@
 /* ============================================================
    OBJECTS / LAYERS  — left-dock mode, shares catalog position
    ============================================================ */
-.left-modeseg { padding: 0 var(--s-4) var(--s-2); }
-.left-modeseg .seg { width: 100%; }
-.left-modeseg .seg button { flex: 1; }
 
 .lyr-body { padding: var(--s-2) var(--s-3) var(--s-4); overflow-y: auto; }
 .lyr-group { margin-top: var(--s-3); }

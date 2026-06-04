@@ -29,3 +29,5 @@ python/scripts/ikea_sg_3d_models/**/*-medium.glb
 
 # Live-scraped IKEA assets (non-CC0, local/dev-only)
 public/assets/ikea/
+ikea/
+ikea_optimized/

@@ -77,8 +77,12 @@ export class ThumbnailRenderer {
       camera.lookAt(center)
 
       renderer.render(scene, camera)
+      // PNG (not JPEG) so the transparent backdrop is preserved — JPEG has no
+      // alpha and composites empty pixels onto black, which made pack cards read
+      // with a black thumbnail background while parametric (PNG) cards showed the
+      // theme surface. Transparent PNG lets every card share one `.card-thumb` bg.
       const blob = await new Promise<Blob | null>((resolve) =>
-        renderer.domElement.toBlob((b) => resolve(b), 'image/jpeg', 0.85),
+        renderer.domElement.toBlob((b) => resolve(b), 'image/png'),
       )
 
       gltf.scene.traverse((obj) => {

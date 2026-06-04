@@ -22,9 +22,12 @@
 .chip .icn { color: currentColor; }
 
 /* card grid */
-.card-grid { display: grid; grid-template-columns: 1fr 1fr; gap: var(--s-3); padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; }
+/* minmax(0, 1fr) (not bare 1fr, whose implicit auto minimum lets a long name or
+   wide content blow the track out past the panel) keeps both columns at an
+   identical, fixed width on every page. */
+.card-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: var(--s-3); padding: var(--s-1) var(--s-4) var(--s-4); overflow-y: auto; }
 .cat-card {
-  display: flex; flex-direction: column; gap: 6px;
+  display: flex; flex-direction: column; gap: 6px; min-width: 0;
   padding: var(--s-3); border-radius: var(--r-2);
   background: var(--surface-2); border: 1px solid var(--border);
   transition: var(--dur) var(--ease); text-align: left; position: relative;
@@ -44,7 +47,18 @@
   position: absolute; inset: 0;
   width: 100%; height: 100%; object-fit: contain; display: block;
 }
-.cat-card .nm { font-size: var(--t-xs); font-weight: 600; color: var(--text); line-height: 1.25; }
+/* Download / retry pill overlaid on a browsable CC0 card's thumbnail. */
+.card-thumb .thumb-status {
+  position: absolute; bottom: 4px; left: 50%; transform: translateX(-50%);
+  padding: 2px 8px; border-radius: var(--r-pill);
+  background: var(--accent); color: var(--on-accent);
+  font-size: var(--t-2xs); font-weight: 700; white-space: nowrap;
+}
+.card-thumb .thumb-status.err { background: var(--danger); }
+/* min-width:0 on the flex row + its label so a long name truncates with the
+   inline ellipsis instead of widening the card. */
+.cat-card .nm { font-size: var(--t-xs); font-weight: 600; color: var(--text); line-height: 1.25; min-width: 0; }
+.cat-card .nm > span { min-width: 0; }
 .cat-card .pr { font-size: var(--t-2xs); color: var(--text-3); }
 .cat-card .pr b { color: var(--accent-soft-text); font-weight: 700; }
 
@@ -74,7 +88,7 @@
 .sec-h span { white-space: nowrap; }
 
 /* swatches */
-.swatches { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.swatches { display: flex; flex-wrap: wrap; gap: var(--s-2); padding-block: var(--s-4); }
 .swatch { width: 26px; height: 26px; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; transition: var(--dur) var(--ease); position: relative; }
 .swatch:hover { transform: scale(1.08); }
 .swatch.on { box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--accent); }

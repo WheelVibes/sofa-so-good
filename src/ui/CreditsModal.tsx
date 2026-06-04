@@ -6,7 +6,7 @@ interface CreditEntry {
   name: string
   attribution: string
   sourceUrl: string
-  license: 'CC0'
+  license: 'CC0' | 'CC-BY'
 }
 
 interface Credits {

@@ -1,5 +1,6 @@
 import { existsSync, mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
+import { type CreditEntry, emitCredits } from './emit-credits'
 import { deriveBoundingBox } from './process-glb'
 import {
   type FurnitureSidecar,
@@ -43,7 +44,7 @@ function tsLiteralFurniture(meta: FurnitureSidecar, relPath: string): string {
     category: ${JSON.stringify(meta.category)},
     source: 'builtin',
     url: ${baseUrlExpr(relPath)},
-    license: 'CC0',
+    license: ${JSON.stringify(meta.license ?? 'CC0')},
 ${attrLine}${srcLine}    defaultFootprint: { w: ${meta.footprint.w}, d: ${meta.footprint.d}, h: ${meta.footprint.h} },
     scale: ${meta.scale},
   },\n`
@@ -83,6 +84,7 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
   const glbs = walk(furnitureDir, /\.glb$/i)
   const seen = new Set<string>()
   const furnitureLits: string[] = []
+  const furnitureCredits: CreditEntry[] = []
   for (const glb of glbs) {
     const sidecar = readSidecar<FurnitureSidecar>(glb)
     const meta = await resolveFurnitureMetadata({
@@ -96,6 +98,17 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
     seen.add(meta.id)
     const relPath = relative(join(root, 'public'), glb).replace(/\\/g, '/')
     furnitureLits.push(tsLiteralFurniture(meta, relPath))
+    // Credit any bundled asset that carries attribution (CC0 needs none, but a
+    // CC-BY model must be credited).
+    if (meta.attribution && meta.sourceUrl) {
+      furnitureCredits.push({
+        id: meta.id,
+        name: meta.name,
+        attribution: meta.attribution,
+        sourceUrl: meta.sourceUrl,
+        license: meta.license ?? 'CC0',
+      })
+    }
   }
 
   const materialDirs = existsSync(materialsDir)
@@ -105,6 +118,7 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
     : []
   const matSeen = new Set<string>()
   const materialLits: string[] = []
+  const materialCredits: CreditEntry[] = []
   for (const md of materialDirs) {
     const meta = readSidecar<MaterialSidecar>(join(md, 'material'))
     if (!meta) continue
@@ -112,6 +126,15 @@ export async function indexAssets(opts: IndexOptions): Promise<void> {
     matSeen.add(meta.id)
     const baseDir = relative(join(root, 'public'), md).replace(/\\/g, '/')
     materialLits.push(tsLiteralMaterial(meta, baseDir))
+    if (meta.attribution && meta.sourceUrl) {
+      materialCredits.push({
+        id: meta.id,
+        name: meta.name,
+        attribution: meta.attribution,
+        sourceUrl: meta.sourceUrl,
+        license: meta.license ?? 'CC0',
+      })
+    }
   }
 
   mkdirSync(join(root, 'src/furniture'), { recursive: true })
@@ -132,4 +155,9 @@ ${materialLits.join('')}];
 
   writeFileSync(join(root, 'src/furniture/generatedCatalog.ts'), furnitureModule)
   writeFileSync(join(root, 'src/materials/generatedCatalog.ts'), materialModule)
+
+  // Keep CREDITS.json / CREDITS.md in sync with whatever is bundled, so a
+  // single `npm run index-assets` never leaves an attribution-required asset
+  // (e.g. CC-BY) uncredited.
+  emitCredits({ projectRoot: root, furniture: furnitureCredits, materials: materialCredits })
 }

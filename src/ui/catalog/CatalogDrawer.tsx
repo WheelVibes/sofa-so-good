@@ -1,25 +1,32 @@
 import { useEffect, useState } from 'react'
-import { useCatalogByCategory } from '../../furniture/catalog'
-import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { UploadModelDialog } from '../upload/UploadModelDialog'
 import { CatalogCard } from './CatalogCard'
-import { CategoryTabs } from './CategoryTabs'
+import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { fuzzySearch } from './fuzzySearch'
 import { LayersPanel } from './LayersPanel'
 import { PacksTab } from './PacksTab'
-import { RemoteBrowseTab } from './RemoteBrowseTab'
+import { RemoteCard } from './RemoteCard'
 import { ThumbnailHost } from './thumbnails'
+import { type GridItem, gridItemId, useUnifiedCatalog } from './useUnifiedCatalog'
 
-type Mode = 'builtin' | 'browse-furniture' | 'packs'
+type Mode = 'catalog' | 'packs'
 
-/** Cards per page in the built-in catalog grid (2-col layout → 12 = 6 rows). */
+/** Cards per page in the catalog grid (2-col layout → 12 = 6 rows). */
 const PAGE_SIZE = 12
 
-/** Sliding left-side drawer. Toggles between the catalog grid and an
- *  Objects/Layers tree (`leftMode`). Toggle the drawer via toolbar or the C
- *  key. Click/drag a card to place it. */
+/** Text fields a card is searched over (local def vs. remote CC0 entry). */
+function gridItemText(it: GridItem): string[] {
+  return it.kind === 'local'
+    ? [it.def.name, ...(it.def.keywords ?? [])]
+    : [it.entry.name, it.entry.slug, ...(it.entry.tags ?? [])]
+}
+
+/** Sliding left-side drawer. Toggles between a single unified catalog grid
+ *  (built-in + uploads + installed packs + browsable CC0) and an Objects/Layers
+ *  tree (`leftMode`). The Packs tab installs asset packs (whose items then show
+ *  in the unified grid). Click/drag a card to place it. */
 export function CatalogDrawer() {
   const open = useStore((s) => s.catalogOpen)
   const cameraMode = useStore((s) => s.cameraMode)
@@ -27,11 +34,12 @@ export function CatalogDrawer() {
   const leftMode = useStore((s) => s.leftMode)
   const setLeftMode = useStore((s) => s.setLeftMode)
   const removeUserFurniture = useStore((s) => s.removeUserFurniture)
+  const setActiveDefId = useStore((s) => s.setActiveDefId)
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
-  const byCategory = useCatalogByCategory()
-  const [active, setActive] = useState<FurnitureCategory>('seating')
-  const [mode, setMode] = useState<Mode>('builtin')
+  const unified = useUnifiedCatalog()
+  const [active, setActive] = useState<CatalogCategory>('seating')
+  const [mode, setMode] = useState<Mode>('catalog')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
@@ -41,7 +49,7 @@ export function CatalogDrawer() {
   }, [open, phStatus, bootstrapRemote])
 
   // Reset to page 1 when the visible list changes; the render also clamps.
-  const selectCategory = (c: FurnitureCategory) => {
+  const selectCategory = (c: CatalogCategory) => {
     setActive(c)
     setPage(0)
   }
@@ -52,21 +60,51 @@ export function CatalogDrawer() {
 
   if (!open || cameraMode !== 'orbit') return null
   const q = query.trim()
-  // Fuzzy (typo-tolerant, ranked) search over name + keywords when querying;
-  // otherwise just the active category.
+  // Fuzzy (typo-tolerant, ranked) search across the WHOLE catalog (local +
+  // browsable CC0) when querying; otherwise the active category / favourites.
   const allCards = q
-    ? fuzzySearch(q, Object.values(byCategory).flat(), (d) => [d.name, ...(d.keywords ?? [])])
-    : (byCategory[active] ?? [])
+    ? fuzzySearch(q, unified.all, gridItemText)
+    : active === 'favourites'
+      ? unified.favourites
+      : (unified.byCategory[active] ?? [])
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
   const cards = allCards.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
 
+  const totalCount = unified.all.length
+
+  // One flat tab row: the catalog grid, the Objects/Layers tree (store-level
+  // `leftMode`, shared with the command palette + mobile toolbar), and Packs.
+  const view: 'catalog' | 'layers' | 'packs' =
+    leftMode === 'layers' ? 'layers' : mode === 'packs' ? 'packs' : 'catalog'
+  const selectView = (v: 'catalog' | 'layers' | 'packs') => {
+    if (v === 'layers') {
+      setLeftMode('layers')
+    } else {
+      setLeftMode('catalog')
+      setMode(v)
+    }
+  }
+
+  const renderCard = (it: GridItem) =>
+    it.kind === 'local' ? (
+      <CatalogCard
+        key={gridItemId(it)}
+        def={it.def}
+        onDelete={() => removeUserFurniture(it.def.id)}
+      />
+    ) : (
+      <RemoteCard key={gridItemId(it)} entry={it.entry} onResolved={(id) => setActiveDefId(id)} />
+    )
+
   return (
     <aside className="panel catalog">
       <div className="panel-head">
-        <div className="panel-title">{leftMode === 'layers' ? 'Objects' : 'Catalog'}</div>
+        <div className="panel-title">
+          {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}
+        </div>
         <button
           type="button"
           onClick={() => setOpen(false)}
@@ -76,131 +114,105 @@ export function CatalogDrawer() {
           <Icon.Close width={16} height={16} />
         </button>
       </div>
-      <div className="left-modeseg">
-        <div className="seg">
+      <div className="tabs">
+        {(
+          [
+            ['catalog', 'Catalog'],
+            ['layers', 'Layers'],
+            ['packs', 'Packs'],
+          ] as const
+        ).map(([v, label]) => (
           <button
+            key={v}
             type="button"
-            className={leftMode === 'catalog' ? 'on' : ''}
-            onClick={() => setLeftMode('catalog')}
+            onClick={() => selectView(v)}
+            className={`tab${view === v ? ' on' : ''}`}
           >
-            Catalog
+            {label}
           </button>
-          <button
-            type="button"
-            className={leftMode === 'layers' ? 'on' : ''}
-            onClick={() => setLeftMode('layers')}
-          >
-            Layers
-          </button>
-        </div>
+        ))}
       </div>
 
-      {leftMode === 'layers' ? (
+      {view === 'layers' ? (
         <LayersPanel />
+      ) : view === 'packs' ? (
+        <div
+          className="panel-body"
+          style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
+        >
+          <PacksTab />
+        </div>
       ) : (
         <>
-          <div className="tabs">
-            {(
-              [
-                ['builtin', 'Built-in'],
-                ['browse-furniture', 'Browse CC0'],
-                ['packs', 'Packs'],
-              ] as const
-            ).map(([m, label]) => (
-              <button
-                key={m}
-                type="button"
-                onClick={() => setMode(m)}
-                className={`tab${mode === m ? ' on' : ''}`}
-              >
-                {label}
-              </button>
-            ))}
+          <div className="cat-search">
+            <div className="field">
+              <Icon.Search width={16} height={16} className="icn" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => onSearch(e.target.value)}
+                placeholder={`Search ${totalCount} items…`}
+                className="input"
+              />
+            </div>
           </div>
-          {mode === 'builtin' ? (
-            <>
-              <div className="cat-search">
-                <div className="field">
-                  <Icon.Search width={16} height={16} className="icn" />
-                  <input
-                    type="search"
-                    value={query}
-                    onChange={(e) => onSearch(e.target.value)}
-                    placeholder="Search 75+ items…"
-                    className="input"
-                  />
-                </div>
-              </div>
-              {q ? null : (
-                <CategoryTabs active={active} onSelect={selectCategory} byCategory={byCategory} />
-              )}
-              <div className="card-grid">
-                {cards.length === 0 ? (
-                  <p className="empty-mini" style={{ gridColumn: '1 / -1' }}>
-                    <span>
-                      {q ? `No matches for “${query.trim()}”.` : 'No items in this category yet.'}
-                    </span>
-                  </p>
-                ) : (
-                  cards.map((def) => (
-                    <CatalogCard
-                      key={def.id}
-                      def={def}
-                      onDelete={() => removeUserFurniture(def.id)}
-                    />
-                  ))
-                )}
-              </div>
-              {pageCount > 1 ? (
-                <div className="pager">
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.max(0, p - 1))}
-                    disabled={safePage === 0}
-                  >
-                    ← Prev
-                  </button>
-                  <span>
-                    Page {safePage + 1} of {pageCount}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                    disabled={safePage >= pageCount - 1}
-                  >
-                    Next →
-                  </button>
-                </div>
-              ) : null}
-              <div className="cat-foot">
-                <span className="hint">
-                  Drag onto the floor · <kbd>R</kbd> rotates
-                </span>
-                <button
-                  type="button"
-                  onClick={() => setUploadOpen(true)}
-                  className="btn btn-soft btn-sm"
-                >
-                  <Icon.Upload width={14} height={14} />
-                  Upload
-                </button>
-              </div>
-            </>
-          ) : mode === 'packs' ? (
-            <div
-              className="panel-body"
-              style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
-            >
-              <PacksTab />
-            </div>
-          ) : (
-            <div
-              className="panel-body"
-              style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
-            >
-              <RemoteBrowseTab kind="furniture" onResolved={() => setMode('builtin')} />
-            </div>
+          {q ? null : (
+            <CategoryTabs
+              active={active}
+              onSelect={selectCategory}
+              counts={unified.counts}
+              favCount={unified.favourites.length}
+            />
           )}
+          <div className="card-grid">
+            {cards.length === 0 ? (
+              <p className="empty-mini" style={{ gridColumn: '1 / -1' }}>
+                <span>
+                  {q
+                    ? `No matches for “${query.trim()}”.`
+                    : active === 'favourites'
+                      ? 'No favourites yet — tap the heart on any card to save it here.'
+                      : 'No items in this category yet.'}
+                </span>
+              </p>
+            ) : (
+              cards.map(renderCard)
+            )}
+          </div>
+          {pageCount > 1 ? (
+            <div className="pager">
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                disabled={safePage === 0}
+              >
+                ← Prev
+              </button>
+              <span>
+                Page {safePage + 1} of {pageCount}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+                disabled={safePage >= pageCount - 1}
+              >
+                Next →
+              </button>
+            </div>
+          ) : null}
+          <div className="cat-foot">
+            <span className="hint">
+              Drag onto the floor · <kbd>R</kbd> rotates
+            </span>
+            <button
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className="btn btn-soft btn-sm"
+            >
+              <Icon.Upload width={14} height={14} />
+              Upload
+            </button>
+          </div>
         </>
       )}
       <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
