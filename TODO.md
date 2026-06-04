@@ -161,8 +161,9 @@ used as media walls / serving pieces in several presets. To add a researched lay
 ~~bulb temperature~~, ~~TV/monitor screen content~~, ~~room area in Finish
 picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
 
-Possible further polish: heated-ladder towel rail (a wall-mounted towel rail
-already ships; this would be a freestanding heated-ladder variant).
+Possible further polish: (~~heated-ladder towel rail~~ — done; `TowelLadder`
+is a freestanding blanket-ladder-style heated rail (chrome/black/brass/wood,
+draped towels), beside the existing wall-mounted `TowelRail`).
 (~~user-saved style presets~~ — done; `userStylesSlice` captures the current
 per-room floor/wall finishes as a named style, persists them to `localStorage`,
 and re-applies (undoable) from the Arrange menu's **My styles** section, beside
