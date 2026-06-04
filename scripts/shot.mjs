@@ -25,7 +25,10 @@ const browser = await puppeteer.launch({
 })
 const page = await browser.newPage()
 await page.emulateTimezone('Asia/Singapore')
-await page.setViewport({ width: 1600, height: 1000, deviceScaleFactor: 1 })
+// Viewport defaults to 1600×1000; override with SHOT_VIEWPORT="W,H" to test
+// responsive breakpoints (e.g. "390,844" for a phone, "834,1112" tablet).
+const vp = (process.env.SHOT_VIEWPORT || '1600,1000').split(',').map(Number)
+await page.setViewport({ width: vp[0] || 1600, height: vp[1] || 1000, deviceScaleFactor: 1 })
 // Seed localStorage before any app code runs so previews aren't covered by the
 // first-run Controls overlay / location prompt. Override with SHOT_INIT_LS
 // (JSON object of key→value). Defaults dismiss both first-run UIs.

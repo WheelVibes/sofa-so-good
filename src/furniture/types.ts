@@ -214,7 +214,10 @@ export interface BuiltinGltfDef extends FurnitureDefBase {
   source: 'builtin'
   url: string
   scale?: number
-  license: 'CC0'
+  /** Bundled GLBs are CC0 by default, but some (e.g. the pool tables) are
+   *  CC-BY — the real licence rides on the sidecar → generated catalog and is
+   *  shown in the inspector + CreditsModal. */
+  license: 'CC0' | 'CC-BY'
   attribution?: string
   sourceUrl?: string
 }
@@ -269,7 +272,9 @@ export interface PackGltfDef extends FurnitureDefBase {
   runtimeUrl?: string
   thumbUrl?: string
   scale?: number
-  license: 'CC0'
+  /** Most packs are CC0; API-sourced packs (Poly Pizza) may include CC-BY
+   *  models, which the catalog card credits via `attribution`. */
+  license: 'CC0' | 'CC-BY'
   attribution: string
   sourceUrl: string
 }

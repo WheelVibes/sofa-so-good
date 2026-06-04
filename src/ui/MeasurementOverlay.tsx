@@ -17,7 +17,7 @@ export function MeasurementOverlay() {
         const area = main + ext
         return (
           <Html key={r.id} position={[cx, cy, cz]} center distanceFactor={10}>
-            <div className="rounded bg-white/90 px-2 py-1 text-xs text-neutral-800 shadow whitespace-nowrap pointer-events-none">
+            <div className="rounded bg-[var(--surface-solid)]/90 px-2 py-1 text-xs text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
               <div className="font-semibold">{r.name}</div>
               <div>{formatRoomSize(r.width, r.depth, area)}</div>
             </div>

@@ -8,7 +8,7 @@ export interface FurnitureSidecar {
   footprint: { w: number; d: number; h: number }
   scale: number
   anchor: 'floor-center' | 'origin'
-  license?: 'CC0'
+  license?: 'CC0' | 'CC-BY'
   attribution?: string
   sourceUrl?: string
 }

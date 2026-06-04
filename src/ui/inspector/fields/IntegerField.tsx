@@ -8,8 +8,8 @@ interface IntegerFieldProps {
 
 export function IntegerField({ field, value, onChange }: IntegerFieldProps) {
   return (
-    <label className="flex items-center justify-between gap-2 text-xs text-neutral-700">
-      <span className="flex-1">{field.label}</span>
+    <label className="fld">
+      <span className="lbl">{field.label}</span>
       <input
         type="number"
         min={field.min}
@@ -20,7 +20,7 @@ export function IntegerField({ field, value, onChange }: IntegerFieldProps) {
           const n = Number(e.target.value)
           if (Number.isFinite(n)) onChange(Math.round(n))
         }}
-        className="w-16 rounded border border-neutral-300 px-2 py-0.5 text-right font-mono"
+        className="input fld-input mono"
       />
     </label>
   )

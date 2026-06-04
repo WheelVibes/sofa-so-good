@@ -69,6 +69,13 @@ export interface UiSlice {
   bootPhase: BootPhase
   /** Mark the boot bootstrap finished (flips the initial loading overlay off). */
   setBootReady: () => void
+  /** True once the 3D scene has painted its first solid frames (shaders +
+   *  procedural textures warm, any restored GLBs streamed in). The boot loading
+   *  screen is held until this AND `bootPhase==='ready'`, so the scene is
+   *  already nice when revealed. Non-front-facing UI (catalog, remote browse)
+   *  loads lazily afterward and never gates this. Ephemeral. */
+  sceneReady: boolean
+  setSceneReady: (v: boolean) => void
   /** Transition loading overlay (orbit↔walk, room editor enter/exit). The
    *  initial-boot overlay is driven by `bootPhase`, not this. Ephemeral. */
   loading: { active: boolean; label: string }
@@ -139,6 +146,7 @@ export const UI_INITIAL: Pick<
   | 'showcaseAccumulating'
   | 'roomEditor'
   | 'bootPhase'
+  | 'sceneReady'
   | 'loading'
 > = {
   catalogOpen: false,
@@ -160,6 +168,7 @@ export const UI_INITIAL: Pick<
   showcaseAccumulating: false,
   roomEditor: { active: false, roomId: null },
   bootPhase: 'hydrating',
+  sceneReady: false,
   loading: { active: false, label: '' },
 }
 
@@ -175,6 +184,7 @@ let priorTiers: { tier: RenderTier; userSet: boolean; asset: AssetTier | null } 
 export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   ...UI_INITIAL,
   setBootReady: () => set({ bootPhase: 'ready' }),
+  setSceneReady: (sceneReady) => set({ sceneReady }),
   showLoading: (label) => set({ loading: { active: true, label } }),
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   enterRoomEditor: (roomId) => {

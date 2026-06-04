@@ -11,7 +11,9 @@ export function ResolutionPicker() {
           key={r}
           onClick={() => set(r)}
           className={`rounded px-1.5 py-0.5 ${
-            value === r ? 'bg-blue-600 text-white' : 'bg-neutral-200 text-neutral-700'
+            value === r
+              ? 'bg-[var(--accent)] text-[var(--on-accent)]'
+              : 'bg-[var(--surface-3)] text-[var(--text-2)]'
           }`}
         >
           {r.toUpperCase()}

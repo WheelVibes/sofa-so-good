@@ -38,7 +38,7 @@ describe('installPack', () => {
         }),
     )
 
-    const realPack = AVAILABLE_PACKS[0]
+    const realPack = AVAILABLE_PACKS.find((p) => p.id === 'kenney-furniture-kit')!
     // Override sizeBytes for the small mock zip so HEAD-validation passes.
     const pack = { ...realPack, sizeBytes: zipBytes.byteLength }
 
@@ -67,7 +67,7 @@ describe('installPack', () => {
           },
         }),
     )
-    const realPack = AVAILABLE_PACKS[0]
+    const realPack = AVAILABLE_PACKS.find((p) => p.id === 'kenney-furniture-kit')!
     const pack = { ...realPack, sizeBytes: zipBytes.byteLength }
 
     const installed = await installPack(pack, { fetchImpl: fakeFetch as unknown as typeof fetch })

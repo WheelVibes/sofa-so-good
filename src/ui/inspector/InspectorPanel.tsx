@@ -4,6 +4,8 @@ import { canPlace } from '../../collision/placement'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
+import { CategoryIcon } from '../catalog/CategoryIcon'
+import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
 import { IkeaBody } from './IkeaBody'
 import { ParametricBody } from './ParametricBody'
@@ -72,65 +74,87 @@ function MultiSelectPanel() {
     for (const id of [...s.selectedItemIds]) s.deleteItem(id)
   }
 
-  const Btn = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (
-    <button
-      onClick={onClick}
-      className="rounded bg-neutral-100 py-1 text-[11px] text-neutral-700 hover:bg-neutral-200"
-    >
-      {children}
-    </button>
-  )
-
   return (
-    <aside className="absolute right-3 top-3 z-10 w-64 rounded-lg bg-white/95 p-4 text-xs text-neutral-700 shadow">
-      <header className="mb-3 flex items-center justify-between">
-        <span className="text-sm font-semibold text-neutral-900">{count} items selected</span>
+    <aside className="panel inspector">
+      <div className="panel-head">
+        <div>
+          <div className="panel-title">{count} items selected</div>
+          <div className="panel-sub">Multi-select</div>
+        </div>
         <button
+          type="button"
           onClick={() => useStore.getState().selectItem(null)}
-          className="text-neutral-400 hover:text-neutral-700"
+          className="icon-btn"
           aria-label="Clear selection"
         >
-          ×
+          <Icon.Close width={16} height={16} />
         </button>
-      </header>
-      <div className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">Align centres</div>
-      <div className="mb-2 grid grid-cols-2 gap-1.5">
-        <Btn onClick={() => align(0)}>↔ Align X</Btn>
-        <Btn onClick={() => align(1)}>↕ Align Z</Btn>
       </div>
-      <div className="mb-1 text-[10px] uppercase tracking-wide text-neutral-500">
-        Distribute evenly
-      </div>
-      <div className="mb-3 grid grid-cols-2 gap-1.5">
-        <Btn onClick={() => distribute(0)}>↔ Across X</Btn>
-        <Btn onClick={() => distribute(1)}>↕ Across Z</Btn>
-      </div>
-      {activeGroupId ? (
-        <button
-          onClick={() => ungroup(activeGroupId)}
-          className="mb-2 w-full rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
-        >
-          Ungroup
-        </button>
-      ) : (
-        selectedItemIds.length > 1 && (
+      <hr className="hr" />
+      <div className="panel-body">
+        <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+          <div className="sec-h">
+            <span>Align centres</span>
+          </div>
+          <div className="action-grid two">
+            <button type="button" className="act" onClick={() => align(0)}>
+              <Icon.AlignX width={16} height={16} />
+              Align X
+            </button>
+            <button type="button" className="act" onClick={() => align(1)}>
+              <Icon.AlignZ width={16} height={16} />
+              Align Z
+            </button>
+          </div>
+        </div>
+        <div className="sec">
+          <div className="sec-h">
+            <span>Distribute evenly</span>
+          </div>
+          <div className="action-grid two">
+            <button type="button" className="act" onClick={() => distribute(0)}>
+              <Icon.Distribute width={16} height={16} />
+              Across X
+            </button>
+            <button type="button" className="act" onClick={() => distribute(1)}>
+              <Icon.Distribute width={16} height={16} />
+              Across Z
+            </button>
+          </div>
+        </div>
+        <div className="sec">
+          {activeGroupId ? (
+            <button
+              type="button"
+              onClick={() => ungroup(activeGroupId)}
+              className="btn btn-soft btn-block"
+            >
+              <Icon.Group width={14} height={14} />
+              Ungroup
+            </button>
+          ) : (
+            selectedItemIds.length > 1 && (
+              <button
+                type="button"
+                onClick={() => groupItems(selectedItemIds)}
+                className="btn btn-soft btn-block"
+              >
+                <Icon.Group width={14} height={14} />
+                Group
+              </button>
+            )
+          )}
           <button
-            onClick={() => groupItems(selectedItemIds)}
-            className="mb-2 w-full rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
+            type="button"
+            onClick={deleteAll}
+            className="btn btn-danger btn-block"
+            style={{ marginTop: 'var(--s-2)' }}
           >
-            Group
+            <Icon.Trash width={14} height={14} />
+            Delete all
           </button>
-        )
-      )}
-      <button
-        onClick={deleteAll}
-        className="w-full rounded bg-rose-50 py-1 text-rose-700 hover:bg-rose-100"
-      >
-        🗑 Delete all
-      </button>
-      <p className="mt-2 text-[10px] leading-snug text-neutral-400">
-        Tip: <kbd className="font-mono">R</kbd> rotates the group around its centre.
-      </p>
+        </div>
+      </div>
     </aside>
   )
 }
@@ -143,21 +167,23 @@ function PosField({
   step,
   onCommit,
   integer,
+  unit,
 }: {
   label: string
   value: number
   step: number
   onCommit: (v: number) => void
   integer?: boolean
+  unit?: string
 }) {
   const fmt = (v: number) => (integer ? Math.round(v).toString() : v.toFixed(2))
   const [text, setText] = useState(fmt(value))
   // Re-sync when the underlying value changes (drag, rotate key, etc.) and
   // the field isn't being edited.
   const [editing, setEditing] = useState(false)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fmt is a render-stable formatter
   useEffect(() => {
     if (!editing) setText(fmt(value))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value, editing])
   const commit = () => {
     setEditing(false)
@@ -165,8 +191,8 @@ function PosField({
     if (!Number.isNaN(v)) onCommit(v)
   }
   return (
-    <label className="flex flex-col gap-0.5">
-      <span className="text-neutral-500">{label}</span>
+    <label className="num">
+      <span>{label}</span>
       <input
         type="number"
         step={step}
@@ -177,8 +203,9 @@ function PosField({
         onKeyDown={(e) => {
           if (e.key === 'Enter') (e.target as HTMLInputElement).blur()
         }}
-        className="w-full rounded border border-neutral-200 bg-white px-1 py-0.5 font-mono text-[11px] focus:border-neutral-400 focus:outline-none"
+        className="mono"
       />
+      {unit ? <span className="unit">{unit}</span> : null}
     </label>
   )
 }
@@ -278,131 +305,158 @@ export function InspectorPanel() {
     }
   }
 
+  let w = def.defaultFootprint.w
+  let d = def.defaultFootprint.d
+  if (def.kind === 'parametric') {
+    const map = def.footprintParams ?? {}
+    const wv = item.props[map.w ?? 'width']
+    const dv = item.props[map.d ?? 'depth']
+    if (typeof wv === 'number') w = wv
+    if (typeof dv === 'number') d = dv
+  }
+  const cm = (m: number) => Math.round(m * 100)
+
   return (
-    <aside className="absolute right-3 top-3 z-10 w-64 max-h-[80vh] overflow-y-auto rounded-lg bg-white/95 p-4 text-xs text-neutral-700 shadow">
-      <header className="mb-3 flex items-start justify-between">
+    <aside className="panel inspector">
+      <div className="panel-head">
         <div>
-          <div className="text-sm font-semibold text-neutral-900">{def.name}</div>
-          <div className="text-[10px] uppercase tracking-wide text-neutral-500">{def.category}</div>
-          {(() => {
-            let w = def.defaultFootprint.w
-            let d = def.defaultFootprint.d
-            if (def.kind === 'parametric') {
-              const map = def.footprintParams ?? {}
-              const wv = item.props[map.w ?? 'width']
-              const dv = item.props[map.d ?? 'depth']
-              if (typeof wv === 'number') w = wv
-              if (typeof dv === 'number') d = dv
-            }
-            const cm = (m: number) => Math.round(m * 100)
-            return (
-              <div
-                className="mt-0.5 text-[10px] tabular-nums text-neutral-400"
-                title="Width × Depth × Height"
-              >
-                {cm(w)} × {cm(d)} × {cm(def.defaultFootprint.h)} cm
-              </div>
-            )
-          })()}
+          <div className="insp-thumb">
+            <CategoryIcon category={def.category} width={22} height={22} />
+          </div>
+          <div>
+            <div className="panel-title">{def.name}</div>
+            <div className="panel-sub">{def.category}</div>
+            <div className="dims mono" title="Width × Depth × Height">
+              {cm(w)} × {cm(d)} × {cm(def.defaultFootprint.h)} cm
+            </div>
+          </div>
         </div>
         <button
+          type="button"
           onClick={() => selectItem(null)}
-          className="text-neutral-400 hover:text-neutral-700"
+          className="icon-btn"
           aria-label="Close inspector"
         >
-          ×
-        </button>
-      </header>
-      <div className="mb-3 grid grid-cols-3 gap-2 text-[11px]">
-        <PosField
-          label="X (m)"
-          value={item.position[0]}
-          step={0.05}
-          onCommit={(v) => tryMove(v, item.position[1])}
-        />
-        <PosField
-          label="Z (m)"
-          value={item.position[1]}
-          step={0.05}
-          onCommit={(v) => tryMove(item.position[0], v)}
-        />
-        <PosField
-          label="Rot°"
-          value={(item.rotation * 180) / Math.PI}
-          step={15}
-          onCommit={trySetRot}
-          integer
-        />
-      </div>
-      {def.kind === 'parametric' ? (
-        <ParametricBody item={item} def={def} />
-      ) : isIkeaDef(def) ? (
-        <IkeaBody item={item} def={def} />
-      ) : (
-        <GltfBody item={item} def={def} />
-      )}
-      {def.kind === 'gltf' && (def.source === 'builtin' || def.source === 'ikea') && (
-        <SourceLine attribution={def.attribution} license={def.license} sourceUrl={def.sourceUrl} />
-      )}
-      <div className="mt-3 grid grid-cols-2 gap-1.5 border-t border-neutral-200 pt-2">
-        <button
-          onClick={() => flip('x')}
-          disabled={item.locked}
-          title="Flip left ↔ right (F)"
-          className={`rounded py-1 enabled:hover:bg-neutral-200 disabled:opacity-40 ${item.flipX ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-700'}`}
-        >
-          ⇆ Flip H
-        </button>
-        <button
-          onClick={() => flip('z')}
-          disabled={item.locked}
-          title="Flip front ↔ back (Shift+F)"
-          className={`rounded py-1 enabled:hover:bg-neutral-200 disabled:opacity-40 ${item.flipZ ? 'bg-blue-100 text-blue-700' : 'bg-neutral-100 text-neutral-700'}`}
-        >
-          ⇅ Flip V
+          <Icon.Close width={16} height={16} />
         </button>
       </div>
-      <button
-        onClick={() => toggleLock(item.id)}
-        title="Lock pins the item so it can't be moved, rotated or deleted"
-        className={`mt-1.5 w-full rounded py-1 hover:opacity-90 ${item.locked ? 'bg-amber-100 text-amber-800' : 'bg-neutral-100 text-neutral-700'}`}
-      >
-        {item.locked ? '🔒 Locked — click to unlock' : '🔓 Lock in place'}
-      </button>
-      {activeGroupId && item.groupId !== activeGroupId && (
-        <button
-          onClick={() => addToGroup(item.id, activeGroupId)}
-          title="Add this item to the active group"
-          className="mt-1.5 w-full rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
-        >
-          ➕ Add to group
-        </button>
-      )}
-      <footer className="mt-1.5 grid grid-cols-3 gap-1.5 pt-0">
-        <button
-          onClick={rotate90}
-          disabled={item.locked}
-          title="Rotate 90° (R)"
-          className="rounded bg-neutral-100 py-1 text-neutral-700 enabled:hover:bg-neutral-200 disabled:opacity-40"
-        >
-          ↻ Rotate
-        </button>
-        <button
-          onClick={duplicate}
-          title="Duplicate (Ctrl+D)"
-          className="rounded bg-neutral-100 py-1 text-neutral-700 hover:bg-neutral-200"
-        >
-          ⧉ Copy
-        </button>
-        <button
-          onClick={() => !item.locked && deleteItem(item.id)}
-          disabled={item.locked}
-          title="Delete (Del)"
-          className="rounded bg-rose-50 py-1 text-rose-700 enabled:hover:bg-rose-100 disabled:opacity-40"
-        >
-          🗑 Delete
-        </button>
-      </footer>
+      <hr className="hr" />
+      <div className="panel-body">
+        <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+          <div className="sec-h">
+            <span>Transform</span>
+          </div>
+          <div className="transform-grid">
+            <PosField
+              label="X"
+              unit="m"
+              value={item.position[0]}
+              step={0.05}
+              onCommit={(v) => tryMove(v, item.position[1])}
+            />
+            <PosField
+              label="Z"
+              unit="m"
+              value={item.position[1]}
+              step={0.05}
+              onCommit={(v) => tryMove(item.position[0], v)}
+            />
+            <PosField
+              label="Rotation"
+              unit="°"
+              value={(item.rotation * 180) / Math.PI}
+              step={15}
+              onCommit={trySetRot}
+              integer
+            />
+          </div>
+        </div>
+        {def.kind === 'parametric' ? (
+          <ParametricBody item={item} def={def} />
+        ) : isIkeaDef(def) ? (
+          <IkeaBody item={item} def={def} />
+        ) : (
+          <GltfBody item={item} def={def} />
+        )}
+        {def.kind === 'gltf' && (def.source === 'builtin' || def.source === 'ikea') && (
+          <SourceLine
+            attribution={def.attribution}
+            license={def.license}
+            sourceUrl={def.sourceUrl}
+          />
+        )}
+        <div className="sec">
+          <div className="action-grid">
+            <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
+              <Icon.Rotate width={16} height={16} />
+              Rotate
+            </button>
+            <button
+              type="button"
+              className={`act${item.flipX ? ' on' : ''}`}
+              onClick={() => flip('x')}
+              disabled={item.locked}
+            >
+              <Icon.FlipH width={16} height={16} />
+              Flip H
+            </button>
+            <button
+              type="button"
+              className={`act${item.flipZ ? ' on' : ''}`}
+              onClick={() => flip('z')}
+              disabled={item.locked}
+            >
+              <Icon.FlipV width={16} height={16} />
+              Flip V
+            </button>
+            <button type="button" className="act" onClick={duplicate}>
+              <Icon.Copy width={16} height={16} />
+              Duplicate
+            </button>
+            <button
+              type="button"
+              className={`act${item.locked ? ' on' : ''}`}
+              onClick={() => toggleLock(item.id)}
+            >
+              {item.locked ? (
+                <Icon.Lock width={16} height={16} />
+              ) : (
+                <Icon.Unlock width={16} height={16} />
+              )}
+              {item.locked ? 'Locked' : 'Lock'}
+            </button>
+            <button
+              type="button"
+              className="act danger"
+              onClick={() => !item.locked && deleteItem(item.id)}
+              disabled={item.locked}
+            >
+              <Icon.Trash width={16} height={16} />
+              Delete
+            </button>
+          </div>
+          <button
+            type="button"
+            onClick={() => useStore.getState().setSwapItemId(item.id)}
+            className="btn btn-soft btn-block"
+            style={{ marginTop: 'var(--s-2)' }}
+          >
+            <Icon.Copy width={14} height={14} />
+            Swap with similar
+          </button>
+          {activeGroupId && item.groupId !== activeGroupId && (
+            <button
+              type="button"
+              onClick={() => addToGroup(item.id, activeGroupId)}
+              className="btn btn-soft btn-block"
+              style={{ marginTop: 'var(--s-2)' }}
+            >
+              <Icon.Group width={14} height={14} />
+              Add to group
+            </button>
+          )}
+        </div>
+      </div>
     </aside>
   )
 }

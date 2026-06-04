@@ -3,6 +3,8 @@ import { useCatalog } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../furniture/types'
 import { useStore } from '../state/store'
+import { CategoryIcon } from './catalog/CategoryIcon'
+import { Icon } from './toolbar/icons'
 
 const CATEGORY_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds',
@@ -39,6 +41,10 @@ export function BudgetPanel() {
   const toggle = useStore((s) => s.toggleBudget)
   const items = useStore((s) => s.items)
   const catalog = useCatalog()
+  const shopTab = useStore((s) => s.shopTab)
+  const setShopTab = useStore((s) => s.setShopTab)
+  const collections = useStore((s) => s.collections)
+  const toggleCollection = useStore((s) => s.toggleCollection)
 
   const { groups, total, count } = useMemo(() => {
     const byCat = new Map<FurnitureCategory, Map<string, Line>>()
@@ -71,68 +77,150 @@ export function BudgetPanel() {
 
   if (!open) return null
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`
+  const saved = collections.map((id) => catalog[id]).filter((d): d is NonNullable<typeof d> => !!d)
 
   return (
-    <aside className="absolute right-3 top-16 z-20 flex max-h-[80vh] w-72 flex-col rounded-lg bg-white/95 text-neutral-700 shadow-lg">
-      <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2">
-        <span className="text-sm font-semibold text-neutral-900">Budget estimate</span>
-        <button
-          onClick={toggle}
-          className="text-neutral-400 hover:text-neutral-700"
-          aria-label="Close budget"
-        >
-          ×
+    <aside className="panel mini aux">
+      <div className="panel-head">
+        <div>
+          <div className="panel-title">Shopping</div>
+          <div className="panel-sub">Budget &amp; collections</div>
+        </div>
+        <button type="button" onClick={toggle} className="icon-btn" aria-label="Close budget">
+          <Icon.Close width={16} height={16} />
         </button>
-      </header>
-
-      <div className="flex items-baseline justify-between border-b border-neutral-200 px-4 py-2">
-        <span className="text-2xl font-bold text-neutral-900">{fmt(total)}</span>
-        <span className="text-xs text-neutral-500">{count} items</span>
       </div>
-
-      <div className="min-h-0 flex-1 overflow-y-auto px-3 py-2">
-        {groups.length === 0 ? (
-          <p className="py-6 text-center text-xs text-neutral-500">No furniture placed yet.</p>
-        ) : (
-          groups.map((g) => (
-            <div key={g.cat} className="mb-3">
-              <div className="mb-1 flex items-center justify-between text-[11px] font-semibold uppercase tracking-wide text-neutral-500">
-                <span>{CATEGORY_LABEL[g.cat]}</span>
-                <span>{fmt(g.subtotal)}</span>
-              </div>
-              {g.lines.map((l) => (
-                <div key={l.defId} className="flex items-center justify-between py-0.5 text-xs">
-                  <span className="truncate text-neutral-700">
-                    {l.name}
-                    {l.count > 1 && <span className="text-neutral-400"> ×{l.count}</span>}
-                  </span>
-                  <span className="ml-2 shrink-0 tabular-nums text-neutral-500">
-                    {fmt(l.each * l.count)}
-                  </span>
+      <div className="shop-tabs" style={{ padding: '0 var(--s-4)' }}>
+        <button
+          type="button"
+          className={`tab${shopTab === 'list' ? ' on' : ''}`}
+          onClick={() => setShopTab('list')}
+        >
+          List · {count}
+        </button>
+        <button
+          type="button"
+          className={`tab${shopTab === 'saved' ? ' on' : ''}`}
+          onClick={() => setShopTab('saved')}
+        >
+          Saved · {saved.length}
+        </button>
+      </div>
+      <hr className="hr" />
+      {shopTab === 'saved' ? (
+        <div className="panel-body">
+          {saved.length === 0 ? (
+            <p className="empty-mini">
+              <span className="em-ic">
+                <Icon.Heart width={20} height={20} />
+              </span>
+              <b>No saved items</b>
+              <span>Tap the heart on any catalog card to save it here.</span>
+            </p>
+          ) : (
+            <div className="coll-grid">
+              {saved.map((d) => (
+                <div className="coll-card" key={d.id}>
+                  <button
+                    type="button"
+                    className="coll-x"
+                    aria-label="Remove from saved"
+                    onClick={() => toggleCollection(d.id)}
+                  >
+                    <Icon.Close width={12} height={12} />
+                  </button>
+                  <div className="card-thumb">
+                    <CategoryIcon category={d.category} width={24} height={24} />
+                  </div>
+                  <span className="nm">{d.name}</span>
+                  <span className="pr">{fmt(itemPrice(d, d.category))}</span>
+                  <button
+                    type="button"
+                    className="btn btn-soft btn-sm add"
+                    onClick={() => {
+                      const s = useStore.getState()
+                      s.setActiveDefId(d.id)
+                    }}
+                  >
+                    <Icon.Plus width={12} height={12} />
+                    Add to room
+                  </button>
                 </div>
               ))}
             </div>
-          ))
-        )}
-      </div>
-      <footer className="flex items-center justify-between gap-2 border-t border-neutral-200 px-4 py-2 text-[10px] leading-snug text-neutral-400">
-        <span>Approx. mid-market retail (SGD). Finishes &amp; reno excluded.</span>
-        <button
-          onClick={() => {
-            const lines = groups.flatMap((g) => [
-              `# ${CATEGORY_LABEL[g.cat]}`,
-              ...g.lines.map(
-                (l) => `${l.name}${l.count > 1 ? ` x${l.count}` : ''}\t${fmt(l.each * l.count)}`,
-              ),
-            ])
-            lines.push('', `TOTAL\t${fmt(total)} (${count} items)`)
-            void navigator.clipboard?.writeText(lines.join('\n'))
-          }}
-          className="shrink-0 rounded bg-neutral-200 px-2 py-1 text-[10px] font-medium text-neutral-700 hover:bg-neutral-300"
-        >
-          Copy list
-        </button>
-      </footer>
+          )}
+        </div>
+      ) : (
+        <div className="panel-body">
+          <div className="bud-total">
+            <span className="big mono">{fmt(total)}</span>
+            <span className="panel-sub">{count} items</span>
+          </div>
+          <div className="bud-list" style={{ marginTop: 'var(--s-2)' }}>
+            {groups.length === 0 ? (
+              <p className="empty-mini">
+                <span>No furniture placed yet.</span>
+              </p>
+            ) : (
+              groups.map((g) => (
+                <div key={g.cat} style={{ marginBottom: 'var(--s-4)' }}>
+                  <div className="sec-h">
+                    <span>{CATEGORY_LABEL[g.cat]}</span>
+                    <span className="mono">{fmt(g.subtotal)}</span>
+                  </div>
+                  {g.lines.map((l) => (
+                    <div className="row" key={l.defId} style={{ padding: '5px 0' }}>
+                      <span
+                        className="rk"
+                        style={{
+                          minWidth: 0,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {l.name}
+                        {l.count > 1 ? ` ×${l.count}` : ''}
+                      </span>
+                      <span className="amt">{fmt(l.each * l.count)}</span>
+                    </div>
+                  ))}
+                </div>
+              ))
+            )}
+          </div>
+          <button
+            type="button"
+            className="btn btn-soft btn-block"
+            style={{ marginTop: 'var(--s-3)' }}
+            onClick={() => {
+              const lines = groups.flatMap((g) => [
+                `# ${CATEGORY_LABEL[g.cat]}`,
+                ...g.lines.map(
+                  (l) => `${l.name}${l.count > 1 ? ` x${l.count}` : ''}\t${fmt(l.each * l.count)}`,
+                ),
+              ])
+              lines.push('', `TOTAL\t${fmt(total)} (${count} items)`)
+              void navigator.clipboard?.writeText(lines.join('\n'))
+            }}
+          >
+            <Icon.Download width={14} height={14} />
+            Copy shopping list
+          </button>
+          <p
+            className="panel-sub"
+            style={{
+              marginTop: 'var(--s-3)',
+              textTransform: 'none',
+              letterSpacing: 0,
+              fontWeight: 500,
+              lineHeight: 1.4,
+            }}
+          >
+            Approx. mid-market retail (SGD). Finishes &amp; reno excluded.
+          </p>
+        </div>
+      )}
     </aside>
   )
 }

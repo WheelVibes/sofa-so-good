@@ -100,20 +100,25 @@ export function Lighting() {
     // and it must keep tracking even after the light tween settles.
     gl.toneMappingExposure = grade(sunPos.altitude).exposure
 
-    // Cheap settle check on the dominant channels.
+    // Cheap settle check on the dominant channels. When unsettled, ease the
+    // current values toward the target; when settled we still fall through to
+    // the assignment below so the lights are correct from the very first frame
+    // (skipping it left the lights at their three.js defaults until some later
+    // input change perturbed the target — the "time of day pops in late" bug).
     const settled =
       Math.abs(target.sun - cur.sun) < 1e-3 &&
       Math.abs(target.ambient - cur.ambient) < 1e-3 &&
       Math.abs(target.sunPos[1] - cur.sunPos[1]) < 1e-2 &&
       Math.abs(target.skyColor[2] - cur.skyColor[2]) < 1e-3
-    if (settled) return
 
-    cur.sun = approach(cur.sun, target.sun)
-    cur.ambient = approach(cur.ambient, target.ambient)
-    dArr(cur.sunPos, target.sunPos)
-    dArr(cur.sunColor, target.sunColor)
-    dArr(cur.skyColor, target.skyColor)
-    dArr(cur.groundColor, target.groundColor)
+    if (!settled) {
+      cur.sun = approach(cur.sun, target.sun)
+      cur.ambient = approach(cur.ambient, target.ambient)
+      dArr(cur.sunPos, target.sunPos)
+      dArr(cur.sunColor, target.sunColor)
+      dArr(cur.skyColor, target.skyColor)
+      dArr(cur.groundColor, target.groundColor)
+    }
 
     if (sunRef.current) {
       sunRef.current.intensity = cur.sun

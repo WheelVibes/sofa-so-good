@@ -42,6 +42,7 @@ export function Minimap() {
   const toY = (m: number) => (m + PAD) * scale + 6
 
   // Animate the camera arrow each frame while in walk mode.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: toX/toY are render-stable scale derivations
   useEffect(() => {
     if (cameraMode !== 'firstPerson') return
     let raf = 0
@@ -58,27 +59,25 @@ export function Minimap() {
     }
     raf = requestAnimationFrame(tick)
     return () => cancelAnimationFrame(raf)
-  }, [cameraMode, scale, W, D])
+  }, [cameraMode])
 
   // Re-render dots when the layout changes (force is a no-op dependency hook).
-  useEffect(() => force((n) => n + 1), [items, plan])
+  useEffect(() => force((n) => n + 1), [])
 
   if (cameraMode !== 'firstPerson') return null
 
   return (
-    <div className="absolute bottom-3 left-3 z-10 rounded-lg bg-white/85 p-1.5 shadow backdrop-blur">
-      <svg width={SIZE} height={SIZE} viewBox={`0 0 ${SIZE} ${SIZE}`}>
+    <div className="minimap">
+      <svg width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}>
         {/* Rooms */}
         {plan.rooms.map((r) => (
           <rect
             key={r.id}
+            className="mm-room"
             x={toX(r.origin[0])}
             y={toY(r.origin[1])}
             width={r.width * scale}
             height={r.depth * scale}
-            fill="#e8eaed"
-            stroke="#c4c8ce"
-            strokeWidth={0.5}
           />
         ))}
         {/* Walls */}
@@ -90,7 +89,7 @@ export function Minimap() {
               y1={toY(w.start[1])}
               x2={toX(w.end[0])}
               y2={toY(w.end[1])}
-              stroke="#6b7280"
+              stroke="var(--text-3)"
               strokeWidth={w.thickness === 'external' ? 2 : 1}
               strokeLinecap="round"
             />
@@ -112,7 +111,12 @@ export function Minimap() {
         })}
         {/* Camera arrow */}
         <g ref={arrowRef}>
-          <path d="M 0 -6 L 4 5 L 0 2 L -4 5 Z" fill="#111827" stroke="#fff" strokeWidth={0.75} />
+          <path
+            className="mm-cam"
+            d="M 0 -6 L 4 5 L 0 2 L -4 5 Z"
+            stroke="var(--surface-solid)"
+            strokeWidth={0.75}
+          />
         </g>
       </svg>
     </div>

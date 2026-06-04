@@ -84,9 +84,13 @@ rediscover it.
   snap grid), placement, clipboard, history, remote catalog, installed packs,
   measurements, orientation, notifications, reset, **userAssets**
   (user-uploaded GLBs + imported `IkeaGltfDef`s — see **IKEA models**), and
-  **floorPlan** (editable apartment shell + editor state + saved-plan library).
-  Persistence + migrations under `storage/` (layout autosave; `qualityPrefs.ts`
-  graphics prefs; `editorPrefs.ts` snap/grid; `floorPlanStore.ts` plan library
+  **floorPlan** (editable apartment shell + editor state + saved-plan library),
+  **appearance** (theme + light/dark/auto mode — see **Design system**), and
+  **features** (command-palette / layers-mode / context-menu / onboarding UI
+  state). Persistence + migrations under `storage/` (layout autosave;
+  `qualityPrefs.ts` graphics prefs; `editorPrefs.ts` snap/grid;
+  `appearancePrefs.ts` theme+mode → `[data-theme]`/`[data-mode]` on `<html>`;
+  `floorPlanStore.ts` plan library
   + active custom plan; `hydrate.ts`/`hydrateAssets.ts` re-resolve user/IKEA
   defs + their IDB blobs on boot). `schema.ts` is the save/load serializer
   (round-trips parametric items, user GLBs, and IKEA defs).
@@ -167,10 +171,38 @@ rediscover it.
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
   adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection.
-- `src/ui/` — DOM overlays: CatalogDrawer, InspectorPanel,
-  FinishPicker, GraphicsSettings, measurement/credits/help, `upload/`
-  (GLB/material import dialogs), `floorplan/` (2D editor), `inspector/`,
-  `catalog/`, and `toolbar/` — the icon-island toolbar (see **Toolbar** below).
+- `src/ui/` — DOM overlays: CatalogDrawer (`catalog/`). The drawer is **one
+  flat tab row — Catalog / Layers / Packs** (panel title tracks the active tab).
+  **Catalog** is one **unified grid** (`useUnifiedCatalog.ts` → `GridItem` =
+  local `FurnitureDef` *or* not-yet-downloaded CC0 `RemoteEntry`) that merges
+  built-ins, generated, user/IKEA uploads, installed-pack items, already-
+  downloaded CC0, **and** the browsable Poly Haven CC0 index into one list — a
+  single fuzzy search spans all of it, and a downloaded CC0 entry replaces its
+  remote card with the resolved local card (`CatalogCard` for local,
+  `RemoteCard` for un-downloaded CC0 — both share the `.cat-card` shape + heart
+  `fav-btn`). A **favourites** pseudo-category (star chip, first in
+  `CategoryTabs`) houses everything in `collections`. **Layers**
+  (`LayersPanel.tsx`) is the Objects tree (store-level `leftMode`, shared with
+  the command palette + mobile toolbar); **Packs** installs downloadable
+  content whose items then appear in the unified grid (see **Downloadable
+  content sources**). Then InspectorPanel
+  (`inspector/`), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
+  NavCluster (fused compass + zoom rail + minimap, bottom-right), the
+  **CommandPalette** (⌘K), **ContextMenu** (right-click on a placed item),
+  **Onboarding** (first-run 3-step intro), **HelpModal**, a shared **Modal**
+  primitive, measurement/loading, `upload/` (GLB/material import dialogs),
+  `floorplan/` (2D editor), and `toolbar/` — the icon-island toolbar (see
+  **Toolbar** + **Design system** below; the toolbar's `AppearancePopover`
+  switches theme + light/dark/auto).
+- `src/styles/` — the **design-system CSS** (ported from `design/assets/`):
+  `tokens.css` (type/spacing/radii + the 8 OKLCH theme palettes),
+  `components.css` (`.panel`/`.btn`/`.toolbar`/`.menu`/inputs…), `parts.css`
+  (catalog/inspector/navcluster compound UI), `features.css` (layers/cmdk/
+  context-menu/toasts/badges), `flows.css` (onboarding/edit-room/presets),
+  `screens.css` (appearance popover/loading/plan/walk), `responsive.css`
+  (tablet/compact/`body.mobile` bottom-sheet breakpoints), and `app.css`
+  (React-port glue: portaled `.pop-panel`/`.tip-box`, `.fld` field rows,
+  `.hud-pill`). All imported from `src/index.css` after Tailwind.
 - `python/scripts/` — **offline** asset tooling, not part of the app build:
   `ikea_model_scraper.py` (IKEA SG → per-variant-group `metadata.json` +
   `<finish>.glb`), `glb_analysis.py` (stdlib GLB parser → footprint + material
@@ -180,6 +212,41 @@ rediscover it.
   **IKEA scraper (offline)** and **GLB LOD pipeline**.
 
 ## Key systems
+- **Design system & theming** (`src/styles/`, `state/slices/appearanceSlice.ts`,
+  `storage/appearancePrefs.ts`): one warm, Singapore-rooted system — **4 themes
+  (Clay / Kampong / Porcelain / Estate) × light/dark = 8 OKLCH palettes**,
+  switched by `[data-theme]` + `[data-mode]` on `<html>`. Every colour is a CSS
+  custom property (`--surface`/`--text`/`--accent`/`--border`/`--scene-*`/…) so
+  components never hardcode colour — UI is restyled to the design class
+  vocabulary (`.panel`, `.btn`, `.toolbar`/`.tool-btn`, `.menu-item`, `.seg`,
+  `.swatch`, `.act`, `.cmdk`, `.ctx-menu`, `.toast`, `.onb-*`, …) instead of
+  Tailwind colour utilities. The toolbar **Appearance** popover
+  (`ui/toolbar/AppearancePopover.tsx`) picks theme + Light/Dark/Auto; the choice
+  persists in `localStorage` (`hdb_appearance`) and is applied pre-paint by an
+  inline script in `index.html` (no flash). Auto follows the OS via `matchMedia`.
+  `body.mobile` (toggled in `App` at ≤640px) switches floating panels to
+  bottom-sheets and the toolbar to a collapsed bar + action sheet
+  (`toolbar/MobileToolbar.tsx`). A reference screenshot suite (every theme,
+  panel, modal, viewport) lives in `assets/screenshots/`. New feature surfaces wired through `featuresSlice`: the **⌘K
+  command palette** (`CommandPalette.tsx` — actions / panels / views / "add
+  furniture", keyboard-navigable), the **right-click context menu**
+  (`ContextMenu.tsx`), the first-run **onboarding** carousel (`Onboarding.tsx`,
+  gated on `localStorage.hdb_onboarded`), and the catalog drawer's **Objects /
+  Layers** mode (`catalog/LayersPanel.tsx`, items grouped by room with select /
+  lock / delete). Production-grade feature panels, all wired to real data and
+  mutually-exclusive in the centred-top `.aux` slot: **Swap with similar**
+  (`SwapModal.tsx` — same-category alternatives with footprint-fit badges,
+  replaces the def in place), **Clearance & fit checks** (`ClearancePanel.tsx`,
+  from `layout/clearance.ts` `blockedDoorItems`), **Versions**
+  (`VersionsPanel.tsx` — save / restore / delete over the real
+  `LocalStorageAdapter` slots + `slotThumbs`), **Shopping list + Collections**
+  (`BudgetPanel` List/Saved tabs + a heart `fav-btn` on every catalog card —
+  local *and* CC0 — toggling `collections`, which also feeds the catalog's
+  favourites category), and **Share & export** (`ShareModal.tsx` — link copy + a real
+  PNG snapshot via the `sofa:export` event). The **2D floor-plan editor**
+  (`ui/floorplan/`) and **upload dialogs** (`ui/upload/`) are fully token-themed
+  (light + dark) — the floor-plan editor hides the main toolbar while open (its
+  own header bar), and the upload dialogs portal to `document.body`.
 - **Procedural materials**: `materials/procedural/generators.ts` paints one
   tiling tile (albedo+normal+roughness) per finish from seeded noise; plaster
   wall paints share one normal map (tinted by colour) to save memory.
@@ -306,6 +373,45 @@ rediscover it.
   Packs tab unless `import.meta.env.DEV`, so a production build never surfaces
   the IKEA-branded scrape entry. (Importing IKEA model folders, grouping, and
   sets all still work in production — only this discoverable card is hidden.)
+- **Downloadable content sources** (`catalog/packs/registry.ts`,
+  `ui/catalog/PacksTab.tsx`): the Packs tab is a **declarative registry** of free
+  furniture + material sources — adding a source is one object in
+  `AVAILABLE_PACKS`, no new wiring. Each `Pack` carries a `kind` discriminator,
+  an `assetType` (`'furniture'` default / `'material'`, which groups it under the
+  tab's two sections + picks the manual-import hint), and a `devOnly` flag.
+  `visiblePacks(import.meta.env.DEV)` hides every `devOnly` pack from production;
+  `PacksTab.renderCard` switches on `kind` to pick the card component. The
+  **gating rule**: a source that can be downloaded programmatically in-browser
+  (CORS-friendly) is visible in **both** dev + prod; one that needs a dev proxy /
+  sidecar / hand-download is `devOnly`. Current `kind`s:
+  - `'poly-pizza'` (**Poly Pizza**, prod) — the only general-purpose furniture
+    source that downloads at runtime in production. `catalog/packs/polyPizza.ts`
+    is the API client (`searchPolyPizza` + the tolerant pure `parseModels` +
+    `guessCategory`; auth via the user's `x-auth-token` key, never bundled;
+    `PolyPizzaError` carries user-facing messages). `installPolyPizzaPack`
+    (`install.ts`) searches → fetches each GLB → routes through the shared
+    `buildEntry`/`commit` pipeline (additive: repeat searches append). The card
+    (`PacksTab.PolyPizzaCard`) takes an API-key field (persisted per-pack in
+    `localStorage` as `hdb_pack_key_<id>`) + a search box + Download, surfacing
+    errors inline. CC0 **and** CC-BY (credited per model via per-entry
+    `attribution`/`license` on `InstalledPackEntry` + `PackGltfDef`).
+  - `'zip'` (**Kenney**, dev-only) — hosted-archive install (`installPack`).
+    `devOnly` because kenney.nl ships no CORS and the `/kenney` path is a dev
+    Vite proxy; a same-origin mirror would let it go prod.
+  - `'ikea-live'` (dev-only) — see above.
+  - `'manual'` (dev-only) — link-out cards for sources with no CORS/programmatic
+    download (Quaternius, Sketchfab, FurniMesh, Free3D, Open Source 3D Assets for
+    furniture; cgbookcase, TextureCan, 3DTextures.me, Share Textures for
+    materials). They open the source page; the user downloads by hand and imports
+    via the Upload model / Upload material dialog.
+  Materials/textures that download at runtime come from the **remote providers**
+  (below), not the Packs tab: Poly Haven (CORS, prod) + ambientCG (proxy,
+  dev-only). `catalog/remote/providers/index.ts` `activeProviderIds(isDev)` /
+  `PROD_PROVIDER_IDS` gate which providers bootstrap — only CORS-capable ones in
+  production (`remoteCatalogSlice.bootstrapRemoteCatalog`). **To add a source:**
+  furniture/material download via API/CORS → a `'poly-pizza'`-style client
+  reusing `buildEntry`/`commit`, or a new `RemoteProvider` added to `PROVIDERS`
+  (+ `PROD_PROVIDER_IDS` if CORS-capable); otherwise a `'manual'` registry entry.
 - **IKEA scraper (offline)** (`python/scripts/`): `ikea_model_scraper.py`
   (Playwright) harvests IKEA SG products → `<group>/metadata.json` +
   `<finish>.glb` + `<finish>-main`/`<finish>-context` product images
@@ -457,10 +563,25 @@ rediscover it.
   `others`).
 - **Finish**: add an entry to `materials/builtinCatalog.ts` (`procedural` with
   a pattern, or `solid`). New patterns go in `procedural/generators.ts`.
-- **GLB models**: bundled CC0 GLBs and user uploads go through the generic
+- **GLB models**: bundled GLBs and user uploads go through the generic
   `GltfModel` loader; set the same `verticalSpan`/`mounted`/`noClip` flags. Run
   `npm run optimize:glb` to generate the `-low`/`-medium` LOD variants. IKEA
   imports come from the offline scraper as `IkeaGltfDef`s (see **IKEA models**).
+  - **Bundled-GLB pipeline** (`scripts/asset-pipeline/`): drop a `<name>.glb`
+    (+ optional `<name>.glb.json` sidecar: `id`/`name`/`category`/`footprint`/
+    `scale`/`anchor`/`license`/`attribution`/`sourceUrl`) into
+    `public/assets/furniture/`, then `npm run index-assets` regenerates
+    `src/furniture/generatedCatalog.ts` (`GENERATED_FURNITURE`, merged into the
+    catalog by `furniture/catalog.ts`) and rewrites `public/assets/CREDITS.json`
+    + `CREDITS.md`. The runtime renders these via the uniform-`scale` GLB path —
+    it does **not** re-centre or fit-to-footprint, so a bundled GLB must already
+    be floor-anchored (`min.y≈0`) and centred on X/Z; bake any sizing/centring
+    into the file (e.g. with `@gltf-transform`). Licence is **CC0 by default but
+    may be `CC-BY`** (attribution-required): the real licence rides on the
+    sidecar → `BuiltinGltfDef.license` → inspector `SourceLine` + `CreditsModal`.
+    The **pool tables** (6/7/8/9 ft, category `tables`) are bundled this way —
+    one CC-BY base model (Evol-Love, poly.pizza) baked to four regulation
+    footprints with the felt recoloured green.
 
 ## Conventions
 - Furniture primitives are floor-anchored, centred on the footprint, facing
@@ -481,5 +602,8 @@ rediscover it.
   to these rules and reuse the constants.
 - Keep `TODO.md` current when deferring work (see superpowers specs/plans
   under `docs/`).
-- All bundled assets are procedurally generated (CC0-equivalent); downloadable
-  Poly Haven/ambientCG/Kenney assets are credited on their catalog cards.
+- Bundled assets are procedurally generated (CC0-equivalent) wherever possible;
+  the few bundled GLBs (e.g. the pool tables) carry a real per-item licence +
+  attribution shown in the inspector and `CREDITS.json` (CC-BY models require
+  it). Downloadable Poly Haven/ambientCG/Kenney/Poly Pizza assets are credited
+  on their catalog cards (Poly Pizza CC-BY models carry per-entry attribution).

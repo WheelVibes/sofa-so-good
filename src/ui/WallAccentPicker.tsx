@@ -5,6 +5,7 @@ import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
 import { useStore } from '../state/store'
+import { Icon } from './toolbar/icons'
 
 function swatchImage(m: MaterialDef): string | undefined {
   if (m.kind === 'procedural')
@@ -36,60 +37,68 @@ export function WallAccentPicker() {
   const walls = Object.values(materials).filter((m) => m.category === 'wall')
 
   return (
-    <aside className="absolute right-3 top-3 z-10 w-64 rounded-lg bg-white/95 text-xs text-neutral-700 shadow">
-      <header className="flex items-start justify-between border-b border-neutral-200 px-4 py-2">
+    <aside className="panel inspector">
+      <div className="panel-head">
         <div>
-          <div className="text-sm font-semibold text-neutral-800">Accent wall</div>
-          <div className="text-neutral-500">{roomName} side</div>
+          <div className="panel-title">Accent wall</div>
+          <div className="panel-sub">{roomName} side</div>
         </div>
         <button
+          type="button"
           onClick={() => selectItem(null)}
-          className="text-neutral-400 hover:text-neutral-700"
+          className="icon-btn"
           aria-label="Close"
         >
-          ×
+          <Icon.Close width={16} height={16} />
         </button>
-      </header>
-      <div className="grid grid-cols-5 gap-1.5 p-3">
-        {walls.map((m) => (
-          <button
-            key={m.id}
-            onClick={() => setWallAccent(key, m.id)}
-            title={m.name}
-            className={`aspect-square rounded border ${current === m.id ? 'border-neutral-800 ring-1 ring-neutral-800' : 'border-neutral-200'}`}
-            style={{
-              backgroundColor: m.swatch,
-              backgroundImage: swatchImage(m),
-              backgroundSize: 'cover',
-            }}
-          />
-        ))}
-        {/* Custom colour */}
-        <label
-          title="Custom colour"
-          className={`relative aspect-square cursor-pointer rounded border ${typeof current === 'string' && current.startsWith('#') ? 'border-neutral-800 ring-1 ring-neutral-800' : 'border-neutral-200'}`}
-          style={{
-            background:
-              typeof current === 'string' && current.startsWith('#')
-                ? current
-                : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
-          }}
-        >
-          <input
-            type="color"
-            value={typeof current === 'string' && current.startsWith('#') ? current : '#cccccc'}
-            onChange={(e) => setWallAccent(key, e.target.value)}
-            className="absolute inset-0 cursor-pointer opacity-0"
-            aria-label="Custom accent colour"
-          />
-        </label>
       </div>
-      <div className="border-t border-neutral-200 px-3 py-2">
+      <hr className="hr" />
+      <div className="panel-body">
+        <div className="swatches">
+          {walls.map((m) => (
+            <button
+              type="button"
+              key={m.id}
+              onClick={() => setWallAccent(key, m.id)}
+              title={m.name}
+              className={`swatch${current === m.id ? ' on' : ''}`}
+              style={{
+                backgroundColor: m.swatch,
+                backgroundImage: swatchImage(m),
+                backgroundSize: 'cover',
+              }}
+            />
+          ))}
+          {/* Custom colour */}
+          <label
+            title="Custom colour"
+            className={`swatch${typeof current === 'string' && current.startsWith('#') ? ' on' : ''}`}
+            style={{
+              position: 'relative',
+              cursor: 'pointer',
+              background:
+                typeof current === 'string' && current.startsWith('#')
+                  ? current
+                  : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
+            }}
+          >
+            <input
+              type="color"
+              value={typeof current === 'string' && current.startsWith('#') ? current : '#cccccc'}
+              onChange={(e) => setWallAccent(key, e.target.value)}
+              style={{ position: 'absolute', inset: 0, opacity: 0, cursor: 'pointer' }}
+              aria-label="Custom accent colour"
+            />
+          </label>
+        </div>
         <button
+          type="button"
           onClick={() => clearWallAccent(key)}
-          className="w-full rounded bg-neutral-100 px-2 py-1.5 text-left hover:bg-neutral-200"
+          className="btn btn-soft btn-block"
+          style={{ marginTop: 'var(--s-4)' }}
         >
-          ↺ Match room finish
+          <Icon.Reset width={14} height={14} />
+          Match room finish
         </button>
       </div>
     </aside>

@@ -1,34 +1,45 @@
 import { useEffect, useState } from 'react'
-import { useCatalogByCategory } from '../../furniture/catalog'
-import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { Icon } from '../toolbar/icons'
 import { UploadModelDialog } from '../upload/UploadModelDialog'
 import { CatalogCard } from './CatalogCard'
-import { CategoryTabs } from './CategoryTabs'
+import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { fuzzySearch } from './fuzzySearch'
+import { LayersPanel } from './LayersPanel'
 import { PacksTab } from './PacksTab'
-import { RemoteBrowseTab } from './RemoteBrowseTab'
+import { RemoteCard } from './RemoteCard'
 import { ThumbnailHost } from './thumbnails'
+import { type GridItem, gridItemId, useUnifiedCatalog } from './useUnifiedCatalog'
 
-type Mode = 'builtin' | 'browse-furniture' | 'packs'
+type Mode = 'catalog' | 'packs'
 
-/** Cards per page in the built-in catalog grid (2-col layout → 12 = 6 rows). */
+/** Cards per page in the catalog grid (2-col layout → 12 = 6 rows). */
 const PAGE_SIZE = 12
 
-/** Sliding left-side drawer. Toggle via toolbar or the C key (handled
- *  in App.tsx). Click a card to drop the item near the L/D centre and
- *  open the inspector — this is the simpler alternative to drag-place
- *  ghost which we revisit when the gizmo lands. */
+/** Text fields a card is searched over (local def vs. remote CC0 entry). */
+function gridItemText(it: GridItem): string[] {
+  return it.kind === 'local'
+    ? [it.def.name, ...(it.def.keywords ?? [])]
+    : [it.entry.name, it.entry.slug, ...(it.entry.tags ?? [])]
+}
+
+/** Sliding left-side drawer. Toggles between a single unified catalog grid
+ *  (built-in + uploads + installed packs + browsable CC0) and an Objects/Layers
+ *  tree (`leftMode`). The Packs tab installs asset packs (whose items then show
+ *  in the unified grid). Click/drag a card to place it. */
 export function CatalogDrawer() {
   const open = useStore((s) => s.catalogOpen)
   const cameraMode = useStore((s) => s.cameraMode)
   const setOpen = useStore((s) => s.setCatalogOpen)
+  const leftMode = useStore((s) => s.leftMode)
+  const setLeftMode = useStore((s) => s.setLeftMode)
   const removeUserFurniture = useStore((s) => s.removeUserFurniture)
+  const setActiveDefId = useStore((s) => s.setActiveDefId)
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
-  const byCategory = useCatalogByCategory()
-  const [active, setActive] = useState<FurnitureCategory>('seating')
-  const [mode, setMode] = useState<Mode>('builtin')
+  const unified = useUnifiedCatalog()
+  const [active, setActive] = useState<CatalogCategory>('seating')
+  const [mode, setMode] = useState<Mode>('catalog')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
@@ -37,9 +48,8 @@ export function CatalogDrawer() {
     if (open && phStatus === 'idle') void bootstrapRemote()
   }, [open, phStatus, bootstrapRemote])
 
-  // Reset to page 1 when the visible list changes; both setters live here so the
-  // page never lands out of range (the render also clamps via safePage).
-  const selectCategory = (c: FurnitureCategory) => {
+  // Reset to page 1 when the visible list changes; the render also clamps.
+  const selectCategory = (c: CatalogCategory) => {
     setActive(c)
     setPage(0)
   }
@@ -50,80 +60,131 @@ export function CatalogDrawer() {
 
   if (!open || cameraMode !== 'orbit') return null
   const q = query.trim()
-  // Fuzzy (typo-tolerant, ranked best-first) search across name + keywords when
-  // there's a query; otherwise just the active category.
+  // Fuzzy (typo-tolerant, ranked) search across the WHOLE catalog (local +
+  // browsable CC0) when querying; otherwise the active category / favourites.
   const allCards = q
-    ? fuzzySearch(q, Object.values(byCategory).flat(), (d) => [d.name, ...(d.keywords ?? [])])
-    : (byCategory[active] ?? [])
+    ? fuzzySearch(q, unified.all, gridItemText)
+    : active === 'favourites'
+      ? unified.favourites
+      : (unified.byCategory[active] ?? [])
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
   const safePage = Math.min(page, pageCount - 1)
   const cards = allCards.slice(safePage * PAGE_SIZE, safePage * PAGE_SIZE + PAGE_SIZE)
 
+  const totalCount = unified.all.length
+
+  // One flat tab row: the catalog grid, the Objects/Layers tree (store-level
+  // `leftMode`, shared with the command palette + mobile toolbar), and Packs.
+  const view: 'catalog' | 'layers' | 'packs' =
+    leftMode === 'layers' ? 'layers' : mode === 'packs' ? 'packs' : 'catalog'
+  const selectView = (v: 'catalog' | 'layers' | 'packs') => {
+    if (v === 'layers') {
+      setLeftMode('layers')
+    } else {
+      setLeftMode('catalog')
+      setMode(v)
+    }
+  }
+
+  const renderCard = (it: GridItem) =>
+    it.kind === 'local' ? (
+      <CatalogCard
+        key={gridItemId(it)}
+        def={it.def}
+        onDelete={() => removeUserFurniture(it.def.id)}
+      />
+    ) : (
+      <RemoteCard key={gridItemId(it)} entry={it.entry} onResolved={(id) => setActiveDefId(id)} />
+    )
+
   return (
-    <aside className="absolute left-3 top-3 z-10 flex w-80 max-h-[85vh] flex-col rounded-lg bg-white/95 text-neutral-700 shadow">
-      <header className="flex items-center justify-between border-b border-neutral-200 px-4 py-2">
-        <span className="text-sm font-semibold text-neutral-900">Catalog</span>
+    <aside className="panel catalog">
+      <div className="panel-head">
+        <div className="panel-title">
+          {view === 'layers' ? 'Objects' : view === 'packs' ? 'Packs' : 'Catalog'}
+        </div>
         <button
+          type="button"
           onClick={() => setOpen(false)}
-          className="text-neutral-400 hover:text-neutral-700"
+          className="icon-btn"
           aria-label="Close catalog"
         >
-          ×
+          <Icon.Close width={16} height={16} />
         </button>
-      </header>
-      <nav className="flex gap-1 border-b border-neutral-200 px-3 py-2 text-[11px]">
+      </div>
+      <div className="tabs">
         {(
           [
-            ['builtin', 'Built-in'],
-            ['browse-furniture', 'Browse furniture'],
+            ['catalog', 'Catalog'],
+            ['layers', 'Layers'],
             ['packs', 'Packs'],
           ] as const
-        ).map(([m, label]) => (
+        ).map(([v, label]) => (
           <button
-            key={m}
-            onClick={() => setMode(m)}
-            className={`rounded px-2 py-1 ${
-              mode === m ? 'bg-neutral-900 text-white' : 'bg-neutral-100 text-neutral-600'
-            }`}
+            key={v}
+            type="button"
+            onClick={() => selectView(v)}
+            className={`tab${view === v ? ' on' : ''}`}
           >
             {label}
           </button>
         ))}
-      </nav>
-      {mode === 'builtin' ? (
+      </div>
+
+      {view === 'layers' ? (
+        <LayersPanel />
+      ) : view === 'packs' ? (
+        <div
+          className="panel-body"
+          style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
+        >
+          <PacksTab />
+        </div>
+      ) : (
         <>
-          <div className="px-3 pt-2">
-            <input
-              type="search"
-              value={query}
-              onChange={(e) => onSearch(e.target.value)}
-              placeholder="Search furniture…"
-              className="w-full rounded border border-neutral-200 bg-white px-2 py-1 text-xs text-neutral-700 placeholder:text-neutral-400 focus:border-neutral-400 focus:outline-none"
-            />
+          <div className="cat-search">
+            <div className="field">
+              <Icon.Search width={16} height={16} className="icn" />
+              <input
+                type="search"
+                value={query}
+                onChange={(e) => onSearch(e.target.value)}
+                placeholder={`Search ${totalCount} items…`}
+                className="input"
+              />
+            </div>
           </div>
           {q ? null : (
-            <CategoryTabs active={active} onSelect={selectCategory} byCategory={byCategory} />
+            <CategoryTabs
+              active={active}
+              onSelect={selectCategory}
+              counts={unified.counts}
+              favCount={unified.favourites.length}
+            />
           )}
-          <div className="grid grid-cols-2 gap-2 overflow-y-auto p-3">
+          <div className="card-grid">
             {cards.length === 0 ? (
-              <p className="col-span-2 py-6 text-center text-xs text-neutral-500">
-                {q ? `No matches for “${query.trim()}”.` : 'No items in this category yet.'}
+              <p className="empty-mini" style={{ gridColumn: '1 / -1' }}>
+                <span>
+                  {q
+                    ? `No matches for “${query.trim()}”.`
+                    : active === 'favourites'
+                      ? 'No favourites yet — tap the heart on any card to save it here.'
+                      : 'No items in this category yet.'}
+                </span>
               </p>
             ) : (
-              cards.map((def) => (
-                <CatalogCard key={def.id} def={def} onDelete={() => removeUserFurniture(def.id)} />
-              ))
+              cards.map(renderCard)
             )}
           </div>
           {pageCount > 1 ? (
-            <div className="flex items-center justify-between border-t border-neutral-200 px-3 py-1.5 text-[11px] text-neutral-600">
+            <div className="pager">
               <button
                 type="button"
                 onClick={() => setPage((p) => Math.max(0, p - 1))}
                 disabled={safePage === 0}
-                className="rounded px-2 py-0.5 hover:bg-neutral-100 disabled:opacity-40 disabled:hover:bg-transparent"
               >
                 ← Prev
               </button>
@@ -134,47 +195,25 @@ export function CatalogDrawer() {
                 type="button"
                 onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
                 disabled={safePage >= pageCount - 1}
-                className="rounded px-2 py-0.5 hover:bg-neutral-100 disabled:opacity-40 disabled:hover:bg-transparent"
               >
                 Next →
               </button>
             </div>
           ) : null}
-          <footer className="flex flex-col gap-1 border-t border-neutral-200 px-3 py-2 text-[10px] text-neutral-500">
-            <div className="flex items-center justify-between">
-              <span>
-                Drag onto the floor. <kbd className="font-mono">R</kbd> rotates after drop.
-              </span>
-              <button
-                onClick={() => setUploadOpen(true)}
-                className="rounded bg-blue-600 px-2 py-0.5 text-[10px] font-medium text-white hover:bg-blue-700"
-              >
-                Upload model…
-              </button>
-            </div>
+          <div className="cat-foot">
+            <span className="hint">
+              Drag onto the floor · <kbd>R</kbd> rotates
+            </span>
             <button
-              onClick={() => setMode('browse-furniture')}
-              className="text-left text-[10px] text-blue-700 hover:underline"
+              type="button"
+              onClick={() => setUploadOpen(true)}
+              className="btn btn-soft btn-sm"
             >
-              Want photoreal models? Browse free CC0 libraries →
+              <Icon.Upload width={14} height={14} />
+              Upload
             </button>
-          </footer>
+          </div>
         </>
-      ) : mode === 'packs' ? (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <PacksTab />
-        </div>
-      ) : (
-        <div className="flex min-h-0 flex-1 flex-col">
-          <RemoteBrowseTab
-            kind="furniture"
-            onResolved={() => {
-              // Switch to built-in tab so the user can place the resolved item
-              // (it's already merged into the active catalog).
-              setMode('builtin')
-            }}
-          />
-        </div>
       )}
       <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
       <ThumbnailHost />

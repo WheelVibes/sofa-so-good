@@ -10,13 +10,13 @@ export function ToolbarMenu({
   label,
   children,
   active,
-  width = 'w-60',
+  width = 240,
 }: {
   icon: IconName
   label: string
   children: ReactNode
   active?: boolean
-  width?: string
+  width?: number
 }) {
   const ref = useRef<HTMLButtonElement>(null)
   const [open, setOpen] = useState(false)
@@ -30,20 +30,14 @@ export function ToolbarMenu({
         aria-expanded={open}
         aria-label={label}
         onClick={() => setOpen((v) => !v)}
-        className={`flex h-9 items-center gap-1.5 rounded-lg px-2.5 text-sm ${
-          open || active ? 'bg-neutral-900 text-white' : 'text-neutral-700 hover:bg-neutral-200/80'
-        }`}
+        className={`tool-btn${open || active ? ' active' : ''}`}
       >
         <Cmp />
-        <span>{label}</span>
-        <Icon.Chevron width={12} height={12} className="opacity-60" />
+        <span className="cap">{label}</span>
+        <Icon.Chevron width={12} height={12} className="chev" />
       </button>
       <Popover open={open} anchorRef={ref} onClose={() => setOpen(false)}>
-        <div
-          role="menu"
-          onClick={() => setOpen(false)}
-          className={`${width} rounded-xl border border-neutral-200 bg-white p-1.5 shadow-2xl`}
-        >
+        <div role="menu" onClick={() => setOpen(false)} className="pop-panel" style={{ width }}>
           {children}
         </div>
       </Popover>
@@ -71,16 +65,12 @@ export function MenuItem({
       type="button"
       role="menuitem"
       onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-neutral-100 ${
-        active ? 'bg-neutral-100' : ''
-      }`}
+      className={`menu-item${active ? ' active' : ''}`}
     >
-      <span className="text-neutral-600">
-        <Cmp width={16} height={16} />
-      </span>
-      <span className="flex-1">
-        <span className="block text-[13px] text-neutral-800">{label}</span>
-        {sub ? <span className="block text-[10px] text-neutral-400">{sub}</span> : null}
+      <Cmp width={16} height={16} className="icn" />
+      <span className="mi-text">
+        <span className="mi-main">{label}</span>
+        {sub ? <span className="mi-sub">{sub}</span> : null}
       </span>
     </button>
   )

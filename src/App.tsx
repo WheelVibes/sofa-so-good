@@ -17,7 +17,9 @@ import { MarqueeSelector } from './scene/selection/MarqueeSelector'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
 import { BudgetPanel } from './ui/BudgetPanel'
-import { Compass } from './ui/Compass'
+import { ClearancePanel } from './ui/ClearancePanel'
+import { CommandPalette } from './ui/CommandPalette'
+import { ContextMenu } from './ui/ContextMenu'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
@@ -25,13 +27,16 @@ import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
 import { FinishPicker } from './ui/FinishPicker'
 import { FloorPlanEditor } from './ui/floorplan/FloorPlanEditor'
-import { HelpHint } from './ui/HelpHint'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
-import { Minimap } from './ui/Minimap'
+import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
+import { hasOnboarded, Onboarding } from './ui/Onboarding'
+import { ShareModal } from './ui/ShareModal'
+import { SwapModal } from './ui/SwapModal'
 import { Toolbar } from './ui/Toolbar'
+import { VersionsPanel } from './ui/VersionsPanel'
 import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
 
@@ -41,10 +46,17 @@ export default function App() {
   const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const bootPhase = useStore((s) => s.bootPhase)
+  const sceneReady = useStore((s) => s.sceneReady)
   const loading = useStore((s) => s.loading)
   const hideLoading = useStore((s) => s.hideLoading)
   const catalog = useCatalog()
   usePlacementController()
+
+  // The boot loading screen is held until the bootstrap has resolved AND the
+  // scene has painted its first solid frames — so the front-facing 3D view is
+  // already nice when revealed. Non-front-facing UI (catalog, browse, packs)
+  // loads lazily/in the background and never gates this.
+  const booting = bootPhase !== 'ready' || !sceneReady
 
   // Kick off the async boot bootstrap (hydration + default-layout seed) once.
   // Runs after the first paint, so the loading overlay shows immediately
@@ -52,6 +64,70 @@ export default function App() {
   useEffect(() => {
     void runBootstrap()
   }, [])
+
+  // Remove the static boot loader (baked into index.html so it paints before
+  // the JS bundle even loads) now that React has committed its first frame —
+  // the identical <LoadingOverlay> is on screen, so the handoff is seamless and
+  // there's no blank gap on a cold load.
+  useEffect(() => {
+    document.getElementById('boot-loader')?.remove()
+  }, [])
+
+  // Global ⌘K / Ctrl-K toggles the command palette from anywhere (including
+  // while a text input is focused), so it's added directly rather than through
+  // the editor-scoped keyboard handler.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
+        e.preventDefault()
+        useStore.getState().toggleCmdk()
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
+  // Toggle the `mobile` body class at the ≤640px breakpoint so the responsive
+  // layer (bottom-sheet panels, hidden nav cluster, viewport-fit modals) kicks
+  // in. The prototype's vanilla app set this; the React port mirrors it.
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const apply = () => document.body.classList.toggle('mobile', mq.matches)
+    apply()
+    mq.addEventListener('change', apply)
+    return () => mq.removeEventListener('change', apply)
+  }, [])
+
+  // Once the front-facing scene is up, warm non-front-facing assets in the
+  // background during idle time so panels behind modals/drawers (e.g. the
+  // catalog's Browse CC0 index) are ready when summoned — without ever
+  // competing with the initial scene paint or gating the loading screen.
+  useEffect(() => {
+    if (!booting) {
+      const warm = () => {
+        const s = useStore.getState()
+        if (s.remoteIndexes.polyhaven.status === 'idle') void s.bootstrapRemoteCatalog()
+      }
+      const w = window as typeof window & {
+        requestIdleCallback?: (cb: () => void, o?: { timeout: number }) => number
+        cancelIdleCallback?: (id: number) => void
+      }
+      if (w.requestIdleCallback) {
+        const id = w.requestIdleCallback(warm, { timeout: 4000 })
+        return () => w.cancelIdleCallback?.(id)
+      }
+      const id = window.setTimeout(warm, 2000)
+      return () => window.clearTimeout(id)
+    }
+  }, [booting])
+
+  // Show the first-run onboarding once boot is ready (so it sits above the
+  // furnished flat, not the loading overlay). Suppressed after completion.
+  useEffect(() => {
+    if (!booting && !hasOnboarded()) {
+      useStore.getState().setOnboardingOpen(true)
+    }
+  }, [booting])
 
   // Transition overlays (orbit↔walk, room editor enter/exit) set loading.active
   // true synchronously; clear it on the next frame after the swap commits, so
@@ -421,23 +497,28 @@ export default function App() {
         <Toolbar />
         {roomEditorActive ? <RoomEditorScene /> : <Scene />}
         <MarqueeSelector />
-        <Compass />
-        <Minimap />
+        <NavCluster />
         <DragHud />
         <Crosshair />
         <DoorPrompt />
-        <HelpHint />
         <CatalogDrawer />
         <InspectorPanel />
         <BudgetPanel />
         <FinishPicker />
         <WallAccentPicker />
         <NotificationContainer />
+        <CommandPalette />
+        <ContextMenu />
+        <SwapModal />
+        <ShareModal />
+        <ClearancePanel />
+        <VersionsPanel />
+        <Onboarding />
         <LocationPrompt />
         <FloorPlanEditor />
         <LoadingOverlay
-          active={bootPhase !== 'ready' || loading.active}
-          label={bootPhase !== 'ready' ? 'Furnishing your flat…' : loading.label}
+          active={booting || loading.active}
+          label={booting ? 'Furnishing your flat…' : loading.label}
         />
       </div>
     </WebGLFallback>

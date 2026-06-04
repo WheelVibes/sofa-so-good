@@ -8,13 +8,9 @@ interface EnumFieldProps {
 
 export function EnumField({ field, value, onChange }: EnumFieldProps) {
   return (
-    <label className="flex items-center justify-between gap-2 text-xs text-neutral-700">
-      <span className="flex-1">{field.label}</span>
-      <select
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className="rounded border border-neutral-300 bg-white px-2 py-0.5 text-xs"
-      >
+    <label className="fld">
+      <span className="lbl">{field.label}</span>
+      <select value={value} onChange={(e) => onChange(e.target.value)} className="input">
         {field.options.map((o) => (
           <option key={o.value} value={o.value}>
             {o.label}

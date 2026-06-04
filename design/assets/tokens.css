@@ -1,0 +1,311 @@
+/* ============================================================
+   HDB Sandbox — Design Tokens
+   One warm, domestic, Singapore-rooted system.
+   4 themes (clay, kampong, porcelain, estate) × light/dark.
+   Switch via [data-theme] + [data-mode] on a container.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* Type */
+  --font-ui: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', ui-monospace, monospace;
+
+  /* Crisp, architectural corners (user picked sharpest) */
+  --r-1: 3px;   /* chips, kbd */
+  --r-2: 5px;   /* buttons, inputs, cards */
+  --r-3: 7px;   /* panels */
+  --r-pill: 999px;
+
+  /* Spacing — balanced/compact pro-tool rhythm */
+  --s-1: 4px;
+  --s-2: 6px;
+  --s-3: 8px;
+  --s-4: 12px;
+  --s-5: 16px;
+  --s-6: 20px;
+  --s-7: 28px;
+
+  /* Type scale */
+  --t-2xs: 10px;
+  --t-xs: 11px;
+  --t-sm: 12px;
+  --t-base: 13px;
+  --t-md: 14px;
+  --t-lg: 16px;
+  --t-xl: 20px;
+
+  --blur: 16px;
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --dur: 0.16s;
+
+  --z-hud: 10;
+  --z-panel: 20;
+  --z-pop: 40;
+  --z-overlay: 60;
+}
+
+/* ============================================================
+   THEME 1 — CLAY  (warm paper + terracotta)  — default
+   ============================================================ */
+[data-theme='clay'][data-mode='light'] {
+  --scene-a: oklch(0.95 0.018 70);
+  --scene-b: oklch(0.9 0.022 55);
+  --scene-floor: oklch(0.86 0.03 65);
+  --grid: oklch(0.5 0.04 60 / 0.12);
+
+  --surface: oklch(0.995 0.006 75 / 0.86);
+  --surface-solid: oklch(0.995 0.006 75);
+  --surface-2: oklch(0.96 0.01 70);
+  --surface-3: oklch(0.93 0.014 68);
+  --elevated: oklch(0.995 0.006 75 / 0.97);
+
+  --border: oklch(0.5 0.02 60 / 0.14);
+  --border-2: oklch(0.5 0.02 60 / 0.26);
+
+  --text: oklch(0.27 0.024 52);
+  --text-2: oklch(0.46 0.022 55);
+  --text-3: oklch(0.62 0.018 58);
+
+  --accent: oklch(0.6 0.125 42);
+  --accent-2: oklch(0.53 0.13 40);
+  --on-accent: oklch(0.99 0.01 70);
+  --accent-soft: oklch(0.6 0.125 42 / 0.13);
+  --accent-soft-text: oklch(0.46 0.13 40);
+
+  --danger: oklch(0.57 0.18 20);
+  --danger-soft: oklch(0.57 0.18 20 / 0.12);
+
+  --shadow-panel: 0 1px 2px oklch(0.3 0.03 50 / 0.06), 0 8px 24px oklch(0.3 0.03 50 / 0.12);
+  --shadow-pop: 0 4px 12px oklch(0.3 0.03 50 / 0.14), 0 16px 40px oklch(0.3 0.03 50 / 0.2);
+}
+[data-theme='clay'][data-mode='dark'] {
+  --scene-a: oklch(0.3 0.02 50);
+  --scene-b: oklch(0.22 0.018 45);
+  --scene-floor: oklch(0.26 0.022 55);
+  --grid: oklch(0.85 0.03 60 / 0.1);
+
+  --surface: oklch(0.25 0.014 48 / 0.84);
+  --surface-solid: oklch(0.25 0.014 48);
+  --surface-2: oklch(0.3 0.016 50);
+  --surface-3: oklch(0.35 0.018 52);
+  --elevated: oklch(0.27 0.014 48 / 0.97);
+
+  --border: oklch(0.9 0.02 60 / 0.1);
+  --border-2: oklch(0.9 0.02 60 / 0.2);
+
+  --text: oklch(0.93 0.012 72);
+  --text-2: oklch(0.76 0.016 65);
+  --text-3: oklch(0.6 0.016 60);
+
+  --accent: oklch(0.68 0.13 44);
+  --accent-2: oklch(0.74 0.13 46);
+  --on-accent: oklch(0.2 0.02 40);
+  --accent-soft: oklch(0.68 0.13 44 / 0.18);
+  --accent-soft-text: oklch(0.78 0.11 48);
+
+  --danger: oklch(0.68 0.16 22);
+  --danger-soft: oklch(0.68 0.16 22 / 0.16);
+
+  --shadow-panel: 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 30px oklch(0 0 0 / 0.4);
+  --shadow-pop: 0 6px 16px oklch(0 0 0 / 0.4), 0 20px 48px oklch(0 0 0 / 0.55);
+}
+
+/* ============================================================
+   THEME 2 — KAMPONG  (sand + tropical garden green)
+   ============================================================ */
+[data-theme='kampong'][data-mode='light'] {
+  --scene-a: oklch(0.95 0.02 95);
+  --scene-b: oklch(0.91 0.028 110);
+  --scene-floor: oklch(0.87 0.03 95);
+  --grid: oklch(0.5 0.05 140 / 0.12);
+
+  --surface: oklch(0.99 0.01 95 / 0.86);
+  --surface-solid: oklch(0.99 0.01 95);
+  --surface-2: oklch(0.96 0.013 100);
+  --surface-3: oklch(0.93 0.016 105);
+  --elevated: oklch(0.99 0.01 95 / 0.97);
+
+  --border: oklch(0.5 0.03 120 / 0.14);
+  --border-2: oklch(0.5 0.03 120 / 0.26);
+
+  --text: oklch(0.27 0.02 120);
+  --text-2: oklch(0.45 0.02 125);
+  --text-3: oklch(0.61 0.016 120);
+
+  --accent: oklch(0.55 0.1 152);
+  --accent-2: oklch(0.48 0.105 150);
+  --on-accent: oklch(0.99 0.01 120);
+  --accent-soft: oklch(0.55 0.1 152 / 0.14);
+  --accent-soft-text: oklch(0.43 0.1 150);
+
+  --danger: oklch(0.57 0.18 28);
+  --danger-soft: oklch(0.57 0.18 28 / 0.12);
+
+  --shadow-panel: 0 1px 2px oklch(0.3 0.04 130 / 0.06), 0 8px 24px oklch(0.3 0.04 130 / 0.12);
+  --shadow-pop: 0 4px 12px oklch(0.3 0.04 130 / 0.14), 0 16px 40px oklch(0.3 0.04 130 / 0.2);
+}
+[data-theme='kampong'][data-mode='dark'] {
+  --scene-a: oklch(0.28 0.025 150);
+  --scene-b: oklch(0.21 0.02 145);
+  --scene-floor: oklch(0.25 0.022 150);
+  --grid: oklch(0.85 0.04 140 / 0.1);
+
+  --surface: oklch(0.24 0.018 150 / 0.84);
+  --surface-solid: oklch(0.24 0.018 150);
+  --surface-2: oklch(0.29 0.02 152);
+  --surface-3: oklch(0.34 0.022 152);
+  --elevated: oklch(0.26 0.018 150 / 0.97);
+
+  --border: oklch(0.9 0.03 140 / 0.1);
+  --border-2: oklch(0.9 0.03 140 / 0.2);
+
+  --text: oklch(0.93 0.014 120);
+  --text-2: oklch(0.76 0.016 125);
+  --text-3: oklch(0.6 0.016 122);
+
+  --accent: oklch(0.68 0.12 154);
+  --accent-2: oklch(0.74 0.12 156);
+  --on-accent: oklch(0.18 0.02 150);
+  --accent-soft: oklch(0.68 0.12 154 / 0.18);
+  --accent-soft-text: oklch(0.78 0.1 156);
+
+  --danger: oklch(0.68 0.16 28);
+  --danger-soft: oklch(0.68 0.16 28 / 0.16);
+
+  --shadow-panel: 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 30px oklch(0 0 0 / 0.42);
+  --shadow-pop: 0 6px 16px oklch(0 0 0 / 0.42), 0 20px 48px oklch(0 0 0 / 0.55);
+}
+
+/* ============================================================
+   THEME 3 — PORCELAIN  (cool refined neutral + teal-jade)
+   ============================================================ */
+[data-theme='porcelain'][data-mode='light'] {
+  --scene-a: oklch(0.95 0.008 230);
+  --scene-b: oklch(0.91 0.012 220);
+  --scene-floor: oklch(0.88 0.014 225);
+  --grid: oklch(0.5 0.03 220 / 0.12);
+
+  --surface: oklch(0.995 0.003 240 / 0.84);
+  --surface-solid: oklch(0.995 0.003 240);
+  --surface-2: oklch(0.965 0.005 235);
+  --surface-3: oklch(0.935 0.007 235);
+  --elevated: oklch(0.995 0.003 240 / 0.97);
+
+  --border: oklch(0.5 0.015 235 / 0.15);
+  --border-2: oklch(0.5 0.015 235 / 0.28);
+
+  --text: oklch(0.26 0.012 245);
+  --text-2: oklch(0.45 0.012 245);
+  --text-3: oklch(0.61 0.01 245);
+
+  --accent: oklch(0.58 0.075 200);
+  --accent-2: oklch(0.5 0.08 200);
+  --on-accent: oklch(0.99 0.005 220);
+  --accent-soft: oklch(0.58 0.075 200 / 0.14);
+  --accent-soft-text: oklch(0.45 0.08 200);
+
+  --danger: oklch(0.57 0.17 18);
+  --danger-soft: oklch(0.57 0.17 18 / 0.12);
+
+  --shadow-panel: 0 1px 2px oklch(0.3 0.02 235 / 0.06), 0 8px 24px oklch(0.3 0.02 235 / 0.12);
+  --shadow-pop: 0 4px 12px oklch(0.3 0.02 235 / 0.14), 0 16px 40px oklch(0.3 0.02 235 / 0.2);
+}
+[data-theme='porcelain'][data-mode='dark'] {
+  --scene-a: oklch(0.28 0.012 245);
+  --scene-b: oklch(0.21 0.01 245);
+  --scene-floor: oklch(0.25 0.011 245);
+  --grid: oklch(0.85 0.02 230 / 0.1);
+
+  --surface: oklch(0.23 0.009 248 / 0.82);
+  --surface-solid: oklch(0.23 0.009 248);
+  --surface-2: oklch(0.28 0.011 248);
+  --surface-3: oklch(0.33 0.013 248);
+  --elevated: oklch(0.25 0.009 248 / 0.97);
+
+  --border: oklch(0.9 0.015 235 / 0.1);
+  --border-2: oklch(0.9 0.015 235 / 0.2);
+
+  --text: oklch(0.93 0.006 245);
+  --text-2: oklch(0.76 0.008 245);
+  --text-3: oklch(0.6 0.008 245);
+
+  --accent: oklch(0.68 0.085 198);
+  --accent-2: oklch(0.74 0.085 198);
+  --on-accent: oklch(0.18 0.015 240);
+  --accent-soft: oklch(0.68 0.085 198 / 0.18);
+  --accent-soft-text: oklch(0.78 0.075 198);
+
+  --danger: oklch(0.68 0.15 20);
+  --danger-soft: oklch(0.68 0.15 20 / 0.16);
+
+  --shadow-panel: 0 1px 2px oklch(0 0 0 / 0.32), 0 10px 30px oklch(0 0 0 / 0.44);
+  --shadow-pop: 0 6px 16px oklch(0 0 0 / 0.44), 0 20px 48px oklch(0 0 0 / 0.58);
+}
+
+/* ============================================================
+   THEME 4 — ESTATE  (warm HDB concrete + amber/ochre)
+   ============================================================ */
+[data-theme='estate'][data-mode='light'] {
+  --scene-a: oklch(0.93 0.008 85);
+  --scene-b: oklch(0.88 0.01 80);
+  --scene-floor: oklch(0.85 0.012 82);
+  --grid: oklch(0.5 0.02 75 / 0.14);
+
+  --surface: oklch(0.98 0.004 85 / 0.86);
+  --surface-solid: oklch(0.98 0.004 85);
+  --surface-2: oklch(0.945 0.006 82);
+  --surface-3: oklch(0.915 0.008 80);
+  --elevated: oklch(0.98 0.004 85 / 0.97);
+
+  --border: oklch(0.45 0.012 75 / 0.16);
+  --border-2: oklch(0.45 0.012 75 / 0.3);
+
+  --text: oklch(0.25 0.009 72);
+  --text-2: oklch(0.44 0.01 72);
+  --text-3: oklch(0.6 0.009 74);
+
+  --accent: oklch(0.64 0.12 62);
+  --accent-2: oklch(0.57 0.125 58);
+  --on-accent: oklch(0.99 0.01 80);
+  --accent-soft: oklch(0.64 0.12 62 / 0.14);
+  --accent-soft-text: oklch(0.48 0.12 58);
+
+  --danger: oklch(0.57 0.18 22);
+  --danger-soft: oklch(0.57 0.18 22 / 0.12);
+
+  --shadow-panel: 0 1px 2px oklch(0.3 0.02 75 / 0.07), 0 8px 24px oklch(0.3 0.02 75 / 0.13);
+  --shadow-pop: 0 4px 12px oklch(0.3 0.02 75 / 0.15), 0 16px 40px oklch(0.3 0.02 75 / 0.22);
+}
+[data-theme='estate'][data-mode='dark'] {
+  --scene-a: oklch(0.27 0.008 75);
+  --scene-b: oklch(0.2 0.006 70);
+  --scene-floor: oklch(0.24 0.007 72);
+  --grid: oklch(0.85 0.02 75 / 0.1);
+
+  --surface: oklch(0.22 0.006 72 / 0.84);
+  --surface-solid: oklch(0.22 0.006 72);
+  --surface-2: oklch(0.27 0.008 72);
+  --surface-3: oklch(0.32 0.01 72);
+  --elevated: oklch(0.24 0.006 72 / 0.97);
+
+  --border: oklch(0.9 0.012 75 / 0.1);
+  --border-2: oklch(0.9 0.012 75 / 0.2);
+
+  --text: oklch(0.92 0.006 78);
+  --text-2: oklch(0.75 0.008 74);
+  --text-3: oklch(0.59 0.008 72);
+
+  --accent: oklch(0.72 0.12 64);
+  --accent-2: oklch(0.78 0.12 66);
+  --on-accent: oklch(0.18 0.02 60);
+  --accent-soft: oklch(0.72 0.12 64 / 0.18);
+  --accent-soft-text: oklch(0.8 0.1 66);
+
+  --danger: oklch(0.68 0.16 24);
+  --danger-soft: oklch(0.68 0.16 24 / 0.16);
+
+  --shadow-panel: 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 30px oklch(0 0 0 / 0.42);
+  --shadow-pop: 0 6px 16px oklch(0 0 0 / 0.42), 0 20px 48px oklch(0 0 0 / 0.55);
+}

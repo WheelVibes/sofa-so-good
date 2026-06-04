@@ -1,13 +1,21 @@
 import { useEffect, useRef, useState } from 'react'
 import { useResolveStatus, useThumbnail } from '../../catalog/remote/hooks'
 import type { RemoteEntry } from '../../catalog/remote/types'
+import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { Icon } from '../toolbar/icons'
+import { CategoryIcon } from './CategoryIcon'
 
 interface Props {
   entry: RemoteEntry
+  /** Called with the resolved def id (`provider:slug:resolution`) once the
+   *  asset is downloaded — the drawer arms placement / switches to the grid. */
   onResolved: (id: string) => void
 }
 
+/** A browsable CC0 model card, styled identically to {@link CatalogCard}.
+ *  Clicking downloads the model (if needed) then hands the resolved id back so
+ *  the drawer can arm placement. Carries the same heart favourite button. */
 export function RemoteCard({ entry, onResolved }: Props) {
   const [visible, setVisible] = useState(false)
   const cardRef = useRef<HTMLDivElement | null>(null)
@@ -15,7 +23,12 @@ export function RemoteCard({ entry, onResolved }: Props) {
   const resolution = useStore((s) => s.preferredResolution)
   const resolve = useStore((s) => s.resolveRemoteAsset)
   const key = `${entry.provider}:${entry.slug}:${resolution}`
+  const favId = `${entry.provider}:${entry.slug}`
   const status = useResolveStatus(key)
+  const saved = useStore((s) => s.collections.includes(favId))
+  const toggleCollection = useStore((s) => s.toggleCollection)
+  // Furniture remote entries always carry a FurnitureCategory.
+  const category = entry.category as FurnitureCategory
 
   useEffect(() => {
     const el = cardRef.current
@@ -33,44 +46,56 @@ export function RemoteCard({ entry, onResolved }: Props) {
     return () => obs.disconnect()
   }, [visible])
 
+  const onClick = async () => {
+    if (status === 'fetching') return
+    if (status !== 'ready') await resolve(entry, resolution)
+    onResolved(key)
+  }
+
   return (
-    <div
-      ref={cardRef}
-      className="relative flex flex-col gap-1 rounded border border-neutral-200 p-2 text-[10px]"
-    >
-      <div className="flex h-32 w-full items-center justify-center bg-neutral-100">
-        {thumb ? (
-          <img src={thumb} alt={entry.name} className="h-full w-full object-contain" />
-        ) : (
-          <span className="text-neutral-300">…</span>
-        )}
-      </div>
-      <div className="truncate font-medium text-neutral-800" title={entry.name}>
-        {entry.name}
-      </div>
-      <div className="truncate text-[9px] text-neutral-400" title={entry.attribution}>
-        {entry.attribution}
-      </div>
+    <div ref={cardRef} onClick={() => void onClick()} className="cat-card group">
       <button
-        onClick={async () => {
-          if (status === 'ready') {
-            onResolved(key)
-            return
-          }
-          await resolve(entry, resolution)
-          onResolved(key)
+        type="button"
+        className={`fav-btn${saved ? ' on' : ''}`}
+        aria-label={saved ? 'Remove from favourites' : 'Add to favourites'}
+        onClick={(e) => {
+          e.stopPropagation()
+          toggleCollection(favId)
         }}
-        disabled={status === 'fetching'}
-        className="rounded bg-blue-600 px-2 py-0.5 text-white disabled:bg-neutral-300"
       >
-        {status === 'ready'
-          ? 'Place'
-          : status === 'fetching'
-            ? 'Loading…'
-            : status === 'error'
-              ? 'Retry'
-              : 'Add'}
+        <Icon.Heart width={14} height={14} />
       </button>
+      <div className="card-thumb">
+        {thumb ? (
+          <img src={thumb} alt={entry.name} />
+        ) : (
+          <CategoryIcon category={category} width={40} height={40} />
+        )}
+        {status === 'fetching' ? (
+          <span className="thumb-status">Downloading…</span>
+        ) : status === 'error' ? (
+          <span className="thumb-status err">Retry</span>
+        ) : null}
+      </div>
+      <div className="nm" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+        <CategoryIcon category={category} width={14} height={14} style={{ flex: 'none' }} />
+        <span
+          style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+          title={entry.name}
+        >
+          {entry.name}
+        </span>
+      </div>
+      <span
+        className="pr"
+        style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        title={entry.attribution}
+      >
+        {status === 'ready' ? 'Downloaded · place' : 'CC0 · tap to add'}
+      </span>
+      <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>
+        CC0
+      </span>
     </div>
   )
 }

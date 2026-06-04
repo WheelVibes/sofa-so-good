@@ -2,6 +2,7 @@ import { glbFootprint } from '../../catalog/packs/footprint'
 import { InstalledPackStore } from '../../catalog/packs/installedPackStore'
 import { AVAILABLE_PACKS } from '../../catalog/packs/registry'
 import { packEntryScale, scaledFootprint } from '../../catalog/packs/scaleHeuristic'
+import { ThumbnailRenderer } from '../../catalog/packs/thumbnail'
 import type { InstalledPack } from '../../catalog/packs/types'
 import type { PackGltfDef } from '../../furniture/types'
 import { useStore } from '../store'
@@ -15,7 +16,7 @@ import { IdbAssetStore } from './IdbAssetStore'
 export async function hydratePacks(): Promise<void> {
   if (typeof indexedDB === 'undefined') return
 
-  let installed
+  let installed: InstalledPack[]
   try {
     installed = await InstalledPackStore.list()
   } catch {
@@ -25,6 +26,29 @@ export async function hydratePacks(): Promise<void> {
 
   const defs: PackGltfDef[] = []
   const store = useStore.getState()
+
+  // Legacy packs stored their thumbnails as JPEG, which has no alpha and baked a
+  // black background behind the model. Re-render those to transparent PNG once,
+  // lazily (the renderer is only created when a legacy thumb is actually found),
+  // so already-installed packs match parametric/PNG cards' uniform background.
+  let thumbRenderer: ThumbnailRenderer | null = null
+  const refreshLegacyThumb = async (
+    thumb: Awaited<ReturnType<typeof IdbAssetStore.get>>,
+    glbBlob: Blob,
+  ): Promise<Blob | undefined> => {
+    if (!thumb) return undefined
+    if (thumb.mime !== 'image/jpeg') return thumb.blob
+    try {
+      thumbRenderer ??= new ThumbnailRenderer()
+      const bytes = new Uint8Array(await glbBlob.arrayBuffer())
+      const png = await thumbRenderer.render(bytes)
+      await IdbAssetStore.put({ ...thumb, mime: 'image/png', blob: png })
+      return png
+    } catch {
+      // Best-effort — keep the legacy blob if a re-render fails.
+      return thumb.blob
+    }
+  }
 
   for (const pack of installed) {
     const meta = AVAILABLE_PACKS.find((p) => p.id === pack.packId)
@@ -55,6 +79,8 @@ export async function hydratePacks(): Promise<void> {
         mutated = true
       }
 
+      const thumbBlob = await refreshLegacyThumb(thumb, glb.blob)
+
       migratedEntries.push({ ...e, scale, footprint })
       defs.push({
         id: e.id,
@@ -67,10 +93,12 @@ export async function hydratePacks(): Promise<void> {
         defaultFootprint: footprint,
         scale,
         runtimeUrl: URL.createObjectURL(glb.blob),
-        thumbUrl: thumb ? URL.createObjectURL(thumb.blob) : undefined,
-        license: 'CC0',
-        attribution,
-        sourceUrl,
+        thumbUrl: thumbBlob ? URL.createObjectURL(thumbBlob) : undefined,
+        // API-sourced packs (Poly Pizza) credit a different author + licence per
+        // entry; fall back to the pack-level defaults for zip packs.
+        license: e.license ?? 'CC0',
+        attribution: e.attribution ?? attribution,
+        sourceUrl: e.sourceUrl ?? sourceUrl,
       })
     }
 
@@ -86,5 +114,6 @@ export async function hydratePacks(): Promise<void> {
     }
     store.markPackInstalled(finalPack)
   }
+  ;(thumbRenderer as ThumbnailRenderer | null)?.dispose()
   useStore.getState().setPackFurniture(defs)
 }

@@ -25,7 +25,7 @@ export function SceneMenu() {
 
   return (
     <>
-      <ToolbarMenu icon="Time" label="Scene" width="w-60">
+      <ToolbarMenu icon="Time" label="Scene" width={248}>
         <MenuItem
           icon="Time"
           label="System time"
@@ -45,15 +45,15 @@ export function SceneMenu() {
         ))}
         {/* Custom time row — stopPropagation so editing the input doesn't close the menu. */}
         <div className="flex items-center gap-2 px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
-          <span className="flex-1 text-[13px] text-neutral-800">Custom</span>
+          <span className="flex-1 text-[13px] text-[var(--text)]">Custom</span>
           <input
             type="time"
             value={formatTimeInput(effectiveHour)}
             onChange={onCustomChange}
-            className="rounded border border-neutral-200 bg-white px-1 py-0.5 text-xs"
+            className="rounded border border-[var(--border)] bg-[var(--surface-solid)] px-1 py-0.5 text-xs"
           />
         </div>
-        <div className="mt-1 border-t border-neutral-100 pt-1">
+        <div className="mt-1 border-t border-[var(--border)] pt-1">
           <MenuItem
             icon="Sun"
             label="Sun direction"

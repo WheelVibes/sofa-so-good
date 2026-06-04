@@ -3,8 +3,12 @@ import { ROOMS } from '../../apartment/constants'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { useStore } from '../../state/store'
 import { GraphicsSettings } from '../GraphicsSettings'
+import { HelpModal } from '../HelpModal'
+import { BrandMark } from '../Logo'
+import { AppearancePopover } from './AppearancePopover'
 import { IconButton } from './IconButton'
 import { Icon } from './icons'
+import { MobileToolbar } from './MobileToolbar'
 import { ArrangeMenu } from './menus/ArrangeMenu'
 import { FileMenu } from './menus/FileMenu'
 import { SceneMenu } from './menus/SceneMenu'
@@ -15,7 +19,7 @@ import { shortcutLabel } from './shortcuts'
 import { MenuItem } from './ToolbarMenu'
 
 function Divider() {
-  return <div className="mx-1 h-6 w-px shrink-0 bg-neutral-300/70" />
+  return <div className="tool-divider" />
 }
 
 const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 'On', off: 'Off' }
@@ -46,8 +50,20 @@ export function Toolbar() {
   const lightsMode = useStore((s) => s.lightsMode)
   const cycleLightsMode = useStore((s) => s.cycleLightsMode)
   const qualityTier = useStore((s) => s.qualityTier)
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
 
   const [graphicsOpen, setGraphicsOpen] = useState(false)
+  const helpOpen = useStore((s) => s.helpOpen)
+  const setHelpOpen = useStore((s) => s.setHelpOpen)
+  const [isMobile, setIsMobile] = useState(
+    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches,
+  )
+  useEffect(() => {
+    const mq = window.matchMedia('(max-width: 640px)')
+    const onChange = () => setIsMobile(mq.matches)
+    mq.addEventListener('change', onChange)
+    return () => mq.removeEventListener('change', onChange)
+  }, [])
 
   const orbit = cameraMode === 'orbit'
   const roomName = roomEditorRoomId ? (ROOMS[roomEditorRoomId]?.name ?? 'room') : ''
@@ -107,12 +123,29 @@ export function Toolbar() {
   }, [])
   const gridLabel = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`
 
+  // The 2D floor-plan editor is a focused full-screen mode with its own header
+  // bar, so the main island would otherwise float over it. Hide it there.
+  if (floorPlanEditing) return null
+
+  if (isMobile) {
+    return (
+      <>
+        <MobileToolbar />
+        <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
+        <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+      </>
+    )
+  }
+
   return (
-    <div className="absolute left-1/2 top-3 z-10 -translate-x-1/2">
-      <div
-        ref={scrollRef}
-        className="toolbar-scroll flex max-w-[96vw] items-center gap-0.5 overflow-x-auto rounded-2xl border border-white/60 bg-white/85 px-2 py-1.5 shadow-xl backdrop-blur"
-      >
+    <>
+      <div ref={scrollRef} className="toolbar toolbar-scroll">
+        {/* Brand mark */}
+        <div className="brand-dot" title="Sofa So Good">
+          <BrandMark size={22} />
+        </div>
+        <Divider />
+
         {/* Exit per-room editor — leftmost while the room editor is active. */}
         {roomEditorActive && (
           <>
@@ -165,11 +198,12 @@ export function Toolbar() {
             />
             {snapEnabled ? (
               <button
+                type="button"
                 onClick={cycleGridSize}
                 title="Grid cell size"
-                className="h-9 rounded-lg px-2 text-xs text-neutral-600 hover:bg-neutral-200/80"
+                className="tool-btn"
               >
-                {gridLabel}
+                <span className="cap mono">{gridLabel}</span>
               </button>
             ) : null}
             <IconButton
@@ -212,10 +246,22 @@ export function Toolbar() {
             <FileMenu />
           </>
         )}
+
+        {/* Appearance + Help live on the right of the island in every mode. */}
+        <Divider />
+        <AppearancePopover />
+        <IconButton
+          icon="Help"
+          label="Help & shortcuts"
+          shortcut="?"
+          active={helpOpen}
+          onClick={() => setHelpOpen(true)}
+        />
       </div>
 
       <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
-    </div>
+      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
+    </>
   )
 }
 
@@ -237,10 +283,10 @@ function CameraControl({
         type="button"
         aria-label="Camera mode"
         onClick={() => setOpen((v) => !v)}
-        className="flex h-9 items-center gap-1 rounded-lg bg-neutral-900 px-2.5 text-white"
+        className={`tool-btn${open ? ' active' : ''}`}
       >
-        {/* reuse the same icon names via IconButton-free inline render */}
         <span className="inline-flex">{isOrbit ? <OrbitGlyph /> : <WalkGlyph />}</span>
+        <span className="cap">{isOrbit ? 'Orbit' : 'Walk'}</span>
         <ChevronGlyph />
       </button>
       <ToolbarMenuLite open={open} anchorRef={ref} onClose={() => setOpen(false)}>
@@ -277,7 +323,7 @@ function WalkGlyph() {
   return <Icon.Walk />
 }
 function ChevronGlyph() {
-  return <Icon.Chevron width={12} height={12} className="opacity-60" />
+  return <Icon.Chevron width={12} height={12} className="chev" />
 }
 
 /** A bare popover panel (no trigger) for the camera control. */
@@ -294,10 +340,7 @@ function ToolbarMenuLite({
 }) {
   return (
     <Popover open={open} anchorRef={anchorRef} onClose={onClose}>
-      <div
-        role="menu"
-        className="w-52 rounded-xl border border-neutral-200 bg-white p-1.5 shadow-2xl"
-      >
+      <div role="menu" className="pop-panel" style={{ width: 220 }}>
         {children}
       </div>
     </Popover>

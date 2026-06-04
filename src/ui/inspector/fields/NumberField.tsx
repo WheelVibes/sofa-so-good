@@ -8,8 +8,8 @@ interface NumberFieldProps {
 
 export function NumberField({ field, value, onChange }: NumberFieldProps) {
   return (
-    <label className="flex items-center justify-between gap-2 text-xs text-neutral-700">
-      <span className="flex-1">{field.label}</span>
+    <label className="fld">
+      <span className="lbl">{field.label}</span>
       <input
         type="range"
         min={field.min}
@@ -17,9 +17,9 @@ export function NumberField({ field, value, onChange }: NumberFieldProps) {
         step={field.step}
         value={value}
         onChange={(e) => onChange(Number(e.target.value))}
-        className="flex-1 accent-blue-500"
+        className="slider"
       />
-      <span className="w-12 text-right font-mono">
+      <span className="val">
         {value.toFixed(2)}
         {field.unit ? ` ${field.unit}` : ''}
       </span>

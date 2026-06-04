@@ -1,0 +1,15 @@
+{
+  "id": "pool-table-8ft",
+  "name": "Pool Table (8 ft)",
+  "category": "tables",
+  "footprint": {
+    "w": 2.38,
+    "d": 1.323,
+    "h": 0.8
+  },
+  "scale": 1,
+  "anchor": "floor-center",
+  "license": "CC-BY",
+  "attribution": "Evol-Love (poly.pizza)",
+  "sourceUrl": "https://poly.pizza/m/7GzmqI1M0fC"
+}

@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { createPortal } from 'react-dom'
 import type { MaterialCategory } from '../../materials/types'
 import { type MaterialUploadFiles, persistUserMaterial } from '../../materials/upload/persist'
 
@@ -18,10 +19,10 @@ interface ChannelSlotProps {
 
 function ChannelSlot({ label, required, file, onPick }: ChannelSlotProps) {
   return (
-    <label className="flex items-center justify-between gap-2 rounded border border-neutral-200 px-2 py-1 text-xs">
+    <label className="flex items-center justify-between gap-2 rounded border border-[var(--border)] px-2 py-1 text-xs">
       <span>
         {label}
-        {required ? <span className="text-rose-600">*</span> : null}
+        {required ? <span className="text-[var(--danger)]">*</span> : null}
       </span>
       <input
         type="file"
@@ -29,7 +30,7 @@ function ChannelSlot({ label, required, file, onPick }: ChannelSlotProps) {
         onChange={(e) => onPick(e.target.files?.[0] ?? null)}
         className="text-[10px]"
       />
-      <span className="w-20 truncate text-right text-[10px] text-neutral-500">
+      <span className="w-20 truncate text-right text-[10px] text-[var(--text-3)]">
         {file ? file.name : '—'}
       </span>
     </label>
@@ -92,11 +93,11 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
     onClose()
   }
 
-  return (
-    <div className="absolute inset-0 z-20 flex items-center justify-center bg-black/40">
-      <div className="w-[28rem] rounded-lg bg-white p-5 text-sm shadow-xl">
-        <h2 className="mb-3 text-base font-semibold text-neutral-900">Upload material</h2>
-        <p className="mb-4 text-xs text-neutral-500">
+  return createPortal(
+    <div className="modal-overlay">
+      <div className="panel" style={{ width: 448, padding: 'var(--s-6)' }}>
+        <h2 className="mb-3 text-base font-semibold text-[var(--text)]">Upload material</h2>
+        <p className="mb-4 text-xs text-[var(--text-3)]">
           Drop in PBR texture maps (PNG / JPG / WebP, max 4096² and 8 MB each). Albedo is required;
           normal, roughness, and AO are optional.
         </p>
@@ -108,61 +109,63 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
         </div>
         <div className="mt-4 grid grid-cols-2 gap-2">
           <label className="block">
-            <span className="mb-1 block text-xs text-neutral-600">Name</span>
+            <span className="mb-1 block text-xs text-[var(--text-2)]">Name</span>
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="block w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+              className="input block w-full"
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-neutral-600">Category</span>
+            <span className="mb-1 block text-xs text-[var(--text-2)]">Category</span>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value as MaterialCategory)}
-              className="block w-full rounded border border-neutral-300 bg-white px-2 py-1 text-sm"
+              className="input block w-full"
             >
               <option value="floor">Floor</option>
               <option value="wall">Wall</option>
             </select>
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-neutral-600">Tile width (m)</span>
+            <span className="mb-1 block text-xs text-[var(--text-2)]">Tile width (m)</span>
             <input
               type="number"
               step={0.1}
               min={0.1}
               value={uvW}
               onChange={(e) => setUvW(Number(e.target.value) || 1)}
-              className="block w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+              className="input block w-full"
             />
           </label>
           <label className="block">
-            <span className="mb-1 block text-xs text-neutral-600">Tile depth (m)</span>
+            <span className="mb-1 block text-xs text-[var(--text-2)]">Tile depth (m)</span>
             <input
               type="number"
               step={0.1}
               min={0.1}
               value={uvH}
               onChange={(e) => setUvH(Number(e.target.value) || 1)}
-              className="block w-full rounded border border-neutral-300 px-2 py-1 text-sm"
+              className="input block w-full"
             />
           </label>
           <label className="col-span-2 flex items-center gap-2">
-            <span className="block text-xs text-neutral-600">Swatch</span>
+            <span className="block text-xs text-[var(--text-2)]">Swatch</span>
             <input
               type="color"
               value={swatch}
               onChange={(e) => setSwatch(e.target.value)}
-              className="h-6 w-10 cursor-pointer rounded border border-neutral-300"
+              className="h-6 w-10 cursor-pointer rounded border border-[var(--border-2)]"
             />
-            <span className="text-[10px] text-neutral-500">
+            <span className="text-[10px] text-[var(--text-3)]">
               Picker thumbnail + loading fallback colour
             </span>
           </label>
         </div>
         {error ? (
-          <p className="mt-3 rounded bg-rose-50 px-2 py-1 text-xs text-rose-700">{error}</p>
+          <p className="mt-3 rounded bg-[var(--danger-soft)] px-2 py-1 text-xs text-[var(--danger)]">
+            {error}
+          </p>
         ) : null}
         <footer className="mt-5 flex justify-end gap-2">
           <button
@@ -170,7 +173,7 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
               reset()
               onClose()
             }}
-            className="rounded px-3 py-1 text-sm text-neutral-600 hover:bg-neutral-100"
+            className="btn"
             disabled={busy}
           >
             Cancel
@@ -178,12 +181,13 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
           <button
             onClick={submit}
             disabled={busy || !albedo || !name.trim()}
-            className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-neutral-300"
+            className="rounded btn btn-accent disabled:opacity-40"
           >
             {busy ? 'Saving…' : 'Save'}
           </button>
         </footer>
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }

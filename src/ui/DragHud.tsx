@@ -15,10 +15,9 @@ export function DragHud() {
   const tight = gap < CLEARANCE.walkwayMin
   return (
     <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
-      <div
-        className={`rounded-full px-3 py-1 text-xs font-medium shadow ${tight ? 'bg-amber-500 text-white' : 'bg-neutral-900/85 text-neutral-100'}`}
-      >
-        ↔ Wall clearance: {gap.toFixed(2)} m{tight ? '  · tight' : ''}
+      <div className={`hud-pill${tight ? ' warn' : ''}`}>
+        ↔ Wall clearance: <span className="mono">{gap.toFixed(2)} m</span>
+        {tight ? ' · tight' : ''}
       </div>
     </div>
   )

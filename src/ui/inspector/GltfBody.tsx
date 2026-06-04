@@ -35,22 +35,21 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           type="color"
           value={tint || '#ffffff'}
           onChange={(e) => updateItemProps(item.id, { tint: e.target.value })}
-          className="h-6 w-10 cursor-pointer rounded border border-neutral-300"
+          className="h-6 w-10 cursor-pointer rounded border border-[var(--border-2)]"
         />
         {tint ? (
           <button
             onClick={() => updateItemProps(item.id, { tint: '' })}
-            className="text-[10px] text-neutral-500 hover:text-neutral-700"
+            className="text-[10px] text-[var(--text-3)] hover:text-[var(--text-2)]"
           >
             clear
           </button>
         ) : null}
       </label>
-      {def.source === 'builtin' && def.attribution ? (
-        <p className="pt-1 text-[10px] text-neutral-500">CC0 — {def.attribution}</p>
-      ) : null}
+      {/* Built-in attribution + licence is rendered once by <SourceLine> in
+          InspectorPanel (with a source link), so it's not repeated here. */}
       {def.source === 'user' ? (
-        <p className="pt-1 text-[10px] text-neutral-500">
+        <p className="pt-1 text-[10px] text-[var(--text-3)]">
           Uploaded {new Date(def.uploadedAt).toLocaleDateString()}
         </p>
       ) : null}

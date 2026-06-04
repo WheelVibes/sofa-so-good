@@ -20,14 +20,15 @@ function Num({
 }) {
   return (
     <label className="flex items-center justify-between gap-2 text-xs">
-      <span className="text-neutral-400">{label}</span>
+      <span className="label">{label}</span>
       <input
         type="number"
         value={Number.isFinite(value) ? Math.round(value * 1000) / 1000 : 0}
         step={step}
         min={min}
         onChange={(e) => onChange(parseFloat(e.target.value))}
-        className="w-24 rounded bg-neutral-800 px-2 py-1 text-right text-neutral-100"
+        className="input mono"
+        style={{ width: 96, textAlign: 'right' }}
       />
     </label>
   )
@@ -40,13 +41,13 @@ export function PlanInspector() {
   const a = useStore.getState()
 
   let body: React.ReactNode = (
-    <p className="text-xs leading-relaxed text-neutral-400">
+    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
       Pick a tool and draw on the canvas, or select an element to edit it.
       <br />
       <br />
-      <b className="text-neutral-300">Wall</b> — drag to draw.{' '}
-      <b className="text-neutral-300">Room</b> — drag a rectangle (area is computed).{' '}
-      <b className="text-neutral-300">Door / Window</b> — click on a wall.
+      <b style={{ color: 'var(--text)' }}>Wall</b> — drag to draw.{' '}
+      <b style={{ color: 'var(--text)' }}>Room</b> — drag a rectangle (area is computed).{' '}
+      <b style={{ color: 'var(--text)' }}>Door / Window</b> — click on a wall.
       <br />
       <br />
       Drawing snaps to the grid (set the size with the toolbar Snap control). Press Delete to remove
@@ -60,11 +61,11 @@ export function PlanInspector() {
       body = (
         <div className="space-y-2">
           <label className="flex flex-col gap-1 text-xs">
-            <span className="text-neutral-400">Name</span>
+            <span className="label">Name</span>
             <input
               value={r.name}
               onChange={(e) => a.updateRoom(r.id, { name: e.target.value })}
-              className="rounded bg-neutral-800 px-2 py-1 text-neutral-100"
+              className="input"
             />
           </label>
           <Num
@@ -90,11 +91,11 @@ export function PlanInspector() {
             onChange={(v) => a.updateRoom(r.id, { depth: Math.max(0.1, v) })}
           />
           <label className="flex flex-col gap-1 text-xs">
-            <span className="text-neutral-400">Floor finish</span>
+            <span className="label">Floor finish</span>
             <select
               value={r.floor ?? 'floor-wood-oak'}
               onChange={(e) => a.updateRoom(r.id, { floor: e.target.value })}
-              className="rounded bg-neutral-800 px-2 py-1 text-neutral-100"
+              className="input"
             >
               {FLOOR_MATERIALS.map((m) => (
                 <option key={m.id} value={m.id}>
@@ -103,9 +104,11 @@ export function PlanInspector() {
               ))}
             </select>
           </label>
-          <div className="rounded bg-neutral-800 px-2 py-1.5 text-xs">
-            Area:{' '}
-            <span className="font-semibold text-blue-300">{planRoomArea(r).toFixed(2)} m²</span>
+          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
+            <span className="label">Area</span>
+            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
+              {planRoomArea(r).toFixed(2)} m²
+            </span>
           </div>
           <DeleteBtn onClick={() => a.removeRoom(r.id)} label="Delete room" />
         </div>
@@ -115,12 +118,14 @@ export function PlanInspector() {
     if (w)
       body = (
         <div className="space-y-2">
-          <div className="flex gap-1">
+          <div className="seg accent" style={{ display: 'flex' }}>
             {(['external', 'internal'] as const).map((t) => (
               <button
                 key={t}
+                type="button"
                 onClick={() => a.updateWall(w.id, { thickness: t })}
-                className={`flex-1 rounded px-2 py-1 text-xs capitalize ${w.thickness === t ? 'bg-blue-600 text-white' : 'bg-neutral-800 text-neutral-300 hover:bg-neutral-700'}`}
+                className={`capitalize${w.thickness === t ? ' on' : ''}`}
+                style={{ flex: 1 }}
               >
                 {t}
               </button>
@@ -146,9 +151,11 @@ export function PlanInspector() {
             value={w.end[1]}
             onChange={(v) => a.updateWall(w.id, { end: [w.end[0], v] })}
           />
-          <div className="rounded bg-neutral-800 px-2 py-1.5 text-xs">
-            Length:{' '}
-            <span className="font-semibold text-blue-300">{wallLength(w).toFixed(2)} m</span>
+          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
+            <span className="label">Length</span>
+            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
+              {wallLength(w).toFixed(2)} m
+            </span>
           </div>
           <DeleteBtn onClick={() => a.removeWall(w.id)} label="Delete wall" />
         </div>
@@ -160,7 +167,9 @@ export function PlanInspector() {
       const maxOff = wall ? Math.max(0, wallLength(wall) - o.width) : o.offset
       body = (
         <div className="space-y-2">
-          <div className="text-xs capitalize text-neutral-300">{o.kind}</div>
+          <div className="sec-h">
+            <span className="capitalize">{o.kind}</span>
+          </div>
           <Num
             label="Offset (m)"
             value={o.offset}
@@ -192,10 +201,17 @@ export function PlanInspector() {
   }
 
   return (
-    <aside className="w-64 shrink-0 overflow-y-auto border-l border-neutral-700 bg-neutral-900 p-3">
-      <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-neutral-500">
-        Properties
-      </h3>
+    <aside
+      className="plan-props w-64 shrink-0 overflow-y-auto p-3"
+      style={{
+        borderLeft: '1px solid var(--border)',
+        background: 'var(--surface-solid)',
+        position: 'static',
+      }}
+    >
+      <div className="sec-h" style={{ marginBottom: 'var(--s-3)' }}>
+        <span>Properties</span>
+      </div>
       {body}
     </aside>
   )
@@ -204,8 +220,10 @@ export function PlanInspector() {
 function DeleteBtn({ onClick, label }: { onClick: () => void; label: string }) {
   return (
     <button
+      type="button"
       onClick={onClick}
-      className="mt-1 w-full rounded bg-red-600/80 px-2 py-1 text-xs font-medium text-white hover:bg-red-600"
+      className="btn btn-danger btn-block"
+      style={{ marginTop: 'var(--s-1)' }}
     >
       {label}
     </button>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { type Place, reverseGeocode, searchPlaces } from '../services/geocoding'
 import { useStore } from '../state/store'
+import { Icon } from './toolbar/icons'
 
 const SEARCH_DEBOUNCE_MS = 300
 
@@ -94,88 +95,144 @@ function LocationPromptContent({ onSetLocation, onDismiss }: ContentProps) {
   }
 
   return (
-    <div className="fixed inset-0 z-30 flex items-center justify-center bg-black/40">
-      <div className="w-full max-w-md rounded-lg bg-white p-5 text-sm shadow-lg">
-        <h2 className="mb-1 text-base font-semibold">Where are you?</h2>
-        <p className="mb-4 text-xs text-neutral-600">
-          We use your location to position the sun realistically. The app stores this only on your
-          device.
-        </p>
+    <div className="modal-overlay">
+      <div className="panel" style={{ width: 'min(420px, calc(100vw - 24px))' }}>
+        <div className="panel-head">
+          <div>
+            <div className="panel-title">Where are you?</div>
+            <div className="panel-sub">Sun position</div>
+          </div>
+        </div>
+        <hr className="hr" />
+        <div className="panel-body">
+          <p
+            style={{
+              fontSize: 'var(--t-xs)',
+              color: 'var(--text-2)',
+              lineHeight: 1.5,
+              margin: '0 0 var(--s-4)',
+            }}
+          >
+            We use your location to position the sun realistically. The app stores this only on your
+            device.
+          </p>
 
-        <div className="mb-4 space-y-2">
           <button
+            type="button"
             disabled={geoBusy}
             onClick={onUseGeolocation}
-            className="w-full rounded bg-neutral-900 px-3 py-2 text-white hover:bg-neutral-800 disabled:opacity-50"
+            className="btn btn-accent btn-block"
           >
+            <Icon.Pin width={14} height={14} />
             {geoBusy ? 'Locating…' : 'Use my location'}
           </button>
-          {geoError ? <p className="text-xs text-rose-600">{geoError}</p> : null}
-        </div>
-
-        <div className="mb-4">
-          <label className="mb-1 block text-xs font-medium text-neutral-700">Search city</label>
-          <input
-            type="text"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search city, town, or neighbourhood"
-            className="w-full rounded border border-neutral-300 px-2 py-1.5"
-          />
-          {searching ? <p className="mt-1 text-xs text-neutral-500">Searching…</p> : null}
-          {searchError ? <p className="mt-1 text-xs text-rose-600">{searchError}</p> : null}
-          {results.length > 0 ? (
-            <ul className="mt-1 max-h-40 overflow-y-auto rounded border border-neutral-200 bg-white text-xs">
-              {results.map((r) => (
-                <li key={`${r.lat},${r.lon}`}>
-                  <button
-                    onClick={() => onSetLocation({ lat: r.lat, lon: r.lon, label: r.label })}
-                    className="block w-full px-2 py-1 text-left hover:bg-neutral-100"
-                  >
-                    {r.label}
-                  </button>
-                </li>
-              ))}
-            </ul>
+          {geoError ? (
+            <p style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 6 }}>
+              {geoError}
+            </p>
           ) : null}
-        </div>
 
-        <div className="mb-4 grid grid-cols-2 gap-2">
-          <label className="text-xs font-medium text-neutral-700">
-            Latitude
-            <input
-              type="number"
-              step="0.0001"
-              value={latStr}
-              onChange={(e) => setLatStr(e.target.value)}
-              className="mt-1 w-full rounded border border-neutral-300 px-2 py-1.5"
-            />
-          </label>
-          <label className="text-xs font-medium text-neutral-700">
-            Longitude
-            <input
-              type="number"
-              step="0.0001"
-              value={lonStr}
-              onChange={(e) => setLonStr(e.target.value)}
-              className="mt-1 w-full rounded border border-neutral-300 px-2 py-1.5"
-            />
-          </label>
+          <div className="sec">
+            <div className="sec-h">
+              <span>Search city</span>
+            </div>
+            <div className="field">
+              <Icon.Search width={16} height={16} className="icn" />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Search city, town, or neighbourhood"
+                className="input"
+              />
+            </div>
+            {searching ? (
+              <p style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', marginTop: 6 }}>
+                Searching…
+              </p>
+            ) : null}
+            {searchError ? (
+              <p style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 6 }}>
+                {searchError}
+              </p>
+            ) : null}
+            {results.length > 0 ? (
+              <ul
+                style={{
+                  listStyle: 'none',
+                  margin: '8px 0 0',
+                  padding: 0,
+                  maxHeight: 160,
+                  overflowY: 'auto',
+                  border: '1px solid var(--border)',
+                  borderRadius: 'var(--r-2)',
+                }}
+              >
+                {results.map((r) => (
+                  <li key={`${r.lat},${r.lon}`}>
+                    <button
+                      type="button"
+                      onClick={() => onSetLocation({ lat: r.lat, lon: r.lon, label: r.label })}
+                      className="menu-item"
+                    >
+                      <span className="mi-main">{r.label}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            ) : null}
+          </div>
+
+          <div className="sec">
+            <div className="sec-h">
+              <span>Coordinates</span>
+            </div>
+            <div className="transform-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+              <label className="num">
+                <span>Latitude</span>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={latStr}
+                  onChange={(e) => setLatStr(e.target.value)}
+                  className="mono"
+                />
+              </label>
+              <label className="num">
+                <span>Longitude</span>
+                <input
+                  type="number"
+                  step="0.0001"
+                  value={lonStr}
+                  onChange={(e) => setLonStr(e.target.value)}
+                  className="mono"
+                />
+              </label>
+            </div>
+            <button
+              type="button"
+              onClick={onSubmitManual}
+              className="btn btn-soft btn-block"
+              style={{ marginTop: 'var(--s-3)' }}
+            >
+              Save coordinates
+            </button>
+            {manualError ? (
+              <p style={{ fontSize: 'var(--t-xs)', color: 'var(--danger)', marginTop: 6 }}>
+                {manualError}
+              </p>
+            ) : null}
+          </div>
+
           <button
-            onClick={onSubmitManual}
-            className="col-span-2 rounded border border-neutral-300 px-3 py-1.5 hover:bg-neutral-100"
+            type="button"
+            onClick={onDismiss}
+            className="btn btn-block"
+            style={{ marginTop: 'var(--s-2)' }}
           >
-            Save coordinates
+            Skip — use default location
           </button>
-          {manualError ? <p className="col-span-2 text-xs text-rose-600">{manualError}</p> : null}
         </div>
-
-        <button
-          onClick={onDismiss}
-          className="mx-auto block text-xs text-neutral-500 underline hover:text-neutral-700"
-        >
-          Skip — use default location
-        </button>
       </div>
     </div>
   )
