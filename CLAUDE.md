@@ -649,7 +649,10 @@ rediscover it.
   that drops below 2. Dropping a Set stamps one shared `groupId`. Persisted via
   save schema **v2** (`groupId` optional; v1→v2 migration is a no-op on items).
 - **Visual**: per-item **contact shadows** (`ContactShadow`, quality-gated) +
-  **skirting/crown** wall trim (`apartment/Skirting.tsx`, `PlanShell`).
+  **skirting** wall trim (`apartment/Skirting.tsx`, `PlanShell`). (Crown
+  molding was removed — a light fixed-colour band at the wall top read as a
+  discoloured strip against coloured walls; the painted face already runs
+  cleanly floor-to-ceiling.)
   Procedural finishes include **wallpapers** (stripe/grasscloth) + **checker**.
 - **Loading overlay + fast boot** (`ui/loading/`, `state/storage/bootstrap.ts`,
   uiSlice `bootPhase`/`loading`): `main.tsx` registers the GLB decoders

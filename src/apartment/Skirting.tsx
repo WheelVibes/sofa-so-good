@@ -3,7 +3,6 @@ import { FLAT, WALLS } from './constants'
 import { buildWallSegments, wallThicknessMetres } from './wallSegments'
 
 const SKIRT_H = 0.09 // skirting board height
-const CROWN_H = 0.08 // crown molding height
 const PROUD = 0.012 // how far it sticks out past each wall face
 
 interface Strip {
@@ -17,10 +16,12 @@ interface Strip {
 }
 
 /**
- * Wall trim — skirting boards along the foot of every wall and crown molding
- * along the top, built non-invasively from the wall segments (door openings
- * already excluded; window sills get skirting; headers carry crown across
- * doorways). A slim trim, slightly proud of each wall face. Default flat only.
+ * Wall trim — skirting boards along the foot of every wall, built
+ * non-invasively from the wall segments (door openings already excluded;
+ * window sills get skirting). A slim trim, slightly proud of each wall face.
+ * Default flat only. (Crown molding was removed: a light fixed-colour band at
+ * the wall top read as a discoloured strip against coloured/accent walls and
+ * interrupted the clean floor-to-ceiling wall the painted face already gives.)
  */
 export function Skirting() {
   const strips = useMemo<Strip[]>(() => {
@@ -32,7 +33,6 @@ export function Skirting() {
       const uz = (wall.end[1] - wall.start[1]) / len
       const angle = Math.atan2(ux, uz)
       const t = wallThicknessMetres(wall) + PROUD * 2
-      const wallTop = wall.topHeight ?? FLAT.ceilingHeight
       for (const seg of buildWallSegments(wall, FLAT.ceilingHeight)) {
         const a = seg.start
         const b = seg.end
@@ -41,17 +41,6 @@ export function Skirting() {
         const cz = wall.start[1] + (uz * (a + b)) / 2
         if (seg.bottom < 0.001) {
           out.push({ cx, cy: SKIRT_H / 2, cz, length: b - a, thickness: t, height: SKIRT_H, angle })
-        }
-        if (seg.top >= wallTop - 0.01) {
-          out.push({
-            cx,
-            cy: wallTop - CROWN_H / 2,
-            cz,
-            length: b - a,
-            thickness: t,
-            height: CROWN_H,
-            angle,
-          })
         }
       }
     }
