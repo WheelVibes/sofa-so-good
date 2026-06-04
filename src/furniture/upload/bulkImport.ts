@@ -1,4 +1,7 @@
 import { useStore } from '../../state/store'
+import { convertModel, needsConversion } from '../convert/convertModel'
+import { detectModelFormat, isModelEntryFile } from '../convert/formats'
+import { runOptimize } from '../optimize/runOptimize'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashFile } from './hashFile'
 import { persistUserGlb } from './persist'
@@ -13,6 +16,11 @@ export interface BulkImportOptions {
   mounted?: boolean
   noClip?: boolean
   concurrency?: number
+  /** Every dropped file, for sibling (.mtl/.bin/texture) resolution when a
+   *  non-GLB model references external files. Defaults to the imported files. */
+  allFiles?: File[]
+  /** Opt-in KTX2/UASTC texture encode (falls back to WebP if unavailable). */
+  ktx2?: boolean
 }
 
 export interface SkippedFile {
@@ -32,6 +40,52 @@ interface PlannedFile {
   file: File
   errorName: string
   name: string
+  /** Folder prefix of the original path (with trailing slash; '' if top-level),
+   *  used to scope sibling resolution for multi-file model formats. */
+  dir: string
+}
+
+/** Folder prefix (with trailing slash) of a path; '' if none. */
+function dirOfPath(path: string): string {
+  const i = path.lastIndexOf('/')
+  return i === -1 ? '' : path.slice(0, i + 1)
+}
+
+function pathOfFile(f: File): string {
+  return (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
+}
+
+/**
+ * Convert (if needed) + optimize a single entry file into an optimized GLB File.
+ * GLB/glTF entries skip conversion but still run the optimize pass; non-GLB
+ * formats convert to GLB first (resolving .mtl/.bin/textures from `allFiles`
+ * within the same folder). Quality-first: codec compression, no decimation.
+ */
+async function prepareGlb(
+  entry: File,
+  dir: string,
+  allFiles: File[],
+  ktx2: boolean,
+): Promise<File> {
+  const format = await detectModelFormat(entry)
+  let glb = entry
+  if (format && needsConversion(format)) {
+    const siblings = allFiles.filter((f) => f !== entry && dirOfPath(pathOfFile(f)) === dir)
+    glb = (await convertModel(entry, siblings)).glb
+  }
+  const buf = new Uint8Array(await glb.arrayBuffer())
+  const { data } = await runOptimize(buf, { ktx2 })
+  const name = glb.name.replace(/\.[a-z0-9]+$/i, '.glb')
+  const ab = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
+  return new File([ab], name, { type: 'model/gltf-binary' })
+}
+
+/** Convert (if needed) + optimize one entry file into an optimized GLB File.
+ *  Public wrapper over the bulk pipeline's prepare step so the single-file
+ *  upload path runs the same conversion/optimization. `allFiles` supplies the
+ *  sibling pool (.mtl/.bin/textures) for multi-file model formats. */
+export function prepareModelFile(entry: File, allFiles: File[], ktx2 = false): Promise<File> {
+  return prepareGlb(entry, dirOfPath(pathOfFile(entry)), allFiles, ktx2)
 }
 
 /** Imports a batch of user-selected files. Filters to .glb/.gltf, dedupes
@@ -73,8 +127,11 @@ export async function importGlbFiles(
       file: fileForPersist,
       errorName: basename,
       name: dedupeName(modelName(path), used),
+      dir: dirOfPath(path),
     })
   }
+  const allFiles = opts.allFiles ?? files
+  const ktx2 = opts.ktx2 ?? false
 
   let imported = 0
   let duplicates = 0
@@ -98,6 +155,9 @@ export async function importGlbFiles(
     while (cursor < planned.length) {
       const job = planned[cursor++]
       try {
+        // Dedupe on the SOURCE bytes (deterministic), not the optimized output
+        // (Draco/WebP encoding can vary run-to-run) — so re-importing the same
+        // file is reliably recognised as a duplicate.
         const contentHash = await hashFile(job.file)
         if (seenHashes.has(contentHash)) {
           duplicates++
@@ -105,7 +165,8 @@ export async function importGlbFiles(
           continue
         }
         seenHashes.add(contentHash)
-        const result = await persistUserGlb(job.file, {
+        const prepared = await prepareGlb(job.file, job.dir, allFiles, ktx2)
+        const result = await persistUserGlb(prepared, {
           name: job.name,
           category: opts.category,
           mounted: opts.mounted,
@@ -132,16 +193,17 @@ export async function importGlbFiles(
   return { total, imported, duplicates, skipped }
 }
 
-/** True when the basename ends in .glb or .gltf (case-insensitive). */
+/** True when the basename is a supported model entry file (GLB/glTF or any
+ *  convertible format: OBJ/FBX/STL/PLY/DAE/3MF/USDZ). */
 export function isModelFile(nameOrPath: string): boolean {
-  return /\.(glb|gltf)$/i.test(nameOrPath)
+  return isModelEntryFile(nameOrPath)
 }
 
-/** Basename without the .glb/.gltf extension, for the catalog display name.
+/** Basename without its model extension, for the catalog display name.
  *  Falls back to the basename with extension if stripping leaves an empty string. */
 export function modelName(nameOrPath: string): string {
   const base = nameOrPath.split('/').pop() ?? nameOrPath
-  const stripped = base.replace(/\.(glb|gltf)$/i, '')
+  const stripped = base.replace(/\.[a-z0-9]+$/i, '')
   return stripped || base
 }
 

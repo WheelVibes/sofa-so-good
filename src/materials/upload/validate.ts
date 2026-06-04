@@ -4,11 +4,15 @@
  * before writing it to IndexedDB.
  *
  * Limits chosen to keep the IDB footprint reasonable: max 4096×4096
- * per channel, max 8 MB per file. Albedo is required; normal,
- * roughness, and ao are optional.
+ * per channel, max 16 MB per source file (the larger exotic source
+ * formats — TGA/TIFF/EXR/HDR — are decoded then re-encoded to a much
+ * smaller WebP before storage). Albedo is required; normal, roughness,
+ * and ao are optional.
  */
 
-export const MAX_IMAGE_BYTES = 8 * 1024 * 1024
+import { isSupportedTexture } from '../convert/decodeImage'
+
+export const MAX_IMAGE_BYTES = 16 * 1024 * 1024
 export const MAX_IMAGE_DIM = 4096
 
 export type ValidateResult =
@@ -24,10 +28,12 @@ export async function validateImageFile(file: File): Promise<ValidateResult> {
       reason: `Image too large (${(file.size / 1_048_576).toFixed(1)} MB > ${MAX_IMAGE_BYTES / 1_048_576} MB).`,
     }
   }
-  if (!ACCEPTED_MIME.has(file.type)) {
+  // Accept native MIME types directly; exotic formats (TGA/TIFF/EXR/HDR) often
+  // carry no/`application/octet-stream` MIME, so fall back to the extension.
+  if (!ACCEPTED_MIME.has(file.type) && !isSupportedTexture(file.name)) {
     return {
       ok: false,
-      reason: `Unsupported image type '${file.type || 'unknown'}'. Use PNG, JPG, or WebP.`,
+      reason: `Unsupported image '${file.name}'. Use PNG/JPG/WebP/BMP/TGA/TIFF/EXR/HDR.`,
     }
   }
   let bitmap: ImageBitmap

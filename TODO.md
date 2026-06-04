@@ -35,6 +35,27 @@ modular sofa): base + named slots with anchor points, swappable compatible
 options, live reprice. Reuses the unit-3 finish-target mechanism
 ([src/furniture/gltf/finishTargets.ts](src/furniture/gltf/finishTargets.ts)).
 
+## Multi-format import: convert-to-GLB + in-browser optimize (2026-06-04)
+
+Accept OBJ/FBX/STL/PLY/USDZ/DAE/3MF models + TGA/TIFF/BMP/EXR/HDR textures by
+converting/re-encoding in-browser, and optimize every imported GLB (converted +
+plain uploads). Spec:
+[docs/superpowers/specs/2026-06-04-multi-format-import-conversion-design.md](docs/superpowers/specs/2026-06-04-multi-format-import-conversion-design.md);
+plan:
+[docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md](docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md).
+
+- Deferred follow-ups (carried from the plan's honest-scope flags):
+  - **Real in-browser KTX2/UASTC encoder** — currently the `ktx2` opt-in
+    scaffolds the path but falls back to near-lossless WebP (no clean
+    browser basis-encoder dep in this stack), mirroring `optimize_glb_lod.mjs`
+    falling back when `toktx` is absent ([src/lib/ktx2encode.ts]).
+  - **KTX2/DDS standalone-material decode** — needs a WebGL readback; the model
+    importer handles embedded KTX2, but standalone KTX2/DDS material uploads are
+    not yet decoded ([src/materials/convert/decodeImage.ts]).
+  - **Multi-tier `-low`/`-medium` LOD generation for uploads** — the single
+    in-browser optimize pass already exceeds the old user-upload baseline; full
+    tiered LOD (like the offline `optimize:glb`) is still upload-side TODO.
+
 ## Layout / placement (2026-05-30)
 
 - ~~**Interior-design rules baked in**~~ — clearances in

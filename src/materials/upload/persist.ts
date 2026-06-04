@@ -1,5 +1,6 @@
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
+import { normalizeTextureFile } from '../convert/reencode'
 import type { MaterialCategory, TexturedMaterialDef } from '../types'
 import { validateImageFile } from './validate'
 
@@ -31,10 +32,13 @@ async function persistChannel(
   role: 'albedo' | 'normal' | 'roughness' | 'ao',
   file: File,
 ): Promise<{ assetId: string; url: string }> {
-  const v = await validateImageFile(file)
+  // Exotic formats (TGA/TIFF/EXR/HDR) decode + PNG/JPEG re-encode to WebP;
+  // WebP passes through. The dimension/size ceiling is checked post-normalize.
+  const normalized = await normalizeTextureFile(file)
+  const v = await validateImageFile(normalized)
   if (!v.ok) throw new Error(`${role}: ${v.reason}`)
   const assetId = `${matAssetId}-${role}`
-  const blob = new Blob([await file.arrayBuffer()], { type: v.mime })
+  const blob = new Blob([await normalized.arrayBuffer()], { type: v.mime })
   await IdbAssetStore.put({
     assetId,
     kind: 'texture',

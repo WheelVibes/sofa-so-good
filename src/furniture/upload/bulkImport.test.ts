@@ -34,9 +34,20 @@ function badGlb(name: string): File {
 }
 
 describe('bulkImport file filtering', () => {
-  it('recognises .glb and .gltf case-insensitively, rejects others', () => {
+  it('recognises GLB/glTF + convertible model formats, rejects siblings/others', () => {
     expect(isModelFile('chair.glb')).toBe(true)
     expect(isModelFile('CHAIR.GLTF')).toBe(true)
+    // convertible formats now count as model entry files
+    expect(isModelFile('chair.obj')).toBe(true)
+    expect(isModelFile('chair.FBX')).toBe(true)
+    expect(isModelFile('chair.stl')).toBe(true)
+    expect(isModelFile('chair.ply')).toBe(true)
+    expect(isModelFile('chair.dae')).toBe(true)
+    expect(isModelFile('chair.3mf')).toBe(true)
+    expect(isModelFile('chair.usdz')).toBe(true)
+    // sibling/material files are NOT model entry files
+    expect(isModelFile('chair.mtl')).toBe(false)
+    expect(isModelFile('scene.bin')).toBe(false)
     expect(isModelFile('readme.txt')).toBe(false)
     expect(isModelFile('texture.png')).toBe(false)
     expect(isModelFile('noext')).toBe(false)
