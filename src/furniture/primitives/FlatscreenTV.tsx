@@ -42,7 +42,9 @@ export function FlatscreenTV({ props }: { props: ParamProps }) {
         <meshStandardMaterial color="#15171b" roughness={0.5} metalness={0.3} />
       </mesh>
       {/* Screen — dark glossy when off; lit content that self-illuminates
-          when on (glows, and blooms at night on the high tier). */}
+          when on (glows, and blooms at night on the high tier). The screen sits
+          flush in the bezel by design, so it's a coplanar overlay: depthWrite
+          off lets it draw in front of the bezel without z-fighting at any angle. */}
       <mesh position={[0, panelY, 0.021]}>
         <planeGeometry args={[w - 0.03, h - 0.03]} />
         {on ? (
@@ -54,6 +56,7 @@ export function FlatscreenTV({ props }: { props: ParamProps }) {
             roughness={0.2}
             metalness={0}
             toneMapped={false}
+            depthWrite={false}
           />
         ) : (
           <meshStandardMaterial
@@ -62,6 +65,7 @@ export function FlatscreenTV({ props }: { props: ParamProps }) {
             metalness={0.1}
             emissive={screenColor}
             emissiveIntensity={0.12}
+            depthWrite={false}
           />
         )}
       </mesh>
