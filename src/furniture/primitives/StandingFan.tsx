@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { Group } from 'three'
+import { useAnimatedSource } from '../../scene/useAnimatedSource'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 
@@ -18,6 +19,7 @@ export function StandingFan({ props }: { props: ParamProps }) {
 
   // Gentle blade spin, matching the ceiling fan's "alive" motion.
   const bladesRef = useRef<Group>(null)
+  useAnimatedSource() // blades spin every frame — keep the demand loop alive
   useFrame((_, dt) => {
     if (bladesRef.current) bladesRef.current.rotation.z += dt * 4
   })

@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { Group, MeshStandardMaterial } from 'three'
 import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import { useAnimatedSource } from '../../scene/useAnimatedSource'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 
@@ -14,6 +15,7 @@ export function CeilingFan({ props }: { props: ParamProps }) {
   const bladeColor = readStr(props, 'bladeColor', '#6b4f34')
   const bladesRef = useRef<Group>(null)
   const lightRef = useRef<MeshStandardMaterial>(null)
+  useAnimatedSource() // blades spin every frame — keep the demand loop alive
 
   useFrame((_, dt) => {
     if (bladesRef.current) bladesRef.current.rotation.y += dt * 3.2
