@@ -1,9 +1,34 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { obbCorners } from '../../collision/obb'
+import { canPlace, itemFootprint } from '../../collision/placement'
+import { buildCollisionWalls } from '../../collision/wallsFromState'
+import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
 import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
+import { useCatalogGetter } from '../../furniture/catalog'
+import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { PlanInspector } from './PlanInspector'
+
+/** Muted top-down fill per furniture category for the 2D plan layer. */
+const CATEGORY_FILL: Record<FurnitureCategory, string> = {
+  beds: '#b08a6a',
+  seating: '#8a9a7a',
+  tables: '#c0a070',
+  storage: '#9a8470',
+  kitchen: '#9aa0a8',
+  bathroom: '#88a8b0',
+  appliances: '#8890a0',
+  lighting: '#d8c080',
+  decor: '#b89a8a',
+  textiles: '#b0907a',
+  outdoor: '#7a9a70',
+  electronics: '#7a8088',
+  kids: '#c89aa8',
+  laundry: '#90a0a8',
+  others: '#9a9488',
+}
 
 type Tool = 'select' | 'wall' | 'room' | 'door' | 'window'
 
@@ -24,12 +49,46 @@ export function FloorPlanEditor() {
   const sel = useStore((s) => s.planSelection)
   const a = useStore.getState()
 
+  const items = useStore((s) => s.items)
+  const selectedItemId = useStore((s) => s.selectedItemId)
+  const { getDef, ref: catalogRef } = useCatalogGetter()
+
   const [tool, setTool] = useState<Tool>('select')
   const [wallType, setWallType] = useState<'internal' | 'external'>('internal')
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null)
   // Active room drag (select tool): grab offset from the room origin.
   const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null)
+  // Active furniture drag (select tool): grab offset from the item position.
+  const [movingItem, setMovingItem] = useState<{ id: string; gx: number; gz: number } | null>(null)
   const svgRef = useRef<SVGSVGElement>(null)
+
+  // Frame the selected furniture in 3D when leaving the editor, so toggling
+  // 2D->3D lands on whatever you were working on (the seamless-toggle payoff).
+  const exitToScene = useCallback(() => {
+    const st = useStore.getState()
+    st.setFloorPlanEditing(false)
+    if (st.selectedItemId) {
+      const it = st.items.find((i) => i.id === st.selectedItemId)
+      if (it) st.focusOn(it.position)
+    }
+  }, [])
+
+  // `P` toggles the editor from anywhere (a persistent 2D<->3D switch), unless
+  // the user is typing or in walk mode. Always mounted so it works from 3D too.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.code !== 'KeyP' || e.metaKey || e.ctrlKey || e.altKey) return
+      const el = e.target as HTMLElement | null
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))
+        return
+      const st = useStore.getState()
+      if (st.cameraMode === 'firstPerson') return
+      if (st.floorPlanEditing) exitToScene()
+      else st.setFloorPlanEditing(true)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [exitToScene])
 
   const [ew, ed] = planBounds(plan)
   const PX = useMemo(() => {
@@ -48,7 +107,7 @@ export function FloorPlanEditor() {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         setDraft(null)
-        useStore.getState().setFloorPlanEditing(false)
+        exitToScene()
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
         const st = useStore.getState()
         if (sel.type === 'wall') st.removeWall(sel.id)
@@ -58,7 +117,7 @@ export function FloorPlanEditor() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing, sel])
+  }, [editing, sel, exitToScene])
 
   if (!editing) return null
 
@@ -131,6 +190,30 @@ export function FloorPlanEditor() {
   }
 
   const onMove = (e: React.PointerEvent) => {
+    if (movingItem) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const it = st.items.find((i) => i.id === movingItem.id)
+      const def = it ? catalogRef.current[it.defId] : undefined
+      if (!it || !def) return
+      const pos: [number, number] = [snap(wx - movingItem.gx), snap(wz - movingItem.gz)]
+      const planWalls = isDefaultPlan(st.floorPlan)
+        ? buildCollisionWalls(st.doors)
+        : planCollisionWalls(st.floorPlan, st.doors)
+      const others = st.items.filter((o) => o.id !== it.id)
+      // Only commit a move that doesn't collide with walls or other items —
+      // same rule the 3D DragController enforces.
+      if (
+        canPlace({ ...it, position: pos }, def, {
+          others,
+          defs: catalogRef.current,
+          doors: st.doors,
+          walls: planWalls,
+        })
+      )
+        st.moveItem(it.id, pos)
+      return
+    }
     if (moving) {
       const [wx, wz] = pointerWorld(e)
       useStore
@@ -144,6 +227,10 @@ export function FloorPlanEditor() {
   }
 
   const onUp = () => {
+    if (movingItem) {
+      setMovingItem(null)
+      return
+    }
     if (moving) {
       setMoving(null)
       return
@@ -267,11 +354,7 @@ export function FloorPlanEditor() {
             </b>{' '}
             · {plan.rooms.length} rooms
           </span>
-          <button
-            type="button"
-            onClick={() => a.setFloorPlanEditing(false)}
-            className="btn btn-accent btn-sm"
-          >
+          <button type="button" onClick={exitToScene} className="btn btn-accent btn-sm">
             Done
           </button>
         </div>
@@ -342,6 +425,40 @@ export function FloorPlanEditor() {
                     </tspan>
                   </text>
                 </g>
+              )
+            })}
+
+            {/* Furniture footprints — the live 3D layout, top-down. Click to
+                select (shared with 3D); drag (select tool) to move. */}
+            {items.map((it) => {
+              const def = getDef(it.defId)
+              if (!def) return null
+              const obb = itemFootprint(it, def)
+              const pts = obbCorners(obb)
+                .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
+                .join(' ')
+              const isSel = selectedItemId === it.id
+              return (
+                <polygon
+                  key={it.id}
+                  points={pts}
+                  fill={isSel ? 'var(--accent-soft)' : (CATEGORY_FILL[def.category] ?? '#9a9488')}
+                  fillOpacity={isSel ? 0.95 : 0.55}
+                  stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                  strokeWidth={isSel ? 2 : 1}
+                  strokeLinejoin="round"
+                  style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                  onPointerDown={(e) => {
+                    if (tool !== 'select') return
+                    e.stopPropagation()
+                    const [wx, wz] = pointerWorld(e)
+                    const st = useStore.getState()
+                    st.selectItem(it.id)
+                    st.pushHistory()
+                    setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
+                    svgRef.current?.setPointerCapture(e.pointerId)
+                  }}
+                />
               )
             })}
 
