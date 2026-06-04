@@ -12,6 +12,8 @@ export interface ImportPlan {
   looseCategory: FurnitureCategory
   mounted: boolean
   noClip: boolean
+  /** Opt-in KTX2/UASTC texture encode for the optimize pass (falls back to WebP). */
+  ktx2?: boolean
 }
 
 export interface ImportOutcome {
@@ -98,7 +100,13 @@ export async function runImport(
     const base = done
     looseResult = await importGlbFiles(
       loose,
-      { category: plan.looseCategory, mounted: plan.mounted, noClip: plan.noClip },
+      {
+        category: plan.looseCategory,
+        mounted: plan.mounted,
+        noClip: plan.noClip,
+        allFiles: plan.files,
+        ktx2: plan.ktx2,
+      },
       (d) => onProgress?.(base + d, total),
     )
   }
