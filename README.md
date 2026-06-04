@@ -150,6 +150,22 @@ export the result — all in the browser.
   and **Share & export** (shareable link + a real PNG snapshot). The **2D
   floor-plan editor** and **upload dialogs** are fully theme-aware in light and
   dark.
+- **Smart Start** — pick a style and the whole flat is furnished + the walls and
+  floors finished in one click (from onboarding, the ⌘K palette, or the Arrange
+  menu).
+- **2D⇄3D layout** — the floor-plan editor shows your furniture as a top-down
+  layout (click to select, drag to move); press **P** to flip between the 2D
+  plan and the 3D scene. Drop a **floor-plan photo** to trace over (calibrate its
+  scale, adjust opacity), or — with your own API key — let **AI walls** draft the
+  plan for you.
+- **AI photoreal export** *(experimental, bring-your-own-key)* — turn the current
+  view into a photoreal image from the Share modal.
+- **Live SG prices** *(dev-only)* — toggle real IKEA Singapore prices + buy links
+  in the Shopping list (`npm run price-server`); falls back to a built-in estimate.
+
+The render loop is **on-demand** — the scene draws only while something is
+animating or you're interacting, and pauses entirely when the tab is hidden, so
+it stays cool and battery-friendly on low-end laptops.
 
 ## Controls
 
@@ -157,7 +173,7 @@ export the result — all in the browser.
 palette · `right-click` context menu · `R` rotate · `Del` delete ·
 `⌃Z`/`⇧⌃Z` undo/redo · `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate · `C` catalog ·
 `M` measurements · `T` cycle time · `O` top view · `H` reset view · `L` tidy ·
-`?` help · `V` orbit/walk · in walk: `WASD` move, `E` doors.
+`P` 2D⇄3D floor plan · `?` help · `V` orbit/walk · in walk: `WASD` move, `E` doors.
 
 ## Develop
 

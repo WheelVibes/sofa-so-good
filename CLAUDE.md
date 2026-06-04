@@ -49,6 +49,11 @@ state, Vite build, Vitest tests.
   runs `optimize_glb_lod.mjs` on each finish GLB the moment it lands (bounded
   parallel pool), and streams per-product progress to the browser over SSE.
   Local/dev-only (default port 5174; `SCRAPER_PORT` overrides). See **IKEA models**.
+- `npm run price-server` — local Node sidecar (`scripts/price-server.mjs`) for
+  the Shopping panel's **dev-only "Live IKEA SG prices"** toggle: `GET /price?q=
+  <name>` resolves a furniture name to a real IKEA Singapore price + buy link via
+  IKEA's SIK search JSON API, disk-cached (`.cache/prices.json`). Local/dev-only
+  (default port 5175; `PRICE_PORT` overrides). See **Live retail pricing**.
 - `python/scripts/` — offline IKEA SG scraper + asset tooling (Python +
   Node). Not part of the app build; see **IKEA scraper (offline)** below.
 
@@ -488,7 +493,40 @@ rediscover it.
   corner snapping, drag-move, per-room floor finishes. A non-default plan
   renders via `PlanShell` and furniture/walk collision follow it (optional
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
-  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`).
+  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). The editor
+  also renders the **live furniture as top-down footprints** (category-coloured
+  polygons from `itemFootprint`/`obbCorners`) — click to select (shared with the
+  3D selection), drag (select tool) to move (grid-snapped + `canPlace`-checked,
+  same path as the 3D `DragController`). **`P` toggles 2D⇄3D from anywhere**
+  (skipped while typing / in walk mode); leaving the editor frames the selected
+  item in 3D. A **reference photo/scan backdrop** (Wave F, no ML) can be loaded
+  (file pick or drag-drop) to trace over: calibrate real scale with the **Scale
+  tool** (drag a known dimension → type its length → `mPerPx`), adjust opacity,
+  trace walls on top. Session-scoped (object URL). **"AI walls"** (Wave E,
+  experimental, bring-your-own-key) sends the backdrop to an OpenAI-compatible
+  vision model (`ai/floorPlanAi.ts`) and seeds an editable draft plan from the
+  recognised segments; degrades to manual tracing on no key / CORS / no result.
+- **Smart Start** (`ui/wizard/SmartStartWizard.tsx`, featuresSlice
+  `smartStartOpen`): a friendly onboarding front end over the existing layout
+  presets — pick a style and the flat is furnished + walls/floors finished in one
+  click (`applyLayoutPreset`), with a complementary UI theme applied. Heuristic,
+  not AI. Launchable from onboarding (a "Smart Start" choice), the ⌘K command
+  palette, and the toolbar **Arrange** menu.
+- **Live retail pricing** (`catalog/pricing/livePrice.ts`, `scripts/price-server.mjs`):
+  a **dev-only** "Live IKEA SG prices" toggle in the Shopping panel resolves each
+  line's name to a real IKEA Singapore price + buy link via the local
+  `price-server` sidecar (IKEA SIK search JSON API, disk-cached). `useLivePrices`
+  fails soft — no sidecar / failed lookup keeps the bundled `furniturePrices.ts`
+  estimate; production always uses the estimate. Matched product title rides on
+  the buy-link tooltip so the fuzzy name→SKU match is auditable.
+- **AI photoreal export** (`ai/aiClient.ts`, `ui/ai/AiPhotorealSection.tsx`):
+  a **bring-your-own-key**, experimental "Make photoreal" section in the Share
+  modal — captures a hi-fi PNG of the current view (`scene/captureCanvas.ts`,
+  registered by `ScreenshotController`) and runs image-to-image (Replicate by
+  default) with the user's own API key (localStorage, never bundled), preserving
+  room structure. Async/honest UX, graceful no-key / CORS / error states. Pure
+  request-builder + output-parser are unit-tested; the live round-trip needs a
+  real key (and may need a proxy depending on provider CORS).
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
   `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-
   style mode that isolates one room for furniture planning. Entered from the

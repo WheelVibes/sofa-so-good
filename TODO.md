@@ -408,3 +408,26 @@ seamless tiler); real planar mirror reflections (cost).
   decodes TGA/TIFF/EXR/HDR but not GPU-compressed `.ktx2`/`.dds` (those need a
   WebGL transcode/readback to get RGBA pixels). Add via the drei KTX2 transcoder
   → render-to-canvas readback if users ask for it.
+
+## Competitive-parity upgrade (2026-06-04)
+Spec: [docs/superpowers/specs/2026-06-04-competitive-parity-upgrade-design.md](docs/superpowers/specs/2026-06-04-competitive-parity-upgrade-design.md).
+Shipped: render-on-demand (A1), bookshelf instancing (A2), 2D furniture layout +
+2D⇄3D `P` toggle (G), Smart Start (B), live IKEA SG pricing sidecar (C),
+photo-trace backdrop (F), AI floor-plan recognition (E), AI photoreal export (D).
+Deferred / follow-ups:
+- **Instancing (A2) is scoped to bookshelf books only** — measured ~48→9 draw
+  calls/bookshelf. The crib (~65 calls, slat-heavy) and other repeat-geometry
+  primitives could reuse `primitives/InstancedBoxes.tsx` if profiling justifies
+  it; cross-item instancing was intentionally avoided (conflicts with per-item
+  material/finish/selection).
+- **Photo-trace backdrop (F) is session-scoped** — the reference image lives in
+  an object URL only; it isn't persisted to IDB or round-tripped with the saved
+  plan. Persist the blob + calibration if users want it to survive a reload.
+- **AI features (D/E) are bring-your-own-key + experimental** — the live calls
+  need a real key and may require a CORS proxy depending on provider (handled as
+  a clear error). D defaults to Replicate img2img; E to an OpenAI-compatible
+  vision endpoint. No key is ever bundled. Consider a dev proxy sidecar if CORS
+  blocks common providers.
+- **Live pricing (C) is dev-only + IKEA-only** — add more SG retailers
+  (Courts/HipVan/Castlery) as `RETAILERS` entries in `price-server.mjs`; the
+  name→SKU match is fuzzy (top search hit).
