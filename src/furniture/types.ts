@@ -129,6 +129,7 @@ export type PrimitiveKind =
   | 'Piano'
   | 'Fireplace'
   | 'Vanity'
+  | 'ToyStorage'
 
 export type ParamField =
   | {

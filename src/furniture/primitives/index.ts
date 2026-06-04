@@ -69,6 +69,7 @@ import { TableLamp } from './TableLamp'
 import { TabletopDecor } from './TabletopDecor'
 import { Toilet } from './Toilet'
 import { TowelRail } from './TowelRail'
+import { ToyStorage } from './ToyStorage'
 import { TVConsole } from './TVConsole'
 import { Vanity } from './Vanity'
 import { WallArt } from './WallArt'
@@ -140,6 +141,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   WallClock,
   StandingFan,
   TowelRail,
+  ToyStorage,
   BunkBed,
   Crib,
   Soundbar,
