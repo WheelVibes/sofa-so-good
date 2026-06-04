@@ -28,7 +28,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Build
-        run: npm run build
+        run: npm run build:all
       # SPA fallback: GitHub Pages serves 404.html for unknown routes; make it
       # a copy of index.html so client-side routing/deep links resolve.
       - name: Add SPA 404 fallback
