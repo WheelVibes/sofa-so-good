@@ -246,6 +246,13 @@ export const Icon = {
       <circle cx="12" cy="17" r="0.6" fill="currentColor" stroke="none" />
     </Svg>
   ),
+  Book: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v15H6.5A2.5 2.5 0 0 0 4 20.5z" />
+      <path d="M4 20.5A2.5 2.5 0 0 1 6.5 18H20v3H6.5A2.5 2.5 0 0 1 4 20.5z" />
+      <path d="M9 7h7M9 10h7" />
+    </Svg>
+  ),
   Search: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <circle cx="11" cy="11" r="7" />
