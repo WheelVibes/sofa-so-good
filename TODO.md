@@ -69,7 +69,9 @@ plan:
   wall; coffee table long-side parallel to the sofa.
 - Follow-up: extend the arranger with kitchen/bath-specific templates (work
   triangle / fixture order); run it over the researched presets so their
-  bedrooms are auto-spaced; add a desk-chair-at-desk rule.
+  bedrooms are auto-spaced. (~~desk-chair-at-desk rule~~ — done; `placeDeskChairs`
+  now runs in the living/dining strategies too, and its offset is footprint-
+  derived so the chair tucks in front instead of colliding + stranding.)
 
 ## Asset realism + structural audit (2026-05-30)
 

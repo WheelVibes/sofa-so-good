@@ -592,6 +592,8 @@ function arrangeLivingAnyEdge(
   for (const it of get(['storage', 'desk'])) {
     snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
   }
+  // A WFH desk in an open lounge gets its chair tucked in front of it.
+  placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx)
   for (const it of get(['shoe'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
   tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx)
   for (const it of get(['armchair']))
@@ -699,6 +701,8 @@ function arrangeLiving(
   for (const it of get(['storage', 'desk'])) {
     snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
   }
+  // A WFH desk in a living/dining room gets its chair tucked in front of it.
+  placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx)
   for (const it of get(['shoe'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
 
   // 6. Plants + floor lamps + armchairs → corners / nearest wall.
@@ -810,8 +814,17 @@ function placeDeskChairs(
       }
     }
     if (best) {
+      // Offset from the desk centre to its front face plus the chair's own
+      // half-depth (+ a small gap) so the chair sits in front rather than
+      // overlapping the desk (which a fixed offset did, failing collision and
+      // stranding the chair against a wall).
+      const deskDef = ctx.catalog[best.defId]
+      const chairDef = ctx.catalog[ch.defId]
+      const deskHalf = deskDef ? baseFootprint(best, deskDef).d / 2 : 0.35
+      const chairHalf = chairDef ? baseFootprint(ch, chairDef).d / 2 : 0.3
+      const off = deskHalf + chairHalf + 0.04
       const f: [number, number] = [Math.sin(best.rotation), Math.cos(best.rotation)]
-      const pos: [number, number] = [best.position[0] + f[0] * 0.55, best.position[1] + f[1] * 0.55]
+      const pos: [number, number] = [best.position[0] + f[0] * off, best.position[1] + f[1] * off]
       if (tryPlace(ch, pos, best.rotation + Math.PI, world, ctx) !== ch) continue
     }
     snapToWall(ch, rect, [nearestEdge(ch.position, rect)], world, ctx)

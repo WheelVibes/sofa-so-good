@@ -78,6 +78,40 @@ describe('arrangeRoom', () => {
     }
   })
 
+  it('tucks a WFH office chair in front of its desk in the living/dining', () => {
+    // A work-from-home corner dropped into the open lounge: the office chair
+    // must land next to its desk facing it, not stranded against a far wall.
+    const mk = (defId: string, id: string, pos: [number, number]): FurnitureItem => ({
+      id,
+      defId,
+      position: pos,
+      rotation: 0,
+      props: { ...defaultParamProps(BUILTIN_CATALOG[defId] as never) },
+    })
+    // A near-empty lounge with just the WFH corner, so the tuck has room.
+    const items = [
+      mk('desk', 'test-desk', [10.0, 3.0]),
+      mk('office-chair', 'test-chair', [11.5, 5.5]),
+    ]
+    const out = arrangeRoom('livingDining', items, BUILTIN_CATALOG, {})
+    assertValid(out)
+    const desk = out.find((i) => i.id === 'test-desk')!
+    const chair = out.find((i) => i.id === 'test-chair')!
+    expect(roomOf(chair.position)).toBe('livingDining')
+    // Chair sits within reach of the desk (not parked across the room).
+    const gap = Math.hypot(
+      desk.position[0] - chair.position[0],
+      desk.position[1] - chair.position[1],
+    )
+    expect(gap).toBeLessThan(1.2)
+    // Chair faces the desk: it sits on the desk's facing side and is rotated
+    // ~180° from the desk (placeDeskChairs sets chair = desk.rotation + PI).
+    const dot =
+      Math.sin(desk.rotation) * Math.sin(chair.rotation) +
+      Math.cos(desk.rotation) * Math.cos(chair.rotation)
+    expect(dot).toBeLessThan(-0.5)
+  })
+
   it('leaves items in untouched rooms unchanged', () => {
     const base = hydrate()
     const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {})
