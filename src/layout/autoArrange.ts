@@ -1,6 +1,8 @@
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import { canPlace } from '../collision/placement'
+import type { CollisionWall } from '../collision/walls'
+import { planCollisionWalls } from '../floorplan/planGeometry'
 import { type FloorPlan, type PlanRoom, wallLength } from '../floorplan/types'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { doorSwingRects } from './clearance'
@@ -193,6 +195,9 @@ interface Ctx {
   doors: Record<string, { open: boolean }>
   /** Keep-clear rects (door swings + room openings) no item may overlap. */
   keepOut: Rect[]
+  /** Collision walls override for a user-authored plan. When omitted, the
+   *  fixed flat's door-aware walls are used (default flat). */
+  walls?: CollisionWall[]
 }
 
 /** Axis-aligned footprint AABB of a candidate (accounts for rotation). */
@@ -232,7 +237,7 @@ function tryPlace(
   // this room. Items still pending placement are NOT in `world`, so a messy
   // starting layout can't block the tidy target.
   const others = world.filter((w) => w.id !== item.id)
-  if (canPlace(candidate, def, { others, defs: ctx.catalog, doors: ctx.doors })) {
+  if (canPlace(candidate, def, { others, defs: ctx.catalog, doors: ctx.doors, walls: ctx.walls })) {
     const idx = world.findIndex((w) => w.id === item.id)
     if (idx >= 0) world[idx] = candidate
     else world.push(candidate)
@@ -435,9 +440,12 @@ function arrangeCore(opts: {
   allItems: FurnitureItem[]
   catalog: Record<string, FurnitureDef>
   doors: Record<string, { open: boolean }>
+  /** Custom-plan collision walls (omitted → fixed flat walls). */
+  walls?: CollisionWall[]
 }): FurnitureItem[] {
-  const { rect, keepOut, inRoom, kind, focal, genericLiving, allItems, catalog, doors } = opts
-  const ctx: Ctx = { catalog, doors, keepOut }
+  const { rect, keepOut, inRoom, kind, focal, genericLiving, allItems, catalog, doors, walls } =
+    opts
+  const ctx: Ctx = { catalog, doors, keepOut, walls }
   const isFixed = (i: FurnitureItem) => {
     const r = roleOf(i.defId, catalog)
     return r === 'mounted' || r === 'ceiling'
@@ -956,6 +964,8 @@ export function arrangeAllRoomsForPlan(
 ): FurnitureItem[] {
   const keepOut = doorSwingRects(plan)
   const windows = windowCentres(plan)
+  // Collide against the custom plan's own walls, not the fixed flat's.
+  const walls = planCollisionWalls(plan, doors)
   let items = allItems
   for (const room of plan.rooms) {
     const inRoom = (i: FurnitureItem) => pointInPlanRoom(room, i.position[0], i.position[1])
@@ -975,6 +985,7 @@ export function arrangeAllRoomsForPlan(
       allItems: items,
       catalog,
       doors,
+      walls,
     })
   }
   return items

@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { canPlace } from '../collision/placement'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { planCollisionWalls } from '../floorplan/planGeometry'
+import type { FloorPlan } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -134,6 +136,47 @@ describe('arrangeRoom', () => {
     assertValid(out)
     // No floor item ends up squarely in a door's path.
     expect(blockedDoorItems(out, BUILTIN_CATALOG, plan)).toHaveLength(0)
+  })
+
+  it('respects a NON-default plan own walls when tidying (not the flat walls)', () => {
+    // Adversarial plan: a 4x4 room with an interior wall straight through the
+    // centre — a location that is OPEN floor in the fixed flat. A plant dropped
+    // on that wall must be relocated off it. (Regression: arrangeAllRoomsForPlan
+    // collided against the fixed flat's walls, so an item on the custom plan's
+    // wall was deemed valid and left there.)
+    const plan: FloorPlan = {
+      id: 'adv',
+      name: 'Adversarial',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [
+        { id: 'w-n', start: [0, 0], end: [4, 0], thickness: 'external' },
+        { id: 'w-e', start: [4, 0], end: [4, 4], thickness: 'external' },
+        { id: 'w-s', start: [4, 4], end: [0, 4], thickness: 'external' },
+        { id: 'w-w', start: [0, 4], end: [0, 0], thickness: 'external' },
+        // Interior wall bisecting the room (open floor in the fixed flat).
+        { id: 'w-mid', start: [0, 2], end: [4, 2], thickness: 'internal' },
+      ],
+      openings: [],
+      rooms: [{ id: 'r', name: 'Room', origin: [0, 0], width: 4, depth: 4 }],
+    }
+    const plant: FurnitureItem = {
+      id: 'plant',
+      defId: 'potted-plant',
+      position: [2, 2], // squarely on the mid wall
+      rotation: 0,
+      props: { ...defaultParamProps(BUILTIN_CATALOG['potted-plant'] as never) },
+    }
+    const out = arrangeAllRoomsForPlan(plan, [plant], BUILTIN_CATALOG, {})
+    const walls = planCollisionWalls(plan, {})
+    const placed = out.find((i) => i.id === 'plant')!
+    const ok = canPlace(placed, BUILTIN_CATALOG['potted-plant'], {
+      others: [],
+      defs: BUILTIN_CATALOG,
+      doors: {},
+      walls,
+    })
+    if (!ok) throw new Error(`plant left overlapping the plan wall at [${placed.position}]`)
   })
 
   it('never parks furniture in the main-door swing / kitchen opening', () => {
