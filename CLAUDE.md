@@ -189,6 +189,11 @@ rediscover it.
     `convertModel` → `runOptimize` — before `persistUserGlb`, threading a sibling
     file pool (for .mtl/.bin/texture resolution) and an opt-in `ktx2` flag through
     `BulkImportOptions`/`ImportPlan`. Files: `validate.ts`, `bulkImport.ts`, `persist.ts`,
+    `inferFlags.ts` (`inferCollisionFlags` — per-file `mounted`/`noClip` guessed
+    from the filename, e.g. rug/mat → noClip, pendant/sconce/wall-art/range-hood
+    → mounted; OR'd with the batch checkboxes, gated by the dialog's default-on
+    "Auto-detect …" toggle, so a mixed folder drop gets per-item collision
+    without manual tagging),
     `hashFile.ts` (SHA-256 content hash — `persist`/`bulkImport` skip a re-upload
     of identical bytes, counting it as a duplicate; the hash rides on
     `UserGltfDef.contentHash`, persisted in IDB meta + the save schema, rehydrated
