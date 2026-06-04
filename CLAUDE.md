@@ -16,10 +16,17 @@ state, Vite build, Vitest tests.
   matters — the app build empties `dist/` first) and is what `deploy.yml` runs,
   so the guide deploys at `/sofa-so-good/docs/`. An in-app **User guide** button
   (toolbar + Help modal + ⌘K) opens it via `src/ui/docsUrl.ts` (host-agnostic
-  `${import.meta.env.BASE_URL}docs/`). **Developer docs** under `docs/developer/`
-  are plain Markdown and **not** deployed. (Dev caveat: the guide only exists in
+  `${import.meta.env.BASE_URL}docs/`). (Dev caveat: the guide only exists in
   a built `dist/`; use `docs:dev`/`docs:preview` to view it locally — those
   default to port 5175, shared with `price-server`, so don't run both at once.)
+- **Developer docs** under `docs/developer/` are Markdown guides, **not
+  deployed**, with their own local-only VitePress site (config in
+  `docs/developer/.vitepress/`): `npm run docs:dev:developer` (port 5176) /
+  `docs:build:developer` / `docs:preview:developer` render them with VitePress's
+  nav/search/dark-mode. Both doc sites share a warm-clay palette + responsive CSS
+  in `docs/_shared/docs-theme.css` (imported via each `.vitepress/theme/`). The
+  developer site builds to its own gitignored `.vitepress/dist` and never enters
+  the app's `dist/` (no `base`/`outDir` overrides), so it can't leak into prod.
 - `npm run check` / `npm run check:fix` — **Biome** (single Rust tool, replaces
   Prettier + ESLint) format + lint; `check:fix` applies safe fixes. `npm run
   format` (format-write) and `npm run lint` (lint only) are narrower variants.
@@ -68,12 +75,23 @@ state, Vite build, Vitest tests.
 - `python/scripts/` — offline IKEA SG scraper + asset tooling (Python +
   Node). Not part of the app build; see **IKEA scraper (offline)** below.
 
-## REQUIRED: keep CLAUDE.md + README.md current
-Both files have drifted from the code before. After **any** change that adds,
+## REQUIRED: keep CLAUDE.md + README.md + docs current
+These have drifted from the code before. After **any** change that adds,
 removes, or reshapes a system, command, layout area, or user-facing feature,
-update **both** this architecture guide and `README.md` in the same change so
-they never lag the repo. (`TODO.md` tracks deferred work per the Process rule;
-these two track the *current* state.)
+update **all** of the following in the same change so they never lag the repo:
+- **`CLAUDE.md`** (this architecture index) and **`README.md`** — the terse,
+  always-current state.
+- **User docs** (`docs/user/`, the deployed VitePress guide) — if the change is
+  **user-facing** (a feature, control, panel, shortcut, or workflow a user sees),
+  add/update the relevant page(s) and capture a screenshot where it helps. Keep
+  pages accurate to the actual UI (verify labels/actions against the source, as
+  the catalog tabs / context-menu items are exact).
+- **Developer docs** (`docs/developer/`, the local-only VitePress guide) — if the
+  change touches **architecture, a system, or a how-to recipe**, update the
+  relevant guide and cross-link the spec under `docs/superpowers/specs/`.
+
+(`TODO.md` tracks deferred work per the Process rule; the above track the
+*current* state.)
 
 ## REQUIRED: visual verification after any app change
 For **any** change to the app (not docs/tests-only), you MUST, before

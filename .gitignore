@@ -40,3 +40,6 @@ public/assets/ikea/
 # VitePress
 docs/user/.vitepress/cache
 docs/user/.vitepress/.temp
+docs/developer/.vitepress/cache
+docs/developer/.vitepress/.temp
+docs/developer/.vitepress/dist

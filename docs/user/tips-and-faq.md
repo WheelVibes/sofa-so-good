@@ -34,6 +34,12 @@ Yes — see [Importing models](/importing-models) and
 [Importing textures](/importing-textures). Many formats are supported and
 converted automatically.
 
+**Does it work on my phone or tablet?**
+Yes. On small screens the panels become bottom sheets and the toolbar collapses
+to a compact bar with an action sheet, so everything stays reachable one‑handed.
+In walk mode you get an on‑screen joystick to move and drag‑to‑look instead of
+the keyboard and mouse. See [Navigating the flat](/navigating#walk-mode).
+
 **The flat looks too dark / too bright.**
 That's the time‑of‑day simulation. Press <kbd>T</kbd> to cycle morning → noon →
 dusk → night, or set the time and sun direction from the **Scene** menu. See

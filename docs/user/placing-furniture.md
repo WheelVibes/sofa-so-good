@@ -43,6 +43,27 @@ Select a piece to open its **inspector**, where parametric items expose
 dimensions, colours, and style options. **Double‑click** focuses the camera on
 it.
 
+**Right‑click** any placed piece for a **context menu** with the most common
+actions right where you need them — **swap with similar**, rotate, flip,
+duplicate, **group / ungroup**, lock / unlock, and delete. (Group appears when
+you have several pieces selected; Ungroup appears when the piece is already part
+of a group.)
+
+## Swap with similar
+
+Selected a piece but want to try an alternative? Open **Swap with similar** (from
+the right‑click menu or the inspector) to browse same‑category pieces. Each
+option shows a **fit badge** telling you whether it fits the current spot, and
+choosing one **replaces the piece in place** — same position and rotation — so
+you can audition options without re‑placing anything.
+
+## The Objects panel (Layers)
+
+Switch the left panel to **Layers** (the tab next to Catalog) for a tidy list of
+everything in the flat, **grouped by room**. From here you can **select**,
+**lock**, or **delete** any piece without hunting for it in the 3D view — handy
+once the flat is full.
+
 ## Snap grid
 
 Toggle the snap grid and cycle its size (10 / 25 / 50 cm, 1 m) from the toolbar.

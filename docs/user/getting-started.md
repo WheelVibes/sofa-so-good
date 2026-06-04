@@ -27,6 +27,10 @@ start rearranging immediately. On the very first visit you'll see:
 - **Catalog** — open it with the <kbd>C</kbd> key or the Catalog button.
 - **Nav cluster** (bottom‑right) — a fused compass, zoom rail, and minimap.
 
+On a phone or tablet the panels turn into bottom sheets and the toolbar collapses
+into a compact bar with an action sheet, so the same tools stay within thumb's
+reach. Walk mode uses an on‑screen joystick + drag‑to‑look on touch.
+
 ## Place your first piece
 
 1. Open the catalog (<kbd>C</kbd>).

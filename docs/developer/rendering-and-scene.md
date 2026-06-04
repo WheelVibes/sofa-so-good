@@ -44,3 +44,17 @@ downgrade; `Lighting` holds the loop open while its day/night tween settles.
 `RecordController.tsx` (.webm), cameras (`cameras/OrbitCamera`,
 `FirstPersonCamera`), selection (outline/hover/marquee), `ShowcaseController`
 (AccumulativeShadows when parked).
+
+## Walk-mode input
+
+`FirstPersonCamera` adapts to the device via a `pointer: coarse` check. On a
+**fine pointer** it uses the **Pointer Lock API** (click the canvas to capture
+the cursor, mouse spins the view, WASD moves, Esc releases) — the browser's
+native "Press Esc to show your cursor" banner is mandated by that API and
+**cannot** be styled or suppressed. On a **coarse pointer** (touch) Pointer Lock
+is unavailable, so the bottom-left `ui/walk/WalkJoystick.tsx` writes a normalized
+move vector to the `scene/walkInput.ts` singleton (read each frame by
+`FirstPersonCamera`) and a canvas drag spins the view. `ui/WalkHud.tsx` is a
+themed, auto-fading (5 s) controls banner shown on walk entry whose wording
+branches on the same coarse-pointer check; `ui/Crosshair.tsx` is the reticle.
+See the spec under `docs/superpowers/specs/2026-06-05-mobile-walk-controls-design.md`.

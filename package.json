@@ -25,6 +25,9 @@
     "docs:dev": "vitepress dev docs/user --port 5175",
     "docs:build": "vitepress build docs/user",
     "docs:preview": "vitepress preview docs/user --port 5175",
+    "docs:dev:developer": "vitepress dev docs/developer --port 5176",
+    "docs:build:developer": "vitepress build docs/developer",
+    "docs:preview:developer": "vitepress preview docs/developer --port 5176",
     "build:all": "npm run build && npm run docs:build"
   },
   "dependencies": {

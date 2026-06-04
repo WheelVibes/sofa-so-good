@@ -41,5 +41,10 @@
 | Action | Shortcut |
 | --- | --- |
 | Move | <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> |
+| Look around | click the scene, then move the mouse |
+| Release the mouse | <kbd>Esc</kbd> |
 | Open / close a door | <kbd>E</kbd> |
-| Look around | mouse |
+| Back to orbit | <kbd>V</kbd> |
+
+> On touch devices there's no keyboard: use the on‑screen joystick to move and
+> drag the scene to look around. See [Navigating the flat](/navigating#walk-mode).
