@@ -158,3 +158,7 @@
 .walk-compass { position: absolute; right: var(--s-4); bottom: var(--s-4); width: 56px; height: 56px; border-radius: var(--r-pill); background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow-panel); display: grid; place-items: center; color: var(--text-3); z-index: var(--z-pop); backdrop-filter: blur(var(--blur)); -webkit-backdrop-filter: blur(var(--blur)); }
 .walk-compass .n { position: absolute; top: 5px; font-size: 9px; font-weight: 800; color: var(--accent-soft-text); }
 .walk-compass .needle { color: var(--accent); transform: rotate(28deg); }
+
+/* Walk-mode mobile movement joystick (translucent, bottom-left, safe-area). */
+.walk-joystick { position: absolute; left: calc(env(safe-area-inset-left, 0px) + 24px); bottom: calc(env(safe-area-inset-bottom, 0px) + 28px); z-index: var(--z-pop); width: 132px; height: 132px; border-radius: 50%; background: color-mix(in oklab, var(--surface) 35%, transparent); border: 1px solid color-mix(in oklab, var(--border) 60%, transparent); backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); display: flex; align-items: center; justify-content: center; touch-action: none; user-select: none; }
+.walk-joystick-thumb { width: 56px; height: 56px; border-radius: 50%; background: color-mix(in oklab, var(--accent) 65%, transparent); border: 1px solid color-mix(in oklab, var(--text) 25%, transparent); pointer-events: none; }

@@ -37,8 +37,10 @@ import { ShareModal } from './ui/ShareModal'
 import { SwapModal } from './ui/SwapModal'
 import { Toolbar } from './ui/Toolbar'
 import { VersionsPanel } from './ui/VersionsPanel'
+import { WalkHud } from './ui/WalkHud'
 import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
+import { WalkJoystick } from './ui/walk/WalkJoystick'
 import { SmartStartWizard } from './ui/wizard/SmartStartWizard'
 
 export default function App() {
@@ -501,6 +503,8 @@ export default function App() {
         <NavCluster />
         <DragHud />
         <Crosshair />
+        <WalkJoystick />
+        <WalkHud />
         <DoorPrompt />
         <CatalogDrawer />
         <InspectorPanel />
