@@ -12,6 +12,7 @@ import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
 import { CityBackdrop } from './CityBackdrop'
 import { ClearanceOverlay } from './ClearanceOverlay'
+import { ContextLossGuard } from './ContextLossGuard'
 import { CameraRig } from './cameras/CameraRig'
 import { CameraForwardTracker } from './cameras/cameraForward'
 import { DevCameraExpose } from './DevCameraExpose'
@@ -65,6 +66,7 @@ export function Scene() {
         toneMappingExposure: 1.05, // initial only — Lighting.tsx drives this per-frame from grade(altitude)
       }}
     >
+      <ContextLossGuard />
       <Sky />
       <CityBackdrop />
       <SceneEnvironment />

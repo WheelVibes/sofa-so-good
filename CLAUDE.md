@@ -31,6 +31,18 @@ state, Vite build, Vitest tests.
 - `npm run optimize:glb` — offline GLB LOD pass
   (`python/scripts/optimize_glb_lod.mjs`): generates `-low`/`-medium` tier
   variants of every GLB under the IKEA model dir (see **GLB LOD pipeline**).
+- `npm run compress:glb-textures <dir|file> [--out <dir>] [--etc1s] [--dry-run]`
+  — offline **full-resolution, codec-only** KTX2 re-encode
+  (`python/scripts/compress_glb_textures.mjs`): swaps a GLB's embedded
+  PNG/JPEG/WebP textures for KTX2 Basis-Universal **UASTC** (visually lossless;
+  `--etc1s` = smaller/slightly-lossy colour) while keeping **full resolution and
+  the original geometry** (Draco untouched, no mesh decimation) — distinct from
+  `optimize:glb`, which makes *downscaled + decimated* LOD proxies. Targets the
+  `high`/"Original" asset tier the app loads verbatim. ~73% of GLB bytes are
+  textures, so a UASTC pass cuts the IKEA corpus roughly 35–45%. Needs the
+  KTX-Software `toktx` binary **and** `@gltf-transform/cli` (gltf-transform's
+  `textureCompress` does not support KTX2 in v4.x); without them it exits with
+  guidance and writes nothing, so it's safe to run anywhere / dry-run.
 - `npm run scraper-server` — local Node sidecar (`scripts/scraper-server.mjs`)
   that drives the IKEA scraper for the one-click **IKEA Singapore (live scrape)**
   pack: spawns `ikea_model_scraper.py --out public/assets/ikea --progress-ndjson`,
@@ -126,7 +138,20 @@ rediscover it.
     imports detected groups through a bounded pool (`GROUP_CONCURRENCY`, parallel
     — was a serial loop) + loose files through the bulk path, all **off the
     modal** as a background job tracked by one `notify` progress notification, so
-    closing the dialog doesn't cancel it). These drive
+    closing the dialog doesn't cancel it). **Store writes are batched**: groups
+    build with `importGroup(…, {commit:false})` and flush via
+    `addManyUserFurniture` every `COMMIT_BATCH` (bulk import + `persistUserGlb`
+    `{commit:false}` do the same) — committing *per* item re-ran
+    `buildMergedCatalog` (O(total)) in every subscriber for all N items (**O(n²)**),
+    starving the render loop on a multi-thousand import until the browser killed
+    the WebGL context (**white flicker**); batching makes it a few dozen rebuilds.
+    Progress is **rAF-coalesced** to one `notify.update` per frame. In-canvas
+    catalog consumers (`FurnitureLayer` excepted — it renders from it; but
+    `DragController`/`MarqueeSelector`) use `catalog.ts` **`useCatalogGetter`** (a
+    stable `(id)=>def` backed by a non-rendering store subscription) so catalog
+    churn never re-renders the R3F tree. `scene/ContextLossGuard.tsx` (mounted in
+    both Canvases) is the safety net: `preventDefault`s `webglcontextlost` so the
+    browser restores, and `invalidate`s on restore. These drive
     `ui/upload/UploadModelDialog.tsx` (a portaled, viewport-centred modal whose
     single drag-and-drop **`<div>`** zone — not a `<button>`, which mishandles
     native drops — accepts loose files **and** whole folders; shows progress for

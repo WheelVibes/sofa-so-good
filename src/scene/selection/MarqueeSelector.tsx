@@ -1,8 +1,8 @@
 import { useThree } from '@react-three/fiber'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { type Camera, Vector3 } from 'three'
 import { itemFootprint } from '../../collision/placement'
-import { useCatalog } from '../../furniture/catalog'
+import { useCatalogGetter } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
 
 const DRAG_THRESHOLD_PX = 4
@@ -40,12 +40,13 @@ export function MarqueeCameraTracker() {
  * extends, with Shift) the multi-selection set.
  */
 export function MarqueeSelector() {
-  const catalog = useCatalog()
-  const catalogRef = useRef(catalog)
-  catalogRef.current = catalog
+  // Stable getter so a bulk import's catalog churn never re-renders this
+  // in-canvas controller (it only reads the catalog lazily in handlers).
+  const { ref: catalogRef } = useCatalogGetter()
 
   const [rect, setRect] = useState<MarqueeRect | null>(null)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: catalogRef is a stable ref read lazily inside the handler — intentionally not a dep.
   useEffect(() => {
     const canvas = document.querySelector('canvas')
     if (!canvas) return
