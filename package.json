@@ -20,7 +20,8 @@
     "index-assets": "tsx scripts/index-assets-cli.ts",
     "optimize:glb": "node python/scripts/optimize_glb_lod.mjs",
     "compress:glb-textures": "node python/scripts/compress_glb_textures.mjs",
-    "scraper-server": "node scripts/scraper-server.mjs"
+    "scraper-server": "node scripts/scraper-server.mjs",
+    "price-server": "node scripts/price-server.mjs"
   },
   "dependencies": {
     "@react-three/drei": "^10.7.7",
