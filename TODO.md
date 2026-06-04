@@ -161,7 +161,12 @@ used as media walls / serving pieces in several presets. To add a researched lay
 ~~bulb temperature~~, ~~TV/monitor screen content~~, ~~room area in Finish
 picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
 
-Possible further polish: heated-ladder towel rail; user-saved style presets.
+Possible further polish: heated-ladder towel rail (a wall-mounted towel rail
+already ships; this would be a freestanding heated-ladder variant).
+(~~user-saved style presets~~ — done; `userStylesSlice` captures the current
+per-room floor/wall finishes as a named style, persists them to `localStorage`,
+and re-applies (undoable) from the Arrange menu's **My styles** section, beside
+the built-in Style presets.)
 ~~Researched bedroom layout~~ — "Boutique Suite" preset re-models the main
 bedroom into a symmetric hotel layout (queen centred with twin nightstands +
 lamps, foot bench, wardrobe on the solid wall) via the new `rooms` override.

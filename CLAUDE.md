@@ -119,9 +119,12 @@ rediscover it.
   measurements, orientation, notifications, reset, **userAssets**
   (user-uploaded GLBs + imported `IkeaGltfDef`s — see **IKEA models**), and
   **floorPlan** (editable apartment shell + editor state + saved-plan library),
-  **appearance** (theme + light/dark/auto mode — see **Design system**), and
+  **appearance** (theme + light/dark/auto mode — see **Design system**),
   **features** (command-palette / layers-mode / context-menu / onboarding UI
-  state). Persistence + migrations under `storage/` (layout autosave;
+  state), and **userStyles** (user-saved finish styles — per-room floor/wall
+  finishes captured from the current design, persisted in `localStorage`
+  (`hdb_user_styles`), re-appliable from the Arrange menu's "My styles"; not in
+  the autosave/schema). Persistence + migrations under `storage/` (layout autosave;
   `qualityPrefs.ts` graphics prefs; `editorPrefs.ts` snap/grid;
   `appearancePrefs.ts` theme+mode → `[data-theme]`/`[data-mode]` on `<html>`;
   `floorPlanStore.ts` plan library
