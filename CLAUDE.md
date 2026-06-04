@@ -209,6 +209,18 @@ rediscover it.
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
   adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection.
+  The main Canvas runs **`frameloop="demand"`**: `RenderPump.tsx` is one
+  always-on rAF loop that calls `invalidate()` only when a frame is wanted —
+  continuously while something animates (walk, turntable, tour, recording,
+  shadow accumulation, a drag, a spinning fan via `animatedSources.ts`, boot,
+  asset streaming) and for a short settle tail after any discrete store change;
+  idle scenes draw ~0 frames, a hidden tab draws none. `renderDecision.ts` is
+  the pure (unit-tested) `shouldRender`/`isContinuous`/`settleTailMs` logic;
+  `renderPumpSignal.ts` gates `QualityController` FPS sampling to continuous
+  spans (sparse idle frames would otherwise read as ~0 fps); `Lighting` holds
+  the loop open while its day/night tween is mid-transition. Repeated decoration
+  inside a primitive can collapse to one draw call via `primitives/InstancedBoxes.tsx`
+  (e.g. bookshelf books: ~48→~9 draw calls).
 - `src/ui/` — DOM overlays: CatalogDrawer (`catalog/`). The drawer is **one
   flat tab row — Catalog / Layers / Packs** (panel title tracks the active tab).
   **Catalog** is one **unified grid** (`useUnifiedCatalog.ts` → `GridItem` =
