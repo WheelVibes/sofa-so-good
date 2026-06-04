@@ -78,12 +78,22 @@ export the result — all in the browser.
 - **Design tools** — a SGD **budget** / shopping list, door-swing **clearance
   checks**, a **sun study** time-lapse, an auto **walkthrough** tour, and a
   printable **design report**.
-- **Bring your own models** — import your own `.glb` furniture (categorised,
-  searchable, recolourable like the built-ins). An offline pipeline also turns
-  scraped IKEA SG products into rich catalog items (colour/finish variants,
-  per-component recolouring, real footprints, and the **real product photo** as
-  the catalog thumbnail), with automatic **low/medium/high LOD variants** so
-  heavy models stay smooth on modest hardware.
+- **Bring your own models** — import your own furniture as
+  `.glb`/`.gltf` **or** `.obj` / `.fbx` / `.stl` / `.ply` / `.dae` / `.3mf` /
+  `.usdz`: non-GLB formats are **converted to GLB in your browser** (no upload,
+  no server), and every imported model then runs through an **in-browser
+  optimize pass** (mesh weld/dedup/prune + Draco, textures re-encoded to
+  near-lossless WebP — full resolution kept) so it stays small and smooth. An
+  optional **Maximum compression (KTX2)** toggle uses GPU-compressed textures
+  when an encoder is available and otherwise falls back to WebP. Uploaded
+  **textures/materials** accept the same breadth — PNG / JPG / WebP / BMP /
+  **TGA / TIFF / EXR / HDR** — decoded and re-encoded to WebP on import. Imports
+  are categorised, searchable, and recolourable like the built-ins. An offline
+  pipeline also turns scraped IKEA SG products into rich catalog items
+  (colour/finish variants, per-component recolouring, real footprints, and the
+  **real product photo** as the catalog thumbnail), with automatic
+  **low/medium/high LOD variants** so heavy models stay smooth on modest
+  hardware.
 - **One-click IKEA catalogue** — the *IKEA Singapore (live scrape)* pack
   (catalog → Packs) downloads models on demand via a local sidecar
   (`npm run scraper-server`): products scrape one-by-one (parallelized), each is

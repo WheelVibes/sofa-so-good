@@ -117,6 +117,28 @@ rediscover it.
     url helpers + sync probe cache + prewarm), `textureBudget.ts` (runtime
     texture downscale fallback), `finishTargets.ts` (named meshes for
     per-component recolour).
+  - `convert/` — **in-browser multi-format → GLB conversion** so non-GLB uploads
+    become a GLB before the unchanged `validateGlbFile → persistUserGlb` path:
+    `formats.ts` (`detectModelFormat` via magic bytes + extension,
+    `MODEL_EXTENSIONS`/`isModelEntryFile`, per-format size caps —
+    glb/gltf/obj/fbx/stl/ply/dae/3mf/usdz), `loadToObject.ts` (per-format three
+    example-loader registry + a `LoadingManager` sibling-blob-URL resolver so
+    OBJ→MTL→tex / DAE→tex / glTF→bin refs resolve from the dropped folder, missing
+    refs → a 1×1 transparent PNG), `toGlb.ts` (`GLTFExporter` → binary GLB), and
+    `convertModel.ts` (orchestrator: detect → size-check → load → export, throws
+    `ConvertError`; `needsConversion` is true for anything but a native GLB).
+  - `optimize/` — **in-browser GLB optimize pass** run on every imported model
+    (converted + plain GLB upload): `optimizeGlb.ts` (pure, worker-safe
+    gltf-transform pipeline — weld/dedup/prune + Draco, plus per-texture WebP
+    re-encode via OffscreenCanvas; **quality-first/codec-only** — geometry shape
+    preserved, no mesh simplify, textures keep resolution unless above
+    `maxTextureSize`; never throws — returns the input unchanged on any failure,
+    and skips Draco/textures gracefully when the wasm/canvas APIs are absent),
+    `optimize.worker.ts` (Web Worker entry), `runOptimize.ts` (main-thread wrapper
+    that posts to the worker and falls back to a direct call). KTX2/UASTC is an
+    opt-in routed through `src/lib/ktx2encode.ts` (see **Design system** /
+    `optimizeGlb`'s `ktx2` option), falling back to WebP when no encoder is
+    available.
   - `ikea/` — consumes IKEA scraper output: `metadata.ts` (zod parse +
     `looksLikeIkeaMetadata`), `translate.ts` (scraper category/placement → app
     category + collision flags + `frontClearance`), `importGroup.ts` (metadata +
@@ -126,7 +148,13 @@ rediscover it.
     among picked files, each scoped to its own folder via `filesUnder`;
     `looseModelFiles` is the non-group remainder — used by the Upload dialog).
     Wired end-to-end (see **IKEA models**).
-  - `upload/` — user-GLB import: `validate.ts`, `bulkImport.ts`, `persist.ts`,
+  - `upload/` — user-model import (now **any supported model format**, not just
+    GLB): `isModelFile` spans every `convert/formats.ts` extension, and
+    `bulkImport.ts`'s `prepareGlb` (exported as `prepareModelFile` for the
+    single-file dialog path) **converts (if non-GLB) + optimizes** each entry —
+    `convertModel` → `runOptimize` — before `persistUserGlb`, threading a sibling
+    file pool (for .mtl/.bin/texture resolution) and an opt-in `ktx2` flag through
+    `BulkImportOptions`/`ImportPlan`. Files: `validate.ts`, `bulkImport.ts`, `persist.ts`,
     `hashFile.ts` (SHA-256 content hash — `persist`/`bulkImport` skip a re-upload
     of identical bytes, counting it as a duplicate; the hash rides on
     `UserGltfDef.contentHash`, persisted in IDB meta + the save schema, rehydrated
@@ -166,7 +194,17 @@ rediscover it.
   plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
   for furniture, plus `getSolidMaterial` for metal/plastic and the `mat:<id>`
   DLC-finish resolver), `worldUv.ts` (metre-space UVs so finishes tile
-  consistently).
+  consistently). `convert/` — **in-browser texture decode + re-encode** for
+  uploaded materials: `decodeImage.ts` (`decodeImage` → straight RGBA8 for
+  PNG/JPG/WebP/BMP/GIF via `createImageBitmap`, plus **TGA/TIFF/EXR/HDR** via a
+  three loader / `utif`, tonemapping HDR/EXR floats to 8-bit; `isSupportedTexture`
+  + `EXTRA_TEXTURE_EXTENSIONS`) and `reencode.ts` (`reencodeToWebp` +
+  `normalizeTextureFile` — re-encodes everything except WebP to near-lossless
+  WebP, full resolution). `upload/persist.ts` normalizes each channel file
+  through `normalizeTextureFile` before `validateImageFile`/IDB write;
+  `upload/validate.ts` accepts the extra formats by extension (16 MB source cap).
+  KTX2/DDS standalone-texture decode is deferred (needs a WebGL readback — see
+  TODO.md).
 - `src/scene/` — the R3F `<Canvas>` and systems: `lighting/` (sun astronomy,
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +

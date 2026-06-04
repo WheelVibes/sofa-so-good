@@ -62,12 +62,14 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
   const buf = await file.arrayBuffer()
 
   if (ext === '.tga') {
-    // three 0.184 TGALoader.parse returns a DataTexture; pixels live in .image.
+    // three 0.184 TGALoader extends DataTextureLoader; parse() returns the raw
+    // texture data object { data: Uint8Array(RGBA), width, height } directly.
     const tex = new TGALoader().parse(buf) as unknown as {
-      image: { data: Uint8Array; width: number; height: number }
+      data: Uint8Array
+      width: number
+      height: number
     }
-    const { data, width, height } = tex.image
-    return { data: new Uint8ClampedArray(data), width, height }
+    return { data: new Uint8ClampedArray(tex.data), width: tex.width, height: tex.height }
   }
 
   if (ext === '.tif' || ext === '.tiff') {

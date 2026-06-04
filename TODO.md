@@ -388,3 +388,23 @@ seamless tiler); real planar mirror reflections (cost).
   decodes KTX2 (drei auto-wires it). Note KTX2/Basis encoding is seconds/texture
   vs ms for WebP — a full `--ktx2` re-run is much slower. Related: the older
   asset-pipeline KTX2 TODO under §Assets.
+
+## Multi-format model + texture import
+- ~~**Convert-to-GLB on import (done, 2026-06-04)**~~ — non-GLB model uploads
+  (`.obj`/`.fbx`/`.stl`/`.ply`/`.dae`/`.3mf`/`.usdz`) are converted to GLB in the
+  browser (`src/furniture/convert/`) and every imported model runs through an
+  in-browser optimize pass (`src/furniture/optimize/` — weld/dedup/prune + Draco +
+  WebP textures, in a Web Worker). Material uploads accept TGA/TIFF/EXR/HDR/BMP,
+  decoded + re-encoded to WebP (`src/materials/convert/`). Plan/spec:
+  [docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md](docs/superpowers/plans/2026-06-04-multi-format-import-conversion.md).
+- **KTX2 in-browser encode (scaffold only)** — the model dialog's *Maximum
+  compression (KTX2)* toggle and `optimizeGlb`'s `ktx2` option are wired, but
+  `src/lib/ktx2encode.ts` is a stub (`isKtx2EncodeAvailable()` → false) so it
+  always falls back to WebP. To actually emit KTX2 in-browser, integrate a
+  Basis-Universal WASM encoder (e.g. the KTX-Software `libktx` wasm build or a
+  basis_encoder wasm) and have `encodeKtx2` produce UASTC/ETC1S payloads;
+  `KHRTextureBasisu` is already added when an encode succeeds.
+- **Standalone KTX2/DDS texture upload** — `materials/convert/decodeImage.ts`
+  decodes TGA/TIFF/EXR/HDR but not GPU-compressed `.ktx2`/`.dds` (those need a
+  WebGL transcode/readback to get RGBA pixels). Add via the drei KTX2 transcoder
+  → render-to-canvas readback if users ask for it.
