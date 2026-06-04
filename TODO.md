@@ -24,9 +24,14 @@ plan: [docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md](docs
 - ~~**Imported-model catalog citizenship**~~ — user GLBs already render as
   categorized, searchable, placeable cards; mounted/noClip + finishTargets/
   finishOverrides persist through IDB meta + save schema.
-- Follow-ups: **thumbnail capture for user GLBs** (name-only card today);
-  verify the runtime Draco CDN fetch behind the prod reverse-proxy / CSP.
-  (~~dispose replaced materials in GltfModel tint/finish effects~~ — done; the
+- Follow-ups: verify the runtime Draco CDN fetch behind the prod reverse-proxy
+  / CSP.
+  (~~thumbnail capture for user GLBs~~ — done; the off-screen `ThumbnailHost`
+  now also renders GLB defs (user uploads + bundled), loading the model under
+  `<Suspense>`, framing the camera to its bbox, and capturing to a PNG —
+  verified the bundled pool-table cards render a real thumbnail and the queue
+  drains without stalling. `ui/catalog/thumbnails.tsx`.
+  ~~dispose replaced materials in GltfModel tint/finish effects~~ — done; the
   tint + finish effects now free their own clones on re-apply/unmount.
   ~~per-file mounted/noClip on bulk import~~ — done a better way than per-file
   UI (impractical for 1000-file drops): `inferCollisionFlags` auto-detects

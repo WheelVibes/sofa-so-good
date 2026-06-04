@@ -1,7 +1,28 @@
+import { useGLTF } from '@react-three/drei'
 import { Canvas, useThree } from '@react-three/fiber'
-import { useEffect, useState, useSyncExternalStore } from 'react'
+import { Suspense, useEffect, useMemo, useState, useSyncExternalStore } from 'react'
+import { Box3, type Object3D, Vector3 } from 'three'
+import { SkeletonUtils } from 'three-stdlib'
+import { selectGltfRender } from '../../furniture/gltfRender'
 import { PRIMITIVE_COMPONENTS } from '../../furniture/primitives'
-import { defaultParamProps, type FurnitureDef } from '../../furniture/types'
+import {
+  defaultParamProps,
+  type FurnitureDef,
+  type FurnitureItem,
+  type GltfDef,
+} from '../../furniture/types'
+
+/** Resolve the url + scale to render a GLB def's thumbnail, or null if the def
+ *  carries its own image (IKEA photo / pack thumbnail) or has no resolvable url
+ *  yet (e.g. an un-hydrated user upload). */
+function gltfThumbSource(def: FurnitureDef): { url: string; scale: number } | null {
+  if (def.kind !== 'gltf') return null
+  if (def.source === 'ikea') return null // uses the scraped product photo
+  if (def.source === 'pack' && def.thumbUrl) return null // captured at install
+  const probe = { id: '', defId: def.id, position: [0, 0], rotation: 0, props: {} } as FurnitureItem
+  const r = selectGltfRender(probe, def as GltfDef)
+  return r ? { url: r.url, scale: r.scale } : null
+}
 
 const THUMB_W = 256
 const THUMB_H = 192
@@ -23,10 +44,12 @@ function subscribe(fn: () => void) {
 }
 
 /** Enqueue a thumbnail render for `def`. No-ops if cached or already queued.
- *  Only parametric defs are supported here — GLB defs already ship with
- *  pack-side thumbnails via a separate path. */
+ *  Parametric primitives render their component; GLB user uploads + bundled
+ *  GLBs render the loaded model. IKEA (photo) / pack (install thumb) defs carry
+ *  their own image and are skipped. */
 export function requestThumbnail(def: FurnitureDef) {
-  if (def.kind !== 'parametric') return
+  if (def.kind === 'gltf' && !gltfThumbSource(def)) return
+  if (def.kind !== 'parametric' && def.kind !== 'gltf') return
   if (cache.has(def.id) || queued.has(def.id)) return
   queued.add(def.id)
   queue.push(def)
@@ -47,7 +70,7 @@ function useTick(): number {
  *    Canvas host. */
 export function useBuiltinThumbnail(def: FurnitureDef): string | null {
   useEffect(() => {
-    if (def.kind === 'parametric') requestThumbnail(def)
+    requestThumbnail(def)
   }, [def])
   const rendered = useSyncExternalStore(
     subscribe,
@@ -69,11 +92,20 @@ interface SceneProps {
   onReady: (id: string, dataUrl: string) => void
 }
 
+const THUMB_LIGHTS = (
+  <>
+    <hemisphereLight args={['#ffffff', '#888888', 0.9]} />
+    <directionalLight position={[3, 5, 4]} intensity={0.9} />
+    <ambientLight intensity={0.25} />
+  </>
+)
+
 function ThumbnailScene({ active, onReady }: SceneProps) {
   const gl = useThree((s) => s.gl)
   const scene = useThree((s) => s.scene)
   const camera = useThree((s) => s.camera)
 
+  // Parametric: render the primitive synchronously, capture on the next frame.
   useEffect(() => {
     if (active?.kind !== 'parametric') return
     const cam = cameraForDef(active)
@@ -89,19 +121,85 @@ function ThumbnailScene({ active, onReady }: SceneProps) {
     return () => cancelAnimationFrame(id)
   }, [active, gl, scene, camera, onReady])
 
-  if (active?.kind !== 'parametric') return null
-  const Component = PRIMITIVE_COMPONENTS[active.primitive]
-  const props = defaultParamProps(active)
-  return (
-    <>
-      <hemisphereLight args={['#ffffff', '#888888', 0.9]} />
-      <directionalLight position={[3, 5, 4]} intensity={0.9} />
-      <ambientLight intensity={0.25} />
-      <group>
-        <Component props={props} />
-      </group>
-    </>
-  )
+  if (active?.kind === 'parametric') {
+    const Component = PRIMITIVE_COMPONENTS[active.primitive]
+    const props = defaultParamProps(active)
+    return (
+      <>
+        {THUMB_LIGHTS}
+        <group>
+          <Component props={props} />
+        </group>
+      </>
+    )
+  }
+
+  if (active?.kind === 'gltf') {
+    const src = gltfThumbSource(active)
+    if (!src) return null
+    return (
+      <>
+        {THUMB_LIGHTS}
+        <Suspense fallback={null}>
+          <GltfThumbnailCapture id={active.id} url={src.url} scale={src.scale} onReady={onReady} />
+        </Suspense>
+      </>
+    )
+  }
+  return null
+}
+
+/** Loads a GLB (suspends until ready), frames the camera to its bounding box,
+ *  then captures the canvas — so a user-uploaded / bundled GLB gets a rendered
+ *  catalog thumbnail instead of a name-only card. */
+function GltfThumbnailCapture({
+  id,
+  url,
+  scale,
+  onReady,
+}: {
+  id: string
+  url: string
+  scale: number
+  onReady: (id: string, dataUrl: string) => void
+}) {
+  const gl = useThree((s) => s.gl)
+  const scene = useThree((s) => s.scene)
+  const camera = useThree((s) => s.camera)
+  const gltf = useGLTF(url)
+  const obj = useMemo(() => SkeletonUtils.clone(gltf.scene as unknown as Object3D), [gltf.scene])
+
+  useEffect(() => {
+    obj.updateWorldMatrix(true, true)
+    const box = new Box3().setFromObject(obj)
+    if (box.isEmpty()) {
+      onReady(id, gl.domElement.toDataURL('image/png'))
+      return
+    }
+    const size = new Vector3()
+    const center = new Vector3()
+    box.getSize(size).multiplyScalar(scale)
+    box.getCenter(center).multiplyScalar(scale)
+    const radius = Math.max(size.x, size.y, size.z) * 0.6 || 1
+    const dist = radius * 2.6
+    camera.position.set(center.x + dist * 0.75, center.y + radius * 0.9, center.z + dist * 0.95)
+    camera.lookAt(center)
+    if ('updateProjectionMatrix' in camera) camera.updateProjectionMatrix()
+    // Two frames so textures/Draco geometry settle before the readback.
+    let raf2 = 0
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        gl.render(scene, camera)
+        onReady(id, gl.domElement.toDataURL('image/png'))
+      })
+    })
+    return () => {
+      cancelAnimationFrame(raf1)
+      if (raf2) cancelAnimationFrame(raf2)
+    }
+  }, [obj, scale, id, gl, scene, camera, onReady])
+
+  return <primitive object={obj} scale={scale} />
 }
 
 function cameraForDef(def: FurnitureDef): {
@@ -135,6 +233,9 @@ export function ThumbnailHost() {
   const [active, setActive] = useState<FurnitureDef | null>(null)
 
   useEffect(() => {
+    // `tick` bumps whenever the queue changes — reading it here makes this
+    // effect re-run so a newly-enqueued def is picked up while the host is idle.
+    void tick
     if (active) return
     const next = queue.shift()
     if (next) setActive(next)
