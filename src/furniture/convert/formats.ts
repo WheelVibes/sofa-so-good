@@ -6,16 +6,7 @@
  */
 
 /** 3D model formats we ingest. 'glb'/'gltf' are native; the rest convert. */
-export type ModelFormat =
-  | 'glb'
-  | 'gltf'
-  | 'obj'
-  | 'fbx'
-  | 'stl'
-  | 'ply'
-  | 'dae'
-  | '3mf'
-  | 'usdz'
+export type ModelFormat = 'glb' | 'gltf' | 'obj' | 'fbx' | 'stl' | 'ply' | 'dae' | '3mf' | 'usdz'
 
 /** Entry-file extensions (NOT .mtl/.bin/textures, which are resolved siblings). */
 export const MODEL_EXTENSIONS = [
