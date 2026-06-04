@@ -76,11 +76,15 @@ plan:
   generic strategies, Finish-picker button. ~~Asset mirror-flip~~ (F / Shift+F).
 - ~~**Default lounge re-oriented**~~ — sofa faces the (windowless) east TV
   wall; coffee table long-side parallel to the sofa.
-- Follow-up: extend the arranger with kitchen/bath-specific templates (work
-  triangle / fixture order); run it over the researched presets so their
-  bedrooms are auto-spaced. (~~desk-chair-at-desk rule~~ — done; `placeDeskChairs`
-  now runs in the living/dining strategies too, and its offset is footprint-
-  derived so the chair tucks in front instead of colliding + stranding.)
+- Follow-up: run the arranger over the researched presets so their bedrooms are
+  auto-spaced. (~~desk-chair-at-desk rule~~ — done; `placeDeskChairs` now runs in
+  the living/dining strategies too, and its offset is footprint-derived so the
+  chair tucks in front instead of colliding + stranding. ~~kitchen/bath
+  templates~~ — done; `roomKind` now routes kitchen + bath1/bath2 to
+  `arrangeFixtures`, which lines the fixtures (counter/fridge/stove,
+  toilet/basin/shower) flush to walls largest-first, clear of door swings,
+  instead of the generic settle-in-place. A full kitchen work-triangle solver
+  is still a possible refinement.)
 
 ## Asset realism + structural audit (2026-05-30)
 

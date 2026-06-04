@@ -744,8 +744,10 @@ rediscover it.
   faces the TV, walkways + door/window clearances preserved. Clearance values
   live in `src/layout/designRules.ts` (`CLEARANCE`) and drive the per-room
   auto-arranger in `src/layout/autoArrange.ts` (`arrangeRoom`, exposed in-app
-  as the Finish-picker "Tidy up room" button). Author default layouts/presets
-  to these rules and reuse the constants.
+  as the Finish-picker "Tidy up room" button). Per-room strategies by
+  `roomKind`: living, bedroom, **kitchen + bath** (`arrangeFixtures` — lines
+  fixtures flush to walls largest-first, clear of door swings), and generic.
+  Author default layouts/presets to these rules and reuse the constants.
 - Keep `TODO.md` current when deferring work (see superpowers specs/plans
   under `docs/`).
 - Bundled assets are procedurally generated (CC0-equivalent) wherever possible;

@@ -114,6 +114,32 @@ describe('arrangeRoom', () => {
     expect(dot).toBeLessThan(-0.5)
   })
 
+  it('lines bathroom fixtures along the walls (not parked mid-room)', () => {
+    // bath1: origin (1.45, 5.10), 2.40 x 1.60. Scramble its fixtures toward
+    // the room centre, tidy, and assert each ends flush to a wall + valid.
+    const cx = 1.45 + 2.4 / 2
+    const cz = 5.1 + 1.6 / 2
+    const base = hydrate().map((i) =>
+      i.id === 'default-bath1-shower'
+        ? { ...i, position: [cx, cz] as [number, number] }
+        : i.id === 'default-bath1-wc'
+          ? { ...i, position: [cx + 0.1, cz + 0.1] as [number, number] }
+          : i.id === 'default-bath1-basin'
+            ? { ...i, position: [cx - 0.1, cz - 0.1] as [number, number] }
+            : i,
+    )
+    const out = arrangeRoom('bath1', base, BUILTIN_CATALOG, {})
+    assertValid(out)
+    const wallDist = (p: [number, number]) =>
+      Math.min(p[0] - 1.45, 3.85 - p[0], p[1] - 5.1, 6.7 - p[1])
+    for (const id of ['default-bath1-shower', 'default-bath1-wc', 'default-bath1-basin']) {
+      const it = out.find((i) => i.id === id)!
+      expect(roomOf(it.position)).toBe('bath1')
+      // Flush to a wall: centre sits within ~half a fixture depth of an edge.
+      expect(wallDist(it.position)).toBeLessThan(0.7)
+    }
+  })
+
   it('leaves items in untouched rooms unchanged', () => {
     const base = hydrate()
     const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {})

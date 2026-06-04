@@ -337,10 +337,12 @@ function nearestEdge(pos: [number, number], rect: Rect): Edge {
   return Object.entries(d).sort((a, b) => a[1] - b[1])[0][0] as Edge
 }
 
-type RoomKind = 'living' | 'bedroom' | 'generic'
+type RoomKind = 'living' | 'bedroom' | 'kitchen' | 'bath' | 'generic'
 function roomKind(roomId: RoomId): RoomKind {
   if (roomId === 'livingDining') return 'living'
   if (roomId === 'mainBedroom' || roomId === 'bedroom2' || roomId === 'bedroom3') return 'bedroom'
+  if (roomId === 'kitchen') return 'kitchen'
+  if (roomId === 'bath1' || roomId === 'bath2') return 'bath'
   return 'generic'
 }
 
@@ -464,6 +466,7 @@ function arrangeCore(opts: {
     if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog)
     else arrangeLiving(rect, focal, get, world, ctx, catalog)
   } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog)
+  else if (kind === 'kitchen' || kind === 'bath') arrangeFixtures(rect, get, world, ctx, catalog)
   else arrangeGeneric(rect, get, world, ctx)
 
   // Safety settle: any room item not yet placed (unhandled role or no slot)
@@ -850,6 +853,35 @@ function arrangeGeneric(rect: Rect, get: Getter, world: FurnitureItem[], ctx: Ct
     snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
   }
   tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx)
+}
+
+/** Kitchen / bathroom: line the fixtures along the walls. Unlike the generic
+ *  strategy these rooms' pieces (counter, fridge, stove / toilet, basin,
+ *  shower, bathtub) are category 'kitchen'/'bathroom'/'appliances' → role
+ *  'other'/'storage', and we want them flush to a wall facing in, not merely
+ *  settled where they were. Largest fixtures claim wall space first (the counter
+ *  run / shower), so the smaller ones (toilet, basin, stove) fill the rest; door
+ *  swings are kept clear via ctx.keepOut, same as every other strategy. */
+function arrangeFixtures(
+  rect: Rect,
+  get: Getter,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  catalog: Record<string, FurnitureDef>,
+) {
+  const fixtures = get(['storage', 'other', 'shoe', 'lowTable'])
+  const area = (it: FurnitureItem) => {
+    const def = catalog[it.defId]
+    if (!def) return 0
+    const { w, d } = baseFootprint(it, def)
+    return w * d
+  }
+  // Biggest first so the counter run / shower take their wall before the rest.
+  fixtures.sort((a, b) => area(b) - area(a))
+  for (const it of fixtures) {
+    snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
+  }
+  tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx)
 }
 
 /** Rooms the "Tidy home" action arranges (every furnished interior room;
