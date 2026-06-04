@@ -27,6 +27,8 @@ function swatchImage(m: MaterialDef): string | undefined {
 type View = 'swatch' | 'browse'
 type Surface = 'floor' | 'wall'
 
+const LAST_SURFACE_KEY = 'hdb_last_finish_surface'
+
 /**
  * Right-side panel shown when a room is selected. Floor / wall tabs
  * each present a swatch grid of available materials — built-ins, user
@@ -58,7 +60,23 @@ export function FinishPicker() {
   const materials = useMaterials()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [view, setView] = useState<View>('swatch')
-  const [lastSurface, setLastSurface] = useState<Surface>('floor')
+  // Remember which surface was last finished, across sessions, so Browse opens
+  // pre-filtered to it (and resolving applies to it).
+  const [lastSurface, setLastSurfaceState] = useState<Surface>(() => {
+    try {
+      return localStorage.getItem(LAST_SURFACE_KEY) === 'wall' ? 'wall' : 'floor'
+    } catch {
+      return 'floor'
+    }
+  })
+  const setLastSurface = (s: Surface) => {
+    setLastSurfaceState(s)
+    try {
+      localStorage.setItem(LAST_SURFACE_KEY, s)
+    } catch {
+      // ignore (private mode / unavailable storage)
+    }
+  }
 
   useEffect(() => {
     if (view === 'browse' && phStatus === 'idle') void bootstrapRemote()
