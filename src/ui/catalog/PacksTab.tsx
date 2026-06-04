@@ -6,13 +6,17 @@ import {
   startScrape,
   streamProgress,
 } from '../../catalog/packs/ikeaLive'
-import { installPack } from '../../catalog/packs/install'
+import { installPack, installPolyPizzaPack } from '../../catalog/packs/install'
 import { visiblePacks } from '../../catalog/packs/registry'
 import type { Pack } from '../../catalog/packs/types'
 import { uninstallPack } from '../../catalog/packs/uninstall'
 import { useStore } from '../../state/store'
 
 const fmtMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
+
+/** Per-pack localStorage key for a user-supplied API key. Pack-id-derived so
+ *  any future keyed API source reuses the same convention. */
+const apiKeyStorageKey = (packId: string) => `hdb_pack_key_${packId}`
 
 /** Live-scrape IKEA pack: drives the local sidecar, shows per-product progress. */
 function IkeaLiveCard({ pack }: { pack: Pack }) {
@@ -190,16 +194,145 @@ function ZipPackCard({ pack }: { pack: Pack }) {
   )
 }
 
+/** Poly Pizza pack card: user-supplied API key + search term → in-browser GLB
+ *  download via the CORS-friendly Poly Pizza API. Works in production builds. */
+function PolyPizzaCard({ pack }: { pack: Pack }) {
+  const installed = useStore((s) => s.installedPacks)
+  const entryCount = installed[pack.id]?.entries.length ?? 0
+  const [apiKey, setApiKey] = useState(() => localStorage.getItem(apiKeyStorageKey(pack.id)) ?? '')
+  const [query, setQuery] = useState('')
+  const [busy, setBusy] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+
+  async function onDownload() {
+    const key = apiKey.trim()
+    if (!key) {
+      setError('Enter your Poly Pizza API key first.')
+      return
+    }
+    localStorage.setItem(apiKeyStorageKey(pack.id), key)
+    setBusy(true)
+    setError(null)
+    try {
+      await installPolyPizzaPack(pack, { apiKey: key, query: query.trim() || 'furniture' })
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-2 rounded border border-[var(--border)] bg-[var(--surface-solid)] p-3">
+      <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
+      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
+      <div className="text-[10px] text-[var(--text-3)]">
+        {pack.attribution} ·{' '}
+        <a className="underline" href={pack.sourceUrl} target="_blank" rel="noreferrer">
+          get a free API key
+        </a>
+      </div>
+      <input
+        type="password"
+        value={apiKey}
+        onChange={(e) => setApiKey(e.target.value)}
+        placeholder="Poly Pizza API key"
+        autoComplete="off"
+        className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1.5 text-xs text-[var(--text)] placeholder:text-[var(--text-3)]"
+      />
+      <div className="flex gap-2">
+        <input
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' && !busy) void onDownload()
+          }}
+          placeholder="Search (e.g. sofa, lamp) — blank = furniture"
+          className="min-w-0 flex-1 rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1.5 text-xs text-[var(--text)] placeholder:text-[var(--text-3)]"
+        />
+        <button
+          onClick={() => void onDownload()}
+          disabled={busy}
+          className="shrink-0 rounded bg-[var(--accent)] px-3 py-1.5 text-xs font-medium text-[var(--on-accent)] hover:bg-[var(--accent-2)] disabled:opacity-50"
+        >
+          {busy ? 'Downloading…' : 'Download'}
+        </button>
+      </div>
+      {error && (
+        <div className="rounded bg-[color-mix(in_oklch,var(--danger)_12%,transparent)] px-2 py-1.5 text-[11px] text-[var(--danger)]">
+          {error}
+        </div>
+      )}
+      {entryCount > 0 && (
+        <div className="flex items-center justify-between">
+          <span className="text-[11px] text-[var(--accent-soft-text)]">
+            ✓ {entryCount} models in your catalog
+          </span>
+          <button
+            onClick={() => void uninstallPack(pack.id)}
+            className="text-[11px] text-[var(--danger)] underline"
+          >
+            Remove all
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+/** Manual-source card: a source with no CORS/programmatic download. Links out;
+ *  the user downloads by hand and imports via the Upload dialog. Dev-only. */
+function ManualCard({ pack }: { pack: Pack }) {
+  return (
+    <div className="flex flex-col gap-2 rounded border border-dashed border-[var(--border)] bg-[var(--surface-solid)] p-3">
+      <div className="flex items-baseline justify-between">
+        <div className="text-sm font-semibold text-[var(--text)]">{pack.name}</div>
+        <span className="rounded bg-[var(--surface-3)] px-1.5 py-0.5 text-[9px] uppercase tracking-wide text-[var(--text-3)]">
+          manual
+        </span>
+      </div>
+      <p className="text-xs text-[var(--text-2)]">{pack.description}</p>
+      <div className="text-[10px] text-[var(--text-3)]">{pack.attribution}</div>
+      <a
+        href={pack.sourceUrl}
+        target="_blank"
+        rel="noreferrer"
+        className="rounded border border-[var(--border)] px-3 py-1.5 text-center text-xs font-medium text-[var(--text)] hover:bg-[var(--surface-2)]"
+      >
+        Open source ↗
+      </a>
+      <p className="text-[10px] text-[var(--text-3)]">
+        {pack.assetType === 'material'
+          ? 'Download a PBR set, then add it via Upload → Material.'
+          : 'Download a model, then drag the GLB into the Upload dialog to add it.'}
+      </p>
+    </div>
+  )
+}
+
+function renderCard(pack: Pack) {
+  if (pack.kind === 'ikea-live') return <IkeaLiveCard key={pack.id} pack={pack} />
+  if (pack.kind === 'poly-pizza') return <PolyPizzaCard key={pack.id} pack={pack} />
+  if (pack.kind === 'manual') return <ManualCard key={pack.id} pack={pack} />
+  return <ZipPackCard key={pack.id} pack={pack} />
+}
+
 export function PacksTab() {
+  const packs = visiblePacks(import.meta.env.DEV)
+  const furniture = packs.filter((p) => (p.assetType ?? 'furniture') === 'furniture')
+  const materials = packs.filter((p) => p.assetType === 'material')
   return (
     <div className="flex flex-col gap-3 overflow-y-auto p-3">
-      <h2 className="text-xs font-semibold text-[var(--text-2)]">Downloadable content</h2>
-      {visiblePacks(import.meta.env.DEV).map((pack) =>
-        pack.kind === 'ikea-live' ? (
-          <IkeaLiveCard key={pack.id} pack={pack} />
-        ) : (
-          <ZipPackCard key={pack.id} pack={pack} />
-        ),
+      <h2 className="text-xs font-semibold text-[var(--text-2)]">Furniture</h2>
+      {furniture.map(renderCard)}
+      {materials.length > 0 && (
+        <>
+          <h2 className="mt-2 text-xs font-semibold text-[var(--text-2)]">
+            Materials &amp; textures
+          </h2>
+          {materials.map(renderCard)}
+        </>
       )}
     </div>
   )
