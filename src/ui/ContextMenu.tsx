@@ -51,6 +51,16 @@ export function ContextMenu() {
     }
   }
 
+  const flip = () => {
+    const st = useStore.getState()
+    const it = st.items.find((i) => i.id === item.id)
+    if (!it || it.locked) return
+    // Mirror the F shortcut: flip left↔right. Footprint is unchanged, so no
+    // collision check is needed.
+    st.pushHistory()
+    st.flipItem(it.id, 'x')
+  }
+
   const duplicate = () => {
     const st = useStore.getState()
     const STEP = 0.3
@@ -118,7 +128,7 @@ export function ContextMenu() {
 
   // Clamp to viewport.
   const left = Math.min(menu.x, window.innerWidth - 210)
-  const top = Math.min(menu.y, window.innerHeight - 260)
+  const top = Math.min(menu.y, window.innerHeight - 320)
 
   return createPortal(
     <div className="ctx-menu" style={{ left, top }} onPointerDown={(e) => e.stopPropagation()}>
@@ -132,8 +142,25 @@ export function ContextMenu() {
         onClick={() => useStore.getState().setSwapItemId(item.id)}
       />
       <Row icon="Rotate" label="Rotate 90°" sk="R" disabled={locked} onClick={rotate90} />
+      <Row icon="FlipH" label="Flip" sk="F" disabled={locked} onClick={flip} />
       <Row icon="Copy" label="Duplicate" sk="⌘D" onClick={duplicate} />
       <div className="ctx-sep" />
+      {item.groupId ? (
+        <Row
+          icon="Group"
+          label="Ungroup"
+          onClick={() => useStore.getState().ungroup(item.groupId as string)}
+        />
+      ) : s.selectedItemIds.length > 1 ? (
+        <Row
+          icon="Group"
+          label="Group"
+          onClick={() => {
+            const st = useStore.getState()
+            st.groupItems(st.selectedItemIds)
+          }}
+        />
+      ) : null}
       <Row
         icon={locked ? 'Lock' : 'Unlock'}
         label={locked ? 'Unlock' : 'Lock'}
