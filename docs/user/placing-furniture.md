@@ -15,7 +15,7 @@ decor, and more), the **search box** to fuzzy‑search across everything, and th
 **heart** on any card to save it to your **favourites** (the star tab, first in
 the list).
 
-<!-- screenshot: catalog -->
+![The unified furniture catalog](/screenshots/catalog.png)
 
 ## Placing a piece
 

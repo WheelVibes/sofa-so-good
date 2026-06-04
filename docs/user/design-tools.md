@@ -3,7 +3,7 @@
 The **Arrange** and **Tools** menus hold the planning aids that turn a layout into
 a plan you can act on.
 
-<!-- screenshot: budget -->
+![The shopping list with per-item SGD costs](/screenshots/budget.png)
 
 ## Smart Start
 

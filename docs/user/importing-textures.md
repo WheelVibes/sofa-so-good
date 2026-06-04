@@ -4,7 +4,6 @@ Use the **Upload material** dialog to bring in your own PBR material and apply i
 to furniture as a finish. Like model import, this runs **in your browser** — no
 upload.
 
-<!-- screenshot: upload-material -->
 
 ## Supported maps
 

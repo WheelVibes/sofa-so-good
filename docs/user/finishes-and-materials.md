@@ -6,7 +6,7 @@
 2. The **finish picker** opens with the available finishes.
 3. Pick one — it applies instantly to that surface (floors are per‑room).
 
-<!-- screenshot: finish-picker -->
+![The finish picker open on a room](/screenshots/finish-picker.png)
 
 ## Built‑in finishes
 

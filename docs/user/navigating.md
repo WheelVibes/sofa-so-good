@@ -3,7 +3,6 @@
 There are two ways to look around: an **orbit** (dollhouse) view and a
 first‑person **walk**. Toggle between them with <kbd>V</kbd>.
 
-<!-- screenshot: nav-cluster -->
 
 ## Orbit view
 

@@ -4,7 +4,6 @@ When you want to focus on a single room without the rest of the flat in the way,
 use the per‑room editor. Open it from the toolbar **View** menu — there's an
 **"Edit room: …"** entry for each room.
 
-<!-- screenshot: room-editor -->
 
 ## What it does
 

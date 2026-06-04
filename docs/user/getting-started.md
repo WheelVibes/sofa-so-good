@@ -4,7 +4,7 @@ Sofa So Good is a browser sandbox of an accurate Singapore HDB 4‑room flat. Yo
 furnish it, finish the walls and floors, light it across the day, and walk
 through it — nothing to install, nothing to upload.
 
-<!-- screenshot: app-overview -->
+![Sofa So Good — the furnished HDB flat in 3D](/screenshots/app-overview.png)
 
 ## First run
 

@@ -3,7 +3,6 @@
 The whole interface is themeable. Open the **Appearance** popover from the
 toolbar to switch.
 
-<!-- screenshot: appearance-popover -->
 
 ## Themes
 

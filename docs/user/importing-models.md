@@ -3,7 +3,6 @@
 Bring your own 3D furniture into the flat with the **Upload model** dialog. Every
 import runs entirely **in your browser** — nothing is uploaded to a server.
 
-<!-- screenshot: upload-model -->
 
 ## Supported formats
 

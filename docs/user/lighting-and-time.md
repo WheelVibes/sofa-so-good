@@ -4,7 +4,6 @@ The flat is lit by a real **sun simulation**. The sun's position is computed fro
 your location and the time of day, and it drives the shadows, the sky, and the
 ambient light.
 
-<!-- screenshot: evening-scene -->
 
 ## Changing the time
 

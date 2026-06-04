@@ -10,7 +10,7 @@ best way to judge real scale and sightlines.
 - Press <kbd>E</kbd> at a door to open or close it.
 - You're bounded by the walls; <kbd>V</kbd> returns you to orbit.
 
-<!-- screenshot: walk -->
+![Walking through the flat at eye level](/screenshots/walk.png)
 
 ## Auto walkthrough tour
 
