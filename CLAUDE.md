@@ -9,6 +9,17 @@ state, Vite build, Vitest tests.
 - `npm run dev` — Vite dev server (localhost:5173).
 - `npm test` — Vitest (run once). `npm run test:watch` to watch.
 - `npm run build` — `tsc` typecheck + Vite production build.
+- `npm run docs:dev` / `docs:build` / `build:all` — the **user guide** is a
+  VitePress site under `docs/user/` (config in `docs/user/.vitepress/config.ts`,
+  `base: '/sofa-so-good/docs/'`). `docs:build` writes it into the app's
+  `dist/docs/`; `build:all` = `npm run build` **then** `docs:build` (order
+  matters — the app build empties `dist/` first) and is what `deploy.yml` runs,
+  so the guide deploys at `/sofa-so-good/docs/`. An in-app **User guide** button
+  (toolbar + Help modal + ⌘K) opens it via `src/ui/docsUrl.ts` (host-agnostic
+  `${import.meta.env.BASE_URL}docs/`). **Developer docs** under `docs/developer/`
+  are plain Markdown and **not** deployed. (Dev caveat: the guide only exists in
+  a built `dist/`; use `docs:dev`/`docs:preview` to view it locally — those
+  default to port 5175, shared with `price-server`, so don't run both at once.)
 - `npm run check` / `npm run check:fix` — **Biome** (single Rust tool, replaces
   Prettier + ESLint) format + lint; `check:fix` applies safe fixes. `npm run
   format` (format-write) and `npm run lint` (lint only) are narrower variants.

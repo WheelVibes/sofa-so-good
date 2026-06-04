@@ -189,6 +189,10 @@ npm run lint         # Biome: lint only
 npm run optimize:glb          # generate low/medium LOD variants (WebP textures)
 npm run optimize:glb -- --ktx2 # …with KTX2/Basis GPU-compressed textures (needs `toktx` on PATH)
 npm run scraper-server # local sidecar for the IKEA live-scrape pack (dev-only)
+npm run price-server   # local sidecar for live IKEA SG budget prices (dev-only)
+npm run docs:dev       # VitePress user guide (dev server)
+npm run docs:build     # build the user guide into dist/docs
+npm run build:all      # app + user guide together (used by the Pages deploy)
 ```
 
 A **pre-commit hook** (`.githooks/pre-commit`, auto-installed by `npm install`
@@ -201,6 +205,18 @@ Offline asset tooling (an IKEA SG model scraper + GLB analysis) lives under
 scrape)* pack drives that scraper through `npm run scraper-server`: start it
 alongside `npm run dev`, open the catalog's Packs tab, and click *Scrape IKEA
 catalogue* — assets land in (gitignored) `public/assets/ikea/`.
+
+## Documentation
+
+- **User guide** — a VitePress site under `docs/user/`, deployed at
+  `/sofa-so-good/docs/` and reachable in-app via the **User guide** (book) button
+  in the toolbar, the Help modal, and the ⌘K command palette. Build it with
+  `npm run docs:build` (or preview with `npm run docs:dev`).
+- **Developer guide** — maintainer docs under `docs/developer/` (plain Markdown,
+  not deployed): architecture, per-system guides, and how-to recipes. Start at
+  `docs/developer/index.md`. `CLAUDE.md` is the terse always-current index.
+
+## More
 
 Stack: React + TypeScript, three.js via @react-three/fiber, Zustand, Vite.
 See [CLAUDE.md](CLAUDE.md) for architecture and how to add content. Bundled
