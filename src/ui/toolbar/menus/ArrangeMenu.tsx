@@ -45,6 +45,7 @@ function dropArranged(items: FurnitureItem[]) {
  *  previous Toolbar (SetsMenu / PresetPicker / StylePicker / FloorPlanButton). */
 export function ArrangeMenu() {
   const applyLayoutPreset = useStore((s) => s.applyLayoutPreset)
+  const setSmartStartOpen = useStore((s) => s.setSmartStartOpen)
   const setFloorFinish = useStore((s) => s.setFloorFinish)
   const setWallFinish = useStore((s) => s.setWallFinish)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
@@ -75,6 +76,12 @@ export function ArrangeMenu() {
   return (
     <ToolbarMenu icon="Sets" label="Arrange" active={floorPlanEditing} width={256}>
       <div className="max-h-[70vh] overflow-y-auto">
+        <Action
+          icon="Presets"
+          label="Smart Start…"
+          sub="Pick a style, furnish every room"
+          onClick={() => setSmartStartOpen(true)}
+        />
         <Action
           icon="Tidy"
           label={`Tidy home${chip(shortcutLabel('tidyHome'))}`}

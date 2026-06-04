@@ -61,6 +61,13 @@ export function CommandPalette() {
         run: () => s().toggleMeasurements(),
       },
       {
+        id: 'smart-start',
+        group: 'Actions',
+        label: 'Smart Start — furnish my flat',
+        icon: 'Presets',
+        run: () => s().setSmartStartOpen(true),
+      },
+      {
         id: 'tidy',
         group: 'Actions',
         label: 'Tidy home',

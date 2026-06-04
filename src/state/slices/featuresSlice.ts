@@ -32,6 +32,8 @@ export interface FeaturesSlice {
   clearancePanelOpen: boolean
   /** Versions (save / restore / compare) panel visibility. */
   versionsOpen: boolean
+  /** Smart Start wizard (pick a style → furnished flat) visibility. */
+  smartStartOpen: boolean
   /** Shopping panel tab. */
   shopTab: 'list' | 'saved'
   /** Saved-to-collection catalog def ids (the heart on catalog cards). */
@@ -49,6 +51,7 @@ export interface FeaturesSlice {
   setShareOpen: (open: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setVersionsOpen: (open: boolean) => void
+  setSmartStartOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
   toggleCollection: (defId: string) => void
 }
@@ -64,6 +67,7 @@ export const FEATURES_INITIAL = {
   shareOpen: false,
   clearancePanelOpen: false,
   versionsOpen: false,
+  smartStartOpen: false,
   shopTab: 'list' as 'list' | 'saved',
   collections: [] as string[],
 }
@@ -82,6 +86,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setShareOpen: (shareOpen) => set({ shareOpen }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
+  setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setShopTab: (shopTab) => set({ shopTab }),
   toggleCollection: (defId) =>
     set((s) => ({

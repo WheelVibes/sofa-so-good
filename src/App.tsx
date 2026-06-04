@@ -39,6 +39,7 @@ import { Toolbar } from './ui/Toolbar'
 import { VersionsPanel } from './ui/VersionsPanel'
 import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
+import { SmartStartWizard } from './ui/wizard/SmartStartWizard'
 
 export default function App() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements)
@@ -513,6 +514,7 @@ export default function App() {
         <ShareModal />
         <ClearancePanel />
         <VersionsPanel />
+        <SmartStartWizard />
         <Onboarding />
         <LocationPrompt />
         <FloorPlanEditor />
