@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Round wall clock — rim + face + hour/minute hands, mounted flat on a wall
  *  (group offset to the hang height); faces +Z. Hands are posed at a fixed
@@ -15,6 +16,8 @@ export function WallClock({ props }: { props: ParamProps }) {
   const r = diameter / 2
   const handMat = { color: '#23262b', roughness: 0.5, metalness: 0.2 } as const
   const markerCount = markers === 'twelve' ? 12 : 4
+  const detail = useDetail()
+  const radial = seg(32, detail)
 
   return (
     <group position={[0, centerY, 0]} rotation={[Math.PI / 2, 0, 0]}>
@@ -33,11 +36,11 @@ export function WallClock({ props }: { props: ParamProps }) {
       ) : (
         <>
           <mesh castShadow>
-            <cylinderGeometry args={[r, r, 0.035, 32]} />
+            <cylinderGeometry args={[r, r, 0.035, radial]} />
             <meshStandardMaterial color={frameColor} roughness={0.5} metalness={0.3} />
           </mesh>
           <mesh position={[0, 0.019, 0]}>
-            <cylinderGeometry args={[r - 0.015, r - 0.015, 0.005, 32]} />
+            <cylinderGeometry args={[r - 0.015, r - 0.015, 0.005, radial]} />
             <meshStandardMaterial color={faceColor} roughness={0.8} />
           </mesh>
         </>

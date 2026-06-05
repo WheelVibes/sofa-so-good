@@ -4,6 +4,7 @@ import type { MeshStandardMaterial } from 'three'
 import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
 import type { ParamProps } from '../types'
 import { readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Floor lamp: a disc base + slim pole, a splayed tripod, or an arched 'arc'
  *  (Arco-style) pole that reaches the shade out over a sofa. Topped with an
@@ -22,6 +23,7 @@ export function FloorLamp({ props }: { props: ParamProps }) {
     shade === 'drum' ? [0.2, 0.2] : shade === 'cone' ? [0.07, 0.26] : [0.16, 0.21]
   const tripod = base === 'tripod'
   const arc = base === 'arc'
+  const detail = useDetail()
   const shadeRef = useRef<MeshStandardMaterial>(null)
   const bulbRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
@@ -67,7 +69,7 @@ export function FloorLamp({ props }: { props: ParamProps }) {
         <>
           {/* Heavy round base (marble-look), offset under the riser */}
           <mesh castShadow receiveShadow position={[0, 0.05, 0]}>
-            <cylinderGeometry args={[0.22, 0.24, 0.1, 28]} />
+            <cylinderGeometry args={[0.22, 0.24, 0.1, seg(28, detail)]} />
             <meshStandardMaterial color="#e9e6df" roughness={0.5} metalness={0.05} />
           </mesh>
           {/* Riser */}
@@ -120,7 +122,7 @@ export function FloorLamp({ props }: { props: ParamProps }) {
         <>
           {/* Disc base */}
           <mesh castShadow receiveShadow position={[0, 0.02, 0]}>
-            <cylinderGeometry args={[0.16, 0.18, 0.04, 24]} />
+            <cylinderGeometry args={[0.16, 0.18, 0.04, seg(24, detail)]} />
             <meshStandardMaterial color={poleColor} roughness={0.4} metalness={0.6} />
           </mesh>
           {/* Pole */}
@@ -132,7 +134,7 @@ export function FloorLamp({ props }: { props: ParamProps }) {
       )}
       {/* Shade */}
       <mesh castShadow position={shadePos}>
-        <cylinderGeometry args={[profile[0], profile[1], shadeH, 28, 1, true]} />
+        <cylinderGeometry args={[profile[0], profile[1], shadeH, seg(28, detail), 1, true]} />
         <meshStandardMaterial
           ref={shadeRef}
           color={shadeColor}
@@ -144,7 +146,7 @@ export function FloorLamp({ props }: { props: ParamProps }) {
       </mesh>
       {/* Bulb glow disc at the bottom of the shade (faces down) */}
       <mesh position={bulbPos} rotation={[Math.PI / 2, 0, 0]}>
-        <circleGeometry args={[0.15, 20]} />
+        <circleGeometry args={[0.15, seg(20, detail)]} />
         <meshStandardMaterial
           ref={bulbRef}
           color="#fff6e0"

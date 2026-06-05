@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Wall mirror: thin frame + a low-roughness reflective-looking pane.
  *  Mounted on a wall (group offset up); faces +Z. `shape` is 'rect' (framed
@@ -10,6 +11,7 @@ export function Mirror({ props }: { props: ParamProps }) {
   const centerY = readNum(props, 'mountHeight', 1.5)
   const frameColor = readStr(props, 'frameColor', '#c9ccd1')
   const shape = readStr(props, 'shape', 'rect')
+  const detail = useDetail()
 
   // Shared reflective pane — low roughness + metalness picks up the IBL so it
   // reads as a mirror without a real probe; the light base + faint emissive
@@ -30,11 +32,11 @@ export function Mirror({ props }: { props: ParamProps }) {
     return (
       <group position={[0, centerY, 0]}>
         <mesh castShadow rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[r, 0.025, 14, 40]} />
+          <torusGeometry args={[r, 0.025, 14, seg(40, detail)]} />
           <meshStandardMaterial color={frameColor} roughness={0.35} metalness={0.6} />
         </mesh>
         <mesh position={[0, 0, 0.012]}>
-          <circleGeometry args={[r - 0.005, 44]} />
+          <circleGeometry args={[r - 0.005, seg(44, detail)]} />
           {pane}
         </mesh>
       </group>

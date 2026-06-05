@@ -86,10 +86,17 @@ plan:
   (`FurnitureMaterialLoader`, `getSurfaceMaterial`, inspector dropdown).
 - Follow-up: a curated "furniture materials" shortlist (oak/walnut/teak/marble
   slugs) surfaced as one-tap finishes so users don't have to browse the full
-  remote catalog; quality-gated mesh subdivision for primitives on the High
-  tier; verify the runtime download end-to-end behind the prod reverse-proxy
-  (the build sandbox's network allowlist blocks ambientCG/Poly Haven, so this
-  path is currently covered only by mocked unit tests).
+  remote catalog; verify the runtime download end-to-end behind the prod
+  reverse-proxy (the build sandbox's network allowlist blocks ambientCG/Poly
+  Haven, so this path is currently covered only by mocked unit tests).
+  (~~quality-gated mesh subdivision~~ — the `useDetail()`/`seg()` mechanism
+  (geometryDetail per render tier: Performance 0.7 → Medium 1 → High 1.4 →
+  Maximum 1.8) is now adopted by the prominent curved primitives — table/floor
+  lamp, ceiling light, bar stool, wall clock, round/cheval mirrors (wall +
+  bathroom + floor), vase, plant pot — so their curves smooth out on
+  High/Maximum while the Performance default stays light. The remaining curved
+  primitives (bath fixtures, fans, kitchen, etc.) can adopt `seg(base, detail)`
+  incrementally — it's a mechanical change.)
 
 ## Catalogue configurability pass (2026-05-29)
 

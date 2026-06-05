@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /**
  * Decorative wall mirror — a framed reflective panel that visually opens up a
@@ -22,15 +23,16 @@ export function WallMirror({ props }: { props: ParamProps }) {
   const ft = 0.04 // frame thickness (border)
   const depth = 0.05
   const r = Math.min(width, height) / 2
+  const detail = useDetail()
 
   if (shape === 'round') {
     return (
       <group position={[0, centerY, 0]}>
         <mesh castShadow position={[0, 0, 0]} rotation={[Math.PI / 2, 0, 0]} material={frameMat}>
-          <cylinderGeometry args={[r, r, depth, 48]} />
+          <cylinderGeometry args={[r, r, depth, seg(48, detail)]} />
         </mesh>
         <mesh position={[0, 0, depth / 2 + 0.002]}>
-          <circleGeometry args={[r - ft, 48]} />
+          <circleGeometry args={[r - ft, seg(48, detail)]} />
           <meshStandardMaterial {...glass} />
         </mesh>
       </group>
@@ -55,10 +57,12 @@ export function WallMirror({ props }: { props: ParamProps }) {
             rotation={[Math.PI / 2, 0, 0]}
             material={frameMat}
           >
-            <cylinderGeometry args={[width / 2, width / 2, depth, 32, 1, false, 0, Math.PI]} />
+            <cylinderGeometry
+              args={[width / 2, width / 2, depth, seg(32, detail), 1, false, 0, Math.PI]}
+            />
           </mesh>
           <mesh position={[0, height / 2, depth / 2 + 0.002]} rotation={[0, 0, 0]}>
-            <circleGeometry args={[width / 2 - ft, 24, 0, Math.PI]} />
+            <circleGeometry args={[width / 2 - ft, seg(24, detail), 0, Math.PI]} />
             <meshStandardMaterial {...glass} />
           </mesh>
         </>
