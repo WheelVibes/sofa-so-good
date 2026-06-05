@@ -1,4 +1,3 @@
-import { Stats } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { RoomShell } from '../apartment/RoomShell'
 import { roomShell } from '../apartment/roomShell'
@@ -25,7 +24,6 @@ import { SelectionOutline } from './selection/SelectionOutline'
  *  interaction controller so catalog/placement/measurement work unchanged. */
 export function RoomEditorScene() {
   const roomId = useStore((s) => s.roomEditor.roomId)
-  const showFps = useStore((s) => s.showFps)
   if (!roomId) return null
   const shell = roomShell(roomId)
   const [cx, cz] = shell.center
@@ -66,7 +64,6 @@ export function RoomEditorScene() {
       <MeasurementOverlay />
       <ScreenshotController />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
-      {showFps ? <Stats /> : null}
     </Canvas>
   )
 }

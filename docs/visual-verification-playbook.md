@@ -11,6 +11,9 @@ landmine someone already stepped on so you don't have to.
 `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]`
 - Software WebGL (SwiftShader) headless Chromium. Slow to first frame — give
   `waitMs` ≥ 8000 for anything that loads a GLB.
+- Env: `SHOT_VIEWPORT="W,H"` (responsive breakpoints), `SHOT_TOUCH=1` (emulate a
+  touch device — coarse pointer + `hasTouch`), `SHOT_INIT_LS='{…}'` (seed
+  localStorage, e.g. `hdb_onboarded`).
 - `evalFile` is a JS file run **in the page** after `waitMs`. `actionsJson` is a
   JSON array of input actions, run **after** the evalFile.
 - Actions: `{type:'drag',from:[x,y],to:[x,y]}`, `wheel:{x,y,dy}`, `click:{x,y}`,
@@ -143,6 +146,27 @@ where `dt` is a `DataTransfer` with `dt.items.add(new File(...))`. A synthetic D
 has no real `webkitGetAsEntry` entries, so it exercises the `dt.files` fallback,
 not directory recursion — unit-test the recursion separately with faked
 `FileSystemEntry` objects.
+
+### Emulating touch (long-press, coarse-pointer gates) — `SHOT_TOUCH=1`
+Touch-gated code (`matchMedia('(pointer: coarse)')`, `body.mobile` long-press)
+doesn't run under the default headless desktop profile. `SHOT_TOUCH=1` sets
+Puppeteer's `isMobile + hasTouch`, so `(pointer: coarse)` matches and touch
+handlers attach. Synthesize gestures from the evalFile with real `Touch` /
+`TouchEvent` objects on the canvas (`new Touch({identifier, target, clientX,
+clientY})`). Project a world position to screen px via the exposed camera
+(`window.__three.camera`, dev-only): `p = new cam.position.constructor(x,y,z);
+p.project(cam)` → `cx = (p.x+1)/2*w`, `cy = (1-p.y)/2*h`.
+
+**Limitation — R3F won't raycast a *synthetic* mouse/contextmenu event headless.**
+A dispatched `contextmenu`/click reaches the canvas and your DOM handlers fire,
+but `@react-three/fiber`'s pointer system doesn't resolve a hit for it under
+software-WebGL, so item-level `onContextMenu`/`onClick` (e.g. opening the context
+menu) won't trigger from a faked event. Verify the parts you *can*: that the
+handler fires, the event carries the right `clientX/Y`+`offsetX/Y`, and that
+move-cancel logic works (`store.contextMenu` / a one-shot `contextmenu` listener
+flag). The raycast→handler link is the same path a real right-click uses, so
+proving the synthesized event matches a real one is sufficient. (This is the same
+class of issue as the "orbit drag/zoom emulation is unreliable headless" note.)
 
 ### Driving a native `<select>` dropdown
 A click at the select's coordinates only *opens* the OS popup (which Chromium

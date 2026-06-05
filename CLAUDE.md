@@ -669,6 +669,24 @@ rediscover it.
   toolbar button — it's a **toggle in the Graphics panel** (`showFps`); asset
   credits are surfaced per-item (inspector `SourceLine` + catalog cards), not as
   a toolbar button.
+- **FPS counter** (`ui/FpsCounter.tsx`): a themed DOM HUD pill (status dot +
+  number, top-left, `.fps-hud`) that replaced drei's unstyled `<Stats/>`. A
+  lightweight `requestAnimationFrame` sampler independent of the Canvas (works in
+  both the main and room-editor scenes; also mirrors `window.__lastFps` for the
+  screenshot harness). Sits at the **`--z-hud` layer (just above the scene)** so
+  every panel/popover/modal renders above it. Toggled by `showFps`.
+- **Mobile viewport + touch** (`index.html`, `styles/components.css`,
+  `styles/responsive.css`, `scene/MobileLongPress.tsx`): the viewport is
+  `viewport-fit=cover` and the app root is `100dvh` so the **canvas reaches the
+  very top/bottom** under the iOS browser chrome (body painted `--scene-b` so any
+  transient gap never reads as a solid bar). **Only the canvas is full-bleed —
+  every floating control stays inside the safe area** via `env(safe-area-inset-*)`
+  on the mobile bar (top), the FPS HUD, and all bottom-docked sheets / toasts
+  (bottom). `body.mobile` disables text selection + the iOS long-press callout
+  (inputs stay selectable) and `touch-action: manipulation` kills double-tap
+  zoom (pinch preserved). `MobileLongPress` turns a stationary ~500ms press on
+  the canvas into a synthesized `contextmenu` (right-click) so the context menu
+  is reachable on touch; a press that moves >12px is treated as a drag/orbit.
 - **Design tools** (in the toolbar's **Arrange**/**Tools** menus): the **Sets**
   list drops pre-arranged vignettes (`furnitureSets.ts`) plus any imported
   **IKEA set recipes** (`ikeaSets.ts`: `parseSetRecipe`/`buildSetGroup`/

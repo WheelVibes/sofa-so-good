@@ -1,4 +1,4 @@
-import { Stats, useProgress } from '@react-three/drei'
+import { useProgress } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three'
@@ -49,7 +49,6 @@ function SceneReadySignal() {
 }
 
 export function Scene() {
-  const showFps = useStore((s) => s.showFps)
   const customPlan = useStore((s) => !isDefaultPlan(s.floorPlan))
   return (
     <Canvas
@@ -99,7 +98,6 @@ export function Scene() {
       <RecordController />
       <SceneReadySignal />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
-      {showFps ? <Stats /> : null}
     </Canvas>
   )
 }

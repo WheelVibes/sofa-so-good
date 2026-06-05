@@ -8,9 +8,18 @@ html, body { margin: 0; height: 100%; }
 body {
   font-family: var(--font-ui);
   color: var(--text);
+  /* Match the scene so any safe-area / dynamic-toolbar gap on mobile never
+     reads as a solid contrasting bar above/below the canvas. */
+  background: var(--scene-b);
   -webkit-font-smoothing: antialiased;
   text-rendering: optimizeLegibility;
+  /* No rubber-band scroll, and no double-tap-to-zoom (keeps pinch-zoom). */
+  overscroll-behavior: none;
+  touch-action: manipulation;
 }
+/* The app root fills the *visible* viewport (dvh tracks the iOS browser chrome
+   so the canvas reaches the very top/bottom — no inset border). */
+#root { height: 100dvh; }
 button { font-family: inherit; cursor: pointer; border: none; background: none; color: inherit; }
 input { font-family: inherit; }
 .icn { display: block; flex: none; }
