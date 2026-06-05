@@ -29,6 +29,13 @@ The app starts on the **Performance** graphics tier so it loads instantly and
 stays smooth on any laptop. Raise the quality in **Graphics** (shadows, ambient
 lighting, post‑processing, higher‑detail assets) whenever you want a richer look.
 
+**Do mirrors actually reflect the room?**
+Yes, on the **High** and **Maximum** graphics tiers — wall, bathroom and floor
+mirrors render a true reflection of the room, so you can see how a mirror opens
+up and enlarges a space. On Performance/Medium they use a lightweight shiny
+finish instead (real reflections are GPU‑intensive). Raise **Graphics** to High
+to turn them on.
+
 **Can I use my own models and textures?**
 Yes — see [Importing models](/importing-models) and
 [Importing textures](/importing-textures). Many formats are supported and
