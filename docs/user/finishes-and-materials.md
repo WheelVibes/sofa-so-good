@@ -24,8 +24,10 @@ The finish picker's **Browse** button opens a library of free CC0 PBR textures
 search box to find a texture, and the **All surfaces / Floor / Wall** chips to
 narrow the list to one surface type. Browse opens **pre‑filtered to whichever
 surface you last finished** — and that choice is remembered across sessions, so
-a floor edit shows floor textures first next time too. Picking a texture applies
-it to that surface and returns you to the swatches.
+a floor edit shows floor textures first next time too. Each card shows its
+**download size** (e.g. `CC0 · 8 MB · tap`, amber when large) so you can avoid a
+big download before clicking. Picking a texture applies it to that surface and
+returns you to the swatches.
 
 ## Materials on furniture (CC0 DLC)
 

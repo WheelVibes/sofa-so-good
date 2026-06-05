@@ -3,7 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { useStore } from '../../state/store'
 import { getThumb, putThumb } from './cache/db'
 import { PROVIDERS } from './providers'
-import type { ProviderId, RemoteEntry, RemoteKind } from './types'
+import type { ProviderId, RemoteEntry, RemoteKind, Resolution } from './types'
 
 const limiter = (() => {
   let inFlight = 0
@@ -68,6 +68,52 @@ export function useThumbnail(entry: RemoteEntry, visible: boolean): string | und
     }
   }, [entry.provider, entry.slug, visible, url, entry])
   return url
+}
+
+/** In-memory per-`provider:slug:resolution` size cache (bytes, or null when the
+ *  provider has no size data). Small + cheap to recompute, so it lives only for
+ *  the session rather than in IDB. */
+const sizeCache = new Map<string, number | null>()
+
+/** Lazily fetch the download size (bytes) for `entry` at `resolution`, only once
+ *  the card is `visible` (gated by the same IntersectionObserver as thumbnails)
+ *  and cached across cards/renders. Returns `undefined` while unknown/loading,
+ *  `null` when the provider exposes no size, else the byte total. */
+export function useAssetSize(
+  entry: RemoteEntry,
+  resolution: Resolution,
+  visible: boolean,
+): number | null | undefined {
+  const cacheKey = `${entry.provider}:${entry.slug}:${resolution}`
+  const [size, setSize] = useState<number | null | undefined>(() => sizeCache.get(cacheKey))
+  useEffect(() => {
+    if (!visible) return
+    if (sizeCache.has(cacheKey)) {
+      setSize(sizeCache.get(cacheKey))
+      return
+    }
+    const provider = PROVIDERS[entry.provider]
+    if (!provider.fetchSize) {
+      sizeCache.set(cacheKey, null)
+      setSize(null)
+      return
+    }
+    let cancelled = false
+    limiter
+      .schedule(() => provider.fetchSize!(entry, resolution))
+      .then((n) => {
+        const v = n ?? null
+        sizeCache.set(cacheKey, v)
+        if (!cancelled) setSize(v)
+      })
+      .catch(() => {
+        if (!cancelled) setSize(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [entry, entry.provider, resolution, visible, cacheKey])
+  return size
 }
 
 export function useResolveStatus(key: string): 'idle' | 'fetching' | 'ready' | 'error' {

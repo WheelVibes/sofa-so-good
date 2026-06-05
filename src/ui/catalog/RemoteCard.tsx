@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { useResolveStatus, useThumbnail } from '../../catalog/remote/hooks'
+import { useAssetSize, useResolveStatus, useThumbnail } from '../../catalog/remote/hooks'
 import type { RemoteEntry } from '../../catalog/remote/types'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
@@ -13,6 +13,15 @@ interface Props {
   onResolved: (id: string) => void
 }
 
+/** Bytes ≥ ~30 MB get a warning colour so big downloads stand out. */
+const SIZE_WARN_BYTES = 30 * 1024 * 1024
+
+function formatBytes(n: number): string {
+  if (n >= 1024 * 1024) return `${Math.round(n / (1024 * 1024))} MB`
+  if (n >= 1024) return `${Math.round(n / 1024)} KB`
+  return `${n} B`
+}
+
 /** A browsable CC0 model card, styled identically to {@link CatalogCard}.
  *  Clicking downloads the model (if needed) then hands the resolved id back so
  *  the drawer can arm placement. Carries the same heart favourite button. */
@@ -21,6 +30,7 @@ export function RemoteCard({ entry, onResolved }: Props) {
   const cardRef = useRef<HTMLDivElement | null>(null)
   const thumb = useThumbnail(entry, visible)
   const resolution = useStore((s) => s.preferredResolution)
+  const size = useAssetSize(entry, resolution, visible)
   const resolve = useStore((s) => s.resolveRemoteAsset)
   const key = `${entry.provider}:${entry.slug}:${resolution}`
   const favId = `${entry.provider}:${entry.slug}`
@@ -88,10 +98,17 @@ export function RemoteCard({ entry, onResolved }: Props) {
       </div>
       <span
         className="pr"
-        style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
+        style={{
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+          ...(size != null && size >= SIZE_WARN_BYTES ? { color: 'oklch(0.6 0.14 70)' } : {}),
+        }}
         title={entry.attribution}
       >
-        {status === 'ready' ? 'Downloaded · place' : 'CC0 · tap to add'}
+        {status === 'ready'
+          ? 'Downloaded · place'
+          : `CC0${size != null ? ` · ${formatBytes(size)}` : ''} · tap`}
       </span>
       <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>
         CC0

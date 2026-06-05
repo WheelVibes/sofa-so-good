@@ -186,9 +186,40 @@ async function fetchAsset(
   }
 }
 
+/** Sum the byte sizes of exactly the files {@link fetchAsset} would download
+ *  for `resolution`, so a card can show the cost before the user clicks.
+ *  Returns null if the API exposes no size for the picked files. */
+async function fetchSize(
+  entry: RemoteEntry,
+  resolution: Resolution,
+  signal?: AbortSignal,
+): Promise<number | null> {
+  const files = await fetchJson<PHFiles>(`${API}/files/${entry.slug}`, signal)
+  let total = 0
+  let any = false
+  const add = (f?: PHFile) => {
+    if (f?.size != null) {
+      total += f.size
+      any = true
+    }
+  }
+  if (entry.kind === 'material') {
+    add(pickJpg(pickResolution(files.Diffuse, resolution)))
+    add(pickJpg(pickResolution(files.nor_gl, resolution)))
+    add(pickJpg(pickResolution(files.Rough, resolution)))
+    add(pickJpg(pickResolution(files.AO, resolution)))
+  } else {
+    const gltfFile = pickResolution(files.gltf, resolution)?.gltf
+    add(gltfFile)
+    for (const f of Object.values(gltfFile?.include ?? {})) add(f)
+  }
+  return any ? total : null
+}
+
 export const polyhaven: RemoteProvider = {
   id: 'polyhaven',
   fetchIndex,
   fetchThumbnail,
   fetchAsset,
+  fetchSize,
 }
