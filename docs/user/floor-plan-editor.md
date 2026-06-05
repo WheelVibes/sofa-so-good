@@ -30,6 +30,11 @@ Rooms don't have to be plain rectangles:
   second rectangle (the “extension”), then set its offset and size. The room's
   **area updates to include the extension**, and the 3D flat renders both parts.
   **Remove extension** turns it back into a plain rectangle.
+- **Free‑form rooms** — pick the **Polygon** tool and click to drop each corner;
+  click the first corner again (or press <kbd>Enter</kbd>) to close the shape
+  (<kbd>Esc</kbd> cancels). The room can be any polygon — its **area is computed
+  from the true outline** (not a bounding box) and the 3D floor is shaped to
+  match.
 
 ## Your furniture, top‑down
 

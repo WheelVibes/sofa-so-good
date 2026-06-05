@@ -329,9 +329,13 @@ Shipped — a data-driven, editable apartment shell + 2D editor:
   fully furnish-aware. (~~L-shaped room editing UI~~ — done: room `extension`
   editor in `PlanInspector` + area sums it. ~~angled / non-orthogonal walls~~ —
   done: **Split** tool (`splitWall`) + draggable wall endpoint handles
-  (`moveWallVertex`, shared-corner aware) let walls take any angle/L-shape.)
-  Remaining: arbitrary free-polygon rooms (auto area from a wall loop, vs the
-  current rect + one extension) would still need a shoelace/triangulation pass.
+  (`moveWallVertex`, shared-corner aware) let walls take any angle/L-shape.
+  ~~arbitrary free-polygon rooms~~ — done: a `PlanRoom.polygon` (world-metre
+  verts) drawn with the editor **Polygon** tool is the authoritative shape —
+  `polygonArea` (shoelace) for area, `pointInPolygon`/`pointInRoom` for
+  furniture containment, and a triangulated `worldUvShapeGeometry` 3D floor.)
+  Remaining: auto-deriving a room polygon from an enclosing wall loop (today the
+  polygon is drawn directly, independent of the walls).
 
 ## Design tools & quality upgrades (2026-05-30)
 

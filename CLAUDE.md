@@ -534,7 +534,14 @@ rediscover it.
   you pull an outline into an L (or any non-orthogonal/angled shape). Rooms take
   an optional **L-shape `extension`** (a second rectangle) edited in
   `PlanInspector`; `planRoomArea` sums both so the area respects the shape, and
-  `PlanShell`/`roomShell` render both floor rects. A non-default plan
+  `PlanShell`/`roomShell` render both floor rects. For **arbitrary
+  (free-polygon) rooms** a `PlanRoom` carries an optional `polygon` (world-metre
+  vertices) authored with the **Polygon** room tool (click vertices, click the
+  first / press Enter to close); when set it's the authoritative shape —
+  `polygonArea` (shoelace) for the area, `pointInPolygon`/`pointInRoom` for
+  containment (furniture-in-room), and a triangulated `worldUvShapeGeometry`
+  floor in `PlanRoomFloor`/`PlanShell` (`floorplan/types.ts` helpers). A
+  non-default plan
   renders via `PlanShell` and furniture/walk collision follow it (optional
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
   curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). The editor

@@ -31,7 +31,7 @@ const CATEGORY_FILL: Record<FurnitureCategory, string> = {
   others: '#9a9488',
 }
 
-type Tool = 'select' | 'wall' | 'room' | 'split' | 'door' | 'window' | 'scale'
+type Tool = 'select' | 'wall' | 'room' | 'polyroom' | 'split' | 'door' | 'window' | 'scale'
 
 /** A reference photo/scan traced over to draw walls. Session-scoped (the object
  *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */
@@ -80,6 +80,9 @@ export function FloorPlanEditor() {
   const [movingVertex, setMovingVertex] = useState<{ id: string; which: 'start' | 'end' } | null>(
     null,
   )
+  // In-progress polygon-room vertices (polyroom tool): click to add a vertex,
+  // click near the first vertex (or Enter) to close into a room.
+  const [polyDraft, setPolyDraft] = useState<[number, number][]>([])
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
@@ -192,11 +195,39 @@ export function FloorPlanEditor() {
   const toPx = (m: number) => (m + PAD) * PX
   const snap = (m: number) => (gridSize > 0 ? Math.round(m / gridSize) * gridSize : m)
 
-  // Esc closes; Delete removes the selected element.
+  /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
+   *  explicit polygon for area/render/containment). Stable (reads the store). */
+  const commitPolyRoom = useCallback((verts: [number, number][]) => {
+    if (verts.length < 3) return
+    const xs = verts.map((v) => v[0])
+    const zs = verts.map((v) => v[1])
+    const x0 = Math.min(...xs)
+    const z0 = Math.min(...zs)
+    const st = useStore.getState()
+    const n = st.floorPlan.rooms.length + 1
+    const id = st.addRoom({
+      name: `Room ${n}`,
+      origin: [x0, z0],
+      width: Math.max(0.1, Math.max(...xs) - x0),
+      depth: Math.max(0.1, Math.max(...zs) - z0),
+      polygon: verts,
+    })
+    st.setPlanSelection({ type: 'room', id })
+  }, [])
+
+  // Enter closes an in-progress polygon room; Esc cancels it (or exits the
+  // editor when nothing is mid-draw); Delete removes the selected element.
   useEffect(() => {
     if (!editing) return
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') {
+      if (e.key === 'Enter' && polyDraft.length >= 3) {
+        commitPolyRoom(polyDraft)
+        setPolyDraft([])
+      } else if (e.key === 'Escape') {
+        if (polyDraft.length > 0) {
+          setPolyDraft([])
+          return
+        }
         setDraft(null)
         exitToScene()
       } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
@@ -208,7 +239,7 @@ export function FloorPlanEditor() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing, sel, exitToScene])
+  }, [editing, sel, exitToScene, polyDraft, commitPolyRoom])
 
   if (!editing) return null
 
@@ -262,6 +293,15 @@ export function FloorPlanEditor() {
     const st = useStore.getState()
     if (tool === 'wall' || tool === 'room' || tool === 'scale') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
+    } else if (tool === 'polyroom') {
+      // Click near the first vertex (≥3 placed) closes the polygon into a room.
+      const first = polyDraft[0]
+      if (first && polyDraft.length >= 3 && Math.hypot(first[0] - wx, first[1] - wz) < 0.35) {
+        commitPolyRoom(polyDraft)
+        setPolyDraft([])
+      } else {
+        setPolyDraft((p) => [...p, [wx, wz]])
+      }
     } else if (tool === 'split') {
       // Split the wall nearest the click at the projected point.
       const hit = nearestWall(wx, wz)
@@ -404,16 +444,26 @@ export function FloorPlanEditor() {
           style={{ width: 192 }}
         />
         <div className="seg accent" style={{ marginLeft: 4 }}>
-          {(['select', 'wall', 'room', 'split', 'door', 'window'] as Tool[]).map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setTool(t)}
-              className={`capitalize${tool === t ? ' on' : ''}`}
-            >
-              {t}
-            </button>
-          ))}
+          {(['select', 'wall', 'room', 'polyroom', 'split', 'door', 'window'] as Tool[]).map(
+            (t) => (
+              <button
+                key={t}
+                type="button"
+                onClick={() => {
+                  setPolyDraft([])
+                  setTool(t)
+                }}
+                className={`capitalize${tool === t ? ' on' : ''}`}
+                title={
+                  t === 'polyroom'
+                    ? 'Polygon room — click vertices, click the first to close'
+                    : undefined
+                }
+              >
+                {t === 'polyroom' ? 'Polygon' : t}
+              </button>
+            ),
+          )}
         </div>
         {tool === 'wall' && (
           <div className="seg">
@@ -607,25 +657,36 @@ export function FloorPlanEditor() {
                     svgRef.current?.setPointerCapture(e.pointerId)
                   }}
                 >
-                  <rect
-                    x={toPx(r.origin[0])}
-                    y={toPx(r.origin[1])}
-                    width={r.width * PX}
-                    height={r.depth * PX}
-                    fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
-                    stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
-                    strokeDasharray="4 3"
-                  />
-                  {r.extension && (
-                    <rect
-                      x={toPx(r.origin[0] + r.extension.offset[0])}
-                      y={toPx(r.origin[1] + r.extension.offset[1])}
-                      width={r.extension.width * PX}
-                      height={r.extension.depth * PX}
+                  {r.polygon && r.polygon.length >= 3 ? (
+                    <polygon
+                      points={r.polygon.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
                       fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
                       stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
                       strokeDasharray="4 3"
                     />
+                  ) : (
+                    <>
+                      <rect
+                        x={toPx(r.origin[0])}
+                        y={toPx(r.origin[1])}
+                        width={r.width * PX}
+                        height={r.depth * PX}
+                        fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
+                        stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                        strokeDasharray="4 3"
+                      />
+                      {r.extension && (
+                        <rect
+                          x={toPx(r.origin[0] + r.extension.offset[0])}
+                          y={toPx(r.origin[1] + r.extension.offset[1])}
+                          width={r.extension.width * PX}
+                          height={r.extension.depth * PX}
+                          fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
+                          stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                          strokeDasharray="4 3"
+                        />
+                      )}
+                    </>
                   )}
                   <text
                     x={toPx(r.origin[0] + r.width / 2)}
@@ -849,6 +910,30 @@ export function FloorPlanEditor() {
                 fill="var(--accent-soft)"
                 stroke="var(--accent)"
               />
+            )}
+            {/* In-progress polygon room: placed edges + vertices; the first
+                vertex is ringed (click it, or press Enter, to close). */}
+            {tool === 'polyroom' && polyDraft.length > 0 && (
+              <g>
+                <polyline
+                  points={polyDraft.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
+                  fill="none"
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                  strokeDasharray="5 3"
+                />
+                {polyDraft.map(([x, z], i) => (
+                  <circle
+                    key={i}
+                    cx={toPx(x)}
+                    cy={toPx(z)}
+                    r={i === 0 ? 6 : 4}
+                    fill={i === 0 ? 'none' : 'var(--accent)'}
+                    stroke="var(--accent)"
+                    strokeWidth={i === 0 ? 2 : 0}
+                  />
+                ))}
+              </g>
             )}
             {/* Live dimension readout while drawing. */}
             {draft && (
