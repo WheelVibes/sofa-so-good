@@ -68,6 +68,7 @@ import { Stove } from './Stove'
 import { TableLamp } from './TableLamp'
 import { TabletopDecor } from './TabletopDecor'
 import { Toilet } from './Toilet'
+import { TowelLadder } from './TowelLadder'
 import { TowelRail } from './TowelRail'
 import { ToyStorage } from './ToyStorage'
 import { TVConsole } from './TVConsole'
@@ -157,4 +158,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Fireplace,
   Vanity,
   ToyStorage,
+  TowelLadder,
 }
