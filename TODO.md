@@ -26,9 +26,10 @@ plan: [docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md](docs
   finishOverrides persist through IDB meta + save schema.
 - Follow-ups: **per-file mounted/noClip on bulk import** (currently one choice
   per batch); **thumbnail capture for user GLBs** (name-only card today);
-  **dispose replaced materials** in GltfModel tint/finish effects (consistent
-  with existing tint effect — matters once the configurator churns overrides);
   verify the runtime Draco CDN fetch behind the prod reverse-proxy / CSP.
+  (~~dispose replaced materials~~ in GltfModel tint/finish effects — done; both
+  effects now track the clones they own and free the prior generation before
+  reassigning, plus free all owned clones on unmount.)
 
 **Next milestone — slot-based product configurator** (mattress-on-frame,
 modular sofa): base + named slots with anchor points, swappable compatible
