@@ -98,6 +98,20 @@ export function PlanShell() {
       {/* Per-room floors (catalog finish, defaulting to oak) */}
       {plan.rooms.map((r) => {
         const mat = (r.floor ?? DEFAULT_PLAN_FLOOR) as MaterialId
+        // A non-rectangular room renders one triangulated polygon floor; a
+        // rect room renders its rectangle (+ optional L-extension rect).
+        if (r.polygon && r.polygon.length >= 3) {
+          return (
+            <PlanRoomFloor
+              key={r.id}
+              origin={r.origin}
+              width={r.width}
+              depth={r.depth}
+              polygon={r.polygon}
+              materialId={mat}
+            />
+          )
+        }
         return (
           <group key={r.id}>
             <PlanRoomFloor origin={r.origin} width={r.width} depth={r.depth} materialId={mat} />
