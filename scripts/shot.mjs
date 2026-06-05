@@ -27,8 +27,17 @@ const page = await browser.newPage()
 await page.emulateTimezone('Asia/Singapore')
 // Viewport defaults to 1600×1000; override with SHOT_VIEWPORT="W,H" to test
 // responsive breakpoints (e.g. "390,844" for a phone, "834,1112" tablet).
+// SHOT_TOUCH=1 emulates a touch device (isMobile + hasTouch) so `(pointer:
+// coarse)` matches — needed to exercise touch-gated handlers (long-press).
 const vp = (process.env.SHOT_VIEWPORT || '1600,1000').split(',').map(Number)
-await page.setViewport({ width: vp[0] || 1600, height: vp[1] || 1000, deviceScaleFactor: 1 })
+const touch = process.env.SHOT_TOUCH === '1'
+await page.setViewport({
+  width: vp[0] || 1600,
+  height: vp[1] || 1000,
+  deviceScaleFactor: 1,
+  isMobile: touch,
+  hasTouch: touch,
+})
 // Seed localStorage before any app code runs so previews aren't covered by the
 // first-run Controls overlay / location prompt. Override with SHOT_INIT_LS
 // (JSON object of key→value). Defaults dismiss both first-run UIs.

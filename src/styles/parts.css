@@ -107,6 +107,25 @@
 /* ---- Minimap + compass + zoom (bottom-right) ----------------- */
 /* compass is fused into the top of the zoom rail as one cohesive control */
 .navcluster { position: absolute; right: var(--s-4); bottom: var(--s-4); display: flex; align-items: flex-end; gap: var(--s-3); z-index: var(--z-hud); }
+
+/* ---- FPS counter (themed HUD pill, top-left, just above the scene) ---- */
+.fps-hud {
+  position: absolute; top: var(--s-3); left: var(--s-3); z-index: var(--z-hud);
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 4px 9px 4px 8px; border-radius: var(--r-pill);
+  background: var(--surface); border: 1px solid var(--border);
+  box-shadow: var(--shadow-panel);
+  backdrop-filter: blur(var(--blur)) saturate(1.3);
+  -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
+  font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  line-height: 1; user-select: none; pointer-events: none;
+  animation: fade var(--dur) var(--ease);
+}
+.fps-hud .fps-dot { width: 7px; height: 7px; border-radius: 999px; background: var(--accent); flex: none; }
+.fps-hud.fps-warn .fps-dot { background: oklch(0.78 0.15 75); }
+.fps-hud.fps-bad .fps-dot { background: var(--danger); }
+.fps-hud .fps-n { font-size: var(--t-sm); font-weight: 700; color: var(--text); }
+.fps-hud .fps-u { font-size: var(--t-2xs); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .minimap {
   width: 168px; height: 132px; padding: var(--s-3);
   background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-3);

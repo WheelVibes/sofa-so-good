@@ -11,6 +11,7 @@ import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
 import { useCatalog } from './furniture/catalog'
 import { tidyHome } from './layout/tidyHome'
 import { cameraForwardXZ } from './scene/cameras/cameraForward'
+import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
 import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
@@ -26,6 +27,7 @@ import { usePlacementController } from './ui/catalog/usePlacementController'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
 import { FinishPicker } from './ui/FinishPicker'
+import { FpsCounter } from './ui/FpsCounter'
 import { FloorPlanEditor } from './ui/floorplan/FloorPlanEditor'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
@@ -496,9 +498,11 @@ export default function App() {
 
   return (
     <WebGLFallback>
-      <div className="relative h-screen w-screen overflow-hidden">
+      <div className="relative h-[100dvh] w-screen overflow-hidden">
         <Toolbar />
         {roomEditorActive ? <RoomEditorScene /> : <Scene />}
+        <FpsCounter />
+        <MobileLongPress />
         <MarqueeSelector />
         <NavCluster />
         <DragHud />

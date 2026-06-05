@@ -60,9 +60,22 @@
    ============================================================ */
 body.mobile {
 
+  /* Long-press should act as right-click, not select text or pop the iOS
+     callout. Inputs stay selectable (rule below). */
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+
+  /* Keep real text inputs selectable/editable. */
+  input, textarea, select, [contenteditable] {
+    -webkit-user-select: text; user-select: text;
+  }
+
   /* ---- Collapsed toolbar (single menu icon) ---------------- */
   .toolbar.mobilebar {
-    left: var(--s-3); right: var(--s-3); top: var(--s-3);
+    left: var(--s-3); right: var(--s-3);
+    /* Clear the notch / status bar now the canvas extends under it. */
+    top: calc(var(--s-3) + env(safe-area-inset-top));
     /* Clear the base island's max-width so left+right both apply (otherwise the
        bar is over-constrained and shifts off-centre to the left). */
     max-width: none; width: auto;
@@ -102,8 +115,11 @@ body.mobile {
   }
   [data-mode='dark'] .m-menu-overlay { background: oklch(0.1 0.01 60 / 0.52); }
   .m-sheet {
-    margin: 60px var(--s-3) var(--s-3); width: 100%;
-    max-height: calc(100vh - 76px); align-self: flex-start;
+    margin: calc(60px + env(safe-area-inset-top)) var(--s-3)
+      calc(var(--s-3) + env(safe-area-inset-bottom));
+    width: 100%;
+    max-height: calc(100dvh - 76px - env(safe-area-inset-top) - env(safe-area-inset-bottom));
+    align-self: flex-start;
     background: var(--elevated);
     backdrop-filter: blur(var(--blur)) saturate(1.3);
     -webkit-backdrop-filter: blur(var(--blur)) saturate(1.3);
@@ -167,7 +183,8 @@ body.mobile {
 
   /* ---- Floating panels → bottom sheets (inset, floating) --- */
   .catalog, .inspector {
-    position: fixed; left: var(--s-3); right: var(--s-3); bottom: var(--s-3); top: auto;
+    position: fixed; left: var(--s-3); right: var(--s-3);
+    bottom: calc(var(--s-3) + env(safe-area-inset-bottom)); top: auto;
     width: auto; max-width: none; max-height: 72vh;
     transform: none; border-radius: var(--r-3);
     border: 1px solid var(--border); box-shadow: var(--shadow-pop);
@@ -191,7 +208,8 @@ body.mobile {
 
   /* ---- Auxiliary panels (budget / finishes) → sheets ------- */
   .aux {
-    position: fixed; left: var(--s-3); right: var(--s-3); bottom: var(--s-3); top: auto;
+    position: fixed; left: var(--s-3); right: var(--s-3);
+    bottom: calc(var(--s-3) + env(safe-area-inset-bottom)); top: auto;
     width: auto !important; max-width: none; max-height: 70vh;
     transform: none; border-radius: var(--r-3);
     animation: sheetUp var(--dur) var(--ease);
@@ -209,6 +227,9 @@ body.mobile {
 
   /* ---- Nav cluster: hide on touch -------------------------- */
   .navcluster { display: none; }
+
+  /* ---- FPS HUD: drop below the floating brand chip --------- */
+  .fps-hud { top: calc(60px + env(safe-area-inset-top)); }
 
   /* ---- Empty state ----------------------------------------- */
   .empty-card { width: min(340px, calc(100vw - 40px)); }
@@ -231,7 +252,8 @@ body.mobile {
   .er-stage .er-roomview { width: 94% !important; max-height: 46vh !important; margin-top: 64px; }
   .er-hint { display: none; }
   .er-finish {
-    position: fixed; left: var(--s-3); right: var(--s-3); bottom: var(--s-3); top: auto;
+    position: fixed; left: var(--s-3); right: var(--s-3);
+    bottom: calc(var(--s-3) + env(safe-area-inset-bottom)); top: auto;
     width: auto; max-height: 54vh; transform: none;
     border-radius: var(--r-3);
     animation: sheetUp var(--dur) var(--ease);
@@ -242,7 +264,8 @@ body.mobile {
      SCREEN: 2D Floor Plan
      ============================================================ */
   .plan-rail {
-    left: var(--s-3); right: var(--s-3); top: 70px; bottom: auto;
+    left: var(--s-3); right: var(--s-3);
+    top: calc(70px + env(safe-area-inset-top)); bottom: auto;
     transform: none; flex-direction: row; overflow-x: auto;
     scrollbar-width: none; max-width: calc(100vw - 24px);
   }
@@ -250,7 +273,8 @@ body.mobile {
   .plan-rail .rail-btn { flex: none; }
   .plan-rail .rail-div { width: 1px; height: auto; align-self: stretch; margin: 4px 3px; }
   .plan-props {
-    position: fixed; left: var(--s-3); right: var(--s-3); bottom: var(--s-3); top: auto;
+    position: fixed; left: var(--s-3); right: var(--s-3);
+    bottom: calc(var(--s-3) + env(safe-area-inset-bottom)); top: auto;
     width: auto; max-height: 48vh; transform: none;
     border-radius: var(--r-3);
     animation: sheetUp var(--dur) var(--ease);
@@ -262,10 +286,10 @@ body.mobile {
   /* ============================================================
      SCREEN: Walkthrough
      ============================================================ */
-  .walk-top { top: var(--s-3); left: var(--s-3); right: var(--s-3); gap: var(--s-2); }
+  .walk-top { top: calc(var(--s-3) + env(safe-area-inset-top)); left: var(--s-3); right: var(--s-3); gap: var(--s-2); }
   .walk-exit.btn { padding: 7px 9px; }
   .walk-room { padding: 7px 12px; font-size: var(--t-sm); }
-  .walk-actions { top: auto; bottom: var(--s-5); transform: none; flex-direction: row; left: 50%; translate: -50% 0; }
+  .walk-actions { top: auto; bottom: calc(var(--s-5) + env(safe-area-inset-bottom)); transform: none; flex-direction: row; left: 50%; translate: -50% 0; }
   .walk-hints { display: none; }
   .walk-compass { width: 48px; height: 48px; }
 
