@@ -54,6 +54,13 @@ export interface FloorPlanSlice {
   addWall: (wall: Omit<PlanWall, 'id'>) => string
   updateWall: (id: string, patch: Partial<PlanWall>) => void
   removeWall: (id: string) => void
+  /** Split a wall into two segments at parameter `t` (0..1 along its length,
+   *  default 0.5 = midpoint). Openings are re-homed onto whichever segment
+   *  contains them. Used to build L-shapes by then dragging one half. */
+  splitWall: (id: string, t?: number) => void
+  /** Move a wall endpoint to a new position, dragging every other wall
+   *  endpoint that shared the old position with it (so corners stay joined). */
+  moveWallVertex: (id: string, which: 'start' | 'end', to: [number, number]) => void
 
   addRoom: (room: Omit<PlanRoom, 'id'>) => string
   updateRoom: (id: string, patch: Partial<PlanRoom>) => void
@@ -154,6 +161,60 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       },
       planSelection: null,
     })),
+
+  splitWall: (id, t = 0.5) =>
+    set((s) => {
+      const wall = s.floorPlan.walls.find((w) => w.id === id)
+      if (!wall) return {}
+      const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+      const ct = Math.max(0.02, Math.min(0.98, t))
+      const so = len * ct // split offset (m) from start
+      const mid: [number, number] = [
+        wall.start[0] + (wall.end[0] - wall.start[0]) * ct,
+        wall.start[1] + (wall.end[1] - wall.start[1]) * ct,
+      ]
+      const idA = planId('w')
+      const idB = planId('w')
+      const wallA: PlanWall = { ...wall, id: idA, end: mid }
+      const wallB: PlanWall = { ...wall, id: idB, start: mid }
+      // Re-home openings onto whichever new segment contains them.
+      const openings = s.floorPlan.openings.map((o) => {
+        if (o.wallId !== id) return o
+        if (o.offset + o.width <= so) return { ...o, wallId: idA }
+        if (o.offset >= so) return { ...o, wallId: idB, offset: o.offset - so }
+        // Straddles the split — clamp it onto the first segment.
+        return { ...o, wallId: idA, width: Math.max(0.1, so - o.offset) }
+      })
+      return {
+        floorPlan: {
+          ...s.floorPlan,
+          walls: s.floorPlan.walls.flatMap((w) => (w.id === id ? [wallA, wallB] : [w])),
+          openings,
+        },
+        planSelection: { type: 'wall', id: idA } as PlanSelection,
+      }
+    }),
+
+  moveWallVertex: (id, which, to) =>
+    set((s) => {
+      const target = s.floorPlan.walls.find((w) => w.id === id)
+      if (!target) return {}
+      const from = which === 'start' ? target.start : target.end
+      const EPS = 1e-3
+      const shared = (p: [number, number]) =>
+        Math.abs(p[0] - from[0]) < EPS && Math.abs(p[1] - from[1]) < EPS
+      return {
+        floorPlan: {
+          ...s.floorPlan,
+          walls: s.floorPlan.walls.map((w) => {
+            const next = { ...w }
+            if (shared(w.start)) next.start = [...to] as [number, number]
+            if (shared(w.end)) next.end = [...to] as [number, number]
+            return next
+          }),
+        },
+      }
+    }),
 
   addRoom: (room) => {
     const id = planId('r')

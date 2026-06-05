@@ -119,9 +119,12 @@ rediscover it.
   measurements, orientation, notifications, reset, **userAssets**
   (user-uploaded GLBs + imported `IkeaGltfDef`s — see **IKEA models**), and
   **floorPlan** (editable apartment shell + editor state + saved-plan library),
-  **appearance** (theme + light/dark/auto mode — see **Design system**), and
+  **appearance** (theme + light/dark/auto mode — see **Design system**),
   **features** (command-palette / layers-mode / context-menu / onboarding UI
-  state). Persistence + migrations under `storage/` (layout autosave;
+  state), and **userStyles** (user-saved finish styles — per-room floor/wall
+  finishes captured from the current design, persisted in `localStorage`
+  (`hdb_user_styles`), re-appliable from the Arrange menu's "My styles"; not in
+  the autosave/schema). Persistence + migrations under `storage/` (layout autosave;
   `qualityPrefs.ts` graphics prefs; `editorPrefs.ts` snap/grid;
   `appearancePrefs.ts` theme+mode → `[data-theme]`/`[data-mode]` on `<html>`;
   `floorPlanStore.ts` plan library
@@ -189,6 +192,11 @@ rediscover it.
     `convertModel` → `runOptimize` — before `persistUserGlb`, threading a sibling
     file pool (for .mtl/.bin/texture resolution) and an opt-in `ktx2` flag through
     `BulkImportOptions`/`ImportPlan`. Files: `validate.ts`, `bulkImport.ts`, `persist.ts`,
+    `inferFlags.ts` (`inferCollisionFlags` — per-file `mounted`/`noClip` guessed
+    from the filename, e.g. rug/mat → noClip, pendant/sconce/wall-art/range-hood
+    → mounted; OR'd with the batch checkboxes, gated by the dialog's default-on
+    "Auto-detect …" toggle, so a mixed folder drop gets per-item collision
+    without manual tagging),
     `hashFile.ts` (SHA-256 content hash — `persist`/`bulkImport` skip a re-upload
     of identical bytes, counting it as a duplicate; the hash rides on
     `UserGltfDef.contentHash`, persisted in IDB meta + the save schema, rehydrated
@@ -519,7 +527,23 @@ rediscover it.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): a 2D top-down editor
   (toolbar "Floor plan") edits the store `floorPlan` — walls (interior/
   exterior), rectangular rooms (auto area + total), doors/windows, grid +
-  corner snapping, drag-move, per-room floor finishes. A non-default plan
+  corner snapping, drag-move, per-room floor finishes. **Non-rectangular
+  shapes**: the **Split** tool (`splitWall`) cuts a wall into two segments
+  (re-homing its openings) and dragging the selected wall's **endpoint handles**
+  (`moveWallVertex`, which drags every wall sharing that corner together) lets
+  you pull an outline into an L (or any non-orthogonal/angled shape). Rooms take
+  an optional **L-shape `extension`** (a second rectangle) edited in
+  `PlanInspector`; `planRoomArea` sums both so the area respects the shape, and
+  `PlanShell`/`roomShell` render both floor rects. For **arbitrary
+  (free-polygon) rooms** a `PlanRoom` carries an optional `polygon` (world-metre
+  vertices) authored with the **Polygon** room tool (click vertices, click the
+  first / press Enter to close) or the **Auto room** tool (`detectRoomPolygon`
+  in `floorplan/roomDetect.ts` — planar face-extraction tracing the minimal
+  wall cycle around a click); when set it's the authoritative shape —
+  `polygonArea` (shoelace) for the area, `pointInPolygon`/`pointInRoom` for
+  containment (furniture-in-room), and a triangulated `worldUvShapeGeometry`
+  floor in `PlanRoomFloor`/`PlanShell` (`floorplan/types.ts` helpers). A
+  non-default plan
   renders via `PlanShell` and furniture/walk collision follow it (optional
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
   curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). The editor
@@ -649,7 +673,10 @@ rediscover it.
   that drops below 2. Dropping a Set stamps one shared `groupId`. Persisted via
   save schema **v2** (`groupId` optional; v1→v2 migration is a no-op on items).
 - **Visual**: per-item **contact shadows** (`ContactShadow`, quality-gated) +
-  **skirting/crown** wall trim (`apartment/Skirting.tsx`, `PlanShell`).
+  **skirting** wall trim (`apartment/Skirting.tsx`, `PlanShell`). (Crown
+  molding was removed — a light fixed-colour band at the wall top read as a
+  discoloured strip against coloured walls; the painted face already runs
+  cleanly floor-to-ceiling.)
   Procedural finishes include **wallpapers** (stripe/grasscloth) + **checker**.
 - **Loading overlay + fast boot** (`ui/loading/`, `state/storage/bootstrap.ts`,
   uiSlice `bootPhase`/`loading`): `main.tsx` registers the GLB decoders
@@ -729,8 +756,13 @@ rediscover it.
   faces the TV, walkways + door/window clearances preserved. Clearance values
   live in `src/layout/designRules.ts` (`CLEARANCE`) and drive the per-room
   auto-arranger in `src/layout/autoArrange.ts` (`arrangeRoom`, exposed in-app
-  as the Finish-picker "Tidy up room" button). Author default layouts/presets
-  to these rules and reuse the constants.
+  as the Finish-picker "Tidy up room" button). Per-room strategies by
+  `roomKind`: living, bedroom, **kitchen** (`arrangeKitchen` — counters flush
+  largest-first, then fridge + stove biased to opposite ends of the longest run
+  so the sink sits between them: the refrigerator→sink→range work triangle),
+  **bath** (`arrangeFixtures` — fixtures flush to walls largest-first, clear of
+  door swings), and generic. Author default layouts/presets to these rules and
+  reuse the constants.
 - Keep `TODO.md` current when deferring work (see superpowers specs/plans
   under `docs/`).
 - Bundled assets are procedurally generated (CC0-equivalent) wherever possible;

@@ -4,11 +4,13 @@ import type { MeshStandardMaterial } from 'three'
 import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Ceiling-mounted fixture: a flush disc or a pendant dome hung from the
  *  ceiling. Floor-anchored group → body offset up in Y to the mount height.
  *  Emissive so it reads as lit. */
 export function CeilingLight({ props }: { props: ParamProps }) {
+  const detail = useDetail()
   const style = readStr(props, 'style', 'pendant')
   const shade = readStr(props, 'shade', 'dome')
   const shadeColor = readStr(props, 'shadeColor', '#f2ead6')
@@ -63,14 +65,16 @@ export function CeilingLight({ props }: { props: ParamProps }) {
           {/* Shade — shape selectable (dome / globe / cone / drum) */}
           <mesh castShadow position={[0, shade === 'globe' ? -0.04 : 0, 0]}>
             {shade === 'globe' ? (
-              <sphereGeometry args={[0.16, 26, 18]} />
+              <sphereGeometry args={[0.16, seg(26, detail), seg(18, detail)]} />
             ) : shade === 'cone' ? (
-              <cylinderGeometry args={[0.06, 0.22, 0.22, 28, 1, true]} />
+              <cylinderGeometry args={[0.06, 0.22, 0.22, seg(28, detail), 1, true]} />
             ) : shade === 'drum' ? (
-              <cylinderGeometry args={[0.2, 0.2, 0.18, 32, 1, true]} />
+              <cylinderGeometry args={[0.2, 0.2, 0.18, seg(32, detail), 1, true]} />
             ) : (
               // dome (default)
-              <sphereGeometry args={[0.18, 22, 12, 0, Math.PI * 2, 0, Math.PI / 2]} />
+              <sphereGeometry
+                args={[0.18, seg(22, detail), seg(12, detail), 0, Math.PI * 2, 0, Math.PI / 2]}
+              />
             )}
             <meshStandardMaterial
               ref={shadeRef}
@@ -85,7 +89,7 @@ export function CeilingLight({ props }: { props: ParamProps }) {
       ) : (
         // Flush ceiling disc
         <mesh castShadow position={[0, -0.02, 0]}>
-          <cylinderGeometry args={[0.22, 0.22, 0.06, 28]} />
+          <cylinderGeometry args={[0.22, 0.22, 0.06, seg(28, detail)]} />
           <meshStandardMaterial
             ref={shadeRef}
             color={shadeColor}

@@ -48,6 +48,10 @@ export function ArrangeMenu() {
   const setSmartStartOpen = useStore((s) => s.setSmartStartOpen)
   const setFloorFinish = useStore((s) => s.setFloorFinish)
   const setWallFinish = useStore((s) => s.setWallFinish)
+  const userStyles = useStore((s) => s.userStyles)
+  const saveCurrentStyle = useStore((s) => s.saveCurrentStyle)
+  const applyUserStyle = useStore((s) => s.applyUserStyle)
+  const deleteUserStyle = useStore((s) => s.deleteUserStyle)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const toggleFloorPlanEditing = useStore((s) => s.toggleFloorPlanEditing)
   const recipes = ikeaSetRecipes()
@@ -130,6 +134,50 @@ export function ArrangeMenu() {
             onClick={() => applyStyle(p, setFloorFinish, setWallFinish)}
           />
         ))}
+
+        <Header>My styles</Header>
+        <Action
+          icon="Style"
+          label="Save current style…"
+          sub="Capture every room's floor + wall finish"
+          onClick={() => {
+            const name = window.prompt('Name this style:', `My style ${userStyles.length + 1}`)
+            if (name !== null) saveCurrentStyle(name)
+          }}
+        />
+        {userStyles.length === 0 ? (
+          <div className="px-2 py-1 text-[10px] text-[var(--text-3)]">
+            No saved styles yet — finish a room, then save.
+          </div>
+        ) : (
+          userStyles.map((s) => (
+            <div
+              key={s.id}
+              className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-2)]"
+            >
+              <button
+                type="button"
+                role="menuitem"
+                onClick={() => applyUserStyle(s.id)}
+                className="flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left"
+              >
+                <span className="text-[var(--text-2)]">
+                  <Icon.Style width={16} height={16} />
+                </span>
+                <span className="block flex-1 text-[13px] text-[var(--text)]">{s.name}</span>
+              </button>
+              <button
+                type="button"
+                aria-label={`Delete ${s.name}`}
+                title="Delete style"
+                onClick={() => deleteUserStyle(s.id)}
+                className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
+              >
+                ×
+              </button>
+            </div>
+          ))
+        )}
       </div>
     </ToolbarMenu>
   )

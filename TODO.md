@@ -24,11 +24,20 @@ plan: [docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md](docs
 - ~~**Imported-model catalog citizenship**~~ — user GLBs already render as
   categorized, searchable, placeable cards; mounted/noClip + finishTargets/
   finishOverrides persist through IDB meta + save schema.
-- Follow-ups: **per-file mounted/noClip on bulk import** (currently one choice
-  per batch); **thumbnail capture for user GLBs** (name-only card today);
-  **dispose replaced materials** in GltfModel tint/finish effects (consistent
-  with existing tint effect — matters once the configurator churns overrides);
-  verify the runtime Draco CDN fetch behind the prod reverse-proxy / CSP.
+- Follow-ups: verify the runtime Draco CDN fetch behind the prod reverse-proxy
+  / CSP.
+  (~~thumbnail capture for user GLBs~~ — done; the off-screen `ThumbnailHost`
+  now also renders GLB defs (user uploads + bundled), loading the model under
+  `<Suspense>`, framing the camera to its bbox, and capturing to a PNG —
+  verified the bundled pool-table cards render a real thumbnail and the queue
+  drains without stalling. `ui/catalog/thumbnails.tsx`.
+  ~~dispose replaced materials in GltfModel tint/finish effects~~ — done; the
+  tint + finish effects now free their own clones on re-apply/unmount.
+  ~~per-file mounted/noClip on bulk import~~ — done a better way than per-file
+  UI (impractical for 1000-file drops): `inferCollisionFlags` auto-detects
+  mounted/rug per file from its name (`furniture/upload/inferFlags.ts`), OR'd
+  with the batch checkboxes, toggled by an "Auto-detect …" option in the Upload
+  dialog (default on). Applies to the bulk + single-file paths.)
 
 **Next milestone — slot-based product configurator** (mattress-on-frame,
 modular sofa): base + named slots with anchor points, swappable compatible
@@ -67,9 +76,16 @@ plan:
   generic strategies, Finish-picker button. ~~Asset mirror-flip~~ (F / Shift+F).
 - ~~**Default lounge re-oriented**~~ — sofa faces the (windowless) east TV
   wall; coffee table long-side parallel to the sofa.
-- Follow-up: extend the arranger with kitchen/bath-specific templates (work
-  triangle / fixture order); run it over the researched presets so their
-  bedrooms are auto-spaced; add a desk-chair-at-desk rule.
+- Follow-up: run the arranger over the researched presets so their bedrooms are
+  auto-spaced. (~~desk-chair-at-desk rule~~ — done; `placeDeskChairs` now runs in
+  the living/dining strategies too, and its offset is footprint-derived so the
+  chair tucks in front instead of colliding + stranding. ~~kitchen/bath
+  templates~~ — done; `roomKind` routes bath1/bath2 to `arrangeFixtures`
+  (fixtures flush to walls largest-first, clear of door swings). ~~kitchen
+  work-triangle solver~~ — done; `arrangeKitchen` places the counter run first,
+  then biases the fridge + stove to opposite ends of the longest wall run so
+  the sink sits between them (refrigerator→sink→range), instead of the generic
+  settle-in-place.)
 
 ## Asset realism + structural audit (2026-05-30)
 
@@ -85,10 +101,15 @@ plan:
   (`FurnitureMaterialLoader`, `getSurfaceMaterial`, inspector dropdown).
 - Follow-up: a curated "furniture materials" shortlist (oak/walnut/teak/marble
   slugs) surfaced as one-tap finishes so users don't have to browse the full
-  remote catalog; quality-gated mesh subdivision for primitives on the High
-  tier; verify the runtime download end-to-end behind the prod reverse-proxy
-  (the build sandbox's network allowlist blocks ambientCG/Poly Haven, so this
-  path is currently covered only by mocked unit tests).
+  remote catalog; verify the runtime download end-to-end behind the prod
+  reverse-proxy (the build sandbox's network allowlist blocks ambientCG/Poly
+  Haven, so this path is currently covered only by mocked unit tests).
+  (~~quality-gated mesh subdivision~~ — the `useDetail()`/`seg()` mechanism
+  (geometryDetail per render tier, High 1.8×) is now adopted by the prominent
+  curved primitives — floor/table lamp, ceiling light, bar stool, wall clock,
+  round mirror, vase, plant pot — so their curves smooth out on High/Maximum
+  while the Performance default is unchanged. The remaining curved primitives
+  can adopt `seg(base, detail)` incrementally — it's a mechanical change.)
 
 ## Catalogue configurability pass (2026-05-29)
 
@@ -146,7 +167,13 @@ used as media walls / serving pieces in several presets. To add a researched lay
 ~~bulb temperature~~, ~~TV/monitor screen content~~, ~~room area in Finish
 picker~~, ~~kitchen wall-cabinet shaker fronts~~ also shipped.
 
-Possible further polish: heated-ladder towel rail; user-saved style presets.
+Possible further polish: (~~heated-ladder towel rail~~ — done; `TowelLadder`
+is a freestanding blanket-ladder-style heated rail (chrome/black/brass/wood,
+draped towels), beside the existing wall-mounted `TowelRail`).
+(~~user-saved style presets~~ — done; `userStylesSlice` captures the current
+per-room floor/wall finishes as a named style, persists them to `localStorage`,
+and re-applies (undoable) from the Arrange menu's **My styles** section, beside
+the built-in Style presets.)
 ~~Researched bedroom layout~~ — "Boutique Suite" preset re-models the main
 bedroom into a symmetric hotel layout (queen centred with twin nightstands +
 lamps, foot bench, wardrobe on the solid wall) via the new `rooms` override.
@@ -170,7 +197,9 @@ flats) shipped — see
   [src/furniture/primitives/Crib.tsx](src/furniture/primitives/Crib.tsx).
   Arranger treats it as a `bed` (wall-flush). ~~Nursery preset~~ — "Family
   Nursery" re-models Bedroom 3 (crib + changing dresser + nursing chair with
-  arc lamp). Follow-up: changing table, highchair, toy storage.
+  arc lamp). (~~changing table~~, ~~highchair~~, ~~toy storage~~ — all shipped;
+  toy storage is `ToyStorage` (`category: 'kids'`, the first kids-category item
+  — a low cubby organiser with bright fabric bins).)
 - ~~Per-room researched preset layouts~~ — `buildPresetItems` now supports a
   `rooms: Partial<Record<RoomId, LayoutEntry[]>>` override (the old
   `livingDining` field is sugar for `rooms.livingDining`); each listed room's
@@ -226,7 +255,7 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 - **Runtime catalog: production CORS proxy** — ambientCG's API and CDN do not send `Access-Control-Allow-Origin` (re-verified 2026-06). Dev uses Vite's reverse proxy ([vite.config.ts](vite.config.ts) `/acg` and `/acg-cdn`); production needs an equivalent proxy (Cloudflare Worker, Vercel edge function, or hosted reverse-proxy) to re-enable ambientCG in prod. Until then ambientCG is **dev-gated** (`catalog/remote/providers/index.ts` `activeProviderIds` / `PROD_PROVIDER_IDS`) so prod only bootstraps Poly Haven, whose API + CDN send CORS and work direct.
 - **Runtime catalog: Kenney support** — Kenney has no CORS-friendly API and ships single ZIPs. Add a build-time mirror (or proxy worker) before extending the runtime catalog to Kenney.
 - **Runtime catalog: Quaternius support** — same rationale as Kenney.
-- **Runtime catalog: per-asset bytes estimate** — surface Poly Haven file sizes on cards before clicking so users can avoid 50 MB downloads.
+- ~~**Runtime catalog: per-asset bytes estimate**~~ — done. `RemoteProvider.fetchSize` (Poly Haven sums exactly the files a download picks for the chosen resolution from `/files/{slug}`), a lazy per-visible-card `useAssetSize` hook (cached, gated by the same IntersectionObserver as thumbnails), and a size on each `RemoteCard` (`CC0 · 47 MB · tap`, warn-coloured ≥30 MB) so users see the cost before clicking. ambientCG returns nothing (no `fetchSize`) → graceful fallback. Verified via provider + RemoteCard component tests (live cards are network-gated in the sandbox).
 - **Runtime catalog: HDRI environment** — reconsider when scene lighting is exposed.
 
 ## Assets
@@ -251,8 +280,8 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 
 ## UI
 
-- **Finishes browse: filter by category** — `RemoteBrowseTab` shows all materials; could narrow by floor-vs-wall heuristics from tags. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx) and [finishes-browse spec](docs/superpowers/specs/2026-05-01-finishes-browse-design.md).
-- **Persist last-edited surface** across sessions for the finishes browse → resolve flow. See [finishes-browse spec — Out of scope](docs/superpowers/specs/2026-05-01-finishes-browse-design.md#out-of-scope).
+- ~~**Finishes browse: filter by category**~~ — done. `RemoteBrowseTab` has an All / Floor / Wall chip row (materials), and the Finish-picker Browse opens **pre-filtered to the surface being edited** (`defaultCategory={lastSurface}`) so a floor edit shows floor textures first. Uses the provider's `category` (`floor`/`wall`), not tag heuristics. See [src/ui/catalog/RemoteBrowseTab.tsx](src/ui/catalog/RemoteBrowseTab.tsx) + [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx).
+- ~~**Persist last-edited surface**~~ — done. The Finish-picker remembers the last-finished surface (floor/wall) in `localStorage` (`hdb_last_finish_surface`), so Browse re-opens pre-filtered to it across sessions. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx).
 
 ## Time of Day
 
@@ -302,7 +331,18 @@ Shipped — a data-driven, editable apartment shell + 2D editor:
 - Follow-ups: per-room finishes/floor materials for custom plans; a named
   plan library (save/load multiple apartments) + persistence; route `roomOf`
   / the auto-arranger / finishes through the active plan so custom plans are
-  fully furnish-aware; L-shaped room editing UI; angled (non-orthogonal) walls.
+  fully furnish-aware. (~~L-shaped room editing UI~~ — done: room `extension`
+  editor in `PlanInspector` + area sums it. ~~angled / non-orthogonal walls~~ —
+  done: **Split** tool (`splitWall`) + draggable wall endpoint handles
+  (`moveWallVertex`, shared-corner aware) let walls take any angle/L-shape.
+  ~~arbitrary free-polygon rooms~~ — done: a `PlanRoom.polygon` (world-metre
+  verts) drawn with the editor **Polygon** tool is the authoritative shape —
+  `polygonArea` (shoelace) for area, `pointInPolygon`/`pointInRoom` for
+  furniture containment, and a triangulated `worldUvShapeGeometry` 3D floor.
+  ~~auto-derive a room polygon from an enclosing wall loop~~ — done: the editor
+  **Auto room** tool runs `detectRoomPolygon` (planar face-extraction: trace the
+  minimal wall cycle around the click via sharpest-clockwise turns) and makes a
+  polygon room from it; handles L-shapes + adjacent shared-wall rooms.)
 
 ## Design tools & quality upgrades (2026-05-30)
 

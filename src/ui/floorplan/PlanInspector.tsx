@@ -104,6 +104,73 @@ export function PlanInspector() {
               ))}
             </select>
           </label>
+          {/* L-shape extension: a second rectangle offset from the origin.
+              planRoomArea sums both, and the 3D shell renders both floors. */}
+          <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>
+            <span>L-shape extension</span>
+          </div>
+          {r.extension ? (
+            <>
+              <Num
+                label="Offset X (m)"
+                value={r.extension.offset[0]}
+                onChange={(v) =>
+                  a.updateRoom(r.id, {
+                    extension: { ...r.extension!, offset: [v, r.extension!.offset[1]] },
+                  })
+                }
+              />
+              <Num
+                label="Offset Z (m)"
+                value={r.extension.offset[1]}
+                onChange={(v) =>
+                  a.updateRoom(r.id, {
+                    extension: { ...r.extension!, offset: [r.extension!.offset[0], v] },
+                  })
+                }
+              />
+              <Num
+                label="Width (m)"
+                value={r.extension.width}
+                min={0.1}
+                onChange={(v) =>
+                  a.updateRoom(r.id, {
+                    extension: { ...r.extension!, width: Math.max(0.1, v) },
+                  })
+                }
+              />
+              <Num
+                label="Depth (m)"
+                value={r.extension.depth}
+                min={0.1}
+                onChange={(v) =>
+                  a.updateRoom(r.id, {
+                    extension: { ...r.extension!, depth: Math.max(0.1, v) },
+                  })
+                }
+              />
+              <button
+                type="button"
+                className="btn btn-block"
+                onClick={() => a.updateRoom(r.id, { extension: undefined })}
+              >
+                Remove extension
+              </button>
+            </>
+          ) : (
+            <button
+              type="button"
+              className="btn btn-block"
+              onClick={() =>
+                a.updateRoom(r.id, {
+                  // Seed an extension off the room's far corner (an L notch).
+                  extension: { offset: [r.width, 0], width: r.width / 2, depth: r.depth / 2 },
+                })
+              }
+            >
+              Make L-shaped
+            </button>
+          )}
           <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
             <span className="label">Area</span>
             <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>

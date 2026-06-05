@@ -186,9 +186,40 @@ async function fetchAsset(
   }
 }
 
+/** Total bytes a {@link fetchAsset} would download for this entry+resolution —
+ *  the sum of exactly the files that path picks, so the estimate matches the
+ *  real download. Returns null if the files endpoint lacks sizes. */
+async function fetchSize(
+  entry: RemoteEntry,
+  resolution: Resolution,
+  signal?: AbortSignal,
+): Promise<number | null> {
+  const files = await fetchJson<PHFiles>(`${API}/files/${entry.slug}`, signal)
+  let total = 0
+  let any = false
+  const add = (f: PHFile | undefined) => {
+    if (f && typeof f.size === 'number') {
+      total += f.size
+      any = true
+    }
+  }
+  if (entry.kind === 'material') {
+    add(pickJpg(pickResolution(files.Diffuse, resolution)))
+    add(pickJpg(pickResolution(files.nor_gl, resolution)))
+    add(pickJpg(pickResolution(files.Rough, resolution)))
+    add(pickJpg(pickResolution(files.AO, resolution)))
+  } else {
+    const gltfFile = pickResolution(files.gltf, resolution)?.gltf
+    add(gltfFile)
+    for (const f of Object.values(gltfFile?.include ?? {})) add(f)
+  }
+  return any ? total : null
+}
+
 export const polyhaven: RemoteProvider = {
   id: 'polyhaven',
   fetchIndex,
   fetchThumbnail,
   fetchAsset,
+  fetchSize,
 }

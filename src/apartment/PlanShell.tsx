@@ -98,6 +98,20 @@ export function PlanShell() {
       {/* Per-room floors (catalog finish, defaulting to oak) */}
       {plan.rooms.map((r) => {
         const mat = (r.floor ?? DEFAULT_PLAN_FLOOR) as MaterialId
+        // A non-rectangular room renders one triangulated polygon floor; a
+        // rect room renders its rectangle (+ optional L-extension rect).
+        if (r.polygon && r.polygon.length >= 3) {
+          return (
+            <PlanRoomFloor
+              key={r.id}
+              origin={r.origin}
+              width={r.width}
+              depth={r.depth}
+              polygon={r.polygon}
+              materialId={mat}
+            />
+          )
+        }
         return (
           <group key={r.id}>
             <PlanRoomFloor origin={r.origin} width={r.width} depth={r.depth} materialId={mat} />
@@ -132,20 +146,9 @@ export function PlanShell() {
             <meshStandardMaterial color="#eceae4" roughness={0.7} />
           </mesh>
         ))}
-      {/* Crown molding along ceiling-reaching wall spans */}
-      {boxes
-        .filter((b) => b.cy + b.height / 2 > plan.ceilingHeight - 0.01)
-        .map((b, i) => (
-          <mesh
-            key={`cr${i}`}
-            position={[b.cx, plan.ceilingHeight - 0.04, b.cz]}
-            rotation={[0, b.angle, 0]}
-            receiveShadow
-          >
-            <boxGeometry args={[b.thickness + 0.024, 0.08, b.length]} />
-            <meshStandardMaterial color="#eceae4" roughness={0.7} />
-          </mesh>
-        ))}
+      {/* (Crown molding removed — a light fixed-colour band at the wall top
+          read as a discoloured strip; the wall face runs cleanly to the
+          ceiling instead.) */}
 
       {/* Window glass */}
       {windows.map((w) => (

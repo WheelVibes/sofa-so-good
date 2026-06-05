@@ -1,11 +1,13 @@
 import type { ParamProps } from '../types'
 import { readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** WC. `style: 'close-coupled'` is a two-piece pedestal bowl + cistern;
  *  'wall-hung' floats the bowl off an in-wall cistern panel with a flush
  *  plate. Faces +Z (cistern/panel at −Z, against the wall). */
 export function Toilet({ props }: { props: ParamProps }) {
   const color = readStr(props, 'color', '#f4f4f1')
+  const detail = useDetail()
   const style = readStr(props, 'style', 'close-coupled')
   const porcelain = { color, roughness: 0.18, metalness: 0.02 }
 
@@ -25,12 +27,12 @@ export function Toilet({ props }: { props: ParamProps }) {
         </mesh>
         {/* Floating bowl */}
         <mesh castShadow position={[0, bowlY, 0.04]}>
-          <cylinderGeometry args={[0.2, 0.14, 0.16, 24]} />
+          <cylinderGeometry args={[0.2, 0.14, 0.16, seg(24, detail)]} />
           <meshStandardMaterial {...porcelain} />
         </mesh>
         {/* Seat ring + raised lid */}
         <mesh castShadow position={[0, bowlY + 0.09, 0.04]}>
-          <torusGeometry args={[0.16, 0.032, 10, 24]} />
+          <torusGeometry args={[0.16, 0.032, seg(10, detail), seg(24, detail)]} />
           <meshStandardMaterial color="#ffffff" roughness={0.25} />
         </mesh>
         <mesh position={[0, bowlY + 0.12, -0.12]} rotation={[-0.5, 0, 0]}>
@@ -45,17 +47,17 @@ export function Toilet({ props }: { props: ParamProps }) {
     <group>
       {/* Pedestal */}
       <mesh castShadow receiveShadow position={[0, 0.18, 0.04]}>
-        <cylinderGeometry args={[0.13, 0.17, 0.36, 18]} />
+        <cylinderGeometry args={[0.13, 0.17, 0.36, seg(18, detail)]} />
         <meshStandardMaterial {...porcelain} />
       </mesh>
       {/* Bowl */}
       <mesh castShadow position={[0, 0.38, 0.06]}>
-        <cylinderGeometry args={[0.2, 0.16, 0.14, 20]} />
+        <cylinderGeometry args={[0.2, 0.16, 0.14, seg(20, detail)]} />
         <meshStandardMaterial {...porcelain} />
       </mesh>
       {/* Seat ring */}
       <mesh castShadow position={[0, 0.45, 0.06]}>
-        <torusGeometry args={[0.16, 0.035, 10, 22]} />
+        <torusGeometry args={[0.16, 0.035, seg(10, detail), seg(22, detail)]} />
         <meshStandardMaterial color="#ffffff" roughness={0.25} />
       </mesh>
       {/* Lid back */}

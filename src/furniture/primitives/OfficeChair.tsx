@@ -2,12 +2,14 @@ import { RoundedBox } from '@react-three/drei'
 import { getUpholsteryMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Office chair on a 5-star castor base + gas lift. Styles: 'task' (padded
  *  seat + curved back), 'executive' (taller padded back + headrest), and
  *  'mesh' (a slim mesh-panel back). Faces +Z. */
 export function OfficeChair({ props }: { props: ParamProps }) {
   const color = readStr(props, 'color', '#2b2f33')
+  const detail = useDetail()
   const material = readStr(props, 'material', 'fabric')
   const sheen = readNum(props, 'sheen', 0)
   const pattern = readStr(props, 'pattern', 'plain')
@@ -52,17 +54,17 @@ export function OfficeChair({ props }: { props: ParamProps }) {
           <>
             {/* Telescoping column */}
             <mesh castShadow position={[0, (liftBottom + liftTop) / 2, 0]}>
-              <cylinderGeometry args={[0.03, 0.032, liftH, 16]} />
+              <cylinderGeometry args={[0.03, 0.032, liftH, seg(16, detail)]} />
               <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
             </mesh>
             {/* Black plastic shroud over the lower half */}
             <mesh castShadow position={[0, liftBottom + liftH * 0.28, 0]}>
-              <cylinderGeometry args={[0.04, 0.045, liftH * 0.5, 16]} />
+              <cylinderGeometry args={[0.04, 0.045, liftH * 0.5, seg(16, detail)]} />
               <meshStandardMaterial color="#1d1f22" roughness={0.5} metalness={0.2} />
             </mesh>
             {/* Central hub the legs radiate from */}
             <mesh castShadow position={[0, 0.055, 0]}>
-              <cylinderGeometry args={[0.05, 0.055, 0.06, 16]} />
+              <cylinderGeometry args={[0.05, 0.055, 0.06, seg(16, detail)]} />
               <meshStandardMaterial color="#1d1f22" roughness={0.5} metalness={0.2} />
             </mesh>
           </>

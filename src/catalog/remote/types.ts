@@ -37,4 +37,12 @@ export interface RemoteProvider {
   fetchIndex(signal?: AbortSignal): Promise<RemoteEntry[]>
   fetchThumbnail(entry: RemoteEntry, signal?: AbortSignal): Promise<Blob>
   fetchAsset(entry: RemoteEntry, resolution: Resolution, signal?: AbortSignal): Promise<AssetBundle>
+  /** Optional: total download size (bytes) for an entry at a resolution, so the
+   *  UI can warn before a large download. Returns null when unknown. Fetched
+   *  lazily per visible card (not part of the bulk index). */
+  fetchSize?(
+    entry: RemoteEntry,
+    resolution: Resolution,
+    signal?: AbortSignal,
+  ): Promise<number | null>
 }

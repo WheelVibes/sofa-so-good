@@ -34,7 +34,9 @@ export function Monitor({ props }: { props: ParamProps }) {
         <boxGeometry args={[w, h, 0.03]} />
         <meshStandardMaterial color="#15171b" roughness={0.5} metalness={0.3} />
       </mesh>
-      {/* Screen — dark when off, lit wallpaper that self-illuminates when on. */}
+      {/* Screen — dark when off, lit wallpaper that self-illuminates when on.
+          Flush in the bezel by design (coplanar overlay) → depthWrite off so it
+          draws in front without z-fighting the bezel at grazing angles. */}
       <mesh position={[0, panelY, 0.017]}>
         <planeGeometry args={[w - 0.02, h - 0.02]} />
         {on ? (
@@ -46,6 +48,7 @@ export function Monitor({ props }: { props: ParamProps }) {
             roughness={0.2}
             metalness={0}
             toneMapped={false}
+            depthWrite={false}
           />
         ) : (
           <meshStandardMaterial
@@ -54,6 +57,7 @@ export function Monitor({ props }: { props: ParamProps }) {
             metalness={0.1}
             emissive={screenColor}
             emissiveIntensity={0.15}
+            depthWrite={false}
           />
         )}
       </mesh>

@@ -100,47 +100,108 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
         const x = -length / 2 + cabGap + cabW / 2 + i * (cabW + cabGap)
         return renderFront(x, i)
       })}
-      {/* Countertop — colour configurable (granite / marble / butcher block) */}
-      <mesh castShadow receiveShadow position={[0, cabinetH + topThickness / 2, 0]}>
-        <boxGeometry args={[length, topThickness, depth]} />
-        <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
-      </mesh>
-      {/* Tiled backsplash up the wall behind the run (countertop → uppers). */}
-      <mesh receiveShadow position={[0, totalH + 0.24, -depth / 2 + 0.012]}>
-        <boxGeometry args={[length, 0.48, 0.015]} />
-        <meshStandardMaterial color="#e4e7e3" roughness={0.3} metalness={0.05} />
-      </mesh>
-      {hasSink &&
-        (() => {
-          const sx = length * 0.25
-          const steel = { color: '#b7bdc2', roughness: 0.25, metalness: 0.8 } as const
-          return (
-            <group>
-              {/* Recessed stainless basin */}
-              <mesh position={[sx, totalH - 0.06, 0]}>
-                <boxGeometry args={[0.5, 0.12, 0.36]} />
-                <meshStandardMaterial color="#9aa1a6" roughness={0.3} metalness={0.5} />
-              </mesh>
-              {/* Faucet base + riser + curved spout */}
-              <mesh castShadow position={[sx, totalH + 0.02, -0.15]}>
-                <cylinderGeometry args={[0.03, 0.035, 0.04, 12]} />
-                <meshStandardMaterial {...steel} />
-              </mesh>
-              <mesh castShadow position={[sx, totalH + 0.15, -0.15]}>
-                <cylinderGeometry args={[0.014, 0.014, 0.26, 10]} />
-                <meshStandardMaterial {...steel} />
-              </mesh>
-              <mesh
-                castShadow
-                position={[sx, totalH + 0.27, -0.08]}
-                rotation={[Math.PI / 2.2, 0, 0]}
-              >
-                <cylinderGeometry args={[0.013, 0.013, 0.18, 10]} />
-                <meshStandardMaterial {...steel} />
-              </mesh>
-            </group>
-          )
-        })()}
+      {/* Sink cutout geometry (shared by the countertop frame + the basin). */}
+      {(() => {
+        // Computed up here so the countertop can be built as a frame around the
+        // opening when a sink is present.
+        const ow = 0.54 // cutout width
+        const od = 0.4 // cutout depth
+        const sx = Math.min(
+          Math.max(length * 0.25, -length / 2 + ow / 2 + 0.05),
+          length / 2 - ow / 2 - 0.05,
+        )
+        const topY = cabinetH + topThickness / 2
+        const topMat = (
+          <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
+        )
+        const topMesh = (key: string, x: number, z: number, w: number, d: number) => (
+          <mesh key={key} castShadow receiveShadow position={[x, topY, z]}>
+            <boxGeometry args={[w, topThickness, d]} />
+            {topMat}
+          </mesh>
+        )
+
+        // Worktop: a single slab, or a frame around the sink cutout.
+        const leftW = sx - ow / 2 + length / 2
+        const rightW = length / 2 - (sx + ow / 2)
+        const railD = (depth - od) / 2
+        const worktop = !hasSink ? (
+          <mesh castShadow receiveShadow position={[0, topY, 0]}>
+            <boxGeometry args={[length, topThickness, depth]} />
+            {topMat}
+          </mesh>
+        ) : (
+          <group>
+            {leftW > 0.002 && topMesh('l', -length / 2 + leftW / 2, 0, leftW, depth)}
+            {rightW > 0.002 && topMesh('r', length / 2 - rightW / 2, 0, rightW, depth)}
+            {topMesh('b', sx, -depth / 2 + railD / 2, ow, railD)}
+            {topMesh('f', sx, depth / 2 - railD / 2, ow, railD)}
+          </group>
+        )
+
+        // Open-topped stainless basin recessed into the cutout. The rim sits
+        // just below the worktop surface and the bowl outer walls are inset
+        // from the cutout edges, so no face is coplanar with the worktop (the
+        // old basin was a solid box whose top face sat exactly on the worktop
+        // surface → z-fighting + it read as a grey block, not a sink).
+        const steel = { color: '#b7bdc2', roughness: 0.25, metalness: 0.8 } as const
+        const bw = 0.52
+        const bd = 0.38
+        const wallT = 0.02
+        const rimY = totalH - 0.008
+        const floorY = cabinetH + 0.02 // bowl floor just above the cabinet top
+        const wallH = rimY - floorY
+        const wallCY = floorY + wallH / 2
+        const walls: [number, number, number, number][] = [
+          [-bw / 2 + wallT / 2, 0, wallT, bd],
+          [bw / 2 - wallT / 2, 0, wallT, bd],
+          [0, -bd / 2 + wallT / 2, bw, wallT],
+          [0, bd / 2 - wallT / 2, bw, wallT],
+        ]
+        return (
+          <group>
+            {worktop}
+            {/* Tiled backsplash up the wall behind the run (countertop → uppers). */}
+            <mesh receiveShadow position={[0, totalH + 0.24, -depth / 2 + 0.012]}>
+              <boxGeometry args={[length, 0.48, 0.015]} />
+              <meshStandardMaterial color="#e4e7e3" roughness={0.3} metalness={0.05} />
+            </mesh>
+            {hasSink && (
+              <group>
+                {/* Bowl floor */}
+                <mesh receiveShadow position={[sx, floorY, 0]}>
+                  <boxGeometry args={[bw - wallT * 2, 0.016, bd - wallT * 2]} />
+                  <meshStandardMaterial {...steel} />
+                </mesh>
+                {/* Bowl walls */}
+                {walls.map(([dx, dz, w, d], k) => (
+                  <mesh key={k} receiveShadow position={[sx + dx, wallCY, dz]}>
+                    <boxGeometry args={[w, wallH, d]} />
+                    <meshStandardMaterial {...steel} />
+                  </mesh>
+                ))}
+                {/* Faucet base + riser + curved spout */}
+                <mesh castShadow position={[sx, totalH + 0.02, -0.15]}>
+                  <cylinderGeometry args={[0.03, 0.035, 0.04, 12]} />
+                  <meshStandardMaterial {...steel} />
+                </mesh>
+                <mesh castShadow position={[sx, totalH + 0.15, -0.15]}>
+                  <cylinderGeometry args={[0.014, 0.014, 0.26, 10]} />
+                  <meshStandardMaterial {...steel} />
+                </mesh>
+                <mesh
+                  castShadow
+                  position={[sx, totalH + 0.27, -0.08]}
+                  rotation={[Math.PI / 2.2, 0, 0]}
+                >
+                  <cylinderGeometry args={[0.013, 0.013, 0.18, 10]} />
+                  <meshStandardMaterial {...steel} />
+                </mesh>
+              </group>
+            )}
+          </group>
+        )
+      })()}
     </group>
   )
 }

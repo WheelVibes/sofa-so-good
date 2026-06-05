@@ -41,3 +41,30 @@ describe('polyhaven.fetchIndex', () => {
     expect(entries[0].attribution).toContain('Poly Haven')
   })
 })
+
+describe('polyhaven.fetchSize', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('sums exactly the files a material download picks, for the chosen resolution', async () => {
+    vi.stubGlobal(
+      'fetch',
+      mockFetch({
+        '/files/wood_floor': {
+          Diffuse: { '2k': { jpg: { url: 'd', size: 1_000_000 } } },
+          nor_gl: { '2k': { jpg: { url: 'n', size: 500_000 } } },
+          Rough: { '2k': { jpg: { url: 'r', size: 300_000 } } },
+          AO: { '2k': { jpg: { url: 'a', size: 200_000 } } },
+        },
+      }),
+    )
+    const entry = { provider: 'polyhaven', slug: 'wood_floor', kind: 'material' } as never
+    const size = await polyhaven.fetchSize!(entry, '2k')
+    expect(size).toBe(2_000_000)
+  })
+
+  it('returns null when the files endpoint reports no sizes', async () => {
+    vi.stubGlobal('fetch', mockFetch({ '/files/x': { Diffuse: { '2k': { jpg: { url: 'd' } } } } }))
+    const entry = { provider: 'polyhaven', slug: 'x', kind: 'material' } as never
+    expect(await polyhaven.fetchSize!(entry, '2k')).toBeNull()
+  })
+})

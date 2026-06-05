@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { canPlace } from '../collision/placement'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { planCollisionWalls } from '../floorplan/planGeometry'
+import type { FloorPlan } from '../floorplan/types'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { defaultLayout } from '../furniture/defaultLayout'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -78,6 +80,91 @@ describe('arrangeRoom', () => {
     }
   })
 
+  it('tucks a WFH office chair in front of its desk in the living/dining', () => {
+    // A work-from-home corner dropped into the open lounge: the office chair
+    // must land next to its desk facing it, not stranded against a far wall.
+    const mk = (defId: string, id: string, pos: [number, number]): FurnitureItem => ({
+      id,
+      defId,
+      position: pos,
+      rotation: 0,
+      props: { ...defaultParamProps(BUILTIN_CATALOG[defId] as never) },
+    })
+    // A near-empty lounge with just the WFH corner, so the tuck has room.
+    const items = [
+      mk('desk', 'test-desk', [10.0, 3.0]),
+      mk('office-chair', 'test-chair', [11.5, 5.5]),
+    ]
+    const out = arrangeRoom('livingDining', items, BUILTIN_CATALOG, {})
+    assertValid(out)
+    const desk = out.find((i) => i.id === 'test-desk')!
+    const chair = out.find((i) => i.id === 'test-chair')!
+    expect(roomOf(chair.position)).toBe('livingDining')
+    // Chair sits within reach of the desk (not parked across the room).
+    const gap = Math.hypot(
+      desk.position[0] - chair.position[0],
+      desk.position[1] - chair.position[1],
+    )
+    expect(gap).toBeLessThan(1.2)
+    // Chair faces the desk: it sits on the desk's facing side and is rotated
+    // ~180° from the desk (placeDeskChairs sets chair = desk.rotation + PI).
+    const dot =
+      Math.sin(desk.rotation) * Math.sin(chair.rotation) +
+      Math.cos(desk.rotation) * Math.cos(chair.rotation)
+    expect(dot).toBeLessThan(-0.5)
+  })
+
+  it('spaces the kitchen fridge + stove into a work triangle (opposite ends)', () => {
+    // Scramble the fridge and stove next to each other mid-kitchen; tidying
+    // should push them to opposite ends of the long (X) run, leaving the sink
+    // between them — not crammed side-by-side.
+    const base = hydrate().map((i) =>
+      i.defId === 'refrigerator' && roomOf(i.position) === 'kitchen'
+        ? { ...i, position: [8.0, 7.2] as [number, number] }
+        : i.defId === 'stove' && roomOf(i.position) === 'kitchen'
+          ? { ...i, position: [8.3, 7.2] as [number, number] }
+          : i,
+    )
+    const out = arrangeRoom('kitchen', base, BUILTIN_CATALOG, {})
+    assertValid(out)
+    const fridge = out.find((i) => i.defId === 'refrigerator' && roomOf(i.position) === 'kitchen')!
+    const stove = out.find((i) => i.defId === 'stove' && roomOf(i.position) === 'kitchen')!
+    expect(fridge).toBeDefined()
+    expect(stove).toBeDefined()
+    // Separated along the run (not adjacent) — the work-triangle guarantee.
+    const gap = Math.hypot(
+      fridge.position[0] - stove.position[0],
+      fridge.position[1] - stove.position[1],
+    )
+    expect(gap).toBeGreaterThan(1.2)
+  })
+
+  it('lines bathroom fixtures along the walls (not parked mid-room)', () => {
+    // bath1: origin (1.45, 5.10), 2.40 x 1.60. Scramble its fixtures toward
+    // the room centre, tidy, and assert each ends flush to a wall + valid.
+    const cx = 1.45 + 2.4 / 2
+    const cz = 5.1 + 1.6 / 2
+    const base = hydrate().map((i) =>
+      i.id === 'default-bath1-shower'
+        ? { ...i, position: [cx, cz] as [number, number] }
+        : i.id === 'default-bath1-wc'
+          ? { ...i, position: [cx + 0.1, cz + 0.1] as [number, number] }
+          : i.id === 'default-bath1-basin'
+            ? { ...i, position: [cx - 0.1, cz - 0.1] as [number, number] }
+            : i,
+    )
+    const out = arrangeRoom('bath1', base, BUILTIN_CATALOG, {})
+    assertValid(out)
+    const wallDist = (p: [number, number]) =>
+      Math.min(p[0] - 1.45, 3.85 - p[0], p[1] - 5.1, 6.7 - p[1])
+    for (const id of ['default-bath1-shower', 'default-bath1-wc', 'default-bath1-basin']) {
+      const it = out.find((i) => i.id === id)!
+      expect(roomOf(it.position)).toBe('bath1')
+      // Flush to a wall: centre sits within ~half a fixture depth of an edge.
+      expect(wallDist(it.position)).toBeLessThan(0.7)
+    }
+  })
+
   it('leaves items in untouched rooms unchanged', () => {
     const base = hydrate()
     const out = arrangeRoom('livingDining', base, BUILTIN_CATALOG, {})
@@ -100,6 +187,47 @@ describe('arrangeRoom', () => {
     assertValid(out)
     // No floor item ends up squarely in a door's path.
     expect(blockedDoorItems(out, BUILTIN_CATALOG, plan)).toHaveLength(0)
+  })
+
+  it('respects a NON-default plan own walls when tidying (not the flat walls)', () => {
+    // Adversarial plan: a 4x4 room with an interior wall straight through the
+    // centre — a location that is OPEN floor in the fixed flat. A plant dropped
+    // on that wall must be relocated off it. (Regression: arrangeAllRoomsForPlan
+    // collided against the fixed flat's walls, so an item on the custom plan's
+    // wall was deemed valid and left there.)
+    const plan: FloorPlan = {
+      id: 'adv',
+      name: 'Adversarial',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [
+        { id: 'w-n', start: [0, 0], end: [4, 0], thickness: 'external' },
+        { id: 'w-e', start: [4, 0], end: [4, 4], thickness: 'external' },
+        { id: 'w-s', start: [4, 4], end: [0, 4], thickness: 'external' },
+        { id: 'w-w', start: [0, 4], end: [0, 0], thickness: 'external' },
+        // Interior wall bisecting the room (open floor in the fixed flat).
+        { id: 'w-mid', start: [0, 2], end: [4, 2], thickness: 'internal' },
+      ],
+      openings: [],
+      rooms: [{ id: 'r', name: 'Room', origin: [0, 0], width: 4, depth: 4 }],
+    }
+    const plant: FurnitureItem = {
+      id: 'plant',
+      defId: 'potted-plant',
+      position: [2, 2], // squarely on the mid wall
+      rotation: 0,
+      props: { ...defaultParamProps(BUILTIN_CATALOG['potted-plant'] as never) },
+    }
+    const out = arrangeAllRoomsForPlan(plan, [plant], BUILTIN_CATALOG, {})
+    const walls = planCollisionWalls(plan, {})
+    const placed = out.find((i) => i.id === 'plant')!
+    const ok = canPlace(placed, BUILTIN_CATALOG['potted-plant'], {
+      others: [],
+      defs: BUILTIN_CATALOG,
+      doors: {},
+      walls,
+    })
+    if (!ok) throw new Error(`plant left overlapping the plan wall at [${placed.position}]`)
   })
 
   it('never parks furniture in the main-door swing / kitchen opening', () => {

@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /**
  * Leaning full-length floor mirror: a tall framed reflective panel that
@@ -11,6 +12,7 @@ import { readNum, readStr } from './shared'
  */
 export function FloorMirror({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 0.6)
+  const detail = useDetail()
   const height = readNum(props, 'height', 1.6)
   const frameColor = readStr(props, 'frameColor', '#6f553f')
   const frameFinish = readStr(props, 'frameFinish', 'wood')
@@ -40,10 +42,10 @@ export function FloorMirror({ props }: { props: ParamProps }) {
       <group>
         <group position={[0, cy, 0]} rotation={[0.05, 0, 0]}>
           <mesh castShadow receiveShadow rotation={[Math.PI / 2, 0, 0]} material={frameMat}>
-            <torusGeometry args={[r, 0.03, 16, 48]} />
+            <torusGeometry args={[r, 0.03, seg(16, detail), seg(48, detail)]} />
           </mesh>
           <mesh position={[0, 0, 0.012]}>
-            <circleGeometry args={[r - 0.01, 48]} />
+            <circleGeometry args={[r - 0.01, seg(48, detail)]} />
             {pane}
           </mesh>
         </group>

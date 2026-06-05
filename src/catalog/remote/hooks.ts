@@ -70,6 +70,58 @@ export function useThumbnail(entry: RemoteEntry, visible: boolean): string | und
   return url
 }
 
+/** Module-level cache of resolved download sizes (bytes), keyed by
+ *  provider:slug:resolution. `null` = provider reported no size. */
+const sizeCache = new Map<string, number | null>()
+
+/** Lazily fetch the download size (bytes) for a remote entry at a resolution,
+ *  once the card is visible. Returns `undefined` while unknown/loading, a
+ *  number of bytes, or `null` if the provider can't report a size. */
+export function useAssetSize(
+  entry: RemoteEntry,
+  resolution: string,
+  visible: boolean,
+): number | null | undefined {
+  const key = `${entry.provider}:${entry.slug}:${resolution}`
+  const [size, setSize] = useState<number | null | undefined>(() =>
+    sizeCache.has(key) ? sizeCache.get(key) : undefined,
+  )
+  useEffect(() => {
+    if (!visible) return
+    if (sizeCache.has(key)) {
+      setSize(sizeCache.get(key))
+      return
+    }
+    const provider = PROVIDERS[entry.provider]
+    if (!provider.fetchSize) {
+      sizeCache.set(key, null)
+      setSize(null)
+      return
+    }
+    let cancelled = false
+    limiter
+      .schedule(() => provider.fetchSize!(entry, resolution as never))
+      .then((bytes) => {
+        sizeCache.set(key, bytes)
+        if (!cancelled) setSize(bytes)
+      })
+      .catch(() => {
+        if (!cancelled) setSize(null)
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [key, visible, entry, resolution])
+  return size
+}
+
+/** Human-readable byte size, e.g. "12 MB" / "840 KB". */
+export function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${bytes} B`
+}
+
 export function useResolveStatus(key: string): 'idle' | 'fetching' | 'ready' | 'error' {
   return useStore((s) => {
     if (s.resolvedRemoteFurniture[key] || s.resolvedRemoteMaterials[key]) return 'ready'

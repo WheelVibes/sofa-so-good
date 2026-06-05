@@ -1,4 +1,4 @@
-import { Suspense } from 'react'
+import { Suspense, useMemo } from 'react'
 import type { MeshStandardMaterial } from 'three'
 import type {
   MaterialId,
@@ -12,25 +12,58 @@ import {
   useSolidMaterial,
   useTexturedMaterial,
 } from '../../materials/useMaterial'
-import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { worldUvPlaneGeometry, worldUvShapeGeometry } from '../../materials/worldUv'
 
 /**
  * A floor plane for a user-authored plan room, finished with any catalog
  * floor material. Mirrors RoomFloor's material dispatch but without the
  * RoomId-keyed finishes selection (custom rooms aren't in the finishes slice).
+ * A `polygon` (world-metre `[x,z]` verts) renders a triangulated non-rectangular
+ * floor; otherwise the origin/width/depth rectangle is used.
  */
 interface Rect {
   origin: [number, number]
   width: number
   depth: number
+  polygon?: [number, number][]
 }
 type Props = Rect & { materialId: MaterialId }
 
-function FloorMesh({ origin, width, depth, material }: Rect & { material: MeshStandardMaterial }) {
+function FloorMesh({
+  origin,
+  width,
+  depth,
+  polygon,
+  material,
+}: Rect & { material: MeshStandardMaterial }) {
+  if (polygon && polygon.length >= 3) {
+    return <PolygonFloor polygon={polygon} material={material} />
+  }
   const geometry = worldUvPlaneGeometry(width, depth)
   return (
     <mesh
       position={[origin[0] + width / 2, 0.006, origin[1] + depth / 2]}
+      rotation={[-Math.PI / 2, 0, 0]}
+      receiveShadow
+      material={material}
+      geometry={geometry}
+    />
+  )
+}
+
+/** Triangulated absolute-coord floor for a non-rectangular room (verts are
+ *  world metres, so no position offset). Geometry is memoised on the polygon. */
+function PolygonFloor({
+  polygon,
+  material,
+}: {
+  polygon: [number, number][]
+  material: MeshStandardMaterial
+}) {
+  const geometry = useMemo(() => worldUvShapeGeometry(polygon), [polygon])
+  return (
+    <mesh
+      position={[0, 0.006, 0]}
       rotation={[-Math.PI / 2, 0, 0]}
       receiveShadow
       material={material}

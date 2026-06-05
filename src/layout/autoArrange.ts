@@ -1,7 +1,9 @@
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import { canPlace } from '../collision/placement'
-import { type FloorPlan, type PlanRoom, wallLength } from '../floorplan/types'
+import type { CollisionWall } from '../collision/walls'
+import { planCollisionWalls } from '../floorplan/planGeometry'
+import { type FloorPlan, type PlanRoom, pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { doorSwingRects } from './clearance'
 import { CLEARANCE } from './designRules'
@@ -193,6 +195,9 @@ interface Ctx {
   doors: Record<string, { open: boolean }>
   /** Keep-clear rects (door swings + room openings) no item may overlap. */
   keepOut: Rect[]
+  /** Collision walls override for a user-authored plan. When omitted, the
+   *  fixed flat's door-aware walls are used (default flat). */
+  walls?: CollisionWall[]
 }
 
 /** Axis-aligned footprint AABB of a candidate (accounts for rotation). */
@@ -232,7 +237,7 @@ function tryPlace(
   // this room. Items still pending placement are NOT in `world`, so a messy
   // starting layout can't block the tidy target.
   const others = world.filter((w) => w.id !== item.id)
-  if (canPlace(candidate, def, { others, defs: ctx.catalog, doors: ctx.doors })) {
+  if (canPlace(candidate, def, { others, defs: ctx.catalog, doors: ctx.doors, walls: ctx.walls })) {
     const idx = world.findIndex((w) => w.id === item.id)
     if (idx >= 0) world[idx] = candidate
     else world.push(candidate)
@@ -332,10 +337,12 @@ function nearestEdge(pos: [number, number], rect: Rect): Edge {
   return Object.entries(d).sort((a, b) => a[1] - b[1])[0][0] as Edge
 }
 
-type RoomKind = 'living' | 'bedroom' | 'generic'
+type RoomKind = 'living' | 'bedroom' | 'kitchen' | 'bath' | 'generic'
 function roomKind(roomId: RoomId): RoomKind {
   if (roomId === 'livingDining') return 'living'
   if (roomId === 'mainBedroom' || roomId === 'bedroom2' || roomId === 'bedroom3') return 'bedroom'
+  if (roomId === 'kitchen') return 'kitchen'
+  if (roomId === 'bath1' || roomId === 'bath2') return 'bath'
   return 'generic'
 }
 
@@ -435,9 +442,12 @@ function arrangeCore(opts: {
   allItems: FurnitureItem[]
   catalog: Record<string, FurnitureDef>
   doors: Record<string, { open: boolean }>
+  /** Custom-plan collision walls (omitted → fixed flat walls). */
+  walls?: CollisionWall[]
 }): FurnitureItem[] {
-  const { rect, keepOut, inRoom, kind, focal, genericLiving, allItems, catalog, doors } = opts
-  const ctx: Ctx = { catalog, doors, keepOut }
+  const { rect, keepOut, inRoom, kind, focal, genericLiving, allItems, catalog, doors, walls } =
+    opts
+  const ctx: Ctx = { catalog, doors, keepOut, walls }
   const isFixed = (i: FurnitureItem) => {
     const r = roleOf(i.defId, catalog)
     return r === 'mounted' || r === 'ceiling'
@@ -456,6 +466,8 @@ function arrangeCore(opts: {
     if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog)
     else arrangeLiving(rect, focal, get, world, ctx, catalog)
   } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog)
+  else if (kind === 'kitchen') arrangeKitchen(rect, get, world, ctx, catalog)
+  else if (kind === 'bath') arrangeFixtures(rect, get, world, ctx, catalog)
   else arrangeGeneric(rect, get, world, ctx)
 
   // Safety settle: any room item not yet placed (unhandled role or no slot)
@@ -592,6 +604,8 @@ function arrangeLivingAnyEdge(
   for (const it of get(['storage', 'desk'])) {
     snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
   }
+  // A WFH desk in an open lounge gets its chair tucked in front of it.
+  placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx)
   for (const it of get(['shoe'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
   tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx)
   for (const it of get(['armchair']))
@@ -699,6 +713,8 @@ function arrangeLiving(
   for (const it of get(['storage', 'desk'])) {
     snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
   }
+  // A WFH desk in a living/dining room gets its chair tucked in front of it.
+  placeDeskChairs(get(['desk']), get(['deskChair']), rect, world, ctx)
   for (const it of get(['shoe'])) snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
 
   // 6. Plants + floor lamps + armchairs → corners / nearest wall.
@@ -810,8 +826,17 @@ function placeDeskChairs(
       }
     }
     if (best) {
+      // Offset from the desk centre to its front face plus the chair's own
+      // half-depth (+ a small gap) so the chair sits in front rather than
+      // overlapping the desk (which a fixed offset did, failing collision and
+      // stranding the chair against a wall).
+      const deskDef = ctx.catalog[best.defId]
+      const chairDef = ctx.catalog[ch.defId]
+      const deskHalf = deskDef ? baseFootprint(best, deskDef).d / 2 : 0.35
+      const chairHalf = chairDef ? baseFootprint(ch, chairDef).d / 2 : 0.3
+      const off = deskHalf + chairHalf + 0.04
       const f: [number, number] = [Math.sin(best.rotation), Math.cos(best.rotation)]
-      const pos: [number, number] = [best.position[0] + f[0] * 0.55, best.position[1] + f[1] * 0.55]
+      const pos: [number, number] = [best.position[0] + f[0] * off, best.position[1] + f[1] * off]
       if (tryPlace(ch, pos, best.rotation + Math.PI, world, ctx) !== ch) continue
     }
     snapToWall(ch, rect, [nearestEdge(ch.position, rect)], world, ctx)
@@ -829,6 +854,94 @@ function arrangeGeneric(rect: Rect, get: Getter, world: FurnitureItem[], ctx: Ct
     snapToWall(it, rect, [nearestEdge(it.position, rect)], world, ctx)
   }
   tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx)
+}
+
+/** Kitchen: a work-triangle layout. The counter run + other big fixtures go
+ *  flush to walls (largest first), then the **fridge and stove are biased to
+ *  opposite ends of the longest wall run**, leaving the sink (mid-counter)
+ *  between them — the classic refrigerator → sink → range work triangle, so the
+ *  two heat/cold appliances aren't crammed side-by-side. Door swings stay clear
+ *  via ctx.keepOut. Falls back to a plain wall-snap if an end slot is taken. */
+function arrangeKitchen(
+  rect: Rect,
+  get: Getter,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  catalog: Record<string, FurnitureDef>,
+) {
+  const fixtures = get(['storage', 'other', 'shoe', 'lowTable'])
+  const isFridge = (it: FurnitureItem) => it.defId === 'refrigerator'
+  const isStove = (it: FurnitureItem) => it.defId === 'stove'
+  const area = (it: FurnitureItem) => {
+    const def = catalog[it.defId]
+    if (!def) return 0
+    const { w, d } = baseFootprint(it, def)
+    return w * d
+  }
+
+  // 1. Counters + remaining big fixtures flush to their nearest wall, biggest
+  //    first so the counter run claims the longest wall.
+  const big = fixtures
+    .filter((it) => !isFridge(it) && !isStove(it))
+    .sort((a, b) => area(b) - area(a))
+  for (const it of big) {
+    snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
+  }
+
+  // 2. Work triangle: push the fridge to one end of the longest run and the
+  //    stove to the other, on a long wall.
+  const horizontal = rect.x1 - rect.x0 >= rect.z1 - rect.z0
+  const longWalls: Edge[] = horizontal ? ['S', 'N'] : ['W', 'E']
+  const M = 0.4 // end margin
+  const toEnd = (it: FurnitureItem | undefined, low: boolean) => {
+    if (!it) return
+    const def = catalog[it.defId]
+    if (!def) return
+    const half = baseFootprint(it, def).w / 2
+    const along = horizontal
+      ? low
+        ? rect.x0 + M + half
+        : rect.x1 - M - half
+      : low
+        ? rect.z0 + M + half
+        : rect.z1 - M - half
+    for (const e of longWalls) {
+      if (placeFlush(it, rect, e, along, world, ctx) !== it) return
+    }
+    // Couldn't take the end slot (counter there) → any free wall.
+    snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
+  }
+  toEnd(fixtures.find(isFridge), true)
+  toEnd(fixtures.find(isStove), false)
+
+  tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx)
+}
+
+/** Bathroom: line the fixtures along the walls. These rooms' pieces (toilet,
+ *  basin, shower, bathtub) are category 'bathroom' → role 'other'/'storage',
+ *  and we want them flush to a wall facing in, not merely settled where they
+ *  were. Largest fixtures claim wall space first (the shower / bathtub), so the
+ *  smaller ones (toilet, basin) fill the rest; door swings stay clear. */
+function arrangeFixtures(
+  rect: Rect,
+  get: Getter,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  catalog: Record<string, FurnitureDef>,
+) {
+  const fixtures = get(['storage', 'other', 'shoe', 'lowTable'])
+  const area = (it: FurnitureItem) => {
+    const def = catalog[it.defId]
+    if (!def) return 0
+    const { w, d } = baseFootprint(it, def)
+    return w * d
+  }
+  // Biggest first so the counter run / shower take their wall before the rest.
+  fixtures.sort((a, b) => area(b) - area(a))
+  for (const it of fixtures) {
+    snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
+  }
+  tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx)
 }
 
 /** Rooms the "Tidy home" action arranges (every furnished interior room;
@@ -870,17 +983,10 @@ function planRoomRect(r: PlanRoom): Rect {
   }
 }
 
-/** Is a point inside a plan room (main rect or its L-shape extension)? */
+/** Is a point inside a plan room (polygon-aware: explicit polygon, else the
+ *  main rect + its L-shape extension)? */
 function pointInPlanRoom(r: PlanRoom, x: number, z: number): boolean {
-  const inMain =
-    x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth
-  if (inMain) return true
-  if (r.extension) {
-    const ex = r.origin[0] + r.extension.offset[0]
-    const ez = r.origin[1] + r.extension.offset[1]
-    return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth
-  }
-  return false
+  return pointInRoom(r, x, z)
 }
 
 /** Classify a custom room from the items currently in it. */
@@ -943,6 +1049,8 @@ export function arrangeAllRoomsForPlan(
 ): FurnitureItem[] {
   const keepOut = doorSwingRects(plan)
   const windows = windowCentres(plan)
+  // Collide against the custom plan's own walls, not the fixed flat's.
+  const walls = planCollisionWalls(plan, doors)
   let items = allItems
   for (const room of plan.rooms) {
     const inRoom = (i: FurnitureItem) => pointInPlanRoom(room, i.position[0], i.position[1])
@@ -962,6 +1070,7 @@ export function arrangeAllRoomsForPlan(
       allItems: items,
       catalog,
       doors,
+      walls,
     })
   }
   return items
