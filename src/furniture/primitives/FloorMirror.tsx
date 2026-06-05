@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MirrorMaterial } from './MirrorMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -21,16 +22,8 @@ export function FloorMirror({ props }: { props: ParamProps }) {
 
   const frameD = 0.05
   const frameMat = getSurfaceMaterial(frameFinish, frameColor, 1, sheen)
-  const pane = (
-    <meshStandardMaterial
-      color="#dfe8ee"
-      roughness={0.07}
-      metalness={0.7}
-      envMapIntensity={2.0}
-      emissive="#b9c6d0"
-      emissiveIntensity={0.16}
-    />
-  )
+  // Real planar reflection on High/Maximum, else the tier-cheap fake-shiny pane.
+  const pane = <MirrorMaterial tint="#dfe8ee" />
 
   if (shape === 'round') {
     // Cheval-style round mirror swivelling between two posts on a foot bar.

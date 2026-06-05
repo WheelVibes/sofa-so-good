@@ -651,6 +651,15 @@ rediscover it.
 - **Visual**: per-item **contact shadows** (`ContactShadow`, quality-gated) +
   **skirting/crown** wall trim (`apartment/Skirting.tsx`, `PlanShell`).
   Procedural finishes include **wallpapers** (stripe/grasscloth) + **checker**.
+- **Mirror reflections** (`furniture/primitives/MirrorMaterial.tsx`): the wall /
+  bathroom / floor mirrors render a **real planar reflection** of the room (drei
+  `MeshReflectorMaterial`, re-renders the scene from the mirror's plane each
+  frame) on the **High/Maximum** render tiers; **Performance/Medium** keep a
+  cheap fake-shiny pane (low-roughness metallic + IBL + faint emissive). One
+  shared `MirrorMaterial` element, dropped in as each pane mesh's material;
+  `mirrorReflectorConfig(tier)` is the pure tier→{real,resolution} gate
+  (512px High / 1024px Maximum). Off-screen mirrors are frustum-culled (free);
+  no recursion (a mirror inside a mirror falls back to its base look).
 - **Loading overlay + fast boot** (`ui/loading/`, `state/storage/bootstrap.ts`,
   uiSlice `bootPhase`/`loading`): `main.tsx` registers the GLB decoders
   (synchronous, must precede any model load) then renders React **immediately**

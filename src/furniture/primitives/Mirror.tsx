@@ -1,4 +1,5 @@
 import type { ParamProps } from '../types'
+import { MirrorMaterial } from './MirrorMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -13,19 +14,9 @@ export function Mirror({ props }: { props: ParamProps }) {
   const shape = readStr(props, 'shape', 'rect')
   const detail = useDetail()
 
-  // Shared reflective pane — low roughness + metalness picks up the IBL so it
-  // reads as a mirror without a real probe; the light base + faint emissive
-  // keeps it from going black on the Low tier (IBL off).
-  const pane = (
-    <meshStandardMaterial
-      color="#dfe8ee"
-      roughness={0.07}
-      metalness={0.7}
-      envMapIntensity={2.0}
-      emissive="#b9c6d0"
-      emissiveIntensity={0.16}
-    />
-  )
+  // Shared reflective pane — a real planar reflection on High/Maximum, else the
+  // tier-cheap fake-shiny material (MirrorMaterial picks per render tier).
+  const pane = <MirrorMaterial tint="#dfe8ee" />
 
   if (shape === 'round') {
     const r = width / 2

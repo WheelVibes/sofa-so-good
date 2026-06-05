@@ -393,9 +393,14 @@ Shipped (all tested + pushed):
   ~~wall mirror~~, ~~floor vase~~, ~~high chair~~, ~~changing table~~.
 
 Remaining ideas: crown molding (ceiling cornice); herringbone/parquet floor
-(needs a seamless tiler); real planar mirror reflections (cost). (~~kitchen
-work-triangle / bath fixture-order arrange templates~~ — done; see the Layout /
-placement section.)
+(needs a seamless tiler). (~~real planar mirror reflections~~ — done; the wall /
+bathroom / floor mirrors render a true planar reflection of the room via drei's
+`MeshReflectorMaterial` on the **High/Maximum** render tiers (Performance/Medium
+keep the cheap fake-shiny pane), so a mirror visibly enlarges the space. Shared
+`furniture/primitives/MirrorMaterial.tsx` picks reflector vs fake per tier. Spec:
+[docs/superpowers/specs/2026-06-05-realistic-mirror-reflections-design.md](docs/superpowers/specs/2026-06-05-realistic-mirror-reflections-design.md).)
+(~~kitchen work-triangle / bath fixture-order arrange templates~~ — done; see the
+Layout / placement section.)
 
 ## IKEA model import (2026-05-31)
 

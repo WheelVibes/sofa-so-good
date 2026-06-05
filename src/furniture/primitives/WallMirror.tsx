@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { MirrorMaterial } from './MirrorMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -19,7 +20,6 @@ export function WallMirror({ props }: { props: ParamProps }) {
   const sheen = readNum(props, 'sheen', 0.2)
 
   const frameMat = getSurfaceMaterial(finish, frameColor, 1.2, sheen)
-  const glass = { color: '#d6e0e6', roughness: 0.06, metalness: 0.9 } as const
   const ft = 0.04 // frame thickness (border)
   const depth = 0.05
   const r = Math.min(width, height) / 2
@@ -33,7 +33,7 @@ export function WallMirror({ props }: { props: ParamProps }) {
         </mesh>
         <mesh position={[0, 0, depth / 2 + 0.002]}>
           <circleGeometry args={[r - ft, seg(48, detail)]} />
-          <meshStandardMaterial {...glass} />
+          <MirrorMaterial tint="#d6e0e6" />
         </mesh>
       </group>
     )
@@ -47,7 +47,7 @@ export function WallMirror({ props }: { props: ParamProps }) {
       </mesh>
       <mesh position={[0, 0, depth / 2 + 0.002]}>
         <planeGeometry args={[width - ft * 2, height - ft * 2]} />
-        <meshStandardMaterial {...glass} />
+        <MirrorMaterial tint="#d6e0e6" />
       </mesh>
       {shape === 'arch' && (
         <>
@@ -63,7 +63,7 @@ export function WallMirror({ props }: { props: ParamProps }) {
           </mesh>
           <mesh position={[0, height / 2, depth / 2 + 0.002]} rotation={[0, 0, 0]}>
             <circleGeometry args={[width / 2 - ft, seg(24, detail), 0, Math.PI]} />
-            <meshStandardMaterial {...glass} />
+            <MirrorMaterial tint="#d6e0e6" />
           </mesh>
         </>
       )}
