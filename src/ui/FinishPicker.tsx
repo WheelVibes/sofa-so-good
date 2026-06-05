@@ -27,6 +27,26 @@ function swatchImage(m: MaterialDef): string | undefined {
 type View = 'swatch' | 'browse'
 type Surface = 'floor' | 'wall'
 
+/** The last-finished surface persists across sessions so Browse re-opens
+ *  pre-filtered to whatever the user was editing. */
+const LAST_SURFACE_KEY = 'hdb_last_finish_surface'
+
+function loadLastSurface(): Surface {
+  try {
+    return localStorage.getItem(LAST_SURFACE_KEY) === 'wall' ? 'wall' : 'floor'
+  } catch {
+    return 'floor'
+  }
+}
+
+function saveLastSurface(s: Surface): void {
+  try {
+    localStorage.setItem(LAST_SURFACE_KEY, s)
+  } catch {
+    /* storage full / unavailable */
+  }
+}
+
 /**
  * Right-side panel shown when a room is selected. Floor / wall tabs
  * each present a swatch grid of available materials — built-ins, user
@@ -58,7 +78,7 @@ export function FinishPicker() {
   const materials = useMaterials()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [view, setView] = useState<View>('swatch')
-  const [lastSurface, setLastSurface] = useState<Surface>('floor')
+  const [lastSurface, setLastSurface] = useState<Surface>(loadLastSurface)
 
   useEffect(() => {
     if (view === 'browse' && phStatus === 'idle') void bootstrapRemote()
@@ -76,6 +96,7 @@ export function FinishPicker() {
 
   const handleSelect = (surface: Surface, id: string) => {
     setLastSurface(surface)
+    saveLastSurface(surface)
     if (id.startsWith('#')) pushRecentColor(id)
     if (surface === 'floor') setFloorFinish(roomId, id)
     else setWallFinish(roomId, id)
@@ -168,7 +189,11 @@ export function FinishPicker() {
           className="panel-body"
           style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
         >
-          <RemoteBrowseTab kind="material" onResolved={handleResolved} />
+          <RemoteBrowseTab
+            kind="material"
+            onResolved={handleResolved}
+            defaultCategory={lastSurface}
+          />
         </div>
       )}
     </aside>

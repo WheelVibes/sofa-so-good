@@ -252,8 +252,17 @@ Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpower
 
 ## UI
 
-- **Finishes browse: filter by category** — `RemoteBrowseTab` shows all materials; could narrow by floor-vs-wall heuristics from tags. See [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx) and [finishes-browse spec](docs/superpowers/specs/2026-05-01-finishes-browse-design.md).
-- **Persist last-edited surface** across sessions for the finishes browse → resolve flow. See [finishes-browse spec — Out of scope](docs/superpowers/specs/2026-05-01-finishes-browse-design.md#out-of-scope).
+- ~~**Finishes browse: filter by category**~~ — done. `RemoteBrowseTab` has an
+  All / Floor / Wall chip row (materials), using the provider-assigned
+  `RemoteEntry.category` (`floor`/`wall`), and the Finish-picker Browse opens
+  **pre-filtered to the surface being edited** (`defaultCategory={lastSurface}`)
+  so a floor edit shows floor textures first. See
+  [src/ui/catalog/RemoteBrowseTab.tsx](src/ui/catalog/RemoteBrowseTab.tsx) +
+  [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx).
+- ~~**Persist last-edited surface**~~ — done. The Finish-picker remembers the
+  last-finished surface (floor/wall) in `localStorage` (`hdb_last_finish_surface`),
+  so Browse re-opens pre-filtered to it across sessions. See
+  [src/ui/FinishPicker.tsx](src/ui/FinishPicker.tsx).
 
 ## Time of Day
 

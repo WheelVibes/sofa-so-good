@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useRemoteEntries } from '../../catalog/remote/hooks'
 import type { ProviderId, RemoteKind } from '../../catalog/remote/types'
+import type { MaterialCategory } from '../../materials/types'
 import { useStore } from '../../state/store'
 import { CachePane } from './CachePane'
 import { RemoteCard } from './RemoteCard'
@@ -20,12 +21,16 @@ function matchesQuery(entry: { name: string; slug: string; tags?: string[] }, q:
 export function RemoteBrowseTab({
   kind,
   onResolved,
+  defaultCategory,
 }: {
   kind: RemoteKind
   onResolved: (id: string) => void
+  /** When browsing materials, pre-filter to this surface (floor/wall). */
+  defaultCategory?: MaterialCategory
 }) {
   const [q, setQ] = useState('')
   const [provider, setProvider] = useState<ProviderId | typeof ALL>(ALL)
+  const [category, setCategory] = useState<MaterialCategory | typeof ALL>(defaultCategory ?? ALL)
   const all = useRemoteEntries(kind)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const phError = useStore((s) => s.remoteIndexes.polyhaven.error)
@@ -36,8 +41,9 @@ export function RemoteBrowseTab({
   const filtered = useMemo(() => {
     let list = all
     if (provider !== ALL) list = list.filter((e) => e.provider === provider)
+    if (kind === 'material' && category !== ALL) list = list.filter((e) => e.category === category)
     return list.filter((e) => matchesQuery(e, q))
-  }, [all, q, provider])
+  }, [all, q, provider, category, kind])
 
   // Cap rendered nodes; show a "load more" tail so we don't slam the DOM
   // with 3000+ cards on first paint. Each card lazy-loads its own thumb.
@@ -83,6 +89,26 @@ export function RemoteBrowseTab({
                 }`}
               >
                 {p === ALL ? 'All' : p === 'polyhaven' ? 'Poly Haven' : 'ambientCG'}
+              </button>
+            ))}
+          </div>
+        )}
+        {kind === 'material' && (
+          <div className="flex gap-1 text-[10px]">
+            {([ALL, 'floor', 'wall'] as const).map((c) => (
+              <button
+                key={c}
+                onClick={() => {
+                  setCategory(c)
+                  setLimit(120)
+                }}
+                className={`rounded px-2 py-0.5 capitalize ${
+                  category === c
+                    ? 'bg-[var(--accent)] text-[var(--on-accent)]'
+                    : 'bg-[var(--surface-2)] text-[var(--text-2)]'
+                }`}
+              >
+                {c === ALL ? 'All surfaces' : c}
               </button>
             ))}
           </div>

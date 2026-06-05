@@ -17,6 +17,16 @@ matter how big the surface is:
 - **Wall treatments** — wallpapers (stripe / grasscloth) and checker, plus a
   **wall accent** picker for a single feature wall.
 
+## Browse online textures
+
+The finish picker's **Browse** button opens a library of free CC0 PBR textures
+(Poly Haven, and ambientCG in dev) you can apply to the floor or walls. Use the
+search box to find a texture, and the **All surfaces / Floor / Wall** chips to
+narrow the list to one surface type. Browse opens **pre‑filtered to whichever
+surface you last finished** — and that choice is remembered across sessions, so
+a floor edit shows floor textures first next time too. Picking a texture applies
+it to that surface and returns you to the swatches.
+
 ## Materials on furniture (CC0 DLC)
 
 You can apply a real PBR material — including a CC0 set downloaded from Poly Haven
