@@ -389,7 +389,12 @@ Shipped (all tested + pushed):
 
 Remaining ideas: crown molding (ceiling cornice); kitchen work-triangle /
 bath fixture-order arrange templates; herringbone/parquet floor (needs a
-seamless tiler); real planar mirror reflections (cost).
+seamless tiler). (~~real planar mirror reflections~~ — done; the wall / bathroom /
+floor mirrors render a true planar reflection of the room via drei's
+`MeshReflectorMaterial` on the **High/Maximum** render tiers (Performance/Medium
+keep the cheap fake-shiny pane), so a mirror visibly enlarges the space. Shared
+`furniture/primitives/MirrorMaterial.tsx` picks reflector vs fake per tier. Spec:
+[docs/superpowers/specs/2026-06-05-realistic-mirror-reflections-design.md](docs/superpowers/specs/2026-06-05-realistic-mirror-reflections-design.md).)
 
 ## IKEA model import (2026-05-31)
 
@@ -455,11 +460,12 @@ Shipped: render-on-demand (A1), bookshelf instancing (A2), 2D furniture layout +
 2D⇄3D `P` toggle (G), Smart Start (B), live IKEA SG pricing sidecar (C),
 photo-trace backdrop (F), AI floor-plan recognition (E), AI photoreal export (D).
 Deferred / follow-ups:
-- **Instancing (A2) is scoped to bookshelf books only** — measured ~48→9 draw
-  calls/bookshelf. The crib (~65 calls, slat-heavy) and other repeat-geometry
-  primitives could reuse `primitives/InstancedBoxes.tsx` if profiling justifies
-  it; cross-item instancing was intentionally avoided (conflicts with per-item
-  material/finish/selection).
+- **Instancing (A2)** — bookshelf books (~48→9 draw calls) and now the **crib**
+  (all vertical slats — both long sides + slatted short ends — collapse into one
+  `InstancedBoxes` draw call instead of ~36–72 meshes) use
+  `primitives/InstancedBoxes.tsx`. Other repeat-geometry primitives can adopt it
+  similarly if profiling justifies it; cross-item instancing was intentionally
+  avoided (conflicts with per-item material/finish/selection).
 - **Photo-trace backdrop (F) is session-scoped** — the reference image lives in
   an object URL only; it isn't persisted to IDB or round-tripped with the saved
   plan. Persist the blob + calibration if users want it to survive a reload.

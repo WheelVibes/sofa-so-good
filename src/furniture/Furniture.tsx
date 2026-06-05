@@ -103,6 +103,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
               scale={r.scale}
               tint={r.tint}
               finishOverrides={r.finishOverrides}
+              reflective={r.reflective}
             />
           )
         })()}

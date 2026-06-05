@@ -6,6 +6,9 @@ export interface GltfRender {
   scale: number
   tint?: string
   finishOverrides?: Record<string, string>
+  /** Per-instance: make the model's largest flat surface a real mirror
+   *  (High/Maximum tiers only). Set from the inspector on uploaded models. */
+  reflective?: boolean
 }
 
 /** Resolve which URL + per-component overrides a GLTF item should render with.
@@ -13,6 +16,7 @@ export interface GltfRender {
 export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender | null {
   const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : def.scale) ?? 1
   const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : undefined
+  const reflective = item.props['reflective'] === 1
 
   if (isIkeaDef(def)) {
     const wanted =
@@ -33,6 +37,7 @@ export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender 
       scale,
       tint,
       finishOverrides: Object.keys(finishOverrides).length ? finishOverrides : undefined,
+      reflective,
     }
   }
 
@@ -43,5 +48,6 @@ export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender 
     scale,
     tint,
     finishOverrides: 'finishOverrides' in def ? def.finishOverrides : undefined,
+    reflective,
   }
 }
