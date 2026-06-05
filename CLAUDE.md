@@ -748,9 +748,12 @@ rediscover it.
   live in `src/layout/designRules.ts` (`CLEARANCE`) and drive the per-room
   auto-arranger in `src/layout/autoArrange.ts` (`arrangeRoom`, exposed in-app
   as the Finish-picker "Tidy up room" button). Per-room strategies by
-  `roomKind`: living, bedroom, **kitchen + bath** (`arrangeFixtures` — lines
-  fixtures flush to walls largest-first, clear of door swings), and generic.
-  Author default layouts/presets to these rules and reuse the constants.
+  `roomKind`: living, bedroom, **kitchen** (`arrangeKitchen` — counters flush
+  largest-first, then fridge + stove biased to opposite ends of the longest run
+  so the sink sits between them: the refrigerator→sink→range work triangle),
+  **bath** (`arrangeFixtures` — fixtures flush to walls largest-first, clear of
+  door swings), and generic. Author default layouts/presets to these rules and
+  reuse the constants.
 - Keep `TODO.md` current when deferring work (see superpowers specs/plans
   under `docs/`).
 - Bundled assets are procedurally generated (CC0-equivalent) wherever possible;

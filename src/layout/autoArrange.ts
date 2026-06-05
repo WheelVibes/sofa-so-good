@@ -466,7 +466,8 @@ function arrangeCore(opts: {
     if (genericLiving) arrangeLivingAnyEdge(rect, focal, get, world, ctx, catalog)
     else arrangeLiving(rect, focal, get, world, ctx, catalog)
   } else if (kind === 'bedroom') arrangeBedroom(rect, get, world, ctx, catalog)
-  else if (kind === 'kitchen' || kind === 'bath') arrangeFixtures(rect, get, world, ctx, catalog)
+  else if (kind === 'kitchen') arrangeKitchen(rect, get, world, ctx, catalog)
+  else if (kind === 'bath') arrangeFixtures(rect, get, world, ctx, catalog)
   else arrangeGeneric(rect, get, world, ctx)
 
   // Safety settle: any room item not yet placed (unhandled role or no slot)
@@ -855,13 +856,72 @@ function arrangeGeneric(rect: Rect, get: Getter, world: FurnitureItem[], ctx: Ct
   tuckCorners(get(['plant', 'floorLamp', 'barCart']), rect, world, ctx)
 }
 
-/** Kitchen / bathroom: line the fixtures along the walls. Unlike the generic
- *  strategy these rooms' pieces (counter, fridge, stove / toilet, basin,
- *  shower, bathtub) are category 'kitchen'/'bathroom'/'appliances' → role
- *  'other'/'storage', and we want them flush to a wall facing in, not merely
- *  settled where they were. Largest fixtures claim wall space first (the counter
- *  run / shower), so the smaller ones (toilet, basin, stove) fill the rest; door
- *  swings are kept clear via ctx.keepOut, same as every other strategy. */
+/** Kitchen: a work-triangle layout. The counter run + other big fixtures go
+ *  flush to walls (largest first), then the **fridge and stove are biased to
+ *  opposite ends of the longest wall run**, leaving the sink (mid-counter)
+ *  between them — the classic refrigerator → sink → range work triangle, so the
+ *  two heat/cold appliances aren't crammed side-by-side. Door swings stay clear
+ *  via ctx.keepOut. Falls back to a plain wall-snap if an end slot is taken. */
+function arrangeKitchen(
+  rect: Rect,
+  get: Getter,
+  world: FurnitureItem[],
+  ctx: Ctx,
+  catalog: Record<string, FurnitureDef>,
+) {
+  const fixtures = get(['storage', 'other', 'shoe', 'lowTable'])
+  const isFridge = (it: FurnitureItem) => it.defId === 'refrigerator'
+  const isStove = (it: FurnitureItem) => it.defId === 'stove'
+  const area = (it: FurnitureItem) => {
+    const def = catalog[it.defId]
+    if (!def) return 0
+    const { w, d } = baseFootprint(it, def)
+    return w * d
+  }
+
+  // 1. Counters + remaining big fixtures flush to their nearest wall, biggest
+  //    first so the counter run claims the longest wall.
+  const big = fixtures
+    .filter((it) => !isFridge(it) && !isStove(it))
+    .sort((a, b) => area(b) - area(a))
+  for (const it of big) {
+    snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
+  }
+
+  // 2. Work triangle: push the fridge to one end of the longest run and the
+  //    stove to the other, on a long wall.
+  const horizontal = rect.x1 - rect.x0 >= rect.z1 - rect.z0
+  const longWalls: Edge[] = horizontal ? ['S', 'N'] : ['W', 'E']
+  const M = 0.4 // end margin
+  const toEnd = (it: FurnitureItem | undefined, low: boolean) => {
+    if (!it) return
+    const def = catalog[it.defId]
+    if (!def) return
+    const half = baseFootprint(it, def).w / 2
+    const along = horizontal
+      ? low
+        ? rect.x0 + M + half
+        : rect.x1 - M - half
+      : low
+        ? rect.z0 + M + half
+        : rect.z1 - M - half
+    for (const e of longWalls) {
+      if (placeFlush(it, rect, e, along, world, ctx) !== it) return
+    }
+    // Couldn't take the end slot (counter there) → any free wall.
+    snapToWall(it, rect, [nearestEdge(it.position, rect), 'N', 'S', 'W', 'E'], world, ctx)
+  }
+  toEnd(fixtures.find(isFridge), true)
+  toEnd(fixtures.find(isStove), false)
+
+  tuckCorners(get(['plant', 'floorLamp']), rect, world, ctx)
+}
+
+/** Bathroom: line the fixtures along the walls. These rooms' pieces (toilet,
+ *  basin, shower, bathtub) are category 'bathroom' → role 'other'/'storage',
+ *  and we want them flush to a wall facing in, not merely settled where they
+ *  were. Largest fixtures claim wall space first (the shower / bathtub), so the
+ *  smaller ones (toilet, basin) fill the rest; door swings stay clear. */
 function arrangeFixtures(
   rect: Rect,
   get: Getter,

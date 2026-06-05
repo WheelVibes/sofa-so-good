@@ -80,11 +80,12 @@ plan:
   auto-spaced. (~~desk-chair-at-desk rule~~ — done; `placeDeskChairs` now runs in
   the living/dining strategies too, and its offset is footprint-derived so the
   chair tucks in front instead of colliding + stranding. ~~kitchen/bath
-  templates~~ — done; `roomKind` now routes kitchen + bath1/bath2 to
-  `arrangeFixtures`, which lines the fixtures (counter/fridge/stove,
-  toilet/basin/shower) flush to walls largest-first, clear of door swings,
-  instead of the generic settle-in-place. A full kitchen work-triangle solver
-  is still a possible refinement.)
+  templates~~ — done; `roomKind` routes bath1/bath2 to `arrangeFixtures`
+  (fixtures flush to walls largest-first, clear of door swings). ~~kitchen
+  work-triangle solver~~ — done; `arrangeKitchen` places the counter run first,
+  then biases the fridge + stove to opposite ends of the longest wall run so
+  the sink sits between them (refrigerator→sink→range), instead of the generic
+  settle-in-place.)
 
 ## Asset realism + structural audit (2026-05-30)
 

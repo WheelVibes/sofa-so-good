@@ -114,6 +114,31 @@ describe('arrangeRoom', () => {
     expect(dot).toBeLessThan(-0.5)
   })
 
+  it('spaces the kitchen fridge + stove into a work triangle (opposite ends)', () => {
+    // Scramble the fridge and stove next to each other mid-kitchen; tidying
+    // should push them to opposite ends of the long (X) run, leaving the sink
+    // between them — not crammed side-by-side.
+    const base = hydrate().map((i) =>
+      i.defId === 'refrigerator' && roomOf(i.position) === 'kitchen'
+        ? { ...i, position: [8.0, 7.2] as [number, number] }
+        : i.defId === 'stove' && roomOf(i.position) === 'kitchen'
+          ? { ...i, position: [8.3, 7.2] as [number, number] }
+          : i,
+    )
+    const out = arrangeRoom('kitchen', base, BUILTIN_CATALOG, {})
+    assertValid(out)
+    const fridge = out.find((i) => i.defId === 'refrigerator' && roomOf(i.position) === 'kitchen')!
+    const stove = out.find((i) => i.defId === 'stove' && roomOf(i.position) === 'kitchen')!
+    expect(fridge).toBeDefined()
+    expect(stove).toBeDefined()
+    // Separated along the run (not adjacent) — the work-triangle guarantee.
+    const gap = Math.hypot(
+      fridge.position[0] - stove.position[0],
+      fridge.position[1] - stove.position[1],
+    )
+    expect(gap).toBeGreaterThan(1.2)
+  })
+
   it('lines bathroom fixtures along the walls (not parked mid-room)', () => {
     // bath1: origin (1.45, 5.10), 2.40 x 1.60. Scramble its fixtures toward
     // the room centre, tidy, and assert each ends flush to a wall + valid.
