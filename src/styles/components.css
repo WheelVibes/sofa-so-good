@@ -123,6 +123,8 @@ kbd {
   max-width: calc(100vw - 32px);
 }
 .tool-divider { width: 1px; align-self: stretch; background: var(--border); margin: 3px var(--s-1); }
+/* Room switcher inside the toolbar's room-editor cluster. */
+.toolbar-room-select { height: 32px; font-size: var(--t-sm); font-weight: 600; max-width: 160px; flex: none; }
 .tool-btn {
   position: relative;
   display: inline-flex; align-items: center; gap: 6px;

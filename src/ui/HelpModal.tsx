@@ -1,6 +1,7 @@
 import { DOCS_URL } from './docsUrl'
 import { Modal } from './Modal'
 import { Icon } from './toolbar/icons'
+import { useIsMobile } from './useIsMobile'
 
 const SHORTCUTS: [string, string][] = [
   ['Command palette', '⌘K'],
@@ -26,30 +27,35 @@ const TIPS: [string, string][] = [
   ['Open the Appearance menu to switch between the four themes and light / dark.'],
 ] as unknown as [string, string][]
 
-/** Help & keyboard-shortcut reference modal (toolbar `?`). */
+/** Help & keyboard-shortcut reference modal (toolbar `?`). On mobile (no
+ *  hardware keyboard) the keyboard-shortcut section is omitted and the title
+ *  drops the "& shortcuts" suffix. */
 export function HelpModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const isMobile = useIsMobile()
   return (
     <Modal
       open={open}
       onClose={onClose}
-      title="Help & shortcuts"
+      title={isMobile ? 'Help' : 'Help & shortcuts'}
       sub="Sofa So Good"
       panelId="helpPanel"
     >
-      <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-        <div className="sec-h">
-          <span>Keyboard</span>
+      {!isMobile ? (
+        <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+          <div className="sec-h">
+            <span>Keyboard</span>
+          </div>
+          <div className="kbd-grid">
+            {SHORTCUTS.map(([label, key]) => (
+              <div className="kbd-row" key={label}>
+                <span>{label}</span>
+                <kbd>{key}</kbd>
+              </div>
+            ))}
+          </div>
         </div>
-        <div className="kbd-grid">
-          {SHORTCUTS.map(([label, key]) => (
-            <div className="kbd-row" key={label}>
-              <span>{label}</span>
-              <kbd>{key}</kbd>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className="sec">
+      ) : null}
+      <div className="sec" style={isMobile ? { borderTop: 'none', paddingTop: 0 } : undefined}>
         <div className="sec-h">
           <span>Tips</span>
         </div>

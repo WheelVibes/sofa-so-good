@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
+import type { RoomId } from '../../apartment/types'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { useStore } from '../../state/store'
 import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { HelpModal } from '../HelpModal'
 import { BrandMark } from '../Logo'
+import { useIsMobile } from '../useIsMobile'
 import { AppearancePopover } from './AppearancePopover'
 import { IconButton } from './IconButton'
 import { Icon } from './icons'
@@ -34,6 +36,7 @@ export function Toolbar() {
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const roomEditorRoomId = useStore((s) => s.roomEditor.roomId)
   const exitRoomEditor = useStore((s) => s.exitRoomEditor)
+  const enterRoomEditor = useStore((s) => s.enterRoomEditor)
   const editorTool = useStore((s) => s.editorTool)
   const setEditorTool = useStore((s) => s.setEditorTool)
   const catalogOpen = useStore((s) => s.catalogOpen)
@@ -56,18 +59,9 @@ export function Toolbar() {
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const helpOpen = useStore((s) => s.helpOpen)
   const setHelpOpen = useStore((s) => s.setHelpOpen)
-  const [isMobile, setIsMobile] = useState(
-    () => typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches,
-  )
-  useEffect(() => {
-    const mq = window.matchMedia('(max-width: 640px)')
-    const onChange = () => setIsMobile(mq.matches)
-    mq.addEventListener('change', onChange)
-    return () => mq.removeEventListener('change', onChange)
-  }, [])
+  const isMobile = useIsMobile()
 
   const orbit = cameraMode === 'orbit'
-  const roomName = roomEditorRoomId ? (ROOMS[roomEditorRoomId]?.name ?? 'room') : ''
 
   // The toolbar is a horizontally-scrollable island sitting over the R3F
   // canvas. OrbitControls listens for `wheel` natively, so a React onWheel
@@ -132,7 +126,6 @@ export function Toolbar() {
     return (
       <>
         <MobileToolbar />
-        <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
         <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
       </>
     )
@@ -147,15 +140,24 @@ export function Toolbar() {
         </div>
         <Divider />
 
-        {/* Exit per-room editor — leftmost while the room editor is active. */}
+        {/* Exit + room switcher — leftmost while the room editor is active. */}
         {roomEditorActive && (
           <>
-            <IconButton
-              icon="ExitRoom"
-              label={`Exit room${roomName ? ` · ${roomName}` : ''}`}
-              shortcut="Esc"
-              onClick={exitRoomEditor}
-            />
+            <IconButton icon="ExitRoom" label="Exit room" shortcut="Esc" onClick={exitRoomEditor} />
+            <select
+              className="input toolbar-room-select"
+              aria-label="Room to edit"
+              value={roomEditorRoomId ?? ''}
+              onChange={(e) => enterRoomEditor(e.target.value as RoomId)}
+            >
+              {Object.values(ROOMS)
+                .filter((r) => !r.external)
+                .map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+            </select>
             <Divider />
           </>
         )}

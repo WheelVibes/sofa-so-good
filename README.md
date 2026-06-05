@@ -53,8 +53,9 @@ export the result — all in the browser.
   and an on-screen joystick + drag-to-look on touch; a themed, auto-fading
   **controls banner** greets you on entry with the right hints for your device.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
-  plan its furniture (toolbar **View → Edit room: …**; a **← exit button at the
-  far left of the toolbar** or **Esc** leaves). It shows just that room's walls + floor + its own furniture,
+  plan its furniture (toolbar **View → Edit a room**, then switch rooms from the
+  dropdown that appears at the left of the toolbar; a **← exit button** or **Esc**
+  leaves). It shows just that room's walls + floor + its own furniture,
   with the camera-facing walls hidden so you always see in, supports orbit **and**
   walk, and keeps the full catalog/placement/measurement tools. It's deliberately
   lightweight — locked to the fast Performance renderer with full-resolution
@@ -72,7 +73,10 @@ export the result — all in the browser.
   Reset **H**, Tidy **L** (alongside Measurements **M**, Catalog **C**, camera
   **V**, and the editing keys). Layout **presets** and furniture **sets** live in
   the **Arrange** menu; the live **FPS counter** is a toggle in the **Graphics**
-  panel.
+  panel. On phones the island collapses to a minimal bar (brand + a hamburger)
+  that opens a full-parity bottom sheet — collapsible accordion sections expose
+  every desktop action (incl. graphics, appearance, sets/presets/styles,
+  save/load), with per-room edit as a single dropdown.
 - **Editable floor plan** — a 2D top-down editor to redraw the apartment shell
   (walls, rooms with live areas, doors/windows) or start from a template; the
   3D flat, finishes, and furniture collision all follow your custom plan, and

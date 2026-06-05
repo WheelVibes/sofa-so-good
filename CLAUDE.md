@@ -312,13 +312,25 @@ rediscover it.
   components never hardcode colour — UI is restyled to the design class
   vocabulary (`.panel`, `.btn`, `.toolbar`/`.tool-btn`, `.menu-item`, `.seg`,
   `.swatch`, `.act`, `.cmdk`, `.ctx-menu`, `.toast`, `.onb-*`, …) instead of
-  Tailwind colour utilities. The toolbar **Appearance** popover
-  (`ui/toolbar/AppearancePopover.tsx`) picks theme + Light/Dark/Auto; the choice
-  persists in `localStorage` (`hdb_appearance`) and is applied pre-paint by an
-  inline script in `index.html` (no flash). Auto follows the OS via `matchMedia`.
-  `body.mobile` (toggled in `App` at ≤640px) switches floating panels to
-  bottom-sheets and the toolbar to a collapsed bar + action sheet
-  (`toolbar/MobileToolbar.tsx`). A reference screenshot suite (every theme,
+  Tailwind colour utilities. The toolbar **Appearance** control
+  (`ui/toolbar/AppearancePopover.tsx`) picks theme + Light/Dark/Auto (its
+  `AppearanceControls` body is shared; an anchored popover on desktop, a centred
+  blurred `Modal` on mobile); the choice persists in `localStorage`
+  (`hdb_appearance`) and is applied pre-paint by an inline script in `index.html`
+  (no flash). Auto follows the OS via `matchMedia` (`ui/useIsMobile.ts` is the
+  shared ≤640px hook). `body.mobile` (toggled in `App` at ≤640px) switches
+  floating panels to bottom-sheets and the toolbar to a minimal bar — **brand
+  (top-left) + hamburger (top-right) only** — whose menu opens a bottom **action
+  sheet at full desktop parity** (`toolbar/MobileToolbar.tsx`): brand + title
+  header, then **collapsible accordion sections** (Camera / View / Scene / Edit /
+  Design / Arrange / Tools / Graphics / File / Appearance & help, one open at a
+  time so all headers fit without scrolling) covering every desktop action
+  including Graphics, Lights, undo/redo, snap, sets/presets/styles, sun study,
+  walkthrough, report, and save/load slots. Per-room edit is a single dropdown
+  (not one row per room). Shared action logic is factored into
+  `furniture/arrangeActions.ts` (set drops) and `scene/sunStudy.ts` (sun-study
+  hook). The mobile **Help** modal drops the keyboard-shortcut section (no
+  hardware keyboard). A reference screenshot suite (every theme,
   panel, modal, viewport) lives in `assets/screenshots/`. New feature surfaces wired through `featuresSlice`: the **⌘K
   command palette** (`CommandPalette.tsx` — actions / panels / views / "add
   furniture", keyboard-navigable), the **right-click context menu**
@@ -583,10 +595,13 @@ rediscover it.
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
   `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-
   style mode that isolates one room for furniture planning. Entered from the
-  toolbar **View** menu (one "Edit room: …" entry per non-external room); a
-  **left-arrow exit button at the leftmost of the toolbar** (`Icon.ExitRoom`,
-  shown only while the editor is active, labelled with the room name) or **Esc**
-  exits. It mounts a **separate
+  toolbar **View** menu's single **"Edit a room"** entry (enters the first
+  non-external room); the room is then **switched in place** — while the editor is
+  active the toolbar's leftmost cluster shows a **← exit button** (`Icon.ExitRoom`)
+  + a **room-switcher `<select>`** (`.toolbar-room-select`, re-`enterRoomEditor`s
+  on change), and **Esc** exits. On mobile the collapsed bar *becomes* the
+  room-editor header (brand + room dropdown + **X** exit + hamburger; see
+  **Toolbar**). It mounts a **separate
   lightweight `<Canvas>`** (own flat hemisphere/ambient light, DPR 1, no shadows/
   IBL/post — none of the sun/time/Effects systems are even mounted) in place of
   `<Scene>` while active, and is **pinned to the Performance render tier +

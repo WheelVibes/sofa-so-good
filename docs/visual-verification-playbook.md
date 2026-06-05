@@ -14,7 +14,7 @@ landmine someone already stepped on so you don't have to.
 - `evalFile` is a JS file run **in the page** after `waitMs`. `actionsJson` is a
   JSON array of input actions, run **after** the evalFile.
 - Actions: `{type:'drag',from:[x,y],to:[x,y]}`, `wheel:{x,y,dy}`, `click:{x,y}`,
-  `type`, `key`, `wait:{ms}`.
+  `type`, `key`, `select`, `wait:{ms}`.
 - The harness prints `SHOT_SAVED <path>`, then a `---CONSOLE---` block with the
   **last ~30** page console lines. Your `console.log('PROBE ...')` calls show up
   there — but only the last 30 lines, so if you log in a tight poll loop the
@@ -143,6 +143,18 @@ where `dt` is a `DataTransfer` with `dt.items.add(new File(...))`. A synthetic D
 has no real `webkitGetAsEntry` entries, so it exercises the `dt.files` fallback,
 not directory recursion — unit-test the recursion separately with faked
 `FileSystemEntry` objects.
+
+### Driving a native `<select>` dropdown
+A click at the select's coordinates only *opens* the OS popup (which Chromium
+renders outside the page, so you can't click an option by pixel). Use the
+`select` action instead: `{type:'select', selector:'.toolbar-room-select',
+value:'kitchen'}` — it calls Puppeteer's `page.select`, which sets the value
+**and fires the `change` event** so React's `onChange` runs. `selector` defaults
+to the first `<select>` on the page. To *prove* the handler ran (not just that
+the value was set), bind the select to store state (`value={storeValue}`) — a
+controlled select snaps back unless `onChange` actually committed, so a screenshot
+showing the new label is end-to-end proof. (That's how the room-editor room
+switcher was verified: selecting `kitchen` re-rendered the kitchen scene.)
 
 ## A known-good template
 

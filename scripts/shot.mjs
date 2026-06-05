@@ -1,6 +1,6 @@
 // Screenshot harness for the HDB sandbox. Software-WebGL via SwiftShader.
 // Usage: node scripts/shot.mjs <outPath> [waitMs] [evalScriptFile] [actionsJson]
-// actionsJson: JSON array of {type:'drag',from:[x,y],to:[x,y]} | {type:'wheel',x,y,dy} | {type:'click',x,y} | {type:'key',key} | {type:'wait',ms}
+// actionsJson: JSON array of {type:'drag',from:[x,y],to:[x,y]} | {type:'wheel',x,y,dy} | {type:'click',x,y} | {type:'key',key} | {type:'type',x,y,text} | {type:'select',selector,value} | {type:'wait',ms}
 
 import fs from 'node:fs'
 import puppeteer from 'puppeteer'
@@ -93,6 +93,10 @@ if (actionsArg) {
     } else if (a.type === 'type') {
       await page.mouse.click(a.x, a.y)
       await page.keyboard.type(a.text, { delay: 20 })
+    } else if (a.type === 'select') {
+      // Set a native <select>'s value and fire its change event (React onChange).
+      // {type:'select', selector, value} — selector defaults to the first <select>.
+      await page.select(a.selector || 'select', String(a.value))
     } else if (a.type === 'wait') {
       await new Promise((r) => setTimeout(r, a.ms))
     }
