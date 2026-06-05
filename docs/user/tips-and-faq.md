@@ -43,7 +43,10 @@ converted automatically.
 
 **Does it work on my phone or tablet?**
 Yes. On small screens the panels become bottom sheets and the toolbar collapses
-to a compact bar with an action sheet, so everything stays reachable one‑handed.
+to a minimal bar — just the logo and a **☰ menu** button. Tap the menu to open a
+bottom sheet with collapsible sections (Camera, View, Scene, Edit, Design,
+Arrange, Tools, Graphics, File, Appearance & help) that put **every** desktop
+control within reach one‑handed, including theme, graphics, and saved layouts.
 In walk mode you get an on‑screen joystick to move and drag‑to‑look instead of
 the keyboard and mouse. See [Navigating the flat](/navigating#walk-mode).
 

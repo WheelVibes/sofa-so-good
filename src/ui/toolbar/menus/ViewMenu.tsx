@@ -4,7 +4,8 @@ import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** View cluster: top-down view, reset to 3D overview, turntable auto-orbit,
- *  and per-room editor entry (isolate one room, IKEA-planner style). */
+ *  and a single "Edit a room" entry (isolate one room, IKEA-planner style;
+ *  the room is then switched in place from the toolbar's room dropdown). */
 export function ViewMenu() {
   const requestTopView = useStore((s) => s.requestTopView)
   const requestHomeView = useStore((s) => s.requestHomeView)
@@ -12,6 +13,7 @@ export function ViewMenu() {
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
   const enterRoomEditor = useStore((s) => s.enterRoomEditor)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
+  const defaultRoomId = Object.values(ROOMS).find((r) => !r.external)?.id
   return (
     <ToolbarMenu icon="TopView" label="View" active={autoRotate || roomEditorActive}>
       <MenuItem
@@ -33,18 +35,18 @@ export function ViewMenu() {
         active={autoRotate}
         onClick={toggleAutoRotate}
       />
-      <div className="my-1 border-t border-[var(--border)]" />
-      {Object.values(ROOMS)
-        .filter((r) => !r.external)
-        .map((r) => (
+      {defaultRoomId ? (
+        <>
+          <div className="my-1 border-t border-[var(--border)]" />
           <MenuItem
-            key={r.id}
             icon="FloorPlan"
-            label={`Edit room: ${r.name}`}
-            sub="Isolate this room to plan furniture"
-            onClick={() => enterRoomEditor(r.id)}
+            label="Edit a room"
+            sub="Isolate a room — switch from the toolbar"
+            active={roomEditorActive}
+            onClick={() => enterRoomEditor(defaultRoomId)}
           />
-        ))}
+        </>
+      ) : null}
     </ToolbarMenu>
   )
 }

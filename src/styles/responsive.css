@@ -77,6 +77,9 @@ body.mobile {
   }
   .toolbar.mobilebar .m-menu-btn { flex: none; width: 38px; height: 38px; }
   .toolbar.mobilebar .brand-dot { width: 32px; height: 32px; font-size: 14px; }
+  /* Room-editor header: brand + room dropdown + exit X + menu. */
+  .toolbar.mobilebar.editing-room { justify-content: flex-start; }
+  .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; height: 36px; font-size: var(--t-sm); font-weight: 600; }
 
   /* ---- Mobile menu sheet ----------------------------------- */
   .m-menu-overlay {
@@ -98,7 +101,10 @@ body.mobile {
     animation: sheetDrop var(--dur) var(--ease);
   }
   .m-sheet-grab { width: 36px; height: 4px; border-radius: 999px; background: var(--border-2); margin: 8px auto 0; flex: none; }
-  .m-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 8px var(--s-4) 6px; }
+  .m-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px var(--s-4) 8px; }
+  .m-sheet-brand { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
+  .m-sheet-brand .brand-dot { width: 32px; height: 32px; font-size: 14px; flex: none; }
+  .m-sheet-brand .panel-title { font-size: var(--t-lg); font-weight: 800; letter-spacing: -0.01em; }
   .m-sheet-body { overflow-y: auto; padding: 0 var(--s-2) var(--s-3); }
   .m-sec { padding: 4px; }
   .m-sec + .m-sec { border-top: 1px solid var(--border); margin-top: 2px; padding-top: 6px; }
@@ -110,12 +116,42 @@ body.mobile {
     transition: var(--dur) var(--ease);
   }
   .m-item:active { background: var(--surface-3); color: var(--text); }
+  .m-item:disabled { opacity: 0.4; pointer-events: none; }
   .m-item .icn { color: var(--text-3); flex: none; }
-  .m-item > span { flex: 1; min-width: 0; }
+  .m-item-tx { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+  .m-item-l { display: block; font-size: var(--t-md); font-weight: 500; color: var(--text-2); }
+  .m-item-s { display: block; font-size: var(--t-2xs); font-weight: 500; color: var(--text-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
   .m-item .sk { margin-left: auto; flex: none; }
   .m-item .m-on { margin-left: auto; flex: none; font-size: 9px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--accent-soft-text); background: var(--accent-soft); padding: 2px 7px; border-radius: var(--r-pill); }
   .m-row2 { display: flex; gap: var(--s-2); padding: 0 5px; }
   .m-row2 .m-item { justify-content: center; background: var(--surface-2); }
+
+  /* ---- Collapsible accordion sections ---------------------- */
+  .m-acc { border-radius: var(--r-2); }
+  .m-acc + .m-acc { border-top: 1px solid var(--border); }
+  .m-acc-h {
+    display: flex; align-items: center; gap: var(--s-3); width: 100%;
+    min-height: 48px; padding: 11px 9px; border-radius: var(--r-2);
+    font-size: var(--t-md); font-weight: 600; color: var(--text); text-align: left;
+  }
+  .m-acc-h:active { background: var(--surface-3); }
+  .m-acc-h .icn { color: var(--text-2); flex: none; }
+  .m-acc-t { flex: 1; min-width: 0; }
+  .m-acc-chev { color: var(--text-3); flex: none; transition: transform var(--dur) var(--ease); }
+  .m-acc.open > .m-acc-h .m-acc-chev { transform: rotate(180deg); }
+  .m-acc.open > .m-acc-h { color: var(--accent-text, var(--text)); }
+  .m-acc-body { padding: 2px 4px 8px; }
+  .m-acc-body .m-item { padding-left: 13px; }
+  .m-sub-h { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; padding: 8px 9px 3px; }
+  .m-empty { padding: 6px 9px; font-size: var(--t-sm); color: var(--text-3); }
+
+  /* ---- Saved-layout rows ----------------------------------- */
+  .m-slot { display: flex; align-items: center; gap: 2px; padding-left: 9px; }
+  .m-slot-load { display: flex; align-items: center; gap: var(--s-3); flex: 1; min-width: 0; min-height: 44px; padding: 8px 9px; border-radius: var(--r-2); text-align: left; }
+  .m-slot-load:active { background: var(--surface-3); }
+  .m-slot-load .icn { color: var(--text-3); flex: none; }
+  .m-slot-del { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-2); color: var(--text-3); }
+  .m-slot-del:active { background: var(--danger-soft); color: var(--danger); }
 
   /* ---- Floating panels → bottom sheets (inset, floating) --- */
   .catalog, .inspector {
@@ -149,9 +185,14 @@ body.mobile {
     animation: sheetUp var(--dur) var(--ease);
   }
 
-  /* ---- Centered modals fit the viewport -------------------- */
-  .modal-overlay > .panel { width: min(360px, calc(100vw - 24px)); }
-  .modal-overlay { padding: 0 var(--s-3); }
+  /* ---- Centered modals fit the viewport, with breathing room -- */
+  .modal-overlay { padding: 28px var(--s-3); }
+  .modal-overlay > .panel {
+    width: min(360px, calc(100vw - 24px));
+    max-height: calc(100vh - 56px);
+  }
+  /* Help modal: comfortable body padding on phones. */
+  #helpPanel .panel-body { padding: var(--s-2) var(--s-4) var(--s-5); }
   .kbd-grid { grid-template-columns: 1fr; gap: 9px 0; }
 
   /* ---- Nav cluster: hide on touch -------------------------- */
