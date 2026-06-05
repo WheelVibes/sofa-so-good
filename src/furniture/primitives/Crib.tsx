@@ -1,5 +1,6 @@
 import { getSurfaceMaterial, getUpholsteryMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
 
 /**
@@ -42,6 +43,29 @@ export function Crib({ props }: { props: ParamProps }) {
       const t = -span / 2 + i * step
       return axis === 'x' ? (t as number) : (t as number)
     }).map((t, i) => ({ key: i, t, slatH, y: y0 + slatH / 2 + railT / 2 }))
+  }
+
+  // All vertical slats (both long sides, plus both short ends when slatted) are
+  // identical axis-aligned boxes sharing the wood material — collapse them into
+  // one InstancedMesh (one draw call) instead of ~36–72 separate meshes.
+  const slatInstances: BoxInstance[] = []
+  for (const sz of [-1, 1]) {
+    for (const s of sideSlats('x')) {
+      slatInstances.push({
+        position: [s.t, s.y, sz * (hz - postT / 2)],
+        size: [slatT, s.slatH, slatT],
+      })
+    }
+  }
+  if (endStyle !== 'solid') {
+    for (const sx of [-1, 1]) {
+      for (const s of sideSlats('z')) {
+        slatInstances.push({
+          position: [sx * (hx - postT / 2), s.y, s.t],
+          size: [slatT, s.slatH, slatT],
+        })
+      }
+    }
   }
 
   return (
@@ -88,21 +112,12 @@ export function Crib({ props }: { props: ParamProps }) {
         )),
       )}
 
-      {/* Long-side vertical slats */}
-      {[-1, 1].map((sz) =>
-        sideSlats('x').map((s) => (
-          <mesh
-            key={`ls${sz}.${s.key}`}
-            castShadow
-            position={[s.t, s.y, sz * (hz - postT / 2)]}
-            material={wood}
-          >
-            <boxGeometry args={[slatT, s.slatH, slatT]} />
-          </mesh>
-        )),
-      )}
+      {/* All vertical slats (long sides + slatted short ends) in one draw call */}
+      <InstancedBoxes instances={slatInstances} castShadow>
+        <primitive object={wood} attach="material" />
+      </InstancedBoxes>
 
-      {/* Short ends: slats or a solid panel */}
+      {/* Solid short-end panels (when the end style isn't slatted) */}
       {endStyle === 'solid'
         ? [-1, 1].map((sx) => (
             <mesh
@@ -115,18 +130,7 @@ export function Crib({ props }: { props: ParamProps }) {
               <boxGeometry args={[postT * 0.8, railTopY - railT, depth - postT * 2]} />
             </mesh>
           ))
-        : [-1, 1].map((sx) =>
-            sideSlats('z').map((s) => (
-              <mesh
-                key={`es${sx}.${s.key}`}
-                castShadow
-                position={[sx * (hx - postT / 2), s.y, s.t]}
-                material={wood}
-              >
-                <boxGeometry args={[slatT, s.slatH, slatT]} />
-              </mesh>
-            )),
-          )}
+        : null}
 
       {/* Mattress on the inner platform */}
       <mesh castShadow receiveShadow position={[0, platformY + 0.05, 0]} material={mattMat}>
