@@ -4,6 +4,7 @@ import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
 import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
@@ -31,7 +32,16 @@ const CATEGORY_FILL: Record<FurnitureCategory, string> = {
   others: '#9a9488',
 }
 
-type Tool = 'select' | 'wall' | 'room' | 'polyroom' | 'split' | 'door' | 'window' | 'scale'
+type Tool =
+  | 'select'
+  | 'wall'
+  | 'room'
+  | 'polyroom'
+  | 'autoroom'
+  | 'split'
+  | 'door'
+  | 'window'
+  | 'scale'
 
 /** A reference photo/scan traced over to draw walls. Session-scoped (the object
  *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */
@@ -293,6 +303,15 @@ export function FloorPlanEditor() {
     const st = useStore.getState()
     if (tool === 'wall' || tool === 'room' || tool === 'scale') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
+    } else if (tool === 'autoroom') {
+      // Make a room from the wall loop enclosing the click.
+      const poly = detectRoomPolygon(st.floorPlan.walls, [wx, wz])
+      if (poly) commitPolyRoom(poly)
+      else
+        st.notify.start({
+          title: 'No enclosing walls here — draw a closed wall loop first',
+          kind: 'info',
+        })
     } else if (tool === 'polyroom') {
       // Click near the first vertex (≥3 placed) closes the polygon into a room.
       const first = polyDraft[0]
@@ -444,26 +463,28 @@ export function FloorPlanEditor() {
           style={{ width: 192 }}
         />
         <div className="seg accent" style={{ marginLeft: 4 }}>
-          {(['select', 'wall', 'room', 'polyroom', 'split', 'door', 'window'] as Tool[]).map(
-            (t) => (
-              <button
-                key={t}
-                type="button"
-                onClick={() => {
-                  setPolyDraft([])
-                  setTool(t)
-                }}
-                className={`capitalize${tool === t ? ' on' : ''}`}
-                title={
-                  t === 'polyroom'
-                    ? 'Polygon room — click vertices, click the first to close'
+          {(
+            ['select', 'wall', 'room', 'polyroom', 'autoroom', 'split', 'door', 'window'] as Tool[]
+          ).map((t) => (
+            <button
+              key={t}
+              type="button"
+              onClick={() => {
+                setPolyDraft([])
+                setTool(t)
+              }}
+              className={`capitalize${tool === t ? ' on' : ''}`}
+              title={
+                t === 'polyroom'
+                  ? 'Polygon room — click vertices, click the first to close'
+                  : t === 'autoroom'
+                    ? 'Auto room — click inside a wall-enclosed area to make a room from it'
                     : undefined
-                }
-              >
-                {t === 'polyroom' ? 'Polygon' : t}
-              </button>
-            ),
-          )}
+              }
+            >
+              {t === 'polyroom' ? 'Polygon' : t === 'autoroom' ? 'Auto room' : t}
+            </button>
+          ))}
         </div>
         {tool === 'wall' && (
           <div className="seg">

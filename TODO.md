@@ -333,9 +333,11 @@ Shipped — a data-driven, editable apartment shell + 2D editor:
   ~~arbitrary free-polygon rooms~~ — done: a `PlanRoom.polygon` (world-metre
   verts) drawn with the editor **Polygon** tool is the authoritative shape —
   `polygonArea` (shoelace) for area, `pointInPolygon`/`pointInRoom` for
-  furniture containment, and a triangulated `worldUvShapeGeometry` 3D floor.)
-  Remaining: auto-deriving a room polygon from an enclosing wall loop (today the
-  polygon is drawn directly, independent of the walls).
+  furniture containment, and a triangulated `worldUvShapeGeometry` 3D floor.
+  ~~auto-derive a room polygon from an enclosing wall loop~~ — done: the editor
+  **Auto room** tool runs `detectRoomPolygon` (planar face-extraction: trace the
+  minimal wall cycle around the click via sharpest-clockwise turns) and makes a
+  polygon room from it; handles L-shapes + adjacent shared-wall rooms.)
 
 ## Design tools & quality upgrades (2026-05-30)
 

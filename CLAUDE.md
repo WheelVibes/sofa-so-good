@@ -537,7 +537,9 @@ rediscover it.
   `PlanShell`/`roomShell` render both floor rects. For **arbitrary
   (free-polygon) rooms** a `PlanRoom` carries an optional `polygon` (world-metre
   vertices) authored with the **Polygon** room tool (click vertices, click the
-  first / press Enter to close); when set it's the authoritative shape —
+  first / press Enter to close) or the **Auto room** tool (`detectRoomPolygon`
+  in `floorplan/roomDetect.ts` — planar face-extraction tracing the minimal
+  wall cycle around a click); when set it's the authoritative shape —
   `polygonArea` (shoelace) for the area, `pointInPolygon`/`pointInRoom` for
   containment (furniture-in-room), and a triangulated `worldUvShapeGeometry`
   floor in `PlanRoomFloor`/`PlanShell` (`floorplan/types.ts` helpers). A

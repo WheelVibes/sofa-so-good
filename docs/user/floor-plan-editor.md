@@ -35,6 +35,9 @@ Rooms don't have to be plain rectangles:
   (<kbd>Esc</kbd> cancels). The room can be any polygon — its **area is computed
   from the true outline** (not a bounding box) and the 3D floor is shaped to
   match.
+- **Auto room from walls** — already drew the walls? Pick **Auto room** and click
+  inside any wall‑enclosed area; the room is created automatically from that
+  loop (any shape, including L‑shapes), with the matching area.
 
 ## Your furniture, top‑down
 
