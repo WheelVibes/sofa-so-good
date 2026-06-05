@@ -687,6 +687,11 @@ rediscover it.
   `mirrorReflectorConfig(tier)` is the pure tier→{real,resolution} gate
   (512px High / 1024px Maximum). Off-screen mirrors are frustum-culled (free);
   no recursion (a mirror inside a mirror falls back to its base look).
+  **Uploaded GLB mirrors**: an inspector toggle ("Reflective surface", `GltfBody`,
+  stored as `props.reflective`) makes `GltfModel` detect the model's largest flat
+  mesh (`gltf/mirrorPlane.ts` `pickMirrorPlane`/`detectMirrorPlane`), hide it, and
+  overlay the same tier-gated reflector plane fitted to its bounds — so uploaded
+  mirrors reflect too (High/Maximum only).
 - **Loading overlay + fast boot** (`ui/loading/`, `state/storage/bootstrap.ts`,
   uiSlice `bootPhase`/`loading`): `main.tsx` registers the GLB decoders
   (synchronous, must precede any model load) then renders React **immediately**
