@@ -1,6 +1,6 @@
 import { useGLTF } from '@react-three/drei'
 import { useEffect, useMemo, useRef } from 'react'
-import type { Object3D } from 'three'
+import type { Material, Object3D } from 'three'
 import { Box3, Color, type Mesh, type MeshStandardMaterial, Triangle, Vector3 } from 'three'
 import { SkeletonUtils } from 'three-stdlib'
 import { effectiveAssetTier } from '../scene/quality'
@@ -105,6 +105,12 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
   const gltf = useGLTF(resolvedUrl)
   const cloned = useMemo(() => SkeletonUtils.clone(gltf.scene as unknown as Object3D), [gltf.scene])
   const tintRef = useRef<string | undefined>(undefined)
+  // Materials this component cloned (owns) so they can be freed on re-apply /
+  // unmount. The cloned tree initially references the shared gltf materials; the
+  // tint + finish effects replace them with owned clones, which would otherwise
+  // leak GPU memory each time they re-run or the component unmounts.
+  const tintMatsRef = useRef<Material[]>([])
+  const finishMatsRef = useRef<Material[]>([])
 
   // Cache footprint, keyed by the base (high-tier) url so collision is
   // consistent across tiers. Simplified low/medium variants can shift the bbox
@@ -221,8 +227,15 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
   useEffect(() => {
     if (tint === tintRef.current) return
     tintRef.current = tint
+    // Clearing the tint leaves the existing materials in place (pre-existing
+    // behaviour); the unmount cleanup frees them. Only dispose here when we're
+    // about to replace them, so we never free a material still on a mesh.
     if (!tint) return
+    // Free the previous generation of owned clones before replacing them.
+    for (const m of tintMatsRef.current) m.dispose()
+    tintMatsRef.current = []
     const c = new Color(tint)
+    const created: Material[] = []
     cloned.traverse((obj) => {
       const mesh = obj as Mesh
       if (!mesh.isMesh) return
@@ -232,6 +245,7 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
         if ('color' in clone && clone.color) {
           clone.color = clone.color.clone().multiply(c)
         }
+        created.push(clone)
         return clone
       }) as MeshStandardMaterial | MeshStandardMaterial[]
       // If the original was a single material, keep it as such.
@@ -239,6 +253,7 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
         mesh.material = (mesh.material as MeshStandardMaterial[])[0]
       }
     })
+    tintMatsRef.current = created
   }, [cloned, tint])
 
   // Per-target finish overrides (key → hex tint). Cloned so instances don't
@@ -251,6 +266,11 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
   // tint effect) — acceptable for this task.
   useEffect(() => {
     if (!finishOverrides || Object.keys(finishOverrides).length === 0) return
+    // Free the previous generation of owned clones before replacing them (only
+    // when we're about to reassign, so we never free a material still on a mesh).
+    for (const m of finishMatsRef.current) m.dispose()
+    finishMatsRef.current = []
+    const created: Material[] = []
     cloned.traverse((obj) => {
       const mesh = obj as Mesh
       if (!mesh.isMesh) return
@@ -261,6 +281,7 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
         mesh.material = mats.map((m) => {
           const clone = (m as MeshStandardMaterial).clone()
           if ('color' in clone && clone.color) clone.color = c.clone()
+          created.push(clone)
           return clone
         }) as MeshStandardMaterial | MeshStandardMaterial[]
         if (!Array.isArray(mesh.material) || mesh.material.length === 1) {
@@ -268,6 +289,7 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
         }
       }
     })
+    finishMatsRef.current = created
   }, [cloned, finishOverrides])
 
   // Runtime texture-budget fallback: only when we're serving the original asset
@@ -277,6 +299,18 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
       applyTextureBudget(cloned, qualityTier)
     }
   }, [cloned, servingOriginal, qualityTier])
+
+  // Free all owned material clones on unmount (the gltf-shared originals are left
+  // alone — useGLTF's cache owns those).
+  useEffect(
+    () => () => {
+      for (const m of tintMatsRef.current) m.dispose()
+      for (const m of finishMatsRef.current) m.dispose()
+      tintMatsRef.current = []
+      finishMatsRef.current = []
+    },
+    [],
+  )
 
   return <primitive object={cloned} scale={scale} dispose={null} />
 }
