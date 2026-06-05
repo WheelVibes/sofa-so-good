@@ -1,5 +1,5 @@
-import { useGLTF } from '@react-three/drei'
-import { useEffect, useMemo, useRef } from 'react'
+import { MeshReflectorMaterial, useGLTF } from '@react-three/drei'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { Material, Object3D } from 'three'
 import { Box3, Color, type Mesh, type MeshStandardMaterial, Triangle, Vector3 } from 'three'
 import { SkeletonUtils } from 'three-stdlib'
@@ -7,8 +7,10 @@ import { effectiveAssetTier } from '../scene/quality'
 import { useStore } from '../state/store'
 import { meshMatchesTarget } from './gltf/finishTargets'
 import { baseUrl, prewarmLod, resolveLodUrlSync } from './gltf/lod'
+import { detectMirrorPlane, hideMirrorMesh, type MirrorPlane } from './gltf/mirrorPlane'
 import { applyTextureBudget } from './gltf/textureBudget'
 import { detectSupportPlaneY, type HorizontalBand } from './ikea/supportPlane'
+import { mirrorReflectorConfig } from './primitives/MirrorMaterial'
 
 /** Public footprint shape: axis-aligned size in metres at scale=1, plus the
  *  local-space center offset of that bbox. Many GLBs are not centered on their
@@ -78,6 +80,9 @@ interface GltfModelProps {
   tint?: string
   /** Per-finish-target hex tint, keyed by target key. */
   finishOverrides?: Record<string, string>
+  /** Make the model's largest flat surface a real planar mirror (High/Maximum
+   *  render tiers only); the original surface is hidden and replaced. */
+  reflective?: boolean
 }
 
 /**
@@ -89,7 +94,7 @@ interface GltfModelProps {
  * same GLB don't share transforms. Materials are cloned only when a tint is
  * applied to keep the common case (no tint) cheap.
  */
-export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelProps) {
+export function GltfModel({ url, scale = 1, tint, finishOverrides, reflective }: GltfModelProps) {
   // Asset detail (mesh/texture LOD) is decoupled from render effects: it
   // follows `assetTier` when explicitly set, else the render `qualityTier`.
   const renderTier = useStore((s) => s.qualityTier)
@@ -111,6 +116,10 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
   // leak GPU memory each time they re-run or the component unmounts.
   const tintMatsRef = useRef<Material[]>([])
   const finishMatsRef = useRef<Material[]>([])
+  const [mirrorPlane, setMirrorPlane] = useState<MirrorPlane | null>(null)
+  // Real reflections only on High/Maximum (mirrorReflectorConfig gates this).
+  const reflectorCfg = mirrorReflectorConfig(renderTier)
+  const wantMirror = !!reflective && reflectorCfg.real
 
   // Cache footprint, keyed by the base (high-tier) url so collision is
   // consistent across tiers. Simplified low/medium variants can shift the bbox
@@ -312,7 +321,58 @@ export function GltfModel({ url, scale = 1, tint, finishOverrides }: GltfModelPr
     [],
   )
 
-  return <primitive object={cloned} scale={scale} dispose={null} />
+  // Reflective surface: detect the model's largest flat mesh, hide it, and let
+  // the overlaid <MeshReflectorMaterial> plane below replace it with a true
+  // planar reflection. Restores the hidden mesh when toggled off / on unmount.
+  useEffect(() => {
+    if (!wantMirror) {
+      setMirrorPlane(null)
+      return
+    }
+    const plane = detectMirrorPlane(cloned)
+    setMirrorPlane(plane)
+    if (!plane) return
+    const hidden = hideMirrorMesh(cloned, plane)
+    return () => {
+      for (const m of hidden) m.visible = true
+    }
+  }, [cloned, wantMirror])
+
+  return (
+    <group scale={scale}>
+      <primitive object={cloned} dispose={null} />
+      {wantMirror && mirrorPlane ? (
+        <ReflectorOverlay plane={mirrorPlane} resolution={reflectorCfg.resolution} />
+      ) : null}
+    </group>
+  )
+}
+
+/** A flat reflector plane fitted to a detected GLB mirror surface. The plane's
+ *  default normal is +Z; rotate so it faces the surface's thin (normal) axis,
+ *  and size it to the two large bbox extents. */
+function ReflectorOverlay({ plane, resolution }: { plane: MirrorPlane; resolution: number }) {
+  const { center, axis, sx, sy, sz } = plane
+  const rotation: [number, number, number] =
+    axis === 'x' ? [0, Math.PI / 2, 0] : axis === 'y' ? [-Math.PI / 2, 0, 0] : [0, 0, 0]
+  // Plane local X/Y → world extents depend on which axis is the normal.
+  const args: [number, number] = axis === 'x' ? [sz, sy] : axis === 'y' ? [sx, sz] : [sx, sy]
+  return (
+    <mesh position={center} rotation={rotation}>
+      <planeGeometry args={args} />
+      <MeshReflectorMaterial
+        resolution={resolution}
+        mirror={1}
+        blur={[0, 0]}
+        mixBlur={0}
+        mixStrength={1.1}
+        roughness={0}
+        metalness={0}
+        color="#dfe8ee"
+        side={2}
+      />
+    </mesh>
+  )
 }
 
 /** Preload helper called from app boot for high-frequency models. */

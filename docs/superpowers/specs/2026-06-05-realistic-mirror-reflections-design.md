@@ -56,3 +56,26 @@ reflection with correct parallax. Chosen over a CubeCamera environment probe
 - Unit test the pure tier→reflector-config selection.
 - In-app (High): place a mirror facing furniture, confirm the reflection shows
   the real room; confirm Performance still renders the fake pane (no regression).
+
+## Follow-up (shipped): user-uploaded mirrors
+
+Uploaded GLB models render through `GltfModel` (imperative material path), not
+the built-in pane primitives, so they need their own hook:
+
+- **Inspector toggle** "Reflective surface (mirror)" on every GLB item
+  (`ui/inspector/GltfBody.tsx`), stored as `props.reflective` (`1`/`0`, so it
+  round-trips through the existing `props` serializer — no schema change), read
+  in `gltfRender.ts` → `GltfModel`.
+- **`furniture/gltf/mirrorPlane.ts`**: `pickMirrorPlane` (pure, unit-tested)
+  picks the largest near-flat mesh (thin axis < 25% of the larger face) as the
+  mirror; `detectMirrorPlane` runs it over the cloned GLB; `hideMirrorMesh`
+  hides the original surface.
+- **`GltfModel`**: when `reflective` + High/Maximum, detects the plane, hides the
+  original mesh, and overlays a `MeshReflectorMaterial` plane fitted to the
+  detected bounds + normal (reuses the same reflector as the built-ins). Gated
+  by `mirrorReflectorConfig`; off-tier or no-flat-mesh → unchanged model.
+- **Limitation (by design choice):** zero-config auto-pick of the largest flat
+  mesh works for a typical single-pane mirror upload; a complex multi-mesh model
+  may pick a different flat slab. Verified end-to-end via High-vs-Performance
+  comparison (original surface hidden + reflector overlaid on High; raw mesh on
+  Performance).

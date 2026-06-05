@@ -13,6 +13,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
   const updateItemProps = useStore((s) => s.updateItemProps)
   const scale = typeof item.props['scale'] === 'number' ? item.props['scale'] : (def.scale ?? 1)
   const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : ''
+  const reflective = item.props['reflective'] === 1
 
   return (
     <div className="space-y-2">
@@ -46,6 +47,20 @@ export function GltfBody({ item, def }: GltfBodyProps) {
           </button>
         ) : null}
       </label>
+      <label className="flex items-center gap-2 text-xs">
+        <input
+          type="checkbox"
+          checked={reflective}
+          onChange={(e) => updateItemProps(item.id, { reflective: e.target.checked ? 1 : 0 })}
+        />
+        <span className="flex-1">Reflective surface (mirror)</span>
+      </label>
+      {reflective ? (
+        <p className="text-[10px] text-[var(--text-3)]">
+          Reflects the room on the High / Maximum graphics tiers; the model's largest flat face
+          becomes the mirror.
+        </p>
+      ) : null}
       {/* Built-in attribution + licence is rendered once by <SourceLine> in
           InspectorPanel (with a source link), so it's not repeated here. */}
       {def.source === 'user' ? (

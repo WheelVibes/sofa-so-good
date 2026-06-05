@@ -40,6 +40,13 @@ IKEA model folders (a `metadata.json` plus `<finish>.glb` files) are
 **auto‑detected** and imported as one catalog card per product, with selectable
 finishes.
 
+### Make an uploaded mirror reflect
+
+Select an imported model and turn on **Reflective surface (mirror)** in the
+inspector. On the **High / Maximum** graphics tiers the model's largest flat face
+becomes a true mirror that reflects the room (great for an uploaded mirror or
+glass model). On lower tiers it stays a normal surface.
+
 > **Worked example — an OBJ chair**
 > 1. Select the chair's `.obj`, its `.mtl`, and all referenced texture images
 >    together (drag them in as one selection or drop the containing folder).
