@@ -1,6 +1,7 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /**
  * Dressing table / vanity — a slim table with a drawer or two and a standing
@@ -9,6 +10,7 @@ import { readNum, readStr } from './shared'
  */
 export function Vanity({ props }: { props: ParamProps }) {
   const width = readNum(props, 'width', 1.0)
+  const detail = useDetail()
   const depth = readNum(props, 'depth', 0.42)
   const color = readStr(props, 'color', '#e7ddca')
   const finish = readStr(props, 'finish', 'painted')
@@ -64,10 +66,10 @@ export function Vanity({ props }: { props: ParamProps }) {
       {mirror === 'round' ? (
         <group position={[0, mY, -depth / 2 + 0.04]}>
           <mesh castShadow rotation={[Math.PI / 2, 0, 0]} material={wood}>
-            <cylinderGeometry args={[mR, mR, 0.04, 32]} />
+            <cylinderGeometry args={[mR, mR, 0.04, seg(32, detail)]} />
           </mesh>
           <mesh position={[0, 0, 0.025]}>
-            <circleGeometry args={[mR - 0.03, 32]} />
+            <circleGeometry args={[mR - 0.03, seg(32, detail)]} />
             <meshStandardMaterial {...glass} />
           </mesh>
           {/* support post — bridges the table top up to the mirror centre */}

@@ -1,10 +1,12 @@
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Corner shower: low tray + two glass panels + wall riser with head and
  *  mixer. The glass faces +X/+Z (open corner toward −X/−Z walls). */
 export function Shower({ props }: { props: ParamProps }) {
   const size = readNum(props, 'size', 0.9)
+  const detail = useDetail()
   const trayColor = readStr(props, 'trayColor', '#eceae6')
   const style = readStr(props, 'style', 'corner')
   const corner = style === 'corner'
@@ -28,7 +30,7 @@ export function Shower({ props }: { props: ParamProps }) {
       </mesh>
       {/* Drain */}
       <mesh position={[0, 0.085, 0]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.05, 0.05, 0.01, 16]} />
+        <cylinderGeometry args={[0.05, 0.05, 0.01, seg(16, detail)]} />
         <meshStandardMaterial {...chrome} />
       </mesh>
       {/* Glass panels on the two open sides (+X and +Z) */}
@@ -68,7 +70,7 @@ export function Shower({ props }: { props: ParamProps }) {
       </mesh>
       {/* Shower head */}
       <mesh position={[-half + 0.18, 1.85, -half + 0.18]} rotation={[Math.PI / 2, 0, 0]}>
-        <cylinderGeometry args={[0.07, 0.07, 0.03, 18]} />
+        <cylinderGeometry args={[0.07, 0.07, 0.03, seg(18, detail)]} />
         <meshStandardMaterial {...chrome} />
       </mesh>
       {/* Mixer */}
