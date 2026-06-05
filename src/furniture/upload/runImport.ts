@@ -12,6 +12,9 @@ export interface ImportPlan {
   looseCategory: FurnitureCategory
   mounted: boolean
   noClip: boolean
+  /** OR each loose file's filename-inferred mounted/noClip onto the batch flags.
+   *  Default on (treated as true when omitted). */
+  autoDetect?: boolean
   /** Opt-in KTX2/UASTC texture encode for the optimize pass (falls back to WebP). */
   ktx2?: boolean
 }
@@ -104,6 +107,7 @@ export async function runImport(
         category: plan.looseCategory,
         mounted: plan.mounted,
         noClip: plan.noClip,
+        autoDetect: plan.autoDetect,
         allFiles: plan.files,
         ktx2: plan.ktx2,
       },

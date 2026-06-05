@@ -4,6 +4,7 @@ import { detectModelFormat, isModelEntryFile } from '../convert/formats'
 import { runOptimize } from '../optimize/runOptimize'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashFile } from './hashFile'
+import { inferCollisionFlags } from './inferFlags'
 import { persistUserGlb } from './persist'
 
 /** How many built defs to commit to the store per write during a bulk import.
@@ -15,6 +16,9 @@ export interface BulkImportOptions {
   category: FurnitureCategory
   mounted?: boolean
   noClip?: boolean
+  /** OR each file's filename-inferred mounted/noClip onto the batch flags above
+   *  (rug→noClip, pendant/sconce/wall-art→mounted). Default on. */
+  autoDetect?: boolean
   concurrency?: number
   /** Every dropped file, for sibling (.mtl/.bin/texture) resolution when a
    *  non-GLB model references external files. Defaults to the imported files. */
@@ -166,11 +170,17 @@ export async function importGlbFiles(
         }
         seenHashes.add(contentHash)
         const prepared = await prepareGlb(job.file, job.dir, allFiles, ktx2)
+        // Per-file collision inference (rug→noClip, pendant/wall-art→mounted),
+        // OR'd with the batch flags. Gated by autoDetect (default on).
+        const inferred =
+          (opts.autoDetect ?? true)
+            ? inferCollisionFlags(job.name)
+            : { mounted: false, noClip: false }
         const result = await persistUserGlb(prepared, {
           name: job.name,
           category: opts.category,
-          mounted: opts.mounted,
-          noClip: opts.noClip,
+          mounted: opts.mounted || inferred.mounted,
+          noClip: opts.noClip || inferred.noClip,
           contentHash,
           commit: false,
         })

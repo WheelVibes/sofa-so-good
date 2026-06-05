@@ -28,7 +28,12 @@ import runs entirely **in your browser** — nothing is uploaded to a server.
    **Choose folder…**.
 3. Pick a **Category** (leave it on **Auto** to auto‑detect; IKEA group folders
    keep their own detected category).
-4. Import runs as a **background job** with a progress bar — you can close the
+4. Leave **Auto‑detect collision from filename** on (default) and a mixed drop
+   gets sensible collision per file — a `rug`/`mat`/`carpet` lies flat under
+   furniture, a `pendant`/`sconce`/`wall‑art`/`range‑hood` mounts to the wall —
+   without tagging each one. The **Wall / ceiling mounted** and **Flat floor
+   covering** checkboxes still force those flags on the whole batch.
+5. Import runs as a **background job** with a progress bar — you can close the
    dialog and keep working while it finishes.
 
 IKEA model folders (a `metadata.json` plus `<finish>.glb` files) are

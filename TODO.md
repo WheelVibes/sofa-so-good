@@ -24,9 +24,13 @@ plan: [docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md](docs
 - ~~**Imported-model catalog citizenship**~~ — user GLBs already render as
   categorized, searchable, placeable cards; mounted/noClip + finishTargets/
   finishOverrides persist through IDB meta + save schema.
-- Follow-ups: **per-file mounted/noClip on bulk import** (currently one choice
-  per batch); **thumbnail capture for user GLBs** (name-only card today);
+- Follow-ups: **thumbnail capture for user GLBs** (name-only card today);
   verify the runtime Draco CDN fetch behind the prod reverse-proxy / CSP.
+  (~~per-file mounted/noClip on bulk import~~ — done a better way than per-file
+  UI (impractical for 1000-file drops): `inferCollisionFlags` auto-detects
+  mounted/rug per file from its name (`furniture/upload/inferFlags.ts`), OR'd
+  with the batch checkboxes, toggled by a default-on "Auto-detect …" option in
+  the Upload dialog. Applies to the bulk + single-file paths; unit-tested.)
   (~~dispose replaced materials~~ in GltfModel tint/finish effects — done; both
   effects now track the clones they own and free the prior generation before
   reassigning, plus free all owned clones on unmount.)

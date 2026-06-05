@@ -10,6 +10,7 @@ import { mapCategory } from '../../furniture/ikea/translate'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { isModelFile, modelName, prepareModelFile } from '../../furniture/upload/bulkImport'
 import { hashFile } from '../../furniture/upload/hashFile'
+import { inferCollisionFlags } from '../../furniture/upload/inferFlags'
 import { persistUserGlb } from '../../furniture/upload/persist'
 import { readDroppedItems } from '../../furniture/upload/readDrop'
 import { startBackgroundImport } from '../../furniture/upload/runImport'
@@ -69,6 +70,10 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   const [category, setCategory] = useState<FurnitureCategory | 'auto'>('auto')
   const [mounted, setMounted] = useState(false)
   const [noClip, setNoClip] = useState(false)
+  // Per-file collision inference from filenames (rug→noClip, wall-art→mounted),
+  // OR'd with the batch checkboxes above. On by default so a mixed folder drop
+  // gets sensible flags without manual tagging.
+  const [autoDetect, setAutoDetect] = useState(true)
   // Opt-in: route the optimize pass through the KTX2/UASTC encoder (falls back
   // to WebP when the encoder is unavailable, so it's safe to leave on).
   const [ktx2, setKtx2] = useState(false)
@@ -136,6 +141,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setCategory('auto')
     setMounted(false)
     setNoClip(false)
+    setAutoDetect(true)
     setKtx2(false)
     setError(null)
     setBusy(false)
@@ -196,11 +202,14 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
         // same file is recognised regardless of optimizer non-determinism.
         const contentHash = await hashFile(files[0])
         const prepared = await prepareModelFile(files[0], files, ktx2)
+        const inferred = autoDetect
+          ? inferCollisionFlags(files[0].name)
+          : { mounted: false, noClip: false }
         const r = await persistUserGlb(prepared, {
           name: name.trim(),
           category: looseCategory,
-          mounted,
-          noClip,
+          mounted: mounted || inferred.mounted,
+          noClip: noClip || inferred.noClip,
           contentHash,
         })
         setBusy(false)
@@ -223,7 +232,15 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     // Everything else (groups and/or many loose files) imports in the
     // background: kick off a tracked job, then close the modal immediately so
     // the user can keep working while a persistent progress widget runs.
-    startBackgroundImport({ files, groups: ikeaGroups, looseCategory, mounted, noClip, ktx2 })
+    startBackgroundImport({
+      files,
+      groups: ikeaGroups,
+      looseCategory,
+      mounted,
+      noClip,
+      autoDetect,
+      ktx2,
+    })
     doClose()
   }
 
@@ -393,6 +410,15 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                     disabled={busy}
                   />
                   Flat floor covering (rug — never collides)
+                </label>
+                <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
+                  <input
+                    type="checkbox"
+                    checked={autoDetect}
+                    onChange={(e) => setAutoDetect(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Auto-detect collision from filename (rug → no-clip, wall-art → mounted)
                 </label>
               </>
             ) : null}
