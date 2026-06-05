@@ -1,5 +1,6 @@
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /**
  * Ceiling-hung trailing plant — a pot on three cords with cascading foliage.
@@ -8,6 +9,7 @@ import { readNum, readStr } from './shared'
  */
 export function HangingPlant({ props }: { props: ParamProps }) {
   const mountH = readNum(props, 'mountHeight', 2.45)
+  const detail = useDetail()
   const drop = readNum(props, 'drop', 0.4)
   const potColor = readStr(props, 'potColor', '#cdbb9a')
   const leafColor = readStr(props, 'leafColor', '#4a7a44')
@@ -37,7 +39,7 @@ export function HangingPlant({ props }: { props: ParamProps }) {
       })}
       {/* Pot */}
       <mesh castShadow position={[0, potY, 0]}>
-        <cylinderGeometry args={[potR, potR * 0.8, potH, 16]} />
+        <cylinderGeometry args={[potR, potR * 0.8, potH, seg(16, detail)]} />
         <meshStandardMaterial color={potColor} roughness={0.8} />
       </mesh>
       {/* Mounded foliage on top */}

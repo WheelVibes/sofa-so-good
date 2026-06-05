@@ -5,12 +5,14 @@ import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
 import { useAnimatedSource } from '../../scene/useAnimatedSource'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Ceiling fan with a downrod, motor housing, spinning blades, and an
  *  integrated light. Mounted near the ceiling (group offset up in Y). */
 export function CeilingFan({ props }: { props: ParamProps }) {
   const bladeCount = Math.max(2, Math.floor(readNum(props, 'blades', 3)))
   const span = readNum(props, 'span', 1.3) // tip-to-tip diameter
+  const detail = useDetail()
   const mountH = readNum(props, 'mountHeight', 2.5)
   const bladeColor = readStr(props, 'bladeColor', '#6b4f34')
   const bladesRef = useRef<Group>(null)
@@ -34,12 +36,14 @@ export function CeilingFan({ props }: { props: ParamProps }) {
       </mesh>
       {/* Motor housing */}
       <mesh castShadow position={[0, 0, 0]}>
-        <cylinderGeometry args={[0.1, 0.12, 0.12, 20]} />
+        <cylinderGeometry args={[0.1, 0.12, 0.12, seg(20, detail)]} />
         <meshStandardMaterial color="#d8d8d4" roughness={0.4} metalness={0.5} />
       </mesh>
       {/* Light */}
       <mesh position={[0, -0.09, 0]}>
-        <sphereGeometry args={[0.07, 16, 10, 0, Math.PI * 2, 0, Math.PI / 2]} />
+        <sphereGeometry
+          args={[0.07, seg(16, detail), seg(10, detail), 0, Math.PI * 2, 0, Math.PI / 2]}
+        />
         <meshStandardMaterial
           ref={lightRef}
           color="#fff3da"

@@ -1,12 +1,14 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
 import { readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Bathroom basin with a chrome mixer tap. `style` picks the support: a
  *  classic 'pedestal', a 'vanity' counter cabinet (with doors), or a
  *  'wall-hung' basin on a bottle trap. Faces +Z. */
 export function BathroomSink({ props }: { props: ParamProps }) {
   const color = readStr(props, 'color', '#f4f4f1')
+  const detail = useDetail()
   const style = readStr(props, 'style', 'pedestal')
   const cabinetColor = readStr(props, 'cabinetColor', '#8a6b48')
   const cabinetFinish = readStr(props, 'cabinetFinish', 'wood')
@@ -57,7 +59,7 @@ export function BathroomSink({ props }: { props: ParamProps }) {
           <meshStandardMaterial {...porcelain} />
         </mesh>
         <mesh position={[0, cabH + 0.05, 0.02]}>
-          <cylinderGeometry args={[0.17, 0.12, 0.08, 24]} />
+          <cylinderGeometry args={[0.17, 0.12, 0.08, seg(24, detail)]} />
           <meshStandardMaterial color="#e2e2de" roughness={0.2} />
         </mesh>
         {tap}
@@ -70,11 +72,11 @@ export function BathroomSink({ props }: { props: ParamProps }) {
       <group>
         {/* Basin bowl floating at counter height */}
         <mesh castShadow receiveShadow position={[0, basinY, 0]}>
-          <cylinderGeometry args={[0.24, 0.18, 0.16, 28]} />
+          <cylinderGeometry args={[0.24, 0.18, 0.16, seg(28, detail)]} />
           <meshStandardMaterial {...porcelain} />
         </mesh>
         <mesh position={[0, basinY + 0.04, 0]}>
-          <cylinderGeometry args={[0.2, 0.13, 0.1, 28]} />
+          <cylinderGeometry args={[0.2, 0.13, 0.1, seg(28, detail)]} />
           <meshStandardMaterial color="#e2e2de" roughness={0.2} />
         </mesh>
         {/* Chrome bottle trap below */}
@@ -95,11 +97,11 @@ export function BathroomSink({ props }: { props: ParamProps }) {
         <meshStandardMaterial {...porcelain} />
       </mesh>
       <mesh castShadow position={[0, basinY, 0]}>
-        <cylinderGeometry args={[0.22, 0.16, 0.16, 24]} />
+        <cylinderGeometry args={[0.22, 0.16, 0.16, seg(24, detail)]} />
         <meshStandardMaterial {...porcelain} />
       </mesh>
       <mesh position={[0, basinY + 0.04, 0]}>
-        <cylinderGeometry args={[0.18, 0.12, 0.1, 24]} />
+        <cylinderGeometry args={[0.18, 0.12, 0.1, seg(24, detail)]} />
         <meshStandardMaterial color="#e2e2de" roughness={0.2} />
       </mesh>
       {tap}

@@ -4,12 +4,14 @@ import type { Group } from 'three'
 import { useAnimatedSource } from '../../scene/useAnimatedSource'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
+import { seg, useDetail } from './useDetail'
 
 /** Pedestal / standing fan — a near-universal Singapore-home fixture: round
  *  weighted base, telescopic pole, and a circular head (hub + blades behind a
  *  wire guard). Faces +Z (blows toward +Z). */
 export function StandingFan({ props }: { props: ParamProps }) {
   const headH = readNum(props, 'height', 1.1)
+  const detail = useDetail()
   const bodyColor = readStr(props, 'bodyColor', '#e8e6e1')
   const bladeColor = readStr(props, 'bladeColor', '#dcddd8')
 
@@ -28,7 +30,7 @@ export function StandingFan({ props }: { props: ParamProps }) {
     <group>
       {/* Weighted base */}
       <mesh castShadow receiveShadow position={[0, 0.025, 0]}>
-        <cylinderGeometry args={[0.24, 0.27, 0.05, 28]} />
+        <cylinderGeometry args={[0.24, 0.27, 0.05, seg(28, detail)]} />
         <meshStandardMaterial {...body} />
       </mesh>
       {/* Pole */}
@@ -40,14 +42,14 @@ export function StandingFan({ props }: { props: ParamProps }) {
       <group position={[0, headH, 0]} rotation={[-0.12, 0, 0]}>
         {/* Rear motor housing */}
         <mesh castShadow position={[0, 0, -0.08]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.07, 0.08, 0.12, 20]} />
+          <cylinderGeometry args={[0.07, 0.08, 0.12, seg(20, detail)]} />
           <meshStandardMaterial {...body} />
         </mesh>
         {/* Spinning hub + blades (rotates about the fan's local Z axis) */}
         <group ref={bladesRef} position={[0, 0, 0.01]}>
           {/* Hub */}
           <mesh rotation={[Math.PI / 2, 0, 0]}>
-            <cylinderGeometry args={[0.045, 0.045, 0.04, 16]} />
+            <cylinderGeometry args={[0.045, 0.045, 0.04, seg(16, detail)]} />
             <meshStandardMaterial color="#9a9c98" roughness={0.4} metalness={0.5} />
           </mesh>
           {/* Five blades fanning around the hub */}
@@ -67,11 +69,11 @@ export function StandingFan({ props }: { props: ParamProps }) {
         </group>
         {/* Wire guard (front + rim) */}
         <mesh position={[0, 0, 0.04]} rotation={[Math.PI / 2, 0, 0]}>
-          <torusGeometry args={[r, 0.012, 8, 32]} />
+          <torusGeometry args={[r, 0.012, seg(8, detail), seg(32, detail)]} />
           <meshStandardMaterial {...guard} />
         </mesh>
         <mesh position={[0, 0, 0.04]}>
-          <torusGeometry args={[r * 0.6, 0.008, 8, 28]} />
+          <torusGeometry args={[r * 0.6, 0.008, seg(8, detail), seg(28, detail)]} />
           <meshStandardMaterial {...guard} />
         </mesh>
       </group>
