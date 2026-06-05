@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest'
 import { INTERIOR_AREA_M2 } from '../apartment/constants'
 import { buildDefaultPlan } from './defaultPlan'
 import { PLAN_TEMPLATES } from './templates'
-import { planRoomArea, planTotalArea, wallLength } from './types'
+import {
+  planRoomArea,
+  planTotalArea,
+  pointInPolygon,
+  pointInRoom,
+  polygonArea,
+  roomPolygon,
+  wallLength,
+} from './types'
 
 describe('floor plan model', () => {
   it('builds a default plan from the fixed flat', () => {
@@ -37,6 +45,65 @@ describe('floor plan model', () => {
 
   it('measures wall length', () => {
     expect(wallLength({ id: 'w', start: [0, 0], end: [3, 4], thickness: 'internal' })).toBe(5)
+  })
+
+  it('computes polygon area via shoelace (incl. an L-shape notch)', () => {
+    // A 4x4 square.
+    expect(
+      polygonArea([
+        [0, 0],
+        [4, 0],
+        [4, 4],
+        [0, 4],
+      ]),
+    ).toBe(16)
+    // An L: 4x4 square minus a 2x2 corner notch = 12.
+    expect(
+      polygonArea([
+        [0, 0],
+        [4, 0],
+        [4, 2],
+        [2, 2],
+        [2, 4],
+        [0, 4],
+      ]),
+    ).toBe(12)
+  })
+
+  it('point-in-polygon respects the L notch', () => {
+    const L: [number, number][] = [
+      [0, 0],
+      [4, 0],
+      [4, 2],
+      [2, 2],
+      [2, 4],
+      [0, 4],
+    ]
+    expect(pointInPolygon(1, 1, L)).toBe(true) // inside the main body
+    expect(pointInPolygon(3, 3, L)).toBe(false) // inside the cut-out notch
+  })
+
+  it('planRoomArea + pointInRoom use the explicit polygon when present', () => {
+    const room = {
+      id: 'p',
+      name: 'Poly',
+      origin: [0, 0] as [number, number],
+      width: 4,
+      depth: 4,
+      polygon: [
+        [0, 0],
+        [4, 0],
+        [4, 2],
+        [2, 2],
+        [2, 4],
+        [0, 4],
+      ] as [number, number][],
+    }
+    expect(planRoomArea(room)).toBe(12) // not 16 (the bbox)
+    expect(pointInRoom(room, 1, 1)).toBe(true)
+    expect(pointInRoom(room, 3, 3)).toBe(false) // in the notch
+    // roomPolygon returns the explicit outline verbatim.
+    expect(roomPolygon(room)).toHaveLength(6)
   })
 })
 

@@ -3,7 +3,7 @@ import type { RoomId } from '../apartment/types'
 import { canPlace } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { planCollisionWalls } from '../floorplan/planGeometry'
-import { type FloorPlan, type PlanRoom, wallLength } from '../floorplan/types'
+import { type FloorPlan, type PlanRoom, pointInRoom, wallLength } from '../floorplan/types'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { doorSwingRects } from './clearance'
 import { CLEARANCE } from './designRules'
@@ -983,17 +983,10 @@ function planRoomRect(r: PlanRoom): Rect {
   }
 }
 
-/** Is a point inside a plan room (main rect or its L-shape extension)? */
+/** Is a point inside a plan room (polygon-aware: explicit polygon, else the
+ *  main rect + its L-shape extension)? */
 function pointInPlanRoom(r: PlanRoom, x: number, z: number): boolean {
-  const inMain =
-    x >= r.origin[0] && x <= r.origin[0] + r.width && z >= r.origin[1] && z <= r.origin[1] + r.depth
-  if (inMain) return true
-  if (r.extension) {
-    const ex = r.origin[0] + r.extension.offset[0]
-    const ez = r.origin[1] + r.extension.offset[1]
-    return x >= ex && x <= ex + r.extension.width && z >= ez && z <= ez + r.extension.depth
-  }
-  return false
+  return pointInRoom(r, x, z)
 }
 
 /** Classify a custom room from the items currently in it. */
