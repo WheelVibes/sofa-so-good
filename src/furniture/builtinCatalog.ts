@@ -975,6 +975,32 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'toy-storage': {
+    kind: 'parametric',
+    id: 'toy-storage',
+    name: 'Toy storage organiser',
+    category: 'kids',
+    primitive: 'ToyStorage',
+    // Footprint sized for the default 3×2 grid of cubbies; collision uses this box.
+    defaultFootprint: { w: 1.0, d: 0.34, h: 0.68 },
+    paramSchema: [
+      { kind: 'integer', key: 'cols', label: 'Columns', min: 1, max: 4, default: 3 },
+      { kind: 'integer', key: 'rows', label: 'Rows', min: 1, max: 3, default: 2 },
+      { kind: 'color', key: 'color', label: 'Frame colour', default: '#d7bfa0' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    ],
+  },
   'cube-shelf': {
     kind: 'parametric',
     id: 'cube-shelf',
@@ -3929,7 +3955,12 @@ export const BUILTIN_BY_CATEGORY: Readonly<Record<FurnitureCategory, FurnitureDe
   Object.freeze(
     (Object.values(BUILTIN_CATALOG) as FurnitureDef[]).reduce(
       (acc, def) => {
-        ;(acc[def.category] ??= []).push(def)
+        let list = acc[def.category]
+        if (!list) {
+          list = []
+          acc[def.category] = list
+        }
+        list.push(def)
         return acc
       },
       {} as Record<FurnitureCategory, FurnitureDef[]>,

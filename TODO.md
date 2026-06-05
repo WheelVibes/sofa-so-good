@@ -192,7 +192,9 @@ flats) shipped — see
   [src/furniture/primitives/Crib.tsx](src/furniture/primitives/Crib.tsx).
   Arranger treats it as a `bed` (wall-flush). ~~Nursery preset~~ — "Family
   Nursery" re-models Bedroom 3 (crib + changing dresser + nursing chair with
-  arc lamp). Follow-up: changing table, highchair, toy storage.
+  arc lamp). (~~changing table~~, ~~highchair~~, ~~toy storage~~ — all shipped;
+  toy storage is `ToyStorage` (`category: 'kids'`, the first kids-category item
+  — a low cubby organiser with bright fabric bins).)
 - ~~Per-room researched preset layouts~~ — `buildPresetItems` now supports a
   `rooms: Partial<Record<RoomId, LayoutEntry[]>>` override (the old
   `livingDining` field is sugar for `rooms.livingDining`); each listed room's
