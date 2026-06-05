@@ -68,9 +68,15 @@ plan:
   generic strategies, Finish-picker button. ~~Asset mirror-flip~~ (F / Shift+F).
 - ~~**Default lounge re-oriented**~~ — sofa faces the (windowless) east TV
   wall; coffee table long-side parallel to the sofa.
-- Follow-up: extend the arranger with kitchen/bath-specific templates (work
-  triangle / fixture order); run it over the researched presets so their
-  bedrooms are auto-spaced. (~~desk-chair-at-desk rule~~ — done; `placeDeskChairs`
+- Follow-up: run the arranger over the researched presets so their bedrooms are
+  auto-spaced. (~~kitchen/bath arrange templates~~ — done; `roomKind` now routes
+  the kitchen to `arrangeKitchen` (counters flush largest-first, then fridge +
+  stove biased to opposite ends of the longest wall run so the counter sink sits
+  between them — refrigerator→sink→range work triangle) and bath1/bath2 to
+  `arrangeFixtures` (fixtures flush to walls largest-first, clear of door swings
+  via `keepOut`). New `counter`/`fridge`/`stove`/`fixture` roles; custom plans
+  detect kitchen/bath in `roomKindFromItems` too. Unit-tested + verified in-app.)
+  (~~desk-chair-at-desk rule~~ — done; `placeDeskChairs`
   now runs in the living/dining strategies too (was bedroom/generic only), and
   its offset is footprint-derived (½ desk depth + ½ chair depth + clearance) so
   the chair tucks just in front facing the desk instead of overlapping its solid
@@ -374,9 +380,10 @@ Shipped (all tested + pushed):
 - ~~Edge-generic living arranger~~ for custom plans (any TV wall) ·
   ~~wall mirror~~, ~~floor vase~~, ~~high chair~~, ~~changing table~~.
 
-Remaining ideas: crown molding (ceiling cornice); kitchen work-triangle /
-bath fixture-order arrange templates; herringbone/parquet floor (needs a
-seamless tiler); real planar mirror reflections (cost).
+Remaining ideas: crown molding (ceiling cornice); herringbone/parquet floor
+(needs a seamless tiler); real planar mirror reflections (cost). (~~kitchen
+work-triangle / bath fixture-order arrange templates~~ — done; see the Layout /
+placement section.)
 
 ## IKEA model import (2026-05-31)
 

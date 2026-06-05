@@ -40,7 +40,11 @@ one and the piece re‑renders with that material.
 
 The finish picker includes a **Tidy up room** button that auto‑arranges the
 furniture in the current room against the interior‑design rules (storage and
-beds flush to walls, seating facing the TV, walkways kept clear).
+beds flush to walls, seating facing the TV, walkways kept clear). The arranger
+adapts to the room: bedrooms centre the bed with flanking nightstands, the
+**kitchen** brackets the fridge and stove at opposite ends of the counter run
+(a refrigerator → sink → range work triangle), and **bathrooms** flush the
+fixtures to the walls largest‑first, clear of the door swing.
 
 > **Example — a marble living room with a feature wall**
 > 1. Click the living‑room floor → choose a marble finish.

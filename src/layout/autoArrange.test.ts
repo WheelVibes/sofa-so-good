@@ -86,6 +86,25 @@ describe('arrangeRoom', () => {
     expect(kitchenAfter.length).toBe(kitchenBefore.length)
   })
 
+  it('kitchen work triangle: fridge and stove bracket opposite ends', () => {
+    const out = arrangeRoom('kitchen', hydrate(), BUILTIN_CATALOG, {})
+    assertValid(out)
+    const fridge = out.find((i) => i.defId === 'refrigerator' && roomOf(i.position) === 'kitchen')
+    const stove = out.find((i) => i.defId === 'stove' && roomOf(i.position) === 'kitchen')
+    expect(fridge).toBeDefined()
+    expect(stove).toBeDefined()
+    // Biased to opposite ends of the longest (x) wall run so the sink between
+    // them forms the work triangle — they should be well separated, not crowded.
+    expect(Math.abs(fridge!.position[0] - stove!.position[0])).toBeGreaterThan(1.2)
+  })
+
+  it('bathrooms arrange collision-valid with fixtures flush to walls', () => {
+    for (const room of ['bath1', 'bath2'] as const) {
+      const out = arrangeRoom(room, hydrate(), BUILTIN_CATALOG, {})
+      assertValid(out)
+    }
+  })
+
   it('arrangeAllRooms produces a collision-valid whole-home layout', () => {
     const out = arrangeAllRooms(hydrate(), BUILTIN_CATALOG, {})
     expect(out.length).toBe(hydrate().length)
