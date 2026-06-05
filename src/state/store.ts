@@ -65,6 +65,11 @@ import {
   USER_ASSETS_INITIAL,
   type UserAssetsSlice,
 } from './slices/userAssetsSlice'
+import {
+  createUserStylesSlice,
+  USER_STYLES_INITIAL,
+  type UserStylesSlice,
+} from './slices/userStylesSlice'
 
 export type { CameraMode } from './slices/cameraSlice'
 export type { Location } from './slices/locationSlice'
@@ -93,7 +98,8 @@ export interface RootState
     InstalledPacksSlice,
     FloorPlanSlice,
     AppearanceSlice,
-    FeaturesSlice {
+    FeaturesSlice,
+    UserStylesSlice {
   __resetForTest: () => void
 }
 
@@ -118,6 +124,7 @@ const INITIAL = {
   ...FLOOR_PLAN_INITIAL,
   ...APPEARANCE_INITIAL,
   ...FEATURES_INITIAL,
+  ...USER_STYLES_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -143,5 +150,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createFloorPlanSlice(set, get, api),
   ...createAppearanceSlice(set, get, api),
   ...createFeaturesSlice(set, get, api),
+  ...createUserStylesSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))

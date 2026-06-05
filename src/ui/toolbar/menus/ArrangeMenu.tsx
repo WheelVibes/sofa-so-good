@@ -48,6 +48,10 @@ export function ArrangeMenu() {
   const setSmartStartOpen = useStore((s) => s.setSmartStartOpen)
   const setFloorFinish = useStore((s) => s.setFloorFinish)
   const setWallFinish = useStore((s) => s.setWallFinish)
+  const userStyles = useStore((s) => s.userStyles)
+  const saveUserStyle = useStore((s) => s.saveUserStyle)
+  const applyUserStyle = useStore((s) => s.applyUserStyle)
+  const deleteUserStyle = useStore((s) => s.deleteUserStyle)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const toggleFloorPlanEditing = useStore((s) => s.toggleFloorPlanEditing)
   const recipes = ikeaSetRecipes()
@@ -130,6 +134,27 @@ export function ArrangeMenu() {
             onClick={() => applyStyle(p, setFloorFinish, setWallFinish)}
           />
         ))}
+
+        <Header>My styles</Header>
+        <Action
+          icon="Style"
+          label="Save current style…"
+          sub="Capture this flat's floor + wall finishes"
+          onClick={() => {
+            const name = window.prompt('Name this style')
+            if (name?.trim()) saveUserStyle(name)
+          }}
+        />
+        {userStyles.map((u) => (
+          <Action
+            key={u.id}
+            icon="Style"
+            label={u.name}
+            sub="Apply saved finishes"
+            onDelete={() => deleteUserStyle(u.id)}
+            onClick={() => applyUserStyle(u.id)}
+          />
+        ))}
       </div>
     </ToolbarMenu>
   )
@@ -150,29 +175,46 @@ function Action({
   sub,
   active,
   onClick,
+  onDelete,
 }: {
   icon: IconName
   label: string
   sub?: string
   active?: boolean
   onClick: () => void
+  /** When set, renders a trailing × that removes the entry (e.g. a saved style). */
+  onDelete?: () => void
 }) {
   const Cmp = Icon[icon]
   return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={onClick}
-      className={`flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-[var(--surface-2)] ${active ? 'bg-[var(--surface-2)]' : ''}`}
+    <div
+      className={`group flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left hover:bg-[var(--surface-2)] ${active ? 'bg-[var(--surface-2)]' : ''}`}
     >
-      <span className="text-[var(--text-2)]">
-        <Cmp width={16} height={16} />
-      </span>
-      <span className="flex-1">
-        <span className="block text-[13px] text-[var(--text)]">{label}</span>
-        {sub ? <span className="block text-[10px] text-[var(--text-3)]">{sub}</span> : null}
-      </span>
-    </button>
+      <button
+        type="button"
+        role="menuitem"
+        onClick={onClick}
+        className="flex flex-1 items-center gap-2.5 text-left"
+      >
+        <span className="text-[var(--text-2)]">
+          <Cmp width={16} height={16} />
+        </span>
+        <span className="flex-1">
+          <span className="block text-[13px] text-[var(--text)]">{label}</span>
+          {sub ? <span className="block text-[10px] text-[var(--text-3)]">{sub}</span> : null}
+        </span>
+      </button>
+      {onDelete ? (
+        <button
+          type="button"
+          aria-label={`Delete ${label}`}
+          onClick={onDelete}
+          className="rounded p-0.5 text-[var(--text-3)] opacity-0 hover:text-[var(--danger)] group-hover:opacity-100"
+        >
+          <Icon.Close width={13} height={13} />
+        </button>
+      ) : null}
+    </div>
   )
 }
 

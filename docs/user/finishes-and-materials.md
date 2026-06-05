@@ -36,6 +36,14 @@ or ambientCG — directly to a piece of furniture. In a selected item's inspecto
 the wood / surface **finish** dropdown lists these as **"CC0 DLC"** options; pick
 one and the piece re‑renders with that material.
 
+## Save your own style
+
+Once a flat's floors and walls look right, open the toolbar **Arrange** menu →
+**My styles** → **Save current style…** and name it. It captures every room's
+floor and wall finish (plus any accent walls). Re-apply it any time from the same
+**My styles** list — applying is undoable, and your saved styles persist across
+sessions. Remove one with the **×** on its row.
+
 ## Tidy up a room
 
 The finish picker includes a **Tidy up room** button that auto‑arranges the

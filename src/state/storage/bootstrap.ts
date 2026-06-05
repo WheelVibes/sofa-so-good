@@ -18,6 +18,7 @@ import { loadEditorPrefs, watchEditorPrefs } from './editorPrefs'
 import { loadFloorPlans, watchFloorPlans } from './floorPlanStore'
 import { hydrate } from './hydrate'
 import { loadQualityPrefs, watchQualityPrefs } from './qualityPrefs'
+import { loadUserStyles, watchUserStyles } from './userStylesPrefs'
 
 let started = false
 
@@ -38,6 +39,8 @@ export async function runBootstrap(): Promise<void> {
     watchEditorPrefs()
     loadFloorPlans()
     watchFloorPlans()
+    loadUserStyles()
+    watchUserStyles()
 
     // Seed the default layout only when hydration produced nothing — must run
     // AFTER hydrate() so an autosaved layout is never clobbered. Then drop the
