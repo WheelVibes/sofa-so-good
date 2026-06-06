@@ -34,10 +34,11 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] RE1. Window glass tint / curtains affecting light (TODO out-of-scope item).
 - [ ] RE2. Inter-room light bleed through open doors (Phase 3 pending).
 - [x] RE3. Basketweave parquet procedural floor (oak + walnut). (CHANGELOG)
+- [x] RE4. Exposed-brick wall finishes (red/white-washed/charcoal). (CHANGELOG)
 
 ## Security
 - [x] S1. BYO-key audit done (keys localStorage-only, not logged/in-schema) + Replicate poll-URL host guard against key exfiltration. (CHANGELOG)
-- [ ] S2. Validate/​sanitize imported file handling paths (already strong; verify caps + magic-byte checks).
+- [x] S2. Verified: GLB upload validation enforces 25MB cap + glTF magic bytes + rejects external-URI glTF (SSRF) — covered by validate.test.ts. No change needed.
 - [x] S3. Dev-gating audit — verified: `visiblePacks`/`activeProviderIds`/`PROD_PROVIDER_IDS` gate all licensed/non-CORS sources out of prod; already covered by registry.test.ts + integration.test.tsx. No leak.
 
 ## TODO.md clearable

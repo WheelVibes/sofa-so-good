@@ -19,6 +19,7 @@ export type ProceduralPattern =
   | 'grasscloth'
   | 'checker'
   | 'parquet'
+  | 'brick'
 
 export interface ProceduralResult {
   albedo: Texture
@@ -459,6 +460,60 @@ function parquetFields(base: [number, number, number], seed: number): Fields {
   return f
 }
 
+/**
+ * Running-bond exposed brick: rows of bricks offset by half a brick each row,
+ * with recessed mortar joints and per-brick colour/value variation. Seamless —
+ * the column count divides the tile and the row count is even so the half-offset
+ * alternation wraps. `base` is the brick colour; mortar is a fixed warm grey.
+ */
+function brickFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 5
+  const cols = 5
+  const bw = S / cols // brick width (px) — divides S → seamless horizontally
+  const rows = 12 // even → the per-row half-offset wraps seamlessly
+  const bh = S / rows // brick height (px)
+  const mortar = Math.max(2, Math.round(S / 110)) // joint thickness (px)
+  const mortarRgb: [number, number, number] = [188, 182, 172]
+  const grain = makeFbm(seed + 5, 3, 26)
+  const hsh = (n: number) => {
+    let t = (n * 2654435761) >>> 0
+    t ^= t >>> 15
+    t = (t * 2246822519) >>> 0
+    return (t >>> 8) / 16777216
+  }
+  for (let y = 0; y < S; y++) {
+    const row = Math.floor(y / bh)
+    const yIn = y - row * bh
+    const offset = (row & 1) * (bw / 2)
+    for (let x = 0; x < S; x++) {
+      const xs = (((x + offset) % S) + S) % S
+      const col = Math.floor(xs / bw)
+      const xIn = xs - col * bw
+      const inMortar = xIn < mortar || xIn > bw - mortar || yIn < mortar || yIn > bh - mortar
+      const i = y * S + x
+      if (inMortar) {
+        const g = grain(x / S, y / S)
+        const c = 0.92 + (g - 0.5) * 0.08
+        setPx(f, i, mortarRgb[0] * c, mortarRgb[1] * c, mortarRgb[2] * c, 0.12, 0.85)
+        continue
+      }
+      const id = row * 53 + col * 17
+      // Per-brick value + warmth variation, plus fine intra-brick speckle.
+      const val = 0.8 + hsh(id) * 0.35
+      const warm = 0.96 + hsh(id + 1) * 0.1
+      const speck = grain(x / S + id, y / S) - 0.5
+      const factor = val * (1 + speck * 0.08)
+      const r = base[0] * factor * warm
+      const g = base[1] * factor
+      const b = base[2] * factor * (2 - warm)
+      // Bricks bulge slightly proud of the mortar; rougher than mortar.
+      setPx(f, i, r, g, b, 0.6 + speck * 0.1, clamp01(0.7 + speck * 0.15))
+    }
+  }
+  return f
+}
+
 const PATTERN_FN: Record<
   ProceduralPattern,
   (base: [number, number, number], seed: number) => Fields
@@ -474,6 +529,7 @@ const PATTERN_FN: Record<
   stripe: stripeFields,
   grasscloth,
   parquet: parquetFields,
+  brick: brickFields,
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only

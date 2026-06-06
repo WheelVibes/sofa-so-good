@@ -247,6 +247,10 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#5a5852',
     'grasscloth',
   ),
+  // Exposed-brick accent walls (running bond + recessed mortar).
+  'wall-brick-red': wallpaper('wall-brick-red', 'Exposed brick', '#9c5a44', 'brick'),
+  'wall-brick-white': wallpaper('wall-brick-white', 'White-washed brick', '#d9d3c8', 'brick'),
+  'wall-brick-charcoal': wallpaper('wall-brick-charcoal', 'Charcoal brick', '#55504c', 'brick'),
 }
 
 export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak'

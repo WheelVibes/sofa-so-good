@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE4] Exposed-brick accent wall finishes
+
+Exposed brick is a staple of interior-design tools and was missing. Added a
+`brick` procedural pattern (`generators.ts`): running-bond rows offset by half a
+brick, recessed mortar joints, per-brick value/warmth variation + fine speckle —
+seamless (column count divides the tile, even row count so the half-offset
+wraps). Three wall finishes: **Exposed brick** (red), **White-washed brick**,
+**Charcoal brick**. Added to both `ProceduralPattern` unions + `PATTERN_FN`.
+Visually verified — convincing brick with clean mortar joints, no seams.
+
 ## [A1] Modal accessibility — dialog role + focus management
 
 The shared `Modal` primitive (used by Help, Share, Swap, Compass, Credits, …)
