@@ -1,6 +1,7 @@
 import { planRoomArea, wallLength } from '../../floorplan/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
+import { useIsMobile } from '../useIsMobile'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
 
@@ -39,6 +40,7 @@ export function PlanInspector() {
   const sel = useStore((s) => s.planSelection)
   const plan = useStore((s) => s.floorPlan)
   const a = useStore.getState()
+  const isMobile = useIsMobile()
 
   let body: React.ReactNode = (
     <div className="flex flex-col gap-3">
@@ -292,7 +294,9 @@ export function PlanInspector() {
       style={{
         borderLeft: '1px solid var(--border)',
         background: 'var(--surface-solid)',
-        position: 'static',
+        // Desktop: a static right-hand column. Mobile: leave position to the
+        // responsive CSS (a bottom sheet) so the canvas gets the full width.
+        position: isMobile ? undefined : 'static',
       }}
     >
       <div className="sec-h" style={{ marginBottom: 'var(--s-3)' }}>

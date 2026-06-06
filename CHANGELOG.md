@@ -10,6 +10,15 @@ Polish for the hide feature: a piece that's both selected and hidden no longer
 shows its rotate gizmo or selection outline floating over the empty spot —
 `RotateGizmo` and `SelectionOutline` now skip hidden items. Verified.
 
+## [Q20b] Floor-plan editor: mobile canvas + bottom-sheet inspector
+
+Follow-up to the open canvas (Q20): on mobile the inspector had an inline
+`position: static` that defeated the responsive bottom-sheet CSS, so it sat as a
+fixed 256px column squeezing the (now-large) canvas to a sliver. Made that inline
+position **desktop-only** (`useIsMobile`) so on mobile the inspector becomes the
+bottom sheet and the canvas spans full width with the plan visible/pannable.
+Desktop column layout unchanged. Verified on a 390px viewport.
+
 ## [Q20] Open pannable grid canvas + cropped plan export
 
 Two fixes from feedback: (1) the floor-plan editor was a tight square sized to
