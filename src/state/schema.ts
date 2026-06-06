@@ -180,6 +180,17 @@ const RawSerializedStateZ = z.object({
   // Optional (added later): fixture-lights mode, so a saved lighting mood's
   // on/off state round-trips. Absent → 'auto' on load.
   lightsMode: z.enum(['auto', 'on', 'off']).optional(),
+  // Optional pinned dimension callouts (persist with the design). Absent → [].
+  annotations: z
+    .array(
+      z.object({
+        id: z.string(),
+        a: z.tuple([z.number(), z.number()]),
+        b: z.tuple([z.number(), z.number()]),
+        shape: z.enum(['line', 'rect']),
+      }),
+    )
+    .optional(),
   cameraMode: z.enum(['orbit', 'firstPerson']),
   orientationDeg: z.number().optional(),
   location: z
@@ -306,6 +317,7 @@ export function serialize(state: RootState): SerializedState {
     timeMode: state.timeMode,
     manualHour: state.manualHour,
     lightsMode: state.lightsMode,
+    ...(state.annotations.length ? { annotations: state.annotations } : {}),
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
     location: state.location,
@@ -357,6 +369,7 @@ export function applySerialized(
     timeMode: state.timeMode,
     manualHour: state.manualHour,
     lightsMode: state.lightsMode ?? 'auto',
+    annotations: state.annotations ?? [],
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,

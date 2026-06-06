@@ -250,6 +250,24 @@ describe('schema', () => {
     expect((patch as { lightsMode?: string }).lightsMode).toBe('auto')
   })
 
+  it('round-trips pinned measurement annotations', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().addAnnotation([0, 0], [3, 2], 'rect')
+    const out = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(out)
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.annotations).toHaveLength(1)
+      expect(parsed.data.annotations?.[0]).toMatchObject({ a: [0, 0], b: [3, 2], shape: 'rect' })
+    }
+    // Legacy save (no annotations) → applySerialized defaults to [].
+    const patch = applySerialized(
+      { ...out, annotations: undefined } as unknown as Parameters<typeof applySerialized>[0],
+      new Set(['bed-double']),
+    )
+    expect((patch as { annotations?: unknown[] }).annotations).toEqual([])
+  })
+
   it('migrates legacy timeOfDay="day" to manual hour 12', () => {
     const legacy = {
       version: 1,

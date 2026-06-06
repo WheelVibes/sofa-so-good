@@ -47,6 +47,25 @@ describe('tape measure', () => {
   })
 })
 
+describe('measurement annotations', () => {
+  beforeEach(() => useStore.setState({ annotations: [] } as never))
+
+  it('adds, removes and clears pinned callouts', () => {
+    const s = () => useStore.getState()
+    s().addAnnotation([0, 0], [3, 0], 'line')
+    s().addAnnotation([1, 1], [4, 5], 'rect')
+    expect(s().annotations).toHaveLength(2)
+    expect(s().annotations[0]).toMatchObject({ a: [0, 0], b: [3, 0], shape: 'line' })
+    expect(s().annotations[0].id).toBeTruthy()
+    const id = s().annotations[0].id
+    s().removeAnnotation(id)
+    expect(s().annotations).toHaveLength(1)
+    expect(s().annotations.find((x) => x.id === id)).toBeUndefined()
+    s().clearAnnotations()
+    expect(s().annotations).toEqual([])
+  })
+})
+
 describe('measurement units', () => {
   beforeEach(() => useStore.setState({ units: 'metric' } as never))
 

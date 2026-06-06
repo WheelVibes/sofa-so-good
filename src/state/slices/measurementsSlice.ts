@@ -2,6 +2,16 @@ import type { UnitSystem } from '../../utils/measurement'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
+/** A pinned dimension callout that persists in the scene and saves with the
+ *  design (unlike the transient tape). `line` shows a distance, `rect` an area
+ *  between two opposite corners — mirroring the tape shapes. */
+export interface MeasurementAnnotation {
+  id: string
+  a: [number, number]
+  b: [number, number]
+  shape: 'line' | 'rect'
+}
+
 export interface MeasurementsSlice {
   /** Room-size labels overlay (toggled with M). */
   showMeasurements: boolean
@@ -24,18 +34,30 @@ export interface MeasurementsSlice {
   clearTape: () => void
   /** Switch line/area; clears the in-progress points to avoid mixed readings. */
   setTapeShape: (shape: 'line' | 'rect') => void
+  /** Pinned dimension callouts — persist in the scene and save with the design. */
+  annotations: MeasurementAnnotation[]
+  /** Pin a callout (e.g. from the current finished tape measurement). */
+  addAnnotation: (a: [number, number], b: [number, number], shape: 'line' | 'rect') => void
+  removeAnnotation: (id: string) => void
+  clearAnnotations: () => void
 }
 
 export const MEASUREMENTS_INITIAL: Pick<
   MeasurementsSlice,
-  'showMeasurements' | 'tapeMode' | 'tapePoints' | 'tapeShape' | 'units'
+  'showMeasurements' | 'tapeMode' | 'tapePoints' | 'tapeShape' | 'units' | 'annotations'
 > = {
   showMeasurements: false,
   tapeMode: false,
   tapePoints: [],
   tapeShape: 'line',
   units: 'metric',
+  annotations: [],
 }
+
+const annotationId = () =>
+  typeof crypto !== 'undefined' && crypto.randomUUID
+    ? crypto.randomUUID()
+    : `ann-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`
 
 export const createMeasurementsSlice: SliceCreator<MeasurementsSlice, RootState> = (set) => ({
   ...MEASUREMENTS_INITIAL,
@@ -50,4 +72,13 @@ export const createMeasurementsSlice: SliceCreator<MeasurementsSlice, RootState>
       tapePoints: s.tapePoints.length >= 2 ? [p] : [...s.tapePoints, p],
     })),
   clearTape: () => set({ tapePoints: [] }),
+  addAnnotation: (a, b, shape) =>
+    set((s) => ({
+      annotations: [
+        ...s.annotations,
+        { id: annotationId(), a: [a[0], a[1]], b: [b[0], b[1]], shape },
+      ],
+    })),
+  removeAnnotation: (id) => set((s) => ({ annotations: s.annotations.filter((x) => x.id !== id) })),
+  clearAnnotations: () => set((s) => (s.annotations.length === 0 ? {} : { annotations: [] })),
 })
