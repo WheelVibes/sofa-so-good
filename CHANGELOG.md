@@ -4,6 +4,20 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N5] Persist the floor-plan trace backdrop
+
+The reference photo/scan you trace walls over lived only in a session object URL
+— lost on closing the editor *or* reloading. Now the **blob + calibration**
+(scale `mPerPx`, opacity, world offset) persist to IDB (`backdropPersist.ts`, one
+fixed slot via the existing `IdbAssetStore`) and **rehydrate when the editor
+opens**, so a traced backdrop survives both. Loading a new image replaces the
+slot; the ✕ button clears it; calibration edits are debounced before write; all
+storage calls are fail-soft (never break the editor). The rehydrate effect is
+gated on `editing` (the editor is always-mounted) and only loads when no
+backdrop is present, avoiding duplicate object URLs. Persistence unit-tested (5
+cases, fake-indexeddb); verified end-to-end in the harness (a backdrop written
+as a "prior session" rehydrates on open — scale/opacity/clear controls appear).
+
 ## [B2] Dispose audit — fix leaked overlay geometries
 
 Several scene overlays built three.js geometries with `new` inside `useMemo`

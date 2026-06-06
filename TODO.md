@@ -468,9 +468,10 @@ Deferred / follow-ups:
   `primitives/InstancedBoxes.tsx`. Other repeat-geometry primitives can adopt it
   similarly if profiling justifies it; cross-item instancing was intentionally
   avoided (conflicts with per-item material/finish/selection).
-- **Photo-trace backdrop (F) is session-scoped** — the reference image lives in
-  an object URL only; it isn't persisted to IDB or round-tripped with the saved
-  plan. Persist the blob + calibration if users want it to survive a reload.
+- ~~**Photo-trace backdrop (F) is session-scoped**~~ — done. The backdrop blob +
+  calibration now persist to IDB (`ui/floorplan/backdropPersist.ts`, one fixed
+  slot via `IdbAssetStore`) and rehydrate when the editor opens, surviving editor
+  close + reload. Cleared with the ✕ button.
 - **AI features (D/E) are bring-your-own-key + experimental** — the live calls
   need a real key and may require a CORS proxy depending on provider (handled as
   a clear error). D defaults to Replicate img2img; E to an OpenAI-compatible

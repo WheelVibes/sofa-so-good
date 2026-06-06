@@ -76,8 +76,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   tint + revert, raycast-priority pick. Pure math unit-tested. **Extended to
   multi-selection** (group rotate about centroid, signed delta readout). (CHANGELOG)
 - [ ] N4. **Per-room ceiling height** control (architectural realism).
-- [ ] N5. **Persist measurements + photo-trace backdrop** into the save schema
-  (currently session-only).
+- [x] N5. **Persist photo-trace backdrop** (blob + calibration) to IDB —
+  survives editor close + reload, rehydrated on open, fail-soft, unit-tested.
+  (Measurements are derived room-size labels — nothing user-created to persist.)
+  (CHANGELOG)
 - [ ] N6. **RE1/RE2** — window glass tint + inter-room light bleed (complex
   lighting; needs a focused session).
 - [ ] N7. **Toolbar/icon-button aria-labels audit** + catalog keyboard nav (a11y

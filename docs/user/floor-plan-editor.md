@@ -57,6 +57,10 @@ Have a real floor‑plan image or a room scan? Trace over it:
 4. *(Experimental, optional)* **AI walls** sends the photo to a vision model
    (your own API key) and drafts the walls for you to correct.
 
+Your reference photo and its calibration are **saved on your device** — close
+the editor or reload the app and it's still there when you come back. Remove it
+any time with the **✕** next to the photo controls.
+
 ## Templates & saving
 
 Start from a **template** apartment, **Reset to HDB** for the default flat, or

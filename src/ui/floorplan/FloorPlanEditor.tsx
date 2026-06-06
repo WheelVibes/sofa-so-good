@@ -11,6 +11,13 @@ import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floor
 import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import {
+  type BackdropMeta,
+  persistBackdrop,
+  readPersistedBackdrop,
+  removePersistedBackdrop,
+  updateBackdropMeta,
+} from './backdropPersist'
 import { PlanInspector } from './PlanInspector'
 
 /** Muted top-down fill per furniture category for the 2D plan layer. */
@@ -94,12 +101,59 @@ export function FloorPlanEditor() {
   // click near the first vertex (or Enter) to close into a room.
   const [polyDraft, setPolyDraft] = useState<[number, number][]>([])
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
+  // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
   // Persistent wall-length labels (on by default; toggle in the editor header).
   const [showWallDims, setShowWallDims] = useState(true)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+
+  // Rehydrate a previously-saved backdrop when the editor opens (the component
+  // is always mounted and only renders when `editing`, so this can't be a
+  // once-on-mount effect). Skips if one is already loaded so reopening doesn't
+  // create a duplicate object URL.
+  const backdropUrlRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!editing) return
+    let cancelled = false
+    void readPersistedBackdrop().then((p) => {
+      if (cancelled || !p) return
+      setBackdrop((prev) => {
+        if (prev) return prev
+        const url = URL.createObjectURL(p.blob)
+        backdropUrlRef.current = url
+        return { url, ...p.meta }
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [editing])
+
+  // Revoke the live object URL only on a true unmount (not on editor close).
+  useEffect(
+    () => () => {
+      if (backdropUrlRef.current) URL.revokeObjectURL(backdropUrlRef.current)
+    },
+    [],
+  )
+
+  // Persist calibration changes (opacity/scale/offset) without rewriting the
+  // blob, debounced so a slider/drag doesn't hammer IDB.
+  useEffect(() => {
+    if (!backdrop) return
+    const meta: BackdropMeta = {
+      w: backdrop.w,
+      h: backdrop.h,
+      opacity: backdrop.opacity,
+      mPerPx: backdrop.mPerPx,
+      ox: backdrop.ox,
+      oz: backdrop.oz,
+    }
+    const t = setTimeout(() => void updateBackdropMeta(meta), 400)
+    return () => clearTimeout(t)
+  }, [backdrop])
 
   // Experimental AI wall recognition (Wave E): send the backdrop to a vision
   // model and seed an editable draft plan from the returned walls. Falls back
@@ -151,18 +205,21 @@ export function FloorPlanEditor() {
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
+      const meta: BackdropMeta = {
+        w: img.naturalWidth,
+        h: img.naturalHeight,
+        opacity: 0.5,
+        mPerPx: 0.01,
+        ox: 0,
+        oz: 0,
+      }
       setBackdrop((prev) => {
         if (prev) URL.revokeObjectURL(prev.url)
-        return {
-          url,
-          w: img.naturalWidth,
-          h: img.naturalHeight,
-          opacity: 0.5,
-          mPerPx: 0.01,
-          ox: 0,
-          oz: 0,
-        }
+        return { url, ...meta }
       })
+      backdropUrlRef.current = url
+      // Persist the blob + calibration so the backdrop survives reload/reopen.
+      void persistBackdrop(file, meta)
       setTool('select')
     }
     img.src = url
@@ -598,7 +655,9 @@ export function FloorPlanEditor() {
               type="button"
               onClick={() => {
                 URL.revokeObjectURL(backdrop.url)
+                if (backdropUrlRef.current === backdrop.url) backdropUrlRef.current = null
                 setBackdrop(null)
+                void removePersistedBackdrop()
                 if (tool === 'scale') setTool('select')
               }}
               title="Remove reference photo"

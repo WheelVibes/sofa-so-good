@@ -574,7 +574,10 @@ rediscover it.
   item in 3D. A **reference photo/scan backdrop** (Wave F, no ML) can be loaded
   (file pick or drag-drop) to trace over: calibrate real scale with the **Scale
   tool** (drag a known dimension → type its length → `mPerPx`), adjust opacity,
-  trace walls on top. Session-scoped (object URL). **"AI walls"** (Wave E,
+  trace walls on top. The backdrop (blob + calibration: scale/opacity/offset) is
+  **persisted to IDB** (`ui/floorplan/backdropPersist.ts`, one fixed slot via
+  `IdbAssetStore`) so it survives closing the editor and reloading — rehydrated
+  when the editor opens, cleared with the ✕ button. **"AI walls"** (Wave E,
   experimental, bring-your-own-key) sends the backdrop to an OpenAI-compatible
   vision model (`ai/floorPlanAi.ts`) and seeds an editable draft plan from the
   recognised segments; degrades to manual tracing on no key / CORS / no result.
