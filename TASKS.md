@@ -99,6 +99,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   Follow-up: a per-room height control (UI) if desired — the data model already
   supports per-room `ceilingHeight`.
 
+## Shopping / budget
+- [x] Q22. **Budget target** with over/under progress indicator (Shopping panel,
+  persisted per-device via `budgetPrefs`). E2E-verified. (CHANGELOG)
+
 ## Units / internationalization
 - [x] U1. **Metric/imperial measurement units** toggle (Graphics panel, persisted)
   — centralized unit-aware formatters (`utils/measurement.ts`) routed through all

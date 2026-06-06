@@ -354,7 +354,9 @@ rediscover it.
   a portable `.sofa.json` file via `storage/designFile.ts`), **Shopping list + Collections**
   (`BudgetPanel` List/Saved tabs + a heart `fav-btn` on every catalog card —
   local *and* CC0 — toggling `collections`, which also feeds the catalog's
-  favourites category), and **Share & export** (`ShareModal.tsx` — link copy + a real
+  favourites category; an optional **budget target** — `featuresSlice.budgetTarget`,
+  persisted per-device via `storage/budgetPrefs.ts` — drives an over/under
+  progress indicator), and **Share & export** (`ShareModal.tsx` — link copy + a real
   PNG snapshot via the `sofa:export` event). The **2D floor-plan editor**
   (`ui/floorplan/`) and **upload dialogs** (`ui/upload/`) are fully token-themed
   (light + dark) — the floor-plan editor hides the main toolbar while open (its

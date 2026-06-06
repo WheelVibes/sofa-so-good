@@ -21,6 +21,16 @@ Formatters unit-tested (metric + imperial, incl. inch-carry + non-finite).
 Verified: imperial overlay renders `17′ 9″ · 262 ft²` / `Ceiling 8′ 6″` cleanly
 and the panel toggle reflects state.
 
+## [Q22] Budget target with over/under indicator
+
+The Shopping panel gains an optional **budget target** (SGD): type a goal and a
+progress bar fills toward it, with a live read-out — "$X left · Y% of $target"
+under budget (accent), or "Over by $X" over budget (red). State lives in
+`featuresSlice.budgetTarget` and is persisted per-device via a new
+`storage/budgetPrefs.ts` (wired into the bootstrap, fail-soft); it's not part of
+a saved design. Clearing the field removes the target. Verified: a $3,000 target
+against the $23k default flat shows "Over by $20,080" with a full red bar.
+
 ## [U1b] Units: cover the inspector + printable report
 
 Follow-up to U1 so no surface shows mixed units. Added `formatDimsShort`

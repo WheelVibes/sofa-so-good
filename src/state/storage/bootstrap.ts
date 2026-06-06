@@ -14,6 +14,7 @@
 import { useStore } from '../store'
 import { loadAppearancePrefs, watchAppearancePrefs } from './appearancePrefs'
 import { startAutosave } from './autosave'
+import { loadBudgetPrefs, watchBudgetPrefs } from './budgetPrefs'
 import { loadEditorPrefs, watchEditorPrefs } from './editorPrefs'
 import { loadFloorPlans, watchFloorPlans } from './floorPlanStore'
 import { hydrate } from './hydrate'
@@ -56,6 +57,10 @@ export async function runBootstrap(): Promise<void> {
     runStep('editorPrefs', () => {
       loadEditorPrefs()
       watchEditorPrefs()
+    })
+    runStep('budgetPrefs', () => {
+      loadBudgetPrefs()
+      watchBudgetPrefs()
     })
     runStep('floorPlans', () => {
       loadFloorPlans()

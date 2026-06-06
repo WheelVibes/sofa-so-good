@@ -36,6 +36,9 @@ export interface FeaturesSlice {
   smartStartOpen: boolean
   /** Shopping panel tab. */
   shopTab: 'list' | 'saved'
+  /** Optional shopping budget target (SGD); drives the over/under indicator in
+   *  the Budget panel. Persisted per-device. `null` = no target set. */
+  budgetTarget: number | null
   /** Saved-to-collection catalog def ids (the heart on catalog cards). */
   collections: string[]
 
@@ -53,6 +56,7 @@ export interface FeaturesSlice {
   setVersionsOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
+  setBudgetTarget: (target: number | null) => void
   toggleCollection: (defId: string) => void
 }
 
@@ -69,6 +73,7 @@ export const FEATURES_INITIAL = {
   versionsOpen: false,
   smartStartOpen: false,
   shopTab: 'list' as 'list' | 'saved',
+  budgetTarget: null as number | null,
   collections: [] as string[],
 }
 
@@ -88,6 +93,8 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setShopTab: (shopTab) => set({ shopTab }),
+  setBudgetTarget: (budgetTarget) =>
+    set({ budgetTarget: budgetTarget != null && budgetTarget > 0 ? budgetTarget : null }),
   toggleCollection: (defId) =>
     set((s) => ({
       collections: s.collections.includes(defId)
