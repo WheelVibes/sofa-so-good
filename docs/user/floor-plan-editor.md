@@ -67,6 +67,13 @@ With nothing selected, the inspector shows a **Ceiling height** field — raise 
 lower it (2.2–4 m) and the whole home's walls and ceiling adjust in 3D.
 Bathrooms keep their lower dropped ceiling. The height is saved with your design.
 
+## Panning & zoom
+
+The canvas is an open grid that extends in every direction — **scroll** (or
+drag the scrollbars) to pan around, and **zoom** with the **− / + buttons** (or
+**Ctrl/⌘ + scroll** to zoom around the cursor). The plan is centred when you
+open the editor. Click the percentage to reset to 100%.
+
 ## Export the plan as an image
 
 **Export PNG** (in the editor header) downloads the floor plan as a PNG image —

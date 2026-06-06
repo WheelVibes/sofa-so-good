@@ -10,6 +10,14 @@ Polish for the hide feature: a piece that's both selected and hidden no longer
 shows its rotate gizmo or selection outline floating over the empty spot —
 `RotateGizmo` and `SelectionOutline` now skip hidden items. Verified.
 
+## [Q21] Floor-plan editor zoom
+
+Completes the open-canvas rework: the editor now **zooms** via **− / +** buttons
+(with a clickable % reset) and **Ctrl/⌘ + wheel** (zooms around the cursor, plain
+wheel still pans). Zoom is a single `PX = basePX × zoom` multiplier, so every
+coordinate (toPx + its inverse) stays consistent. Verified: + scales the canvas
+3100→3720px at 120% with the plan intact.
+
 ## [Q20b] Floor-plan editor: mobile canvas + bottom-sheet inspector
 
 Follow-up to the open canvas (Q20): on mobile the inspector had an inline

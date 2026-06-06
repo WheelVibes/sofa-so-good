@@ -141,3 +141,5 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   resolution + backdrop strip). Pipeline-verified. (CHANGELOG)
 - [x] Q20. **Open pannable grid canvas** (plan centred + large grid margin) +
   **export cropped to plan bounds + padding**. E2E-verified. (user feedback)
+- [x] Q21. **Floor-plan editor zoom** (± buttons + Ctrl/⌘-wheel around cursor,
+  single PX multiplier). E2E-verified. (CHANGELOG)

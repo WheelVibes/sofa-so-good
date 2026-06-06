@@ -277,11 +277,15 @@ export function FloorPlanEditor() {
   }, [exitToScene])
 
   const [ew, ed] = planBounds(plan)
-  const PX = useMemo(() => {
+  const basePX = useMemo(() => {
     const fitW = MAX_W / (ew + FIT_PAD * 2)
     const fitH = MAX_H / (ed + FIT_PAD * 2)
     return Math.max(24, Math.min(fitW, fitH, 80))
   }, [ew, ed])
+  // User zoom (ctrl/⌘+wheel or the ± buttons) multiplies the base px-per-metre;
+  // every coordinate (toPx + its inverse) reads PX, so zoom stays consistent.
+  const [zoom, setZoom] = useState(1)
+  const PX = basePX * zoom
   // Canvas is the plan plus a generous grid margin on every side (pannable via
   // the scroll container; the plan stays centred because the margin is equal).
   const W = (ew + GRID_MARGIN * 2) * PX
@@ -727,6 +731,30 @@ export function FloorPlanEditor() {
           >
             Export PNG
           </button>
+          <div className="seg" style={{ alignItems: 'center' }}>
+            <button
+              type="button"
+              title="Zoom out"
+              onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              title="Reset zoom"
+              onClick={() => setZoom(1)}
+              style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              title="Zoom in"
+              onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}
+            >
+              +
+            </button>
+          </div>
           <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
             Total{' '}
             <b className="mono" style={{ color: 'var(--text)' }}>
@@ -746,6 +774,27 @@ export function FloorPlanEditor() {
         <div
           ref={canvasRef}
           className="plan-canvas min-h-0 flex-1 overflow-auto p-4"
+          onWheel={(e) => {
+            // Ctrl/⌘+wheel zooms around the cursor; plain wheel scrolls (pans).
+            if (!(e.ctrlKey || e.metaKey)) return
+            e.preventDefault()
+            const el = canvasRef.current
+            if (!el) return
+            const rect = el.getBoundingClientRect()
+            const px = e.clientX - rect.left
+            const py = e.clientY - rect.top
+            const cx = el.scrollLeft + px
+            const cy = el.scrollTop + py
+            const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
+            const next = Math.min(3, Math.max(0.4, zoom * factor))
+            if (next === zoom) return
+            setZoom(next)
+            const r = next / zoom
+            requestAnimationFrame(() => {
+              el.scrollLeft = cx * r - px
+              el.scrollTop = cy * r - py
+            })
+          }}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes('Files')) e.preventDefault()
           }}
