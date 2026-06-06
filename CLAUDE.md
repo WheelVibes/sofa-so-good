@@ -544,7 +544,12 @@ rediscover it.
   `wallReveal` registry.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): a 2D top-down editor
   (toolbar "Floor plan") edits the store `floorPlan` — walls (interior/
-  exterior), rectangular rooms (auto area + total), doors/windows, grid +
+  exterior), rectangular rooms (auto area + total), doors/windows, an
+  **adjustable ceiling height** (`PlanInspector` no-selection control →
+  `updateFloorPlanMeta`, clamped 2.2–4 m; drives both the default-flat render
+  path — `WallSegment`/`Ceiling`/`RoomShell`/`MeasurementOverlay` read
+  `floorPlan.ceilingHeight` — and `PlanShell`; per-room `ceilingHeight` overrides
+  like the 2.4 m bathrooms still win), grid +
   corner snapping, drag-move, per-room floor finishes, and persistent per-wall
   **length labels** (a "Dims" header toggle, default on). **Non-rectangular
   shapes**: the **Split** tool (`splitWall`) cuts a wall into two segments

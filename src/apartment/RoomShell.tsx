@@ -15,7 +15,7 @@ import {
   useTexturedMaterial,
 } from '../materials/useMaterial'
 import { useStore } from '../state/store'
-import { DOORS, FLAT, WINDOWS } from './constants'
+import { DOORS, WINDOWS } from './constants'
 import { DoorLeaf } from './Door'
 import { RoomFloor } from './floor/RoomFloor'
 import type { ClippedWall, RoomShell as RoomShellData } from './roomShell'
@@ -35,6 +35,7 @@ function WallBox({
   material: MeshStandardMaterial
 }) {
   const ref = useRef<Mesh>(null)
+  const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
   const [sx, sz] = wall.start
   const [ex, ez] = wall.end
   const len = Math.hypot(ex - sx, ez - sz)
@@ -59,7 +60,7 @@ function WallBox({
 
   if (len < 1e-6) return null
   const t = wallThicknessMetres(wall.spec)
-  const h = wall.spec.topHeight ?? FLAT.ceilingHeight
+  const h = wall.spec.topHeight ?? ceilingHeight
   const angle = Math.atan2(ez - sz, ex - sx)
   return (
     <mesh

@@ -1,12 +1,16 @@
-import { FLAT, ROOMS } from './constants'
+import { useStore } from '../state/store'
+import { ROOMS } from './constants'
 
 export function Ceiling() {
+  // Adjustable global ceiling height; per-room overrides (e.g. dropped bathroom
+  // ceilings, from the ROOMS constants) still win.
+  const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
   return (
     <group>
       {Object.values(ROOMS)
         .filter((r) => !r.external)
         .flatMap((r) => {
-          const h = r.ceilingHeight ?? FLAT.ceilingHeight
+          const h = r.ceilingHeight ?? ceilingHeight
           const tiles: { cx: number; cz: number; w: number; d: number; key: string }[] = [
             {
               cx: r.origin[0] + r.width / 2,

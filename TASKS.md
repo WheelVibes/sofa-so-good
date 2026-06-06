@@ -78,10 +78,12 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   capable, grid-gated, door-aware). Unit-tested + E2E-verified. (CHANGELOG)
 - [x] Q12. **"Straighten" context-menu action** — snap an off-axis piece to the
   nearest 90° (collision-checked, shown only when askew). (CHANGELOG)
-- [ ] N4. **Adjustable ceiling height** (global first, then per-room) — needs
-  threading a reactive height into WallSegment/Ceiling/MeasurementOverlay
-  (currently the `FLAT.ceilingHeight` module constant). Bounded but structural;
-  do in a fresh context. Bathrooms keep their lower dropped-ceiling override.
+- [x] N4. **Adjustable ceiling height** — `floorPlan.ceilingHeight` (already
+  persisted + honoured by custom plans) now drives the default-flat render path
+  (WallSegment/Ceiling/RoomShell/MeasurementOverlay) too, with a clamped editor
+  control. Bathrooms keep their dropped-ceiling override. (CHANGELOG)
+  Follow-up: a per-room height control (UI) if desired — the data model already
+  supports per-room `ceilingHeight`.
 
 ## Researched backlog (next iterations — competitor parity / polish)
 - [x] N1. **Apply finish to all rooms** — setAll{Floor,Wall}Finish + FinishPicker buttons. (CHANGELOG)

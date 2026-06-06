@@ -4,6 +4,22 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N4] Adjustable ceiling height
+
+`FloorPlan` already carried a persisted `ceilingHeight` (schema + custom-plan
+`PlanShell` honoured it), but the **default flat** rendered from a fixed
+`FLAT.ceilingHeight` constant, so the value was effectively unchangeable. Wired
+the store's `floorPlan.ceilingHeight` into the default-flat render path —
+`WallSegment` (wall extrusion), `Ceiling` (plane Y), `RoomShell` (room-editor
+walls), and the `MeasurementOverlay` label height — and added a **Ceiling
+height** control to the floor-plan editor's inspector (`updateFloorPlanMeta`,
+clamped 2.2–4 m so glazing never clips). Per-room overrides (the dropped 2.4 m
+bathroom ceilings) still win; the value persists with the design. Memoised
+`WallSegment` re-renders correctly because its internal store subscription isn't
+gated by the prop comparator. Verified end-to-end: default (2.6 m) unchanged,
+raised to 3.2 m shows visibly taller walls meeting a risen ceiling with no gaps
+or floating windows, and the inspector field round-trips the value.
+
 ## [N7b] Roving arrow-key navigation in the catalog grid
 
 Completes catalog keyboard access (after N7a made cards focusable + activatable):

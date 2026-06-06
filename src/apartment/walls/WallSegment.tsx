@@ -16,7 +16,7 @@ import {
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { useStore } from '../../state/store'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, WALLS } from '../constants'
+import { APARTMENT_EXT_D, APARTMENT_EXT_W, WALLS } from '../constants'
 import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
@@ -182,6 +182,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const dz = wall.end[1] - wall.start[1]
   const length = Math.hypot(dx, dz)
   const angle = Math.atan2(dz, dx)
+  // Wall height follows the (adjustable) plan ceiling height; per-wall
+  // `topHeight` overrides (e.g. parapets) still win inside buildWallSegments.
+  const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
   const { camera } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
@@ -250,7 +253,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // textures stop exactly at the inner corner with no overlap into the body.
   const startAbut = wallEndAbutmentThickness(wall, WALLS, true) / 2
   const endAbut = wallEndAbutmentThickness(wall, WALLS, false) / 2
-  const segments = buildWallSegments(wall, FLAT.ceilingHeight)
+  const segments = buildWallSegments(wall, ceilingHeight)
   const midX = (wall.start[0] + wall.end[0]) / 2
   const midZ = (wall.start[1] + wall.end[1]) / 2
 

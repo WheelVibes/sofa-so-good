@@ -61,6 +61,12 @@ Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
 any time with the **✕** next to the photo controls.
 
+## Ceiling height
+
+With nothing selected, the inspector shows a **Ceiling height** field — raise or
+lower it (2.2–4 m) and the whole home's walls and ceiling adjust in 3D.
+Bathrooms keep their lower dropped ceiling. The height is saved with your design.
+
 ## Templates & saving
 
 Start from a **template** apartment, **Reset to HDB** for the default flat, or

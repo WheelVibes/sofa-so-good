@@ -1,17 +1,18 @@
 import { Html } from '@react-three/drei'
-import { FLAT, ROOMS } from '../apartment/constants'
+import { ROOMS } from '../apartment/constants'
 import { roomCentroid } from '../apartment/rooms'
 import { useStore } from '../state/store'
 import { formatRoomSize } from '../utils/measurement'
 
 export function MeasurementOverlay() {
   const show = useStore((s) => s.showMeasurements)
+  const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
   if (!show) return null
   return (
     <group>
       {Object.values(ROOMS).map((r) => {
         const [cx, cz] = roomCentroid(r.id)
-        const cy = (r.ceilingHeight ?? FLAT.ceilingHeight) / 2
+        const cy = (r.ceilingHeight ?? ceilingHeight) / 2
         const main = r.width * r.depth
         const ext = r.extension ? r.extension.width * r.extension.depth : 0
         const area = main + ext

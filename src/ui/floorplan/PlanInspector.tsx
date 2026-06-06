@@ -41,18 +41,37 @@ export function PlanInspector() {
   const a = useStore.getState()
 
   let body: React.ReactNode = (
-    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
-      Pick a tool and draw on the canvas, or select an element to edit it.
-      <br />
-      <br />
-      <b style={{ color: 'var(--text)' }}>Wall</b> — drag to draw.{' '}
-      <b style={{ color: 'var(--text)' }}>Room</b> — drag a rectangle (area is computed).{' '}
-      <b style={{ color: 'var(--text)' }}>Door / Window</b> — click on a wall.
-      <br />
-      <br />
-      Drawing snaps to the grid (set the size with the toolbar Snap control). Press Delete to remove
-      the selected element.
-    </p>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
+        <span className="label">Ceiling height</span>
+        <Num
+          label="Height (m)"
+          value={plan.ceilingHeight}
+          step={0.05}
+          min={2.2}
+          onChange={(v) => {
+            if (!Number.isFinite(v)) return
+            // Clamp clear of the window head (2.1 m) so glazing never clips.
+            a.updateFloorPlanMeta({ ceilingHeight: Math.min(4, Math.max(2.2, v)) })
+          }}
+        />
+        <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+          Applies to the whole home (bathrooms keep their lower dropped ceiling).
+        </span>
+      </div>
+      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
+        Pick a tool and draw on the canvas, or select an element to edit it.
+        <br />
+        <br />
+        <b style={{ color: 'var(--text)' }}>Wall</b> — drag to draw.{' '}
+        <b style={{ color: 'var(--text)' }}>Room</b> — drag a rectangle (area is computed).{' '}
+        <b style={{ color: 'var(--text)' }}>Door / Window</b> — click on a wall.
+        <br />
+        <br />
+        Drawing snaps to the grid (set the size with the toolbar Snap control). Press Delete to
+        remove the selected element.
+      </p>
+    </div>
   )
 
   if (sel?.type === 'room') {
