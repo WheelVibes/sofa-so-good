@@ -33,6 +33,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   HoverHighlight, AlignmentGuides, DragController snap, GridOverlay) + leaked
   EdgesGeometry source boxes via shared `scene/geometryUtil.ts`. (CHANGELOG)
 
+## Bugs / correctness (cont.)
+- [x] B6. Deleting a hidden item left a stale id in `hiddenItemIds` (Layers
+  "(N hidden)" over-counted) — `deleteItem` now cleans it. Unit-tested. (CHANGELOG)
+
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
 - [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.
 - [x] Q2. **Recently used / recently placed** catalog row (clock chip, persisted). (CHANGELOG)

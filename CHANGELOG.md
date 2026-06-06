@@ -44,6 +44,13 @@ through `schema.ts` as an optional field (no migration — older saves just have
 no label). renameItem + schema round-trip unit-tested; verified the name shows
 in the inspector title, field, and Layers tree.
 
+## [B6] Deleting a hidden item left a stale id in the hidden set
+
+`deleteItem` cleaned the selection but not `hiddenItemIds`, so deleting a hidden
+piece left a dangling id — the Layers footer's "Show all (N hidden)" then
+over-counted. `deleteItem` now drops the deleted id from `hiddenItemIds` too.
+Unit-tested.
+
 ## [Q26b] "Hide" in the right-click context menu
 
 The context menu gained a plain **Hide** action (it already had "Isolate (hide

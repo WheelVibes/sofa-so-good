@@ -34,4 +34,12 @@ describe('selectionSlice hidden items', () => {
     useStore.getState().showAllItems()
     expect(useStore.getState().hiddenItemIds).toEqual([])
   })
+
+  it('deleting a hidden item drops its stale id from hiddenItemIds', () => {
+    const a = add('bed-double')
+    const b = add('dining-chair')
+    useStore.getState().setItemsHidden([a, b], true)
+    useStore.getState().deleteItem(a)
+    expect(useStore.getState().hiddenItemIds).toEqual([b])
+  })
 })

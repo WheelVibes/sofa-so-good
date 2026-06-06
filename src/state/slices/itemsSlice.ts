@@ -90,6 +90,10 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
               : null
             : s.selectedItemId,
         selectedItemIds: ids,
+        // Drop any stale hidden-id so the Layers "(N hidden)" count stays honest.
+        ...(s.hiddenItemIds.includes(id)
+          ? { hiddenItemIds: s.hiddenItemIds.filter((x) => x !== id) }
+          : {}),
       }
     })
   },
