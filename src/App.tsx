@@ -87,6 +87,15 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         useStore.getState().toggleCmdk()
+        return
+      }
+      // `?` (Shift+/) toggles the Help & shortcuts modal — the modal itself
+      // advertises this binding. Skip while typing so it doesn't hijack a real
+      // "?" character, and ignore other modifier combos.
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
+        e.preventDefault()
+        const s = useStore.getState()
+        s.setHelpOpen(!s.helpOpen)
       }
     }
     window.addEventListener('keydown', onKey)

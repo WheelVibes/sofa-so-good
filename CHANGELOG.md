@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q4] Wire the `?` keyboard shortcut to open Help
+
+The Help & shortcuts modal advertised `?` as its open binding, but no global
+handler existed — pressing `?` did nothing. Added a global `?` (Shift+/) handler
+in `App.tsx` alongside the ⌘K one: toggles the Help modal, guarded by
+`isEditableTarget` so it never hijacks a literal "?" typed into an input, and
+ignores modifier combos. Visually verified (pressing `?` opens the modal).
+
 ## [RE3] Basketweave parquet floor finish
 
 A premium floor look common in interior-design tools, missing here (only straight

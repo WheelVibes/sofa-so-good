@@ -25,7 +25,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.
 - [x] Q2. **Recently used / recently placed** catalog row (clock chip, persisted). (CHANGELOG)
 - [ ] Q3. **Drag-from-catalog-to-scene** placement (if not present) or improve placement ghost UX.
-- [ ] Q4. **Keyboard shortcut cheatsheet** completeness + a `?` overlay.
+- [x] Q4. **`?` opens Help & shortcuts** — wired the advertised-but-missing global binding. (CHANGELOG)
 - [ ] Q5. **Measurement/annotation** persistence + dimension labels on 2D plan.
 - [x] Q6. **Camera bookmarks / saved views** — save/apply (smooth fly)/delete, desktop View menu + mobile parity, persisted. (CHANGELOG)
 - [ ] Q7. **Empty states & inline help** across panels.
