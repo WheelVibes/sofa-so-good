@@ -233,7 +233,7 @@ rediscover it.
     `NotificationContainer`.
 - `src/materials/` — finishes. `builtinCatalog.ts` (floors/walls), runtime
   `procedural/` PBR generators (wood/parquet/tile/marble/carpet/concrete/
-  terrazzo/plaster/stripe/grasscloth/checker/brick),
+  terrazzo/plaster/stripe/grasscloth/checker/brick/batten),
   `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
   for furniture, plus `getSolidMaterial` for metal/plastic and the `mat:<id>`
   DLC-finish resolver), `worldUv.ts` (metre-space UVs so finishes tile
