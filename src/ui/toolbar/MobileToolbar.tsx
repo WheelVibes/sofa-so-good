@@ -231,7 +231,12 @@ export function MobileToolbar() {
 
   const refreshSlots = () => void LocalStorageAdapter.list().then(setSlots)
   const saveLayout = async () => {
-    const name = prompt('Save layout as…')
+    const name = await s.getState().promptText({
+      title: 'Save layout',
+      label: 'Name this layout',
+      placeholder: 'e.g. Living room v2',
+      submitLabel: 'Save',
+    })
     if (!name) return
     const slot = name.trim().replace(/\s+/g, '-').toLowerCase()
     if (!slot) return
@@ -240,13 +245,13 @@ export function MobileToolbar() {
       saveThumb(slot, captureThumb())
       refreshSlots()
     } catch (e) {
-      alert(`Could not save: ${(e as Error).message}`)
+      s.getState().notify.start({ title: `Could not save: ${(e as Error).message}`, kind: 'error' })
     }
   }
   const loadLayout = async (slot: string) => {
     const data = await LocalStorageAdapter.load(slot).catch(() => null)
     if (!data) {
-      alert(`Could not load slot ${slot}`)
+      s.getState().notify.start({ title: `Could not load slot ${slot}`, kind: 'error' })
       return
     }
     const userIds = s.getState().userFurniture.map((d) => d.id)
@@ -567,12 +572,14 @@ export function MobileToolbar() {
                 <Item
                   icon="Style"
                   label="Save current style…"
-                  onClick={act(() => {
-                    const name = window.prompt(
-                      'Name this style:',
-                      `My style ${userStyles.length + 1}`,
-                    )
-                    if (name !== null) s.getState().saveCurrentStyle(name)
+                  onClick={act(async () => {
+                    const name = await s.getState().promptText({
+                      title: 'Save style',
+                      label: "Name this style (captures every room's finishes)",
+                      defaultValue: `My style ${userStyles.length + 1}`,
+                      submitLabel: 'Save',
+                    })
+                    if (name) s.getState().saveCurrentStyle(name)
                   })}
                 />
                 {userStyles.map((st) => (

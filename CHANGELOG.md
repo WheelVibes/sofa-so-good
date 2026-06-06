@@ -52,6 +52,14 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [B12] Finish native-dialog removal (mobile File + style)
+
+A grep audit found the mobile toolbar's File handlers still used `prompt`/`alert`
+(save layout name, save/load errors) and the mobile "Save style" used
+`window.prompt` — missed in B9–B11. Routed them through `promptText` + the
+`notify` toasts too. Confirmed **zero** `window.prompt/alert/confirm` remain in
+app code (only doc comments reference them).
+
 ## [Q34] Remember the catalog's last category + sort
 
 Small returning-user QOL (matches how Coohom/Planner 5D retain context): the
