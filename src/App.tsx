@@ -9,7 +9,7 @@ import {
 } from './controls/keybindings'
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
 import { useCatalog } from './furniture/catalog'
-import type { FurnitureItem } from './furniture/types'
+import { planDuplicates } from './furniture/duplicatePlacement'
 import { tidyHome } from './layout/tidyHome'
 import { cameraForwardXZ } from './scene/cameras/cameraForward'
 import { MobileLongPress } from './scene/MobileLongPress'
@@ -302,99 +302,15 @@ export default function App() {
       sharedGroup && typeof crypto !== 'undefined' && crypto.randomUUID
         ? crypto.randomUUID()
         : undefined
-    const mkId = (n: number) =>
-      typeof crypto !== 'undefined' && crypto.randomUUID
-        ? crypto.randomUUID()
-        : `id-${Date.now()}-${n}`
-    // Try a spread of shared offsets (preserving the arrangement) and use the
-    // first where EVERY copy fits — so a dense layout still finds free space.
-    const DELTAS: [number, number][] = [
-      [0.4, 0.4],
-      [0.7, 0],
-      [0, 0.7],
-      [-0.7, 0],
-      [0, -0.7],
-      [1, 1],
-      [-1, -1],
-      [1.5, 0],
-      [0, 1.5],
-      [2, 2],
-    ]
-    let copies: FurnitureItem[] = []
-    for (const [dx, dz] of DELTAS) {
-      const trial: FurnitureItem[] = []
-      let others = st.items
-      let allFit = true
-      for (const src of sources) {
-        const def = catalog[src.defId]
-        if (!def) {
-          allFit = false
-          break
-        }
-        const pos: [number, number] = [src.position[0] + dx, src.position[1] + dz]
-        if (
-          !canPlace({ ...src, id: 'dup-probe', position: pos }, def, {
-            others,
-            defs: catalog,
-            doors: st.doors,
-          })
-        ) {
-          allFit = false
-          break
-        }
-        const ni: FurnitureItem = {
-          ...src,
-          id: mkId(trial.length),
-          position: pos,
-          props: { ...src.props },
-          ...(gid ? { groupId: gid } : { groupId: undefined }),
-        }
-        trial.push(ni)
-        others = [...others, ni]
-      }
-      if (allFit && trial.length === sources.length) {
-        copies = trial
-        break
-      }
-    }
-    // Fallback: no single shared offset frees the whole (tight/scattered)
-    // selection — place each copy independently via a spiral so duplicating
-    // still produces copies (arrangement may shift).
-    if (copies.length === 0) {
-      let others = st.items
-      for (const src of sources) {
-        const def = catalog[src.defId]
-        if (!def) continue
-        let placed: [number, number] | null = null
-        for (let ring = 1; ring <= 8 && !placed; ring++) {
-          for (let dx = -ring; dx <= ring && !placed; dx++) {
-            for (let dz = -ring; dz <= ring && !placed; dz++) {
-              if (Math.max(Math.abs(dx), Math.abs(dz)) !== ring) continue
-              const pos: [number, number] = [src.position[0] + dx * 0.3, src.position[1] + dz * 0.3]
-              if (
-                canPlace({ ...src, id: 'dup-probe', position: pos }, def, {
-                  others,
-                  defs: catalog,
-                  doors: st.doors,
-                })
-              ) {
-                placed = pos
-              }
-            }
-          }
-        }
-        if (!placed) continue
-        const ni: FurnitureItem = {
-          ...src,
-          id: mkId(copies.length),
-          position: placed,
-          props: { ...src.props },
-          ...(gid ? { groupId: gid } : { groupId: undefined }),
-        }
-        copies.push(ni)
-        others = [...others, ni]
-      }
-    }
+    const copies = planDuplicates(
+      sources,
+      { others: st.items, defs: catalog, doors: st.doors },
+      (n) =>
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `id-${Date.now()}-${n}`,
+      gid,
+    )
     if (copies.length === 0) return
     st.pushHistory()
     st.setItems([...st.items, ...copies])

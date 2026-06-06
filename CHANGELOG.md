@@ -89,6 +89,15 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q43b] Multi-duplicate: shared helper + discoverable button
+
+Refactored the multi-select duplicate logic out of App into a pure, unit-tested
+`furniture/duplicatePlacement.ts` `planDuplicates` (shared-offset-then-spiral,
+group-aware) and reused it for a new **"Duplicate selection"** button in the
+multi-select inspector panel — so the feature is discoverable, not just the
+Ctrl/⌘+D shortcut. Helper unit-tested (offset/ids/group/empty); button verified
+in the panel.
+
 ## [Q43] Ctrl/⌘+D duplicates a whole multi-selection
 
 Duplicate (Ctrl/⌘+D) only copied the single active item; a multi-selection now

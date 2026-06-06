@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { canPlace } from '../../collision/placement'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
+import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
@@ -75,6 +76,31 @@ function MultiSelectPanel() {
     for (const id of [...s.selectedItemIds]) s.deleteItem(id)
   }
 
+  const duplicateAll = () => {
+    const s = useStore.getState()
+    const sources = s.items.filter((i) => s.selectedItemIds.includes(i.id))
+    if (sources.length === 0) return
+    const groupIds = new Set(sources.map((it) => it.groupId))
+    const sharedGroup = groupIds.size === 1 && !groupIds.has(undefined)
+    const gid =
+      sharedGroup && typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : undefined
+    const copies = planDuplicates(
+      sources,
+      { others: s.items, defs: catalog, doors: s.doors },
+      (n) =>
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `id-${Date.now()}-${n}`,
+      gid,
+    )
+    if (copies.length === 0) return
+    s.pushHistory()
+    s.setItems([...s.items, ...copies])
+    s.setSelectedItemIds(copies.map((it) => it.id))
+  }
+
   return (
     <aside className="panel inspector">
       <div className="panel-head">
@@ -145,6 +171,16 @@ function MultiSelectPanel() {
               </button>
             )
           )}
+          <button
+            type="button"
+            onClick={duplicateAll}
+            className="btn btn-soft btn-block"
+            style={{ marginTop: 'var(--s-2)' }}
+            title="Duplicate every selected item (⌘/Ctrl+D)"
+          >
+            <Icon.Copy width={14} height={14} />
+            Duplicate selection
+          </button>
           <button
             type="button"
             onClick={deleteAll}
