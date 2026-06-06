@@ -96,6 +96,15 @@ export default function App() {
         e.preventDefault()
         const s = useStore.getState()
         s.setHelpOpen(!s.helpOpen)
+        return
+      }
+      // Ctrl/⌘+A selects every placed item (orbit mode only, not while typing).
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A') && !isEditableTarget(e)) {
+        const s = useStore.getState()
+        if (s.cameraMode === 'orbit' && !s.roomEditor.active && s.items.length > 0) {
+          e.preventDefault()
+          s.setSelectedItemIds(s.items.map((i) => i.id))
+        }
       }
     }
     window.addEventListener('keydown', onKey)
