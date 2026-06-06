@@ -55,6 +55,9 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
 export interface AutosaveOptions {
   adapter?: StorageAdapter
   onError?: (e: StorageError) => void
+  /** Fired after a successful write (only when the previous write failed),
+   *  so a "couldn't save" warning can auto-clear once saving resumes. */
+  onRecover?: () => void
 }
 
 /** Subscribes to the store and writes the autosave slot at most once
@@ -62,17 +65,28 @@ export interface AutosaveOptions {
 export function startAutosave({
   adapter = LocalStorageAdapter,
   onError,
+  onRecover,
 }: AutosaveOptions = {}): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null
   let last = pickPersistent()
+  let failed = false
 
   const flush = () => {
     timer = null
     const state = useStore.getState()
     const payload = serialize(state)
-    adapter.save(AUTOSAVE_SLOT, payload).catch((e) => {
-      if (e instanceof StorageError) onError?.(e)
-    })
+    adapter
+      .save(AUTOSAVE_SLOT, payload)
+      .then(() => {
+        if (failed) {
+          failed = false
+          onRecover?.()
+        }
+      })
+      .catch((e) => {
+        failed = true
+        if (e instanceof StorageError) onError?.(e)
+      })
   }
 
   const unsubscribe = useStore.subscribe(() => {

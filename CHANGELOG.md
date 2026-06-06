@@ -4,6 +4,20 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R2] Surface auto-save failures (localStorage quota)
+
+Auto-save errors were caught but silently swallowed — a user whose browser
+storage filled up could keep editing and lose everything on reload with no
+warning. Now:
+
+- `startAutosave` gained an `onRecover` hook (fires when a write succeeds after a
+  prior failure) alongside the existing `onError`.
+- `bootstrap.ts` wires both to a single deduped error notification ("Couldn't
+  auto-save", with a quota-specific message) that auto-clears once saving resumes.
+- Confirmed the appearance/quality/editor/user-style pref writers already guard
+  their `setItem` calls, so no silent throw escapes a store subscriber.
+- New `autosave.test.ts` covers the error → recover flow.
+
 ## [R1] React error boundary — no more white-screen crashes
 
 A render/lifecycle throw anywhere in the React tree previously blanked the whole

@@ -46,7 +46,31 @@ export async function runBootstrap(): Promise<void> {
     if (s.items.length === 0) s.resetToDefault()
     useStore.getState().clearHistory()
 
-    startAutosave()
+    // Surface autosave failures (the common one is localStorage quota) so the
+    // user knows their work isn't being persisted, instead of silently losing
+    // it. Dedup to a single notification that auto-clears when saving resumes.
+    let saveErrorId: string | null = null
+    startAutosave({
+      onError: (e) => {
+        if (saveErrorId) return
+        const message =
+          e.kind === 'quota'
+            ? "Your browser's storage is full, so changes can't be auto-saved. Free up space, or save to a slot and export your design."
+            : `Auto-save failed (${e.kind}). Your latest changes may not be persisted.`
+        saveErrorId = useStore.getState().notify.start({
+          title: "Couldn't auto-save",
+          kind: 'error',
+          message,
+          autoDismissMs: null,
+        })
+      },
+      onRecover: () => {
+        if (saveErrorId) {
+          useStore.getState().notify.dismiss(saveErrorId)
+          saveErrorId = null
+        }
+      },
+    })
 
     if (import.meta.env.DEV) await exposeDevHelpers()
   } finally {

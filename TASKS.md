@@ -7,8 +7,8 @@ Licensed/non-redistributable additions are dev-gated; unlicensed ship in prod to
 Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 
 ## Reliability / robustness
-- [ ] R1. React **ErrorBoundary** around app + scene so a render/WebGL crash shows a recovery card, not a white screen. Modular `ui/ErrorBoundary.tsx` + a scene-scoped fallback.
-- [ ] R2. **localStorage quota handling** — autosave/prefs writes should catch `QuotaExceededError`, surface a notification, and degrade gracefully (currently several writers can throw).
+- [x] R1. React **ErrorBoundary** around app + scene. (CHANGELOG)
+- [x] R2. **localStorage quota handling** — autosave failures now surface a deduped notification + auto-clear on recovery; prefs writers already guarded. (CHANGELOG)
 - [ ] R3. **Autosave resilience** — debounce + try/catch + last-saved indicator; never lose work on a transient failure.
 - [ ] R4. Guard against **NaN/invalid transforms** in placement/drag (defensive clamps).
 
