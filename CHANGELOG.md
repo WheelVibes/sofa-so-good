@@ -89,6 +89,16 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [V1] Version compare — per-version diff vs the current design
+
+Each saved version now has a **Compare** toggle showing exactly how it differs
+from the live design: the item types it has more of ("+ 2 Dining chair") and
+fewer of ("− 1 Sofa"), resolved to friendly names. Backed by a pure, unit-tested
+`diffVersionItems` (defId multiset diff, catalog name resolution); the panel
+loads the version's items on demand and gracefully no-ops if the slot is
+corrupt. Restores the now-real "compare" to the Versions label. Verified: a
+3-item-fewer version shows "− 1 Ceiling light / − 1 Basin / − 1 Mirror".
+
 ## [Q42] Versions show their item-count delta vs the current design
 
 Each saved version in the Versions panel now shows how it differs from the live

@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
+import { buildMergedCatalog } from '../furniture/catalog'
+import type { FurnitureItem } from '../furniture/types'
 import { applySerialized, serialize } from '../state/schema'
 import {
   DesignFileError,
@@ -11,6 +13,7 @@ import type { SlotMeta } from '../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../state/storage/slotThumbs'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
+import { diffVersionItems, type VersionDiff } from './versionDiff'
 
 interface VersionRow extends SlotMeta {
   count: number
@@ -49,6 +52,7 @@ export function VersionsPanel() {
   const itemCount = useStore((s) => s.items.length)
   const lastSavedAt = useStore((s) => s.lastSavedAt)
   const [rows, setRows] = useState<VersionRow[]>([])
+  const [compareSlot, setCompareSlot] = useState<{ slot: string; diff: VersionDiff } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(() => void loadRows().then(setRows), [])
@@ -82,6 +86,19 @@ export function VersionsPanel() {
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
     useStore.setState(applySerialized(data, known))
     useStore.getState().notify.start({ title: `Restored “${slot}”`, kind: 'success' })
+  }
+
+  const compare = async (slot: string) => {
+    if (compareSlot?.slot === slot) {
+      setCompareSlot(null) // toggle off
+      return
+    }
+    const data = await LocalStorageAdapter.load(slot).catch(() => null)
+    const versionItems = (data as { items?: FurnitureItem[] } | null)?.items
+    if (!Array.isArray(versionItems)) return
+    const st = useStore.getState()
+    const diff = diffVersionItems(st.items, versionItems, buildMergedCatalog(st))
+    setCompareSlot({ slot, diff })
   }
 
   const remove = async (slot: string) => {
@@ -203,10 +220,48 @@ export function VersionsPanel() {
                   <button type="button" onClick={() => void restore(r.slot)}>
                     <Icon.Versions width={13} height={13} /> Restore
                   </button>
+                  <button
+                    type="button"
+                    className={compareSlot?.slot === r.slot ? 'on' : ''}
+                    onClick={() => void compare(r.slot)}
+                  >
+                    <Icon.Checks width={13} height={13} /> Compare
+                  </button>
                   <button type="button" className="del" onClick={() => void remove(r.slot)}>
                     <Icon.Trash width={13} height={13} />
                   </button>
                 </div>
+                {compareSlot?.slot === r.slot ? (
+                  <div
+                    className="ver-diff"
+                    style={{
+                      marginTop: 6,
+                      fontSize: 'var(--t-2xs)',
+                      lineHeight: 1.5,
+                      color: 'var(--text-2)',
+                    }}
+                  >
+                    {compareSlot.diff.gained.length === 0 && compareSlot.diff.lost.length === 0 ? (
+                      <span>Same furniture as the current design.</span>
+                    ) : (
+                      <>
+                        {compareSlot.diff.gained.map((l) => (
+                          <div key={`g${l.defId}`} style={{ color: 'var(--accent-soft-text)' }}>
+                            + {l.count} {l.name}
+                          </div>
+                        ))}
+                        {compareSlot.diff.lost.map((l) => (
+                          <div key={`l${l.defId}`} style={{ color: 'var(--danger)' }}>
+                            − {l.count} {l.name}
+                          </div>
+                        ))}
+                        <div style={{ color: 'var(--text-3)', marginTop: 2 }}>
+                          vs the current design (restoring would apply these).
+                        </div>
+                      </>
+                    )}
+                  </div>
+                ) : null}
               </div>
             </div>
           ))}
