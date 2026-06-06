@@ -23,6 +23,8 @@ export interface ItemsSlice {
   flipItem: (id: string, axis: 'x' | 'z') => void
   /** Toggle the locked (pinned) state of an item. */
   toggleLock: (id: string) => void
+  /** Lock or unlock every item at once (protect/unprotect a finished layout). */
+  setAllLocked: (locked: boolean) => void
   /** Set (or clear, with an empty/blank string) an item's custom display name.
    *  Falls back to the catalog def name when absent. */
   renameItem: (id: string, label: string) => void
@@ -118,6 +120,10 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, locked: !it.locked } : it)),
     }))
+  },
+  setAllLocked: (locked) => {
+    get().pushHistory()
+    set((s) => ({ items: s.items.map((it) => ({ ...it, locked })) }))
   },
   renameItem: (id, label) => {
     const trimmed = label.trim()

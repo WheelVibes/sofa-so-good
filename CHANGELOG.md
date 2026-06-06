@@ -89,6 +89,13 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q39] Lock all / Unlock all
+
+The Layers panel footer gains a **Lock all / Unlock all** toggle — protect a
+finished layout from accidental moves/edits (or release it) in one tap. Backed
+by a new `itemsSlice.setAllLocked(locked)` (single undo step). Unit-tested;
+footer button verified.
+
 ## [Q38] Project / design notes
 
 A free-text **project note** that travels with the design (a brief, client

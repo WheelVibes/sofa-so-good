@@ -23,6 +23,7 @@ export function LayersPanel() {
   const selectItem = useStore((s) => s.selectItem)
   const toggleSelectedItem = useStore((s) => s.toggleSelectedItem)
   const toggleLock = useStore((s) => s.toggleLock)
+  const setAllLocked = useStore((s) => s.setAllLocked)
   const deleteItem = useStore((s) => s.deleteItem)
   const hiddenIds = useStore((s) => s.hiddenItemIds)
   const toggleItemHidden = useStore((s) => s.toggleItemHidden)
@@ -200,13 +201,24 @@ export function LayersPanel() {
       </div>
       <div className="lyr-foot">
         <span>{q ? `${matchCount} of ${items.length} objects` : `${items.length} objects`}</span>
-        {hiddenIds.length > 0 ? (
-          <button type="button" className="lyr-showall" onClick={() => showAllItems()}>
-            Show all ({hiddenIds.length} hidden)
-          </button>
-        ) : (
-          <span>{roomCount} rooms</span>
-        )}
+        <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)' }}>
+          {hiddenIds.length > 0 ? (
+            <button type="button" className="lyr-showall" onClick={() => showAllItems()}>
+              Show all ({hiddenIds.length})
+            </button>
+          ) : null}
+          {items.length > 0 ? (
+            <button
+              type="button"
+              className="lyr-showall"
+              onClick={() => setAllLocked(!(items.length > 0 && items.every((it) => it.locked)))}
+            >
+              {items.length > 0 && items.every((it) => it.locked) ? 'Unlock all' : 'Lock all'}
+            </button>
+          ) : (
+            <span>{roomCount} rooms</span>
+          )}
+        </span>
       </div>
     </>
   )

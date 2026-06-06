@@ -56,3 +56,19 @@ describe('renameItem', () => {
     expect(useStore.getState().items.find((i) => i.id === id)?.label).toBeUndefined()
   })
 })
+
+describe('setAllLocked', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('locks then unlocks every item', () => {
+    const s = useStore.getState()
+    s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.addItem({ defId: 'bed-double', position: [5, 5], rotation: 0, props: {} })
+    s.setAllLocked(true)
+    expect(useStore.getState().items.every((i) => i.locked)).toBe(true)
+    s.setAllLocked(false)
+    expect(useStore.getState().items.some((i) => i.locked)).toBe(false)
+  })
+})
