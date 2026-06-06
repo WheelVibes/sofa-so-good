@@ -182,6 +182,55 @@ export function BudgetPanel() {
             fmt={fmt}
             onChange={setBudgetTarget}
           />
+          {groups.length > 1 && shownTotal > 0 ? (
+            <div className="bud-breakdown" style={{ margin: 'var(--s-2) 0 var(--s-1)' }}>
+              <div
+                className="label"
+                style={{ fontSize: 'var(--t-2xs)', marginBottom: 4, color: 'var(--text-3)' }}
+              >
+                Spend by category
+              </div>
+              {groups
+                .map((g) => ({
+                  cat: g.cat,
+                  amt: g.lines.reduce((s, l) => s + eachOf(l) * l.count, 0),
+                }))
+                .sort((a, b) => b.amt - a.amt)
+                .map(({ cat, amt }) => {
+                  const pct = Math.round((amt / shownTotal) * 100)
+                  return (
+                    <div key={cat} style={{ marginBottom: 5 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: 'var(--t-2xs)',
+                          color: 'var(--text-2)',
+                        }}
+                      >
+                        <span>
+                          {CATEGORY_LABEL[cat]} · {pct}%
+                        </span>
+                        <span className="mono">{fmt(amt)}</span>
+                      </div>
+                      <div
+                        style={{
+                          height: 5,
+                          borderRadius: 999,
+                          background: 'var(--surface-2)',
+                          overflow: 'hidden',
+                          marginTop: 2,
+                        }}
+                      >
+                        <div
+                          style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)' }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          ) : null}
           {groups.length > 0 ? (
             <button
               type="button"

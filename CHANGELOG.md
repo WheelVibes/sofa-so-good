@@ -89,6 +89,14 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q44] Spend-by-category breakdown in the Budget panel
+
+The Shopping panel now shows a **"Spend by category"** breakdown — each category
+with a proportional bar + its share (%) and amount, sorted high-to-low — so you
+can see at a glance where the budget goes (e.g. "Appliances · 30%"). Computed
+from the same live/estimate prices as the total (consistent), shown only when
+≥2 categories are present. Verified.
+
 ## [B18] Save/restore the fixture-lights mode with the design
 
 `timeMode`/`manualHour` were saved with a design but `lightsMode` wasn't — so a
