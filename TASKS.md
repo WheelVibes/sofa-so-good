@@ -251,7 +251,7 @@ native dialogs → themed modals/toasts, 2 lying-UI stubs, a regression + edge
 guard), Help completeness, save/load/export feedback toasts, perf P4 + tested
 catalog-browse extraction.
 Remaining (larger / focused-session):
-- [ ] V1. **Full version diff** — per-version Compare showing added/removed item
+- [x] V1. **Version compare** — per-version Compare shows gained/lost item types vs current (pure diffVersionItems, unit-tested). E2E-verified. (CHANGELOG)
   types + budget delta vs current (the count-delta Q42 is the lightweight start).
 - [ ] K1. Parametric kitchen/bath **cabinet-run engine** (Coohom parity).
 - [ ] RE2/L1. Shadowed inter-room light bleed (conflicts with the deliberate
