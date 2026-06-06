@@ -44,6 +44,16 @@ through `schema.ts` as an optional field (no migration — older saves just have
 no label). renameItem + schema round-trip unit-tested; verified the name shows
 in the inspector title, field, and Layers tree.
 
+## [Q26] Per-room hide/show in the Layers panel
+
+Each room group in the Objects/Layers tree gets an **eye toggle in its header**
+that hides or reveals the whole room's items at once (a new bulk
+`selectionSlice.setItemsHidden(ids, hidden)` — dedupe-safe). Hover-revealed like
+the per-item actions; shows a solid accent EyeOff when the room is fully hidden.
+Complements the per-item hide (Q15) and the name filter (Q24). Bulk action
+unit-tested; verified the room's furniture disappears from the scene and the
+header shows the hidden state.
+
 ## [Q24] Layers (Objects) panel name filter
 
 The Objects/Layers tree gains a **name filter** at the top — type to keep only

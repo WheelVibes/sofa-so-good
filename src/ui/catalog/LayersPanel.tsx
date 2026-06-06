@@ -18,6 +18,7 @@ export function LayersPanel() {
   const deleteItem = useStore((s) => s.deleteItem)
   const hiddenIds = useStore((s) => s.hiddenItemIds)
   const toggleItemHidden = useStore((s) => s.toggleItemHidden)
+  const setItemsHidden = useStore((s) => s.setItemsHidden)
   const showAllItems = useStore((s) => s.showAllItems)
   const hiddenSet = new Set<string>(hiddenIds)
   const catalog = useCatalog()
@@ -88,17 +89,38 @@ export function LayersPanel() {
         ) : (
           visibleGroups.map((g) => {
             const isCollapsed = !q && !!collapsed[g.key]
+            const groupHidden = g.items.length > 0 && g.items.every((it) => hiddenSet.has(it.id))
             return (
               <div className="lyr-group" key={g.key}>
-                <button
-                  type="button"
-                  className={`lyr-ghead${isCollapsed ? ' collapsed' : ''}`}
-                  onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !c[g.key] }))}
-                >
-                  <Icon.Chevron className="chev" width={14} height={14} />
-                  {g.name}
-                  <span className="gcount">{g.items.length}</span>
-                </button>
+                <div className="lyr-ghead-row">
+                  <button
+                    type="button"
+                    className={`lyr-ghead${isCollapsed ? ' collapsed' : ''}`}
+                    onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !c[g.key] }))}
+                  >
+                    <Icon.Chevron className="chev" width={14} height={14} />
+                    {g.name}
+                    <span className="gcount">{g.items.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`lyr-geye${groupHidden ? ' on' : ''}`}
+                    title={groupHidden ? 'Show all in room' : 'Hide all in room'}
+                    aria-label={groupHidden ? 'Show all in room' : 'Hide all in room'}
+                    onClick={() =>
+                      setItemsHidden(
+                        g.items.map((it) => it.id),
+                        !groupHidden,
+                      )
+                    }
+                  >
+                    {groupHidden ? (
+                      <Icon.EyeOff width={14} height={14} />
+                    ) : (
+                      <Icon.Eye width={14} height={14} />
+                    )}
+                  </button>
+                </div>
                 {!isCollapsed &&
                   g.items.map((it) => {
                     const def = catalog[it.defId]

@@ -73,6 +73,16 @@
 .lyr-ghead .chev { transition: transform var(--dur) var(--ease); }
 .lyr-ghead.collapsed .chev { transform: rotate(-90deg); }
 .lyr-ghead .gcount { margin-left: auto; font-family: var(--font-mono); font-weight: 600; }
+.lyr-ghead-row { display: flex; align-items: center; }
+.lyr-ghead-row .lyr-ghead { flex: 1; width: auto; }
+.lyr-geye {
+  width: 24px; height: 24px; flex: none; display: grid; place-items: center;
+  border-radius: var(--r-1); color: var(--text-3);
+  opacity: 0; transition: var(--dur) var(--ease);
+}
+.lyr-ghead-row:hover .lyr-geye { opacity: 1; }
+.lyr-geye:hover { background: var(--surface-2); color: var(--text); }
+.lyr-geye.on { color: var(--accent-soft-text); opacity: 1; }
 .lyr-row {
   display: flex; align-items: center; gap: var(--s-2);
   padding: 6px 7px; border-radius: var(--r-2);

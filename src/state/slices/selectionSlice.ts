@@ -25,6 +25,8 @@ export interface SelectionSlice {
   hiddenItemIds: string[]
   /** Toggle a single item's hidden (eye) state. */
   toggleItemHidden: (id: string) => void
+  /** Bulk add/remove a set of ids from the hidden set (e.g. a whole room). */
+  setItemsHidden: (ids: string[], hidden: boolean) => void
   /** Reveal everything (clear the hidden set). */
   showAllItems: () => void
   /** Hide every item except `keepIds` (focus on a subset). */
@@ -71,6 +73,16 @@ export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (se
         ? s.hiddenItemIds.filter((x) => x !== id)
         : [...s.hiddenItemIds, id],
     })),
+  setItemsHidden: (ids, hidden) =>
+    set((s) => {
+      const target = new Set(ids)
+      if (hidden) {
+        const merged = new Set(s.hiddenItemIds)
+        for (const id of target) merged.add(id)
+        return { hiddenItemIds: [...merged] }
+      }
+      return { hiddenItemIds: s.hiddenItemIds.filter((id) => !target.has(id)) }
+    }),
   showAllItems: () => set((s) => (s.hiddenItemIds.length === 0 ? {} : { hiddenItemIds: [] })),
   isolateItems: (keepIds) =>
     set((s) => {
