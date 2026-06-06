@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N7a] Keyboard-accessible catalog cards
+
+Catalog cards were `<div onClick>` — invisible to keyboard + screen-reader users
+(no focus, no role, no key activation). Both `CatalogCard` and `RemoteCard` now
+carry `role="button"`, `tabIndex={0}`, an `aria-label` ("Place …" / "Add …"),
+and Enter/Space activation (arming placement / downloading), plus a
+`:focus-visible` accent ring. `usePlacementDrag` accepts an optional event so a
+keyboard activation (no cursor) arms the ghost at the viewport centre to follow
+the next move. Mouse behaviour unchanged; verified in the harness (Tab focus →
+Enter arms placement; focus ring renders).
+
 ## [N5] Persist the floor-plan trace backdrop
 
 The reference photo/scan you trace walls over lived only in a session object URL

@@ -18,7 +18,20 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const saved = useStore((s) => s.collections.includes(def.id))
   const toggleCollection = useStore((s) => s.toggleCollection)
   return (
-    <div onClick={onClick} className="cat-card group">
+    // biome-ignore lint/a11y/useSemanticElements: a <button> can't host the nested fav/delete buttons (invalid HTML); role=button + key handling gives the same a11y.
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Place ${def.name}`}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      className="cat-card group"
+    >
       <button
         type="button"
         className={`fav-btn${saved ? ' on' : ''}`}

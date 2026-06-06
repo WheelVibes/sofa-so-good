@@ -82,8 +82,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   (CHANGELOG)
 - [ ] N6. **RE1/RE2** — window glass tint + inter-room light bleed (complex
   lighting; needs a focused session).
-- [ ] N7. **Toolbar/icon-button aria-labels audit** + catalog keyboard nav (a11y
-  beyond modals).
+- [~] N7. **a11y beyond modals** — verified IconButton already has aria-labels.
+  **Catalog cards now keyboard-operable** (role/tabindex/aria-label/Enter-Space +
+  focus ring, both card types). (CHANGELOG: N7a) Remaining: roving arrow-key grid
+  nav (optional polish).
 - [ ] N8. **Bundle code-splitting** — lazy-load FloorPlanEditor/AI surfaces if
   initial-load profiling justifies it (three.js dominates, so likely marginal).
 - [x] N9. Microcement/concrete accent wall finishes (light/grey/charcoal). (CHANGELOG)

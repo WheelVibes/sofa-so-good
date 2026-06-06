@@ -33,6 +33,8 @@
   transition: var(--dur) var(--ease); text-align: left; position: relative;
 }
 .cat-card:hover { border-color: var(--accent); background: var(--surface-solid); transform: translateY(-1px); box-shadow: var(--shadow-panel); }
+.cat-card { cursor: pointer; }
+.cat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
 .card-thumb {
   position: relative;
   aspect-ratio: 1 / 1; border-radius: var(--r-1);
