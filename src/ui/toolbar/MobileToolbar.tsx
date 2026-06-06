@@ -8,6 +8,11 @@ import { ikeaSetRecipes } from '../../furniture/ikeaSets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
 import { tidyHome } from '../../layout/tidyHome'
 import { applyStyle, STYLE_PRESETS } from '../../materials/stylePresets'
+import {
+  applyLightingScene,
+  isLightingSceneActive,
+  LIGHTING_SCENES,
+} from '../../scene/lighting/lightingScenes'
 import { useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
@@ -421,6 +426,16 @@ export function MobileToolbar() {
                       style={{ width: '100%' }}
                     />
                   </div>
+                  {LIGHTING_SCENES.map((sc) => (
+                    <Item
+                      key={sc.id}
+                      icon="Lights"
+                      label={sc.label}
+                      sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
+                      on={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
+                      onClick={act(() => applyLightingScene(sc), { keep: true })}
+                    />
+                  ))}
                   <Item
                     icon="Sun"
                     label="Sun direction"

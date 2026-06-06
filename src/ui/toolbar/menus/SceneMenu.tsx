@@ -1,4 +1,9 @@
 import { type ChangeEvent, useState } from 'react'
+import {
+  applyLightingScene,
+  isLightingSceneActive,
+  LIGHTING_SCENES,
+} from '../../../scene/lighting/lightingScenes'
 import { useEffectiveHour } from '../../../scene/lighting/useEffectiveHour'
 import { PRESET_HOURS, type TimePreset } from '../../../state/slices/timeSlice'
 import { useStore } from '../../../state/store'
@@ -15,6 +20,7 @@ export function SceneMenu() {
   const setPresetTime = useStore((s) => s.setPresetTime)
   const setManualHour = useStore((s) => s.setManualHour)
   const orientationDeg = useStore((s) => s.orientationDeg)
+  const lightsMode = useStore((s) => s.lightsMode)
   const effectiveHour = useEffectiveHour()
   const [compassOpen, setCompassOpen] = useState(false)
 
@@ -66,6 +72,21 @@ export function SceneMenu() {
             className="slider"
             style={{ width: '100%' }}
           />
+        </div>
+        <div className="mt-1 border-t border-[var(--border)] pt-1">
+          <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+            Lighting moods
+          </div>
+          {LIGHTING_SCENES.map((sc) => (
+            <MenuItem
+              key={sc.id}
+              icon="Lights"
+              label={sc.label}
+              sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
+              active={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
+              onClick={() => applyLightingScene(sc)}
+            />
+          ))}
         </div>
         <div className="mt-1 border-t border-[var(--border)] pt-1">
           <MenuItem

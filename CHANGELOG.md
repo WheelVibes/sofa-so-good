@@ -89,6 +89,19 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [N20] One-click lighting mood presets
+
+A new **Lighting moods** section in the Scene menu (desktop + mobile parity)
+sets the sun time **and** the fixture-lights mode together for an instant
+ambiance — **Daylight** (1 PM, lights off), **Golden hour** (6 PM, auto), **Cosy
+evening** (8:30 PM, lamps on), **Night** (11 PM, lamps on). Bundling the two
+controls users would otherwise set separately makes previewing a room across the
+day a single tap — a core interior-design capability. Modular
+`scene/lighting/lightingScenes.ts` (`LIGHTING_SCENES` + pure `lightingSceneState`
+/ `isLightingSceneActive` + `applyLightingScene`), unit-tested; the active mood
+highlights. Non-asset, non-perf-impacting (reuses the existing sun + lights-mode
+systems).
+
 ## [Q43b] Multi-duplicate: shared helper + discoverable button
 
 Refactored the multi-select duplicate logic out of App into a pure, unit-tested
