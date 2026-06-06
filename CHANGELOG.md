@@ -4,6 +4,21 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C1] PWA manifest + theme-color + social/Apple meta
+
+Commercial-readiness polish for `index.html`:
+- A base-agnostic `public/manifest.webmanifest` (relative `start_url`/icon URLs so
+  it works under the `/sofa-so-good/` deploy base) → the app is installable
+  ("Add to Home Screen") with name, description, standalone display, and theme
+  colour. No service worker (avoids offline-caching complexity/risk).
+- `theme-color` meta (light/dark via `prefers-color-scheme`) tints the mobile
+  browser/OS chrome to the Clay palette.
+- Apple `mobile-web-app` meta (capable, title, status-bar) for iOS home-screen.
+- Open Graph + Twitter `summary` meta so shared links (the app has a Share
+  feature) get a proper title/description preview.
+- Verified via `npm run build`: Vite rewrites the manifest/icon links to the base
+  path and copies the manifest into `dist/`.
+
 ## [Q8] "Apply style to all of this type" (bulk restyle)
 
 Styling each of N identical chairs by hand is tedious; pro tools (Coohom, Foyr)

@@ -54,3 +54,4 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 
 ## Bulk editing
 - [x] Q8. "Apply style to all of this type" context-menu bulk restyle. (CHANGELOG)
+- [x] C1. PWA manifest + theme-color + social/Apple meta tags. (CHANGELOG)
