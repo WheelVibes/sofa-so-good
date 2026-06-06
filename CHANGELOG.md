@@ -52,6 +52,14 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [B8] Loading a design left stale selection + hidden ids
+
+Completing B6/B7: `applySerialized` (used by version restore, `.sofa.json`
+import, and boot hydration) now resets `selectedItemId`/`selectedItemIds` and
+`hiddenItemIds` as part of the patch, so a loaded/restored design never carries
+over a selection or hidden-count that points at items from the previous one.
+Single-point fix covering all five consumers. Unit-tested.
+
 ## [B6] Deleting a hidden item left a stale id in the hidden set
 
 `deleteItem` cleaned the selection but not `hiddenItemIds`, so deleting a hidden

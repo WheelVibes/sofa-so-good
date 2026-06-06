@@ -333,6 +333,12 @@ export function applySerialized(
     Number.isFinite(it.rotation)
   return {
     items: state.items.filter((it) => knownDefIds.has(it.defId) && finiteTransform(it)),
+    // A loaded/restored design has no relation to the current session's
+    // selection or hidden set — reset both so the inspector and the Layers
+    // "(N hidden)" count never reference items that are no longer present.
+    selectedItemId: null,
+    selectedItemIds: [],
+    hiddenItemIds: [],
     // Restore a saved custom shell, else fall back to the default flat.
     floorPlan: state.floorPlan ?? buildDefaultPlan(),
     doors: state.doors,

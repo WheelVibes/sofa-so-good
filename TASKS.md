@@ -38,6 +38,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   "(N hidden)" over-counted) — `deleteItem` now cleans it. Unit-tested. (CHANGELOG)
 - [x] B7. Resets/presets (`resetToEmpty`/`resetToDefault`/`applyLayoutPreset`)
   didn't clear `hiddenItemIds` — now do. Unit-tested. (CHANGELOG)
+- [x] B8. Loading/restoring a design left stale selection + hidden ids —
+  `applySerialized` now resets both (covers restore/import/hydrate). Unit-tested. (CHANGELOG)
 
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
 - [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.

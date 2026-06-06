@@ -167,6 +167,20 @@ describe('schema', () => {
     }
   })
 
+  it('applySerialized resets the session selection + hidden set', () => {
+    const saved = {
+      version: 2,
+      items: [{ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} }],
+      doors: {},
+      finishes: { floor: {}, walls: {}, wallAccents: {} },
+      timeMode: 'system',
+    } as unknown as Parameters<typeof applySerialized>[0]
+    const patch = applySerialized(saved, new Set(['bed-double']))
+    expect(patch.selectedItemId).toBeNull()
+    expect(patch.selectedItemIds).toEqual([])
+    expect(patch.hiddenItemIds).toEqual([])
+  })
+
   it('applySerialized drops items with non-finite position/rotation', () => {
     const known = new Set(['bed-double'])
     const saved = {
