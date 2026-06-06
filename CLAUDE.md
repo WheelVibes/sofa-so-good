@@ -543,7 +543,8 @@ rediscover it.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): a 2D top-down editor
   (toolbar "Floor plan") edits the store `floorPlan` — walls (interior/
   exterior), rectangular rooms (auto area + total), doors/windows, grid +
-  corner snapping, drag-move, per-room floor finishes. **Non-rectangular
+  corner snapping, drag-move, per-room floor finishes, and persistent per-wall
+  **length labels** (a "Dims" header toggle, default on). **Non-rectangular
   shapes**: the **Split** tool (`splitWall`) cuts a wall into two segments
   (re-homing its openings) and dragging the selected wall's **endpoint handles**
   (`moveWallVertex`, which drags every wall sharing that corner together) lets

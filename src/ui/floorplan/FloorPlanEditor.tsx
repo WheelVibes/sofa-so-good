@@ -96,6 +96,8 @@ export function FloorPlanEditor() {
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
+  // Persistent wall-length labels (on by default; toggle in the editor header).
+  const [showWallDims, setShowWallDims] = useState(true)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -607,6 +609,15 @@ export function FloorPlanEditor() {
         )}
 
         <div className="ml-auto flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowWallDims((v) => !v)}
+            className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
+            title="Toggle wall-length labels"
+            aria-pressed={showWallDims}
+          >
+            Dims
+          </button>
           <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
             Total{' '}
             <b className="mono" style={{ color: 'var(--text)' }}>
@@ -789,6 +800,36 @@ export function FloorPlanEditor() {
                 />
               )
             })}
+
+            {/* Persistent wall-length labels (a staple of pro floor planners),
+                placed at each wall midpoint, nudged to the wall's outward side.
+                Shown only for walls long enough to be legible. */}
+            {showWallDims &&
+              plan.walls.map((w) => {
+                const len = wallLength(w)
+                if (len < 0.4) return null
+                const mx = (w.start[0] + w.end[0]) / 2
+                const mz = (w.start[1] + w.end[1]) / 2
+                const ux = (w.end[0] - w.start[0]) / len
+                const uz = (w.end[1] - w.start[1]) / len
+                // Perpendicular offset (in metres) so the label clears the line.
+                const off = 0.28
+                const isSel = sel?.type === 'wall' && sel.id === w.id
+                return (
+                  <text
+                    key={`dim-${w.id}`}
+                    x={toPx(mx - uz * off)}
+                    y={toPx(mz + ux * off)}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="plan-dim-label"
+                    fill={isSel ? 'var(--accent)' : 'var(--text-2)'}
+                    style={{ pointerEvents: 'none', fontSize: 11, fontWeight: 600 }}
+                  >
+                    {len.toFixed(2)} m
+                  </text>
+                )
+              })}
 
             {/* Endpoint handles for the selected wall (drag to reshape; shared
                 corners move together). Lets the user pull a rectangle into an

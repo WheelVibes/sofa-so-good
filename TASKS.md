@@ -26,7 +26,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] Q2. **Recently used / recently placed** catalog row (clock chip, persisted). (CHANGELOG)
 - [ ] Q3. **Drag-from-catalog-to-scene** placement (if not present) or improve placement ghost UX.
 - [x] Q4. **`?` opens Help & shortcuts** — wired the advertised-but-missing global binding. (CHANGELOG)
-- [ ] Q5. **Measurement/annotation** persistence + dimension labels on 2D plan.
+- [x] Q5. **Wall-length labels** on the 2D plan (+ Dims toggle). (CHANGELOG)
 - [x] Q6. **Camera bookmarks / saved views** — save/apply (smooth fly)/delete, desktop View menu + mobile parity, persisted. (CHANGELOG)
 - [ ] Q7. **Empty states & inline help** across panels.
 

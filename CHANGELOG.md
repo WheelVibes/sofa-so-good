@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q5] Wall-length labels on the 2D floor plan
+
+Every pro floor planner annotates walls with their length; the editor only had
+room-area labels + a transient draw readout. Added persistent per-wall length
+labels (metres, at each wall midpoint nudged to its outward side, hidden for
+sub-0.4 m stubs, accent-coloured when the wall is selected) plus a **Dims**
+toggle in the editor header (default on). Visually verified — every wall now
+shows its length alongside the room areas.
+
 ## [S1] BYO-key security audit + AI key-exfiltration guard
 
 Audited bring-your-own-key storage (AI keys, Poly Pizza pack key). Findings:
