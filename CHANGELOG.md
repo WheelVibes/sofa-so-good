@@ -10,6 +10,14 @@ Polish for the hide feature: a piece that's both selected and hidden no longer
 shows its rotate gizmo or selection outline floating over the empty spot —
 `RotateGizmo` and `SelectionOutline` now skip hidden items. Verified.
 
+## [Q21b] Floor-plan editor: middle-drag panning
+
+Completes canvas navigation on the open grid: **middle-mouse drag pans** the
+canvas (alongside scroll + Ctrl/⌘-wheel zoom). The SVG pointer handler now also
+ignores right-click (only the left button draws/selects), fixing a stray
+right-click-draws quirk. Verified: a middle-drag scrolls the canvas by the drag
+delta.
+
 ## [Q21] Floor-plan editor zoom
 
 Completes the open-canvas rework: the editor now **zooms** via **− / +** buttons

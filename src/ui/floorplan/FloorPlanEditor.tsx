@@ -115,6 +115,8 @@ export function FloorPlanEditor() {
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
+  // Middle-mouse drag-to-pan: start client pos + canvas scroll at grab.
+  const panRef = useRef<{ x: number; y: number; sl: number; st: number } | null>(null)
 
   // Rehydrate a previously-saved backdrop when the editor opens (the component
   // is always mounted and only renders when `editing`, so this can't be a
@@ -387,6 +389,20 @@ export function FloorPlanEditor() {
   }
 
   const onDown = (e: React.PointerEvent) => {
+    // Middle-button drags to pan the open canvas; ignore right-click. Only the
+    // left button draws/selects.
+    if (e.button === 1 && canvasRef.current) {
+      e.preventDefault()
+      panRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        sl: canvasRef.current.scrollLeft,
+        st: canvasRef.current.scrollTop,
+      }
+      svgRef.current?.setPointerCapture(e.pointerId)
+      return
+    }
+    if (e.button !== 0) return
     const [wx, wz] = pointerWorld(e)
     const st = useStore.getState()
     if (tool === 'wall' || tool === 'room' || tool === 'scale') {
@@ -437,6 +453,11 @@ export function FloorPlanEditor() {
   }
 
   const onMove = (e: React.PointerEvent) => {
+    if (panRef.current && canvasRef.current) {
+      canvasRef.current.scrollLeft = panRef.current.sl - (e.clientX - panRef.current.x)
+      canvasRef.current.scrollTop = panRef.current.st - (e.clientY - panRef.current.y)
+      return
+    }
     if (movingVertex) {
       const [wx, wz] = pointerWorld(e, movingVertex.id)
       useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz])
@@ -479,6 +500,10 @@ export function FloorPlanEditor() {
   }
 
   const onUp = () => {
+    if (panRef.current) {
+      panRef.current = null
+      return
+    }
     if (movingVertex) {
       setMovingVertex(null)
       return
