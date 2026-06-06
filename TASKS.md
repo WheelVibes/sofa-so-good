@@ -133,3 +133,5 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   `shoppingCsv.ts`, unit-tested + E2E-verified. (CHANGELOG)
 - [x] Q15b. **"Isolate" (hide others)** context action + Show-all restore
   (`selectionSlice.isolateItems`). E2E-verified. (CHANGELOG)
+- [x] Q17. **Resizable imports** — GLB/IKEA inspector Scale shows real cm
+  dimensions + widened 0.25–3× range. E2E-verified. (CHANGELOG)
