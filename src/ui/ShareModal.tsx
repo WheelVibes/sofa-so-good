@@ -1,4 +1,5 @@
 import { EXPORT_EVENT } from '../scene/ScreenshotController'
+import { exportDesignToFile } from '../state/storage/designFile'
 import { useStore } from '../state/store'
 import { AiPhotorealSection } from './ai/AiPhotorealSection'
 import { Modal } from './Modal'
@@ -45,8 +46,8 @@ export function ShareModal() {
             lineHeight: 1.4,
           }}
         >
-          Opens the editor. To send your actual design, export it as a file from the Versions panel
-          and share that.
+          Opens the editor. To send your actual design, use “Export file” below and share the
+          downloaded .sofa.json.
         </p>
         <div className="share-link">
           <div className="field">
@@ -108,6 +109,20 @@ export function ShareModal() {
           >
             <Icon.Report width={14} height={14} />
             Shoppable PDF
+          </button>
+          <button
+            type="button"
+            className="btn btn-soft"
+            onClick={() => {
+              exportDesignToFile(
+                useStore.getState(),
+                `sofa-design-${new Date().toISOString().slice(0, 10)}`,
+              )
+              toast('Design file downloaded (.sofa.json)')
+            }}
+          >
+            <Icon.Download width={14} height={14} />
+            Export file
           </button>
         </div>
       </div>

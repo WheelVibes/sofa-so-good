@@ -89,6 +89,15 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q40] Export the design file from the Share modal
+
+Added an **Export file** button (the portable `.sofa.json` via `exportDesignToFile`)
+to the Share modal's export row, alongside Snapshot PNG + Shoppable PDF — so the
+real way to share a design (send the file, recipient imports it) is right where
+the App-link note points, not buried in the Versions panel. With B13/B14 the
+Share modal is now an entirely functional export hub (PNG, PDF, file) + an honest
+app link.
+
 ## [B14] Honest "App link" instead of a dead share URL
 
 The Share modal's "Shareable link" copied a fake `hdb.design/s/…` URL (dead
