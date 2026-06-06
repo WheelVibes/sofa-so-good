@@ -53,6 +53,20 @@ export function SceneMenu() {
             className="rounded border border-[var(--border)] bg-[var(--surface-solid)] px-1 py-0.5 text-xs"
           />
         </div>
+        {/* Scrub slider — drag to sweep the day and watch the light change live. */}
+        <div className="px-2 pb-1.5" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="range"
+            min={0}
+            max={24}
+            step={0.25}
+            value={effectiveHour}
+            aria-label="Time of day"
+            onChange={(e) => setManualHour(Number(e.target.value))}
+            className="slider"
+            style={{ width: '100%' }}
+          />
+        </div>
         <div className="mt-1 border-t border-[var(--border)] pt-1">
           <MenuItem
             icon="Sun"

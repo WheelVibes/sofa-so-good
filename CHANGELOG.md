@@ -66,6 +66,14 @@ A grep audit found the mobile toolbar's File handlers still used `prompt`/`alert
 `notify` toasts too. Confirmed **zero** `window.prompt/alert/confirm` remain in
 app code (only doc comments reference them).
 
+## [Q35] Time-of-day scrub slider
+
+The Scene menu gains a continuous time slider (0–24 h, 15-min steps) under the
+presets/custom-time row — drag to sweep the day and watch the sun, shadows, sky,
+fixture lights, and the new RE1 window-glass tint change live. Bound to the
+clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
+scrubs.
+
 ## [Q7a] Empty-state hint for saved camera views
 
 Small inline-help polish: the View menu's Saved-views section showed nothing when

@@ -706,8 +706,8 @@ rediscover it.
   **View** (top/reset/turntable/edit-room + **saved camera views**: a
   `SavedViewsSection` to bookmark the current angle and fly back to it —
   `cameraViewsSlice`, persisted to `localStorage`, mobile-parity in the View
-  accordion), **Scene** (time presets + sun-direction
-  `CompassModal`), **Arrange** (Sets/Presets/Style/Floor plan/Tidy), **Tools**
+  accordion), **Scene** (time presets + a continuous time-of-day scrub slider +
+  sun-direction `CompassModal`), **Arrange** (Sets/Presets/Style/Floor plan/Tidy), **Tools**
   (Budget/Checks/Sun study/Walkthrough/Report), **File** (Save/Load/Export/
   Record). Every control has a custom portaled **Tooltip** showing its name +
   a keyboard-shortcut chip (label from `shortcuts.ts`, sourced from
