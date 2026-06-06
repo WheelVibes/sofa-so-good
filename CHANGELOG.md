@@ -4,6 +4,18 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N8] Code-split the floor-plan editor out of the initial bundle
+
+The `FloorPlanEditor` (with its AI/template/room-detect deps) was statically
+imported and always mounted (rendering null until opened), so its code shipped
+in the initial bundle. Switched it to `React.lazy` + `Suspense`, mounted only
+while `floorPlanEditing` — the production build now emits a separate
+`FloorPlanEditor` chunk (~31 kB / 10.5 kB gzip) and the main entry chunk drops
+by ~30 kB, loaded on demand when the user opens the editor. Conditional mounting
+is safe (the backdrop rehydrate is gated on `editing` and re-reads IDB per open).
+Verified: build splits the chunk, and the editor still opens + renders fully
+(plan + ceiling-height control) on first open.
+
 ## [Q14] "Select all of this type" context action
 
 Complements the existing "Apply style to all of this type": right-clicking a

@@ -107,8 +107,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   lighting; needs a focused session).
 - [x] N7. **a11y beyond modals** — IconButton aria-labels verified; catalog cards
   keyboard-operable (N7a) + **roving arrow-key grid navigation** (N7b). (CHANGELOG)
-- [ ] N8. **Bundle code-splitting** — lazy-load FloorPlanEditor/AI surfaces if
-  initial-load profiling justifies it (three.js dominates, so likely marginal).
+- [x] N8. **Bundle code-splitting** — `FloorPlanEditor` is now `React.lazy` +
+  conditionally mounted (separate ~31 kB chunk, ~30 kB off the initial entry).
+  Build-verified. (CHANGELOG) Further AI-surface splitting possible if profiling
+  warrants.
 - [x] N9. Microcement/concrete accent wall finishes (light/grey/charcoal). (CHANGELOG)
 - [x] N9b. Board-and-batten panelling wall finishes (white/sage/navy). (CHANGELOG)
   (procedural, prod-safe).

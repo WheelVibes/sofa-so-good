@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
 import { canPlace } from './collision/placement'
 import {
   KEYBINDINGS,
@@ -29,7 +29,13 @@ import { DragHud } from './ui/DragHud'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
 import { FpsCounter } from './ui/FpsCounter'
-import { FloorPlanEditor } from './ui/floorplan/FloorPlanEditor'
+
+// Lazy-loaded: the 2D editor (+ its AI/template deps) is only needed once the
+// user opens it, so it stays out of the initial bundle.
+const FloorPlanEditor = lazy(() =>
+  import('./ui/floorplan/FloorPlanEditor').then((m) => ({ default: m.FloorPlanEditor })),
+)
+
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
@@ -51,6 +57,7 @@ export default function App() {
   const cameraMode = useStore((s) => s.cameraMode)
   const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const bootPhase = useStore((s) => s.bootPhase)
   const sceneReady = useStore((s) => s.sceneReady)
   const loading = useStore((s) => s.loading)
@@ -548,7 +555,11 @@ export default function App() {
         <SmartStartWizard />
         <Onboarding />
         <LocationPrompt />
-        <FloorPlanEditor />
+        {floorPlanEditing ? (
+          <Suspense fallback={null}>
+            <FloorPlanEditor />
+          </Suspense>
+        ) : null}
         <LoadingOverlay
           active={booting || loading.active}
           label={booting ? 'Furnishing your flat…' : loading.label}
