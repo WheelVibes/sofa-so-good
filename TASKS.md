@@ -99,6 +99,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   Follow-up: a per-room height control (UI) if desired — the data model already
   supports per-room `ceilingHeight`.
 
+## Catalog UX
+- [x] Q23. **Catalog sort** (Featured / Name / Size) for category browsing; pure
+  `sortCards`, bypassed during fuzzy search. E2E-verified. (CHANGELOG)
+
 ## Shopping / budget
 - [x] Q22. **Budget target** with over/under progress indicator (Shopping panel,
   persisted per-device via `budgetPrefs`). E2E-verified. (CHANGELOG)

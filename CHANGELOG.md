@@ -21,6 +21,17 @@ Formatters unit-tested (metric + imperial, incl. inch-carry + non-finite).
 Verified: imperial overlay renders `17′ 9″ · 262 ft²` / `Ceiling 8′ 6″` cleanly
 and the panel toggle reflects state.
 
+## [Q23] Catalog sort control
+
+The catalog grid gains a browse-time **Sort** dropdown — **Featured** (the
+curated built-ins-then-CC0 order), **Name (A–Z)**, and **Size (small→large)**
+(by footprint area; un-downloaded CC0 entries, which carry no footprint, sort
+last). `sortCards` is pure and never mutates the source list; it's applied only
+to real-category browsing — fuzzy search keeps its relevance ranking, and the
+favourites/recent pseudo-categories keep their meaningful order. Changing the
+sort resets to page 1. Verified: seating sorts 2-seat → 3-seat → Armchair →
+Bar stool → Bench → Chaise lounge under A–Z.
+
 ## [Q22] Budget target with over/under indicator
 
 The Shopping panel gains an optional **budget target** (SGD): type a goal and a

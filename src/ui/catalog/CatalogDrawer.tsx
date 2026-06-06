@@ -23,6 +23,31 @@ function gridItemText(it: GridItem): string[] {
     : [it.entry.name, it.entry.slug, ...(it.entry.tags ?? [])]
 }
 
+type SortKey = 'default' | 'name' | 'size'
+const SORT_LABEL: Record<SortKey, string> = {
+  default: 'Featured',
+  name: 'Name (A–Z)',
+  size: 'Size (small→large)',
+}
+const cardName = (it: GridItem) => (it.kind === 'local' ? it.def.name : it.entry.name)
+/** Footprint area (m²) for local defs; remote CC0 entries carry no footprint so
+ *  they sort last under a size sort. */
+const cardArea = (it: GridItem) =>
+  it.kind === 'local'
+    ? it.def.defaultFootprint.w * it.def.defaultFootprint.d
+    : Number.POSITIVE_INFINITY
+
+/** Sort a category listing. `default` preserves the curated order (built-ins
+ *  first, then CC0). Returns a new array; never mutates the input. */
+function sortCards(cards: GridItem[], key: SortKey): GridItem[] {
+  if (key === 'default') return cards
+  const byName = (a: GridItem, b: GridItem) =>
+    cardName(a).localeCompare(cardName(b), undefined, { sensitivity: 'base' })
+  return [...cards].sort(
+    key === 'name' ? byName : (a, b) => cardArea(a) - cardArea(b) || byName(a, b),
+  )
+}
+
 /** Sliding left-side drawer. Toggles between a single unified catalog grid
  *  (built-in + uploads + installed packs + browsable CC0) and an Objects/Layers
  *  tree (`leftMode`). The Packs tab installs asset packs (whose items then show
@@ -43,6 +68,7 @@ export function CatalogDrawer() {
   const [uploadOpen, setUploadOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
+  const [sortBy, setSortBy] = useState<SortKey>('default')
 
   useEffect(() => {
     if (open && phStatus === 'idle') void bootstrapRemote()
@@ -63,12 +89,13 @@ export function CatalogDrawer() {
   // Fuzzy (typo-tolerant, ranked) search across the WHOLE catalog (local +
   // browsable CC0) when querying; otherwise the active category / favourites.
   const allCards = q
-    ? fuzzySearch(q, unified.all, gridItemText)
+    ? // Searching uses the fuzzy relevance ranking — sort is for browsing only.
+      fuzzySearch(q, unified.all, gridItemText)
     : active === 'favourites'
       ? unified.favourites
       : active === 'recent'
         ? unified.recent
-        : (unified.byCategory[active] ?? [])
+        : sortCards(unified.byCategory[active] ?? [], sortBy)
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
@@ -185,6 +212,37 @@ export function CatalogDrawer() {
               recentCount={unified.recent.length}
             />
           )}
+          {!q && active !== 'favourites' && active !== 'recent' && allCards.length > 1 ? (
+            <div
+              className="cat-sort"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '0 var(--s-4) var(--s-2)',
+                fontSize: 'var(--t-2xs)',
+                color: 'var(--text-3)',
+              }}
+            >
+              <span>Sort</span>
+              <select
+                value={sortBy}
+                aria-label="Sort catalog"
+                onChange={(e) => {
+                  setSortBy(e.target.value as SortKey)
+                  setPage(0)
+                }}
+                className="input"
+                style={{ flex: 1, height: 28, padding: '0 6px' }}
+              >
+                {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+                  <option key={k} value={k}>
+                    {SORT_LABEL[k]}
+                  </option>
+                ))}
+              </select>
+            </div>
+          ) : null}
           <div className="card-grid" onKeyDown={onGridKeyDown}>
             {cards.length === 0 ? (
               <p className="empty-mini" style={{ gridColumn: '1 / -1' }}>

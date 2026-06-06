@@ -270,7 +270,10 @@ rediscover it.
   local `FurnitureDef` *or* not-yet-downloaded CC0 `RemoteEntry`) that merges
   built-ins, generated, user/IKEA uploads, installed-pack items, already-
   downloaded CC0, **and** the browsable Poly Haven CC0 index into one list — a
-  single fuzzy search spans all of it, and a downloaded CC0 entry replaces its
+  single fuzzy search spans all of it (relevance-ranked; the browse-only **Sort**
+  control — Featured/Name/Size, `CatalogDrawer` `sortCards`, shown for real
+  categories not favourites/recent — is bypassed while searching), and a
+  downloaded CC0 entry replaces its
   remote card with the resolved local card (`CatalogCard` for local,
   `RemoteCard` for un-downloaded CC0 — both share the `.cat-card` shape + heart
   `fav-btn`). A **favourites** pseudo-category (star chip, first in
