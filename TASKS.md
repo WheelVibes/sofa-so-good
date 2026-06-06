@@ -238,3 +238,21 @@ quick wins):
   existing showcase AccumulativeShadows + a higher-sample pass.
 Sources: capterra.com/compare Planner-5D-vs-Coohom; coohom.com/article
 best-online-room-planner-2026; saasworthy.com Planner-5D.
+
+## Session 2 audit findings (2026-06-06, shipped + remaining)
+Shipped this session (see CHANGELOG): per-room ceiling, custom-plan ceilings,
+metric/imperial units everywhere, time-of-day glass tint + scrub slider, budget
+target, catalog sort/max-price-filter/clear/remembered-state, Layers
+filter/multi-select/per-room-hide/lock-all, context Hide, rename objects, area
+measure, saved-view thumbnails, `/` search, `[`/`]` cycling, design notes,
+report (cost-per-area + finishes-by-room + 2D plan SVG + notes), Share export
+hub (PNG/PDF/file + honest app link), 8 reliability/bug fixes (stale-ids, all
+native dialogs → themed modals/toasts, 2 lying-UI stubs, a regression + edge
+guard), Help completeness, save/load/export feedback toasts, perf P4 + tested
+catalog-browse extraction.
+Remaining (larger / focused-session):
+- [ ] V1. **Full version diff** — per-version Compare showing added/removed item
+  types + budget delta vs current (the count-delta Q42 is the lightweight start).
+- [ ] K1. Parametric kitchen/bath **cabinet-run engine** (Coohom parity).
+- [ ] RE2/L1. Shadowed inter-room light bleed (conflicts with the deliberate
+  no-shadow fixture-light perf design — needs a perf-aware approach).
