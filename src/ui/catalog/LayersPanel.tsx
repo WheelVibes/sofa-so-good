@@ -8,6 +8,13 @@ import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 
+// Room shells (wall-clipped footprints) depend only on the static apartment
+// constants, so compute the non-external rooms' shells once — not per `items`
+// change. Recomputing the clip geometry on every furniture drag was pure waste.
+const NON_EXTERNAL_ROOM_SHELLS = (Object.keys(ROOMS) as RoomId[])
+  .filter((id) => !ROOMS[id].external)
+  .map((id) => ({ id, shell: roomShell(id) }))
+
 /** Objects / Layers tree: every placed item grouped by room, with select /
  *  lock / delete. The left-dock alternative to the catalog grid. */
 export function LayersPanel() {
@@ -30,8 +37,7 @@ export function LayersPanel() {
   const itemName = (it: FurnitureItem) => itemLabel(it).toLowerCase()
 
   const groups = useMemo(() => {
-    const roomIds = (Object.keys(ROOMS) as RoomId[]).filter((id) => !ROOMS[id].external)
-    const shells = roomIds.map((id) => ({ id, shell: roomShell(id) }))
+    const shells = NON_EXTERNAL_ROOM_SHELLS
     const byRoom = new Map<string, FurnitureItem[]>()
     const other: FurnitureItem[] = []
     for (const it of items) {
@@ -41,9 +47,9 @@ export function LayersPanel() {
         byRoom.get(hit.id)?.push(it)
       } else other.push(it)
     }
-    const out: { key: string; name: string; items: FurnitureItem[] }[] = roomIds
-      .filter((id) => byRoom.has(id))
-      .map((id) => ({ key: id as string, name: ROOMS[id].name, items: byRoom.get(id) ?? [] }))
+    const out: { key: string; name: string; items: FurnitureItem[] }[] = shells
+      .filter(({ id }) => byRoom.has(id))
+      .map(({ id }) => ({ key: id as string, name: ROOMS[id].name, items: byRoom.get(id) ?? [] }))
     if (other.length) out.push({ key: 'other', name: 'Unassigned', items: other })
     return out
   }, [items])

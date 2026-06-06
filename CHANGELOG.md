@@ -52,6 +52,15 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [P4] Layers panel: stop recomputing room shells on every drag
+
+The Objects tree grouped items by room by recomputing all per-room wall-clipped
+`roomShell`s inside an `items`-keyed memo — so every furniture drag (which mutates
+`items`) re-derived the clip geometry for all rooms while the panel was open.
+Room shells depend only on the static apartment constants, so they're now a
+module-level constant computed once. Pure refactor — identical grouping output
+(verified), no behaviour change.
+
 ## [Q27] Ctrl/⌘-click multi-select in the Layers panel
 
 Layers/Objects rows now honour **Ctrl/⌘-click to toggle** an item in the

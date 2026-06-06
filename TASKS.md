@@ -16,6 +16,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] P1. Catalog drawer **virtualization** audit — ensure huge catalogs (thousands of IKEA/imported items) stay smooth (react-virtuoso already a dep).
 - [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders.
 - [ ] P3. More **instancing** for repeat-geometry primitives where profiling justifies.
+- [x] P4. Layers panel hoisted per-room `roomShell` clip-geometry out of the
+  `items`-keyed memo (was recomputed on every drag) to a module constant. (CHANGELOG)
 
 ## Bugs / correctness
 - [x] B5. **CC0 texture-load failures isolated** — `SilentErrorBoundary` wraps
