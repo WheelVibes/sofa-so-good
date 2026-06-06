@@ -101,6 +101,24 @@ export function CatalogDrawer() {
       <RemoteCard key={gridItemId(it)} entry={it.entry} onResolved={(id) => setActiveDefId(id)} />
     )
 
+  // Roving arrow-key navigation across the card grid. Column count is read from
+  // the live layout (cards sharing the first row's offsetTop) so it adapts to
+  // the responsive 1/2/3-column breakpoints. Only acts when a card itself holds
+  // focus (nested heart/delete buttons keep their own Tab behaviour).
+  const onGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
+    const cells = [...e.currentTarget.querySelectorAll<HTMLElement>('.cat-card')]
+    const idx = cells.indexOf(document.activeElement as HTMLElement)
+    if (idx === -1 || cells.length === 0) return
+    e.preventDefault()
+    const top0 = cells[0].offsetTop
+    const cols = Math.max(1, cells.filter((c) => c.offsetTop === top0).length)
+    const delta =
+      e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? cols : -cols
+    const next = idx + delta
+    if (next >= 0 && next < cells.length) cells[next].focus()
+  }
+
   return (
     <aside className="panel catalog">
       <div className="panel-head">
@@ -167,7 +185,7 @@ export function CatalogDrawer() {
               recentCount={unified.recent.length}
             />
           )}
-          <div className="card-grid">
+          <div className="card-grid" onKeyDown={onGridKeyDown}>
             {cards.length === 0 ? (
               <p className="empty-mini" style={{ gridColumn: '1 / -1' }}>
                 <span>

@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N7b] Roving arrow-key navigation in the catalog grid
+
+Completes catalog keyboard access (after N7a made cards focusable + activatable):
+the grid now handles **arrow keys to move focus between cards** — ←/→ by one,
+↑/↓ by a row. The column count is read from the live layout (cards sharing the
+first row's `offsetTop`), so it adapts to the responsive 1/2/3-column
+breakpoints rather than hard-coding 2. Only acts when a card itself holds focus,
+leaving the nested heart/delete buttons' Tab order intact. Verified in the
+harness (0 →→ 1 →↓ 3 →← 2 →↑ 0 with a 2-column layout).
+
 ## [Q12] "Straighten" context-menu action
 
 A natural complement to the rotate gizmo's free (Shift-drag) rotation: the
