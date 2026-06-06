@@ -30,6 +30,10 @@ const TIPS: [string, string][] = [
   ['Click a wall or the floor to repaint or refinish it from the picker.'],
   ['Switch to Walk to feel the scale of the flat at eye level.'],
   ['Open the Appearance menu to switch between the four themes and light / dark.'],
+  ['Rename any object from the inspector — the name shows in the Objects list.'],
+  ['Set a budget target in the Shopping panel to track how far over / under you are.'],
+  ['Switch dimensions to imperial in the Graphics panel; the whole UI follows.'],
+  ['Save versions, then Compare any one to see what furniture changed vs now.'],
 ] as unknown as [string, string][]
 
 /** Help & keyboard-shortcut reference modal (toolbar `?`). On mobile (no
