@@ -3,6 +3,7 @@ import { memo, Suspense, useCallback } from 'react'
 import { itemFootprint } from '../collision/placement'
 import { ContactShadow } from '../scene/ContactShadow'
 import { useStore } from '../state/store'
+import { GltfErrorBoundary } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
 import { selectGltfRender } from './gltfRender'
 import { PRIMITIVE_COMPONENTS } from './primitives'
@@ -93,21 +94,27 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
         return <Component props={item.props} />
       })()
     ) : (
-      <Suspense fallback={null}>
-        {(() => {
-          const r = selectGltfRender(item, def as GltfDef)
-          if (!r) return null
-          return (
-            <GltfModel
-              url={r.url}
-              scale={r.scale}
-              tint={r.tint}
-              finishOverrides={r.finishOverrides}
-              reflective={r.reflective}
-            />
-          )
-        })()}
-      </Suspense>
+      <GltfErrorBoundary
+        width={def.defaultFootprint.w}
+        depth={def.defaultFootprint.d}
+        height={Math.min(def.defaultFootprint.w, def.defaultFootprint.d, 0.9)}
+      >
+        <Suspense fallback={null}>
+          {(() => {
+            const r = selectGltfRender(item, def as GltfDef)
+            if (!r) return null
+            return (
+              <GltfModel
+                url={r.url}
+                scale={r.scale}
+                tint={r.tint}
+                finishOverrides={r.finishOverrides}
+                reflective={r.reflective}
+              />
+            )
+          })()}
+        </Suspense>
+      </GltfErrorBoundary>
     )
 
   // GLB items lift by props.surfaceHeight so a stacked model (mattress on a

@@ -24,6 +24,18 @@ exists), selecting every item sharing the def so you can move/rotate/delete or
 bulk-edit them together via the multi-select panel. Verified in the harness
 (selecting one of three nightstands → all 3 selected).
 
+## [B4] Isolate GLB load failures (one bad model no longer blanks the app)
+
+Each GLB item was wrapped only in `<Suspense>`, which catches the *loading*
+promise but not a *rejected* one — so a corrupt user upload or a 404'd remote
+model threw past Suspense to the app-level error boundary and **blanked the
+whole app**. Added a per-item `GltfErrorBoundary` (R3F class boundary) around
+each model: on failure it renders a neutral placeholder box at the item's
+footprint (still selectable/movable) while the rest of the scene stays live, and
+it retries when the item's model url changes. Unit-tested (throwing child →
+placeholder, not a crash; passes children through when fine); full suite green
+and the default flat still boots all 66 items.
+
 ## [B3] Marquee selection: lasso-style overlap (not centre-only)
 
 Marquee selection tested only each item's projected **centre** against the rect,
