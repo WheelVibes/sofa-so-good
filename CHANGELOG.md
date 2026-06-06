@@ -24,6 +24,17 @@ exists), selecting every item sharing the def so you can move/rotate/delete or
 bulk-edit them together via the multi-select panel. Verified in the harness
 (selecting one of three nightstands → all 3 selected).
 
+## [B3] Marquee selection: lasso-style overlap (not centre-only)
+
+Marquee selection tested only each item's projected **centre** against the rect,
+so dragging a box over most of a large piece missed it unless the box caught its
+exact centre (TODO "Marquee strictness"). Now it projects the footprint's 4
+corners + centre and selects when that screen **bounding box intersects** the
+marquee — the intuitive lasso behaviour. The hit test is extracted to a pure
+`selection/marqueeHit.ts` (`marqueeHitsScreenPoints`) and unit-tested (5 cases:
+centre-cover, edge-overlap-with-centre-outside, marquee-inside-big-item,
+fully-outside, empty). Full suite green.
+
 ## [Q13b] Tape measure: corner snapping + clicks over furniture
 
 Two improvements to the tape tool: (1) **fix** — the floor click-plane sat below
