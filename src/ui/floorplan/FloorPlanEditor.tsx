@@ -147,12 +147,22 @@ export function FloorPlanEditor() {
     if (!editing) return
     const el = canvasRef.current
     if (!el) return
-    const id = requestAnimationFrame(() => {
-      const cx = (ew / 2 + GRID_MARGIN) * PX
-      const cz = (ed / 2 + GRID_MARGIN) * PX
-      el.scrollLeft = Math.max(0, cx - el.clientWidth / 2)
-      el.scrollTop = Math.max(0, cz - el.clientHeight / 2)
-    })
+    // Retry each frame until the SVG has laid out at its full (inline) size —
+    // before that, scrollLeft clamps to 0 (content not yet wider than the view).
+    let frames = 0
+    let id = 0
+    const center = () => {
+      frames++
+      if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight || frames > 20) {
+        const cx = (ew / 2 + GRID_MARGIN) * PX
+        const cz = (ed / 2 + GRID_MARGIN) * PX
+        el.scrollLeft = Math.max(0, cx - el.clientWidth / 2)
+        el.scrollTop = Math.max(0, cz - el.clientHeight / 2)
+        return
+      }
+      id = requestAnimationFrame(center)
+    }
+    id = requestAnimationFrame(center)
     return () => cancelAnimationFrame(id)
   }, [editing])
 

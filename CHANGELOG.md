@@ -26,6 +26,14 @@ wheel still pans). Zoom is a single `PX = basePX × zoom` multiplier, so every
 coordinate (toPx + its inverse) stays consistent. Verified: + scales the canvas
 3100→3720px at 120% with the plan intact.
 
+## [Q20c] Reliable plan centring on editor open
+
+The scroll-centre ran on a single rAF which could fire before the SVG laid out at
+full size, leaving the plan scrolled off to the top-left. Now it retries each
+frame until the canvas content exceeds the viewport, then centres — so the plan
+is dependably centred when the editor opens. Verified (scroll lands on the plan
+centre, not 0,0).
+
 ## [Q20b] Floor-plan editor: mobile canvas + bottom-sheet inspector
 
 Follow-up to the open canvas (Q20): on mobile the inspector had an inline
