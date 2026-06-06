@@ -18,6 +18,7 @@ export type ProceduralPattern =
   | 'stripe'
   | 'grasscloth'
   | 'checker'
+  | 'parquet'
 
 export interface ProceduralResult {
   albedo: Texture
@@ -389,6 +390,75 @@ function checkerFields(base: [number, number, number], seed: number): Fields {
   return f
 }
 
+/**
+ * Basketweave parquet: a grid of square blocks, each holding K parallel wood
+ * planks, with block orientation alternating like a checkerboard (horizontal /
+ * vertical). Seamless because the block grid divides the tile evenly. The plank
+ * shading reuses the wood look (warped latewood bands + tinted boards + recessed
+ * grooves at plank/block edges), oriented per block.
+ */
+function parquetFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 9
+  const nb = 2 // blocks per axis — keeps the tile seamless
+  const K = 4 // planks per block
+  const B = S / nb // block size (px)
+  const pw = B / K // plank width (px)
+  const grain = makeFbm(seed + 7, 4, 3)
+  const fine = makeFbm(seed + 99, 3, 28)
+  // Deterministic per-plank hash → tint variation without a stateful RNG stream.
+  const hsh = (n: number) => {
+    let t = (n * 2654435761) >>> 0
+    t ^= t >>> 15
+    t = (t * 2246822519) >>> 0
+    return (t >>> 8) / 16777216
+  }
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const bx = Math.floor(x / B)
+      const by = Math.floor(y / B)
+      const horizontal = ((bx + by) & 1) === 0
+      const lx = x - bx * B
+      const ly = y - by * B
+      // across = position across the plank width (0..1); along = down its length.
+      let across: number
+      let along: number
+      let plankIdx: number
+      if (horizontal) {
+        plankIdx = Math.floor(ly / pw)
+        across = (ly - plankIdx * pw) / pw
+        along = lx / B
+      } else {
+        plankIdx = Math.floor(lx / pw)
+        across = (lx - plankIdx * pw) / pw
+        along = ly / B
+      }
+      const pid = bx * 7 + by * 13 + plankIdx * 31
+      const val = 0.84 + hsh(pid) * 0.26
+      const warm = 0.95 + hsh(pid + 1) * 0.12
+      // Latewood bands run along the plank length; warp them so they meander.
+      const warp = grain(along * 1.2 + (pid % 11), across * 1.5) - 0.5
+      const band = Math.abs(Math.sin((across + warp * 0.5) * Math.PI * 7 + (pid % 7)))
+      const fg = fine(along * 4, across)
+      let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
+      // Recessed grooves between planks (across) and at plank ends (along).
+      const edgeAcross = Math.min(across, 1 - across)
+      const grooveA = edgeAcross < 0.06 ? edgeAcross / 0.06 : 1
+      const edgeAlong = Math.min(along, 1 - along)
+      const grooveB = edgeAlong < 0.03 ? edgeAlong / 0.03 : 1
+      const groove = Math.min(grooveA, grooveB)
+      factor *= 0.5 + 0.5 * groove
+      const r = base[0] * factor * warm
+      const g = base[1] * factor
+      const b = base[2] * factor * (2 - warm)
+      const h = clamp01(0.5 * groove + band * 0.3)
+      const rough = clamp01(0.42 + band * 0.16 + (1 - groove) * 0.2)
+      setPx(f, y * S + x, r, g, b, h, rough)
+    }
+  }
+  return f
+}
+
 const PATTERN_FN: Record<
   ProceduralPattern,
   (base: [number, number, number], seed: number) => Fields
@@ -403,6 +473,7 @@ const PATTERN_FN: Record<
   terrazzo: terrazzoFields,
   stripe: stripeFields,
   grasscloth,
+  parquet: parquetFields,
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only

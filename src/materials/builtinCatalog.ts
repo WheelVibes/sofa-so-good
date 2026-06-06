@@ -71,6 +71,15 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-tile-sand': floor('floor-tile-sand', 'Sand porcelain', '#cdbfa6', 'tile', [0.8, 0.8]),
   'floor-wood-merbau': floor('floor-wood-merbau', 'Merbau', '#7a3f2a', 'wood', [1.9, 1.2]),
   'floor-wood-maple': floor('floor-wood-maple', 'Maple', '#d8c19a', 'wood', [1.9, 1.2]),
+  // Basketweave parquet — one block ≈ 0.5 m, so it tiles at 0.5 m.
+  'floor-parquet-oak': floor('floor-parquet-oak', 'Oak parquet', '#b88f5d', 'parquet', [0.5, 0.5]),
+  'floor-parquet-walnut': floor(
+    'floor-parquet-walnut',
+    'Walnut parquet',
+    '#6b4428',
+    'parquet',
+    [0.5, 0.5],
+  ),
   'floor-checker-mono': floor(
     'floor-checker-mono',
     'Checkerboard',
@@ -271,7 +280,8 @@ export const BUILTIN_MATERIALS_BY_CATEGORY: Readonly<Record<MaterialCategory, Ma
   Object.freeze(
     (Object.values(BUILTIN_MATERIALS) as MaterialDef[]).reduce(
       (acc, m) => {
-        ;(acc[m.category] ??= []).push(m)
+        if (!acc[m.category]) acc[m.category] = []
+        acc[m.category].push(m)
         return acc
       },
       {} as Record<MaterialCategory, MaterialDef[]>,

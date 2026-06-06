@@ -33,12 +33,12 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 ## Realism
 - [ ] RE1. Window glass tint / curtains affecting light (TODO out-of-scope item).
 - [ ] RE2. Inter-room light bleed through open doors (Phase 3 pending).
-- [ ] RE3. Herringbone/parquet procedural floor (needs seamless tiler).
+- [x] RE3. Basketweave parquet procedural floor (oak + walnut). (CHANGELOG)
 
 ## Security
 - [ ] S1. Audit BYO-key storage (AI keys, pack keys) — ensure never logged/bundled; document.
 - [ ] S2. Validate/​sanitize imported file handling paths (already strong; verify caps + magic-byte checks).
-- [ ] S3. Dev-gating audit — confirm no licensed/non-CC0 source leaks into prod build.
+- [x] S3. Dev-gating audit — verified: `visiblePacks`/`activeProviderIds`/`PROD_PROVIDER_IDS` gate all licensed/non-CORS sources out of prod; already covered by registry.test.ts + integration.test.tsx. No leak.
 
 ## TODO.md clearable
 - [ ] T1. Curated "furniture materials" one-tap finish shortlist (oak/walnut/teak/marble).

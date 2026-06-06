@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE3] Basketweave parquet floor finish
+
+A premium floor look common in interior-design tools, missing here (only straight
+planks existed). Added a `parquet` procedural pattern
+(`materials/procedural/generators.ts`): a seamless grid of square blocks each
+holding 4 parallel wood planks, with block orientation alternating like a
+checkerboard — the classic basketweave parquet. Reuses the wood shading (warped
+latewood bands, per-board tint, recessed plank/block grooves), oriented per
+block. Two catalog finishes — **Oak parquet** + **Walnut parquet** (`floor-parquet-*`,
+tiling at 0.5 m). Pattern added to both `ProceduralPattern` unions + `PATTERN_FN`.
+Visually verified (renders as a convincing basketweave, seamless across rooms).
+Also cleaned a pre-existing `noAssignInExpressions` lint finding in the same file.
+
 ## [Q6] Saved camera views (bookmarks)
 
 A flagship navigation QOL feature from pro tools (SketchUp scenes, Coohom

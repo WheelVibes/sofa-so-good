@@ -388,8 +388,10 @@ Shipped (all tested + pushed):
   ~~wall mirror~~, ~~floor vase~~, ~~high chair~~, ~~changing table~~.
 
 Remaining ideas: crown molding (ceiling cornice); kitchen work-triangle /
-bath fixture-order arrange templates; herringbone/parquet floor (needs a
-seamless tiler). (~~real planar mirror reflections~~ — done; the wall / bathroom /
+bath fixture-order arrange templates. (~~basketweave parquet floor~~ — done;
+`parquet` procedural pattern (alternating-orientation plank blocks, seamless) +
+Oak/Walnut parquet finishes in [generators.ts](src/materials/procedural/generators.ts).
+A true 45° herringbone is still possible later.) (~~real planar mirror reflections~~ — done; the wall / bathroom /
 floor mirrors render a true planar reflection of the room via drei's
 `MeshReflectorMaterial` on the **High/Maximum** render tiers (Performance/Medium
 keep the cheap fake-shiny pane), so a mirror visibly enlarges the space. Shared
