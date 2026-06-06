@@ -235,6 +235,21 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips lightsMode and defaults to auto when absent', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setLightsMode('on')
+    const out = serialize(useStore.getState())
+    expect(out.lightsMode).toBe('on')
+    // Absent (legacy) → applySerialized defaults to 'auto'.
+    const legacy = { ...out } as Record<string, unknown>
+    delete legacy.lightsMode
+    const patch = applySerialized(
+      legacy as unknown as Parameters<typeof applySerialized>[0],
+      new Set(['bed-double']),
+    )
+    expect((patch as { lightsMode?: string }).lightsMode).toBe('auto')
+  })
+
   it('migrates legacy timeOfDay="day" to manual hour 12', () => {
     const legacy = {
       version: 1,

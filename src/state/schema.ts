@@ -177,6 +177,9 @@ const RawSerializedStateZ = z.object({
   userMaterials: z.array(UserMaterialDefZ),
   timeMode: z.enum(['system', 'manual']),
   manualHour: z.number().min(0).max(24),
+  // Optional (added later): fixture-lights mode, so a saved lighting mood's
+  // on/off state round-trips. Absent → 'auto' on load.
+  lightsMode: z.enum(['auto', 'on', 'off']).optional(),
   cameraMode: z.enum(['orbit', 'firstPerson']),
   orientationDeg: z.number().optional(),
   location: z
@@ -302,6 +305,7 @@ export function serialize(state: RootState): SerializedState {
     })),
     timeMode: state.timeMode,
     manualHour: state.manualHour,
+    lightsMode: state.lightsMode,
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
     location: state.location,
@@ -352,6 +356,7 @@ export function applySerialized(
     },
     timeMode: state.timeMode,
     manualHour: state.manualHour,
+    lightsMode: state.lightsMode ?? 'auto',
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,

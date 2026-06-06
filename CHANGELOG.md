@@ -89,6 +89,13 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [B18] Save/restore the fixture-lights mode with the design
+
+`timeMode`/`manualHour` were saved with a design but `lightsMode` wasn't — so a
+saved lighting mood's on/off fixture state was lost on reload (lights reverted to
+auto). Added `lightsMode` to the save schema (optional, defaults to 'auto' for
+legacy saves) so the full lighting state round-trips. Unit-tested.
+
 ## [N20b] Lighting moods in the command palette
 
 The four lighting moods are now also reachable from ⌘K (a "Lighting moods"
