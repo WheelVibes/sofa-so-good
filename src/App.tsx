@@ -258,7 +258,9 @@ export default function App() {
       if (!mod && code === KEYBINDINGS.resetView) state.requestHomeView()
       if (!mod && code === KEYBINDINGS.tidyHome) tidyHome()
       if (code === KEYBINDINGS.deselect) {
-        state.selectItem(null)
+        // Esc backs out of the tape-measure tool first; otherwise deselects.
+        if (state.tapeMode) state.toggleTapeMode()
+        else state.selectItem(null)
       }
       if (code === KEYBINDINGS.deleteSelected && state.selectedItemIds.length > 0) {
         // Snapshot ids before deleting — deleteItem mutates the set as it goes.
