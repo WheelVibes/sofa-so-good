@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q12] "Straighten" context-menu action
+
+A natural complement to the rotate gizmo's free (Shift-drag) rotation: the
+right-click menu now offers **Straighten**, snapping a freely-turned piece to the
+nearest right angle (square to the walls). It appears **only when the item is
+off-axis** (rotation not a multiple of 90°) to avoid clutter, and is
+collision-checked like the Rotate 90° action (a straighten that would overlap is
+rejected). Verified in the harness (a rug at 0.5 rad snaps to 0; an off-axis
+sofa whose straighten would collide is correctly left untouched).
+
 ## [Q11] Flush-to-wall snapping while dragging
 
 A hallmark of pro planners (Planner5D/Coohom): furniture dragged near a wall now

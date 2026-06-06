@@ -62,6 +62,24 @@ export function ContextMenu() {
     st.flipItem(it.id, 'x')
   }
 
+  // Snap a freely-rotated piece (e.g. after a Shift-drag on the rotate gizmo)
+  // back to the nearest right angle — i.e. square to the walls.
+  const QUARTER = Math.PI / 2
+  const turns = item.rotation / QUARTER
+  const askew = Math.abs(turns - Math.round(turns)) > 0.01
+  const straighten = () => {
+    const st = useStore.getState()
+    const it = st.items.find((i) => i.id === item.id)
+    if (!it || it.locked) return
+    const next = Math.round(it.rotation / QUARTER) * QUARTER
+    if (
+      canPlace({ ...it, rotation: next }, def, { others: st.items, defs: catalog, doors: st.doors })
+    ) {
+      st.pushHistory()
+      st.rotateItem(it.id, next)
+    }
+  }
+
   const duplicate = () => {
     const st = useStore.getState()
     const STEP = 0.3
@@ -143,6 +161,9 @@ export function ContextMenu() {
         onClick={() => useStore.getState().setSwapItemId(item.id)}
       />
       <Row icon="Rotate" label="Rotate 90°" sk="R" disabled={locked} onClick={rotate90} />
+      {askew ? (
+        <Row icon="Rotate" label="Straighten" disabled={locked} onClick={straighten} />
+      ) : null}
       <Row icon="FlipH" label="Flip" sk="F" disabled={locked} onClick={flip} />
       <Row icon="Copy" label="Duplicate" sk="⌘D" onClick={duplicate} />
       {sameTypeCount > 1 ? (

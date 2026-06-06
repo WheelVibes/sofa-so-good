@@ -59,8 +59,9 @@ read‑out shows how far you've turned). Great for angling a sofa‑and‑rug se
 dining table with its chairs together.
 
 **Right‑click** any placed piece for a **context menu** with the most common
-actions right where you need them — **swap with similar**, rotate, flip,
-duplicate, **group / ungroup**, lock / unlock, and delete. (Group appears when
+actions right where you need them — **swap with similar**, rotate, **straighten**
+(snap a freely-turned piece back square to the walls; shown only when it's
+off-axis), flip, duplicate, **group / ungroup**, lock / unlock, and delete. (Group appears when
 you have several pieces selected; Ungroup appears when the piece is already part
 of a group.)
 

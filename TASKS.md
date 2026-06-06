@@ -76,6 +76,12 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   `reportData.furnitureCostByRoom`, unit-tested). (CHANGELOG)
 - [x] Q11. **Flush-to-wall drag snapping** (`collision/wallSnap.ts`, corner-
   capable, grid-gated, door-aware). Unit-tested + E2E-verified. (CHANGELOG)
+- [x] Q12. **"Straighten" context-menu action** — snap an off-axis piece to the
+  nearest 90° (collision-checked, shown only when askew). (CHANGELOG)
+- [ ] N4. **Adjustable ceiling height** (global first, then per-room) — needs
+  threading a reactive height into WallSegment/Ceiling/MeasurementOverlay
+  (currently the `FLAT.ceilingHeight` module constant). Bounded but structural;
+  do in a fresh context. Bathrooms keep their lower dropped-ceiling override.
 
 ## Researched backlog (next iterations — competitor parity / polish)
 - [x] N1. **Apply finish to all rooms** — setAll{Floor,Wall}Finish + FinishPicker buttons. (CHANGELOG)
