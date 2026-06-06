@@ -195,7 +195,8 @@ own commit, dev-gate anything licensed.
 - [ ] L1. **Lighting realism** (RE1/RE2) — window-glass tint colouring the sun
   shaft + inter-room light bleed through open doors. Complex multi-file scene
   change; do as a focused pass. (TODO.md "Time of Day Phase 3".)
-- [ ] Q28. **Catalog price + size filters** (range chips) on the unified grid —
+- [x] Q28. **Catalog max-price filter** (beside Sort; CC0 free entries always
+  pass; controls keyed to unfiltered category size). E2E-verified. (CHANGELOG)
   extends the Sort control; pairs with `furniturePrices.ts`.
 - [x] Q29. **Focus catalog/layers search with `/`** — opens the drawer + focuses
   the search/filter input; in Help list. E2E-verified. (CHANGELOG)

@@ -52,6 +52,17 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [Q28] Catalog max-price filter
+
+A **Max $** filter beside the catalog Sort control: items priced above the cap
+are hidden while browsing a category. Un-downloaded CC0 entries are free
+downloads, so they always pass — sidestepping the remote-entry price gap.
+Guarded the controls row so it shows based on the **unfiltered** category size,
+not the filtered result — otherwise emptying the list would hide the very
+control needed to clear the filter (caught + fixed during verification).
+Verified Max $120 keeps the cheaper seating, Max $1 empties it with the filter
+still adjustable.
+
 ## [A3] Cycle the selection with `[` / `]`
 
 Keyboard access to placed objects without a mouse: **`]`** selects the next
