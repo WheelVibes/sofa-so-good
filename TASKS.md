@@ -80,5 +80,6 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] N8. **Bundle code-splitting** — lazy-load FloorPlanEditor/AI surfaces if
   initial-load profiling justifies it (three.js dominates, so likely marginal).
 - [x] N9. Microcement/concrete accent wall finishes (light/grey/charcoal). (CHANGELOG)
+- [x] N9b. Board-and-batten panelling wall finishes (white/sage/navy). (CHANGELOG)
   (procedural, prod-safe).
 - [x] N10. Inspector "Reset" props to defaults (parametric items). (CHANGELOG)

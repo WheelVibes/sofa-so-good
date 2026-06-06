@@ -279,6 +279,15 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     swatch: '#54524f',
     uvScale: [3, 3],
   },
+  // Board-and-batten panelling (vertical raised battens), tiles ~1.2 m wide.
+  'wall-batten-white': wallpaper(
+    'wall-batten-white',
+    'Board & batten (white)',
+    '#eceae3',
+    'batten',
+  ),
+  'wall-batten-sage': wallpaper('wall-batten-sage', 'Board & batten (sage)', '#9aa88f', 'batten'),
+  'wall-batten-navy': wallpaper('wall-batten-navy', 'Board & batten (navy)', '#3c4a60', 'batten'),
 }
 
 export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak'

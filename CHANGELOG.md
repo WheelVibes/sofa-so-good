@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N9b] Board-and-batten panelling wall finishes
+
+A popular modern wall treatment. Added a `batten` procedural pattern (flat
+painted panel + evenly-spaced vertical raised battens with bevelled edges in the
+height map; seamless) and three finishes — **Board & batten white / sage /
+navy**. Wired into both `ProceduralPattern` unions + `PATTERN_FN`. Visually
+verified (clear raised battens catching light, seamless across walls).
+
 ## [N2] Duplicate-in-array (row of copies)
 
 A pro "array/clone" tool: the single-item inspector now has a **"Duplicate a row

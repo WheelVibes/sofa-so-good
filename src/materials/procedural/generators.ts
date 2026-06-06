@@ -20,6 +20,7 @@ export type ProceduralPattern =
   | 'checker'
   | 'parquet'
   | 'brick'
+  | 'batten'
 
 export interface ProceduralResult {
   albedo: Texture
@@ -514,6 +515,46 @@ function brickFields(base: [number, number, number], seed: number): Fields {
   return f
 }
 
+/**
+ * Board-and-batten panelling: a flat painted panel with evenly-spaced vertical
+ * raised battens (with bevelled edges in the height map). Seamless — the batten
+ * count divides the tile. `base` is the paint colour.
+ */
+function battenFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 7
+  const battens = 6 // battens across the tile (divides S → seamless)
+  const period = S / battens
+  const bw = period * 0.16 // batten width
+  const bevel = period * 0.03 // bevel ramp at each batten edge
+  const grain = makeFbm(seed + 4, 3, 20)
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const xIn = x % period
+      // Height: raised on the batten, ramped through the bevel, flat on panel.
+      let h: number
+      if (xIn < bevel) h = 0.3 + (xIn / bevel) * 0.5
+      else if (xIn < bw - bevel) h = 0.8
+      else if (xIn < bw) h = 0.8 - ((xIn - (bw - bevel)) / bevel) * 0.5
+      else h = 0.3
+      const onBatten = xIn < bw
+      const g = grain(x / S, y / S)
+      // Battens catch a touch more light; subtle painted-surface noise.
+      const factor = (onBatten ? 1.02 : 0.95) * (0.98 + (g - 0.5) * 0.03)
+      setPx(
+        f,
+        y * S + x,
+        base[0] * factor,
+        base[1] * factor,
+        base[2] * factor,
+        h,
+        0.55, // matte paint
+      )
+    }
+  }
+  return f
+}
+
 const PATTERN_FN: Record<
   ProceduralPattern,
   (base: [number, number, number], seed: number) => Fields
@@ -530,6 +571,7 @@ const PATTERN_FN: Record<
   grasscloth,
   parquet: parquetFields,
   brick: brickFields,
+  batten: battenFields,
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only
