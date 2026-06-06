@@ -115,6 +115,28 @@ export default function App() {
           s.setSelectedItemIds(s.items.map((i) => i.id))
         }
       }
+      // `/` jumps to the catalog/layers search (opening the drawer if needed),
+      // a quick-find shortcut. Orbit only; skipped while already typing and for
+      // modifier combos (so it never hijacks a real "/" character).
+      if (
+        e.key === '/' &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditableTarget(e) &&
+        useStore.getState().cameraMode === 'orbit' &&
+        !useStore.getState().roomEditor.active
+      ) {
+        e.preventDefault()
+        if (!useStore.getState().catalogOpen) useStore.getState().setCatalogOpen(true)
+        // The drawer (and Layers filter) reuse `.cat-search input`; focus it once
+        // the panel has mounted/painted.
+        requestAnimationFrame(() => {
+          const input = document.querySelector<HTMLInputElement>('.panel.catalog .cat-search input')
+          input?.focus()
+          input?.select()
+        })
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)

@@ -52,6 +52,14 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [Q29] Press `/` to jump to catalog search
+
+A quick-find shortcut: pressing **`/`** (orbit mode, not while typing) opens the
+left drawer if closed and focuses + selects its search field — the catalog
+search or the Layers name filter, whichever view is active (both reuse
+`.cat-search`). Added to the Help & shortcuts list for discoverability. Verified
+the drawer opens with the search focused.
+
 ## [B11] Themed confirm modal replaces blocking window.confirm
 
 Completes the native-dialog cleanup: an async **`confirmAction`** store action +

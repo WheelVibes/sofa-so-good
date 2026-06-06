@@ -197,7 +197,8 @@ own commit, dev-gate anything licensed.
   change; do as a focused pass. (TODO.md "Time of Day Phase 3".)
 - [ ] Q28. **Catalog price + size filters** (range chips) on the unified grid —
   extends the Sort control; pairs with `furniturePrices.ts`.
-- [ ] Q29. **Focus catalog/layers search with `/`** (global key, skipped while
+- [x] Q29. **Focus catalog/layers search with `/`** — opens the drawer + focuses
+  the search/filter input; in Help list. E2E-verified. (CHANGELOG)
   typing) — quick-find power-user shortcut.
 - [ ] Q30. **Undo/redo history panel** — list past steps with labels (the
   history slice already coalesces); jump-to-step.

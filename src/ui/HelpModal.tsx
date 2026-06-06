@@ -5,6 +5,7 @@ import { useIsMobile } from './useIsMobile'
 
 const SHORTCUTS: [string, string][] = [
   ['Command palette', '⌘K'],
+  ['Search catalog', '/'],
   ['Toggle catalog', 'C'],
   ['Rotate selection', 'R'],
   ['Flip selection', 'F'],
