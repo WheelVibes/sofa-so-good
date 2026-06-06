@@ -16,6 +16,18 @@ interface VersionRow extends SlotMeta {
   count: number
 }
 
+/** Compact relative time, e.g. "just now", "3m ago", "2h ago". */
+function relativeTime(epoch: number): string {
+  const secs = Math.max(0, Math.round((Date.now() - epoch) / 1000))
+  if (secs < 5) return 'just now'
+  if (secs < 60) return `${secs}s ago`
+  const mins = Math.round(secs / 60)
+  if (mins < 60) return `${mins}m ago`
+  const hours = Math.round(mins / 60)
+  if (hours < 24) return `${hours}h ago`
+  return `${Math.round(hours / 24)}d ago`
+}
+
 async function loadRows(): Promise<VersionRow[]> {
   const slots = await LocalStorageAdapter.list().catch(() => [] as SlotMeta[])
   const withCounts = await Promise.all(
@@ -35,6 +47,7 @@ export function VersionsPanel() {
   const open = useStore((s) => s.versionsOpen)
   const setOpen = useStore((s) => s.setVersionsOpen)
   const itemCount = useStore((s) => s.items.length)
+  const lastSavedAt = useStore((s) => s.lastSavedAt)
   const [rows, setRows] = useState<VersionRow[]>([])
   const fileRef = useRef<HTMLInputElement>(null)
 
@@ -157,7 +170,9 @@ export function VersionsPanel() {
               <div className="nm">
                 Working layout <span className="badge ok">Current</span>
               </div>
-              <div className="when">Editing now</div>
+              <div className="when">
+                {lastSavedAt ? `Auto-saved ${relativeTime(lastSavedAt)}` : 'Editing now'}
+              </div>
               <div className="stats">{itemCount} items</div>
             </div>
           </div>

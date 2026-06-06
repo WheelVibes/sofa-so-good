@@ -9,7 +9,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 ## Reliability / robustness
 - [x] R1. React **ErrorBoundary** around app + scene. (CHANGELOG)
 - [x] R2. **localStorage quota handling** — autosave failures now surface a deduped notification + auto-clear on recovery; prefs writers already guarded. (CHANGELOG)
-- [ ] R3. **Autosave resilience** — debounce + try/catch + last-saved indicator; never lose work on a transient failure.
+- [x] R3. **"Auto-saved …" indicator** — lastSavedAt set on every successful save, shown in the Versions panel. (CHANGELOG)
 - [x] R4. Guard against **non-finite transforms** on load (applySerialized filters NaN/Infinity). (CHANGELOG)
 
 ## Performance / scalability

@@ -69,6 +69,10 @@ export interface UiSlice {
   bootPhase: BootPhase
   /** Mark the boot bootstrap finished (flips the initial loading overlay off). */
   setBootReady: () => void
+  /** Epoch (ms) of the last successful auto-save, or null if none yet this
+   *  session. Surfaced as a reassuring "Auto-saved …" line. Ephemeral. */
+  lastSavedAt: number | null
+  setLastSavedAt: (t: number) => void
   /** True once the 3D scene has painted its first solid frames (shaders +
    *  procedural textures warm, any restored GLBs streamed in). The boot loading
    *  screen is held until this AND `bootPhase==='ready'`, so the scene is
@@ -148,6 +152,7 @@ export const UI_INITIAL: Pick<
   | 'bootPhase'
   | 'sceneReady'
   | 'loading'
+  | 'lastSavedAt'
 > = {
   catalogOpen: false,
   editorTool: 'orbit',
@@ -170,6 +175,7 @@ export const UI_INITIAL: Pick<
   bootPhase: 'hydrating',
   sceneReady: false,
   loading: { active: false, label: '' },
+  lastSavedAt: null,
 }
 
 /** Preset alignment-grid cell sizes (metres) the size button cycles through. */
@@ -185,6 +191,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   ...UI_INITIAL,
   setBootReady: () => set({ bootPhase: 'ready' }),
   setSceneReady: (sceneReady) => set({ sceneReady }),
+  setLastSavedAt: (lastSavedAt) => set({ lastSavedAt }),
   showLoading: (label) => set({ loading: { active: true, label } }),
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   enterRoomEditor: (roomId) => {

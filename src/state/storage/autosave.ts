@@ -78,6 +78,7 @@ export function startAutosave({
     adapter
       .save(AUTOSAVE_SLOT, payload)
       .then(() => {
+        useStore.getState().setLastSavedAt(Date.now())
         if (failed) {
           failed = false
           onRecover?.()

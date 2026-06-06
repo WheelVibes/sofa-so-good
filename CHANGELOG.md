@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R3] "Auto-saved …" indicator
+
+Users had no signal their work was being persisted. Added `lastSavedAt` to the UI
+slice, set on every successful auto-save (`autosave.ts`), and surfaced as a
+reassuring **"Auto-saved just now / Xm ago"** line on the Versions panel's
+current-layout card (with a compact relative-time formatter). Visually verified.
+
 ## [N9b] Board-and-batten panelling wall finishes
 
 A popular modern wall treatment. Added a `batten` procedural pattern (flat
