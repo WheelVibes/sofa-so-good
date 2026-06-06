@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q9] Ctrl/⌘+A select-all
+
+A basic editor expectation that was missing. A global Ctrl/⌘+A now selects every
+placed item (orbit mode only, skipped while typing or in the room editor),
+surfacing the multi-select align/distribute/group/delete panel. Added to the Help
+modal shortcut list. Verified (selects 66/66 default items).
+
 ## [A2] Modal focus trap
 
 Completes the Modal accessibility story (A1): Tab / Shift+Tab now cycle within

@@ -61,3 +61,26 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] A1. Modal dialog role + aria-modal + aria-label + focus-in/restore (shared primitive). (CHANGELOG)
 - [x] A2. Modal focus trap (Tab/Shift+Tab cycle within the dialog). (CHANGELOG)
 - [x] Q7. Empty states — verified BudgetPanel/LayersPanel/VersionsPanel already have them.
+
+## Bulk editing (cont.)
+- [x] Q9. Ctrl/⌘+A select-all. (CHANGELOG)
+
+## Researched backlog (next iterations — competitor parity / polish)
+- [ ] N1. **Apply finish to all rooms** — one-click "make every floor X / every
+  wall Y" from the FinishPicker (finish-equivalent of applyStyleToAll).
+- [ ] N2. **Duplicate-in-array** — place N copies of a selected item along a line
+  (count + spacing), collision-checked (competitor "array/clone" tool).
+- [ ] N3. **3D rotate handle/gizmo** on the selected item (drag-to-rotate vs the
+  R key) — touch-friendly.
+- [ ] N4. **Per-room ceiling height** control (architectural realism).
+- [ ] N5. **Persist measurements + photo-trace backdrop** into the save schema
+  (currently session-only).
+- [ ] N6. **RE1/RE2** — window glass tint + inter-room light bleed (complex
+  lighting; needs a focused session).
+- [ ] N7. **Toolbar/icon-button aria-labels audit** + catalog keyboard nav (a11y
+  beyond modals).
+- [ ] N8. **Bundle code-splitting** — lazy-load FloorPlanEditor/AI surfaces if
+  initial-load profiling justifies it (three.js dominates, so likely marginal).
+- [ ] N9. **More wall finishes** — board-and-batten, concrete accent, wood-panel
+  (procedural, prod-safe).
+- [ ] N10. **Inspector "reset props to default"** per item.
