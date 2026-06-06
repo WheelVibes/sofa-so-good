@@ -89,6 +89,14 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [B16] Copy/paste/duplicate preserves mirror flips
+
+A flipped piece (mirrored left↔right or front↔back) pasted or duplicated came
+out un-flipped — the clipboard carried defId/rotation/props but not `flipX`/
+`flipZ`. The clipboard entry now carries the flips and paste applies them (to
+both the collision probe and the placed item), so a duplicated mirrored item
+keeps its orientation.
+
 ## [B15] Floor-plan edits are now undoable
 
 Real gap: the undo/redo history snapshot excluded `floorPlan` and the plan

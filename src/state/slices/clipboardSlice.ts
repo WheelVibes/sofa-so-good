@@ -9,6 +9,9 @@ export interface ClipboardEntry {
   defId: FurnitureType
   rotation: number
   props: ParamProps
+  /** Mirror flips, so copying a flipped piece keeps it flipped on paste. */
+  flipX?: boolean
+  flipZ?: boolean
   /** Source item's position at copy time. Paste uses this as the base
    *  for the offset search so the duplicate appears next to the original. */
   sourcePosition: [number, number]

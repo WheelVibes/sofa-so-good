@@ -250,6 +250,8 @@ export default function App() {
         defId: entry.defId,
         position: pos,
         rotation: entry.rotation,
+        flipX: entry.flipX,
+        flipZ: entry.flipZ,
         props: entry.props,
       } as const
       const ok = canPlace(candidate, def, {
@@ -262,6 +264,8 @@ export default function App() {
           defId: entry.defId,
           position: pos,
           rotation: entry.rotation,
+          flipX: entry.flipX,
+          flipZ: entry.flipZ,
           props: { ...entry.props },
         })
         return
@@ -333,6 +337,8 @@ export default function App() {
             defId: item.defId,
             rotation: item.rotation,
             props: item.props,
+            flipX: item.flipX,
+            flipZ: item.flipZ,
             sourcePosition: item.position,
           })
         }
@@ -349,6 +355,8 @@ export default function App() {
             defId: item.defId,
             rotation: item.rotation,
             props: item.props,
+            flipX: item.flipX,
+            flipZ: item.flipZ,
             sourcePosition: item.position,
           })
           pasteClipboard()
