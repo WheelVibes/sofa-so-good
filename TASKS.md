@@ -43,6 +43,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] Q7. **Empty states & inline help** across panels.
 
 ## Realism
+- [x] RE5. **Ceilings for custom plans** (`PlanRoomCeiling` — per-room
+  downward-facing planes honouring the per-room height; culled in orbit, seen in
+  walk). Completes N4b for custom plans. E2E-verified. (CHANGELOG)
 - [ ] RE1. Window glass tint / curtains affecting light (TODO out-of-scope item).
 - [ ] RE2. Inter-room light bleed through open doors (Phase 3 pending).
 - [x] RE3. Basketweave parquet procedural floor (oak + walnut). (CHANGELOG)

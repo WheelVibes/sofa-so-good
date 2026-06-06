@@ -135,7 +135,10 @@ rediscover it.
   for walls/doors/windows/rooms (derived from the floor-plan SVG). `walls/`,
   `floor/`, `Window.tsx`, `Door.tsx`, `Ceiling.tsx`, plus a grounding slab in
   `Apartment.tsx`. `PlanShell.tsx` renders a user-authored plan instead (walls
-  extruded with openings + `floor/PlanRoomFloor.tsx` per-room finishes) when a
+  extruded with openings + `floor/PlanRoomFloor.tsx` per-room finishes +
+  `floor/PlanRoomCeiling.tsx` per-room ceilings — downward-facing `BackSide`
+  planes that honour the per-room height override, seen in walk mode, culled in
+  orbit like the default `Ceiling`) when a
   non-default plan is active.
 - `src/floorplan/` — the editable floor-plan model: `types.ts` (FloorPlan =
   walls/openings/rooms + area/bounds helpers), `defaultPlan.ts` (seeds the
@@ -562,9 +565,9 @@ rediscover it.
   with a "Match home" reset; a dropped/false ceiling — walls stay full height,
   like the built-in 2.4 m bathrooms). `Ceiling`/`MeasurementOverlay` read the
   live per-room override from `floorPlan.rooms` (falling back to the `ROOMS`
-  constant then `floorPlan.ceilingHeight`); `WallSegment`/`RoomShell` and
-  `PlanShell` read the global height. The measurement overlay surfaces each
-  room's height. grid +
+  constant then `floorPlan.ceilingHeight`); `WallSegment`/`RoomShell` read the
+  global height for wall tops, while `PlanShell` renders per-room ceilings that
+  honour the override. The measurement overlay surfaces each room's height. grid +
   corner snapping, drag-move, per-room floor finishes, and persistent per-wall
   **length labels** (a "Dims" header toggle, default on). **Non-rectangular
   shapes**: the **Split** tool (`splitWall`) cuts a wall into two segments

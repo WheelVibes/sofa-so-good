@@ -21,6 +21,18 @@ Formatters unit-tested (metric + imperial, incl. inch-carry + non-finite).
 Verified: imperial overlay renders `17′ 9″ · 262 ft²` / `Ceiling 8′ 6″` cleanly
 and the panel toggle reflects state.
 
+## [RE5] Ceilings for custom floor plans
+
+Custom (non-default) plans rendered by `PlanShell` previously had **no
+ceiling** — looking up in walk mode showed a void. Added `PlanRoomCeiling`: a
+per-room downward-facing white plane (rect + L-extension + arbitrary polygon,
+reusing `PlanRoomFloor`'s placement helpers) at the room's ceiling height,
+honouring the per-room override from N4b. Rendered `BackSide` so — exactly like
+the default flat's `Ceiling` — it's visible from below (walk) and culled from
+the orbit/dollhouse view above. One shared material instance. Verified: the
+orbit dollhouse still sees into every room (no regression), and walk mode now
+shows a properly-lit ceiling with fixtures mounted on it.
+
 ## [Q25] Rename objects (custom per-item labels)
 
 Items can now be given a **custom name** in the inspector (a Name field;

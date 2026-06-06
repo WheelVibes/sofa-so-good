@@ -5,6 +5,7 @@ import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { planBounds, wallLength } from '../floorplan/types'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
+import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 
 const DEFAULT_PLAN_FLOOR = 'floor-wood-oak'
@@ -121,6 +122,37 @@ export function PlanShell() {
                 width={r.extension.width}
                 depth={r.extension.depth}
                 materialId={mat}
+              />
+            )}
+          </group>
+        )
+      })}
+
+      {/* Per-room ceilings (downward-facing — seen in walk, culled in orbit).
+          Honour a per-room override, falling back to the plan height. */}
+      {plan.rooms.map((r) => {
+        const h = r.ceilingHeight ?? plan.ceilingHeight
+        if (r.polygon && r.polygon.length >= 3) {
+          return (
+            <PlanRoomCeiling
+              key={r.id}
+              origin={r.origin}
+              width={r.width}
+              depth={r.depth}
+              height={h}
+              polygon={r.polygon}
+            />
+          )
+        }
+        return (
+          <group key={r.id}>
+            <PlanRoomCeiling origin={r.origin} width={r.width} depth={r.depth} height={h} />
+            {r.extension && (
+              <PlanRoomCeiling
+                origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
+                width={r.extension.width}
+                depth={r.extension.depth}
+                height={h}
               />
             )}
           </group>
