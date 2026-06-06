@@ -66,9 +66,10 @@ dining table with its chairs together.
 **Right‑click** any placed piece for a **context menu** with the most common
 actions right where you need them — **swap with similar**, rotate, **straighten**
 (snap a freely-turned piece back square to the walls; shown only when it's
-off-axis), flip, duplicate, **isolate** (hide everything else to focus on this
-piece/selection; **Show all** brings them back), **group / ungroup**,
-lock / unlock, and delete. (Group appears when
+off-axis), **centre in room** (snap it to the middle of its room — handy for
+rugs and ceiling lights), flip, duplicate, **isolate** (hide everything else to
+focus on this piece/selection; **Show all** brings them back),
+**group / ungroup**, lock / unlock, and delete. (Group appears when
 you have several pieces selected; Ungroup appears when the piece is already part
 of a group.)
 

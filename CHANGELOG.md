@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q18] "Centre in room" context action
+
+Right-click → **Centre in room** moves the piece to the centre of the room it's
+in (handy for rugs, ceiling lights, dining tables) — using the active plan's
+rooms (polygon centroid for free-form rooms, rect centre otherwise),
+collision-checked (declines with a notice if the centre is occupied), shown only
+when the piece is inside a room. Verified: a bedroom rug snaps to the room centre.
+
 ## [Q17] Resizable imports with real-world dimensions
 
 GLB / uploaded / IKEA items' inspector **Scale** control now shows the resulting
