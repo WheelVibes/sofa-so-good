@@ -38,6 +38,10 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
       selectedItemId: id,
       selectedItemIds: [id],
     }))
+    // Record for the catalog's "Recent" row. Only real user placements,
+    // duplicates and pastes reach addItem (the boot seed + set drops use
+    // setItems), so this list stays meaningfully "recently used".
+    get().pushRecent(i.defId)
     return id
   },
   // moveItem / rotateItem fire per-frame during drag and press-and-hold

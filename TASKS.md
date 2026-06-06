@@ -22,8 +22,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] B2. Audit dispose/cleanup of three resources (geometries/materials/textures) for leaks.
 
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
-- [ ] Q1. **Duplicate (Ctrl/Cmd+D)** + paste-in-place polish; ensure clipboard works via keyboard + context menu + inspector.
-- [ ] Q2. **Recently used / recently placed** catalog row for fast re-placement.
+- [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.
+- [x] Q2. **Recently used / recently placed** catalog row (clock chip, persisted). (CHANGELOG)
 - [ ] Q3. **Drag-from-catalog-to-scene** placement (if not present) or improve placement ghost UX.
 - [ ] Q4. **Keyboard shortcut cheatsheet** completeness + a `?` overlay.
 - [ ] Q5. **Measurement/annotation** persistence + dimension labels on 2D plan.

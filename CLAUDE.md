@@ -273,7 +273,11 @@ rediscover it.
   remote card with the resolved local card (`CatalogCard` for local,
   `RemoteCard` for un-downloaded CC0 — both share the `.cat-card` shape + heart
   `fav-btn`). A **favourites** pseudo-category (star chip, first in
-  `CategoryTabs`) houses everything in `collections`. **Layers**
+  `CategoryTabs`) houses everything in `collections`; a **recent**
+  pseudo-category (clock chip, shown only when non-empty) lists the
+  most-recently-placed items (`recentSlice`, hooked from `addItem`, persisted to
+  `localStorage` `hdb_recent_items`, kept out of the save schema/autosave).
+  **Layers**
   (`LayersPanel.tsx`) is the Objects tree (store-level `leftMode`, shared with
   the command palette + mobile toolbar); **Packs** installs downloadable
   content whose items then appear in the unified grid (see **Downloadable

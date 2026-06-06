@@ -4,6 +4,23 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q2] "Recent" catalog row for fast re-placement
+
+A staple of every mainstream interior-design app (Planner5D, Coohom, IKEA
+Kreativ) — quick access to the items you just used. Added:
+
+- `state/slices/recentSlice.ts` — an ordered, deduped, capped (24) list of
+  recently-placed catalog ids, persisted to `localStorage` (`hdb_recent_items`),
+  kept out of the save schema/autosave (per-device convenience).
+- Hooked from `itemsSlice.addItem`, the single path real user placements,
+  duplicates and pastes flow through — the boot seed + set drops use `setItems`,
+  so the list stays meaningfully "recently used".
+- A **clock "Recent" chip** in `CategoryTabs` (shown only when non-empty, right
+  after favourites) and a resolved `recent` list on `useUnifiedCatalog`
+  (local-def-only, newest first, orphans dropped). Empty-state copy added.
+- Unit-tested; visually verified in the running app (placing an armchair + side
+  table surfaces them newest-first under the Recent chip).
+
 ## [R2] Surface auto-save failures (localStorage quota)
 
 Auto-save errors were caught but silently swallowed — a user whose browser

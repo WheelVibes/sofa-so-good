@@ -66,7 +66,9 @@ export function CatalogDrawer() {
     ? fuzzySearch(q, unified.all, gridItemText)
     : active === 'favourites'
       ? unified.favourites
-      : (unified.byCategory[active] ?? [])
+      : active === 'recent'
+        ? unified.recent
+        : (unified.byCategory[active] ?? [])
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
@@ -162,6 +164,7 @@ export function CatalogDrawer() {
               onSelect={selectCategory}
               counts={unified.counts}
               favCount={unified.favourites.length}
+              recentCount={unified.recent.length}
             />
           )}
           <div className="card-grid">
@@ -172,7 +175,9 @@ export function CatalogDrawer() {
                     ? `No matches for “${query.trim()}”.`
                     : active === 'favourites'
                       ? 'No favourites yet — tap the heart on any card to save it here.'
-                      : 'No items in this category yet.'}
+                      : active === 'recent'
+                        ? 'Nothing placed yet — items you add will appear here for quick reuse.'
+                        : 'No items in this category yet.'}
                 </span>
               </p>
             ) : (

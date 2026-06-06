@@ -47,6 +47,7 @@ import {
   PLACEMENT_INITIAL,
   type PlacementSlice,
 } from './slices/placementSlice'
+import { createRecentSlice, RECENT_INITIAL, type RecentSlice } from './slices/recentSlice'
 import {
   createRemoteCatalogSlice,
   REMOTE_CATALOG_INITIAL,
@@ -99,7 +100,8 @@ export interface RootState
     FloorPlanSlice,
     AppearanceSlice,
     FeaturesSlice,
-    UserStylesSlice {
+    UserStylesSlice,
+    RecentSlice {
   __resetForTest: () => void
 }
 
@@ -125,6 +127,7 @@ const INITIAL = {
   ...APPEARANCE_INITIAL,
   ...FEATURES_INITIAL,
   ...USER_STYLES_INITIAL,
+  ...RECENT_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -151,5 +154,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createFloorPlanSlice(set, get, api),
   ...createAppearanceSlice(set, get, api),
   ...createFeaturesSlice(set, get, api),
+  ...createRecentSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))
