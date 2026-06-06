@@ -64,7 +64,7 @@ export function Onboarding() {
 
   const choose = (kind: 'catalog' | 'demo' | 'empty' | 'smart') => {
     const s = useStore.getState()
-    if (kind === 'empty') s.setItems([])
+    if (kind === 'empty') s.resetToEmpty()
     else if (kind === 'demo') s.resetToDefault()
     else if (kind === 'catalog') {
       s.resetToDefault()

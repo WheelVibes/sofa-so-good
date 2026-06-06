@@ -89,6 +89,12 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [B17] Onboarding "start empty" uses resetToEmpty (undoable + clears hidden)
+
+The first-run "empty flat" choice called `setItems([])` directly, so it wasn't
+undoable and left any hidden-id set stale. Switched to `resetToEmpty()` (pushes
+history + clears the hidden set), consistent with the File-menu clear.
+
 ## [B16] Copy/paste/duplicate preserves mirror flips
 
 A flipped piece (mirrored left↔right or front↔back) pasted or duplicated came
