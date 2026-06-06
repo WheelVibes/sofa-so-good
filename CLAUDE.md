@@ -750,10 +750,13 @@ rediscover it.
   group); the **Tools** menu groups the Budget panel (`furniturePrices.ts`),
   **Checks** (door-swing clearance, `layout/clearance.ts` + `ClearanceOverlay`),
   **Sun study** (time-lapse), **Walkthrough** (auto camera tour + record, in
-  `OrbitCamera`), **Measure** (point-to-point tape — `scene/TapeMeasure.tsx` +
-  `measurementsSlice` `tapeMode`/`tapePoints`; a transparent floor plane captures
-  two clicks and draws an always-on-top amber ruler + live distance label,
-  desktop + mobile-parity toggle), and **Report** (`ui/report.ts`, printable).
+  `OrbitCamera`), **Measure** (tape — `scene/TapeMeasure.tsx` +
+  `measurementsSlice` `tapeMode`/`tapePoints`/`tapeShape`; a transparent floor
+  plane captures two clicks and draws an always-on-top amber ruler. A
+  Distance/Area toggle (`ui/TapeModeToggle.tsx`) switches `tapeShape`: **line**
+  draws a ruler + distance label, **rect** treats the points as opposite corners
+  and fills the rectangle with a `W × D · area` label; desktop + mobile-parity),
+  and **Report** (`ui/report.ts`, printable).
   Multi-select shows an align/distribute panel; items can be **locked**;
   double-click focuses the camera; saved layouts get thumbnails (`slotThumbs`).
 - **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`):

@@ -35,6 +35,16 @@ describe('tape measure', () => {
     s().clearTape()
     expect(s().tapePoints).toEqual([])
   })
+
+  it('setTapeShape switches shape and clears in-progress points', () => {
+    const s = () => useStore.getState()
+    s().addTapePoint([0, 0])
+    s().setTapeShape('rect')
+    expect(s().tapeShape).toBe('rect')
+    expect(s().tapePoints).toEqual([])
+    s().setTapeShape('line')
+    expect(s().tapeShape).toBe('line')
+  })
 })
 
 describe('measurement units', () => {

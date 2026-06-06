@@ -206,7 +206,8 @@ own commit, dev-gate anything licensed.
   (reuses `getSurfaceMaterial` / finish DLC); today it's picker-only.
 - [ ] Q32. **Saved-view thumbnails** — render a small preview per camera
   bookmark (mirror `slotThumbs`).
-- [ ] Q33. **Measurement: area/rectangle measure** mode (beyond point-to-point
+- [x] Q33. **Area/rectangle measure** mode (tape Distance/Area toggle, amber
+  fill + W×D·area label). Unit + E2E-verified. (CHANGELOG)
   tape) — drag a rect, show area in the active unit.
 - [ ] A3. **Full keyboard nav of the 3D selection** (Tab cycles items, arrows
   nudge) — extend the existing roving-grid pattern to the scene.

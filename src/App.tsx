@@ -46,6 +46,7 @@ import { hasOnboarded, Onboarding } from './ui/Onboarding'
 import { PromptModal } from './ui/PromptModal'
 import { ShareModal } from './ui/ShareModal'
 import { SwapModal } from './ui/SwapModal'
+import { TapeModeToggle } from './ui/TapeModeToggle'
 import { Toolbar } from './ui/Toolbar'
 import { VersionsPanel } from './ui/VersionsPanel'
 import { WalkHud } from './ui/WalkHud'
@@ -560,6 +561,7 @@ export default function App() {
         <MarqueeSelector />
         <NavCluster />
         <DragHud />
+        <TapeModeToggle />
         <Crosshair />
         <WalkJoystick />
         <WalkHud />

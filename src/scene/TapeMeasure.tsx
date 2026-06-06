@@ -8,7 +8,7 @@ import { buildCollisionWalls } from '../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { useCatalogGetter } from '../furniture/catalog'
 import { useStore } from '../state/store'
-import { formatLength } from '../utils/measurement'
+import { formatArea, formatDims, formatLength } from '../utils/measurement'
 import { priorityRaycast } from './raycastPriority'
 import { snapToNearest } from './tapeSnap'
 
@@ -42,6 +42,7 @@ export function TapeMeasure() {
   const points = useStore(useShallow((s) => s.tapePoints))
   const addTapePoint = useStore((s) => s.addTapePoint)
   const units = useStore((s) => s.units)
+  const tapeShape = useStore((s) => s.tapeShape)
   const { ref: catalogRef } = useCatalogGetter()
   const [cursor, setCursor] = useState<[number, number] | null>(null)
 
@@ -71,14 +72,23 @@ export function TapeMeasure() {
   const a = points[0] ?? null
   const b = points[1] ?? (points.length === 1 ? cursor : null)
   let bar: { len: number; mx: number; mz: number; rot: number } | null = null
+  let rect: { w: number; d: number; cx: number; cz: number } | null = null
   if (a && b) {
-    const len = Math.hypot(b[0] - a[0], b[1] - a[1])
-    if (len > 1e-4) {
-      bar = {
-        len,
-        mx: (a[0] + b[0]) / 2,
-        mz: (a[1] + b[1]) / 2,
-        rot: Math.atan2(b[1] - a[1], b[0] - a[0]),
+    if (tapeShape === 'rect') {
+      const w = Math.abs(b[0] - a[0])
+      const d = Math.abs(b[1] - a[1])
+      if (w > 1e-4 && d > 1e-4) {
+        rect = { w, d, cx: (a[0] + b[0]) / 2, cz: (a[1] + b[1]) / 2 }
+      }
+    } else {
+      const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+      if (len > 1e-4) {
+        bar = {
+          len,
+          mx: (a[0] + b[0]) / 2,
+          mz: (a[1] + b[1]) / 2,
+          rot: Math.atan2(b[1] - a[1], b[0] - a[0]),
+        }
       }
     }
   }
@@ -117,6 +127,27 @@ export function TapeMeasure() {
           <Html position={[bar.mx, LIFT + 0.05, bar.mz]} center distanceFactor={9}>
             <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
               {formatLength(bar.len, units)}
+            </div>
+          </Html>
+        </>
+      ) : null}
+
+      {rect ? (
+        <>
+          {/* Translucent amber fill over the measured rectangle. */}
+          <mesh position={[rect.cx, LIFT, rect.cz]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={6}>
+            <planeGeometry args={[rect.w, rect.d]} />
+            <meshBasicMaterial
+              color={MARKER}
+              transparent
+              opacity={0.22}
+              depthTest={false}
+              depthWrite={false}
+            />
+          </mesh>
+          <Html position={[rect.cx, LIFT + 0.05, rect.cz]} center distanceFactor={9}>
+            <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
+              {`${formatDims(rect.w, rect.d, units)} · ${formatArea(rect.w * rect.d, units)}`}
             </div>
           </Html>
         </>

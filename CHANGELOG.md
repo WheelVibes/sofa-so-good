@@ -52,6 +52,16 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [Q33] Area (rectangle) measure mode
+
+The tape measure gains an **Area** mode alongside point-to-point **Distance**: a
+themed bottom-centre Distance/Area toggle (DOM overlay, desktop + touch) switches
+`measurementsSlice.tapeShape`; in Area mode the two clicks become opposite
+corners of a rectangle, drawn as a translucent amber fill with a `W × D · area`
+label in the active unit system. Switching mode clears the in-progress points.
+Slice unit-tested; verified the rect renders "3.00 × 2.00 m · 6.0 m²" with the
+toggle reflecting state.
+
 ## [Q29] Press `/` to jump to catalog search
 
 A quick-find shortcut: pressing **`/`** (orbit mode, not while typing) opens the
