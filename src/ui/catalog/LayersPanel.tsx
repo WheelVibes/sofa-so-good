@@ -16,6 +16,10 @@ export function LayersPanel() {
   const selectItem = useStore((s) => s.selectItem)
   const toggleLock = useStore((s) => s.toggleLock)
   const deleteItem = useStore((s) => s.deleteItem)
+  const hiddenIds = useStore((s) => s.hiddenItemIds)
+  const toggleItemHidden = useStore((s) => s.toggleItemHidden)
+  const showAllItems = useStore((s) => s.showAllItems)
+  const hiddenSet = new Set<string>(hiddenIds)
   const catalog = useCatalog()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
 
@@ -86,6 +90,21 @@ export function LayersPanel() {
                         <span className="lyr-acts">
                           <button
                             type="button"
+                            className={hiddenSet.has(it.id) ? 'on' : ''}
+                            title={hiddenSet.has(it.id) ? 'Show' : 'Hide'}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleItemHidden(it.id)
+                            }}
+                          >
+                            {hiddenSet.has(it.id) ? (
+                              <Icon.EyeOff width={14} height={14} />
+                            ) : (
+                              <Icon.Eye width={14} height={14} />
+                            )}
+                          </button>
+                          <button
+                            type="button"
                             className={it.locked ? 'on' : ''}
                             title={it.locked ? 'Unlock' : 'Lock'}
                             onClick={(e) => {
@@ -120,7 +139,13 @@ export function LayersPanel() {
       </div>
       <div className="lyr-foot">
         <span>{items.length} objects</span>
-        <span>{roomCount} rooms</span>
+        {hiddenIds.length > 0 ? (
+          <button type="button" className="lyr-showall" onClick={() => showAllItems()}>
+            Show all ({hiddenIds.length} hidden)
+          </button>
+        ) : (
+          <span>{roomCount} rooms</span>
+        )}
       </div>
     </>
   )

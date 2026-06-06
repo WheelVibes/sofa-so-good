@@ -25,11 +25,15 @@ export function FurnitureLayer({ room }: { room?: RoomShell } = {}) {
   // Re-render furniture whenever a DLC/catalog material finishes building so
   // the primitives' synchronous material lookup picks up the new texture.
   const materialEpoch = useStore((s) => s.materialEpoch)
+  // Items hidden for decluttering (visual only) are skipped here.
+  const hidden = useStore(useShallow((s) => s.hiddenItemIds))
+  const hiddenSet = hidden.length > 0 ? new Set(hidden) : null
   return (
     <group>
       {items.map((item) => {
         const def = catalog[item.defId]
         if (!def) return null
+        if (hiddenSet?.has(item.id)) return null
         if (room && !isItemInRoom(item, room)) return null
         return (
           <Furniture

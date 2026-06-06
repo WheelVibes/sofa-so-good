@@ -20,6 +20,13 @@ export interface SelectionSlice {
    *  selected. Set when a click lands on a grouped item; null when a click
    *  lands elsewhere or on an ungrouped item. Not persisted. */
   activeGroupId: string | null
+  /** Items hidden from the scene for decluttering (visual only — still placed,
+   *  still in collision/selection). Session-only; not persisted. */
+  hiddenItemIds: string[]
+  /** Toggle a single item's hidden (eye) state. */
+  toggleItemHidden: (id: string) => void
+  /** Reveal everything (clear the hidden set). */
+  showAllItems: () => void
   selectItem: (id: string | null) => void
   setSelectedItemIds: (ids: string[]) => void
   toggleSelectedItem: (id: string) => void
@@ -43,6 +50,7 @@ export const SELECTION_INITIAL: Pick<
   | 'selectedWall'
   | 'hoveredItemId'
   | 'activeGroupId'
+  | 'hiddenItemIds'
 > = {
   selectedItemId: null,
   selectedItemIds: [],
@@ -50,10 +58,18 @@ export const SELECTION_INITIAL: Pick<
   selectedWall: null,
   hoveredItemId: null,
   activeGroupId: null,
+  hiddenItemIds: [],
 }
 
 export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (set, get) => ({
   ...SELECTION_INITIAL,
+  toggleItemHidden: (id) =>
+    set((s) => ({
+      hiddenItemIds: s.hiddenItemIds.includes(id)
+        ? s.hiddenItemIds.filter((x) => x !== id)
+        : [...s.hiddenItemIds, id],
+    })),
+  showAllItems: () => set((s) => (s.hiddenItemIds.length === 0 ? {} : { hiddenItemIds: [] })),
   setHovered: (id) => set((s) => (s.hoveredItemId === id ? {} : { hoveredItemId: id })),
   /** Selecting an item clears the room selection (and vice versa) so the
    *  Inspector / FinishPicker never both render at once. */

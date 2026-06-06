@@ -123,3 +123,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] N9b. Board-and-batten panelling wall finishes (white/sage/navy). (CHANGELOG)
   (procedural, prod-safe).
 - [x] N10. Inspector "Reset" props to defaults (parametric items). (CHANGELOG)
+
+## QOL (cont.)
+- [x] Q15. **Per-item hide/show** in the Layers panel (eye toggle + Show all),
+  visual + session-only via `selectionSlice.hiddenItemIds`. E2E-verified. (CHANGELOG)

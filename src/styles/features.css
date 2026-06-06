@@ -94,6 +94,8 @@
 .lyr-acts button:hover { background: var(--surface-3); color: var(--text); }
 .lyr-acts button.on { color: var(--accent-soft-text); }
 .lyr-foot { display: flex; align-items: center; justify-content: space-between; padding: var(--s-3) var(--s-4); border-top: 1px solid var(--border); font-size: var(--t-xs); color: var(--text-3); font-weight: 600; }
+.lyr-showall { color: var(--accent); font-weight: 600; cursor: pointer; }
+.lyr-showall:hover { text-decoration: underline; }
 
 /* ============================================================
    SWAP  — centered modal, alternatives grid

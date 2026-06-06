@@ -24,6 +24,17 @@ exists), selecting every item sharing the def so you can move/rotate/delete or
 bulk-edit them together via the multi-select panel. Verified in the harness
 (selecting one of three nightstands → all 3 selected).
 
+## [Q15] Per-item hide/show (declutter) in the Layers panel
+
+A working-view convenience competitors offer: each row in the **Layers** (Objects)
+panel now has an **eye toggle** to hide/show that piece, plus a **"Show all (N
+hidden)"** affordance in the footer. Hidden items are skipped by `FurnitureLayer`
+but stay placed (still in the data, collision and selectable from the list), so
+it's a visual declutter — not a delete. State is `hiddenItemIds` in
+`selectionSlice` (session-only, not persisted — it's a transient working view).
+Verified end-to-end: hiding the sofa removes it from the scene while the rug /
+table / chairs stay and the item count holds at 66.
+
 ## [B5] Isolate CC0 texture-load failures across floors / walls / materials
 
 Same class of bug as B4 but for **textured (CC0 DLC) finishes**: floor, wall, and

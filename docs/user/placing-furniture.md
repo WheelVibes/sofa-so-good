@@ -77,8 +77,9 @@ you can audition options without re‑placing anything.
 
 Switch the left panel to **Layers** (the tab next to Catalog) for a tidy list of
 everything in the flat, **grouped by room**. From here you can **select**,
-**lock**, or **delete** any piece without hunting for it in the 3D view — handy
-once the flat is full.
+**hide** (the eye — temporarily take a piece out of view to declutter while you
+work; **Show all** in the footer brings them back), **lock**, or **delete** any
+piece without hunting for it in the 3D view — handy once the flat is full.
 
 ## Snapping to walls & other pieces
 

@@ -342,7 +342,9 @@ rediscover it.
   (`ContextMenu.tsx`), the first-run **onboarding** carousel (`Onboarding.tsx`,
   gated on `localStorage.hdb_onboarded`), and the catalog drawer's **Objects /
   Layers** mode (`catalog/LayersPanel.tsx`, items grouped by room with select /
-  lock / delete). Production-grade feature panels, all wired to real data and
+  **hide** (eye toggle → `hiddenItemIds` in `selectionSlice`, visual-only +
+  session-only; `FurnitureLayer` skips them; "Show all" in the footer) / lock /
+  delete). Production-grade feature panels, all wired to real data and
   mutually-exclusive in the centred-top `.aux` slot: **Swap with similar**
   (`SwapModal.tsx` — same-category alternatives with footprint-fit badges,
   replaces the def in place), **Clearance & fit checks** (`ClearancePanel.tsx`,
