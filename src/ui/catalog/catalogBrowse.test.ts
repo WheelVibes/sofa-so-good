@@ -21,6 +21,8 @@ const remote = (name: string): GridItem => ({
 })
 
 // Two builtin seating defs with clearly different footprints + prices.
+const stoolDef = BUILTIN_CATALOG['bar-stool']!
+const sofaDef = BUILTIN_CATALOG['sofa-3seat']!
 const stool = local('bar-stool')
 const sofa = local('sofa-3seat')
 
@@ -49,8 +51,8 @@ describe('sortCards', () => {
 })
 
 describe('filterByMaxPrice', () => {
-  const cheap = Math.min(itemPrice(stool.def!, 'seating'), itemPrice(sofa.def!, 'seating'))
-  const expensive = Math.max(itemPrice(stool.def!, 'seating'), itemPrice(sofa.def!, 'seating'))
+  const cheap = Math.min(itemPrice(stoolDef, 'seating'), itemPrice(sofaDef, 'seating'))
+  const expensive = Math.max(itemPrice(stoolDef, 'seating'), itemPrice(sofaDef, 'seating'))
 
   it('empty cap is a no-op', () => {
     const input = [stool, sofa]
