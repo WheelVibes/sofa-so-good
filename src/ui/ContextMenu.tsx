@@ -37,6 +37,7 @@ export function ContextMenu() {
   const def = catalog[item.defId]
   if (!def) return null
   const locked = !!item.locked
+  const sameTypeCount = s.items.filter((i) => i.defId === item.defId).length
 
   const rotate90 = () => {
     const st = useStore.getState()
@@ -144,6 +145,21 @@ export function ContextMenu() {
       <Row icon="Rotate" label="Rotate 90°" sk="R" disabled={locked} onClick={rotate90} />
       <Row icon="FlipH" label="Flip" sk="F" disabled={locked} onClick={flip} />
       <Row icon="Copy" label="Duplicate" sk="⌘D" onClick={duplicate} />
+      {sameTypeCount > 1 ? (
+        <Row
+          icon="Palette"
+          label="Apply style to all of this type"
+          onClick={() => {
+            const n = useStore.getState().applyStyleToAll(item.id)
+            if (n > 0) {
+              useStore.getState().notify.start({
+                title: `Applied this style to ${n} more`,
+                kind: 'success',
+              })
+            }
+          }}
+        />
+      ) : null}
       <div className="ctx-sep" />
       {item.groupId ? (
         <Row

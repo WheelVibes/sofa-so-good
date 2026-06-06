@@ -23,6 +23,9 @@ export interface ItemsSlice {
   flipItem: (id: string, axis: 'x' | 'z') => void
   /** Toggle the locked (pinned) state of an item. */
   toggleLock: (id: string) => void
+  /** Copy one item's props (finish/colour/material/form) to every other
+   *  placed item sharing its defId. Returns how many items were restyled. */
+  applyStyleToAll: (id: string) => number
   setItems: (items: FurnitureItem[]) => void
 }
 
@@ -108,6 +111,21 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, locked: !it.locked } : it)),
     }))
+  },
+  applyStyleToAll: (id) => {
+    const src = get().items.find((it) => it.id === id)
+    if (!src) return 0
+    const targets = get().items.filter((it) => it.defId === src.defId && it.id !== id && !it.locked)
+    if (targets.length === 0) return 0
+    get().pushHistory()
+    set((s) => ({
+      items: s.items.map((it) =>
+        it.defId === src.defId && it.id !== id && !it.locked
+          ? { ...it, props: { ...src.props } }
+          : it,
+      ),
+    }))
+    return targets.length
   },
   setItems: (items) => set({ items }),
 })

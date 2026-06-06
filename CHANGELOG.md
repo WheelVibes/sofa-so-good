@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q8] "Apply style to all of this type" (bulk restyle)
+
+Styling each of N identical chairs by hand is tedious; pro tools (Coohom, Foyr)
+let you propagate a material. Added an `applyStyleToAll(id)` store action that
+copies one item's props (finish / colour / material / form) to every other
+placed item of the same `defId` (skipping locked ones, one undo step, returns the
+count). Surfaced as an **"Apply style to all of this type"** context-menu row
+(shown only when ≥2 of that type exist) with a success toast. Unit-tested +
+visually verified.
+
 ## [R4] Drop non-finite item transforms on load
 
 `z.number()` admits `NaN`/`Infinity`, so a corrupt or hand-edited save (or any

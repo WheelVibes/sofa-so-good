@@ -51,3 +51,6 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 
 ## File / portability
 - [x] F1. Export/import a design as a `.sofa.json` file (Versions panel). (CHANGELOG)
+
+## Bulk editing
+- [x] Q8. "Apply style to all of this type" context-menu bulk restyle. (CHANGELOG)
