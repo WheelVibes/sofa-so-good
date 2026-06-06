@@ -7,12 +7,23 @@ import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
 import { roomShell } from '../../apartment/roomShell'
 import { planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
+import { cameraPose } from './cameraForward'
 
 interface Framing {
   pos: Vector3
   tgt: Vector3
 }
 const smooth = (t: number) => t * t * (3 - 2 * t)
+
+/** Mirror the live camera pose into the shared singleton (read by saved views). */
+function writePose(pos: Vector3, tgt: Vector3): void {
+  cameraPose.px = pos.x
+  cameraPose.py = pos.y
+  cameraPose.pz = pos.z
+  cameraPose.tx = tgt.x
+  cameraPose.ty = tgt.y
+  cameraPose.tz = tgt.z
+}
 
 // Stable initial target — passing a fresh array each render makes drei
 // re-apply it and clobber any user pan.
@@ -87,6 +98,29 @@ export function OrbitCamera() {
     c.update()
   }, [focusNonce, camera])
 
+  // Apply a saved view → smoothly fly the camera to its stored pose + target.
+  const fly = useRef<{
+    fromPos: Vector3
+    fromTgt: Vector3
+    toPos: Vector3
+    toTgt: Vector3
+    t: number
+  } | null>(null)
+  const applyViewNonce = useStore((s) => s.applyViewNonce)
+  useEffect(() => {
+    if (applyViewNonce === 0) return
+    const c = controlsRef.current
+    const pose = useStore.getState().pendingViewPose
+    if (!c || !pose) return
+    fly.current = {
+      fromPos: camera.position.clone(),
+      fromTgt: c.target.clone(),
+      toPos: new Vector3(...pose.pos),
+      toTgt: new Vector3(...pose.target),
+      t: 0,
+    }
+  }, [applyViewNonce, camera])
+
   // Automated walkthrough tour: fly the camera through a sequence of per-room
   // dollhouse framings (one loop), then stop + end any recording. Controls are
   // disabled while touring so it doesn't fight the animation.
@@ -94,6 +128,20 @@ export function OrbitCamera() {
   useFrame((_, dt) => {
     const c = controlsRef.current
     if (!c) return
+
+    // A saved-view fly overrides manual control until it completes (~0.6 s).
+    if (fly.current) {
+      fly.current.t = Math.min(1, fly.current.t + dt / 0.6)
+      const f = smooth(fly.current.t)
+      camera.position.lerpVectors(fly.current.fromPos, fly.current.toPos, f)
+      c.target.lerpVectors(fly.current.fromTgt, fly.current.toTgt, f)
+      c.update()
+      if (fly.current.t >= 1) fly.current = null
+      // Keep the live pose singleton current even mid-fly.
+      writePose(camera.position, c.target)
+      return
+    }
+
     const touring = useStore.getState().touring
     if (touring) {
       if (!tour.current) {
@@ -140,6 +188,8 @@ export function OrbitCamera() {
       tour.current = null
       c.enabled = true
     }
+    // Publish the live pose every frame so saveCurrentView() can snapshot it.
+    writePose(camera.position, c.target)
   })
 
   // Shift + two-finger trackpad scroll → pan. Wheel events fire in capture

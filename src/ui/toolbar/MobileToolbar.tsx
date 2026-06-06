@@ -148,6 +148,7 @@ export function MobileToolbar() {
   const userStyles = useStore((st) => st.userStyles)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
   const roomEditorRoomId = useStore((st) => st.roomEditor.roomId)
+  const savedViews = useStore((st) => st.savedViews)
   const setHelpOpen = useStore((st) => st.setHelpOpen)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
   const setAppearanceOpen = useStore((st) => st.setAppearanceOpen)
@@ -352,6 +353,37 @@ export function MobileToolbar() {
                     onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
                   />
                 ) : null}
+                <Item
+                  icon="Plus"
+                  label="Save current view"
+                  sub="Bookmark this camera angle"
+                  onClick={act(() => {
+                    const name = window.prompt('Name this view', `View ${savedViews.length + 1}`)
+                    if (name !== null) s.getState().saveCurrentView(name)
+                  })}
+                />
+                {savedViews.map((v) => (
+                  <div key={v.id} className="m-saved-view">
+                    <button
+                      type="button"
+                      className="m-item m-saved-view-go"
+                      onClick={act(() => s.getState().applyView(v.id))}
+                    >
+                      <Icon.Eye className="icn" width={18} height={18} />
+                      <span className="m-item-tx">
+                        <span className="m-item-l">{v.name}</span>
+                      </span>
+                    </button>
+                    <button
+                      type="button"
+                      className="m-saved-view-del"
+                      aria-label={`Delete view ${v.name}`}
+                      onClick={() => s.getState().deleteView(v.id)}
+                    >
+                      <Icon.Trash width={16} height={16} />
+                    </button>
+                  </div>
+                ))}
               </Section>
 
               {/* Scene */}

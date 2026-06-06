@@ -214,6 +214,17 @@ body.mobile .tip::after { content: none; }
 .menu-label { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; padding: 8px 9px 4px; }
 .menu-sep { height: 1px; background: var(--border); margin: var(--s-2) 4px; }
 
+/* ---- Saved-view rows (View menu bookmarks) ------------------- */
+.saved-view-row { display: flex; align-items: center; gap: 2px; }
+.saved-view-row .saved-view-apply { flex: 1; min-width: 0; }
+.saved-view-row .saved-view-apply .mi-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved-view-del {
+  display: flex; align-items: center; justify-content: center;
+  flex: none; width: 30px; height: 30px; border-radius: var(--r-2);
+  color: var(--text-3); transition: var(--dur) var(--ease);
+}
+.saved-view-del:hover { background: var(--surface-3); color: var(--danger, #c0392b); }
+
 /* ---- Segmented control --------------------------------------- */
 .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border-radius: var(--r-2); }
 .seg button {

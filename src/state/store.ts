@@ -6,6 +6,11 @@ import {
 } from './slices/appearanceSlice'
 import { CAMERA_INITIAL, type CameraSlice, createCameraSlice } from './slices/cameraSlice'
 import {
+  CAMERA_VIEWS_INITIAL,
+  type CameraViewsSlice,
+  createCameraViewsSlice,
+} from './slices/cameraViewsSlice'
+import {
   CLIPBOARD_INITIAL,
   type ClipboardSlice,
   createClipboardSlice,
@@ -101,7 +106,8 @@ export interface RootState
     AppearanceSlice,
     FeaturesSlice,
     UserStylesSlice,
-    RecentSlice {
+    RecentSlice,
+    CameraViewsSlice {
   __resetForTest: () => void
 }
 
@@ -128,6 +134,7 @@ const INITIAL = {
   ...FEATURES_INITIAL,
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
+  ...CAMERA_VIEWS_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -155,5 +162,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createAppearanceSlice(set, get, api),
   ...createFeaturesSlice(set, get, api),
   ...createRecentSlice(set, get, api),
+  ...createCameraViewsSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))

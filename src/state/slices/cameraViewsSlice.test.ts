@@ -1,0 +1,59 @@
+import { beforeEach, describe, expect, it } from 'vitest'
+import { cameraPose } from '../../scene/cameras/cameraForward'
+import { useStore } from '../store'
+
+describe('cameraViewsSlice', () => {
+  beforeEach(() => {
+    // Clear any persisted/saved views from a previous test.
+    for (const v of [...useStore.getState().savedViews]) useStore.getState().deleteView(v.id)
+  })
+
+  it('snapshots the live camera pose under a name', () => {
+    cameraPose.px = 5
+    cameraPose.py = 3
+    cameraPose.pz = 7
+    cameraPose.tx = 1
+    cameraPose.ty = 1.2
+    cameraPose.tz = 2
+    const id = useStore.getState().saveCurrentView('Lounge angle')
+    const view = useStore.getState().savedViews.find((v) => v.id === id)
+    expect(view?.name).toBe('Lounge angle')
+    expect(view?.pos).toEqual([5, 3, 7])
+    expect(view?.target).toEqual([1, 1.2, 2])
+  })
+
+  it('falls back to a default name when blank', () => {
+    const id = useStore.getState().saveCurrentView('   ')
+    const view = useStore.getState().savedViews.find((v) => v.id === id)
+    expect(view?.name).toMatch(/^View \d+$/)
+  })
+
+  it('applyView sets the pending pose, bumps the nonce, and forces orbit mode', () => {
+    useStore.setState({ cameraMode: 'firstPerson' } as never)
+    const id = useStore.getState().saveCurrentView('A')
+    const before = useStore.getState().applyViewNonce
+    useStore.getState().applyView(id)
+    const s = useStore.getState()
+    expect(s.applyViewNonce).toBe(before + 1)
+    expect(s.pendingViewPose).not.toBeNull()
+    expect(s.cameraMode).toBe('orbit')
+  })
+
+  it('applyView on a missing id is a no-op', () => {
+    const before = useStore.getState().applyViewNonce
+    useStore.getState().applyView('nope')
+    expect(useStore.getState().applyViewNonce).toBe(before)
+  })
+
+  it('deleteView removes the view', () => {
+    const id = useStore.getState().saveCurrentView('Temp')
+    useStore.getState().deleteView(id)
+    expect(useStore.getState().savedViews.find((v) => v.id === id)).toBeUndefined()
+  })
+
+  it('renameView updates the name', () => {
+    const id = useStore.getState().saveCurrentView('Old')
+    useStore.getState().renameView(id, 'New')
+    expect(useStore.getState().savedViews.find((v) => v.id === id)?.name).toBe('New')
+  })
+})

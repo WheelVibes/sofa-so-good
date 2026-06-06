@@ -154,6 +154,16 @@ body.mobile {
   .m-row2 { display: flex; gap: var(--s-2); padding: 0 5px; }
   .m-row2 .m-item { justify-content: center; background: var(--surface-2); }
 
+  /* ---- Saved-view rows (mobile View accordion) ------------- */
+  .m-saved-view { display: flex; align-items: center; gap: 2px; }
+  .m-saved-view .m-saved-view-go { flex: 1; min-width: 0; }
+  .m-saved-view-del {
+    display: flex; align-items: center; justify-content: center;
+    flex: none; width: 44px; min-height: 44px; border-radius: var(--r-2);
+    color: var(--text-3);
+  }
+  .m-saved-view-del:active { background: var(--surface-3); color: var(--danger, #c0392b); }
+
   /* ---- Collapsible accordion sections ---------------------- */
   .m-acc { border-radius: var(--r-2); }
   .m-acc + .m-acc { border-top: 1px solid var(--border); }

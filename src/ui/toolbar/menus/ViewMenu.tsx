@@ -2,6 +2,7 @@ import { ROOMS } from '../../../apartment/constants'
 import { useStore } from '../../../state/store'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
+import { SavedViewsSection } from './SavedViewsSection'
 
 /** View cluster: top-down view, reset to 3D overview, turntable auto-orbit,
  *  and a single "Edit a room" entry (isolate one room, IKEA-planner style;
@@ -47,6 +48,7 @@ export function ViewMenu() {
           />
         </>
       ) : null}
+      <SavedViewsSection />
     </ToolbarMenu>
   )
 }

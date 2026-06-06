@@ -4,6 +4,26 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q6] Saved camera views (bookmarks)
+
+A flagship navigation QOL feature from pro tools (SketchUp scenes, Coohom
+viewpoints): bookmark a favourite angle of the flat and fly back to it.
+
+- `state/slices/cameraViewsSlice.ts` — named `SavedView` (pos + look-at target),
+  capped (12), persisted to `localStorage` (`hdb_camera_views`, device-global,
+  out of the save schema). `saveCurrentView` snapshots the live pose; `applyView`
+  bumps `applyViewNonce`/`pendingViewPose` and forces orbit mode; plus
+  delete/rename.
+- The live orbit pose is published each frame into a `cameraPose` singleton
+  (`scene/cameras/cameraForward.ts`) by `<OrbitCamera>`, which also consumes
+  `applyViewNonce` to **smoothly fly** (0.6 s smoothstep) to a saved pose.
+- UI: a modular `SavedViewsSection` in the desktop **View** menu (Save current
+  view + per-view go/delete rows) and full **mobile** parity in the View
+  accordion (44px touch targets, delete buttons). Themed via new
+  `.saved-view-*` / `.m-saved-view-*` CSS.
+- Unit-tested (slice) + visually verified: saved two views, snapped to top-down,
+  applied a saved view and watched the camera fly back to the 3/4 overview.
+
 ## [Q2] "Recent" catalog row for fast re-placement
 
 A staple of every mainstream interior-design app (Planner5D, Coohom, IKEA

@@ -27,7 +27,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] Q3. **Drag-from-catalog-to-scene** placement (if not present) or improve placement ghost UX.
 - [ ] Q4. **Keyboard shortcut cheatsheet** completeness + a `?` overlay.
 - [ ] Q5. **Measurement/annotation** persistence + dimension labels on 2D plan.
-- [ ] Q6. **Camera bookmarks / saved views** for quick navigation + before/after compare.
+- [x] Q6. **Camera bookmarks / saved views** — save/apply (smooth fly)/delete, desktop View menu + mobile parity, persisted. (CHANGELOG)
 - [ ] Q7. **Empty states & inline help** across panels.
 
 ## Realism

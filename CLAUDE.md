@@ -654,7 +654,10 @@ rediscover it.
 - **Toolbar** (`ui/toolbar/`): a streamlined, horizontally-scrollable **icon
   island**. Frequent actions are direct icon buttons (`IconButton`); busy
   clusters collapse into labelled dropdown menus (`ToolbarMenu` + `MenuItem`):
-  **View** (top/reset/turntable), **Scene** (time presets + sun-direction
+  **View** (top/reset/turntable/edit-room + **saved camera views**: a
+  `SavedViewsSection` to bookmark the current angle and fly back to it —
+  `cameraViewsSlice`, persisted to `localStorage`, mobile-parity in the View
+  accordion), **Scene** (time presets + sun-direction
   `CompassModal`), **Arrange** (Sets/Presets/Style/Floor plan/Tidy), **Tools**
   (Budget/Checks/Sun study/Walkthrough/Report), **File** (Save/Load/Export/
   Record). Every control has a custom portaled **Tooltip** showing its name +
