@@ -17,6 +17,7 @@ import { PlacementGhost } from './PlacementGhost'
 import { ScreenshotController } from './ScreenshotController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
+import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 
 /** Lightweight per-room editor scene. Renders one isolated room with a flat,
@@ -55,6 +56,7 @@ export function RoomEditorScene() {
       <FurnitureLayer room={shell} />
       <FurnitureMaterialLoader />
       <SelectionOutline />
+      <RotateGizmo />
       <HoverHighlight />
       <PlacementGhost />
       <DragController />

@@ -4,6 +4,23 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N3] Touch-friendly drag-to-rotate gizmo
+
+Rotating a piece previously meant the keyboard-only <kbd>R</kbd> key (90° /
+Shift+R 15°) — unusable on touch and coarse for fine angles. Added a
+`RotateGizmo` drawn on the floor around the single selected item (orbit camera +
+**select** tool, unlocked): a blue ring + front knob you **drag to spin** the
+piece about its vertical axis, snapping to **15°** steps (hold Shift for free).
+A live degree read-out follows the knob, the ring tints green/red via the same
+`canPlace` check the item-drag uses, and an invalid release reverts to the
+pre-gesture angle. The ring/knob meshes patch their `raycast` so the
+always-on-top handle wins the pointer pick over taller furniture. Pure rotation
+math (`rotateGizmoMath.ts`: relative-angle + snap, radius, degree wrap) is
+extracted and unit-tested (8 cases); mounted in both the main and room-editor
+scenes. Verified end-to-end in the harness by driving synthetic pointer events
+(grab → live `MID 45` → committed `AFTER 45` on a noClip rug; collision revert
+on a wall-blocked sofa) plus a clean idle 3/4 render.
+
 ## [R3] "Auto-saved …" indicator
 
 Users had no signal their work was being persisted. Added `lastSavedAt` to the UI

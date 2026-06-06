@@ -31,6 +31,7 @@ import { ScreenshotController } from './ScreenshotController'
 import { ShowcaseController } from './ShowcaseController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
+import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 
 /** Flips `sceneReady` once the scene has painted a few solid frames (so
@@ -84,6 +85,7 @@ export function Scene() {
       <FurnitureLayer />
       <FurnitureMaterialLoader />
       <SelectionOutline />
+      <RotateGizmo />
       <HoverHighlight />
       <PlacementGhost />
       <DragController />

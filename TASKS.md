@@ -68,8 +68,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 ## Researched backlog (next iterations — competitor parity / polish)
 - [x] N1. **Apply finish to all rooms** — setAll{Floor,Wall}Finish + FinishPicker buttons. (CHANGELOG)
 - [x] N2. **Duplicate-in-array** — inspector "Duplicate a row of N", collision-checked, grouped. (CHANGELOG)
-- [ ] N3. **3D rotate handle/gizmo** on the selected item (drag-to-rotate vs the
-  R key) — touch-friendly.
+- [x] N3. **3D rotate handle/gizmo** — touch-friendly floor ring + knob,
+  drag-to-rotate with 15° snap (Shift = free), live degree readout, collision
+  tint + revert, raycast-priority pick. Pure math unit-tested. (CHANGELOG)
 - [ ] N4. **Per-room ceiling height** control (architectural realism).
 - [ ] N5. **Persist measurements + photo-trace backdrop** into the save schema
   (currently session-only).

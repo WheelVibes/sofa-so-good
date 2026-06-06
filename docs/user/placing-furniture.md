@@ -43,6 +43,16 @@ Select a piece to open its **inspector**, where parametric items expose
 dimensions, colours, and style options. **Double‑click** focuses the camera on
 it.
 
+### Drag‑to‑rotate ring
+
+When you select a piece (in the **select** tool), a blue **rotate ring** appears
+on the floor around it with a knob at the front. **Drag the ring or knob** to
+spin the piece — perfect for touch, where there's no keyboard. It snaps to **15°**
+steps for tidy alignment; hold <kbd>Shift</kbd> while dragging for free rotation.
+A live angle read‑out follows the knob, the ring turns **red** if the new angle
+would overlap a wall or another piece, and releasing on a blocked angle snaps it
+back. (The <kbd>R</kbd> key still does quick 90° turns.)
+
 **Right‑click** any placed piece for a **context menu** with the most common
 actions right where you need them — **swap with similar**, rotate, flip,
 duplicate, **group / ungroup**, lock / unlock, and delete. (Group appears when

@@ -63,7 +63,9 @@ export the result — all in the browser.
   lightweight — locked to the fast Performance renderer with full-resolution
   models, and skips all the time-of-day/sun/shadow machinery.
 - **Editing** — drag to place (with optional **snap-to-grid** and alignment
-  guides), move, rotate, mirror, **select-all (⌘A)**, multi-select with
+  guides), move, rotate (**R** key or a touch-friendly **drag-to-rotate ring**
+  on the selected item, 15° snap / free with Shift), mirror, **select-all
+  (⌘A)**, multi-select with
   align/distribute, **group** (move/rotate as a unit, click again to edit one
   piece), lock, copy/duplicate, **duplicate a row of N**, **apply one item's
   style to all of its type** (right-click), **reset props to defaults**, numeric
