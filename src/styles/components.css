@@ -41,6 +41,9 @@ input { font-family: inherit; }
   box-shadow: var(--shadow-pop);
   animation: modalpop var(--dur) var(--ease);
 }
+/* The dialog container receives programmatic focus on open (a11y) — suppress its
+   own focus ring; interactive children keep their own focus styles. */
+.modal-overlay > .panel[role='dialog']:focus { outline: none; }
 @keyframes modalpop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
 
 /* ---- Thin, aesthetic scrollbars ------------------------------ */
