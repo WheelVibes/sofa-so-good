@@ -173,7 +173,12 @@ export function FloorPlanEditor() {
     if (!backdrop || aiBusy) return
     let key = getVisionKey()
     if (!key) {
-      key = window.prompt('Vision-model API key (OpenAI-compatible, kept in this browser):') || ''
+      key =
+        (await useStore.getState().promptText({
+          title: 'AI floor-plan recognition',
+          label: 'Vision-model API key (OpenAI-compatible, kept in this browser)',
+          submitLabel: 'Continue',
+        })) || ''
       if (!key) return
       setVisionKey(key)
     }
@@ -540,11 +545,19 @@ export function FloorPlanEditor() {
       // backdrop rescales (mPerPx) to match. No walls created.
       const worldDist = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
       if (backdrop && worldDist > 0.05) {
-        const input = window.prompt('Real length of the line you drew (metres):', '1')
-        const meters = input ? Number.parseFloat(input) : NaN
-        if (Number.isFinite(meters) && meters > 0) {
-          setBackdrop((b) => (b ? { ...b, mPerPx: (b.mPerPx * meters) / worldDist } : b))
-        }
+        void (async () => {
+          const input = await useStore.getState().promptText({
+            title: 'Calibrate scale',
+            label: 'Real length of the line you drew (metres)',
+            defaultValue: '1',
+            numeric: true,
+            submitLabel: 'Set scale',
+          })
+          const meters = input ? Number.parseFloat(input) : NaN
+          if (Number.isFinite(meters) && meters > 0) {
+            setBackdrop((b) => (b ? { ...b, mPerPx: (b.mPerPx * meters) / worldDist } : b))
+          }
+        })()
       }
       setDraft(null)
       return

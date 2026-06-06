@@ -26,7 +26,12 @@ export function FileMenu() {
   const refresh = () => void LocalStorageAdapter.list().then(setSlots)
 
   const save = async () => {
-    const name = prompt('Save layout as…')
+    const name = await useStore.getState().promptText({
+      title: 'Save layout',
+      label: 'Name this layout',
+      placeholder: 'e.g. Living room v2',
+      submitLabel: 'Save',
+    })
     if (!name) return
     const slot = name.trim().replace(/\s+/g, '-').toLowerCase()
     if (!slot) return

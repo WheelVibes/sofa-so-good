@@ -44,9 +44,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   `applySerialized` now resets both (covers restore/import/hydrate). Unit-tested. (CHANGELOG)
 
 - [x] B9. Replaced blocking `window.alert` error dialogs (save/load failures,
-  AI plan failure) with themed `notify` toasts. E2E-verified. Follow-up: the
-  `prompt()` name-entry dialogs (save/view/style names, scale, AI key) → themed
-  input modal.
+  AI plan failure) with themed `notify` toasts. E2E-verified. (CHANGELOG)
+- [x] B10. Replaced every `window.prompt` name-entry with an async `promptText`
+  store action + themed focus-trapped `PromptModal` (save layout/version/view/
+  style, scale calibration, AI key). E2E-verified. (CHANGELOG)
 
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
 - [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.

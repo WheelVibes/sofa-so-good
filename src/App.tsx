@@ -42,6 +42,7 @@ import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
 import { hasOnboarded, Onboarding } from './ui/Onboarding'
+import { PromptModal } from './ui/PromptModal'
 import { ShareModal } from './ui/ShareModal'
 import { SwapModal } from './ui/SwapModal'
 import { Toolbar } from './ui/Toolbar'
@@ -555,6 +556,7 @@ export default function App() {
         <SmartStartWizard />
         <Onboarding />
         <LocationPrompt />
+        <PromptModal />
         {floorPlanEditing ? (
           <Suspense fallback={null}>
             <FloorPlanEditor />

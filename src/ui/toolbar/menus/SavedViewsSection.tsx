@@ -14,9 +14,14 @@ export function SavedViewsSection() {
   const applyView = useStore((s) => s.applyView)
   const deleteView = useStore((s) => s.deleteView)
 
-  const onSave = () => {
-    const name = window.prompt('Name this view', `View ${savedViews.length + 1}`)
-    if (name !== null) saveCurrentView(name)
+  const onSave = async () => {
+    const name = await useStore.getState().promptText({
+      title: 'Save camera view',
+      label: 'Name this view',
+      defaultValue: `View ${savedViews.length + 1}`,
+      submitLabel: 'Save',
+    })
+    if (name) saveCurrentView(name)
   }
 
   return (

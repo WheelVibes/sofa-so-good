@@ -60,7 +60,12 @@ export function VersionsPanel() {
   if (!open) return null
 
   const save = async () => {
-    const name = prompt('Save this version as…')
+    const name = await useStore.getState().promptText({
+      title: 'Save version',
+      label: 'Name this version',
+      placeholder: 'e.g. Scandi living room',
+      submitLabel: 'Save',
+    })
     if (!name) return
     const slot = name.trim().replace(/\s+/g, '-').toLowerCase()
     if (!slot) return

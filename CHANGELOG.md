@@ -52,6 +52,19 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [B10] Themed prompt modal replaces blocking window.prompt
+
+Finishes the native-dialog cleanup (B9): a reusable async **`promptText`** store
+action + a focus-trapped, on-brand **`PromptModal`** (mounted once in App) now
+back every name-entry that used `window.prompt` — Save layout (File menu), Save
+version (Versions), Save camera view, Save style, the floor-plan **Scale**
+calibration (numeric), and the AI vision-key entry. `promptText(opts)` returns a
+`Promise<string|null>` so call sites just `await` it; the resolver is held
+outside the store (transient callback) and a superseding prompt cancels the
+prior one. Removes the last unstyleable/iframe-blocked blocking dialogs from the
+core flows. Verified the modal renders themed with label, placeholder, and
+Cancel/Save.
+
 ## [B9] Replace blocking native alerts with themed toasts
 
 Three error paths used `window.alert(...)` — unstyleable, blocking, and silently

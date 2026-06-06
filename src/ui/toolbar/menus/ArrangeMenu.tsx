@@ -88,9 +88,14 @@ export function ArrangeMenu() {
           icon="Style"
           label="Save current style…"
           sub="Capture every room's floor + wall finish"
-          onClick={() => {
-            const name = window.prompt('Name this style:', `My style ${userStyles.length + 1}`)
-            if (name !== null) saveCurrentStyle(name)
+          onClick={async () => {
+            const name = await useStore.getState().promptText({
+              title: 'Save style',
+              label: "Name this style (captures every room's finishes)",
+              defaultValue: `My style ${userStyles.length + 1}`,
+              submitLabel: 'Save',
+            })
+            if (name) saveCurrentStyle(name)
           }}
         />
         {userStyles.length === 0 ? (

@@ -116,7 +116,9 @@ rediscover it.
 - `src/state/` — Zustand store split into slices (`slices/*`): items,
   selection, finishes, doors, time, location, camera, ui (incl. quality +
   snap grid), placement, clipboard, history, remote catalog, installed packs,
-  measurements, orientation, notifications, reset, **userAssets**
+  measurements (incl. metric/imperial `units`), orientation, notifications,
+  **prompt** (themed async `promptText` → `ui/PromptModal`, replaces
+  `window.prompt`), reset, **userAssets**
   (user-uploaded GLBs + imported `IkeaGltfDef`s — see **IKEA models**), and
   **floorPlan** (editable apartment shell + editor state + saved-plan library),
   **appearance** (theme + light/dark/auto mode — see **Design system**),

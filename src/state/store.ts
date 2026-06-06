@@ -52,6 +52,7 @@ import {
   PLACEMENT_INITIAL,
   type PlacementSlice,
 } from './slices/placementSlice'
+import { createPromptSlice, PROMPT_INITIAL, type PromptSlice } from './slices/promptSlice'
 import { createRecentSlice, RECENT_INITIAL, type RecentSlice } from './slices/recentSlice'
 import {
   createRemoteCatalogSlice,
@@ -107,7 +108,8 @@ export interface RootState
     FeaturesSlice,
     UserStylesSlice,
     RecentSlice,
-    CameraViewsSlice {
+    CameraViewsSlice,
+    PromptSlice {
   __resetForTest: () => void
 }
 
@@ -135,6 +137,7 @@ const INITIAL = {
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
   ...CAMERA_VIEWS_INITIAL,
+  ...PROMPT_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -163,5 +166,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createFeaturesSlice(set, get, api),
   ...createRecentSlice(set, get, api),
   ...createCameraViewsSlice(set, get, api),
+  ...createPromptSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))
