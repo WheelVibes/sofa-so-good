@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N4b] Per-room ceiling height
+
+Architectural realism: the floor-plan editor's room inspector now has a
+**per-room ceiling height** control (clamped 2.2–4 m) with a **"Match home"**
+reset that drops the override. It models a dropped/false ceiling — walls stay
+full height, exactly like the built-in 2.4 m bathrooms. `Ceiling.tsx` and
+`MeasurementOverlay.tsx` now read the **live** per-room override from the
+editable `floorPlan.rooms` (falling back to the `ROOMS` constant, then the
+global height) instead of only the static `ROOMS` constants, so an edit takes
+effect on the default flat immediately; the measurement overlay also surfaces
+each room's height as a third label line. Verified: setting Living/Dining to
+4.00 m renders that height in the overlay with no artifacts.
+
 ## [Q15c] No gizmo/outline over a hidden+selected item
 
 Polish for the hide feature: a piece that's both selected and hidden no longer

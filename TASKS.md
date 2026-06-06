@@ -106,9 +106,10 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   drag-to-rotate with 15° snap (Shift = free), live degree readout, collision
   tint + revert, raycast-priority pick. Pure math unit-tested. **Extended to
   multi-selection** (group rotate about centroid, signed delta readout). (CHANGELOG)
-- [ ] N4b. **Per-room ceiling height** UI (architectural realism) — global
-  height shipped (see N4 above); per-room override is the remaining follow-up
-  (data model already supports `PlanRoom.ceilingHeight`).
+- [x] N4b. **Per-room ceiling height** UI (architectural realism) — PlanInspector
+  room control + "Match home" reset; `Ceiling`/`MeasurementOverlay` read the live
+  per-room override from `floorPlan.rooms` (dropped/false ceiling, walls stay
+  full height). E2E-verified (Living/Dining → 4.00 m). (CHANGELOG)
 - [x] N5. **Persist photo-trace backdrop** (blob + calibration) to IDB —
   survives editor close + reload, rehydrated on open, fail-soft, unit-tested.
   (Measurements are derived room-size labels — nothing user-created to persist.)

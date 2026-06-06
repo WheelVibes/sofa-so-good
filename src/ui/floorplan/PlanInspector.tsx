@@ -125,6 +125,30 @@ export function PlanInspector() {
               ))}
             </select>
           </label>
+          {/* Per-room ceiling height — overrides the home default for this room
+              only (a dropped/false ceiling; walls stay full height, like the
+              built-in 2.4 m bathrooms). Empty = inherit the home height. */}
+          <div className="flex flex-col gap-1">
+            <Num
+              label="Ceiling (m)"
+              value={r.ceilingHeight ?? plan.ceilingHeight}
+              step={0.05}
+              min={2.2}
+              onChange={(v) => {
+                if (!Number.isFinite(v)) return
+                a.updateRoom(r.id, { ceilingHeight: Math.min(4, Math.max(2.2, v)) })
+              }}
+            />
+            {r.ceilingHeight != null && (
+              <button
+                type="button"
+                className="btn btn-block"
+                onClick={() => a.updateRoom(r.id, { ceilingHeight: undefined })}
+              >
+                Match home ({plan.ceilingHeight.toFixed(2)} m)
+              </button>
+            )}
+          </div>
           {/* L-shape extension: a second rectangle offset from the origin.
               planRoomArea sums both, and the 3D shell renders both floors. */}
           <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>

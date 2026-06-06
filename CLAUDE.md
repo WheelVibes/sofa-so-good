@@ -547,11 +547,15 @@ rediscover it.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): a 2D top-down editor
   (toolbar "Floor plan") edits the store `floorPlan` — walls (interior/
   exterior), rectangular rooms (auto area + total), doors/windows, an
-  **adjustable ceiling height** (`PlanInspector` no-selection control →
-  `updateFloorPlanMeta`, clamped 2.2–4 m; drives both the default-flat render
-  path — `WallSegment`/`Ceiling`/`RoomShell`/`MeasurementOverlay` read
-  `floorPlan.ceilingHeight` — and `PlanShell`; per-room `ceilingHeight` overrides
-  like the 2.4 m bathrooms still win), grid +
+  **adjustable ceiling height** — a global control (`PlanInspector`
+  no-selection → `updateFloorPlanMeta`, clamped 2.2–4 m) **and a per-room
+  override** (`PlanInspector` room selection → `updateRoom({ceilingHeight})`,
+  with a "Match home" reset; a dropped/false ceiling — walls stay full height,
+  like the built-in 2.4 m bathrooms). `Ceiling`/`MeasurementOverlay` read the
+  live per-room override from `floorPlan.rooms` (falling back to the `ROOMS`
+  constant then `floorPlan.ceilingHeight`); `WallSegment`/`RoomShell` and
+  `PlanShell` read the global height. The measurement overlay surfaces each
+  room's height. grid +
   corner snapping, drag-move, per-room floor finishes, and persistent per-wall
   **length labels** (a "Dims" header toggle, default on). **Non-rectangular
   shapes**: the **Split** tool (`splitWall`) cuts a wall into two segments
