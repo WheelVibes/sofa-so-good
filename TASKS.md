@@ -82,4 +82,4 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   initial-load profiling justifies it (three.js dominates, so likely marginal).
 - [ ] N9. **More wall finishes** — board-and-batten, concrete accent, wood-panel
   (procedural, prod-safe).
-- [ ] N10. **Inspector "reset props to default"** per item.
+- [x] N10. Inspector "Reset" props to defaults (parametric items). (CHANGELOG)

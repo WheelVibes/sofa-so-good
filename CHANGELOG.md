@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N10] Inspector "Reset" props to defaults
+
+Customised a parametric item (size/form/finish/colour) and want it back to
+stock? The Properties section header now shows a **Reset** pill (only when the
+item's props differ from the def's defaults) that restores
+`defaultParamProps(def)` in one undoable step. Visually verified.
+
 ## [N1] Apply finish to all rooms
 
 Re-finishing every room one-by-one is tedious. Added `setAllFloorFinish(id)` /

@@ -185,6 +185,13 @@
   transition: var(--dur) var(--ease);
 }
 .finish-apply-all:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
+.prop-reset {
+  margin-left: auto; padding: 2px 8px; border-radius: var(--r-pill);
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: var(--dur) var(--ease);
+}
+.prop-reset:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
 
 /* budget bar */
 .bud-total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }
