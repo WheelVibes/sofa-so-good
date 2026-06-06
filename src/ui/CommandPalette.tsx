@@ -172,6 +172,16 @@ export function CommandPalette() {
         icon: 'Time',
         run: () => s().cyclePresetTime(),
       },
+      ...(['morning', 'noon', 'dusk', 'night'] as const).map(
+        (p): Command => ({
+          id: `time:${p}`,
+          group: 'Lighting moods',
+          label: `Time — ${p[0].toUpperCase()}${p.slice(1)}`,
+          hint: 'Sun',
+          icon: 'Sun',
+          run: () => s().setPresetTime(p),
+        }),
+      ),
       ...LIGHTING_SCENES.map(
         (sc): Command => ({
           id: `mood:${sc.id}`,

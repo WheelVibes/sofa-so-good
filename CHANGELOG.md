@@ -114,6 +114,12 @@ saved lighting mood's on/off fixture state was lost on reload (lights reverted t
 auto). Added `lightsMode` to the save schema (optional, defaults to 'auto' for
 legacy saves) so the full lighting state round-trips. Unit-tested.
 
+## [N20c] Time-of-day presets in the command palette
+
+Added jump-to time presets (Morning/Noon/Dusk/Night) to the ⌘K palette
+alongside the moods, so a specific time is reachable by search, not just the
+cycle key. Mirrors the moods entries.
+
 ## [N20b] Lighting moods in the command palette
 
 The four lighting moods are now also reachable from ⌘K (a "Lighting moods"
