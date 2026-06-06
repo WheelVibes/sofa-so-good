@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N2] Duplicate-in-array (row of copies)
+
+A pro "array/clone" tool: the single-item inspector now has a **"Duplicate a row
+of N"** control that places N−1 copies to the item's right (local +X), spaced by
+its width, each collision-checked (stops at the first blocked slot). The original
++ copies share one groupId and commit in a single undo step. Verified
+end-to-end (66→68 placing a row of 3 with two open slots).
+
 ## [N9] Microcement / concrete accent wall finishes
 
 Polished-concrete (microcement) walls are a staple of modern interiors. Added

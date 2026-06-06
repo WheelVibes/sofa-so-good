@@ -67,8 +67,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 
 ## Researched backlog (next iterations — competitor parity / polish)
 - [x] N1. **Apply finish to all rooms** — setAll{Floor,Wall}Finish + FinishPicker buttons. (CHANGELOG)
-- [ ] N2. **Duplicate-in-array** — place N copies of a selected item along a line
-  (count + spacing), collision-checked (competitor "array/clone" tool).
+- [x] N2. **Duplicate-in-array** — inspector "Duplicate a row of N", collision-checked, grouped. (CHANGELOG)
 - [ ] N3. **3D rotate handle/gizmo** on the selected item (drag-to-rotate vs the
   R key) — touch-friendly.
 - [ ] N4. **Per-room ceiling height** control (architectural realism).

@@ -192,6 +192,24 @@
   transition: var(--dur) var(--ease);
 }
 .prop-reset:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
+.act-array {
+  display: flex; align-items: center; gap: 8px; margin-top: var(--s-2);
+  padding: 6px 10px; border-radius: var(--r-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.act-array > span { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
+.act-array input {
+  width: 48px; padding: 3px 6px; border-radius: var(--r-2);
+  border: 1px solid var(--border); background: var(--surface-solid); color: var(--text);
+  font-size: var(--t-xs); text-align: center;
+}
+.act-array-go {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-left: auto; padding: 4px 12px; border-radius: var(--r-pill);
+  font-size: var(--t-xs); font-weight: 700; color: var(--on-accent, #fff);
+  background: var(--accent);
+}
+.act-array-go:hover { filter: brightness(1.05); }
 
 /* budget bar */
 .bud-total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }

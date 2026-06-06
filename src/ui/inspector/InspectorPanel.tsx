@@ -224,6 +224,7 @@ export function InspectorPanel() {
   const pushHistory = useStore((s) => s.pushHistory)
   const activeGroupId = useStore((s) => s.activeGroupId)
   const addToGroup = useStore((s) => s.addToGroup)
+  const [arrayCount, setArrayCount] = useState(3)
   const flip = (axis: 'x' | 'z') => {
     pushHistory()
     flipItem(item!.id, axis)
@@ -315,6 +316,53 @@ export function InspectorPanel() {
     if (typeof dv === 'number') d = dv
   }
   const cm = (m: number) => Math.round(m * 100)
+
+  // Place a row of copies to the item's right (local +X), spaced by its width,
+  // each collision-checked. Stops at the first blocked slot. The original + all
+  // copies share one groupId, committed in a single undo step.
+  const duplicateRow = () => {
+    const st = useStore.getState()
+    const count = Math.max(2, Math.min(10, Math.round(arrayCount)))
+    const rot = item.rotation
+    const rx = Math.cos(rot)
+    const rz = -Math.sin(rot) // local +X projected to world XZ
+    const step = w + 0.12
+    const gid =
+      typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `grp-${Date.now()}`
+    const newItems: (typeof item)[] = []
+    let others = st.items
+    for (let i = 1; i < count; i++) {
+      const pos: [number, number] = [
+        item.position[0] + rx * step * i,
+        item.position[1] + rz * step * i,
+      ]
+      const probe = {
+        id: `row-${i}`,
+        defId: item.defId,
+        position: pos,
+        rotation: rot,
+        props: item.props,
+      }
+      if (!canPlace(probe, def, { others, defs: catalog, doors: st.doors })) break
+      const ni = {
+        ...item,
+        id:
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `id-${Date.now()}-${i}`,
+        position: pos,
+        props: { ...item.props },
+        groupId: gid,
+      }
+      newItems.push(ni)
+      others = [...others, ni]
+    }
+    if (newItems.length === 0) return
+    st.pushHistory()
+    st.setItems(
+      st.items.map((it) => (it.id === item.id ? { ...it, groupId: gid } : it)).concat(newItems),
+    )
+  }
 
   return (
     <aside className="panel inspector">
@@ -433,6 +481,21 @@ export function InspectorPanel() {
             >
               <Icon.Trash width={16} height={16} />
               Delete
+            </button>
+          </div>
+          <div className="act-array" title="Place a row of copies to the right of this item">
+            <span>Duplicate a row of</span>
+            <input
+              type="number"
+              min={2}
+              max={10}
+              value={arrayCount}
+              onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
+              aria-label="Number of copies in the row"
+            />
+            <button type="button" className="act-array-go" onClick={duplicateRow}>
+              <Icon.Copy width={13} height={13} />
+              Go
             </button>
           </div>
           <button
