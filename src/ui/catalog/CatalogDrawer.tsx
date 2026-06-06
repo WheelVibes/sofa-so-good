@@ -297,6 +297,21 @@ export function CatalogDrawer() {
                 className="input mono"
                 style={{ width: 64, height: 28, padding: '0 6px' }}
               />
+              {maxPrice.trim() !== '' ? (
+                <button
+                  type="button"
+                  aria-label="Clear max price"
+                  title="Clear max price"
+                  onClick={() => {
+                    setMaxPrice('')
+                    setPage(0)
+                  }}
+                  className="icon-btn"
+                  style={{ width: 24, height: 24, flex: 'none' }}
+                >
+                  <Icon.Close width={12} height={12} />
+                </button>
+              ) : null}
             </div>
           ) : null}
           <div className="card-grid" onKeyDown={onGridKeyDown}>

@@ -52,6 +52,12 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [Q28b] One-tap clear for the catalog Max-$ filter
+
+Follow-up polish: a small ✕ appears beside the Max-$ field when a cap is set,
+clearing it in one tap (handy on mobile where emptying a number input is fiddly).
+Verified the ✕ shows when a value is present.
+
 ## [B12] Finish native-dialog removal (mobile File + style)
 
 A grep audit found the mobile toolbar's File handlers still used `prompt`/`alert`
