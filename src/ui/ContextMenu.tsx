@@ -168,6 +168,17 @@ export function ContextMenu() {
       <Row icon="Copy" label="Duplicate" sk="⌘D" onClick={duplicate} />
       {sameTypeCount > 1 ? (
         <Row
+          icon="Layers"
+          label={`Select all of this type (${sameTypeCount})`}
+          onClick={() => {
+            const st = useStore.getState()
+            const ids = st.items.filter((i) => i.defId === item.defId).map((i) => i.id)
+            st.setSelectedItemIds(ids)
+          }}
+        />
+      ) : null}
+      {sameTypeCount > 1 ? (
+        <Row
           icon="Palette"
           label="Apply style to all of this type"
           onClick={() => {

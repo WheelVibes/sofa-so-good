@@ -82,6 +82,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   nearest 90° (collision-checked, shown only when askew). (CHANGELOG)
 - [x] Q13. **Point-to-point tape measure** (`scene/TapeMeasure.tsx`, Tools menu,
   desktop + mobile). Slice unit-tested + E2E-verified. (CHANGELOG)
+- [x] Q14. **"Select all of this type"** context action (bulk-select same def,
+  shown when >1 exists). E2E-verified. (CHANGELOG)
 - [x] N4. **Adjustable ceiling height** — `floorPlan.ceilingHeight` (already
   persisted + honoured by custom plans) now drives the default-flat render path
   (WallSegment/Ceiling/RoomShell/MeasurementOverlay) too, with a clamped editor

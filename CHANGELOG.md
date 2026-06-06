@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q14] "Select all of this type" context action
+
+Complements the existing "Apply style to all of this type": right-clicking a
+piece now offers **Select all of this type (N)** (shown when more than one
+exists), selecting every item sharing the def so you can move/rotate/delete or
+bulk-edit them together via the multi-select panel. Verified in the harness
+(selecting one of three nightstands → all 3 selected).
+
 ## [Q13] Point-to-point tape measure tool
 
 A staple of pro planners that was missing (the app only labelled room sizes).
