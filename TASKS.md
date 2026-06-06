@@ -80,6 +80,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   capable, grid-gated, door-aware). Unit-tested + E2E-verified. (CHANGELOG)
 - [x] Q12. **"Straighten" context-menu action** — snap an off-axis piece to the
   nearest 90° (collision-checked, shown only when askew). (CHANGELOG)
+- [x] Q13. **Point-to-point tape measure** (`scene/TapeMeasure.tsx`, Tools menu,
+  desktop + mobile). Slice unit-tested + E2E-verified. (CHANGELOG)
 - [x] N4. **Adjustable ceiling height** — `floorPlan.ceilingHeight` (already
   persisted + honoured by custom plans) now drives the default-flat render path
   (WallSegment/Ceiling/RoomShell/MeasurementOverlay) too, with a clamped editor

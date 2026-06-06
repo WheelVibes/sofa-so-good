@@ -1,0 +1,94 @@
+import { Html } from '@react-three/drei'
+import { useState } from 'react'
+import { useShallow } from 'zustand/react/shallow'
+import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
+import { useStore } from '../state/store'
+import { formatMeters } from '../utils/measurement'
+
+const LIFT = 0.03
+const MARKER = '#f59e0b' // amber — distinct from the blue selection/rotate UI
+const PAD = 4 // metres of click-plane margin beyond the apartment box
+
+/** A small ring marker laid flat on the floor at an endpoint. */
+function Marker({ x, z }: { x: number; z: number }) {
+  return (
+    <mesh position={[x, LIFT, z]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={6}>
+      <ringGeometry args={[0.04, 0.075, 24]} />
+      <meshBasicMaterial color={MARKER} depthTest={false} depthWrite={false} transparent />
+    </mesh>
+  )
+}
+
+/**
+ * Point-to-point tape measure. While `tapeMode` is on a transparent floor plane
+ * captures clicks: the first drops the start point, the second the end (showing
+ * the live distance), and a third starts a fresh measurement. A rubber-band line
+ * + distance label follow the cursor between the first click and the second.
+ * Floor-plane only (XZ); endpoints, line and label draw always-on-top so they
+ * read over furniture. Amber to stay distinct from the blue selection/rotate UI.
+ *
+ * Mounted in the main scene; the click plane is only present while active, so it
+ * never interferes with normal selection/placement.
+ */
+export function TapeMeasure() {
+  const tapeMode = useStore((s) => s.tapeMode)
+  const points = useStore(useShallow((s) => s.tapePoints))
+  const addTapePoint = useStore((s) => s.addTapePoint)
+  const [cursor, setCursor] = useState<[number, number] | null>(null)
+
+  if (!tapeMode) return null
+
+  // The segment to draw: a completed [a,b], or live [a, cursor] while placing.
+  const a = points[0] ?? null
+  const b = points[1] ?? (points.length === 1 ? cursor : null)
+  let bar: { len: number; mx: number; mz: number; rot: number } | null = null
+  if (a && b) {
+    const len = Math.hypot(b[0] - a[0], b[1] - a[1])
+    if (len > 1e-4) {
+      bar = {
+        len,
+        mx: (a[0] + b[0]) / 2,
+        mz: (a[1] + b[1]) / 2,
+        rot: Math.atan2(b[1] - a[1], b[0] - a[0]),
+      }
+    }
+  }
+
+  return (
+    <group>
+      {/* Transparent floor click/track plane (apartment-sized + margin). */}
+      <mesh
+        position={[APARTMENT_EXT_W / 2, LIFT, APARTMENT_EXT_D / 2]}
+        rotation={[-Math.PI / 2, 0, 0]}
+        onClick={(e) => {
+          e.stopPropagation()
+          addTapePoint([e.point.x, e.point.z])
+        }}
+        onPointerMove={(e) => setCursor([e.point.x, e.point.z])}
+      >
+        <planeGeometry args={[APARTMENT_EXT_W + PAD * 2, APARTMENT_EXT_D + PAD * 2]} />
+        <meshBasicMaterial transparent opacity={0} depthWrite={false} />
+      </mesh>
+
+      {a ? <Marker x={a[0]} z={a[1]} /> : null}
+      {points[1] ? <Marker x={points[1][0]} z={points[1][1]} /> : null}
+
+      {bar ? (
+        <>
+          {/* Flat amber ruler bar running a→b on the floor. */}
+          <group position={[bar.mx, LIFT, bar.mz]} rotation={[0, -bar.rot, 0]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={6}>
+              <planeGeometry args={[bar.len, 0.022]} />
+              <meshBasicMaterial color={MARKER} depthTest={false} depthWrite={false} transparent />
+            </mesh>
+          </group>
+          <Html position={[bar.mx, LIFT + 0.05, bar.mz]} center distanceFactor={9}>
+            <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
+              {formatMeters(bar.len)}
+            </div>
+          </Html>
+        </>
+      ) : null}
+    </group>
+  )
+}

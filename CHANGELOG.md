@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q13] Point-to-point tape measure tool
+
+A staple of pro planners that was missing (the app only labelled room sizes).
+New **Measure** mode (`scene/TapeMeasure.tsx` + `measurementsSlice`
+`tapeMode`/`tapePoints`): toggled from the Tools menu (desktop + mobile parity),
+it mounts a transparent floor plane that captures two clicks/taps and draws an
+always-on-top amber ruler line with a live **distance label** and endpoint
+markers; a rubber-band line follows the cursor after the first click, and a third
+click starts a fresh measurement. Amber to stay distinct from the blue selection
+UI. Slice logic unit-tested (toggle-clears, two-then-reset, clearTape); verified
+end-to-end (a [2,2]→[5,6] measurement renders "5.00 m" on the ruler). Floor-plane
+only for now (surface-snapping is a possible follow-up).
+
 ## [R5] Notify on a blocked report pop-up (no more silent failure)
 
 Opening the printable report uses `window.open`; if a pop-up blocker intercepts

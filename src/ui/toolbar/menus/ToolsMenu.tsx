@@ -53,8 +53,14 @@ export function ToolsMenu() {
   const [sunStudy, setSunStudy] = useState(false)
   useSunStudy(sunStudy)
 
+  const tapeMode = useStore((s) => s.tapeMode)
+  const toggleTape = () => {
+    closeAux()
+    useStore.getState().toggleTapeMode()
+  }
+
   const anyActive =
-    budgetOpen || clearancePanelOpen || touring || recording || sunStudy || versionsOpen
+    budgetOpen || clearancePanelOpen || touring || recording || sunStudy || versionsOpen || tapeMode
 
   const startWalkthrough = () => {
     const s = useStore.getState()
@@ -109,6 +115,13 @@ export function ToolsMenu() {
         sub="Door-swing + walkway clearance"
         active={clearancePanelOpen}
         onClick={toggleChecks}
+      />
+      <MenuItem
+        icon="Measure"
+        label={tapeMode ? 'Measuring…' : 'Measure'}
+        sub="Tap two points for a distance"
+        active={tapeMode}
+        onClick={toggleTape}
       />
       <MenuItem
         icon="Versions"

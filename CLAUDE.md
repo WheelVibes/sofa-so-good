@@ -728,7 +728,10 @@ rediscover it.
   group); the **Tools** menu groups the Budget panel (`furniturePrices.ts`),
   **Checks** (door-swing clearance, `layout/clearance.ts` + `ClearanceOverlay`),
   **Sun study** (time-lapse), **Walkthrough** (auto camera tour + record, in
-  `OrbitCamera`), and **Report** (`ui/report.ts`, printable).
+  `OrbitCamera`), **Measure** (point-to-point tape — `scene/TapeMeasure.tsx` +
+  `measurementsSlice` `tapeMode`/`tapePoints`; a transparent floor plane captures
+  two clicks and draws an always-on-top amber ruler + live distance label,
+  desktop + mobile-parity toggle), and **Report** (`ui/report.ts`, printable).
   Multi-select shows an align/distribute panel; items can be **locked**;
   double-click focuses the camera; saved layouts get thumbnails (`slotThumbs`).
 - **Furniture groups** (`state/slices/groupsSlice.ts`): items sharing an optional

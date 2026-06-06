@@ -33,6 +33,7 @@ import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
 import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
+import { TapeMeasure } from './TapeMeasure'
 
 /** Flips `sceneReady` once the scene has painted a few solid frames (so
  *  shaders + procedural textures are warm) and nothing is still streaming
@@ -93,6 +94,7 @@ export function Scene() {
       <CameraRig />
       <CameraForwardTracker />
       <MeasurementOverlay />
+      <TapeMeasure />
       <Effects />
       <ShowcaseController />
       <QualityController />

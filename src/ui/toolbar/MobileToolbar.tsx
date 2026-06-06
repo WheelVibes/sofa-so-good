@@ -130,6 +130,7 @@ export function MobileToolbar() {
   const catalogOpen = useStore((st) => st.catalogOpen)
   const leftMode = useStore((st) => st.leftMode)
   const showMeasurements = useStore((st) => st.showMeasurements)
+  const tapeMode = useStore((st) => st.tapeMode)
   const budgetOpen = useStore((st) => st.budgetOpen)
   const versionsOpen = useStore((st) => st.versionsOpen)
   const clearancePanelOpen = useStore((st) => st.clearancePanelOpen)
@@ -587,6 +588,12 @@ export function MobileToolbar() {
                   label="Clearance checks"
                   on={clearancePanelOpen}
                   onClick={act(toggleChecks)}
+                />
+                <Item
+                  icon="Measure"
+                  label="Measure distance"
+                  on={tapeMode}
+                  onClick={act(() => s.getState().toggleTapeMode())}
                 />
                 <Item
                   icon="Versions"
