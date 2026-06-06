@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useCatalogByCategory } from '../furniture/catalog'
 import { tidyHome } from '../layout/tidyHome'
+import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
 import { useStore } from '../state/store'
 import { openDocs } from './docsUrl'
 import { Icon, type IconName } from './toolbar/icons'
@@ -171,6 +172,16 @@ export function CommandPalette() {
         icon: 'Time',
         run: () => s().cyclePresetTime(),
       },
+      ...LIGHTING_SCENES.map(
+        (sc): Command => ({
+          id: `mood:${sc.id}`,
+          group: 'Lighting moods',
+          label: sc.label,
+          hint: 'Mood',
+          icon: 'Lights',
+          run: () => applyLightingScene(sc),
+        }),
+      ),
     ]
     // Add-furniture commands from the merged catalog.
     const furniture: Command[] = Object.values(byCategory)

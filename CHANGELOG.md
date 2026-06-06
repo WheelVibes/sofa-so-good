@@ -89,6 +89,12 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [N20b] Lighting moods in the command palette
+
+The four lighting moods are now also reachable from ⌘K (a "Lighting moods"
+group), so they're keyboard-accessible and fuzzy-searchable (e.g. ⌘K → "cosy").
+Verified.
+
 ## [N20] One-click lighting mood presets
 
 A new **Lighting moods** section in the Scene menu (desktop + mobile parity)
