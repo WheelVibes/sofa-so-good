@@ -20,7 +20,8 @@ export the result — all in the browser.
   form, material, weave, and sheen in the inspector), searchable, with live 3D
   thumbnails. The catalog is **unified** — built-ins, your uploads, installed
   packs, and the browsable CC0 library (Poly Haven) all live in one grid with a
-  single search that spans everything; **heart** any item (built-in or CC0) to
+  single search that spans everything; **sort** a category by Featured / Name /
+  Size; **heart** any item (built-in or CC0) to
   drop it into the **favourites** category (the star tab at the front).
   Includes an entryway shoe cabinet, floating + leaning mirrors, wall shelves,
   L-shaped sectional, sideboard, bar cart, room divider, baby crib, potted
@@ -68,7 +69,8 @@ export the result — all in the browser.
   (⌘A)**, multi-select with
   align/distribute, **group** (move/rotate as a unit, click again to edit one
   piece), lock, copy/duplicate, **duplicate a row of N**, **apply one item's
-  style to all of its type** (right-click), **reset props to defaults**, numeric
+  style to all of its type** (right-click), **reset props to defaults**, **rename
+  any object** (a custom label shown in the inspector + Objects list), numeric
   position/rotation, undo/redo, save/load named layouts (with thumbnails),
   **export/import a design as a portable `.sofa.json` file**, and PNG export. A
   **Recent** row in the catalog re-surfaces what you just placed.
@@ -87,12 +89,15 @@ export the result — all in the browser.
   every desktop action (incl. graphics, appearance, sets/presets/styles,
   save/load), with per-room edit as a single dropdown.
 - **Editable floor plan** — a 2D top-down editor to redraw the apartment shell
-  (walls with live **length labels**, rooms with live areas, doors/windows) or
+  (walls with live **length labels**, rooms with live areas, doors/windows, and
+  a **per-room ceiling height** for dropped/false ceilings) or
   start from a template; the 3D flat, finishes, and furniture collision all
   follow your custom plan, and plans save to a named library.
-- **Design tools** — a SGD **budget** / shopping list, door-swing **clearance
+- **Design tools** — a SGD **budget** / shopping list (with an optional **budget
+  target** that tracks how far over/under you are), door-swing **clearance
   checks**, a **sun study** time-lapse, an auto **walkthrough** tour, and a
-  printable **design report**.
+  printable **design report**. Switch all dimension read-outs between
+  **metric and imperial** (feet-and-inches) from the Graphics panel.
 - **Bring your own models** — import your own furniture as
   `.glb`/`.gltf` **or** `.obj` / `.fbx` / `.stl` / `.ply` / `.dae` / `.3mf` /
   `.usdz`: non-GLB formats are **converted to GLB in your browser** (no upload,
@@ -154,7 +159,7 @@ export the result — all in the browser.
 - **Pro-tool interactions** — a **⌘K command palette** (fuzzy search across
   actions, panels, views, and "add furniture"), a **right-click context menu**
   on any placed piece, an **Objects / Layers** view (items grouped by room with
-  select / lock / delete), a first-run **onboarding** intro, and a fused
+  a name **filter** + select / lock / hide / delete), a first-run **onboarding** intro, and a fused
   compass + zoom rail. Responsive down to phones, where floating panels become
   bottom sheets.
 - **Production-grade panels** — **Swap with similar** (replace a piece in place
