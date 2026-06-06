@@ -30,17 +30,22 @@ function hydrateLayout() {
 export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) => ({
   resetToEmpty: () => {
     get().pushHistory()
-    set({ items: [], selectedItemId: null, selectedItemIds: [] })
+    set({ items: [], selectedItemId: null, selectedItemIds: [], hiddenItemIds: [] })
   },
   resetToDefault: () => {
     get().pushHistory()
-    set({ items: hydrateLayout(), selectedItemId: null, selectedItemIds: [] })
+    set({ items: hydrateLayout(), selectedItemId: null, selectedItemIds: [], hiddenItemIds: [] })
   },
   applyLayoutPreset: (presetId) => {
     const preset = LAYOUT_PRESETS.find((p) => p.id === presetId)
     if (!preset) return
     get().pushHistory()
-    set({ items: buildPresetItems(preset), selectedItemId: null, selectedItemIds: [] })
+    set({
+      items: buildPresetItems(preset),
+      selectedItemId: null,
+      selectedItemIds: [],
+      hiddenItemIds: [],
+    })
     // Apply the coordinated palette across the designed living spaces.
     const setFloor = get().setFloorFinish
     const setWall = get().setWallFinish

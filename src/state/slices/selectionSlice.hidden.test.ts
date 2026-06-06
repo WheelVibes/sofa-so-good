@@ -42,4 +42,15 @@ describe('selectionSlice hidden items', () => {
     useStore.getState().deleteItem(a)
     expect(useStore.getState().hiddenItemIds).toEqual([b])
   })
+
+  it('resetToEmpty / resetToDefault clear the hidden set', () => {
+    const a = add('bed-double')
+    useStore.getState().setItemsHidden([a], true)
+    useStore.getState().resetToEmpty()
+    expect(useStore.getState().hiddenItemIds).toEqual([])
+    const b = add('dining-chair')
+    useStore.getState().setItemsHidden([b], true)
+    useStore.getState().resetToDefault()
+    expect(useStore.getState().hiddenItemIds).toEqual([])
+  })
 })

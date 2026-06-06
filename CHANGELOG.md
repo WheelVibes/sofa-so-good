@@ -44,6 +44,14 @@ through `schema.ts` as an optional field (no migration — older saves just have
 no label). renameItem + schema round-trip unit-tested; verified the name shows
 in the inspector title, field, and Layers tree.
 
+## [B7] Resets / presets didn't clear the hidden set
+
+Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
+`applyLayoutPreset` replaced all items + cleared the selection but left
+`hiddenItemIds` populated, so the new layout could start with a wrong
+"(N hidden)" count (and the per-room eye reading hidden). They now clear
+`hiddenItemIds` too. Unit-tested.
+
 ## [B6] Deleting a hidden item left a stale id in the hidden set
 
 `deleteItem` cleaned the selection but not `hiddenItemIds`, so deleting a hidden
