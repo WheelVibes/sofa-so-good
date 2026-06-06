@@ -52,6 +52,15 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [Q34] Remember the catalog's last category + sort
+
+Small returning-user QOL (matches how Coohom/Planner 5D retain context): the
+catalog drawer now persists the active browse **category** and **sort** per
+device (`hdb_catalog_browse` localStorage, validated with a safe fallback to
+seating/Featured) and reopens there instead of always resetting to "seating".
+Self-contained in `CatalogDrawer` (lazy init + best-effort write). Verified the
+drawer still opens cleanly.
+
 ## [Q28] Catalog max-price filter
 
 A **Max $** filter beside the catalog Sort control: items priced above the cap

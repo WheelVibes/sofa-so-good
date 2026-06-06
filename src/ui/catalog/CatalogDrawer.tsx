@@ -49,6 +49,24 @@ function sortCards(cards: GridItem[], key: SortKey): GridItem[] {
   )
 }
 
+// Remember the last browsed category + sort across reloads (per device), so a
+// returning user resumes where they left off rather than always at "seating".
+const PREFS_KEY = 'hdb_catalog_browse'
+function loadBrowsePrefs(): { active: CatalogCategory; sortBy: SortKey } {
+  const fallback = { active: 'seating' as CatalogCategory, sortBy: 'default' as SortKey }
+  try {
+    const raw = localStorage.getItem(PREFS_KEY)
+    if (!raw) return fallback
+    const p = JSON.parse(raw) as { active?: string; sortBy?: string }
+    return {
+      active: typeof p.active === 'string' ? (p.active as CatalogCategory) : fallback.active,
+      sortBy: p.sortBy === 'name' || p.sortBy === 'size' ? p.sortBy : 'default',
+    }
+  } catch {
+    return fallback
+  }
+}
+
 /** Sliding left-side drawer. Toggles between a single unified catalog grid
  *  (built-in + uploads + installed packs + browsable CC0) and an Objects/Layers
  *  tree (`leftMode`). The Packs tab installs asset packs (whose items then show
@@ -64,17 +82,27 @@ export function CatalogDrawer() {
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const unified = useUnifiedCatalog()
-  const [active, setActive] = useState<CatalogCategory>('seating')
+  const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
-  const [sortBy, setSortBy] = useState<SortKey>('default')
+  const [sortBy, setSortBy] = useState<SortKey>(() => loadBrowsePrefs().sortBy)
   const [maxPrice, setMaxPrice] = useState('')
 
   useEffect(() => {
     if (open && phStatus === 'idle') void bootstrapRemote()
   }, [open, phStatus, bootstrapRemote])
+
+  // Persist the browse category + sort (best-effort) so the drawer reopens where
+  // the user left off.
+  useEffect(() => {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ active, sortBy }))
+    } catch {
+      /* storage full / unavailable — non-critical */
+    }
+  }, [active, sortBy])
 
   // Reset to page 1 when the visible list changes; the render also clamps.
   const selectCategory = (c: CatalogCategory) => {

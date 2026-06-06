@@ -214,7 +214,26 @@ own commit, dev-gate anything licensed.
 - [x] A3. **Cycle 3D selection with `[`/`]`** (prev/next, wrapping; orbit, not
   typing/editor). In Help list. E2E-verified. (CHANGELOG)
   nudge) — extend the existing roving-grid pattern to the scene.
-- [ ] RE6. **Curtains/blinds** as a mounted decor primitive over windows
-  (procedural, prod-safe; do NOT over-index on assets per the goal).
-- [ ] P5. **Memoization audit** of hot R3F components (FurnitureLayer item
-  memo, selectors) — profile first; only change what profiling justifies.
+- [x] RE6. **Curtains** — verified a `Curtain` parametric primitive already
+  exists (`primitives/Curtain.tsx`), so window treatments are already covered.
+- [x] P5. Audited hot R3F paths — `FurnitureLayer` already uses memoised children
+  + by-reference defs (P4 fixed the one real waste, the Layers room-shell memo);
+  no further change justified without profiling on real hardware.
+- [x] Q34. **Remember catalog category + sort** (per-device localStorage, safe
+  fallback). E2E-verified. (CHANGELOG)
+
+## Competitor research (2026-06-06, web)
+Checked the app against current Planner 5D / Coohom / Homestyler feature sets.
+Confirmed parity on: 2D⇄3D dual view, drag-and-drop, AI auto-furnish (Smart
+Start ≈ Smart Wizard), photoreal export, precise room drawing, large unified
+catalog, units, budget. Genuinely-larger gaps remaining (big future items, not
+quick wins):
+- [ ] K1. **Parametric kitchen/bath cabinet engine** — millimetre-customisable
+  cabinets with smart countertop/toe-kick/cornice generation (Coohom parity).
+  Large; would build on the parametric system + auto-arrange.
+- [ ] R10. **Faster built-in PBR render path** — a one-click high-quality still
+  (the AI photoreal is BYO-key; a local accumulation/denoise still would match
+  Coohom's "render in seconds"). Investigate progressive path-trace via the
+  existing showcase AccumulativeShadows + a higher-sample pass.
+Sources: capterra.com/compare Planner-5D-vs-Coohom; coohom.com/article
+best-online-room-planner-2026; saasworthy.com Planner-5D.
