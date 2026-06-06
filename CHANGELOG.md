@@ -52,6 +52,13 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [A3] Cycle the selection with `[` / `]`
+
+Keyboard access to placed objects without a mouse: **`]`** selects the next
+item and **`[`** the previous (wrapping; from nothing, `]` starts at the first
+and `[` at the last). Orbit-mode only, skipped while typing or in the 2D plan
+editor. Listed in Help & shortcuts. Verified the inspector follows the cycling.
+
 ## [Q32] Saved-view thumbnails
 
 Each saved camera bookmark now shows a small **preview thumbnail** of the angle.

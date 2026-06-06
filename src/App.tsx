@@ -116,6 +116,29 @@ export default function App() {
           s.setSelectedItemIds(s.items.map((i) => i.id))
         }
       }
+      // `[` / `]` cycle the selection through placed items (prev / next, wrapping)
+      // — keyboard access to objects without a mouse. Orbit only; skipped while
+      // typing or in the 2D plan editor.
+      if (
+        (e.key === '[' || e.key === ']') &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditableTarget(e)
+      ) {
+        const s = useStore.getState()
+        if (s.cameraMode === 'orbit' && !s.floorPlanEditing && s.items.length > 0) {
+          e.preventDefault()
+          const ids = s.items.map((i) => i.id)
+          const cur = ids.indexOf(s.selectedItemId ?? '')
+          const step = e.key === ']' ? 1 : -1
+          // From no selection, ']' starts at the first item and '[' at the last.
+          const next =
+            cur === -1 ? (step === 1 ? 0 : ids.length - 1) : (cur + step + ids.length) % ids.length
+          s.selectItem(ids[next])
+          return
+        }
+      }
       // `/` jumps to the catalog/layers search (opening the drawer if needed),
       // a quick-find shortcut. Orbit only; skipped while already typing and for
       // modifier combos (so it never hijacks a real "/" character).

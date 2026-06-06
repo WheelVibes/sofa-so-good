@@ -210,7 +210,8 @@ own commit, dev-gate anything licensed.
 - [x] Q33. **Area/rectangle measure** mode (tape Distance/Area toggle, amber
   fill + W×D·area label). Unit + E2E-verified. (CHANGELOG)
   tape) — drag a rect, show area in the active unit.
-- [ ] A3. **Full keyboard nav of the 3D selection** (Tab cycles items, arrows
+- [x] A3. **Cycle 3D selection with `[`/`]`** (prev/next, wrapping; orbit, not
+  typing/editor). In Help list. E2E-verified. (CHANGELOG)
   nudge) — extend the existing roving-grid pattern to the scene.
 - [ ] RE6. **Curtains/blinds** as a mounted decor primitive over windows
   (procedural, prod-safe; do NOT over-index on assets per the goal).

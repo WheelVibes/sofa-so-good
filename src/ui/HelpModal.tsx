@@ -11,6 +11,7 @@ const SHORTCUTS: [string, string][] = [
   ['Flip selection', 'F'],
   ['Duplicate', '⌘D'],
   ['Select all', '⌘A'],
+  ['Cycle selection', '[ ]'],
   ['Delete', 'Del'],
   ['Measurements', 'M'],
   ['Tidy room', 'L'],
