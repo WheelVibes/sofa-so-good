@@ -188,3 +188,28 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   **export cropped to plan bounds + padding**. E2E-verified. (user feedback)
 - [x] Q21. **Floor-plan editor zoom** (± buttons + Ctrl/⌘-wheel around cursor,
   single PX multiplier). E2E-verified. (CHANGELOG)
+
+## Next-iteration candidates (researched competitor-parity backlog, 2026-06-06)
+Refilled after clearing the QOL/reliability backlog. Prioritised; each is its
+own commit, dev-gate anything licensed.
+- [ ] L1. **Lighting realism** (RE1/RE2) — window-glass tint colouring the sun
+  shaft + inter-room light bleed through open doors. Complex multi-file scene
+  change; do as a focused pass. (TODO.md "Time of Day Phase 3".)
+- [ ] Q28. **Catalog price + size filters** (range chips) on the unified grid —
+  extends the Sort control; pairs with `furniturePrices.ts`.
+- [ ] Q29. **Focus catalog/layers search with `/`** (global key, skipped while
+  typing) — quick-find power-user shortcut.
+- [ ] Q30. **Undo/redo history panel** — list past steps with labels (the
+  history slice already coalesces); jump-to-step.
+- [ ] Q31. **Drag a material swatch onto a surface in 3D** to apply a finish
+  (reuses `getSurfaceMaterial` / finish DLC); today it's picker-only.
+- [ ] Q32. **Saved-view thumbnails** — render a small preview per camera
+  bookmark (mirror `slotThumbs`).
+- [ ] Q33. **Measurement: area/rectangle measure** mode (beyond point-to-point
+  tape) — drag a rect, show area in the active unit.
+- [ ] A3. **Full keyboard nav of the 3D selection** (Tab cycles items, arrows
+  nudge) — extend the existing roving-grid pattern to the scene.
+- [ ] RE6. **Curtains/blinds** as a mounted decor primitive over windows
+  (procedural, prod-safe; do NOT over-index on assets per the goal).
+- [ ] P5. **Memoization audit** of hot R3F components (FurnitureLayer item
+  memo, selectors) — profile first; only change what profiling justifies.
