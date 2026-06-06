@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R4] Drop non-finite item transforms on load
+
+`z.number()` admits `NaN`/`Infinity`, so a corrupt or hand-edited save (or any
+future bug that wrote a bad transform) could feed `NaN` straight into the
+Three.js matrices — broken/disappearing geometry, potentially a crash-loop on
+reload. `applySerialized` now filters out items whose `position`/`rotation` isn't
+finite (fixing the layout rather than discarding it wholesale). Unit-tested.
+
 ## [F1] Export / import a design as a file (portability + backup)
 
 localStorage save slots are device- and browser-bound, so a design could never

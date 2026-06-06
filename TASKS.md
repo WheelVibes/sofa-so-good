@@ -10,7 +10,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] R1. React **ErrorBoundary** around app + scene. (CHANGELOG)
 - [x] R2. **localStorage quota handling** — autosave failures now surface a deduped notification + auto-clear on recovery; prefs writers already guarded. (CHANGELOG)
 - [ ] R3. **Autosave resilience** — debounce + try/catch + last-saved indicator; never lose work on a transient failure.
-- [ ] R4. Guard against **NaN/invalid transforms** in placement/drag (defensive clamps).
+- [x] R4. Guard against **non-finite transforms** on load (applySerialized filters NaN/Infinity). (CHANGELOG)
 
 ## Performance / scalability
 - [ ] P1. Catalog drawer **virtualization** audit — ensure huge catalogs (thousands of IKEA/imported items) stay smooth (react-virtuoso already a dep).

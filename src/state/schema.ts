@@ -322,8 +322,15 @@ export function applySerialized(
   for (const [k, v] of Object.entries(state.finishes.walls)) {
     if (validRoom(k)) walls[k] = v
   }
+  // Drop items whose transform isn't finite — `z.number()` admits NaN/Infinity,
+  // so a corrupt or hand-edited save could otherwise feed NaN into the Three.js
+  // matrices and break (or crash-loop) the whole renderer.
+  const finiteTransform = (it: SerializedState['items'][number]) =>
+    Number.isFinite(it.position[0]) &&
+    Number.isFinite(it.position[1]) &&
+    Number.isFinite(it.rotation)
   return {
-    items: state.items.filter((it) => knownDefIds.has(it.defId)),
+    items: state.items.filter((it) => knownDefIds.has(it.defId) && finiteTransform(it)),
     // Restore a saved custom shell, else fall back to the default flat.
     floorPlan: state.floorPlan ?? buildDefaultPlan(),
     doors: state.doors,

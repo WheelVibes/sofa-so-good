@@ -149,6 +149,24 @@ describe('schema', () => {
     expect(patch.items?.length).toBe(1)
   })
 
+  it('applySerialized drops items with non-finite position/rotation', () => {
+    const known = new Set(['bed-double'])
+    const saved = {
+      version: 2,
+      items: [
+        { defId: 'bed-double', position: [1, 1], rotation: 0, props: {} },
+        { defId: 'bed-double', position: [Number.NaN, 0], rotation: 0, props: {} },
+        { defId: 'bed-double', position: [0, 0], rotation: Number.POSITIVE_INFINITY, props: {} },
+      ],
+      doors: {},
+      finishes: { floor: {}, walls: {}, wallAccents: {} },
+      timeMode: 'system',
+    } as unknown as Parameters<typeof applySerialized>[0]
+    const patch = applySerialized(saved, known)
+    expect(patch.items?.length).toBe(1)
+    expect(patch.items?.[0].position).toEqual([1, 1])
+  })
+
   it('round-trips timeMode + manualHour for system mode', () => {
     useStore.getState().__resetForTest()
     // default is system / 12
