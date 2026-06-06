@@ -51,4 +51,32 @@ describe('startAutosave error handling', () => {
 
     stop()
   })
+
+  it('flushes a pending debounced write on pagehide (no edit lost on reload)', async () => {
+    const adapter = makeAdapter(async () => {})
+    const stop = startAutosave({ adapter })
+
+    // A persistent change schedules a debounced save; before the debounce fires
+    // the adapter hasn't been called.
+    useStore.setState((s) => ({ items: [...s.items] }) as never)
+    expect(adapter.save).not.toHaveBeenCalled()
+
+    // pagehide must flush the pending write synchronously.
+    window.dispatchEvent(new Event('pagehide'))
+    await Promise.resolve()
+    expect(adapter.save).toHaveBeenCalledTimes(1)
+
+    stop()
+  })
+
+  it('flushes on visibilitychange → hidden', async () => {
+    const adapter = makeAdapter(async () => {})
+    const stop = startAutosave({ adapter })
+    useStore.setState((s) => ({ items: [...s.items] }) as never)
+    Object.defineProperty(document, 'visibilityState', { value: 'hidden', configurable: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    await Promise.resolve()
+    expect(adapter.save).toHaveBeenCalledTimes(1)
+    stop()
+  })
 })

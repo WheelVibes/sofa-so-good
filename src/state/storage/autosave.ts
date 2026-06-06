@@ -98,11 +98,27 @@ export function startAutosave({
     timer = setTimeout(flush, DEBOUNCE_MS)
   })
 
+  // Flush a pending debounced write before the page goes away, so an edit made
+  // within the debounce window isn't lost on a quick reload/close. localStorage
+  // writes synchronously inside save(), so the data persists even as we unload.
+  // `pagehide` covers reload/close; `visibilitychange`→hidden covers mobile
+  // backgrounding (where `pagehide`/`beforeunload` are unreliable).
+  const flushPending = () => {
+    if (!timer) return
+    clearTimeout(timer)
+    flush()
+  }
+  const onPageHide = () => flushPending()
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') flushPending()
+  }
+  window.addEventListener('pagehide', onPageHide)
+  document.addEventListener('visibilitychange', onVisibility)
+
   return () => {
-    if (timer) {
-      clearTimeout(timer)
-      flush()
-    }
+    flushPending()
+    window.removeEventListener('pagehide', onPageHide)
+    document.removeEventListener('visibilitychange', onVisibility)
     unsubscribe()
   }
 }

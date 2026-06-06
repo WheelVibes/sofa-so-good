@@ -114,6 +114,15 @@ saved lighting mood's on/off fixture state was lost on reload (lights reverted t
 auto). Added `lightsMode` to the save schema (optional, defaults to 'auto' for
 legacy saves) so the full lighting state round-trips. Unit-tested.
 
+## [B19] Autosave flushes on page hide (no edit lost on quick reload)
+
+The autosave debounces writes (~600ms) and only force-flushed on React unmount
+(which never happens on a real reload/close), so an edit made within the debounce
+window before reloading/closing was lost. Added pagehide + visibilitychange→hidden
+flush handlers that synchronously write the pending save (localStorage.setItem is
+sync, so it persists even as the page unloads). Covers desktop close/reload and
+mobile backgrounding. Unit-tested.
+
 ## [N20c] Time-of-day presets in the command palette
 
 Added jump-to time presets (Morning/Noon/Dusk/Night) to the ⌘K palette
