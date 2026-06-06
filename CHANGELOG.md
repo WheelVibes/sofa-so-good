@@ -4,6 +4,20 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B2] Dispose audit — fix leaked overlay geometries
+
+Several scene overlays built three.js geometries with `new` inside `useMemo`
+without disposing the replaced buffer. Unlike JSX `<boxGeometry/>` (which R3F
+auto-disposes), these leak GPU memory every time their dependencies change —
+**hot paths**: `SelectionOutline` (per selected item, on every resize/rotate),
+`HoverHighlight` (every hover target), `AlignmentGuides` (every frame mid-drag),
+the `DragController` snap highlight, and `GridOverlay` (on grid/plan change).
+Each `EdgesGeometry(new BoxGeometry(...))` also leaked the throw-away source box
+immediately. Added a shared `scene/geometryUtil.ts` (`boxEdges` — builds edges +
+disposes the source box; `useDisposeGeometry` — disposes on dep-change/unmount)
+and wired it through all five components. Visually verified the outline, hover,
+rotate ring, and snap grid still render with no artifacts.
+
 ## [S4] Size cap on `.sofa.json` design import (DoS guard)
 
 `importDesignFromFile` validated content (JSON parse → migrate → zod) but read

@@ -2,6 +2,7 @@ import { useMemo } from 'react'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { planBounds } from '../floorplan/types'
 import { useStore } from '../state/store'
+import { useDisposeGeometry } from './geometryUtil'
 
 /**
  * Floor alignment grid. Shown while snap-to-grid is enabled so the user can
@@ -40,6 +41,8 @@ export function GridOverlay() {
     }
     return { minor: mk(minorPts), major: mk(majorPts) }
   }, [gridSize, boundW, boundD])
+  useDisposeGeometry(minor)
+  useDisposeGeometry(major)
 
   if (!snapEnabled) return null
   return (

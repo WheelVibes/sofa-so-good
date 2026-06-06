@@ -1,10 +1,10 @@
 import { useMemo } from 'react'
-import { BoxGeometry, EdgesGeometry } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { itemFootprint } from '../../collision/placement'
 import { useCatalog } from '../../furniture/catalog'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { boxEdges, useDisposeGeometry } from '../geometryUtil'
 
 const OUTLINE_COLOR_DEFAULT = '#3b82f6'
 const OUTLINE_COLOR_VALID = '#22c55e'
@@ -31,11 +31,10 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
   const d = obb.hz * 2 + OUTLINE_PAD
   const wOuter = obb.hx * 2 + OUTLINE_PAD_OUTER
   const dOuter = obb.hz * 2 + OUTLINE_PAD_OUTER
-  const geom = useMemo(() => new EdgesGeometry(new BoxGeometry(w, 0.001, d)), [w, d])
-  const geomOuter = useMemo(
-    () => new EdgesGeometry(new BoxGeometry(wOuter, 0.001, dOuter)),
-    [wOuter, dOuter],
-  )
+  const geom = useMemo(() => boxEdges(w, 0.001, d), [w, d])
+  const geomOuter = useMemo(() => boxEdges(wOuter, 0.001, dOuter), [wOuter, dOuter])
+  useDisposeGeometry(geom)
+  useDisposeGeometry(geomOuter)
 
   const outlineColor = isDragging
     ? dragValid

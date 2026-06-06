@@ -19,7 +19,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 
 ## Bugs / correctness
 - [x] B1. Swept TODO/FIXME (all doc pointers, no bugs); fixed misleading "cannot be undone" reset confirms (resets are undoable). (CHANGELOG)
-- [ ] B2. Audit dispose/cleanup of three resources (geometries/materials/textures) for leaks.
+- [x] B2. Dispose audit — fixed leaked overlay geometries (SelectionOutline,
+  HoverHighlight, AlignmentGuides, DragController snap, GridOverlay) + leaked
+  EdgesGeometry source boxes via shared `scene/geometryUtil.ts`. (CHANGELOG)
 
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
 - [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.

@@ -1,6 +1,6 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { BoxGeometry, EdgesGeometry, Plane, Raycaster, Vector2, Vector3 } from 'three'
+import { Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { nearestWallGap } from '../collision/clearanceGap'
 import { canPlace, itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
@@ -10,6 +10,7 @@ import { resolveCompatible } from '../furniture/ikea/compatibility'
 import { combineOnto } from '../furniture/ikea/stacking'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { useStore } from '../state/store'
+import { boxEdges, useDisposeGeometry } from './geometryUtil'
 import { snapToGrid } from './snap'
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
@@ -384,11 +385,10 @@ function SnapBaseHighlight({
   const def = item ? catalog[item.defId] : null
   const obb = useMemo(() => (item && def ? itemFootprint(item, def) : null), [item, def])
   const geom = useMemo(
-    () =>
-      obb ? new EdgesGeometry(new BoxGeometry(obb.hx * 2 + 0.08, 0.001, obb.hz * 2 + 0.08)) : null,
+    () => (obb ? boxEdges(obb.hx * 2 + 0.08, 0.001, obb.hz * 2 + 0.08) : null),
     [obb],
   )
-  useEffect(() => () => geom?.dispose(), [geom])
+  useDisposeGeometry(geom)
 
   if (!obb || !geom) return null
   return (
