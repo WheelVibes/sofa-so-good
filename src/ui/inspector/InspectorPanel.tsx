@@ -226,6 +226,7 @@ export function InspectorPanel() {
   const activeGroupId = useStore((s) => s.activeGroupId)
   const addToGroup = useStore((s) => s.addToGroup)
   const units = useStore((s) => s.units)
+  const renameItem = useStore((s) => s.renameItem)
   const [arrayCount, setArrayCount] = useState(3)
   const flip = (axis: 'x' | 'z') => {
     pushHistory()
@@ -372,7 +373,7 @@ export function InspectorPanel() {
             <CategoryIcon category={def.category} width={22} height={22} />
           </div>
           <div>
-            <div className="panel-title">{def.name}</div>
+            <div className="panel-title">{item.label ?? def.name}</div>
             <div className="panel-sub">{def.category}</div>
             <div className="dims mono" title="Width × Depth × Height">
               {formatDimsShort([w, d, def.defaultFootprint.h], units)}
@@ -390,6 +391,20 @@ export function InspectorPanel() {
       </div>
       <hr className="hr" />
       <div className="panel-body">
+        <label className="flex items-center gap-2 text-xs" style={{ marginBottom: 'var(--s-2)' }}>
+          <span className="label" style={{ whiteSpace: 'nowrap' }}>
+            Name
+          </span>
+          <input
+            type="text"
+            value={item.label ?? ''}
+            placeholder={def.name}
+            aria-label="Custom item name"
+            onChange={(e) => renameItem(item.id, e.target.value)}
+            className="input"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </label>
         <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
           <div className="sec-h">
             <span>Transform</span>

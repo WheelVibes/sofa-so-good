@@ -287,7 +287,10 @@ rediscover it.
   force-expands while filtering); **Packs** installs downloadable
   content whose items then appear in the unified grid (see **Downloadable
   content sources**). Then InspectorPanel
-  (`inspector/`), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
+  (`inspector/` — incl. an editable **Name** field per item: `FurnitureItem.label`
+  via `itemsSlice.renameItem`, overriding the def name in the title + Layers tree,
+  round-tripped in `schema.ts` as an optional field),
+  FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
   NavCluster (fused compass + zoom rail + minimap, bottom-right), the
   **CommandPalette** (⌘K), **ContextMenu** (right-click on a placed item),
   **Onboarding** (first-run 3-step intro), **HelpModal**, a shared **Modal**

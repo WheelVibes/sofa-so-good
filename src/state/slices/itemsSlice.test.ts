@@ -41,3 +41,18 @@ describe('applyStyleToAll', () => {
     expect(useStore.getState().applyStyleToAll(a)).toBe(0)
   })
 })
+
+describe('renameItem', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('sets and clears a custom label (blank trims to undefined)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'dining-chair', position: [0, 0], rotation: 0, props: {} })
+    s.renameItem(id, '  Mom’s chair  ')
+    expect(useStore.getState().items.find((i) => i.id === id)?.label).toBe('Mom’s chair')
+    s.renameItem(id, '   ')
+    expect(useStore.getState().items.find((i) => i.id === id)?.label).toBeUndefined()
+  })
+})

@@ -23,6 +23,9 @@ export interface ItemsSlice {
   flipItem: (id: string, axis: 'x' | 'z') => void
   /** Toggle the locked (pinned) state of an item. */
   toggleLock: (id: string) => void
+  /** Set (or clear, with an empty/blank string) an item's custom display name.
+   *  Falls back to the catalog def name when absent. */
+  renameItem: (id: string, label: string) => void
   /** Copy one item's props (finish/colour/material/form) to every other
    *  placed item sharing its defId. Returns how many items were restyled. */
   applyStyleToAll: (id: string) => number
@@ -110,6 +113,14 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     get().pushHistory()
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, locked: !it.locked } : it)),
+    }))
+  },
+  renameItem: (id, label) => {
+    const trimmed = label.trim()
+    set((s) => ({
+      items: s.items.map((it) =>
+        it.id === id ? { ...it, label: trimmed ? trimmed : undefined } : it,
+      ),
     }))
   },
   applyStyleToAll: (id) => {

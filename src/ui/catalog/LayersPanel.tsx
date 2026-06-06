@@ -24,7 +24,8 @@ export function LayersPanel() {
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [filter, setFilter] = useState('')
   const q = filter.trim().toLowerCase()
-  const itemName = (it: FurnitureItem) => (catalog[it.defId]?.name ?? it.defId).toLowerCase()
+  const itemLabel = (it: FurnitureItem) => it.label ?? catalog[it.defId]?.name ?? it.defId
+  const itemName = (it: FurnitureItem) => itemLabel(it).toLowerCase()
 
   const groups = useMemo(() => {
     const roomIds = (Object.keys(ROOMS) as RoomId[]).filter((id) => !ROOMS[id].external)
@@ -115,7 +116,7 @@ export function LayersPanel() {
                             <Icon.Cube width={14} height={14} />
                           )}
                         </span>
-                        <span className="lyr-nm">{def?.name ?? it.defId}</span>
+                        <span className="lyr-nm">{itemLabel(it)}</span>
                         <span className="lyr-acts">
                           <button
                             type="button"

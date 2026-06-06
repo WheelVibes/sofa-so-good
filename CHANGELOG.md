@@ -21,6 +21,17 @@ Formatters unit-tested (metric + imperial, incl. inch-carry + non-finite).
 Verified: imperial overlay renders `17′ 9″ · 262 ft²` / `Ceiling 8′ 6″` cleanly
 and the panel toggle reflects state.
 
+## [Q25] Rename objects (custom per-item labels)
+
+Items can now be given a **custom name** in the inspector (a Name field;
+placeholder = the catalog def name). The label overrides the def name in the
+inspector title, the Layers/Objects tree (and its name filter), and falls back
+cleanly when blank. Stored as an optional `FurnitureItem.label`, mutated via the
+new `itemsSlice.renameItem` (trims whitespace; blank clears it) and round-tripped
+through `schema.ts` as an optional field (no migration — older saves just have
+no label). renameItem + schema round-trip unit-tested; verified the name shows
+in the inspector title, field, and Layers tree.
+
 ## [Q24] Layers (Objects) panel name filter
 
 The Objects/Layers tree gains a **name filter** at the top — type to keep only

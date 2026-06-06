@@ -104,6 +104,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   `sortCards`, bypassed during fuzzy search. E2E-verified. (CHANGELOG)
 - [x] Q24. **Layers panel name filter** (drops empty groups, force-expands while
   filtering, "N of M" footer). E2E-verified. (CHANGELOG)
+- [x] Q25. **Rename objects** — custom per-item `label` (inspector Name field,
+  shown in title + Layers tree + filter), persisted in schema. Unit + E2E. (CHANGELOG)
 
 ## Shopping / budget
 - [x] Q22. **Budget target** with over/under progress indicator (Shopping panel,

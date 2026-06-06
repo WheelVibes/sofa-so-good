@@ -27,6 +27,8 @@ const FurnitureItemZ = z.object({
   locked: z.boolean().optional(),
   // Optional group membership (introduced in save v2; absent = ungrouped).
   groupId: z.string().optional(),
+  // Optional user-given display name (absent = use the catalog def name).
+  label: z.string().optional(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
 })
 

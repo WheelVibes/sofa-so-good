@@ -398,6 +398,9 @@ export interface FurnitureItem {
    *  A group IS the set of items with this id — there is no separate entity.
    *  Optional + default undefined so existing saves stay valid. */
   groupId?: string
+  /** Optional user-given display name, overriding the catalog def name in the
+   *  inspector + Layers panel. Optional + default undefined (uses def.name). */
+  label?: string
   props: ParamProps
 }
 
