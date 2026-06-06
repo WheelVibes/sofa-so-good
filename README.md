@@ -28,10 +28,10 @@ export the result — all in the browser.
   6 / 7 / 8 / 9 ft** sizes (a CC-BY model credited in-app). Comes furnished out of the box,
   with one-click **Sets** (vignettes), full-flat **Presets**, and a per-room
   **Tidy up** auto-arranger that follows real interior-design clearances.
-- **Realistic materials** — procedurally generated PBR finishes (12 floors
-  incl. oak/walnut/teak planks, white/grey/charcoal porcelain, marble,
-  terrazzo, carpet, concrete; 10 wall paints) plus fabric and wood-grain on
-  furniture and a polished-granite worktop. Per-room floor and wall finishes.
+- **Realistic materials** — procedurally generated PBR finishes (floors incl.
+  oak/walnut/teak planks, **basketweave parquet**, white/grey/charcoal porcelain,
+  marble, terrazzo, carpet, concrete; 10 wall paints) plus fabric and wood-grain
+  on furniture and a polished-granite worktop. Per-room floor and wall finishes.
   Free textures/models can also be fetched in-app: the **Poly Pizza** pack
   (paste a free API key in the Packs tab → search + download 10,000+ CC0/CC-BY
   models, works on the published site) and the Poly Haven remote catalog
@@ -63,8 +63,12 @@ export the result — all in the browser.
 - **Editing** — drag to place (with optional **snap-to-grid** and alignment
   guides), move, rotate, mirror, multi-select with align/distribute, **group**
   (move/rotate as a unit, click again to edit one piece), lock,
-  copy/duplicate, numeric position/rotation, undo/redo, save/load named layouts
-  (with thumbnails), and PNG export.
+  copy/duplicate, numeric position/rotation, **apply one item's style to all of
+  its type** (right-click), undo/redo, save/load named layouts
+  (with thumbnails), **export/import a design as a portable `.sofa.json` file**,
+  and PNG export. A **Recent** row in the catalog re-surfaces what you just placed.
+- **Saved camera views** — bookmark a favourite angle of the flat from the
+  **View** menu and smoothly fly back to it any time (desktop + mobile).
 - **Streamlined toolbar** — a compact, scrollable **icon island**: frequent
   actions are one-click icons; related tools tuck into labelled dropdown menus
   (View, Scene, Arrange, Tools, File). Hover any control for its name and
@@ -78,9 +82,9 @@ export the result — all in the browser.
   every desktop action (incl. graphics, appearance, sets/presets/styles,
   save/load), with per-room edit as a single dropdown.
 - **Editable floor plan** — a 2D top-down editor to redraw the apartment shell
-  (walls, rooms with live areas, doors/windows) or start from a template; the
-  3D flat, finishes, and furniture collision all follow your custom plan, and
-  plans save to a named library.
+  (walls with live **length labels**, rooms with live areas, doors/windows) or
+  start from a template; the 3D flat, finishes, and furniture collision all
+  follow your custom plan, and plans save to a named library.
 - **Design tools** — a SGD **budget** / shopping list, door-swing **clearance
   checks**, a **sun study** time-lapse, an auto **walkthrough** tour, and a
   printable **design report**.
