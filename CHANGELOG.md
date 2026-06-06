@@ -89,6 +89,16 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q43] Ctrl/⌘+D duplicates a whole multi-selection
+
+Duplicate (Ctrl/⌘+D) only copied the single active item; a multi-selection now
+duplicates **every** selected piece in one undo step. It first tries a shared
+offset (preserving the arrangement) and uses the first that frees all copies;
+if the layout's too tight, it falls back to a per-item spiral so copies always
+land. Copies inherit a fresh shared group only when all sources shared one, and
+the new copies become the selection. Verified: ⌘+D on a 2-item selection adds 2
+(66→68) and selects them.
+
 ## [B17] Onboarding "start empty" uses resetToEmpty (undoable + clears hidden)
 
 The first-run "empty flat" choice called `setItems([])` directly, so it wasn't
