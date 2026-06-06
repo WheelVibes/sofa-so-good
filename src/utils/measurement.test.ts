@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { formatArea, formatDims, formatLength, formatMeters, formatRoomSize } from './measurement'
+import {
+  formatArea,
+  formatDims,
+  formatDimsShort,
+  formatLength,
+  formatMeters,
+  formatRoomSize,
+} from './measurement'
 
 describe('formatMeters', () => {
   it('formats with two decimals', () => {
@@ -55,5 +62,19 @@ describe('formatDims', () => {
   })
   it('imperial labels each dimension', () => {
     expect(formatDims(3.6, 3.4, 'imperial')).toBe('11′ 10″ × 11′ 2″')
+  })
+})
+
+describe('formatDimsShort', () => {
+  it('metric centimetres with single trailing unit', () => {
+    expect(formatDimsShort([0.6, 0.45])).toBe('60 × 45 cm')
+    expect(formatDimsShort([0.6, 0.45, 0.9])).toBe('60 × 45 × 90 cm')
+  })
+  it('imperial whole inches, labelled per value', () => {
+    // 0.6 m = 23.6 in → 24″; 0.45 m = 17.7 in → 18″
+    expect(formatDimsShort([0.6, 0.45], 'imperial')).toBe('24″ × 18″')
+  })
+  it('coerces non-finite to 0', () => {
+    expect(formatDimsShort([Number.NaN, 0.5])).toBe('0 × 50 cm')
   })
 })

@@ -8,6 +8,7 @@ import { planRoomArea, planTotalArea } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
+import { formatArea, type UnitSystem } from '../utils/measurement'
 import { furnitureCostByRoom } from './reportData'
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
@@ -37,12 +38,13 @@ export function buildReportHtml(
   items: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
   heroDataUrl: string | null,
+  units: UnitSystem = 'metric',
 ): string {
   // Rooms (skip external ledges with ~0 interior use are still listed).
   const roomRows = plan.rooms
     .map(
       (r) =>
-        `<tr><td>${esc(r.name)}</td><td class="num">${planRoomArea(r).toFixed(1)} m²</td></tr>`,
+        `<tr><td>${esc(r.name)}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`,
     )
     .join('')
   const totalArea = planTotalArea(plan)
@@ -127,7 +129,7 @@ export function buildReportHtml(
     <div class="col">
       <h2>Rooms &amp; areas</h2>
       <table>${roomRows}</table>
-      <div class="total"><span>Total interior</span><span>${totalArea.toFixed(1)} m²</span></div>
+      <div class="total"><span>Total interior</span><span>${formatArea(totalArea, units)}</span></div>
     </div>
     <div class="col">
       <h2>Furniture &amp; budget</h2>

@@ -47,6 +47,17 @@ export function formatMeters(metres: number): string {
   return formatLength(metres, 'metric')
 }
 
+/** Compact small-object dimensions (furniture footprints): centimetres in
+ *  metric ("60 × 45 cm"), whole inches in imperial ("24″ × 18″"). Keeps a
+ *  single trailing unit for metric; labels each value for imperial. */
+export function formatDimsShort(metres: number[], units: UnitSystem = 'metric'): string {
+  const vals = metres.map((m) => (Number.isFinite(m) ? m : 0))
+  if (units === 'imperial') {
+    return vals.map((m) => `${Math.round(m / 0.0254)}″`).join(' × ')
+  }
+  return `${vals.map((m) => Math.round(m * 100)).join(' × ')} cm`
+}
+
 /** Room dimension + area summary: "3.60 × 3.40 m · 12.2 m²" (metric) or
  *  "11′ 10″ × 11′ 2″ · 132 ft²" (imperial). */
 export function formatRoomSize(

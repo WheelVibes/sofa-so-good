@@ -4,6 +4,7 @@ import { canPlace } from '../../collision/placement'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
+import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
@@ -224,6 +225,7 @@ export function InspectorPanel() {
   const pushHistory = useStore((s) => s.pushHistory)
   const activeGroupId = useStore((s) => s.activeGroupId)
   const addToGroup = useStore((s) => s.addToGroup)
+  const units = useStore((s) => s.units)
   const [arrayCount, setArrayCount] = useState(3)
   const flip = (axis: 'x' | 'z') => {
     pushHistory()
@@ -315,8 +317,6 @@ export function InspectorPanel() {
     if (typeof wv === 'number') w = wv
     if (typeof dv === 'number') d = dv
   }
-  const cm = (m: number) => Math.round(m * 100)
-
   // Place a row of copies to the item's right (local +X), spaced by its width,
   // each collision-checked. Stops at the first blocked slot. The original + all
   // copies share one groupId, committed in a single undo step.
@@ -375,7 +375,7 @@ export function InspectorPanel() {
             <div className="panel-title">{def.name}</div>
             <div className="panel-sub">{def.category}</div>
             <div className="dims mono" title="Width × Depth × Height">
-              {cm(w)} × {cm(d)} × {cm(def.defaultFootprint.h)} cm
+              {formatDimsShort([w, d, def.defaultFootprint.h], units)}
             </div>
           </div>
         </div>

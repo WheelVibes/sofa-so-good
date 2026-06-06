@@ -21,6 +21,16 @@ Formatters unit-tested (metric + imperial, incl. inch-carry + non-finite).
 Verified: imperial overlay renders `17′ 9″ · 262 ft²` / `Ceiling 8′ 6″` cleanly
 and the panel toggle reflects state.
 
+## [U1b] Units: cover the inspector + printable report
+
+Follow-up to U1 so no surface shows mixed units. Added `formatDimsShort`
+(compact furniture dimensions — centimetres in metric "60 × 45 cm", whole
+inches in imperial "24″ × 18″") and routed it through the inspector's
+footprint read-outs (parametric W×D×H + GLB/IKEA scale dimensions). The
+printable report's per-room + total areas now respect the unit preference
+(`buildReportHtml` takes an optional `UnitSystem`, passed from both the
+desktop Tools menu and the mobile toolbar). Formatter unit-tested.
+
 ## [N4b] Per-room ceiling height
 
 Architectural realism: the floor-plan editor's room inspector now has a
