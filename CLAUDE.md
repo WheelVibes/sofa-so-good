@@ -117,8 +117,9 @@ rediscover it.
   selection, finishes, doors, time, location, camera, ui (incl. quality +
   snap grid), placement, clipboard, history, remote catalog, installed packs,
   measurements (incl. metric/imperial `units`), orientation, notifications,
-  **prompt** (themed async `promptText` → `ui/PromptModal`, replaces
-  `window.prompt`), **project** (`designNote` — a free-text note saved with the
+  **prompt** (themed async `promptText`→`ui/PromptModal` + `confirmAction`→
+  `ui/ConfirmModal`, replacing `window.prompt`/`confirm`/`alert` — the last use
+  themed toasts), **project** (`designNote` — a free-text note saved with the
   design via `schema.ts`, shown in the Share modal + report), reset, **userAssets**
   (user-uploaded GLBs + imported `IkeaGltfDef`s — see **IKEA models**), and
   **floorPlan** (editable apartment shell + editor state + saved-plan library),
@@ -365,7 +366,9 @@ rediscover it.
   replaces the def in place), **Clearance & fit checks** (`ClearancePanel.tsx`,
   from `layout/clearance.ts` `blockedDoorItems`), **Versions**
   (`VersionsPanel.tsx` — save / restore / delete over the real
-  `LocalStorageAdapter` slots + `slotThumbs`, plus **Export/Import** a design as
+  `LocalStorageAdapter` slots + `slotThumbs`, a per-version **Compare** vs the
+  current design (`versionDiff.ts` `diffVersionItems` — gained/lost item types),
+  plus **Export/Import** a design as
   a portable `.sofa.json` file via `storage/designFile.ts`), **Shopping list + Collections**
   (`BudgetPanel` List/Saved tabs + a heart `fav-btn` on every catalog card —
   local *and* CC0 — toggling `collections`, which also feeds the catalog's
@@ -593,7 +596,10 @@ rediscover it.
   non-default plan
   renders via `PlanShell` and furniture/walk collision follow it (optional
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
-  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). The editor
+  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). Plan edits
+  are **undoable** — the history snapshot includes `floorPlan` and every granular
+  plan mutation pushes history (discrete ops a step; vertex-drag / numeric-field
+  streams coalesce). The editor
   also renders the **live furniture as top-down footprints** (category-coloured
   polygons from `itemFootprint`/`obbCorners`) — click to select (shared with the
   3D selection), drag (select tool) to move (grid-snapped + `canPlace`-checked,
