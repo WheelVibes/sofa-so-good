@@ -102,7 +102,7 @@ export function ToolsMenu() {
       <MenuItem
         icon="Versions"
         label="Versions"
-        sub="Save, restore & compare layouts"
+        sub="Save, restore, export & import layouts"
         active={versionsOpen}
         onClick={openVersions}
       />
