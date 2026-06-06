@@ -431,6 +431,20 @@ export function MobileToolbar() {
                       onClick={act(() => s.getState().setPresetTime(p), { keep: true })}
                     />
                   ))}
+                  {/* Continuous time-of-day scrub (parity with desktop Scene menu). */}
+                  <div className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="range"
+                      min={0}
+                      max={24}
+                      step={0.25}
+                      value={effectiveHour}
+                      aria-label="Time of day"
+                      onChange={(e) => s.getState().setManualHour(Number(e.target.value))}
+                      className="slider"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
                   <Item
                     icon="Sun"
                     label="Sun direction"
