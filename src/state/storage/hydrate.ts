@@ -31,7 +31,7 @@ export async function hydrate(): Promise<HydrateResult> {
     /* fail soft — IDB unavailable */
   })
 
-  let saved
+  let saved: Awaited<ReturnType<typeof LocalStorageAdapter.load>>
   try {
     saved = await LocalStorageAdapter.load(AUTOSAVE_SLOT)
   } catch (e) {

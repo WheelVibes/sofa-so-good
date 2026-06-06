@@ -65,7 +65,7 @@ export async function hydrateUserAssets(): Promise<void> {
   // the app still boots in those cases.
   if (typeof indexedDB === 'undefined') return
 
-  let metas
+  let metas: Awaited<ReturnType<typeof IdbAssetStore.list>>
   try {
     metas = await IdbAssetStore.list()
   } catch {
