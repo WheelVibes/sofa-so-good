@@ -251,6 +251,34 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'wall-brick-red': wallpaper('wall-brick-red', 'Exposed brick', '#9c5a44', 'brick'),
   'wall-brick-white': wallpaper('wall-brick-white', 'White-washed brick', '#d9d3c8', 'brick'),
   'wall-brick-charcoal': wallpaper('wall-brick-charcoal', 'Charcoal brick', '#55504c', 'brick'),
+  // Microcement / concrete accent walls (smooth, large-scale tiling).
+  'wall-concrete-light': {
+    id: 'wall-concrete-light',
+    name: 'Microcement (light)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'concrete',
+    swatch: '#cbc6bd',
+    uvScale: [3, 3],
+  },
+  'wall-concrete-grey': {
+    id: 'wall-concrete-grey',
+    name: 'Microcement (grey)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'concrete',
+    swatch: '#9d9a95',
+    uvScale: [3, 3],
+  },
+  'wall-concrete-charcoal': {
+    id: 'wall-concrete-charcoal',
+    name: 'Microcement (charcoal)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'concrete',
+    swatch: '#54524f',
+    uvScale: [3, 3],
+  },
 }
 
 export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak'

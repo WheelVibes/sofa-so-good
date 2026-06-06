@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N9] Microcement / concrete accent wall finishes
+
+Polished-concrete (microcement) walls are a staple of modern interiors. Added
+three wall finishes — **Microcement light / grey / charcoal** — reusing the
+existing `concrete` procedural generator at a large (3 m) wall tiling scale.
+Pure catalog data (no new generator). Visually verified.
+
 ## [N10] Inspector "Reset" props to defaults
 
 Customised a parametric item (size/form/finish/colour) and want it back to
