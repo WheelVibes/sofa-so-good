@@ -207,6 +207,9 @@ export function BudgetPanel() {
                 a.click()
                 a.remove()
                 setTimeout(() => URL.revokeObjectURL(url), 0)
+                useStore
+                  .getState()
+                  .notify.start({ title: 'Shopping list exported (CSV)', kind: 'success' })
               }}
             >
               Export CSV
