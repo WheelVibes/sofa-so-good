@@ -26,6 +26,7 @@ import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
+import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
 import { FpsCounter } from './ui/FpsCounter'
 import { FloorPlanEditor } from './ui/floorplan/FloorPlanEditor'
@@ -500,7 +501,9 @@ export default function App() {
     <WebGLFallback>
       <div className="relative h-[100dvh] w-screen overflow-hidden">
         <Toolbar />
-        {roomEditorActive ? <RoomEditorScene /> : <Scene />}
+        <ErrorBoundary scope="3D scene">
+          {roomEditorActive ? <RoomEditorScene /> : <Scene />}
+        </ErrorBoundary>
         <FpsCounter />
         <MobileLongPress />
         <MarqueeSelector />

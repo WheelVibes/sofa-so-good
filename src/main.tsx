@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { registerGltfDecoders } from './furniture/gltf/decoders'
+import { ErrorBoundary } from './ui/ErrorBoundary'
 
 // Wire the Draco/KTX2/meshopt decoders into the shared drei useGLTF loader
 // before any model is requested, so compressed GLBs decode correctly. This is
@@ -14,6 +15,8 @@ registerGltfDecoders()
 // the page is never a blank screen while IndexedDB/localStorage resolve.
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
-    <App />
+    <ErrorBoundary>
+      <App />
+    </ErrorBoundary>
   </StrictMode>,
 )
