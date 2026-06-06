@@ -131,3 +131,5 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   visual + session-only via `selectionSlice.hiddenItemIds`. E2E-verified. (CHANGELOG)
 - [x] Q16. **Export shopping list as CSV** (Budget panel) — pure RFC-4180 builder
   `shoppingCsv.ts`, unit-tested + E2E-verified. (CHANGELOG)
+- [x] Q15b. **"Isolate" (hide others)** context action + Show-all restore
+  (`selectionSlice.isolateItems`). E2E-verified. (CHANGELOG)

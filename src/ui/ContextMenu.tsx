@@ -177,6 +177,22 @@ export function ContextMenu() {
           }}
         />
       ) : null}
+      <Row
+        icon="EyeOff"
+        label="Isolate (hide others)"
+        onClick={() => {
+          const st = useStore.getState()
+          const keep = st.selectedItemIds.includes(item.id) ? st.selectedItemIds : [item.id]
+          st.isolateItems(keep)
+        }}
+      />
+      {s.hiddenItemIds.length > 0 ? (
+        <Row
+          icon="Eye"
+          label={`Show all (${s.hiddenItemIds.length} hidden)`}
+          onClick={() => useStore.getState().showAllItems()}
+        />
+      ) : null}
       {sameTypeCount > 1 ? (
         <Row
           icon="Palette"

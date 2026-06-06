@@ -45,6 +45,14 @@ the tap-to-place flow stays as the touch/fallback path (HTML5 drag is desktop
 only). Verified end-to-end: a valid drop adds the item (66→67), an invalid one
 declines.
 
+## [Q15b] "Isolate" (hide others) context action
+
+Builds on the hide feature (Q15): right-click → **Isolate (hide others)** hides
+every item except the current selection so you can focus on one piece/area in a
+busy flat; a **Show all (N hidden)** entry appears in the same menu (and the
+Layers footer) to restore. New `isolateItems(keepIds)` action in `selectionSlice`.
+Verified: isolating the sofa hides the other 65 items (shell intact).
+
 ## [Q15] Per-item hide/show (declutter) in the Layers panel
 
 A working-view convenience competitors offer: each row in the **Layers** (Objects)

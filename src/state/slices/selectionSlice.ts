@@ -27,6 +27,8 @@ export interface SelectionSlice {
   toggleItemHidden: (id: string) => void
   /** Reveal everything (clear the hidden set). */
   showAllItems: () => void
+  /** Hide every item except `keepIds` (focus on a subset). */
+  isolateItems: (keepIds: string[]) => void
   selectItem: (id: string | null) => void
   setSelectedItemIds: (ids: string[]) => void
   toggleSelectedItem: (id: string) => void
@@ -70,6 +72,11 @@ export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (se
         : [...s.hiddenItemIds, id],
     })),
   showAllItems: () => set((s) => (s.hiddenItemIds.length === 0 ? {} : { hiddenItemIds: [] })),
+  isolateItems: (keepIds) =>
+    set((s) => {
+      const keep = new Set(keepIds)
+      return { hiddenItemIds: s.items.filter((i) => !keep.has(i.id)).map((i) => i.id) }
+    }),
   setHovered: (id) => set((s) => (s.hoveredItemId === id ? {} : { hoveredItemId: id })),
   /** Selecting an item clears the room selection (and vice versa) so the
    *  Inspector / FinishPicker never both render at once. */
