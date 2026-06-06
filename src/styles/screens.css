@@ -94,15 +94,18 @@
 .rail-btn.on { background: var(--accent); color: var(--on-accent); }
 .rail-div { height: 1px; background: var(--border); margin: 4px 3px; }
 .plan-canvas {
-  flex: 1; display: grid; place-items: center; overflow: hidden;
+  /* Open, pannable grid canvas: the plan SVG is large (plan + grid margin) and
+     scrolls; the editor scroll-centres it on open. Anchored top-left (not
+     grid-centred) so the full overflow is reachable. */
+  flex: 1; overflow: auto;
   background-color: var(--surface-2);
   background-image: radial-gradient(var(--border) 1px, transparent 1px);
   background-size: 22px 22px;
 }
 .plan-paper {
-  width: min(74%, 980px); background: var(--surface-solid);
-  border: 1px solid var(--border); border-radius: var(--r-2);
-  box-shadow: var(--shadow-panel); padding: 12px;
+  /* Size comes from the inline width/height (the full canvas); keep a solid
+     surface so the grid reads cleanly over the container's dotted backdrop. */
+  background: var(--surface-solid); display: block;
 }
 .plan-svg { width: 100%; height: auto; display: block; }
 .plan-room { fill: var(--surface-2); stroke: var(--border-2); stroke-width: 1; }

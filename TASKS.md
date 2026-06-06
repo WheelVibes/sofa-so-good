@@ -139,3 +139,5 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   E2E-verified. (CHANGELOG)
 - [x] Q19. **Export 2D floor plan as PNG** (`exportPlanPng.ts`, CSS-var
   resolution + backdrop strip). Pipeline-verified. (CHANGELOG)
+- [x] Q20. **Open pannable grid canvas** (plan centred + large grid margin) +
+  **export cropped to plan bounds + padding**. E2E-verified. (user feedback)

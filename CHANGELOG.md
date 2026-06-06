@@ -10,6 +10,18 @@ Polish for the hide feature: a piece that's both selected and hidden no longer
 shows its rotate gizmo or selection outline floating over the empty spot —
 `RotateGizmo` and `SelectionOutline` now skip hidden items. Verified.
 
+## [Q20] Open pannable grid canvas + cropped plan export
+
+Two fixes from feedback: (1) the floor-plan editor was a tight square sized to
+the plan, clipping anything drawn outside the current bounds — it's now an
+**open, pannable grid canvas** (the plan sits centred with a large grid margin
+on every side; `.plan-canvas` scrolls from top-left and the editor scroll-centres
+the plan on open, with the SVG forced to its full size so CSS can't shrink it).
+(2) **Export PNG** now crops to the plan's **bounding box + ~1 m padding** (a
+viewBox window into the open canvas) so the image is just the plan, not the empty
+grid. Verified: the full plan (incl. the previously-clipped Living/Dining) is
+centred + reachable, and the export is a tight, styled plan image.
+
 ## [Q19] Export the 2D floor plan as a PNG
 
 **Export PNG** in the floor-plan editor downloads the plan (walls, rooms, areas,

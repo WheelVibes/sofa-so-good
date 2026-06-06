@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AiPlanError, getVisionKey, recognizeFloorPlan, setVisionKey } from '../../ai/floorPlanAi'
 import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
@@ -66,7 +66,12 @@ interface Backdrop {
   oz: number
 }
 
-const PAD = 0.6 // metres of margin around the plan in the view
+const FIT_PAD = 0.6 // metres of breathing room when fitting the plan to the view
+// Large grid margin around the plan so the canvas reads as an open, pannable
+// grid (Figma-style) rather than a tight box that clips anything drawn outside
+// the current plan bounds. The plan stays centred (equal margin all sides).
+const GRID_MARGIN = 20
+const EXPORT_PAD = 1 // metres of padding around the plan in the exported PNG
 const MAX_W = 940
 const MAX_H = 620
 
@@ -109,6 +114,7 @@ export function FloorPlanEditor() {
   const [showWallDims, setShowWallDims] = useState(true)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
 
   // Rehydrate a previously-saved backdrop when the editor opens (the component
   // is always mounted and only renders when `editing`, so this can't be a
@@ -130,6 +136,22 @@ export function FloorPlanEditor() {
     return () => {
       cancelled = true
     }
+  }, [editing])
+
+  // On open, scroll the (large, margin-padded) canvas so the plan is centred in
+  // the viewport — the grid extends in every direction to pan into.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-centre only when the editor opens; PX/ew/ed read fresh inside.
+  useEffect(() => {
+    if (!editing) return
+    const el = canvasRef.current
+    if (!el) return
+    const id = requestAnimationFrame(() => {
+      const cx = (ew / 2 + GRID_MARGIN) * PX
+      const cz = (ed / 2 + GRID_MARGIN) * PX
+      el.scrollLeft = Math.max(0, cx - el.clientWidth / 2)
+      el.scrollTop = Math.max(0, cz - el.clientHeight / 2)
+    })
+    return () => cancelAnimationFrame(id)
   }, [editing])
 
   // Revoke the live object URL only on a true unmount (not on editor close).
@@ -256,13 +278,15 @@ export function FloorPlanEditor() {
 
   const [ew, ed] = planBounds(plan)
   const PX = useMemo(() => {
-    const fitW = MAX_W / (ew + PAD * 2)
-    const fitH = MAX_H / (ed + PAD * 2)
+    const fitW = MAX_W / (ew + FIT_PAD * 2)
+    const fitH = MAX_H / (ed + FIT_PAD * 2)
     return Math.max(24, Math.min(fitW, fitH, 80))
   }, [ew, ed])
-  const W = (ew + PAD * 2) * PX
-  const H = (ed + PAD * 2) * PX
-  const toPx = (m: number) => (m + PAD) * PX
+  // Canvas is the plan plus a generous grid margin on every side (pannable via
+  // the scroll container; the plan stays centred because the margin is equal).
+  const W = (ew + GRID_MARGIN * 2) * PX
+  const H = (ed + GRID_MARGIN * 2) * PX
+  const toPx = (m: number) => (m + GRID_MARGIN) * PX
   const snap = (m: number) => (gridSize > 0 ? Math.round(m / gridSize) * gridSize : m)
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
@@ -317,8 +341,8 @@ export function FloorPlanEditor() {
     const rect = svgRef.current!.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * W
     const y = ((e.clientY - rect.top) / rect.height) * H
-    let wx = snap(x / PX - PAD)
-    let wz = snap(y / PX - PAD)
+    let wx = snap(x / PX - GRID_MARGIN)
+    let wz = snap(y / PX - GRID_MARGIN)
     // Vertex snap: prefer an existing wall endpoint within ~0.3 m so walls
     // connect cleanly at corners. Skip the wall being vertex-dragged so its own
     // endpoints don't capture the cursor.
@@ -688,7 +712,15 @@ export function FloorPlanEditor() {
                 (plan.name || 'floor-plan')
                   .replace(/[^a-z0-9-_]+/gi, '-')
                   .replace(/^-+|-+$/g, '') || 'floor-plan'
-              exportPlanPng(svgRef.current, safe).catch(() =>
+              // Crop to the plan's bounding box + padding (not the whole open
+              // canvas) so the exported image is just the plan.
+              const crop = {
+                x: (GRID_MARGIN - EXPORT_PAD) * PX,
+                y: (GRID_MARGIN - EXPORT_PAD) * PX,
+                w: (ew + EXPORT_PAD * 2) * PX,
+                h: (ed + EXPORT_PAD * 2) * PX,
+              }
+              exportPlanPng(svgRef.current, safe, crop).catch(() =>
                 a.notify.start({ title: "Couldn't export the plan image", kind: 'error' }),
               )
             }}
@@ -712,7 +744,8 @@ export function FloorPlanEditor() {
         {/* Canvas */}
         {/* Canvas — also a drop zone for the reference image */}
         <div
-          className="plan-canvas flex min-h-0 flex-1 items-center justify-center overflow-auto p-4"
+          ref={canvasRef}
+          className="plan-canvas min-h-0 flex-1 overflow-auto p-4"
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes('Files')) e.preventDefault()
           }}
@@ -729,7 +762,14 @@ export function FloorPlanEditor() {
             width={W}
             height={H}
             className="plan-paper touch-none"
-            style={{ cursor: tool === 'select' ? 'default' : 'crosshair', padding: 0 }}
+            style={{
+              cursor: tool === 'select' ? 'default' : 'crosshair',
+              padding: 0,
+              // Render at the full canvas size (overrides responsive `.plan-paper`
+              // width rules) so the grid + plan aren't shrunk/clipped.
+              width: W,
+              height: H,
+            }}
             onPointerDown={onDown}
             onPointerMove={onMove}
             onPointerUp={onUp}
@@ -748,7 +788,15 @@ export function FloorPlanEditor() {
               />
             )}
 
-            <GridLines W={W} H={H} PX={PX} gridSize={gridSize} pad={PAD} ew={ew} ed={ed} />
+            <GridLines
+              W={W}
+              H={H}
+              PX={PX}
+              gridSize={gridSize}
+              margin={GRID_MARGIN}
+              ew={ew}
+              ed={ed}
+            />
 
             {/* Rooms */}
             {plan.rooms.map((r) => {
@@ -1147,12 +1195,16 @@ function PlanLibrary() {
   )
 }
 
-function GridLines({
+/** Grid lines spanning the whole (margin-padded) canvas, so the plan sits on an
+ *  open grid you can draw/pan across — not a tight box around the current
+ *  bounds. Memoised: its inputs are stable during a wall drag, so the ~200
+ *  lines don't re-render every pointer-move. */
+const GridLines = memo(function GridLines({
   W,
   H,
   PX,
   gridSize,
-  pad,
+  margin,
   ew,
   ed,
 }: {
@@ -1160,18 +1212,20 @@ function GridLines({
   H: number
   PX: number
   gridSize: number
-  pad: number
+  margin: number
   ew: number
   ed: number
 }) {
   const g = gridSize > 0 ? gridSize : 0.5
   const lines: React.ReactNode[] = []
-  for (let x = 0; x <= ew + 1e-6; x += g) {
+  const x0 = Math.ceil(-margin / g) * g
+  const z0 = Math.ceil(-margin / g) * g
+  for (let x = x0; x <= ew + margin + 1e-6; x += g) {
     const major = Math.abs(x - Math.round(x)) < 1e-6
-    const px = (x + pad) * PX
+    const px = (x + margin) * PX
     lines.push(
       <line
-        key={`vx${x}`}
+        key={`vx${x.toFixed(3)}`}
         x1={px}
         y1={0}
         x2={px}
@@ -1181,12 +1235,12 @@ function GridLines({
       />,
     )
   }
-  for (let z = 0; z <= ed + 1e-6; z += g) {
+  for (let z = z0; z <= ed + margin + 1e-6; z += g) {
     const major = Math.abs(z - Math.round(z)) < 1e-6
-    const py = (z + pad) * PX
+    const py = (z + margin) * PX
     lines.push(
       <line
-        key={`hz${z}`}
+        key={`hz${z.toFixed(3)}`}
         x1={0}
         y1={py}
         x2={W}
@@ -1197,4 +1251,4 @@ function GridLines({
     )
   }
   return <g>{lines}</g>
-}
+})
