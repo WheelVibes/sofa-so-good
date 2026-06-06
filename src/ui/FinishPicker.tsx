@@ -44,6 +44,8 @@ export function FinishPicker() {
   const finishes = useStore(useShallow((s) => s.finishes))
   const setFloorFinish = useStore((s) => s.setFloorFinish)
   const setWallFinish = useStore((s) => s.setWallFinish)
+  const setAllFloorFinish = useStore((s) => s.setAllFloorFinish)
+  const setAllWallFinish = useStore((s) => s.setAllWallFinish)
   const selectRoom = useStore((s) => s.selectRoom)
   const removeUserMaterial = useStore((s) => s.removeUserMaterial)
   const recentColors = useStore(useShallow((s) => s.recentColors))
@@ -150,6 +152,14 @@ export function FinishPicker() {
             onCustom={(hex) => handleSelect('floor', hex)}
             recent={recentColors}
           />
+          <button
+            type="button"
+            className="finish-apply-all"
+            onClick={() => setAllFloorFinish(finishes.floor[roomId])}
+            title="Use this floor finish in every room"
+          >
+            Apply floor to all rooms
+          </button>
           <SwatchGroup
             label="Walls"
             items={groups.wall}
@@ -159,6 +169,14 @@ export function FinishPicker() {
             onCustom={(hex) => handleSelect('wall', hex)}
             recent={recentColors}
           />
+          <button
+            type="button"
+            className="finish-apply-all"
+            onClick={() => setAllWallFinish(finishes.walls[roomId])}
+            title="Use this wall finish in every room"
+          >
+            Apply walls to all rooms
+          </button>
           <button
             type="button"
             onClick={tidyRoom}

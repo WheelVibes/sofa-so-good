@@ -66,7 +66,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] Q9. Ctrl/⌘+A select-all. (CHANGELOG)
 
 ## Researched backlog (next iterations — competitor parity / polish)
-- [ ] N1. **Apply finish to all rooms** — one-click "make every floor X / every
+- [x] N1. **Apply finish to all rooms** — setAll{Floor,Wall}Finish + FinishPicker buttons. (CHANGELOG)
   wall Y" from the FinishPicker (finish-equivalent of applyStyleToAll).
 - [ ] N2. **Duplicate-in-array** — place N copies of a selected item along a line
   (count + spacing), collision-checked (competitor "array/clone" tool).

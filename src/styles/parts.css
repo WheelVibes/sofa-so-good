@@ -177,6 +177,14 @@
 .finish-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
 .finish-grid .name { font-size: var(--t-2xs); font-weight: 600; color: var(--text-2); margin-top: 4px; }
 .finish-cell.on .swatch-lg { box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--accent); }
+.finish-apply-all {
+  display: block; width: 100%; margin: 4px 0 var(--s-3);
+  padding: 6px 8px; border-radius: var(--r-2);
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: var(--dur) var(--ease);
+}
+.finish-apply-all:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
 
 /* budget bar */
 .bud-total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }

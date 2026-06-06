@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N1] Apply finish to all rooms
+
+Re-finishing every room one-by-one is tedious. Added `setAllFloorFinish(id)` /
+`setAllWallFinish(id)` store actions (apply one finish to every interior room,
+skipping external spaces like the AC ledge, one undo step) and two
+**"Apply floor/walls to all rooms"** buttons in the FinishPicker that propagate
+the current room's finish. Unit-tested + visually verified.
+
 ## [Q9] Ctrl/⌘+A select-all
 
 A basic editor expectation that was missing. A global Ctrl/⌘+A now selects every
