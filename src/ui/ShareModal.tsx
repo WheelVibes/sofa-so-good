@@ -2,11 +2,12 @@ import { EXPORT_EVENT } from '../scene/ScreenshotController'
 import { useStore } from '../state/store'
 import { AiPhotorealSection } from './ai/AiPhotorealSection'
 import { Modal } from './Modal'
+import { openDesignReport } from './openReport'
 import { Icon } from './toolbar/icons'
 
-/** Share & export modal: a shareable link, view-visibility options, and PNG /
- *  PDF export. The PNG export is real (fires the canvas screenshot event); the
- *  link + PDF confirm with a toast (front-end prototype). */
+/** Share & export modal: a shareable link, project notes, and PNG / PDF export.
+ *  The PNG export fires the canvas screenshot event; the PDF opens the real
+ *  printable design report (save-as-PDF from the print dialog). */
 export function ShareModal() {
   const open = useStore((s) => s.shareOpen)
   const setOpen = useStore((s) => s.setShareOpen)
@@ -91,7 +92,7 @@ export function ShareModal() {
             className="btn btn-soft"
             onClick={() => {
               setOpen(false)
-              toast('Shoppable PDF exported')
+              openDesignReport()
             }}
           >
             <Icon.Report width={14} height={14} />

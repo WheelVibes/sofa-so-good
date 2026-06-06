@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useState } from 'react'
-import { buildMergedCatalog, useCatalog } from '../../../furniture/catalog'
+import { useCatalog } from '../../../furniture/catalog'
 import { blockedDoorItems } from '../../../layout/clearance'
 import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
-import { buildReportHtml } from '../../report'
+import { openDesignReport } from '../../openReport'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** Tools cluster: budget, clearance checks, sun study, walkthrough, report.
@@ -74,39 +74,7 @@ export function ToolsMenu() {
     s.setTouring(true)
   }
 
-  const openReport = () => {
-    const s = useStore.getState()
-    const canvas = document.querySelector('canvas')
-    let hero: string | null = null
-    try {
-      hero = canvas ? canvas.toDataURL('image/png') : null
-    } catch {
-      hero = null // tainted canvas — skip the image
-    }
-    const html = buildReportHtml(
-      s.floorPlan,
-      s.items,
-      buildMergedCatalog(s),
-      hero,
-      s.units,
-      s.finishes,
-      s.designNote,
-    )
-    const win = window.open('', '_blank')
-    if (!win) {
-      // Pop-up blocked — tell the user instead of failing silently.
-      s.notify.start({
-        title: 'Report blocked',
-        kind: 'error',
-        message: 'Allow pop-ups for this site, then open the report again.',
-      })
-      return
-    }
-    win.document.write(html)
-    win.document.close()
-    win.focus()
-    setTimeout(() => win.print(), 400)
-  }
+  const openReport = () => openDesignReport()
 
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={anyActive}>

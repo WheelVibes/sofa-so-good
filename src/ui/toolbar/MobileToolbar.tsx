@@ -3,7 +3,6 @@ import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
 import { dropBuiltinSet, dropIkeaSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
-import { buildMergedCatalog } from '../../furniture/catalog'
 import { FURNITURE_SETS } from '../../furniture/furnitureSets'
 import { ikeaSetRecipes } from '../../furniture/ikeaSets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
@@ -24,7 +23,7 @@ import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
-import { buildReportHtml } from '../report'
+import { openDesignReport } from '../openReport'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
@@ -204,38 +203,7 @@ export function MobileToolbar() {
     st.setTouring(true)
   }
 
-  const openReport = () => {
-    const st = s.getState()
-    const canvas = document.querySelector('canvas')
-    let hero: string | null = null
-    try {
-      hero = canvas ? canvas.toDataURL('image/png') : null
-    } catch {
-      hero = null
-    }
-    const html = buildReportHtml(
-      st.floorPlan,
-      st.items,
-      buildMergedCatalog(st),
-      hero,
-      st.units,
-      st.finishes,
-      st.designNote,
-    )
-    const win = window.open('', '_blank')
-    if (!win) {
-      st.notify.start({
-        title: 'Report blocked',
-        kind: 'error',
-        message: 'Allow pop-ups for this site, then open the report again.',
-      })
-      return
-    }
-    win.document.write(html)
-    win.document.close()
-    win.focus()
-    setTimeout(() => win.print(), 400)
-  }
+  const openReport = () => openDesignReport()
 
   const refreshSlots = () => void LocalStorageAdapter.list().then(setSlots)
   const saveLayout = async () => {

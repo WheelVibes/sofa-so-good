@@ -89,6 +89,15 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [B13] "Shoppable PDF" now actually opens the report
+
+The Share modal's **Shoppable PDF** button was a stub — it only fired a success
+toast and produced nothing (a button that lied). It now opens the real printable
+design report (areas, budget, cost-by-room, finishes, notes — save-as-PDF from
+the print dialog). Extracted the report-open into a shared `ui/openReport.ts`
+`openDesignReport()` so the Tools menu, mobile toolbar, and Share modal all use
+one implementation (removed two duplicated copies). Verified the suite + tsc.
+
 ## [Q39] Lock all / Unlock all
 
 The Layers panel footer gains a **Lock all / Unlock all** toggle — protect a
