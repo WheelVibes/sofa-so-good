@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from './toolbar/icons'
 
@@ -21,6 +21,8 @@ interface ModalProps {
  *  `.modal-overlay > .panel`. Closes on Escape + backdrop click. Portaled to
  *  body so it sits above every panel. */
 export function Modal({ open, onClose, title, sub, width, panelId, children, footer }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
@@ -33,6 +35,16 @@ export function Modal({ open, onClose, title, sub, width, panelId, children, foo
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // Accessibility: move focus into the dialog on open and restore it to the
+  // previously-focused element on close, so keyboard/screen-reader users aren't
+  // stranded behind the modal.
+  useEffect(() => {
+    if (!open) return
+    const prev = document.activeElement as HTMLElement | null
+    panelRef.current?.focus()
+    return () => prev?.focus?.()
+  }, [open])
+
   if (!open) return null
   return createPortal(
     <div
@@ -41,7 +53,16 @@ export function Modal({ open, onClose, title, sub, width, panelId, children, foo
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="panel" id={panelId} style={width ? { width } : undefined}>
+      <div
+        className="panel"
+        id={panelId}
+        style={width ? { width } : undefined}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+      >
         <div className="panel-head">
           <div>
             <div className="panel-title">{title}</div>

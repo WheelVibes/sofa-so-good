@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [A1] Modal accessibility — dialog role + focus management
+
+The shared `Modal` primitive (used by Help, Share, Swap, Compass, Credits, …)
+had ESC + backdrop close but no ARIA semantics or focus management. Added
+`role="dialog"` + `aria-modal="true"` + `aria-label` (the title), and on open it
+moves focus into the dialog, restoring it to the previously-focused element on
+close — so keyboard/screen-reader users aren't stranded behind the modal. One
+change improves every modal. Unit-tested.
+
 ## [B1] Fix misleading "cannot be undone" reset confirms
 
 The File menu's "Empty" / "Default" reset confirmations warned the action
