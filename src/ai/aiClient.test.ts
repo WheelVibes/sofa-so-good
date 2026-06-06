@@ -1,5 +1,23 @@
 import { describe, expect, it } from 'vitest'
-import { buildReplicateImg2ImgBody, parseReplicateOutput } from './aiClient'
+import { buildReplicateImg2ImgBody, parseReplicateOutput, safePollUrl } from './aiClient'
+
+describe('safePollUrl (API-key exfiltration guard)', () => {
+  it('trusts a poll URL on the Replicate host', () => {
+    const u = 'https://api.replicate.com/v1/predictions/abc'
+    expect(safePollUrl(u, 'abc')).toBe(u)
+  })
+
+  it('rejects an off-host poll URL and falls back to the canonical one', () => {
+    expect(safePollUrl('https://evil.example.com/steal', 'abc')).toBe(
+      'https://api.replicate.com/v1/predictions/abc',
+    )
+  })
+
+  it('falls back when the URL is missing or malformed', () => {
+    expect(safePollUrl(undefined, 'xyz')).toBe('https://api.replicate.com/v1/predictions/xyz')
+    expect(safePollUrl('not a url', 'xyz')).toBe('https://api.replicate.com/v1/predictions/xyz')
+  })
+})
 
 describe('buildReplicateImg2ImgBody', () => {
   it('passes the image + prompt and a structure-preserving default strength', () => {

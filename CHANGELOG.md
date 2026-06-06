@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [S1] BYO-key security audit + AI key-exfiltration guard
+
+Audited bring-your-own-key storage (AI keys, Poly Pizza pack key). Findings:
+keys live only in `localStorage`, are sent only to their configured provider via
+request headers, are never logged to the console, and never enter the save
+schema / autosave / export — clean. One defense-in-depth gap fixed: the Replicate
+poll loop attached the API key to a URL taken from the provider response
+(`pred.urls.get`); a tampered response could have sent the key to an arbitrary
+host. Added `safePollUrl`, which only trusts a poll URL whose origin matches
+`api.replicate.com` and otherwise falls back to the canonical URL. Unit-tested.
+
 ## [Q4] Wire the `?` keyboard shortcut to open Help
 
 The Help & shortcuts modal advertised `?` as its open binding, but no global

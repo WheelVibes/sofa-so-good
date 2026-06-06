@@ -85,6 +85,21 @@ export function parseReplicateOutput(prediction: unknown): string | null {
 export class AiError extends Error {}
 
 const REPLICATE = 'https://api.replicate.com/v1/predictions'
+const REPLICATE_ORIGIN = 'https://api.replicate.com'
+
+/** Only trust a provider-supplied poll URL if it's on the expected host —
+ *  otherwise a tampered response could exfiltrate the API key via the
+ *  Authorization header we attach. Falls back to the canonical URL. */
+export function safePollUrl(getUrl: string | undefined, id: string): string {
+  if (getUrl) {
+    try {
+      if (new URL(getUrl).origin === REPLICATE_ORIGIN) return getUrl
+    } catch {
+      // malformed URL — fall through to the canonical one
+    }
+  }
+  return `${REPLICATE}/${id}`
+}
 
 /**
  * Run img2img on the current render via Replicate, polling to completion.
@@ -122,7 +137,7 @@ export async function generatePhotoreal(
     if (Date.now() > deadline) throw new AiError('Timed out waiting for the AI result.')
     await new Promise((r) => setTimeout(r, 2000))
     if (signal?.aborted) throw new AiError('Cancelled.')
-    const r = await fetch(getUrl ?? `${REPLICATE}/${pred.id}`, {
+    const r = await fetch(safePollUrl(getUrl, pred.id), {
       headers: { authorization: `Token ${key}` },
       signal,
     })
