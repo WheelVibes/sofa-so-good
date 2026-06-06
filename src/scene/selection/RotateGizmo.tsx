@@ -1,7 +1,6 @@
 import { Html } from '@react-three/drei'
 import { type ThreeEvent, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import type { Intersection, Mesh, Ray, Raycaster as RaycasterType } from 'three'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../../collision/placement'
@@ -9,6 +8,7 @@ import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { useCatalog } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
+import { priorityRaycast } from '../raycastPriority'
 import {
   computeRotation,
   enclosingRadius,
@@ -28,24 +28,6 @@ const GRAB_HALF = 0.16
 const COLOR_IDLE = '#3b82f6'
 const COLOR_VALID = '#22c55e'
 const COLOR_INVALID = '#ef4444'
-
-/**
- * Ref callback that patches a mesh's `raycast` so any hit it produces sorts
- * first (distance ≈ 0). The gizmo draws always-on-top (depthTest:false) but the
- * R3F event system picks the geometrically-closest mesh — without this, taller
- * furniture sitting over the floor-level ring would steal the pointer-down. This
- * makes the visible handle the click target wherever it's drawn. Idempotent.
- */
-function priorityRaycast(mesh: Mesh | null) {
-  if (!mesh || (mesh as { __priorityPatched?: boolean }).__priorityPatched) return
-  const original = mesh.raycast.bind(mesh)
-  mesh.raycast = (raycaster: RaycasterType, intersects: Intersection[]) => {
-    const before = intersects.length
-    original(raycaster as RaycasterType & { ray: Ray }, intersects)
-    for (let i = before; i < intersects.length; i++) intersects[i].distance = 1e-4
-  }
-  ;(mesh as { __priorityPatched?: boolean }).__priorityPatched = true
-}
 
 interface GizmoTarget {
   id: string

@@ -2,8 +2,15 @@ import { Html } from '@react-three/drei'
 import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
+import { obbCorners } from '../collision/obb'
+import { itemFootprint } from '../collision/placement'
+import { buildCollisionWalls } from '../collision/wallsFromState'
+import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
+import { useCatalogGetter } from '../furniture/catalog'
 import { useStore } from '../state/store'
 import { formatMeters } from '../utils/measurement'
+import { priorityRaycast } from './raycastPriority'
+import { snapToNearest } from './tapeSnap'
 
 const LIFT = 0.03
 const MARKER = '#f59e0b' // amber — distinct from the blue selection/rotate UI
@@ -34,9 +41,30 @@ export function TapeMeasure() {
   const tapeMode = useStore((s) => s.tapeMode)
   const points = useStore(useShallow((s) => s.tapePoints))
   const addTapePoint = useStore((s) => s.addTapePoint)
+  const { ref: catalogRef } = useCatalogGetter()
   const [cursor, setCursor] = useState<[number, number] | null>(null)
 
   if (!tapeMode) return null
+
+  // Snap a clicked floor point to the nearest furniture corner or wall endpoint
+  // (within TAPE_SNAP_DISTANCE) so measurements catch exact corners. Candidates
+  // are gathered lazily on click (rare) to avoid extra subscriptions.
+  const snapClick = (px: number, pz: number): [number, number] => {
+    const st = useStore.getState()
+    const cands: [number, number][] = []
+    for (const it of st.items) {
+      const def = catalogRef.current[it.defId]
+      if (!def) continue
+      for (const c of obbCorners(itemFootprint(it, def))) cands.push(c)
+    }
+    const walls = isDefaultPlan(st.floorPlan)
+      ? buildCollisionWalls(st.doors)
+      : planCollisionWalls(st.floorPlan, st.doors)
+    for (const w of walls) {
+      cands.push([w.ax, w.az], [w.bx, w.bz])
+    }
+    return snapToNearest(px, pz, cands)
+  }
 
   // The segment to draw: a completed [a,b], or live [a, cursor] while placing.
   const a = points[0] ?? null
@@ -56,13 +84,16 @@ export function TapeMeasure() {
 
   return (
     <group>
-      {/* Transparent floor click/track plane (apartment-sized + margin). */}
+      {/* Transparent floor click/track plane (apartment-sized + margin). The
+          priority raycast makes it win the pick over furniture/walls so a click
+          anywhere drops a floor point (then snaps to nearby corners). */}
       <mesh
+        ref={priorityRaycast}
         position={[APARTMENT_EXT_W / 2, LIFT, APARTMENT_EXT_D / 2]}
         rotation={[-Math.PI / 2, 0, 0]}
         onClick={(e) => {
           e.stopPropagation()
-          addTapePoint([e.point.x, e.point.z])
+          addTapePoint(snapClick(e.point.x, e.point.z))
         }}
         onPointerMove={(e) => setCursor([e.point.x, e.point.z])}
       >

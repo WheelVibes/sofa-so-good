@@ -24,6 +24,18 @@ exists), selecting every item sharing the def so you can move/rotate/delete or
 bulk-edit them together via the multi-select panel. Verified in the harness
 (selecting one of three nightstands → all 3 selected).
 
+## [Q13b] Tape measure: corner snapping + clicks over furniture
+
+Two improvements to the tape tool: (1) **fix** — the floor click-plane sat below
+furniture/walls, so clicks over a piece hit the piece instead of registering a
+measurement point; it now uses the shared **priority raycast** (extracted to
+`scene/raycastPriority.ts`, also used by the rotate gizmo) so a click anywhere
+drops a floor point. (2) **corner snapping** — a clicked point snaps to the
+nearest furniture footprint corner or wall endpoint within 30 cm
+(`scene/tapeSnap.ts` `snapToNearest`, candidates from `obbCorners`/collision
+walls), so you can measure exact furniture-to-wall gaps. Both pure helpers
+unit-tested; clicks-over-furniture confirmed firing in the harness.
+
 ## [Q13] Point-to-point tape measure tool
 
 A staple of pro planners that was missing (the app only labelled room sizes).
