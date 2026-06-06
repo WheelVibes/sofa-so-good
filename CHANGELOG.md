@@ -4,6 +4,23 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F1] Export / import a design as a file (portability + backup)
+
+localStorage save slots are device- and browser-bound, so a design could never
+leave the machine it was made on. Added **Export file** / **Import file** to the
+Versions panel:
+
+- `state/storage/designFile.ts` — `exportDesignToFile` serializes the current
+  state and downloads a pretty-printed `.sofa.json` (filename-sanitized);
+  `importDesignFromFile` reads + `migrate`s + `SerializedStateZ`-validates the
+  file, throwing a typed `DesignFileError` with friendly messages (bad JSON,
+  unsupported version, not-a-design). Same serialized shape as save slots, so it
+  round-trips and older files migrate.
+- Wired two buttons + a hidden file input in `VersionsPanel`; import applies the
+  state, clears history, and toasts success/failure. Re-selecting the same file
+  works (input value reset).
+- Unit-tested (round-trip, error cases, download filename) + visually verified.
+
 ## [Q5] Wall-length labels on the 2D floor plan
 
 Every pro floor planner annotates walls with their length; the editor only had

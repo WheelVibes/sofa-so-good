@@ -1,6 +1,11 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { applySerialized, serialize } from '../state/schema'
+import {
+  DesignFileError,
+  exportDesignToFile,
+  importDesignFromFile,
+} from '../state/storage/designFile'
 import { LocalStorageAdapter } from '../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../state/storage/slotThumbs'
@@ -31,6 +36,7 @@ export function VersionsPanel() {
   const setOpen = useStore((s) => s.setVersionsOpen)
   const itemCount = useStore((s) => s.items.length)
   const [rows, setRows] = useState<VersionRow[]>([])
+  const fileRef = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(() => void loadRows().then(setRows), [])
 
@@ -66,6 +72,31 @@ export function VersionsPanel() {
     void refresh()
   }
 
+  const exportFile = () => {
+    exportDesignToFile(useStore.getState(), `sofa-design-${new Date().toISOString().slice(0, 10)}`)
+    useStore.getState().notify.start({ title: 'Design exported', kind: 'success' })
+  }
+
+  const onPickFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    e.target.value = '' // allow re-importing the same file
+    if (!file) return
+    try {
+      const data = await importDesignFromFile(file)
+      const userIds = useStore.getState().userFurniture.map((d) => d.id)
+      const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
+      useStore.setState(applySerialized(data, known))
+      useStore.getState().clearHistory?.()
+      useStore.getState().notify.start({ title: 'Design imported', kind: 'success' })
+    } catch (err) {
+      const message = err instanceof DesignFileError ? err.message : 'Import failed.'
+      const id = useStore
+        .getState()
+        .notify.start({ title: "Couldn't import design", kind: 'error' })
+      useStore.getState().notify.error(id, message)
+    }
+  }
+
   return (
     <aside className="panel mini aux" id="versionsPanel" style={{ width: 340 }}>
       <div className="panel-head">
@@ -88,6 +119,36 @@ export function VersionsPanel() {
           <Icon.Save width={14} height={14} />
           Save current as version
         </button>
+
+        <div className="ver-file-row" style={{ display: 'flex', gap: 8, marginTop: 8 }}>
+          <button
+            type="button"
+            className="btn btn-soft btn-sm"
+            style={{ flex: 1 }}
+            onClick={exportFile}
+            title="Download this design as a .sofa.json file"
+          >
+            <Icon.Download width={14} height={14} />
+            Export file
+          </button>
+          <button
+            type="button"
+            className="btn btn-soft btn-sm"
+            style={{ flex: 1 }}
+            onClick={() => fileRef.current?.click()}
+            title="Load a design from a .sofa.json file"
+          >
+            <Icon.Upload width={14} height={14} />
+            Import file
+          </button>
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".json,application/json"
+            style={{ display: 'none' }}
+            onChange={onPickFile}
+          />
+        </div>
 
         <div className="ver-list">
           <div className="ver-card current">

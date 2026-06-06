@@ -48,3 +48,6 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Run `npm test` + `tsc` before each commit; visual-verify app-facing changes.
+
+## File / portability
+- [x] F1. Export/import a design as a `.sofa.json` file (Versions panel). (CHANGELOG)
