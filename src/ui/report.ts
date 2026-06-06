@@ -12,6 +12,7 @@ import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import { formatArea, type UnitSystem } from '../utils/measurement'
 import { furnitureCostByRoom } from './reportData'
+import { reportPlanSvg } from './reportPlanSvg'
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds',
@@ -144,6 +145,8 @@ export function buildReportHtml(
   .subtotal { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-top: 3px; }
   .note { background: #f9fafb; border-left: 3px solid #d1d5db; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; color: #374151; white-space: pre-wrap; }
   .room-cost { margin-top: 24px; max-width: 360px; }
+  .plan-wrap { margin-top: 16px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; background: #fff; }
+  .plan-svg { width: 100%; height: auto; max-height: 280px; display: block; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   @media print { body { padding: 0; } .hero { max-height: 300px; } }
 </style></head>
@@ -157,6 +160,7 @@ export function buildReportHtml(
       <h2>Rooms &amp; areas</h2>
       <table>${roomRows}</table>
       <div class="total"><span>Total interior</span><span>${formatArea(totalArea, units)}</span></div>
+      ${reportPlanSvg(plan) ? `<div class="plan-wrap">${reportPlanSvg(plan)}</div>` : ''}
     </div>
     <div class="col">
       <h2>Furniture &amp; budget</h2>

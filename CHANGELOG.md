@@ -89,6 +89,16 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q41] 2D floor-plan diagram in the printable report
+
+The design report now includes an inline **SVG floor-plan diagram** (walls as
+strokes — thicker for external — + room name labels at their centres), generated
+purely from the plan geometry in a new modular `reportPlanSvg.ts` (no canvas/DOM,
+prints crisply, scales via viewBox). Makes the report a complete deliverable
+(plan + areas + budget + cost-by-room + finishes + notes + hero render). SVG
+generator unit-tested (walls/labels/escaping/degenerate); report-HTML inclusion
+verified.
+
 ## [Q40] Export the design file from the Share modal
 
 Added an **Export file** button (the portable `.sofa.json` via `exportDesignToFile`)
