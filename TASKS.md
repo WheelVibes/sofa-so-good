@@ -117,6 +117,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   filtering, "N of M" footer). E2E-verified. (CHANGELOG)
 - [x] Q26. **Per-room hide/show** eye toggle in Layers group headers
   (`setItemsHidden` bulk action). Unit + E2E-verified. (CHANGELOG)
+- [x] Q27. **Ctrl/⌘-click multi-select** in the Layers panel (matches 3D scene).
+  E2E-verified. (CHANGELOG)
 - [x] Q25. **Rename objects** — custom per-item `label` (inspector Name field,
   shown in title + Layers tree + filter), persisted in schema. Unit + E2E. (CHANGELOG)
 

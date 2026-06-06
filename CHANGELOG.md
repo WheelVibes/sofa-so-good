@@ -52,6 +52,14 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [Q27] Ctrl/⌘-click multi-select in the Layers panel
+
+Layers/Objects rows now honour **Ctrl/⌘-click to toggle** an item in the
+selection (plain click still selects one), matching the 3D scene's multi-select.
+Building a multi-selection from the tree now lights up the align/distribute/
+group panel just like marquee + shift-click in the viewport. Verified: ⌘-clicking
+a second row yields "2 items selected".
+
 ## [B8] Loading a design left stale selection + hidden ids
 
 Completing B6/B7: `applySerialized` (used by version restore, `.sofa.json`

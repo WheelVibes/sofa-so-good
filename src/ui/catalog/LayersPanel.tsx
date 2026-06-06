@@ -14,6 +14,7 @@ export function LayersPanel() {
   const items = useStore((s) => s.items)
   const selectedIds = useStore((s) => s.selectedItemIds)
   const selectItem = useStore((s) => s.selectItem)
+  const toggleSelectedItem = useStore((s) => s.toggleSelectedItem)
   const toggleLock = useStore((s) => s.toggleLock)
   const deleteItem = useStore((s) => s.deleteItem)
   const hiddenIds = useStore((s) => s.hiddenItemIds)
@@ -129,7 +130,9 @@ export function LayersPanel() {
                       <div
                         key={it.id}
                         className={`lyr-row${selected ? ' sel' : ''}`}
-                        onClick={() => selectItem(it.id)}
+                        onClick={(e) =>
+                          e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
+                        }
                       >
                         <span className="lyr-ic">
                           {def ? (
