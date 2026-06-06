@@ -129,3 +129,5 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 ## QOL (cont.)
 - [x] Q15. **Per-item hide/show** in the Layers panel (eye toggle + Show all),
   visual + session-only via `selectionSlice.hiddenItemIds`. E2E-verified. (CHANGELOG)
+- [x] Q16. **Export shopping list as CSV** (Budget panel) — pure RFC-4180 builder
+  `shoppingCsv.ts`, unit-tested + E2E-verified. (CHANGELOG)

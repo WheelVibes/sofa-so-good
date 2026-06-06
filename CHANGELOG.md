@@ -24,6 +24,15 @@ exists), selecting every item sharing the def so you can move/rotate/delete or
 bulk-edit them together via the multi-select panel. Verified in the harness
 (selecting one of three nightstands → all 3 selected).
 
+## [Q16] Export the shopping list as CSV
+
+Commercial procurement aid: the Budget panel gains an **Export CSV** button that
+downloads the shopping list (Category, Item, Quantity, Unit price SGD, Line total
+SGD + a grand-total footer) for a spreadsheet or to send to a supplier — honouring
+the live-price toggle when on. The CSV builder is a pure, RFC-4180-escaping
+module (`shoppingCsv.ts`, unit-tested incl. comma/quote escaping + SGD rounding);
+verified in the harness (the default flat exports a 45-line CSV).
+
 ## [Q3] Drag-and-drop placement from the catalog (desktop)
 
 Catalog cards are now **draggable straight into the 3D scene** (the headline

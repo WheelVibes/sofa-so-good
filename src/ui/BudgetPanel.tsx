@@ -5,6 +5,7 @@ import { itemPrice } from '../furniture/furniturePrices'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../furniture/types'
 import { useStore } from '../state/store'
 import { CategoryIcon } from './catalog/CategoryIcon'
+import { buildShoppingCsv } from './shoppingCsv'
 import { Icon } from './toolbar/icons'
 
 const CATEGORY_LABEL: Record<FurnitureCategory, string> = {
@@ -173,6 +174,36 @@ export function BudgetPanel() {
             <span className="big mono">{fmt(shownTotal)}</span>
             <span className="panel-sub">{count} items</span>
           </div>
+          {groups.length > 0 ? (
+            <button
+              type="button"
+              className="btn ghost sm"
+              style={{ marginTop: 'var(--s-2)' }}
+              title="Download the shopping list as a CSV (for a spreadsheet or supplier)"
+              onClick={() => {
+                const lines = groups.flatMap((g) =>
+                  g.lines.map((l) => ({
+                    category: CATEGORY_LABEL[g.cat],
+                    item: l.name,
+                    qty: l.count,
+                    unit: eachOf(l),
+                    total: eachOf(l) * l.count,
+                  })),
+                )
+                const csv = buildShoppingCsv(lines, shownTotal)
+                const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `shopping-list-${new Date().toISOString().slice(0, 10)}.csv`
+                document.body.appendChild(a)
+                a.click()
+                a.remove()
+                setTimeout(() => URL.revokeObjectURL(url), 0)
+              }}
+            >
+              Export CSV
+            </button>
+          ) : null}
           {import.meta.env.DEV && (
             <label
               className="panel-sub"

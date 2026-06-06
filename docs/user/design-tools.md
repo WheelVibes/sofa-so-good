@@ -24,7 +24,8 @@ point you then tweak.
 
 The **Budget / shopping list** (Tools menu) groups every placed piece by category
 and totals an approximate cost in **SGD**, with a **Saved collections** tab for
-everything you've hearted. Copy the list to share it.
+everything you've hearted. **Export CSV** downloads the list (category, item,
+quantity, unit price, line total) for a spreadsheet or to send to a supplier.
 
 ## Clearance & fit checks
 
