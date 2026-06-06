@@ -149,6 +149,24 @@ describe('schema', () => {
     expect(patch.items?.length).toBe(1)
   })
 
+  it('round-trips a custom per-item label', () => {
+    useStore.getState().__resetForTest()
+    const id = useStore.getState().addItem({
+      defId: 'bed-double',
+      position: [2, 2],
+      rotation: 0,
+      props: {},
+    })
+    useStore.getState().renameItem(id, 'Master bed')
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const item = round.data.items.find((i) => i.defId === 'bed-double')
+      expect(item?.label).toBe('Master bed')
+    }
+  })
+
   it('applySerialized drops items with non-finite position/rotation', () => {
     const known = new Set(['bed-double'])
     const saved = {
