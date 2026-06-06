@@ -21,6 +21,16 @@ import { loadQualityPrefs, watchQualityPrefs } from './qualityPrefs'
 
 let started = false
 
+/** Run one boot step, swallowing + logging any failure so it can't abort the
+ *  rest of the bootstrap. Supports sync or async steps. */
+async function runStep(name: string, fn: () => void | Promise<void>): Promise<void> {
+  try {
+    await fn()
+  } catch (e) {
+    console.error(`[bootstrap] step "${name}" failed (continuing):`, e)
+  }
+}
+
 /** Run the boot bootstrap exactly once. Safe to call from React StrictMode
  *  double-invocation; the guard makes subsequent calls a no-op. */
 export async function runBootstrap(): Promise<void> {
@@ -28,23 +38,38 @@ export async function runBootstrap(): Promise<void> {
   started = true
   try {
     // Pull user assets + autosaved layout. Failures are silent; the app falls
-    // back to the default layout via the seed below.
-    await hydrate()
-    loadAppearancePrefs()
-    watchAppearancePrefs()
-    loadQualityPrefs()
-    watchQualityPrefs()
-    loadEditorPrefs()
-    watchEditorPrefs()
-    loadFloorPlans()
-    watchFloorPlans()
+    // back to the default layout via the seed below. Each step is independently
+    // guarded so a single failing loader (e.g. corrupt IDB, a throwing pref
+    // parser) can't abort the rest of boot — most importantly, `startAutosave`
+    // below must always run so the user's work is still persisted.
+    await runStep('hydrate', async () => {
+      await hydrate()
+    })
+    runStep('appearancePrefs', () => {
+      loadAppearancePrefs()
+      watchAppearancePrefs()
+    })
+    runStep('qualityPrefs', () => {
+      loadQualityPrefs()
+      watchQualityPrefs()
+    })
+    runStep('editorPrefs', () => {
+      loadEditorPrefs()
+      watchEditorPrefs()
+    })
+    runStep('floorPlans', () => {
+      loadFloorPlans()
+      watchFloorPlans()
+    })
 
     // Seed the default layout only when hydration produced nothing — must run
     // AFTER hydrate() so an autosaved layout is never clobbered. Then drop the
     // seed/hydrate snapshot so the first undo doesn't pop back to a blank flat.
-    const s = useStore.getState()
-    if (s.items.length === 0) s.resetToDefault()
-    useStore.getState().clearHistory()
+    runStep('seed', () => {
+      const s = useStore.getState()
+      if (s.items.length === 0) s.resetToDefault()
+      useStore.getState().clearHistory()
+    })
 
     // Surface autosave failures (the common one is localStorage quota) so the
     // user knows their work isn't being persisted, instead of silently losing
@@ -72,7 +97,7 @@ export async function runBootstrap(): Promise<void> {
       },
     })
 
-    if (import.meta.env.DEV) await exposeDevHelpers()
+    if (import.meta.env.DEV) await runStep('devHelpers', exposeDevHelpers)
   } finally {
     useStore.getState().setBootReady()
   }
