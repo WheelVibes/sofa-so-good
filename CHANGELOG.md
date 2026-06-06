@@ -66,6 +66,15 @@ A grep audit found the mobile toolbar's File handlers still used `prompt`/`alert
 `notify` toasts too. Confirmed **zero** `window.prompt/alert/confirm` remain in
 app code (only doc comments reference them).
 
+## [RE1] Window glass responds to time of day
+
+Realism: window panes were a static light-blue. They now tint with daylight —
+a clear cool pane by day → a dark, more-opaque reflective pane at night — so
+windows read as real glass (bright in daytime, near-black after dark). Driven in
+`WindowPane`'s existing `useFrame` from the shared `fixtureGlow` darkness signal
+(allocation-free `Color.lerpColors` + opacity lerp; no new lights/shadows, no
+re-renders). A safe slice of the deferred lighting-realism work.
+
 ## [Q34] Remember the catalog's last category + sort
 
 Small returning-user QOL (matches how Coohom/Planner 5D retain context): the

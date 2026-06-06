@@ -65,7 +65,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] RE5. **Ceilings for custom plans** (`PlanRoomCeiling` — per-room
   downward-facing planes honouring the per-room height; culled in orbit, seen in
   walk). Completes N4b for custom plans. E2E-verified. (CHANGELOG)
-- [ ] RE1. Window glass tint / curtains affecting light (TODO out-of-scope item).
+- [x] RE1. **Window glass tints by time of day** (clear day → dark night, via
+  fixtureGlow signal; safe material-only change). E2E day/night renders clean. (CHANGELOG)
 - [ ] RE2. Inter-room light bleed through open doors (Phase 3 pending).
 - [x] RE3. Basketweave parquet procedural floor (oak + walnut). (CHANGELOG)
 - [x] RE4. Exposed-brick wall finishes (red/white-washed/charcoal). (CHANGELOG)
