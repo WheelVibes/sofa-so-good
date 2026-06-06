@@ -165,11 +165,14 @@ export function Toolbar() {
         {/* Camera */}
         <CameraControl mode={cameraMode} setMode={setCameraMode} />
 
+        {/* Scene (time / lighting moods / sun) stays available in Walk too, so
+            you can experience the room at different times of day while walking. */}
+        {!roomEditorActive && <SceneMenu />}
+
         {orbit && (
           <>
             <Divider />
             <ViewMenu />
-            {!roomEditorActive && <SceneMenu />}
 
             <Divider />
             {/* Edit */}

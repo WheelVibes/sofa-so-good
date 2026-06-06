@@ -89,6 +89,16 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q45] Scene menu (time / lighting moods / sun) available in Walk mode
+
+The Scene controls were hidden in Walk mode (grouped with the orbit-only editing
+clusters), so you couldn't change the time of day or lighting mood while walking
+through — exactly when immersive lighting matters most. The Scene menu now shows
+in both orbit and walk (still hidden only in the room editor), so you can
+experience the flat at golden hour / a cosy evening from eye level. Verified the
+"Scene" control appears in the walk toolbar. (Mobile already had it via the
+hamburger sheet.)
+
 ## [Q44] Spend-by-category breakdown in the Budget panel
 
 The Shopping panel now shows a **"Spend by category"** breakdown — each category
