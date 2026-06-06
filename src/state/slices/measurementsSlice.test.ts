@@ -36,3 +36,18 @@ describe('tape measure', () => {
     expect(s().tapePoints).toEqual([])
   })
 })
+
+describe('measurement units', () => {
+  beforeEach(() => useStore.setState({ units: 'metric' } as never))
+
+  it('defaults to metric', () => {
+    expect(useStore.getState().units).toBe('metric')
+  })
+
+  it('setUnits switches between metric and imperial', () => {
+    useStore.getState().setUnits('imperial')
+    expect(useStore.getState().units).toBe('imperial')
+    useStore.getState().setUnits('metric')
+    expect(useStore.getState().units).toBe('metric')
+  })
+})
