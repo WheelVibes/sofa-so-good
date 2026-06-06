@@ -89,6 +89,14 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [B14] Honest "App link" instead of a dead share URL
+
+The Share modal's "Shareable link" copied a fake `hdb.design/s/…` URL (dead
+domain, no backend) — a broken promise. Replaced it with the **real app URL**
+(opens the editor) under an honest "App link" heading + a note pointing users to
+the Versions panel's file export for sharing the actual design. No more
+copy-a-link-that-goes-nowhere.
+
 ## [B13] "Shoppable PDF" now actually opens the report
 
 The Share modal's **Shoppable PDF** button was a stub — it only fired a success

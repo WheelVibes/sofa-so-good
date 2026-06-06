@@ -15,10 +15,10 @@ export function ShareModal() {
   const designNote = useStore((s) => s.designNote)
   const setDesignNote = useStore((s) => s.setDesignNote)
 
-  const link = `hdb.design/s/4rm-${planName
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .slice(0, 18)}`
+  // The real app URL (so the copied link actually opens the app). Designs live
+  // in the browser, so the link opens the editor — share the design itself as a
+  // portable file via the Versions panel's Export.
+  const link = typeof window !== 'undefined' ? window.location.href : ''
 
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
 
@@ -35,8 +35,19 @@ export function ShareModal() {
     >
       <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
         <div className="sec-h">
-          <span>Shareable link</span>
+          <span>App link</span>
         </div>
+        <p
+          style={{
+            fontSize: 'var(--t-2xs)',
+            color: 'var(--text-3)',
+            margin: '0 0 var(--s-2)',
+            lineHeight: 1.4,
+          }}
+        >
+          Opens the editor. To send your actual design, export it as a file from the Versions panel
+          and share that.
+        </p>
         <div className="share-link">
           <div className="field">
             <Icon.Eye width={16} height={16} className="icn" />
