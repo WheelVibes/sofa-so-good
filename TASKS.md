@@ -106,7 +106,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   drag-to-rotate with 15° snap (Shift = free), live degree readout, collision
   tint + revert, raycast-priority pick. Pure math unit-tested. **Extended to
   multi-selection** (group rotate about centroid, signed delta readout). (CHANGELOG)
-- [ ] N4. **Per-room ceiling height** control (architectural realism).
+- [ ] N4b. **Per-room ceiling height** UI (architectural realism) — global
+  height shipped (see N4 above); per-room override is the remaining follow-up
+  (data model already supports `PlanRoom.ceilingHeight`).
 - [x] N5. **Persist photo-trace backdrop** (blob + calibration) to IDB —
   survives editor close + reload, rehydrated on open, fail-soft, unit-tested.
   (Measurements are derived room-size labels — nothing user-created to persist.)
