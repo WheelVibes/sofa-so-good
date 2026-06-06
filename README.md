@@ -21,8 +21,9 @@ export the result — all in the browser.
   thumbnails. The catalog is **unified** — built-ins, your uploads, installed
   packs, and the browsable CC0 library (Poly Haven) all live in one grid with a
   single search that spans everything; **sort** a category by Featured / Name /
-  Size; **heart** any item (built-in or CC0) to
-  drop it into the **favourites** category (the star tab at the front).
+  Size and **filter by max price**; **heart** any item (built-in or CC0) to
+  drop it into the **favourites** category (the star tab at the front). The
+  drawer reopens to your last category + sort.
   Includes an entryway shoe cabinet, floating + leaning mirrors, wall shelves,
   L-shaped sectional, sideboard, bar cart, room divider, baby crib, potted
   plants in bush / snake-plant / palm forms, and bundled **pool tables in
@@ -46,7 +47,9 @@ export the result — all in the browser.
   mapping, image-based lighting, shadows, and real fixture lights
   (lamps, pendants, fans, wall sconces, and signature cove LEDs) that switch
   on at night. An **Auto / On / Off** toggle lights windowless rooms in
-  daylight or kills fixtures entirely.
+  daylight or kills fixtures entirely. A **time-of-day scrub slider** sweeps the
+  whole day in one drag, and **window glass tints with the light** — a clear
+  cool pane by day, dark and reflective after dark.
 - **HDB-estate skyline** — neighbouring blocks ring the flat so windows frame
   a real view; their windows light up warm at night.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
@@ -75,7 +78,8 @@ export the result — all in the browser.
   **export/import a design as a portable `.sofa.json` file**, and PNG export. A
   **Recent** row in the catalog re-surfaces what you just placed.
 - **Saved camera views** — bookmark a favourite angle of the flat from the
-  **View** menu and smoothly fly back to it any time (desktop + mobile).
+  **View** menu (each with a **preview thumbnail**) and smoothly fly back to it
+  any time (desktop + mobile).
 - **Streamlined toolbar** — a compact, scrollable **icon island**: frequent
   actions are one-click icons; related tools tuck into labelled dropdown menus
   (View, Scene, Arrange, Tools, File). Hover any control for its name and
@@ -95,9 +99,11 @@ export the result — all in the browser.
   follow your custom plan, and plans save to a named library.
 - **Design tools** — a SGD **budget** / shopping list (with an optional **budget
   target** that tracks how far over/under you are), door-swing **clearance
-  checks**, a **sun study** time-lapse, an auto **walkthrough** tour, and a
-  printable **design report**. Switch all dimension read-outs between
-  **metric and imperial** (feet-and-inches) from the Graphics panel.
+  checks**, a **sun study** time-lapse, an auto **walkthrough** tour, point-to-
+  point **distance and area measuring**, and a printable **design report**
+  (per-room areas, budget, cost-by-room, **cost per m²/ft²**, and a **finishes-
+  by-room** spec). Switch all dimension read-outs between **metric and imperial**
+  (feet-and-inches) from the Graphics panel.
 - **Bring your own models** — import your own furniture as
   `.glb`/`.gltf` **or** `.obj` / `.fbx` / `.stl` / `.ply` / `.dae` / `.3mf` /
   `.usdz`: non-GLB formats are **converted to GLB in your browser** (no upload,
