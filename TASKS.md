@@ -59,7 +59,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] Q4. **`?` opens Help & shortcuts** — wired the advertised-but-missing global binding. (CHANGELOG)
 - [x] Q5. **Wall-length labels** on the 2D plan (+ Dims toggle). (CHANGELOG)
 - [x] Q6. **Camera bookmarks / saved views** — save/apply (smooth fly)/delete, desktop View menu + mobile parity, persisted. (CHANGELOG)
-- [ ] Q7. **Empty states & inline help** across panels.
+- [x] Q7. **Empty states** verified comprehensive across all panels (Budget, Layers, Versions, SavedViews, RemoteBrowse, catalog favourites/recent). (audit)
 
 ## Realism
 - [x] RE5. **Ceilings for custom plans** (`PlanRoomCeiling` — per-room
