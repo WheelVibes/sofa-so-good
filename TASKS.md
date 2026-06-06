@@ -68,6 +68,13 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 ## Bulk editing (cont.)
 - [x] Q9. Ctrl/⌘+A select-all. (CHANGELOG)
 
+## More researched items
+- [x] P1. Catalog scalability — verified: drawer paginates (12/page) over the
+  merged list, so thousands of imported items never all render. No virtualization
+  needed.
+- [x] Q10. **Per-room cost breakdown** in the printable report (pure
+  `reportData.furnitureCostByRoom`, unit-tested). (CHANGELOG)
+
 ## Researched backlog (next iterations — competitor parity / polish)
 - [x] N1. **Apply finish to all rooms** — setAll{Floor,Wall}Finish + FinishPicker buttons. (CHANGELOG)
 - [x] N2. **Duplicate-in-array** — inspector "Duplicate a row of N", collision-checked, grouped. (CHANGELOG)

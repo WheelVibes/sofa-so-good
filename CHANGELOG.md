@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q10] Per-room cost breakdown in the design report
+
+The printable report grouped furniture only by category, so a client couldn't
+see where the budget goes spatially. Added a **"Cost by room"** section: each
+placed item is attributed to the plan room containing its footprint centre
+(`pointInRoom`), summing item count + estimated cost per room, with an
+"Unassigned" bucket for anything outside every room. The aggregation lives in a
+pure, unit-tested `reportData.ts` (`furnitureCostByRoom`) and renders into the
+existing report table styles; the section is omitted when nothing is placed.
+Verified: 6 unit tests (attribution, Unassigned ordering, unknown-def skip, empty
+layout, + a `buildReportHtml` integration assertion) and a live report render in
+the harness.
+
 ## [N7a] Keyboard-accessible catalog cards
 
 Catalog cards were `<div onClick>` — invisible to keyboard + screen-reader users
