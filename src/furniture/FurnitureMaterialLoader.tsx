@@ -8,6 +8,7 @@ import {
 } from '../materials/furnitureMaterials'
 import type { MaterialDef, TexturedMaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
+import { SilentErrorBoundary } from '../scene/SilentErrorBoundary'
 import { useStore } from '../state/store'
 
 /** Furniture surfaces tile finishes per box face (UVs run 0..1 per face), so a
@@ -76,9 +77,13 @@ export function FurnitureMaterialLoader() {
   return (
     <>
       {textured.map((def) => (
-        <Suspense key={def.id} fallback={null}>
-          <TexturedFurnitureMaterial def={def} />
-        </Suspense>
+        // A failed CC0 texture load (404/CORS) must not blank the scene — the
+        // furniture just keeps its procedural fallback material.
+        <SilentErrorBoundary key={def.id} resetKey={def.runtimeUrls ?? def.textures}>
+          <Suspense fallback={null}>
+            <TexturedFurnitureMaterial def={def} />
+          </Suspense>
+        </SilentErrorBoundary>
       ))}
     </>
   )

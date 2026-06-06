@@ -24,6 +24,20 @@ exists), selecting every item sharing the def so you can move/rotate/delete or
 bulk-edit them together via the multi-select panel. Verified in the harness
 (selecting one of three nightstands → all 3 selected).
 
+## [B5] Isolate CC0 texture-load failures across floors / walls / materials
+
+Same class of bug as B4 but for **textured (CC0 DLC) finishes**: floor, wall, and
+furniture-material sub-trees loaded textures via bare `<Suspense>`, so a 404/CORS
+texture failure threw to the app-level boundary and blanked the scene. Added a
+reusable `scene/SilentErrorBoundary` (renders nothing — or an optional fallback —
+on error, retries when its `resetKey` changes) and wrapped every textured-finish
+loader: `FurnitureMaterialLoader`, `RoomFloor`, `PlanRoomFloor`, `RoomShell`
+walls, and both `WallSegment` faces. A failed finish now simply doesn't apply
+(furniture keeps its procedural fallback; a surface stays untextured) instead of
+crashing. Unit-tested (pass-through, fallback-on-error, resetKey recovery); full
+suite green and the default flat still boots all 66 items with floors/walls
+rendered.
+
 ## [B4] Isolate GLB load failures (one bad model no longer blanks the app)
 
 Each GLB item was wrapped only in `<Suspense>`, which catches the *loading*

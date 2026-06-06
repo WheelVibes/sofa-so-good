@@ -15,6 +15,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { useStore } from '../../state/store'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W, WALLS } from '../constants'
 import type { RoomId, WallSpec } from '../types'
@@ -338,18 +339,22 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
           <group key={i}>
             {positiveMat ? (
               <>
-                <Suspense fallback={null}>
-                  <SegmentFace
-                    segLen={segLen}
-                    segHeight={segHeight}
-                    segMid={segMid}
-                    segMidY={segMidY}
-                    thickness={thickness}
-                    sign={1}
-                    materialId={positiveMat}
-                    onSelect={span.positive ? () => selectWall(wall.id, span.positive!) : undefined}
-                  />
-                </Suspense>
+                <SilentErrorBoundary resetKey={positiveMat}>
+                  <Suspense fallback={null}>
+                    <SegmentFace
+                      segLen={segLen}
+                      segHeight={segHeight}
+                      segMid={segMid}
+                      segMidY={segMidY}
+                      thickness={thickness}
+                      sign={1}
+                      materialId={positiveMat}
+                      onSelect={
+                        span.positive ? () => selectWall(wall.id, span.positive!) : undefined
+                      }
+                    />
+                  </Suspense>
+                </SilentErrorBoundary>
                 {onFloor && (
                   <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />
                 )}
@@ -367,18 +372,22 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
             ) : null}
             {negativeMat ? (
               <>
-                <Suspense fallback={null}>
-                  <SegmentFace
-                    segLen={segLen}
-                    segHeight={segHeight}
-                    segMid={segMid}
-                    segMidY={segMidY}
-                    thickness={thickness}
-                    sign={-1}
-                    materialId={negativeMat}
-                    onSelect={span.negative ? () => selectWall(wall.id, span.negative!) : undefined}
-                  />
-                </Suspense>
+                <SilentErrorBoundary resetKey={negativeMat}>
+                  <Suspense fallback={null}>
+                    <SegmentFace
+                      segLen={segLen}
+                      segHeight={segHeight}
+                      segMid={segMid}
+                      segMidY={segMidY}
+                      thickness={thickness}
+                      sign={-1}
+                      materialId={negativeMat}
+                      onSelect={
+                        span.negative ? () => selectWall(wall.id, span.negative!) : undefined
+                      }
+                    />
+                  </Suspense>
+                </SilentErrorBoundary>
                 {onFloor && (
                   <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />
                 )}

@@ -14,6 +14,7 @@ import {
   useSolidMaterial,
   useTexturedMaterial,
 } from '../materials/useMaterial'
+import { SilentErrorBoundary } from '../scene/SilentErrorBoundary'
 import { useStore } from '../state/store'
 import { DOORS, WINDOWS } from './constants'
 import { DoorLeaf } from './Door'
@@ -113,7 +114,11 @@ function RoomWall({
     ) : (
       <SolidWall def={def} wall={wall} center={center} />
     )
-  return <Suspense fallback={null}>{inner}</Suspense>
+  return (
+    <SilentErrorBoundary resetKey={def.id}>
+      <Suspense fallback={null}>{inner}</Suspense>
+    </SilentErrorBoundary>
+  )
 }
 
 /** Renders only the walls of an isolated room (clipped to its footprint) plus

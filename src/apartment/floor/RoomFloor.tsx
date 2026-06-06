@@ -14,6 +14,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { useStore } from '../../state/store'
 import type { RoomId } from '../types'
 
@@ -107,8 +108,10 @@ const RoomFloorMemo = memo(RoomFloorInner, (prev, next) => {
  *  texture load on one room doesn't block the others. */
 export function RoomFloor(props: RoomFloorProps) {
   return (
-    <Suspense fallback={null}>
-      <RoomFloorMemo {...props} />
-    </Suspense>
+    <SilentErrorBoundary resetKey={props.materialId}>
+      <Suspense fallback={null}>
+        <RoomFloorMemo {...props} />
+      </Suspense>
+    </SilentErrorBoundary>
   )
 }

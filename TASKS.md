@@ -18,6 +18,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] P3. More **instancing** for repeat-geometry primitives where profiling justifies.
 
 ## Bugs / correctness
+- [x] B5. **CC0 texture-load failures isolated** — `SilentErrorBoundary` wraps
+  every textured-finish loader (furniture materials, floors, walls) so a 404/CORS
+  texture can't blank the scene. Unit-tested. (CHANGELOG)
 - [x] B4. **GLB load failures isolated** — per-item `GltfErrorBoundary` renders a
   placeholder box instead of letting one bad model blank the whole app.
   Unit-tested. (CHANGELOG)

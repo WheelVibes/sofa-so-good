@@ -13,6 +13,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry, worldUvShapeGeometry } from '../../materials/worldUv'
+import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 
 /**
  * A floor plane for a user-authored plan room, finished with any catalog
@@ -91,8 +92,10 @@ function Inner({ materialId, ...rest }: Props) {
 
 export function PlanRoomFloor(props: Props) {
   return (
-    <Suspense fallback={null}>
-      <Inner {...props} />
-    </Suspense>
+    <SilentErrorBoundary resetKey={props.materialId}>
+      <Suspense fallback={null}>
+        <Inner {...props} />
+      </Suspense>
+    </SilentErrorBoundary>
   )
 }
