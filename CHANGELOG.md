@@ -66,6 +66,13 @@ A grep audit found the mobile toolbar's File handlers still used `prompt`/`alert
 `notify` toasts too. Confirmed **zero** `window.prompt/alert/confirm` remain in
 app code (only doc comments reference them).
 
+## [Q36] Cost-per-area in the printable report
+
+The design report now shows a **"Furnishing per m²/ft²"** figure (estimated
+furniture total ÷ interior area) under the budget total — a standard
+property/renovation metric. Unit-aware (m²/ft²), omitted when there's no
+furniture or area. Unit-tested.
+
 ## [Q35] Time-of-day scrub slider
 
 The Scene menu gains a continuous time slider (0–24 h, 15-min steps) under the

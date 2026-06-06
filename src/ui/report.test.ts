@@ -21,6 +21,18 @@ describe('buildReportHtml', () => {
     expect(html).toContain('data:image/png;base64,AAAA')
   })
 
+  it('includes a furnishing-per-area figure when there is area + budget', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toMatch(/Furnishing per m²/)
+    const imperial = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'imperial')
+    expect(imperial).toMatch(/Furnishing per ft²/)
+  })
+
+  it('omits the per-area figure with no furniture', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).not.toMatch(/Furnishing per/)
+  })
+
   it('handles an empty layout and a missing hero image', () => {
     const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
     expect(html).toContain('No furniture placed.')

@@ -117,6 +117,7 @@ export function buildReportHtml(
   tr.cat td { font-weight: 600; padding-top: 8px; }
   td.indent { padding-left: 12px; color: #4b5563; }
   .total { display: flex; justify-content: space-between; font-weight: 700; font-size: 15px; border-top: 2px solid #1f2937; margin-top: 8px; padding-top: 6px; }
+  .subtotal { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-top: 3px; }
   .room-cost { margin-top: 24px; max-width: 360px; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   @media print { body { padding: 0; } .hero { max-height: 300px; } }
@@ -135,6 +136,13 @@ export function buildReportHtml(
       <h2>Furniture &amp; budget</h2>
       <table>${furnitureRows || '<tr><td>No furniture placed.</td></tr>'}</table>
       <div class="total"><span>Estimated total</span><span>${sgd(budget)}</span></div>
+      ${
+        totalArea > 0.01 && budget > 0
+          ? `<div class="subtotal"><span>Furnishing per ${units === 'imperial' ? 'ft²' : 'm²'}</span><span>${sgd(
+              budget / (units === 'imperial' ? totalArea * 10.7639 : totalArea),
+            )}</span></div>`
+          : ''
+      }
     </div>
   </div>
   ${
