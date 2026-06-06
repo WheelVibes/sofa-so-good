@@ -89,6 +89,13 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q42] Versions show their item-count delta vs the current design
+
+Each saved version in the Versions panel now shows how it differs from the live
+design at a glance — e.g. "12 items (+3 vs current)" — a lightweight compare so
+you can tell versions apart without restoring them. Pure render addition from
+the already-computed per-slot count + the current item count.
+
 ## [Q41] 2D floor-plan diagram in the printable report
 
 The design report now includes an inline **SVG floor-plan diagram** (walls as

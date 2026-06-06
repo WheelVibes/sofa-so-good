@@ -190,7 +190,15 @@ export function VersionsPanel() {
               <div className="ver-info">
                 <div className="nm">{r.slot}</div>
                 <div className="when">{new Date(r.savedAt).toLocaleString()}</div>
-                <div className="stats">{r.count} items</div>
+                <div className="stats">
+                  {r.count} items
+                  {r.count !== itemCount ? (
+                    <span style={{ color: 'var(--text-3)', marginLeft: 4 }}>
+                      ({r.count > itemCount ? '+' : ''}
+                      {r.count - itemCount} vs current)
+                    </span>
+                  ) : null}
+                </div>
                 <div className="ver-actions">
                   <button type="button" onClick={() => void restore(r.slot)}>
                     <Icon.Versions width={13} height={13} /> Restore
