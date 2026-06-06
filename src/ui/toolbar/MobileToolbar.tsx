@@ -665,19 +665,26 @@ export function MobileToolbar() {
                 <Item
                   icon="Reset"
                   label="Reset to default"
-                  onClick={act(() => {
-                    if (
-                      confirm('Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.')
-                    )
-                      s.getState().resetToDefault()
+                  onClick={act(async () => {
+                    const ok = await s.getState().confirmAction({
+                      title: 'Reset to default',
+                      message: 'Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.',
+                      confirmLabel: 'Reset',
+                    })
+                    if (ok) s.getState().resetToDefault()
                   })}
                 />
                 <Item
                   icon="Reset"
                   label="Clear all furniture"
-                  onClick={act(() => {
-                    if (confirm('Clear all furniture? You can undo this with Ctrl/⌘+Z.'))
-                      s.getState().resetToEmpty()
+                  onClick={act(async () => {
+                    const ok = await s.getState().confirmAction({
+                      title: 'Clear all furniture',
+                      message: 'Remove every placed item? You can undo this with Ctrl/⌘+Z.',
+                      confirmLabel: 'Clear all',
+                      danger: true,
+                    })
+                    if (ok) s.getState().resetToEmpty()
                   })}
                 />
                 <div className="m-sub-h">Saved layouts</div>

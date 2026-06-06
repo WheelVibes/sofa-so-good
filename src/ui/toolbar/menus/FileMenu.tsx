@@ -84,17 +84,27 @@ export function FileMenu() {
         icon="Reset"
         label="Default"
         sub="Reset to the floor-plan default"
-        onClick={() => {
-          if (confirm('Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.'))
-            resetToDefault()
+        onClick={async () => {
+          const ok = await useStore.getState().confirmAction({
+            title: 'Reset to default',
+            message: 'Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.',
+            confirmLabel: 'Reset',
+          })
+          if (ok) resetToDefault()
         }}
       />
       <MenuItem
         icon="Reset"
         label="Empty"
         sub="Clear all furniture"
-        onClick={() => {
-          if (confirm('Clear all furniture? You can undo this with Ctrl/⌘+Z.')) resetToEmpty()
+        onClick={async () => {
+          const ok = await useStore.getState().confirmAction({
+            title: 'Clear all furniture',
+            message: 'Remove every placed item? You can undo this with Ctrl/⌘+Z.',
+            confirmLabel: 'Clear all',
+            danger: true,
+          })
+          if (ok) resetToEmpty()
         }}
       />
       {slots.length === 0 ? (

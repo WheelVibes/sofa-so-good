@@ -26,4 +26,16 @@ describe('promptSlice', () => {
     useStore.getState().resolvePrompt('done')
     await expect(second).resolves.toBe('done')
   })
+
+  it('confirmAction resolves true/false and clears the request', async () => {
+    const yes = useStore.getState().confirmAction({ title: 'Clear', message: 'Sure?' })
+    expect(useStore.getState().confirmRequest?.title).toBe('Clear')
+    useStore.getState().resolveConfirm(true)
+    await expect(yes).resolves.toBe(true)
+    expect(useStore.getState().confirmRequest).toBeNull()
+
+    const no = useStore.getState().confirmAction({ title: 'Reset', message: 'Sure?' })
+    useStore.getState().resolveConfirm(false)
+    await expect(no).resolves.toBe(false)
+  })
 })

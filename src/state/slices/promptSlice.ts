@@ -14,6 +14,15 @@ export interface PromptRequest {
   numeric?: boolean
 }
 
+/** A pending themed confirm request (replaces the blocking `window.confirm`). */
+export interface ConfirmRequest {
+  title: string
+  message: string
+  confirmLabel?: string
+  /** `danger` tints the confirm button red (destructive actions). */
+  danger?: boolean
+}
+
 export interface PromptSlice {
   /** The open prompt request, or null. Read by `<PromptModal>`. */
   textPrompt: PromptRequest | null
@@ -22,15 +31,24 @@ export interface PromptSlice {
   promptText: (req: PromptRequest) => Promise<string | null>
   /** Resolve the open prompt (called by the modal's OK / Cancel / close). */
   resolvePrompt: (value: string | null) => void
+  /** The open confirm request, or null. Read by `<ConfirmModal>`. */
+  confirmRequest: ConfirmRequest | null
+  /** Open a themed confirm; resolves true (confirmed) or false. Drop-in async
+   *  replacement for `window.confirm`. */
+  confirmAction: (req: ConfirmRequest) => Promise<boolean>
+  /** Resolve the open confirm (called by the modal's buttons / close). */
+  resolveConfirm: (ok: boolean) => void
 }
 
-export const PROMPT_INITIAL: Pick<PromptSlice, 'textPrompt'> = {
+export const PROMPT_INITIAL: Pick<PromptSlice, 'textPrompt' | 'confirmRequest'> = {
   textPrompt: null,
+  confirmRequest: null,
 }
 
-// The pending resolver lives outside the store (it's a transient callback, not
-// serialisable state). Only one prompt can be open at a time.
+// The pending resolvers live outside the store (transient callbacks, not
+// serialisable state). Only one prompt / one confirm can be open at a time.
 let pendingResolve: ((value: string | null) => void) | null = null
+let pendingConfirm: ((ok: boolean) => void) | null = null
 
 export const createPromptSlice: SliceCreator<PromptSlice, RootState> = (set) => ({
   ...PROMPT_INITIAL,
@@ -46,5 +64,17 @@ export const createPromptSlice: SliceCreator<PromptSlice, RootState> = (set) => 
     pendingResolve = null
     set({ textPrompt: null })
     resolve?.(value)
+  },
+  confirmAction: (req) =>
+    new Promise<boolean>((resolve) => {
+      if (pendingConfirm) pendingConfirm(false)
+      pendingConfirm = resolve
+      set({ confirmRequest: req })
+    }),
+  resolveConfirm: (ok) => {
+    const resolve = pendingConfirm
+    pendingConfirm = null
+    set({ confirmRequest: null })
+    resolve?.(ok)
   },
 })

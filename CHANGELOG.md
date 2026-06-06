@@ -52,6 +52,16 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [B11] Themed confirm modal replaces blocking window.confirm
+
+Completes the native-dialog cleanup: an async **`confirmAction`** store action +
+a focus-trapped **`ConfirmModal`** (Cancel focused as the safe default, Enter
+confirms, optional red `danger` button) now back the destructive "Reset to
+default" and "Clear all furniture" actions in both the desktop File menu and the
+mobile toolbar — no more unstyleable/iframe-blocked `window.confirm`. Resolve/
+supersede logic unit-tested; verified the modal renders themed with the danger
+button.
+
 ## [B10] Themed prompt modal replaces blocking window.prompt
 
 Finishes the native-dialog cleanup (B9): a reusable async **`promptText`** store

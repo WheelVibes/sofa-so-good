@@ -36,6 +36,7 @@ const FloorPlanEditor = lazy(() =>
   import('./ui/floorplan/FloorPlanEditor').then((m) => ({ default: m.FloorPlanEditor })),
 )
 
+import { ConfirmModal } from './ui/ConfirmModal'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
@@ -557,6 +558,7 @@ export default function App() {
         <Onboarding />
         <LocationPrompt />
         <PromptModal />
+        <ConfirmModal />
         {floorPlanEditing ? (
           <Suspense fallback={null}>
             <FloorPlanEditor />

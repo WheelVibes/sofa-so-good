@@ -48,6 +48,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] B10. Replaced every `window.prompt` name-entry with an async `promptText`
   store action + themed focus-trapped `PromptModal` (save layout/version/view/
   style, scale calibration, AI key). E2E-verified. (CHANGELOG)
+- [x] B11. Replaced `window.confirm` (reset-to-default / clear-all, desktop +
+  mobile) with an async `confirmAction` + themed `ConfirmModal` (danger button,
+  Cancel-default). Unit + E2E-verified. All native blocking dialogs now gone. (CHANGELOG)
 
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
 - [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.
