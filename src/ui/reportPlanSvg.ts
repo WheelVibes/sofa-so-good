@@ -13,6 +13,11 @@ const esc = (s: string) =>
  * the plan has no extent.
  */
 export function reportPlanSvg(plan: FloorPlan): string {
+  // Defensive: a malformed/partial plan (no extent or no walls) yields no
+  // diagram rather than throwing.
+  if (!Array.isArray(plan.extent) || !Array.isArray(plan.walls) || plan.walls.length === 0) {
+    return ''
+  }
   const [w, d] = planBounds(plan)
   if (!(w > 0.1 && d > 0.1)) return ''
   const pad = 0.4
