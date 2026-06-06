@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { itemPrice } from '../../furniture/furniturePrices'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { UploadModelDialog } from '../upload/UploadModelDialog'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
+import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
 import { fuzzySearch } from './fuzzySearch'
 import { LayersPanel } from './LayersPanel'
 import { PacksTab } from './PacksTab'
@@ -22,31 +22,6 @@ function gridItemText(it: GridItem): string[] {
   return it.kind === 'local'
     ? [it.def.name, ...(it.def.keywords ?? [])]
     : [it.entry.name, it.entry.slug, ...(it.entry.tags ?? [])]
-}
-
-type SortKey = 'default' | 'name' | 'size'
-const SORT_LABEL: Record<SortKey, string> = {
-  default: 'Featured',
-  name: 'Name (A–Z)',
-  size: 'Size (small→large)',
-}
-const cardName = (it: GridItem) => (it.kind === 'local' ? it.def.name : it.entry.name)
-/** Footprint area (m²) for local defs; remote CC0 entries carry no footprint so
- *  they sort last under a size sort. */
-const cardArea = (it: GridItem) =>
-  it.kind === 'local'
-    ? it.def.defaultFootprint.w * it.def.defaultFootprint.d
-    : Number.POSITIVE_INFINITY
-
-/** Sort a category listing. `default` preserves the curated order (built-ins
- *  first, then CC0). Returns a new array; never mutates the input. */
-function sortCards(cards: GridItem[], key: SortKey): GridItem[] {
-  if (key === 'default') return cards
-  const byName = (a: GridItem, b: GridItem) =>
-    cardName(a).localeCompare(cardName(b), undefined, { sensitivity: 'base' })
-  return [...cards].sort(
-    key === 'name' ? byName : (a, b) => cardArea(a) - cardArea(b) || byName(a, b),
-  )
 }
 
 // Remember the last browsed category + sort across reloads (per device), so a
@@ -127,13 +102,8 @@ export function CatalogDrawer() {
         ? unified.recent
         : sortCards(unified.byCategory[active] ?? [], sortBy)
   // Optional max-price filter — browse-only (its control lives in the browse
-  // sort row), so a stale cap can never silently filter search results. Local
-  // items above the cap drop; un-downloaded CC0 entries are free, so they pass.
-  const maxP = maxPrice.trim() === '' ? null : Number(maxPrice)
-  const allCards =
-    !q && maxP != null && Number.isFinite(maxP) && maxP >= 0
-      ? baseCards.filter((it) => it.kind === 'remote' || itemPrice(it.def, it.def.category) <= maxP)
-      : baseCards
+  // sort row), so a stale cap can never silently filter search results.
+  const allCards = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
