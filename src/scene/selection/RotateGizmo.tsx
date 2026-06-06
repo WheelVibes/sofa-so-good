@@ -73,7 +73,11 @@ export function RotateGizmo() {
   const activeDefId = useStore((s) => s.activeDefId)
   // Live selected (unlocked) items — re-renders when their transform changes.
   const selected = useStore(
-    useShallow((s) => s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)),
+    useShallow((s) =>
+      s.items.filter(
+        (i) => s.selectedItemIds.includes(i.id) && !i.locked && !s.hiddenItemIds.includes(i.id),
+      ),
+    ),
   )
 
   const ndc = useMemo(() => new Vector2(), [])

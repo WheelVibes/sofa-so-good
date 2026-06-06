@@ -102,7 +102,12 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
  */
 export function SelectionOutline() {
   const ids = useStore(useShallow((s) => s.selectedItemIds))
-  const items = useStore(useShallow((s) => s.items.filter((i) => s.selectedItemIds.includes(i.id))))
+  // Skip hidden items — no outline floating over a piece that isn't rendered.
+  const items = useStore(
+    useShallow((s) =>
+      s.items.filter((i) => s.selectedItemIds.includes(i.id) && !s.hiddenItemIds.includes(i.id)),
+    ),
+  )
   const draggingItemId = useStore((s) => s.draggingItemId)
   const dragGroupIds = useStore(useShallow((s) => s.dragGroupOriginals.map((g) => g.id)))
   const dragValid = useStore((s) => s.dragValid)

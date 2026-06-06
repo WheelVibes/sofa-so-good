@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q15c] No gizmo/outline over a hidden+selected item
+
+Polish for the hide feature: a piece that's both selected and hidden no longer
+shows its rotate gizmo or selection outline floating over the empty spot —
+`RotateGizmo` and `SelectionOutline` now skip hidden items. Verified.
+
 ## [Q18] "Centre in room" context action
 
 Right-click → **Centre in room** moves the piece to the centre of the room it's
