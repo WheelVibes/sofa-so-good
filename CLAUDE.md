@@ -232,8 +232,9 @@ rediscover it.
     warm-gradient confirm). Background-import progress shows in the bottom-left
     `NotificationContainer`.
 - `src/materials/` — finishes. `builtinCatalog.ts` (floors/walls), runtime
-  `procedural/` PBR generators (wood/tile/marble/carpet/concrete/terrazzo/
-  plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
+  `procedural/` PBR generators (wood/parquet/tile/marble/carpet/concrete/
+  terrazzo/plaster/stripe/grasscloth/checker/brick),
+  `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
   for furniture, plus `getSolidMaterial` for metal/plastic and the `mat:<id>`
   DLC-finish resolver), `worldUv.ts` (metre-space UVs so finishes tile
   consistently). `convert/` — **in-browser texture decode + re-encode** for
