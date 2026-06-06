@@ -244,6 +244,7 @@ export function MobileToolbar() {
       await LocalStorageAdapter.save(slot, serialize(s.getState()))
       saveThumb(slot, captureThumb())
       refreshSlots()
+      s.getState().notify.start({ title: `Saved layout “${slot}”`, kind: 'success' })
     } catch (e) {
       s.getState().notify.start({ title: `Could not save: ${(e as Error).message}`, kind: 'error' })
     }
@@ -257,6 +258,7 @@ export function MobileToolbar() {
     const userIds = s.getState().userFurniture.map((d) => d.id)
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
     s.setState(applySerialized(data, known))
+    s.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
   const deleteLayout = async (slot: string) => {
     await LocalStorageAdapter.delete(slot)

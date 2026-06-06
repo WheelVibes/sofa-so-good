@@ -39,6 +39,7 @@ export function FileMenu() {
       await LocalStorageAdapter.save(slot, serialize(useStore.getState()))
       saveThumb(slot, captureThumb())
       refresh()
+      useStore.getState().notify.start({ title: `Saved layout “${slot}”`, kind: 'success' })
     } catch (e) {
       useStore.getState().notify.start({
         title: `Could not save: ${(e as Error).message}`,
@@ -56,6 +57,7 @@ export function FileMenu() {
     const userIds = useStore.getState().userFurniture.map((d) => d.id)
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
     useStore.setState(applySerialized(data, known))
+    useStore.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
 
   return (
