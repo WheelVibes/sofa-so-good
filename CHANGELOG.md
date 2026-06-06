@@ -58,7 +58,11 @@ inches in imperial "24″ × 18″") and routed it through the inspector's
 footprint read-outs (parametric W×D×H + GLB/IKEA scale dimensions). The
 printable report's per-room + total areas now respect the unit preference
 (`buildReportHtml` takes an optional `UnitSystem`, passed from both the
-desktop Tools menu and the mobile toolbar). Formatter unit-tested.
+desktop Tools menu and the mobile toolbar) — as does the Swap-with-similar
+modal (current-item dimensions + the footprint-fit "+N cm/in" overflow badge).
+The snap-grid size label stays metric (an editing-grid setting, not a
+measurement read-out). Formatter unit-tested; the catalog-sort + budget-target
+panels were also verified on a 390 px mobile viewport.
 
 ## [N4b] Per-room ceiling height
 

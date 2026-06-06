@@ -3,19 +3,24 @@ import { useCatalog, useCatalogByCategory } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureDef } from '../furniture/types'
 import { useStore } from '../state/store'
+import { formatDimsShort, type UnitSystem } from '../utils/measurement'
 import { CategoryIcon } from './catalog/CategoryIcon'
 import { Modal } from './Modal'
 
-const cm = (m: number) => Math.round(m * 100)
-
 /** Footprint-fit verdict comparing an alternative to the piece it replaces. */
-function fitBadge(cur: FurnitureDef, alt: FurnitureDef): { label: string; cls: string } {
+function fitBadge(
+  cur: FurnitureDef,
+  alt: FurnitureDef,
+  units: UnitSystem,
+): { label: string; cls: string } {
   const dw = alt.defaultFootprint.w - cur.defaultFootprint.w
   const dd = alt.defaultFootprint.d - cur.defaultFootprint.d
   if (Math.abs(dw) < 0.03 && Math.abs(dd) < 0.03) return { label: 'Exact fit', cls: 'ok' }
   if (dw <= 0.05 && dd <= 0.05) return { label: 'Fits', cls: 'ok' }
-  const over = Math.round(Math.max(dw, dd) * 100)
-  return { label: `+${over} cm`, cls: 'warn' }
+  const overM = Math.max(dw, dd)
+  const over =
+    units === 'imperial' ? `${Math.round(overM / 0.0254)}″` : `${Math.round(overM * 100)} cm`
+  return { label: `+${over}`, cls: 'warn' }
 }
 
 /** Swap a placed item for a same-category alternative, keeping its position and
@@ -26,6 +31,7 @@ export function SwapModal() {
   const item = useStore((s) => s.items.find((i) => i.id === s.swapItemId) ?? null)
   const catalog = useCatalog()
   const byCategory = useCatalogByCategory()
+  const units = useStore((s) => s.units)
 
   const def = item ? catalog[item.defId] : null
 
@@ -59,8 +65,10 @@ export function SwapModal() {
         <div className="sc-meta">
           <div className="nm">{def.name}</div>
           <div className="dims mono">
-            {cm(def.defaultFootprint.w)} × {cm(def.defaultFootprint.d)} ×{' '}
-            {cm(def.defaultFootprint.h)} cm
+            {formatDimsShort(
+              [def.defaultFootprint.w, def.defaultFootprint.d, def.defaultFootprint.h],
+              units,
+            )}
           </div>
         </div>
         <span className="badge neutral">Replacing</span>
@@ -73,7 +81,7 @@ export function SwapModal() {
       ) : (
         <div className="swap-grid">
           {alternatives.map((alt) => {
-            const fit = fitBadge(def, alt)
+            const fit = fitBadge(def, alt, units)
             const price = itemPrice(alt, alt.category)
             return (
               <button type="button" key={alt.id} className="swap-card" onClick={() => swap(alt.id)}>
