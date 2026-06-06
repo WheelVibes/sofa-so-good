@@ -220,6 +220,7 @@ export function MobileToolbar() {
       hero,
       st.units,
       st.finishes,
+      st.designNote,
     )
     const win = window.open('', '_blank')
     if (!win) {

@@ -48,6 +48,7 @@ export function buildReportHtml(
   heroDataUrl: string | null,
   units: UnitSystem = 'metric',
   finishes?: ReportFinishes,
+  note?: string,
 ): string {
   // Finishes-by-room section: floor + wall material names per non-external room.
   // Material ids resolve to friendly names via the builtin catalog (DLC/custom
@@ -141,6 +142,7 @@ export function buildReportHtml(
   td.indent { padding-left: 12px; color: #4b5563; }
   .total { display: flex; justify-content: space-between; font-weight: 700; font-size: 15px; border-top: 2px solid #1f2937; margin-top: 8px; padding-top: 6px; }
   .subtotal { display: flex; justify-content: space-between; font-size: 12px; color: #6b7280; margin-top: 3px; }
+  .note { background: #f9fafb; border-left: 3px solid #d1d5db; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; color: #374151; white-space: pre-wrap; }
   .room-cost { margin-top: 24px; max-width: 360px; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   @media print { body { padding: 0; } .hero { max-height: 300px; } }
@@ -148,6 +150,7 @@ export function buildReportHtml(
 <body>
   <h1>${esc(plan.name)}</h1>
   <div class="sub">Interior design report · ${date} · ${items.length} furniture pieces</div>
+  ${note?.trim() ? `<div class="note">${esc(note.trim())}</div>` : ''}
   ${hero}
   <div class="cols">
     <div class="col">

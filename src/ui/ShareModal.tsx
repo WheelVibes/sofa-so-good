@@ -11,6 +11,8 @@ export function ShareModal() {
   const open = useStore((s) => s.shareOpen)
   const setOpen = useStore((s) => s.setShareOpen)
   const planName = useStore((s) => s.floorPlan.name)
+  const designNote = useStore((s) => s.designNote)
+  const setDesignNote = useStore((s) => s.setDesignNote)
 
   const link = `hdb.design/s/4rm-${planName
     .toLowerCase()
@@ -51,6 +53,21 @@ export function ShareModal() {
             Copy
           </button>
         </div>
+      </div>
+
+      <div className="sec">
+        <div className="sec-h">
+          <span>Project notes</span>
+        </div>
+        <textarea
+          value={designNote}
+          onChange={(e) => setDesignNote(e.target.value)}
+          placeholder="A brief, client preferences, a to-do… saved with the design and shown in the report."
+          rows={3}
+          className="input"
+          style={{ width: '100%', resize: 'vertical', minHeight: 56, lineHeight: 1.4 }}
+          aria-label="Project notes"
+        />
       </div>
 
       <div className="sec">

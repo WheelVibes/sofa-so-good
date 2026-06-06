@@ -181,6 +181,18 @@ describe('schema', () => {
     expect(patch.hiddenItemIds).toEqual([])
   })
 
+  it('round-trips a project design note', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setDesignNote('Client wants warm tones; keep the sofa.')
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.designNote).toBe('Client wants warm tones; keep the sofa.')
+    }
+  })
+
   it('applySerialized drops items with non-finite position/rotation', () => {
     const known = new Set(['bed-double'])
     const saved = {

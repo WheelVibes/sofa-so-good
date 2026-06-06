@@ -189,6 +189,8 @@ const RawSerializedStateZ = z.object({
     .optional()
     .default(null),
   locationPromptDismissed: z.boolean().optional().default(false),
+  // Free-text project note that travels with the design (optional, back-compat).
+  note: z.string().optional(),
   savedAt: z.string(),
 })
 
@@ -304,6 +306,7 @@ export function serialize(state: RootState): SerializedState {
     orientationDeg: state.orientationDeg,
     location: state.location,
     locationPromptDismissed: state.locationPromptDismissed,
+    ...(state.designNote ? { note: state.designNote } : {}),
     savedAt: new Date().toISOString(),
   }
 }
@@ -353,5 +356,6 @@ export function applySerialized(
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,
     locationPromptDismissed: state.locationPromptDismissed ?? false,
+    designNote: state.note ?? '',
   }
 }

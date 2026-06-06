@@ -89,6 +89,15 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [Q38] Project / design notes
+
+A free-text **project note** that travels with the design (a brief, client
+preferences, a to-do…): edited in a "Project notes" textarea in the Share modal,
+**saved with the design** (new `projectSlice.designNote`, round-tripped through
+`schema.ts` as an optional `note`), and surfaced (HTML-escaped) at the top of the
+printable **report**. Round-trip + report rendering unit-tested; verified the
+textarea renders + persists.
+
 ## [Q7a] Empty-state hint for saved camera views
 
 Small inline-help polish: the View menu's Saved-views section showed nothing when

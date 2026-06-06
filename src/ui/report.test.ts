@@ -43,6 +43,22 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('Finishes by room')
   })
 
+  it('includes + escapes a project note when supplied', () => {
+    const html = buildReportHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      'Warm <tones>',
+    )
+    expect(html).toContain('class="note"')
+    expect(html).toContain('Warm &lt;tones&gt;')
+    const none = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(none).not.toContain('class="note"')
+  })
+
   it('omits the per-area figure with no furniture', () => {
     const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
     expect(html).not.toMatch(/Furnishing per/)

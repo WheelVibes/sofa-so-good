@@ -90,6 +90,7 @@ export function ToolsMenu() {
       hero,
       s.units,
       s.finishes,
+      s.designNote,
     )
     const win = window.open('', '_blank')
     if (!win) {
