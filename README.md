@@ -30,8 +30,10 @@ export the result — all in the browser.
   **Tidy up** auto-arranger that follows real interior-design clearances.
 - **Realistic materials** — procedurally generated PBR finishes (floors incl.
   oak/walnut/teak planks, **basketweave parquet**, white/grey/charcoal porcelain,
-  marble, terrazzo, carpet, concrete; 10 wall paints) plus fabric and wood-grain
-  on furniture and a polished-granite worktop. Per-room floor and wall finishes.
+  marble, terrazzo, carpet, concrete; wall paints, wallpapers, **exposed brick**
+  and **microcement/concrete** accent walls) plus fabric and wood-grain on
+  furniture and a polished-granite worktop. Per-room floor and wall finishes,
+  with one-click **"apply to all rooms"**.
   Free textures/models can also be fetched in-app: the **Poly Pizza** pack
   (paste a free API key in the Packs tab → search + download 10,000+ CC0/CC-BY
   models, works on the published site) and the Poly Haven remote catalog
@@ -61,12 +63,13 @@ export the result — all in the browser.
   lightweight — locked to the fast Performance renderer with full-resolution
   models, and skips all the time-of-day/sun/shadow machinery.
 - **Editing** — drag to place (with optional **snap-to-grid** and alignment
-  guides), move, rotate, mirror, multi-select with align/distribute, **group**
-  (move/rotate as a unit, click again to edit one piece), lock,
-  copy/duplicate, numeric position/rotation, **apply one item's style to all of
-  its type** (right-click), undo/redo, save/load named layouts
-  (with thumbnails), **export/import a design as a portable `.sofa.json` file**,
-  and PNG export. A **Recent** row in the catalog re-surfaces what you just placed.
+  guides), move, rotate, mirror, **select-all (⌘A)**, multi-select with
+  align/distribute, **group** (move/rotate as a unit, click again to edit one
+  piece), lock, copy/duplicate, **duplicate a row of N**, **apply one item's
+  style to all of its type** (right-click), **reset props to defaults**, numeric
+  position/rotation, undo/redo, save/load named layouts (with thumbnails),
+  **export/import a design as a portable `.sofa.json` file**, and PNG export. A
+  **Recent** row in the catalog re-surfaces what you just placed.
 - **Saved camera views** — bookmark a favourite angle of the flat from the
   **View** menu and smoothly fly back to it any time (desktop + mobile).
 - **Streamlined toolbar** — a compact, scrollable **icon island**: frequent
@@ -181,7 +184,7 @@ it stays cool and battery-friendly on low-end laptops.
 
 `drag` orbit · `scroll` zoom · `click` select / open doors · `⌘K` command
 palette · `right-click` context menu · `R` rotate · `Del` delete ·
-`⌃Z`/`⇧⌃Z` undo/redo · `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate · `C` catalog ·
+`⌃Z`/`⇧⌃Z` undo/redo · `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate · `⌃A` select all · `C` catalog ·
 `M` measurements · `T` cycle time · `O` top view · `H` reset view · `L` tidy ·
 `P` 2D⇄3D floor plan · `?` help · `V` orbit/walk · in walk: `WASD` move, `E` doors.
 
