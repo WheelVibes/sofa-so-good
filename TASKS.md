@@ -256,3 +256,15 @@ Remaining (larger / focused-session):
 - [ ] K1. Parametric kitchen/bath **cabinet-run engine** (Coohom parity).
 - [ ] RE2/L1. Shadowed inter-room light bleed (conflicts with the deliberate
   no-shadow fixture-light perf design — needs a perf-aware approach).
+
+## Session 2 (cont.) — shipped
+- [x] N20. **Lighting mood presets** (Daylight/Golden hour/Cosy evening/Night) —
+  bundle sun-time + fixture mode; Scene menu (desktop) + mobile accordion + ⌘K.
+  Modular `lightingScenes.ts`, unit-tested, E2E-verified. (CHANGELOG)
+- [x] Q43/Q43b. **Multi-select duplicate** (Ctrl+D + panel button), pure
+  `planDuplicates` helper, unit-tested. (CHANGELOG)
+- [x] B15–B17, B9–B11. Undo for plan edits; copy/paste flip preservation;
+  onboarding consistency; all native dialogs → themed modals/toasts. (CHANGELOG)
+- [x] V1, Q41, Q42. Version compare; 2D plan SVG in report; version count-delta.
+- [x] Confirmed-existing (verified, not stubs): catalog price filter, sun-study
+  "play day" time-lapse, multi-select delete/rotate/flip/nudge, Help shortcuts.
