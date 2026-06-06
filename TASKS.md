@@ -36,7 +36,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
 - [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.
 - [x] Q2. **Recently used / recently placed** catalog row (clock chip, persisted). (CHANGELOG)
-- [ ] Q3. **Drag-from-catalog-to-scene** placement (if not present) or improve placement ghost UX.
+- [x] Q3. **Drag-and-drop placement** from catalog cards into the scene (desktop; reuses the ghost/validity pipeline; tap-to-place stays for touch). E2E-verified. (CHANGELOG)
 - [x] Q4. **`?` opens Help & shortcuts** — wired the advertised-but-missing global binding. (CHANGELOG)
 - [x] Q5. **Wall-length labels** on the 2D plan (+ Dims toggle). (CHANGELOG)
 - [x] Q6. **Camera bookmarks / saved views** — save/apply (smooth fly)/delete, desktop View menu + mobile parity, persisted. (CHANGELOG)

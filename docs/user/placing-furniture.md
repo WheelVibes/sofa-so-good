@@ -19,14 +19,19 @@ the list).
 
 ## Placing a piece
 
-1. Drag a card from the catalog onto the floor.
-2. While dragging, press <kbd>R</kbd> to rotate (90°; hold <kbd>Shift</kbd> for
-   15° steps).
-3. Release to drop. The piece snaps to the grid and won't overlap other items or
-   push through walls.
+Two ways, whichever feels natural:
 
-As you drag, **alignment guides** snap the piece to other items' centres and
-edges, and a readout shows the gap to the nearest wall.
+- **Drag & drop** (desktop): drag a card straight from the catalog onto the
+  floor and release where you want it.
+- **Tap to place** (works everywhere, incl. touch): tap a card to pick it up — a
+  preview follows your cursor — then tap the floor to drop it. Tap the same card
+  again, right‑click, or press <kbd>Esc</kbd> to cancel.
+
+Either way the preview turns **red** where it can't go (overlapping another piece
+or a wall) and **green** where it fits — it only drops on a green spot, snaps to
+the grid, and won't push through walls. As you position it, **alignment guides**
+snap to other items' centres and edges, it can sit **flush against a nearby
+wall**, and a readout shows the gap to the nearest wall.
 
 ## Editing a placed piece
 

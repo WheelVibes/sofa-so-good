@@ -24,6 +24,18 @@ exists), selecting every item sharing the def so you can move/rotate/delete or
 bulk-edit them together via the multi-select panel. Verified in the harness
 (selecting one of three nightstands → all 3 selected).
 
+## [Q3] Drag-and-drop placement from the catalog (desktop)
+
+Catalog cards are now **draggable straight into the 3D scene** (the headline
+placement interaction in Planner5D/Coohom/Roomstyler). `onDragStart` arms
+placement, `dragover` drives the live ghost (the same preview + red/green
+validity the tap-to-place flow uses), and the drop commits at the ghost position
+— declining + disarming on an invalid spot or a drop outside the canvas. It
+**reuses the entire existing placement pipeline** (no parallel commit path);
+the tap-to-place flow stays as the touch/fallback path (HTML5 drag is desktop
+only). Verified end-to-end: a valid drop adds the item (66→67), an invalid one
+declines.
+
 ## [Q15] Per-item hide/show (declutter) in the Layers panel
 
 A working-view convenience competitors offer: each row in the **Layers** (Objects)

@@ -61,15 +61,48 @@ export function usePlacementController() {
       if (ev.code === 'Escape') useStore.getState().cancelPlacement()
     }
 
+    // HTML5 drag-and-drop from a catalog card (desktop): dragging arms placement
+    // (onDragStart on the card), so this effect is live during the drag. Pointer
+    // events are suppressed mid-drag, so the ghost is driven by dragover here,
+    // and the drop commits using the same ghostWorld/ghostValid the click path
+    // uses — reusing the entire preview + validity pipeline.
+    const onDragOver = (ev: DragEvent) => {
+      // Allow dropping on the canvas and keep the ghost following the cursor.
+      ev.preventDefault()
+      if (ev.dataTransfer) ev.dataTransfer.dropEffect = 'copy'
+      useStore.getState().setCursor({ x: ev.clientX, y: ev.clientY })
+    }
+    const onDrop = (ev: DragEvent) => {
+      ev.preventDefault()
+      if (!(ev.target instanceof HTMLCanvasElement)) {
+        useStore.getState().cancelPlacement()
+        return
+      }
+      const { ghostWorld, ghostValid, addItem, cancelPlacement } = useStore.getState()
+      if (ghostWorld && ghostValid) {
+        addItem({
+          defId: def.id,
+          position: ghostWorld,
+          rotation: def.defaultRotation ?? 0,
+          props: defaultProps(def),
+        })
+      }
+      cancelPlacement()
+    }
+
     window.addEventListener('pointermove', onMove)
     window.addEventListener('click', onClick, true)
     window.addEventListener('contextmenu', onContext)
     window.addEventListener('keydown', onKey)
+    window.addEventListener('dragover', onDragOver)
+    window.addEventListener('drop', onDrop)
     return () => {
       window.removeEventListener('pointermove', onMove)
       window.removeEventListener('click', onClick, true)
       window.removeEventListener('contextmenu', onContext)
       window.removeEventListener('keydown', onKey)
+      window.removeEventListener('dragover', onDragOver)
+      window.removeEventListener('drop', onDrop)
     }
   }, [activeDefId, catalog])
 }

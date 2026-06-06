@@ -30,6 +30,21 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
           onClick()
         }
       }}
+      // Desktop drag-and-drop placement: dragging arms placement (the ghost then
+      // follows the cursor onto the scene) and the drop commits. Click-to-arm
+      // stays as the touch/fallback path.
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'copy'
+        e.dataTransfer.setData('text/plain', def.id)
+        const s = useStore.getState()
+        s.setActiveDefId(def.id)
+        s.setCursor({ x: e.clientX, y: e.clientY })
+      }}
+      onDragEnd={() => {
+        // If the drop didn't land on the canvas (still armed), disarm.
+        if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
+      }}
       className="cat-card group"
     >
       <button
