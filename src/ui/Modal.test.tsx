@@ -31,4 +31,38 @@ describe('Modal accessibility', () => {
     )
     expect(document.activeElement).toBe(screen.getByRole('dialog'))
   })
+
+  it('traps Tab within the dialog (wraps from last to first)', () => {
+    render(
+      <Modal open onClose={() => {}} title="Trap">
+        <button type="button">first</button>
+        <button type="button">last</button>
+      </Modal>,
+    )
+    // The close button (X) is the first focusable; our two buttons follow.
+    const last = screen.getByRole('button', { name: 'last' })
+    last.focus()
+    expect(document.activeElement).toBe(last)
+    const evt = new KeyboardEvent('keydown', { key: 'Tab', bubbles: true })
+    window.dispatchEvent(evt)
+    // Focus wraps to the first focusable (the Close button), not out of the modal.
+    expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true)
+  })
+
+  it('closes on Escape', () => {
+    let closed = false
+    render(
+      <Modal
+        open
+        onClose={() => {
+          closed = true
+        }}
+        title="Esc"
+      >
+        <p>body</p>
+      </Modal>,
+    )
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+    expect(closed).toBe(true)
+  })
 })

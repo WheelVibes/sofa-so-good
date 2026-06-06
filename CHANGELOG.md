@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [A2] Modal focus trap
+
+Completes the Modal accessibility story (A1): Tab / Shift+Tab now cycle within
+the dialog instead of escaping to the inert background, wrapping at the first/last
+focusable element (and falling back to the panel when there are none). Esc-close
+and the dialog role/focus behaviour are unchanged. Unit-tested.
+
 ## [RE4] Exposed-brick accent wall finishes
 
 Exposed brick is a staple of interior-design tools and was missing. Added a

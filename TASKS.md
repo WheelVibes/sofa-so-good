@@ -59,3 +59,5 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 
 ## Accessibility
 - [x] A1. Modal dialog role + aria-modal + aria-label + focus-in/restore (shared primitive). (CHANGELOG)
+- [x] A2. Modal focus trap (Tab/Shift+Tab cycle within the dialog). (CHANGELOG)
+- [x] Q7. Empty states — verified BudgetPanel/LayersPanel/VersionsPanel already have them.
