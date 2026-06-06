@@ -43,6 +43,11 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] B8. Loading/restoring a design left stale selection + hidden ids —
   `applySerialized` now resets both (covers restore/import/hydrate). Unit-tested. (CHANGELOG)
 
+- [x] B9. Replaced blocking `window.alert` error dialogs (save/load failures,
+  AI plan failure) with themed `notify` toasts. E2E-verified. Follow-up: the
+  `prompt()` name-entry dialogs (save/view/style names, scale, AI key) → themed
+  input modal.
+
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
 - [x] Q1. **Duplicate (Ctrl/Cmd+D)** — already fully wired (keyboard + context menu + inspector). No work needed.
 - [x] Q2. **Recently used / recently placed** catalog row (clock chip, persisted). (CHANGELOG)

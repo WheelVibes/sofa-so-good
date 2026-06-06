@@ -35,14 +35,17 @@ export function FileMenu() {
       saveThumb(slot, captureThumb())
       refresh()
     } catch (e) {
-      alert(`Could not save: ${(e as Error).message}`)
+      useStore.getState().notify.start({
+        title: `Could not save: ${(e as Error).message}`,
+        kind: 'error',
+      })
     }
   }
 
   const load = async (slot: string) => {
     const data = await LocalStorageAdapter.load(slot).catch(() => null)
     if (!data) {
-      alert(`Could not load slot ${slot}`)
+      useStore.getState().notify.start({ title: `Could not load slot ${slot}`, kind: 'error' })
       return
     }
     const userIds = useStore.getState().userFurniture.map((d) => d.id)

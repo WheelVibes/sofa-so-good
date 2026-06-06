@@ -52,6 +52,15 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [B9] Replace blocking native alerts with themed toasts
+
+Three error paths used `window.alert(...)` — unstyleable, blocking, and silently
+broken in sandboxed embeds (a real commercial-deploy hazard). The save-failure
+and load-failure errors (File menu) and the AI floor-plan-recognition failure
+now surface through the existing themed `notify` toast system (`kind: 'error'`)
+instead. Verified the error toast renders bottom-docked and on-brand. (The
+remaining `prompt()` name-entry dialogs are a separate, larger follow-up.)
+
 ## [P4] Layers panel: stop recomputing room shells on every drag
 
 The Objects tree grouped items by room by recomputing all per-room wall-clipped

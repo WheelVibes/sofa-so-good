@@ -203,7 +203,10 @@ export function FloorPlanEditor() {
         kind: 'success',
       })
     } catch (e) {
-      window.alert(e instanceof AiPlanError ? e.message : 'AI floor-plan recognition failed.')
+      useStore.getState().notify.start({
+        title: e instanceof AiPlanError ? e.message : 'AI floor-plan recognition failed.',
+        kind: 'error',
+      })
     } finally {
       setAiBusy(false)
     }
