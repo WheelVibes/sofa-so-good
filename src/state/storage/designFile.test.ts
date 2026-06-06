@@ -1,11 +1,16 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { serialize } from '../schema'
 import { useStore } from '../store'
-import { DesignFileError, exportDesignToFile, importDesignFromFile } from './designFile'
+import {
+  DesignFileError,
+  exportDesignToFile,
+  importDesignFromFile,
+  MAX_DESIGN_FILE_BYTES,
+} from './designFile'
 
-/** Minimal File polyfill for jsdom: only `.text()` is exercised. */
-function fileOf(content: string): File {
-  return { text: async () => content } as unknown as File
+/** Minimal File polyfill for jsdom: `.text()` + an optional reported `.size`. */
+function fileOf(content: string, size?: number): File {
+  return { text: async () => content, size: size ?? content.length } as unknown as File
 }
 
 describe('designFile import', () => {
@@ -30,6 +35,19 @@ describe('designFile import', () => {
     await expect(importDesignFromFile(fileOf('{"hello":"world"}'))).rejects.toBeInstanceOf(
       DesignFileError,
     )
+  })
+
+  it('rejects an oversized file before reading it', async () => {
+    let read = false
+    const huge = {
+      size: MAX_DESIGN_FILE_BYTES + 1,
+      text: async () => {
+        read = true
+        return '{}'
+      },
+    } as unknown as File
+    await expect(importDesignFromFile(huge)).rejects.toBeInstanceOf(DesignFileError)
+    expect(read).toBe(false) // guarded before the read
   })
 })
 

@@ -40,6 +40,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] S1. BYO-key audit done (keys localStorage-only, not logged/in-schema) + Replicate poll-URL host guard against key exfiltration. (CHANGELOG)
 - [x] S2. Verified: GLB upload validation enforces 25MB cap + glTF magic bytes + rejects external-URI glTF (SSRF) — covered by validate.test.ts. No change needed.
 - [x] S3. Dev-gating audit — verified: `visiblePacks`/`activeProviderIds`/`PROD_PROVIDER_IDS` gate all licensed/non-CORS sources out of prod; already covered by registry.test.ts + integration.test.tsx. No leak.
+- [x] S4. **`.sofa.json` import size cap** (50 MB, checked before reading) — DoS guard on design-file import. Unit-tested. (CHANGELOG)
 
 ## TODO.md clearable
 - [ ] T1. Curated "furniture materials" one-tap finish shortlist (oak/walnut/teak/marble).

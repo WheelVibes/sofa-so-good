@@ -13,6 +13,12 @@ import { migrate } from './migrations'
 
 export const DESIGN_FILE_EXT = '.sofa.json'
 
+/** Hard cap on an imported design file. Designs are JSON — even thousands of
+ *  items with user/IKEA defs serialize to a few MB — so 50 MB is generously
+ *  above any real design while still refusing a pathological/oversized file
+ *  before we read it into memory (a cheap DoS guard). */
+export const MAX_DESIGN_FILE_BYTES = 50 * 1024 * 1024
+
 /** Serialize the current state and trigger a browser download. */
 export function exportDesignToFile(state: RootState, name = 'my-design'): void {
   const payload = serialize(state)
@@ -42,6 +48,11 @@ export class DesignFileError extends Error {}
  * mismatch. Returns the validated, migrated {@link SerializedState}.
  */
 export async function importDesignFromFile(file: File): Promise<SerializedState> {
+  if (file.size > MAX_DESIGN_FILE_BYTES) {
+    throw new DesignFileError(
+      `That file is too large (limit ${Math.round(MAX_DESIGN_FILE_BYTES / (1024 * 1024))} MB) — is it a Sofa design export?`,
+    )
+  }
   let text: string
   try {
     text = await file.text()

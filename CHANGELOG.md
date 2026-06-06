@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [S4] Size cap on `.sofa.json` design import (DoS guard)
+
+`importDesignFromFile` validated content (JSON parse → migrate → zod) but read
+any file fully into memory first — a multi-GB or pathological file would block
+the tab before validation. Added a **50 MB cap** (`MAX_DESIGN_FILE_BYTES`,
+generously above any real design) checked **before** `file.text()`, throwing the
+same friendly `DesignFileError`. Unit-tested (rejects oversized without reading).
+
 ## [N3+] Rotate gizmo extended to multi-selection (group rotate)
 
 Generalised the rotate gizmo into one unified gesture over a *target set*: a
