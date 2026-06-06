@@ -89,6 +89,18 @@ fixture lights, and the new RE1 window-glass tint change live. Bound to the
 clamped `setManualHour`; closes-safe (stops propagation). Verified it renders +
 scrubs.
 
+## [B15] Floor-plan edits are now undoable
+
+Real gap: the undo/redo history snapshot excluded `floorPlan` and the plan
+actions never pushed history, so drawing/moving/deleting walls, rooms and
+openings in the 2D editor couldn't be undone (Ctrl+Z silently did nothing for
+plan edits). Added `floorPlan` to the `HistorySnapshot` and wired `pushHistory`
+into every granular plan mutation — discrete ops (add/remove wall·room·opening,
+split) push a step; drag/typing streams (move-vertex, update wall·room·opening,
+ceiling height) coalesce into one. The existing global Ctrl+Z/Ctrl+Y now restore
+the shell too. Snapshots hold the plan by reference (immutably replaced, so no
+clone cost). Unit-tested (add-wall undo/redo, remove-room undo).
+
 ## [V1] Version compare — per-version diff vs the current design
 
 Each saved version now has a **Compare** toggle showing exactly how it differs

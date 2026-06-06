@@ -1,3 +1,4 @@
+import type { FloorPlan } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { DoorState } from './doorsSlice'
@@ -16,6 +17,8 @@ export interface HistorySnapshot {
   items: FurnitureItem[]
   doors: Record<string, DoorState>
   finishes: FinishesSlice['finishes']
+  /** The apartment shell, so drawing/editing the plan is undoable too. */
+  floorPlan: FloorPlan
 }
 
 export interface HistorySlice {
@@ -37,7 +40,7 @@ export interface HistorySlice {
 }
 
 function snapshot(s: RootState): HistorySnapshot {
-  return { items: s.items, doors: s.doors, finishes: s.finishes }
+  return { items: s.items, doors: s.doors, finishes: s.finishes, floorPlan: s.floorPlan }
 }
 
 function appendCapped(stack: HistorySnapshot[], snap: HistorySnapshot): HistorySnapshot[] {
