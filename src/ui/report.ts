@@ -3,11 +3,13 @@
  * total, a furniture shopping list with an approximate budget, and a hero
  * render. Opened in a new window so the user can print / save as PDF.
  */
+import { ROOMS } from '../apartment/constants'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
+import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import { formatArea, type UnitSystem } from '../utils/measurement'
 import { furnitureCostByRoom } from './reportData'
 
@@ -33,13 +35,34 @@ const esc = (s: string) =>
   s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
 const sgd = (n: number) => `$${Math.round(n).toLocaleString('en-SG')}`
 
+/** Per-room floor + wall finish material ids (the store's `finishes` slice). */
+export interface ReportFinishes {
+  floor: Record<string, string>
+  walls: Record<string, string>
+}
+
 export function buildReportHtml(
   plan: FloorPlan,
   items: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
   heroDataUrl: string | null,
   units: UnitSystem = 'metric',
+  finishes?: ReportFinishes,
 ): string {
+  // Finishes-by-room section: floor + wall material names per non-external room.
+  // Material ids resolve to friendly names via the builtin catalog (DLC/custom
+  // ids fall back to the raw id). Only rendered when finishes are supplied.
+  const matName = (id: string | undefined): string =>
+    id ? (BUILTIN_MATERIALS[id]?.name ?? id) : '—'
+  const finishRows = finishes
+    ? (Object.keys(ROOMS) as (keyof typeof ROOMS)[])
+        .filter((id) => !ROOMS[id].external)
+        .map(
+          (id) =>
+            `<tr><td>${esc(ROOMS[id].name)}</td><td>${esc(matName(finishes.floor[id]))}</td><td>${esc(matName(finishes.walls[id]))}</td></tr>`,
+        )
+        .join('')
+    : ''
   // Rooms (skip external ledges with ~0 interior use are still listed).
   const roomRows = plan.rooms
     .map(
@@ -150,6 +173,14 @@ export function buildReportHtml(
       ? `<div class="room-cost">
       <h2>Cost by room</h2>
       <table><tr class="cat"><td>Room</td><td class="num">Items</td><td class="num">Estimated</td></tr>${roomCostRows}</table>
+    </div>`
+      : ''
+  }
+  ${
+    finishRows
+      ? `<div class="room-cost">
+      <h2>Finishes by room</h2>
+      <table><tr class="cat"><td>Room</td><td>Floor</td><td>Walls</td></tr>${finishRows}</table>
     </div>`
       : ''
   }

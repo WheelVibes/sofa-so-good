@@ -28,6 +28,21 @@ describe('buildReportHtml', () => {
     expect(imperial).toMatch(/Furnishing per ft²/)
   })
 
+  it('renders a Finishes-by-room section when finishes are supplied', () => {
+    const finishes = {
+      floor: { livingDining: 'floor-wood-oak' },
+      walls: { livingDining: 'wall-paint-white' },
+    }
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', finishes)
+    expect(html).toContain('Finishes by room')
+    expect(html).toMatch(/Oak|oak/) // the resolved floor material name
+  })
+
+  it('omits the Finishes section when no finishes are supplied', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Finishes by room')
+  })
+
   it('omits the per-area figure with no furniture', () => {
     const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
     expect(html).not.toMatch(/Furnishing per/)

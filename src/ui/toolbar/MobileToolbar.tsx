@@ -213,7 +213,14 @@ export function MobileToolbar() {
     } catch {
       hero = null
     }
-    const html = buildReportHtml(st.floorPlan, st.items, buildMergedCatalog(st), hero, st.units)
+    const html = buildReportHtml(
+      st.floorPlan,
+      st.items,
+      buildMergedCatalog(st),
+      hero,
+      st.units,
+      st.finishes,
+    )
     const win = window.open('', '_blank')
     if (!win) {
       st.notify.start({

@@ -66,6 +66,14 @@ A grep audit found the mobile toolbar's File handlers still used `prompt`/`alert
 `notify` toasts too. Confirmed **zero** `window.prompt/alert/confirm` remain in
 app code (only doc comments reference them).
 
+## [Q37] "Finishes by room" section in the report
+
+The printable design report now lists each room's **floor + wall finish** (a
+spec a contractor/renovator needs). Material ids resolve to friendly names via
+the builtin catalog (DLC/custom ids fall back to the id); the section is omitted
+when finishes aren't supplied (back-compat). `buildReportHtml` gained an optional
+`finishes` arg, passed from the desktop Tools menu + mobile toolbar. Unit-tested.
+
 ## [Q36] Cost-per-area in the printable report
 
 The design report now shows a **"Furnishing per m²/ft²"** figure (estimated

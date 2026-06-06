@@ -83,7 +83,14 @@ export function ToolsMenu() {
     } catch {
       hero = null // tainted canvas — skip the image
     }
-    const html = buildReportHtml(s.floorPlan, s.items, buildMergedCatalog(s), hero, s.units)
+    const html = buildReportHtml(
+      s.floorPlan,
+      s.items,
+      buildMergedCatalog(s),
+      hero,
+      s.units,
+      s.finishes,
+    )
     const win = window.open('', '_blank')
     if (!win) {
       // Pop-up blocked — tell the user instead of failing silently.
