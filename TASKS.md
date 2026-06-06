@@ -74,6 +74,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   needed.
 - [x] Q10. **Per-room cost breakdown** in the printable report (pure
   `reportData.furnitureCostByRoom`, unit-tested). (CHANGELOG)
+- [x] Q11. **Flush-to-wall drag snapping** (`collision/wallSnap.ts`, corner-
+  capable, grid-gated, door-aware). Unit-tested + E2E-verified. (CHANGELOG)
 
 ## Researched backlog (next iterations — competitor parity / polish)
 - [x] N1. **Apply finish to all rooms** — setAll{Floor,Wall}Finish + FinishPicker buttons. (CHANGELOG)

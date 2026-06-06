@@ -79,6 +79,14 @@ everything in the flat, **grouped by room**. From here you can **select**,
 **lock**, or **delete** any piece without hunting for it in the 3D view — handy
 once the flat is full.
 
+## Snapping to walls & other pieces
+
+While you drag a single piece it **snaps flush to a nearby wall** when its edge
+comes within ~12 cm — drag a wardrobe toward a corner and it sits neatly against
+both walls. It also lines up with other pieces' edges and centres (magenta
+guides). Turn on the **snap grid** (below) if you'd rather place to exact grid
+points instead — that takes over from wall snapping.
+
 ## Snap grid
 
 Toggle the snap grid and cycle its size (10 / 25 / 50 cm, 1 m) from the toolbar.

@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { nearestWallGap } from '../collision/clearanceGap'
 import { canPlace, itemFootprint } from '../collision/placement'
+import { wallSnapOffset } from '../collision/wallSnap'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { isIkeaDef, useCatalogGetter } from '../furniture/catalog'
@@ -179,6 +180,22 @@ export function DragController() {
           if (sz) {
             next = [next[0], sz.center]
             guides.push({ axis: 'z', value: sz.guide })
+          }
+          // Flush-to-wall snap (corner-capable). Skipped when grid-snap is on —
+          // that's a deliberate precise mode the user shouldn't have overridden.
+          if (!state.snapEnabled) {
+            const wallsForSnap = isDefaultPlan(state.floorPlan)
+              ? buildCollisionWalls(state.doors)
+              : planCollisionWalls(state.floorPlan, state.doors)
+            const box = {
+              x0: next[0] - dh[0],
+              z0: next[1] - dh[1],
+              x1: next[0] + dh[0],
+              z1: next[1] + dh[1],
+            }
+            const ws = wallSnapOffset(box, wallsForSnap)
+            if (ws.dx) next = [next[0] + ws.dx, next[1]]
+            if (ws.dz) next = [next[0], next[1] + ws.dz]
           }
         }
       }

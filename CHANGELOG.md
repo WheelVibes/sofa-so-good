@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q11] Flush-to-wall snapping while dragging
+
+A hallmark of pro planners (Planner5D/Coohom): furniture dragged near a wall now
+**snaps flush** to it. New pure `collision/wallSnap.ts` (`wallSnapOffset`)
+computes the per-axis offset to seat a footprint AABB against the nearest wall
+face within ~12 cm — independently on X and Z, so dragging into a corner snaps to
+both walls at once. Wired into `DragController`'s single-item drag after the
+existing item-alignment snap, gated off when grid-snap is on (a deliberate
+precise mode) and skipped for group drags. Uses the same door-aware collision
+walls (won't snap across a doorway). Unit-tested (5 cases: face sides, radius
+cutoff, corner, out-of-span, nearest-of-many) + verified end-to-end (a nightstand
+dragged toward the bedroom wall lands flush, left edge on the wall face).
+
 ## [Q10] Per-room cost breakdown in the design report
 
 The printable report grouped furniture only by category, so a client couldn't

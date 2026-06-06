@@ -641,8 +641,10 @@ rediscover it.
   `gridSize`): drag + initial placement quantise to a customizable grid
   (10/25/50 cm, 1 m); the floor overlay shows it. Persisted via `editorPrefs`.
 - **Drag aids**: `DragController` snaps a single drag to other items' centres/
-  edges (magenta `AlignmentGuides`) and shows the nearest-wall gap (`DragHud`
-  via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
+  edges (magenta `AlignmentGuides`), **snaps the footprint flush to a nearby
+  wall** (`collision/wallSnap.ts` `wallSnapOffset` — corner-capable, within
+  ~12 cm, gated off when grid-snap is on), and shows the nearest-wall gap
+  (`DragHud` via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
 - **Rotate gizmo** (`scene/selection/RotateGizmo.tsx` + pure
   `rotateGizmoMath.ts`): a touch-friendly floor ring + knob drawn around the
   **selection** (orbit camera + **select** tool, unlocked, not mid-drag). One
