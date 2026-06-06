@@ -79,7 +79,15 @@ export function ToolsMenu() {
     }
     const html = buildReportHtml(s.floorPlan, s.items, buildMergedCatalog(s), hero)
     const win = window.open('', '_blank')
-    if (!win) return
+    if (!win) {
+      // Pop-up blocked — tell the user instead of failing silently.
+      s.notify.start({
+        title: 'Report blocked',
+        kind: 'error',
+        message: 'Allow pop-ups for this site, then open the report again.',
+      })
+      return
+    }
     win.document.write(html)
     win.document.close()
     win.focus()

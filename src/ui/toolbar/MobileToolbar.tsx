@@ -214,7 +214,14 @@ export function MobileToolbar() {
     }
     const html = buildReportHtml(st.floorPlan, st.items, buildMergedCatalog(st), hero)
     const win = window.open('', '_blank')
-    if (!win) return
+    if (!win) {
+      st.notify.start({
+        title: 'Report blocked',
+        kind: 'error',
+        message: 'Allow pop-ups for this site, then open the report again.',
+      })
+      return
+    }
     win.document.write(html)
     win.document.close()
     win.focus()

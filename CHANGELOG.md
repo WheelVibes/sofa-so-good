@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R5] Notify on a blocked report pop-up (no more silent failure)
+
+Opening the printable report uses `window.open`; if a pop-up blocker intercepts
+it, the call returned null and the action **failed silently** — the user clicked
+Report and nothing happened. Both the desktop (`ToolsMenu`) and mobile
+(`MobileToolbar`) report actions now surface an error notification ("Allow
+pop-ups for this site, then open the report again.") instead.
+
 ## [N4] Adjustable ceiling height
 
 `FloorPlan` already carried a persisted `ceilingHeight` (schema + custom-plan

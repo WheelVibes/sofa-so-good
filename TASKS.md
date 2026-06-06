@@ -18,6 +18,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] P3. More **instancing** for repeat-geometry primitives where profiling justifies.
 
 ## Bugs / correctness
+- [x] R5. Report `window.open` failed silently when pop-ups are blocked — now
+  notifies the user (desktop + mobile). (CHANGELOG)
 - [x] B1. Swept TODO/FIXME (all doc pointers, no bugs); fixed misleading "cannot be undone" reset confirms (resets are undoable). (CHANGELOG)
 - [x] B2. Dispose audit — fixed leaked overlay geometries (SelectionOutline,
   HoverHighlight, AlignmentGuides, DragController snap, GridOverlay) + leaked
