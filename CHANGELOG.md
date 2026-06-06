@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B1] Fix misleading "cannot be undone" reset confirms
+
+The File menu's "Empty" / "Default" reset confirmations warned the action
+"cannot be undone" / "will be lost", but both `resetToEmpty` and `resetToDefault`
+call `pushHistory()` first — they're fully undoable with Ctrl/⌘+Z. Corrected the
+confirm copy in both the desktop FileMenu and the mobile toolbar to say so, so
+users aren't scared off a reversible action.
+
 ## [C1] PWA manifest + theme-color + social/Apple meta
 
 Commercial-readiness polish for `index.html`:

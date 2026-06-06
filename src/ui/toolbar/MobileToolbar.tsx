@@ -652,7 +652,9 @@ export function MobileToolbar() {
                   icon="Reset"
                   label="Reset to default"
                   onClick={act(() => {
-                    if (confirm('Reset to floor-plan default? Your current layout will be lost.'))
+                    if (
+                      confirm('Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.')
+                    )
                       s.getState().resetToDefault()
                   })}
                 />
@@ -660,7 +662,7 @@ export function MobileToolbar() {
                   icon="Reset"
                   label="Clear all furniture"
                   onClick={act(() => {
-                    if (confirm('Clear all furniture? This cannot be undone.'))
+                    if (confirm('Clear all furniture? You can undo this with Ctrl/⌘+Z.'))
                       s.getState().resetToEmpty()
                   })}
                 />

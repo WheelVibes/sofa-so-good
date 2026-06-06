@@ -77,7 +77,7 @@ export function FileMenu() {
         label="Default"
         sub="Reset to the floor-plan default"
         onClick={() => {
-          if (confirm('Reset to floor-plan default? Your current layout will be lost.'))
+          if (confirm('Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.'))
             resetToDefault()
         }}
       />
@@ -86,7 +86,7 @@ export function FileMenu() {
         label="Empty"
         sub="Clear all furniture"
         onClick={() => {
-          if (confirm('Clear all furniture? This cannot be undone.')) resetToEmpty()
+          if (confirm('Clear all furniture? You can undo this with Ctrl/⌘+Z.')) resetToEmpty()
         }}
       />
       {slots.length === 0 ? (

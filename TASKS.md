@@ -18,7 +18,7 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [ ] P3. More **instancing** for repeat-geometry primitives where profiling justifies.
 
 ## Bugs / correctness
-- [ ] B1. Sweep `TODO/FIXME` in source (4 found) + obvious edge-case bugs.
+- [x] B1. Swept TODO/FIXME (all doc pointers, no bugs); fixed misleading "cannot be undone" reset confirms (resets are undoable). (CHANGELOG)
 - [ ] B2. Audit dispose/cleanup of three resources (geometries/materials/textures) for leaks.
 
 ## QOL / UX features (competitor parity: Planner5D, Coohom, Foyr, HomeByMe, IKEA Kreativ)
