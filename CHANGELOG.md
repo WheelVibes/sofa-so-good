@@ -21,6 +21,14 @@ Formatters unit-tested (metric + imperial, incl. inch-carry + non-finite).
 Verified: imperial overlay renders `17′ 9″ · 262 ft²` / `Ceiling 8′ 6″` cleanly
 and the panel toggle reflects state.
 
+## [Q24] Layers (Objects) panel name filter
+
+The Objects/Layers tree gains a **name filter** at the top — type to keep only
+matching items, with empty room groups dropped and remaining groups
+force-expanded so matches are always visible regardless of collapsed state. The
+footer shows "N of M objects" while filtering. Helps manage large scenes.
+Verified: filtering "lamp" leaves only the Table/Floor lamps grouped by room.
+
 ## [Q23] Catalog sort control
 
 The catalog grid gains a browse-time **Sort** dropdown — **Featured** (the

@@ -102,6 +102,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 ## Catalog UX
 - [x] Q23. **Catalog sort** (Featured / Name / Size) for category browsing; pure
   `sortCards`, bypassed during fuzzy search. E2E-verified. (CHANGELOG)
+- [x] Q24. **Layers panel name filter** (drops empty groups, force-expands while
+  filtering, "N of M" footer). E2E-verified. (CHANGELOG)
 
 ## Shopping / budget
 - [x] Q22. **Budget target** with over/under progress indicator (Shopping panel,

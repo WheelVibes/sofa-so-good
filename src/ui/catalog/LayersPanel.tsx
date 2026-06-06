@@ -22,6 +22,9 @@ export function LayersPanel() {
   const hiddenSet = new Set<string>(hiddenIds)
   const catalog = useCatalog()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [filter, setFilter] = useState('')
+  const q = filter.trim().toLowerCase()
+  const itemName = (it: FurnitureItem) => (catalog[it.defId]?.name ?? it.defId).toLowerCase()
 
   const groups = useMemo(() => {
     const roomIds = (Object.keys(ROOMS) as RoomId[]).filter((id) => !ROOMS[id].external)
@@ -43,9 +46,31 @@ export function LayersPanel() {
   }, [items])
 
   const roomCount = groups.filter((g) => g.key !== 'other').length
+  // Filter items by name; drop empty groups and force-expand while filtering so
+  // matches are always visible regardless of a group's collapsed state.
+  const visibleGroups = q
+    ? groups
+        .map((g) => ({ ...g, items: g.items.filter((it) => itemName(it).includes(q)) }))
+        .filter((g) => g.items.length > 0)
+    : groups
+  const matchCount = visibleGroups.reduce((n, g) => n + g.items.length, 0)
 
   return (
     <>
+      {items.length > 0 ? (
+        <div className="cat-search" style={{ paddingBottom: 'var(--s-2)' }}>
+          <div className="field">
+            <Icon.Search width={16} height={16} className="icn" />
+            <input
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder={`Filter ${items.length} objects…`}
+              className="input"
+            />
+          </div>
+        </div>
+      ) : null}
       <div className="lyr-body">
         {groups.length === 0 ? (
           <div className="empty-mini">
@@ -55,9 +80,13 @@ export function LayersPanel() {
             <b>Nothing placed yet</b>
             <span>Switch to the catalog and drag items onto the floor.</span>
           </div>
+        ) : visibleGroups.length === 0 ? (
+          <p className="empty-mini">
+            <span>No objects match “{filter.trim()}”.</span>
+          </p>
         ) : (
-          groups.map((g) => {
-            const isCollapsed = !!collapsed[g.key]
+          visibleGroups.map((g) => {
+            const isCollapsed = !q && !!collapsed[g.key]
             return (
               <div className="lyr-group" key={g.key}>
                 <button
@@ -138,7 +167,7 @@ export function LayersPanel() {
         )}
       </div>
       <div className="lyr-foot">
-        <span>{items.length} objects</span>
+        <span>{q ? `${matchCount} of ${items.length} objects` : `${items.length} objects`}</span>
         {hiddenIds.length > 0 ? (
           <button type="button" className="lyr-showall" onClick={() => showAllItems()}>
             Show all ({hiddenIds.length} hidden)

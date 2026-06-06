@@ -283,7 +283,8 @@ rediscover it.
   `localStorage` `hdb_recent_items`, kept out of the save schema/autosave).
   **Layers**
   (`LayersPanel.tsx`) is the Objects tree (store-level `leftMode`, shared with
-  the command palette + mobile toolbar); **Packs** installs downloadable
+  the command palette + mobile toolbar; a **name filter** drops empty groups +
+  force-expands while filtering); **Packs** installs downloadable
   content whose items then appear in the unified grid (see **Downloadable
   content sources**). Then InspectorPanel
   (`inspector/`), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
