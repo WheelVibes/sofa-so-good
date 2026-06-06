@@ -1,7 +1,8 @@
 /**
- * Persists editor preferences (snap-to-grid on/off + grid cell size) to
- * localStorage so they survive reloads. Like qualityPrefs, these are
- * per-device editing preferences, not part of a saved design.
+ * Persists editor preferences (snap-to-grid on/off + grid cell size +
+ * measurement display units) to localStorage so they survive reloads. Like
+ * qualityPrefs, these are per-device editing preferences, not part of a saved
+ * design.
  */
 import { useStore } from '../store'
 
@@ -11,10 +12,15 @@ export function loadEditorPrefs(): void {
   try {
     const raw = localStorage.getItem(KEY)
     if (!raw) return
-    const p = JSON.parse(raw) as { snapEnabled?: boolean; gridSize?: number }
+    const p = JSON.parse(raw) as {
+      snapEnabled?: boolean
+      gridSize?: number
+      units?: 'metric' | 'imperial'
+    }
     useStore.setState({
       snapEnabled: !!p.snapEnabled,
       gridSize: typeof p.gridSize === 'number' && p.gridSize > 0 ? p.gridSize : 0.5,
+      units: p.units === 'imperial' ? 'imperial' : 'metric',
     })
   } catch {
     /* ignore corrupt prefs */
@@ -24,7 +30,11 @@ export function loadEditorPrefs(): void {
 export function watchEditorPrefs(): void {
   let last = ''
   useStore.subscribe((s) => {
-    const snap = JSON.stringify({ snapEnabled: s.snapEnabled, gridSize: s.gridSize })
+    const snap = JSON.stringify({
+      snapEnabled: s.snapEnabled,
+      gridSize: s.gridSize,
+      units: s.units,
+    })
     if (snap === last) return
     last = snap
     try {

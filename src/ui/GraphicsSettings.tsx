@@ -38,6 +38,8 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
   const setAssetTier = useStore((s) => s.setAssetTier)
   const showFps = useStore((s) => s.showFps)
   const toggleShowFps = useStore((s) => s.toggleShowFps)
+  const unitSystem = useStore((s) => s.units)
+  const setUnits = useStore((s) => s.setUnits)
 
   useEffect(() => {
     if (!open) return
@@ -68,6 +70,36 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
         </div>
         <hr className="hr" />
         <div className="panel-body">
+          {/* Measurement units — display preference for all read-outs. Metric
+              stays the editing unit; imperial reformats labels/HUDs. */}
+          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+            <span>Measurement units</span>
+          </div>
+          <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+            {(['metric', 'imperial'] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => setUnits(u)}
+                className={`capitalize${unitSystem === u ? ' on' : ''}`}
+                style={{ flex: 1 }}
+              >
+                {u === 'metric' ? 'Metric (m)' : 'Imperial (ft)'}
+              </button>
+            ))}
+          </div>
+          <p
+            style={{
+              fontSize: 'var(--t-2xs)',
+              lineHeight: 1.45,
+              color: 'var(--text-3)',
+              margin: 'var(--s-2) 0 var(--s-3)',
+            }}
+          >
+            Affects dimension read-outs (room sizes, tape, clearance). Plan-editor input fields stay
+            in metres.
+          </p>
+
           {/* Tier presets — 2×2 grid. */}
           <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
             <span>Quality preset</span>

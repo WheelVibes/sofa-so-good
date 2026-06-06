@@ -1,3 +1,4 @@
+import type { UnitSystem } from '../../utils/measurement'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -5,6 +6,10 @@ export interface MeasurementsSlice {
   /** Room-size labels overlay (toggled with M). */
   showMeasurements: boolean
   toggleMeasurements: () => void
+  /** Display unit system for all measurement read-outs (metric is canonical /
+   *  the editing unit; imperial is a display preference). Persisted per-device. */
+  units: UnitSystem
+  setUnits: (u: UnitSystem) => void
   /** Point-to-point tape measure mode: when on, clicking the floor drops the
    *  two endpoints of a live measurement. */
   tapeMode: boolean
@@ -18,16 +23,18 @@ export interface MeasurementsSlice {
 
 export const MEASUREMENTS_INITIAL: Pick<
   MeasurementsSlice,
-  'showMeasurements' | 'tapeMode' | 'tapePoints'
+  'showMeasurements' | 'tapeMode' | 'tapePoints' | 'units'
 > = {
   showMeasurements: false,
   tapeMode: false,
   tapePoints: [],
+  units: 'metric',
 }
 
 export const createMeasurementsSlice: SliceCreator<MeasurementsSlice, RootState> = (set) => ({
   ...MEASUREMENTS_INITIAL,
   toggleMeasurements: () => set((s) => ({ showMeasurements: !s.showMeasurements })),
+  setUnits: (units) => set({ units }),
   toggleTapeMode: () =>
     set((s) => ({ tapeMode: !s.tapeMode, tapePoints: s.tapeMode ? [] : s.tapePoints })),
   addTapePoint: (p) =>

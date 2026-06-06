@@ -2,7 +2,7 @@ import { Html } from '@react-three/drei'
 import { ROOMS } from '../apartment/constants'
 import { roomCentroid } from '../apartment/rooms'
 import { useStore } from '../state/store'
-import { formatRoomSize } from '../utils/measurement'
+import { formatLength, formatRoomSize } from '../utils/measurement'
 
 export function MeasurementOverlay() {
   const show = useStore((s) => s.showMeasurements)
@@ -11,6 +11,7 @@ export function MeasurementOverlay() {
   // ROOMS but editable in the plan editor); fall back to the ROOMS constant then
   // the global height — matching Ceiling.tsx.
   const planRooms = useStore((s) => s.floorPlan.rooms)
+  const units = useStore((s) => s.units)
   if (!show) return null
   return (
     <group>
@@ -26,8 +27,10 @@ export function MeasurementOverlay() {
           <Html key={r.id} position={[cx, cy, cz]} center distanceFactor={10}>
             <div className="rounded bg-[var(--surface-solid)]/90 px-2 py-1 text-xs text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
               <div className="font-semibold">{r.name}</div>
-              <div>{formatRoomSize(r.width, r.depth, area)}</div>
-              <div style={{ color: 'var(--text-2)' }}>{`Ceiling ${height.toFixed(2)} m`}</div>
+              <div>{formatRoomSize(r.width, r.depth, area, units)}</div>
+              <div
+                style={{ color: 'var(--text-2)' }}
+              >{`Ceiling ${formatLength(height, units)}`}</div>
             </div>
           </Html>
         )

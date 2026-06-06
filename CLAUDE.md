@@ -740,6 +740,18 @@ rediscover it.
   desktop + mobile-parity toggle), and **Report** (`ui/report.ts`, printable).
   Multi-select shows an align/distribute panel; items can be **locked**;
   double-click focuses the camera; saved layouts get thumbnails (`slotThumbs`).
+- **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`):
+  a **metric/imperial** display toggle in the Graphics panel (mobile-parity via
+  the accordion), persisted per-device in `editorPrefs`. Metric stays the
+  canonical/editing unit (Singapore HDB context); imperial only reformats
+  read-outs. `utils/measurement.ts` is the single source of formatting —
+  `formatLength` (metric `2.60 m` / imperial feet-inches `8′ 6″`, carrying 12″
+  to the next foot), `formatArea` (`m²`/`ft²`), `formatDims`, `formatRoomSize`
+  (all take an optional `UnitSystem`, defaulting metric for back-compat). Routed
+  through every read-only display: `MeasurementOverlay`, `TapeMeasure`,
+  `DragHud`, `CatalogCard`, `FinishPicker`, and the floor-plan editor's
+  area/length/draft labels + `PlanInspector`. The plan editor's **numeric input
+  fields stay in metres** (precise drafting unit).
 - **Furniture groups** (`state/slices/groupsSlice.ts`): items sharing an optional
   `FurnitureItem.groupId` are an emergent group (no separate entity). First click
   selects the whole group (`selectItemGrouped` + transient `activeGroupId`); a

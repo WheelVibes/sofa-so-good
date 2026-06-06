@@ -8,7 +8,7 @@ import { buildCollisionWalls } from '../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { useCatalogGetter } from '../furniture/catalog'
 import { useStore } from '../state/store'
-import { formatMeters } from '../utils/measurement'
+import { formatLength } from '../utils/measurement'
 import { priorityRaycast } from './raycastPriority'
 import { snapToNearest } from './tapeSnap'
 
@@ -41,6 +41,7 @@ export function TapeMeasure() {
   const tapeMode = useStore((s) => s.tapeMode)
   const points = useStore(useShallow((s) => s.tapePoints))
   const addTapePoint = useStore((s) => s.addTapePoint)
+  const units = useStore((s) => s.units)
   const { ref: catalogRef } = useCatalogGetter()
   const [cursor, setCursor] = useState<[number, number] | null>(null)
 
@@ -115,7 +116,7 @@ export function TapeMeasure() {
           </group>
           <Html position={[bar.mx, LIFT + 0.05, bar.mz]} center distanceFactor={9}>
             <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
-              {formatMeters(bar.len)}
+              {formatLength(bar.len, units)}
             </div>
           </Html>
         </>

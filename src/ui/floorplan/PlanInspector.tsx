@@ -1,6 +1,7 @@
 import { planRoomArea, wallLength } from '../../floorplan/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
+import { formatArea, formatLength } from '../../utils/measurement'
 import { useIsMobile } from '../useIsMobile'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
@@ -39,6 +40,7 @@ function Num({
 export function PlanInspector() {
   const sel = useStore((s) => s.planSelection)
   const plan = useStore((s) => s.floorPlan)
+  const units = useStore((s) => s.units)
   const a = useStore.getState()
   const isMobile = useIsMobile()
 
@@ -145,7 +147,7 @@ export function PlanInspector() {
                 className="btn btn-block"
                 onClick={() => a.updateRoom(r.id, { ceilingHeight: undefined })}
               >
-                Match home ({plan.ceilingHeight.toFixed(2)} m)
+                Match home ({formatLength(plan.ceilingHeight, units)})
               </button>
             )}
           </div>
@@ -219,7 +221,7 @@ export function PlanInspector() {
           <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
             <span className="label">Area</span>
             <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
-              {planRoomArea(r).toFixed(2)} m²
+              {formatArea(planRoomArea(r), units)}
             </span>
           </div>
           <DeleteBtn onClick={() => a.removeRoom(r.id)} label="Delete room" />
@@ -266,7 +268,7 @@ export function PlanInspector() {
           <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
             <span className="label">Length</span>
             <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
-              {wallLength(w).toFixed(2)} m
+              {formatLength(wallLength(w), units)}
             </span>
           </div>
           <DeleteBtn onClick={() => a.removeWall(w.id)} label="Delete wall" />

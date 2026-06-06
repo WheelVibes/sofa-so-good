@@ -4,6 +4,23 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [U1] Metric / imperial measurement units
+
+Commercial-parity feature: a **metric ⇄ imperial** units toggle in the Graphics
+(settings) panel (mobile-parity via the accordion), persisted per-device in
+`editorPrefs`. Metric stays the canonical/editing unit (Singapore HDB context);
+imperial reformats all read-outs — feet-and-inches lengths (`8′ 6″`, carrying
+12″ up to the next foot) and square feet. `utils/measurement.ts` is now the
+single formatting source (`formatLength`/`formatArea`/`formatDims`/
+`formatRoomSize`, each taking an optional `UnitSystem` that defaults to metric
+for back-compat), routed through every read-only display: the room-measurement
+overlay, tape measure, drag clearance HUD, catalog-card footprints, finish-picker
+room area, and the floor-plan editor's area/length/draft labels + inspector. The
+plan editor's numeric input fields stay in metres (precise drafting unit).
+Formatters unit-tested (metric + imperial, incl. inch-carry + non-finite).
+Verified: imperial overlay renders `17′ 9″ · 262 ft²` / `Ceiling 8′ 6″` cleanly
+and the panel toggle reflects state.
+
 ## [N4b] Per-room ceiling height
 
 Architectural realism: the floor-plan editor's room inspector now has a

@@ -8,6 +8,7 @@ import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
 import { useStore } from '../state/store'
+import { formatArea } from '../utils/measurement'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
 import { Icon } from './toolbar/icons'
 import { UploadMaterialDialog } from './upload/UploadMaterialDialog'
@@ -50,6 +51,7 @@ export function FinishPicker() {
   const removeUserMaterial = useStore((s) => s.removeUserMaterial)
   const recentColors = useStore(useShallow((s) => s.recentColors))
   const pushRecentColor = useStore((s) => s.pushRecentColor)
+  const units = useStore((s) => s.units)
   const furnitureCatalog = useCatalog()
   const tidyRoom = () => {
     if (!roomId) return
@@ -126,7 +128,7 @@ export function FinishPicker() {
             <div className="panel-sub">
               {view === 'browse'
                 ? `Apply to ${lastSurface}`
-                : `Finishes · ${roomArea(room).toFixed(1)} m²`}
+                : `Finishes · ${formatArea(roomArea(room), units)}`}
             </div>
           </div>
         </div>

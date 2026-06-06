@@ -99,6 +99,12 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   Follow-up: a per-room height control (UI) if desired — the data model already
   supports per-room `ceilingHeight`.
 
+## Units / internationalization
+- [x] U1. **Metric/imperial measurement units** toggle (Graphics panel, persisted)
+  — centralized unit-aware formatters (`utils/measurement.ts`) routed through all
+  read-only displays; plan-editor inputs stay metric. Unit-tested + E2E-verified.
+  (CHANGELOG)
+
 ## Researched backlog (next iterations — competitor parity / polish)
 - [x] N1. **Apply finish to all rooms** — setAll{Floor,Wall}Finish + FinishPicker buttons. (CHANGELOG)
 - [x] N2. **Duplicate-in-array** — inspector "Duplicate a row of N", collision-checked, grouped. (CHANGELOG)

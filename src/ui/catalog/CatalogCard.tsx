@@ -1,6 +1,7 @@
 import { isUserDef } from '../../furniture/catalog'
 import type { FurnitureDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { formatDims } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 import { useBuiltinThumbnail } from './thumbnails'
@@ -17,6 +18,7 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const thumb = useBuiltinThumbnail(def)
   const saved = useStore((s) => s.collections.includes(def.id))
   const toggleCollection = useStore((s) => s.toggleCollection)
+  const units = useStore((s) => s.units)
   return (
     // biome-ignore lint/a11y/useSemanticElements: a <button> can't host the nested fav/delete buttons (invalid HTML); role=button + key handling gives the same a11y.
     <div
@@ -75,7 +77,7 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         </span>
       </div>
       <span className="pr mono">
-        {def.defaultFootprint.w.toFixed(2)} × {def.defaultFootprint.d.toFixed(2)} m
+        {formatDims(def.defaultFootprint.w, def.defaultFootprint.d, units)}
       </span>
       {isUser ? (
         <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>

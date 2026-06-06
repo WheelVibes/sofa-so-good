@@ -1,5 +1,6 @@
 import { CLEARANCE } from '../layout/designRules'
 import { useStore } from '../state/store'
+import { formatLength } from '../utils/measurement'
 
 /**
  * Small heads-up readout shown while dragging a single item: its live distance
@@ -10,13 +11,14 @@ export function DragHud() {
   const dragging = useStore((s) => s.draggingItemId)
   const groupSize = useStore((s) => s.dragGroupOriginals.length)
   const gap = useStore((s) => s.dragClearance)
+  const units = useStore((s) => s.units)
 
   if (!dragging || groupSize > 1 || gap == null) return null
   const tight = gap < CLEARANCE.walkwayMin
   return (
     <div className="pointer-events-none absolute bottom-6 left-1/2 z-20 -translate-x-1/2">
       <div className={`hud-pill${tight ? ' warn' : ''}`}>
-        ↔ Wall clearance: <span className="mono">{gap.toFixed(2)} m</span>
+        ↔ Wall clearance: <span className="mono">{formatLength(gap, units)}</span>
         {tight ? ' · tight' : ''}
       </div>
     </div>

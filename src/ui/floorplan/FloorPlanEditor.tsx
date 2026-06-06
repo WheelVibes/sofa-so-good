@@ -11,6 +11,7 @@ import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floor
 import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { formatArea, formatLength } from '../../utils/measurement'
 import {
   type BackdropMeta,
   persistBackdrop,
@@ -86,6 +87,7 @@ export function FloorPlanEditor() {
   const plan = useStore((s) => s.floorPlan)
   const gridSize = useStore((s) => s.gridSize)
   const sel = useStore((s) => s.planSelection)
+  const units = useStore((s) => s.units)
   const a = useStore.getState()
 
   const items = useStore((s) => s.items)
@@ -798,7 +800,7 @@ export function FloorPlanEditor() {
           <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
             Total{' '}
             <b className="mono" style={{ color: 'var(--text)' }}>
-              {total.toFixed(1)} m²
+              {formatArea(total, units)}
             </b>{' '}
             · {plan.rooms.length} rooms
           </span>
@@ -944,7 +946,7 @@ export function FloorPlanEditor() {
                   >
                     <tspan x={toPx(r.origin[0] + r.width / 2)}>{r.name}</tspan>
                     <tspan x={toPx(r.origin[0] + r.width / 2)} dy={14} fill="var(--text-3)">
-                      {planRoomArea(r).toFixed(1)} m²
+                      {formatArea(planRoomArea(r), units)}
                     </tspan>
                   </text>
                 </g>
@@ -1040,7 +1042,7 @@ export function FloorPlanEditor() {
                     fill={isSel ? 'var(--accent)' : 'var(--text-2)'}
                     style={{ pointerEvents: 'none', fontSize: 11, fontWeight: 600 }}
                   >
-                    {len.toFixed(2)} m
+                    {formatLength(len, units)}
                   </text>
                 )
               })}
@@ -1221,8 +1223,8 @@ export function FloorPlanEditor() {
                 className="select-none"
               >
                 {tool === 'wall'
-                  ? `${Math.hypot(draft.x - draft.x0, draft.z - draft.z0).toFixed(2)} m`
-                  : `${Math.abs(draft.x - draft.x0).toFixed(2)} × ${Math.abs(draft.z - draft.z0).toFixed(2)} m  (${(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0)).toFixed(1)} m²)`}
+                  ? formatLength(Math.hypot(draft.x - draft.x0, draft.z - draft.z0), units)
+                  : `${formatLength(Math.abs(draft.x - draft.x0), units)} × ${formatLength(Math.abs(draft.z - draft.z0), units)}  (${formatArea(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0), units)})`}
               </text>
             )}
           </svg>
