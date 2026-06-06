@@ -37,6 +37,11 @@ export function SavedViewsSection() {
         sub="Bookmark this camera angle"
         onClick={onSave}
       />
+      {savedViews.length === 0 ? (
+        <div className="px-2 py-1.5 text-[11px] leading-snug" style={{ color: 'var(--text-3)' }}>
+          No saved views yet — frame an angle, then “Save current view”.
+        </div>
+      ) : null}
       {savedViews.map((v) => (
         <div key={v.id} className="saved-view-row">
           <button

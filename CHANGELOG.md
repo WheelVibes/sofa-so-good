@@ -66,6 +66,12 @@ A grep audit found the mobile toolbar's File handlers still used `prompt`/`alert
 `notify` toasts too. Confirmed **zero** `window.prompt/alert/confirm` remain in
 app code (only doc comments reference them).
 
+## [Q7a] Empty-state hint for saved camera views
+
+Small inline-help polish: the View menu's Saved-views section showed nothing when
+empty. It now shows "No saved views yet — frame an angle, then 'Save current
+view'." so the feature is discoverable. Verified it renders in the View menu.
+
 ## [RE1] Window glass responds to time of day
 
 Realism: window panes were a static light-blue. They now tint with daylight —
