@@ -204,7 +204,8 @@ own commit, dev-gate anything licensed.
   history slice already coalesces); jump-to-step.
 - [ ] Q31. **Drag a material swatch onto a surface in 3D** to apply a finish
   (reuses `getSurfaceMaterial` / finish DLC); today it's picker-only.
-- [ ] Q32. **Saved-view thumbnails** — render a small preview per camera
+- [x] Q32. **Saved-view thumbnails** — preview per camera bookmark (desktop +
+  mobile); also fixed a missed mobile window.prompt. E2E-verified. (CHANGELOG)
   bookmark (mirror `slotThumbs`).
 - [x] Q33. **Area/rectangle measure** mode (tape Distance/Area toggle, amber
   fill + W×D·area label). Unit + E2E-verified. (CHANGELOG)

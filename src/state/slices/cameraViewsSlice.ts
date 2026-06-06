@@ -10,6 +10,8 @@ export interface SavedView {
   pos: [number, number, number]
   /** OrbitControls look-at target [x, y, z]. */
   target: [number, number, number]
+  /** Optional small JPEG data-URL preview of the view (captured at save time). */
+  thumb?: string
 }
 
 const LS_KEY = 'hdb_camera_views'
@@ -28,8 +30,9 @@ export interface CameraViewsSlice {
   /** Bumped to ask <OrbitCamera> to apply `pendingViewPose`. */
   applyViewNonce: number
   pendingViewPose: { pos: [number, number, number]; target: [number, number, number] } | null
-  /** Snapshot the current live camera pose under a name. Returns the new id. */
-  saveCurrentView: (name: string) => string
+  /** Snapshot the current live camera pose under a name (+ an optional preview
+   *  thumbnail captured by the caller). Returns the new id. */
+  saveCurrentView: (name: string, thumb?: string | null) => string
   /** Retarget the orbit camera to a saved view (also forces orbit mode). */
   applyView: (id: string) => void
   deleteView: (id: string) => void
@@ -79,13 +82,14 @@ export const CAMERA_VIEWS_INITIAL: Pick<
 
 export const createCameraViewsSlice: SliceCreator<CameraViewsSlice, RootState> = (set, get) => ({
   ...CAMERA_VIEWS_INITIAL,
-  saveCurrentView: (name) => {
+  saveCurrentView: (name, thumb) => {
     const id = viewId()
     const view: SavedView = {
       id,
       name: name.trim() || `View ${get().savedViews.length + 1}`,
       pos: [cameraPose.px, cameraPose.py, cameraPose.pz],
       target: [cameraPose.tx, cameraPose.ty, cameraPose.tz],
+      ...(thumb ? { thumb } : {}),
     }
     const next = [...get().savedViews, view].slice(-MAX_VIEWS)
     persistViews(next)

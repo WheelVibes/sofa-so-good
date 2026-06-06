@@ -52,6 +52,17 @@ Same stale-id class as B6: `resetToEmpty`, `resetToDefault`, and
 "(N hidden)" count (and the per-room eye reading hidden). They now clear
 `hiddenItemIds` too. Unit-tested.
 
+## [Q32] Saved-view thumbnails
+
+Each saved camera bookmark now shows a small **preview thumbnail** of the angle.
+`saveCurrentView(name, thumb?)` stores an optional JPEG data-URL (`SavedView.thumb`,
+persisted in the existing localStorage list); `SavedViewsSection` captures it via
+`captureThumb()` at save time — before the prompt modal paints over the canvas —
+and renders it in both the desktop View menu and the mobile View accordion
+(shared `.saved-view-thumb`). Also fixed a `window.prompt` for naming a view
+that had been missed in B10 (mobile toolbar) → now the themed `promptText`.
+Verified thumbnails render in the View menu.
+
 ## [Q33] Area (rectangle) measure mode
 
 The tape measure gains an **Area** mode alongside point-to-point **Distance**: a

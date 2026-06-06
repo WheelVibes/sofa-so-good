@@ -365,9 +365,15 @@ export function MobileToolbar() {
                   icon="Plus"
                   label="Save current view"
                   sub="Bookmark this camera angle"
-                  onClick={act(() => {
-                    const name = window.prompt('Name this view', `View ${savedViews.length + 1}`)
-                    if (name !== null) s.getState().saveCurrentView(name)
+                  onClick={act(async () => {
+                    const thumb = captureThumb()
+                    const name = await s.getState().promptText({
+                      title: 'Save camera view',
+                      label: 'Name this view',
+                      defaultValue: `View ${savedViews.length + 1}`,
+                      submitLabel: 'Save',
+                    })
+                    if (name) s.getState().saveCurrentView(name, thumb)
                   })}
                 />
                 {savedViews.map((v) => (
@@ -377,7 +383,11 @@ export function MobileToolbar() {
                       className="m-item m-saved-view-go"
                       onClick={act(() => s.getState().applyView(v.id))}
                     >
-                      <Icon.Eye className="icn" width={18} height={18} />
+                      {v.thumb ? (
+                        <img src={v.thumb} alt="" className="saved-view-thumb" />
+                      ) : (
+                        <Icon.Eye className="icn" width={18} height={18} />
+                      )}
                       <span className="m-item-tx">
                         <span className="m-item-l">{v.name}</span>
                       </span>

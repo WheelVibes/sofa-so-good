@@ -221,6 +221,10 @@ body.mobile .tip::after { content: none; }
 .saved-view-row { display: flex; align-items: center; gap: 2px; }
 .saved-view-row .saved-view-apply { flex: 1; min-width: 0; }
 .saved-view-row .saved-view-apply .mi-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved-view-thumb {
+  width: 40px; height: 26px; flex: none; object-fit: cover;
+  border-radius: var(--r-1); border: 1px solid var(--border);
+}
 .saved-view-del {
   display: flex; align-items: center; justify-content: center;
   flex: none; width: 30px; height: 30px; border-radius: var(--r-2);

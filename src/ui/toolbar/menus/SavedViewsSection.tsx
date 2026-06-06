@@ -1,3 +1,4 @@
+import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { Icon } from '../icons'
 import { MenuItem } from '../ToolbarMenu'
@@ -15,13 +16,16 @@ export function SavedViewsSection() {
   const deleteView = useStore((s) => s.deleteView)
 
   const onSave = async () => {
+    // Capture the preview now, while the camera is at the angle being saved and
+    // before the prompt modal paints over the canvas.
+    const thumb = captureThumb()
     const name = await useStore.getState().promptText({
       title: 'Save camera view',
       label: 'Name this view',
       defaultValue: `View ${savedViews.length + 1}`,
       submitLabel: 'Save',
     })
-    if (name) saveCurrentView(name)
+    if (name) saveCurrentView(name, thumb)
   }
 
   return (
@@ -42,7 +46,11 @@ export function SavedViewsSection() {
             onClick={() => applyView(v.id)}
             title={`Go to “${v.name}”`}
           >
-            <Icon.Eye width={16} height={16} className="icn" />
+            {v.thumb ? (
+              <img src={v.thumb} alt="" className="saved-view-thumb" />
+            ) : (
+              <Icon.Eye width={16} height={16} className="icn" />
+            )}
             <span className="mi-text">
               <span className="mi-main">{v.name}</span>
             </span>
