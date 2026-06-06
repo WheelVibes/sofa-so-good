@@ -44,6 +44,14 @@ through `schema.ts` as an optional field (no migration — older saves just have
 no label). renameItem + schema round-trip unit-tested; verified the name shows
 in the inspector title, field, and Layers tree.
 
+## [Q26b] "Hide" in the right-click context menu
+
+The context menu gained a plain **Hide** action (it already had "Isolate (hide
+others)" + "Show all"), so a piece can be hidden straight from the 3D scene
+without opening the Layers panel. Hides the whole current selection when the
+right-clicked item is part of it, else just that item (via `setItemsHidden`).
+Verified in the rendered menu.
+
 ## [Q26] Per-room hide/show in the Layers panel
 
 Each room group in the Objects/Layers tree gets an **eye toggle in its header**

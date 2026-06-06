@@ -221,6 +221,16 @@ export function ContextMenu() {
       ) : null}
       <Row
         icon="EyeOff"
+        label="Hide"
+        onClick={() => {
+          const st = useStore.getState()
+          // Hide the whole selection when this item is part of it, else just it.
+          const ids = st.selectedItemIds.includes(item.id) ? st.selectedItemIds : [item.id]
+          st.setItemsHidden(ids, true)
+        }}
+      />
+      <Row
+        icon="EyeOff"
         label="Isolate (hide others)"
         onClick={() => {
           const st = useStore.getState()
