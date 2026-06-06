@@ -4,6 +4,22 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N3+] Rotate gizmo extended to multi-selection (group rotate)
+
+Generalised the rotate gizmo into one unified gesture over a *target set*: a
+single item still spins about its own axis (snapping to absolute 15° marks),
+while a **multi-selection** now shows one ring enclosing the whole group and
+rotates every member **rigidly about the group centroid** — positions orbit the
+pivot (`rotatePointAround`, mirrors the store's `groupRotate`) and each piece's
+heading advances by the same snapped delta, with a signed degree readout. The
+collision check ignores intra-selection pairs (rigid rotation preserves their
+spacing) and tests against the rest + walls; an invalid release reverts the
+whole set. Three new pure helpers (`rotatePointAround`, `snapDelta`,
+`enclosingRadius`) are unit-tested (14 cases total). Verified end-to-end via
+synthetic pointer drags: a single rug spins in place (0°→45°, position fixed),
+and a two-item group orbits its centroid (both → 45°, positions rotated about
+the pivot) and commits.
+
 ## [N3] Touch-friendly drag-to-rotate gizmo
 
 Rotating a piece previously meant the keyboard-only <kbd>R</kbd> key (90° /

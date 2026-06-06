@@ -1,10 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
   computeRotation,
+  enclosingRadius,
   GIZMO_MIN_RADIUS,
   GIZMO_SNAP_STEP,
   gizmoRadius,
   pointerAngle,
+  rotatePointAround,
+  snapDelta,
   toDegrees,
 } from './rotateGizmoMath'
 
@@ -43,6 +46,45 @@ describe('computeRotation', () => {
     expect(computeRotation(0, 0, tenDeg, true)).toBeCloseTo(GIZMO_SNAP_STEP, 5) // → 15°
     const twentyDeg = (Math.PI / 180) * 20
     expect(computeRotation(0, 0, twentyDeg, true)).toBeCloseTo(GIZMO_SNAP_STEP, 5) // → 15° (nearest)
+  })
+})
+
+describe('snapDelta', () => {
+  it('rounds to 15° steps when on, passes through when off', () => {
+    const tenDeg = (Math.PI / 180) * 10
+    expect(snapDelta(tenDeg, true)).toBeCloseTo(GIZMO_SNAP_STEP, 5)
+    expect(snapDelta(tenDeg, false)).toBeCloseTo(tenDeg, 5)
+    expect(snapDelta(-tenDeg, true)).toBeCloseTo(-GIZMO_SNAP_STEP, 5)
+  })
+})
+
+describe('rotatePointAround', () => {
+  it('leaves the pivot fixed', () => {
+    const [x, z] = rotatePointAround(2, 3, 2, 3, Math.PI / 2)
+    expect(x).toBeCloseTo(2, 5)
+    expect(z).toBeCloseTo(3, 5)
+  })
+  it('orbits a point 90° CCW about the origin', () => {
+    const [x, z] = rotatePointAround(1, 0, 0, 0, Math.PI / 2)
+    expect(x).toBeCloseTo(0, 5)
+    expect(z).toBeCloseTo(1, 5)
+  })
+  it('preserves distance from the pivot', () => {
+    const [x, z] = rotatePointAround(5, 2, 1, 1, 0.73)
+    expect(Math.hypot(x - 1, z - 1)).toBeCloseTo(Math.hypot(5 - 1, 2 - 1), 5)
+  })
+})
+
+describe('enclosingRadius', () => {
+  it('encloses the farthest target plus its footprint + gap', () => {
+    const r = enclosingRadius(0, 0, [
+      { cx: 1, cz: 0, halfDiag: 0.5 },
+      { cx: 2, cz: 0, halfDiag: 0.5 }, // farthest: 2 + 0.5 + 0.38
+    ])
+    expect(r).toBeCloseTo(2.88, 5)
+  })
+  it('never drops below the floor minimum', () => {
+    expect(enclosingRadius(0, 0, [{ cx: 0, cz: 0, halfDiag: 0.01 }])).toBe(GIZMO_MIN_RADIUS)
   })
 })
 

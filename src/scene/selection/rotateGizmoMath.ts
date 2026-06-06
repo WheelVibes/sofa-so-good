@@ -36,6 +36,45 @@ export function computeRotation(
   return Math.round(next / GIZMO_SNAP_STEP) * GIZMO_SNAP_STEP
 }
 
+/** Snap a raw angular delta to 15° steps (used for group rotation, where there
+ *  is no single absolute rotation to snap). */
+export function snapDelta(delta: number, snap: boolean): number {
+  return snap ? Math.round(delta / GIZMO_SNAP_STEP) * GIZMO_SNAP_STEP : delta
+}
+
+/** Rotate a point (px, pz) about a pivot (cx, cz) by `delta` radians (CCW in the
+ *  XZ plane). Used to orbit each member of a multi-selection rigidly around the
+ *  group centroid — mirrors the store's `groupRotate` transform. */
+export function rotatePointAround(
+  px: number,
+  pz: number,
+  cx: number,
+  cz: number,
+  delta: number,
+): [number, number] {
+  const dx = px - cx
+  const dz = pz - cz
+  const c = Math.cos(delta)
+  const s = Math.sin(delta)
+  return [cx + dx * c - dz * s, cz + dx * s + dz * c]
+}
+
+/** Floor-ring radius enclosing a set of targets (each given as centre + footprint
+ *  half-diagonal) measured from a shared pivot. Keeps the ring clear of every
+ *  selected piece for a multi-selection. */
+export function enclosingRadius(
+  pivotX: number,
+  pivotZ: number,
+  targets: ReadonlyArray<{ cx: number; cz: number; halfDiag: number }>,
+): number {
+  let r = GIZMO_MIN_RADIUS
+  for (const t of targets) {
+    const d = Math.hypot(t.cx - pivotX, t.cz - pivotZ) + t.halfDiag + GIZMO_HANDLE_GAP
+    if (d > r) r = d
+  }
+  return r
+}
+
 /** Normalise radians to [0, 360) degrees for the on-screen readout. */
 export function toDegrees(rad: number): number {
   let deg = (rad * 180) / Math.PI

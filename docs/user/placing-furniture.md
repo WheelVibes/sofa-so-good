@@ -53,6 +53,11 @@ A live angle read‑out follows the knob, the ring turns **red** if the new angl
 would overlap a wall or another piece, and releasing on a blocked angle snaps it
 back. (The <kbd>R</kbd> key still does quick 90° turns.)
 
+**Select several pieces** and the ring grows to enclose the whole group — drag it
+to **rotate the whole arrangement** as one, pivoting around its centre (the
+read‑out shows how far you've turned). Great for angling a sofa‑and‑rug set or a
+dining table with its chairs together.
+
 **Right‑click** any placed piece for a **context menu** with the most common
 actions right where you need them — **swap with similar**, rotate, flip,
 duplicate, **group / ungroup**, lock / unlock, and delete. (Group appears when

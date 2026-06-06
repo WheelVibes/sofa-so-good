@@ -70,7 +70,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] N2. **Duplicate-in-array** — inspector "Duplicate a row of N", collision-checked, grouped. (CHANGELOG)
 - [x] N3. **3D rotate handle/gizmo** — touch-friendly floor ring + knob,
   drag-to-rotate with 15° snap (Shift = free), live degree readout, collision
-  tint + revert, raycast-priority pick. Pure math unit-tested. (CHANGELOG)
+  tint + revert, raycast-priority pick. Pure math unit-tested. **Extended to
+  multi-selection** (group rotate about centroid, signed delta readout). (CHANGELOG)
 - [ ] N4. **Per-room ceiling height** control (architectural realism).
 - [ ] N5. **Persist measurements + photo-trace backdrop** into the save schema
   (currently session-only).

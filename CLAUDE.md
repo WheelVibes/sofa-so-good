@@ -641,15 +641,19 @@ rediscover it.
   edges (magenta `AlignmentGuides`) and shows the nearest-wall gap (`DragHud`
   via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
 - **Rotate gizmo** (`scene/selection/RotateGizmo.tsx` + pure
-  `rotateGizmoMath.ts`): a touch-friendly floor ring + front knob drawn around
-  the single selected item (orbit camera + **select** tool, unlocked, not
-  mid-drag). Dragging the ring/knob spins the piece about its vertical axis,
-  snapping to **15°** steps unless Shift is held (free); a live degree readout
-  shows the angle, the ring tints green/red for placement validity, and an
-  invalid release reverts (mirrors the item-drag UX, reusing `canPlace`). The
-  ring/knob meshes patch their `raycast` to win the pointer pick over taller
-  furniture (they draw always-on-top). Mounted beside `SelectionOutline` in both
-  the main and room-editor scenes; complements the **R** key (90° / Shift+R 15°).
+  `rotateGizmoMath.ts`): a touch-friendly floor ring + knob drawn around the
+  **selection** (orbit camera + **select** tool, unlocked, not mid-drag). One
+  unified gesture handles both cases: a **single** item spins about its own axis
+  (knob doubles as a heading indicator, snaps to absolute **15°** marks), a
+  **multi-selection** rotates every member rigidly about the group centroid
+  (`rotatePointAround`, snaps the *delta*, signed readout). Hold Shift for free
+  rotation; a live degree readout follows the knob, the ring tints green/red for
+  placement validity (intra-selection pairs ignored — rigid rotation preserves
+  their spacing), and an invalid release reverts the whole set (mirrors the
+  item-drag UX, reusing `canPlace`). The ring/knob meshes patch their `raycast`
+  to win the pointer pick over taller furniture (they draw always-on-top).
+  Mounted beside `SelectionOutline` in both the main and room-editor scenes;
+  complements the **R** key (90° / Shift+R 15°, single or group).
 - **Walk-mode controls** (`scene/cameras/FirstPersonCamera.tsx`,
   `scene/walkInput.ts`, `ui/walk/WalkJoystick.tsx`, `ui/WalkHud.tsx`,
   `ui/Crosshair.tsx`): first-person look/move adapts to the device.

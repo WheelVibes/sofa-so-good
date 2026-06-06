@@ -9,7 +9,15 @@ import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { useCatalog } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
-import { computeRotation, gizmoRadius, pointerAngle, toDegrees } from './rotateGizmoMath'
+import {
+  computeRotation,
+  enclosingRadius,
+  gizmoRadius,
+  pointerAngle,
+  rotatePointAround,
+  snapDelta,
+  toDegrees,
+} from './rotateGizmoMath'
 
 const FLOOR_PLANE = new Plane(new Vector3(0, 1, 0), 0)
 const LIFT = 0.02
@@ -39,13 +47,35 @@ function priorityRaycast(mesh: Mesh | null) {
   ;(mesh as { __priorityPatched?: boolean }).__priorityPatched = true
 }
 
+interface GizmoTarget {
+  id: string
+  /** Footprint centre (for ring sizing) + the live transform (for the gesture). */
+  cx: number
+  cz: number
+  halfDiag: number
+  position: [number, number]
+  rotation: number
+}
+
+interface Gesture {
+  /** True for a single item — rotation snaps to absolute 15° marks and the knob
+   *  tracks its facing. A multi-selection snaps the *delta* and orbits a pivot. */
+  single: boolean
+  pivot: [number, number]
+  grabAngle: number
+  startRot: number // single only: the item's rotation at grab
+  originals: Array<{ id: string; position: [number, number]; rotation: number }>
+}
+
 /**
- * A touch-friendly drag-to-rotate handle drawn on the floor around the single
- * selected item (orbit camera + select tool only). Dragging the ring/knob spins
- * the piece about its vertical axis; it snaps to 15° steps unless Shift is held.
- * Live collision feedback tints the ring green/red and an invalid release
- * reverts to the pre-gesture angle (mirrors the item-drag UX). Mounted beside
- * SelectionOutline in both the main and room-editor scenes.
+ * A touch-friendly drag-to-rotate handle drawn on the floor around the current
+ * selection (orbit camera + select tool only). For a single item the ring/knob
+ * spins the piece about its own axis, snapping to absolute 15° marks; for a
+ * multi-selection it rotates every member rigidly about the group centroid,
+ * snapping the delta. Hold Shift for free rotation. Live collision feedback
+ * tints the ring green/red and an invalid release reverts to the pre-gesture
+ * transform (mirrors the item-drag UX). Mounted beside SelectionOutline in both
+ * the main and room-editor scenes.
  *
  * Lives inside the Canvas (needs the active camera + GL element for raycasting).
  * In select mode OrbitControls is disabled, so window-level pointer tracking
@@ -59,9 +89,10 @@ export function RotateGizmo() {
   const editorTool = useStore((s) => s.editorTool)
   const draggingItemId = useStore((s) => s.draggingItemId)
   const activeDefId = useStore((s) => s.activeDefId)
-  const ids = useStore(useShallow((s) => s.selectedItemIds))
-  const singleId = ids.length === 1 ? ids[0] : null
-  const item = useStore(useShallow((s) => s.items.find((i) => i.id === singleId) ?? null))
+  // Live selected (unlocked) items — re-renders when their transform changes.
+  const selected = useStore(
+    useShallow((s) => s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)),
+  )
 
   const ndc = useMemo(() => new Vector2(), [])
   const raycaster = useMemo(() => new Raycaster(), [])
@@ -69,28 +100,54 @@ export function RotateGizmo() {
 
   const [rotating, setRotating] = useState(false)
   const [valid, setValid] = useState(true)
-  const [liveRot, setLiveRot] = useState<number | null>(null)
-  // Gesture scratch — mutated by the window listeners without re-subscribing.
-  const gesture = useRef<{
-    id: string
-    cx: number
-    cz: number
-    grabAngle: number
-    startRot: number
-  } | null>(null)
+  // While rotating: the absolute angle (single) or signed delta (group), radians.
+  const [live, setLive] = useState<number | null>(null)
+  const gesture = useRef<Gesture | null>(null)
 
-  const def = item ? catalog[item.defId] : null
+  // Resolve the target set + ring geometry from the live selection.
+  const geom = useMemo(() => {
+    const targets: GizmoTarget[] = []
+    for (const it of selected) {
+      const def = catalog[it.defId]
+      if (!def) continue
+      const obb = itemFootprint(it, def)
+      targets.push({
+        id: it.id,
+        cx: obb.cx,
+        cz: obb.cz,
+        halfDiag: Math.hypot(obb.hx, obb.hz),
+        position: [it.position[0], it.position[1]],
+        rotation: it.rotation,
+      })
+    }
+    if (targets.length === 0) return null
+    const single = targets.length === 1
+    if (single) {
+      const t = targets[0]
+      // Pivot about the item's own position so the gesture only spins it.
+      return {
+        single,
+        targets,
+        pivot: [t.position[0], t.position[1]] as [number, number],
+        radius: gizmoRadius(t.halfDiag, t.halfDiag),
+        faceRot: t.rotation,
+      }
+    }
+    const pivot: [number, number] = [
+      targets.reduce((a, t) => a + t.position[0], 0) / targets.length,
+      targets.reduce((a, t) => a + t.position[1], 0) / targets.length,
+    ]
+    return {
+      single,
+      targets,
+      pivot,
+      radius: enclosingRadius(pivot[0], pivot[1], targets),
+      faceRot: 0,
+    }
+  }, [selected, catalog])
+
   const visible =
-    cameraMode === 'orbit' &&
-    editorTool === 'select' &&
-    !!item &&
-    !!def &&
-    !item.locked &&
-    !draggingItemId &&
-    !activeDefId
-
-  const obb = useMemo(() => (item && def ? itemFootprint(item, def) : null), [item, def])
-  const radius = obb ? gizmoRadius(obb.hx, obb.hz) : gizmoRadius(0, 0)
+    cameraMode === 'orbit' && editorTool === 'select' && !draggingItemId && !activeDefId && !!geom
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ndc/raycaster/hitPoint are stable refs; gesture is a mutable ref read lazily; re-binding per render would thrash listeners.
   useEffect(() => {
@@ -108,44 +165,68 @@ export function RotateGizmo() {
       return [hitPoint.x, hitPoint.z]
     }
 
+    const apply = (g: Gesture, delta: number) => {
+      const state = useStore.getState()
+      for (const o of g.originals) {
+        const next = rotatePointAround(o.position[0], o.position[1], g.pivot[0], g.pivot[1], delta)
+        state.moveItem(o.id, next)
+        state.rotateItem(o.id, o.rotation + delta)
+      }
+    }
+
+    const checkValid = (g: Gesture): boolean => {
+      const after = useStore.getState()
+      const sel = new Set(g.originals.map((o) => o.id))
+      // Rigid rotation preserves intra-selection distances, so ignore in-group
+      // pairs (any overlap pre-existed) and test against the rest + walls.
+      const others = after.items.filter((i) => !sel.has(i.id))
+      const planWalls = isDefaultPlan(after.floorPlan)
+        ? undefined
+        : planCollisionWalls(after.floorPlan, after.doors)
+      const walls = planWalls ?? buildCollisionWalls(after.doors)
+      for (const o of g.originals) {
+        const it = after.items.find((i) => i.id === o.id)
+        const def = it ? catalog[it.defId] : null
+        if (!it || !def) continue
+        if (!canPlace(it, def, { others, defs: catalog, doors: after.doors, walls })) return false
+      }
+      return true
+    }
+
     const onMove = (ev: PointerEvent) => {
       const g = gesture.current
       if (!g) return
       const hit = project(ev.clientX, ev.clientY)
       if (!hit) return
-      const angle = pointerAngle(g.cx, g.cz, hit[0], hit[1])
-      const next = computeRotation(g.startRot, g.grabAngle, angle, !ev.shiftKey)
-
-      const state = useStore.getState()
-      const live = state.items.find((i) => i.id === g.id)
-      const liveDef = live ? catalog[live.defId] : null
-      if (!live || !liveDef) return
-      state.rotateItem(g.id, next)
-      setLiveRot(next)
-
-      // Live collision feedback (parity with the item-drag tint).
-      const planWalls = isDefaultPlan(state.floorPlan)
-        ? undefined
-        : planCollisionWalls(state.floorPlan, state.doors)
-      const ok = canPlace({ ...live, rotation: next }, liveDef, {
-        others: state.items.filter((o) => o.id !== g.id),
-        defs: catalog,
-        doors: state.doors,
-        walls: planWalls ?? buildCollisionWalls(state.doors),
-      })
-      setValid(ok)
+      const angle = pointerAngle(g.pivot[0], g.pivot[1], hit[0], hit[1])
+      const free = ev.shiftKey
+      let delta: number
+      if (g.single) {
+        const abs = computeRotation(g.startRot, g.grabAngle, angle, !free)
+        delta = abs - g.startRot
+        setLive(abs)
+      } else {
+        delta = snapDelta(angle - g.grabAngle, !free)
+        setLive(delta)
+      }
+      apply(g, delta)
+      setValid(checkValid(g))
     }
 
     const onUp = () => {
       const g = gesture.current
       if (g && !valid) {
-        // Invalid landing — revert to the angle captured at grab.
-        useStore.getState().rotateItem(g.id, g.startRot)
+        // Invalid landing — restore every member's pre-gesture transform.
+        const state = useStore.getState()
+        for (const o of g.originals) {
+          state.moveItem(o.id, o.position)
+          state.rotateItem(o.id, o.rotation)
+        }
       }
       gesture.current = null
       setRotating(false)
       setValid(true)
-      setLiveRot(null)
+      setLive(null)
     }
 
     window.addEventListener('pointermove', onMove)
@@ -158,28 +239,37 @@ export function RotateGizmo() {
     }
   }, [rotating, valid, camera, gl, catalog])
 
-  if (!visible || !obb || !item) return null
+  if (!visible || !geom) return null
 
+  const { single, targets, pivot, radius, faceRot } = geom
   const color = rotating ? (valid ? COLOR_VALID : COLOR_INVALID) : COLOR_IDLE
 
   const onGrab = (e: ThreeEvent<PointerEvent>) => {
     e.stopPropagation()
-    const grabAngle = pointerAngle(obb.cx, obb.cz, e.point.x, e.point.z)
+    const grabAngle = pointerAngle(pivot[0], pivot[1], e.point.x, e.point.z)
     gesture.current = {
-      id: item.id,
-      cx: obb.cx,
-      cz: obb.cz,
+      single,
+      pivot,
       grabAngle,
-      startRot: item.rotation,
+      startRot: single ? targets[0].rotation : 0,
+      originals: targets.map((t) => ({ id: t.id, position: t.position, rotation: t.rotation })),
     }
     useStore.getState().pushHistory()
     setValid(true)
-    setLiveRot(item.rotation)
+    setLive(single ? targets[0].rotation : 0)
     setRotating(true)
   }
 
+  // Readout: single → absolute heading; group → signed turn applied.
+  const readout =
+    live == null
+      ? ''
+      : single
+        ? `${toDegrees(live)}°`
+        : `${live >= 0 ? '+' : '−'}${Math.abs(Math.round((live * 180) / Math.PI))}°`
+
   return (
-    <group position={[obb.cx, LIFT, obb.cz]} rotation={[0, item.rotation, 0]}>
+    <group position={[pivot[0], LIFT, pivot[1]]} rotation={[0, faceRot, 0]}>
       {/* Wide invisible grab band over the visible ring — generous touch target. */}
       <mesh
         ref={priorityRaycast}
@@ -187,12 +277,12 @@ export function RotateGizmo() {
         onPointerDown={onGrab}
         renderOrder={5}
       >
-        <ringGeometry args={[radius - GRAB_HALF, radius + GRAB_HALF, 48]} />
+        <ringGeometry args={[radius - GRAB_HALF, radius + GRAB_HALF, 64]} />
         <meshBasicMaterial transparent opacity={0} depthTest={false} depthWrite={false} />
       </mesh>
       {/* Visible ring. */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} renderOrder={6}>
-        <ringGeometry args={[radius - 0.022, radius + 0.022, 48]} />
+        <ringGeometry args={[radius - 0.022, radius + 0.022, 64]} />
         <meshBasicMaterial
           color={color}
           transparent
@@ -201,12 +291,13 @@ export function RotateGizmo() {
           depthWrite={false}
         />
       </mesh>
-      {/* Front-facing grab knob (points where the item faces, local +Z). */}
+      {/* Grab knob. For a single item it sits at the facing (+Z) so it doubles as
+          a heading indicator; for a group it sits due north of the centroid. */}
       <mesh ref={priorityRaycast} position={[0, 0, radius]} onPointerDown={onGrab} renderOrder={7}>
         <sphereGeometry args={[0.075, 20, 20]} />
         <meshBasicMaterial color={color} depthTest={false} depthWrite={false} />
       </mesh>
-      {/* Spoke from centre to the knob — reinforces the facing direction. */}
+      {/* Spoke from centre to the knob. */}
       <mesh position={[0, 0, radius / 2]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={6}>
         <planeGeometry args={[0.02, radius]} />
         <meshBasicMaterial
@@ -217,10 +308,10 @@ export function RotateGizmo() {
           depthWrite={false}
         />
       </mesh>
-      {rotating && liveRot != null && (
+      {rotating && readout && (
         <Html position={[0, 0, radius + 0.18]} center distanceFactor={9}>
           <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
-            {toDegrees(liveRot)}°
+            {readout}
           </div>
         </Html>
       )}
