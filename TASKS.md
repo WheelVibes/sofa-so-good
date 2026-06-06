@@ -137,3 +137,5 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   dimensions + widened 0.25–3× range. E2E-verified. (CHANGELOG)
 - [x] Q18. **"Centre in room"** context action (collision-checked, plan-aware).
   E2E-verified. (CHANGELOG)
+- [x] Q19. **Export 2D floor plan as PNG** (`exportPlanPng.ts`, CSS-var
+  resolution + backdrop strip). Pipeline-verified. (CHANGELOG)

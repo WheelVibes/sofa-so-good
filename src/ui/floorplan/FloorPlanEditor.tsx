@@ -18,6 +18,7 @@ import {
   removePersistedBackdrop,
   updateBackdropMeta,
 } from './backdropPersist'
+import { exportPlanPng } from './exportPlanPng'
 import { PlanInspector } from './PlanInspector'
 
 /** Muted top-down fill per furniture category for the 2D plan layer. */
@@ -676,6 +677,23 @@ export function FloorPlanEditor() {
             aria-pressed={showWallDims}
           >
             Dims
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            title="Download the floor plan as a PNG image"
+            onClick={() => {
+              if (!svgRef.current) return
+              const safe =
+                (plan.name || 'floor-plan')
+                  .replace(/[^a-z0-9-_]+/gi, '-')
+                  .replace(/^-+|-+$/g, '') || 'floor-plan'
+              exportPlanPng(svgRef.current, safe).catch(() =>
+                a.notify.start({ title: "Couldn't export the plan image", kind: 'error' }),
+              )
+            }}
+          >
+            Export PNG
           </button>
           <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
             Total{' '}

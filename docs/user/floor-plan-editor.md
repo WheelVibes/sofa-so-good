@@ -67,6 +67,13 @@ With nothing selected, the inspector shows a **Ceiling height** field — raise 
 lower it (2.2–4 m) and the whole home's walls and ceiling adjust in 3D.
 Bathrooms keep their lower dropped ceiling. The height is saved with your design.
 
+## Export the plan as an image
+
+**Export PNG** (in the editor header) downloads the floor plan as a PNG image —
+walls, rooms, areas and dimension labels — to share with a client, drop into a
+document, or print. (The reference trace photo isn't included; it's just the
+clean plan.)
+
 ## Templates & saving
 
 Start from a **template** apartment, **Reset to HDB** for the default flat, or

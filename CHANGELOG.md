@@ -10,6 +10,16 @@ Polish for the hide feature: a piece that's both selected and hidden no longer
 shows its rotate gizmo or selection outline floating over the empty spot —
 `RotateGizmo` and `SelectionOutline` now skip hidden items. Verified.
 
+## [Q19] Export the 2D floor plan as a PNG
+
+**Export PNG** in the floor-plan editor downloads the plan (walls, rooms, areas,
+dimension labels) as an image to share/print. The SVG styles fills/strokes with
+CSS custom properties that don't resolve in an `<img>`-rendered SVG, so
+`exportPlanPng.ts` serializes the SVG, substitutes each `var(--…)` with its
+resolved value, strips the trace backdrop, and rasterises to a 2× PNG on a
+paper-filled canvas. Verified the full pipeline (serialize → vars resolved →
+rasterise 820×620 → 178 KB PNG); fail-soft with a notification.
+
 ## [Q18] "Centre in room" context action
 
 Right-click → **Centre in room** moves the piece to the centre of the room it's
