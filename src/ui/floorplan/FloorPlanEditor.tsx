@@ -140,32 +140,6 @@ export function FloorPlanEditor() {
     }
   }, [editing])
 
-  // On open, scroll the (large, margin-padded) canvas so the plan is centred in
-  // the viewport — the grid extends in every direction to pan into.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-centre only when the editor opens; PX/ew/ed read fresh inside.
-  useEffect(() => {
-    if (!editing) return
-    const el = canvasRef.current
-    if (!el) return
-    // Retry each frame until the SVG has laid out at its full (inline) size —
-    // before that, scrollLeft clamps to 0 (content not yet wider than the view).
-    let frames = 0
-    let id = 0
-    const center = () => {
-      frames++
-      if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight || frames > 20) {
-        const cx = (ew / 2 + GRID_MARGIN) * PX
-        const cz = (ed / 2 + GRID_MARGIN) * PX
-        el.scrollLeft = Math.max(0, cx - el.clientWidth / 2)
-        el.scrollTop = Math.max(0, cz - el.clientHeight / 2)
-        return
-      }
-      id = requestAnimationFrame(center)
-    }
-    id = requestAnimationFrame(center)
-    return () => cancelAnimationFrame(id)
-  }, [editing])
-
   // Revoke the live object URL only on a true unmount (not on editor close).
   useEffect(
     () => () => {
@@ -304,6 +278,34 @@ export function FloorPlanEditor() {
   const H = (ed + GRID_MARGIN * 2) * PX
   const toPx = (m: number) => (m + GRID_MARGIN) * PX
   const snap = (m: number) => (gridSize > 0 ? Math.round(m / gridSize) * gridSize : m)
+
+  // Scroll the (large, margin-padded) canvas so the plan is centred. Retries
+  // each frame until the SVG has laid out at its full (inline) size — before
+  // that, scrollLeft clamps to 0 (content not yet wider than the view).
+  const centerPlan = useCallback(
+    (px: number) => {
+      const el = canvasRef.current
+      if (!el) return
+      let frames = 0
+      const run = () => {
+        frames++
+        if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight || frames > 120) {
+          el.scrollLeft = Math.max(0, (ew / 2 + GRID_MARGIN) * px - el.clientWidth / 2)
+          el.scrollTop = Math.max(0, (ed / 2 + GRID_MARGIN) * px - el.clientHeight / 2)
+          return
+        }
+        requestAnimationFrame(run)
+      }
+      requestAnimationFrame(run)
+    },
+    [ew, ed],
+  )
+
+  // Centre the plan when the editor opens. The grid extends every direction.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-centre only on open; PX read fresh.
+  useEffect(() => {
+    if (editing) centerPlan(PX)
+  }, [editing, centerPlan])
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
    *  explicit polygon for area/render/containment). Stable (reads the store). */
@@ -776,8 +778,11 @@ export function FloorPlanEditor() {
             </button>
             <button
               type="button"
-              title="Reset zoom"
-              onClick={() => setZoom(1)}
+              title="Reset zoom & centre"
+              onClick={() => {
+                setZoom(1)
+                requestAnimationFrame(() => centerPlan(basePX))
+              }}
               style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
             >
               {Math.round(zoom * 100)}%
