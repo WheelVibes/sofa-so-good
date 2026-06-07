@@ -98,6 +98,19 @@ describe('designPalette', () => {
     expect(pal[0]).toMatchObject({ id: 'mat:some-cc0', name: 'mat:some-cc0', swatch: '#cccccc' })
   })
 
+  it('finishes-by-room follows the active plan rooms (custom plans)', () => {
+    // Custom-plan room ids ('a'/'b') are not in the default ROOMS constant; the
+    // report must still list them with their finishes.
+    const html = buildReportHtml(plan, [], catalog, null, 'metric', {
+      floor: { a: 'wall-paint-white' },
+      walls: { b: '#abcdef' },
+    })
+    expect(html).toContain('Finishes by room')
+    expect(html).toContain('Room A')
+    expect(html).toContain('Room B')
+    expect(html).toContain('White paint')
+  })
+
   it('is surfaced in the report HTML as a Material palette', () => {
     const html = buildReportHtml(plan, [], catalog, null, 'metric', {
       floor: { a: 'wall-paint-white' },

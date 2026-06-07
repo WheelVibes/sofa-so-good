@@ -58,12 +58,17 @@ export function buildReportHtml(
   // ids fall back to the raw id). Only rendered when finishes are supplied.
   const matName = (id: string | undefined): string =>
     id ? (BUILTIN_MATERIALS[id]?.name ?? id) : '—'
+  // Iterate the ACTIVE plan's rooms (not the default ROOMS constant) so custom
+  // floor plans show their own rooms + finishes; skip only the default plan's
+  // external (non-finishable) ledges. Finishes are keyed by room id.
+  const floorOf = finishes?.floor as Record<string, string> | undefined
+  const wallOf = finishes?.walls as Record<string, string> | undefined
   const finishRows = finishes
-    ? (Object.keys(ROOMS) as (keyof typeof ROOMS)[])
-        .filter((id) => !ROOMS[id].external)
+    ? plan.rooms
+        .filter((r) => !ROOMS[r.id as keyof typeof ROOMS]?.external)
         .map(
-          (id) =>
-            `<tr><td>${esc(ROOMS[id].name)}</td><td>${esc(matName(finishes.floor[id]))}</td><td>${esc(matName(finishes.walls[id]))}</td></tr>`,
+          (r) =>
+            `<tr><td>${esc(r.name)}</td><td>${esc(matName(floorOf?.[r.id]))}</td><td>${esc(matName(wallOf?.[r.id]))}</td></tr>`,
         )
         .join('')
     : ''

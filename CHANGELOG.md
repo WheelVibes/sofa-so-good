@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B21] Report finishes-by-room follows the active plan (custom-plan fix)
+
+The report's **Finishes by room** table iterated the default `ROOMS` constant, so
+on a **custom floor plan** it listed the wrong rooms (the default HDB rooms, all
+"—") and omitted the user's actual rooms — finishes are keyed by room id, and a
+custom plan's ids aren't the defaults. Now it iterates the **active plan's
+rooms**, resolving each room's floor/wall finish by id and skipping only the
+default plan's external (non-finishable) ledges. The default plan's output is
+unchanged (verified — same rooms, ledge still filtered); custom plans now show
+their real rooms + finishes. Unit-tested.
+
 ## [N24] Material palette ("style board") in the design report
 
 The printable report now ends with a **Material palette** — colour chips for the

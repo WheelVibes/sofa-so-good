@@ -289,3 +289,6 @@ Remaining (larger / focused-session):
 - [x] N24. **Material palette in the report** — `designPalette` (pure,
   unit-tested) → colour chips of distinct floor/wall finishes; verified by
   rendering the real report HTML. (CHANGELOG)
+- [x] B21. **Report finishes-by-room follows the active plan** — was iterating
+  the default ROOMS constant (broken for custom plans); now uses plan.rooms.
+  Default output unchanged (verified); custom plans fixed. Unit-tested. (CHANGELOG)
