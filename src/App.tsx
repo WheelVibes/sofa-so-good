@@ -252,8 +252,18 @@ export default function App() {
     const def = catalog[entry.defId]
     if (!def) return
 
-    // Search a small spiral of XZ offsets starting near the source so the
-    // paste lands next to the original; first non-colliding cell wins.
+    // Anchor the paste near the source — but if we're editing a *different*
+    // room than the copy came from, anchor to the current room's centre so
+    // "copy here → switch room → paste" lands in the room you're looking at
+    // (not back in the source room, where the new item would be off-screen).
+    let base = entry.sourcePosition
+    if (state.roomEditor.active && state.roomEditor.roomId) {
+      const shell = getRoomEditorShell(state.floorPlan, state.roomEditor.roomId)?.shell
+      if (shell && !shell.contains(base[0], base[1])) base = shell.center
+    }
+
+    // Search a small spiral of XZ offsets starting near the anchor so the
+    // paste lands next to it; first non-colliding cell wins.
     const STEP = 0.3
     const MAX_RING = 8
     const candidatePositions: [number, number][] = []
@@ -261,10 +271,7 @@ export default function App() {
       for (let dx = -r; dx <= r; dx++) {
         for (let dz = -r; dz <= r; dz++) {
           if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue
-          candidatePositions.push([
-            entry.sourcePosition[0] + dx * STEP,
-            entry.sourcePosition[1] + dz * STEP,
-          ])
+          candidatePositions.push([base[0] + dx * STEP, base[1] + dz * STEP])
         }
       }
     }

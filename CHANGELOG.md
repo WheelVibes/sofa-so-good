@@ -42,6 +42,18 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [Q36] Cross-room paste lands in the room you're editing
+
+`pasteClipboard` always anchored the paste near the **copied item's original
+position**, so "copy in room A → switch to room B → paste" dropped the new item
+back in room A — off-screen in the room-B editor (effectively lost). Now, when
+the room editor is active and the clipboard's source falls **outside** the
+current room, the paste anchors to that room's centre (then spiral-searches for
+a free spot) so it lands where you're looking. Same-room paste / duplicate is
+unchanged (source is inside ⇒ near-source as before). Verified: a clipboard
+sourced at bedroom3 `[7.5, 2.0]` pasted into the main-bedroom editor landed at
+`[1.93, 2.60]`, inside the main bedroom. 880 tests; tsc + lint clean.
+
 ## [Q35] "Clear this room" action in the FinishPicker
 
 Added a per-room **Clear room (N)** button beside "Tidy up room" in the
