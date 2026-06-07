@@ -14,6 +14,7 @@ import { tidyHome } from './layout/tidyHome'
 import { cameraForwardXZ } from './scene/cameras/cameraForward'
 import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
+import { getRoomEditorShell } from './scene/roomEditorShell'
 import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
 import { canEditScene } from './state/editing'
@@ -60,6 +61,17 @@ import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
 import { WalkJoystick } from './ui/walk/WalkJoystick'
 import { SmartStartWizard } from './ui/wizard/SmartStartWizard'
+
+/** Ids of the furniture in the room currently being edited (the set the room
+ *  editor renders). Used by the room-scoped select-all / cycle shortcuts. Falls
+ *  back to all items when not in the editor (callers gate on `canEditScene`). */
+function roomScopedItemIds(s: ReturnType<typeof useStore.getState>): string[] {
+  const { roomEditor, floorPlan, items } = s
+  if (!roomEditor.active || !roomEditor.roomId) return items.map((i) => i.id)
+  const shell = getRoomEditorShell(floorPlan, roomEditor.roomId)?.shell
+  if (!shell) return items.map((i) => i.id)
+  return items.filter((it) => shell.contains(it.position[0], it.position[1])).map((i) => i.id)
+}
 
 export default function App() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements)
@@ -114,17 +126,18 @@ export default function App() {
         s.setHelpOpen(!s.helpOpen)
         return
       }
-      // Ctrl/⌘+A selects every placed item (orbit mode only, not while typing).
+      // Ctrl/⌘+A selects every item in the room being edited (editing is
+      // room-editor-only now; the overview/walk are view-only). Not while typing.
       if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A') && !isEditableTarget(e)) {
         const s = useStore.getState()
-        if (s.cameraMode === 'orbit' && !s.roomEditor.active && s.items.length > 0) {
+        const ids = roomScopedItemIds(s)
+        if (canEditScene(s) && ids.length > 0) {
           e.preventDefault()
-          s.setSelectedItemIds(s.items.map((i) => i.id))
+          s.setSelectedItemIds(ids)
         }
       }
-      // `[` / `]` cycle the selection through placed items (prev / next, wrapping)
-      // — keyboard access to objects without a mouse. Orbit only; skipped while
-      // typing or in the 2D plan editor.
+      // `[` / `]` cycle the selection through the room's items (prev / next,
+      // wrapping) — keyboard access without a mouse. Room editor only.
       if (
         (e.key === '[' || e.key === ']') &&
         !e.metaKey &&
@@ -133,9 +146,9 @@ export default function App() {
         !isEditableTarget(e)
       ) {
         const s = useStore.getState()
-        if (s.cameraMode === 'orbit' && !s.floorPlanEditing && s.items.length > 0) {
+        const ids = roomScopedItemIds(s)
+        if (canEditScene(s) && ids.length > 0) {
           e.preventDefault()
-          const ids = s.items.map((i) => i.id)
           const cur = ids.indexOf(s.selectedItemId ?? '')
           const step = e.key === ']' ? 1 : -1
           // From no selection, ']' starts at the first item and '[' at the last.
@@ -145,17 +158,16 @@ export default function App() {
           return
         }
       }
-      // `/` jumps to the catalog/layers search (opening the drawer if needed),
-      // a quick-find shortcut. Orbit only; skipped while already typing and for
-      // modifier combos (so it never hijacks a real "/" character).
+      // `/` jumps to the catalog search (opening the drawer if needed), a
+      // quick-find shortcut. The catalog lives in the room editor now, so this
+      // is editor-only. Skipped while typing / for modifier combos.
       if (
         e.key === '/' &&
         !e.metaKey &&
         !e.ctrlKey &&
         !e.altKey &&
         !isEditableTarget(e) &&
-        useStore.getState().cameraMode === 'orbit' &&
-        !useStore.getState().roomEditor.active
+        canEditScene(useStore.getState())
       ) {
         e.preventDefault()
         if (!useStore.getState().catalogOpen) useStore.getState().setCatalogOpen(true)

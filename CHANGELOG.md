@@ -42,6 +42,23 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [VE4] Fix the global keyboard shortcuts for the view/edit split
+
+Three shortcuts in the global key handler still gated on the pre-revamp model
+and broke after VE1:
+- **Ctrl/⌘+A** (select all) fired in the *view-only overview* (where selection
+  isn't rendered or editable) and was *blocked in the room editor* — backwards.
+- **`[` / `]`** (cycle selection) cycled through **all** items in both the
+  overview and editor, rather than the room's.
+- **`/`** (focus catalog search) opened the catalog from the overview, where it
+  no longer mounts (no-op).
+
+All three are now gated on `canEditScene` (room editor + orbit) and select/cycle
+only the **current room's** items via a new `roomScopedItemIds` helper (the same
+set the editor renders + the VE2 caption counts). Verified: overview Ctrl+A
+selects 0; room-editor Ctrl+A selects exactly the room's items (10/66 for the
+main bedroom). 880 tests; tsc + lint clean.
+
 ## [VE3] Click-a-room-to-edit + hover affordance on custom plans too
 
 VE1/VE1c wired "click a room's floor to enter its editor" and the hover

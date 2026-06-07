@@ -357,6 +357,8 @@ Remaining (larger / focused-session):
 - [x] VE2. **Furniture count** in the room-editor caption (pointInRoom). (CHANGELOG)
 - [x] VE3. **Click-to-edit + hover on custom plans** — PlanRoomFloor click-to-enter
   + generalized RoomHoverHighlight (roomPolygon, any plan). Verified default + custom. (CHANGELOG)
+- [x] VE4. **Fix global keyboard shortcuts for the split** — Ctrl+A / `[` `]` / `/`
+  now editor-only + room-scoped (roomScopedItemIds). Verified. (CHANGELOG)
 
 ## User-requested features (2026-06-07)
 - [x] N27. **Selectable 3D backdrops** (City/Park/Hills/Studio) — Scene menu + mobile, persisted. Replaces the "cluttered/boring" buildings-only backdrop. E2E-verified. (CHANGELOG)
