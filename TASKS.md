@@ -202,8 +202,9 @@ own commit, dev-gate anything licensed.
 - [x] Q29. **Focus catalog/layers search with `/`** — opens the drawer + focuses
   the search/filter input; in Help list. E2E-verified. (CHANGELOG)
   typing) — quick-find power-user shortcut.
-- [ ] Q30. **Undo/redo history panel** — list past steps with labels (the
-  history slice already coalesces); jump-to-step.
+- [x] Q30. **Undo/redo history panel** — labelled timeline (diff-derived labels,
+  no per-caller threading), jump-to-step via `jumpHistory`, Undo/Redo/Clear;
+  Tools menu + ⌘K + mobile (Pro-gated). 13 tests; desktop+mobile verified. (CHANGELOG)
 - [ ] Q31. **Drag a material swatch onto a surface in 3D** to apply a finish
   (reuses `getSurfaceMaterial` / finish DLC); today it's picker-only.
 - [x] Q32. **Saved-view thumbnails** — preview per camera bookmark (desktop +

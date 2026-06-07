@@ -13,16 +13,19 @@ export function ToolsMenu() {
   const clearancePanelOpen = useStore((s) => s.clearancePanelOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
+  const historyOpen = useStore((s) => s.historyOpen)
   const touring = useStore((s) => s.touring)
   const recording = useStore((s) => s.recording)
 
-  // The budget / clearance / versions panels all dock to the same centred-top
-  // `.aux` slot, so they're mutually exclusive — opening one closes the others.
+  // The budget / clearance / versions / history panels all dock to the same
+  // centred-top `.aux` slot, so they're mutually exclusive — opening one closes
+  // the others.
   const closeAux = () => {
     const s = useStore.getState()
     if (s.budgetOpen) s.toggleBudget()
     s.setClearancePanelOpen(false)
     s.setVersionsOpen(false)
+    s.setHistoryOpen(false)
   }
   const openBudget = () => {
     const wasOpen = useStore.getState().budgetOpen
@@ -40,6 +43,11 @@ export function ToolsMenu() {
     const wasOpen = useStore.getState().versionsOpen
     closeAux()
     useStore.getState().setVersionsOpen(!wasOpen)
+  }
+  const openHistory = () => {
+    const wasOpen = useStore.getState().historyOpen
+    closeAux()
+    useStore.getState().setHistoryOpen(!wasOpen)
   }
 
   const items = useStore((s) => s.items)
@@ -60,7 +68,14 @@ export function ToolsMenu() {
   }
 
   const anyActive =
-    budgetOpen || clearancePanelOpen || touring || recording || sunStudy || versionsOpen || tapeMode
+    budgetOpen ||
+    clearancePanelOpen ||
+    touring ||
+    recording ||
+    sunStudy ||
+    versionsOpen ||
+    historyOpen ||
+    tapeMode
 
   const startWalkthrough = () => {
     const s = useStore.getState()
@@ -98,6 +113,13 @@ export function ToolsMenu() {
         sub="Tap two points for a distance"
         active={tapeMode}
         onClick={toggleTape}
+      />
+      <MenuItem
+        icon="Undo"
+        label="History"
+        sub="Timeline of edits — jump to any step"
+        active={historyOpen}
+        onClick={openHistory}
       />
       <MenuItem
         icon="Versions"

@@ -39,6 +39,16 @@ and the distance between them appears on an amber ruler line. Click again to
 start a fresh measurement; turn the tool off from the same menu. Works on touch
 (tap the two points) too.
 
+## History
+
+**History** (Tools menu, or ⌘K → "Edit history") shows a timeline of every edit
+you've made — adding a sofa, moving a chair, changing a finish, toggling a door,
+editing the floor plan — newest at the top, with the current state marked
+**Now**. Click any step to jump straight back (or forward) to that point in one
+move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
+**Redo** buttons and **Clear history**. (You can always undo/redo with
+**Ctrl/⌘ + Z** and **Ctrl/⌘ + Shift + Z** without opening the panel.)
+
 ## Versions, share & report
 
 - **Versions** — save, restore, and delete named snapshots of your layout, each

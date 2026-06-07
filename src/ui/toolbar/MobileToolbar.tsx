@@ -138,6 +138,7 @@ export function MobileToolbar() {
   const tapeMode = useStore((st) => st.tapeMode)
   const budgetOpen = useStore((st) => st.budgetOpen)
   const versionsOpen = useStore((st) => st.versionsOpen)
+  const historyOpen = useStore((st) => st.historyOpen)
   const clearancePanelOpen = useStore((st) => st.clearancePanelOpen)
   const editorTool = useStore((st) => st.editorTool)
   const snapEnabled = useStore((st) => st.snapEnabled)
@@ -183,12 +184,13 @@ export function MobileToolbar() {
     : floorPlanForRooms.rooms.map((r) => ({ id: r.id, name: r.name }))
   const defaultEditRoomId = editableRooms[0]?.id
 
-  // Mutually-exclusive .aux panels (budget / checks / versions).
+  // Mutually-exclusive .aux panels (budget / checks / versions / history).
   const closeAux = () => {
     const st = s.getState()
     if (st.budgetOpen) st.toggleBudget()
     st.setClearancePanelOpen(false)
     st.setVersionsOpen(false)
+    st.setHistoryOpen(false)
   }
   const openBudget = () => {
     const wasOpen = s.getState().budgetOpen
@@ -206,6 +208,11 @@ export function MobileToolbar() {
     const wasOpen = s.getState().versionsOpen
     closeAux()
     s.getState().setVersionsOpen(!wasOpen)
+  }
+  const openHistory = () => {
+    const wasOpen = s.getState().historyOpen
+    closeAux()
+    s.getState().setHistoryOpen(!wasOpen)
   }
 
   const startWalkthrough = () => {
@@ -646,6 +653,7 @@ export function MobileToolbar() {
                     on={tapeMode}
                     onClick={act(() => s.getState().toggleTapeMode())}
                   />
+                  <Item icon="Undo" label="History" on={historyOpen} onClick={act(openHistory)} />
                   <Item
                     icon="Versions"
                     label="Versions"

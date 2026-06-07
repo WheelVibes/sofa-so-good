@@ -388,7 +388,13 @@ rediscover it.
   `LocalStorageAdapter` slots + `slotThumbs`, a per-version **Compare** vs the
   current design (`versionDiff.ts` `diffVersionItems` — gained/lost item types),
   plus **Export/Import** a design as
-  a portable `.sofa.json` file via `storage/designFile.ts`), **Shopping list + Collections**
+  a portable `.sofa.json` file via `storage/designFile.ts`), **History**
+  (`HistoryPanel.tsx` — a labelled timeline of every undoable step with the live
+  state marked; clicking a row **jumps** straight to that past/future state via
+  `historySlice.jumpHistory(index)` — multi-step undo/redo in one move. Step
+  labels are derived purely from adjacent-snapshot diffs in `historyTimeline.ts`
+  (`describeHistoryStep`/`buildHistoryTimeline`), so no label is threaded through
+  the `pushHistory` callers), **Shopping list + Collections**
   (`BudgetPanel` List/Saved tabs + a heart `fav-btn` on every catalog card —
   local *and* CC0 — toggling `collections`, which also feeds the catalog's
   favourites category; an optional **budget target** — `featuresSlice.budgetTarget`,

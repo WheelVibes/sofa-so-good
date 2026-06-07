@@ -39,6 +39,7 @@ const FloorPlanEditor = lazy(() =>
 )
 
 import { ConfirmModal } from './ui/ConfirmModal'
+import { HistoryPanel } from './ui/HistoryPanel'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
@@ -656,6 +657,7 @@ export default function App() {
         <ShareModal />
         <ClearancePanel />
         <VersionsPanel />
+        <HistoryPanel />
         <SmartStartWizard />
         <Onboarding />
         <ProductTour />

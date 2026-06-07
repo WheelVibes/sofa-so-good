@@ -89,6 +89,7 @@ export function CommandPalette() {
         run: () => {
           s().setClearancePanelOpen(false)
           s().setVersionsOpen(false)
+          s().setHistoryOpen(false)
           if (!s().budgetOpen) s().toggleBudget()
         },
       },
@@ -100,6 +101,7 @@ export function CommandPalette() {
         run: () => {
           if (s().budgetOpen) s().toggleBudget()
           s().setVersionsOpen(false)
+          s().setHistoryOpen(false)
           s().setClearancePanelOpen(true)
           if (!s().clearanceOn) s().toggleClearance()
         },
@@ -112,7 +114,20 @@ export function CommandPalette() {
         run: () => {
           if (s().budgetOpen) s().toggleBudget()
           s().setClearancePanelOpen(false)
+          s().setHistoryOpen(false)
           s().setVersionsOpen(true)
+        },
+      },
+      {
+        id: 'history',
+        group: 'Tools & panels',
+        label: 'Edit history — jump to any step',
+        icon: 'Undo',
+        run: () => {
+          if (s().budgetOpen) s().toggleBudget()
+          s().setClearancePanelOpen(false)
+          s().setVersionsOpen(false)
+          s().setHistoryOpen(true)
         },
       },
       {

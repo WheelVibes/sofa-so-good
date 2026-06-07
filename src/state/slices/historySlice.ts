@@ -36,6 +36,11 @@ export interface HistorySlice {
   pushHistoryCoalesced: (key: string) => void
   undo: () => void
   redo: () => void
+  /** Jump directly to a state in the flat undo/redo timeline (oldest → newest;
+   *  `past.length` is the current state). Unifies multi-step undo/redo so the
+   *  history panel can restore any past or future step in one move. No-op for an
+   *  out-of-range index or the current index. */
+  jumpHistory: (targetIndex: number) => void
   clearHistory: () => void
 }
 
@@ -102,6 +107,22 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
         ...next,
         past: [...s.past, snapshot(s)],
         future: s.future.slice(0, -1),
+        _lastPushKey: null,
+      }
+    }),
+  jumpHistory: (targetIndex) =>
+    set((s) => {
+      // Flat chronological timeline: past (oldest→newest), current, then the
+      // redo stack reversed (it stores the nearest-future state last).
+      const flat = [...s.past, snapshot(s), ...[...s.future].reverse()]
+      if (targetIndex < 0 || targetIndex >= flat.length) return s
+      if (targetIndex === s.past.length) return s // already current
+      const next = flat[targetIndex]
+      return {
+        ...next,
+        past: flat.slice(0, targetIndex),
+        // Re-stack everything after the target as the redo stack (nearest last).
+        future: [...flat.slice(targetIndex + 1)].reverse(),
         _lastPushKey: null,
       }
     }),

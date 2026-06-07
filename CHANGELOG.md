@@ -42,6 +42,32 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [Q30] Undo/redo History panel with jump-to-step
+
+Added a **History** panel (Tools menu, ⌘K "Edit history", + mobile Tools
+accordion — all Pro-gated like the rest of Tools): a labelled timeline of every
+undoable step, newest-first, with the live state marked **Now**. Clicking any row
+**jumps** straight to that state — multi-step undo/redo in one move — so you can
+scrub the design's history instead of hammering Ctrl+Z. Also has Undo/Redo
+buttons (disabled at the ends) and Clear history.
+
+- `historySlice.jumpHistory(targetIndex)` — a new action that unifies undo/redo:
+  it flattens `past + current + (future reversed)` into one chronological
+  timeline and re-homes the past/future stacks to land on any index (no-op for
+  the current/out-of-range index). Unit-tested (back/forward/no-op).
+- `ui/historyTimeline.ts` (pure, unit-tested) — `describeHistoryStep` derives a
+  human label from two adjacent snapshots (Added/Removed *name*, Added N items,
+  Swapped furniture, Moved furniture, Changed finishes, Toggled a door, Edited
+  floor plan), and `buildHistoryTimeline` assembles the labelled flat list with
+  the current index. Deriving labels from diffs means **no label has to be
+  threaded through the dozens of `pushHistory` callers**.
+- `ui/HistoryPanel.tsx` docks in the shared centred-top `.aux` slot (mutually
+  exclusive with Budget/Checks/Versions — wired into every opener's close-aux).
+  Verified on desktop (1600px) and mobile (390px, auto bottom-sheet): timeline,
+  Now marker, disabled Undo/Redo at the latest state — clean, no artifacts.
+
+13 new tests (timeline + slice); full suite 877 green; tsc + lint clean.
+
 ## [R7] Clear the last `useExhaustiveDependencies` lint finding
 
 The only `useExhaustiveDependencies` finding left in the codebase was
