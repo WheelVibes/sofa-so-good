@@ -54,7 +54,6 @@ import { WalkHud } from './ui/WalkHud'
 import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
 import { WalkJoystick } from './ui/walk/WalkJoystick'
-import { WalkMinimap } from './ui/walk/WalkMinimap'
 import { SmartStartWizard } from './ui/wizard/SmartStartWizard'
 
 export default function App() {
@@ -632,7 +631,6 @@ export default function App() {
         <TapeModeToggle />
         <Crosshair />
         <WalkJoystick />
-        <WalkMinimap />
         <WalkHud />
         <DoorPrompt />
         <CatalogDrawer />

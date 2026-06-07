@@ -277,3 +277,8 @@ Remaining (larger / focused-session):
 - [x] N22. **Walk-mode minimap** (plan outline + live player marker, rAF). (CHANGELOG)
 - [x] Q43/Q43b. Multi-select duplicate (helper + button). Q44 budget spend-breakdown. Q45 Scene-in-walk.
 - Lint backlog reduced (isFinite, implicit-any-let cleared); remaining are intentional idiom/test stubs.
+- [x] B20. **Fixed duplicate walk-mode minimaps** — removed the redundant N22
+  `WalkMinimap` (overlapped NavCluster's richer `Minimap`) and wired the
+  always-designed-but-unused current-room highlight + name into the real
+  `Minimap`, using the tested `roomPathD` helper for accurate L/polygon rooms.
+  E2E-verified. (CHANGELOG)

@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { planBounds, wallLength } from '../floorplan/types'
+import { type PlanRoom, planBounds, pointInRoom, wallLength } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import type { FurnitureCategory } from '../furniture/types'
 import { cameraForwardXZ, cameraPosXZ } from '../scene/cameras/cameraForward'
 import { useStore } from '../state/store'
+import { roomPathD } from './walk/minimapGeometry'
 
 const SIZE = 168
 const PAD = 0.4
@@ -23,10 +24,24 @@ const DOT: Partial<Record<FurnitureCategory, string>> = {
   laundry: '#14b8a6',
 }
 
+/** World-metre centre of a room (polygon centroid, else the main-rect centre). */
+function roomCentre(r: PlanRoom): [number, number] {
+  if (r.polygon && r.polygon.length > 0) {
+    const n = r.polygon.length
+    return [
+      r.polygon.reduce((a, p) => a + p[0], 0) / n,
+      r.polygon.reduce((a, p) => a + p[1], 0) / n,
+    ]
+  }
+  return [r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2]
+}
+
 /**
  * Top-down minimap shown in walk mode for orientation: the apartment shell,
  * furniture dots (coloured by category) and a camera arrow at the player's
- * position + heading. Reads the live camera pose via cameraForward signals.
+ * position + heading. The room the player is standing in is highlighted and
+ * named, updated live from the camera pose (no React re-render). Reads the live
+ * camera pose via the cameraForward signals.
  */
 export function Minimap() {
   const cameraMode = useStore((s) => s.cameraMode)
@@ -34,26 +49,59 @@ export function Minimap() {
   const items = useStore((s) => s.items)
   const catalog = useCatalog()
   const arrowRef = useRef<SVGGElement>(null)
+  const labelRef = useRef<SVGTextElement>(null)
+  const roomRefs = useRef<Record<string, SVGPathElement | null>>({})
   const [, force] = useState(0)
 
   const [W, D] = useMemo(() => planBounds(plan), [plan])
   const scale = useMemo(() => (SIZE - 12) / Math.max(W + PAD * 2, D + PAD * 2), [W, D])
   const toX = (m: number) => (m + PAD) * scale + 6
   const toY = (m: number) => (m + PAD) * scale + 6
+  // World→svg transform for the room fills (so `roomPathD`'s world-metre paths
+  // line up with the toX/toY-mapped walls + dots): toX(m) = m*scale + off.
+  const off = PAD * scale + 6
 
-  // Animate the camera arrow each frame while in walk mode.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: toX/toY are render-stable scale derivations
+  // Room shapes (accurate for L-shaped / polygon rooms) + centroids for labels.
+  const rooms = useMemo(
+    () =>
+      plan.rooms
+        .map((r) => ({ id: r.id, name: r.name, d: roomPathD(r), centre: roomCentre(r) }))
+        .filter((r) => r.d.length > 0),
+    [plan],
+  )
+
+  // Animate the camera arrow each frame while in walk mode, and live-highlight +
+  // name the room the player is currently inside (cheap attribute writes only).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: toX/toY/off are render-stable scale derivations
   useEffect(() => {
     if (cameraMode !== 'firstPerson') return
     let raf = 0
+    let lastRoom = ''
     const tick = () => {
+      const x = cameraPosXZ.x
+      const z = cameraPosXZ.z
       const g = arrowRef.current
       if (g) {
         const deg = (Math.atan2(cameraForwardXZ.x, -cameraForwardXZ.z) * 180) / Math.PI
-        g.setAttribute(
-          'transform',
-          `translate(${toX(cameraPosXZ.x)} ${toY(cameraPosXZ.z)}) rotate(${deg})`,
-        )
+        g.setAttribute('transform', `translate(${toX(x)} ${toY(z)}) rotate(${deg})`)
+      }
+      const here = useStore.getState().floorPlan.rooms.find((r) => pointInRoom(r, x, z))
+      const roomId = here?.id ?? ''
+      if (roomId !== lastRoom) {
+        roomRefs.current[lastRoom]?.classList.remove('lit')
+        roomRefs.current[roomId]?.classList.add('lit')
+        lastRoom = roomId
+        const lbl = labelRef.current
+        if (lbl) {
+          if (here) {
+            const [cx, cz] = roomCentre(here)
+            lbl.setAttribute('x', String(toX(cx)))
+            lbl.setAttribute('y', String(toY(cz)))
+            lbl.textContent = here.name
+          } else {
+            lbl.textContent = ''
+          }
+        }
       }
       raf = requestAnimationFrame(tick)
     }
@@ -69,17 +117,21 @@ export function Minimap() {
   return (
     <div className="minimap">
       <svg width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}>
-        {/* Rooms */}
-        {plan.rooms.map((r) => (
-          <rect
-            key={r.id}
-            className="mm-room"
-            x={toX(r.origin[0])}
-            y={toY(r.origin[1])}
-            width={r.width * scale}
-            height={r.depth * scale}
-          />
-        ))}
+        {/* Rooms — world-metre paths placed by the shared world→svg transform so
+            L-shaped / polygon rooms render (and highlight) accurately. */}
+        <g transform={`translate(${off} ${off}) scale(${scale})`}>
+          {rooms.map((r) => (
+            <path
+              key={r.id}
+              ref={(el) => {
+                roomRefs.current[r.id] = el
+              }}
+              className="mm-room"
+              vectorEffect="non-scaling-stroke"
+              d={r.d}
+            />
+          ))}
+        </g>
         {/* Walls */}
         {plan.walls.map((w) =>
           wallLength(w) === 0 ? null : (
@@ -109,6 +161,8 @@ export function Minimap() {
             />
           )
         })}
+        {/* Current-room name — position + text written live by the rAF. */}
+        <text ref={labelRef} className="mm-label" textAnchor="middle" />
         {/* Camera arrow */}
         <g ref={arrowRef}>
           <path

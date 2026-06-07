@@ -4,6 +4,21 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B20] Fix duplicate walk-mode minimaps + wire the current-room highlight
+
+Walk mode was rendering **two overlapping minimaps** bottom-right: the
+long-standing `NavCluster` `Minimap` (rooms + walls + category-coloured furniture
+dots + camera arrow) and the redundant `WalkMinimap` added in [N22]. Removed the
+duplicate `WalkMinimap` (and its App mount) and folded its only unique value into
+the real `Minimap`, which the original design had already anticipated but never
+wired (`.mm-room.lit` + `.mm-label` styles existed unused): the room the player
+is standing in is now **highlighted** and **named** live from the camera pose
+(cheap attribute/class writes in the existing rAF — no React re-render). Room
+fills now use the shared, unit-tested `roomPathD` (`ui/walk/minimapGeometry.ts`)
+placed by a world→svg transform, so **L-shaped / polygon rooms** render and
+highlight accurately (the old code drew bounding-box rects only). E2E-verified in
+walk mode (single panel, correct room lit + labelled, no overlap).
+
 ## [Q47] Copy a one-line design summary (Share modal)
 
 A "Copy summary" button copies a one-line text summary — name · interior area ·
