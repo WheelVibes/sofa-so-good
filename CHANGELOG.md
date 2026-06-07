@@ -4,6 +4,10 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F16] Print/PDF page-break control in the report
+`break-inside: avoid` on report sections/tables/chips (+ `break-after: avoid` on
+headings) so "save as PDF" no longer splits a section mid-page. 1 test; PDF-verified.
+
 ## [R13] Polygon/L-shape-aware room label placement (shared helper)
 Extracted `floorplan/roomCentroid.ts` `roomLabelPoint` (polygon area centroid /
 larger-rect of an L / rect centre), used by minimap + editor + report so labels

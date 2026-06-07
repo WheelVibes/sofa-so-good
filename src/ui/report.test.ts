@@ -99,6 +99,12 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('<img')
   })
 
+  it('includes print page-break rules so PDF sections stay whole', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('break-inside: avoid')
+    expect(html).toContain('@media print')
+  })
+
   it('escapes HTML in the plan name', () => {
     const html = buildReportHtml({ ...plan, name: '<script>x</script>' }, [], BUILTIN_CATALOG, null)
     expect(html).not.toContain('<script>x</script>')

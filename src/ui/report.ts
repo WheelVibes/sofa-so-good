@@ -236,7 +236,15 @@ export function buildReportHtml(
   .ok { color: #047857; font-weight: 600; margin-top: 6px; }
   .warn { color: #b45309; font-weight: 600; margin-top: 6px; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
-  @media print { body { padding: 0; } .hero { max-height: 300px; } }
+  /* Keep sections + tables whole across PDF pages, and never strand a heading. */
+  .room-cost, .palette, .plan-wrap, .note { break-inside: avoid; }
+  tr, .chip, .lg-item, .total { break-inside: avoid; }
+  h2 { break-after: avoid; }
+  @media print {
+    body { padding: 0; }
+    .hero { max-height: 300px; break-inside: avoid; }
+    .cols { gap: 20px; }
+  }
 </style></head>
 <body>
   <h1>${esc(plan.name)}</h1>
