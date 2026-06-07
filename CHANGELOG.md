@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE6.1b] Decouple the furniture room-filter from the concrete shell
+
+`FurnitureLayer` / `isItemInRoom` depended on the default-apartment `RoomShell`
+type. Introduced a minimal `RoomContainment` interface (`{ contains(x,z) }`) that
+both the default `RoomShell` and the new `PlanRoomShell` satisfy, so the per-room
+furniture filter works in either editor without a concrete-type dependency —
+unblocking the plan-aware `RoomEditorScene` (RE6.3). No behaviour change; tests
+green.
+
 ## [RE6.1] Plan-aware per-room shell builder (foundation)
 
 First step toward a per-room editor that works on **custom floor plans** (today

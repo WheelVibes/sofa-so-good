@@ -1,10 +1,9 @@
 import { useShallow } from 'zustand/react/shallow'
-import type { RoomShell } from '../apartment/roomShell'
 import { useQuality } from '../scene/useQuality'
 import { useStore } from '../state/store'
 import { useCatalog } from './catalog'
 import { Furniture } from './Furniture'
-import { isItemInRoom } from './roomFilter'
+import { isItemInRoom, type RoomContainment } from './roomFilter'
 
 /**
  * Mounts one <Furniture> per item in the store. Each instance receives
@@ -14,7 +13,7 @@ import { isItemInRoom } from './roomFilter'
  * When `room` is given (per-room editor), only items whose footprint center
  * lies inside that room render — the rest are filtered out.
  */
-export function FurnitureLayer({ room }: { room?: RoomShell } = {}) {
+export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
   const items = useStore(useShallow((s) => s.items))
   const catalog = useCatalog()
   // Suppress per-item contact-shadow blobs while the showcase
