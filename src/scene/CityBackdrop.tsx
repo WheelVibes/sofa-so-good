@@ -10,6 +10,7 @@ import {
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
 import { mulberry32 } from '../materials/procedural/noise'
 import { useBackdropOffset } from './backdropOffset'
+import { useDisposeOnUnmount } from './geometryUtil'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
 
@@ -152,6 +153,16 @@ export function CityBackdrop() {
     () => new MeshStandardMaterial({ color: '#6f7468', roughness: 1, metalness: 0 }),
     [],
   )
+  // R3F doesn't own geometry/material passed via props — dispose on unmount so
+  // switching backdrops doesn't leak the block geometry + façade textures (the
+  // shared albedo + per-variant emissive maps ride on the materials).
+  useDisposeOnUnmount([
+    geom,
+    groundMat,
+    ...materials,
+    materials[0]?.map ?? null,
+    ...materials.map((m) => m.emissiveMap),
+  ])
 
   // Night window glow tracks the actual sky darkness (NOT the user's interior
   // lights mode) — distant blocks stay dark in daylight even if the flat's

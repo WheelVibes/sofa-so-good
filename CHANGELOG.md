@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B35] Dispose backdrop GPU objects on unmount (no leak on backdrop switch)
+
+The scene backdrops create geometries + materials (and, for City, façade
+textures) with `new` and attach them via `geometry=`/`material=` props — which
+R3F does **not** own, so switching backdrops leaked them. Added a shared
+`useDisposeOnUnmount()` (in `scene/geometryUtil.ts`) and wired it into the City,
+Park, Hills, and Studio backdrops (City also disposes its shared albedo + the
+per-variant emissive maps). Disposal runs only on unmount, so the active backdrop
+is untouched. Verified all backdrops still mount/render and switching redraws
+correctly.
+
 ## [Q55] Frame the design after loading / restoring / importing
 
 Loading a saved layout, restoring a version, or importing a `.sofa.json` now

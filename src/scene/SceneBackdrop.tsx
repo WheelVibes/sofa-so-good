@@ -6,6 +6,7 @@ import type { BackdropKind } from '../state/slices/uiSlice'
 import { useStore } from '../state/store'
 import { useBackdropOffset } from './backdropOffset'
 import { CityBackdrop } from './CityBackdrop'
+import { useDisposeOnUnmount } from './geometryUtil'
 
 const CX = APARTMENT_EXT_W / 2
 const CZ = APARTMENT_EXT_D / 2
@@ -24,6 +25,7 @@ function Ground({ color }: { color: string }) {
     () => new MeshStandardMaterial({ color, roughness: 1, metalness: 0 }),
     [color],
   )
+  useDisposeOnUnmount([mat])
   return (
     <mesh
       rotation={[-Math.PI / 2, 0, 0]}
@@ -49,6 +51,7 @@ function ParkBackdrop() {
       ),
     [],
   )
+  useDisposeOnUnmount([trunkGeo, foliageGeo, trunkMat, ...foliageMats])
   const trees = useMemo(() => {
     const rnd = mulberry32(0x77ee)
     const out: { x: number; z: number; h: number; r: number; mat: number }[] = []
@@ -100,6 +103,7 @@ function HillsBackdrop() {
       ),
     [],
   )
+  useDisposeOnUnmount([domeGeo, ...mats])
   const hills = useMemo(() => {
     const rnd = mulberry32(0x4111)
     const out: { x: number; z: number; r: number; h: number; mat: number }[] = []

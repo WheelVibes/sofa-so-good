@@ -1,5 +1,28 @@
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { BoxGeometry, type BufferGeometry, EdgesGeometry } from 'three'
+
+/** Anything with a GPU `dispose()` (geometry / material / texture). */
+interface Disposable {
+  dispose(): void
+}
+
+/**
+ * Dispose a set of `new`-created GPU objects (geometries, materials, textures)
+ * when the component unmounts. For objects passed to a mesh via `geometry=` /
+ * `material=` props — R3F does NOT own those, so without this they leak when the
+ * component unmounts (e.g. swapping scene backdrops). Pass memoised objects
+ * (stable for the component's life); the latest set is disposed on unmount.
+ */
+export function useDisposeOnUnmount(objects: Array<Disposable | null | undefined>): void {
+  const ref = useRef(objects)
+  ref.current = objects
+  useEffect(
+    () => () => {
+      for (const o of ref.current) o?.dispose()
+    },
+    [],
+  )
+}
 
 /**
  * Build an `EdgesGeometry` for a box and dispose the throw-away source
