@@ -21,7 +21,6 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 ## Features (larger)
 - [ ] K1. **Parametric kitchen/bath cabinet engine** — millimetre-customisable cabinets with smart countertop/toe-kick/cornice generation (Coohom parity). Builds on the parametric system + auto-arrange.
 - [ ] Q31. **Drag a material swatch onto a surface in 3D** to apply a finish (reuses `getSurfaceMaterial` / finish DLC); today it's picker-only.
-- [ ] T1. Curated **"furniture materials" one-tap finish shortlist** (oak/walnut/teak/marble).
 - [ ] T3. Per-LOD multi-tier generation for uploads.
 - [~] T2. Crown-molding revisit + kitchen/bath template polish (herringbone floor already shipped).
 

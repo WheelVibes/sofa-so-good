@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [T1] Curated one-tap furniture finishes
+New `inspector/QuickFinishes` adds a swatch row (oak/walnut/teak/ash/ebony/
+marble — bundled procedural, ships in prod) under a furniture piece's wood/
+surface finish dropdown, so common finishes are one tap instead of a dropdown
+scroll or remote-catalog browse. Encoded as `mat:<id>`. Screenshot-verified.
+
 ## [F12a] 3D door leaf for custom-plan doors
 New `apartment/PlanDoorLeaf` renders a swinging, clickable, panelled leaf in each
 custom-plan door opening (was a plain gap even when closed). Hinge/swing honour

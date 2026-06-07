@@ -228,3 +228,9 @@
 .bud-seg { height: 100%; }
 .bud-list .row .amt { font-family: var(--font-mono); font-size: var(--t-xs); color: var(--text-2); }
 .legend-dot { width: 9px; height: 9px; border-radius: 3px; flex: none; }
+
+/* Curated one-tap furniture finishes (under the wood/surface dropdown) */
+.quick-finish { margin-top: var(--s-2); }
+.quick-finish-h { display: block; font-size: var(--t-2xs); font-weight: 600; color: var(--text-3); margin-bottom: 4px; }
+.quick-finish-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
+.quick-finish-row .swatch { width: 30px; height: 30px; }
