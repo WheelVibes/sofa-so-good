@@ -54,6 +54,16 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [R11] Regression guards for the view/edit core helpers
+
+The view/edit split's two core pure helpers were untested, despite gating
+*every* editing interaction + the room switcher/cycle. Added unit tests:
+`canEditScene` (true only in the room editor + orbit; false in the overview and
+in editor-walk) and `editableRoomIds` (default apartment rooms minus the
+external AC ledge; a custom plan's own rooms in order). Cheap insurance against
+a silent regression that would break editing or pollute the room switcher. 890
+tests; tsc + lint clean.
+
 ## [Q44] Cycle rooms with `,` / `.` in the editor
 
 A keyboard speedup for the room-by-room workflow: in the per-room editor, `,`
