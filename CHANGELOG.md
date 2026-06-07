@@ -42,6 +42,17 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [VE1b] Guard the room editor against an unknown/stale room id
+
+Follow-up to VE1: `getRoomEditorShell` documented "returns null for a stale id"
+but the default-apartment branch called `roomShell(id)` unconditionally, which
+reads `ROOMS[id].origin` and **threw** on an unknown id (crashing the editor
+scene into the error boundary). Added the missing `ROOMS[id]` existence check so
+it returns `null` (the scene then renders nothing) like the custom-plan branch
+already did. Not reachable from the UI today (every entry point passes a valid
+id), but removes the latent crash. New `roomEditorShell.test.ts` (valid room
+resolves; `'living'`/unknown ids return null, don't throw).
+
 ## [VE1] View/edit split — orbit & walk are view-only, editing is room-editor-only
 
 Reworked the core interaction model per request. **Orbit-over-the-whole-flat and

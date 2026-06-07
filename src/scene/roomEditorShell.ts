@@ -1,3 +1,4 @@
+import { ROOMS } from '../apartment/constants'
 import { type RoomShell, roomShell } from '../apartment/roomShell'
 import type { RoomId } from '../apartment/types'
 import { isDefaultPlan } from '../floorplan/planGeometry'
@@ -19,6 +20,9 @@ export type EditorRoomShell =
  */
 export function getRoomEditorShell(plan: FloorPlan, roomId: string): EditorRoomShell | null {
   if (isDefaultPlan(plan)) {
+    // Guard against an unknown/stale id — `roomShell` would otherwise read
+    // `ROOMS[id].origin` and throw, crashing the editor scene.
+    if (!ROOMS[roomId as RoomId]) return null
     return { kind: 'default', shell: roomShell(roomId as RoomId) }
   }
   const shell = planRoomShell(plan, roomId)
