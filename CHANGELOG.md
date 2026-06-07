@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [P8] Room-editor caption: drop the redundant name on mobile
+
+Responsive refinement of [Q52]: on mobile the room **name** already shows in the
+collapsed top bar's room dropdown, so the caption there shows only the **size**
+(e.g. "2.85 × 3.40 m · 15.4 m²") instead of repeating the name; desktop keeps the
+full "name · size". Verified on a 390px viewport (no redundancy, no collision).
+
 ## [Q52] Room name + size caption in the per-room editor
 
 A small top-centre caption while the per-room editor is active, naming the

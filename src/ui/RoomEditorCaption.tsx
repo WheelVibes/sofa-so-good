@@ -1,6 +1,7 @@
 import { planRoomArea } from '../floorplan/types'
 import { useStore } from '../state/store'
 import { formatRoomSize } from '../utils/measurement'
+import { useIsMobile } from './useIsMobile'
 
 /**
  * A small top-centre caption shown while the per-room editor is active, naming
@@ -13,6 +14,9 @@ export function RoomEditorCaption() {
   const roomId = useStore((s) => s.roomEditor.roomId)
   const rooms = useStore((s) => s.floorPlan.rooms)
   const units = useStore((s) => s.units)
+  // On mobile the room NAME is already in the collapsed top bar's dropdown, so
+  // the caption drops it there and shows only the size (avoids redundancy).
+  const isMobile = useIsMobile()
   if (!active || !roomId) return null
   const room = rooms.find((r) => r.id === roomId)
   if (!room) return null
@@ -36,9 +40,9 @@ export function RoomEditorCaption() {
       }}
       aria-hidden="true"
     >
-      <span style={{ fontWeight: 700, color: 'var(--text)' }}>{room.name}</span>
-      <span style={{ color: 'var(--text-3)' }}>
-        {'  ·  '}
+      {!isMobile && <span style={{ fontWeight: 700, color: 'var(--text)' }}>{room.name}</span>}
+      <span style={{ color: isMobile ? 'var(--text-2)' : 'var(--text-3)' }}>
+        {!isMobile && '  ·  '}
         {formatRoomSize(room.width, room.depth, planRoomArea(room), units)}
       </span>
     </div>

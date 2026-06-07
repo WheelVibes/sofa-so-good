@@ -326,3 +326,4 @@ Remaining (larger / focused-session):
 - [x] Q50. **⌘K "Edit a room"** — enters the active plan's first room (default/custom). (CHANGELOG)
 - [x] Q51. **"Edit in 3D" from the 2D room inspector** — jumps a selected plan room into the per-room editor (leverages RE6). E2E-verified. (CHANGELOG)
 - [x] Q52. **Room name+size caption in the per-room editor** (works default + custom plans). E2E-verified. (CHANGELOG)
+- [x] P8. **Room-editor caption mobile polish** — size-only on mobile (name is in the bar). Verified 390px. (CHANGELOG)
