@@ -54,6 +54,18 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [B36] Fix finish swatches collapsing to thin strips (root cause)
+
+The desktop FinishPicker grid showed each swatch as a thin vertical strip beside
+the name, not a thumbnail tile. Root cause: `.swatch-lg` is rendered on a
+`<span>` (inline) with `width: 100%` + `aspect-ratio` — both **ignored on inline
+elements**, so the swatch collapsed to content width (with no `.finish-cell`
+display rule to blockify it). Added `display: block` so the width + aspect-ratio
+apply, and squared the ratio (`1/1`) for proper square thumbnails per the report.
+Fixes the desktop grid; the mobile dropdown preview/custom tiles (explicit sizes)
+are unaffected. Verified desktop (square Concrete/Oak/Walnut/Marble/… tiles) +
+mobile (dropdown + square preview). 883 tests; tsc + lint clean.
+
 ## [B35] Mobile Finish picker — dropdown instead of squished swatch strips
 
 On mobile the FinishPicker's 3-column swatch grid squeezed each `aspect-ratio:

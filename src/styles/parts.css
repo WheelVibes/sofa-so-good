@@ -175,7 +175,9 @@
 /* ---- Generic small panel (budget / graphics / finishes) ------ */
 .mini { width: 290px; }
 .aux { left: 50%; top: 74px; transform: translateX(-50%); position: absolute; z-index: var(--z-pop); animation: pop var(--dur) var(--ease); max-height: calc(100vh - 96px); }
-.swatch-lg { width: 100%; aspect-ratio: 1.6/1; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; position: relative; overflow: hidden; }
+/* display:block so width:100% + aspect-ratio apply — as a <span> (inline) they
+   were ignored, collapsing every swatch to a thin strip. Square thumbnails. */
+.swatch-lg { display: block; width: 100%; aspect-ratio: 1/1; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; position: relative; overflow: hidden; }
 .finish-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
 .finish-grid .name { font-size: var(--t-2xs); font-weight: 600; color: var(--text-2); margin-top: 4px; }
 .finish-cell.on .swatch-lg { box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--accent); }

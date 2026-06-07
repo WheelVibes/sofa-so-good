@@ -393,3 +393,4 @@ Remaining (larger / focused-session):
 
 ## User-reported bugs (2026-06-07)
 - [x] B35. **Mobile Finish picker thin-strip thumbnails** — replaced the 3-col swatch grid with a per-surface dropdown + square preview on mobile (`useIsMobile`); desktop grid unchanged. Verified. (CHANGELOG)
+- [x] B36. **Finish swatches were thin strips (desktop grid)** — `.swatch-lg` was an inline `<span>` so `width:100%`/`aspect-ratio` were ignored; added `display:block` + square ratio. Root-cause fix. Verified desktop + mobile. (CHANGELOG)
