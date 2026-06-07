@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
-import { useCatalog } from '../furniture/catalog'
+import { useShallow } from 'zustand/react/shallow'
+import { buildMergedCatalog } from '../furniture/catalog'
+import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
@@ -12,9 +14,24 @@ export function ClearancePanel() {
   const setOpen = useStore((s) => s.setClearancePanelOpen)
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
-  const catalog = useCatalog()
+  // Catalog inputs (not the merged catalog) so the O(catalog) merge + the
+  // O(items·doors) door-swing check run only while the panel is open — this
+  // component stays mounted, so otherwise every furniture drag would pay for
+  // both even with the panel closed.
+  const catalogInputs = useStore(
+    useShallow((s) => ({
+      userFurniture: s.userFurniture,
+      resolvedRemoteFurniture: s.resolvedRemoteFurniture,
+      packFurniture: s.packFurniture,
+    })),
+  )
 
-  const blocked = useMemo(() => blockedDoorItems(items, catalog, plan), [items, catalog, plan])
+  const { blocked, catalog } = useMemo(() => {
+    if (!open)
+      return { blocked: [] as string[], catalog: {} as Record<FurnitureType, FurnitureDef> }
+    const merged = buildMergedCatalog(catalogInputs)
+    return { blocked: blockedDoorItems(items, merged, plan), catalog: merged }
+  }, [open, items, plan, catalogInputs])
 
   if (!open) return null
 

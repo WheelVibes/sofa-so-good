@@ -17,6 +17,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
   (12/page) over the merged list, so the DOM never holds more than a page of
   cards regardless of catalog size. No virtualization needed (see "More researched items").
 - [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders.
+  - [x] P2a. Always-mounted aux panels (Clearance, History) gated their heavy
+    catalog-merge + door-swing / timeline work on `open`, so a closed panel no
+    longer recomputes on every furniture drag. (CHANGELOG [P-aux])
 - [ ] P3. More **instancing** for repeat-geometry primitives where profiling justifies.
 - [x] P4. Layers panel hoisted per-room `roomShell` clip-geometry out of the
   `items`-keyed memo (was recomputed on every drag) to a module constant. (CHANGELOG)

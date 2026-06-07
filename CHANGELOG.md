@@ -42,6 +42,24 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [P-aux] Stop closed aux panels doing per-edit work
+
+The `ClearancePanel` and `HistoryPanel` stay mounted (so they can animate
+in/out), but their heavy computation sat *above* the `if (!open) return null`
+guard, so it ran on **every** render. Because both subscribe to `items`, every
+furniture drag re-ran them even with the panel closed:
+- **ClearancePanel** called `useCatalog()` (an O(catalog) merge) **and**
+  `blockedDoorItems` (O(items·doors) door-swing geometry) per render. Now it
+  subscribes to the catalog *inputs* and builds the merged catalog + runs the
+  check inside a single `useMemo` gated on `open` — closed ⇒ zero work; open ⇒
+  identical result (verified: "2 blocking / 64 clear" with correct item names).
+- **HistoryPanel** (added this session) built the full timeline + merged catalog
+  in a memo whose deps included `items` but not `open`; now short-circuits when
+  closed.
+
+No behaviour change when open; removes a real per-drag cost that scaled with
+catalog size. Clearance + history tests (30) + tsc + lint green.
+
 ## [T2a] Herringbone wood floor finish (procedural)
 
 Added a **herringbone** procedural floor pattern — the classic premium parquet

@@ -22,10 +22,14 @@ export function HistoryPanel() {
   const finishes = useStore((s) => s.finishes)
   const floorPlan = useStore((s) => s.floorPlan)
 
+  // Built only while the panel is open: this component stays mounted, so without
+  // the `open` guard the timeline + catalog merge would run on *every* furniture
+  // edit even with the panel closed (the deps include `items`).
   const { entries, currentIndex } = useMemo(() => {
+    if (!open) return { entries: [], currentIndex: 0 }
     const catalog = buildMergedCatalog(useStore.getState())
     return buildHistoryTimeline(past, { items, doors, finishes, floorPlan }, future, catalog)
-  }, [past, future, items, doors, finishes, floorPlan])
+  }, [open, past, future, items, doors, finishes, floorPlan])
 
   if (!open) return null
 
