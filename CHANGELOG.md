@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [P7] DRY the floor-plan editor's typing guards
+
+The editor had three hand-rolled "is the user typing?" checks (the `P` toggle, and
+the Delete handler from [B30]) duplicating logic that already lives in
+`controls/useKeyboard`'s `isEditableTarget`. Routed both through the shared helper
+— less duplication and it also hardens the `P` guard, which previously missed
+`<select>`. Behaviour-identical; app-load verified.
+
 ## [B30] 2D editor: delete furniture with Delete; don't hijack field edits
 
 Two fixes to the 2D floor-plan editor's Delete/Backspace handler:

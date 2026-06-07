@@ -3,6 +3,7 @@ import { AiPlanError, getVisionKey, recognizeFloorPlan, setVisionKey } from '../
 import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
+import { isEditableTarget } from '../../controls/useKeyboard'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
@@ -261,9 +262,7 @@ export function FloorPlanEditor() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'KeyP' || e.metaKey || e.ctrlKey || e.altKey) return
-      const el = e.target as HTMLElement | null
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))
-        return
+      if (isEditableTarget(e)) return
       const st = useStore.getState()
       if (st.cameraMode === 'firstPerson') return
       if (st.floorPlanEditing) exitToScene()
@@ -357,16 +356,7 @@ export function FloorPlanEditor() {
         // Don't hijack Backspace/Delete while editing a field (e.g. the room
         // name / dimension inputs in the inspector) — that would silently delete
         // the selected element.
-        const t = e.target as HTMLElement | null
-        if (
-          t &&
-          (t.tagName === 'INPUT' ||
-            t.tagName === 'TEXTAREA' ||
-            t.tagName === 'SELECT' ||
-            t.isContentEditable)
-        ) {
-          return
-        }
+        if (isEditableTarget(e)) return
         const st = useStore.getState()
         if (sel) {
           if (sel.type === 'wall') st.removeWall(sel.id)

@@ -316,3 +316,4 @@ Remaining (larger / focused-session):
 - [x] B28. **Layout preset = single undo step** — applyLayoutPreset batches finishes into one set (was ~9 history entries via per-room setters). Unit-tested + E2E. (CHANGELOG)
 - [x] B29. **Clear undo history on every design load** — version restore + desktop/mobile Load now clearHistory like import (no Ctrl+Z across designs). (CHANGELOG)
 - [x] B30. **2D editor delete furniture + typing guard** — Delete removes a selected furniture item (parity with 3D); handler skips input/textarea/select focus so field edits arent hijacked. E2E-verified. (CHANGELOG)
+- [x] P7. **DRY editor typing guards** — P + Delete handlers use shared isEditableTarget (was 3 inline copies; hardens P to include <select>). (CHANGELOG)
