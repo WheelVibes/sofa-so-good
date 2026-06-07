@@ -359,6 +359,8 @@ Remaining (larger / focused-session):
   + generalized RoomHoverHighlight (roomPolygon, any plan). Verified default + custom. (CHANGELOG)
 - [x] VE4. **Fix global keyboard shortcuts for the split** — Ctrl+A / `[` `]` / `/`
   now editor-only + room-scoped (roomScopedItemIds). Verified. (CHANGELOG)
+- [x] VE5. **Close ⌘K placement bypass** — Add-furniture commands enter a room
+  first; PlacementGhost gated on canEditScene (no placement in the overview). Verified. (CHANGELOG)
 
 ## User-requested features (2026-06-07)
 - [x] N27. **Selectable 3D backdrops** (City/Park/Hills/Studio) — Scene menu + mobile, persisted. Replaces the "cluttered/boring" buildings-only backdrop. E2E-verified. (CHANGELOG)

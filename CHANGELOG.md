@@ -42,6 +42,19 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [VE5] Close the ⌘K placement bypass of the view-only overview
+
+The Command Palette's "Add furniture" commands armed placement
+(`setActiveDefId`) from anywhere — so you could place furniture in the
+**view-only overview** via ⌘K, bypassing the room-editor-only rule. Two fixes:
+the add-furniture commands now **dive into a room first** when invoked outside
+the editor (first non-external room, mirroring the "Edit a room" command), then
+arm; and `PlacementGhost` is gated on `canEditScene`, so no ghost renders in the
+overview and the commit handler reads a null `ghostWorld` and swallows the click
+(defence covering every arm path). Verified: arming placement in the overview
+leaves `ghostWorld` null (no commit possible); the gate is a no-op inside the
+editor (placement behaves exactly as before). 880 tests; tsc + lint clean.
+
 ## [VE4] Fix the global keyboard shortcuts for the view/edit split
 
 Three shortcuts in the global key handler still gated on the pre-revamp model

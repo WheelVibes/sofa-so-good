@@ -6,6 +6,7 @@ import { useCatalogByCategory } from '../furniture/catalog'
 import { tidyHome } from '../layout/tidyHome'
 import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
 import { BACKDROPS } from '../scene/SceneBackdrop'
+import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
 import { openDocs } from './docsUrl'
 import { openDesignReport } from './openReport'
@@ -268,6 +269,15 @@ export function CommandPalette() {
         hint: 'place',
         icon: 'Catalog' as IconName,
         run: () => {
+          const st = useStore.getState()
+          // Placement only happens inside the per-room editor now, so if we're
+          // in the view-only overview, dive into a room first (then arm).
+          if (!canEditScene(st)) {
+            const id = isDefaultPlan(st.floorPlan)
+              ? Object.values(ROOMS).find((r) => !r.external)?.id
+              : st.floorPlan.rooms[0]?.id
+            if (id) st.enterRoomEditor(id)
+          }
           useStore.getState().setCatalogOpen(false)
           useStore.getState().setActiveDefId(def.id)
         },
