@@ -1,3 +1,4 @@
+import { doorSwingGeometry } from '../floorplan/doorSwing'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, wallLength } from '../floorplan/types'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -27,6 +28,41 @@ function annotationSvg(annotations: MeasurementAnnotation[], units: UnitSystem):
       const len = Math.hypot(bx - ax, bz - az)
       if (len < 1e-3) return ''
       return `<line x1="${ax.toFixed(3)}" y1="${az.toFixed(3)}" x2="${bx.toFixed(3)}" y2="${bz.toFixed(3)}" stroke="${ANN}" stroke-width="0.05" stroke-dasharray="0.15 0.1"/><text x="${((ax + bx) / 2).toFixed(3)}" y="${((az + bz) / 2 - 0.18).toFixed(3)}" font-size="0.28" fill="${ANN}" text-anchor="middle" dominant-baseline="middle">${esc(formatLength(len, units))}</text>`
+    })
+    .join('')
+}
+
+/**
+ * Architectural opening symbols over the walls: each opening first "cuts" the
+ * wall with a white gap (the `.plan-wrap` is white), then a door draws its leaf
+ * line + swing arc (honouring hinge/swing via the shared geometry helper) and a
+ * window a thin pane line — so the report plan reads like a real drawing.
+ */
+function openingsSvg(plan: FloorPlan): string {
+  return plan.openings
+    .map((o) => {
+      const wall = plan.walls.find((wl) => wl.id === o.wallId)
+      if (!wall) return ''
+      const len = wallLength(wall)
+      if (len === 0) return ''
+      const ux = (wall.end[0] - wall.start[0]) / len
+      const uz = (wall.end[1] - wall.start[1]) / len
+      const sx = wall.start[0] + ux * o.offset
+      const sz = wall.start[1] + uz * o.offset
+      const ex = wall.start[0] + ux * (o.offset + o.width)
+      const ez = wall.start[1] + uz * (o.offset + o.width)
+      const maskW = (wall.thickness === 'external' ? 0.18 : 0.09) + 0.05
+      let s = `<line x1="${sx.toFixed(3)}" y1="${sz.toFixed(3)}" x2="${ex.toFixed(3)}" y2="${ez.toFixed(3)}" stroke="#ffffff" stroke-width="${maskW.toFixed(3)}" stroke-linecap="butt"/>`
+      if (o.kind === 'door') {
+        const g = doorSwingGeometry(wall, o)
+        if (g) {
+          s += `<line x1="${g.hinge[0].toFixed(3)}" y1="${g.hinge[1].toFixed(3)}" x2="${g.leafTip[0].toFixed(3)}" y2="${g.leafTip[1].toFixed(3)}" stroke="#6b7280" stroke-width="0.04"/>`
+          s += `<path d="M ${g.freeJamb[0].toFixed(3)} ${g.freeJamb[1].toFixed(3)} A ${o.width.toFixed(3)} ${o.width.toFixed(3)} 0 0 ${g.sweep} ${g.leafTip[0].toFixed(3)} ${g.leafTip[1].toFixed(3)}" fill="none" stroke="#9ca3af" stroke-width="0.025"/>`
+        }
+      } else {
+        s += `<line x1="${sx.toFixed(3)}" y1="${sz.toFixed(3)}" x2="${ex.toFixed(3)}" y2="${ez.toFixed(3)}" stroke="#9ca3af" stroke-width="0.03"/>`
+      }
+      return s
     })
     .join('')
 }
@@ -120,5 +156,6 @@ export function reportPlanSvg(
   const scaleStrip = 0.9
   const barY = d + pad + scaleStrip * 0.55
   const vbH = d + pad * 2 + scaleStrip
-  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${labels}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
+  const openings = openingsSvg(plan)
+  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
 }

@@ -32,6 +32,16 @@ describe('reportPlanSvg', () => {
     expect(withFurniture.indexOf('<polygon')).toBeLessThan(withFurniture.indexOf('<line'))
   })
 
+  it('draws door swing arcs + opening gaps over the walls', () => {
+    const svg = reportPlanSvg(buildDefaultPlan())
+    // The default flat has doors → at least one swing arc (path with an A command).
+    expect(svg).toMatch(/<path d="M [\d.-]+ [\d.-]+ A /)
+    // Openings cut the wall with a white mask line.
+    expect(svg).toContain('stroke="#ffffff"')
+    // Arcs/symbols draw after the walls so they sit on top of the gap.
+    expect(svg.indexOf('<path')).toBeGreaterThan(svg.indexOf('<line'))
+  })
+
   it('escapes room names', () => {
     const plan = buildDefaultPlan()
     plan.rooms[0] = { ...plan.rooms[0], name: '<b>x</b>' }

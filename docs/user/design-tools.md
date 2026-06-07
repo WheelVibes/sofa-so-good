@@ -57,6 +57,7 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   the current view. *(Experimental: a "Make photoreal" option can restyle the
   snapshot via your own AI key.)*
 - **Report** — a printable (save-as-PDF) summary: a hero render, a colour-keyed
-  **furnished floor plan** with a category legend, **furniture by room**
+  **furnished floor plan** drawn like a real architectural plan — door **swing
+  arcs** and window breaks, a category legend — plus **furniture by room**
   (itemized with quantities, prices, and each room's area), finishes per room, a
   material palette, areas, and your design notes — a handoff-ready document.

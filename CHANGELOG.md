@@ -4,6 +4,18 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F14] Door swing arcs + window breaks in the printable report plan
+
+The report's furnished floor-plan diagram drew walls as solid lines straight
+through every doorway — a door was indistinguishable from blank wall. Added
+architectural opening symbols (`openingsSvg` in `reportPlanSvg.ts`): each
+opening cuts the wall with a white gap (the `.plan-wrap` is white), then doors
+draw a leaf line + swing arc via the shared `doorSwingGeometry` helper (honouring
+the F12 hinge/swing), and windows a thin pane line. Drawn after the walls so the
+symbols sit on the gap. The report plan now reads like a real drawing. Pure SVG
+string generation (headless-safe); 1 new unit test; full suite (906) green;
+rendered + visually verified.
+
 ## [F13] Auto-orient a new door to swing into the room it serves
 
 Building on F12: dropping a door in the floor-plan editor now defaults its swing
