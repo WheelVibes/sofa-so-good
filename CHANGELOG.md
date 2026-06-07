@@ -42,6 +42,15 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [VE2] Show the furniture count in the room-editor caption
+
+The room-editor caption (name · size · area) now also shows **how many pieces
+are in the room** — e.g. "Main Bedroom · 2.85 × 3.40 m · 15.4 m² · 10 items" —
+so you can see at a glance how furnished it is. Counted with the polygon/
+extension-aware `pointInRoom`, so it matches the room's true footprint (and the
+set of items the editor actually renders, incl. L-shape extensions). Mobile
+shows it after the size (name is in the bar). Caption + measurement tests green.
+
 ## [VE1d] Make "Edit a room" a prominent accent CTA in the overview
 
 The overview is now view-only, so entering a room to edit is its headline
