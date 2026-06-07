@@ -54,6 +54,15 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [B37] shot.mjs: guard the output path (prevents stray junk files)
+
+Follow-up to deleting the committed `--help` PNG: `scripts/shot.mjs` now
+validates its first arg and **exits 2 (before launching the browser)** if the
+output path is flag-like (starts with `-`) or doesn't end in `.png`, with a
+usage hint — so a mistyped/redirected `--help` can no longer silently write a
+screenshot to a junk file. Verified: `--help` → error + exit 2 + no file; a
+valid `.png` path renders as before (exit 0).
+
 ## [B36] Fix finish swatches collapsing to thin strips (root cause)
 
 The desktop FinishPicker grid showed each swatch as a thin vertical strip beside
