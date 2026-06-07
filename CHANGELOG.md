@@ -42,6 +42,18 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [Q37] Empty-room hint in the per-room editor
+
+Now that the room editor is the furnishing surface, an empty room (a fresh
+custom-plan room, or one just cleared via Q35) gave no cue what to do. Added
+`ui/EmptyRoomHint` — a centred card ("This room is empty · Add furniture from the
+catalog…") with an **Open catalog** accent button, shown only when the room
+editor is active (orbit), the room has zero items (`pointInRoom`), and the
+catalog isn't already open. Pure DOM overlay; only the button is interactive so
+it never blocks orbiting. Verified all states (furnished → hidden, empty →
+shown, catalog open → hidden) + a clean render over the empty Main Bedroom. 880
+tests; tsc + lint clean.
+
 ## [Q36] Cross-room paste lands in the room you're editing
 
 `pasteClipboard` always anchored the paste near the **copied item's original

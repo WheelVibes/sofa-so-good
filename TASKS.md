@@ -180,6 +180,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] N10. Inspector "Reset" props to defaults (parametric items). (CHANGELOG)
 
 ## QOL (cont.)
+- [x] Q37. **Empty-room hint** in the editor — centred "Open catalog" nudge when a
+  room has no furniture (orbit, catalog closed). Verified all states. (CHANGELOG)
 - [x] Q36. **Cross-room paste lands in the current room** — pasteClipboard anchors
   to the edited room's centre when the clipboard source is outside it. Verified. (CHANGELOG)
 - [x] Q35. **"Clear this room"** action — FinishPicker danger button removes the
