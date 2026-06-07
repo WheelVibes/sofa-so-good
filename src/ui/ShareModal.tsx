@@ -1,13 +1,11 @@
-import { planTotalArea } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
-import { itemPrice } from '../furniture/furniturePrices'
 import { EXPORT_EVENT } from '../scene/ScreenshotController'
 import { exportDesignToFile } from '../state/storage/designFile'
 import { useStore } from '../state/store'
-import { formatArea } from '../utils/measurement'
 import { AiPhotorealSection } from './ai/AiPhotorealSection'
 import { Modal } from './Modal'
 import { openDesignReport } from './openReport'
+import { buildShareSummary } from './shareSummary'
 import { Icon } from './toolbar/icons'
 
 /** Share & export modal: a shareable link, project notes, and PNG / PDF export.
@@ -31,19 +29,7 @@ export function ShareModal() {
   // in a chat/email — distinct from the full report / portable file.
   const copySummary = () => {
     const s = useStore.getState()
-    const catalog = buildMergedCatalog(s)
-    let cost = 0
-    for (const it of s.items) {
-      const d = catalog[it.defId]
-      if (d)
-        cost += itemPrice(
-          d,
-          d.category,
-          typeof it.props.variant === 'string' ? it.props.variant : undefined,
-        )
-    }
-    const roomCount = s.floorPlan.rooms.length
-    const text = `${s.floorPlan.name} — ${roomCount} ${roomCount === 1 ? 'room' : 'rooms'} · ${formatArea(planTotalArea(s.floorPlan), s.units)} · ${s.items.length} items · ~$${Math.round(cost).toLocaleString('en-SG')}`
+    const text = buildShareSummary(s.floorPlan, s.items, buildMergedCatalog(s), s.units)
     void navigator.clipboard?.writeText(text)
     toast('Summary copied to clipboard')
   }

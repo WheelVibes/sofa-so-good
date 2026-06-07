@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R15] Extract + test the share summary (DRY cost, fix "1 items")
+Pulled ShareModal's inline one-liner into a pure `buildShareSummary` reusing
+`reportData.lineEach` (cost now matches the report exactly) + pluralised the
+item count. 3 unit tests.
+
 ## [R14] Unify "editable rooms" enumeration (5 call sites → 1 helper)
 Added `editableRooms`/`firstEditableRoomId` to `state/rooms.ts`; refactored the
 desktop+mobile toolbars, RoomSwitcher, CommandPalette (×2) and Onboarding off
