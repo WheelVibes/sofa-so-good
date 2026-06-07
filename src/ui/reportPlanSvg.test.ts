@@ -20,6 +20,20 @@ describe('reportPlanSvg', () => {
     expect(svg).toContain('&lt;b&gt;x&lt;/b&gt;')
   })
 
+  it('draws pinned annotations (line + rect) with dimension labels', () => {
+    const svg = reportPlanSvg(
+      buildDefaultPlan(),
+      [
+        { id: 'a', a: [1, 1], b: [4, 1], shape: 'line' },
+        { id: 'b', a: [2, 2], b: [5, 5], shape: 'rect' },
+      ],
+      'metric',
+    )
+    expect(svg).toContain('stroke-dasharray') // annotation line/rect styling
+    expect(svg).toContain('3.00 m') // line length label
+    expect(svg).toMatch(/9(\.0)? m²/) // rect area label (3×3)
+  })
+
   it('returns empty for a degenerate plan (no extent)', () => {
     const empty: FloorPlan = {
       id: 'x',

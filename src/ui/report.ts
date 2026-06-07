@@ -10,6 +10,7 @@ import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
+import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, type UnitSystem } from '../utils/measurement'
 import { furnitureCostByRoom } from './reportData'
 import { reportPlanSvg } from './reportPlanSvg'
@@ -50,6 +51,7 @@ export function buildReportHtml(
   units: UnitSystem = 'metric',
   finishes?: ReportFinishes,
   note?: string,
+  annotations: MeasurementAnnotation[] = [],
 ): string {
   // Finishes-by-room section: floor + wall material names per non-external room.
   // Material ids resolve to friendly names via the builtin catalog (DLC/custom
@@ -160,7 +162,7 @@ export function buildReportHtml(
       <h2>Rooms &amp; areas</h2>
       <table>${roomRows}</table>
       <div class="total"><span>Total interior</span><span>${formatArea(totalArea, units)}</span></div>
-      ${reportPlanSvg(plan) ? `<div class="plan-wrap">${reportPlanSvg(plan)}</div>` : ''}
+      ${reportPlanSvg(plan, annotations, units) ? `<div class="plan-wrap">${reportPlanSvg(plan, annotations, units)}</div>` : ''}
     </div>
     <div class="col">
       <h2>Furniture &amp; budget</h2>

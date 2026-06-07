@@ -26,6 +26,7 @@ export function openDesignReport(): void {
     s.units,
     s.finishes,
     s.designNote,
+    s.annotations,
   )
   const win = window.open('', '_blank')
   if (!win) {

@@ -1,8 +1,35 @@
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, wallLength } from '../floorplan/types'
+import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
+import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
 
 const esc = (s: string) =>
   s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
+
+const ANN = '#0d9488' // teal — dimension callouts, distinct from the wall strokes
+
+/** Render pinned dimension annotations as dashed lines/rects + labels (world
+ *  metres, same coord space as the plan). */
+function annotationSvg(annotations: MeasurementAnnotation[], units: UnitSystem): string {
+  return annotations
+    .map((an) => {
+      const [ax, az] = an.a
+      const [bx, bz] = an.b
+      if (an.shape === 'rect') {
+        const x = Math.min(ax, bx)
+        const y = Math.min(az, bz)
+        const w = Math.abs(bx - ax)
+        const h = Math.abs(bz - az)
+        if (w < 1e-3 || h < 1e-3) return ''
+        const label = `${formatDims(w, h, units)} · ${formatArea(w * h, units)}`
+        return `<rect x="${x.toFixed(3)}" y="${y.toFixed(3)}" width="${w.toFixed(3)}" height="${h.toFixed(3)}" fill="${ANN}" fill-opacity="0.1" stroke="${ANN}" stroke-width="0.04" stroke-dasharray="0.15 0.1"/><text x="${(x + w / 2).toFixed(3)}" y="${(y + h / 2).toFixed(3)}" font-size="0.28" fill="${ANN}" text-anchor="middle" dominant-baseline="middle">${esc(label)}</text>`
+      }
+      const len = Math.hypot(bx - ax, bz - az)
+      if (len < 1e-3) return ''
+      return `<line x1="${ax.toFixed(3)}" y1="${az.toFixed(3)}" x2="${bx.toFixed(3)}" y2="${bz.toFixed(3)}" stroke="${ANN}" stroke-width="0.05" stroke-dasharray="0.15 0.1"/><text x="${((ax + bx) / 2).toFixed(3)}" y="${((az + bz) / 2 - 0.18).toFixed(3)}" font-size="0.28" fill="${ANN}" text-anchor="middle" dominant-baseline="middle">${esc(formatLength(len, units))}</text>`
+    })
+    .join('')
+}
 
 /**
  * Build a self-contained inline **SVG** floor-plan diagram for the printable
@@ -12,7 +39,11 @@ const esc = (s: string) =>
  * z south); the viewBox lets it scale to any container width. Returns '' when
  * the plan has no extent.
  */
-export function reportPlanSvg(plan: FloorPlan): string {
+export function reportPlanSvg(
+  plan: FloorPlan,
+  annotations: MeasurementAnnotation[] = [],
+  units: UnitSystem = 'metric',
+): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
   if (!Array.isArray(plan.extent) || !Array.isArray(plan.walls) || plan.walls.length === 0) {
@@ -38,5 +69,5 @@ export function reportPlanSvg(plan: FloorPlan): string {
     })
     .join('')
 
-  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${(d + pad * 2).toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${walls}${labels}</svg>`
+  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${(d + pad * 2).toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${walls}${labels}${annotationSvg(annotations, units)}</svg>`
 }
