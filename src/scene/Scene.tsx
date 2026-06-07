@@ -11,7 +11,6 @@ import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
 import { AnnotationsOverlay } from './AnnotationsOverlay'
-import { CityBackdrop } from './CityBackdrop'
 import { ClearanceOverlay } from './ClearanceOverlay'
 import { ContextLossGuard } from './ContextLossGuard'
 import { CameraRig } from './cameras/CameraRig'
@@ -28,6 +27,7 @@ import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
 import { RenderPump } from './RenderPump'
+import { SceneBackdrop } from './SceneBackdrop'
 import { ScreenshotController } from './ScreenshotController'
 import { ShowcaseController } from './ShowcaseController'
 import { HoverHighlight } from './selection/HoverHighlight'
@@ -76,7 +76,7 @@ export function Scene() {
       <ContextLossGuard />
       <RenderPump />
       <Sky />
-      <CityBackdrop />
+      <SceneBackdrop />
       <SceneEnvironment />
       <Lighting />
       <FurnitureLights />

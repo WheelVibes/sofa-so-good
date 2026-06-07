@@ -13,6 +13,9 @@ export type EditorTool = 'select' | 'orbit'
  *  forced off. */
 export type LightsMode = 'auto' | 'on' | 'off'
 
+/** Selectable 3D scene surroundings (see `scene/SceneBackdrop`). */
+export type BackdropKind = 'city' | 'park' | 'hills' | 'none'
+
 /** Boot lifecycle phase. `'hydrating'` until the async bootstrap (IDB user
  *  assets, packs, autosave) resolves; then `'ready'`. Drives the initial
  *  loading overlay. */
@@ -42,6 +45,10 @@ export interface UiSlice {
   snapEnabled: boolean
   /** Alignment-grid cell size in metres (e.g. 0.1 = 10 cm, 1 = 1 m). */
   gridSize: number
+  /** Selected 3D scene backdrop (surroundings outside the flat). Persisted via
+   *  editorPrefs, like snap/units. */
+  backdrop: BackdropKind
+  setBackdrop: (b: BackdropKind) => void
   /** Whether the budget / shopping-list panel is open. */
   budgetOpen: boolean
   /** Whether clearance checks (door-swing blocking) are shown. */
@@ -140,6 +147,7 @@ export const UI_INITIAL: Pick<
   | 'assetTier'
   | 'lightsMode'
   | 'autoShadowsOff'
+  | 'backdrop'
   | 'snapEnabled'
   | 'gridSize'
   | 'budgetOpen'
@@ -165,6 +173,7 @@ export const UI_INITIAL: Pick<
   autoShadowsOff: false,
   snapEnabled: false,
   gridSize: 0.5,
+  backdrop: 'city' as BackdropKind,
   budgetOpen: false,
   clearanceOn: false,
   recording: false,
@@ -253,6 +262,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
+  setBackdrop: (backdrop) => set({ backdrop }),
   cycleGridSize: () =>
     set((s) => {
       const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number])

@@ -5,6 +5,7 @@ import {
   LIGHTING_SCENES,
 } from '../../../scene/lighting/lightingScenes'
 import { useEffectiveHour } from '../../../scene/lighting/useEffectiveHour'
+import { BACKDROPS } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS, type TimePreset } from '../../../state/slices/timeSlice'
 import { useStore } from '../../../state/store'
 import { CompassModal } from '../CompassModal'
@@ -21,6 +22,8 @@ export function SceneMenu() {
   const setManualHour = useStore((s) => s.setManualHour)
   const orientationDeg = useStore((s) => s.orientationDeg)
   const lightsMode = useStore((s) => s.lightsMode)
+  const backdrop = useStore((s) => s.backdrop)
+  const setBackdrop = useStore((s) => s.setBackdrop)
   const effectiveHour = useEffectiveHour()
   const [compassOpen, setCompassOpen] = useState(false)
 
@@ -85,6 +88,21 @@ export function SceneMenu() {
               sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
               active={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
               onClick={() => applyLightingScene(sc)}
+            />
+          ))}
+        </div>
+        <div className="mt-1 border-t border-[var(--border)] pt-1">
+          <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+            Backdrop
+          </div>
+          {BACKDROPS.map((b) => (
+            <MenuItem
+              key={b.id}
+              icon="Cube"
+              label={b.label}
+              sub={b.sub}
+              active={backdrop === b.id}
+              onClick={() => setBackdrop(b.id)}
             />
           ))}
         </div>

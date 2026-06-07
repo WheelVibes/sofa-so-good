@@ -16,6 +16,7 @@ import {
 import { useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
+import { BACKDROPS } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
 import { applySerialized, serialize } from '../../state/schema'
@@ -145,6 +146,7 @@ export function MobileToolbar() {
   const timeMode = useStore((st) => st.timeMode)
   const manualHour = useStore((st) => st.manualHour)
   const lightsMode = useStore((st) => st.lightsMode)
+  const backdrop = useStore((st) => st.backdrop)
   const canUndo = useStore((st) => st.past.length > 0)
   const canRedo = useStore((st) => st.future.length > 0)
   const recording = useStore((st) => st.recording)
@@ -459,6 +461,16 @@ export function MobileToolbar() {
                     on={lightsMode !== 'auto'}
                     onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
                   />
+                  {BACKDROPS.map((b) => (
+                    <Item
+                      key={b.id}
+                      icon="Cube"
+                      label={`Backdrop: ${b.label}`}
+                      sub={b.sub}
+                      on={backdrop === b.id}
+                      onClick={act(() => s.getState().setBackdrop(b.id), { keep: true })}
+                    />
+                  ))}
                 </Section>
               ) : null}
 

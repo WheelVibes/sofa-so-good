@@ -4,6 +4,23 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N27] Selectable 3D scene backdrops (City / Park / Hills / Studio)
+
+The surroundings outside the flat are now a **choice**, not just the (cluttered)
+HDB skyline. Four backdrops, switchable from the Scene menu (desktop) + the
+mobile Scene accordion, persisted per-device via `editorPrefs`:
+- **City** — the existing HDB estate blocks (default, unchanged).
+- **Park** — a calm ring of low-poly trees on a green common.
+- **Hills** — distant rolling green hills, a minimal horizon.
+- **Studio** — a clean neutral ground, no surroundings (focus on the design).
+
+Implemented as `scene/SceneBackdrop.tsx` (a dispatcher over the existing
+`CityBackdrop` + new procedural Park/Hills/Studio backdrops), all sharing a
+`useBackdropOffset()` hook so they centre on the active plan (refactored out of
+`CityBackdrop`). State + persistence in `uiSlice`/`editorPrefs`. E2E-verified:
+all four render cleanly (trees, hills, clean studio), the Scene-menu picker shows
+the active one, 856 tests green.
+
 ## [B33] City backdrop rings the active plan (not just the default flat)
 
 The neighbouring-HDB-block backdrop + estate ground were laid out around the

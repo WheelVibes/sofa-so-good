@@ -16,11 +16,16 @@ export function loadEditorPrefs(): void {
       snapEnabled?: boolean
       gridSize?: number
       units?: 'metric' | 'imperial'
+      backdrop?: string
     }
+    const backdrops = ['city', 'park', 'hills', 'none']
     useStore.setState({
       snapEnabled: !!p.snapEnabled,
       gridSize: typeof p.gridSize === 'number' && p.gridSize > 0 ? p.gridSize : 0.5,
       units: p.units === 'imperial' ? 'imperial' : 'metric',
+      backdrop: backdrops.includes(p.backdrop ?? '')
+        ? (p.backdrop as 'city' | 'park' | 'hills' | 'none')
+        : 'city',
     })
   } catch {
     /* ignore corrupt prefs */
@@ -34,6 +39,7 @@ export function watchEditorPrefs(): void {
       snapEnabled: s.snapEnabled,
       gridSize: s.gridSize,
       units: s.units,
+      backdrop: s.backdrop,
     })
     if (snap === last) return
     last = snap

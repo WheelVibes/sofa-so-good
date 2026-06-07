@@ -333,3 +333,7 @@ Remaining (larger / focused-session):
 - [x] B32. **Walk spawn inside custom plans** — was the default flat coords (outside custom plans); now the largest room, looking across. E2E-verified. (CHANGELOG)
 - [x] B33. **City backdrop centres on the active plan** (was default-flat-only). Default offset proven (0,0); custom verified. (CHANGELOG)
 - [ ] B34/minor. **Lighting shadow frustum** is centred on the default apartment (`Lighting.tsx` CENTER) + fixed 9.5m half-extent — covers typical near-origin custom plans but a far-offset/oversized custom plan could miss sun shadows (Medium+ tiers only; default tier has none). Make CENTER+half-extent plan-aware; needs a real-GPU shadow-coverage check.
+
+## User-requested features (2026-06-07)
+- [x] N27. **Selectable 3D backdrops** (City/Park/Hills/Studio) — Scene menu + mobile, persisted. Replaces the "cluttered/boring" buildings-only backdrop. E2E-verified. (CHANGELOG)
+- [ ] N28. **Simple/Pro UI mode toggle** — hide advanced clusters in Simple mode for approachability; in progress.
