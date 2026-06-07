@@ -337,7 +337,13 @@ export function applySerialized(
   state: SerializedState,
   knownDefIds: Set<string>,
 ): Partial<RootState> {
-  const validRoom = (k: string): k is RoomId => k in ROOMS
+  // The plan being restored (custom shell, else the default flat) — used to
+  // validate finish keys: a custom plan's finishes are keyed by its own room
+  // ids (not in the fixed `ROOMS` table), so filtering on `ROOMS` alone would
+  // silently drop every custom-room floor/wall finish on load.
+  const plan = state.floorPlan ?? buildDefaultPlan()
+  const planRoomIds = new Set<string>(plan.rooms.map((r) => r.id))
+  const validRoom = (k: string): k is RoomId => k in ROOMS || planRoomIds.has(k)
   const floor: Partial<Record<RoomId, string>> = {}
   for (const [k, v] of Object.entries(state.finishes.floor)) {
     if (validRoom(k)) floor[k] = v
@@ -362,7 +368,7 @@ export function applySerialized(
     selectedItemIds: [],
     hiddenItemIds: [],
     // Restore a saved custom shell, else fall back to the default flat.
-    floorPlan: state.floorPlan ?? buildDefaultPlan(),
+    floorPlan: plan,
     doors: state.doors,
     finishes: {
       floor: floor as Record<RoomId, string>,

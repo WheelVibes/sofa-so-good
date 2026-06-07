@@ -196,6 +196,35 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips a custom plan’s per-room finishes (keyed by custom room ids)', () => {
+    useStore.getState().__resetForTest()
+    // A custom plan whose room id is NOT in the fixed ROOMS table.
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-finishes',
+        rooms: [{ id: 'studio-main', name: 'Studio', origin: [0, 0], width: 5, depth: 4 }],
+      },
+    })
+    // Set a floor + wall finish on the custom room (cast as the slice expects RoomId).
+    useStore.getState().setFloorFinish('studio-main' as never, 'floor-tile-marble')
+    useStore.getState().setWallFinish('studio-main' as never, 'wall-paint-sage')
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      // Custom-room finishes survive the load (regression: were stripped because
+      // the id isn't in the fixed ROOMS table).
+      expect((patch.finishes?.floor as Record<string, string>)['studio-main']).toBe(
+        'floor-tile-marble',
+      )
+      expect((patch.finishes?.walls as Record<string, string>)['studio-main']).toBe(
+        'wall-paint-sage',
+      )
+    }
+  })
+
   it('round-trips a project design note', () => {
     useStore.getState().__resetForTest()
     useStore.getState().setDesignNote('Client wants warm tones; keep the sofa.')

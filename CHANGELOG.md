@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B43] Custom-plan per-room finishes now persist across reload
+`applySerialized` filtered finish keys against the fixed `ROOMS` table, so a
+custom plan's floor/wall finishes (keyed by custom room ids) were stripped on
+load/restore/import. Now validated against the loaded plan's rooms. Round-trip test.
+
 ## [F21] Version Compare now shows finish changes
 Extends Compare beyond furniture: `diffVersionFinishes` lists per-room floor/wall
 finish changes (e.g. "Kitchen floor: Oak → Marble"). 5 tests; empty-state now
