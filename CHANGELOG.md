@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [FG1] Feature-flag core — central registry + resolver (1/4)
+`features/featureFlags.ts`: a single-source registry (21 flags w/ prod defaults +
+`devOnly`), pure `resolveFlags` (prod locked to registry, dev/QA overrides via
+localStorage + `?ff=` URL param), `isFeatureEnabled`. 7 tests. UI/wiring next.
+
 ## [F25] Room areas labelled on the report's plan diagram
 Each room on the plan now shows its name + area (e.g. "Living / Dining · 24.3
 m²") so the plan reads standalone, like an architectural drawing. Test +
