@@ -5,23 +5,13 @@
  * memory (one tile per material, shared across every mesh that uses it).
  */
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
+import type { ProceduralPattern } from '../types'
 import { clamp01, hashSeed, heightToNormalRGBA, hexToRgb, makeFbm, mix, mulberry32 } from './noise'
 
-export type ProceduralPattern =
-  | 'wood'
-  | 'tile'
-  | 'carpet'
-  | 'concrete'
-  | 'marble'
-  | 'plaster'
-  | 'terrazzo'
-  | 'stripe'
-  | 'grasscloth'
-  | 'checker'
-  | 'parquet'
-  | 'herringbone'
-  | 'brick'
-  | 'batten'
+// Single source of truth lives in `../types` (the pure-types module). Re-exported
+// here so the many `from '.../procedural/generators'` importers keep working —
+// previously the union was duplicated in both files and drifted on every change.
+export type { ProceduralPattern }
 
 export interface ProceduralResult {
   albedo: Texture
