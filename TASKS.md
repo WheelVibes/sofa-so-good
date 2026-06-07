@@ -268,3 +268,12 @@ Remaining (larger / focused-session):
 - [x] V1, Q41, Q42. Version compare; 2D plan SVG in report; version count-delta.
 - [x] Confirmed-existing (verified, not stubs): catalog price filter, sun-study
   "play day" time-lapse, multi-select delete/rotate/flip/nudge, Help shortcuts.
+
+## Session 2 (cont. 2) — shipped substantial features
+- [x] N20/N20b/N20c. **Lighting mood presets** (Scene menu + ⌘K + mobile) + time presets in ⌘K. (CHANGELOG)
+- [x] B18. Persist `lightsMode` with the design; B19. autosave flush on pagehide. (CHANGELOG)
+- [x] N21. **Persistent dimension annotations** — pin a tape measurement; render (AnnotationsOverlay, slate, line/rect) + per-pin × + Clear-pins bulk + persistence + drawn on the report's plan SVG + shown in room editor. Unit + E2E. (CHANGELOG)
+- [x] Q46. **Saved camera views capture lighting** (shot = angle + ambiance). (CHANGELOG)
+- [x] N22. **Walk-mode minimap** (plan outline + live player marker, rAF). (CHANGELOG)
+- [x] Q43/Q43b. Multi-select duplicate (helper + button). Q44 budget spend-breakdown. Q45 Scene-in-walk.
+- Lint backlog reduced (isFinite, implicit-any-let cleared); remaining are intentional idiom/test stubs.
