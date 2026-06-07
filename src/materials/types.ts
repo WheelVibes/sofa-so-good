@@ -35,6 +35,7 @@ export type ProceduralPattern =
   | 'grasscloth'
   | 'checker'
   | 'parquet'
+  | 'herringbone'
   | 'brick'
   | 'batten'
 

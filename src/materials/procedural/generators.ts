@@ -19,6 +19,7 @@ export type ProceduralPattern =
   | 'grasscloth'
   | 'checker'
   | 'parquet'
+  | 'herringbone'
   | 'brick'
   | 'batten'
 
@@ -555,6 +556,81 @@ function battenFields(base: [number, number, number], seed: number): Fields {
   return f
 }
 
+/**
+ * Herringbone parquet: rectangular wood planks (length L = n·W) laid in the
+ * classic interlocking 45° zigzag — horizontal planks (L wide × W tall) and
+ * vertical planks (W wide × L tall) alternate in diagonal bands. The plank a
+ * texel belongs to is found from the orientation field `g = (⌊x⌋+⌊y⌋) mod 2n`
+ * (in plank-width units; `g < n` → horizontal), then the run within that band.
+ * Plank IDs use the run's canonical start position (mod the tile period) so the
+ * per-plank tint + grain tile **seamlessly**, including planks that straddle the
+ * tile edge. Shading reuses the wood look (latewood bands across the width,
+ * per-plank warmth/value, recessed grooves at plank joints).
+ */
+function herringboneFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 9
+  const across = 16 // plank-widths across the tile (divides S → seamless)
+  const W = S / across // plank width (px)
+  const n = 4 // plank length L = n·W
+  const P = 2 * n // orientation period in W-units; across (16) is a multiple → seamless
+  const grain = makeFbm(seed + 7, 4, 3)
+  const fine = makeFbm(seed + 99, 3, 28)
+  const hsh = (k: number) => {
+    let t = (k * 2654435761) >>> 0
+    t ^= t >>> 15
+    t = (t * 2246822519) >>> 0
+    return (t >>> 8) / 16777216
+  }
+  const wrap = (v: number) => ((v % across) + across) % across
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const xw = x / W
+      const yw = y / W
+      const fx = Math.floor(xw)
+      const fy = Math.floor(yw)
+      const g = (((fx + fy) % P) + P) % P
+      const horizontal = g < n
+      let acrossF: number
+      let alongF: number
+      let pid: number
+      if (horizontal) {
+        // Horizontal plank: spans n cells along x; `g` is the offset within it.
+        acrossF = yw - fy
+        alongF = (g + (xw - fx)) / n
+        pid = wrap(fx - g) * 131 + wrap(fy) * 17 + 1
+      } else {
+        // Vertical plank: spans n cells along y; offset within it is g − n.
+        const go = g - n
+        acrossF = xw - fx
+        alongF = (go + (yw - fy)) / n
+        pid = wrap(fx) * 271 + wrap(fy - go) * 29 + 7
+      }
+      const val = 0.84 + hsh(pid) * 0.26
+      const warm = 0.94 + hsh(pid + 1) * 0.14
+      // Latewood bands run along the plank length; warp so they meander.
+      const warp2 = grain(alongF * 1.2 + (pid % 11), acrossF * 1.5) - 0.5
+      const band = Math.abs(Math.sin((acrossF + warp2 * 0.5) * Math.PI * 7 + (pid % 7)))
+      const fg = fine(alongF * 4, acrossF)
+      let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
+      // Recessed grooves: across the width (plank sides) + at the butt ends.
+      const edgeAcross = Math.min(acrossF, 1 - acrossF)
+      const grooveA = edgeAcross < 0.07 ? edgeAcross / 0.07 : 1
+      const edgeAlong = Math.min(alongF, 1 - alongF)
+      const grooveB = edgeAlong < 0.05 ? edgeAlong / 0.05 : 1
+      const groove = Math.min(grooveA, grooveB)
+      factor *= 0.5 + 0.5 * groove
+      const r = base[0] * factor * warm
+      const gg = base[1] * factor
+      const b = base[2] * factor * (2 - warm)
+      const h = clamp01(0.5 * groove + band * 0.3)
+      const rough = clamp01(0.42 + band * 0.16 + (1 - groove) * 0.2)
+      setPx(f, y * S + x, r, gg, b, h, rough)
+    }
+  }
+  return f
+}
+
 const PATTERN_FN: Record<
   ProceduralPattern,
   (base: [number, number, number], seed: number) => Fields
@@ -570,6 +646,7 @@ const PATTERN_FN: Record<
   stripe: stripeFields,
   grasscloth,
   parquet: parquetFields,
+  herringbone: herringboneFields,
   brick: brickFields,
   batten: battenFields,
 }

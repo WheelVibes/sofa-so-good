@@ -42,6 +42,27 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [T2a] Herringbone wood floor finish (procedural)
+
+Added a **herringbone** procedural floor pattern — the classic premium parquet
+where rectangular planks (length = 4× width) interlock at 45° in a diagonal
+zigzag — plus two catalog finishes, **Oak herringbone** and **Walnut
+herringbone** (`floor-herringbone-{oak,walnut}`, tiling at a 2 m repeat ≈
+0.5 m × 0.125 m planks). The generator (`materials/procedural/generators.ts`
+`herringboneFields`) classifies each texel via the orientation field
+`g = (⌊x⌋+⌊y⌋) mod 2n` (in plank-width units; `g<n` → horizontal plank, else
+vertical), then shades it with the existing wood look (latewood bands across the
+width, per-plank warmth/value, recessed grooves at the plank joints). Plank IDs
+use each run's **canonical start position mod the tile period**, so per-plank
+tint *and* grain tile seamlessly — including planks that straddle the tile edge
+(validated the orientation lattice in isolation before integrating). Registered
+in both `ProceduralPattern` unions + `PATTERN_FN`; catalog thumbnails + the
+finish picker pick it up automatically.
+
+Verified in-app: applied to a room floor and framed close top-down — clean
+interlocking diagonal planks with realistic grain + grooves, no broken seams or
+artifacts. Catalog tests (11) + tsc + lint green.
+
 ## [Q30] Undo/redo History panel with jump-to-step
 
 Added a **History** panel (Tools menu, ⌘K "Edit history", + mobile Tools

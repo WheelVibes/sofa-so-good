@@ -13,7 +13,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] R4. Guard against **non-finite transforms** on load (applySerialized filters NaN/Infinity). (CHANGELOG)
 
 ## Performance / scalability
-- [ ] P1. Catalog drawer **virtualization** audit — ensure huge catalogs (thousands of IKEA/imported items) stay smooth (react-virtuoso already a dep).
+- [x] P1. Catalog drawer **virtualization** audit — verified the drawer paginates
+  (12/page) over the merged list, so the DOM never holds more than a page of
+  cards regardless of catalog size. No virtualization needed (see "More researched items").
 - [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders.
 - [ ] P3. More **instancing** for repeat-geometry primitives where profiling justifies.
 - [x] P4. Layers panel hoisted per-room `roomShell` clip-geometry out of the
@@ -79,7 +81,9 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 
 ## TODO.md clearable
 - [ ] T1. Curated "furniture materials" one-tap finish shortlist (oak/walnut/teak/marble).
-- [ ] T2. Crown molding revisit / herringbone floor / kitchen-bath templates polish.
+- [~] T2. Crown molding revisit / ~~herringbone floor~~ / kitchen-bath templates
+  polish. **Herringbone floor shipped** (T2a — oak + walnut procedural finishes,
+  seamless 45° interlocking planks; CHANGELOG). Crown molding + templates remain.
 - [ ] T3. Per-LOD multi-tier generation for uploads (deferred).
 
 ## Process

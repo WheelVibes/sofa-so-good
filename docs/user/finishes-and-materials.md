@@ -13,7 +13,9 @@
 Finishes are generated procedurally, so they tile at a fixed real‑world scale no
 matter how big the surface is:
 
-- **Floors & walls** — wood, tile, marble, carpet, concrete, terrazzo, plaster.
+- **Floors & walls** — wood planks, **parquet** (basketweave) and **herringbone**
+  (premium 45° interlocking planks, in oak or walnut), tile, marble, carpet,
+  concrete, terrazzo, plaster.
 - **Wall treatments** — wallpapers (stripe / grasscloth) and checker, plus a
   **wall accent** picker for a single feature wall.
 

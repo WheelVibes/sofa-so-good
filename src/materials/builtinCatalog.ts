@@ -80,6 +80,22 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     'parquet',
     [0.5, 0.5],
   ),
+  // Herringbone parquet — premium 45° interlocking planks. The tile holds 16
+  // plank-widths, so at a 2 m tile each plank is ~0.5 m × 0.125 m (realistic).
+  'floor-herringbone-oak': floor(
+    'floor-herringbone-oak',
+    'Oak herringbone',
+    '#b88f5d',
+    'herringbone',
+    [2.0, 2.0],
+  ),
+  'floor-herringbone-walnut': floor(
+    'floor-herringbone-walnut',
+    'Walnut herringbone',
+    '#6b4428',
+    'herringbone',
+    [2.0, 2.0],
+  ),
   'floor-checker-mono': floor(
     'floor-checker-mono',
     'Checkerboard',
