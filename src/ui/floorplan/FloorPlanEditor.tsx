@@ -353,11 +353,29 @@ export function FloorPlanEditor() {
         }
         setDraft(null)
         exitToScene()
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Don't hijack Backspace/Delete while editing a field (e.g. the room
+        // name / dimension inputs in the inspector) — that would silently delete
+        // the selected element.
+        const t = e.target as HTMLElement | null
+        if (
+          t &&
+          (t.tagName === 'INPUT' ||
+            t.tagName === 'TEXTAREA' ||
+            t.tagName === 'SELECT' ||
+            t.isContentEditable)
+        ) {
+          return
+        }
         const st = useStore.getState()
-        if (sel.type === 'wall') st.removeWall(sel.id)
-        else if (sel.type === 'room') st.removeRoom(sel.id)
-        else st.removeOpening(sel.id)
+        if (sel) {
+          if (sel.type === 'wall') st.removeWall(sel.id)
+          else if (sel.type === 'room') st.removeRoom(sel.id)
+          else st.removeOpening(sel.id)
+        } else if (st.selectedItemId) {
+          // A furniture footprint is selected — delete it (parity with 3D).
+          st.deleteItem(st.selectedItemId)
+        }
       }
     }
     window.addEventListener('keydown', onKey)

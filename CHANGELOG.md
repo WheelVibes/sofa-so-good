@@ -4,6 +4,18 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B30] 2D editor: delete furniture with Delete; don't hijack field edits
+
+Two fixes to the 2D floor-plan editor's Delete/Backspace handler:
+- You can now **delete a selected furniture item** with Delete/Backspace (parity
+  with the 3D scene) — before, only plan elements (walls/rooms/openings) were
+  deletable there, so furniture could be moved in 2D but not removed.
+- Added a **typing guard**: the global handler no longer fires while focus is in
+  an input/textarea/select (e.g. the inspector's room-name or dimension fields),
+  so Backspace-to-edit can't silently delete the selected wall/room.
+E2E-verified (selecting a bed + Delete drops the item count 66→65 and clears the
+selection).
+
 ## [B29] Clear undo history on every design load (not just import)
 
 Loading a whole design replaces the world, so any prior undo steps reference a
