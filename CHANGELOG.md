@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R7] Clear the last `useExhaustiveDependencies` lint finding
+
+The only `useExhaustiveDependencies` finding left in the codebase was
+`useOverlayLifecycle.ts`, whose effect deliberately depends on `active` only
+(including `mounted`/`now` would re-run on its own `setMounted` and reset the
+min-visible hold timer). It was annotated with an **ESLint** `eslint-disable`
+comment — inert under Biome — so the finding still showed. Replaced it with the
+correct single-line `// biome-ignore lint/correctness/useExhaustiveDependencies`
+directive on the diagnostic line (the prose rationale kept above it).
+Comment-only; no behaviour change (overlay-lifecycle tests + tsc green). Lint
+errors now down to 4 (`noAssignInExpressions` ×4 in `catalog.ts`) + the
+`noExplicitAny` warnings.
+
 ## [R6] Enable the `useHookAtTopLevel` lint rule (guard the hooks-bug class)
 
 The Packs-gating bug ([N28e]) — a `useStore` placed after an early return —

@@ -34,6 +34,9 @@ export function useOverlayLifecycle(
   const shownAt = useRef<number>(active ? now() : 0)
   const timers = useRef<ReturnType<typeof setTimeout>[]>([])
 
+  // React to `active` edges only: including `mounted`/`now` would re-run on our
+  // own setMounted and reset the min-visible hold timer.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: see note above
   useEffect(() => {
     const clear = () => {
       timers.current.forEach(clearTimeout)
@@ -66,9 +69,6 @@ export function useOverlayLifecycle(
       }, holdFor),
     )
     return clear
-    // `mounted` intentionally excluded: we react to `active` edges; including
-    // it would re-run on our own setMounted and reset the hold timer.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [active])
 
   return { mounted, fading }
