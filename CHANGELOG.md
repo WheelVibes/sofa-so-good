@@ -4,6 +4,10 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F17] Door/window width labels in the 2D editor
+The "Dims" toggle now also labels each opening's width (accent-coloured, placed
+clear of a door's swing arc), not just wall lengths. Visually verified.
+
 ## [F16] Print/PDF page-break control in the report
 `break-inside: avoid` on report sections/tables/chips (+ `break-after: avoid` on
 headings) so "save as PDF" no longer splits a section mid-page. 1 test; PDF-verified.

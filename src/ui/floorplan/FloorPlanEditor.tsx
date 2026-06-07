@@ -4,7 +4,7 @@ import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isEditableTarget } from '../../controls/useKeyboard'
-import { defaultDoorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
+import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
@@ -1111,6 +1111,38 @@ export function FloorPlanEditor() {
                     style={{ pointerEvents: 'none', fontSize: 11, fontWeight: 600 }}
                   >
                     {formatLength(len, units)}
+                  </text>
+                )
+              })}
+
+            {/* Opening (door/window) width labels — same "Dims" toggle. Placed on
+                the side opposite a door's swing so they clear the arc. */}
+            {showWallDims &&
+              plan.openings.map((o) => {
+                const wall = plan.walls.find((w) => w.id === o.wallId)
+                if (!wall) return null
+                const len = wallLength(wall)
+                if (len === 0) return null
+                const ux = (wall.end[0] - wall.start[0]) / len
+                const uz = (wall.end[1] - wall.start[1]) / len
+                const mx = wall.start[0] + ux * (o.offset + o.width / 2)
+                const mz = wall.start[1] + uz * (o.offset + o.width / 2)
+                // (-uz, ux) is the wall's "right" normal — a door swinging right
+                // has its arc there, so label the opposite side.
+                const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
+                const isSel = sel?.type === 'opening' && sel.id === o.id
+                return (
+                  <text
+                    key={`odim-${o.id}`}
+                    x={toPx(mx - uz * off)}
+                    y={toPx(mz + ux * off)}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="plan-dim-label"
+                    fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
+                    style={{ pointerEvents: 'none', fontSize: 10, fontWeight: 600 }}
+                  >
+                    {formatLength(o.width, units)}
                   </text>
                 )
               })}

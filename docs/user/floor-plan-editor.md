@@ -20,6 +20,8 @@ between the 2D plan and the 3D scene at any time.
 - **Select tool** — click to select, drag to move a room or a piece of furniture.
 - **Grid & corner snapping** keep everything aligned (cycle the grid size from the
   toolbar).
+- **Dims** (header toggle) labels every wall's length and every door/window's
+  width, so the plan reads with full dimensions.
 
 ## Non‑rectangular rooms (L‑shapes & angles)
 
