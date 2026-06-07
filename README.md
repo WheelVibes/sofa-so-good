@@ -105,10 +105,11 @@ export the result — all in the browser.
   target** that tracks how far over/under you are), door-swing **clearance
   checks**, a **sun study** time-lapse, an auto **walkthrough** tour, point-to-
   point **distance and area measuring** (📌 **Pin** any measurement to keep it as
-  a persistent dimension annotation on the design), and a printable **design report**
-  (per-room areas, budget, cost-by-room, **cost per m²/ft²**, and a **finishes-
-  by-room** spec). Switch all dimension read-outs between **metric and imperial**
-  (feet-and-inches) from the Graphics panel.
+  a persistent dimension annotation, shown in 3D, the 2D plan, and the report),
+  and a printable **design report** (per-room areas, budget, cost-by-room, **cost
+  per m²/ft²**, a **finishes-by-room** spec, a **material palette** style board,
+  and a **scale-barred, dimensioned floor plan**). Switch all dimension read-outs
+  between **metric and imperial** (feet-and-inches) from the Graphics panel.
 - **Bring your own models** — import your own furniture as
   `.glb`/`.gltf` **or** `.obj` / `.fbx` / `.stl` / `.ply` / `.dae` / `.3mf` /
   `.usdz`: non-GLB formats are **converted to GLB in your browser** (no upload,
