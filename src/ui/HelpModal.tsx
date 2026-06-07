@@ -37,6 +37,8 @@ const TIPS: [string, string][] = [
   ['Scene menu → Lighting moods previews the room at golden hour, a cosy evening, night…'],
   ['Measure something, then 📌 Pin it to keep the dimension on the design.'],
   ['In Walk, the minimap (bottom-right) shows where you are and which room you’re in.'],
+  ['Scene menu → Backdrop swaps the surroundings: city, park, hills, or a clean studio.'],
+  ['New here? Appearance menu → Simple hides the advanced tools for a calmer workspace.'],
 ] as unknown as [string, string][]
 
 /** Help & keyboard-shortcut reference modal (toolbar `?`). On mobile (no
