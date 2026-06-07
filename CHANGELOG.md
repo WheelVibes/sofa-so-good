@@ -54,6 +54,16 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [Q40] Search box in the FinishPicker
+
+The finish picker lists ~35 built-in finishes plus any uploaded/DLC materials,
+which is tedious to scan. Added a **search field** at the top of the swatch view
+that filters both the Floor and Wall swatch groups (desktop grid + mobile
+dropdown) by material name via a pure `filterFinishes(mats, query)` — consistent
+with the catalog's search. Empty query passes everything; the custom-colour tile
++ recent row stay. Verified: typing "marble" narrows both grids to just Marble.
+883 tests; tsc + lint clean.
+
 ## [B39] Fix onboarding for the view/edit split
 
 The first-run onboarding still assumed the old model: its **"Browse the

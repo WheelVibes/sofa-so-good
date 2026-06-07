@@ -15,6 +15,14 @@ import { Icon } from './toolbar/icons'
 import { UploadMaterialDialog } from './upload/UploadMaterialDialog'
 import { useIsMobile } from './useIsMobile'
 
+/** Filter finishes by a free-text query against the material name (empty query
+ *  passes everything). Keeps the picker scannable as the catalog grows. */
+function filterFinishes(mats: MaterialDef[], query: string): MaterialDef[] {
+  const q = query.trim().toLowerCase()
+  if (!q) return mats
+  return mats.filter((m) => m.name.toLowerCase().includes(q))
+}
+
 /** Background-image URL for a swatch tile: the generated texture preview for
  *  procedural finishes, the provider thumbnail/albedo for textured ones. */
 function swatchImage(m: MaterialDef): string | undefined {
@@ -89,6 +97,7 @@ export function FinishPicker() {
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const materials = useMaterials()
   const [uploadOpen, setUploadOpen] = useState(false)
+  const [finishQuery, setFinishQuery] = useState('')
   const [view, setView] = useState<View>('swatch')
   // Remember which surface was last finished, across sessions, so Browse opens
   // pre-filtered to it (and resolving applies to it).
@@ -171,9 +180,18 @@ export function FinishPicker() {
 
       {view === 'swatch' ? (
         <div className="panel-body">
+          <input
+            type="search"
+            className="input"
+            placeholder="Search finishes…"
+            value={finishQuery}
+            onChange={(e) => setFinishQuery(e.target.value)}
+            aria-label="Search finishes"
+            style={{ marginBottom: 'var(--s-3)' }}
+          />
           <SwatchGroup
             label="Floor"
-            items={groups.floor}
+            items={filterFinishes(groups.floor, finishQuery)}
             active={finishes.floor[roomId]}
             onSelect={(id) => handleSelect('floor', id)}
             onRemoveUser={removeUserMaterial}
@@ -190,7 +208,7 @@ export function FinishPicker() {
           </button>
           <SwatchGroup
             label="Walls"
-            items={groups.wall}
+            items={filterFinishes(groups.wall, finishQuery)}
             active={finishes.walls[roomId]}
             onSelect={(id) => handleSelect('wall', id)}
             onRemoveUser={removeUserMaterial}
