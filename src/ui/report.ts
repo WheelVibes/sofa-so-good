@@ -174,7 +174,7 @@ export function buildReportHtml(
 </style></head>
 <body>
   <h1>${esc(plan.name)}</h1>
-  <div class="sub">Interior design report · ${date} · ${items.length} furniture pieces</div>
+  <div class="sub">Interior design report · ${date} · ${plan.rooms.length} ${plan.rooms.length === 1 ? 'room' : 'rooms'} · ${formatArea(totalArea, units)} · ${items.length} furniture pieces</div>
   ${note?.trim() ? `<div class="note">${esc(note.trim())}</div>` : ''}
   ${hero}
   <div class="cols">

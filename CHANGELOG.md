@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q53] Richer report header (room count + total area)
+
+The printable report's subheader now summarises the design at a glance —
+"… · N rooms · <total area> · M furniture pieces" (was just the piece count).
+Reuses the already-computed total area + unit formatting. Verified by rendering
+the report.
+
 ## [P8] Room-editor caption: drop the redundant name on mobile
 
 Responsive refinement of [Q52]: on mobile the room **name** already shows in the
