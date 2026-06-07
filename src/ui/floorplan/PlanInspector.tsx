@@ -224,6 +224,18 @@ export function PlanInspector() {
               {formatArea(planRoomArea(r), units)}
             </span>
           </div>
+          <button
+            type="button"
+            className="btn btn-accent btn-block"
+            title="Close the plan editor and isolate this room in the 3D per-room editor"
+            onClick={() => {
+              const st = useStore.getState()
+              st.setFloorPlanEditing(false)
+              st.enterRoomEditor(r.id)
+            }}
+          >
+            Edit in 3D
+          </button>
           <DeleteBtn onClick={() => a.removeRoom(r.id)} label="Delete room" />
         </div>
       )

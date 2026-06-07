@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q51] "Edit in 3D" from a selected room in the 2D plan editor
+
+The 2D floor-plan editor's room inspector now has an **Edit in 3D** button that
+closes the plan editor and opens the **per-room editor** for that room — a direct
+2D→3D workflow connection, made possible now that the per-room editor works on
+any plan (RE6). E2E-verified (button renders for a selected room; enters the
+editor via the same store actions used elsewhere).
+
 ## [Q50] Command palette: "Edit a room"
 
 Now that the per-room editor works on every plan (RE6), added an **Edit a room

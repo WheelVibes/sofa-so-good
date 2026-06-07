@@ -324,3 +324,4 @@ Remaining (larger / focused-session):
 - [ ] RE6.2-old. ~~renderer~~ — clipped plan walls (camera-facing reveal like RoomShell), per-room floor from `PlanRoom.floor` (reuse `PlanRoomFloor`), plan openings as wall cut-outs. Walls have no per-room wall-finish on custom plans — use a neutral/default wall material.
 - [x] RE6.3. (DONE — E2E-verified custom + default; CHANGELOG)  ~~todo~~  **Wire `RoomEditorScene`** to use `planRoomShell`+`PlanRoomShell` when `!isDefaultPlan`; ungate the View/Mobile "Edit a room" entries + room-switcher dropdowns to iterate `plan.rooms` (filter external only on default). Walk collision from plan walls. E2E-verify on a custom plan.
 - [x] Q50. **⌘K "Edit a room"** — enters the active plan's first room (default/custom). (CHANGELOG)
+- [x] Q51. **"Edit in 3D" from the 2D room inspector** — jumps a selected plan room into the per-room editor (leverages RE6). E2E-verified. (CHANGELOG)
