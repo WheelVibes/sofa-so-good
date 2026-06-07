@@ -17,6 +17,29 @@ import type { RootState } from '../state/store'
 
 export class PlanShareError extends Error {}
 
+/** Hash-route that carries a shared plan: `#/plans/<code>` (also tolerates
+ *  `#plans/<code>`). Hash routing works on static hosting with no SPA fallback. */
+const PLAN_ROUTE_RE = /#\/?plans\/([A-Za-z0-9_-]+)/
+
+/** Extract a plan code from a URL hash, or null if it isn't a plan route. */
+export function parsePlanRoute(hash: string | null | undefined): string | null {
+  if (!hash) return null
+  const m = PLAN_ROUTE_RE.exec(hash)
+  return m ? m[1] : null
+}
+
+/** The hash fragment for a code (`#/plans/<code>`). */
+export function planShareHash(code: string): string {
+  return `#/plans/${code}`
+}
+
+/** A full shareable URL for a code (origin + app base + plan hash). */
+export function buildPlanShareUrl(code: string): string {
+  const origin = globalThis.location?.origin ?? ''
+  const base = (import.meta.env?.BASE_URL as string | undefined) ?? '/'
+  return `${origin}${base}${planShareHash(code)}`
+}
+
 /** Reject an oversized code before inflating (cheap zip-bomb / DoS guard). A
  *  real design compresses to well under this. */
 export const MAX_CODE_LENGTH = 2_000_000

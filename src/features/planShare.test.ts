@@ -1,12 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import { applySerialized } from '../state/schema'
+import { loadSharedPlanFromUrl } from '../state/storage/bootstrap'
 import { useStore } from '../state/store'
 import {
+  buildPlanShareUrl,
   decodeCodeToDesign,
   decodePlan,
   encodeDesignToCode,
   encodePlan,
   PlanShareError,
+  parsePlanRoute,
+  planShareHash,
 } from './planShare'
 
 describe('encodePlan / decodePlan', () => {
@@ -48,5 +52,50 @@ describe('encodeDesignToCode / decodeCodeToDesign', () => {
   it('rejects a well-formed code whose payload is not a valid plan', () => {
     const code = encodePlan({ not: 'a design' })
     expect(() => decodeCodeToDesign(code)).toThrow(PlanShareError)
+  })
+})
+
+describe('plan route helpers', () => {
+  it('round-trips a code through the hash route', () => {
+    const code = 'aB-_123'
+    expect(parsePlanRoute(planShareHash(code))).toBe(code)
+    expect(parsePlanRoute('#/plans/xyz')).toBe('xyz')
+    expect(parsePlanRoute('#plans/xyz')).toBe('xyz') // tolerant of missing slash
+  })
+  it('returns null for non-plan hashes', () => {
+    expect(parsePlanRoute('')).toBeNull()
+    expect(parsePlanRoute('#/other')).toBeNull()
+    expect(parsePlanRoute(null)).toBeNull()
+  })
+  it('builds a full share URL ending in the plan hash', () => {
+    expect(buildPlanShareUrl('abc')).toMatch(/#\/plans\/abc$/)
+  })
+})
+
+describe('loadSharedPlanFromUrl', () => {
+  it('loads the shared design from the hash and clears it', async () => {
+    useStore.getState().__resetForTest()
+    // Make a distinctive custom plan so it serializes + is recognisable.
+    useStore.setState({
+      floorPlan: { ...useStore.getState().floorPlan, id: 'custom-share', name: 'Shared Plan X' },
+    })
+    const code = encodeDesignToCode(useStore.getState())
+
+    useStore.getState().__resetForTest()
+    expect(useStore.getState().floorPlan.name).not.toBe('Shared Plan X')
+    window.location.hash = planShareHash(code)
+    await loadSharedPlanFromUrl()
+
+    expect(useStore.getState().floorPlan.name).toBe('Shared Plan X')
+    expect(window.location.hash).toBe('') // hash cleared after loading
+  })
+
+  it('is a no-op when the hash is not a plan route', async () => {
+    useStore.getState().__resetForTest()
+    window.location.hash = '#/something-else'
+    const before = useStore.getState().floorPlan.name
+    await loadSharedPlanFromUrl()
+    expect(useStore.getState().floorPlan.name).toBe(before)
+    window.location.hash = ''
   })
 })

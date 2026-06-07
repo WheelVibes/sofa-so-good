@@ -11,6 +11,9 @@
  * seed (so defaults never clobber a layout the autosave is about to restore).
  */
 
+import { decodeCodeToDesign, PlanShareError, parsePlanRoute } from '../../features/planShare'
+import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
+import { applySerialized } from '../schema'
 import { useStore } from '../store'
 import { loadAppearancePrefs, watchAppearancePrefs } from './appearancePrefs'
 import { startAutosave } from './autosave'
@@ -76,6 +79,10 @@ export async function runBootstrap(): Promise<void> {
       useStore.getState().clearHistory()
     })
 
+    // A `#/plans/<code>` share link overrides the seeded/restored design with
+    // the shared plan (runs after the seed so it wins). No-op without a link.
+    await runStep('planShareLink', loadSharedPlanFromUrl)
+
     // Surface autosave failures (the common one is localStorage quota) so the
     // user knows their work isn't being persisted, instead of silently losing
     // it. Dedup to a single notification that auto-clears when saving resumes.
@@ -105,6 +112,39 @@ export async function runBootstrap(): Promise<void> {
     if (import.meta.env.DEV) await runStep('devHelpers', exposeDevHelpers)
   } finally {
     useStore.getState().setBootReady()
+  }
+}
+
+/**
+ * If the URL hash is a `#/plans/<code>` share link, decode + load that design
+ * (overriding the seeded/restored one), then clear the hash so a reload doesn't
+ * re-apply the now-edited plan and the URL stays clean. Exported for testing.
+ */
+export async function loadSharedPlanFromUrl(): Promise<void> {
+  const code = parsePlanRoute(globalThis.location?.hash)
+  if (!code) return
+  const s = useStore.getState()
+  try {
+    const design = decodeCodeToDesign(code)
+    const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
+    useStore.setState(applySerialized(design, known))
+    useStore.getState().clearHistory?.()
+    useStore.getState().requestHomeView?.()
+    useStore.getState().notify.start({ title: 'Loaded a shared plan', kind: 'success' })
+  } catch (e) {
+    useStore.getState().notify.start({
+      title: "Couldn't open that shared plan",
+      kind: 'error',
+      message: e instanceof PlanShareError ? e.message : undefined,
+    })
+  } finally {
+    try {
+      const url = new URL(globalThis.location.href)
+      url.hash = ''
+      globalThis.history?.replaceState(null, '', url.toString())
+    } catch {
+      /* no history/URL (non-browser) */
+    }
   }
 }
 

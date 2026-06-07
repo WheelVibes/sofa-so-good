@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [PS2] Plan sharing — hash routing + load-on-boot (2/n)
+`#/plans/<code>` links: `parsePlanRoute`/`planShareHash`/`buildPlanShareUrl` +
+a boot step that decodes + loads a shared design (overriding the seed), then
+clears the hash. 5 tests incl. an end-to-end load. Share UI next.
+
 ## [PS1] Plan sharing — backend-less encode/decode core (1/n)
 `features/planShare.ts`: deflate (fflate) + base64url-encode a design into a
 self-contained code for `#/plans/<code>` links (loads on any instance, no
