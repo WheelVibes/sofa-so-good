@@ -10,6 +10,7 @@ import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
+import { AnnotationsOverlay } from './AnnotationsOverlay'
 import { CityBackdrop } from './CityBackdrop'
 import { ClearanceOverlay } from './ClearanceOverlay'
 import { ContextLossGuard } from './ContextLossGuard'
@@ -95,6 +96,7 @@ export function Scene() {
       <CameraForwardTracker />
       <MeasurementOverlay />
       <TapeMeasure />
+      <AnnotationsOverlay />
       <Effects />
       <ShowcaseController />
       <QualityController />

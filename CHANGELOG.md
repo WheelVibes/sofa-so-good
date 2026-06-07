@@ -4,6 +4,18 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N21] Persistent dimension annotations (pin a measurement)
+
+A completed tape measurement now shows a **📌 Pin** button; pinning saves it as a
+persistent dimension callout (`AnnotationsOverlay`) that stays in the scene
+(orbit + walk), renders in a calm slate (distinct from the live amber tape) with
+a distance/area label and an **×** to remove it, and **saves with the design**
+(round-tripped in `schema.ts`, optional/back-compat). A pro-tool capability
+(RoomSketcher/magicplan) built in clean slices: data model + CRUD + persistence
+(`measurementsSlice`, unit-tested incl. schema round-trip), render overlay, and
+the pin/remove UI. Verified end-to-end: pin → annotation persists + tape clears;
+both line + rect callouts render with labels.
+
 ## [U1] Metric / imperial measurement units
 
 Commercial-parity feature: a **metric ⇄ imperial** units toggle in the Graphics

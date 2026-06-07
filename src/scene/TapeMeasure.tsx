@@ -43,10 +43,22 @@ export function TapeMeasure() {
   const addTapePoint = useStore((s) => s.addTapePoint)
   const units = useStore((s) => s.units)
   const tapeShape = useStore((s) => s.tapeShape)
+  const addAnnotation = useStore((s) => s.addAnnotation)
+  const clearTape = useStore((s) => s.clearTape)
   const { ref: catalogRef } = useCatalogGetter()
   const [cursor, setCursor] = useState<[number, number] | null>(null)
 
   if (!tapeMode) return null
+
+  // Pin the *completed* measurement (both points placed) as a persistent
+  // annotation, then clear the tape to start fresh.
+  const complete = points.length === 2
+  const pin = () => {
+    if (points[0] && points[1]) {
+      addAnnotation(points[0], points[1], tapeShape)
+      clearTape()
+    }
+  }
 
   // Snap a clicked floor point to the nearest furniture corner or wall endpoint
   // (within TAPE_SNAP_DISTANCE) so measurements catch exact corners. Candidates
@@ -125,8 +137,9 @@ export function TapeMeasure() {
             </mesh>
           </group>
           <Html position={[bar.mx, LIFT + 0.05, bar.mz]} center distanceFactor={9}>
-            <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
-              {formatLength(bar.len, units)}
+            <div className="flex items-center gap-1.5 rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap">
+              <span className="pointer-events-none">{formatLength(bar.len, units)}</span>
+              {complete ? <PinButton onClick={pin} /> : null}
             </div>
           </Html>
         </>
@@ -146,12 +159,31 @@ export function TapeMeasure() {
             />
           </mesh>
           <Html position={[rect.cx, LIFT + 0.05, rect.cz]} center distanceFactor={9}>
-            <div className="rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap pointer-events-none">
-              {`${formatDims(rect.w, rect.d, units)} · ${formatArea(rect.w * rect.d, units)}`}
+            <div className="flex items-center gap-1.5 rounded bg-[var(--surface-solid)]/95 px-2 py-0.5 text-xs font-semibold text-[var(--text)] shadow whitespace-nowrap">
+              <span className="pointer-events-none">{`${formatDims(rect.w, rect.d, units)} · ${formatArea(rect.w * rect.d, units)}`}</span>
+              {complete ? <PinButton onClick={pin} /> : null}
             </div>
           </Html>
         </>
       ) : null}
     </group>
+  )
+}
+
+/** A small "Pin" button shown on a completed measurement — saves it as a
+ *  persistent annotation. */
+function PinButton({ onClick }: { onClick: () => void }) {
+  return (
+    <button
+      type="button"
+      title="Pin this dimension to the design"
+      onClick={(e) => {
+        e.stopPropagation()
+        onClick()
+      }}
+      className="rounded bg-[var(--accent)] px-1.5 py-0.5 text-[10px] font-semibold leading-none text-white"
+    >
+      📌 Pin
+    </button>
   )
 }
