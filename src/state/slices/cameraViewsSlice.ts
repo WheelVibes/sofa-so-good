@@ -1,8 +1,10 @@
 import { cameraPose } from '../../scene/cameras/cameraForward'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
+import type { LightsMode } from './uiSlice'
 
-/** A saved orbit-camera bookmark: a named position + look-at target. */
+/** A saved orbit-camera bookmark: a named position + look-at target, plus the
+ *  lighting state so a "shot" reproduces the full look (angle + ambiance). */
 export interface SavedView {
   id: string
   name: string
@@ -12,6 +14,10 @@ export interface SavedView {
   target: [number, number, number]
   /** Optional small JPEG data-URL preview of the view (captured at save time). */
   thumb?: string
+  /** Optional captured lighting (added later; absent = don't touch lighting). */
+  mode?: 'system' | 'manual'
+  hour?: number
+  lights?: LightsMode
 }
 
 const LS_KEY = 'hdb_camera_views'
@@ -84,12 +90,16 @@ export const createCameraViewsSlice: SliceCreator<CameraViewsSlice, RootState> =
   ...CAMERA_VIEWS_INITIAL,
   saveCurrentView: (name, thumb) => {
     const id = viewId()
+    const st = get()
     const view: SavedView = {
       id,
-      name: name.trim() || `View ${get().savedViews.length + 1}`,
+      name: name.trim() || `View ${st.savedViews.length + 1}`,
       pos: [cameraPose.px, cameraPose.py, cameraPose.pz],
       target: [cameraPose.tx, cameraPose.ty, cameraPose.tz],
       ...(thumb ? { thumb } : {}),
+      mode: st.timeMode,
+      hour: st.manualHour,
+      lights: st.lightsMode,
     }
     const next = [...get().savedViews, view].slice(-MAX_VIEWS)
     persistViews(next)
@@ -104,6 +114,10 @@ export const createCameraViewsSlice: SliceCreator<CameraViewsSlice, RootState> =
       applyViewNonce: s.applyViewNonce + 1,
       cameraMode: 'orbit',
     }))
+    // Restore the captured lighting (back-compat: older views have none).
+    if (view.lights) get().setLightsMode(view.lights)
+    if (view.mode === 'manual' && typeof view.hour === 'number') get().setManualHour(view.hour)
+    else if (view.mode === 'system') get().setTimeMode('system')
   },
   deleteView: (id) => {
     const next = get().savedViews.filter((v) => v.id !== id)

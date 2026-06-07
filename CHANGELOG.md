@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q46] Saved camera views capture the lighting (a "shot" = angle + ambiance)
+
+Saved views now snapshot the **time of day + fixture-lights mode** alongside the
+camera pose, and restore them on apply — so a bookmarked "shot" reproduces the
+full look (e.g. a golden-hour lounge angle stays golden-hour). Optional fields,
+back-compat: older saved views have no lighting and leave it untouched.
+Unit-tested (capture + restore).
+
 ## [N21] Persistent dimension annotations (pin a measurement)
 
 A completed tape measurement now shows a **📌 Pin** button; pinning saves it as a

@@ -56,4 +56,17 @@ describe('cameraViewsSlice', () => {
     useStore.getState().renameView(id, 'New')
     expect(useStore.getState().savedViews.find((v) => v.id === id)?.name).toBe('New')
   })
+
+  it('captures + restores the lighting state (a shot = angle + ambiance)', () => {
+    useStore.getState().setManualHour(20.5)
+    useStore.getState().setLightsMode('on')
+    const id = useStore.getState().saveCurrentView('Cosy shot')
+    const view = useStore.getState().savedViews.find((v) => v.id === id)
+    expect(view).toMatchObject({ mode: 'manual', hour: 20.5, lights: 'on' })
+    useStore.getState().setManualHour(9)
+    useStore.getState().setLightsMode('off')
+    useStore.getState().applyView(id)
+    expect(useStore.getState().manualHour).toBe(20.5)
+    expect(useStore.getState().lightsMode).toBe('on')
+  })
 })
