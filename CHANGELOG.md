@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [P6] Minimap room label legibility
+
+The current-room name on the walk minimap was near-illegible (`--text-3`, 5px, no
+contrast against the room fill + furniture dots). Gave `.mm-label` a halo
+(`paint-order: stroke` in the surface colour), stronger fill (`--text`) and
+weight, and centred it on the room centroid (`dominant-baseline: central`) so it
+reads cleanly over anything beneath it. CSS + one attribute; verified in walk.
+
 ## [N23] Walk minimap shows doorways + windows
 
 The walk-mode `Minimap` now draws wall **openings**: doors as a gap that "cuts"

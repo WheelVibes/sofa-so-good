@@ -193,7 +193,7 @@ export function Minimap() {
           )
         })}
         {/* Current-room name — position + text written live by the rAF. */}
-        <text ref={labelRef} className="mm-label" textAnchor="middle" />
+        <text ref={labelRef} className="mm-label" textAnchor="middle" dominantBaseline="central" />
         {/* Camera arrow */}
         <g ref={arrowRef}>
           <path
