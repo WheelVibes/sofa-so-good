@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R8] Remove the `noAssignInExpressions` lint errors in `catalog.ts`
+
+`useCatalogByCategory` built its grouped buckets with
+`(out[def.category] ??= []).push(def)` four times — a valid pattern but flagged
+by Biome's `noAssignInExpressions` (assignment buried inside a method-call
+expression, the kind that hides bugs like `if (a = b)`). Extracted a small
+`bucket(cat)` helper that lazily creates the category array (still guarding
+against an unknown category from an imported def) without an in-expression
+assignment — clearer intent, same output. Catalog tests (100) + tsc green; lint
+errors for the rule cleared.
+
 ## [R7] Clear the last `useExhaustiveDependencies` lint finding
 
 The only `useExhaustiveDependencies` finding left in the codebase was
