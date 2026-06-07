@@ -35,7 +35,9 @@ state, Vite build, Vitest tests.
   `useButtonType`/`noSvgWithoutTitle`/interactive rules, `noArrayIndexKey`,
   `noNonNullAssertion`, `useLiteralKeys`; `noExplicitAny` is a warning).
   `python/` is excluded. CI (`.github/workflows/ci.yml`) enforces format-check
-  + `tsc`; lint is reported non-blocking until the ~26-finding backlog clears.
+  + `tsc`; lint is reported non-blocking (the lint **error** backlog is now
+  cleared — `biome check src/` exits 0; only intentional `noExplicitAny`
+  *warnings* in test files remain).
   A **pre-commit hook** (`.githooks/pre-commit`, auto-installed by the
   package.json `prepare` script which runs `git config core.hooksPath
   .githooks` on `npm install`) runs `biome check --staged` and blocks the

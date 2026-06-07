@@ -15,6 +15,18 @@ against an unknown category from an imported def) without an in-expression
 assignment — clearer intent, same output. Catalog tests (100) + tsc green; lint
 errors for the rule cleared.
 
+## [R9] Clear the final lint error — `biome check` now exits 0
+
+Removed the last `noUselessSwitchCase` error in `furnitureMaterials.ts`
+(`applianceFinish`): `case 'matte':` fell through to a `default` returning the
+same props, so the explicit case was redundant — folded its comment into
+`default` (`'matte' and any unknown finish`). With this, **the entire lint
+**error** backlog is cleared**: `biome check src/` now exits 0 (only 6
+`noExplicitAny` *warnings* remain, all in test files using `any` for mocks — the
+rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
+reported non-blocking until the ~26-finding backlog clears." Material tests +
+tsc green.
+
 ## [R7] Clear the last `useExhaustiveDependencies` lint finding
 
 The only `useExhaustiveDependencies` finding left in the codebase was

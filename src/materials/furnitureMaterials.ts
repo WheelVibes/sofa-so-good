@@ -534,8 +534,7 @@ export function applianceFinish(finish: string): { roughness: number; metalness:
       return { roughness: 0.3, metalness: 0.88 }
     case 'gloss': // glossy lacquer / glass front
       return { roughness: 0.12, metalness: 0.25 }
-    case 'matte': // painted matte
-    default:
+    default: // 'matte' (painted matte) and any unknown finish
       return { roughness: 0.55, metalness: 0.1 }
   }
 }
