@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [FG3d] Feature flags — gate mobile-toolbar items
+MobileToolbar accordion items now respect their flags (savedViews, floorPlan,
+lightingMoods, backdrops, smartStart, budget, checks, measure, history,
+versions, share, sunStudy, walkthrough, report) — parity with desktop / ⌘K.
+tsc + 38 feature/toolbar tests + lint green.
+
 ## [UX1] Toolbar/tour/inspector UX overhaul + room-entry confirm
 Combined Camera+View menu; new Edit menu group (edit-room/floor-plan); Graphics
 moved to right cluster; redesigned Scene menu (slider checkpoints + lighting
