@@ -10,9 +10,11 @@ export function TapeModeToggle() {
   const tapeMode = useStore((s) => s.tapeMode)
   const tapeShape = useStore((s) => s.tapeShape)
   const setTapeShape = useStore((s) => s.setTapeShape)
+  const pinnedCount = useStore((s) => s.annotations.length)
+  const clearAnnotations = useStore((s) => s.clearAnnotations)
   if (!tapeMode) return null
   return (
-    <div className="pointer-events-auto absolute bottom-20 left-1/2 z-20 -translate-x-1/2">
+    <div className="pointer-events-auto absolute bottom-20 left-1/2 z-20 flex -translate-x-1/2 items-center gap-2">
       <div className="seg accent" style={{ display: 'flex' }}>
         {(['line', 'rect'] as const).map((s) => (
           <button
@@ -25,6 +27,16 @@ export function TapeModeToggle() {
           </button>
         ))}
       </div>
+      {pinnedCount > 0 ? (
+        <button
+          type="button"
+          className="btn btn-soft btn-sm"
+          title="Remove all pinned dimensions"
+          onClick={() => clearAnnotations()}
+        >
+          Clear pins ({pinnedCount})
+        </button>
+      ) : null}
     </div>
   )
 }
