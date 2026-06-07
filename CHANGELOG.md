@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B33] City backdrop rings the active plan (not just the default flat)
+
+The neighbouring-HDB-block backdrop + estate ground were laid out around the
+**built-in** apartment's centre, so a custom floor plan sat off to one side of
+the estate ring. The backdrop group is now translated by the active plan's
+centre-delta, so the city rings whatever plan is loaded. The delta is exactly
+(0,0) for the built-in flat (verified: `planBounds(default)` == the apartment
+extent), so its view is unchanged; custom plans render cleanly with the city
+around them.
+
 ## [B32] Walk-mode spawn inside custom plans (was the default flat's coords)
 
 Entering **walk mode on a custom floor plan** spawned the player at the built-in

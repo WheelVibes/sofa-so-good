@@ -8,7 +8,9 @@ import {
   SRGBColorSpace,
 } from 'three'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
+import { planBounds } from '../floorplan/types'
 import { mulberry32 } from '../materials/procedural/noise'
+import { useStore } from '../state/store'
 import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
 
@@ -163,8 +165,18 @@ export function CityBackdrop() {
     for (const m of materials) m.emissiveIntensity = intensity
   })
 
+  // Centre the estate ring on the ACTIVE plan, so a custom apartment is ringed
+  // by neighbouring blocks too (the ring is laid out around the default centre,
+  // so we just translate it by the plan-centre delta — zero for the built-in
+  // flat). Memoised on the plan so the offset reference stays stable.
+  const plan = useStore((s) => s.floorPlan)
+  const offset = useMemo(() => {
+    const [pw, pd] = planBounds(plan)
+    return [pw / 2 - CX, 0, pd / 2 - CZ] as [number, number, number]
+  }, [plan])
+
   return (
-    <group renderOrder={-1}>
+    <group renderOrder={-1} position={offset}>
       {/* Far estate ground, just below the apartment slab. */}
       <mesh
         rotation={[-Math.PI / 2, 0, 0]}

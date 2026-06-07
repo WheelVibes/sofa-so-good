@@ -331,3 +331,5 @@ Remaining (larger / focused-session):
 - [x] Q53b. **Share "Copy summary" room count** — consistent with the report header. (CHANGELOG)
 - [x] B31. **Plan-aware camera framing** (reset/top/room-exit frame the active plan) + fixed the RE6.3 camera-reset-on-plan-edit regression (plan read fresh in effects). E2E-verified. (CHANGELOG)
 - [x] B32. **Walk spawn inside custom plans** — was the default flat coords (outside custom plans); now the largest room, looking across. E2E-verified. (CHANGELOG)
+- [x] B33. **City backdrop centres on the active plan** (was default-flat-only). Default offset proven (0,0); custom verified. (CHANGELOG)
+- [ ] B34/minor. **Lighting shadow frustum** is centred on the default apartment (`Lighting.tsx` CENTER) + fixed 9.5m half-extent — covers typical near-origin custom plans but a far-offset/oversized custom plan could miss sun shadows (Medium+ tiers only; default tier has none). Make CENTER+half-extent plan-aware; needs a real-GPU shadow-coverage check.
