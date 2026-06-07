@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R6] Enable the `useHookAtTopLevel` lint rule (guard the hooks-bug class)
+
+The Packs-gating bug ([N28e]) — a `useStore` placed after an early return —
+slipped past `tsc` and lint because Biome's `correctness/useHookAtTopLevel` rule
+wasn't enabled. Turned it on as an **error** in `biome.json`; the codebase passes
+it clean across all 593 files (audited the other recent `proMode` hooks too — all
+correctly above their early returns), so the pre-commit hook + lint now catch any
+future hook-after-return / conditional-hook violation. Doesn't change the
+lint exit state (the pre-existing `useExhaustiveDependencies` backlog is
+unaffected; CI lint stays non-blocking).
+
 ## [N28e] Hide the catalog's Packs tab in Simple mode
 
 The catalog's **Packs** tab (downloadable-content installs — API keys, hosted

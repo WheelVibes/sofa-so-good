@@ -43,6 +43,9 @@
       },
       "complexity": {
         "useLiteralKeys": "off"
+      },
+      "correctness": {
+        "useHookAtTopLevel": "error"
       }
     }
   },
