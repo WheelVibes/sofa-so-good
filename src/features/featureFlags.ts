@@ -132,20 +132,24 @@ function isFlag(k: string): k is FeatureFlag {
 }
 
 /**
- * Resolve the effective flag map. Production is locked to the registry
- * (`devOnly` → off, everything else → its default); overrides apply **only**
- * outside production so a shipped build can't be flipped by a stray URL/LS value.
+ * Resolve the effective flag map. A normal production session is locked to the
+ * registry (`devOnly` → off, everything else → its default, no overrides). A
+ * **privileged** session (dev build *or* a signed-in admin) unlocks `devOnly`
+ * flags and honours overrides — so an ordinary shipped build can't be flipped by
+ * a stray URL/LS value, but an admin (or dev) can toggle features for QA.
  */
 export function resolveFlags(
   isDev: boolean,
   overrides: FlagOverrides = {},
+  isAdmin = false,
 ): Record<FeatureFlag, boolean> {
+  const privileged = isDev || isAdmin
   const out = {} as Record<FeatureFlag, boolean>
   for (const key of FEATURE_FLAG_KEYS) {
     const def = FEATURE_FLAGS[key]
-    if (def.devOnly && !isDev) {
+    if (def.devOnly && !privileged) {
       out[key] = false
-    } else if (isDev && key in overrides) {
+    } else if (privileged && key in overrides) {
       out[key] = overrides[key]!
     } else {
       out[key] = def.default

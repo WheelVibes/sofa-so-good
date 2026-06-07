@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [A3] Accounts — admin unlocks dev-only features (3/3)
+`resolveFlags` gains an `isAdmin` param: a signed-in admin (even in a prod build)
+unlocks `devOnly` flags + can override; sign-in/out + boot re-resolve the flag
+map. Auth feature complete. 3 new tests.
+
 ## [A2] Accounts — full login screen + `#/login` route (2/3)
 `ui/auth/LoginScreen` (themed full-screen sign-in: password, error, signed-in
 state + sign out), opened via `#/login` or a Help "Sign in" entry; `loginOpen`

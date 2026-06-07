@@ -37,7 +37,7 @@ export const AUTH_INITIAL: Pick<AuthSlice, 'currentUser' | 'authError' | 'authPr
   authProviderLabel: provider.label,
 }
 
-export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set) => ({
+export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set, get) => ({
   ...AUTH_INITIAL,
   signIn: async (credentials) => {
     const res = await provider.signIn(credentials)
@@ -48,6 +48,8 @@ export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set) => ({
         /* ignore persistence failure */
       }
       set({ currentUser: res.user, authError: null })
+      // Admin unlocks dev-only features → recompute the flag map.
+      get().reresolveFeatureFlags()
       return true
     }
     set({ authError: res.error })
@@ -60,5 +62,6 @@ export const createAuthSlice: SliceCreator<AuthSlice, RootState> = (set) => ({
       /* ignore */
     }
     set({ currentUser: null, authError: null })
+    get().reresolveFeatureFlags()
   },
 })

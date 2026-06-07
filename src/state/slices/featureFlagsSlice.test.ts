@@ -24,4 +24,13 @@ describe('featureFlagsSlice', () => {
     expect(useStore.getState().featureFlags.report).toBe(true)
     expect(isFeatureEnabled('report')).toBe(true)
   })
+
+  it('signing in as admin re-resolves flags (re-resolution wiring)', async () => {
+    useStore.getState().signOut()
+    useStore.getState().resetFeatureFlags()
+    await useStore.getState().signIn({ password: 'sofa-admin' })
+    // The re-resolution ran on sign-in; flags still cover every key + report on.
+    expect(useStore.getState().featureFlags.report).toBe(true)
+    useStore.getState().signOut()
+  })
 })

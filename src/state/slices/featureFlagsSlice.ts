@@ -1,3 +1,4 @@
+import { isAdminUser } from '../../features/auth/types'
 import {
   clearStoredOverrides,
   type FeatureFlag,
@@ -20,6 +21,9 @@ export interface FeatureFlagsSlice {
   featureFlags: Record<FeatureFlag, boolean>
   setFeatureFlag: (flag: FeatureFlag, on: boolean) => void
   resetFeatureFlags: () => void
+  /** Recompute flags for the current privilege (dev build or signed-in admin).
+   *  Called when the admin session changes + once on boot. */
+  reresolveFeatureFlags: () => void
 }
 
 const IS_DEV = !!import.meta.env?.DEV
@@ -35,16 +39,23 @@ export const FEATURE_FLAGS_INITIAL: Pick<FeatureFlagsSlice, 'featureFlags'> = {
 export const createFeatureFlagsSlice: SliceCreator<FeatureFlagsSlice, RootState> = (set, get) => ({
   ...FEATURE_FLAGS_INITIAL,
   setFeatureFlag: (flag, on) => {
-    if (!IS_DEV) return // overrides are dev/QA-only; prod is locked to the registry
+    // Overrides are for privileged sessions only (dev build or signed-in admin);
+    // a normal prod session is locked to the registry.
+    if (!IS_DEV && !isAdminUser(get().currentUser)) return
     persistOverride(flag, on)
     const next = { ...get().featureFlags, [flag]: on }
     setResolvedFlags(next)
     set({ featureFlags: next })
   },
   resetFeatureFlags: () => {
-    if (!IS_DEV) return
+    if (!IS_DEV && !isAdminUser(get().currentUser)) return
     clearStoredOverrides()
-    const next = resolveFlags(IS_DEV, {})
+    const next = resolveFlags(IS_DEV, {}, isAdminUser(get().currentUser))
+    setResolvedFlags(next)
+    set({ featureFlags: next })
+  },
+  reresolveFeatureFlags: () => {
+    const next = resolveFlags(IS_DEV, loadOverrides(), isAdminUser(get().currentUser))
     setResolvedFlags(next)
     set({ featureFlags: next })
   },

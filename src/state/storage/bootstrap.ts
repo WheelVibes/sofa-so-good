@@ -69,6 +69,9 @@ export async function runBootstrap(): Promise<void> {
       loadFloorPlans()
       watchFloorPlans()
     })
+    // Recompute feature flags now that the persisted auth session is loaded, so
+    // a returning admin's dev-only features are unlocked on boot.
+    runStep('featureFlags', () => useStore.getState().reresolveFeatureFlags())
 
     // Seed the default layout only when hydration produced nothing — must run
     // AFTER hydrate() so an autosaved layout is never clobbered. Then drop the

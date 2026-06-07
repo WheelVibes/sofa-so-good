@@ -33,6 +33,16 @@ describe('resolveFlags', () => {
     const out = resolveFlags(true, {})
     expect(Object.keys(out).sort()).toEqual([...FEATURE_FLAG_KEYS].sort())
   })
+
+  it('an admin (prod build) unlocks devOnly flags + honours overrides', () => {
+    const admin = resolveFlags(false, { report: false }, true)
+    expect(admin.ikeaLive).toBe(true) // devOnly unlocked for admin
+    expect(admin.report).toBe(false) // admin override honoured
+    // A non-admin prod session stays locked regardless.
+    const normal = resolveFlags(false, { report: false }, false)
+    expect(normal.ikeaLive).toBe(false)
+    expect(normal.report).toBe(true)
+  })
 })
 
 describe('parseFlagOverrides (URL ?ff=)', () => {
