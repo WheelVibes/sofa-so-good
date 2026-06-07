@@ -26,7 +26,10 @@ export function MeasurementOverlay() {
   // constant then the global height — matching Ceiling.tsx.
   const planRooms = useStore((s) => s.floorPlan.rooms)
   const units = useStore((s) => s.units)
-  if (!show) return null
+  // Hide the drei <Html> labels while the 2D floor-plan editor covers the scene
+  // (its <Html> sits above the editor's z-index otherwise).
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  if (!show || floorPlanEditing) return null
   return (
     <group>
       {planRooms.map((r) => {

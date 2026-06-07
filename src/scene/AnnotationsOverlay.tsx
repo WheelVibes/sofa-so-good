@@ -16,7 +16,11 @@ export function AnnotationsOverlay() {
   const annotations = useStore(useShallow((s) => s.annotations))
   const units = useStore((s) => s.units)
   const removeAnnotation = useStore((s) => s.removeAnnotation)
-  if (annotations.length === 0) return null
+  // The 2D floor-plan editor draws over the scene but drei's <Html> labels sit
+  // at a very high z-index, so hide them while the editor covers the canvas (the
+  // editor draws its own annotation layer).
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  if (annotations.length === 0 || floorPlanEditing) return null
   return (
     <group>
       {annotations.map((ann) => (

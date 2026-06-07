@@ -305,3 +305,6 @@ Remaining (larger / focused-session):
   (toast) on custom plans + hid the View/mobile entries; default unchanged. (CHANGELOG)
 - [ ] RE6/big. Make the per-room editor **plan-aware** (roomShell from plan.rooms)
   so custom plans can isolate a room too. Larger follow-up.
+- [x] N26. **Pinned dimensions in the 2D editor** + fixed drei `<Html>` overlay
+  leaking over the editor (AnnotationsOverlay/MeasurementOverlay hide while
+  editing). E2E-verified. (CHANGELOG)

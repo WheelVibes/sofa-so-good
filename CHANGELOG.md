@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N26] Pinned dimensions in the 2D floor-plan editor (+ overlay-leak fix)
+
+Pinned dimension annotations now render in the **2D floor-plan editor** too —
+teal dashed line/rect callouts with distance/area labels, the same as the 3D
+overlay and the report — so a dimension traced in any view shows everywhere.
+While here, fixed a layering leak: the 3D scene stays mounted behind the editor,
+and drei's `<Html>` (used by `AnnotationsOverlay` + `MeasurementOverlay`) sits at
+a very high z-index, so those labels floated *over* the editor (a doubled
+annotation). Both overlays now hide while `floorPlanEditing`. E2E-verified
+(single clean teal callout in the editor, no leaked HTML label).
+
 ## [B24] Gate the per-room editor to the default plan
 
 The per-room ("Edit a room") editor isolates a room using geometry derived from

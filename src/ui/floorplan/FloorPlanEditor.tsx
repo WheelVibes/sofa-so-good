@@ -11,7 +11,7 @@ import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floor
 import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
-import { formatArea, formatLength } from '../../utils/measurement'
+import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import {
   type BackdropMeta,
   persistBackdrop,
@@ -92,6 +92,7 @@ export function FloorPlanEditor() {
 
   const items = useStore((s) => s.items)
   const selectedItemId = useStore((s) => s.selectedItemId)
+  const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
 
   const [tool, setTool] = useState<Tool>('select')
@@ -1062,6 +1063,70 @@ export function FloorPlanEditor() {
                   </text>
                 )
               })}
+
+            {/* Pinned dimension annotations — the same callouts shown in 3D and
+                the report, so a measurement traced in either view appears here. */}
+            {annotations.map((an) => {
+              const [ax, az] = an.a
+              const [bx, bz] = an.b
+              if (an.shape === 'rect') {
+                const x = Math.min(ax, bx)
+                const z = Math.min(az, bz)
+                const w = Math.abs(bx - ax)
+                const h = Math.abs(bz - az)
+                if (w < 1e-3 || h < 1e-3) return null
+                return (
+                  <g key={an.id} style={{ pointerEvents: 'none' }}>
+                    <rect
+                      x={toPx(x)}
+                      y={toPx(z)}
+                      width={w * PX}
+                      height={h * PX}
+                      fill="#0d9488"
+                      fillOpacity={0.1}
+                      stroke="#0d9488"
+                      strokeWidth={1.5}
+                      strokeDasharray="5 3"
+                    />
+                    <text
+                      x={toPx(x + w / 2)}
+                      y={toPx(z + h / 2)}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="#0d9488"
+                      style={{ fontSize: 11, fontWeight: 600 }}
+                    >
+                      {`${formatDims(w, h, units)} · ${formatArea(w * h, units)}`}
+                    </text>
+                  </g>
+                )
+              }
+              const len = Math.hypot(bx - ax, bz - az)
+              if (len < 1e-3) return null
+              return (
+                <g key={an.id} style={{ pointerEvents: 'none' }}>
+                  <line
+                    x1={toPx(ax)}
+                    y1={toPx(az)}
+                    x2={toPx(bx)}
+                    y2={toPx(bz)}
+                    stroke="#0d9488"
+                    strokeWidth={2}
+                    strokeDasharray="5 3"
+                  />
+                  <text
+                    x={toPx((ax + bx) / 2)}
+                    y={toPx((az + bz) / 2) - 6}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#0d9488"
+                    style={{ fontSize: 11, fontWeight: 600 }}
+                  >
+                    {formatLength(len, units)}
+                  </text>
+                </g>
+              )
+            })}
 
             {/* Endpoint handles for the selected wall (drag to reshape; shared
                 corners move together). Lets the user pull a rectangle into an
