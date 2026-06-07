@@ -180,6 +180,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] N10. Inspector "Reset" props to defaults (parametric items). (CHANGELOG)
 
 ## QOL (cont.)
+- [x] Q35. **"Clear this room"** action — FinishPicker danger button removes the
+  room's unlocked items (pointInRoom), confirm + undoable. Verified 66→56. (CHANGELOG)
 - [x] Q15. **Per-item hide/show** in the Layers panel (eye toggle + Show all),
   visual + session-only via `selectionSlice.hiddenItemIds`. E2E-verified. (CHANGELOG)
 - [x] Q16. **Export shopping list as CSV** (Budget panel) — pure RFC-4180 builder

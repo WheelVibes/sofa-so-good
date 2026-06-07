@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
+import { pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { arrangeRoom } from '../layout/autoArrange'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
@@ -52,12 +53,36 @@ export function FinishPicker() {
   const recentColors = useStore(useShallow((s) => s.recentColors))
   const pushRecentColor = useStore((s) => s.pushRecentColor)
   const units = useStore((s) => s.units)
+  const items = useStore(useShallow((s) => s.items))
+  const plan = useStore((s) => s.floorPlan)
   const furnitureCatalog = useCatalog()
   const tidyRoom = () => {
     if (!roomId) return
     const s = useStore.getState()
     s.pushHistory()
     s.setItems(arrangeRoom(roomId, s.items, furnitureCatalog, s.doors))
+  }
+  // Unlocked items inside this room (the set the room editor shows). Drives the
+  // "Clear room" action + its count.
+  const planRoom = roomId ? plan.rooms.find((r) => r.id === roomId) : undefined
+  const roomItemIds = planRoom
+    ? items
+        .filter((it) => !it.locked && pointInRoom(planRoom, it.position[0], it.position[1]))
+        .map((it) => it.id)
+    : []
+  const clearRoom = async () => {
+    if (roomItemIds.length === 0) return
+    const s = useStore.getState()
+    const ok = await s.confirmAction({
+      title: 'Clear this room',
+      message: `Remove ${roomItemIds.length} ${roomItemIds.length === 1 ? 'item' : 'items'} from this room? Locked items stay. Undo with Ctrl/⌘+Z.`,
+      confirmLabel: 'Clear room',
+      danger: true,
+    })
+    if (!ok) return
+    const st = useStore.getState()
+    st.pushHistory()
+    for (const id of roomItemIds) st.deleteItem(id)
   }
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
@@ -189,6 +214,18 @@ export function FinishPicker() {
             <Icon.Tidy width={14} height={14} />
             Tidy up room
           </button>
+          {roomItemIds.length > 0 ? (
+            <button
+              type="button"
+              onClick={clearRoom}
+              title="Remove all unlocked furniture from this room (undoable)"
+              className="btn ghost btn-block"
+              style={{ marginTop: 'var(--s-2)', color: 'var(--danger)' }}
+            >
+              <Icon.Trash width={14} height={14} />
+              Clear room ({roomItemIds.length})
+            </button>
+          ) : null}
           <div className="export-row" style={{ marginTop: 'var(--s-2)' }}>
             <button type="button" onClick={() => setView('browse')} className="btn btn-soft">
               <Icon.Search width={14} height={14} />

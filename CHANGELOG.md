@@ -42,6 +42,17 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [Q35] "Clear this room" action in the FinishPicker
+
+Added a per-room **Clear room (N)** button beside "Tidy up room" in the
+FinishPicker (the room panel opened by clicking a floor in the editor). It
+removes every **unlocked** item whose centre is in the room — the same
+`pointInRoom` set the VE2 caption counts — behind a themed danger
+`confirmAction`, and is undoable (`pushHistory`). Only shown when the room has
+items. Useful for restarting a room's design. Verified end-to-end via the
+confirm modal: 66 → 56 items (the main bedroom's 10 unlocked pieces removed).
+Default-apartment rooms (FinishPicker's existing scope). 880 tests; tsc + lint clean.
+
 ## [VE5] Close the ⌘K placement bypass of the view-only overview
 
 The Command Palette's "Add furniture" commands armed placement
