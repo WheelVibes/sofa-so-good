@@ -182,7 +182,7 @@ export const UI_INITIAL: Pick<
   snapEnabled: false,
   gridSize: 0.5,
   backdrop: 'city' as BackdropKind,
-  uiMode: 'pro' as UiMode,
+  uiMode: 'simple' as UiMode,
   budgetOpen: false,
   clearanceOn: false,
   recording: false,

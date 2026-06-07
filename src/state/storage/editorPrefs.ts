@@ -27,7 +27,7 @@ export function loadEditorPrefs(): void {
       backdrop: backdrops.includes(p.backdrop ?? '')
         ? (p.backdrop as 'city' | 'park' | 'hills' | 'none')
         : 'city',
-      uiMode: p.uiMode === 'simple' ? 'simple' : 'pro',
+      uiMode: p.uiMode === 'pro' ? 'pro' : 'simple',
     })
   } catch {
     /* ignore corrupt prefs */

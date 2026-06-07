@@ -12,7 +12,7 @@ describe('editorPrefs', () => {
       gridSize: 0.5,
       units: 'metric',
       backdrop: 'city',
-      uiMode: 'pro',
+      uiMode: 'simple',
     } as never)
   })
 
@@ -40,6 +40,13 @@ describe('editorPrefs', () => {
     localStorage.setItem(KEY, JSON.stringify({ backdrop: 'martian', uiMode: 'wizard' }))
     loadEditorPrefs()
     expect(useStore.getState().backdrop).toBe('city')
+    // Default interface is Simple; only an explicit 'pro' opts into the full UI.
+    expect(useStore.getState().uiMode).toBe('simple')
+  })
+
+  it('keeps an explicit pro uiMode', () => {
+    localStorage.setItem(KEY, JSON.stringify({ uiMode: 'pro' }))
+    loadEditorPrefs()
     expect(useStore.getState().uiMode).toBe('pro')
   })
 

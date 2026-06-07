@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N28b] Default to Simple interface
+
+The interface now **defaults to Simple** (was Pro) so new users land in the
+friendlier, decluttered workspace; only an explicit choice opts into Pro (and
+persists). `uiSlice` initial + `editorPrefs` fallback updated, tests adjusted.
+Verified: a fresh load shows the lean toolbar (no Tools menu).
+
 ## [T5] Test for useDisposeOnUnmount (locks in the backdrop leak fix)
 
 Unit test for the `useDisposeOnUnmount` hook from [B35]: disposes every object
