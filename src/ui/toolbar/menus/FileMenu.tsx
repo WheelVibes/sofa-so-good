@@ -15,6 +15,7 @@ import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
   const [slots, setSlots] = useState<SlotMeta[]>([])
@@ -74,7 +75,7 @@ export function FileMenu() {
         sub="Save the current view as an image"
         onClick={() => window.dispatchEvent(new Event(EXPORT_EVENT))}
       />
-      {canRecord() ? (
+      {canRecord() && proMode ? (
         <MenuItem
           icon="Record"
           label={recording ? 'Stop recording' : 'Record clip'}

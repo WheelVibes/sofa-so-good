@@ -24,6 +24,7 @@ export function SceneMenu() {
   const lightsMode = useStore((s) => s.lightsMode)
   const backdrop = useStore((s) => s.backdrop)
   const setBackdrop = useStore((s) => s.setBackdrop)
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const effectiveHour = useEffectiveHour()
   const [compassOpen, setCompassOpen] = useState(false)
 
@@ -106,14 +107,16 @@ export function SceneMenu() {
             />
           ))}
         </div>
-        <div className="mt-1 border-t border-[var(--border)] pt-1">
-          <MenuItem
-            icon="Sun"
-            label="Sun direction"
-            sub={`${Math.round(orientationDeg)}° — where the sun rises`}
-            onClick={() => setCompassOpen(true)}
-          />
-        </div>
+        {proMode ? (
+          <div className="mt-1 border-t border-[var(--border)] pt-1">
+            <MenuItem
+              icon="Sun"
+              label="Sun direction"
+              sub={`${Math.round(orientationDeg)}° — where the sun rises`}
+              onClick={() => setCompassOpen(true)}
+            />
+          </div>
+        ) : null}
       </ToolbarMenu>
       <CompassModal open={compassOpen} onClose={() => setCompassOpen(false)} />
     </>

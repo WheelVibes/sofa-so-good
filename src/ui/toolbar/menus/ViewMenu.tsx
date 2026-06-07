@@ -18,6 +18,7 @@ export function ViewMenu() {
   // First editable room of the ACTIVE plan: default apartment → first
   // non-external ROOMS room; custom plan → its first room.
   const plan = useStore((s) => s.floorPlan)
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const firstRoomId = isDefaultPlan(plan)
     ? Object.values(ROOMS).find((r) => !r.external)?.id
     : plan.rooms[0]?.id
@@ -42,7 +43,7 @@ export function ViewMenu() {
         active={autoRotate}
         onClick={toggleAutoRotate}
       />
-      {firstRoomId ? (
+      {firstRoomId && proMode ? (
         <>
           <div className="my-1 border-t border-[var(--border)]" />
           <MenuItem
@@ -54,7 +55,7 @@ export function ViewMenu() {
           />
         </>
       ) : null}
-      <SavedViewsSection />
+      {proMode ? <SavedViewsSection /> : null}
     </ToolbarMenu>
   )
 }

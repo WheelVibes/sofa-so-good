@@ -253,6 +253,7 @@ function PosField({
 export function InspectorPanel() {
   const multiCount = useStore((s) => s.selectedItemIds.length)
   const item = useStore(useShallow((s) => s.items.find((i) => i.id === s.selectedItemId) ?? null))
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const catalog = useCatalog()
   const deleteItem = useStore((s) => s.deleteItem)
   const selectItem = useStore((s) => s.selectItem)
@@ -441,35 +442,37 @@ export function InspectorPanel() {
             style={{ flex: 1, minWidth: 0 }}
           />
         </label>
-        <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-          <div className="sec-h">
-            <span>Transform</span>
+        {proMode ? (
+          <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+            <div className="sec-h">
+              <span>Transform</span>
+            </div>
+            <div className="transform-grid">
+              <PosField
+                label="X"
+                unit="m"
+                value={item.position[0]}
+                step={0.05}
+                onCommit={(v) => tryMove(v, item.position[1])}
+              />
+              <PosField
+                label="Z"
+                unit="m"
+                value={item.position[1]}
+                step={0.05}
+                onCommit={(v) => tryMove(item.position[0], v)}
+              />
+              <PosField
+                label="Rotation"
+                unit="°"
+                value={(item.rotation * 180) / Math.PI}
+                step={15}
+                onCommit={trySetRot}
+                integer
+              />
+            </div>
           </div>
-          <div className="transform-grid">
-            <PosField
-              label="X"
-              unit="m"
-              value={item.position[0]}
-              step={0.05}
-              onCommit={(v) => tryMove(v, item.position[1])}
-            />
-            <PosField
-              label="Z"
-              unit="m"
-              value={item.position[1]}
-              step={0.05}
-              onCommit={(v) => tryMove(item.position[0], v)}
-            />
-            <PosField
-              label="Rotation"
-              unit="°"
-              value={(item.rotation * 180) / Math.PI}
-              step={15}
-              onCommit={trySetRot}
-              integer
-            />
-          </div>
-        </div>
+        ) : null}
         {def.kind === 'parametric' ? (
           <ParametricBody item={item} def={def} />
         ) : isIkeaDef(def) ? (
@@ -534,21 +537,23 @@ export function InspectorPanel() {
               Delete
             </button>
           </div>
-          <div className="act-array" title="Place a row of copies to the right of this item">
-            <span>Duplicate a row of</span>
-            <input
-              type="number"
-              min={2}
-              max={10}
-              value={arrayCount}
-              onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
-              aria-label="Number of copies in the row"
-            />
-            <button type="button" className="act-array-go" onClick={duplicateRow}>
-              <Icon.Copy width={13} height={13} />
-              Go
-            </button>
-          </div>
+          {proMode ? (
+            <div className="act-array" title="Place a row of copies to the right of this item">
+              <span>Duplicate a row of</span>
+              <input
+                type="number"
+                min={2}
+                max={10}
+                value={arrayCount}
+                onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
+                aria-label="Number of copies in the row"
+              />
+              <button type="button" className="act-array-go" onClick={duplicateRow}>
+                <Icon.Copy width={13} height={13} />
+                Go
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={() => useStore.getState().setSwapItemId(item.id)}

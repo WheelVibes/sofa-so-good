@@ -4,6 +4,23 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N28c] Simple mode also gates advanced options + fields
+
+Beyond hiding the Tools menu + floor-plan editor, Simple mode now hides advanced
+**options and fields** scattered across the menus, inspector, and graphics so the
+workspace reads calmly for casual users (all restored in Pro):
+- **Scene menu** → Sun direction (orientation compass).
+- **View menu** → Saved camera views + "Edit a room".
+- **File menu** → Record clip (keeps Save/Load/Export PNG).
+- **Inspector** → the numeric X/Z/Rotation Transform fields + "Duplicate a row of
+  N" (casual users move via the gizmo/drag; design properties + Rotate/Flip/
+  Duplicate/Lock/Delete/Swap stay).
+- **Graphics** → Asset quality + all per-effect overrides (shadows/IBL/post/
+  contact-shadows/FPS/fixture-lights/resolution); Simple keeps just the render
+  quality preset + measurement units.
+Each is a `uiMode === 'pro'` gate at the surface. E2E-verified: Simple inspector
+drops the Transform section + array-duplicate; Pro restores them.
+
 ## [N28b] Default to Simple interface
 
 The interface now **defaults to Simple** (was Pro) so new users land in the
