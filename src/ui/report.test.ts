@@ -21,6 +21,13 @@ describe('buildReportHtml', () => {
     expect(html).toContain('data:image/png;base64,AAAA')
   })
 
+  it('shows W×D dimensions for rectangular rooms in the rooms table', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    // Default HDB rooms are plain rectangles → a "× … m" dimension appears.
+    expect(html).toContain('class="dim"')
+    expect(html).toMatch(/\d+\.\d+ × \d+\.\d+ m/)
+  })
+
   it('includes a furnishing-per-area figure when there is area + budget', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toMatch(/Furnishing per m²/)

@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F22] Room W×D dimensions in the report's rooms table
+Rectangular rooms now list their width × depth alongside the area (a room-schedule
+detail); L-shape/polygon rooms show area only (a bbox would mislead). Test +
+standalone render verified.
+
 ## [R15] Extract + test the share summary (DRY cost, fix "1 items")
 Pulled ShareModal's inline one-liner into a pure `buildShareSummary` reusing
 `reportData.lineEach` (cost now matches the report exactly) + pluralised the

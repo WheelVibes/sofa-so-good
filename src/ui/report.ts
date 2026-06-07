@@ -15,7 +15,7 @@ import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
-import { formatArea, type UnitSystem } from '../utils/measurement'
+import { formatArea, formatDims, type UnitSystem } from '../utils/measurement'
 import { designPalette, furnitureItemsByRoom } from './reportData'
 import { reportPlanSvg } from './reportPlanSvg'
 
@@ -76,12 +76,14 @@ export function buildReportHtml(
         )
         .join('')
     : ''
-  // Rooms (skip external ledges with ~0 interior use are still listed).
+  // Rooms (skip external ledges with ~0 interior use are still listed). Plain
+  // rectangular rooms show their W×D dimensions (a room schedule detail); L-shape
+  // / polygon rooms omit them (a bounding box would mislead) — area only.
   const roomRows = plan.rooms
-    .map(
-      (r) =>
-        `<tr><td>${esc(r.name)}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`,
-    )
+    .map((r) => {
+      const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
+      return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
+    })
     .join('')
   const totalArea = planTotalArea(plan)
 
@@ -217,6 +219,7 @@ export function buildReportHtml(
   table { width: 100%; border-collapse: collapse; }
   td { padding: 2px 0; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; color: #374151; }
+  td.dim { color: #9ca3af; font-variant-numeric: tabular-nums; font-size: 12px; padding-left: 12px; }
   tr.cat td { font-weight: 600; padding-top: 8px; }
   td.indent { padding-left: 12px; color: #4b5563; }
   .total { display: flex; justify-content: space-between; font-weight: 700; font-size: 15px; border-top: 2px solid #1f2937; margin-top: 8px; padding-top: 6px; }
