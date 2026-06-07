@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [UX1] Toolbar/tour/inspector UX overhaul + room-entry confirm
+Combined Camera+View menu; new Edit menu group (edit-room/floor-plan); Graphics
+moved to right cluster; redesigned Scene menu (slider checkpoints + lighting
+segment + backdrop dropdown); compact Arrange pick→Apply; interactive product
+tour (click-through spotlight, only Skip ends it); minimizable + auto-minimizing
+inspector; viewport-fit Top/Reset view; "Enter <room>?" confirm on floor-click;
+square mobile room-editor logo. tsc + 981 tests + lint green; screenshot-verified.
+
 ## [FG3c] Feature flags — gate AI sections + Scene/View menus
 Share modal's AI photoreal (aiPhotoreal), floor-plan AI walls (aiWalls), Scene
 lighting-moods (lightingMoods) + backdrops (backdrops), View saved-views
