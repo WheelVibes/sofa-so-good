@@ -251,11 +251,14 @@ export function Toolbar() {
             <ViewMenu />
 
             <Divider />
-            {/* Primary editing entry: dive into a room to furnish + finish it. */}
+            {/* Primary editing entry: dive into a room to furnish + finish it.
+                The headline action of the view-only overview, so it's a filled
+                accent CTA with a visible label. */}
             <IconButton
               icon="Cube"
               label="Edit a room"
-              active={false}
+              showLabel
+              cta
               onClick={() => editRoomId && enterRoomEditor(editRoomId)}
             />
             {/* Structural shell editor (walls/rooms/openings) — a whole-flat,

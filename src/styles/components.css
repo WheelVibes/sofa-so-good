@@ -147,7 +147,11 @@ kbd {
 }
 .tool-btn:hover { background: var(--surface-3); color: var(--text); }
 .tool-btn.active { background: var(--accent-soft); color: var(--accent-soft-text); }
-.tool-btn .cap { display: inline-block; }
+/* Prominent call-to-action variant (e.g. the overview's "Edit a room"): the
+   primary action in a view-only mode, so it reads as a filled accent pill. */
+.tool-btn.cta { background: var(--accent); color: var(--on-accent); }
+.tool-btn.cta:hover { background: var(--accent-2); color: var(--on-accent); }
+.tool-btn .cap { display: inline-block; white-space: nowrap; }
 .tool-btn .chev { opacity: 0.5; margin-left: -2px; }
 .brand-dot {
   width: 34px; height: 34px; border-radius: var(--r-2);

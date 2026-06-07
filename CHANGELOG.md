@@ -42,6 +42,17 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [VE1d] Make "Edit a room" a prominent accent CTA in the overview
+
+The overview is now view-only, so entering a room to edit is its headline
+action — but it was a plain icon button indistinguishable from the rest. Gave
+`IconButton` optional `showLabel` (render the label inline, not just as the
+tooltip) and `cta` (filled-accent `.tool-btn.cta` styling — `--accent` /
+`--on-accent`, themed light+dark) props, and applied both to the overview's
+**Edit a room** button so it reads as a filled orange pill with a visible label.
+Added `white-space: nowrap` to `.tool-btn .cap` so the 3-word label stays on one
+line. Verified the CTA renders distinctly in the toolbar; 880 tests; tsc + lint clean.
+
 ## [VE1c] Room-floor hover affordance in the overview ("click to edit")
 
 The new "click a room's floor to edit it" entry (VE1) had no visual cue, so it
