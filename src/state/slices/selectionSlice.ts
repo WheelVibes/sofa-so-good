@@ -3,9 +3,13 @@ import type { SliceCreator } from './types'
 
 export interface SelectionSlice {
   selectedItemId: string | null
-  /** Item under the cursor (orbit + select mode) for a hover highlight. */
+  /** Item under the cursor (room editor) for a hover highlight. */
   hoveredItemId: string | null
   setHovered: (id: string | null) => void
+  /** Room whose floor is hovered in the orbit overview, for a "click to edit"
+   *  affordance. Ephemeral; only set in the view-only overview. */
+  hoveredRoomId: string | null
+  setHoveredRoom: (id: string | null) => void
   /** Multi-selection set, populated by marquee drag and shift-click.
    *  When a single item is selected this contains exactly that id; when
    *  empty, no items are selected. `selectedItemId` mirrors the "primary"
@@ -53,6 +57,7 @@ export const SELECTION_INITIAL: Pick<
   | 'selectedRoomId'
   | 'selectedWall'
   | 'hoveredItemId'
+  | 'hoveredRoomId'
   | 'activeGroupId'
   | 'hiddenItemIds'
 > = {
@@ -61,6 +66,7 @@ export const SELECTION_INITIAL: Pick<
   selectedRoomId: null,
   selectedWall: null,
   hoveredItemId: null,
+  hoveredRoomId: null,
   activeGroupId: null,
   hiddenItemIds: [],
 }
@@ -90,6 +96,7 @@ export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (se
       return { hiddenItemIds: s.items.filter((i) => !keep.has(i.id)).map((i) => i.id) }
     }),
   setHovered: (id) => set((s) => (s.hoveredItemId === id ? {} : { hoveredItemId: id })),
+  setHoveredRoom: (id) => set((s) => (s.hoveredRoomId === id ? {} : { hoveredRoomId: id })),
   /** Selecting an item clears the room selection (and vice versa) so the
    *  Inspector / FinishPicker never both render at once. */
   selectItem: (id) =>

@@ -349,6 +349,10 @@ Remaining (larger / focused-session):
   Edit-a-room button + click-a-room-floor entry; toolbars (desktop + mobile)
   restructured into overview / editor / walk states; catalog gated to the editor;
   2D plan editor untouched. Desktop + mobile verified. (CHANGELOG)
+- [x] VE1b. **Guard room editor against a stale/unknown room id** — getRoomEditorShell
+  returns null instead of crashing on ROOMS[id].origin. Unit-tested. (CHANGELOG)
+- [x] VE1c. **Room-floor hover affordance** in the overview — pointer cursor +
+  soft highlight ("click to edit"), default-plan overview only. Verified. (CHANGELOG)
 
 ## User-requested features (2026-06-07)
 - [x] N27. **Selectable 3D backdrops** (City/Park/Hills/Studio) — Scene menu + mobile, persisted. Replaces the "cluttered/boring" buildings-only backdrop. E2E-verified. (CHANGELOG)

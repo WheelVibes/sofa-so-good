@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three'
 import { Apartment } from '../apartment/Apartment'
+import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
@@ -81,6 +82,7 @@ export function Scene() {
       <Lighting />
       <FurnitureLights />
       {customPlan ? <PlanShell /> : <Apartment />}
+      {!customPlan ? <RoomHoverHighlight /> : null}
       <GridOverlay />
       <AlignmentGuides />
       <ClearanceOverlay />

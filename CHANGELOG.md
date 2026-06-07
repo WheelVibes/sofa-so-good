@@ -42,6 +42,20 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [VE1c] Room-floor hover affordance in the overview ("click to edit")
+
+The new "click a room's floor to edit it" entry (VE1) had no visual cue, so it
+wasn't discoverable. Added a hover affordance in the **view-only orbit
+overview**: hovering a room floor shows a **pointer cursor** + a soft blue
+highlight over that room's footprint, signalling it's a click target. New
+`selectionSlice.hoveredRoomId` (+ `setHoveredRoom`), set by `RoomFloor`'s
+pointer-over only in the overview (never in the editor/walk); a new
+`apartment/floor/RoomHoverHighlight` overlay (mounted in the main scene,
+default-apartment plan only — matching where floor-click entry applies) renders
+the tint over `roomRects`. A cleanup effect resets the cursor if the overview
+unmounts mid-hover (e.g. entering the editor). Verified the highlight renders
+over the hovered room and is gated off in the editor; 880 tests; tsc + lint clean.
+
 ## [VE1b] Guard the room editor against an unknown/stale room id
 
 Follow-up to VE1: `getRoomEditorShell` documented "returns null for a stale id"

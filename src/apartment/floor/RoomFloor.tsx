@@ -58,12 +58,33 @@ function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
     },
     [roomId, selectRoom],
   )
+  // In the view-only overview, a room floor is a click target ("click to edit"),
+  // so flag it for the hover highlight + show a pointer cursor.
+  const onPointerOver = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      const s = useStore.getState()
+      if (s.cameraMode !== 'orbit' || s.roomEditor.active) return
+      e.stopPropagation()
+      s.setHoveredRoom(roomId)
+      document.body.style.cursor = 'pointer'
+    },
+    [roomId],
+  )
+  const onPointerOut = useCallback(() => {
+    const s = useStore.getState()
+    if (s.hoveredRoomId === roomId) {
+      s.setHoveredRoom(null)
+      document.body.style.cursor = ''
+    }
+  }, [roomId])
   return (
     <mesh
       position={[origin[0] + width / 2, FLOOR_LIFT, origin[1] + depth / 2]}
       rotation={[-Math.PI / 2, 0, 0]}
       receiveShadow
       onClick={onClick}
+      onPointerOver={onPointerOver}
+      onPointerOut={onPointerOut}
       material={material}
       geometry={geometry}
     />

@@ -677,7 +677,10 @@ rediscover it.
   space orbits. Catalog/Inspector/Finish-picker only mount inside the editor;
   leaving it clears the selection. **Entering** the editor: a prominent toolbar
   **"Edit a room"** button (and the mobile View accordion), **or clicking a
-  room's floor** in the orbit overview (navigation, not picking). The structural
+  room's floor** in the orbit overview (navigation, not picking) — hovering a
+  room floor there shows a pointer cursor + soft highlight (`hoveredRoomId` +
+  `apartment/floor/RoomHoverHighlight`, default-plan overview only) as the
+  "click to edit" affordance. The structural
   2D floor-plan editor is unaffected (a separate planning surface, reachable from
   the overview).
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
