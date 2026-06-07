@@ -54,6 +54,14 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [Q42] Report: room area in the Furniture-by-room headers
+
+Each room header in the report's "Furniture by room" section now shows the
+room's floor **area** alongside its item count + total — e.g. "Main Bedroom ·
+10 items · 15.4 m² … $X" — giving cost-per-space context inline. `RoomItems`
+gained an `area` field (via `planRoomArea`; 0 for the Unassigned bucket).
+Unit-tested. 885 tests; tsc + lint clean.
+
 ## [Q41b] Colour-key the report's furnished plan by category + legend
 
 Built on Q41: the report plan's furniture footprints are now **tinted by

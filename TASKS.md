@@ -399,3 +399,4 @@ Remaining (larger / focused-session):
 - [x] B39. **Onboarding fixed for the view/edit split** — "Browse the catalog" choice enters a room with the catalog open (was opening the now-editor-only catalog in the overview, a no-op); refreshed step-2 mini-tour cards. Verified. (CHANGELOG)
 - [x] Q40. **FinishPicker search** — filters Floor + Wall finishes by name (pure `filterFinishes`), desktop grid + mobile dropdown. Verified ("marble"→Marble). (CHANGELOG)
 - [x] Q41. **Report plan shows furniture** — reportPlanSvg renders top-down footprints (obbCorners) under the walls; report.ts derives them (guarded). Unit-tested. (CHANGELOG)
+- [x] Q42. **Room area in report Furniture-by-room headers** — RoomItems.area (planRoomArea) shown inline with count + total. Unit-tested. (CHANGELOG)

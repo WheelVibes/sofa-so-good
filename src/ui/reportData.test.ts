@@ -79,12 +79,14 @@ describe('furnitureItemsByRoom', () => {
         name: 'Room A',
         count: 2,
         total: 200,
+        area: 4, // 2×2 m
         lines: [{ defId: 'd', name: 'Test Sofa', count: 2, each: 100 }],
       },
       {
         name: 'Room B',
         count: 1,
         total: 100,
+        area: 4,
         lines: [{ defId: 'd', name: 'Test Sofa', count: 1, each: 100 }],
       },
     ])

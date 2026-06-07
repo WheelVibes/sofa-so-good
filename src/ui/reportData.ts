@@ -3,7 +3,7 @@
  * HTML builder so the number-crunching is unit-testable without DOM/string
  * assertions.
  */
-import { type FloorPlan, pointInRoom } from '../floorplan/types'
+import { type FloorPlan, planRoomArea, pointInRoom } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
@@ -65,6 +65,8 @@ export interface RoomItems {
   name: string
   count: number
   total: number
+  /** Interior floor area (m²); 0 for the Unassigned bucket. */
+  area: number
   /** The room's furniture grouped by type (+ variant), priciest line first. */
   lines: RoomItemLine[]
 }
@@ -100,7 +102,7 @@ export function furnitureItemsByRoom(
     line.count += 1
     bucket.lines.set(key, line)
   }
-  const build = (b: Bucket): RoomItems => {
+  const build = (b: Bucket, area: number): RoomItems => {
     const lines = [...b.lines.values()].sort(
       (a, z) => z.each * z.count - a.each * a.count || a.name.localeCompare(z.name),
     )
@@ -108,11 +110,14 @@ export function furnitureItemsByRoom(
       name: b.name,
       count: lines.reduce((s, l) => s + l.count, 0),
       total: lines.reduce((s, l) => s + l.each * l.count, 0),
+      area,
       lines,
     }
   }
-  const rows = plan.rooms.filter((r) => byRoom.has(r.id)).map((r) => build(byRoom.get(r.id)!))
-  if (unassigned.lines.size > 0) rows.push(build(unassigned))
+  const rows = plan.rooms
+    .filter((r) => byRoom.has(r.id))
+    .map((r) => build(byRoom.get(r.id)!, planRoomArea(r)))
+  if (unassigned.lines.size > 0) rows.push(build(unassigned, 0))
   return rows
 }
 

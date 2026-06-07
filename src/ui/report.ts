@@ -145,7 +145,7 @@ export function buildReportHtml(
   const roomCostRows = roomBreakdown
     .map(
       (r) =>
-        `<tr class="cat"><td>${esc(r.name)} · ${r.count} item${r.count === 1 ? '' : 's'}</td><td class="num">${sgd(r.total)}</td></tr>` +
+        `<tr class="cat"><td>${esc(r.name)} · ${r.count} item${r.count === 1 ? '' : 's'}${r.area > 0 ? ` · ${formatArea(r.area, units)}` : ''}</td><td class="num">${sgd(r.total)}</td></tr>` +
         r.lines
           .map(
             (l) =>
