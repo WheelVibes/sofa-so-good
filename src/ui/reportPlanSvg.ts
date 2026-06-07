@@ -1,4 +1,5 @@
 import { doorSwingGeometry } from '../floorplan/doorSwing'
+import { roomLabelPoint } from '../floorplan/roomCentroid'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, wallLength } from '../floorplan/types'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -146,9 +147,8 @@ export function reportPlanSvg(
 
   const labels = plan.rooms
     .map((r) => {
-      const cx = (r.origin[0] + r.width / 2).toFixed(3)
-      const cy = (r.origin[1] + r.depth / 2).toFixed(3)
-      return `<text x="${cx}" y="${cy}" font-size="0.32" fill="#6b7280" text-anchor="middle" dominant-baseline="middle">${esc(r.name)}</text>`
+      const [lx, lz] = roomLabelPoint(r)
+      return `<text x="${lx.toFixed(3)}" y="${lz.toFixed(3)}" font-size="0.32" fill="#6b7280" text-anchor="middle" dominant-baseline="middle">${esc(r.name)}</text>`
     })
     .join('')
 

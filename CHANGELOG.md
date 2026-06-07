@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R13] Polygon/L-shape-aware room label placement (shared helper)
+Extracted `floorplan/roomCentroid.ts` `roomLabelPoint` (polygon area centroid /
+larger-rect of an L / rect centre), used by minimap + editor + report so labels
+sit inside non-rectangular rooms instead of the bbox centre. 4 tests.
+
 ## [F15] Clearance & fit section in the printable report
 Surfaces `blockedDoorItems` as a report section: lists furniture sitting in a
 doorway path (grouped + counted) or confirms all doorways clear. 3 unit tests.

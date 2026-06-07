@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { type PlanRoom, planBounds, pointInRoom, wallLength } from '../floorplan/types'
+import { roomLabelPoint } from '../floorplan/roomCentroid'
+import { planBounds, pointInRoom, wallLength } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { cameraForwardXZ, cameraPosXZ } from '../scene/cameras/cameraForward'
@@ -8,18 +9,6 @@ import { openingSegments, roomPathD } from './walk/minimapGeometry'
 
 const SIZE = 168
 const PAD = 0.4
-
-/** World-metre centre of a room (polygon centroid, else the main-rect centre). */
-function roomCentre(r: PlanRoom): [number, number] {
-  if (r.polygon && r.polygon.length > 0) {
-    const n = r.polygon.length
-    return [
-      r.polygon.reduce((a, p) => a + p[0], 0) / n,
-      r.polygon.reduce((a, p) => a + p[1], 0) / n,
-    ]
-  }
-  return [r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2]
-}
 
 /**
  * Top-down minimap shown in walk mode for orientation: the apartment shell,
@@ -50,7 +39,7 @@ export function Minimap() {
   const rooms = useMemo(
     () =>
       plan.rooms
-        .map((r) => ({ id: r.id, name: r.name, d: roomPathD(r), centre: roomCentre(r) }))
+        .map((r) => ({ id: r.id, name: r.name, d: roomPathD(r), centre: roomLabelPoint(r) }))
         .filter((r) => r.d.length > 0),
     [plan],
   )
@@ -82,7 +71,7 @@ export function Minimap() {
         const lbl = labelRef.current
         if (lbl) {
           if (here) {
-            const [cx, cz] = roomCentre(here)
+            const [cx, cz] = roomLabelPoint(here)
             lbl.setAttribute('x', String(toX(cx)))
             lbl.setAttribute('y', String(toY(cz)))
             lbl.textContent = here.name

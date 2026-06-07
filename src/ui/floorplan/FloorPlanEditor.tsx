@@ -6,6 +6,7 @@ import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { defaultDoorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
@@ -967,19 +968,24 @@ export function FloorPlanEditor() {
                       )}
                     </>
                   )}
-                  <text
-                    x={toPx(r.origin[0] + r.width / 2)}
-                    y={toPx(r.origin[1] + r.depth / 2)}
-                    textAnchor="middle"
-                    className="select-none"
-                    fontSize={11}
-                    fill="var(--text-2)"
-                  >
-                    <tspan x={toPx(r.origin[0] + r.width / 2)}>{r.name}</tspan>
-                    <tspan x={toPx(r.origin[0] + r.width / 2)} dy={14} fill="var(--text-3)">
-                      {formatArea(planRoomArea(r), units)}
-                    </tspan>
-                  </text>
+                  {(() => {
+                    const [lx, lz] = roomLabelPoint(r)
+                    return (
+                      <text
+                        x={toPx(lx)}
+                        y={toPx(lz)}
+                        textAnchor="middle"
+                        className="select-none"
+                        fontSize={11}
+                        fill="var(--text-2)"
+                      >
+                        <tspan x={toPx(lx)}>{r.name}</tspan>
+                        <tspan x={toPx(lx)} dy={14} fill="var(--text-3)">
+                          {formatArea(planRoomArea(r), units)}
+                        </tspan>
+                      </text>
+                    )
+                  })()}
                 </g>
               )
             })}
