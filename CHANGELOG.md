@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F25] Room areas labelled on the report's plan diagram
+Each room on the plan now shows its name + area (e.g. "Living / Dining · 24.3
+m²") so the plan reads standalone, like an architectural drawing. Test +
+standalone render verified.
+
 ## [F24] Flooring schedule in the report (area per finish)
 `floorAreaByFinish` sums floor area per finish across non-external rooms; the
 report shows a "Flooring schedule" (finish + swatch + m²) — the procurement

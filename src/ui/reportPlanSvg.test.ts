@@ -4,11 +4,12 @@ import type { FloorPlan } from '../floorplan/types'
 import { reportPlanSvg, scaleBarChoice } from './reportPlanSvg'
 
 describe('reportPlanSvg', () => {
-  it('draws walls + room labels for the default plan', () => {
+  it('draws walls + room labels (name + area) for the default plan', () => {
     const svg = reportPlanSvg(buildDefaultPlan())
     expect(svg).toMatch(/^<svg/)
     expect(svg).toContain('<line') // walls
-    expect(svg).toContain('Living / Dining') // a room label
+    expect(svg).toContain('Living / Dining') // a room name label
+    expect(svg).toMatch(/\d+(\.\d+)? m²/) // each room also labelled with its area
     expect(svg).toContain('viewBox=')
   })
 

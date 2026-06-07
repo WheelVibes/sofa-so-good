@@ -1,7 +1,7 @@
 import { doorSwingGeometry } from '../floorplan/doorSwing'
 import { roomLabelPoint } from '../floorplan/roomCentroid'
 import type { FloorPlan } from '../floorplan/types'
-import { planBounds, wallLength } from '../floorplan/types'
+import { planBounds, planRoomArea, wallLength } from '../floorplan/types'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
 
@@ -145,10 +145,13 @@ export function reportPlanSvg(
     })
     .join('')
 
+  // Each room labelled with its name + area (standard architectural practice —
+  // the plan reads on its own without cross-referencing the rooms table).
   const labels = plan.rooms
     .map((r) => {
       const [lx, lz] = roomLabelPoint(r)
-      return `<text x="${lx.toFixed(3)}" y="${lz.toFixed(3)}" font-size="0.32" fill="#6b7280" text-anchor="middle" dominant-baseline="middle">${esc(r.name)}</text>`
+      const x = lx.toFixed(3)
+      return `<text x="${x}" y="${lz.toFixed(3)}" font-size="0.32" fill="#6b7280" text-anchor="middle"><tspan x="${x}" dy="-0.14">${esc(r.name)}</tspan><tspan x="${x}" dy="0.42" font-size="0.26" fill="#9ca3af">${esc(formatArea(planRoomArea(r), units))}</tspan></text>`
     })
     .join('')
 
