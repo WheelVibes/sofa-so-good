@@ -4,6 +4,7 @@ import {
   type AppearanceSlice,
   createAppearanceSlice,
 } from './slices/appearanceSlice'
+import { AUTH_INITIAL, type AuthSlice, createAuthSlice } from './slices/authSlice'
 import { CAMERA_INITIAL, type CameraSlice, createCameraSlice } from './slices/cameraSlice'
 import {
   CAMERA_VIEWS_INITIAL,
@@ -117,7 +118,8 @@ export interface RootState
     CameraViewsSlice,
     PromptSlice,
     ProjectSlice,
-    FeatureFlagsSlice {
+    FeatureFlagsSlice,
+    AuthSlice {
   __resetForTest: () => void
 }
 
@@ -143,6 +145,7 @@ const INITIAL = {
   ...APPEARANCE_INITIAL,
   ...FEATURES_INITIAL,
   ...FEATURE_FLAGS_INITIAL,
+  ...AUTH_INITIAL,
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
   ...CAMERA_VIEWS_INITIAL,
@@ -175,6 +178,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createAppearanceSlice(set, get, api),
   ...createFeaturesSlice(set, get, api),
   ...createFeatureFlagsSlice(set, get, api),
+  ...createAuthSlice(set, get, api),
   ...createRecentSlice(set, get, api),
   ...createCameraViewsSlice(set, get, api),
   ...createPromptSlice(set, get, api),

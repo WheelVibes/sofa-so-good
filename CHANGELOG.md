@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [A1] Accounts — AuthProvider abstraction + admin session (1/3)
+`features/auth/` (AuthProvider interface + client-side LocalAdminProvider) +
+`authSlice` (signIn/signOut, persisted session, currentUser/role). Architected
+for future real user accounts. Client-side gate ≠ security (documented). 9 tests.
+
 ## [PS3] Plan sharing — "Copy plan link" in the Share modal (3/n)
 Replaced the old can't-carry-the-design "App link" with a real design-bearing
 **Copy plan link** (encodes the whole design into a `#/plans/<code>` URL). Share
