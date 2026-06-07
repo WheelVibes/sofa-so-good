@@ -1,6 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
-import type { RoomId } from '../../apartment/types'
 import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { dropBuiltinSet, dropIkeaSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
@@ -154,8 +153,9 @@ export function MobileToolbar() {
   const userStyles = useStore((st) => st.userStyles)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
   const roomEditorRoomId = useStore((st) => st.roomEditor.roomId)
-  // Per-room editor only supports the built-in apartment (see ViewMenu).
-  const onDefaultPlan = useStore((st) => isDefaultPlan(st.floorPlan))
+  // Room-switcher options follow the active plan (default apartment vs custom).
+  const floorPlanForRooms = useStore((st) => st.floorPlan)
+  const onDefaultPlan = isDefaultPlan(floorPlanForRooms)
   const savedViews = useStore((st) => st.savedViews)
   const setHelpOpen = useStore((st) => st.setHelpOpen)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
@@ -171,7 +171,13 @@ export function MobileToolbar() {
   }
 
   const gridLabel = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`
-  const editableRooms = Object.values(ROOMS).filter((r) => !r.external)
+  // Room list follows the active plan (default apartment → built-in rooms minus
+  // external ledges; custom plan → its own rooms).
+  const editableRooms = onDefaultPlan
+    ? Object.values(ROOMS)
+        .filter((r) => !r.external)
+        .map((r) => ({ id: r.id as string, name: r.name }))
+    : floorPlanForRooms.rooms.map((r) => ({ id: r.id, name: r.name }))
   const defaultEditRoomId = editableRooms[0]?.id
 
   // Mutually-exclusive .aux panels (budget / checks / versions).
@@ -267,7 +273,7 @@ export function MobileToolbar() {
               className="input m-room-select"
               aria-label="Room to edit"
               value={roomEditorRoomId ?? ''}
-              onChange={(e) => s.getState().enterRoomEditor(e.target.value as RoomId)}
+              onChange={(e) => s.getState().enterRoomEditor(e.target.value)}
             >
               {editableRooms.map((r) => (
                 <option key={r.id} value={r.id}>
@@ -347,7 +353,7 @@ export function MobileToolbar() {
                   on={autoRotate}
                   onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
                 />
-                {!roomEditorActive && defaultEditRoomId && onDefaultPlan ? (
+                {!roomEditorActive && defaultEditRoomId ? (
                   <Item
                     icon="FloorPlan"
                     label="Edit a room"

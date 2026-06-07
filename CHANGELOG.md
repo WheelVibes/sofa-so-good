@@ -4,6 +4,22 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE6.3] Per-room editor now works on custom floor plans (RE6 complete)
+
+The final wiring: the per-room ("Edit a room") editor — previously gated to the
+built-in apartment ([B24]) — now works on **any custom floor plan**. A shared
+`scene/roomEditorShell.ts` selector returns the default-apartment `roomShell` or
+the plan-derived `planRoomShell` (RE6.1) as a discriminated union; `RoomEditorScene`
+renders `RoomShell` or the new `PlanRoomShell` (RE6.2) accordingly; `OrbitCamera`
+and `FirstPersonCamera` frame/spawn through the selector (no more `roomShell`
+crash on a custom room id); walk-mode collision uses a new
+`buildPlanRoomCollisionWalls` (clipped plan walls, doors as gaps). `enterRoomEditor`
+is ungated and `roomEditor.roomId` widened to `string`; the View menu entry +
+desktop/mobile room-switchers now iterate the active plan's rooms. **E2E-verified
+on a custom plan** (clean room: oak floor, clipped plaster walls with
+camera-facing reveal, door panel, furniture, framed camera, working inspector)
+**and the default plan** (Main Bedroom renders unchanged). 856 tests green.
+
 ## [RE6.2] Plan-aware per-room renderer (`PlanRoomShell.tsx`)
 
 The renderer half of the plan-aware per-room editor: `apartment/PlanRoomShell.tsx`

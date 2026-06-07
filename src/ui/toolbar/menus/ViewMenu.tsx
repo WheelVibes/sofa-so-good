@@ -15,11 +15,12 @@ export function ViewMenu() {
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
   const enterRoomEditor = useStore((s) => s.enterRoomEditor)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
-  // The per-room editor only supports the built-in apartment (its isolated room
-  // geometry comes from the apartment constants), so hide the entry on a custom
-  // floor plan.
-  const onDefaultPlan = useStore((s) => isDefaultPlan(s.floorPlan))
-  const defaultRoomId = Object.values(ROOMS).find((r) => !r.external)?.id
+  // First editable room of the ACTIVE plan: default apartment → first
+  // non-external ROOMS room; custom plan → its first room.
+  const plan = useStore((s) => s.floorPlan)
+  const firstRoomId = isDefaultPlan(plan)
+    ? Object.values(ROOMS).find((r) => !r.external)?.id
+    : plan.rooms[0]?.id
   return (
     <ToolbarMenu icon="TopView" label="View" active={autoRotate || roomEditorActive}>
       <MenuItem
@@ -41,7 +42,7 @@ export function ViewMenu() {
         active={autoRotate}
         onClick={toggleAutoRotate}
       />
-      {defaultRoomId && onDefaultPlan ? (
+      {firstRoomId ? (
         <>
           <div className="my-1 border-t border-[var(--border)]" />
           <MenuItem
@@ -49,7 +50,7 @@ export function ViewMenu() {
             label="Edit a room"
             sub="Isolate a room — switch from the toolbar"
             active={roomEditorActive}
-            onClick={() => enterRoomEditor(defaultRoomId)}
+            onClick={() => enterRoomEditor(firstRoomId)}
           />
         </>
       ) : null}

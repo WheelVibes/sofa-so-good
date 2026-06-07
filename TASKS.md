@@ -303,7 +303,7 @@ Remaining (larger / focused-session):
   Default unchanged (E2E-verified); custom plans fixed. (CHANGELOG)
 - [x] B24. **Gate per-room editor to the default plan** — `enterRoomEditor` declines
   (toast) on custom plans + hid the View/mobile entries; default unchanged. (CHANGELOG)
-- [ ] RE6/big. Make the per-room editor **plan-aware** (roomShell from plan.rooms)
+- [x] RE6/big. **Per-room editor is now plan-aware** (RE6.1/.2/.3 shipped + E2E-verified). Old note: (roomShell from plan.rooms)
   so custom plans can isolate a room too. Larger follow-up.
 - [x] N26. **Pinned dimensions in the 2D editor** + fixed drei `<Html>` overlay
   leaking over the editor (AnnotationsOverlay/MeasurementOverlay hide while
@@ -322,4 +322,4 @@ Remaining (larger / focused-session):
 - [x] RE6.1. **Pure `planRoomShell` builder** + tests (footprint/clipped walls/openings; rect+L+polygon). (CHANGELOG)
 - [x] RE6.2. **`PlanRoomShell.tsx` renderer** (DONE — floors/clipped walls/reveal/openings; placed openings in planRoomShell). (CHANGELOG)
 - [ ] RE6.2-old. ~~renderer~~ — clipped plan walls (camera-facing reveal like RoomShell), per-room floor from `PlanRoom.floor` (reuse `PlanRoomFloor`), plan openings as wall cut-outs. Walls have no per-room wall-finish on custom plans — use a neutral/default wall material.
-- [ ] RE6.3. **Wire `RoomEditorScene`** to use `planRoomShell`+`PlanRoomShell` when `!isDefaultPlan`; ungate the View/Mobile "Edit a room" entries + room-switcher dropdowns to iterate `plan.rooms` (filter external only on default). Walk collision from plan walls. E2E-verify on a custom plan.
+- [x] RE6.3. (DONE — E2E-verified custom + default; CHANGELOG)  ~~todo~~  **Wire `RoomEditorScene`** to use `planRoomShell`+`PlanRoomShell` when `!isDefaultPlan`; ungate the View/Mobile "Edit a room" entries + room-switcher dropdowns to iterate `plan.rooms` (filter external only on default). Walk collision from plan walls. E2E-verify on a custom plan.

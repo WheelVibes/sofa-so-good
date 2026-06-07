@@ -2,14 +2,19 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { Euler, PerspectiveCamera, Vector3 } from 'three'
 import { DOORS, WALLS } from '../../apartment/constants'
-import { roomShell } from '../../apartment/roomShell'
-import { buildRoomCollisionWalls } from '../../collision/roomCollisionWalls'
+import type { RoomId } from '../../apartment/types'
+import {
+  buildPlanRoomCollisionWalls,
+  buildRoomCollisionWalls,
+} from '../../collision/roomCollisionWalls'
 import { type CollisionWall, isLineOfSightBlocked, resolveMovement } from '../../collision/walls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { KEYBINDINGS } from '../../controls/keybindings'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { planRoomShell } from '../../floorplan/planRoomShell'
 import { useStore } from '../../state/store'
+import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
 
 interface DoorSegment {
@@ -76,13 +81,20 @@ export function FirstPersonCamera() {
 
   useEffect(() => {
     // In the per-room editor, bound the player to the isolated room's clipped
-    // walls. Otherwise walk-mode collision follows the active plan (custom
-    // apartments included).
-    collisionWalls.current = roomEditorId
-      ? buildRoomCollisionWalls(roomEditorId, doors)
-      : isDefaultPlan(floorPlan)
+    // walls (default apartment via roomShell; custom plan via planRoomShell).
+    // Otherwise walk-mode collision follows the active plan.
+    if (roomEditorId) {
+      if (isDefaultPlan(floorPlan)) {
+        collisionWalls.current = buildRoomCollisionWalls(roomEditorId as RoomId, doors)
+      } else {
+        const shell = planRoomShell(floorPlan, roomEditorId)
+        collisionWalls.current = shell ? buildPlanRoomCollisionWalls(shell) : []
+      }
+    } else {
+      collisionWalls.current = isDefaultPlan(floorPlan)
         ? buildCollisionWalls(doors)
         : planCollisionWalls(floorPlan, doors)
+    }
   }, [doors, floorPlan, roomEditorId])
 
   useEffect(() => {
@@ -186,9 +198,10 @@ export function FirstPersonCamera() {
 
   useEffect(() => {
     if (roomEditorId) {
-      // Spawn in the centre of the isolated room, looking toward its far edge.
-      const shell = roomShell(roomEditorId)
-      const [cx, cz] = shell.center
+      // Spawn in the centre of the isolated room, looking toward its far edge
+      // (default apartment or custom plan).
+      const editorShell = getRoomEditorShell(floorPlan, roomEditorId)
+      const [cx, cz] = editorShell ? editorShell.shell.center : [0, 0]
       camera.position.set(cx, EYE_HEIGHT, cz)
       camera.lookAt(cx, EYE_HEIGHT, cz - 1)
     } else {
@@ -218,7 +231,7 @@ export function FirstPersonCamera() {
         camera.updateProjectionMatrix()
       }
     }
-  }, [camera, roomEditorId])
+  }, [camera, roomEditorId, floorPlan])
 
   const tmpForward = useRef(new Vector3())
   const tmpRight = useRef(new Vector3())

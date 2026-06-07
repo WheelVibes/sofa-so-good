@@ -1,6 +1,6 @@
 import { Canvas } from '@react-three/fiber'
+import { PlanRoomShell } from '../apartment/PlanRoomShell'
 import { RoomShell } from '../apartment/RoomShell'
-import { roomShell } from '../apartment/roomShell'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
 import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
@@ -15,6 +15,7 @@ import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { GridOverlay } from './GridOverlay'
 import { PlacementGhost } from './PlacementGhost'
+import { getRoomEditorShell } from './roomEditorShell'
 import { ScreenshotController } from './ScreenshotController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
@@ -26,8 +27,11 @@ import { SelectionOutline } from './selection/SelectionOutline'
  *  interaction controller so catalog/placement/measurement work unchanged. */
 export function RoomEditorScene() {
   const roomId = useStore((s) => s.roomEditor.roomId)
+  const plan = useStore((s) => s.floorPlan)
   if (!roomId) return null
-  const shell = roomShell(roomId)
+  const editorShell = getRoomEditorShell(plan, roomId)
+  if (!editorShell) return null
+  const shell = editorShell.shell
   const [cx, cz] = shell.center
   const r = shell.radius
   return (
@@ -50,7 +54,11 @@ export function RoomEditorScene() {
       <ContextLossGuard />
       <hemisphereLight args={['#ffffff', '#b9b4aa', 2.2]} />
       <ambientLight intensity={0.6} />
-      <RoomShell shell={shell} />
+      {editorShell.kind === 'default' ? (
+        <RoomShell shell={editorShell.shell} />
+      ) : (
+        <PlanRoomShell shell={editorShell.shell} />
+      )}
       <GridOverlay />
       <AlignmentGuides />
       <ClearanceOverlay />

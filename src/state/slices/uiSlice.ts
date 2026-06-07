@@ -1,5 +1,3 @@
-import type { RoomId } from '../../apartment/types'
-import { isDefaultPlan } from '../../floorplan/planGeometry'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
 import type { RootState } from '../store'
@@ -89,11 +87,12 @@ export interface UiSlice {
   /** Hide the transition loading overlay (min-display time is handled by the
    *  overlay component, so callers can call this on the next tick). */
   hideLoading: () => void
-  /** Per-room editor: isolates a single room (IKEA-planner style). Ephemeral. */
-  roomEditor: { active: boolean; roomId: RoomId | null }
+  /** Per-room editor: isolates a single room (IKEA-planner style). Ephemeral.
+   *  `roomId` is a default-apartment RoomId or, on a custom plan, a plan room id. */
+  roomEditor: { active: boolean; roomId: string | null }
   /** Enter the room editor for `roomId`: pins Performance + Original assets
    *  (remembering prior tiers), resets camera to orbit. */
-  enterRoomEditor: (roomId: RoomId) => void
+  enterRoomEditor: (roomId: string) => void
   /** Leave the room editor, restoring the render + asset tiers in effect on enter. */
   exitRoomEditor: () => void
   setCatalogOpen: (open: boolean) => void
@@ -197,18 +196,6 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   enterRoomEditor: (roomId) => {
     const s = get()
-    // The per-room editor's isolated room geometry (roomShell) is derived from
-    // the built-in apartment constants, so it only works on the default plan.
-    // On a custom floor plan, decline with a hint rather than showing a default
-    // room over a mismatched shell.
-    if (!isDefaultPlan(s.floorPlan)) {
-      s.notify.start({
-        title: 'Room editor is for the default layout',
-        kind: 'info',
-        message: 'Switch back to the default apartment to isolate and edit a single room.',
-      })
-      return
-    }
     priorTiers = { tier: s.qualityTier, userSet: s.qualityUserSet, asset: s.assetTier }
     set({
       roomEditor: { active: true, roomId },

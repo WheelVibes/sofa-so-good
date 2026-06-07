@@ -4,9 +4,9 @@ import { useEffect, useRef } from 'react'
 import { MOUSE, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
-import { roomShell } from '../../apartment/roomShell'
 import { planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
+import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
 
 interface Framing {
@@ -36,17 +36,19 @@ export function OrbitCamera() {
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
+  const floorPlan = useStore((s) => s.floorPlan)
 
   useEffect(() => {
     // In the per-room editor, frame the isolated room (centre + a 3/4 offset
     // sized to the room) instead of the whole-apartment default. Re-runs on
-    // room switch so each room loads framed.
+    // room switch so each room loads framed. Works on custom plans too.
     if (roomEditorId) {
       const c = controlsRef.current
       if (!c) return
-      const shell = roomShell(roomEditorId)
-      const [cx, cz] = shell.center
-      const r = Math.max(shell.radius, 1.5)
+      const editorShell = getRoomEditorShell(floorPlan, roomEditorId)
+      if (!editorShell) return
+      const [cx, cz] = editorShell.shell.center
+      const r = Math.max(editorShell.shell.radius, 1.5)
       c.target.set(cx, 1.0, cz)
       camera.position.set(cx + r * 1.5, r * 1.7, cz + r * 1.5)
       c.update()
@@ -55,7 +57,7 @@ export function OrbitCamera() {
     camera.position.set(12, 8, 12)
     controlsRef.current?.target.set(...INITIAL_TARGET)
     controlsRef.current?.update()
-  }, [camera, roomEditorId])
+  }, [camera, roomEditorId, floorPlan])
 
   // Snap to a top-down plan view when requested from the toolbar. The tiny
   // +Z offset keeps OrbitControls out of gimbal lock at the pole.
