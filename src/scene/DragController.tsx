@@ -3,10 +3,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { nearestWallGap } from '../collision/clearanceGap'
 import { canPlace, itemFootprint } from '../collision/placement'
-import { roomEditorPlacementWalls } from '../collision/roomEditorWalls'
+import { placementWalls } from '../collision/placementWalls'
 import { wallSnapOffset } from '../collision/wallSnap'
 import { buildCollisionWalls } from '../collision/wallsFromState'
-import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { isIkeaDef, useCatalogGetter } from '../furniture/catalog'
 import { resolveCompatible } from '../furniture/ikea/compatibility'
 import { combineOnto } from '../furniture/ikea/stacking'
@@ -185,15 +184,10 @@ export function DragController() {
           // Flush-to-wall snap (corner-capable). Skipped when grid-snap is on —
           // that's a deliberate precise mode the user shouldn't have overridden.
           if (!state.snapEnabled) {
-            const editorWalls =
-              state.roomEditor.active && state.roomEditor.roomId
-                ? roomEditorPlacementWalls(state.floorPlan, state.roomEditor.roomId)
-                : undefined
-            const wallsForSnap =
-              editorWalls ??
-              (isDefaultPlan(state.floorPlan)
-                ? buildCollisionWalls(state.doors)
-                : planCollisionWalls(state.floorPlan, state.doors))
+            // Bound the snap to the same walls placement validates against, but
+            // never let it be empty (the default flat needs its door-aware walls
+            // to snap to, where placementWalls returns undefined).
+            const wallsForSnap = placementWalls(state) ?? buildCollisionWalls(state.doors)
             const box = {
               x0: next[0] - dh[0],
               z0: next[1] - dh[1],
@@ -253,19 +247,10 @@ export function DragController() {
       const inGroup = new Set(movedIds)
       const others =
         group.length > 1 ? after.items.filter((it) => !inGroup.has(it.id)) : after.items
-      // Inside the per-room editor, bound furniture to the *room's* solid
-      // perimeter so it can't be dragged past the walls into adjacent rooms.
-      // Elsewhere: a custom plan collides against its own walls; the fixed flat
-      // falls back to its door-aware walls inside canPlace.
-      const roomWalls =
-        after.roomEditor.active && after.roomEditor.roomId
-          ? roomEditorPlacementWalls(after.floorPlan, after.roomEditor.roomId)
-          : undefined
-      const planWalls =
-        roomWalls ??
-        (isDefaultPlan(after.floorPlan)
-          ? undefined
-          : planCollisionWalls(after.floorPlan, after.doors))
+      // Inside the per-room editor this is the room's solid perimeter (so a
+      // piece can't be dragged past the walls into adjacent rooms); elsewhere a
+      // custom plan's own walls / the fixed flat's door-aware walls.
+      const planWalls = placementWalls(after)
       let valid = true
       for (const mid of movedIds) {
         const item = after.items.find((i) => i.id === mid)

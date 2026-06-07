@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE-bound2] Centralize placement-wall selection (new-item + rotate too)
+New `collision/placementWalls` picks the room's solid perimeter inside the editor
+(else plan/flat walls); DragController, PlacementGhost (new-item drop) and
+RotateGizmo now all route through it, so dropping a fresh catalog item or
+rotating a piece can't cross the room walls either. +1 test module; suites green.
+
 ## [RE-bound] Bound furniture to room walls in the per-room editor
 New `collision/roomEditorWalls.roomEditorPlacementWalls` builds the edited room's
 *solid* perimeter (openings treated solid); DragController uses it for both

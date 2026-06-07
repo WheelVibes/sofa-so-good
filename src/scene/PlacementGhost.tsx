@@ -3,7 +3,7 @@ import { useMemo, useRef } from 'react'
 import { Color, MeshBasicMaterial, Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../collision/placement'
-import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
+import { placementWalls } from '../collision/placementWalls'
 import { useCatalog } from '../furniture/catalog'
 import { Furniture } from '../furniture/Furniture'
 import {
@@ -94,7 +94,8 @@ export function PlacementGhost() {
       others: items,
       defs: catalog,
       doors,
-      walls: isDefaultPlan(st.floorPlan) ? undefined : planCollisionWalls(st.floorPlan, doors),
+      // Bound to the same walls as a drag — the room's perimeter in the editor.
+      walls: placementWalls(st),
     })
     if (valid !== validRef.current) {
       validRef.current = valid
