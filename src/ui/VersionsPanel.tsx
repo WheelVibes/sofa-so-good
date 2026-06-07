@@ -89,6 +89,7 @@ export function VersionsPanel() {
     // different design — clear history (matching the file-import path) instead of
     // letting Ctrl+Z cross the restore boundary into incoherent state.
     useStore.getState().clearHistory?.()
+    useStore.getState().requestHomeView()
     useStore.getState().notify.start({ title: `Restored “${slot}”`, kind: 'success' })
   }
 
@@ -126,6 +127,7 @@ export function VersionsPanel() {
       const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
       useStore.setState(applySerialized(data, known))
       useStore.getState().clearHistory?.()
+      useStore.getState().requestHomeView()
       useStore.getState().notify.start({ title: 'Design imported', kind: 'success' })
     } catch (err) {
       const message = err instanceof DesignFileError ? err.message : 'Import failed.'

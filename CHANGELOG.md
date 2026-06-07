@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q55] Frame the design after loading / restoring / importing
+
+Loading a saved layout, restoring a version, or importing a `.sofa.json` now
+reframes the camera to the dollhouse overview (`requestHomeView`, which is
+plan-aware since [B31]) — so the loaded design is centred and in view, instead of
+leaving the camera wherever it happened to be (which could be off-screen for a
+custom plan of a different size/position). Added after the existing
+history-clear in all four load paths (desktop File→Load, mobile Load, version
+restore, file import); boot autosave-restore uses a different path and is
+unaffected. 860 tests green.
+
 ## [T4] editorPrefs persistence test (regression guard for new prefs)
 
 Added the first unit test for `storage/editorPrefs` — covers the snap/grid/units

@@ -60,6 +60,8 @@ export function FileMenu() {
     // Loading replaces the world; clear undo history so Ctrl+Z can't cross into
     // the previous design (consistent with import / version restore).
     useStore.getState().clearHistory?.()
+    // Frame the loaded design (plan-aware, so a custom plan lands centred).
+    useStore.getState().requestHomeView()
     useStore.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
 

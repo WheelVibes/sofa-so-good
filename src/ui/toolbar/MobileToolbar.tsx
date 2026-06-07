@@ -254,6 +254,7 @@ export function MobileToolbar() {
     // Loading replaces the world; clear undo history so Ctrl+Z can't cross into
     // the previous design (consistent with import / version restore).
     s.getState().clearHistory?.()
+    s.getState().requestHomeView()
     s.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
   const deleteLayout = async (slot: string) => {

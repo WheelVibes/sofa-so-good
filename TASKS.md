@@ -338,3 +338,4 @@ Remaining (larger / focused-session):
 - [x] N27. **Selectable 3D backdrops** (City/Park/Hills/Studio) — Scene menu + mobile, persisted. Replaces the "cluttered/boring" buildings-only backdrop. E2E-verified. (CHANGELOG)
 - [x] N28. **Simple/Pro UI mode toggle** — Simple hides Tools menu + floor-plan editor; Appearance popover toggle, persisted; default Pro. E2E-verified. (CHANGELOG)
 - [x] T4. **editorPrefs persistence test** — round-trip incl. backdrop+uiMode, invalid-value fallbacks, corrupt-blob guard. 4 tests. (CHANGELOG)
+- [x] Q55. **Frame the design on load/restore/import** — requestHomeView (plan-aware) after each load path so the design lands centred (esp. custom plans). 860 tests. (CHANGELOG)
