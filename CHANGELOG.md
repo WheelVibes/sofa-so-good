@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B44] "Apply finish to every room" works on custom plans
+`setAllFloorFinish`/`setAllWallFinish` iterated the fixed `ROOMS` table, so on a
+custom plan they applied to non-existent rooms and left the real ones unchanged.
+Now iterate the active plan's rooms (skipping default external ledges). Test added.
+
 ## [B43] Custom-plan per-room finishes now persist across reload
 `applySerialized` filtered finish keys against the fixed `ROOMS` table, so a
 custom plan's floor/wall finishes (keyed by custom room ids) were stripped on

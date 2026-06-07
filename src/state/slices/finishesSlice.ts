@@ -70,20 +70,26 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
   },
   setAllFloorFinish: (id) => {
     get().pushHistory()
+    // Iterate the ACTIVE plan's rooms (default or custom) so "apply to every
+    // room" works on custom plans too; skip the default flat's external ledges.
+    const rooms = get().floorPlan.rooms
     set((s) => {
       const floor = { ...s.finishes.floor }
-      for (const [rid, room] of Object.entries(ROOMS)) {
-        if (!room.external) floor[rid as RoomId] = id
+      for (const room of rooms) {
+        if (ROOMS[room.id as RoomId]?.external) continue
+        floor[room.id as RoomId] = id
       }
       return { finishes: { ...s.finishes, floor } }
     })
   },
   setAllWallFinish: (id) => {
     get().pushHistory()
+    const rooms = get().floorPlan.rooms
     set((s) => {
       const walls = { ...s.finishes.walls }
-      for (const [rid, room] of Object.entries(ROOMS)) {
-        if (!room.external) walls[rid as RoomId] = id
+      for (const room of rooms) {
+        if (ROOMS[room.id as RoomId]?.external) continue
+        walls[room.id as RoomId] = id
       }
       return { finishes: { ...s.finishes, walls } }
     })
