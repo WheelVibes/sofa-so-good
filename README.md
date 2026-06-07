@@ -211,8 +211,15 @@ export the result — all in the browser.
   plan for you.
 - **AI photoreal export** *(experimental, bring-your-own-key)* — turn the current
   view into a photoreal image from the Share modal.
+- **Share a plan link** — "Copy plan link" in the Share modal encodes the whole
+  design into a `#/plans/<code>` URL that opens the exact design on any device
+  (no account or server needed).
 - **Live SG prices** *(dev-only)* — toggle real IKEA Singapore prices + buy links
   in the Shopping list (`npm run price-server`); falls back to a built-in estimate.
+- **Feature flags + admin** *(dev/admin)* — a central registry decides what ships
+  to production; sign in as admin (`#/login`) to unlock dev-only features and a
+  flags panel that toggles features for the session (overrides via localStorage
+  or a `?ff=feature:off` URL param; production is locked to the registry).
 
 The render loop is **on-demand** — the scene draws only while something is
 animating or you're interacting, and pauses entirely when the tab is hidden, so

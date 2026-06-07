@@ -661,6 +661,33 @@ rediscover it.
   room structure. Async/honest UX, graceful no-key / CORS / error states. Pure
   request-builder + output-parser are unit-tested; the live round-trip needs a
   real key (and may need a proxy depending on provider CORS).
+- **Feature flags** (`features/featureFlags.ts`, `state/slices/featureFlagsSlice.ts`,
+  `ui/FlagsPanel.tsx`): a central registry (`FEATURE_FLAGS`) is the single source
+  of truth for what ships to prod — each flag has a production `default` +
+  optional `devOnly` (forced off in prod). Pure `resolveFlags(isDev, overrides,
+  isAdmin)`: a normal prod build is locked to the registry; a **dev build or
+  signed-in admin** unlocks `devOnly` + honours overrides (localStorage
+  `hdb_feature_flags` + a `?ff=report:off` URL param). The store slice mirrors the
+  resolved map reactively (`useFeature(flag)` hook; non-React `isFeatureEnabled`);
+  auth sign-in/out + boot re-resolve it. Entry points check their flag
+  (ToolsMenu/ArrangeMenu/SceneMenu/ViewMenu items, ⌘K via `COMMAND_FLAGS`, the AI
+  sections) and the dev/admin `FlagsPanel` toggles them. (TODO: mobile-toolbar +
+  catalog-packs parity — trivial additive wiring; see TASKS.)
+- **Accounts / auth** (`features/auth/`, `state/slices/authSlice.ts`,
+  `ui/auth/LoginScreen.tsx`): an `AuthProvider` interface (shaped for a future
+  backend OAuth/email provider) with a client-side `LocalAdminProvider` now —
+  admin sign-in (password from `VITE_ADMIN_PASSWORD`, dev fallback) unlocks the
+  dev-only features + the flags panel. Session in `authSlice` (persisted +
+  revived via the provider); `isAdminUser` + `UserRole` for future roles. Full
+  login screen reached via `#/login` or the Help "Sign in" entry. **NOT a
+  security boundary** (client-side gate hides UI; real auth needs the backend).
+- **Plan sharing** (`features/planShare.ts`): backend-less shareable links. A
+  design is serialized → deflated (fflate) → base64url-encoded into a code that
+  rides in a `#/plans/<code>` URL; opening it on any instance reconstructs the
+  design (decode reuses `migrate` + `SerializedStateZ`). The Share modal's "Copy
+  plan link" builds it; a boot step (`loadSharedPlanFromUrl`) loads it + clears
+  the hash. Like Excalidraw's default share — the "UID" *is* the encoded plan;
+  short vanity codes would need a server.
 - **View / edit split** (`state/editing.ts` `canEditScene`): the app has two
   stances. **Orbit-over-the-whole-flat and walk are view-only** — camera
   rotate/zoom/pan/tilt + first-person movement, with **no** furniture
