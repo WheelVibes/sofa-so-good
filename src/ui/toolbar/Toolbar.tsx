@@ -18,6 +18,7 @@ import { SceneMenu } from './menus/SceneMenu'
 import { ToolsMenu } from './menus/ToolsMenu'
 import { ViewMenu } from './menus/ViewMenu'
 import { Popover } from './Popover'
+import { RoomSwitcher } from './RoomSwitcher'
 import { shortcutLabel } from './shortcuts'
 import { MenuItem } from './ToolbarMenu'
 
@@ -34,7 +35,6 @@ export function Toolbar() {
   const cameraMode = useStore((s) => s.cameraMode)
   const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
-  const roomEditorRoomId = useStore((s) => s.roomEditor.roomId)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const exitRoomEditor = useStore((s) => s.exitRoomEditor)
   const enterRoomEditor = useStore((s) => s.enterRoomEditor)
@@ -154,18 +154,7 @@ export function Toolbar() {
         {roomEditorActive && (
           <>
             <IconButton icon="ExitRoom" label="Exit room" shortcut="Esc" onClick={exitRoomEditor} />
-            <select
-              className="input toolbar-room-select"
-              aria-label="Room to edit"
-              value={roomEditorRoomId ?? ''}
-              onChange={(e) => enterRoomEditor(e.target.value)}
-            >
-              {roomOptions.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+            <RoomSwitcher />
             <Divider />
           </>
         )}

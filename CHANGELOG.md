@@ -42,6 +42,18 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [Q38] Room switcher shows per-room furniture counts
+
+The per-room editor's room dropdown (desktop + mobile) now shows a furniture
+count per room — e.g. "Main Bedroom (10)", "Living / Dining (21)", "Corridor
+(0)" — so you can see furnishing progress and spot empty rooms at a glance while
+working room-by-room. Extracted a shared `toolbar/RoomSwitcher` that subscribes
+to `items` **locally** (counts via the polygon/extension-aware `pointInRoom`) so
+the parent toolbars don't re-render on every edit — it's just a tiny `<select>`
+(keeps the P2a perf posture). Used in both `Toolbar` and `MobileToolbar`
+(removing their inline selects + now-unused `roomEditorRoomId` reads). Verified
+the option labels carry live counts. 880 tests; tsc + lint clean.
+
 ## [Q37] Empty-room hint in the per-room editor
 
 Now that the room editor is the furnishing surface, an empty room (a fresh

@@ -180,6 +180,8 @@ Legend: `[ ]` todo · `[~]` in progress · `[x]` done (see CHANGELOG)
 - [x] N10. Inspector "Reset" props to defaults (parametric items). (CHANGELOG)
 
 ## QOL (cont.)
+- [x] Q38. **Room switcher per-room counts** — shared `RoomSwitcher` (local items
+  subscription) shows furniture count per room in both toolbars. Verified. (CHANGELOG)
 - [x] Q37. **Empty-room hint** in the editor — centred "Open catalog" nudge when a
   room has no furniture (orbit, catalog closed). Verified all states. (CHANGELOG)
 - [x] Q36. **Cross-room paste lands in the current room** — pasteClipboard anchors

@@ -33,6 +33,7 @@ import { openDesignReport } from '../openReport'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
+import { RoomSwitcher } from './RoomSwitcher'
 
 const TIME_PRESETS: TimePreset[] = ['morning', 'noon', 'dusk', 'night']
 const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 'On', off: 'Off' }
@@ -155,7 +156,6 @@ export function MobileToolbar() {
   const qualityTier = useStore((st) => st.qualityTier)
   const userStyles = useStore((st) => st.userStyles)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
-  const roomEditorRoomId = useStore((st) => st.roomEditor.roomId)
   // Room-switcher options follow the active plan (default apartment vs custom).
   const floorPlanForRooms = useStore((st) => st.floorPlan)
   const onDefaultPlan = isDefaultPlan(floorPlanForRooms)
@@ -279,18 +279,7 @@ export function MobileToolbar() {
         </div>
         {roomEditorActive ? (
           <>
-            <select
-              className="input m-room-select"
-              aria-label="Room to edit"
-              value={roomEditorRoomId ?? ''}
-              onChange={(e) => s.getState().enterRoomEditor(e.target.value)}
-            >
-              {editableRooms.map((r) => (
-                <option key={r.id} value={r.id}>
-                  {r.name}
-                </option>
-              ))}
-            </select>
+            <RoomSwitcher className="input m-room-select" />
             <button
               type="button"
               className="tool-btn"
