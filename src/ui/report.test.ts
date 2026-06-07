@@ -64,6 +64,35 @@ describe('buildReportHtml', () => {
     expect(html).not.toMatch(/Furnishing per/)
   })
 
+  it('flags blocking items from the curated default layout', () => {
+    // The move-in layout has pieces that sit in a doorway path (the same the
+    // in-app Checks overlay flags) — the report surfaces them.
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Clearance &amp; fit')
+    expect(html).toContain('block a doorway')
+  })
+
+  it('reports all doorways clear when nothing blocks them', () => {
+    // A wall-mounted piece is exempt from the doorway-path check, so a layout of
+    // only mounted items reads as clear (doors present, nothing on the floor path).
+    const mounted = Object.values(BUILTIN_CATALOG).find((d) => d.mounted)!
+    const art = {
+      id: 'art',
+      defId: mounted.id,
+      position: [5, 5] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const html = buildReportHtml(plan, [art], BUILTIN_CATALOG, null)
+    expect(html).toContain('Clearance &amp; fit')
+    expect(html).toContain('All doorways clear')
+  })
+
+  it('omits the Clearance section with no furniture', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Clearance &amp; fit')
+  })
+
   it('handles an empty layout and a missing hero image', () => {
     const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
     expect(html).toContain('No furniture placed.')

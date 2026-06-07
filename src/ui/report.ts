@@ -12,6 +12,7 @@ import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
+import { blockedDoorItems } from '../layout/clearance'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, type UnitSystem } from '../utils/measurement'
@@ -171,6 +172,31 @@ export function buildReportHtml(
           .join('')}</div>`
       : ''
 
+  // Clearance & fit: flag any furniture sitting in a doorway path (the same
+  // check the in-app "Checks" overlay runs), grouped by name with counts. A
+  // handoff report should say plainly whether the layout is buildable.
+  const hasDoors = (plan.openings ?? []).some((o) => o.kind === 'door')
+  const blockedIds = hasDoors && items.length > 0 ? blockedDoorItems(items, catalog, plan) : []
+  const blockedCounts = new Map<string, number>()
+  for (const id of blockedIds) {
+    const it = items.find((i) => i.id === id)
+    const name = it?.label ?? (it && catalog[it.defId]?.name) ?? 'Item'
+    blockedCounts.set(name, (blockedCounts.get(name) ?? 0) + 1)
+  }
+  const clearanceSection =
+    hasDoors && items.length > 0
+      ? blockedCounts.size === 0
+        ? `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="ok">✓ All doorways clear — no furniture blocks a door.</div></div>`
+        : `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="warn">${blockedCounts.size} item${
+            blockedCounts.size === 1 ? '' : 's'
+          } block a doorway:</div><table>${[...blockedCounts.entries()]
+            .map(
+              ([name, n]) =>
+                `<tr><td class="indent">${esc(name)}${n > 1 ? ` ×${n}` : ''}</td></tr>`,
+            )
+            .join('')}</table></div>`
+      : ''
+
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -207,6 +233,8 @@ export function buildReportHtml(
   .plan-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 11px; color: #6b7280; }
   .lg-item { display: inline-flex; align-items: center; gap: 5px; }
   .lg-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; opacity: 0.7; }
+  .ok { color: #047857; font-weight: 600; margin-top: 6px; }
+  .warn { color: #b45309; font-weight: 600; margin-top: 6px; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   @media print { body { padding: 0; } .hero { max-height: 300px; } }
 </style></head>
@@ -251,6 +279,7 @@ export function buildReportHtml(
     </div>`
       : ''
   }
+  ${clearanceSection}
   ${
     paletteChips
       ? `<div class="palette">

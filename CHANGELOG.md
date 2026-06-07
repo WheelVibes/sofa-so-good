@@ -4,66 +4,25 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
-## [F14] Door swing arcs + window breaks in the printable report plan
+## [F15] Clearance & fit section in the printable report
+Surfaces `blockedDoorItems` as a report section: lists furniture sitting in a
+doorway path (grouped + counted) or confirms all doorways clear. 3 unit tests.
 
-The report's furnished floor-plan diagram drew walls as solid lines straight
-through every doorway — a door was indistinguishable from blank wall. Added
-architectural opening symbols (`openingsSvg` in `reportPlanSvg.ts`): each
-opening cuts the wall with a white gap (the `.plan-wrap` is white), then doors
-draw a leaf line + swing arc via the shared `doorSwingGeometry` helper (honouring
-the F12 hinge/swing), and windows a thin pane line. Drawn after the walls so the
-symbols sit on the gap. The report plan now reads like a real drawing. Pure SVG
-string generation (headless-safe); 1 new unit test; full suite (906) green;
-rendered + visually verified.
+## [F14] Door swing arcs + window breaks in the report plan
+`openingsSvg` cuts each opening (white gap) + draws door leaf/swing-arc (shared
+`doorSwingGeometry`) and window pane lines, so the report plan reads architecturally.
 
 ## [F13] Auto-orient a new door to swing into the room it serves
-
-Building on F12: dropping a door in the floor-plan editor now defaults its swing
-side to open *into* the adjacent room — the architectural convention — instead
-of always swinging to the wall's right. A pure `defaultDoorSwing(plan, wall,
-offset, width)` helper probes a short distance to each side of the opening's
-centre: if exactly one side lands inside a room it swings that way, otherwise
-(both sides rooms, or neither) it keeps the existing default. Wired into the
-editor's door-drop; the user can still flip it in the inspector. 4 unit tests;
-full suite (905) + tsc + lint green; editor smoke-verified.
+`defaultDoorSwing` probes both wall sides; the editor's door-drop opens into the
+served room (convention), still flippable in the inspector. 4 unit tests.
 
 ## [F12] Editable door swing direction + hinge placement (custom plans)
-
-Doors in the floor-plan editor were drawn with a hardcoded swing arc — hinge
-always at the opening's start jamb, leaf always swinging to one fixed side — and
-custom-plan `PlanOpening` doors had no way to change it. (The fixed default flat
-already carried `hinge`/`swing` on its `DoorSpec`s and swung correctly in 3D;
-custom plans didn't expose the concept at all.) Added `hinge` (`start`/`end`) +
-`swing` (`left`/`right`) to `PlanOpening`, defaulting to `start`/`right` for
-back-compat, with a pure `floorplan/doorSwing.ts` helper
-(`doorSwingGeometry` + `doorSwingClearRect`) as the single source of truth for
-the symbol geometry. Wired through:
-- **Inspector** — a selected door now shows **Hinge** (Start/End) and **Swing**
-  (Left/Right) segmented controls (`PlanInspector`), updating live.
-- **2D editor** — the swing arc + leaf line redraw from the helper, honouring
-  both settings (verified: arcs visibly mirror when flipped).
-- **Clearance / Checks** — `doorSwingRects` is now side-correct (the quarter the
-  leaf actually sweeps) instead of a both-sides box, so furniture flush on a
-  door's push side is no longer falsely flagged.
-- **Persistence** — `FloorPlanZ` carries the new optional fields; the seeded
-  default plan inherits each door's hinge/swing from `apartment/constants`.
-
-8 new unit tests (`doorSwing.test.ts`); full suite (901) + tsc + lint green.
-(The 3D plan-door leaf for custom plans — currently rendered as a plain gap —
-is logged as a GPU-verified follow-up in TASKS.)
+Added `hinge`/`swing` to `PlanOpening` + pure `doorSwing.ts` helper; inspector
+controls, 2D arc redraw, side-correct clearance, schema + default-plan seed. 8 tests.
 
 ## [R12] Unify the furniture-category colour palette (report + minimap)
-
-The printable report's furnished-plan footprints/legend and the walk-mode
-minimap dots each carried their own hardcoded category→colour map. The two had
-already drifted: the minimap's `DOT` was a `Partial` map of 12 categories (with
-a grey `?? '#9ca3af'` fallback for the rest), while the report covered all 15.
-Extracted one `src/furniture/categoryColors.ts` (`CATEGORY_COLORS`, a complete
-`Record<FurnitureCategory, string>`, 15 distinct hues) as the single source of
-truth; both `report.ts` and `Minimap.tsx` now import it, so the colours stay in
-lock-step and the minimap gains real colours for kitchen/decor/lighting/others
-instead of falling back to grey. A `categoryColors.test.ts` asserts every
-category has a distinct valid hex. tsc + lint + full suite (893) green.
+Extracted `furniture/categoryColors.ts` (`CATEGORY_COLORS`, all 15 categories),
+shared by the report plan/legend + walk minimap (was two drifting maps). Test added.
 
 ## [R8] Remove the `noAssignInExpressions` lint errors in `catalog.ts`
 

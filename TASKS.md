@@ -398,6 +398,7 @@ Remaining (larger / focused-session):
   - [ ] F12a. **3D plan-door leaf** — custom-plan doors render as a plain gap in `PlanShell`; add a swinging leaf (reuse `Door.tsx`/`doorSwingGeometry`) honouring hinge/swing. GPU-verified, deferred (see "Focus on non-GPU" constraint).
 - [x] F13. **Auto-orient new door swing into the room** — `defaultDoorSwing(plan,wall,offset,width)` probes both sides; the editor's door-drop opens into the served room (convention), still flippable. 4 unit tests. (CHANGELOG)
 - [x] F14. **Door swing arcs + window breaks in the report plan** — `openingsSvg` cuts each opening (white gap) + draws door leaf/swing-arc (shared `doorSwingGeometry`) and window pane line; report plan reads architecturally. Unit-tested + rendered. (CHANGELOG)
+- [x] F15. **Clearance & fit section in the report** — surfaces `blockedDoorItems` (doorway-path blockers grouped + counted, else "all clear"). 3 unit tests. (CHANGELOG)
 
 ## User-reported bugs (2026-06-07)
 - [x] B35. **Mobile Finish picker thin-strip thumbnails** — replaced the 3-col swatch grid with a per-surface dropdown + square preview on mobile (`useIsMobile`); desktop grid unchanged. Verified. (CHANGELOG)
