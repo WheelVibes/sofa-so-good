@@ -181,6 +181,21 @@ describe('schema', () => {
     expect(patch.hiddenItemIds).toEqual([])
   })
 
+  it('round-trips a custom plan’s wall colour', () => {
+    useStore.getState().__resetForTest()
+    // A custom plan (non-default) so floorPlan is serialized, with a wall colour.
+    useStore.setState({
+      floorPlan: { ...useStore.getState().floorPlan, id: 'custom-x', wallColor: '#2f6db0' },
+    })
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.wallColor).toBe('#2f6db0')
+    }
+  })
+
   it('round-trips a project design note', () => {
     useStore.getState().__resetForTest()
     useStore.getState().setDesignNote('Client wants warm tones; keep the sofa.')

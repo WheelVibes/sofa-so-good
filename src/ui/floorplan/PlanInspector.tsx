@@ -1,4 +1,4 @@
-import { planRoomArea, wallLength } from '../../floorplan/types'
+import { DEFAULT_PLAN_WALL_COLOR, planRoomArea, wallLength } from '../../floorplan/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
@@ -61,6 +61,30 @@ export function PlanInspector() {
         />
         <span className="text-xs" style={{ color: 'var(--text-3)' }}>
           Applies to the whole home (bathrooms keep their lower dropped ceiling).
+        </span>
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="label">Wall colour</span>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            aria-label="Wall colour"
+            value={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+            onChange={(e) => a.updateFloorPlanMeta({ wallColor: e.target.value })}
+            style={{ width: 40, height: 28, padding: 0, border: 'none', background: 'none' }}
+          />
+          {plan.wallColor && plan.wallColor.toLowerCase() !== DEFAULT_PLAN_WALL_COLOR ? (
+            <button
+              type="button"
+              className="btn ghost btn-sm"
+              onClick={() => a.updateFloorPlanMeta({ wallColor: DEFAULT_PLAN_WALL_COLOR })}
+            >
+              Reset
+            </button>
+          ) : null}
+        </div>
+        <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+          Paints every wall in this plan.
         </span>
       </div>
       <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>

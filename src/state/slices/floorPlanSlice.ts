@@ -46,9 +46,9 @@ export interface FloorPlanSlice {
   resetFloorPlan: () => void
   /** Replace the active plan with a fresh blank room shell. */
   newFloorPlan: (name?: string) => void
-  /** Patch the top-level plan metadata (name, ceilingHeight, extent). */
+  /** Patch the top-level plan metadata (name, ceilingHeight, extent, wallColor). */
   updateFloorPlanMeta: (
-    patch: Partial<Pick<FloorPlan, 'name' | 'ceilingHeight' | 'extent'>>,
+    patch: Partial<Pick<FloorPlan, 'name' | 'ceilingHeight' | 'extent' | 'wallColor'>>,
   ) => void
 
   addWall: (wall: Omit<PlanWall, 'id'>) => string

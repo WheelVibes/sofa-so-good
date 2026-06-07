@@ -158,6 +158,7 @@ const FloorPlanZ = z.object({
   walls: z.array(PlanWallZ),
   openings: z.array(PlanOpeningZ),
   rooms: z.array(PlanRoomZ),
+  wallColor: z.string().optional(),
 })
 
 const RawSerializedStateZ = z.object({

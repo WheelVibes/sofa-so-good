@@ -65,7 +65,14 @@ export interface FloorPlan {
   walls: PlanWall[]
   openings: PlanOpening[]
   rooms: PlanRoom[]
+  /** Wall paint colour (hex) for a custom plan's walls. Defaults to a warm
+   *  off-white when unset. (Custom-plan walls are a solid colour; the built-in
+   *  apartment uses per-room procedural finishes.) */
+  wallColor?: string
 }
+
+/** Default wall colour for custom plans when `wallColor` is unset. */
+export const DEFAULT_PLAN_WALL_COLOR = '#ede9e2'
 
 /** Signed-area shoelace over a polygon (absolute value = area, m²). */
 export function polygonArea(pts: PlanVec2[]): number {

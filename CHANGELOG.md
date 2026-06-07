@@ -54,6 +54,19 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [RE6] Wall colour for custom floor plans
+
+Custom-plan walls were a hardcoded off-white with no way to change them (the
+built-in apartment has per-room procedural wall finishes; custom plans had
+nothing). Added a **plan-wide wall colour**: `FloorPlan.wallColor` (optional,
+defaults to `#ede9e2` via `DEFAULT_PLAN_WALL_COLOR`), a colour picker (+ Reset)
+in the floor-plan editor's plan inspector (`updateFloorPlanMeta`), and `PlanShell`'s
+`FadeWall` paints with it. Caught + fixed a save/load gap in the same change:
+`FloorPlanZ` would have stripped the new field, so added `wallColor` to the zod
+schema (round-trip unit-tested). Verified in-app: a custom plan's walls render
+the chosen colour. (Per-room procedural wall finishes on custom plans remain a
+larger future item.) 891 tests; tsc + lint clean.
+
 ## [R11] Regression guards for the view/edit core helpers
 
 The view/edit split's two core pure helpers were untested, despite gating

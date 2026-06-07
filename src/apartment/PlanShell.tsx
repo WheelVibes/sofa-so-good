@@ -2,7 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import type { Mesh, MeshStandardMaterial } from 'three'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
-import { planBounds, wallLength } from '../floorplan/types'
+import { DEFAULT_PLAN_WALL_COLOR, planBounds, wallLength } from '../floorplan/types'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
@@ -14,7 +14,7 @@ const DEFAULT_PLAN_FLOOR = 'floor-wood-oak'
  * One plan wall, fading out in orbit mode when it sits between the camera and
  * the plan centre (so the dollhouse view isn't blocked by near walls).
  */
-function FadeWall({ box, cx, cz }: { box: WallBox; cx: number; cz: number }) {
+function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number; color: string }) {
   const ref = useRef<Mesh>(null)
   const { camera } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
@@ -44,7 +44,7 @@ function FadeWall({ box, cx, cz }: { box: WallBox; cx: number; cz: number }) {
       receiveShadow
     >
       <boxGeometry args={[box.thickness, box.height, box.length]} />
-      <meshStandardMaterial color="#ede9e2" roughness={0.9} transparent opacity={1} />
+      <meshStandardMaterial color={color} roughness={0.9} transparent opacity={1} />
     </mesh>
   )
 }
@@ -57,6 +57,7 @@ function FadeWall({ box, cx, cz }: { box: WallBox; cx: number; cz: number }) {
  */
 export function PlanShell() {
   const plan = useStore((s) => s.floorPlan)
+  const wallColor = plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR
   const [ew, ed] = planBounds(plan)
 
   const boxes = useMemo(() => plan.walls.flatMap((w) => wallBoxes(plan, w)), [plan])
@@ -169,7 +170,7 @@ export function PlanShell() {
 
       {/* Walls (fade when between the orbit camera and the plan centre) */}
       {boxes.map((b, i) => (
-        <FadeWall key={i} box={b} cx={ew / 2} cz={ed / 2} />
+        <FadeWall key={i} box={b} cx={ew / 2} cz={ed / 2} color={wallColor} />
       ))}
 
       {/* Skirting along floor-reaching wall spans */}
