@@ -54,6 +54,20 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [B38] Update the product tour for the view/edit split
+
+The guided tour still described the pre-revamp model: its "layout"/"furniture"
+steps spotlighted `[aria-label="Arrange"]` / `[aria-label="Catalog"]` and the
+"customise"/"finishes" steps said "click an item / click a wall" — but those are
+all **room-editor-only** now, so in the view-only overview (where the tour runs)
+the spotlights pointed at nothing and the instructions were wrong. Rewrote the
+9 steps to match: layout → **Floor plan**, a new **"Step into a room"** step
+spotlighting the **Edit a room** CTA (introducing the editor), then
+furniture/customise/finishes as centred in-editor guidance, walk → the **Camera
+mode** control, plus Scene + Appearance. Verified all spotlight targets resolve
+in the overview (Floor plan, Edit a room, Camera mode, Scene, Appearance) + the
+Edit-a-room spotlight renders. 883 tests; tsc + lint clean.
+
 ## [B37] shot.mjs: guard the output path (prevents stray junk files)
 
 Follow-up to deleting the committed `--help` PNG: `scripts/shot.mjs` now

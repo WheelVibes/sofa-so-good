@@ -395,3 +395,4 @@ Remaining (larger / focused-session):
 - [x] B35. **Mobile Finish picker thin-strip thumbnails** — replaced the 3-col swatch grid with a per-surface dropdown + square preview on mobile (`useIsMobile`); desktop grid unchanged. Verified. (CHANGELOG)
 - [x] B36. **Finish swatches were thin strips (desktop grid)** — `.swatch-lg` was an inline `<span>` so `width:100%`/`aspect-ratio` were ignored; added `display:block` + square ratio. Root-cause fix. Verified desktop + mobile. (CHANGELOG)
 - [x] B37. **shot.mjs output-path guard** — rejects a flag-like (`--help`) or non-`.png` output path (exit 2, no browser launch) so a stray screenshot can no longer be written to a junk file. Verified. (CHANGELOG)
+- [x] B38. **Product tour fixed for the view/edit split** — steps no longer spotlight editor-only Arrange/Catalog from the overview; new "Edit a room" step + correct targets (Floor plan, Camera mode, Scene). Verified. (CHANGELOG)
