@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B23] Measurement overlay follows the active plan (custom-plan fix)
+
+The 3D measurement overlay (room name + size + ceiling per room) iterated the
+**default apartment's** `ROOMS` at default centroids, so on a **custom floor
+plan** it drew the wrong rooms at the wrong places. It now iterates the **active
+plan's rooms**, anchoring each label at the room's centroid (polygon centroid for
+free-form rooms, rect centre otherwise — identical to the old `roomCentroid` for
+seeded default rooms) and using `planRoomArea` for the area (respects L-shape /
+polygon). Default output is unchanged (verified — every room labelled in place);
+custom plans now measure correctly.
+
 ## [B22] Layers/Objects tree groups by the active plan (custom-plan fix)
 
 The Objects/Layers tree grouped items using the **default apartment's** room

@@ -298,3 +298,6 @@ Remaining (larger / focused-session):
 - [x] B22. **Layers tree groups by the active plan** — was using default-apartment
   room shells (custom plans → all "Unassigned"); now `pointInRoom` over
   plan.rooms. Default unchanged (E2E-verified); custom plans fixed. (CHANGELOG)
+- [x] B23. **Measurement overlay follows the active plan** — was iterating default
+  ROOMS at default centroids; now plan.rooms + polygon/rect centroid + planRoomArea.
+  Default unchanged (E2E-verified); custom plans fixed. (CHANGELOG)
