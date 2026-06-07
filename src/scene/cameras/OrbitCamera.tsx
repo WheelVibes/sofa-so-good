@@ -4,7 +4,8 @@ import { useEffect, useRef } from 'react'
 import { MOUSE, PerspectiveCamera, TOUCH, Vector3 } from 'three'
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
-import { planBounds, planRoomArea } from '../../floorplan/types'
+import { isDefaultPlan } from '../../floorplan/planGeometry'
+import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
@@ -29,6 +30,31 @@ function writePose(pos: Vector3, tgt: Vector3): void {
 // re-apply it and clobber any user pan.
 const INITIAL_TARGET: [number, number, number] = [APARTMENT_EXT_W / 2, 1.3, APARTMENT_EXT_D / 2]
 
+type Pose = { pos: [number, number, number]; target: [number, number, number] }
+
+/** 3/4 dollhouse framing for the active plan. The built-in flat keeps its exact
+ *  hand-tuned pose; a custom plan is framed from its own bounds so "reset view"
+ *  and exiting the room editor land on the right place regardless of plan size. */
+function dollhouseFraming(plan: FloorPlan): Pose {
+  if (isDefaultPlan(plan)) return { pos: [12, 8, 12], target: INITIAL_TARGET }
+  const [pw, pd] = planBounds(plan)
+  const cx = pw / 2
+  const cz = pd / 2
+  const d = Math.max(pw, pd, 4)
+  return { pos: [cx + d * 0.7, d * 0.7, cz + d * 0.7], target: [cx, 1.0, cz] }
+}
+
+/** Overhead top-down framing for the active plan (centre + a height sized to the
+ *  plan). The tiny +Z keeps OrbitControls out of gimbal lock at the pole. */
+function topFraming(plan: FloorPlan): Pose {
+  const isDef = isDefaultPlan(plan)
+  const [pw, pd] = isDef ? [APARTMENT_EXT_W, APARTMENT_EXT_D] : planBounds(plan)
+  const cx = pw / 2
+  const cz = pd / 2
+  const h = isDef ? 17 : Math.max(pw, pd) * 1.7
+  return { pos: [cx, h, cz + 0.01], target: [cx, 0, cz] }
+}
+
 export function OrbitCamera() {
   const editorTool = useStore((s) => s.editorTool)
   const autoRotate = useStore((s) => s.autoRotate)
@@ -36,16 +62,17 @@ export function OrbitCamera() {
   const controlsRef = useRef<OrbitControlsImpl>(null)
 
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
-  const floorPlan = useStore((s) => s.floorPlan)
 
   useEffect(() => {
     // In the per-room editor, frame the isolated room (centre + a 3/4 offset
     // sized to the room) instead of the whole-apartment default. Re-runs on
-    // room switch so each room loads framed. Works on custom plans too.
+    // room switch so each room loads framed. Works on custom plans too. The plan
+    // is read fresh (not a dep) so a plain plan edit never yanks the camera.
+    const plan = useStore.getState().floorPlan
     if (roomEditorId) {
       const c = controlsRef.current
       if (!c) return
-      const editorShell = getRoomEditorShell(floorPlan, roomEditorId)
+      const editorShell = getRoomEditorShell(plan, roomEditorId)
       if (!editorShell) return
       const [cx, cz] = editorShell.shell.center
       const r = Math.max(editorShell.shell.radius, 1.5)
@@ -54,31 +81,34 @@ export function OrbitCamera() {
       c.update()
       return
     }
-    camera.position.set(12, 8, 12)
-    controlsRef.current?.target.set(...INITIAL_TARGET)
+    // Dollhouse overview framed to the active plan (default flat keeps its pose).
+    const { pos, target } = dollhouseFraming(plan)
+    camera.position.set(...pos)
+    controlsRef.current?.target.set(...target)
     controlsRef.current?.update()
-  }, [camera, roomEditorId, floorPlan])
+  }, [camera, roomEditorId])
 
-  // Snap to a top-down plan view when requested from the toolbar. The tiny
-  // +Z offset keeps OrbitControls out of gimbal lock at the pole.
+  // Snap to a top-down plan view when requested from the toolbar.
   const topViewNonce = useStore((s) => s.topViewNonce)
   useEffect(() => {
     if (topViewNonce === 0) return
     const c = controlsRef.current
     if (!c) return
-    c.target.set(APARTMENT_EXT_W / 2, 0, APARTMENT_EXT_D / 2)
-    camera.position.set(APARTMENT_EXT_W / 2, 17, APARTMENT_EXT_D / 2 + 0.01)
+    const { pos, target } = topFraming(useStore.getState().floorPlan)
+    c.target.set(...target)
+    camera.position.set(...pos)
     c.update()
   }, [topViewNonce, camera])
 
-  // "Reset view" → snap back to the default 3/4 dollhouse overview.
+  // "Reset view" → snap back to the 3/4 dollhouse overview of the active plan.
   const homeViewNonce = useStore((s) => s.homeViewNonce)
   useEffect(() => {
     if (homeViewNonce === 0) return
     const c = controlsRef.current
     if (!c) return
-    c.target.set(...INITIAL_TARGET)
-    camera.position.set(12, 8, 12)
+    const { pos, target } = dollhouseFraming(useStore.getState().floorPlan)
+    c.target.set(...target)
+    camera.position.set(...pos)
     c.update()
   }, [homeViewNonce, camera])
 

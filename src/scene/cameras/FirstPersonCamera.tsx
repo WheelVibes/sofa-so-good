@@ -199,8 +199,9 @@ export function FirstPersonCamera() {
   useEffect(() => {
     if (roomEditorId) {
       // Spawn in the centre of the isolated room, looking toward its far edge
-      // (default apartment or custom plan).
-      const editorShell = getRoomEditorShell(floorPlan, roomEditorId)
+      // (default apartment or custom plan). Plan read fresh (not a dep) so a
+      // plan edit during walk never re-spawns the player.
+      const editorShell = getRoomEditorShell(useStore.getState().floorPlan, roomEditorId)
       const [cx, cz] = editorShell ? editorShell.shell.center : [0, 0]
       camera.position.set(cx, EYE_HEIGHT, cz)
       camera.lookAt(cx, EYE_HEIGHT, cz - 1)
@@ -231,7 +232,7 @@ export function FirstPersonCamera() {
         camera.updateProjectionMatrix()
       }
     }
-  }, [camera, roomEditorId, floorPlan])
+  }, [camera, roomEditorId])
 
   const tmpForward = useRef(new Vector3())
   const tmpRight = useRef(new Vector3())

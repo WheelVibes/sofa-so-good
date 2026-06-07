@@ -4,6 +4,22 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B31] Plan-aware camera framing + fix camera-reset-on-plan-edit regression
+
+Two fixes to `OrbitCamera`/`FirstPersonCamera`:
+- **Plan-aware framing**: "Reset view", "Top view", and exiting the room editor
+  now frame the **active plan's** bounds, so a custom floor plan lands centred +
+  correctly sized (before, they used the built-in apartment's extent — a custom
+  plan framed the wrong place). The built-in flat keeps its exact hand-tuned pose
+  (`dollhouseFraming`/`topFraming` return the original constants for it).
+- **Regression fix**: RE6.3 had added `floorPlan` to the framing/spawn effect
+  deps, so *any* plan edit snapped the orbit camera back to the overview (and
+  could re-spawn the walker). The plan is now read fresh inside those effects
+  (deps back to `[camera, roomEditorId]`); the walk-collision effect still
+  depends on `floorPlan` (correct — collision walls track the plan).
+E2E-verified: a custom 8×5 plan frames correctly on Reset view; default flat
+framing unchanged; 856 tests green.
+
 ## [Q53b] Share "Copy summary" includes the room count
 
 For consistency with the richer report header ([Q53]), the Share modal's one-line
