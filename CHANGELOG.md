@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B22] Layers/Objects tree groups by the active plan (custom-plan fix)
+
+The Objects/Layers tree grouped items using the **default apartment's** room
+shells, so on a **custom floor plan** every item fell into "Unassigned" instead
+of the plan's rooms. It now groups by the **active plan's rooms** via
+`pointInRoom` (handling rect / L-shape / polygon rooms), skipping only the
+default plan's external ledges. The default plan is unchanged (verified — items
+still group under Main Bedroom / Bedroom 2 / …, not Unassigned), and custom plans
+now group correctly. Also dropped the now-unused per-default-room shell
+precompute. Recomputes on plan change too (was items-only).
+
 ## [N25] Scale bar on the report's floor plan
 
 The printable report's floor-plan SVG now carries a **scale bar** (bottom-left,

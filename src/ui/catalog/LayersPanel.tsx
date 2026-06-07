@@ -1,24 +1,18 @@
 import { useMemo, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
-import { roomShell } from '../../apartment/roomShell'
 import type { RoomId } from '../../apartment/types'
+import { pointInRoom } from '../../floorplan/types'
 import { useCatalog } from '../../furniture/catalog'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 
-// Room shells (wall-clipped footprints) depend only on the static apartment
-// constants, so compute the non-external rooms' shells once — not per `items`
-// change. Recomputing the clip geometry on every furniture drag was pure waste.
-const NON_EXTERNAL_ROOM_SHELLS = (Object.keys(ROOMS) as RoomId[])
-  .filter((id) => !ROOMS[id].external)
-  .map((id) => ({ id, shell: roomShell(id) }))
-
 /** Objects / Layers tree: every placed item grouped by room, with select /
  *  lock / delete. The left-dock alternative to the catalog grid. */
 export function LayersPanel() {
   const items = useStore((s) => s.items)
+  const plan = useStore((s) => s.floorPlan)
   const selectedIds = useStore((s) => s.selectedItemIds)
   const selectItem = useStore((s) => s.selectItem)
   const toggleSelectedItem = useStore((s) => s.toggleSelectedItem)
@@ -38,22 +32,24 @@ export function LayersPanel() {
   const itemName = (it: FurnitureItem) => itemLabel(it).toLowerCase()
 
   const groups = useMemo(() => {
-    const shells = NON_EXTERNAL_ROOM_SHELLS
+    // Group by the ACTIVE plan's rooms (not the default ROOMS constant) so custom
+    // floor plans group correctly; skip only the default plan's external ledges.
+    const rooms = plan.rooms.filter((r) => !ROOMS[r.id as RoomId]?.external)
     const byRoom = new Map<string, FurnitureItem[]>()
     const other: FurnitureItem[] = []
     for (const it of items) {
-      const hit = shells.find((s) => s.shell.contains(it.position[0], it.position[1]))
+      const hit = rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
       if (hit) {
         if (!byRoom.has(hit.id)) byRoom.set(hit.id, [])
         byRoom.get(hit.id)?.push(it)
       } else other.push(it)
     }
-    const out: { key: string; name: string; items: FurnitureItem[] }[] = shells
-      .filter(({ id }) => byRoom.has(id))
-      .map(({ id }) => ({ key: id as string, name: ROOMS[id].name, items: byRoom.get(id) ?? [] }))
+    const out: { key: string; name: string; items: FurnitureItem[] }[] = rooms
+      .filter((r) => byRoom.has(r.id))
+      .map((r) => ({ key: r.id, name: r.name, items: byRoom.get(r.id) ?? [] }))
     if (other.length) out.push({ key: 'other', name: 'Unassigned', items: other })
     return out
-  }, [items])
+  }, [items, plan])
 
   const roomCount = groups.filter((g) => g.key !== 'other').length
   // Filter items by name; drop empty groups and force-expand while filtering so

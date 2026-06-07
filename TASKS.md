@@ -295,3 +295,6 @@ Remaining (larger / focused-session):
 - [x] N25. **Scale bar on the report floor plan** — `scaleBarChoice` (pure,
   unit-tested) picks a round metric/imperial length; drawn bottom-left. Verified
   by rendering the real report. (CHANGELOG)
+- [x] B22. **Layers tree groups by the active plan** — was using default-apartment
+  room shells (custom plans → all "Unassigned"); now `pointInRoom` over
+  plan.rooms. Default unchanged (E2E-verified); custom plans fixed. (CHANGELOG)
