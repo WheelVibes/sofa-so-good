@@ -309,3 +309,4 @@ Remaining (larger / focused-session):
   leaking over the editor (AnnotationsOverlay/MeasurementOverlay hide while
   editing). E2E-verified. (CHANGELOG)
 - [x] Q48. **⌘K: Design report + Floor plan editor** added to the palette. (CHANGELOG)
+- [x] B25. **Reject degenerate dimension annotations** — addAnnotation guards non-finite/zero spans. Unit-tested. (CHANGELOG)

@@ -72,13 +72,22 @@ export const createMeasurementsSlice: SliceCreator<MeasurementsSlice, RootState>
       tapePoints: s.tapePoints.length >= 2 ? [p] : [...s.tapePoints, p],
     })),
   clearTape: () => set({ tapePoints: [] }),
-  addAnnotation: (a, b, shape) =>
+  addAnnotation: (a, b, shape) => {
+    // Reject non-finite or degenerate spans so a stray pin can't write garbage
+    // into the save (a line needs length; a rect needs both extents).
+    const finite = [a[0], a[1], b[0], b[1]].every(Number.isFinite)
+    const okSpan =
+      shape === 'rect'
+        ? Math.abs(b[0] - a[0]) > 1e-3 && Math.abs(b[1] - a[1]) > 1e-3
+        : Math.hypot(b[0] - a[0], b[1] - a[1]) > 1e-3
+    if (!finite || !okSpan) return
     set((s) => ({
       annotations: [
         ...s.annotations,
         { id: annotationId(), a: [a[0], a[1]], b: [b[0], b[1]], shape },
       ],
-    })),
+    }))
+  },
   removeAnnotation: (id) => set((s) => ({ annotations: s.annotations.filter((x) => x.id !== id) })),
   clearAnnotations: () => set((s) => (s.annotations.length === 0 ? {} : { annotations: [] })),
 })

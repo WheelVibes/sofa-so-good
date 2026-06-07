@@ -64,6 +64,16 @@ describe('measurement annotations', () => {
     s().clearAnnotations()
     expect(s().annotations).toEqual([])
   })
+
+  it('rejects degenerate and non-finite annotations', () => {
+    const s = () => useStore.getState()
+    s().addAnnotation([1, 1], [1, 1], 'line') // zero length
+    s().addAnnotation([0, 0], [5, 0], 'rect') // rect with no height
+    s().addAnnotation([0, 0], [Number.NaN, 2], 'line') // non-finite
+    expect(s().annotations).toHaveLength(0)
+    s().addAnnotation([0, 0], [2, 0], 'line') // valid
+    expect(s().annotations).toHaveLength(1)
+  })
 })
 
 describe('measurement units', () => {

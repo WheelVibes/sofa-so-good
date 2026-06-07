@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B25] Reject degenerate dimension annotations
+
+`addAnnotation` now ignores non-finite or degenerate spans (a zero-length line, a
+rect missing an extent), so a stray pin can't write unrenderable garbage into the
+saved design. Unit-tested.
+
 ## [Q48] Command palette: Design report + Floor plan editor
 
 Two top-level features were missing from ⌘K (which is meant to launch
