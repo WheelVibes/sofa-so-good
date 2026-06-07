@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N24] Material palette ("style board") in the design report
+
+The printable report now ends with a **Material palette** — colour chips for the
+distinct floor + wall finishes in use, ordered by how many surfaces use each, so
+a client can read the scheme at a glance (an at-a-glance "style board", a staple
+of Coohom/Homestyler). Driven by a new pure, unit-tested `designPalette(finishes)`
+(`ui/reportData.ts`): custom `#rrggbb` finishes are their own chip, builtin
+materials resolve to a friendly name + swatch colour via the catalog, and unknown
+DLC/remote ids still list with a neutral chip so the palette is complete.
+Verified by rendering the real report HTML.
+
 ## [P6] Minimap room label legibility
 
 The current-room name on the walk minimap was near-illegible (`--text-3`, 5px, no

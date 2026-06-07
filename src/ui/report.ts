@@ -12,7 +12,7 @@ import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, type UnitSystem } from '../utils/measurement'
-import { furnitureCostByRoom } from './reportData'
+import { designPalette, furnitureCostByRoom } from './reportData'
 import { reportPlanSvg } from './reportPlanSvg'
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
@@ -121,6 +121,16 @@ export function buildReportHtml(
     )
     .join('')
 
+  // Material palette ("style board"): the distinct floor + wall finishes in use,
+  // as colour chips. A quick at-a-glance read of the scheme for a client.
+  const palette = designPalette(finishes)
+  const paletteChips = palette
+    .map(
+      (p) =>
+        `<div class="chip"><span class="sw" style="background:${esc(p.swatch)}"></span><span class="cn">${esc(p.name)}</span></div>`,
+    )
+    .join('')
+
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -148,6 +158,11 @@ export function buildReportHtml(
   .note { background: #f9fafb; border-left: 3px solid #d1d5db; padding: 8px 12px; border-radius: 4px; margin-bottom: 16px; color: #374151; white-space: pre-wrap; }
   .room-cost { margin-top: 24px; max-width: 360px; }
   .plan-wrap { margin-top: 16px; border: 1px solid #e5e7eb; border-radius: 6px; padding: 10px; background: #fff; }
+  .palette { margin-top: 24px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 8px; }
+  .chip { display: flex; align-items: center; gap: 7px; border: 1px solid #e5e7eb; border-radius: 999px; padding: 4px 10px 4px 4px; }
+  .chip .sw { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); flex: none; }
+  .chip .cn { font-size: 12px; color: #374151; }
   .plan-svg { width: 100%; height: auto; max-height: 280px; display: block; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   @media print { body { padding: 0; } .hero { max-height: 300px; } }
@@ -190,6 +205,14 @@ export function buildReportHtml(
       ? `<div class="room-cost">
       <h2>Finishes by room</h2>
       <table><tr class="cat"><td>Room</td><td>Floor</td><td>Walls</td></tr>${finishRows}</table>
+    </div>`
+      : ''
+  }
+  ${
+    paletteChips
+      ? `<div class="palette">
+      <h2>Material palette</h2>
+      <div class="chips">${paletteChips}</div>
     </div>`
       : ''
   }

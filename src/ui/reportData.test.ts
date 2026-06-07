@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildReportHtml } from './report'
-import { furnitureCostByRoom } from './reportData'
+import { designPalette, furnitureCostByRoom } from './reportData'
 
 // Stub itemPrice → a flat $100 per item so totals are predictable.
 vi.mock('../furniture/furniturePrices', () => ({ itemPrice: () => 100 }))
@@ -72,5 +72,38 @@ describe('buildReportHtml — cost by room section', () => {
   it('omits the section entirely when no furniture is placed', () => {
     const html = buildReportHtml(plan, [], catalog, null)
     expect(html).not.toContain('Cost by room')
+  })
+})
+
+describe('designPalette', () => {
+  it('returns [] for no finishes', () => {
+    expect(designPalette(undefined)).toEqual([])
+    expect(designPalette({ floor: {}, walls: {} })).toEqual([])
+  })
+
+  it('dedupes across rooms and orders by usage count', () => {
+    const pal = designPalette({
+      floor: { a: 'wall-paint-white', b: 'wall-paint-white' },
+      walls: { a: '#abcdef' },
+    })
+    expect(pal).toHaveLength(2)
+    // wall-paint-white used twice → first; custom hex once → second.
+    expect(pal[0]).toMatchObject({ id: 'wall-paint-white', name: 'White paint', count: 2 })
+    expect(pal[0].swatch).toBe('#f5f5f0')
+    expect(pal[1]).toMatchObject({ id: '#abcdef', name: '#ABCDEF', swatch: '#abcdef', count: 1 })
+  })
+
+  it('lists an unknown (DLC/remote) id with a neutral chip', () => {
+    const pal = designPalette({ floor: { a: 'mat:some-cc0' }, walls: {} })
+    expect(pal[0]).toMatchObject({ id: 'mat:some-cc0', name: 'mat:some-cc0', swatch: '#cccccc' })
+  })
+
+  it('is surfaced in the report HTML as a Material palette', () => {
+    const html = buildReportHtml(plan, [], catalog, null, 'metric', {
+      floor: { a: 'wall-paint-white' },
+      walls: { a: '#abcdef' },
+    })
+    expect(html).toContain('Material palette')
+    expect(html).toContain('#abcdef')
   })
 })

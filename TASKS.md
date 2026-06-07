@@ -285,3 +285,7 @@ Remaining (larger / focused-session):
 - [x] N23. **Walk minimap shows doorways + windows** — `openingSegments` (pure,
   unit-tested) resolves wall openings; doors render as gaps, windows as accent
   ticks. E2E-verified. (CHANGELOG)
+- [x] P6. **Minimap room-label legibility** — halo + stronger fill + centred. (CHANGELOG)
+- [x] N24. **Material palette in the report** — `designPalette` (pure,
+  unit-tested) → colour chips of distinct floor/wall finishes; verified by
+  rendering the real report HTML. (CHANGELOG)
