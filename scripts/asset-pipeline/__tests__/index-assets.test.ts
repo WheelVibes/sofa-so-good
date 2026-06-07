@@ -39,6 +39,7 @@ describe('indexAssets', () => {
     expect(out).toContain('"duck-fixture"')
     expect(out).toContain('"decor"')
     // base-aware URL so it resolves under a non-root Vite `base` in production
+    // biome-ignore lint/suspicious/noTemplateCurlyInString: asserting the generated code contains this exact literal
     expect(out).toContain('`${import.meta.env.BASE_URL}assets/furniture/duck.glb`')
     expect(out).toContain('"Khronos"')
   })

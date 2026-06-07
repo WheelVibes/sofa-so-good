@@ -15,6 +15,21 @@ against an unknown category from an imported def) without an in-expression
 assignment — clearer intent, same output. Catalog tests (100) + tsc green; lint
 errors for the rule cleared.
 
+## [R10] Clear `scripts/` lint errors + make CI lint blocking
+
+With `src/` clean, three lint **errors** remained in `scripts/`:
+`noAssignInExpressions` in `progress.mjs` (the `while ((idx = …) !== -1)`
+line-splitter → hoisted the `indexOf` out of the condition), and
+`useIterableCallbackReturn` in `optimizePool.mjs` + its test (`.forEach(r => r())`
+/ `.forEach(f => pool.submit(f))` returning a value → plain `for…of` loops), plus
+an unused `copyFileSync` import in the asset-pipeline integration test. Also
+suppressed a `noTemplateCurlyInString` *warning* in `index-assets.test.ts` that's
+a false positive (the test asserts the generated code contains that exact
+`${import.meta.env.BASE_URL}` literal). With the **entire repo** now at 0 lint
+errors (`npm run lint` exits 0), flipped CI's Lint step from
+`continue-on-error: true` to **blocking** so regressions can't reland. Scraper +
+asset-pipeline tests (15) green.
+
 ## [R9] Clear the final lint error — `biome check` now exits 0
 
 Removed the last `noUselessSwitchCase` error in `furnitureMaterials.ts`
