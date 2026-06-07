@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q50] Command palette: "Edit a room"
+
+Now that the per-room editor works on every plan (RE6), added an **Edit a room
+(isolate)** action to ⌘K (Go to group). It enters the editor for the active
+plan's first editable room (default apartment → first non-external room; custom
+plan → its first room). Mirrors the existing palette commands.
+
 ## [RE6.3] Per-room editor now works on custom floor plans (RE6 complete)
 
 The final wiring: the per-room ("Edit a room") editor — previously gated to the

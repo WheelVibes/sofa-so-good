@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { ROOMS } from '../apartment/constants'
+import { isDefaultPlan } from '../floorplan/planGeometry'
 import { useCatalogByCategory } from '../furniture/catalog'
 import { tidyHome } from '../layout/tidyHome'
 import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
@@ -132,6 +134,21 @@ export function CommandPalette() {
         label: 'Floor plan editor',
         icon: 'FloorPlan',
         run: () => s().setFloorPlanEditing(true),
+      },
+      {
+        id: 'edit-room',
+        group: 'Go to',
+        label: 'Edit a room (isolate)',
+        icon: 'FloorPlan',
+        run: () => {
+          const st = s()
+          // First editable room of the active plan (default apartment → first
+          // non-external room; custom plan → its first room).
+          const id = isDefaultPlan(st.floorPlan)
+            ? Object.values(ROOMS).find((r) => !r.external)?.id
+            : st.floorPlan.rooms[0]?.id
+          if (id) st.enterRoomEditor(id)
+        },
       },
       {
         id: 'appearance',
