@@ -3,7 +3,12 @@ import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildReportHtml } from './report'
-import { designPalette, furnitureCostByRoom, furnitureItemsByRoom } from './reportData'
+import {
+  designPalette,
+  floorAreaByFinish,
+  furnitureCostByRoom,
+  furnitureItemsByRoom,
+} from './reportData'
 
 // Stub itemPrice → a flat $100 per item so totals are predictable.
 vi.mock('../furniture/furniturePrices', () => ({ itemPrice: () => 100 }))
@@ -174,5 +179,32 @@ describe('designPalette', () => {
     })
     expect(html).toContain('Material palette')
     expect(html).toContain('#abcdef')
+  })
+})
+
+describe('floorAreaByFinish', () => {
+  it('sums floor area per finish across rooms, sorted by area desc', () => {
+    // Room A 2×2 = 4 m², Room B 2×2 = 4 m²; A→oak, B→oak → oak 8 m².
+    const out = floorAreaByFinish(plan, { a: 'oak', b: 'oak' })
+    expect(out).toEqual([{ id: 'oak', area: 8 }])
+  })
+
+  it('groups distinct finishes and orders by area', () => {
+    const big = {
+      rooms: [
+        { id: 'a', name: 'A', origin: [0, 0], width: 2, depth: 2 }, // 4
+        { id: 'b', name: 'B', origin: [5, 0], width: 3, depth: 3 }, // 9
+      ],
+    } as unknown as FloorPlan
+    const out = floorAreaByFinish(big, { a: 'oak', b: 'tile' })
+    expect(out).toEqual([
+      { id: 'tile', area: 9 },
+      { id: 'oak', area: 4 },
+    ])
+  })
+
+  it('skips rooms with no finish set and tolerates undefined', () => {
+    expect(floorAreaByFinish(plan, { a: 'oak' })).toEqual([{ id: 'oak', area: 4 }])
+    expect(floorAreaByFinish(plan, undefined)).toEqual([])
   })
 })

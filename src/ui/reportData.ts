@@ -3,10 +3,37 @@
  * HTML builder so the number-crunching is unit-testable without DOM/string
  * assertions.
  */
+import { ROOMS } from '../apartment/constants'
 import { type FloorPlan, planRoomArea, pointInRoom } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
+
+export interface FinishArea {
+  id: string
+  area: number
+}
+
+/**
+ * Total floor area (m²) per floor finish across the plan's non-external rooms —
+ * the "how much flooring to order" procurement view (distinct from the per-room
+ * finishes table). Pure; sorted by area desc, ids resolved to names by the
+ * caller. Rooms with no floor finish set are skipped.
+ */
+export function floorAreaByFinish(
+  plan: FloorPlan,
+  floor: Record<string, string> | undefined,
+): FinishArea[] {
+  if (!floor) return []
+  const byFinish = new Map<string, number>()
+  for (const room of plan.rooms) {
+    if (ROOMS[room.id as keyof typeof ROOMS]?.external) continue
+    const id = floor[room.id]
+    if (!id) continue
+    byFinish.set(id, (byFinish.get(id) ?? 0) + planRoomArea(room))
+  }
+  return [...byFinish.entries()].map(([id, area]) => ({ id, area })).sort((a, b) => b.area - a.area)
+}
 
 export interface RoomCost {
   name: string

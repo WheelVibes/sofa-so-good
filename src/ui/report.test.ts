@@ -44,6 +44,8 @@ describe('buildReportHtml', () => {
     expect(html).toContain('Finishes by room')
     expect(html).toMatch(/Oak|oak/) // the resolved floor material name
     expect(html).toContain('class="msw"') // colour swatch chip next to the finish
+    // Flooring schedule: total area per floor finish.
+    expect(html).toContain('Flooring schedule')
   })
 
   it('omits the Finishes section when no finishes are supplied', () => {

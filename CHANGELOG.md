@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F24] Flooring schedule in the report (area per finish)
+`floorAreaByFinish` sums floor area per finish across non-external rooms; the
+report shows a "Flooring schedule" (finish + swatch + m²) — the procurement
+"how much to order" view. 3 tests + standalone render verified.
+
 ## [F23] Colour swatches in the report's "Finishes by room" table
 Each floor/wall finish now shows a colour chip beside its name (custom colour →
 itself, builtin → its swatch, unknown → none) so the table reads at a glance like

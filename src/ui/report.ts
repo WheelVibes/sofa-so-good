@@ -16,7 +16,7 @@ import { blockedDoorItems } from '../layout/clearance'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, type UnitSystem } from '../utils/measurement'
-import { designPalette, furnitureItemsByRoom } from './reportData'
+import { designPalette, floorAreaByFinish, furnitureItemsByRoom } from './reportData'
 import { reportPlanSvg } from './reportPlanSvg'
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
@@ -86,6 +86,16 @@ export function buildReportHtml(
         .map(
           (r) =>
             `<tr><td>${esc(r.name)}</td><td>${matCell(floorOf?.[r.id])}</td><td>${matCell(wallOf?.[r.id])}</td></tr>`,
+        )
+        .join('')
+    : ''
+  // Flooring schedule: total floor area per finish — the "how much to order"
+  // procurement view (only when finishes are supplied + at least one finish set).
+  const flooringRows = finishes
+    ? floorAreaByFinish(plan, floorOf)
+        .map(
+          (f) =>
+            `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
         )
         .join('')
     : ''
@@ -301,6 +311,14 @@ export function buildReportHtml(
       ? `<div class="room-cost">
       <h2>Finishes by room</h2>
       <table><tr class="cat"><td>Room</td><td>Floor</td><td>Walls</td></tr>${finishRows}</table>
+    </div>`
+      : ''
+  }
+  ${
+    flooringRows
+      ? `<div class="room-cost">
+      <h2>Flooring schedule</h2>
+      <table><tr class="cat"><td>Finish</td><td class="num">Floor area</td></tr>${flooringRows}</table>
     </div>`
       : ''
   }
