@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ROOMS } from '../apartment/constants'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { PLAN_TEMPLATES } from '../floorplan/templates'
-import { editableRoomIds } from './rooms'
+import { editableRoomIds, roomDisplayName } from './rooms'
 
 describe('editableRoomIds', () => {
   it('lists the default apartment rooms minus external ledges', () => {
@@ -20,5 +20,21 @@ describe('editableRoomIds', () => {
   it("lists a custom plan's own rooms in order", () => {
     const plan = PLAN_TEMPLATES[1] // oneBed template (a non-default plan)
     expect(editableRoomIds(plan)).toEqual(plan.rooms.map((r) => r.id))
+  })
+})
+
+describe('roomDisplayName', () => {
+  it('uses the fixed apartment name for a built-in room', () => {
+    expect(roomDisplayName('mainBedroom', buildDefaultPlan())).toBe(ROOMS.mainBedroom.name)
+  })
+
+  it("uses the custom plan's room name for a plan room", () => {
+    const plan = PLAN_TEMPLATES[1]
+    const r = plan.rooms[0]
+    expect(roomDisplayName(r.id, plan)).toBe(r.name)
+  })
+
+  it('falls back to the raw id when nothing matches', () => {
+    expect(roomDisplayName('ghost-room', buildDefaultPlan())).toBe('ghost-room')
   })
 })

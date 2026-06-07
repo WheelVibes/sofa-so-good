@@ -4,6 +4,10 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B41] Wall-accent picker shows the room name on custom plans
+Was showing the raw room id (e.g. "studio-main") since it only knew the built-in
+`ROOMS` table. Added a shared `roomDisplayName(id, plan)` helper (plan-aware). 3 tests.
+
 ## [B40] Per-room finish/tidy/clear works on custom plans
 FinishPicker bailed for custom-plan rooms (`ROOMS[id]` undefined) and "Tidy" would
 crash (arrangeRoom is RoomId-keyed). Added `arrangePlanRoom` + sourced name/area
