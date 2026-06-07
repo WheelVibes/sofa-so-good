@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef } from 'react'
-import { planBounds, wallLength } from '../../floorplan/types'
+import { planBounds, pointInRoom, wallLength } from '../../floorplan/types'
 import { cameraForwardXZ, cameraPosXZ } from '../../scene/cameras/cameraForward'
 import { useStore } from '../../state/store'
 
@@ -14,6 +14,7 @@ export function WalkMinimap() {
   const cameraMode = useStore((s) => s.cameraMode)
   const plan = useStore((s) => s.floorPlan)
   const markerRef = useRef<SVGGElement>(null)
+  const roomLabelRef = useRef<HTMLDivElement>(null)
 
   const [vbW, vbH, walls] = useMemo(() => {
     const [w, d] = planBounds(plan)
@@ -29,18 +30,30 @@ export function WalkMinimap() {
   }, [plan])
 
   // Animate only the marker transform from the live camera singletons; runs
-  // only while mounted (walk mode), so it costs nothing otherwise.
+  // only while mounted (walk mode), so it costs nothing otherwise. Also updates
+  // the current-room caption (cheap point-in-room over the plan rooms), writing
+  // the DOM only when it changes.
   useEffect(() => {
     if (cameraMode !== 'firstPerson') return
     let raf = 0
+    let lastRoom = ''
     const tick = () => {
+      const x = cameraPosXZ.x
+      const z = cameraPosXZ.z
       const g = markerRef.current
       if (g) {
-        const x = cameraPosXZ.x
-        const z = cameraPosXZ.z
         // Heading: a marker pointing "up" (−y) rotated to face (fx, fz).
         const deg = (Math.atan2(cameraForwardXZ.x, -cameraForwardXZ.z) * 180) / Math.PI
         g.setAttribute('transform', `translate(${x} ${z}) rotate(${deg})`)
+      }
+      const cap = roomLabelRef.current
+      if (cap) {
+        const room =
+          useStore.getState().floorPlan.rooms.find((r) => pointInRoom(r, x, z))?.name ?? ''
+        if (room !== lastRoom) {
+          lastRoom = room
+          cap.textContent = room
+        }
       }
       raf = requestAnimationFrame(tick)
     }
@@ -56,12 +69,14 @@ export function WalkMinimap() {
       style={{
         right: 'calc(env(safe-area-inset-right, 0px) + 12px)',
         bottom: 'calc(env(safe-area-inset-bottom, 0px) + 12px)',
-        width: 130,
-        height: 130,
+        width: 132,
+        height: 150,
         padding: 6,
+        display: 'flex',
+        flexDirection: 'column',
         borderRadius: 'var(--r-3, 10px)',
         background: 'var(--surface-solid)',
-        opacity: 0.9,
+        opacity: 0.92,
         boxShadow: 'var(--shadow-2, 0 2px 8px rgba(0,0,0,0.2))',
         border: '1px solid var(--border)',
       }}
@@ -70,7 +85,7 @@ export function WalkMinimap() {
       <svg
         viewBox={`-0.4 -0.4 ${vbW.toFixed(2)} ${vbH.toFixed(2)}`}
         preserveAspectRatio="xMidYMid meet"
-        style={{ width: '100%', height: '100%', display: 'block' }}
+        style={{ width: '100%', flex: 1, minHeight: 0, display: 'block' }}
       >
         {/* Static wall outline (app-built strings, no user input). */}
         {/* biome-ignore lint/security/noDangerouslySetInnerHtml: static, app-built SVG */}
@@ -85,6 +100,20 @@ export function WalkMinimap() {
           />
         </g>
       </svg>
+      {/* Current-room caption — updated by the rAF only when it changes. */}
+      <div
+        ref={roomLabelRef}
+        style={{
+          marginTop: 4,
+          textAlign: 'center',
+          fontSize: 'var(--t-2xs, 10px)',
+          fontWeight: 600,
+          color: 'var(--text-2)',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      />
     </div>
   )
 }
