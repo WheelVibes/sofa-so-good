@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [FG2] Feature flags — reactive store slice + useFeature hook (2/4)
+`featureFlagsSlice` mirrors the resolved flags reactively (seeded at boot, kept
+in sync with the `isFeatureEnabled` snapshot); `setFeatureFlag`/`resetFeatureFlags`
+are dev-only. `useFeature(flag)` hook for components. 3 tests.
+
 ## [FG1] Feature-flag core — central registry + resolver (1/4)
 `features/featureFlags.ts`: a single-source registry (21 flags w/ prod defaults +
 `devOnly`), pure `resolveFlags` (prod locked to registry, dev/QA overrides via
