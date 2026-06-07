@@ -34,6 +34,9 @@ const TIPS: [string, string][] = [
   ['Set a budget target in the Shopping panel to track how far over / under you are.'],
   ['Switch dimensions to imperial in the Graphics panel; the whole UI follows.'],
   ['Save versions, then Compare any one to see what furniture changed vs now.'],
+  ['Scene menu → Lighting moods previews the room at golden hour, a cosy evening, night…'],
+  ['Measure something, then 📌 Pin it to keep the dimension on the design.'],
+  ['In Walk, the minimap (bottom-right) shows where you are and which room you’re in.'],
 ] as unknown as [string, string][]
 
 /** Help & keyboard-shortcut reference modal (toolbar `?`). On mobile (no
