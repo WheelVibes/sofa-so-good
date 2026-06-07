@@ -18,6 +18,7 @@ import { getRoomEditorShell } from './scene/roomEditorShell'
 import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
 import { canEditScene } from './state/editing'
+import { editableRoomIds } from './state/rooms'
 import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
@@ -157,6 +158,28 @@ export default function App() {
             cur === -1 ? (step === 1 ? 0 : ids.length - 1) : (cur + step + ids.length) % ids.length
           s.selectItem(ids[next])
           return
+        }
+      }
+      // `,` / `.` cycle the room being edited (prev / next) — a quick way to work
+      // room-by-room without the dropdown. Room editor only; skipped while typing.
+      if (
+        (e.key === ',' || e.key === '.') &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditableTarget(e)
+      ) {
+        const s = useStore.getState()
+        if (canEditScene(s)) {
+          const ids = editableRoomIds(s.floorPlan)
+          if (ids.length > 0) {
+            e.preventDefault()
+            const cur = ids.indexOf(s.roomEditor.roomId ?? '')
+            const step = e.key === '.' ? 1 : -1
+            const next = ((cur < 0 ? 0 : cur + step) + ids.length) % ids.length
+            s.enterRoomEditor(ids[next])
+            return
+          }
         }
       }
       // `/` jumps to the catalog search (opening the drawer if needed), a

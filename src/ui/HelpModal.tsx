@@ -13,6 +13,7 @@ const SHORTCUTS: [string, string][] = [
   ['Duplicate', '⌘D'],
   ['Select all', '⌘A'],
   ['Cycle selection', '[ ]'],
+  ['Prev / next room', ', .'],
   ['Nudge selection', '↑ ↓ ← →'],
   ['Delete', 'Del'],
   ['Measurements', 'M'],

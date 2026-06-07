@@ -54,6 +54,15 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [Q44] Cycle rooms with `,` / `.` in the editor
+
+A keyboard speedup for the room-by-room workflow: in the per-room editor, `,`
+and `.` jump to the previous / next editable room (wrapping), complementing the
+dropdown switcher. Room-editor-only (gated on `canEditScene`), skipped while
+typing. Shares a new `editableRoomIds(plan)` helper with the switcher so the
+order matches. Listed in Help. Verified: `.` mainBedroom→bedroom2, `,` back; no
+effect in the view-only overview. 885 tests; tsc + lint clean.
+
 ## [Q43] "Recently used" finishes in the FinishPicker
 
 Re-applying a finish across rooms (e.g. the same wood floor in three bedrooms)
