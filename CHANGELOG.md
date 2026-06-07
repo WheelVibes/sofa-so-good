@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [T4] editorPrefs persistence test (regression guard for new prefs)
+
+Added the first unit test for `storage/editorPrefs` — covers the snap/grid/units
+**+ the new backdrop + uiMode** round-trip: load applies persisted values,
+invalid `backdrop`/`uiMode` fall back to safe defaults (`city`/`pro`), a corrupt
+blob is ignored without throwing, and store changes persist back to localStorage.
+Locks in the [N27]/[N28] persistence so a future prefs change can't silently
+break it. 4 tests, 860 total green.
+
 ## [Q54] Backdrop options in the command palette
 
 The four scene backdrops (City/Park/Hills/Studio) are now also reachable from ⌘K
