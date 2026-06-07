@@ -22,6 +22,7 @@ import { editableRoomIds } from './state/rooms'
 import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
+import { LoginScreen } from './ui/auth/LoginScreen'
 import { BudgetPanel } from './ui/BudgetPanel'
 import { ClearancePanel } from './ui/ClearancePanel'
 import { CommandPalette } from './ui/CommandPalette'
@@ -107,6 +108,20 @@ export default function App() {
   // there's no blank gap on a cold load.
   useEffect(() => {
     document.getElementById('boot-loader')?.remove()
+  }, [])
+
+  // `#/login` opens the sign-in screen (a shareable/bookmarkable entry), then
+  // clears the hash. `#/plans/<code>` is handled by the boot bootstrap.
+  useEffect(() => {
+    const check = () => {
+      if (window.location.hash === '#/login') {
+        useStore.getState().setLoginOpen(true)
+        history.replaceState(null, '', window.location.pathname + window.location.search)
+      }
+    }
+    check()
+    window.addEventListener('hashchange', check)
+    return () => window.removeEventListener('hashchange', check)
   }, [])
 
   // Global ⌘K / Ctrl-K toggles the command palette from anywhere (including
@@ -717,6 +732,7 @@ export default function App() {
         <VersionsPanel />
         <HistoryPanel />
         <SmartStartWizard />
+        <LoginScreen />
         <Onboarding />
         <ProductTour />
         <LocationPrompt />

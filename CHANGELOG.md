@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [A2] Accounts — full login screen + `#/login` route (2/3)
+`ui/auth/LoginScreen` (themed full-screen sign-in: password, error, signed-in
+state + sign out), opened via `#/login` or a Help "Sign in" entry; `loginOpen`
+UI flag. Screenshot-verified. Admin gating next.
+
 ## [A1] Accounts — AuthProvider abstraction + admin session (1/3)
 `features/auth/` (AuthProvider interface + client-side LocalAdminProvider) +
 `authSlice` (signIn/signOut, persisted session, currentUser/role). Architected

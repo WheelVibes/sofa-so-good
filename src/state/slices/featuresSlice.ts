@@ -58,6 +58,8 @@ export interface FeaturesSlice {
   historyOpen: boolean
   /** Smart Start wizard (pick a style → furnished flat) visibility. */
   smartStartOpen: boolean
+  /** Login screen (admin sign-in) visibility. */
+  loginOpen: boolean
   /** Shopping panel tab. */
   shopTab: 'list' | 'saved'
   /** Optional shopping budget target (SGD); drives the over/under indicator in
@@ -87,6 +89,7 @@ export interface FeaturesSlice {
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
+  setLoginOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
   setBudgetTarget: (target: number | null) => void
   toggleCollection: (defId: string) => void
@@ -107,6 +110,7 @@ export const FEATURES_INITIAL = {
   versionsOpen: false,
   historyOpen: false,
   smartStartOpen: false,
+  loginOpen: false,
   shopTab: 'list' as 'list' | 'saved',
   budgetTarget: null as number | null,
   collections: [] as string[],
@@ -143,6 +147,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
+  setLoginOpen: (loginOpen) => set({ loginOpen }),
   setShopTab: (shopTab) => set({ shopTab }),
   setBudgetTarget: (budgetTarget) =>
     set({ budgetTarget: budgetTarget != null && budgetTarget > 0 ? budgetTarget : null }),

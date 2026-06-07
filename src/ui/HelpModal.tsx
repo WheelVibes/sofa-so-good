@@ -105,6 +105,19 @@ export function HelpModal({ open, onClose }: { open: boolean; onClose: () => voi
           <Icon.Help width={14} height={14} />
           Replay the guided tour
         </button>
+        <button
+          type="button"
+          className="btn btn-soft btn-block"
+          style={{ marginBottom: 'var(--s-3)' }}
+          onClick={() => {
+            const s = useStore.getState()
+            s.setHelpOpen(false)
+            s.setLoginOpen(true)
+          }}
+        >
+          <Icon.Eye width={14} height={14} />
+          {useStore.getState().currentUser ? 'Account' : 'Sign in'}
+        </button>
         <ul className="help-list">
           <li>
             <Icon.Book className="icn" width={16} height={16} />
