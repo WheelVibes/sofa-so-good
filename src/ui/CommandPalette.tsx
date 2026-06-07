@@ -1,12 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ROOMS } from '../apartment/constants'
-import { isDefaultPlan } from '../floorplan/planGeometry'
 import { useCatalogByCategory } from '../furniture/catalog'
 import { tidyHome } from '../layout/tidyHome'
 import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
 import { BACKDROPS } from '../scene/SceneBackdrop'
 import { canEditScene } from '../state/editing'
+import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { openDocs } from './docsUrl'
 import { openDesignReport } from './openReport'
@@ -159,11 +158,8 @@ export function CommandPalette() {
         icon: 'FloorPlan',
         run: () => {
           const st = s()
-          // First editable room of the active plan (default apartment → first
-          // non-external room; custom plan → its first room).
-          const id = isDefaultPlan(st.floorPlan)
-            ? Object.values(ROOMS).find((r) => !r.external)?.id
-            : st.floorPlan.rooms[0]?.id
+          // First editable room of the active plan (default apartment or custom).
+          const id = firstEditableRoomId(st.floorPlan)
           if (id) st.enterRoomEditor(id)
         },
       },
@@ -273,9 +269,7 @@ export function CommandPalette() {
           // Placement only happens inside the per-room editor now, so if we're
           // in the view-only overview, dive into a room first (then arm).
           if (!canEditScene(st)) {
-            const id = isDefaultPlan(st.floorPlan)
-              ? Object.values(ROOMS).find((r) => !r.external)?.id
-              : st.floorPlan.rooms[0]?.id
+            const id = firstEditableRoomId(st.floorPlan)
             if (id) st.enterRoomEditor(id)
           }
           useStore.getState().setCatalogOpen(false)

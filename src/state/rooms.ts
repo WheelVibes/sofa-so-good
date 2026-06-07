@@ -7,12 +7,35 @@ import type { FloorPlan } from '../floorplan/types'
  * apartment's non-external rooms, or a custom plan's own rooms. Shared by the
  * room switcher and the room-cycle (`,`/`.`) shortcuts so they stay in sync.
  */
-export function editableRoomIds(plan: FloorPlan): string[] {
+export interface EditableRoom {
+  id: string
+  name: string
+}
+
+/**
+ * Editable rooms (id + name) for the active plan, in display order — the default
+ * apartment's non-external rooms, or a custom plan's own rooms. The single
+ * source of truth for every room switcher / "Edit a room" entry, so they never
+ * drift on how custom plans vs the fixed flat are enumerated.
+ */
+export function editableRooms(plan: FloorPlan): EditableRoom[] {
   return isDefaultPlan(plan)
     ? Object.values(ROOMS)
         .filter((r) => !r.external)
-        .map((r) => r.id as string)
-    : plan.rooms.map((r) => r.id)
+        .map((r) => ({ id: r.id as string, name: r.name }))
+    : plan.rooms.map((r) => ({ id: r.id, name: r.name }))
+}
+
+/** Ids of the editable rooms (see `editableRooms`), in display order. Shared by
+ *  the room-cycle (`,`/`.`) shortcuts so they stay in sync with the switchers. */
+export function editableRoomIds(plan: FloorPlan): string[] {
+  return editableRooms(plan).map((r) => r.id)
+}
+
+/** The first editable room id of the active plan (what "Edit a room" dives into),
+ *  or undefined when the plan has none. */
+export function firstEditableRoomId(plan: FloorPlan): string | undefined {
+  return editableRooms(plan)[0]?.id
 }
 
 /**

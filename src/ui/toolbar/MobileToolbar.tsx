@@ -1,6 +1,4 @@
 import { type ReactNode, useEffect, useState } from 'react'
-import { ROOMS } from '../../apartment/constants'
-import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { dropBuiltinSet, dropIkeaSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { FURNITURE_SETS } from '../../furniture/furnitureSets'
@@ -19,6 +17,7 @@ import { canRecord } from '../../scene/RecordController'
 import { BACKDROPS } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
+import { firstEditableRoomId } from '../../state/rooms'
 import { applySerialized, serialize } from '../../state/schema'
 import { PRESET_HOURS, type TimePreset } from '../../state/slices/timeSlice'
 import { LocalStorageAdapter } from '../../state/storage/LocalStorageAdapter'
@@ -156,9 +155,7 @@ export function MobileToolbar() {
   const qualityTier = useStore((st) => st.qualityTier)
   const userStyles = useStore((st) => st.userStyles)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
-  // Room-switcher options follow the active plan (default apartment vs custom).
   const floorPlanForRooms = useStore((st) => st.floorPlan)
-  const onDefaultPlan = isDefaultPlan(floorPlanForRooms)
   const savedViews = useStore((st) => st.savedViews)
   const setHelpOpen = useStore((st) => st.setHelpOpen)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
@@ -174,14 +171,9 @@ export function MobileToolbar() {
   }
 
   const gridLabel = gridSize >= 1 ? `${gridSize} m` : `${Math.round(gridSize * 100)} cm`
-  // Room list follows the active plan (default apartment → built-in rooms minus
-  // external ledges; custom plan → its own rooms).
-  const editableRooms = onDefaultPlan
-    ? Object.values(ROOMS)
-        .filter((r) => !r.external)
-        .map((r) => ({ id: r.id as string, name: r.name }))
-    : floorPlanForRooms.rooms.map((r) => ({ id: r.id, name: r.name }))
-  const defaultEditRoomId = editableRooms[0]?.id
+  // The room the "Edit a room" entry dives into — first editable room of the
+  // active plan (default apartment or a custom plan's own rooms).
+  const defaultEditRoomId = firstEditableRoomId(floorPlanForRooms)
 
   // Mutually-exclusive .aux panels (budget / checks / versions / history).
   const closeAux = () => {

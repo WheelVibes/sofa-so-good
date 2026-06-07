@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ROOMS } from '../../apartment/constants'
-import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { QUALITY_LABEL } from '../../scene/quality'
+import { firstEditableRoomId } from '../../state/rooms'
 import { useStore } from '../../state/store'
 import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
@@ -39,15 +38,9 @@ export function Toolbar() {
   const exitRoomEditor = useStore((s) => s.exitRoomEditor)
   const enterRoomEditor = useStore((s) => s.enterRoomEditor)
   const floorPlan = useStore((s) => s.floorPlan)
-  // Room-switcher options follow the active plan (default apartment → built-in
-  // rooms minus external ledges; custom plan → its own rooms).
-  const roomOptions = isDefaultPlan(floorPlan)
-    ? Object.values(ROOMS)
-        .filter((r) => !r.external)
-        .map((r) => ({ id: r.id as string, name: r.name }))
-    : floorPlan.rooms.map((r) => ({ id: r.id, name: r.name }))
-  // Default room the prominent "Edit a room" button dives into.
-  const editRoomId = roomOptions[0]?.id
+  // Default room the prominent "Edit a room" button dives into (first editable
+  // room of the active plan — default apartment or a custom plan's own rooms).
+  const editRoomId = firstEditableRoomId(floorPlan)
   const catalogOpen = useStore((s) => s.catalogOpen)
   const toggleCatalogOpen = useStore((s) => s.toggleCatalogOpen)
   const showMeasurements = useStore((s) => s.showMeasurements)

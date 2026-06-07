@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R14] Unify "editable rooms" enumeration (5 call sites → 1 helper)
+Added `editableRooms`/`firstEditableRoomId` to `state/rooms.ts`; refactored the
+desktop+mobile toolbars, RoomSwitcher, CommandPalette (×2) and Onboarding off
+their duplicated `isDefaultPlan ? ROOMS : plan.rooms` branches. 7 tests.
+
 ## [B44] "Apply finish to every room" works on custom plans
 `setAllFloorFinish`/`setAllWallFinish` iterated the fixed `ROOMS` table, so on a
 custom plan they applied to non-existent rooms and left the real ones unchanged.

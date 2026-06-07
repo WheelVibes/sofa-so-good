@@ -1,7 +1,6 @@
 import { useShallow } from 'zustand/react/shallow'
-import { ROOMS } from '../../apartment/constants'
-import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { pointInRoom } from '../../floorplan/types'
+import { editableRooms } from '../../state/rooms'
 import { useStore } from '../../state/store'
 
 /**
@@ -17,11 +16,7 @@ export function RoomSwitcher({ className = 'input toolbar-room-select' }: { clas
   const enterRoomEditor = useStore((s) => s.enterRoomEditor)
   const plan = useStore((s) => s.floorPlan)
   const items = useStore(useShallow((s) => s.items))
-  const options = isDefaultPlan(plan)
-    ? Object.values(ROOMS)
-        .filter((r) => !r.external)
-        .map((r) => ({ id: r.id as string, name: r.name }))
-    : plan.rooms.map((r) => ({ id: r.id, name: r.name }))
+  const options = editableRooms(plan)
   const countFor = (id: string) => {
     const pr = plan.rooms.find((r) => r.id === id)
     return pr ? items.filter((it) => pointInRoom(pr, it.position[0], it.position[1])).length : 0

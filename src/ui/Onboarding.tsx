@@ -1,6 +1,5 @@
 import { createPortal } from 'react-dom'
-import { ROOMS } from '../apartment/constants'
-import { isDefaultPlan } from '../floorplan/planGeometry'
+import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { BrandMark } from './Logo'
 import { Icon, type IconName } from './toolbar/icons'
@@ -74,9 +73,7 @@ export function Onboarding() {
       // where the drawer doesn't mount).
       s.resetToDefault()
       const st = useStore.getState()
-      const roomId = isDefaultPlan(st.floorPlan)
-        ? Object.values(ROOMS).find((r) => !r.external)?.id
-        : st.floorPlan.rooms[0]?.id
+      const roomId = firstEditableRoomId(st.floorPlan)
       if (roomId) st.enterRoomEditor(roomId)
       st.setLeftMode('catalog')
       st.setCatalogOpen(true)
