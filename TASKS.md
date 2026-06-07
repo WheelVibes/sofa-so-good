@@ -396,6 +396,7 @@ Remaining (larger / focused-session):
 - [x] R12. **Unify furniture-category colour palette** — extracted `furniture/categoryColors.ts` (`CATEGORY_COLORS`, all 15 categories) shared by the report's plan/legend + the walk minimap dots (was two drifting maps; minimap covered only 12 + grey fallback). Completeness test added. (CHANGELOG)
 - [x] F12. **Editable door swing + hinge (custom plans)** — added `hinge`/`swing` to `PlanOpening` + pure `floorplan/doorSwing.ts` helper; PlanInspector Hinge/Swing controls, 2D swing-arc redraw, side-correct clearance `doorSwingRects`, schema persistence, default-plan seed from `DoorSpec`. 8 unit tests; visually verified arcs mirror. (CHANGELOG)
   - [ ] F12a. **3D plan-door leaf** — custom-plan doors render as a plain gap in `PlanShell`; add a swinging leaf (reuse `Door.tsx`/`doorSwingGeometry`) honouring hinge/swing. GPU-verified, deferred (see "Focus on non-GPU" constraint).
+- [x] F13. **Auto-orient new door swing into the room** — `defaultDoorSwing(plan,wall,offset,width)` probes both sides; the editor's door-drop opens into the served room (convention), still flippable. 4 unit tests. (CHANGELOG)
 
 ## User-reported bugs (2026-06-07)
 - [x] B35. **Mobile Finish picker thin-strip thumbnails** — replaced the 3-col swatch grid with a per-surface dropdown + square preview on mobile (`useIsMobile`); desktop grid unchanged. Verified. (CHANGELOG)

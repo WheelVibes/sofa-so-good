@@ -9,8 +9,8 @@
  * - `swing`: 'right' = the wall's right-hand normal `(-uz, ux)` of the unit
  *   tangent `(ux, uz)`; 'left' = the opposite side.
  */
-import type { PlanOpening, PlanWall } from './types'
-import { wallLength } from './types'
+import type { FloorPlan, PlanOpening, PlanWall } from './types'
+import { pointInRoom, wallLength } from './types'
 
 export type DoorHinge = 'start' | 'end'
 export type DoorSwing = 'left' | 'right'
@@ -73,6 +73,34 @@ export function doorSwingGeometry(wall: PlanWall, o: PlanOpening): DoorSwingGeom
   while (d < -Math.PI) d += 2 * Math.PI
   const sweep: 0 | 1 = d > 0 ? 1 : 0
   return { hinge, freeJamb, leafTip, sweep, normal: [nx, nz] }
+}
+
+/**
+ * Pick the swing side for a newly-placed door so it opens *into* the room it
+ * serves — the architectural convention. Probes a short distance to each side of
+ * the opening's centre: if exactly one side lands inside a room, swing toward it;
+ * otherwise (both sides rooms, or neither) fall back to the default. Pure: takes
+ * the would-be opening's wall + offset + width, before the opening exists.
+ */
+export function defaultDoorSwing(
+  plan: FloorPlan,
+  wall: PlanWall,
+  offset: number,
+  width: number,
+): DoorSwing {
+  const len = wallLength(wall)
+  if (len === 0) return DEFAULT_DOOR_SWING
+  const ux = (wall.end[0] - wall.start[0]) / len
+  const uz = (wall.end[1] - wall.start[1]) / len
+  const cx = wall.start[0] + ux * (offset + width / 2)
+  const cz = wall.start[1] + uz * (offset + width / 2)
+  const probe = 0.5
+  // 'right' is the (-uz, ux) normal; 'left' the opposite.
+  const rightInside = plan.rooms.some((r) => pointInRoom(r, cx - uz * probe, cz + ux * probe))
+  const leftInside = plan.rooms.some((r) => pointInRoom(r, cx + uz * probe, cz - ux * probe))
+  if (rightInside && !leftInside) return 'right'
+  if (leftInside && !rightInside) return 'left'
+  return DEFAULT_DOOR_SWING
 }
 
 export interface SwingRect {

@@ -4,7 +4,7 @@ import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isEditableTarget } from '../../controls/useKeyboard'
-import { doorSwingGeometry } from '../../floorplan/doorSwing'
+import { defaultDoorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
@@ -469,13 +469,18 @@ export function FloorPlanEditor() {
       if (hit) {
         const width = tool === 'door' ? 0.9 : 1.2
         const offset = Math.max(0, Math.min(wallLength(hit.wall) - width, hit.offset - width / 2))
+        const snapped = snap(offset)
         const id = st.addOpening({
           kind: tool,
           wallId: hit.wall.id,
-          offset: snap(offset),
+          offset: snapped,
           width,
           sill: tool === 'door' ? 0 : 0.95,
           head: tool === 'door' ? 2.1 : 2.1,
+          // Orient a new door to open into the room it serves (convention).
+          ...(tool === 'door'
+            ? { swing: defaultDoorSwing(st.floorPlan, hit.wall, snapped, width) }
+            : {}),
         })
         st.setPlanSelection({ type: 'opening', id })
       }

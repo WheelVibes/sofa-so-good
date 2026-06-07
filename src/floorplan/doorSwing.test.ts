@@ -2,12 +2,13 @@ import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_DOOR_HINGE,
   DEFAULT_DOOR_SWING,
+  defaultDoorSwing,
   doorHinge,
   doorSwing,
   doorSwingClearRect,
   doorSwingGeometry,
 } from './doorSwing'
-import type { PlanOpening, PlanWall } from './types'
+import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 
 // Horizontal wall along +X; a 1 m door from x=1 to x=2.
 const wall: PlanWall = { id: 'w', start: [0, 0], end: [3, 0], thickness: 'internal' }
@@ -56,6 +57,43 @@ describe('doorSwingGeometry', () => {
   })
   it('returns null for a zero-length wall', () => {
     expect(doorSwingGeometry({ ...wall, end: [0, 0] }, base)).toBeNull()
+  })
+})
+
+function makePlan(rooms: PlanRoom[]): FloorPlan {
+  return {
+    id: 'p',
+    name: 'p',
+    ceilingHeight: 2.6,
+    extent: [6, 6],
+    walls: [wall],
+    openings: [],
+    rooms,
+  }
+}
+const room = (id: string, origin: [number, number], w: number, d: number): PlanRoom => ({
+  id,
+  name: id,
+  origin,
+  width: w,
+  depth: d,
+})
+
+describe('defaultDoorSwing', () => {
+  it('swings into the room on the +Z (right) side', () => {
+    const plan = makePlan([room('a', [0, 0], 3, 3)])
+    expect(defaultDoorSwing(plan, wall, 1, 1)).toBe('right')
+  })
+  it('swings into the room on the -Z (left) side', () => {
+    const plan = makePlan([room('a', [0, -3], 3, 3)])
+    expect(defaultDoorSwing(plan, wall, 1, 1)).toBe('left')
+  })
+  it('falls back to the default when both sides are rooms', () => {
+    const plan = makePlan([room('a', [0, 0], 3, 3), room('b', [0, -3], 3, 3)])
+    expect(defaultDoorSwing(plan, wall, 1, 1)).toBe(DEFAULT_DOOR_SWING)
+  })
+  it('falls back to the default when neither side is a room', () => {
+    expect(defaultDoorSwing(makePlan([]), wall, 1, 1)).toBe(DEFAULT_DOOR_SWING)
   })
 })
 

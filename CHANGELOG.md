@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F13] Auto-orient a new door to swing into the room it serves
+
+Building on F12: dropping a door in the floor-plan editor now defaults its swing
+side to open *into* the adjacent room — the architectural convention — instead
+of always swinging to the wall's right. A pure `defaultDoorSwing(plan, wall,
+offset, width)` helper probes a short distance to each side of the opening's
+centre: if exactly one side lands inside a room it swings that way, otherwise
+(both sides rooms, or neither) it keeps the existing default. Wired into the
+editor's door-drop; the user can still flip it in the inspector. 4 unit tests;
+full suite (905) + tsc + lint green; editor smoke-verified.
+
 ## [F12] Editable door swing direction + hinge placement (custom plans)
 
 Doors in the floor-plan editor were drawn with a hardcoded swing arc — hinge
