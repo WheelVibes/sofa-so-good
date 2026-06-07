@@ -2,9 +2,10 @@ import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
-import { pointInRoom } from '../floorplan/types'
+import { isDefaultPlan } from '../floorplan/planGeometry'
+import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
-import { arrangeRoom } from '../layout/autoArrange'
+import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
@@ -71,7 +72,13 @@ export function FinishPicker() {
     if (!roomId) return
     const s = useStore.getState()
     s.pushHistory()
-    s.setItems(arrangeRoom(roomId, s.items, furnitureCatalog, s.doors))
+    // arrangeRoom is keyed on the fixed apartment's RoomId tables and throws on
+    // a custom plan's arbitrary room id — route custom plans to the plan-aware
+    // single-room arranger.
+    const next = isDefaultPlan(s.floorPlan)
+      ? arrangeRoom(roomId as RoomId, s.items, furnitureCatalog, s.doors)
+      : arrangePlanRoom(s.floorPlan, roomId, s.items, furnitureCatalog, s.doors)
+    s.setItems(next)
   }
   // Unlocked items inside this room (the set the room editor shows). Drives the
   // "Clear room" action + its count.
@@ -124,8 +131,13 @@ export function FinishPicker() {
   }, [view, phStatus, bootstrapRemote])
 
   if (!roomId) return null
-  const room = ROOMS[roomId]
-  if (!room || room.external) return null
+  // Resolve a display name + area from the fixed apartment (default plan) OR the
+  // active custom plan, so the picker works for custom-plan rooms too (RE6).
+  const builtinRoom = ROOMS[roomId]
+  if (builtinRoom?.external) return null
+  const roomName = builtinRoom?.name ?? planRoom?.name
+  const roomAreaM2 = builtinRoom ? roomArea(builtinRoom) : planRoom ? planRoomArea(planRoom) : 0
+  if (!roomName) return null
 
   const groups: Record<MaterialCategory, MaterialDef[]> = {
     floor: [],
@@ -162,11 +174,11 @@ export function FinishPicker() {
             </button>
           )}
           <div style={{ minWidth: 0 }}>
-            <div className="panel-title">{view === 'browse' ? 'Browse materials' : room.name}</div>
+            <div className="panel-title">{view === 'browse' ? 'Browse materials' : roomName}</div>
             <div className="panel-sub">
               {view === 'browse'
                 ? `Apply to ${lastSurface}`
-                : `Finishes · ${formatArea(roomArea(room), units)}`}
+                : `Finishes · ${formatArea(roomAreaM2, units)}`}
             </div>
           </div>
         </div>

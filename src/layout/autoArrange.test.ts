@@ -10,6 +10,7 @@ import { defaultParamProps } from '../furniture/types'
 import {
   arrangeAllRooms,
   arrangeAllRoomsForPlan,
+  arrangePlanRoom,
   arrangeRoom,
   roleForCategory,
   roleOf,
@@ -435,5 +436,57 @@ describe('roomKindFromName', () => {
     expect(roomKindFromName('Room 1')).toBeNull()
     expect(roomKindFromName('')).toBeNull()
     expect(roomKindFromName(undefined)).toBeNull()
+  })
+})
+
+describe('arrangePlanRoom (per-room tidy on custom plans)', () => {
+  const plan: FloorPlan = {
+    id: 'c',
+    name: 'Custom',
+    ceilingHeight: 2.6,
+    extent: [4, 4],
+    walls: [
+      { id: 'n', start: [0, 0], end: [4, 0], thickness: 'external' },
+      { id: 'e', start: [4, 0], end: [4, 4], thickness: 'external' },
+      { id: 's', start: [4, 4], end: [0, 4], thickness: 'external' },
+      { id: 'w', start: [0, 4], end: [0, 0], thickness: 'external' },
+    ],
+    openings: [],
+    rooms: [{ id: 'room-xyz', name: 'Bedroom', origin: [0, 0], width: 4, depth: 4 }],
+  }
+  const bed = (): FurnitureItem => ({
+    id: 'b',
+    defId: 'bed-queen',
+    position: [2, 2],
+    rotation: 0,
+    props: { ...defaultParamProps(BUILTIN_CATALOG['bed-queen'] as never) },
+  })
+
+  it('arranges a custom-plan room without throwing (arrangeRoom would crash)', () => {
+    // arrangeRoom is keyed on the fixed apartment's RoomId tables.
+    expect(() => arrangeRoom('room-xyz' as never, [bed()], BUILTIN_CATALOG, {})).toThrow()
+    const out = arrangePlanRoom(plan, 'room-xyz', [bed()], BUILTIN_CATALOG, {})
+    expect(out).toHaveLength(1)
+    // Valid against the CUSTOM plan's own walls (not the fixed flat) — and the
+    // bed stays inside the 4×4 room.
+    const walls = planCollisionWalls(plan, {})
+    const placed = out[0]
+    expect(
+      canPlace(placed, BUILTIN_CATALOG['bed-queen'], {
+        others: [],
+        defs: BUILTIN_CATALOG,
+        doors: {},
+        walls,
+      }),
+    ).toBe(true)
+    expect(placed.position[0]).toBeGreaterThanOrEqual(0)
+    expect(placed.position[0]).toBeLessThanOrEqual(4)
+    expect(placed.position[1]).toBeGreaterThanOrEqual(0)
+    expect(placed.position[1]).toBeLessThanOrEqual(4)
+  })
+
+  it('is a no-op for an unknown room id', () => {
+    const items = [bed()]
+    expect(arrangePlanRoom(plan, 'nope', items, BUILTIN_CATALOG, {})).toBe(items)
   })
 })

@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B40] Per-room finish/tidy/clear works on custom plans
+FinishPicker bailed for custom-plan rooms (`ROOMS[id]` undefined) and "Tidy" would
+crash (arrangeRoom is RoomId-keyed). Added `arrangePlanRoom` + sourced name/area
+from `plan.rooms`, completing RE6's plan-aware editor. 2 tests; 933 green.
+
 ## [F20] Explicit prices for 22 under/over-priced budget items
 22 builtin items fell back to the category base — wildly off (standing-fan/
 drying-rack at the $700 appliance base; piano/fireplace at the $60 decor base).
