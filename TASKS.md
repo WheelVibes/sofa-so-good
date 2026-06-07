@@ -314,3 +314,4 @@ Remaining (larger / focused-session):
 - [x] B26. **"Reset to HDB" undoable** — resetFloorPlan now pushes history first (was silent data loss of a custom plan). Unit-tested. (CHANGELOG)
 - [x] B27. **Loading a saved plan undoable** — loadSavedPlan pushes history first. Unit-tested. (CHANGELOG)
 - [x] B28. **Layout preset = single undo step** — applyLayoutPreset batches finishes into one set (was ~9 history entries via per-room setters). Unit-tested + E2E. (CHANGELOG)
+- [x] B29. **Clear undo history on every design load** — version restore + desktop/mobile Load now clearHistory like import (no Ctrl+Z across designs). (CHANGELOG)

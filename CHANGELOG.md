@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B29] Clear undo history on every design load (not just import)
+
+Loading a whole design replaces the world, so any prior undo steps reference a
+different design — pressing Ctrl/⌘+Z afterwards crossed the load boundary into
+incoherent state. Only the file-**import** path cleared history; **version
+restore**, desktop **File → Load**, and mobile **Load** did not. All four load
+paths now `clearHistory()` after `applySerialized` (which resets `past`/`future`
+*and* the coalesce keys), so undo never bridges two designs. Consistent across
+desktop + mobile.
+
 ## [B28] Layout preset / Smart Start is a single undo step
 
 `applyLayoutPreset` snapshotted history once but then called `setFloorFinish` /

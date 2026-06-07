@@ -57,6 +57,9 @@ export function FileMenu() {
     const userIds = useStore.getState().userFurniture.map((d) => d.id)
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
     useStore.setState(applySerialized(data, known))
+    // Loading replaces the world; clear undo history so Ctrl+Z can't cross into
+    // the previous design (consistent with import / version restore).
+    useStore.getState().clearHistory?.()
     useStore.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
 

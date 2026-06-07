@@ -85,6 +85,10 @@ export function VersionsPanel() {
     const userIds = useStore.getState().userFurniture.map((d) => d.id)
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
     useStore.setState(applySerialized(data, known))
+    // Loading a whole design replaces the world, so prior undo steps reference a
+    // different design — clear history (matching the file-import path) instead of
+    // letting Ctrl+Z cross the restore boundary into incoherent state.
+    useStore.getState().clearHistory?.()
     useStore.getState().notify.start({ title: `Restored “${slot}”`, kind: 'success' })
   }
 
