@@ -1,4 +1,5 @@
 import type { RoomId } from '../../apartment/types'
+import { isDefaultPlan } from '../../floorplan/planGeometry'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
 import type { RootState } from '../store'
@@ -196,6 +197,18 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   enterRoomEditor: (roomId) => {
     const s = get()
+    // The per-room editor's isolated room geometry (roomShell) is derived from
+    // the built-in apartment constants, so it only works on the default plan.
+    // On a custom floor plan, decline with a hint rather than showing a default
+    // room over a mismatched shell.
+    if (!isDefaultPlan(s.floorPlan)) {
+      s.notify.start({
+        title: 'Room editor is for the default layout',
+        kind: 'info',
+        message: 'Switch back to the default apartment to isolate and edit a single room.',
+      })
+      return
+    }
     priorTiers = { tier: s.qualityTier, userSet: s.qualityUserSet, asset: s.assetTier }
     set({
       roomEditor: { active: true, roomId },

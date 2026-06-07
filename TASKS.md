@@ -301,3 +301,7 @@ Remaining (larger / focused-session):
 - [x] B23. **Measurement overlay follows the active plan** — was iterating default
   ROOMS at default centroids; now plan.rooms + polygon/rect centroid + planRoomArea.
   Default unchanged (E2E-verified); custom plans fixed. (CHANGELOG)
+- [x] B24. **Gate per-room editor to the default plan** — `enterRoomEditor` declines
+  (toast) on custom plans + hid the View/mobile entries; default unchanged. (CHANGELOG)
+- [ ] RE6/big. Make the per-room editor **plan-aware** (roomShell from plan.rooms)
+  so custom plans can isolate a room too. Larger follow-up.

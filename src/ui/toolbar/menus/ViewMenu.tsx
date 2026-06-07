@@ -1,4 +1,5 @@
 import { ROOMS } from '../../../apartment/constants'
+import { isDefaultPlan } from '../../../floorplan/planGeometry'
 import { useStore } from '../../../state/store'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
@@ -14,6 +15,10 @@ export function ViewMenu() {
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
   const enterRoomEditor = useStore((s) => s.enterRoomEditor)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
+  // The per-room editor only supports the built-in apartment (its isolated room
+  // geometry comes from the apartment constants), so hide the entry on a custom
+  // floor plan.
+  const onDefaultPlan = useStore((s) => isDefaultPlan(s.floorPlan))
   const defaultRoomId = Object.values(ROOMS).find((r) => !r.external)?.id
   return (
     <ToolbarMenu icon="TopView" label="View" active={autoRotate || roomEditorActive}>
@@ -36,7 +41,7 @@ export function ViewMenu() {
         active={autoRotate}
         onClick={toggleAutoRotate}
       />
-      {defaultRoomId ? (
+      {defaultRoomId && onDefaultPlan ? (
         <>
           <div className="my-1 border-t border-[var(--border)]" />
           <MenuItem

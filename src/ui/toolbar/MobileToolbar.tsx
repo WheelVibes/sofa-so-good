@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
+import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { dropBuiltinSet, dropIkeaSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { FURNITURE_SETS } from '../../furniture/furnitureSets'
@@ -153,6 +154,8 @@ export function MobileToolbar() {
   const userStyles = useStore((st) => st.userStyles)
   const roomEditorActive = useStore((st) => st.roomEditor.active)
   const roomEditorRoomId = useStore((st) => st.roomEditor.roomId)
+  // Per-room editor only supports the built-in apartment (see ViewMenu).
+  const onDefaultPlan = useStore((st) => isDefaultPlan(st.floorPlan))
   const savedViews = useStore((st) => st.savedViews)
   const setHelpOpen = useStore((st) => st.setHelpOpen)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
@@ -341,7 +344,7 @@ export function MobileToolbar() {
                   on={autoRotate}
                   onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
                 />
-                {!roomEditorActive && defaultEditRoomId ? (
+                {!roomEditorActive && defaultEditRoomId && onDefaultPlan ? (
                   <Item
                     icon="FloorPlan"
                     label="Edit a room"

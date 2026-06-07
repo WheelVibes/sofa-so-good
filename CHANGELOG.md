@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B24] Gate the per-room editor to the default plan
+
+The per-room ("Edit a room") editor isolates a room using geometry derived from
+the built-in apartment constants (`roomShell` → `ROOMS`), so on a **custom floor
+plan** entering it showed a default room over a mismatched shell. Added a central
+guard in `enterRoomEditor` (declines with an explanatory toast when the active
+plan isn't the default) and hid the entry points (toolbar **View → Edit a room**
+and the mobile action sheet) on custom plans. The default apartment is unaffected
+(`isDefaultPlan` true for the boot plan — verified the entry still shows + works).
+Making the room editor fully plan-aware is tracked as a larger follow-up.
+
 ## [B23] Measurement overlay follows the active plan (custom-plan fix)
 
 The 3D measurement overlay (room name + size + ceiling per room) iterated the
