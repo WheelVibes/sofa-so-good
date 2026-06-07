@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B32] Walk-mode spawn inside custom plans (was the default flat's coords)
+
+Entering **walk mode on a custom floor plan** spawned the player at the built-in
+flat's hard-coded living/dining position (11, 6) — which lands *outside* an
+arbitrary custom plan (e.g. a 8×5 loft), so you started in the void looking at
+the building's exterior. Now a custom plan spawns the player in its **largest
+room**, standing in the back third looking across the space; the built-in flat
+keeps its exact tuned spawn. E2E-verified (custom 8×5 plan: spawn inside, room +
+sofa in view).
+
 ## [B31] Plan-aware camera framing + fix camera-reset-on-plan-edit regression
 
 Two fixes to `OrbitCamera`/`FirstPersonCamera`:

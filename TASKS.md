@@ -330,3 +330,4 @@ Remaining (larger / focused-session):
 - [x] Q53. **Richer report header** — room count + total area in the subheader. Verified. (CHANGELOG)
 - [x] Q53b. **Share "Copy summary" room count** — consistent with the report header. (CHANGELOG)
 - [x] B31. **Plan-aware camera framing** (reset/top/room-exit frame the active plan) + fixed the RE6.3 camera-reset-on-plan-edit regression (plan read fresh in effects). E2E-verified. (CHANGELOG)
+- [x] B32. **Walk spawn inside custom plans** — was the default flat coords (outside custom plans); now the largest room, looking across. E2E-verified. (CHANGELOG)

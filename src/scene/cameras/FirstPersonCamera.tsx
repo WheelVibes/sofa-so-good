@@ -13,6 +13,7 @@ import { KEYBINDINGS } from '../../controls/keybindings'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { planRoomShell } from '../../floorplan/planRoomShell'
+import { planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
@@ -205,10 +206,26 @@ export function FirstPersonCamera() {
       const [cx, cz] = editorShell ? editorShell.shell.center : [0, 0]
       camera.position.set(cx, EYE_HEIGHT, cz)
       camera.lookAt(cx, EYE_HEIGHT, cz - 1)
-    } else {
+    } else if (isDefaultPlan(useStore.getState().floorPlan)) {
       camera.position.set(11, EYE_HEIGHT, 6)
       // Face into the living/dining instead of inheriting the orbit angle.
       camera.lookAt(10.4, EYE_HEIGHT, 2.5)
+    } else {
+      // Custom plan: spawn in the largest room (the default flat's hand-tuned
+      // living/dining spawn would land outside an arbitrary plan). Stand in the
+      // back third looking across the room so the first view shows the space, not
+      // a near wall.
+      const plan = useStore.getState().floorPlan
+      const big = plan.rooms.reduce(
+        (a, b) => (a && planRoomArea(a) >= planRoomArea(b) ? a : b),
+        plan.rooms[0],
+      )
+      const [bw, bd] = planBounds(plan)
+      const cx = big ? big.origin[0] + big.width / 2 : bw / 2
+      const cz = big ? big.origin[1] + big.depth / 2 : bd / 2
+      const span = big ? big.depth : bd
+      camera.position.set(cx, EYE_HEIGHT, cz + span * 0.32)
+      camera.lookAt(cx, EYE_HEIGHT, cz - span * 0.32)
     }
     // Seed drag-to-look yaw/pitch from the spawn orientation so the first drag
     // continues smoothly from where the camera is already pointing.
