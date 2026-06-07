@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { DEFAULT_PLAN_WALL_COLOR, planRoomArea, wallLength } from '../../floorplan/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
@@ -7,7 +8,10 @@ import { useIsMobile } from '../useIsMobile'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
 
-/** Numeric field with a label, editing one metre value. */
+/** Numeric field with a label, editing one metre value. Holds the raw text while
+ *  focused so the user can clear / type a partial value ("1.", "-") freely, and
+ *  only commits a *finite* number — so a blank/NaN field never reaches the plan
+ *  geometry (which would make a degenerate room/wall and break save/render). */
 function Num({
   label,
   value,
@@ -21,15 +25,24 @@ function Num({
   step?: number
   min?: number
 }) {
+  const committed = Number.isFinite(value) ? String(Math.round(value * 1000) / 1000) : ''
+  const [text, setText] = useState<string | null>(null)
   return (
     <label className="flex items-center justify-between gap-2 text-xs">
       <span className="label">{label}</span>
       <input
         type="number"
-        value={Number.isFinite(value) ? Math.round(value * 1000) / 1000 : 0}
+        // While focused (text !== null) show the raw input; otherwise the
+        // committed value, so a re-render doesn't fight the user mid-edit.
+        value={text ?? committed}
         step={step}
         min={min}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={(e) => {
+          setText(e.target.value)
+          const n = Number.parseFloat(e.target.value)
+          if (Number.isFinite(n)) onChange(n)
+        }}
+        onBlur={() => setText(null)}
         className="input mono"
         style={{ width: 96, textAlign: 'right' }}
       />

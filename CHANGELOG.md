@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B42] Floor-plan numeric fields can't push NaN into the geometry
+Clearing/partial-typing a PlanInspector field (wall/room/opening dims) fed NaN
+into the plan (degenerate room, broken area/render, NaN→null on save). `Num` now
+holds raw text while focused and commits only finite values. Render-verified.
+
 ## [B41] Wall-accent picker shows the room name on custom plans
 Was showing the raw room id (e.g. "studio-main") since it only knew the built-in
 `ROOMS` table. Added a shared `roomDisplayName(id, plan)` helper (plan-aware). 3 tests.
