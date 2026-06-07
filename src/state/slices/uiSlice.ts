@@ -58,6 +58,9 @@ export interface UiSlice {
   recording: boolean
   /** Recently-used custom finish colours (hex), most-recent first. Ephemeral. */
   recentColors: string[]
+  /** Recently-applied finish material ids (most-recent first, capped). Speeds
+   *  re-applying a finish across rooms. Ephemeral. */
+  recentFinishes: string[]
   /** Adaptive last-resort: when the FPS guard is already at the Low tier and
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
@@ -133,6 +136,8 @@ export interface UiSlice {
   setRecording: (v: boolean) => void
   /** Record a custom colour as recently-used (deduped, capped at 8). */
   pushRecentColor: (hex: string) => void
+  /** Record a material id as a recently-applied finish (deduped, capped at 8). */
+  pushRecentFinish: (id: string) => void
 }
 
 export const UI_INITIAL: Pick<
@@ -153,6 +158,7 @@ export const UI_INITIAL: Pick<
   | 'clearanceOn'
   | 'recording'
   | 'recentColors'
+  | 'recentFinishes'
   | 'materialEpoch'
   | 'showcaseAccumulating'
   | 'roomEditor'
@@ -177,6 +183,7 @@ export const UI_INITIAL: Pick<
   clearanceOn: false,
   recording: false,
   recentColors: [],
+  recentFinishes: [],
   materialEpoch: 0,
   showcaseAccumulating: false,
   roomEditor: { active: false, roomId: null },
@@ -279,4 +286,6 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
         ...s.recentColors.filter((c) => c.toLowerCase() !== hex.toLowerCase()),
       ].slice(0, 8),
     })),
+  pushRecentFinish: (id) =>
+    set((s) => ({ recentFinishes: [id, ...s.recentFinishes.filter((f) => f !== id)].slice(0, 8) })),
 })

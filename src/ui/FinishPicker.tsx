@@ -61,6 +61,8 @@ export function FinishPicker() {
   const removeUserMaterial = useStore((s) => s.removeUserMaterial)
   const recentColors = useStore(useShallow((s) => s.recentColors))
   const pushRecentColor = useStore((s) => s.pushRecentColor)
+  const recentFinishes = useStore(useShallow((s) => s.recentFinishes))
+  const pushRecentFinish = useStore((s) => s.pushRecentFinish)
   const units = useStore((s) => s.units)
   const items = useStore(useShallow((s) => s.items))
   const plan = useStore((s) => s.floorPlan)
@@ -134,6 +136,7 @@ export function FinishPicker() {
   const handleSelect = (surface: Surface, id: string) => {
     setLastSurface(surface)
     if (id.startsWith('#')) pushRecentColor(id)
+    else pushRecentFinish(id)
     if (surface === 'floor') setFloorFinish(roomId, id)
     else setWallFinish(roomId, id)
   }
@@ -197,6 +200,7 @@ export function FinishPicker() {
             onRemoveUser={removeUserMaterial}
             onCustom={(hex) => handleSelect('floor', hex)}
             recent={recentColors}
+            recentFinishIds={recentFinishes}
           />
           <button
             type="button"
@@ -214,6 +218,7 @@ export function FinishPicker() {
             onRemoveUser={removeUserMaterial}
             onCustom={(hex) => handleSelect('wall', hex)}
             recent={recentColors}
+            recentFinishIds={recentFinishes}
           />
           <button
             type="button"
@@ -281,6 +286,47 @@ interface SwatchGroupProps {
   onRemoveUser: (id: string) => void
   onCustom?: (hex: string) => void
   recent?: string[]
+  /** Recently-applied finish ids (any surface); filtered to this group's items. */
+  recentFinishIds?: string[]
+}
+
+/** A compact row of recently-applied finish materials (filtered to one surface),
+ *  for quickly re-applying the same finish across rooms. */
+function RecentFinishes({
+  mats,
+  active,
+  onSelect,
+}: {
+  mats: MaterialDef[]
+  active: string
+  onSelect: (id: string) => void
+}) {
+  if (mats.length === 0) return null
+  return (
+    <div style={{ marginBottom: 'var(--s-2)' }}>
+      <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+        <span>Recently used</span>
+      </div>
+      <div className="swatches" style={{ paddingBlock: 0 }}>
+        {mats.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            className={`swatch${m.id === active ? ' on' : ''}`}
+            title={m.name}
+            aria-label={`Recently used: ${m.name}`}
+            onClick={() => onSelect(m.id)}
+            style={{
+              backgroundColor: m.swatch,
+              backgroundImage: swatchImage(m),
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 function providerTag(def: MaterialDef): { label: string; cls: string } | null {
@@ -331,9 +377,15 @@ function SwatchGroup({
   onRemoveUser,
   onCustom,
   recent,
+  recentFinishIds,
 }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#')
   const isMobile = useIsMobile()
+  // Recent finishes that belong to THIS surface (intersect with the group's
+  // items so a recent floor finish doesn't surface in the Walls group).
+  const recentMats = (recentFinishIds ?? [])
+    .map((id) => items.find((m) => m.id === id))
+    .filter((m): m is MaterialDef => m != null)
 
   // Mobile: the 3-up swatch grid squeezes each thumbnail into a thin strip, so
   // show a compact dropdown of finishes with a live preview of the current
@@ -355,6 +407,7 @@ function SwatchGroup({
         <div className="sec-h">
           <span>{label}</span>
         </div>
+        <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
           <span
             className="swatch-lg"
@@ -416,6 +469,7 @@ function SwatchGroup({
       <div className="sec-h">
         <span>{label}</span>
       </div>
+      <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
       <div className="finish-grid">
         {items.map((m) => {
           const isUser = m.kind === 'textured' && m.source === 'user'

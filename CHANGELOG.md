@@ -54,6 +54,17 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [Q43] "Recently used" finishes in the FinishPicker
+
+Re-applying a finish across rooms (e.g. the same wood floor in three bedrooms)
+meant re-finding it in the grid each time. The FinishPicker now tracks
+recently-applied finish materials (`uiSlice.recentFinishes`, deduped/capped 8,
+pushed by the picker on any material selection) and shows a compact **"Recently
+used"** swatch row per surface — filtered to the group's category so a recent
+floor finish only surfaces under Floor, not Walls. Reuses the `.swatch` chip +
+existing material previews. Verified: applying Walnut/Oak-herringbone floors
+shows them under Floor only (not Walls). 885 tests; tsc + lint clean.
+
 ## [Q42] Report: room area in the Furniture-by-room headers
 
 Each room header in the report's "Furniture by room" section now shows the

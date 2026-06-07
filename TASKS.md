@@ -400,3 +400,4 @@ Remaining (larger / focused-session):
 - [x] Q40. **FinishPicker search** — filters Floor + Wall finishes by name (pure `filterFinishes`), desktop grid + mobile dropdown. Verified ("marble"→Marble). (CHANGELOG)
 - [x] Q41. **Report plan shows furniture** — reportPlanSvg renders top-down footprints (obbCorners) under the walls; report.ts derives them (guarded). Unit-tested. (CHANGELOG)
 - [x] Q42. **Room area in report Furniture-by-room headers** — RoomItems.area (planRoomArea) shown inline with count + total. Unit-tested. (CHANGELOG)
+- [x] Q43. **Recently used finishes** in the FinishPicker — per-surface recent-material row (uiSlice.recentFinishes), filtered to the group category. Verified. (CHANGELOG)
