@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N22] Walk-mode minimap (first-person orientation aid)
+
+Walk mode now shows a small **top-down minimap** (bottom-right, clear of the
+joystick) — the plan outline plus a live player marker (position + facing) so you
+can orient yourself while walking the flat. Pure DOM/SVG overlay; a lightweight
+rAF writes only the marker transform from the camera singletons (`cameraPosXZ` /
+`cameraForwardXZ`), and it unmounts (zero cost) outside walk. Works for the
+default flat and custom plans; safe-area-inset positioned for mobile. Verified
+the marker tracks the player.
+
 ## [Q46] Saved camera views capture the lighting (a "shot" = angle + ambiance)
 
 Saved views now snapshot the **time of day + fixture-lights mode** alongside the
