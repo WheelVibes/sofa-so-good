@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q47] Copy a one-line design summary (Share modal)
+
+A "Copy summary" button copies a one-line text summary — name · interior area ·
+item count · ~estimated cost (unit-aware) — to the clipboard for quick sharing
+in a chat/email, distinct from the full report and the portable `.sofa.json`.
+
 ## [N22] Walk-mode minimap (first-person orientation aid)
 
 Walk mode now shows a small **top-down minimap** (bottom-right, clear of the
