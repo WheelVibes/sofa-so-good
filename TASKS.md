@@ -292,3 +292,6 @@ Remaining (larger / focused-session):
 - [x] B21. **Report finishes-by-room follows the active plan** — was iterating
   the default ROOMS constant (broken for custom plans); now uses plan.rooms.
   Default output unchanged (verified); custom plans fixed. Unit-tested. (CHANGELOG)
+- [x] N25. **Scale bar on the report floor plan** — `scaleBarChoice` (pure,
+  unit-tested) picks a round metric/imperial length; drawn bottom-left. Verified
+  by rendering the real report. (CHANGELOG)

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import type { FloorPlan } from '../floorplan/types'
-import { reportPlanSvg } from './reportPlanSvg'
+import { reportPlanSvg, scaleBarChoice } from './reportPlanSvg'
 
 describe('reportPlanSvg', () => {
   it('draws walls + room labels for the default plan', () => {
@@ -34,6 +34,17 @@ describe('reportPlanSvg', () => {
     expect(svg).toMatch(/9(\.0)? m²/) // rect area label (3×3)
   })
 
+  it('draws a scale bar with a metric label', () => {
+    const svg = reportPlanSvg(buildDefaultPlan())
+    // Default HDB ~10 m wide → quarter ≈ 2.5 m → "2 m" bar.
+    expect(svg).toContain('2 m')
+  })
+
+  it('uses a feet label in imperial', () => {
+    const svg = reportPlanSvg(buildDefaultPlan(), [], 'imperial')
+    expect(svg).toMatch(/\d+ ft/)
+  })
+
   it('returns empty for a degenerate plan (no extent)', () => {
     const empty: FloorPlan = {
       id: 'x',
@@ -45,5 +56,27 @@ describe('reportPlanSvg', () => {
       rooms: [],
     }
     expect(reportPlanSvg(empty)).toBe('')
+  })
+})
+
+describe('scaleBarChoice', () => {
+  it('picks a nice metric length ~quarter of the width', () => {
+    expect(scaleBarChoice(10, 'metric')).toEqual({ meters: 2, label: '2 m' })
+    expect(scaleBarChoice(24, 'metric')).toEqual({ meters: 5, label: '5 m' })
+  })
+
+  it('labels sub-metre bars in cm', () => {
+    expect(scaleBarChoice(1.5, 'metric')).toEqual({ meters: 0.5, label: '50 cm' })
+  })
+
+  it('picks round feet at their true metre length in imperial', () => {
+    const c = scaleBarChoice(10, 'imperial')
+    expect(c.label).toBe('5 ft')
+    expect(c.meters).toBeCloseTo(5 * 0.3048)
+  })
+
+  it('never returns below the minimum for a tiny plan', () => {
+    expect(scaleBarChoice(0.2, 'metric')).toEqual({ meters: 0.5, label: '50 cm' })
+    expect(scaleBarChoice(0.2, 'imperial').label).toBe('1 ft')
   })
 })

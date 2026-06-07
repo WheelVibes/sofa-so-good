@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N25] Scale bar on the report's floor plan
+
+The printable report's floor-plan SVG now carries a **scale bar** (bottom-left,
+end ticks + label) — standard on architectural plans, and the thing that makes a
+plan measurable on paper. A new pure, unit-tested `scaleBarChoice(width, units)`
+picks a round length (~¼ of the plan width): metric 0.5/1/2/5/10 m (sub-metre
+labelled in cm), imperial 1/2/5/10/20 ft drawn at true metre length. Because the
+SVG scales as one, the bar always represents its labelled real length at the
+printed size. Verified by rendering the real report.
+
 ## [B21] Report finishes-by-room follows the active plan (custom-plan fix)
 
 The report's **Finishes by room** table iterated the default `ROOMS` constant, so

@@ -31,6 +31,38 @@ function annotationSvg(annotations: MeasurementAnnotation[], units: UnitSystem):
     .join('')
 }
 
+/** Pick a "nice" round scale-bar length that fits ~a quarter of the plan width.
+ *  Metric → 0.5/1/2/5/10 m; imperial → 1/2/5/10/20 ft (drawn at its true metre
+ *  length). Returns the bar length in METRES plus its label. */
+export function scaleBarChoice(
+  planWidthM: number,
+  units: UnitSystem,
+): { meters: number; label: string } {
+  const target = Math.max(0.5, planWidthM / 4)
+  if (units === 'imperial') {
+    const ft = [20, 10, 5, 2, 1].find((f) => f * 0.3048 <= target) ?? 1
+    return { meters: ft * 0.3048, label: `${ft} ft` }
+  }
+  const m = [10, 5, 2, 1, 0.5].find((v) => v <= target) ?? 0.5
+  return { meters: m, label: m < 1 ? `${m * 100} cm` : `${m} m` }
+}
+
+/** A scale bar drawn in the strip below the plan (world-metre coords). It scales
+ *  with the plan, so the bar always represents its labelled real length at the
+ *  diagram's printed size. */
+function scaleBarSvg(planWidthM: number, barY: number, units: UnitSystem): string {
+  const { meters, label } = scaleBarChoice(planWidthM, units)
+  const x0 = 0
+  const x1 = meters
+  const tick = 0.12
+  return (
+    `<line x1="${x0}" y1="${barY.toFixed(3)}" x2="${x1.toFixed(3)}" y2="${barY.toFixed(3)}" stroke="#374151" stroke-width="0.05"/>` +
+    `<line x1="${x0}" y1="${(barY - tick).toFixed(3)}" x2="${x0}" y2="${(barY + tick).toFixed(3)}" stroke="#374151" stroke-width="0.05"/>` +
+    `<line x1="${x1.toFixed(3)}" y1="${(barY - tick).toFixed(3)}" x2="${x1.toFixed(3)}" y2="${(barY + tick).toFixed(3)}" stroke="#374151" stroke-width="0.05"/>` +
+    `<text x="${(x1 + 0.2).toFixed(3)}" y="${barY.toFixed(3)}" font-size="0.3" fill="#6b7280" dominant-baseline="middle">${esc(label)}</text>`
+  )
+}
+
 /**
  * Build a self-contained inline **SVG** floor-plan diagram for the printable
  * report — walls as strokes (thicker for external) + room name labels at their
@@ -69,5 +101,9 @@ export function reportPlanSvg(
     })
     .join('')
 
-  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${(d + pad * 2).toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${walls}${labels}${annotationSvg(annotations, units)}</svg>`
+  // Extra strip below the plan for a scale bar (standard on architectural plans).
+  const scaleStrip = 0.9
+  const barY = d + pad + scaleStrip * 0.55
+  const vbH = d + pad * 2 + scaleStrip
+  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${walls}${labels}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
 }
