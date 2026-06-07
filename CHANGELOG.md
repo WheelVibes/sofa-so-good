@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B27] Loading a saved plan is now undoable
+
+`loadSavedPlan` swapped in a saved plan without a history snapshot, so loading a
+plan from the library over your current work couldn't be undone. It now pushes
+history first (only when the plan is found). Unit-tested (load → undo restores the
+working plan). Sister fix to [B26].
+
 ## [B26] "Reset to HDB" is now undoable (was silent data loss)
 
 `resetFloorPlan` replaced the active plan with the default **without snapshotting

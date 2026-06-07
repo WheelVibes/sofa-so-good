@@ -312,3 +312,4 @@ Remaining (larger / focused-session):
 - [x] B25. **Reject degenerate dimension annotations** — addAnnotation guards non-finite/zero spans. Unit-tested. (CHANGELOG)
 - [x] Q49. **Selected-item name label in the 2D editor** — haloed name on the selected footprint; only the selection, so no clutter. E2E-verified. (CHANGELOG)
 - [x] B26. **"Reset to HDB" undoable** — resetFloorPlan now pushes history first (was silent data loss of a custom plan). Unit-tested. (CHANGELOG)
+- [x] B27. **Loading a saved plan undoable** — loadSavedPlan pushes history first. Unit-tested. (CHANGELOG)

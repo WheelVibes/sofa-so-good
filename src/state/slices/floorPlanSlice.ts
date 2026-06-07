@@ -125,11 +125,13 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     })
     return savedId
   },
-  loadSavedPlan: (id) =>
-    set((s) => {
-      const found = s.savedPlans.find((p) => p.id === id)
-      return found ? { floorPlan: clonePlan(found), planSelection: null } : {}
-    }),
+  loadSavedPlan: (id) => {
+    const found = get().savedPlans.find((p) => p.id === id)
+    if (!found) return
+    // Snapshot first so loading a saved plan over the current one is undoable.
+    get().pushHistory()
+    set({ floorPlan: clonePlan(found), planSelection: null })
+  },
   deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
   setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
   toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
