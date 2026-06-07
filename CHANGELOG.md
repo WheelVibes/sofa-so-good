@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [FG3b] Feature flags — gate the ⌘K command palette
+`COMMAND_FLAGS` map filters palette commands (measure/smart-start/budget/
+clearance/versions/history/share/report/floorplan + saved-views) by flag, so a
+disabled feature can't be launched from ⌘K either. DOM-probe verified (toggling
+`report` removes exactly its command).
+
 ## [FG4] Feature flags — dev/admin flags panel (4/4)
 `ui/FlagsPanel` lists every flag with a toggle + reset (dev build or signed-in
 admin only); opened from the login screen's admin view. Screenshot-verified.

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import type { FeatureFlag } from '../features/featureFlags'
 import { useCatalogByCategory } from '../furniture/catalog'
 import { tidyHome } from '../layout/tidyHome'
 import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
@@ -10,6 +11,20 @@ import { useStore } from '../state/store'
 import { openDocs } from './docsUrl'
 import { openDesignReport } from './openReport'
 import { Icon, type IconName } from './toolbar/icons'
+
+/** ⌘K command id → the feature flag that gates it (so a disabled feature can't
+ *  be launched from the palette either). Unmapped commands are always shown. */
+const COMMAND_FLAGS: Record<string, FeatureFlag> = {
+  measure: 'measure',
+  'smart-start': 'smartStart',
+  budget: 'budget',
+  clearance: 'clearanceChecks',
+  versions: 'versions',
+  history: 'history',
+  share: 'shareExport',
+  report: 'report',
+  floorplan: 'floorPlanEditor',
+}
 
 interface Command {
   id: string
@@ -285,11 +300,23 @@ export function CommandPalette() {
     }))
   }, [byCategory])
 
+  // Drop commands whose feature flag is off (saved-view commands gate on the
+  // savedViews flag) so the palette can't launch a disabled feature.
+  const flags = useStore((s) => s.featureFlags)
+  const allowed = useMemo(
+    () =>
+      commands.filter((c) => {
+        const flag = COMMAND_FLAGS[c.id] ?? (c.id.startsWith('view:') ? 'savedViews' : undefined)
+        return !flag || flags[flag]
+      }),
+    [commands, flags],
+  )
+
   const q = query.trim().toLowerCase()
   const filtered = useMemo(() => {
-    if (!q) return commands.filter((c) => c.group !== 'Add furniture').concat()
-    return commands.filter((c) => c.label.toLowerCase().includes(q)).slice(0, 40)
-  }, [commands, q])
+    if (!q) return allowed.filter((c) => c.group !== 'Add furniture').concat()
+    return allowed.filter((c) => c.label.toLowerCase().includes(q)).slice(0, 40)
+  }, [allowed, q])
 
   // Reset active index + focus on open / query change.
   useEffect(() => {
