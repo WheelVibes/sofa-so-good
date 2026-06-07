@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [T5] Test for useDisposeOnUnmount (locks in the backdrop leak fix)
+
+Unit test for the `useDisposeOnUnmount` hook from [B35]: disposes every object
+exactly once on unmount, never on re-render, and tolerates null/undefined
+entries. Regression guard so the backdrop (and any future prop-attached GPU
+object) disposal can't silently break.
+
 ## [B35] Dispose backdrop GPU objects on unmount (no leak on backdrop switch)
 
 The scene backdrops create geometries + materials (and, for City, façade
