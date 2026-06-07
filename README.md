@@ -63,9 +63,11 @@ export the result — all in the browser.
   and a live **minimap** (bottom-right) shows where you are and which room
   you're in.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
-  plan its furniture (toolbar **View → Edit a room**, then switch rooms from the
-  dropdown that appears at the left of the toolbar; a **← exit button** or **Esc**
-  leaves). It shows just that room's walls + floor + its own furniture,
+  plan its furniture (toolbar **View → Edit a room** or ⌘K, then switch rooms from
+  the dropdown that appears at the left of the toolbar; a **← exit button** or
+  **Esc** leaves; you can also jump straight in with **Edit in 3D** on a room in
+  the 2D plan editor). Works on the built-in flat **and any custom floor plan**.
+  It shows just that room's walls + floor + its own furniture,
   with the camera-facing walls hidden so you always see in, supports orbit **and**
   walk, and keeps the full catalog/placement/measurement tools. It's deliberately
   lightweight — locked to the fast Performance renderer with full-resolution
