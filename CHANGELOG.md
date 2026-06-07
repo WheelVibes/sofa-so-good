@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE-bound] Bound furniture to room walls in the per-room editor
+New `collision/roomEditorWalls.roomEditorPlacementWalls` builds the edited room's
+*solid* perimeter (openings treated solid); DragController uses it for both
+collision-validity and wall-snap while the room editor is active, so a piece
+can't be dragged/dropped past the room's walls into adjacent rooms (default flat
++ custom plans). 3 new tests; collision suite green.
+
 ## [T1] Curated one-tap furniture finishes
 New `inspector/QuickFinishes` adds a swatch row (oak/walnut/teak/ash/ebony/
 marble — bundled procedural, ships in prod) under a furniture piece's wood/
