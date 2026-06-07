@@ -49,7 +49,9 @@ export the result — all in the browser.
   on at night. An **Auto / On / Off** toggle lights windowless rooms in
   daylight or kills fixtures entirely. A **time-of-day scrub slider** sweeps the
   whole day in one drag, and **window glass tints with the light** — a clear
-  cool pane by day, dark and reflective after dark.
+  cool pane by day, dark and reflective after dark. One-click **lighting moods**
+  (Scene menu / ⌘K) preview the room at daylight, golden hour, a cosy evening, or
+  night.
 - **HDB-estate skyline** — neighbouring blocks ring the flat so windows frame
   a real view; their windows light up warm at night.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
@@ -57,7 +59,9 @@ export the result — all in the browser.
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a
   presentation clip. Walking uses WASD + mouse-look (pointer-lock) on desktop
   and an on-screen joystick + drag-to-look on touch; a themed, auto-fading
-  **controls banner** greets you on entry with the right hints for your device.
+  **controls banner** greets you on entry with the right hints for your device,
+  and a live **minimap** (bottom-right) shows where you are and which room
+  you're in.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
   plan its furniture (toolbar **View → Edit a room**, then switch rooms from the
   dropdown that appears at the left of the toolbar; a **← exit button** or **Esc**
@@ -100,7 +104,8 @@ export the result — all in the browser.
 - **Design tools** — a SGD **budget** / shopping list (with an optional **budget
   target** that tracks how far over/under you are), door-swing **clearance
   checks**, a **sun study** time-lapse, an auto **walkthrough** tour, point-to-
-  point **distance and area measuring**, and a printable **design report**
+  point **distance and area measuring** (📌 **Pin** any measurement to keep it as
+  a persistent dimension annotation on the design), and a printable **design report**
   (per-room areas, budget, cost-by-room, **cost per m²/ft²**, and a **finishes-
   by-room** spec). Switch all dimension read-outs between **metric and imperial**
   (feet-and-inches) from the Graphics panel.
