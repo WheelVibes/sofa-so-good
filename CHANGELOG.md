@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F21] Version Compare now shows finish changes
+Extends Compare beyond furniture: `diffVersionFinishes` lists per-room floor/wall
+finish changes (e.g. "Kitchen floor: Oak → Marble"). 5 tests; empty-state now
+"Identical to the current design". (Live panel not screenshottable headless.)
+
 ## [B42] Floor-plan numeric fields can't push NaN into the geometry
 Clearing/partial-typing a PlanInspector field (wall/room/opening dims) fed NaN
 into the plan (degenerate room, broken area/render, NaN→null on save). `Num` now

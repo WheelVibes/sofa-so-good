@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
-import { diffVersionItems } from './versionDiff'
+import { diffVersionFinishes, diffVersionItems } from './versionDiff'
 
 const item = (id: string, defId: string): FurnitureItem => ({
   id,
@@ -37,5 +37,24 @@ describe('diffVersionItems', () => {
   it('falls back to defId when the catalog lacks a name', () => {
     const d = diffVersionItems([], [item('x', 'unknown-def')], catalog)
     expect(d.gained).toEqual([{ defId: 'unknown-def', name: 'unknown-def', count: 1 }])
+  })
+})
+
+describe('diffVersionFinishes', () => {
+  it('reports changed + added + removed floor/wall finishes (from=current, to=version)', () => {
+    const current = { floor: { kitchen: 'oak', bath: 'tile' }, walls: { kitchen: 'white' } }
+    const version = { floor: { kitchen: 'marble', living: 'oak' }, walls: { kitchen: 'white' } }
+    const d = diffVersionFinishes(current, version)
+    expect(d).toContainEqual({ roomId: 'kitchen', surface: 'Floor', from: 'oak', to: 'marble' })
+    expect(d).toContainEqual({ roomId: 'bath', surface: 'Floor', from: 'tile', to: undefined })
+    expect(d).toContainEqual({ roomId: 'living', surface: 'Floor', from: undefined, to: 'oak' })
+    // Walls unchanged for kitchen → not reported.
+    expect(d.some((c) => c.surface === 'Walls')).toBe(false)
+  })
+
+  it('is empty when finishes match (and tolerates undefined inputs)', () => {
+    const f = { floor: { a: 'oak' }, walls: { a: 'white' } }
+    expect(diffVersionFinishes(f, f)).toEqual([])
+    expect(diffVersionFinishes(undefined, undefined)).toEqual([])
   })
 })

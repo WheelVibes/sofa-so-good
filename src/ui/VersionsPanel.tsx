@@ -2,6 +2,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureItem } from '../furniture/types'
+import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
+import { roomDisplayName } from '../state/rooms'
 import { applySerialized, serialize } from '../state/schema'
 import {
   DesignFileError,
@@ -13,10 +15,23 @@ import type { SlotMeta } from '../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../state/storage/slotThumbs'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
-import { diffVersionItems, type VersionDiff } from './versionDiff'
+import {
+  diffVersionFinishes,
+  diffVersionItems,
+  type FinishChange,
+  type VersionDiff,
+} from './versionDiff'
 
 interface VersionRow extends SlotMeta {
   count: number
+}
+
+/** Friendly material name for a finish id (custom colour → hex, builtin → name,
+ *  unset → "default", else the raw id). */
+function matName(id: string | undefined): string {
+  if (!id) return 'default'
+  if (id.startsWith('#')) return id.toUpperCase()
+  return BUILTIN_MATERIALS[id]?.name ?? id
 }
 
 /** Compact relative time, e.g. "just now", "3m ago", "2h ago". */
@@ -49,10 +64,15 @@ async function loadRows(): Promise<VersionRow[]> {
 export function VersionsPanel() {
   const open = useStore((s) => s.versionsOpen)
   const setOpen = useStore((s) => s.setVersionsOpen)
+  const plan = useStore((s) => s.floorPlan)
   const itemCount = useStore((s) => s.items.length)
   const lastSavedAt = useStore((s) => s.lastSavedAt)
   const [rows, setRows] = useState<VersionRow[]>([])
-  const [compareSlot, setCompareSlot] = useState<{ slot: string; diff: VersionDiff } | null>(null)
+  const [compareSlot, setCompareSlot] = useState<{
+    slot: string
+    diff: VersionDiff
+    finishes: FinishChange[]
+  } | null>(null)
   const fileRef = useRef<HTMLInputElement>(null)
 
   const refresh = useCallback(() => void loadRows().then(setRows), [])
@@ -103,7 +123,13 @@ export function VersionsPanel() {
     if (!Array.isArray(versionItems)) return
     const st = useStore.getState()
     const diff = diffVersionItems(st.items, versionItems, buildMergedCatalog(st))
-    setCompareSlot({ slot, diff })
+    const versionFinishes = (
+      data as {
+        finishes?: { floor?: Record<string, string>; walls?: Record<string, string> }
+      } | null
+    )?.finishes
+    const finishes = diffVersionFinishes(st.finishes, versionFinishes)
+    setCompareSlot({ slot, diff, finishes })
   }
 
   const remove = async (slot: string) => {
@@ -247,8 +273,10 @@ export function VersionsPanel() {
                       color: 'var(--text-2)',
                     }}
                   >
-                    {compareSlot.diff.gained.length === 0 && compareSlot.diff.lost.length === 0 ? (
-                      <span>Same furniture as the current design.</span>
+                    {compareSlot.diff.gained.length === 0 &&
+                    compareSlot.diff.lost.length === 0 &&
+                    compareSlot.finishes.length === 0 ? (
+                      <span>Identical to the current design.</span>
                     ) : (
                       <>
                         {compareSlot.diff.gained.map((l) => (
@@ -259,6 +287,12 @@ export function VersionsPanel() {
                         {compareSlot.diff.lost.map((l) => (
                           <div key={`l${l.defId}`} style={{ color: 'var(--danger)' }}>
                             − {l.count} {l.name}
+                          </div>
+                        ))}
+                        {compareSlot.finishes.map((f) => (
+                          <div key={`${f.surface}:${f.roomId}`} style={{ color: 'var(--text-2)' }}>
+                            {roomDisplayName(f.roomId, plan)} {f.surface.toLowerCase()}:{' '}
+                            {matName(f.from)} → {matName(f.to)}
                           </div>
                         ))}
                         <div style={{ color: 'var(--text-3)', marginTop: 2 }}>

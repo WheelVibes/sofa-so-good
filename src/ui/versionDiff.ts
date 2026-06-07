@@ -48,3 +48,46 @@ export function diffVersionItems(
   lost.sort((a, b) => b.count - a.count)
   return { gained, lost, countDelta: version.length - current.length }
 }
+
+/** Per-room finish maps (the serialized `finishes` slice shape). */
+interface FinishMaps {
+  floor?: Record<string, string>
+  walls?: Record<string, string>
+}
+
+export interface FinishChange {
+  roomId: string
+  surface: 'Floor' | 'Walls'
+  /** Current material id (absent → none set). */
+  from?: string
+  /** Version material id (absent → none set). */
+  to?: string
+}
+
+/**
+ * Per-room floor/wall finish differences between a saved version and the current
+ * design. `from` = current, `to` = version (restoring would apply `to`). Pure;
+ * material/room ids are resolved to names by the caller. Matching surfaces are
+ * omitted.
+ */
+export function diffVersionFinishes(
+  current: FinishMaps | undefined,
+  version: FinishMaps | undefined,
+): FinishChange[] {
+  const out: FinishChange[] = []
+  const cmp = (
+    surface: 'Floor' | 'Walls',
+    cur?: Record<string, string>,
+    ver?: Record<string, string>,
+  ) => {
+    const ids = new Set([...Object.keys(cur ?? {}), ...Object.keys(ver ?? {})])
+    for (const roomId of ids) {
+      const from = cur?.[roomId]
+      const to = ver?.[roomId]
+      if (from !== to) out.push({ roomId, surface, from, to })
+    }
+  }
+  cmp('Floor', current?.floor, version?.floor)
+  cmp('Walls', current?.walls, version?.walls)
+  return out
+}
