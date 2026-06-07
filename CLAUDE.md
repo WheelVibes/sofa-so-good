@@ -762,7 +762,12 @@ rediscover it.
   plane captures two clicks and draws an always-on-top amber ruler. A
   Distance/Area toggle (`ui/TapeModeToggle.tsx`) switches `tapeShape`: **line**
   draws a ruler + distance label, **rect** treats the points as opposite corners
-  and fills the rectangle with a `W × D · area` label; desktop + mobile-parity),
+  and fills the rectangle with a `W × D · area` label; desktop + mobile-parity.
+  A completed measurement shows a **📌 Pin** that saves it as a **persistent
+  dimension annotation** — `measurementsSlice.annotations` (`MeasurementAnnotation`
+  line/rect), rendered by `scene/AnnotationsOverlay.tsx` in calm slate with a
+  distance/area label + **×** remove, shown in orbit + walk and round-tripped in
+  `schema.ts` (optional/back-compat, saved with the design)),
   and **Report** (`ui/report.ts`, printable).
   Multi-select shows an align/distribute panel; items can be **locked**;
   double-click focuses the camera; saved layouts get thumbnails (`slotThumbs`).
