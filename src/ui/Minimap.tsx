@@ -1,28 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { type PlanRoom, planBounds, pointInRoom, wallLength } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
-import type { FurnitureCategory } from '../furniture/types'
+import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { cameraForwardXZ, cameraPosXZ } from '../scene/cameras/cameraForward'
 import { useStore } from '../state/store'
 import { openingSegments, roomPathD } from './walk/minimapGeometry'
 
 const SIZE = 168
 const PAD = 0.4
-
-const DOT: Partial<Record<FurnitureCategory, string>> = {
-  seating: '#3b82f6',
-  beds: '#8b5cf6',
-  tables: '#f59e0b',
-  storage: '#10b981',
-  appliances: '#ef4444',
-  kitchen: '#ec4899',
-  bathroom: '#06b6d4',
-  textiles: '#f97316',
-  outdoor: '#84cc16',
-  electronics: '#0ea5e9',
-  kids: '#d946ef',
-  laundry: '#14b8a6',
-}
 
 /** World-metre centre of a room (polygon centroid, else the main-rect centre). */
 function roomCentre(r: PlanRoom): [number, number] {
@@ -188,7 +173,7 @@ export function Minimap() {
               cx={toX(it.position[0])}
               cy={toY(it.position[1])}
               r={2}
-              fill={DOT[def.category] ?? '#9ca3af'}
+              fill={CATEGORY_COLORS[def.category]}
             />
           )
         })}

@@ -393,6 +393,7 @@ Remaining (larger / focused-session):
 - [x] R8. **Remove noAssignInExpressions in catalog.ts** — extracted a `bucket()` helper for the category grouping. (CHANGELOG)
 - [x] R9. **Clear final lint error** (noUselessSwitchCase in `applianceFinish`) — `biome check src/` now exits 0. (CHANGELOG)
 - [x] R10. **Clear scripts/ lint errors + make CI lint blocking** — repo at 0 lint errors; CI Lint step flipped from continue-on-error to blocking so regressions can't reland. (CHANGELOG)
+- [x] R12. **Unify furniture-category colour palette** — extracted `furniture/categoryColors.ts` (`CATEGORY_COLORS`, all 15 categories) shared by the report's plan/legend + the walk minimap dots (was two drifting maps; minimap covered only 12 + grey fallback). Completeness test added. (CHANGELOG)
 
 ## User-reported bugs (2026-06-07)
 - [x] B35. **Mobile Finish picker thin-strip thumbnails** — replaced the 3-col swatch grid with a per-surface dropdown + square preview on mobile (`useIsMobile`); desktop grid unchanged. Verified. (CHANGELOG)

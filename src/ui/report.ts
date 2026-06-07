@@ -8,6 +8,7 @@ import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
+import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
@@ -33,26 +34,6 @@ const CAT_LABEL: Record<FurnitureCategory, string> = {
   kids: 'Baby & Kids',
   laundry: 'Laundry',
   others: 'Others',
-}
-
-/** Per-category fill for the furnished-plan footprints + legend (mirrors the
- *  walk minimap palette). Tinted at low opacity on the plan; full in the legend. */
-const CATEGORY_FILL: Record<FurnitureCategory, string> = {
-  beds: '#8b5cf6',
-  seating: '#3b82f6',
-  tables: '#f59e0b',
-  storage: '#10b981',
-  kitchen: '#ec4899',
-  bathroom: '#06b6d4',
-  appliances: '#ef4444',
-  lighting: '#eab308',
-  decor: '#a78bfa',
-  textiles: '#f97316',
-  outdoor: '#84cc16',
-  electronics: '#0ea5e9',
-  kids: '#d946ef',
-  laundry: '#14b8a6',
-  others: '#9ca3af',
 }
 
 const esc = (s: string) =>
@@ -172,7 +153,7 @@ export function buildReportHtml(
       const def = catalog[it.defId]
       // Guard defaultFootprint: a malformed def shouldn't crash the whole report.
       if (!def?.defaultFootprint) return null
-      return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_FILL[def.category] }
+      return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
     })
     .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
   const planSvg = reportPlanSvg(plan, annotations, units, planFootprints)
@@ -185,7 +166,7 @@ export function buildReportHtml(
       ? `<div class="plan-legend">${presentCats
           .map(
             (c) =>
-              `<span class="lg-item"><span class="lg-sw" style="background:${CATEGORY_FILL[c]}"></span>${CAT_LABEL[c]}</span>`,
+              `<span class="lg-item"><span class="lg-sw" style="background:${CATEGORY_COLORS[c]}"></span>${CAT_LABEL[c]}</span>`,
           )
           .join('')}</div>`
       : ''

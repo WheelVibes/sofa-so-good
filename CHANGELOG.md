@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [R12] Unify the furniture-category colour palette (report + minimap)
+
+The printable report's furnished-plan footprints/legend and the walk-mode
+minimap dots each carried their own hardcoded category→colour map. The two had
+already drifted: the minimap's `DOT` was a `Partial` map of 12 categories (with
+a grey `?? '#9ca3af'` fallback for the rest), while the report covered all 15.
+Extracted one `src/furniture/categoryColors.ts` (`CATEGORY_COLORS`, a complete
+`Record<FurnitureCategory, string>`, 15 distinct hues) as the single source of
+truth; both `report.ts` and `Minimap.tsx` now import it, so the colours stay in
+lock-step and the minimap gains real colours for kitchen/decor/lighting/others
+instead of falling back to grey. A `categoryColors.test.ts` asserts every
+category has a distinct valid hex. tsc + lint + full suite (893) green.
+
 ## [R8] Remove the `noAssignInExpressions` lint errors in `catalog.ts`
 
 `useCatalogByCategory` built its grouped buckets with
