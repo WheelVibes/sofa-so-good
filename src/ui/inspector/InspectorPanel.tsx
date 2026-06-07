@@ -3,11 +3,14 @@ import { useShallow } from 'zustand/react/shallow'
 import { canPlace } from '../../collision/placement'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
+import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { useStore } from '../../state/store'
+import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
 import { IkeaBody } from './IkeaBody'
+import { InspectorSection } from './InspectorSection'
 import { ParametricBody } from './ParametricBody'
 import { SourceLine } from './SourceLine'
 
@@ -72,6 +75,31 @@ function MultiSelectPanel() {
   const deleteAll = () => {
     const s = useStore.getState()
     for (const id of [...s.selectedItemIds]) s.deleteItem(id)
+  }
+
+  const duplicateAll = () => {
+    const s = useStore.getState()
+    const sources = s.items.filter((i) => s.selectedItemIds.includes(i.id))
+    if (sources.length === 0) return
+    const groupIds = new Set(sources.map((it) => it.groupId))
+    const sharedGroup = groupIds.size === 1 && !groupIds.has(undefined)
+    const gid =
+      sharedGroup && typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : undefined
+    const copies = planDuplicates(
+      sources,
+      { others: s.items, defs: catalog, doors: s.doors },
+      (n) =>
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `id-${Date.now()}-${n}`,
+      gid,
+    )
+    if (copies.length === 0) return
+    s.pushHistory()
+    s.setItems([...s.items, ...copies])
+    s.setSelectedItemIds(copies.map((it) => it.id))
   }
 
   return (
@@ -146,6 +174,16 @@ function MultiSelectPanel() {
           )}
           <button
             type="button"
+            onClick={duplicateAll}
+            className="btn btn-soft btn-block"
+            style={{ marginTop: 'var(--s-2)' }}
+            title="Duplicate every selected item (⌘/Ctrl+D)"
+          >
+            <Icon.Copy width={14} height={14} />
+            Duplicate selection
+          </button>
+          <button
+            type="button"
             onClick={deleteAll}
             className="btn btn-danger btn-block"
             style={{ marginTop: 'var(--s-2)' }}
@@ -216,6 +254,7 @@ function PosField({
 export function InspectorPanel() {
   const multiCount = useStore((s) => s.selectedItemIds.length)
   const item = useStore(useShallow((s) => s.items.find((i) => i.id === s.selectedItemId) ?? null))
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const catalog = useCatalog()
   const deleteItem = useStore((s) => s.deleteItem)
   const selectItem = useStore((s) => s.selectItem)
@@ -224,6 +263,9 @@ export function InspectorPanel() {
   const pushHistory = useStore((s) => s.pushHistory)
   const activeGroupId = useStore((s) => s.activeGroupId)
   const addToGroup = useStore((s) => s.addToGroup)
+  const units = useStore((s) => s.units)
+  const renameItem = useStore((s) => s.renameItem)
+  const [arrayCount, setArrayCount] = useState(3)
   const flip = (axis: 'x' | 'z') => {
     pushHistory()
     flipItem(item!.id, axis)
@@ -314,7 +356,52 @@ export function InspectorPanel() {
     if (typeof wv === 'number') w = wv
     if (typeof dv === 'number') d = dv
   }
-  const cm = (m: number) => Math.round(m * 100)
+  // Place a row of copies to the item's right (local +X), spaced by its width,
+  // each collision-checked. Stops at the first blocked slot. The original + all
+  // copies share one groupId, committed in a single undo step.
+  const duplicateRow = () => {
+    const st = useStore.getState()
+    const count = Math.max(2, Math.min(10, Math.round(arrayCount)))
+    const rot = item.rotation
+    const rx = Math.cos(rot)
+    const rz = -Math.sin(rot) // local +X projected to world XZ
+    const step = w + 0.12
+    const gid =
+      typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `grp-${Date.now()}`
+    const newItems: (typeof item)[] = []
+    let others = st.items
+    for (let i = 1; i < count; i++) {
+      const pos: [number, number] = [
+        item.position[0] + rx * step * i,
+        item.position[1] + rz * step * i,
+      ]
+      const probe = {
+        id: `row-${i}`,
+        defId: item.defId,
+        position: pos,
+        rotation: rot,
+        props: item.props,
+      }
+      if (!canPlace(probe, def, { others, defs: catalog, doors: st.doors })) break
+      const ni = {
+        ...item,
+        id:
+          typeof crypto !== 'undefined' && crypto.randomUUID
+            ? crypto.randomUUID()
+            : `id-${Date.now()}-${i}`,
+        position: pos,
+        props: { ...item.props },
+        groupId: gid,
+      }
+      newItems.push(ni)
+      others = [...others, ni]
+    }
+    if (newItems.length === 0) return
+    st.pushHistory()
+    st.setItems(
+      st.items.map((it) => (it.id === item.id ? { ...it, groupId: gid } : it)).concat(newItems),
+    )
+  }
 
   return (
     <aside className="panel inspector">
@@ -324,10 +411,10 @@ export function InspectorPanel() {
             <CategoryIcon category={def.category} width={22} height={22} />
           </div>
           <div>
-            <div className="panel-title">{def.name}</div>
+            <div className="panel-title">{item.label ?? def.name}</div>
             <div className="panel-sub">{def.category}</div>
             <div className="dims mono" title="Width × Depth × Height">
-              {cm(w)} × {cm(d)} × {cm(def.defaultFootprint.h)} cm
+              {formatDimsShort([w, d, def.defaultFootprint.h], units)}
             </div>
           </div>
         </div>
@@ -342,35 +429,52 @@ export function InspectorPanel() {
       </div>
       <hr className="hr" />
       <div className="panel-body">
-        <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-          <div className="sec-h">
-            <span>Transform</span>
-          </div>
-          <div className="transform-grid">
-            <PosField
-              label="X"
-              unit="m"
-              value={item.position[0]}
-              step={0.05}
-              onCommit={(v) => tryMove(v, item.position[1])}
-            />
-            <PosField
-              label="Z"
-              unit="m"
-              value={item.position[1]}
-              step={0.05}
-              onCommit={(v) => tryMove(item.position[0], v)}
-            />
-            <PosField
-              label="Rotation"
-              unit="°"
-              value={(item.rotation * 180) / Math.PI}
-              step={15}
-              onCommit={trySetRot}
-              integer
-            />
-          </div>
-        </div>
+        <label className="flex items-center gap-2 text-xs" style={{ marginBottom: 'var(--s-2)' }}>
+          <span className="label" style={{ whiteSpace: 'nowrap' }}>
+            Name
+          </span>
+          <input
+            type="text"
+            value={item.label ?? ''}
+            placeholder={def.name}
+            aria-label="Custom item name"
+            onChange={(e) => renameItem(item.id, e.target.value)}
+            className="input"
+            style={{ flex: 1, minWidth: 0 }}
+          />
+        </label>
+        {proMode ? (
+          <InspectorSection
+            title="Transform"
+            defaultOpen
+            style={{ borderTop: 'none', paddingTop: 0 }}
+          >
+            <div className="transform-grid">
+              <PosField
+                label="X"
+                unit="m"
+                value={item.position[0]}
+                step={0.05}
+                onCommit={(v) => tryMove(v, item.position[1])}
+              />
+              <PosField
+                label="Z"
+                unit="m"
+                value={item.position[1]}
+                step={0.05}
+                onCommit={(v) => tryMove(item.position[0], v)}
+              />
+              <PosField
+                label="Rotation"
+                unit="°"
+                value={(item.rotation * 180) / Math.PI}
+                step={15}
+                onCommit={trySetRot}
+                integer
+              />
+            </div>
+          </InspectorSection>
+        ) : null}
         {def.kind === 'parametric' ? (
           <ParametricBody item={item} def={def} />
         ) : isIkeaDef(def) ? (
@@ -435,6 +539,23 @@ export function InspectorPanel() {
               Delete
             </button>
           </div>
+          {proMode ? (
+            <div className="act-array" title="Place a row of copies to the right of this item">
+              <span>Duplicate a row of</span>
+              <input
+                type="number"
+                min={2}
+                max={10}
+                value={arrayCount}
+                onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
+                aria-label="Number of copies in the row"
+              />
+              <button type="button" className="act-array-go" onClick={duplicateRow}>
+                <Icon.Copy width={13} height={13} />
+                Go
+              </button>
+            </div>
+          ) : null}
           <button
             type="button"
             onClick={() => useStore.getState().setSwapItemId(item.id)}

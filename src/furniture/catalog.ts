@@ -100,13 +100,22 @@ export function useCatalogByCategory(): Record<FurnitureCategory, FurnitureDef[]
   const out = Object.fromEntries(
     FURNITURE_CATEGORIES.map((c) => [c, [...(BUILTIN_BY_CATEGORY[c] ?? [])]]),
   ) as Record<FurnitureCategory, FurnitureDef[]>
-  for (const def of GENERATED_FURNITURE) (out[def.category] ??= []).push(def)
+  // Lazily create a category bucket (guards against an unknown category slipping
+  // in from imported defs) without an assign-in-expression.
+  const bucket = (cat: FurnitureCategory): FurnitureDef[] => {
+    const existing = out[cat]
+    if (existing) return existing
+    const created: FurnitureDef[] = []
+    out[cat] = created
+    return created
+  }
+  for (const def of GENERATED_FURNITURE) bucket(def.category).push(def)
   for (const def of userFurniture)
-    (out[def.category] ??= []).push(
+    bucket(def.category).push(
       isIkeaDef(def) ? resolveIkeaDefFootprint(def) : resolveUserDefFootprint(def),
     )
-  for (const def of Object.values(remote)) (out[def.category] ??= []).push(def)
-  for (const def of packFurniture) (out[def.category] ??= []).push(def)
+  for (const def of Object.values(remote)) bucket(def.category).push(def)
+  for (const def of packFurniture) bucket(def.category).push(def)
   return out
 }
 

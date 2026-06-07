@@ -41,6 +41,9 @@ input { font-family: inherit; }
   box-shadow: var(--shadow-pop);
   animation: modalpop var(--dur) var(--ease);
 }
+/* The dialog container receives programmatic focus on open (a11y) — suppress its
+   own focus ring; interactive children keep their own focus styles. */
+.modal-overlay > .panel[role='dialog']:focus { outline: none; }
 @keyframes modalpop { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
 
 /* ---- Thin, aesthetic scrollbars ------------------------------ */
@@ -144,7 +147,11 @@ kbd {
 }
 .tool-btn:hover { background: var(--surface-3); color: var(--text); }
 .tool-btn.active { background: var(--accent-soft); color: var(--accent-soft-text); }
-.tool-btn .cap { display: inline-block; }
+/* Prominent call-to-action variant (e.g. the overview's "Edit a room"): the
+   primary action in a view-only mode, so it reads as a filled accent pill. */
+.tool-btn.cta { background: var(--accent); color: var(--on-accent); }
+.tool-btn.cta:hover { background: var(--accent-2); color: var(--on-accent); }
+.tool-btn .cap { display: inline-block; white-space: nowrap; }
 .tool-btn .chev { opacity: 0.5; margin-left: -2px; }
 .brand-dot {
   width: 34px; height: 34px; border-radius: var(--r-2);
@@ -213,6 +220,21 @@ body.mobile .tip::after { content: none; }
 .menu-item.check.on .icn-check { opacity: 1; }
 .menu-label { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; padding: 8px 9px 4px; }
 .menu-sep { height: 1px; background: var(--border); margin: var(--s-2) 4px; }
+
+/* ---- Saved-view rows (View menu bookmarks) ------------------- */
+.saved-view-row { display: flex; align-items: center; gap: 2px; }
+.saved-view-row .saved-view-apply { flex: 1; min-width: 0; }
+.saved-view-row .saved-view-apply .mi-main { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.saved-view-thumb {
+  width: 40px; height: 26px; flex: none; object-fit: cover;
+  border-radius: var(--r-1); border: 1px solid var(--border);
+}
+.saved-view-del {
+  display: flex; align-items: center; justify-content: center;
+  flex: none; width: 30px; height: 30px; border-radius: var(--r-2);
+  color: var(--text-3); transition: var(--dur) var(--ease);
+}
+.saved-view-del:hover { background: var(--surface-3); color: var(--danger, #c0392b); }
 
 /* ---- Segmented control --------------------------------------- */
 .seg { display: inline-flex; padding: 3px; gap: 2px; background: var(--surface-2); border-radius: var(--r-2); }

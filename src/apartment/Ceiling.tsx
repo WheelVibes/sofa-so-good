@@ -1,12 +1,20 @@
-import { FLAT, ROOMS } from './constants'
+import { useStore } from '../state/store'
+import { ROOMS } from './constants'
 
 export function Ceiling() {
+  // Adjustable global ceiling height; per-room overrides (e.g. dropped bathroom
+  // ceilings) win. The override is read live from the editable floor-plan rooms
+  // (seeded from ROOMS, but user-editable via the plan editor), falling back to
+  // the ROOMS constant then the global height.
+  const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
+  const planRooms = useStore((s) => s.floorPlan.rooms)
   return (
     <group>
       {Object.values(ROOMS)
         .filter((r) => !r.external)
         .flatMap((r) => {
-          const h = r.ceilingHeight ?? FLAT.ceilingHeight
+          const override = planRooms.find((p) => p.id === r.id)?.ceilingHeight
+          const h = override ?? r.ceilingHeight ?? ceilingHeight
           const tiles: { cx: number; cz: number; w: number; d: number; key: string }[] = [
             {
               cx: r.origin[0] + r.width / 2,

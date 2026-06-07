@@ -1,10 +1,11 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useLivePrices } from '../catalog/pricing/livePrice'
 import { useCatalog } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../furniture/types'
 import { useStore } from '../state/store'
 import { CategoryIcon } from './catalog/CategoryIcon'
+import { buildShoppingCsv } from './shoppingCsv'
 import { Icon } from './toolbar/icons'
 
 const CATEGORY_LABEL: Record<FurnitureCategory, string> = {
@@ -46,6 +47,8 @@ export function BudgetPanel() {
   const setShopTab = useStore((s) => s.setShopTab)
   const collections = useStore((s) => s.collections)
   const toggleCollection = useStore((s) => s.toggleCollection)
+  const budgetTarget = useStore((s) => s.budgetTarget)
+  const setBudgetTarget = useStore((s) => s.setBudgetTarget)
 
   const { groups, total, count } = useMemo(() => {
     const byCat = new Map<FurnitureCategory, Map<string, Line>>()
@@ -173,6 +176,94 @@ export function BudgetPanel() {
             <span className="big mono">{fmt(shownTotal)}</span>
             <span className="panel-sub">{count} items</span>
           </div>
+          <BudgetTarget
+            target={budgetTarget}
+            spent={shownTotal}
+            fmt={fmt}
+            onChange={setBudgetTarget}
+          />
+          {groups.length > 1 && shownTotal > 0 ? (
+            <div className="bud-breakdown" style={{ margin: 'var(--s-2) 0 var(--s-1)' }}>
+              <div
+                className="label"
+                style={{ fontSize: 'var(--t-2xs)', marginBottom: 4, color: 'var(--text-3)' }}
+              >
+                Spend by category
+              </div>
+              {groups
+                .map((g) => ({
+                  cat: g.cat,
+                  amt: g.lines.reduce((s, l) => s + eachOf(l) * l.count, 0),
+                }))
+                .sort((a, b) => b.amt - a.amt)
+                .map(({ cat, amt }) => {
+                  const pct = Math.round((amt / shownTotal) * 100)
+                  return (
+                    <div key={cat} style={{ marginBottom: 5 }}>
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'space-between',
+                          fontSize: 'var(--t-2xs)',
+                          color: 'var(--text-2)',
+                        }}
+                      >
+                        <span>
+                          {CATEGORY_LABEL[cat]} · {pct}%
+                        </span>
+                        <span className="mono">{fmt(amt)}</span>
+                      </div>
+                      <div
+                        style={{
+                          height: 5,
+                          borderRadius: 999,
+                          background: 'var(--surface-2)',
+                          overflow: 'hidden',
+                          marginTop: 2,
+                        }}
+                      >
+                        <div
+                          style={{ width: `${pct}%`, height: '100%', background: 'var(--accent)' }}
+                        />
+                      </div>
+                    </div>
+                  )
+                })}
+            </div>
+          ) : null}
+          {groups.length > 0 ? (
+            <button
+              type="button"
+              className="btn ghost sm"
+              style={{ marginTop: 'var(--s-2)' }}
+              title="Download the shopping list as a CSV (for a spreadsheet or supplier)"
+              onClick={() => {
+                const lines = groups.flatMap((g) =>
+                  g.lines.map((l) => ({
+                    category: CATEGORY_LABEL[g.cat],
+                    item: l.name,
+                    qty: l.count,
+                    unit: eachOf(l),
+                    total: eachOf(l) * l.count,
+                  })),
+                )
+                const csv = buildShoppingCsv(lines, shownTotal)
+                const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }))
+                const a = document.createElement('a')
+                a.href = url
+                a.download = `shopping-list-${new Date().toISOString().slice(0, 10)}.csv`
+                document.body.appendChild(a)
+                a.click()
+                a.remove()
+                setTimeout(() => URL.revokeObjectURL(url), 0)
+                useStore
+                  .getState()
+                  .notify.start({ title: 'Shopping list exported (CSV)', kind: 'success' })
+              }}
+            >
+              Export CSV
+            </button>
+          ) : null}
           {import.meta.env.DEV && (
             <label
               className="panel-sub"
@@ -284,5 +375,92 @@ export function BudgetPanel() {
         </div>
       )}
     </aside>
+  )
+}
+
+/** Optional spending target with a progress bar + remaining/over read-out.
+ *  Editing the field updates the persisted store target (cleared when blank). */
+function BudgetTarget({
+  target,
+  spent,
+  fmt,
+  onChange,
+}: {
+  target: number | null
+  spent: number
+  fmt: (n: number) => string
+  onChange: (t: number | null) => void
+}) {
+  const [draft, setDraft] = useState(target != null ? String(target) : '')
+  // Keep the field in sync if the target is changed elsewhere (e.g. on load).
+  useEffect(() => {
+    setDraft(target != null ? String(target) : '')
+  }, [target])
+
+  const has = target != null && target > 0
+  const pct = has ? Math.min(1, spent / target) : 0
+  const over = has && spent > target
+  const remaining = has ? target - spent : 0
+
+  return (
+    <div style={{ margin: 'var(--s-2) 0 var(--s-1)' }}>
+      <label className="row" style={{ gap: 8, fontSize: 'var(--t-xs)' }}>
+        <span className="label" style={{ whiteSpace: 'nowrap' }}>
+          Budget target
+        </span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 4, marginLeft: 'auto' }}>
+          <span style={{ color: 'var(--text-3)' }}>$</span>
+          <input
+            type="number"
+            min={0}
+            inputMode="numeric"
+            value={draft}
+            placeholder="none"
+            aria-label="Budget target (SGD)"
+            onChange={(e) => {
+              setDraft(e.target.value)
+              const n = parseFloat(e.target.value)
+              onChange(Number.isFinite(n) && n > 0 ? n : null)
+            }}
+            className="input mono"
+            style={{ width: 90, textAlign: 'right' }}
+          />
+        </span>
+      </label>
+      {has && (
+        <>
+          <div
+            style={{
+              height: 6,
+              borderRadius: 999,
+              background: 'var(--surface-2)',
+              overflow: 'hidden',
+              marginTop: 6,
+            }}
+          >
+            <div
+              style={{
+                width: `${pct * 100}%`,
+                height: '100%',
+                background: over ? 'var(--danger)' : 'var(--accent)',
+                transition: 'width .2s',
+              }}
+            />
+          </div>
+          <div
+            style={{
+              fontSize: 'var(--t-2xs)',
+              marginTop: 4,
+              fontWeight: 600,
+              color: over ? 'var(--danger)' : 'var(--text-2)',
+            }}
+          >
+            {over
+              ? `Over by ${fmt(spent - target)}`
+              : `${fmt(remaining)} left · ${Math.round(pct * 100)}% of ${fmt(target)}`}
+          </div>
+        </>
+      )}
+    </div>
   )
 }

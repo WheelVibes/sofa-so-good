@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import type { Group } from 'three'
+import { Color, type Group, type MeshStandardMaterial } from 'three'
+import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
 import { getWallOpacity } from './walls/wallReveal'
@@ -10,6 +11,12 @@ function findWall(wallId: string): WallSpec | undefined {
 }
 
 const FRAME_T = 0.05 // frame bar thickness
+
+// Glass tint by daylight: a clear cool pane in daytime → a dark reflective pane
+// at night (so windows read as real glass — bright by day, near-black at night).
+// Lerped each frame from the shared darkness signal; allocation-free.
+const GLASS_DAY = new Color('#bcd4e6')
+const GLASS_NIGHT = new Color('#20272f')
 const FRAME_D = 0.08 // frame depth (across the wall)
 const GLASS_D = 0.02
 
@@ -57,10 +64,18 @@ function Grille({ w, h }: { w: number; h: number }) {
 export function WindowPane({ spec }: { spec: WindowSpec }) {
   const wall = findWall(spec.wallId)
   const groupRef = useRef<Group>(null)
+  const glassRef = useRef<MeshStandardMaterial>(null)
   // Hide the window once its host wall has faded most of the way out, so it
-  // doesn't float in mid-air during the dollhouse reveal.
+  // doesn't float in mid-air during the dollhouse reveal; and tint the glass by
+  // daylight (clear by day → dark/reflective at night).
   useFrame(() => {
     if (groupRef.current) groupRef.current.visible = getWallOpacity(spec.wallId) > 0.35
+    const m = glassRef.current
+    if (m) {
+      const d = getFixtureGlow() // 1 at night, 0 in daylight
+      m.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
+      m.opacity = 0.28 + d * 0.45 // more opaque (less see-through) at night
+    }
   })
   if (!wall) return null
   const dx = wall.end[0] - wall.start[0]
@@ -86,6 +101,7 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
         <mesh>
           <boxGeometry args={[w - FRAME_T, h - FRAME_T, GLASS_D]} />
           <meshStandardMaterial
+            ref={glassRef}
             color="#bcd4e6"
             roughness={0.05}
             metalness={0.1}

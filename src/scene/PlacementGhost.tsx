@@ -12,6 +12,7 @@ import {
   type FurnitureItem,
   type ParamProps,
 } from '../furniture/types'
+import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
 import { snapToGrid } from './snap'
 
@@ -31,6 +32,9 @@ function defaultProps(def: FurnitureDef): ParamProps {
  */
 export function PlacementGhost() {
   const activeDefId = useStore((s) => s.activeDefId)
+  // Placement is editing, so the ghost only shows inside the per-room editor
+  // (no ghost ⇒ the commit handler reads a null ghostWorld and swallows clicks).
+  const editing = useStore(canEditScene)
   const cursor = useStore(useShallow((s) => s.cursor))
   const items = useStore(useShallow((s) => s.items))
   const doors = useStore(useShallow((s) => s.doors))
@@ -99,7 +103,7 @@ export function PlacementGhost() {
     useStore.getState().setGhostWorld([px, pz], valid)
   })
 
-  if (!def || !ghostItem) return null
+  if (!def || !ghostItem || !editing) return null
 
   // Render an OBB-shaped translucent disc under the ghost so the
   // collision result is visible without disturbing the Furniture

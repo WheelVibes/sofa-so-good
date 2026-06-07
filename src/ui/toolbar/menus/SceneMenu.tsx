@@ -1,5 +1,12 @@
 import { type ChangeEvent, useState } from 'react'
+import { useFeature } from '../../../features/useFeature'
+import {
+  applyLightingScene,
+  isLightingSceneActive,
+  LIGHTING_SCENES,
+} from '../../../scene/lighting/lightingScenes'
 import { useEffectiveHour } from '../../../scene/lighting/useEffectiveHour'
+import { BACKDROPS } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS, type TimePreset } from '../../../state/slices/timeSlice'
 import { useStore } from '../../../state/store'
 import { CompassModal } from '../CompassModal'
@@ -15,6 +22,12 @@ export function SceneMenu() {
   const setPresetTime = useStore((s) => s.setPresetTime)
   const setManualHour = useStore((s) => s.setManualHour)
   const orientationDeg = useStore((s) => s.orientationDeg)
+  const lightsMode = useStore((s) => s.lightsMode)
+  const backdrop = useStore((s) => s.backdrop)
+  const setBackdrop = useStore((s) => s.setBackdrop)
+  const proMode = useStore((s) => s.uiMode === 'pro')
+  const fLightingMoods = useFeature('lightingMoods')
+  const fBackdrops = useFeature('backdrops')
   const effectiveHour = useEffectiveHour()
   const [compassOpen, setCompassOpen] = useState(false)
 
@@ -53,14 +66,64 @@ export function SceneMenu() {
             className="rounded border border-[var(--border)] bg-[var(--surface-solid)] px-1 py-0.5 text-xs"
           />
         </div>
-        <div className="mt-1 border-t border-[var(--border)] pt-1">
-          <MenuItem
-            icon="Sun"
-            label="Sun direction"
-            sub={`${Math.round(orientationDeg)}° — where the sun rises`}
-            onClick={() => setCompassOpen(true)}
+        {/* Scrub slider — drag to sweep the day and watch the light change live. */}
+        <div className="px-2 pb-1.5" onClick={(e) => e.stopPropagation()}>
+          <input
+            type="range"
+            min={0}
+            max={24}
+            step={0.25}
+            value={effectiveHour}
+            aria-label="Time of day"
+            onChange={(e) => setManualHour(Number(e.target.value))}
+            className="slider"
+            style={{ width: '100%' }}
           />
         </div>
+        {fLightingMoods && (
+          <div className="mt-1 border-t border-[var(--border)] pt-1">
+            <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+              Lighting moods
+            </div>
+            {LIGHTING_SCENES.map((sc) => (
+              <MenuItem
+                key={sc.id}
+                icon="Lights"
+                label={sc.label}
+                sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
+                active={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
+                onClick={() => applyLightingScene(sc)}
+              />
+            ))}
+          </div>
+        )}
+        {fBackdrops && (
+          <div className="mt-1 border-t border-[var(--border)] pt-1">
+            <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+              Backdrop
+            </div>
+            {BACKDROPS.map((b) => (
+              <MenuItem
+                key={b.id}
+                icon="Cube"
+                label={b.label}
+                sub={b.sub}
+                active={backdrop === b.id}
+                onClick={() => setBackdrop(b.id)}
+              />
+            ))}
+          </div>
+        )}
+        {proMode ? (
+          <div className="mt-1 border-t border-[var(--border)] pt-1">
+            <MenuItem
+              icon="Sun"
+              label="Sun direction"
+              sub={`${Math.round(orientationDeg)}° — where the sun rises`}
+              onClick={() => setCompassOpen(true)}
+            />
+          </div>
+        ) : null}
       </ToolbarMenu>
       <CompassModal open={compassOpen} onClose={() => setCompassOpen(false)} />
     </>

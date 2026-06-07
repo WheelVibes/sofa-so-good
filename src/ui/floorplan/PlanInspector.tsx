@@ -1,10 +1,17 @@
-import { planRoomArea, wallLength } from '../../floorplan/types'
+import { useState } from 'react'
+import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
+import { DEFAULT_PLAN_WALL_COLOR, planRoomArea, wallLength } from '../../floorplan/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
+import { formatArea, formatLength } from '../../utils/measurement'
+import { useIsMobile } from '../useIsMobile'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
 
-/** Numeric field with a label, editing one metre value. */
+/** Numeric field with a label, editing one metre value. Holds the raw text while
+ *  focused so the user can clear / type a partial value ("1.", "-") freely, and
+ *  only commits a *finite* number — so a blank/NaN field never reaches the plan
+ *  geometry (which would make a degenerate room/wall and break save/render). */
 function Num({
   label,
   value,
@@ -18,15 +25,24 @@ function Num({
   step?: number
   min?: number
 }) {
+  const committed = Number.isFinite(value) ? String(Math.round(value * 1000) / 1000) : ''
+  const [text, setText] = useState<string | null>(null)
   return (
     <label className="flex items-center justify-between gap-2 text-xs">
       <span className="label">{label}</span>
       <input
         type="number"
-        value={Number.isFinite(value) ? Math.round(value * 1000) / 1000 : 0}
+        // While focused (text !== null) show the raw input; otherwise the
+        // committed value, so a re-render doesn't fight the user mid-edit.
+        value={text ?? committed}
         step={step}
         min={min}
-        onChange={(e) => onChange(parseFloat(e.target.value))}
+        onChange={(e) => {
+          setText(e.target.value)
+          const n = Number.parseFloat(e.target.value)
+          if (Number.isFinite(n)) onChange(n)
+        }}
+        onBlur={() => setText(null)}
         className="input mono"
         style={{ width: 96, textAlign: 'right' }}
       />
@@ -38,21 +54,66 @@ function Num({
 export function PlanInspector() {
   const sel = useStore((s) => s.planSelection)
   const plan = useStore((s) => s.floorPlan)
+  const units = useStore((s) => s.units)
   const a = useStore.getState()
+  const isMobile = useIsMobile()
 
   let body: React.ReactNode = (
-    <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
-      Pick a tool and draw on the canvas, or select an element to edit it.
-      <br />
-      <br />
-      <b style={{ color: 'var(--text)' }}>Wall</b> — drag to draw.{' '}
-      <b style={{ color: 'var(--text)' }}>Room</b> — drag a rectangle (area is computed).{' '}
-      <b style={{ color: 'var(--text)' }}>Door / Window</b> — click on a wall.
-      <br />
-      <br />
-      Drawing snaps to the grid (set the size with the toolbar Snap control). Press Delete to remove
-      the selected element.
-    </p>
+    <div className="flex flex-col gap-3">
+      <div className="flex flex-col gap-2">
+        <span className="label">Ceiling height</span>
+        <Num
+          label="Height (m)"
+          value={plan.ceilingHeight}
+          step={0.05}
+          min={2.2}
+          onChange={(v) => {
+            if (!Number.isFinite(v)) return
+            // Clamp clear of the window head (2.1 m) so glazing never clips.
+            a.updateFloorPlanMeta({ ceilingHeight: Math.min(4, Math.max(2.2, v)) })
+          }}
+        />
+        <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+          Applies to the whole home (bathrooms keep their lower dropped ceiling).
+        </span>
+      </div>
+      <div className="flex flex-col gap-2">
+        <span className="label">Wall colour</span>
+        <div className="flex items-center gap-2">
+          <input
+            type="color"
+            aria-label="Wall colour"
+            value={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+            onChange={(e) => a.updateFloorPlanMeta({ wallColor: e.target.value })}
+            style={{ width: 40, height: 28, padding: 0, border: 'none', background: 'none' }}
+          />
+          {plan.wallColor && plan.wallColor.toLowerCase() !== DEFAULT_PLAN_WALL_COLOR ? (
+            <button
+              type="button"
+              className="btn ghost btn-sm"
+              onClick={() => a.updateFloorPlanMeta({ wallColor: DEFAULT_PLAN_WALL_COLOR })}
+            >
+              Reset
+            </button>
+          ) : null}
+        </div>
+        <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+          Paints every wall in this plan.
+        </span>
+      </div>
+      <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
+        Pick a tool and draw on the canvas, or select an element to edit it.
+        <br />
+        <br />
+        <b style={{ color: 'var(--text)' }}>Wall</b> — drag to draw.{' '}
+        <b style={{ color: 'var(--text)' }}>Room</b> — drag a rectangle (area is computed).{' '}
+        <b style={{ color: 'var(--text)' }}>Door / Window</b> — click on a wall.
+        <br />
+        <br />
+        Drawing snaps to the grid (set the size with the toolbar Snap control). Press Delete to
+        remove the selected element.
+      </p>
+    </div>
   )
 
   if (sel?.type === 'room') {
@@ -104,6 +165,30 @@ export function PlanInspector() {
               ))}
             </select>
           </label>
+          {/* Per-room ceiling height — overrides the home default for this room
+              only (a dropped/false ceiling; walls stay full height, like the
+              built-in 2.4 m bathrooms). Empty = inherit the home height. */}
+          <div className="flex flex-col gap-1">
+            <Num
+              label="Ceiling (m)"
+              value={r.ceilingHeight ?? plan.ceilingHeight}
+              step={0.05}
+              min={2.2}
+              onChange={(v) => {
+                if (!Number.isFinite(v)) return
+                a.updateRoom(r.id, { ceilingHeight: Math.min(4, Math.max(2.2, v)) })
+              }}
+            />
+            {r.ceilingHeight != null && (
+              <button
+                type="button"
+                className="btn btn-block"
+                onClick={() => a.updateRoom(r.id, { ceilingHeight: undefined })}
+              >
+                Match home ({formatLength(plan.ceilingHeight, units)})
+              </button>
+            )}
+          </div>
           {/* L-shape extension: a second rectangle offset from the origin.
               planRoomArea sums both, and the 3D shell renders both floors. */}
           <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>
@@ -174,9 +259,21 @@ export function PlanInspector() {
           <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
             <span className="label">Area</span>
             <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
-              {planRoomArea(r).toFixed(2)} m²
+              {formatArea(planRoomArea(r), units)}
             </span>
           </div>
+          <button
+            type="button"
+            className="btn btn-accent btn-block"
+            title="Close the plan editor and isolate this room in the 3D per-room editor"
+            onClick={() => {
+              const st = useStore.getState()
+              st.setFloorPlanEditing(false)
+              st.enterRoomEditor(r.id)
+            }}
+          >
+            Edit in 3D
+          </button>
           <DeleteBtn onClick={() => a.removeRoom(r.id)} label="Delete room" />
         </div>
       )
@@ -221,7 +318,7 @@ export function PlanInspector() {
           <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
             <span className="label">Length</span>
             <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
-              {wallLength(w).toFixed(2)} m
+              {formatLength(wallLength(w), units)}
             </span>
           </div>
           <DeleteBtn onClick={() => a.removeWall(w.id)} label="Delete wall" />
@@ -261,6 +358,42 @@ export function PlanInspector() {
             min={0.1}
             onChange={(v) => a.updateOpening(o.id, { head: Math.max(0.1, v) })}
           />
+          {o.kind === 'door' && (
+            <>
+              <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+                <span className="label">Hinge</span>
+                <div className="seg" style={{ marginLeft: 'auto' }}>
+                  {(['start', 'end'] as const).map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      className={`capitalize${doorHinge(o) === h ? ' on' : ''}`}
+                      onClick={() => a.updateOpening(o.id, { hinge: h })}
+                      title={`Pivot the door on the ${h} jamb of the opening`}
+                    >
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+                <span className="label">Swing</span>
+                <div className="seg" style={{ marginLeft: 'auto' }}>
+                  {(['left', 'right'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`capitalize${doorSwing(o) === s ? ' on' : ''}`}
+                      onClick={() => a.updateOpening(o.id, { swing: s })}
+                      title={`Swing the leaf to the wall's ${s}-hand side`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
           <DeleteBtn onClick={() => a.removeOpening(o.id)} label={`Delete ${o.kind}`} />
         </div>
       )
@@ -273,7 +406,9 @@ export function PlanInspector() {
       style={{
         borderLeft: '1px solid var(--border)',
         background: 'var(--surface-solid)',
-        position: 'static',
+        // Desktop: a static right-hand column. Mobile: leave position to the
+        // responsive CSS (a bottom sheet) so the canvas gets the full width.
+        position: isMobile ? undefined : 'static',
       }}
     >
       <div className="sec-h" style={{ marginBottom: 'var(--s-3)' }}>

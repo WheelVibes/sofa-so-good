@@ -2,8 +2,8 @@ import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/ty
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 
-/** The favourites pseudo-category sorts before every real category. */
-export type CatalogCategory = FurnitureCategory | 'favourites'
+/** The favourites + recent pseudo-categories sort before every real category. */
+export type CatalogCategory = FurnitureCategory | 'favourites' | 'recent'
 
 interface CategoryTabsProps {
   active: CatalogCategory
@@ -12,6 +12,8 @@ interface CategoryTabsProps {
   counts: Record<FurnitureCategory, number>
   /** Number of favourited assets — shown on the star chip. */
   favCount: number
+  /** Number of recently-placed assets — shown on the clock chip. */
+  recentCount: number
 }
 
 const LABELS: Record<FurnitureCategory, string> = {
@@ -32,7 +34,13 @@ const LABELS: Record<FurnitureCategory, string> = {
   others: 'Others',
 }
 
-export function CategoryTabs({ active, onSelect, counts, favCount }: CategoryTabsProps) {
+export function CategoryTabs({
+  active,
+  onSelect,
+  counts,
+  favCount,
+  recentCount,
+}: CategoryTabsProps) {
   return (
     <nav className="cat-rail">
       <button
@@ -45,6 +53,18 @@ export function CategoryTabs({ active, onSelect, counts, favCount }: CategoryTab
         <Icon.Star className="icn" width={14} height={14} />
         {favCount > 0 ? favCount : null}
       </button>
+      {recentCount > 0 ? (
+        <button
+          type="button"
+          onClick={() => onSelect('recent')}
+          className={`chip${active === 'recent' ? ' on' : ''}`}
+          aria-label="Recently used"
+          title="Recently used"
+        >
+          <Icon.Time className="icn" width={14} height={14} />
+          Recent
+        </button>
+      ) : null}
       {FURNITURE_CATEGORIES.map((c) => {
         const count = counts[c] ?? 0
         if (count === 0) return null

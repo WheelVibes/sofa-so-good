@@ -1,3 +1,4 @@
+import { useStore } from '../state/store'
 import { DOCS_URL } from './docsUrl'
 import { Modal } from './Modal'
 import { Icon } from './toolbar/icons'
@@ -5,10 +6,15 @@ import { useIsMobile } from './useIsMobile'
 
 const SHORTCUTS: [string, string][] = [
   ['Command palette', '⌘K'],
+  ['Search catalog', '/'],
   ['Toggle catalog', 'C'],
   ['Rotate selection', 'R'],
   ['Flip selection', 'F'],
   ['Duplicate', '⌘D'],
+  ['Select all', '⌘A'],
+  ['Cycle selection', '[ ]'],
+  ['Prev / next room', ', .'],
+  ['Nudge selection', '↑ ↓ ← →'],
   ['Delete', 'Del'],
   ['Measurements', 'M'],
   ['Tidy room', 'L'],
@@ -21,10 +27,24 @@ const SHORTCUTS: [string, string][] = [
 ]
 
 const TIPS: [string, string][] = [
-  ['Drag a catalog card onto the floor to place it — press R while dragging to rotate.'],
-  ['Click a wall or the floor to repaint or refinish it from the picker.'],
+  [
+    'Editing happens in the room editor — click a room’s floor (or the Edit a room button) to start.',
+  ],
+  [
+    'Inside a room, drag a catalog card onto the floor to place it — press R while dragging to rotate.',
+  ],
+  ['Inside a room, click a wall or the floor to repaint or refinish it from the picker.'],
   ['Switch to Walk to feel the scale of the flat at eye level.'],
   ['Open the Appearance menu to switch between the four themes and light / dark.'],
+  ['Rename any object from the inspector — the name shows in the Objects list.'],
+  ['Set a budget target in the Shopping panel to track how far over / under you are.'],
+  ['Switch dimensions to imperial in the Graphics panel; the whole UI follows.'],
+  ['Save versions, then Compare any one to see what furniture changed vs now.'],
+  ['Scene menu → Lighting moods previews the room at golden hour, a cosy evening, night…'],
+  ['Measure something, then 📌 Pin it to keep the dimension on the design.'],
+  ['In Walk, the minimap (bottom-right) shows where you are and which room you’re in.'],
+  ['Scene menu → Backdrop swaps the surroundings: city, park, hills, or a clean studio.'],
+  ['New here? Appearance menu → Simple hides the advanced tools for a calmer workspace.'],
 ] as unknown as [string, string][]
 
 /** Help & keyboard-shortcut reference modal (toolbar `?`). On mobile (no
@@ -72,6 +92,32 @@ export function HelpModal({ open, onClose }: { open: boolean; onClose: () => voi
         <div className="sec-h">
           <span>Documentation</span>
         </div>
+        <button
+          type="button"
+          className="btn btn-soft btn-block"
+          style={{ marginBottom: 'var(--s-3)' }}
+          onClick={() => {
+            const s = useStore.getState()
+            s.setHelpOpen(false)
+            s.startTour()
+          }}
+        >
+          <Icon.Help width={14} height={14} />
+          Replay the guided tour
+        </button>
+        <button
+          type="button"
+          className="btn btn-soft btn-block"
+          style={{ marginBottom: 'var(--s-3)' }}
+          onClick={() => {
+            const s = useStore.getState()
+            s.setHelpOpen(false)
+            s.setLoginOpen(true)
+          }}
+        >
+          <Icon.Eye width={14} height={14} />
+          {useStore.getState().currentUser ? 'Account' : 'Sign in'}
+        </button>
         <ul className="help-list">
           <li>
             <Icon.Book className="icn" width={16} height={16} />

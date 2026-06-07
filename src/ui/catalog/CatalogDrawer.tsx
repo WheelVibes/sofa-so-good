@@ -4,6 +4,7 @@ import { Icon } from '../toolbar/icons'
 import { UploadModelDialog } from '../upload/UploadModelDialog'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
+import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
 import { fuzzySearch } from './fuzzySearch'
 import { LayersPanel } from './LayersPanel'
 import { PacksTab } from './PacksTab'
@@ -23,6 +24,24 @@ function gridItemText(it: GridItem): string[] {
     : [it.entry.name, it.entry.slug, ...(it.entry.tags ?? [])]
 }
 
+// Remember the last browsed category + sort across reloads (per device), so a
+// returning user resumes where they left off rather than always at "seating".
+const PREFS_KEY = 'hdb_catalog_browse'
+function loadBrowsePrefs(): { active: CatalogCategory; sortBy: SortKey } {
+  const fallback = { active: 'seating' as CatalogCategory, sortBy: 'default' as SortKey }
+  try {
+    const raw = localStorage.getItem(PREFS_KEY)
+    if (!raw) return fallback
+    const p = JSON.parse(raw) as { active?: string; sortBy?: string }
+    return {
+      active: typeof p.active === 'string' ? (p.active as CatalogCategory) : fallback.active,
+      sortBy: p.sortBy === 'name' || p.sortBy === 'size' ? p.sortBy : 'default',
+    }
+  } catch {
+    return fallback
+  }
+}
+
 /** Sliding left-side drawer. Toggles between a single unified catalog grid
  *  (built-in + uploads + installed packs + browsable CC0) and an Objects/Layers
  *  tree (`leftMode`). The Packs tab installs asset packs (whose items then show
@@ -30,6 +49,7 @@ function gridItemText(it: GridItem): string[] {
 export function CatalogDrawer() {
   const open = useStore((s) => s.catalogOpen)
   const cameraMode = useStore((s) => s.cameraMode)
+  const roomEditorActive = useStore((s) => s.roomEditor.active)
   const setOpen = useStore((s) => s.setCatalogOpen)
   const leftMode = useStore((s) => s.leftMode)
   const setLeftMode = useStore((s) => s.setLeftMode)
@@ -37,16 +57,31 @@ export function CatalogDrawer() {
   const setActiveDefId = useStore((s) => s.setActiveDefId)
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
+  // Packs (downloadable-content installs) is advanced — hidden in Simple mode.
+  // Read here (with the other hooks) so it stays above the early return below.
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const unified = useUnifiedCatalog()
-  const [active, setActive] = useState<CatalogCategory>('seating')
+  const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
   const [uploadOpen, setUploadOpen] = useState(false)
   const [query, setQuery] = useState('')
   const [page, setPage] = useState(0)
+  const [sortBy, setSortBy] = useState<SortKey>(() => loadBrowsePrefs().sortBy)
+  const [maxPrice, setMaxPrice] = useState('')
 
   useEffect(() => {
     if (open && phStatus === 'idle') void bootstrapRemote()
   }, [open, phStatus, bootstrapRemote])
+
+  // Persist the browse category + sort (best-effort) so the drawer reopens where
+  // the user left off.
+  useEffect(() => {
+    try {
+      localStorage.setItem(PREFS_KEY, JSON.stringify({ active, sortBy }))
+    } catch {
+      /* storage full / unavailable — non-critical */
+    }
+  }, [active, sortBy])
 
   // Reset to page 1 when the visible list changes; the render also clamps.
   const selectCategory = (c: CatalogCategory) => {
@@ -58,15 +93,23 @@ export function CatalogDrawer() {
     setPage(0)
   }
 
-  if (!open || cameraMode !== 'orbit') return null
+  // Placing/customising furniture is editing, so the catalog only shows inside
+  // the per-room editor (orbit). Orbit-over-the-flat and walk are view-only.
+  if (!open || cameraMode !== 'orbit' || !roomEditorActive) return null
   const q = query.trim()
   // Fuzzy (typo-tolerant, ranked) search across the WHOLE catalog (local +
   // browsable CC0) when querying; otherwise the active category / favourites.
-  const allCards = q
-    ? fuzzySearch(q, unified.all, gridItemText)
+  const baseCards = q
+    ? // Searching uses the fuzzy relevance ranking — sort is for browsing only.
+      fuzzySearch(q, unified.all, gridItemText)
     : active === 'favourites'
       ? unified.favourites
-      : (unified.byCategory[active] ?? [])
+      : active === 'recent'
+        ? unified.recent
+        : sortCards(unified.byCategory[active] ?? [], sortBy)
+  // Optional max-price filter — browse-only (its control lives in the browse
+  // sort row), so a stale cap can never silently filter search results.
+  const allCards = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
 
   // Paginate so a big category/search doesn't render hundreds of cards at once.
   const pageCount = Math.max(1, Math.ceil(allCards.length / PAGE_SIZE))
@@ -78,7 +121,7 @@ export function CatalogDrawer() {
   // One flat tab row: the catalog grid, the Objects/Layers tree (store-level
   // `leftMode`, shared with the command palette + mobile toolbar), and Packs.
   const view: 'catalog' | 'layers' | 'packs' =
-    leftMode === 'layers' ? 'layers' : mode === 'packs' ? 'packs' : 'catalog'
+    leftMode === 'layers' ? 'layers' : mode === 'packs' && proMode ? 'packs' : 'catalog'
   const selectView = (v: 'catalog' | 'layers' | 'packs') => {
     if (v === 'layers') {
       setLeftMode('layers')
@@ -98,6 +141,24 @@ export function CatalogDrawer() {
     ) : (
       <RemoteCard key={gridItemId(it)} entry={it.entry} onResolved={(id) => setActiveDefId(id)} />
     )
+
+  // Roving arrow-key navigation across the card grid. Column count is read from
+  // the live layout (cards sharing the first row's offsetTop) so it adapts to
+  // the responsive 1/2/3-column breakpoints. Only acts when a card itself holds
+  // focus (nested heart/delete buttons keep their own Tab behaviour).
+  const onGridKeyDown = (e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!['ArrowRight', 'ArrowLeft', 'ArrowUp', 'ArrowDown'].includes(e.key)) return
+    const cells = [...e.currentTarget.querySelectorAll<HTMLElement>('.cat-card')]
+    const idx = cells.indexOf(document.activeElement as HTMLElement)
+    if (idx === -1 || cells.length === 0) return
+    e.preventDefault()
+    const top0 = cells[0].offsetTop
+    const cols = Math.max(1, cells.filter((c) => c.offsetTop === top0).length)
+    const delta =
+      e.key === 'ArrowRight' ? 1 : e.key === 'ArrowLeft' ? -1 : e.key === 'ArrowDown' ? cols : -cols
+    const next = idx + delta
+    if (next >= 0 && next < cells.length) cells[next].focus()
+  }
 
   return (
     <aside className="panel catalog">
@@ -119,7 +180,7 @@ export function CatalogDrawer() {
           [
             ['catalog', 'Catalog'],
             ['layers', 'Layers'],
-            ['packs', 'Packs'],
+            ...(proMode ? ([['packs', 'Packs']] as const) : []),
           ] as const
         ).map(([v, label]) => (
           <button
@@ -162,9 +223,74 @@ export function CatalogDrawer() {
               onSelect={selectCategory}
               counts={unified.counts}
               favCount={unified.favourites.length}
+              recentCount={unified.recent.length}
             />
           )}
-          <div className="card-grid">
+          {!q &&
+          active !== 'favourites' &&
+          active !== 'recent' &&
+          (unified.byCategory[active]?.length ?? 0) > 1 ? (
+            <div
+              className="cat-sort"
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
+                padding: '0 var(--s-4) var(--s-2)',
+                fontSize: 'var(--t-2xs)',
+                color: 'var(--text-3)',
+              }}
+            >
+              <span>Sort</span>
+              <select
+                value={sortBy}
+                aria-label="Sort catalog"
+                onChange={(e) => {
+                  setSortBy(e.target.value as SortKey)
+                  setPage(0)
+                }}
+                className="input"
+                style={{ flex: 1, height: 28, padding: '0 6px' }}
+              >
+                {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
+                  <option key={k} value={k}>
+                    {SORT_LABEL[k]}
+                  </option>
+                ))}
+              </select>
+              <span style={{ marginLeft: 4 }}>Max&nbsp;$</span>
+              <input
+                type="number"
+                min={0}
+                inputMode="numeric"
+                value={maxPrice}
+                aria-label="Maximum price (SGD)"
+                placeholder="any"
+                onChange={(e) => {
+                  setMaxPrice(e.target.value)
+                  setPage(0)
+                }}
+                className="input mono"
+                style={{ width: 64, height: 28, padding: '0 6px' }}
+              />
+              {maxPrice.trim() !== '' ? (
+                <button
+                  type="button"
+                  aria-label="Clear max price"
+                  title="Clear max price"
+                  onClick={() => {
+                    setMaxPrice('')
+                    setPage(0)
+                  }}
+                  className="icon-btn"
+                  style={{ width: 24, height: 24, flex: 'none' }}
+                >
+                  <Icon.Close width={12} height={12} />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="card-grid" onKeyDown={onGridKeyDown}>
             {cards.length === 0 ? (
               <p className="empty-mini" style={{ gridColumn: '1 / -1' }}>
                 <span>
@@ -172,7 +298,9 @@ export function CatalogDrawer() {
                     ? `No matches for “${query.trim()}”.`
                     : active === 'favourites'
                       ? 'No favourites yet — tap the heart on any card to save it here.'
-                      : 'No items in this category yet.'}
+                      : active === 'recent'
+                        ? 'Nothing placed yet — items you add will appear here for quick reuse.'
+                        : 'No items in this category yet.'}
                 </span>
               </p>
             ) : (

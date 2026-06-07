@@ -33,6 +33,8 @@
   transition: var(--dur) var(--ease); text-align: left; position: relative;
 }
 .cat-card:hover { border-color: var(--accent); background: var(--surface-solid); transform: translateY(-1px); box-shadow: var(--shadow-panel); }
+.cat-card { cursor: pointer; }
+.cat-card:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-color: var(--accent); }
 .card-thumb {
   position: relative;
   aspect-ratio: 1 / 1; border-radius: var(--r-1);
@@ -135,7 +137,7 @@
 .minimap svg { width: 100%; height: 100%; }
 .mm-room { fill: var(--surface-2); stroke: var(--border-2); stroke-width: 1.5; }
 .mm-room.lit { fill: var(--accent-soft); stroke: var(--accent); }
-.mm-label { fill: var(--text-3); font-size: 5px; font-weight: 700; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.02em; }
+.mm-label { fill: var(--text); font-size: 6px; font-weight: 800; font-family: var(--font-ui); text-transform: uppercase; letter-spacing: 0.02em; paint-order: stroke; stroke: var(--surface); stroke-width: 1.6px; stroke-linejoin: round; }
 .mm-cam { fill: var(--accent); }
 .compass {
   width: 56px; height: 56px; border-radius: var(--r-pill);
@@ -173,10 +175,45 @@
 /* ---- Generic small panel (budget / graphics / finishes) ------ */
 .mini { width: 290px; }
 .aux { left: 50%; top: 74px; transform: translateX(-50%); position: absolute; z-index: var(--z-pop); animation: pop var(--dur) var(--ease); max-height: calc(100vh - 96px); }
-.swatch-lg { width: 100%; aspect-ratio: 1.6/1; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; position: relative; overflow: hidden; }
+/* display:block so width:100% + aspect-ratio apply — as a <span> (inline) they
+   were ignored, collapsing every swatch to a thin strip. Square thumbnails. */
+.swatch-lg { display: block; width: 100%; aspect-ratio: 1/1; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; position: relative; overflow: hidden; }
 .finish-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: var(--s-3); }
 .finish-grid .name { font-size: var(--t-2xs); font-weight: 600; color: var(--text-2); margin-top: 4px; }
 .finish-cell.on .swatch-lg { box-shadow: 0 0 0 2px var(--surface-solid), 0 0 0 4px var(--accent); }
+.finish-apply-all {
+  display: block; width: 100%; margin: 4px 0 var(--s-3);
+  padding: 6px 8px; border-radius: var(--r-2);
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: var(--dur) var(--ease);
+}
+.finish-apply-all:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
+.prop-reset {
+  margin-left: auto; padding: 2px 8px; border-radius: var(--r-pill);
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+  transition: var(--dur) var(--ease);
+}
+.prop-reset:hover { background: var(--surface-3); color: var(--text); border-color: var(--accent); }
+.act-array {
+  display: flex; align-items: center; gap: 8px; margin-top: var(--s-2);
+  padding: 6px 10px; border-radius: var(--r-2);
+  background: var(--surface-2); border: 1px solid var(--border);
+}
+.act-array > span { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); }
+.act-array input {
+  width: 48px; padding: 3px 6px; border-radius: var(--r-2);
+  border: 1px solid var(--border); background: var(--surface-solid); color: var(--text);
+  font-size: var(--t-xs); text-align: center;
+}
+.act-array-go {
+  display: inline-flex; align-items: center; gap: 4px;
+  margin-left: auto; padding: 4px 12px; border-radius: var(--r-pill);
+  font-size: var(--t-xs); font-weight: 700; color: var(--on-accent, #fff);
+  background: var(--accent);
+}
+.act-array-go:hover { filter: brightness(1.05); }
 
 /* budget bar */
 .bud-total { display: flex; align-items: baseline; justify-content: space-between; gap: var(--s-3); }

@@ -55,6 +55,9 @@ function shallowEqual(a: Persistent, b: Persistent): boolean {
 export interface AutosaveOptions {
   adapter?: StorageAdapter
   onError?: (e: StorageError) => void
+  /** Fired after a successful write (only when the previous write failed),
+   *  so a "couldn't save" warning can auto-clear once saving resumes. */
+  onRecover?: () => void
 }
 
 /** Subscribes to the store and writes the autosave slot at most once
@@ -62,17 +65,29 @@ export interface AutosaveOptions {
 export function startAutosave({
   adapter = LocalStorageAdapter,
   onError,
+  onRecover,
 }: AutosaveOptions = {}): () => void {
   let timer: ReturnType<typeof setTimeout> | null = null
   let last = pickPersistent()
+  let failed = false
 
   const flush = () => {
     timer = null
     const state = useStore.getState()
     const payload = serialize(state)
-    adapter.save(AUTOSAVE_SLOT, payload).catch((e) => {
-      if (e instanceof StorageError) onError?.(e)
-    })
+    adapter
+      .save(AUTOSAVE_SLOT, payload)
+      .then(() => {
+        useStore.getState().setLastSavedAt(Date.now())
+        if (failed) {
+          failed = false
+          onRecover?.()
+        }
+      })
+      .catch((e) => {
+        failed = true
+        if (e instanceof StorageError) onError?.(e)
+      })
   }
 
   const unsubscribe = useStore.subscribe(() => {
@@ -83,11 +98,27 @@ export function startAutosave({
     timer = setTimeout(flush, DEBOUNCE_MS)
   })
 
+  // Flush a pending debounced write before the page goes away, so an edit made
+  // within the debounce window isn't lost on a quick reload/close. localStorage
+  // writes synchronously inside save(), so the data persists even as we unload.
+  // `pagehide` covers reload/close; `visibilitychange`→hidden covers mobile
+  // backgrounding (where `pagehide`/`beforeunload` are unreliable).
+  const flushPending = () => {
+    if (!timer) return
+    clearTimeout(timer)
+    flush()
+  }
+  const onPageHide = () => flushPending()
+  const onVisibility = () => {
+    if (document.visibilityState === 'hidden') flushPending()
+  }
+  window.addEventListener('pagehide', onPageHide)
+  document.addEventListener('visibilitychange', onVisibility)
+
   return () => {
-    if (timer) {
-      clearTimeout(timer)
-      flush()
-    }
+    flushPending()
+    window.removeEventListener('pagehide', onPageHide)
+    document.removeEventListener('visibilitychange', onVisibility)
     unsubscribe()
   }
 }

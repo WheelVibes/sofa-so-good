@@ -14,6 +14,8 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
+import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import type { RoomId } from '../types'
 
@@ -41,20 +43,48 @@ function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       const state = useStore.getState()
-      // Walk mode and rotate-tool are view-only — don't open finishes.
-      if (state.cameraMode !== 'orbit') return
-      if (state.editorTool !== 'select') return
-      e.stopPropagation()
-      selectRoom(roomId)
+      if (canEditScene(state)) {
+        // Inside the room editor: clicking the floor opens the finish picker.
+        e.stopPropagation()
+        selectRoom(roomId)
+        return
+      }
+      // View-only orbit over the whole flat: clicking a room dives into its
+      // editor (the primary way to start editing). Walk mode does nothing.
+      if (state.cameraMode === 'orbit' && !state.roomEditor.active) {
+        e.stopPropagation()
+        state.enterRoomEditor(roomId)
+      }
     },
     [roomId, selectRoom],
   )
+  // In the view-only overview, a room floor is a click target ("click to edit"),
+  // so flag it for the hover highlight + show a pointer cursor.
+  const onPointerOver = useCallback(
+    (e: ThreeEvent<PointerEvent>) => {
+      const s = useStore.getState()
+      if (s.cameraMode !== 'orbit' || s.roomEditor.active) return
+      e.stopPropagation()
+      s.setHoveredRoom(roomId)
+      document.body.style.cursor = 'pointer'
+    },
+    [roomId],
+  )
+  const onPointerOut = useCallback(() => {
+    const s = useStore.getState()
+    if (s.hoveredRoomId === roomId) {
+      s.setHoveredRoom(null)
+      document.body.style.cursor = ''
+    }
+  }, [roomId])
   return (
     <mesh
       position={[origin[0] + width / 2, FLOOR_LIFT, origin[1] + depth / 2]}
       rotation={[-Math.PI / 2, 0, 0]}
       receiveShadow
       onClick={onClick}
+      onPointerOver={onPointerOver}
+      onPointerOut={onPointerOut}
       material={material}
       geometry={geometry}
     />
@@ -107,8 +137,10 @@ const RoomFloorMemo = memo(RoomFloorInner, (prev, next) => {
  *  texture load on one room doesn't block the others. */
 export function RoomFloor(props: RoomFloorProps) {
   return (
-    <Suspense fallback={null}>
-      <RoomFloorMemo {...props} />
-    </Suspense>
+    <SilentErrorBoundary resetKey={props.materialId}>
+      <Suspense fallback={null}>
+        <RoomFloorMemo {...props} />
+      </Suspense>
+    </SilentErrorBoundary>
   )
 }

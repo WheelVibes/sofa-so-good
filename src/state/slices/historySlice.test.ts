@@ -70,4 +70,50 @@ describe('history slice', () => {
     expect(s().past).toEqual([])
     expect(s().future).toEqual([])
   })
+
+  describe('jumpHistory', () => {
+    it('jumps back multiple steps in one move (equivalent to N undos)', () => {
+      s().clearHistory()
+      const base = s().items
+      s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+      s().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+      s().addItem({ defId: 'bed-double', position: [2, 2], rotation: 0, props: {} })
+      // past = [base, +1, +2]; current = +3. Jump to index 0 (oldest).
+      expect(s().past.length).toBe(3)
+      s().jumpHistory(0)
+      expect(s().items).toEqual(base)
+      expect(s().past.length).toBe(0)
+      // The three later states are now redoable.
+      expect(s().future.length).toBe(3)
+    })
+
+    it('jumps forward into the redo stack', () => {
+      s().clearHistory()
+      s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+      const afterOne = s().items
+      s().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+      const afterTwo = s().items
+      s().jumpHistory(0) // back to the very start
+      expect(s().future.length).toBe(2)
+      // Flat = [start, afterOne, afterTwo]; jump to index 1 → the afterOne state.
+      s().jumpHistory(1)
+      expect(s().items).toEqual(afterOne)
+      s().jumpHistory(2)
+      expect(s().items).toEqual(afterTwo)
+      expect(s().future.length).toBe(0)
+    })
+
+    it('is a no-op for the current index and out-of-range indices', () => {
+      s().clearHistory()
+      s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+      const current = s().items
+      const curIndex = s().past.length
+      s().jumpHistory(curIndex) // already current
+      expect(s().items).toBe(current)
+      s().jumpHistory(999)
+      expect(s().items).toBe(current)
+      s().jumpHistory(-1)
+      expect(s().items).toBe(current)
+    })
+  })
 })

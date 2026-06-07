@@ -1,8 +1,8 @@
 import { useMemo } from 'react'
-import { BoxGeometry, EdgesGeometry } from 'three'
 import { itemFootprint } from '../../collision/placement'
 import { useCatalog } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
+import { boxEdges, useDisposeGeometry } from '../geometryUtil'
 
 /**
  * Faint outline under the hovered (but not selected) furniture item, so it's
@@ -19,10 +19,10 @@ export function HoverHighlight() {
   const def = item ? catalog[item.defId] : null
   const obb = useMemo(() => (item && def ? itemFootprint(item, def) : null), [item, def])
   const geom = useMemo(
-    () =>
-      obb ? new EdgesGeometry(new BoxGeometry(obb.hx * 2 + 0.08, 0.001, obb.hz * 2 + 0.08)) : null,
+    () => (obb ? boxEdges(obb.hx * 2 + 0.08, 0.001, obb.hz * 2 + 0.08) : null),
     [obb],
   )
+  useDisposeGeometry(geom)
 
   if (!item || !def || !geom) return null
   if (dragging || selectedIds.includes(item.id)) return null

@@ -1,7 +1,9 @@
 import { useMemo } from 'react'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { planBounds } from '../floorplan/types'
+import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
+import { useDisposeGeometry } from './geometryUtil'
 
 /**
  * Floor alignment grid. Shown while snap-to-grid is enabled so the user can
@@ -11,6 +13,7 @@ import { useStore } from '../state/store'
  */
 export function GridOverlay() {
   const snapEnabled = useStore((s) => s.snapEnabled)
+  const editing = useStore(canEditScene)
   const gridSize = useStore((s) => s.gridSize)
   const plan = useStore((s) => s.floorPlan)
   const [boundW, boundD] = useMemo(() => planBounds(plan), [plan])
@@ -40,8 +43,10 @@ export function GridOverlay() {
     }
     return { minor: mk(minorPts), major: mk(majorPts) }
   }, [gridSize, boundW, boundD])
+  useDisposeGeometry(minor)
+  useDisposeGeometry(major)
 
-  if (!snapEnabled) return null
+  if (!snapEnabled || !editing) return null
   return (
     <group position={[0, 0.02, 0]}>
       <lineSegments geometry={minor} renderOrder={3}>

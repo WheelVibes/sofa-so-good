@@ -71,6 +71,31 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-tile-sand': floor('floor-tile-sand', 'Sand porcelain', '#cdbfa6', 'tile', [0.8, 0.8]),
   'floor-wood-merbau': floor('floor-wood-merbau', 'Merbau', '#7a3f2a', 'wood', [1.9, 1.2]),
   'floor-wood-maple': floor('floor-wood-maple', 'Maple', '#d8c19a', 'wood', [1.9, 1.2]),
+  // Basketweave parquet — one block ≈ 0.5 m, so it tiles at 0.5 m.
+  'floor-parquet-oak': floor('floor-parquet-oak', 'Oak parquet', '#b88f5d', 'parquet', [0.5, 0.5]),
+  'floor-parquet-walnut': floor(
+    'floor-parquet-walnut',
+    'Walnut parquet',
+    '#6b4428',
+    'parquet',
+    [0.5, 0.5],
+  ),
+  // Herringbone parquet — premium 45° interlocking planks. The tile holds 16
+  // plank-widths, so at a 2 m tile each plank is ~0.5 m × 0.125 m (realistic).
+  'floor-herringbone-oak': floor(
+    'floor-herringbone-oak',
+    'Oak herringbone',
+    '#b88f5d',
+    'herringbone',
+    [2.0, 2.0],
+  ),
+  'floor-herringbone-walnut': floor(
+    'floor-herringbone-walnut',
+    'Walnut herringbone',
+    '#6b4428',
+    'herringbone',
+    [2.0, 2.0],
+  ),
   'floor-checker-mono': floor(
     'floor-checker-mono',
     'Checkerboard',
@@ -238,6 +263,47 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     '#5a5852',
     'grasscloth',
   ),
+  // Exposed-brick accent walls (running bond + recessed mortar).
+  'wall-brick-red': wallpaper('wall-brick-red', 'Exposed brick', '#9c5a44', 'brick'),
+  'wall-brick-white': wallpaper('wall-brick-white', 'White-washed brick', '#d9d3c8', 'brick'),
+  'wall-brick-charcoal': wallpaper('wall-brick-charcoal', 'Charcoal brick', '#55504c', 'brick'),
+  // Microcement / concrete accent walls (smooth, large-scale tiling).
+  'wall-concrete-light': {
+    id: 'wall-concrete-light',
+    name: 'Microcement (light)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'concrete',
+    swatch: '#cbc6bd',
+    uvScale: [3, 3],
+  },
+  'wall-concrete-grey': {
+    id: 'wall-concrete-grey',
+    name: 'Microcement (grey)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'concrete',
+    swatch: '#9d9a95',
+    uvScale: [3, 3],
+  },
+  'wall-concrete-charcoal': {
+    id: 'wall-concrete-charcoal',
+    name: 'Microcement (charcoal)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'concrete',
+    swatch: '#54524f',
+    uvScale: [3, 3],
+  },
+  // Board-and-batten panelling (vertical raised battens), tiles ~1.2 m wide.
+  'wall-batten-white': wallpaper(
+    'wall-batten-white',
+    'Board & batten (white)',
+    '#eceae3',
+    'batten',
+  ),
+  'wall-batten-sage': wallpaper('wall-batten-sage', 'Board & batten (sage)', '#9aa88f', 'batten'),
+  'wall-batten-navy': wallpaper('wall-batten-navy', 'Board & batten (navy)', '#3c4a60', 'batten'),
 }
 
 export const DEFAULT_FLOOR: MaterialId = 'floor-wood-oak'
@@ -271,7 +337,8 @@ export const BUILTIN_MATERIALS_BY_CATEGORY: Readonly<Record<MaterialCategory, Ma
   Object.freeze(
     (Object.values(BUILTIN_MATERIALS) as MaterialDef[]).reduce(
       (acc, m) => {
-        ;(acc[m.category] ??= []).push(m)
+        if (!acc[m.category]) acc[m.category] = []
+        acc[m.category].push(m)
         return acc
       },
       {} as Record<MaterialCategory, MaterialDef[]>,

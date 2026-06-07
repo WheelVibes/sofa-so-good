@@ -2,7 +2,9 @@ import type { ThreeEvent } from '@react-three/fiber'
 import { memo, Suspense, useCallback } from 'react'
 import { itemFootprint } from '../collision/placement'
 import { ContactShadow } from '../scene/ContactShadow'
+import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
+import { GltfErrorBoundary } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
 import { selectGltfRender } from './gltfRender'
 import { PRIMITIVE_COMPONENTS } from './primitives'
@@ -26,9 +28,8 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
     (e: ThreeEvent<MouseEvent>) => {
       if (passive) return
       const state = useStore.getState()
-      // Walk mode and rotate-tool are view-only — clicks must not select.
-      if (state.cameraMode !== 'orbit') return
-      if (state.editorTool !== 'select') return
+      // Selection happens only inside the per-room editor; orbit/walk are view-only.
+      if (!canEditScene(state)) return
       e.stopPropagation()
       // Shift-click extends/toggles the multi-selection; plain click
       // selects the item's group (or the item, if ungrouped) with drill-in
@@ -47,8 +48,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
     (e: ThreeEvent<PointerEvent>) => {
       if (passive) return
       const state = useStore.getState()
-      if (state.cameraMode !== 'orbit') return
-      if (state.editorTool !== 'select') return
+      if (!canEditScene(state)) return
       if (state.activeDefId) return
       e.stopPropagation()
       // Shift-pointerdown defers selection to the click handler (which
@@ -93,21 +93,27 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
         return <Component props={item.props} />
       })()
     ) : (
-      <Suspense fallback={null}>
-        {(() => {
-          const r = selectGltfRender(item, def as GltfDef)
-          if (!r) return null
-          return (
-            <GltfModel
-              url={r.url}
-              scale={r.scale}
-              tint={r.tint}
-              finishOverrides={r.finishOverrides}
-              reflective={r.reflective}
-            />
-          )
-        })()}
-      </Suspense>
+      <GltfErrorBoundary
+        width={def.defaultFootprint.w}
+        depth={def.defaultFootprint.d}
+        height={Math.min(def.defaultFootprint.w, def.defaultFootprint.d, 0.9)}
+      >
+        <Suspense fallback={null}>
+          {(() => {
+            const r = selectGltfRender(item, def as GltfDef)
+            if (!r) return null
+            return (
+              <GltfModel
+                url={r.url}
+                scale={r.scale}
+                tint={r.tint}
+                finishOverrides={r.finishOverrides}
+                reflective={r.reflective}
+              />
+            )
+          })()}
+        </Suspense>
+      </GltfErrorBoundary>
     )
 
   // GLB items lift by props.surfaceHeight so a stacked model (mattress on a
@@ -124,7 +130,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       onPointerOver={(e) => {
         if (passive) return
         const state = useStore.getState()
-        if (state.cameraMode !== 'orbit' || state.editorTool !== 'select') return
+        if (!canEditScene(state)) return
         if (state.draggingItemId || state.activeDefId) return
         e.stopPropagation()
         state.setHovered(item.id)
@@ -137,14 +143,14 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       onDoubleClick={(e) => {
         if (passive) return
         const state = useStore.getState()
-        if (state.cameraMode !== 'orbit') return
+        if (!canEditScene(state)) return
         e.stopPropagation()
         state.focusOn(item.position)
       }}
       onContextMenu={(e) => {
         if (passive) return
         const state = useStore.getState()
-        if (state.cameraMode !== 'orbit') return
+        if (!canEditScene(state)) return
         e.stopPropagation()
         e.nativeEvent.preventDefault()
         if (!state.selectedItemIds.includes(item.id)) state.selectItemGrouped(item.id, {})

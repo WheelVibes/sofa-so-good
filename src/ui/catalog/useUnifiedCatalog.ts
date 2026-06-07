@@ -34,6 +34,8 @@ export interface UnifiedCatalog {
   counts: Record<FurnitureCategory, number>
   /** Favourited cards, in the order they were saved. */
   favourites: GridItem[]
+  /** Recently-placed cards, newest first (local defs only). */
+  recent: GridItem[]
 }
 
 /**
@@ -48,6 +50,7 @@ export function useUnifiedCatalog(): UnifiedCatalog {
   const remoteEntries = useRemoteEntries('furniture')
   const resolvedKeys = useStore(useShallow((s) => Object.keys(s.resolvedRemoteFurniture)))
   const collections = useStore(useShallow((s) => s.collections))
+  const recentDefIds = useStore(useShallow((s) => s.recentDefIds))
 
   return useMemo(() => {
     // `provider:slug` of every downloaded CC0 model — these are now local defs.
@@ -95,6 +98,14 @@ export function useUnifiedCatalog(): UnifiedCatalog {
       if (entry) favourites.push({ kind: 'remote', entry })
     }
 
-    return { byCategory, all, counts, favourites }
-  }, [localByCategory, remoteEntries, resolvedKeys, collections])
+    // Recents: resolve placed def ids to local cards, newest first. Ids that no
+    // longer resolve (e.g. an uninstalled pack / removed upload) drop out.
+    const recent: GridItem[] = []
+    for (const id of recentDefIds) {
+      const def = localById.get(id)
+      if (def) recent.push({ kind: 'local', def })
+    }
+
+    return { byCategory, all, counts, favourites, recent }
+  }, [localByCategory, remoteEntries, resolvedKeys, collections, recentDefIds])
 }

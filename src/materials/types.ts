@@ -34,6 +34,10 @@ export type ProceduralPattern =
   | 'stripe'
   | 'grasscloth'
   | 'checker'
+  | 'parquet'
+  | 'herringbone'
+  | 'brick'
+  | 'batten'
 
 /** A finish whose PBR maps are generated on-device at runtime (no fetch).
  *  `swatch` doubles as the base tint fed to the generator. */

@@ -40,7 +40,10 @@ export function ScreenshotController() {
 
     const onExport = () => {
       const url = renderHiFiPng()
-      if (!url) return
+      if (!url) {
+        useStore.getState().notify.start({ title: 'Could not export the image', kind: 'error' })
+        return
+      }
       const a = document.createElement('a')
       const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, '-')
       a.href = url
@@ -48,6 +51,7 @@ export function ScreenshotController() {
       document.body.appendChild(a)
       a.click()
       a.remove()
+      useStore.getState().notify.start({ title: 'Image saved to your downloads', kind: 'success' })
     }
     window.addEventListener(EXPORT_EVENT, onExport)
     setCanvasCapture(renderHiFiPng)

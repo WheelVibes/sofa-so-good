@@ -66,7 +66,7 @@ export async function glbFootprint(glbBytes: Uint8Array): Promise<Footprint> {
       }
     }
 
-    if (!isFinite(minX) || !isFinite(maxX)) return FALLBACK
+    if (!Number.isFinite(minX) || !Number.isFinite(maxX)) return FALLBACK
     return {
       w: Math.max(0.05, maxX - minX),
       d: Math.max(0.05, maxZ - minZ),

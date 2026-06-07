@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
-import { roomShell } from '../../apartment/roomShell'
 import type { RoomId } from '../../apartment/types'
+import { pointInRoom } from '../../floorplan/types'
 import { useCatalog } from '../../furniture/catalog'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
@@ -12,36 +12,71 @@ import { CategoryIcon } from './CategoryIcon'
  *  lock / delete. The left-dock alternative to the catalog grid. */
 export function LayersPanel() {
   const items = useStore((s) => s.items)
+  const plan = useStore((s) => s.floorPlan)
   const selectedIds = useStore((s) => s.selectedItemIds)
   const selectItem = useStore((s) => s.selectItem)
+  const toggleSelectedItem = useStore((s) => s.toggleSelectedItem)
   const toggleLock = useStore((s) => s.toggleLock)
+  const setAllLocked = useStore((s) => s.setAllLocked)
   const deleteItem = useStore((s) => s.deleteItem)
+  const hiddenIds = useStore((s) => s.hiddenItemIds)
+  const toggleItemHidden = useStore((s) => s.toggleItemHidden)
+  const setItemsHidden = useStore((s) => s.setItemsHidden)
+  const showAllItems = useStore((s) => s.showAllItems)
+  const hiddenSet = new Set<string>(hiddenIds)
   const catalog = useCatalog()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
+  const [filter, setFilter] = useState('')
+  const q = filter.trim().toLowerCase()
+  const itemLabel = (it: FurnitureItem) => it.label ?? catalog[it.defId]?.name ?? it.defId
+  const itemName = (it: FurnitureItem) => itemLabel(it).toLowerCase()
 
   const groups = useMemo(() => {
-    const roomIds = (Object.keys(ROOMS) as RoomId[]).filter((id) => !ROOMS[id].external)
-    const shells = roomIds.map((id) => ({ id, shell: roomShell(id) }))
+    // Group by the ACTIVE plan's rooms (not the default ROOMS constant) so custom
+    // floor plans group correctly; skip only the default plan's external ledges.
+    const rooms = plan.rooms.filter((r) => !ROOMS[r.id as RoomId]?.external)
     const byRoom = new Map<string, FurnitureItem[]>()
     const other: FurnitureItem[] = []
     for (const it of items) {
-      const hit = shells.find((s) => s.shell.contains(it.position[0], it.position[1]))
+      const hit = rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
       if (hit) {
         if (!byRoom.has(hit.id)) byRoom.set(hit.id, [])
         byRoom.get(hit.id)?.push(it)
       } else other.push(it)
     }
-    const out: { key: string; name: string; items: FurnitureItem[] }[] = roomIds
-      .filter((id) => byRoom.has(id))
-      .map((id) => ({ key: id as string, name: ROOMS[id].name, items: byRoom.get(id) ?? [] }))
+    const out: { key: string; name: string; items: FurnitureItem[] }[] = rooms
+      .filter((r) => byRoom.has(r.id))
+      .map((r) => ({ key: r.id, name: r.name, items: byRoom.get(r.id) ?? [] }))
     if (other.length) out.push({ key: 'other', name: 'Unassigned', items: other })
     return out
-  }, [items])
+  }, [items, plan])
 
   const roomCount = groups.filter((g) => g.key !== 'other').length
+  // Filter items by name; drop empty groups and force-expand while filtering so
+  // matches are always visible regardless of a group's collapsed state.
+  const visibleGroups = q
+    ? groups
+        .map((g) => ({ ...g, items: g.items.filter((it) => itemName(it).includes(q)) }))
+        .filter((g) => g.items.length > 0)
+    : groups
+  const matchCount = visibleGroups.reduce((n, g) => n + g.items.length, 0)
 
   return (
     <>
+      {items.length > 0 ? (
+        <div className="cat-search" style={{ paddingBottom: 'var(--s-2)' }}>
+          <div className="field">
+            <Icon.Search width={16} height={16} className="icn" />
+            <input
+              type="search"
+              value={filter}
+              onChange={(e) => setFilter(e.target.value)}
+              placeholder={`Filter ${items.length} objects…`}
+              className="input"
+            />
+          </div>
+        </div>
+      ) : null}
       <div className="lyr-body">
         {groups.length === 0 ? (
           <div className="empty-mini">
@@ -51,20 +86,45 @@ export function LayersPanel() {
             <b>Nothing placed yet</b>
             <span>Switch to the catalog and drag items onto the floor.</span>
           </div>
+        ) : visibleGroups.length === 0 ? (
+          <p className="empty-mini">
+            <span>No objects match “{filter.trim()}”.</span>
+          </p>
         ) : (
-          groups.map((g) => {
-            const isCollapsed = !!collapsed[g.key]
+          visibleGroups.map((g) => {
+            const isCollapsed = !q && !!collapsed[g.key]
+            const groupHidden = g.items.length > 0 && g.items.every((it) => hiddenSet.has(it.id))
             return (
               <div className="lyr-group" key={g.key}>
-                <button
-                  type="button"
-                  className={`lyr-ghead${isCollapsed ? ' collapsed' : ''}`}
-                  onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !c[g.key] }))}
-                >
-                  <Icon.Chevron className="chev" width={14} height={14} />
-                  {g.name}
-                  <span className="gcount">{g.items.length}</span>
-                </button>
+                <div className="lyr-ghead-row">
+                  <button
+                    type="button"
+                    className={`lyr-ghead${isCollapsed ? ' collapsed' : ''}`}
+                    onClick={() => setCollapsed((c) => ({ ...c, [g.key]: !c[g.key] }))}
+                  >
+                    <Icon.Chevron className="chev" width={14} height={14} />
+                    {g.name}
+                    <span className="gcount">{g.items.length}</span>
+                  </button>
+                  <button
+                    type="button"
+                    className={`lyr-geye${groupHidden ? ' on' : ''}`}
+                    title={groupHidden ? 'Show all in room' : 'Hide all in room'}
+                    aria-label={groupHidden ? 'Show all in room' : 'Hide all in room'}
+                    onClick={() =>
+                      setItemsHidden(
+                        g.items.map((it) => it.id),
+                        !groupHidden,
+                      )
+                    }
+                  >
+                    {groupHidden ? (
+                      <Icon.EyeOff width={14} height={14} />
+                    ) : (
+                      <Icon.Eye width={14} height={14} />
+                    )}
+                  </button>
+                </div>
                 {!isCollapsed &&
                   g.items.map((it) => {
                     const def = catalog[it.defId]
@@ -73,7 +133,9 @@ export function LayersPanel() {
                       <div
                         key={it.id}
                         className={`lyr-row${selected ? ' sel' : ''}`}
-                        onClick={() => selectItem(it.id)}
+                        onClick={(e) =>
+                          e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
+                        }
                       >
                         <span className="lyr-ic">
                           {def ? (
@@ -82,8 +144,23 @@ export function LayersPanel() {
                             <Icon.Cube width={14} height={14} />
                           )}
                         </span>
-                        <span className="lyr-nm">{def?.name ?? it.defId}</span>
+                        <span className="lyr-nm">{itemLabel(it)}</span>
                         <span className="lyr-acts">
+                          <button
+                            type="button"
+                            className={hiddenSet.has(it.id) ? 'on' : ''}
+                            title={hiddenSet.has(it.id) ? 'Show' : 'Hide'}
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              toggleItemHidden(it.id)
+                            }}
+                          >
+                            {hiddenSet.has(it.id) ? (
+                              <Icon.EyeOff width={14} height={14} />
+                            ) : (
+                              <Icon.Eye width={14} height={14} />
+                            )}
+                          </button>
                           <button
                             type="button"
                             className={it.locked ? 'on' : ''}
@@ -119,8 +196,25 @@ export function LayersPanel() {
         )}
       </div>
       <div className="lyr-foot">
-        <span>{items.length} objects</span>
-        <span>{roomCount} rooms</span>
+        <span>{q ? `${matchCount} of ${items.length} objects` : `${items.length} objects`}</span>
+        <span style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-3)' }}>
+          {hiddenIds.length > 0 ? (
+            <button type="button" className="lyr-showall" onClick={() => showAllItems()}>
+              Show all ({hiddenIds.length})
+            </button>
+          ) : null}
+          {items.length > 0 ? (
+            <button
+              type="button"
+              className="lyr-showall"
+              onClick={() => setAllLocked(!(items.length > 0 && items.every((it) => it.locked)))}
+            >
+              {items.length > 0 && items.every((it) => it.locked) ? 'Unlock all' : 'Lock all'}
+            </button>
+          ) : (
+            <span>{roomCount} rooms</span>
+          )}
+        </span>
       </div>
     </>
   )

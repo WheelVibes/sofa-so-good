@@ -24,6 +24,9 @@ export interface FinishesSlice {
   }
   setFloorFinish: (room: RoomId, id: MaterialId) => void
   setWallFinish: (room: RoomId, id: MaterialId) => void
+  /** Apply one floor/wall finish to every interior (non-external) room at once. */
+  setAllFloorFinish: (id: MaterialId) => void
+  setAllWallFinish: (id: MaterialId) => void
   setWallAccent: (key: string, id: MaterialId) => void
   clearWallAccent: (key: string) => void
 }
@@ -64,6 +67,32 @@ export const createFinishesSlice: SliceCreator<FinishesSlice, RootState> = (set,
         walls: { ...s.finishes.walls, [room]: id },
       },
     }))
+  },
+  setAllFloorFinish: (id) => {
+    get().pushHistory()
+    // Iterate the ACTIVE plan's rooms (default or custom) so "apply to every
+    // room" works on custom plans too; skip the default flat's external ledges.
+    const rooms = get().floorPlan.rooms
+    set((s) => {
+      const floor = { ...s.finishes.floor }
+      for (const room of rooms) {
+        if (ROOMS[room.id as RoomId]?.external) continue
+        floor[room.id as RoomId] = id
+      }
+      return { finishes: { ...s.finishes, floor } }
+    })
+  },
+  setAllWallFinish: (id) => {
+    get().pushHistory()
+    const rooms = get().floorPlan.rooms
+    set((s) => {
+      const walls = { ...s.finishes.walls }
+      for (const room of rooms) {
+        if (ROOMS[room.id as RoomId]?.external) continue
+        walls[room.id as RoomId] = id
+      }
+      return { finishes: { ...s.finishes, walls } }
+    })
   },
   setWallAccent: (key, id) => {
     get().pushHistory()

@@ -1,9 +1,22 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { canPlace } from '../collision/placement'
+import { type PlanRoom, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
 import { Icon, type IconName } from './toolbar/icons'
+
+/** Centre point of a plan room — polygon centroid when free-form, else the
+ *  (main) rectangle centre. */
+function roomCentre(r: PlanRoom): [number, number] {
+  if (r.polygon && r.polygon.length > 0) {
+    const n = r.polygon.length
+    const sx = r.polygon.reduce((a, p) => a + p[0], 0) / n
+    const sz = r.polygon.reduce((a, p) => a + p[1], 0) / n
+    return [sx, sz]
+  }
+  return [r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2]
+}
 
 /** Right-click context menu for a placed item: quick actions without opening
  *  the inspector. Mirrors the design's `.ctx-menu`. */
@@ -37,6 +50,7 @@ export function ContextMenu() {
   const def = catalog[item.defId]
   if (!def) return null
   const locked = !!item.locked
+  const sameTypeCount = s.items.filter((i) => i.defId === item.defId).length
 
   const rotate90 = () => {
     const st = useStore.getState()
@@ -59,6 +73,50 @@ export function ContextMenu() {
     // collision check is needed.
     st.pushHistory()
     st.flipItem(it.id, 'x')
+  }
+
+  // Snap a freely-rotated piece (e.g. after a Shift-drag on the rotate gizmo)
+  // back to the nearest right angle — i.e. square to the walls.
+  const QUARTER = Math.PI / 2
+  const turns = item.rotation / QUARTER
+  const askew = Math.abs(turns - Math.round(turns)) > 0.01
+  const straighten = () => {
+    const st = useStore.getState()
+    const it = st.items.find((i) => i.id === item.id)
+    if (!it || it.locked) return
+    const next = Math.round(it.rotation / QUARTER) * QUARTER
+    if (
+      canPlace({ ...it, rotation: next }, def, { others: st.items, defs: catalog, doors: st.doors })
+    ) {
+      st.pushHistory()
+      st.rotateItem(it.id, next)
+    }
+  }
+
+  // Centre the piece in its room (handy for rugs, ceiling lights, dining
+  // tables). Uses the active plan's rooms; declines (notify) if the centre is
+  // blocked or the item isn't inside any room.
+  const inRoom = useStore
+    .getState()
+    .floorPlan.rooms.some((r) => pointInRoom(r, item.position[0], item.position[1]))
+  const centerInRoom = () => {
+    const st = useStore.getState()
+    const it = st.items.find((i) => i.id === item.id)
+    if (!it || it.locked) return
+    const room = st.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    if (!room) return
+    const c = roomCentre(room)
+    const ok = canPlace({ ...it, position: c }, def, {
+      others: st.items.filter((o) => o.id !== it.id),
+      defs: catalog,
+      doors: st.doors,
+    })
+    if (ok) {
+      st.pushHistory()
+      st.moveItem(it.id, c)
+    } else {
+      st.notify.start({ title: "Room centre is occupied — can't centre here", kind: 'info' })
+    }
   }
 
   const duplicate = () => {
@@ -142,8 +200,66 @@ export function ContextMenu() {
         onClick={() => useStore.getState().setSwapItemId(item.id)}
       />
       <Row icon="Rotate" label="Rotate 90°" sk="R" disabled={locked} onClick={rotate90} />
+      {askew ? (
+        <Row icon="Rotate" label="Straighten" disabled={locked} onClick={straighten} />
+      ) : null}
+      {inRoom ? (
+        <Row icon="Tidy" label="Centre in room" disabled={locked} onClick={centerInRoom} />
+      ) : null}
       <Row icon="FlipH" label="Flip" sk="F" disabled={locked} onClick={flip} />
       <Row icon="Copy" label="Duplicate" sk="⌘D" onClick={duplicate} />
+      {sameTypeCount > 1 ? (
+        <Row
+          icon="Layers"
+          label={`Select all of this type (${sameTypeCount})`}
+          onClick={() => {
+            const st = useStore.getState()
+            const ids = st.items.filter((i) => i.defId === item.defId).map((i) => i.id)
+            st.setSelectedItemIds(ids)
+          }}
+        />
+      ) : null}
+      <Row
+        icon="EyeOff"
+        label="Hide"
+        onClick={() => {
+          const st = useStore.getState()
+          // Hide the whole selection when this item is part of it, else just it.
+          const ids = st.selectedItemIds.includes(item.id) ? st.selectedItemIds : [item.id]
+          st.setItemsHidden(ids, true)
+        }}
+      />
+      <Row
+        icon="EyeOff"
+        label="Isolate (hide others)"
+        onClick={() => {
+          const st = useStore.getState()
+          const keep = st.selectedItemIds.includes(item.id) ? st.selectedItemIds : [item.id]
+          st.isolateItems(keep)
+        }}
+      />
+      {s.hiddenItemIds.length > 0 ? (
+        <Row
+          icon="Eye"
+          label={`Show all (${s.hiddenItemIds.length} hidden)`}
+          onClick={() => useStore.getState().showAllItems()}
+        />
+      ) : null}
+      {sameTypeCount > 1 ? (
+        <Row
+          icon="Palette"
+          label="Apply style to all of this type"
+          onClick={() => {
+            const n = useStore.getState().applyStyleToAll(item.id)
+            if (n > 0) {
+              useStore.getState().notify.start({
+                title: `Applied this style to ${n} more`,
+                kind: 'success',
+              })
+            }
+          }}
+        />
+      ) : null}
       <div className="ctx-sep" />
       {item.groupId ? (
         <Row

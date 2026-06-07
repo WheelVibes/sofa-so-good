@@ -990,10 +990,31 @@ function pointInPlanRoom(r: PlanRoom, x: number, z: number): boolean {
 }
 
 /** Classify a custom room from the items currently in it. */
+/**
+ * Classify a custom-plan room from its **name** (a strong, explicit signal the
+ * user gave) — case-insensitive keyword match. Returns null when nothing matches
+ * so the caller can fall back to inferring from contents. Lets custom plans use
+ * the kitchen work-triangle + bath-fixture arrangers, which item-inference alone
+ * (bed/seating only) never reaches.
+ */
+export function roomKindFromName(name: string | undefined): RoomKind | null {
+  if (!name) return null
+  const n = name.toLowerCase()
+  if (/\b(kitchen|kitchenette|pantry)\b/.test(n)) return 'kitchen'
+  if (/(bath|\bwc\b|toilet|powder|en-?suite|shower)/.test(n)) return 'bath'
+  if (/(bed\s?room|\bbed\b|master|nursery|guest)/.test(n)) return 'bedroom'
+  if (/(living|dining|lounge|family\s?room|great\s?room)/.test(n)) return 'living'
+  return null
+}
+
 function roomKindFromItems(
   items: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
+  name?: string,
 ): RoomKind {
+  // An explicit room name wins over content inference (the user labelled it).
+  const byName = roomKindFromName(name)
+  if (byName) return byName
   const roles = new Set(items.map((i) => roleOf(i.defId, catalog)))
   if (roles.has('bed')) return 'bedroom'
   if (roles.has('seating') || roles.has('media') || roles.has('mediaConsole')) return 'living'
@@ -1036,6 +1057,63 @@ function inferFocal(rect: Rect, windows: Array<[number, number]>): Edge | undefi
   return undefined
 }
 
+/** Arrange a single custom-plan room (shared by the per-room "Tidy" + the
+ *  whole-plan "Tidy home"). `keepOut`/`windows`/`walls` are precomputed so the
+ *  whole-plan loop builds them once. */
+function arrangeOnePlanRoom(
+  room: PlanRoom,
+  items: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+  doors: Record<string, { open: boolean }>,
+  keepOut: Rect[],
+  windows: Array<[number, number]>,
+  walls: CollisionWall[],
+): FurnitureItem[] {
+  const inRoom = (i: FurnitureItem) => pointInPlanRoom(room, i.position[0], i.position[1])
+  if (!items.some(inRoom)) return items
+  const rect = planRoomRect(room)
+  const kind = roomKindFromItems(items.filter(inRoom), catalog, room.name)
+  return arrangeCore({
+    rect,
+    keepOut,
+    inRoom,
+    kind,
+    // Custom living rooms use the edge-generic arranger, facing seating to a
+    // windowless wall in whatever direction it lies.
+    focal: kind === 'living' ? inferFocal(rect, windows) : undefined,
+    genericLiving: true,
+    allItems: items,
+    catalog,
+    doors,
+    walls,
+  })
+}
+
+/**
+ * Tidy ONE room of a user-authored floor plan (the per-room "Tidy up room" in a
+ * custom plan). `arrangeRoom` can't be used here — it's keyed on the fixed
+ * apartment's `RoomId` tables and throws on an arbitrary plan room id.
+ */
+export function arrangePlanRoom(
+  plan: FloorPlan,
+  roomId: string,
+  allItems: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+  doors: Record<string, { open: boolean }>,
+): FurnitureItem[] {
+  const room = plan.rooms.find((r) => r.id === roomId)
+  if (!room) return allItems
+  return arrangeOnePlanRoom(
+    room,
+    allItems,
+    catalog,
+    doors,
+    doorSwingRects(plan),
+    windowCentres(plan),
+    planCollisionWalls(plan, doors),
+  )
+}
+
 /**
  * Tidy a user-authored floor plan: arrange each plan room with the room-type
  * strategy (inferred from its contents), keeping clear of every door swing.
@@ -1053,25 +1131,7 @@ export function arrangeAllRoomsForPlan(
   const walls = planCollisionWalls(plan, doors)
   let items = allItems
   for (const room of plan.rooms) {
-    const inRoom = (i: FurnitureItem) => pointInPlanRoom(room, i.position[0], i.position[1])
-    const roomItems = items.filter(inRoom)
-    if (roomItems.length === 0) continue
-    const rect = planRoomRect(room)
-    const kind = roomKindFromItems(roomItems, catalog)
-    items = arrangeCore({
-      rect,
-      keepOut,
-      inRoom,
-      kind,
-      // Custom living rooms use the edge-generic arranger, facing seating to a
-      // windowless wall in whatever direction it lies.
-      focal: kind === 'living' ? inferFocal(rect, windows) : undefined,
-      genericLiving: true,
-      allItems: items,
-      catalog,
-      doors,
-      walls,
-    })
+    items = arrangeOnePlanRoom(room, items, catalog, doors, keepOut, windows, walls)
   }
   return items
 }

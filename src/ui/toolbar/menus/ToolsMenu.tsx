@@ -1,9 +1,10 @@
 import { useEffect, useMemo, useState } from 'react'
-import { buildMergedCatalog, useCatalog } from '../../../furniture/catalog'
+import { useFeature } from '../../../features/useFeature'
+import { useCatalog } from '../../../furniture/catalog'
 import { blockedDoorItems } from '../../../layout/clearance'
 import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
-import { buildReportHtml } from '../../report'
+import { openDesignReport } from '../../openReport'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** Tools cluster: budget, clearance checks, sun study, walkthrough, report.
@@ -13,16 +14,19 @@ export function ToolsMenu() {
   const clearancePanelOpen = useStore((s) => s.clearancePanelOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
+  const historyOpen = useStore((s) => s.historyOpen)
   const touring = useStore((s) => s.touring)
   const recording = useStore((s) => s.recording)
 
-  // The budget / clearance / versions panels all dock to the same centred-top
-  // `.aux` slot, so they're mutually exclusive — opening one closes the others.
+  // The budget / clearance / versions / history panels all dock to the same
+  // centred-top `.aux` slot, so they're mutually exclusive — opening one closes
+  // the others.
   const closeAux = () => {
     const s = useStore.getState()
     if (s.budgetOpen) s.toggleBudget()
     s.setClearancePanelOpen(false)
     s.setVersionsOpen(false)
+    s.setHistoryOpen(false)
   }
   const openBudget = () => {
     const wasOpen = useStore.getState().budgetOpen
@@ -41,6 +45,11 @@ export function ToolsMenu() {
     closeAux()
     useStore.getState().setVersionsOpen(!wasOpen)
   }
+  const openHistory = () => {
+    const wasOpen = useStore.getState().historyOpen
+    closeAux()
+    useStore.getState().setHistoryOpen(!wasOpen)
+  }
 
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
@@ -53,8 +62,21 @@ export function ToolsMenu() {
   const [sunStudy, setSunStudy] = useState(false)
   useSunStudy(sunStudy)
 
+  const tapeMode = useStore((s) => s.tapeMode)
+  const toggleTape = () => {
+    closeAux()
+    useStore.getState().toggleTapeMode()
+  }
+
   const anyActive =
-    budgetOpen || clearancePanelOpen || touring || recording || sunStudy || versionsOpen
+    budgetOpen ||
+    clearancePanelOpen ||
+    touring ||
+    recording ||
+    sunStudy ||
+    versionsOpen ||
+    historyOpen ||
+    tapeMode
 
   const startWalkthrough = () => {
     const s = useStore.getState()
@@ -68,68 +90,95 @@ export function ToolsMenu() {
     s.setTouring(true)
   }
 
-  const openReport = () => {
-    const s = useStore.getState()
-    const canvas = document.querySelector('canvas')
-    let hero: string | null = null
-    try {
-      hero = canvas ? canvas.toDataURL('image/png') : null
-    } catch {
-      hero = null // tainted canvas — skip the image
-    }
-    const html = buildReportHtml(s.floorPlan, s.items, buildMergedCatalog(s), hero)
-    const win = window.open('', '_blank')
-    if (!win) return
-    win.document.write(html)
-    win.document.close()
-    win.focus()
-    setTimeout(() => win.print(), 400)
-  }
+  const openReport = () => openDesignReport()
+
+  // Per-feature gates: an item is hidden when its flag is off (see featureFlags).
+  const fBudget = useFeature('budget')
+  const fChecks = useFeature('clearanceChecks')
+  const fMeasure = useFeature('measure')
+  const fHistory = useFeature('history')
+  const fVersions = useFeature('versions')
+  const fShare = useFeature('shareExport')
+  const fSun = useFeature('sunStudy')
+  const fWalk = useFeature('walkthrough')
+  const fReport = useFeature('report')
 
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={anyActive}>
-      <MenuItem
-        icon="Budget"
-        label="Budget"
-        sub="Estimate furniture cost (SGD)"
-        active={budgetOpen}
-        onClick={openBudget}
-      />
-      <MenuItem
-        icon="Checks"
-        label={blockedCount > 0 ? `Checks · ${blockedCount}` : 'Checks'}
-        sub="Door-swing + walkway clearance"
-        active={clearancePanelOpen}
-        onClick={toggleChecks}
-      />
-      <MenuItem
-        icon="Versions"
-        label="Versions"
-        sub="Save, restore & compare layouts"
-        active={versionsOpen}
-        onClick={openVersions}
-      />
-      <MenuItem
-        icon="Share"
-        label="Share & export"
-        sub="Link, PNG snapshot, shoppable PDF"
-        onClick={() => setShareOpen(true)}
-      />
-      <MenuItem
-        icon="SunStudy"
-        label="Sun study"
-        sub="Time-lapse dawn → dusk"
-        active={sunStudy}
-        onClick={() => setSunStudy((v) => !v)}
-      />
-      <MenuItem
-        icon="Walkthrough"
-        label={touring ? 'Stop tour' : 'Walkthrough'}
-        sub="Fly a tour through every room"
-        active={touring}
-        onClick={startWalkthrough}
-      />
-      <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+      {fBudget && (
+        <MenuItem
+          icon="Budget"
+          label="Budget"
+          sub="Estimate furniture cost (SGD)"
+          active={budgetOpen}
+          onClick={openBudget}
+        />
+      )}
+      {fChecks && (
+        <MenuItem
+          icon="Checks"
+          label={blockedCount > 0 ? `Checks · ${blockedCount}` : 'Checks'}
+          sub="Door-swing + walkway clearance"
+          active={clearancePanelOpen}
+          onClick={toggleChecks}
+        />
+      )}
+      {fMeasure && (
+        <MenuItem
+          icon="Measure"
+          label={tapeMode ? 'Measuring…' : 'Measure'}
+          sub="Tap two points for a distance"
+          active={tapeMode}
+          onClick={toggleTape}
+        />
+      )}
+      {fHistory && (
+        <MenuItem
+          icon="Undo"
+          label="History"
+          sub="Timeline of edits — jump to any step"
+          active={historyOpen}
+          onClick={openHistory}
+        />
+      )}
+      {fVersions && (
+        <MenuItem
+          icon="Versions"
+          label="Versions"
+          sub="Save, restore, compare & export layouts"
+          active={versionsOpen}
+          onClick={openVersions}
+        />
+      )}
+      {fShare && (
+        <MenuItem
+          icon="Share"
+          label="Share & export"
+          sub="Link, PNG snapshot, shoppable PDF"
+          onClick={() => setShareOpen(true)}
+        />
+      )}
+      {fSun && (
+        <MenuItem
+          icon="SunStudy"
+          label="Sun study"
+          sub="Time-lapse dawn → dusk"
+          active={sunStudy}
+          onClick={() => setSunStudy((v) => !v)}
+        />
+      )}
+      {fWalk && (
+        <MenuItem
+          icon="Walkthrough"
+          label={touring ? 'Stop tour' : 'Walkthrough'}
+          sub="Fly a tour through every room"
+          active={touring}
+          onClick={startWalkthrough}
+        />
+      )}
+      {fReport && (
+        <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+      )}
     </ToolbarMenu>
   )
 }

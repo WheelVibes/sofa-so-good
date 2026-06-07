@@ -15,6 +15,7 @@ import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
   const [slots, setSlots] = useState<SlotMeta[]>([])
@@ -26,7 +27,12 @@ export function FileMenu() {
   const refresh = () => void LocalStorageAdapter.list().then(setSlots)
 
   const save = async () => {
-    const name = prompt('Save layout as…')
+    const name = await useStore.getState().promptText({
+      title: 'Save layout',
+      label: 'Name this layout',
+      placeholder: 'e.g. Living room v2',
+      submitLabel: 'Save',
+    })
     if (!name) return
     const slot = name.trim().replace(/\s+/g, '-').toLowerCase()
     if (!slot) return
@@ -34,20 +40,30 @@ export function FileMenu() {
       await LocalStorageAdapter.save(slot, serialize(useStore.getState()))
       saveThumb(slot, captureThumb())
       refresh()
+      useStore.getState().notify.start({ title: `Saved layout “${slot}”`, kind: 'success' })
     } catch (e) {
-      alert(`Could not save: ${(e as Error).message}`)
+      useStore.getState().notify.start({
+        title: `Could not save: ${(e as Error).message}`,
+        kind: 'error',
+      })
     }
   }
 
   const load = async (slot: string) => {
     const data = await LocalStorageAdapter.load(slot).catch(() => null)
     if (!data) {
-      alert(`Could not load slot ${slot}`)
+      useStore.getState().notify.start({ title: `Could not load slot ${slot}`, kind: 'error' })
       return
     }
     const userIds = useStore.getState().userFurniture.map((d) => d.id)
     const known = new Set([...Object.keys(BUILTIN_CATALOG), ...userIds])
     useStore.setState(applySerialized(data, known))
+    // Loading replaces the world; clear undo history so Ctrl+Z can't cross into
+    // the previous design (consistent with import / version restore).
+    useStore.getState().clearHistory?.()
+    // Frame the loaded design (plan-aware, so a custom plan lands centred).
+    useStore.getState().requestHomeView()
+    useStore.getState().notify.start({ title: `Loaded “${slot}”`, kind: 'success' })
   }
 
   return (
@@ -59,7 +75,7 @@ export function FileMenu() {
         sub="Save the current view as an image"
         onClick={() => window.dispatchEvent(new Event(EXPORT_EVENT))}
       />
-      {canRecord() ? (
+      {canRecord() && proMode ? (
         <MenuItem
           icon="Record"
           label={recording ? 'Stop recording' : 'Record clip'}
@@ -76,17 +92,27 @@ export function FileMenu() {
         icon="Reset"
         label="Default"
         sub="Reset to the floor-plan default"
-        onClick={() => {
-          if (confirm('Reset to floor-plan default? Your current layout will be lost.'))
-            resetToDefault()
+        onClick={async () => {
+          const ok = await useStore.getState().confirmAction({
+            title: 'Reset to default',
+            message: 'Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.',
+            confirmLabel: 'Reset',
+          })
+          if (ok) resetToDefault()
         }}
       />
       <MenuItem
         icon="Reset"
         label="Empty"
         sub="Clear all furniture"
-        onClick={() => {
-          if (confirm('Clear all furniture? This cannot be undone.')) resetToEmpty()
+        onClick={async () => {
+          const ok = await useStore.getState().confirmAction({
+            title: 'Clear all furniture',
+            message: 'Remove every placed item? You can undo this with Ctrl/⌘+Z.',
+            confirmLabel: 'Clear all',
+            danger: true,
+          })
+          if (ok) resetToEmpty()
         }}
       />
       {slots.length === 0 ? (

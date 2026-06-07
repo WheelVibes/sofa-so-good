@@ -1,9 +1,12 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useState } from 'react'
 import { type Camera, Vector3 } from 'three'
+import { obbCorners } from '../../collision/obb'
 import { itemFootprint } from '../../collision/placement'
 import { useCatalogGetter } from '../../furniture/catalog'
+import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
+import { marqueeHitsScreenPoints } from './marqueeHit'
 
 const DRAG_THRESHOLD_PX = 4
 
@@ -64,8 +67,7 @@ export function MarqueeSelector() {
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return
       const state = useStore.getState()
-      if (state.cameraMode !== 'orbit') return
-      if (state.editorTool !== 'select') return
+      if (!canEditScene(state)) return
       if (state.activeDefId) return
       pending = { x: e.clientX, y: e.clientY, shift: e.shiftKey }
     }
@@ -117,12 +119,21 @@ export function MarqueeSelector() {
           const def = catalogRef.current[item.defId]
           if (!def) continue
           const obb = itemFootprint(item, def)
-          v.set(obb.cx, 0, obb.cz)
-          v.project(cam)
-          if (v.z < -1 || v.z > 1) continue
-          const sx = ((v.x + 1) / 2) * rectDom.width + rectDom.left
-          const sy = ((1 - v.y) / 2) * rectDom.height + rectDom.top
-          if (sx >= xMin && sx <= xMax && sy >= yMin && sy <= yMax) {
+          // Project the footprint's 4 corners (+ centre) to screen, then select
+          // if their bounding box *intersects* the marquee — so dragging over
+          // part of a large piece selects it (lasso-style), not only when its
+          // centre falls inside the rect.
+          const pts: [number, number][] = []
+          for (const [cx, cz] of [...obbCorners(obb), [obb.cx, obb.cz] as const]) {
+            v.set(cx, 0, cz)
+            v.project(cam)
+            if (v.z < -1 || v.z > 1) continue
+            pts.push([
+              ((v.x + 1) / 2) * rectDom.width + rectDom.left,
+              ((1 - v.y) / 2) * rectDom.height + rectDom.top,
+            ])
+          }
+          if (marqueeHitsScreenPoints(pts, xMin, xMax, yMin, yMax)) {
             hits.push(item.id)
           }
         }

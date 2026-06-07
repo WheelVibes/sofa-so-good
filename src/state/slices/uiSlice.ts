@@ -1,18 +1,19 @@
-import type { RoomId } from '../../apartment/types'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
-/** Editor tool while in orbit camera mode. 'orbit' lets click-drag rotate
- *  the camera (current default). 'select' disables camera rotation so a
- *  click-drag on furniture moves it; click-drag on empty space does nothing. */
-export type EditorTool = 'select' | 'orbit'
-
 /** Whether furniture fixture lights are driven automatically by the day/night
  *  cycle ('auto'), forced on (so windowless rooms read well in daylight), or
  *  forced off. */
 export type LightsMode = 'auto' | 'on' | 'off'
+
+/** Selectable 3D scene surroundings (see `scene/SceneBackdrop`). */
+export type BackdropKind = 'city' | 'park' | 'hills' | 'none'
+
+/** Interface density. 'simple' hides advanced/technical clusters (analysis Tools,
+ *  the floor-plan editor) for a friendlier first experience; 'pro' shows all. */
+export type UiMode = 'simple' | 'pro'
 
 /** Boot lifecycle phase. `'hydrating'` until the async bootstrap (IDB user
  *  assets, packs, autosave) resolves; then `'ready'`. Drives the initial
@@ -22,7 +23,6 @@ export type BootPhase = 'hydrating' | 'ready'
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
 export interface UiSlice {
   catalogOpen: boolean
-  editorTool: EditorTool
   showFps: boolean
   /** Graphics quality tier. Auto-detected on boot, auto-downgraded by the
    *  adaptive performance monitor, and user-overridable from the toolbar. */
@@ -43,6 +43,13 @@ export interface UiSlice {
   snapEnabled: boolean
   /** Alignment-grid cell size in metres (e.g. 0.1 = 10 cm, 1 = 1 m). */
   gridSize: number
+  /** Selected 3D scene backdrop (surroundings outside the flat). Persisted via
+   *  editorPrefs, like snap/units. */
+  backdrop: BackdropKind
+  setBackdrop: (b: BackdropKind) => void
+  /** Interface density (simple hides advanced clusters). Persisted via editorPrefs. */
+  uiMode: UiMode
+  setUiMode: (m: UiMode) => void
   /** Whether the budget / shopping-list panel is open. */
   budgetOpen: boolean
   /** Whether clearance checks (door-swing blocking) are shown. */
@@ -51,6 +58,9 @@ export interface UiSlice {
   recording: boolean
   /** Recently-used custom finish colours (hex), most-recent first. Ephemeral. */
   recentColors: string[]
+  /** Recently-applied finish material ids (most-recent first, capped). Speeds
+   *  re-applying a finish across rooms. Ephemeral. */
+  recentFinishes: string[]
   /** Adaptive last-resort: when the FPS guard is already at the Low tier and
    *  still can't hold 30fps, it sheds the sun-shadow pass (the biggest
    *  remaining cost). Not a user setting; reset when a tier is picked manually. */
@@ -69,6 +79,10 @@ export interface UiSlice {
   bootPhase: BootPhase
   /** Mark the boot bootstrap finished (flips the initial loading overlay off). */
   setBootReady: () => void
+  /** Epoch (ms) of the last successful auto-save, or null if none yet this
+   *  session. Surfaced as a reassuring "Auto-saved …" line. Ephemeral. */
+  lastSavedAt: number | null
+  setLastSavedAt: (t: number) => void
   /** True once the 3D scene has painted its first solid frames (shaders +
    *  procedural textures warm, any restored GLBs streamed in). The boot loading
    *  screen is held until this AND `bootPhase==='ready'`, so the scene is
@@ -84,17 +98,16 @@ export interface UiSlice {
   /** Hide the transition loading overlay (min-display time is handled by the
    *  overlay component, so callers can call this on the next tick). */
   hideLoading: () => void
-  /** Per-room editor: isolates a single room (IKEA-planner style). Ephemeral. */
-  roomEditor: { active: boolean; roomId: RoomId | null }
+  /** Per-room editor: isolates a single room (IKEA-planner style). Ephemeral.
+   *  `roomId` is a default-apartment RoomId or, on a custom plan, a plan room id. */
+  roomEditor: { active: boolean; roomId: string | null }
   /** Enter the room editor for `roomId`: pins Performance + Original assets
    *  (remembering prior tiers), resets camera to orbit. */
-  enterRoomEditor: (roomId: RoomId) => void
+  enterRoomEditor: (roomId: string) => void
   /** Leave the room editor, restoring the render + asset tiers in effect on enter. */
   exitRoomEditor: () => void
   setCatalogOpen: (open: boolean) => void
   toggleCatalogOpen: () => void
-  setEditorTool: (tool: EditorTool) => void
-  toggleEditorTool: () => void
   setShowFps: (show: boolean) => void
   toggleShowFps: () => void
   /** Manual tier change — clears overrides and marks qualityUserSet. */
@@ -123,12 +136,13 @@ export interface UiSlice {
   setRecording: (v: boolean) => void
   /** Record a custom colour as recently-used (deduped, capped at 8). */
   pushRecentColor: (hex: string) => void
+  /** Record a material id as a recently-applied finish (deduped, capped at 8). */
+  pushRecentFinish: (id: string) => void
 }
 
 export const UI_INITIAL: Pick<
   UiSlice,
   | 'catalogOpen'
-  | 'editorTool'
   | 'showFps'
   | 'qualityTier'
   | 'qualityUserSet'
@@ -136,21 +150,24 @@ export const UI_INITIAL: Pick<
   | 'assetTier'
   | 'lightsMode'
   | 'autoShadowsOff'
+  | 'backdrop'
+  | 'uiMode'
   | 'snapEnabled'
   | 'gridSize'
   | 'budgetOpen'
   | 'clearanceOn'
   | 'recording'
   | 'recentColors'
+  | 'recentFinishes'
   | 'materialEpoch'
   | 'showcaseAccumulating'
   | 'roomEditor'
   | 'bootPhase'
   | 'sceneReady'
   | 'loading'
+  | 'lastSavedAt'
 > = {
   catalogOpen: false,
-  editorTool: 'orbit',
   showFps: false,
   qualityTier: 'performance',
   qualityUserSet: false,
@@ -160,16 +177,20 @@ export const UI_INITIAL: Pick<
   autoShadowsOff: false,
   snapEnabled: false,
   gridSize: 0.5,
+  backdrop: 'city' as BackdropKind,
+  uiMode: 'simple' as UiMode,
   budgetOpen: false,
   clearanceOn: false,
   recording: false,
   recentColors: [],
+  recentFinishes: [],
   materialEpoch: 0,
   showcaseAccumulating: false,
   roomEditor: { active: false, roomId: null },
   bootPhase: 'hydrating',
   sceneReady: false,
   loading: { active: false, label: '' },
+  lastSavedAt: null,
 }
 
 /** Preset alignment-grid cell sizes (metres) the size button cycles through. */
@@ -185,6 +206,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   ...UI_INITIAL,
   setBootReady: () => set({ bootPhase: 'ready' }),
   setSceneReady: (sceneReady) => set({ sceneReady }),
+  setLastSavedAt: (lastSavedAt) => set({ lastSavedAt }),
   showLoading: (label) => set({ loading: { active: true, label } }),
   hideLoading: () => set((s) => ({ loading: { ...s.loading, active: false } })),
   enterRoomEditor: (roomId) => {
@@ -203,6 +225,10 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   exitRoomEditor: () => {
     const restore = priorTiers
     priorTiers = null
+    // Orbit/walk over the whole flat are view-only, so any selection made in
+    // the editor must clear — otherwise a stale Inspector/Finish picker would
+    // linger with no way to dismiss it (nothing is selectable outside the editor).
+    get().selectItem(null)
     set({
       roomEditor: { active: false, roomId: null },
       loading: { active: true, label: 'Exiting room…' },
@@ -213,9 +239,6 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   },
   setCatalogOpen: (open) => set({ catalogOpen: open }),
   toggleCatalogOpen: () => set((s) => ({ catalogOpen: !s.catalogOpen })),
-  setEditorTool: (tool) => set({ editorTool: tool }),
-  toggleEditorTool: () =>
-    set((s) => ({ editorTool: s.editorTool === 'orbit' ? 'select' : 'orbit' })),
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
   bumpMaterialEpoch: () => set((s) => ({ materialEpoch: s.materialEpoch + 1 })),
@@ -246,6 +269,8 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setAutoShadowsOff: (v) => set({ autoShadowsOff: v }),
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
+  setBackdrop: (backdrop) => set({ backdrop }),
+  setUiMode: (uiMode) => set({ uiMode }),
   cycleGridSize: () =>
     set((s) => {
       const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number])
@@ -261,4 +286,6 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
         ...s.recentColors.filter((c) => c.toLowerCase() !== hex.toLowerCase()),
       ].slice(0, 8),
     })),
+  pushRecentFinish: (id) =>
+    set((s) => ({ recentFinishes: [id, ...s.recentFinishes.filter((f) => f !== id)].slice(0, 8) })),
 })

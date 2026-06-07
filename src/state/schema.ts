@@ -27,6 +27,8 @@ const FurnitureItemZ = z.object({
   locked: z.boolean().optional(),
   // Optional group membership (introduced in save v2; absent = ungrouped).
   groupId: z.string().optional(),
+  // Optional user-given display name (absent = use the catalog def name).
+  label: z.string().optional(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
 })
 
@@ -137,6 +139,8 @@ const PlanOpeningZ = z.object({
   width: z.number(),
   sill: z.number(),
   head: z.number(),
+  hinge: z.enum(['start', 'end']).optional(),
+  swing: z.enum(['left', 'right']).optional(),
 })
 const PlanRoomZ = z.object({
   id: z.string(),
@@ -156,6 +160,7 @@ const FloorPlanZ = z.object({
   walls: z.array(PlanWallZ),
   openings: z.array(PlanOpeningZ),
   rooms: z.array(PlanRoomZ),
+  wallColor: z.string().optional(),
 })
 
 const RawSerializedStateZ = z.object({
@@ -175,6 +180,20 @@ const RawSerializedStateZ = z.object({
   userMaterials: z.array(UserMaterialDefZ),
   timeMode: z.enum(['system', 'manual']),
   manualHour: z.number().min(0).max(24),
+  // Optional (added later): fixture-lights mode, so a saved lighting mood's
+  // on/off state round-trips. Absent → 'auto' on load.
+  lightsMode: z.enum(['auto', 'on', 'off']).optional(),
+  // Optional pinned dimension callouts (persist with the design). Absent → [].
+  annotations: z
+    .array(
+      z.object({
+        id: z.string(),
+        a: z.tuple([z.number(), z.number()]),
+        b: z.tuple([z.number(), z.number()]),
+        shape: z.enum(['line', 'rect']),
+      }),
+    )
+    .optional(),
   cameraMode: z.enum(['orbit', 'firstPerson']),
   orientationDeg: z.number().optional(),
   location: z
@@ -187,6 +206,8 @@ const RawSerializedStateZ = z.object({
     .optional()
     .default(null),
   locationPromptDismissed: z.boolean().optional().default(false),
+  // Free-text project note that travels with the design (optional, back-compat).
+  note: z.string().optional(),
   savedAt: z.string(),
 })
 
@@ -298,10 +319,13 @@ export function serialize(state: RootState): SerializedState {
     })),
     timeMode: state.timeMode,
     manualHour: state.manualHour,
+    lightsMode: state.lightsMode,
+    ...(state.annotations.length ? { annotations: state.annotations } : {}),
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
     location: state.location,
     locationPromptDismissed: state.locationPromptDismissed,
+    ...(state.designNote ? { note: state.designNote } : {}),
     savedAt: new Date().toISOString(),
   }
 }
@@ -313,7 +337,13 @@ export function applySerialized(
   state: SerializedState,
   knownDefIds: Set<string>,
 ): Partial<RootState> {
-  const validRoom = (k: string): k is RoomId => k in ROOMS
+  // The plan being restored (custom shell, else the default flat) — used to
+  // validate finish keys: a custom plan's finishes are keyed by its own room
+  // ids (not in the fixed `ROOMS` table), so filtering on `ROOMS` alone would
+  // silently drop every custom-room floor/wall finish on load.
+  const plan = state.floorPlan ?? buildDefaultPlan()
+  const planRoomIds = new Set<string>(plan.rooms.map((r) => r.id))
+  const validRoom = (k: string): k is RoomId => k in ROOMS || planRoomIds.has(k)
   const floor: Partial<Record<RoomId, string>> = {}
   for (const [k, v] of Object.entries(state.finishes.floor)) {
     if (validRoom(k)) floor[k] = v
@@ -322,10 +352,23 @@ export function applySerialized(
   for (const [k, v] of Object.entries(state.finishes.walls)) {
     if (validRoom(k)) walls[k] = v
   }
+  // Drop items whose transform isn't finite — `z.number()` admits NaN/Infinity,
+  // so a corrupt or hand-edited save could otherwise feed NaN into the Three.js
+  // matrices and break (or crash-loop) the whole renderer.
+  const finiteTransform = (it: SerializedState['items'][number]) =>
+    Number.isFinite(it.position[0]) &&
+    Number.isFinite(it.position[1]) &&
+    Number.isFinite(it.rotation)
   return {
-    items: state.items.filter((it) => knownDefIds.has(it.defId)),
+    items: state.items.filter((it) => knownDefIds.has(it.defId) && finiteTransform(it)),
+    // A loaded/restored design has no relation to the current session's
+    // selection or hidden set — reset both so the inspector and the Layers
+    // "(N hidden)" count never reference items that are no longer present.
+    selectedItemId: null,
+    selectedItemIds: [],
+    hiddenItemIds: [],
     // Restore a saved custom shell, else fall back to the default flat.
-    floorPlan: state.floorPlan ?? buildDefaultPlan(),
+    floorPlan: plan,
     doors: state.doors,
     finishes: {
       floor: floor as Record<RoomId, string>,
@@ -334,9 +377,12 @@ export function applySerialized(
     },
     timeMode: state.timeMode,
     manualHour: state.manualHour,
+    lightsMode: state.lightsMode ?? 'auto',
+    annotations: state.annotations ?? [],
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,
     locationPromptDismissed: state.locationPromptDismissed ?? false,
+    designNote: state.note ?? '',
   }
 }

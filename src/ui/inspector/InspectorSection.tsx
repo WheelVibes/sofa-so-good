@@ -1,0 +1,69 @@
+import { type ReactNode, useState } from 'react'
+import { Icon } from '../toolbar/icons'
+
+interface Props {
+  title: string
+  /** Open on first mount. Callers pass `false` in Simple mode to start collapsed. */
+  defaultOpen?: boolean
+  /** Optional control rendered at the right of the header (e.g. a Reset button).
+   *  Its own click is stopped from toggling the section. */
+  headerRight?: ReactNode
+  /** Extra style for the outer `<section>`. */
+  style?: React.CSSProperties
+  children: ReactNode
+}
+
+/**
+ * A collapsible inspector section: a clickable header (chevron + title) that
+ * shows/hides its body. Keeps the panel calm — Simple mode passes
+ * `defaultOpen={false}` so multi-field sections (Properties, Transform, …) start
+ * collapsed and the user expands what they need.
+ */
+export function InspectorSection({
+  title,
+  defaultOpen = true,
+  headerRight,
+  style,
+  children,
+}: Props) {
+  const [open, setOpen] = useState(defaultOpen)
+  return (
+    <section className="sec insp-sec" style={style}>
+      <div className="sec-h" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+        <button
+          type="button"
+          className="insp-sec-toggle"
+          aria-expanded={open}
+          onClick={() => setOpen((o) => !o)}
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 6,
+            flex: 1,
+            minWidth: 0,
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer',
+            font: 'inherit',
+            color: 'inherit',
+            textAlign: 'left',
+          }}
+        >
+          <Icon.Chevron
+            width={13}
+            height={13}
+            style={{
+              flex: 'none',
+              transition: 'transform .15s',
+              transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+            }}
+          />
+          <span>{title}</span>
+        </button>
+        {headerRight}
+      </div>
+      {open ? children : null}
+    </section>
+  )
+}

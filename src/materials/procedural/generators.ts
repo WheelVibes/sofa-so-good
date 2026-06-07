@@ -5,19 +5,13 @@
  * memory (one tile per material, shared across every mesh that uses it).
  */
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
+import type { ProceduralPattern } from '../types'
 import { clamp01, hashSeed, heightToNormalRGBA, hexToRgb, makeFbm, mix, mulberry32 } from './noise'
 
-export type ProceduralPattern =
-  | 'wood'
-  | 'tile'
-  | 'carpet'
-  | 'concrete'
-  | 'marble'
-  | 'plaster'
-  | 'terrazzo'
-  | 'stripe'
-  | 'grasscloth'
-  | 'checker'
+// Single source of truth lives in `../types` (the pure-types module). Re-exported
+// here so the many `from '.../procedural/generators'` importers keep working —
+// previously the union was duplicated in both files and drifted on every change.
+export type { ProceduralPattern }
 
 export interface ProceduralResult {
   albedo: Texture
@@ -389,6 +383,244 @@ function checkerFields(base: [number, number, number], seed: number): Fields {
   return f
 }
 
+/**
+ * Basketweave parquet: a grid of square blocks, each holding K parallel wood
+ * planks, with block orientation alternating like a checkerboard (horizontal /
+ * vertical). Seamless because the block grid divides the tile evenly. The plank
+ * shading reuses the wood look (warped latewood bands + tinted boards + recessed
+ * grooves at plank/block edges), oriented per block.
+ */
+function parquetFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 9
+  const nb = 2 // blocks per axis — keeps the tile seamless
+  const K = 4 // planks per block
+  const B = S / nb // block size (px)
+  const pw = B / K // plank width (px)
+  const grain = makeFbm(seed + 7, 4, 3)
+  const fine = makeFbm(seed + 99, 3, 28)
+  // Deterministic per-plank hash → tint variation without a stateful RNG stream.
+  const hsh = (n: number) => {
+    let t = (n * 2654435761) >>> 0
+    t ^= t >>> 15
+    t = (t * 2246822519) >>> 0
+    return (t >>> 8) / 16777216
+  }
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const bx = Math.floor(x / B)
+      const by = Math.floor(y / B)
+      const horizontal = ((bx + by) & 1) === 0
+      const lx = x - bx * B
+      const ly = y - by * B
+      // across = position across the plank width (0..1); along = down its length.
+      let across: number
+      let along: number
+      let plankIdx: number
+      if (horizontal) {
+        plankIdx = Math.floor(ly / pw)
+        across = (ly - plankIdx * pw) / pw
+        along = lx / B
+      } else {
+        plankIdx = Math.floor(lx / pw)
+        across = (lx - plankIdx * pw) / pw
+        along = ly / B
+      }
+      const pid = bx * 7 + by * 13 + plankIdx * 31
+      const val = 0.84 + hsh(pid) * 0.26
+      const warm = 0.95 + hsh(pid + 1) * 0.12
+      // Latewood bands run along the plank length; warp them so they meander.
+      const warp = grain(along * 1.2 + (pid % 11), across * 1.5) - 0.5
+      const band = Math.abs(Math.sin((across + warp * 0.5) * Math.PI * 7 + (pid % 7)))
+      const fg = fine(along * 4, across)
+      let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
+      // Recessed grooves between planks (across) and at plank ends (along).
+      const edgeAcross = Math.min(across, 1 - across)
+      const grooveA = edgeAcross < 0.06 ? edgeAcross / 0.06 : 1
+      const edgeAlong = Math.min(along, 1 - along)
+      const grooveB = edgeAlong < 0.03 ? edgeAlong / 0.03 : 1
+      const groove = Math.min(grooveA, grooveB)
+      factor *= 0.5 + 0.5 * groove
+      const r = base[0] * factor * warm
+      const g = base[1] * factor
+      const b = base[2] * factor * (2 - warm)
+      const h = clamp01(0.5 * groove + band * 0.3)
+      const rough = clamp01(0.42 + band * 0.16 + (1 - groove) * 0.2)
+      setPx(f, y * S + x, r, g, b, h, rough)
+    }
+  }
+  return f
+}
+
+/**
+ * Running-bond exposed brick: rows of bricks offset by half a brick each row,
+ * with recessed mortar joints and per-brick colour/value variation. Seamless —
+ * the column count divides the tile and the row count is even so the half-offset
+ * alternation wraps. `base` is the brick colour; mortar is a fixed warm grey.
+ */
+function brickFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 5
+  const cols = 5
+  const bw = S / cols // brick width (px) — divides S → seamless horizontally
+  const rows = 12 // even → the per-row half-offset wraps seamlessly
+  const bh = S / rows // brick height (px)
+  const mortar = Math.max(2, Math.round(S / 110)) // joint thickness (px)
+  const mortarRgb: [number, number, number] = [188, 182, 172]
+  const grain = makeFbm(seed + 5, 3, 26)
+  const hsh = (n: number) => {
+    let t = (n * 2654435761) >>> 0
+    t ^= t >>> 15
+    t = (t * 2246822519) >>> 0
+    return (t >>> 8) / 16777216
+  }
+  for (let y = 0; y < S; y++) {
+    const row = Math.floor(y / bh)
+    const yIn = y - row * bh
+    const offset = (row & 1) * (bw / 2)
+    for (let x = 0; x < S; x++) {
+      const xs = (((x + offset) % S) + S) % S
+      const col = Math.floor(xs / bw)
+      const xIn = xs - col * bw
+      const inMortar = xIn < mortar || xIn > bw - mortar || yIn < mortar || yIn > bh - mortar
+      const i = y * S + x
+      if (inMortar) {
+        const g = grain(x / S, y / S)
+        const c = 0.92 + (g - 0.5) * 0.08
+        setPx(f, i, mortarRgb[0] * c, mortarRgb[1] * c, mortarRgb[2] * c, 0.12, 0.85)
+        continue
+      }
+      const id = row * 53 + col * 17
+      // Per-brick value + warmth variation, plus fine intra-brick speckle.
+      const val = 0.8 + hsh(id) * 0.35
+      const warm = 0.96 + hsh(id + 1) * 0.1
+      const speck = grain(x / S + id, y / S) - 0.5
+      const factor = val * (1 + speck * 0.08)
+      const r = base[0] * factor * warm
+      const g = base[1] * factor
+      const b = base[2] * factor * (2 - warm)
+      // Bricks bulge slightly proud of the mortar; rougher than mortar.
+      setPx(f, i, r, g, b, 0.6 + speck * 0.1, clamp01(0.7 + speck * 0.15))
+    }
+  }
+  return f
+}
+
+/**
+ * Board-and-batten panelling: a flat painted panel with evenly-spaced vertical
+ * raised battens (with bevelled edges in the height map). Seamless — the batten
+ * count divides the tile. `base` is the paint colour.
+ */
+function battenFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 7
+  const battens = 6 // battens across the tile (divides S → seamless)
+  const period = S / battens
+  const bw = period * 0.16 // batten width
+  const bevel = period * 0.03 // bevel ramp at each batten edge
+  const grain = makeFbm(seed + 4, 3, 20)
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const xIn = x % period
+      // Height: raised on the batten, ramped through the bevel, flat on panel.
+      let h: number
+      if (xIn < bevel) h = 0.3 + (xIn / bevel) * 0.5
+      else if (xIn < bw - bevel) h = 0.8
+      else if (xIn < bw) h = 0.8 - ((xIn - (bw - bevel)) / bevel) * 0.5
+      else h = 0.3
+      const onBatten = xIn < bw
+      const g = grain(x / S, y / S)
+      // Battens catch a touch more light; subtle painted-surface noise.
+      const factor = (onBatten ? 1.02 : 0.95) * (0.98 + (g - 0.5) * 0.03)
+      setPx(
+        f,
+        y * S + x,
+        base[0] * factor,
+        base[1] * factor,
+        base[2] * factor,
+        h,
+        0.55, // matte paint
+      )
+    }
+  }
+  return f
+}
+
+/**
+ * Herringbone parquet: rectangular wood planks (length L = n·W) laid in the
+ * classic interlocking 45° zigzag — horizontal planks (L wide × W tall) and
+ * vertical planks (W wide × L tall) alternate in diagonal bands. The plank a
+ * texel belongs to is found from the orientation field `g = (⌊x⌋+⌊y⌋) mod 2n`
+ * (in plank-width units; `g < n` → horizontal), then the run within that band.
+ * Plank IDs use the run's canonical start position (mod the tile period) so the
+ * per-plank tint + grain tile **seamlessly**, including planks that straddle the
+ * tile edge. Shading reuses the wood look (latewood bands across the width,
+ * per-plank warmth/value, recessed grooves at plank joints).
+ */
+function herringboneFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 9
+  const across = 16 // plank-widths across the tile (divides S → seamless)
+  const W = S / across // plank width (px)
+  const n = 4 // plank length L = n·W
+  const P = 2 * n // orientation period in W-units; across (16) is a multiple → seamless
+  const grain = makeFbm(seed + 7, 4, 3)
+  const fine = makeFbm(seed + 99, 3, 28)
+  const hsh = (k: number) => {
+    let t = (k * 2654435761) >>> 0
+    t ^= t >>> 15
+    t = (t * 2246822519) >>> 0
+    return (t >>> 8) / 16777216
+  }
+  const wrap = (v: number) => ((v % across) + across) % across
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const xw = x / W
+      const yw = y / W
+      const fx = Math.floor(xw)
+      const fy = Math.floor(yw)
+      const g = (((fx + fy) % P) + P) % P
+      const horizontal = g < n
+      let acrossF: number
+      let alongF: number
+      let pid: number
+      if (horizontal) {
+        // Horizontal plank: spans n cells along x; `g` is the offset within it.
+        acrossF = yw - fy
+        alongF = (g + (xw - fx)) / n
+        pid = wrap(fx - g) * 131 + wrap(fy) * 17 + 1
+      } else {
+        // Vertical plank: spans n cells along y; offset within it is g − n.
+        const go = g - n
+        acrossF = xw - fx
+        alongF = (go + (yw - fy)) / n
+        pid = wrap(fx) * 271 + wrap(fy - go) * 29 + 7
+      }
+      const val = 0.84 + hsh(pid) * 0.26
+      const warm = 0.94 + hsh(pid + 1) * 0.14
+      // Latewood bands run along the plank length; warp so they meander.
+      const warp2 = grain(alongF * 1.2 + (pid % 11), acrossF * 1.5) - 0.5
+      const band = Math.abs(Math.sin((acrossF + warp2 * 0.5) * Math.PI * 7 + (pid % 7)))
+      const fg = fine(alongF * 4, acrossF)
+      let factor = val * (0.92 - band * 0.14 + (fg - 0.5) * 0.06)
+      // Recessed grooves: across the width (plank sides) + at the butt ends.
+      const edgeAcross = Math.min(acrossF, 1 - acrossF)
+      const grooveA = edgeAcross < 0.07 ? edgeAcross / 0.07 : 1
+      const edgeAlong = Math.min(alongF, 1 - alongF)
+      const grooveB = edgeAlong < 0.05 ? edgeAlong / 0.05 : 1
+      const groove = Math.min(grooveA, grooveB)
+      factor *= 0.5 + 0.5 * groove
+      const r = base[0] * factor * warm
+      const gg = base[1] * factor
+      const b = base[2] * factor * (2 - warm)
+      const h = clamp01(0.5 * groove + band * 0.3)
+      const rough = clamp01(0.42 + band * 0.16 + (1 - groove) * 0.2)
+      setPx(f, y * S + x, r, gg, b, h, rough)
+    }
+  }
+  return f
+}
+
 const PATTERN_FN: Record<
   ProceduralPattern,
   (base: [number, number, number], seed: number) => Fields
@@ -403,6 +635,10 @@ const PATTERN_FN: Record<
   terrazzo: terrazzoFields,
   stripe: stripeFields,
   grasscloth,
+  parquet: parquetFields,
+  herringbone: herringboneFields,
+  brick: brickFields,
+  batten: battenFields,
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only

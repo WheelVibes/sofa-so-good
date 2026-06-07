@@ -1,6 +1,7 @@
 import { isUserDef } from '../../furniture/catalog'
 import type { FurnitureDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { formatDims } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 import { useBuiltinThumbnail } from './thumbnails'
@@ -17,8 +18,37 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const thumb = useBuiltinThumbnail(def)
   const saved = useStore((s) => s.collections.includes(def.id))
   const toggleCollection = useStore((s) => s.toggleCollection)
+  const units = useStore((s) => s.units)
   return (
-    <div onClick={onClick} className="cat-card group">
+    // biome-ignore lint/a11y/useSemanticElements: a <button> can't host the nested fav/delete buttons (invalid HTML); role=button + key handling gives the same a11y.
+    <div
+      role="button"
+      tabIndex={0}
+      aria-label={`Place ${def.name}`}
+      onClick={onClick}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          onClick()
+        }
+      }}
+      // Desktop drag-and-drop placement: dragging arms placement (the ghost then
+      // follows the cursor onto the scene) and the drop commits. Click-to-arm
+      // stays as the touch/fallback path.
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'copy'
+        e.dataTransfer.setData('text/plain', def.id)
+        const s = useStore.getState()
+        s.setActiveDefId(def.id)
+        s.setCursor({ x: e.clientX, y: e.clientY })
+      }}
+      onDragEnd={() => {
+        // If the drop didn't land on the canvas (still armed), disarm.
+        if (useStore.getState().activeDefId === def.id) useStore.getState().cancelPlacement()
+      }}
+      className="cat-card group"
+    >
       <button
         type="button"
         className={`fav-btn${saved ? ' on' : ''}`}
@@ -47,7 +77,7 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
         </span>
       </div>
       <span className="pr mono">
-        {def.defaultFootprint.w.toFixed(2)} × {def.defaultFootprint.d.toFixed(2)} m
+        {formatDims(def.defaultFootprint.w, def.defaultFootprint.d, units)}
       </span>
       {isUser ? (
         <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>

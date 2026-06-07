@@ -20,18 +20,22 @@ export the result — all in the browser.
   form, material, weave, and sheen in the inspector), searchable, with live 3D
   thumbnails. The catalog is **unified** — built-ins, your uploads, installed
   packs, and the browsable CC0 library (Poly Haven) all live in one grid with a
-  single search that spans everything; **heart** any item (built-in or CC0) to
-  drop it into the **favourites** category (the star tab at the front).
+  single search that spans everything; **sort** a category by Featured / Name /
+  Size and **filter by max price**; **heart** any item (built-in or CC0) to
+  drop it into the **favourites** category (the star tab at the front). The
+  drawer reopens to your last category + sort.
   Includes an entryway shoe cabinet, floating + leaning mirrors, wall shelves,
   L-shaped sectional, sideboard, bar cart, room divider, baby crib, potted
   plants in bush / snake-plant / palm forms, and bundled **pool tables in
   6 / 7 / 8 / 9 ft** sizes (a CC-BY model credited in-app). Comes furnished out of the box,
   with one-click **Sets** (vignettes), full-flat **Presets**, and a per-room
   **Tidy up** auto-arranger that follows real interior-design clearances.
-- **Realistic materials** — procedurally generated PBR finishes (12 floors
-  incl. oak/walnut/teak planks, white/grey/charcoal porcelain, marble,
-  terrazzo, carpet, concrete; 10 wall paints) plus fabric and wood-grain on
-  furniture and a polished-granite worktop. Per-room floor and wall finishes.
+- **Realistic materials** — procedurally generated PBR finishes (floors incl.
+  oak/walnut/teak planks, **basketweave parquet**, white/grey/charcoal porcelain,
+  marble, terrazzo, carpet, concrete; wall paints, wallpapers, **exposed brick**
+  and **microcement/concrete** accent walls) plus fabric and wood-grain on
+  furniture and a polished-granite worktop. Per-room floor and wall finishes,
+  with one-click **"apply to all rooms"**.
   Free textures/models can also be fetched in-app: the **Poly Pizza** pack
   (paste a free API key in the Packs tab → search + download 10,000+ CC0/CC-BY
   models, works on the published site) and the Poly Haven remote catalog
@@ -43,28 +47,51 @@ export the result — all in the browser.
   mapping, image-based lighting, shadows, and real fixture lights
   (lamps, pendants, fans, wall sconces, and signature cove LEDs) that switch
   on at night. An **Auto / On / Off** toggle lights windowless rooms in
-  daylight or kills fixtures entirely.
-- **HDB-estate skyline** — neighbouring blocks ring the flat so windows frame
-  a real view; their windows light up warm at night.
+  daylight or kills fixtures entirely. A **time-of-day scrub slider** sweeps the
+  whole day in one drag, and **window glass tints with the light** — a clear
+  cool pane by day, dark and reflective after dark. One-click **lighting moods**
+  (Scene menu / ⌘K) preview the room at daylight, golden hour, a cosy evening, or
+  night.
+- **Selectable 3D backdrop** — choose the surroundings outside the flat from the
+  Scene menu: **City** (an HDB estate whose windows light up warm at night),
+  **Park** (low-poly trees on a green common), **Hills** (a calm green horizon),
+  or **Studio** (a clean, distraction-free ground). The backdrop re-centres on
+  whatever floor plan you load.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
   top-down plan (pair with Measurements for an annotated floor plan), a
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a
   presentation clip. Walking uses WASD + mouse-look (pointer-lock) on desktop
   and an on-screen joystick + drag-to-look on touch; a themed, auto-fading
-  **controls banner** greets you on entry with the right hints for your device.
+  **controls banner** greets you on entry with the right hints for your device,
+  and a live **minimap** (bottom-right) shows where you are and which room
+  you're in.
+- **View vs. edit** — the orbit (dollhouse) and walk views are **view-only**, for
+  looking and presenting; **all** furnishing, customizing and finishing happens
+  inside the **per-room editor**. Enter it with the prominent **Edit a room**
+  toolbar button, by **clicking a room's floor** in the overview, or ⌘K.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
-  plan its furniture (toolbar **View → Edit a room**, then switch rooms from the
-  dropdown that appears at the left of the toolbar; a **← exit button** or **Esc**
-  leaves). It shows just that room's walls + floor + its own furniture,
-  with the camera-facing walls hidden so you always see in, supports orbit **and**
-  walk, and keeps the full catalog/placement/measurement tools. It's deliberately
+  plan its furniture (switch rooms from the dropdown beside the **← exit**
+  button; **Esc** leaves). Works on the built-in flat **and any custom floor
+  plan**. It shows just that room's walls + floor + its own furniture, with the
+  camera-facing walls hidden so you always see in, supports orbit **and** walk
+  (walk stays view-only), and holds the full catalog/placement/finish/measurement
+  tools. It's deliberately
   lightweight — locked to the fast Performance renderer with full-resolution
   models, and skips all the time-of-day/sun/shadow machinery.
 - **Editing** — drag to place (with optional **snap-to-grid** and alignment
-  guides), move, rotate, mirror, multi-select with align/distribute, **group**
-  (move/rotate as a unit, click again to edit one piece), lock,
-  copy/duplicate, numeric position/rotation, undo/redo, save/load named layouts
-  (with thumbnails), and PNG export.
+  guides), move, rotate (**R** key or a touch-friendly **drag-to-rotate ring**
+  on the selected item, 15° snap / free with Shift), mirror, **select-all
+  (⌘A)**, multi-select with
+  align/distribute, **group** (move/rotate as a unit, click again to edit one
+  piece), lock, copy/duplicate, **duplicate a row of N**, **apply one item's
+  style to all of its type** (right-click), **reset props to defaults**, **rename
+  any object** (a custom label shown in the inspector + Objects list), numeric
+  position/rotation, undo/redo, save/load named layouts (with thumbnails),
+  **export/import a design as a portable `.sofa.json` file**, and PNG export. A
+  **Recent** row in the catalog re-surfaces what you just placed.
+- **Saved camera views** — bookmark a favourite angle of the flat from the
+  **View** menu (each with a **preview thumbnail**) and smoothly fly back to it
+  any time (desktop + mobile).
 - **Streamlined toolbar** — a compact, scrollable **icon island**: frequent
   actions are one-click icons; related tools tuck into labelled dropdown menus
   (View, Scene, Arrange, Tools, File). Hover any control for its name and
@@ -78,12 +105,19 @@ export the result — all in the browser.
   every desktop action (incl. graphics, appearance, sets/presets/styles,
   save/load), with per-room edit as a single dropdown.
 - **Editable floor plan** — a 2D top-down editor to redraw the apartment shell
-  (walls, rooms with live areas, doors/windows) or start from a template; the
-  3D flat, finishes, and furniture collision all follow your custom plan, and
-  plans save to a named library.
-- **Design tools** — a SGD **budget** / shopping list, door-swing **clearance
-  checks**, a **sun study** time-lapse, an auto **walkthrough** tour, and a
-  printable **design report**.
+  (walls with live **length labels**, rooms with live areas, doors/windows, and
+  a **per-room ceiling height** for dropped/false ceilings) or
+  start from a template; the 3D flat, finishes, and furniture collision all
+  follow your custom plan, and plans save to a named library.
+- **Design tools** — a SGD **budget** / shopping list (with an optional **budget
+  target** that tracks how far over/under you are), door-swing **clearance
+  checks**, a **sun study** time-lapse, an auto **walkthrough** tour, point-to-
+  point **distance and area measuring** (📌 **Pin** any measurement to keep it as
+  a persistent dimension annotation, shown in 3D, the 2D plan, and the report),
+  and a printable **design report** (per-room areas, budget, cost-by-room, **cost
+  per m²/ft²**, a **finishes-by-room** spec, a **material palette** style board,
+  and a **scale-barred, dimensioned floor plan**). Switch all dimension read-outs
+  between **metric and imperial** (feet-and-inches) from the Graphics panel.
 - **Bring your own models** — import your own furniture as
   `.glb`/`.gltf` **or** `.obj` / `.fbx` / `.stl` / `.ply` / `.dae` / `.3mf` /
   `.usdz`: non-GLB formats are **converted to GLB in your browser** (no upload,
@@ -142,10 +176,21 @@ export the result — all in the browser.
   light + dark (or **Auto**, following your OS). Switch from the toolbar's
   **Appearance** menu; the whole UI — toolbar, catalog, inspector, nav cluster,
   panels, modals — recolours instantly and your choice persists.
+- **Simple / Pro interface** — a mode toggle (in the **Appearance** menu) for when
+  the full feature set is more than you need. **Simple** (the default) keeps the
+  crucial interior-design workflow and hides advanced clusters, options and fields
+  (analysis Tools, numeric transform fields, graphics internals, sun direction,
+  saved views, …) and collapses the inspector's sections by default; **Pro** shows
+  everything. Persists per device.
+- **Guided product tour** — a spotlight walkthrough for new users that steps
+  through the whole workflow in order (shape the space → add furniture → move &
+  customise → paint walls/floors → walk through → set the time of day & backdrop),
+  highlighting each control as it goes. Launch it from onboarding, the Help modal,
+  or ⌘K.
 - **Pro-tool interactions** — a **⌘K command palette** (fuzzy search across
   actions, panels, views, and "add furniture"), a **right-click context menu**
   on any placed piece, an **Objects / Layers** view (items grouped by room with
-  select / lock / delete), a first-run **onboarding** intro, and a fused
+  a name **filter** + select / lock / hide / delete), a first-run **onboarding** intro, and a fused
   compass + zoom rail. Responsive down to phones, where floating panels become
   bottom sheets.
 - **Production-grade panels** — **Swap with similar** (replace a piece in place
@@ -166,8 +211,15 @@ export the result — all in the browser.
   plan for you.
 - **AI photoreal export** *(experimental, bring-your-own-key)* — turn the current
   view into a photoreal image from the Share modal.
+- **Share a plan link** — "Copy plan link" in the Share modal encodes the whole
+  design into a `#/plans/<code>` URL that opens the exact design on any device
+  (no account or server needed).
 - **Live SG prices** *(dev-only)* — toggle real IKEA Singapore prices + buy links
   in the Shopping list (`npm run price-server`); falls back to a built-in estimate.
+- **Feature flags + admin** *(dev/admin)* — a central registry decides what ships
+  to production; sign in as admin (`#/login`) to unlock dev-only features and a
+  flags panel that toggles features for the session (overrides via localStorage
+  or a `?ff=feature:off` URL param; production is locked to the registry).
 
 The render loop is **on-demand** — the scene draws only while something is
 animating or you're interacting, and pauses entirely when the tab is hidden, so
@@ -177,7 +229,7 @@ it stays cool and battery-friendly on low-end laptops.
 
 `drag` orbit · `scroll` zoom · `click` select / open doors · `⌘K` command
 palette · `right-click` context menu · `R` rotate · `Del` delete ·
-`⌃Z`/`⇧⌃Z` undo/redo · `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate · `C` catalog ·
+`⌃Z`/`⇧⌃Z` undo/redo · `⌃C`/`⌃V`/`⌃D` copy/paste/duplicate · `⌃A` select all · `C` catalog ·
 `M` measurements · `T` cycle time · `O` top view · `H` reset view · `L` tidy ·
 `P` 2D⇄3D floor plan · `?` help · `V` orbit/walk · in walk: `WASD` move, `E` doors.
 

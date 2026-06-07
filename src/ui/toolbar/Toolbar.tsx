@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
-import { ROOMS } from '../../apartment/constants'
-import type { RoomId } from '../../apartment/types'
 import { QUALITY_LABEL } from '../../scene/quality'
+import { firstEditableRoomId } from '../../state/rooms'
 import { useStore } from '../../state/store'
 import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
@@ -18,6 +17,7 @@ import { SceneMenu } from './menus/SceneMenu'
 import { ToolsMenu } from './menus/ToolsMenu'
 import { ViewMenu } from './menus/ViewMenu'
 import { Popover } from './Popover'
+import { RoomSwitcher } from './RoomSwitcher'
 import { shortcutLabel } from './shortcuts'
 import { MenuItem } from './ToolbarMenu'
 
@@ -34,11 +34,13 @@ export function Toolbar() {
   const cameraMode = useStore((s) => s.cameraMode)
   const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
-  const roomEditorRoomId = useStore((s) => s.roomEditor.roomId)
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const exitRoomEditor = useStore((s) => s.exitRoomEditor)
   const enterRoomEditor = useStore((s) => s.enterRoomEditor)
-  const editorTool = useStore((s) => s.editorTool)
-  const setEditorTool = useStore((s) => s.setEditorTool)
+  const floorPlan = useStore((s) => s.floorPlan)
+  // Default room the prominent "Edit a room" button dives into (first editable
+  // room of the active plan — default apartment or a custom plan's own rooms).
+  const editRoomId = firstEditableRoomId(floorPlan)
   const catalogOpen = useStore((s) => s.catalogOpen)
   const toggleCatalogOpen = useStore((s) => s.toggleCatalogOpen)
   const showMeasurements = useStore((s) => s.showMeasurements)
@@ -55,6 +57,7 @@ export function Toolbar() {
   const cycleLightsMode = useStore((s) => s.cycleLightsMode)
   const qualityTier = useStore((s) => s.qualityTier)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  const toggleFloorPlanEditing = useStore((s) => s.toggleFloorPlanEditing)
 
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const helpOpen = useStore((s) => s.helpOpen)
@@ -144,20 +147,7 @@ export function Toolbar() {
         {roomEditorActive && (
           <>
             <IconButton icon="ExitRoom" label="Exit room" shortcut="Esc" onClick={exitRoomEditor} />
-            <select
-              className="input toolbar-room-select"
-              aria-label="Room to edit"
-              value={roomEditorRoomId ?? ''}
-              onChange={(e) => enterRoomEditor(e.target.value as RoomId)}
-            >
-              {Object.values(ROOMS)
-                .filter((r) => !r.external)
-                .map((r) => (
-                  <option key={r.id} value={r.id}>
-                    {r.name}
-                  </option>
-                ))}
-            </select>
+            <RoomSwitcher />
             <Divider />
           </>
         )}
@@ -165,21 +155,16 @@ export function Toolbar() {
         {/* Camera */}
         <CameraControl mode={cameraMode} setMode={setCameraMode} />
 
-        {orbit && (
+        {/* Scene (time / lighting moods / sun) stays available in Walk too, so
+            you can experience the flat at different times of day while walking. */}
+        {!roomEditorActive && <SceneMenu />}
+
+        {/* EDIT MODE — inside the per-room editor (orbit): every editing cluster
+            lives here now. Selection/placement/finishes only happen in here. */}
+        {roomEditorActive && orbit && (
           <>
             <Divider />
-            <ViewMenu />
-            {!roomEditorActive && <SceneMenu />}
-
-            <Divider />
             {/* Edit */}
-            <IconButton
-              icon={editorTool === 'select' ? 'Select' : 'Rotate'}
-              label={`Tool: ${editorTool === 'select' ? 'Select' : 'Rotate'}`}
-              shortcut={shortcutLabel('toggleEditorTool')}
-              active={editorTool === 'select'}
-              onClick={() => setEditorTool(editorTool === 'select' ? 'orbit' : 'select')}
-            />
             <IconButton
               icon="Undo"
               label="Undo"
@@ -227,7 +212,46 @@ export function Toolbar() {
               onClick={toggleCatalogOpen}
             />
             <ArrangeMenu />
-            {!roomEditorActive && <ToolsMenu />}
+
+            <Divider />
+            <IconButton
+              icon="Quality"
+              label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+              onClick={() => setGraphicsOpen(true)}
+            />
+
+            <Divider />
+            <FileMenu />
+          </>
+        )}
+
+        {/* VIEW MODE — orbit over the whole flat (not editing): camera/scene
+            controls plus the prominent entry into the room editor. */}
+        {orbit && !roomEditorActive && (
+          <>
+            <Divider />
+            <ViewMenu />
+
+            <Divider />
+            {/* Primary editing entry: dive into a room to furnish + finish it.
+                The headline action of the view-only overview, so it's a filled
+                accent CTA with a visible label. */}
+            <IconButton
+              icon="Cube"
+              label="Edit a room"
+              showLabel
+              cta
+              onClick={() => editRoomId && enterRoomEditor(editRoomId)}
+            />
+            {/* Structural shell editor (walls/rooms/openings) — a whole-flat,
+                non-furniture surface, so it stays reachable from the overview. */}
+            <IconButton
+              icon="FloorPlan"
+              label="Floor plan"
+              active={false}
+              onClick={toggleFloorPlanEditing}
+            />
+            {proMode && <ToolsMenu />}
 
             <Divider />
             {/* Render */}
@@ -236,14 +260,12 @@ export function Toolbar() {
               label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
               onClick={() => setGraphicsOpen(true)}
             />
-            {!roomEditorActive && (
-              <IconButton
-                icon="Lights"
-                label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
-                active={lightsMode !== 'auto'}
-                onClick={cycleLightsMode}
-              />
-            )}
+            <IconButton
+              icon="Lights"
+              label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
+              active={lightsMode !== 'auto'}
+              onClick={cycleLightsMode}
+            />
 
             <Divider />
             <FileMenu />

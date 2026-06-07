@@ -23,6 +23,14 @@ export interface ItemsSlice {
   flipItem: (id: string, axis: 'x' | 'z') => void
   /** Toggle the locked (pinned) state of an item. */
   toggleLock: (id: string) => void
+  /** Lock or unlock every item at once (protect/unprotect a finished layout). */
+  setAllLocked: (locked: boolean) => void
+  /** Set (or clear, with an empty/blank string) an item's custom display name.
+   *  Falls back to the catalog def name when absent. */
+  renameItem: (id: string, label: string) => void
+  /** Copy one item's props (finish/colour/material/form) to every other
+   *  placed item sharing its defId. Returns how many items were restyled. */
+  applyStyleToAll: (id: string) => number
   setItems: (items: FurnitureItem[]) => void
 }
 
@@ -38,6 +46,10 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
       selectedItemId: id,
       selectedItemIds: [id],
     }))
+    // Record for the catalog's "Recent" row. Only real user placements,
+    // duplicates and pastes reach addItem (the boot seed + set drops use
+    // setItems), so this list stays meaningfully "recently used".
+    get().pushRecent(i.defId)
     return id
   },
   // moveItem / rotateItem fire per-frame during drag and press-and-hold
@@ -80,6 +92,10 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
               : null
             : s.selectedItemId,
         selectedItemIds: ids,
+        // Drop any stale hidden-id so the Layers "(N hidden)" count stays honest.
+        ...(s.hiddenItemIds.includes(id)
+          ? { hiddenItemIds: s.hiddenItemIds.filter((x) => x !== id) }
+          : {}),
       }
     })
   },
@@ -104,6 +120,33 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, locked: !it.locked } : it)),
     }))
+  },
+  setAllLocked: (locked) => {
+    get().pushHistory()
+    set((s) => ({ items: s.items.map((it) => ({ ...it, locked })) }))
+  },
+  renameItem: (id, label) => {
+    const trimmed = label.trim()
+    set((s) => ({
+      items: s.items.map((it) =>
+        it.id === id ? { ...it, label: trimmed ? trimmed : undefined } : it,
+      ),
+    }))
+  },
+  applyStyleToAll: (id) => {
+    const src = get().items.find((it) => it.id === id)
+    if (!src) return 0
+    const targets = get().items.filter((it) => it.defId === src.defId && it.id !== id && !it.locked)
+    if (targets.length === 0) return 0
+    get().pushHistory()
+    set((s) => ({
+      items: s.items.map((it) =>
+        it.defId === src.defId && it.id !== id && !it.locked
+          ? { ...it, props: { ...src.props } }
+          : it,
+      ),
+    }))
+    return targets.length
   },
   setItems: (items) => set({ items }),
 })

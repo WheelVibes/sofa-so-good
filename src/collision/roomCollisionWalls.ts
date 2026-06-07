@@ -9,6 +9,7 @@ import { DOORS } from '../apartment/constants'
 import { roomShell } from '../apartment/roomShell'
 import type { RoomId } from '../apartment/types'
 import { wallThicknessMetres } from '../apartment/wallSegments'
+import type { PlanRoomShell } from '../floorplan/planRoomShell'
 import type { CollisionWall } from './walls'
 
 export function buildRoomCollisionWalls(
@@ -73,5 +74,54 @@ export function buildRoomCollisionWalls(
     }
   }
 
+  return segs
+}
+
+/**
+ * Door-aware collision walls for a **custom-plan** per-room editor, built from a
+ * `PlanRoomShell`'s clipped walls. Door openings are treated as passable gaps
+ * (an open doorway, like the full flat); windows stay solid (the wall below the
+ * sill blocks walking). Keeps a walk-mode player bounded to the custom room.
+ */
+export function buildPlanRoomCollisionWalls(shell: PlanRoomShell): CollisionWall[] {
+  const segs: CollisionWall[] = []
+  for (const clip of shell.walls) {
+    const sx = clip.start[0]
+    const sz = clip.start[1]
+    const dx = clip.end[0] - sx
+    const dz = clip.end[1] - sz
+    const len = Math.hypot(dx, dz)
+    if (len < 1e-6) continue
+    const ux = dx / len
+    const uz = dz / len
+    const thickness = clip.thickness === 'external' ? 0.2 : 0.1
+
+    // Door gaps on this wall, as [t0,t1] ranges along the clipped span.
+    const gaps: Array<{ start: number; end: number }> = []
+    for (const { opening, center } of shell.openings) {
+      if (opening.kind !== 'door' || opening.wallId !== clip.wallId) continue
+      const tc = (center[0] - sx) * ux + (center[1] - sz) * uz
+      const s = Math.max(0, tc - opening.width / 2)
+      const e = Math.min(len, tc + opening.width / 2)
+      if (e > s) gaps.push({ start: s, end: e })
+    }
+    gaps.sort((a, b) => a.start - b.start)
+
+    const pointAt = (t: number): [number, number] => [sx + ux * t, sz + uz * t]
+    let cursor = 0
+    for (const g of gaps) {
+      if (g.start > cursor) {
+        const [ax, az] = pointAt(cursor)
+        const [bx, bz] = pointAt(g.start)
+        segs.push({ ax, az, bx, bz, thickness })
+      }
+      cursor = Math.max(cursor, g.end)
+    }
+    if (cursor < len) {
+      const [ax, az] = pointAt(cursor)
+      const [bx, bz] = pointAt(len)
+      segs.push({ ax, az, bx, bz, thickness })
+    }
+  }
   return segs
 }

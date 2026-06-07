@@ -1,9 +1,13 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { AiPlanError, getVisionKey, recognizeFloorPlan, setVisionKey } from '../../ai/floorPlanAi'
 import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
+import { isEditableTarget } from '../../controls/useKeyboard'
+import { useFeature } from '../../features/useFeature'
+import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
@@ -11,6 +15,15 @@ import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floor
 import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { formatArea, formatDims, formatLength } from '../../utils/measurement'
+import {
+  type BackdropMeta,
+  persistBackdrop,
+  readPersistedBackdrop,
+  removePersistedBackdrop,
+  updateBackdropMeta,
+} from './backdropPersist'
+import { exportPlanPng } from './exportPlanPng'
 import { PlanInspector } from './PlanInspector'
 
 /** Muted top-down fill per furniture category for the 2D plan layer. */
@@ -58,7 +71,12 @@ interface Backdrop {
   oz: number
 }
 
-const PAD = 0.6 // metres of margin around the plan in the view
+const FIT_PAD = 0.6 // metres of breathing room when fitting the plan to the view
+// Large grid margin around the plan so the canvas reads as an open, pannable
+// grid (Figma-style) rather than a tight box that clips anything drawn outside
+// the current plan bounds. The plan stays centred (equal margin all sides).
+const GRID_MARGIN = 20
+const EXPORT_PAD = 1 // metres of padding around the plan in the exported PNG
 const MAX_W = 940
 const MAX_H = 620
 
@@ -73,10 +91,12 @@ export function FloorPlanEditor() {
   const plan = useStore((s) => s.floorPlan)
   const gridSize = useStore((s) => s.gridSize)
   const sel = useStore((s) => s.planSelection)
+  const units = useStore((s) => s.units)
   const a = useStore.getState()
 
   const items = useStore((s) => s.items)
   const selectedItemId = useStore((s) => s.selectedItemId)
+  const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
 
   const [tool, setTool] = useState<Tool>('select')
@@ -94,10 +114,63 @@ export function FloorPlanEditor() {
   // click near the first vertex (or Enter) to close into a room.
   const [polyDraft, setPolyDraft] = useState<[number, number][]>([])
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
+  // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
+  const aiWalls = useFeature('aiWalls')
+  // Persistent wall-length labels (on by default; toggle in the editor header).
+  const [showWallDims, setShowWallDims] = useState(true)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
+  const canvasRef = useRef<HTMLDivElement>(null)
+  // Middle-mouse drag-to-pan: start client pos + canvas scroll at grab.
+  const panRef = useRef<{ x: number; y: number; sl: number; st: number } | null>(null)
+
+  // Rehydrate a previously-saved backdrop when the editor opens (the component
+  // is always mounted and only renders when `editing`, so this can't be a
+  // once-on-mount effect). Skips if one is already loaded so reopening doesn't
+  // create a duplicate object URL.
+  const backdropUrlRef = useRef<string | null>(null)
+  useEffect(() => {
+    if (!editing) return
+    let cancelled = false
+    void readPersistedBackdrop().then((p) => {
+      if (cancelled || !p) return
+      setBackdrop((prev) => {
+        if (prev) return prev
+        const url = URL.createObjectURL(p.blob)
+        backdropUrlRef.current = url
+        return { url, ...p.meta }
+      })
+    })
+    return () => {
+      cancelled = true
+    }
+  }, [editing])
+
+  // Revoke the live object URL only on a true unmount (not on editor close).
+  useEffect(
+    () => () => {
+      if (backdropUrlRef.current) URL.revokeObjectURL(backdropUrlRef.current)
+    },
+    [],
+  )
+
+  // Persist calibration changes (opacity/scale/offset) without rewriting the
+  // blob, debounced so a slider/drag doesn't hammer IDB.
+  useEffect(() => {
+    if (!backdrop) return
+    const meta: BackdropMeta = {
+      w: backdrop.w,
+      h: backdrop.h,
+      opacity: backdrop.opacity,
+      mPerPx: backdrop.mPerPx,
+      ox: backdrop.ox,
+      oz: backdrop.oz,
+    }
+    const t = setTimeout(() => void updateBackdropMeta(meta), 400)
+    return () => clearTimeout(t)
+  }, [backdrop])
 
   // Experimental AI wall recognition (Wave E): send the backdrop to a vision
   // model and seed an editable draft plan from the returned walls. Falls back
@@ -106,7 +179,12 @@ export function FloorPlanEditor() {
     if (!backdrop || aiBusy) return
     let key = getVisionKey()
     if (!key) {
-      key = window.prompt('Vision-model API key (OpenAI-compatible, kept in this browser):') || ''
+      key =
+        (await useStore.getState().promptText({
+          title: 'AI floor-plan recognition',
+          label: 'Vision-model API key (OpenAI-compatible, kept in this browser)',
+          submitLabel: 'Continue',
+        })) || ''
       if (!key) return
       setVisionKey(key)
     }
@@ -136,7 +214,10 @@ export function FloorPlanEditor() {
         kind: 'success',
       })
     } catch (e) {
-      window.alert(e instanceof AiPlanError ? e.message : 'AI floor-plan recognition failed.')
+      useStore.getState().notify.start({
+        title: e instanceof AiPlanError ? e.message : 'AI floor-plan recognition failed.',
+        kind: 'error',
+      })
     } finally {
       setAiBusy(false)
     }
@@ -149,18 +230,21 @@ export function FloorPlanEditor() {
     const url = URL.createObjectURL(file)
     const img = new Image()
     img.onload = () => {
+      const meta: BackdropMeta = {
+        w: img.naturalWidth,
+        h: img.naturalHeight,
+        opacity: 0.5,
+        mPerPx: 0.01,
+        ox: 0,
+        oz: 0,
+      }
       setBackdrop((prev) => {
         if (prev) URL.revokeObjectURL(prev.url)
-        return {
-          url,
-          w: img.naturalWidth,
-          h: img.naturalHeight,
-          opacity: 0.5,
-          mPerPx: 0.01,
-          ox: 0,
-          oz: 0,
-        }
+        return { url, ...meta }
       })
+      backdropUrlRef.current = url
+      // Persist the blob + calibration so the backdrop survives reload/reopen.
+      void persistBackdrop(file, meta)
       setTool('select')
     }
     img.src = url
@@ -182,9 +266,7 @@ export function FloorPlanEditor() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'KeyP' || e.metaKey || e.ctrlKey || e.altKey) return
-      const el = e.target as HTMLElement | null
-      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable))
-        return
+      if (isEditableTarget(e)) return
       const st = useStore.getState()
       if (st.cameraMode === 'firstPerson') return
       if (st.floorPlanEditing) exitToScene()
@@ -195,15 +277,49 @@ export function FloorPlanEditor() {
   }, [exitToScene])
 
   const [ew, ed] = planBounds(plan)
-  const PX = useMemo(() => {
-    const fitW = MAX_W / (ew + PAD * 2)
-    const fitH = MAX_H / (ed + PAD * 2)
+  const basePX = useMemo(() => {
+    const fitW = MAX_W / (ew + FIT_PAD * 2)
+    const fitH = MAX_H / (ed + FIT_PAD * 2)
     return Math.max(24, Math.min(fitW, fitH, 80))
   }, [ew, ed])
-  const W = (ew + PAD * 2) * PX
-  const H = (ed + PAD * 2) * PX
-  const toPx = (m: number) => (m + PAD) * PX
+  // User zoom (ctrl/⌘+wheel or the ± buttons) multiplies the base px-per-metre;
+  // every coordinate (toPx + its inverse) reads PX, so zoom stays consistent.
+  const [zoom, setZoom] = useState(1)
+  const PX = basePX * zoom
+  // Canvas is the plan plus a generous grid margin on every side (pannable via
+  // the scroll container; the plan stays centred because the margin is equal).
+  const W = (ew + GRID_MARGIN * 2) * PX
+  const H = (ed + GRID_MARGIN * 2) * PX
+  const toPx = (m: number) => (m + GRID_MARGIN) * PX
   const snap = (m: number) => (gridSize > 0 ? Math.round(m / gridSize) * gridSize : m)
+
+  // Scroll the (large, margin-padded) canvas so the plan is centred. Retries
+  // each frame until the SVG has laid out at its full (inline) size — before
+  // that, scrollLeft clamps to 0 (content not yet wider than the view).
+  const centerPlan = useCallback(
+    (px: number) => {
+      const el = canvasRef.current
+      if (!el) return
+      let frames = 0
+      const run = () => {
+        frames++
+        if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight || frames > 120) {
+          el.scrollLeft = Math.max(0, (ew / 2 + GRID_MARGIN) * px - el.clientWidth / 2)
+          el.scrollTop = Math.max(0, (ed / 2 + GRID_MARGIN) * px - el.clientHeight / 2)
+          return
+        }
+        requestAnimationFrame(run)
+      }
+      requestAnimationFrame(run)
+    },
+    [ew, ed],
+  )
+
+  // Centre the plan when the editor opens. The grid extends every direction.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-centre only on open; PX read fresh.
+  useEffect(() => {
+    if (editing) centerPlan(PX)
+  }, [editing, centerPlan])
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
    *  explicit polygon for area/render/containment). Stable (reads the store). */
@@ -240,11 +356,20 @@ export function FloorPlanEditor() {
         }
         setDraft(null)
         exitToScene()
-      } else if ((e.key === 'Delete' || e.key === 'Backspace') && sel) {
+      } else if (e.key === 'Delete' || e.key === 'Backspace') {
+        // Don't hijack Backspace/Delete while editing a field (e.g. the room
+        // name / dimension inputs in the inspector) — that would silently delete
+        // the selected element.
+        if (isEditableTarget(e)) return
         const st = useStore.getState()
-        if (sel.type === 'wall') st.removeWall(sel.id)
-        else if (sel.type === 'room') st.removeRoom(sel.id)
-        else st.removeOpening(sel.id)
+        if (sel) {
+          if (sel.type === 'wall') st.removeWall(sel.id)
+          else if (sel.type === 'room') st.removeRoom(sel.id)
+          else st.removeOpening(sel.id)
+        } else if (st.selectedItemId) {
+          // A furniture footprint is selected — delete it (parity with 3D).
+          st.deleteItem(st.selectedItemId)
+        }
       }
     }
     window.addEventListener('keydown', onKey)
@@ -257,8 +382,8 @@ export function FloorPlanEditor() {
     const rect = svgRef.current!.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * W
     const y = ((e.clientY - rect.top) / rect.height) * H
-    let wx = snap(x / PX - PAD)
-    let wz = snap(y / PX - PAD)
+    let wx = snap(x / PX - GRID_MARGIN)
+    let wz = snap(y / PX - GRID_MARGIN)
     // Vertex snap: prefer an existing wall endpoint within ~0.3 m so walls
     // connect cleanly at corners. Skip the wall being vertex-dragged so its own
     // endpoints don't capture the cursor.
@@ -299,6 +424,20 @@ export function FloorPlanEditor() {
   }
 
   const onDown = (e: React.PointerEvent) => {
+    // Middle-button drags to pan the open canvas; ignore right-click. Only the
+    // left button draws/selects.
+    if (e.button === 1 && canvasRef.current) {
+      e.preventDefault()
+      panRef.current = {
+        x: e.clientX,
+        y: e.clientY,
+        sl: canvasRef.current.scrollLeft,
+        st: canvasRef.current.scrollTop,
+      }
+      svgRef.current?.setPointerCapture(e.pointerId)
+      return
+    }
+    if (e.button !== 0) return
     const [wx, wz] = pointerWorld(e)
     const st = useStore.getState()
     if (tool === 'wall' || tool === 'room' || tool === 'scale') {
@@ -333,13 +472,18 @@ export function FloorPlanEditor() {
       if (hit) {
         const width = tool === 'door' ? 0.9 : 1.2
         const offset = Math.max(0, Math.min(wallLength(hit.wall) - width, hit.offset - width / 2))
+        const snapped = snap(offset)
         const id = st.addOpening({
           kind: tool,
           wallId: hit.wall.id,
-          offset: snap(offset),
+          offset: snapped,
           width,
           sill: tool === 'door' ? 0 : 0.95,
           head: tool === 'door' ? 2.1 : 2.1,
+          // Orient a new door to open into the room it serves (convention).
+          ...(tool === 'door'
+            ? { swing: defaultDoorSwing(st.floorPlan, hit.wall, snapped, width) }
+            : {}),
         })
         st.setPlanSelection({ type: 'opening', id })
       }
@@ -349,6 +493,11 @@ export function FloorPlanEditor() {
   }
 
   const onMove = (e: React.PointerEvent) => {
+    if (panRef.current && canvasRef.current) {
+      canvasRef.current.scrollLeft = panRef.current.sl - (e.clientX - panRef.current.x)
+      canvasRef.current.scrollTop = panRef.current.st - (e.clientY - panRef.current.y)
+      return
+    }
     if (movingVertex) {
       const [wx, wz] = pointerWorld(e, movingVertex.id)
       useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz])
@@ -391,6 +540,10 @@ export function FloorPlanEditor() {
   }
 
   const onUp = () => {
+    if (panRef.current) {
+      panRef.current = null
+      return
+    }
     if (movingVertex) {
       setMovingVertex(null)
       return
@@ -410,11 +563,19 @@ export function FloorPlanEditor() {
       // backdrop rescales (mPerPx) to match. No walls created.
       const worldDist = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
       if (backdrop && worldDist > 0.05) {
-        const input = window.prompt('Real length of the line you drew (metres):', '1')
-        const meters = input ? Number.parseFloat(input) : NaN
-        if (Number.isFinite(meters) && meters > 0) {
-          setBackdrop((b) => (b ? { ...b, mPerPx: (b.mPerPx * meters) / worldDist } : b))
-        }
+        void (async () => {
+          const input = await useStore.getState().promptText({
+            title: 'Calibrate scale',
+            label: 'Real length of the line you drew (metres)',
+            defaultValue: '1',
+            numeric: true,
+            submitLabel: 'Set scale',
+          })
+          const meters = input ? Number.parseFloat(input) : NaN
+          if (Number.isFinite(meters) && meters > 0) {
+            setBackdrop((b) => (b ? { ...b, mPerPx: (b.mPerPx * meters) / worldDist } : b))
+          }
+        })()
       }
       setDraft(null)
       return
@@ -584,19 +745,23 @@ export function FloorPlanEditor() {
                 setBackdrop((b) => (b ? { ...b, opacity: Number(e.target.value) } : b))
               }
             />
-            <button
-              type="button"
-              onClick={runAiWalls}
-              disabled={aiBusy}
-              title="Experimental: recognise walls from the photo with a vision model (your API key)"
-            >
-              {aiBusy ? 'Recognising…' : 'AI walls'}
-            </button>
+            {aiWalls && (
+              <button
+                type="button"
+                onClick={runAiWalls}
+                disabled={aiBusy}
+                title="Experimental: recognise walls from the photo with a vision model (your API key)"
+              >
+                {aiBusy ? 'Recognising…' : 'AI walls'}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {
                 URL.revokeObjectURL(backdrop.url)
+                if (backdropUrlRef.current === backdrop.url) backdropUrlRef.current = null
                 setBackdrop(null)
+                void removePersistedBackdrop()
                 if (tool === 'scale') setTool('select')
               }}
               title="Remove reference photo"
@@ -607,10 +772,71 @@ export function FloorPlanEditor() {
         )}
 
         <div className="ml-auto flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setShowWallDims((v) => !v)}
+            className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
+            title="Toggle wall-length labels"
+            aria-pressed={showWallDims}
+          >
+            Dims
+          </button>
+          <button
+            type="button"
+            className="btn btn-sm"
+            title="Download the floor plan as a PNG image"
+            onClick={() => {
+              if (!svgRef.current) return
+              const safe =
+                (plan.name || 'floor-plan')
+                  .replace(/[^a-z0-9-_]+/gi, '-')
+                  .replace(/^-+|-+$/g, '') || 'floor-plan'
+              // Crop to the plan's bounding box + padding (not the whole open
+              // canvas) so the exported image is just the plan.
+              const crop = {
+                x: (GRID_MARGIN - EXPORT_PAD) * PX,
+                y: (GRID_MARGIN - EXPORT_PAD) * PX,
+                w: (ew + EXPORT_PAD * 2) * PX,
+                h: (ed + EXPORT_PAD * 2) * PX,
+              }
+              exportPlanPng(svgRef.current, safe, crop).catch(() =>
+                a.notify.start({ title: "Couldn't export the plan image", kind: 'error' }),
+              )
+            }}
+          >
+            Export PNG
+          </button>
+          <div className="seg" style={{ alignItems: 'center' }}>
+            <button
+              type="button"
+              title="Zoom out"
+              onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))}
+            >
+              −
+            </button>
+            <button
+              type="button"
+              title="Reset zoom & centre"
+              onClick={() => {
+                setZoom(1)
+                requestAnimationFrame(() => centerPlan(basePX))
+              }}
+              style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
+            >
+              {Math.round(zoom * 100)}%
+            </button>
+            <button
+              type="button"
+              title="Zoom in"
+              onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}
+            >
+              +
+            </button>
+          </div>
           <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
             Total{' '}
             <b className="mono" style={{ color: 'var(--text)' }}>
-              {total.toFixed(1)} m²
+              {formatArea(total, units)}
             </b>{' '}
             · {plan.rooms.length} rooms
           </span>
@@ -624,7 +850,29 @@ export function FloorPlanEditor() {
         {/* Canvas */}
         {/* Canvas — also a drop zone for the reference image */}
         <div
-          className="plan-canvas flex min-h-0 flex-1 items-center justify-center overflow-auto p-4"
+          ref={canvasRef}
+          className="plan-canvas min-h-0 flex-1 overflow-auto p-4"
+          onWheel={(e) => {
+            // Ctrl/⌘+wheel zooms around the cursor; plain wheel scrolls (pans).
+            if (!(e.ctrlKey || e.metaKey)) return
+            e.preventDefault()
+            const el = canvasRef.current
+            if (!el) return
+            const rect = el.getBoundingClientRect()
+            const px = e.clientX - rect.left
+            const py = e.clientY - rect.top
+            const cx = el.scrollLeft + px
+            const cy = el.scrollTop + py
+            const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
+            const next = Math.min(3, Math.max(0.4, zoom * factor))
+            if (next === zoom) return
+            setZoom(next)
+            const r = next / zoom
+            requestAnimationFrame(() => {
+              el.scrollLeft = cx * r - px
+              el.scrollTop = cy * r - py
+            })
+          }}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes('Files')) e.preventDefault()
           }}
@@ -641,7 +889,14 @@ export function FloorPlanEditor() {
             width={W}
             height={H}
             className="plan-paper touch-none"
-            style={{ cursor: tool === 'select' ? 'default' : 'crosshair', padding: 0 }}
+            style={{
+              cursor: tool === 'select' ? 'default' : 'crosshair',
+              padding: 0,
+              // Render at the full canvas size (overrides responsive `.plan-paper`
+              // width rules) so the grid + plan aren't shrunk/clipped.
+              width: W,
+              height: H,
+            }}
             onPointerDown={onDown}
             onPointerMove={onMove}
             onPointerUp={onUp}
@@ -660,7 +915,15 @@ export function FloorPlanEditor() {
               />
             )}
 
-            <GridLines W={W} H={H} PX={PX} gridSize={gridSize} pad={PAD} ew={ew} ed={ed} />
+            <GridLines
+              W={W}
+              H={H}
+              PX={PX}
+              gridSize={gridSize}
+              margin={GRID_MARGIN}
+              ew={ew}
+              ed={ed}
+            />
 
             {/* Rooms */}
             {plan.rooms.map((r) => {
@@ -709,19 +972,24 @@ export function FloorPlanEditor() {
                       )}
                     </>
                   )}
-                  <text
-                    x={toPx(r.origin[0] + r.width / 2)}
-                    y={toPx(r.origin[1] + r.depth / 2)}
-                    textAnchor="middle"
-                    className="select-none"
-                    fontSize={11}
-                    fill="var(--text-2)"
-                  >
-                    <tspan x={toPx(r.origin[0] + r.width / 2)}>{r.name}</tspan>
-                    <tspan x={toPx(r.origin[0] + r.width / 2)} dy={14} fill="var(--text-3)">
-                      {planRoomArea(r).toFixed(1)} m²
-                    </tspan>
-                  </text>
+                  {(() => {
+                    const [lx, lz] = roomLabelPoint(r)
+                    return (
+                      <text
+                        x={toPx(lx)}
+                        y={toPx(lz)}
+                        textAnchor="middle"
+                        className="select-none"
+                        fontSize={11}
+                        fill="var(--text-2)"
+                      >
+                        <tspan x={toPx(lx)}>{r.name}</tspan>
+                        <tspan x={toPx(lx)} dy={14} fill="var(--text-3)">
+                          {formatArea(planRoomArea(r), units)}
+                        </tspan>
+                      </text>
+                    )
+                  })()}
                 </g>
               )
             })}
@@ -760,6 +1028,37 @@ export function FloorPlanEditor() {
               )
             })}
 
+            {/* Name of the selected furniture item — a single label so the user
+                can tell what they clicked among many same-coloured footprints. */}
+            {(() => {
+              const it = items.find((i) => i.id === selectedItemId)
+              if (!it) return null
+              const def = getDef(it.defId)
+              const name = it.label ?? def?.name
+              if (!name) return null
+              return (
+                <text
+                  x={toPx(it.position[0])}
+                  y={toPx(it.position[1])}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="plan-item-label"
+                  style={{
+                    pointerEvents: 'none',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    fill: 'var(--text)',
+                    paintOrder: 'stroke',
+                    stroke: 'var(--surface)',
+                    strokeWidth: 3,
+                    strokeLinejoin: 'round',
+                  }}
+                >
+                  {name}
+                </text>
+              )
+            })()}
+
             {/* Walls */}
             {plan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
@@ -787,6 +1086,132 @@ export function FloorPlanEditor() {
                   }}
                   style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
                 />
+              )
+            })}
+
+            {/* Persistent wall-length labels (a staple of pro floor planners),
+                placed at each wall midpoint, nudged to the wall's outward side.
+                Shown only for walls long enough to be legible. */}
+            {showWallDims &&
+              plan.walls.map((w) => {
+                const len = wallLength(w)
+                if (len < 0.4) return null
+                const mx = (w.start[0] + w.end[0]) / 2
+                const mz = (w.start[1] + w.end[1]) / 2
+                const ux = (w.end[0] - w.start[0]) / len
+                const uz = (w.end[1] - w.start[1]) / len
+                // Perpendicular offset (in metres) so the label clears the line.
+                const off = 0.28
+                const isSel = sel?.type === 'wall' && sel.id === w.id
+                return (
+                  <text
+                    key={`dim-${w.id}`}
+                    x={toPx(mx - uz * off)}
+                    y={toPx(mz + ux * off)}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="plan-dim-label"
+                    fill={isSel ? 'var(--accent)' : 'var(--text-2)'}
+                    style={{ pointerEvents: 'none', fontSize: 11, fontWeight: 600 }}
+                  >
+                    {formatLength(len, units)}
+                  </text>
+                )
+              })}
+
+            {/* Opening (door/window) width labels — same "Dims" toggle. Placed on
+                the side opposite a door's swing so they clear the arc. */}
+            {showWallDims &&
+              plan.openings.map((o) => {
+                const wall = plan.walls.find((w) => w.id === o.wallId)
+                if (!wall) return null
+                const len = wallLength(wall)
+                if (len === 0) return null
+                const ux = (wall.end[0] - wall.start[0]) / len
+                const uz = (wall.end[1] - wall.start[1]) / len
+                const mx = wall.start[0] + ux * (o.offset + o.width / 2)
+                const mz = wall.start[1] + uz * (o.offset + o.width / 2)
+                // (-uz, ux) is the wall's "right" normal — a door swinging right
+                // has its arc there, so label the opposite side.
+                const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
+                const isSel = sel?.type === 'opening' && sel.id === o.id
+                return (
+                  <text
+                    key={`odim-${o.id}`}
+                    x={toPx(mx - uz * off)}
+                    y={toPx(mz + ux * off)}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="plan-dim-label"
+                    fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
+                    style={{ pointerEvents: 'none', fontSize: 10, fontWeight: 600 }}
+                  >
+                    {formatLength(o.width, units)}
+                  </text>
+                )
+              })}
+
+            {/* Pinned dimension annotations — the same callouts shown in 3D and
+                the report, so a measurement traced in either view appears here. */}
+            {annotations.map((an) => {
+              const [ax, az] = an.a
+              const [bx, bz] = an.b
+              if (an.shape === 'rect') {
+                const x = Math.min(ax, bx)
+                const z = Math.min(az, bz)
+                const w = Math.abs(bx - ax)
+                const h = Math.abs(bz - az)
+                if (w < 1e-3 || h < 1e-3) return null
+                return (
+                  <g key={an.id} style={{ pointerEvents: 'none' }}>
+                    <rect
+                      x={toPx(x)}
+                      y={toPx(z)}
+                      width={w * PX}
+                      height={h * PX}
+                      fill="#0d9488"
+                      fillOpacity={0.1}
+                      stroke="#0d9488"
+                      strokeWidth={1.5}
+                      strokeDasharray="5 3"
+                    />
+                    <text
+                      x={toPx(x + w / 2)}
+                      y={toPx(z + h / 2)}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="#0d9488"
+                      style={{ fontSize: 11, fontWeight: 600 }}
+                    >
+                      {`${formatDims(w, h, units)} · ${formatArea(w * h, units)}`}
+                    </text>
+                  </g>
+                )
+              }
+              const len = Math.hypot(bx - ax, bz - az)
+              if (len < 1e-3) return null
+              return (
+                <g key={an.id} style={{ pointerEvents: 'none' }}>
+                  <line
+                    x1={toPx(ax)}
+                    y1={toPx(az)}
+                    x2={toPx(bx)}
+                    y2={toPx(bz)}
+                    stroke="#0d9488"
+                    strokeWidth={2}
+                    strokeDasharray="5 3"
+                  />
+                  <text
+                    x={toPx((ax + bx) / 2)}
+                    y={toPx((az + bz) / 2) - 6}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    fill="#0d9488"
+                    style={{ fontSize: 11, fontWeight: 600 }}
+                  >
+                    {formatLength(len, units)}
+                  </text>
+                </g>
               )
             })}
 
@@ -859,24 +1284,31 @@ export function FloorPlanEditor() {
                     strokeLinecap="butt"
                   />
                   {o.kind === 'door' ? (
-                    <>
-                      {/* Door leaf + swing arc (hinge at the opening start) */}
-                      <line
-                        x1={toPx(sPt[0])}
-                        y1={toPx(sPt[1])}
-                        x2={toPx(sPt[0] + nx * o.width)}
-                        y2={toPx(sPt[1] + nz * o.width)}
-                        stroke={color}
-                        strokeWidth={isSel ? 3 : 2}
-                      />
-                      <path
-                        d={`M ${toPx(ePt[0])} ${toPx(ePt[1])} A ${o.width * PX} ${o.width * PX} 0 0 ${nx * uz - nz * ux > 0 ? 1 : 0} ${toPx(sPt[0] + nx * o.width)} ${toPx(sPt[1] + nz * o.width)}`}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth={1}
-                        opacity={0.7}
-                      />
-                    </>
+                    (() => {
+                      // Leaf line (hinge → open tip) + swing arc, honouring the
+                      // door's configured hinge jamb + swing side.
+                      const g = doorSwingGeometry(wall, o)
+                      if (!g) return null
+                      return (
+                        <>
+                          <line
+                            x1={toPx(g.hinge[0])}
+                            y1={toPx(g.hinge[1])}
+                            x2={toPx(g.leafTip[0])}
+                            y2={toPx(g.leafTip[1])}
+                            stroke={color}
+                            strokeWidth={isSel ? 3 : 2}
+                          />
+                          <path
+                            d={`M ${toPx(g.freeJamb[0])} ${toPx(g.freeJamb[1])} A ${o.width * PX} ${o.width * PX} 0 0 ${g.sweep} ${toPx(g.leafTip[0])} ${toPx(g.leafTip[1])}`}
+                            fill="none"
+                            stroke={color}
+                            strokeWidth={1}
+                            opacity={0.7}
+                          />
+                        </>
+                      )
+                    })()
                   ) : (
                     <>
                       {/* Window double line across the opening */}
@@ -966,8 +1398,8 @@ export function FloorPlanEditor() {
                 className="select-none"
               >
                 {tool === 'wall'
-                  ? `${Math.hypot(draft.x - draft.x0, draft.z - draft.z0).toFixed(2)} m`
-                  : `${Math.abs(draft.x - draft.x0).toFixed(2)} × ${Math.abs(draft.z - draft.z0).toFixed(2)} m  (${(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0)).toFixed(1)} m²)`}
+                  ? formatLength(Math.hypot(draft.x - draft.x0, draft.z - draft.z0), units)
+                  : `${formatLength(Math.abs(draft.x - draft.x0), units)} × ${formatLength(Math.abs(draft.z - draft.z0), units)}  (${formatArea(Math.abs(draft.x - draft.x0) * Math.abs(draft.z - draft.z0), units)})`}
               </text>
             )}
           </svg>
@@ -1029,12 +1461,16 @@ function PlanLibrary() {
   )
 }
 
-function GridLines({
+/** Grid lines spanning the whole (margin-padded) canvas, so the plan sits on an
+ *  open grid you can draw/pan across — not a tight box around the current
+ *  bounds. Memoised: its inputs are stable during a wall drag, so the ~200
+ *  lines don't re-render every pointer-move. */
+const GridLines = memo(function GridLines({
   W,
   H,
   PX,
   gridSize,
-  pad,
+  margin,
   ew,
   ed,
 }: {
@@ -1042,18 +1478,20 @@ function GridLines({
   H: number
   PX: number
   gridSize: number
-  pad: number
+  margin: number
   ew: number
   ed: number
 }) {
   const g = gridSize > 0 ? gridSize : 0.5
   const lines: React.ReactNode[] = []
-  for (let x = 0; x <= ew + 1e-6; x += g) {
+  const x0 = Math.ceil(-margin / g) * g
+  const z0 = Math.ceil(-margin / g) * g
+  for (let x = x0; x <= ew + margin + 1e-6; x += g) {
     const major = Math.abs(x - Math.round(x)) < 1e-6
-    const px = (x + pad) * PX
+    const px = (x + margin) * PX
     lines.push(
       <line
-        key={`vx${x}`}
+        key={`vx${x.toFixed(3)}`}
         x1={px}
         y1={0}
         x2={px}
@@ -1063,12 +1501,12 @@ function GridLines({
       />,
     )
   }
-  for (let z = 0; z <= ed + 1e-6; z += g) {
+  for (let z = z0; z <= ed + margin + 1e-6; z += g) {
     const major = Math.abs(z - Math.round(z)) < 1e-6
-    const py = (z + pad) * PX
+    const py = (z + margin) * PX
     lines.push(
       <line
-        key={`hz${z}`}
+        key={`hz${z.toFixed(3)}`}
         x1={0}
         y1={py}
         x2={W}
@@ -1079,4 +1517,4 @@ function GridLines({
     )
   }
   return <g>{lines}</g>
-}
+})

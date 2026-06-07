@@ -1,9 +1,13 @@
 # Placing & arranging furniture
 
+> Furniture is placed and arranged **inside the [per‑room editor](/room-editor)**.
+> From the orbit overview, click the **Edit a room** button (or click a room's
+> floor) to start; the catalog and all editing tools live in there.
+
 ## The catalog
 
-Open the catalog with <kbd>C</kbd>. It's one **unified grid** that merges
-everything in one searchable place:
+Inside the room editor, open the catalog with <kbd>C</kbd>. It's one **unified
+grid** that merges everything in one searchable place:
 
 - built‑in parametric furniture and generated pieces,
 - your own uploaded models and imported IKEA products,
@@ -19,14 +23,19 @@ the list).
 
 ## Placing a piece
 
-1. Drag a card from the catalog onto the floor.
-2. While dragging, press <kbd>R</kbd> to rotate (90°; hold <kbd>Shift</kbd> for
-   15° steps).
-3. Release to drop. The piece snaps to the grid and won't overlap other items or
-   push through walls.
+Two ways, whichever feels natural:
 
-As you drag, **alignment guides** snap the piece to other items' centres and
-edges, and a readout shows the gap to the nearest wall.
+- **Drag & drop** (desktop): drag a card straight from the catalog onto the
+  floor and release where you want it.
+- **Tap to place** (works everywhere, incl. touch): tap a card to pick it up — a
+  preview follows your cursor — then tap the floor to drop it. Tap the same card
+  again, right‑click, or press <kbd>Esc</kbd> to cancel.
+
+Either way the preview turns **red** where it can't go (overlapping another piece
+or a wall) and **green** where it fits — it only drops on a green spot, snaps to
+the grid, and won't push through walls. As you position it, **alignment guides**
+snap to other items' centres and edges, it can sit **flush against a nearby
+wall**, and a readout shows the gap to the nearest wall.
 
 ## Editing a placed piece
 
@@ -43,9 +52,28 @@ Select a piece to open its **inspector**, where parametric items expose
 dimensions, colours, and style options. **Double‑click** focuses the camera on
 it.
 
+### Drag‑to‑rotate ring
+
+When you select a piece (in the **select** tool), a blue **rotate ring** appears
+on the floor around it with a knob at the front. **Drag the ring or knob** to
+spin the piece — perfect for touch, where there's no keyboard. It snaps to **15°**
+steps for tidy alignment; hold <kbd>Shift</kbd> while dragging for free rotation.
+A live angle read‑out follows the knob, the ring turns **red** if the new angle
+would overlap a wall or another piece, and releasing on a blocked angle snaps it
+back. (The <kbd>R</kbd> key still does quick 90° turns.)
+
+**Select several pieces** and the ring grows to enclose the whole group — drag it
+to **rotate the whole arrangement** as one, pivoting around its centre (the
+read‑out shows how far you've turned). Great for angling a sofa‑and‑rug set or a
+dining table with its chairs together.
+
 **Right‑click** any placed piece for a **context menu** with the most common
-actions right where you need them — **swap with similar**, rotate, flip,
-duplicate, **group / ungroup**, lock / unlock, and delete. (Group appears when
+actions right where you need them — **swap with similar**, rotate, **straighten**
+(snap a freely-turned piece back square to the walls; shown only when it's
+off-axis), **centre in room** (snap it to the middle of its room — handy for
+rugs and ceiling lights), flip, duplicate, **isolate** (hide everything else to
+focus on this piece/selection; **Show all** brings them back),
+**group / ungroup**, lock / unlock, and delete. (Group appears when
 you have several pieces selected; Ungroup appears when the piece is already part
 of a group.)
 
@@ -61,8 +89,17 @@ you can audition options without re‑placing anything.
 
 Switch the left panel to **Layers** (the tab next to Catalog) for a tidy list of
 everything in the flat, **grouped by room**. From here you can **select**,
-**lock**, or **delete** any piece without hunting for it in the 3D view — handy
-once the flat is full.
+**hide** (the eye — temporarily take a piece out of view to declutter while you
+work; **Show all** in the footer brings them back), **lock**, or **delete** any
+piece without hunting for it in the 3D view — handy once the flat is full.
+
+## Snapping to walls & other pieces
+
+While you drag a single piece it **snaps flush to a nearby wall** when its edge
+comes within ~12 cm — drag a wardrobe toward a corner and it sits neatly against
+both walls. It also lines up with other pieces' edges and centres (magenta
+guides). Turn on the **snap grid** (below) if you'd rather place to exact grid
+points instead — that takes over from wall snapping.
 
 ## Snap grid
 

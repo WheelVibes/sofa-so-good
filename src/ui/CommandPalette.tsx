@@ -1,10 +1,30 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import type { FeatureFlag } from '../features/featureFlags'
 import { useCatalogByCategory } from '../furniture/catalog'
 import { tidyHome } from '../layout/tidyHome'
+import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
+import { BACKDROPS } from '../scene/SceneBackdrop'
+import { canEditScene } from '../state/editing'
+import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { openDocs } from './docsUrl'
+import { openDesignReport } from './openReport'
 import { Icon, type IconName } from './toolbar/icons'
+
+/** ⌘K command id → the feature flag that gates it (so a disabled feature can't
+ *  be launched from the palette either). Unmapped commands are always shown. */
+const COMMAND_FLAGS: Record<string, FeatureFlag> = {
+  measure: 'measure',
+  'smart-start': 'smartStart',
+  budget: 'budget',
+  clearance: 'clearanceChecks',
+  versions: 'versions',
+  history: 'history',
+  share: 'shareExport',
+  report: 'report',
+  floorplan: 'floorPlanEditor',
+}
 
 interface Command {
   id: string
@@ -84,6 +104,7 @@ export function CommandPalette() {
         run: () => {
           s().setClearancePanelOpen(false)
           s().setVersionsOpen(false)
+          s().setHistoryOpen(false)
           if (!s().budgetOpen) s().toggleBudget()
         },
       },
@@ -95,6 +116,7 @@ export function CommandPalette() {
         run: () => {
           if (s().budgetOpen) s().toggleBudget()
           s().setVersionsOpen(false)
+          s().setHistoryOpen(false)
           s().setClearancePanelOpen(true)
           if (!s().clearanceOn) s().toggleClearance()
         },
@@ -107,7 +129,20 @@ export function CommandPalette() {
         run: () => {
           if (s().budgetOpen) s().toggleBudget()
           s().setClearancePanelOpen(false)
+          s().setHistoryOpen(false)
           s().setVersionsOpen(true)
+        },
+      },
+      {
+        id: 'history',
+        group: 'Tools & panels',
+        label: 'Edit history — jump to any step',
+        icon: 'Undo',
+        run: () => {
+          if (s().budgetOpen) s().toggleBudget()
+          s().setClearancePanelOpen(false)
+          s().setVersionsOpen(false)
+          s().setHistoryOpen(true)
         },
       },
       {
@@ -118,11 +153,44 @@ export function CommandPalette() {
         run: () => s().setShareOpen(true),
       },
       {
+        id: 'report',
+        group: 'Tools & panels',
+        label: 'Design report (printable)',
+        icon: 'Report',
+        run: () => openDesignReport(),
+      },
+      {
+        id: 'floorplan',
+        group: 'Tools & panels',
+        label: 'Floor plan editor',
+        icon: 'FloorPlan',
+        run: () => s().setFloorPlanEditing(true),
+      },
+      {
+        id: 'edit-room',
+        group: 'Go to',
+        label: 'Edit a room (isolate)',
+        icon: 'FloorPlan',
+        run: () => {
+          const st = s()
+          // First editable room of the active plan (default apartment or custom).
+          const id = firstEditableRoomId(st.floorPlan)
+          if (id) st.enterRoomEditor(id)
+        },
+      },
+      {
         id: 'appearance',
         group: 'Tools & panels',
         label: 'Appearance — theme & mode',
         icon: 'Palette',
         run: () => s().setAppearanceOpen(true),
+      },
+      {
+        id: 'tour',
+        group: 'Tools & panels',
+        label: 'Guided product tour',
+        icon: 'Help',
+        run: () => s().startTour(),
       },
       {
         id: 'help',
@@ -171,6 +239,36 @@ export function CommandPalette() {
         icon: 'Time',
         run: () => s().cyclePresetTime(),
       },
+      ...(['morning', 'noon', 'dusk', 'night'] as const).map(
+        (p): Command => ({
+          id: `time:${p}`,
+          group: 'Lighting moods',
+          label: `Time — ${p[0].toUpperCase()}${p.slice(1)}`,
+          hint: 'Sun',
+          icon: 'Sun',
+          run: () => s().setPresetTime(p),
+        }),
+      ),
+      ...LIGHTING_SCENES.map(
+        (sc): Command => ({
+          id: `mood:${sc.id}`,
+          group: 'Lighting moods',
+          label: sc.label,
+          hint: 'Mood',
+          icon: 'Lights',
+          run: () => applyLightingScene(sc),
+        }),
+      ),
+      ...BACKDROPS.map(
+        (b): Command => ({
+          id: `backdrop:${b.id}`,
+          group: 'Backdrop',
+          label: `Backdrop — ${b.label}`,
+          hint: b.sub,
+          icon: 'Cube',
+          run: () => s().setBackdrop(b.id),
+        }),
+      ),
     ]
     // Add-furniture commands from the merged catalog.
     const furniture: Command[] = Object.values(byCategory)
@@ -182,6 +280,13 @@ export function CommandPalette() {
         hint: 'place',
         icon: 'Catalog' as IconName,
         run: () => {
+          const st = useStore.getState()
+          // Placement only happens inside the per-room editor now, so if we're
+          // in the view-only overview, dive into a room first (then arm).
+          if (!canEditScene(st)) {
+            const id = firstEditableRoomId(st.floorPlan)
+            if (id) st.enterRoomEditor(id)
+          }
           useStore.getState().setCatalogOpen(false)
           useStore.getState().setActiveDefId(def.id)
         },
@@ -195,11 +300,23 @@ export function CommandPalette() {
     }))
   }, [byCategory])
 
+  // Drop commands whose feature flag is off (saved-view commands gate on the
+  // savedViews flag) so the palette can't launch a disabled feature.
+  const flags = useStore((s) => s.featureFlags)
+  const allowed = useMemo(
+    () =>
+      commands.filter((c) => {
+        const flag = COMMAND_FLAGS[c.id] ?? (c.id.startsWith('view:') ? 'savedViews' : undefined)
+        return !flag || flags[flag]
+      }),
+    [commands, flags],
+  )
+
   const q = query.trim().toLowerCase()
   const filtered = useMemo(() => {
-    if (!q) return commands.filter((c) => c.group !== 'Add furniture').concat()
-    return commands.filter((c) => c.label.toLowerCase().includes(q)).slice(0, 40)
-  }, [commands, q])
+    if (!q) return allowed.filter((c) => c.group !== 'Add furniture').concat()
+    return allowed.filter((c) => c.label.toLowerCase().includes(q)).slice(0, 40)
+  }, [allowed, q])
 
   // Reset active index + focus on open / query change.
   useEffect(() => {

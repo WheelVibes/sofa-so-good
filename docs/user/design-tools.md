@@ -24,12 +24,30 @@ point you then tweak.
 
 The **Budget / shopping list** (Tools menu) groups every placed piece by category
 and totals an approximate cost in **SGD**, with a **Saved collections** tab for
-everything you've hearted. Copy the list to share it.
+everything you've hearted. **Export CSV** downloads the list (category, item,
+quantity, unit price, line total) for a spreadsheet or to send to a supplier.
 
 ## Clearance & fit checks
 
 **Checks** validates door‑swing clearance and flags any piece blocking a door,
 with a summary and fix hints.
+
+## Measure
+
+**Measure** (Tools menu) turns on a tape measure: click two points on the floor
+and the distance between them appears on an amber ruler line. Click again to
+start a fresh measurement; turn the tool off from the same menu. Works on touch
+(tap the two points) too.
+
+## History
+
+**History** (Tools menu, or ⌘K → "Edit history") shows a timeline of every edit
+you've made — adding a sofa, moving a chair, changing a finish, toggling a door,
+editing the floor plan — newest at the top, with the current state marked
+**Now**. Click any step to jump straight back (or forward) to that point in one
+move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
+**Redo** buttons and **Clear history**. (You can always undo/redo with
+**Ctrl/⌘ + Z** and **Ctrl/⌘ + Shift + Z** without opening the panel.)
 
 ## Versions, share & report
 
@@ -38,4 +56,9 @@ with a summary and fix hints.
 - **Share & export** — copy a shareable link or export a real **PNG snapshot** of
   the current view. *(Experimental: a "Make photoreal" option can restyle the
   snapshot via your own AI key.)*
-- **Report** — a printable summary of the design.
+- **Report** — a printable (save-as-PDF) summary: a hero render, a colour-keyed
+  **furnished floor plan** drawn like a real architectural plan — door **swing
+  arcs** and window breaks, a category legend — plus **furniture by room**
+  (itemized with quantities, prices, and each room's area), finishes per room, a
+  material palette, a **clearance & fit** check (any furniture blocking a
+  doorway), areas, and your design notes — a handoff-ready document.

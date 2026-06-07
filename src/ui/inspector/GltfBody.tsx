@@ -1,5 +1,7 @@
+import { itemFootprint } from '../../collision/placement'
 import type { FurnitureItem, GltfDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { formatDimsShort } from '../../utils/measurement'
 
 interface GltfBodyProps {
   item: FurnitureItem
@@ -11,9 +13,15 @@ interface GltfBodyProps {
  *  can credit the asset author. */
 export function GltfBody({ item, def }: GltfBodyProps) {
   const updateItemProps = useStore((s) => s.updateItemProps)
+  const units = useStore((s) => s.units)
   const scale = typeof item.props['scale'] === 'number' ? item.props['scale'] : (def.scale ?? 1)
   const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : ''
   const reflective = item.props['reflective'] === 1
+
+  // Resulting real-world footprint at the current scale (unrotated), so the
+  // user sizes in real dimensions rather than a bare multiplier.
+  const fp = itemFootprint({ ...item, rotation: 0 }, def)
+  const dims = formatDimsShort([fp.hx * 2, fp.hz * 2], units)
 
   return (
     <div className="space-y-2">
@@ -21,8 +29,9 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         <span className="flex-1">Scale</span>
         <input
           type="range"
-          min={0.5}
-          max={1.5}
+          // Wide range so a badly-scaled upload/IKEA import can be corrected.
+          min={0.25}
+          max={3}
           step={0.05}
           value={scale}
           onChange={(e) => updateItemProps(item.id, { scale: Number(e.target.value) })}
@@ -30,6 +39,7 @@ export function GltfBody({ item, def }: GltfBodyProps) {
         />
         <span className="w-12 text-right font-mono">{scale.toFixed(2)}×</span>
       </label>
+      <p className="text-right text-[10px] text-[var(--text-3)] font-mono">≈ {dims}</p>
       <label className="flex items-center justify-between gap-2 text-xs">
         <span className="flex-1">Tint</span>
         <input

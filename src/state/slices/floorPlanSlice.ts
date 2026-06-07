@@ -46,9 +46,9 @@ export interface FloorPlanSlice {
   resetFloorPlan: () => void
   /** Replace the active plan with a fresh blank room shell. */
   newFloorPlan: (name?: string) => void
-  /** Patch the top-level plan metadata (name, ceilingHeight, extent). */
+  /** Patch the top-level plan metadata (name, ceilingHeight, extent, wallColor). */
   updateFloorPlanMeta: (
-    patch: Partial<Pick<FloorPlan, 'name' | 'ceilingHeight' | 'extent'>>,
+    patch: Partial<Pick<FloorPlan, 'name' | 'ceilingHeight' | 'extent' | 'wallColor'>>,
   ) => void
 
   addWall: (wall: Omit<PlanWall, 'id'>) => string
@@ -104,7 +104,7 @@ function blankPlan(name: string): FloorPlan {
   }
 }
 
-export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (set) => ({
+export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (set, get) => ({
   ...FLOOR_PLAN_INITIAL,
 
   setFloorPlan: (plan) => set({ floorPlan: plan }),
@@ -125,33 +125,47 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     })
     return savedId
   },
-  loadSavedPlan: (id) =>
-    set((s) => {
-      const found = s.savedPlans.find((p) => p.id === id)
-      return found ? { floorPlan: clonePlan(found), planSelection: null } : {}
-    }),
+  loadSavedPlan: (id) => {
+    const found = get().savedPlans.find((p) => p.id === id)
+    if (!found) return
+    // Snapshot first so loading a saved plan over the current one is undoable.
+    get().pushHistory()
+    set({ floorPlan: clonePlan(found), planSelection: null })
+  },
   deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
   setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
   toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
   setPlanSelection: (sel) => set({ planSelection: sel }),
-  resetFloorPlan: () => set({ floorPlan: buildDefaultPlan(), planSelection: null }),
+  resetFloorPlan: () => {
+    // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built
+    // custom plan is destroyed with no way back.
+    get().pushHistory()
+    set({ floorPlan: buildDefaultPlan(), planSelection: null })
+  },
   newFloorPlan: (name = 'New apartment') =>
     set({ floorPlan: blankPlan(name), planSelection: null }),
-  updateFloorPlanMeta: (patch) => set((s) => ({ floorPlan: { ...s.floorPlan, ...patch } })),
+  updateFloorPlanMeta: (patch) => {
+    get().pushHistoryCoalesced('plan-meta')
+    set((s) => ({ floorPlan: { ...s.floorPlan, ...patch } }))
+  },
 
   addWall: (wall) => {
     const id = planId('w')
+    get().pushHistory()
     set((s) => ({ floorPlan: { ...s.floorPlan, walls: [...s.floorPlan.walls, { ...wall, id }] } }))
     return id
   },
-  updateWall: (id, patch) =>
+  updateWall: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-wall-${id}`)
     set((s) => ({
       floorPlan: {
         ...s.floorPlan,
         walls: s.floorPlan.walls.map((w) => (w.id === id ? { ...w, ...patch } : w)),
       },
-    })),
-  removeWall: (id) =>
+    }))
+  },
+  removeWall: (id) => {
+    get().pushHistory()
     set((s) => ({
       floorPlan: {
         ...s.floorPlan,
@@ -160,9 +174,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         openings: s.floorPlan.openings.filter((o) => o.wallId !== id),
       },
       planSelection: null,
-    })),
+    }))
+  },
 
-  splitWall: (id, t = 0.5) =>
+  splitWall: (id, t = 0.5) => {
+    get().pushHistory()
     set((s) => {
       const wall = s.floorPlan.walls.find((w) => w.id === id)
       if (!wall) return {}
@@ -193,9 +209,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         },
         planSelection: { type: 'wall', id: idA } as PlanSelection,
       }
-    }),
+    })
+  },
 
-  moveWallVertex: (id, which, to) =>
+  moveWallVertex: (id, which, to) => {
+    get().pushHistoryCoalesced(`plan-vertex-${id}-${which}`)
     set((s) => {
       const target = s.floorPlan.walls.find((w) => w.id === id)
       if (!target) return {}
@@ -214,43 +232,54 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
           }),
         },
       }
-    }),
+    })
+  },
 
   addRoom: (room) => {
     const id = planId('r')
+    get().pushHistory()
     set((s) => ({ floorPlan: { ...s.floorPlan, rooms: [...s.floorPlan.rooms, { ...room, id }] } }))
     return id
   },
-  updateRoom: (id, patch) =>
+  updateRoom: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-room-${id}`)
     set((s) => ({
       floorPlan: {
         ...s.floorPlan,
         rooms: s.floorPlan.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)),
       },
-    })),
-  removeRoom: (id) =>
+    }))
+  },
+  removeRoom: (id) => {
+    get().pushHistory()
     set((s) => ({
       floorPlan: { ...s.floorPlan, rooms: s.floorPlan.rooms.filter((r) => r.id !== id) },
       planSelection: null,
-    })),
+    }))
+  },
 
   addOpening: (opening) => {
     const id = planId(opening.kind === 'door' ? 'door' : 'win')
+    get().pushHistory()
     set((s) => ({
       floorPlan: { ...s.floorPlan, openings: [...s.floorPlan.openings, { ...opening, id }] },
     }))
     return id
   },
-  updateOpening: (id, patch) =>
+  updateOpening: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-open-${id}`)
     set((s) => ({
       floorPlan: {
         ...s.floorPlan,
         openings: s.floorPlan.openings.map((o) => (o.id === id ? { ...o, ...patch } : o)),
       },
-    })),
-  removeOpening: (id) =>
+    }))
+  },
+  removeOpening: (id) => {
+    get().pushHistory()
     set((s) => ({
       floorPlan: { ...s.floorPlan, openings: s.floorPlan.openings.filter((o) => o.id !== id) },
       planSelection: null,
-    })),
+    }))
+  },
 })

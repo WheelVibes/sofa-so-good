@@ -32,7 +32,7 @@ describe('createOptimizePool', () => {
       run,
       onError: (f) => failed.push(f),
     })
-    ;['a.glb', 'bad.glb', 'c.glb'].forEach((f) => pool.submit(f))
+    for (const f of ['a.glb', 'bad.glb', 'c.glb']) pool.submit(f)
     await pool.drain()
     expect(done.sort()).toEqual(['a.glb', 'c.glb'])
     expect(failed).toEqual(['bad.glb'])

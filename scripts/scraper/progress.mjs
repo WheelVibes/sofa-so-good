@@ -17,10 +17,11 @@ export function createLineSplitter(onLine) {
   let buf = ''
   function feed(chunk) {
     buf += chunk
-    let idx
-    while ((idx = buf.indexOf('\n')) !== -1) {
+    let idx = buf.indexOf('\n')
+    while (idx !== -1) {
       onLine(buf.slice(0, idx))
       buf = buf.slice(idx + 1)
+      idx = buf.indexOf('\n')
     }
   }
   feed.end = () => {

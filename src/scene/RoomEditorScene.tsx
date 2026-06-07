@@ -1,11 +1,12 @@
 import { Canvas } from '@react-three/fiber'
+import { PlanRoomShell } from '../apartment/PlanRoomShell'
 import { RoomShell } from '../apartment/RoomShell'
-import { roomShell } from '../apartment/roomShell'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
 import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
+import { AnnotationsOverlay } from './AnnotationsOverlay'
 import { ClearanceOverlay } from './ClearanceOverlay'
 import { ContextLossGuard } from './ContextLossGuard'
 import { CameraRig } from './cameras/CameraRig'
@@ -14,9 +15,11 @@ import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { GridOverlay } from './GridOverlay'
 import { PlacementGhost } from './PlacementGhost'
+import { getRoomEditorShell } from './roomEditorShell'
 import { ScreenshotController } from './ScreenshotController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
+import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 
 /** Lightweight per-room editor scene. Renders one isolated room with a flat,
@@ -24,8 +27,11 @@ import { SelectionOutline } from './selection/SelectionOutline'
  *  interaction controller so catalog/placement/measurement work unchanged. */
 export function RoomEditorScene() {
   const roomId = useStore((s) => s.roomEditor.roomId)
+  const plan = useStore((s) => s.floorPlan)
   if (!roomId) return null
-  const shell = roomShell(roomId)
+  const editorShell = getRoomEditorShell(plan, roomId)
+  if (!editorShell) return null
+  const shell = editorShell.shell
   const [cx, cz] = shell.center
   const r = shell.radius
   return (
@@ -48,13 +54,18 @@ export function RoomEditorScene() {
       <ContextLossGuard />
       <hemisphereLight args={['#ffffff', '#b9b4aa', 2.2]} />
       <ambientLight intensity={0.6} />
-      <RoomShell shell={shell} />
+      {editorShell.kind === 'default' ? (
+        <RoomShell shell={editorShell.shell} />
+      ) : (
+        <PlanRoomShell shell={editorShell.shell} />
+      )}
       <GridOverlay />
       <AlignmentGuides />
       <ClearanceOverlay />
       <FurnitureLayer room={shell} />
       <FurnitureMaterialLoader />
       <SelectionOutline />
+      <RotateGizmo />
       <HoverHighlight />
       <PlacementGhost />
       <DragController />
@@ -62,6 +73,7 @@ export function RoomEditorScene() {
       <CameraRig />
       <CameraForwardTracker />
       <MeasurementOverlay />
+      <AnnotationsOverlay />
       <ScreenshotController />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
     </Canvas>

@@ -10,6 +10,18 @@ const waitMs = Number(process.argv[3] || 6000)
 const evalFile = process.argv[4]
 const actionsArg = process.argv[5]
 
+// Guard the output path: a flag-like (`--help`) or non-`.png` first arg is almost
+// certainly a mistake — passing it through once wrote a screenshot to a file
+// literally named `--help` at the repo root, which then got committed. Fail loudly
+// (before launching the browser) instead of silently producing a junk file.
+if (out.startsWith('-') || !out.toLowerCase().endsWith('.png')) {
+  console.error(
+    `shot.mjs: invalid output path ${JSON.stringify(out)} — expected a .png file path.\n` +
+      'Usage: node scripts/shot.mjs <out.png> [waitMs] [evalScriptFile] [actionsJson]',
+  )
+  process.exit(2)
+}
+
 const browser = await puppeteer.launch({
   headless: 'shell',
   args: [

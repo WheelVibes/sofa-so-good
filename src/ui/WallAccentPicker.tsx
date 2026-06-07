@@ -1,9 +1,9 @@
 import { useShallow } from 'zustand/react/shallow'
-import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
+import { roomDisplayName } from '../state/rooms'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
 
@@ -28,11 +28,12 @@ export function WallAccentPicker() {
   const setWallAccent = useStore((s) => s.setWallAccent)
   const clearWallAccent = useStore((s) => s.clearWallAccent)
   const selectItem = useStore((s) => s.selectItem)
+  const plan = useStore((s) => s.floorPlan)
   const materials = useMaterials()
 
   if (!selectedWall) return null
   const key = `${selectedWall.wallId}:${selectedWall.roomId}`
-  const roomName = ROOMS[selectedWall.roomId as RoomId]?.name ?? selectedWall.roomId
+  const roomName = roomDisplayName(selectedWall.roomId, plan)
   const current = wallAccents[key] ?? roomWall[selectedWall.roomId as RoomId]
   const walls = Object.values(materials).filter((m) => m.category === 'wall')
 

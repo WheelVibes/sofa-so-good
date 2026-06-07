@@ -1,7 +1,14 @@
-import type { FurnitureItem, ParametricDef, ParamField, ParamValue } from '../../furniture/types'
+import {
+  defaultParamProps,
+  type FurnitureItem,
+  type ParametricDef,
+  type ParamField,
+  type ParamValue,
+} from '../../furniture/types'
 import { useMaterials } from '../../materials/useMaterial'
 import { useStore } from '../../state/store'
 import { ColorField, EnumField, IntegerField, NumberField } from './fields'
+import { InspectorSection } from './InspectorSection'
 
 interface ParametricBodyProps {
   item: FurnitureItem
@@ -27,16 +34,34 @@ function useSurfaceMaterialOptions(): { value: string; label: string }[] {
  *  (memoised Furniture re-renders only this item). */
 export function ParametricBody({ item, def }: ParametricBodyProps) {
   const updateItemProps = useStore((s) => s.updateItemProps)
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const surfaceMaterials = useSurfaceMaterialOptions()
 
   const setProp = (key: string, value: ParamValue) => updateItemProps(item.id, { [key]: value })
 
   if (def.paramSchema.length === 0) return null
+
+  // Reset every schema-driven prop (size/form/finish/colour) back to the def's
+  // defaults. Differs from the current props → only show when something changed.
+  const defaults = defaultParamProps(def)
+  const isModified = Object.keys(defaults).some((k) => item.props[k] !== defaults[k])
   return (
-    <div className="sec">
-      <div className="sec-h">
-        <span>Properties</span>
-      </div>
+    <InspectorSection
+      title="Properties"
+      defaultOpen={proMode}
+      headerRight={
+        isModified ? (
+          <button
+            type="button"
+            className="prop-reset"
+            onClick={() => updateItemProps(item.id, defaults)}
+            title="Reset size, form, finish and colour to this item's defaults"
+          >
+            Reset
+          </button>
+        ) : null
+      }
+    >
       {def.paramSchema.map((rawField) => {
         // Surface "finish" enums (those offering a Wood option) gain extra
         // entries for any catalog / downloaded CC0 PBR material.
@@ -89,6 +114,6 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
             return null
         }
       })}
-    </div>
+    </InspectorSection>
   )
 }

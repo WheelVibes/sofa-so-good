@@ -25,8 +25,8 @@ jobs:
       - name: Typecheck
         run: npx tsc --noEmit
 
-      # Lint surfaces findings but does not block yet — there is a known
-      # backlog of ~26 pre-existing findings. Tighten to blocking once cleared.
+      # Lint is now blocking — the pre-existing error backlog is cleared
+      # (`npm run lint` exits 0; only intentional `noExplicitAny` warnings in
+      # test files remain, which Biome does not fail on by default).
       - name: Lint
         run: npm run lint
-        continue-on-error: true

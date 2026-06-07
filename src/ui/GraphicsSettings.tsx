@@ -38,6 +38,9 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
   const setAssetTier = useStore((s) => s.setAssetTier)
   const showFps = useStore((s) => s.showFps)
   const toggleShowFps = useStore((s) => s.toggleShowFps)
+  const unitSystem = useStore((s) => s.units)
+  const setUnits = useStore((s) => s.setUnits)
+  const proMode = useStore((s) => s.uiMode === 'pro')
 
   useEffect(() => {
     if (!open) return
@@ -68,6 +71,36 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
         </div>
         <hr className="hr" />
         <div className="panel-body">
+          {/* Measurement units — display preference for all read-outs. Metric
+              stays the editing unit; imperial reformats labels/HUDs. */}
+          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+            <span>Measurement units</span>
+          </div>
+          <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+            {(['metric', 'imperial'] as const).map((u) => (
+              <button
+                key={u}
+                type="button"
+                onClick={() => setUnits(u)}
+                className={`capitalize${unitSystem === u ? ' on' : ''}`}
+                style={{ flex: 1 }}
+              >
+                {u === 'metric' ? 'Metric (m)' : 'Imperial (ft)'}
+              </button>
+            ))}
+          </div>
+          <p
+            style={{
+              fontSize: 'var(--t-2xs)',
+              lineHeight: 1.45,
+              color: 'var(--text-3)',
+              margin: 'var(--s-2) 0 var(--s-3)',
+            }}
+          >
+            Affects dimension read-outs (room sizes, tape, clearance). Plan-editor input fields stay
+            in metres.
+          </p>
+
           {/* Tier presets — 2×2 grid. */}
           <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
             <span>Quality preset</span>
@@ -100,124 +133,130 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
               : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
           </p>
 
-          {/* Asset quality. */}
-          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
-            <span>Asset quality</span>
-          </div>
-          <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
-            {ASSET_OPTIONS.map((o) => (
-              <button
-                key={o.label}
-                type="button"
-                onClick={() => setAssetTier(o.value)}
-                className={assetTier === o.value ? 'on' : ''}
-                style={{ flex: 1 }}
-              >
-                {o.label}
-              </button>
-            ))}
-          </div>
-          <p
-            style={{
-              fontSize: 'var(--t-2xs)',
-              lineHeight: 1.45,
-              color: 'var(--text-3)',
-              margin: 'var(--s-2) 0 0',
-            }}
-          >
-            Model + texture detail, separate from render quality. “Original” loads full-resolution
-            assets even on Low.
-          </p>
-
-          <div className="sec">
-            <Row label="Sun shadows" hint="Resolution; off is fastest">
-              <select
-                value={eff.shadowMapSize}
-                onChange={(e) => setOverride('shadowMapSize', Number(e.target.value))}
-                className="input"
-                style={{ width: 'auto' }}
-              >
-                {SHADOW_OPTIONS.map((o) => (
-                  <option key={o.value} value={o.value}>
+          {/* Advanced graphics (asset detail + per-effect overrides + FPS) —
+              Pro mode only; Simple keeps just render quality + units. */}
+          {proMode ? (
+            <>
+              {/* Asset quality. */}
+              <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+                <span>Asset quality</span>
+              </div>
+              <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+                {ASSET_OPTIONS.map((o) => (
+                  <button
+                    key={o.label}
+                    type="button"
+                    onClick={() => setAssetTier(o.value)}
+                    className={assetTier === o.value ? 'on' : ''}
+                    style={{ flex: 1 }}
+                  >
                     {o.label}
-                  </option>
+                  </button>
                 ))}
-              </select>
-            </Row>
+              </div>
+              <p
+                style={{
+                  fontSize: 'var(--t-2xs)',
+                  lineHeight: 1.45,
+                  color: 'var(--text-3)',
+                  margin: 'var(--s-2) 0 0',
+                }}
+              >
+                Model + texture detail, separate from render quality. “Original” loads
+                full-resolution assets even on Low.
+              </p>
 
-            <Toggle
-              label="Reflections (IBL)"
-              hint="Image-based lighting probe"
-              checked={eff.ibl}
-              onChange={(v) => setOverride('ibl', v)}
-            />
-            <Toggle
-              label="Bloom, AO + antialiasing"
-              hint="GPU post-processing (loaded on demand)"
-              checked={eff.postprocessing}
-              onChange={(v) => setOverride('postprocessing', v)}
-            />
-            <Toggle
-              label="Auto-reveal walls"
-              hint="Fade near walls when orbiting"
-              checked={eff.wallReveal}
-              onChange={(v) => setOverride('wallReveal', v)}
-            />
-            <Toggle
-              label="Contact shadows"
-              hint="Soft grounding under furniture"
-              checked={eff.contactShadows}
-              onChange={(v) => setOverride('contactShadows', v)}
-            />
-            <Toggle
-              label="Showcase stills"
-              hint="Sharpen shadows when the camera is still"
-              checked={eff.showcase}
-              onChange={(v) => setOverride('showcase', v)}
-            />
-            <Toggle
-              label="FPS counter"
-              hint="Live frame-rate overlay"
-              checked={showFps}
-              onChange={toggleShowFps}
-            />
+              <div className="sec">
+                <Row label="Sun shadows" hint="Resolution; off is fastest">
+                  <select
+                    value={eff.shadowMapSize}
+                    onChange={(e) => setOverride('shadowMapSize', Number(e.target.value))}
+                    className="input"
+                    style={{ width: 'auto' }}
+                  >
+                    {SHADOW_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </Row>
 
-            <Row label="Night light fixtures" hint={`${eff.maxFixtureLights} max`}>
-              <input
-                type="range"
-                min={0}
-                max={12}
-                step={1}
-                value={eff.maxFixtureLights}
-                onChange={(e) => setOverride('maxFixtureLights', Number(e.target.value))}
-                className="slider"
-                style={{ width: 112 }}
-              />
-            </Row>
-            <Row label="Resolution scale" hint={`${eff.dprMax.toFixed(2)}×`}>
-              <input
-                type="range"
-                min={0.75}
-                max={2}
-                step={0.25}
-                value={eff.dprMax}
-                onChange={(e) => setOverride('dprMax', Number(e.target.value))}
-                className="slider"
-                style={{ width: 112 }}
-              />
-            </Row>
-          </div>
+                <Toggle
+                  label="Reflections (IBL)"
+                  hint="Image-based lighting probe"
+                  checked={eff.ibl}
+                  onChange={(v) => setOverride('ibl', v)}
+                />
+                <Toggle
+                  label="Bloom, AO + antialiasing"
+                  hint="GPU post-processing (loaded on demand)"
+                  checked={eff.postprocessing}
+                  onChange={(v) => setOverride('postprocessing', v)}
+                />
+                <Toggle
+                  label="Auto-reveal walls"
+                  hint="Fade near walls when orbiting"
+                  checked={eff.wallReveal}
+                  onChange={(v) => setOverride('wallReveal', v)}
+                />
+                <Toggle
+                  label="Contact shadows"
+                  hint="Soft grounding under furniture"
+                  checked={eff.contactShadows}
+                  onChange={(v) => setOverride('contactShadows', v)}
+                />
+                <Toggle
+                  label="Showcase stills"
+                  hint="Sharpen shadows when the camera is still"
+                  checked={eff.showcase}
+                  onChange={(v) => setOverride('showcase', v)}
+                />
+                <Toggle
+                  label="FPS counter"
+                  hint="Live frame-rate overlay"
+                  checked={showFps}
+                  onChange={toggleShowFps}
+                />
 
-          {hasOverrides && (
-            <button
-              type="button"
-              onClick={resetOverrides}
-              className="btn btn-soft btn-block"
-              style={{ marginTop: 'var(--s-4)' }}
-            >
-              Reset to {QUALITY_LABEL[tier]} preset
-            </button>
-          )}
+                <Row label="Night light fixtures" hint={`${eff.maxFixtureLights} max`}>
+                  <input
+                    type="range"
+                    min={0}
+                    max={12}
+                    step={1}
+                    value={eff.maxFixtureLights}
+                    onChange={(e) => setOverride('maxFixtureLights', Number(e.target.value))}
+                    className="slider"
+                    style={{ width: 112 }}
+                  />
+                </Row>
+                <Row label="Resolution scale" hint={`${eff.dprMax.toFixed(2)}×`}>
+                  <input
+                    type="range"
+                    min={0.75}
+                    max={2}
+                    step={0.25}
+                    value={eff.dprMax}
+                    onChange={(e) => setOverride('dprMax', Number(e.target.value))}
+                    className="slider"
+                    style={{ width: 112 }}
+                  />
+                </Row>
+              </div>
+
+              {hasOverrides && (
+                <button
+                  type="button"
+                  onClick={resetOverrides}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-4)' }}
+                >
+                  Reset to {QUALITY_LABEL[tier]} preset
+                </button>
+              )}
+            </>
+          ) : null}
         </div>
       </div>
     </div>,

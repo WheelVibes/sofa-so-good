@@ -4,13 +4,24 @@ import {
   type AppearanceSlice,
   createAppearanceSlice,
 } from './slices/appearanceSlice'
+import { AUTH_INITIAL, type AuthSlice, createAuthSlice } from './slices/authSlice'
 import { CAMERA_INITIAL, type CameraSlice, createCameraSlice } from './slices/cameraSlice'
+import {
+  CAMERA_VIEWS_INITIAL,
+  type CameraViewsSlice,
+  createCameraViewsSlice,
+} from './slices/cameraViewsSlice'
 import {
   CLIPBOARD_INITIAL,
   type ClipboardSlice,
   createClipboardSlice,
 } from './slices/clipboardSlice'
 import { createDoorsSlice, DOORS_INITIAL, type DoorsSlice } from './slices/doorsSlice'
+import {
+  createFeatureFlagsSlice,
+  FEATURE_FLAGS_INITIAL,
+  type FeatureFlagsSlice,
+} from './slices/featureFlagsSlice'
 import { createFeaturesSlice, FEATURES_INITIAL, type FeaturesSlice } from './slices/featuresSlice'
 import { createFinishesSlice, FINISHES_INITIAL, type FinishesSlice } from './slices/finishesSlice'
 import {
@@ -47,6 +58,9 @@ import {
   PLACEMENT_INITIAL,
   type PlacementSlice,
 } from './slices/placementSlice'
+import { createProjectSlice, PROJECT_INITIAL, type ProjectSlice } from './slices/projectSlice'
+import { createPromptSlice, PROMPT_INITIAL, type PromptSlice } from './slices/promptSlice'
+import { createRecentSlice, RECENT_INITIAL, type RecentSlice } from './slices/recentSlice'
 import {
   createRemoteCatalogSlice,
   REMOTE_CATALOG_INITIAL,
@@ -99,7 +113,13 @@ export interface RootState
     FloorPlanSlice,
     AppearanceSlice,
     FeaturesSlice,
-    UserStylesSlice {
+    UserStylesSlice,
+    RecentSlice,
+    CameraViewsSlice,
+    PromptSlice,
+    ProjectSlice,
+    FeatureFlagsSlice,
+    AuthSlice {
   __resetForTest: () => void
 }
 
@@ -124,7 +144,13 @@ const INITIAL = {
   ...FLOOR_PLAN_INITIAL,
   ...APPEARANCE_INITIAL,
   ...FEATURES_INITIAL,
+  ...FEATURE_FLAGS_INITIAL,
+  ...AUTH_INITIAL,
   ...USER_STYLES_INITIAL,
+  ...RECENT_INITIAL,
+  ...CAMERA_VIEWS_INITIAL,
+  ...PROMPT_INITIAL,
+  ...PROJECT_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -151,5 +177,11 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createFloorPlanSlice(set, get, api),
   ...createAppearanceSlice(set, get, api),
   ...createFeaturesSlice(set, get, api),
+  ...createFeatureFlagsSlice(set, get, api),
+  ...createAuthSlice(set, get, api),
+  ...createRecentSlice(set, get, api),
+  ...createCameraViewsSlice(set, get, api),
+  ...createPromptSlice(set, get, api),
+  ...createProjectSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))

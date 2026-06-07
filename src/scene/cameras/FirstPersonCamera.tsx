@@ -2,14 +2,20 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { Euler, PerspectiveCamera, Vector3 } from 'three'
 import { DOORS, WALLS } from '../../apartment/constants'
-import { roomShell } from '../../apartment/roomShell'
-import { buildRoomCollisionWalls } from '../../collision/roomCollisionWalls'
+import type { RoomId } from '../../apartment/types'
+import {
+  buildPlanRoomCollisionWalls,
+  buildRoomCollisionWalls,
+} from '../../collision/roomCollisionWalls'
 import { type CollisionWall, isLineOfSightBlocked, resolveMovement } from '../../collision/walls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { KEYBINDINGS } from '../../controls/keybindings'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { planRoomShell } from '../../floorplan/planRoomShell'
+import { planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
+import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
 
 interface DoorSegment {
@@ -76,13 +82,20 @@ export function FirstPersonCamera() {
 
   useEffect(() => {
     // In the per-room editor, bound the player to the isolated room's clipped
-    // walls. Otherwise walk-mode collision follows the active plan (custom
-    // apartments included).
-    collisionWalls.current = roomEditorId
-      ? buildRoomCollisionWalls(roomEditorId, doors)
-      : isDefaultPlan(floorPlan)
+    // walls (default apartment via roomShell; custom plan via planRoomShell).
+    // Otherwise walk-mode collision follows the active plan.
+    if (roomEditorId) {
+      if (isDefaultPlan(floorPlan)) {
+        collisionWalls.current = buildRoomCollisionWalls(roomEditorId as RoomId, doors)
+      } else {
+        const shell = planRoomShell(floorPlan, roomEditorId)
+        collisionWalls.current = shell ? buildPlanRoomCollisionWalls(shell) : []
+      }
+    } else {
+      collisionWalls.current = isDefaultPlan(floorPlan)
         ? buildCollisionWalls(doors)
         : planCollisionWalls(floorPlan, doors)
+    }
   }, [doors, floorPlan, roomEditorId])
 
   useEffect(() => {
@@ -186,15 +199,33 @@ export function FirstPersonCamera() {
 
   useEffect(() => {
     if (roomEditorId) {
-      // Spawn in the centre of the isolated room, looking toward its far edge.
-      const shell = roomShell(roomEditorId)
-      const [cx, cz] = shell.center
+      // Spawn in the centre of the isolated room, looking toward its far edge
+      // (default apartment or custom plan). Plan read fresh (not a dep) so a
+      // plan edit during walk never re-spawns the player.
+      const editorShell = getRoomEditorShell(useStore.getState().floorPlan, roomEditorId)
+      const [cx, cz] = editorShell ? editorShell.shell.center : [0, 0]
       camera.position.set(cx, EYE_HEIGHT, cz)
       camera.lookAt(cx, EYE_HEIGHT, cz - 1)
-    } else {
+    } else if (isDefaultPlan(useStore.getState().floorPlan)) {
       camera.position.set(11, EYE_HEIGHT, 6)
       // Face into the living/dining instead of inheriting the orbit angle.
       camera.lookAt(10.4, EYE_HEIGHT, 2.5)
+    } else {
+      // Custom plan: spawn in the largest room (the default flat's hand-tuned
+      // living/dining spawn would land outside an arbitrary plan). Stand in the
+      // back third looking across the room so the first view shows the space, not
+      // a near wall.
+      const plan = useStore.getState().floorPlan
+      const big = plan.rooms.reduce(
+        (a, b) => (a && planRoomArea(a) >= planRoomArea(b) ? a : b),
+        plan.rooms[0],
+      )
+      const [bw, bd] = planBounds(plan)
+      const cx = big ? big.origin[0] + big.width / 2 : bw / 2
+      const cz = big ? big.origin[1] + big.depth / 2 : bd / 2
+      const span = big ? big.depth : bd
+      camera.position.set(cx, EYE_HEIGHT, cz + span * 0.32)
+      camera.lookAt(cx, EYE_HEIGHT, cz - span * 0.32)
     }
     // Seed drag-to-look yaw/pitch from the spawn orientation so the first drag
     // continues smoothly from where the camera is already pointing.

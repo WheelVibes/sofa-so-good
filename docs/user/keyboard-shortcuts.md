@@ -21,9 +21,11 @@
 | Time of day | <kbd>T</kbd> |
 | Measurements | <kbd>M</kbd> |
 | Tidy room | <kbd>L</kbd> |
-| Select / orbit tool | <kbd>G</kbd> |
 
 ## Editing a selection
+
+These work **inside the [per‑room editor](/room-editor)** only — the orbit
+overview and walk mode are view‑only.
 
 | Action | Shortcut |
 | --- | --- |
@@ -32,8 +34,11 @@
 | Duplicate | <kbd>⌘D</kbd> |
 | Copy / paste | <kbd>⌘C</kbd> / <kbd>⌘V</kbd> |
 | Nudge (fine) | arrow keys (<kbd>Shift</kbd> = fine) |
+| Cycle selection | <kbd>[</kbd> / <kbd>]</kbd> |
+| Previous / next room | <kbd>,</kbd> / <kbd>.</kbd> |
+| Search the catalog | <kbd>/</kbd> |
 | Delete | <kbd>Del</kbd> |
-| Deselect | <kbd>Esc</kbd> |
+| Deselect / exit room | <kbd>Esc</kbd> |
 | Undo / redo | <kbd>⌘Z</kbd> / <kbd>⌘Y</kbd> (or <kbd>Shift</kbd>+<kbd>⌘Z</kbd>) |
 
 ## In walk mode

@@ -10,7 +10,7 @@ export function createOptimizePool({ concurrency = 3, run, onError, onPhase }) {
 
   function maybeDrained() {
     if (active === 0 && queue.length === 0) {
-      drainResolvers.forEach((r) => r())
+      for (const r of drainResolvers) r()
       drainResolvers = []
     }
   }

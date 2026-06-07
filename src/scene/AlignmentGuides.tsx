@@ -3,6 +3,7 @@ import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { planBounds } from '../floorplan/types'
 import { useStore } from '../state/store'
+import { useDisposeGeometry } from './geometryUtil'
 
 /**
  * Magenta alignment guides shown while dragging furniture: a constant-X or
@@ -24,6 +25,7 @@ export function AlignmentGuides() {
     geo.setAttribute('position', new Float32BufferAttribute(pts, 3))
     return geo
   }, [guides, W, D])
+  useDisposeGeometry(geometry)
 
   if (guides.length === 0) return null
   return (

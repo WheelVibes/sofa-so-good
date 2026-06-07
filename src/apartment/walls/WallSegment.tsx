@@ -15,8 +15,10 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
+import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, WALLS } from '../constants'
+import { APARTMENT_EXT_D, APARTMENT_EXT_W, WALLS } from '../constants'
 import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
@@ -182,6 +184,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const dz = wall.end[1] - wall.start[1]
   const length = Math.hypot(dx, dz)
   const angle = Math.atan2(dz, dx)
+  // Wall height follows the (adjustable) plan ceiling height; per-wall
+  // `topHeight` overrides (e.g. parapets) still win inside buildWallSegments.
+  const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
   const { camera } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
@@ -250,7 +255,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // textures stop exactly at the inner corner with no overlap into the body.
   const startAbut = wallEndAbutmentThickness(wall, WALLS, true) / 2
   const endAbut = wallEndAbutmentThickness(wall, WALLS, false) / 2
-  const segments = buildWallSegments(wall, FLAT.ceilingHeight)
+  const segments = buildWallSegments(wall, ceilingHeight)
   const midX = (wall.start[0] + wall.end[0]) / 2
   const midZ = (wall.start[1] + wall.end[1]) / 2
 
@@ -290,6 +295,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   )
   const selectWall = useStore((s) => s.selectWall)
   const selectedWall = useStore((s) => s.selectedWall)
+  // Accent-wall finishing is editing, so it's only reachable inside the room
+  // editor (orbit). Outside it, wall-face clicks do nothing (view-only).
+  const selectWallIfEditing = (wallId: string, roomId: RoomId) => {
+    if (canEditScene(useStore.getState())) selectWall(wallId, roomId)
+  }
 
   return (
     <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
@@ -335,18 +345,24 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
           <group key={i}>
             {positiveMat ? (
               <>
-                <Suspense fallback={null}>
-                  <SegmentFace
-                    segLen={segLen}
-                    segHeight={segHeight}
-                    segMid={segMid}
-                    segMidY={segMidY}
-                    thickness={thickness}
-                    sign={1}
-                    materialId={positiveMat}
-                    onSelect={span.positive ? () => selectWall(wall.id, span.positive!) : undefined}
-                  />
-                </Suspense>
+                <SilentErrorBoundary resetKey={positiveMat}>
+                  <Suspense fallback={null}>
+                    <SegmentFace
+                      segLen={segLen}
+                      segHeight={segHeight}
+                      segMid={segMid}
+                      segMidY={segMidY}
+                      thickness={thickness}
+                      sign={1}
+                      materialId={positiveMat}
+                      onSelect={
+                        span.positive
+                          ? () => selectWallIfEditing(wall.id, span.positive!)
+                          : undefined
+                      }
+                    />
+                  </Suspense>
+                </SilentErrorBoundary>
                 {onFloor && (
                   <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />
                 )}
@@ -364,18 +380,24 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
             ) : null}
             {negativeMat ? (
               <>
-                <Suspense fallback={null}>
-                  <SegmentFace
-                    segLen={segLen}
-                    segHeight={segHeight}
-                    segMid={segMid}
-                    segMidY={segMidY}
-                    thickness={thickness}
-                    sign={-1}
-                    materialId={negativeMat}
-                    onSelect={span.negative ? () => selectWall(wall.id, span.negative!) : undefined}
-                  />
-                </Suspense>
+                <SilentErrorBoundary resetKey={negativeMat}>
+                  <Suspense fallback={null}>
+                    <SegmentFace
+                      segLen={segLen}
+                      segHeight={segHeight}
+                      segMid={segMid}
+                      segMidY={segMidY}
+                      thickness={thickness}
+                      sign={-1}
+                      materialId={negativeMat}
+                      onSelect={
+                        span.negative
+                          ? () => selectWallIfEditing(wall.id, span.negative!)
+                          : undefined
+                      }
+                    />
+                  </Suspense>
+                </SilentErrorBoundary>
                 {onFloor && (
                   <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />
                 )}

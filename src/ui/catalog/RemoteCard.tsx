@@ -59,7 +59,21 @@ export function RemoteCard({ entry, onResolved }: Props) {
   }
 
   return (
-    <div ref={cardRef} onClick={() => void onClick()} className="cat-card group">
+    // biome-ignore lint/a11y/useSemanticElements: a <button> can't host the nested fav button (invalid HTML); role=button + key handling gives the same a11y.
+    <div
+      ref={cardRef}
+      role="button"
+      tabIndex={0}
+      aria-label={`Add ${entry.name}`}
+      onClick={() => void onClick()}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault()
+          void onClick()
+        }
+      }}
+      className="cat-card group"
+    >
       <button
         type="button"
         className={`fav-btn${saved ? ' on' : ''}`}

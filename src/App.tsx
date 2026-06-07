@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef } from 'react'
+import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
 import { canPlace } from './collision/placement'
 import {
   KEYBINDINGS,
@@ -9,14 +9,20 @@ import {
 } from './controls/keybindings'
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
 import { useCatalog } from './furniture/catalog'
+import { planDuplicates } from './furniture/duplicatePlacement'
 import { tidyHome } from './layout/tidyHome'
 import { cameraForwardXZ } from './scene/cameras/cameraForward'
 import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
+import { getRoomEditorShell } from './scene/roomEditorShell'
 import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
+import { canEditScene } from './state/editing'
+import { editableRoomIds } from './state/rooms'
+import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
+import { LoginScreen } from './ui/auth/LoginScreen'
 import { BudgetPanel } from './ui/BudgetPanel'
 import { ClearancePanel } from './ui/ClearancePanel'
 import { CommandPalette } from './ui/CommandPalette'
@@ -26,18 +32,33 @@ import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
+import { EmptyRoomHint } from './ui/EmptyRoomHint'
+import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
+import { FlagsPanel } from './ui/FlagsPanel'
 import { FpsCounter } from './ui/FpsCounter'
-import { FloorPlanEditor } from './ui/floorplan/FloorPlanEditor'
+
+// Lazy-loaded: the 2D editor (+ its AI/template deps) is only needed once the
+// user opens it, so it stays out of the initial bundle.
+const FloorPlanEditor = lazy(() =>
+  import('./ui/floorplan/FloorPlanEditor').then((m) => ({ default: m.FloorPlanEditor })),
+)
+
+import { ConfirmModal } from './ui/ConfirmModal'
+import { HistoryPanel } from './ui/HistoryPanel'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
-import { hasOnboarded, Onboarding } from './ui/Onboarding'
+import { hasOnboarded, markOnboarded, Onboarding } from './ui/Onboarding'
+import { PromptModal } from './ui/PromptModal'
+import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { ShareModal } from './ui/ShareModal'
 import { SwapModal } from './ui/SwapModal'
+import { TapeModeToggle } from './ui/TapeModeToggle'
 import { Toolbar } from './ui/Toolbar'
+import { ProductTour } from './ui/tour/ProductTour'
 import { VersionsPanel } from './ui/VersionsPanel'
 import { WalkHud } from './ui/WalkHud'
 import { WallAccentPicker } from './ui/WallAccentPicker'
@@ -45,11 +66,23 @@ import { WebGLFallback } from './ui/WebGLFallback'
 import { WalkJoystick } from './ui/walk/WalkJoystick'
 import { SmartStartWizard } from './ui/wizard/SmartStartWizard'
 
+/** Ids of the furniture in the room currently being edited (the set the room
+ *  editor renders). Used by the room-scoped select-all / cycle shortcuts. Falls
+ *  back to all items when not in the editor (callers gate on `canEditScene`). */
+function roomScopedItemIds(s: ReturnType<typeof useStore.getState>): string[] {
+  const { roomEditor, floorPlan, items } = s
+  if (!roomEditor.active || !roomEditor.roomId) return items.map((i) => i.id)
+  const shell = getRoomEditorShell(floorPlan, roomEditor.roomId)?.shell
+  if (!shell) return items.map((i) => i.id)
+  return items.filter((it) => shell.contains(it.position[0], it.position[1])).map((i) => i.id)
+}
+
 export default function App() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements)
   const cameraMode = useStore((s) => s.cameraMode)
   const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const bootPhase = useStore((s) => s.bootPhase)
   const sceneReady = useStore((s) => s.sceneReady)
   const loading = useStore((s) => s.loading)
@@ -78,6 +111,20 @@ export default function App() {
     document.getElementById('boot-loader')?.remove()
   }, [])
 
+  // `#/login` opens the sign-in screen (a shareable/bookmarkable entry), then
+  // clears the hash. `#/plans/<code>` is handled by the boot bootstrap.
+  useEffect(() => {
+    const check = () => {
+      if (window.location.hash === '#/login') {
+        useStore.getState().setLoginOpen(true)
+        history.replaceState(null, '', window.location.pathname + window.location.search)
+      }
+    }
+    check()
+    window.addEventListener('hashchange', check)
+    return () => window.removeEventListener('hashchange', check)
+  }, [])
+
   // Global ⌘K / Ctrl-K toggles the command palette from anywhere (including
   // while a text input is focused), so it's added directly rather than through
   // the editor-scoped keyboard handler.
@@ -86,6 +133,91 @@ export default function App() {
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         useStore.getState().toggleCmdk()
+        return
+      }
+      // `?` (Shift+/) toggles the Help & shortcuts modal — the modal itself
+      // advertises this binding. Skip while typing so it doesn't hijack a real
+      // "?" character, and ignore other modifier combos.
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
+        e.preventDefault()
+        const s = useStore.getState()
+        s.setHelpOpen(!s.helpOpen)
+        return
+      }
+      // Ctrl/⌘+A selects every item in the room being edited (editing is
+      // room-editor-only now; the overview/walk are view-only). Not while typing.
+      if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A') && !isEditableTarget(e)) {
+        const s = useStore.getState()
+        const ids = roomScopedItemIds(s)
+        if (canEditScene(s) && ids.length > 0) {
+          e.preventDefault()
+          s.setSelectedItemIds(ids)
+        }
+      }
+      // `[` / `]` cycle the selection through the room's items (prev / next,
+      // wrapping) — keyboard access without a mouse. Room editor only.
+      if (
+        (e.key === '[' || e.key === ']') &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditableTarget(e)
+      ) {
+        const s = useStore.getState()
+        const ids = roomScopedItemIds(s)
+        if (canEditScene(s) && ids.length > 0) {
+          e.preventDefault()
+          const cur = ids.indexOf(s.selectedItemId ?? '')
+          const step = e.key === ']' ? 1 : -1
+          // From no selection, ']' starts at the first item and '[' at the last.
+          const next =
+            cur === -1 ? (step === 1 ? 0 : ids.length - 1) : (cur + step + ids.length) % ids.length
+          s.selectItem(ids[next])
+          return
+        }
+      }
+      // `,` / `.` cycle the room being edited (prev / next) — a quick way to work
+      // room-by-room without the dropdown. Room editor only; skipped while typing.
+      if (
+        (e.key === ',' || e.key === '.') &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditableTarget(e)
+      ) {
+        const s = useStore.getState()
+        if (canEditScene(s)) {
+          const ids = editableRoomIds(s.floorPlan)
+          if (ids.length > 0) {
+            e.preventDefault()
+            const cur = ids.indexOf(s.roomEditor.roomId ?? '')
+            const step = e.key === '.' ? 1 : -1
+            const next = ((cur < 0 ? 0 : cur + step) + ids.length) % ids.length
+            s.enterRoomEditor(ids[next])
+            return
+          }
+        }
+      }
+      // `/` jumps to the catalog search (opening the drawer if needed), a
+      // quick-find shortcut. The catalog lives in the room editor now, so this
+      // is editor-only. Skipped while typing / for modifier combos.
+      if (
+        e.key === '/' &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditableTarget(e) &&
+        canEditScene(useStore.getState())
+      ) {
+        e.preventDefault()
+        if (!useStore.getState().catalogOpen) useStore.getState().setCatalogOpen(true)
+        // The drawer (and Layers filter) reuse `.cat-search input`; focus it once
+        // the panel has mounted/painted.
+        requestAnimationFrame(() => {
+          const input = document.querySelector<HTMLInputElement>('.panel.catalog .cat-search input')
+          input?.focus()
+          input?.select()
+        })
       }
     }
     window.addEventListener('keydown', onKey)
@@ -126,11 +258,18 @@ export default function App() {
     }
   }, [booting])
 
-  // Show the first-run onboarding once boot is ready (so it sits above the
-  // furnished flat, not the loading overlay). Suppressed after completion.
+  // First run: once boot is ready, auto-start the guided product tour over the
+  // already-furnished default flat. The tour supersedes the old onboarding
+  // carousel, so we also mark onboarded; replay is available from Help + ⌘K.
+  // Returning users (tour already seen) get nothing.
   useEffect(() => {
-    if (!booting && !hasOnboarded()) {
-      useStore.getState().setOnboardingOpen(true)
+    if (booting) return
+    const s = useStore.getState()
+    if (!hasSeenTour()) {
+      markOnboarded()
+      s.startTour()
+    } else if (!hasOnboarded()) {
+      s.setOnboardingOpen(true)
     }
   }, [booting])
 
@@ -153,8 +292,18 @@ export default function App() {
     const def = catalog[entry.defId]
     if (!def) return
 
-    // Search a small spiral of XZ offsets starting near the source so the
-    // paste lands next to the original; first non-colliding cell wins.
+    // Anchor the paste near the source — but if we're editing a *different*
+    // room than the copy came from, anchor to the current room's centre so
+    // "copy here → switch room → paste" lands in the room you're looking at
+    // (not back in the source room, where the new item would be off-screen).
+    let base = entry.sourcePosition
+    if (state.roomEditor.active && state.roomEditor.roomId) {
+      const shell = getRoomEditorShell(state.floorPlan, state.roomEditor.roomId)?.shell
+      if (shell && !shell.contains(base[0], base[1])) base = shell.center
+    }
+
+    // Search a small spiral of XZ offsets starting near the anchor so the
+    // paste lands next to it; first non-colliding cell wins.
     const STEP = 0.3
     const MAX_RING = 8
     const candidatePositions: [number, number][] = []
@@ -162,10 +311,7 @@ export default function App() {
       for (let dx = -r; dx <= r; dx++) {
         for (let dz = -r; dz <= r; dz++) {
           if (Math.max(Math.abs(dx), Math.abs(dz)) !== r) continue
-          candidatePositions.push([
-            entry.sourcePosition[0] + dx * STEP,
-            entry.sourcePosition[1] + dz * STEP,
-          ])
+          candidatePositions.push([base[0] + dx * STEP, base[1] + dz * STEP])
         }
       }
     }
@@ -176,6 +322,8 @@ export default function App() {
         defId: entry.defId,
         position: pos,
         rotation: entry.rotation,
+        flipX: entry.flipX,
+        flipZ: entry.flipZ,
         props: entry.props,
       } as const
       const ok = canPlace(candidate, def, {
@@ -188,6 +336,9 @@ export default function App() {
           defId: entry.defId,
           position: pos,
           rotation: entry.rotation,
+          flipX: entry.flipX,
+          flipZ: entry.flipZ,
+          label: entry.label,
           props: { ...entry.props },
         })
         return
@@ -195,28 +346,55 @@ export default function App() {
     }
   }, [catalog])
 
+  // Duplicate the current selection. A single item reuses the clipboard/paste
+  // spiral; a multi-selection is offset by one shared delta (preserving the
+  // arrangement), collision-skipping blocked members, in ONE undo step. Copies
+  // inherit a fresh shared group only when every source shared one group.
+  const duplicateSelection = useCallback(() => {
+    const st = useStore.getState()
+    const ids = st.selectedItemIds
+    const single = st.items.find((i) => i.id === st.selectedItemId)
+    if (ids.length <= 1) {
+      if (!single) return
+      st.setClipboard({
+        defId: single.defId,
+        rotation: single.rotation,
+        props: single.props,
+        flipX: single.flipX,
+        flipZ: single.flipZ,
+        label: single.label,
+        sourcePosition: single.position,
+      })
+      pasteClipboard()
+      return
+    }
+    const sources = st.items.filter((i) => ids.includes(i.id))
+    const groupIds = new Set(sources.map((s) => s.groupId))
+    const sharedGroup = groupIds.size === 1 && !groupIds.has(undefined)
+    const gid =
+      sharedGroup && typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : undefined
+    const copies = planDuplicates(
+      sources,
+      { others: st.items, defs: catalog, doors: st.doors },
+      (n) =>
+        typeof crypto !== 'undefined' && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `id-${Date.now()}-${n}`,
+      gid,
+    )
+    if (copies.length === 0) return
+    st.pushHistory()
+    st.setItems([...st.items, ...copies])
+    st.setSelectedItemIds(copies.map((i) => i.id))
+  }, [catalog, pasteClipboard])
+
   const onKey = useCallback(
     (code: string, e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey
-      // Undo/redo: handle before any other mod-key path so they work
-      // regardless of camera mode and selection state.
-      if (mod && code === KEYBINDINGS.undo) {
-        e.preventDefault()
-        if (e.shiftKey) useStore.getState().redo()
-        else useStore.getState().undo()
-        return
-      }
-      if (mod && code === KEYBINDINGS.redo) {
-        e.preventDefault()
-        useStore.getState().redo()
-        return
-      }
-      // Escape leaves the per-room editor first (before it clears selection).
-      if (code === KEYBINDINGS.deselect && useStore.getState().roomEditor.active) {
-        useStore.getState().exitRoomEditor()
-        return
-      }
-      if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
+
+      // --- View / global keys (work in any mode) ---
       if (!mod && code === KEYBINDINGS.toggleCameraMode) {
         setCameraMode(cameraMode === 'orbit' ? 'firstPerson' : 'orbit')
       }
@@ -227,20 +405,55 @@ export default function App() {
         const { nearbyDoorId, toggleDoor } = useStore.getState()
         if (nearbyDoorId) toggleDoor(nearbyDoorId)
       }
+      if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
 
-      // Editor-only keys: scoped to orbit mode so first-person walking
-      // doesn't accidentally delete or rotate the player's selection.
-      if (cameraMode !== 'orbit') return
+      // Escape: cancel the tape tool, then clear any selection, then leave the
+      // per-room editor — so one key walks all the way back out to the overview.
+      if (code === KEYBINDINGS.deselect) {
+        const st = useStore.getState()
+        if (st.tapeMode) {
+          st.toggleTapeMode()
+          return
+        }
+        if (
+          st.selectedItemId ||
+          st.selectedItemIds.length > 0 ||
+          st.selectedRoomId ||
+          st.selectedWall
+        ) {
+          st.selectItem(null)
+          return
+        }
+        if (st.roomEditor.active) st.exitRoomEditor()
+        return
+      }
+
+      // Camera framing is available in any orbit view (whole-flat overview or
+      // room editor) — it's navigation, not editing.
+      if (cameraMode === 'orbit') {
+        if (!mod && code === KEYBINDINGS.topView) useStore.getState().requestTopView()
+        if (!mod && code === KEYBINDINGS.resetView) useStore.getState().requestHomeView()
+      }
+
+      // --- Editing keys: only inside the per-room editor (orbit camera). The
+      // whole-flat orbit overview and walk mode are view-only. ---
+      if (!canEditScene(useStore.getState())) return
       const state = useStore.getState()
+      if (mod && code === KEYBINDINGS.undo) {
+        e.preventDefault()
+        if (e.shiftKey) state.redo()
+        else state.undo()
+        return
+      }
+      if (mod && code === KEYBINDINGS.redo) {
+        e.preventDefault()
+        state.redo()
+        return
+      }
       if (!mod && code === KEYBINDINGS.toggleCatalog) {
         state.toggleCatalogOpen()
       }
-      if (!mod && code === KEYBINDINGS.topView) state.requestTopView()
-      if (!mod && code === KEYBINDINGS.resetView) state.requestHomeView()
       if (!mod && code === KEYBINDINGS.tidyHome) tidyHome()
-      if (code === KEYBINDINGS.deselect) {
-        state.selectItem(null)
-      }
       if (code === KEYBINDINGS.deleteSelected && state.selectedItemIds.length > 0) {
         // Snapshot ids before deleting — deleteItem mutates the set as it goes.
         // Locked items are skipped (pinned).
@@ -257,6 +470,9 @@ export default function App() {
             defId: item.defId,
             rotation: item.rotation,
             props: item.props,
+            flipX: item.flipX,
+            flipZ: item.flipZ,
+            label: item.label,
             sourcePosition: item.position,
           })
         }
@@ -267,16 +483,7 @@ export default function App() {
       }
       if (mod && code === KEYBINDINGS.duplicateSelected && state.selectedItemId) {
         e.preventDefault()
-        const item = state.items.find((i) => i.id === state.selectedItemId)
-        if (item) {
-          state.setClipboard({
-            defId: item.defId,
-            rotation: item.rotation,
-            props: item.props,
-            sourcePosition: item.position,
-          })
-          pasteClipboard()
-        }
+        duplicateSelection()
       }
       if (!mod && code === KEYBINDINGS.flip && state.selectedItemId) {
         // F flips left↔right; Shift+F flips front↔back. Applies to the whole
@@ -355,11 +562,8 @@ export default function App() {
           }
         }
       }
-      if (code === KEYBINDINGS.toggleEditorTool) {
-        state.toggleEditorTool()
-      }
     },
-    [toggleMeasurements, cameraMode, setCameraMode, catalog, pasteClipboard],
+    [toggleMeasurements, cameraMode, setCameraMode, catalog, pasteClipboard, duplicateSelection],
   )
   useKeyboard(onKey)
 
@@ -395,7 +599,7 @@ export default function App() {
       rafId = requestAnimationFrame(tick)
       if (held.size === 0) return
       const state = useStore.getState()
-      if (state.cameraMode !== 'orbit' || state.selectedItemIds.length === 0) return
+      if (!canEditScene(state) || state.selectedItemIds.length === 0) return
       const movingIds = state.selectedItemIds
       const movingItems = state.items.filter((i) => movingIds.includes(i.id) && !i.locked)
       if (movingItems.length === 0) return
@@ -461,7 +665,7 @@ export default function App() {
         return
       }
       if (!Object.hasOwn(dirs, e.code)) return
-      if (useStore.getState().cameraMode !== 'orbit') return
+      if (!canEditScene(useStore.getState())) return
       e.preventDefault()
       // First key in a nudge session: snapshot the pre-nudge transform so
       // the entire press-and-hold collapses into a single undo step.
@@ -500,12 +704,17 @@ export default function App() {
     <WebGLFallback>
       <div className="relative h-[100dvh] w-screen overflow-hidden">
         <Toolbar />
-        {roomEditorActive ? <RoomEditorScene /> : <Scene />}
+        <ErrorBoundary scope="3D scene">
+          {roomEditorActive ? <RoomEditorScene /> : <Scene />}
+        </ErrorBoundary>
         <FpsCounter />
+        <RoomEditorCaption />
+        <EmptyRoomHint />
         <MobileLongPress />
         <MarqueeSelector />
         <NavCluster />
         <DragHud />
+        <TapeModeToggle />
         <Crosshair />
         <WalkJoystick />
         <WalkHud />
@@ -522,10 +731,20 @@ export default function App() {
         <ShareModal />
         <ClearancePanel />
         <VersionsPanel />
+        <HistoryPanel />
         <SmartStartWizard />
+        <LoginScreen />
+        <FlagsPanel />
         <Onboarding />
+        <ProductTour />
         <LocationPrompt />
-        <FloorPlanEditor />
+        <PromptModal />
+        <ConfirmModal />
+        {floorPlanEditing ? (
+          <Suspense fallback={null}>
+            <FloorPlanEditor />
+          </Suspense>
+        ) : null}
         <LoadingOverlay
           active={booting || loading.active}
           label={booting ? 'Furnishing your flat…' : loading.label}

@@ -35,6 +35,13 @@ IKEA model folders (a `metadata.json` plus `<finish>.glb` files) are
 **auto‑detected** and imported as one catalog card per product, with selectable
 finishes.
 
+### Resize an imported model
+
+Select it and use the **Scale** slider in the inspector — it shows the resulting
+real‑world footprint in **centimetres** (not just a multiplier), and the range is
+wide (0.25×–3×) so you can correct an upload or IKEA model that came in at the
+wrong size.
+
 ### Make an uploaded mirror reflect
 
 Select an imported model and turn on **Reflective surface (mirror)** in the

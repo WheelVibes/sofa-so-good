@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect } from 'react'
+import { type ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { Icon } from './toolbar/icons'
 
@@ -21,17 +21,54 @@ interface ModalProps {
  *  `.modal-overlay > .panel`. Closes on Escape + backdrop click. Portaled to
  *  body so it sits above every panel. */
 export function Modal({ open, onClose, title, sub, width, panelId, children, footer }: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!open) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         e.stopPropagation()
         onClose()
+        return
+      }
+      // Focus trap: keep Tab / Shift+Tab cycling within the dialog so keyboard
+      // users can't tab into the (inert) background behind the modal.
+      if (e.key === 'Tab') {
+        const panel = panelRef.current
+        if (!panel) return
+        const focusable = panel.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        )
+        if (focusable.length === 0) {
+          e.preventDefault()
+          panel.focus()
+          return
+        }
+        const first = focusable[0]
+        const last = focusable[focusable.length - 1]
+        const active = document.activeElement
+        if (e.shiftKey && (active === first || active === panel)) {
+          e.preventDefault()
+          last.focus()
+        } else if (!e.shiftKey && active === last) {
+          e.preventDefault()
+          first.focus()
+        }
       }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, onClose])
+
+  // Accessibility: move focus into the dialog on open and restore it to the
+  // previously-focused element on close, so keyboard/screen-reader users aren't
+  // stranded behind the modal.
+  useEffect(() => {
+    if (!open) return
+    const prev = document.activeElement as HTMLElement | null
+    panelRef.current?.focus()
+    return () => prev?.focus?.()
+  }, [open])
 
   if (!open) return null
   return createPortal(
@@ -41,7 +78,16 @@ export function Modal({ open, onClose, title, sub, width, panelId, children, foo
         if (e.target === e.currentTarget) onClose()
       }}
     >
-      <div className="panel" id={panelId} style={width ? { width } : undefined}>
+      <div
+        className="panel"
+        id={panelId}
+        style={width ? { width } : undefined}
+        ref={panelRef}
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+      >
         <div className="panel-head">
           <div>
             <div className="panel-title">{title}</div>

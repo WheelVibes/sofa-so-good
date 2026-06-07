@@ -3,6 +3,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three'
 import { Apartment } from '../apartment/Apartment'
+import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { FurnitureLayer } from '../furniture/FurnitureLayer'
@@ -10,7 +11,7 @@ import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
-import { CityBackdrop } from './CityBackdrop'
+import { AnnotationsOverlay } from './AnnotationsOverlay'
 import { ClearanceOverlay } from './ClearanceOverlay'
 import { ContextLossGuard } from './ContextLossGuard'
 import { CameraRig } from './cameras/CameraRig'
@@ -27,11 +28,14 @@ import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
 import { RenderPump } from './RenderPump'
+import { SceneBackdrop } from './SceneBackdrop'
 import { ScreenshotController } from './ScreenshotController'
 import { ShowcaseController } from './ShowcaseController'
 import { HoverHighlight } from './selection/HoverHighlight'
 import { MarqueeCameraTracker } from './selection/MarqueeSelector'
+import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
+import { TapeMeasure } from './TapeMeasure'
 
 /** Flips `sceneReady` once the scene has painted a few solid frames (so
  *  shaders + procedural textures are warm) and nothing is still streaming
@@ -73,17 +77,20 @@ export function Scene() {
       <ContextLossGuard />
       <RenderPump />
       <Sky />
-      <CityBackdrop />
+      <SceneBackdrop />
       <SceneEnvironment />
       <Lighting />
       <FurnitureLights />
       {customPlan ? <PlanShell /> : <Apartment />}
+      {/* "Click a room to edit" hover highlight — works for both plans now. */}
+      <RoomHoverHighlight />
       <GridOverlay />
       <AlignmentGuides />
       <ClearanceOverlay />
       <FurnitureLayer />
       <FurnitureMaterialLoader />
       <SelectionOutline />
+      <RotateGizmo />
       <HoverHighlight />
       <PlacementGhost />
       <DragController />
@@ -91,6 +98,8 @@ export function Scene() {
       <CameraRig />
       <CameraForwardTracker />
       <MeasurementOverlay />
+      <TapeMeasure />
+      <AnnotationsOverlay />
       <Effects />
       <ShowcaseController />
       <QualityController />

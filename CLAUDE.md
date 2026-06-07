@@ -35,7 +35,9 @@ state, Vite build, Vitest tests.
   `useButtonType`/`noSvgWithoutTitle`/interactive rules, `noArrayIndexKey`,
   `noNonNullAssertion`, `useLiteralKeys`; `noExplicitAny` is a warning).
   `python/` is excluded. CI (`.github/workflows/ci.yml`) enforces format-check
-  + `tsc`; lint is reported non-blocking until the ~26-finding backlog clears.
+  + `tsc` + **lint** (now blocking — the pre-existing error backlog is cleared,
+  so `npm run lint` exits 0; only intentional `noExplicitAny` *warnings* in test
+  files remain, which Biome doesn't fail on).
   A **pre-commit hook** (`.githooks/pre-commit`, auto-installed by the
   package.json `prepare` script which runs `git config core.hooksPath
   .githooks` on `npm install`) runs `biome check --staged` and blocks the
@@ -116,7 +118,11 @@ rediscover it.
 - `src/state/` — Zustand store split into slices (`slices/*`): items,
   selection, finishes, doors, time, location, camera, ui (incl. quality +
   snap grid), placement, clipboard, history, remote catalog, installed packs,
-  measurements, orientation, notifications, reset, **userAssets**
+  measurements (incl. metric/imperial `units`), orientation, notifications,
+  **prompt** (themed async `promptText`→`ui/PromptModal` + `confirmAction`→
+  `ui/ConfirmModal`, replacing `window.prompt`/`confirm`/`alert` — the last use
+  themed toasts), **project** (`designNote` — a free-text note saved with the
+  design via `schema.ts`, shown in the Share modal + report), reset, **userAssets**
   (user-uploaded GLBs + imported `IkeaGltfDef`s — see **IKEA models**), and
   **floorPlan** (editable apartment shell + editor state + saved-plan library),
   **appearance** (theme + light/dark/auto mode — see **Design system**),
@@ -125,7 +131,7 @@ rediscover it.
   finishes captured from the current design, persisted in `localStorage`
   (`hdb_user_styles`), re-appliable from the Arrange menu's "My styles"; not in
   the autosave/schema). Persistence + migrations under `storage/` (layout autosave;
-  `qualityPrefs.ts` graphics prefs; `editorPrefs.ts` snap/grid;
+  `qualityPrefs.ts` graphics prefs; `editorPrefs.ts` snap/grid/units/**backdrop**/**uiMode**;
   `appearancePrefs.ts` theme+mode → `[data-theme]`/`[data-mode]` on `<html>`;
   `floorPlanStore.ts` plan library
   + active custom plan; `hydrate.ts`/`hydrateAssets.ts` re-resolve user/IKEA
@@ -135,7 +141,10 @@ rediscover it.
   for walls/doors/windows/rooms (derived from the floor-plan SVG). `walls/`,
   `floor/`, `Window.tsx`, `Door.tsx`, `Ceiling.tsx`, plus a grounding slab in
   `Apartment.tsx`. `PlanShell.tsx` renders a user-authored plan instead (walls
-  extruded with openings + `floor/PlanRoomFloor.tsx` per-room finishes) when a
+  extruded with openings + `floor/PlanRoomFloor.tsx` per-room finishes +
+  `floor/PlanRoomCeiling.tsx` per-room ceilings — downward-facing `BackSide`
+  planes that honour the per-room height override, seen in walk mode, culled in
+  orbit like the default `Ceiling`) when a
   non-default plan is active.
 - `src/floorplan/` — the editable floor-plan model: `types.ts` (FloorPlan =
   walls/openings/rooms + area/bounds helpers), `defaultPlan.ts` (seeds the
@@ -232,8 +241,9 @@ rediscover it.
     warm-gradient confirm). Background-import progress shows in the bottom-left
     `NotificationContainer`.
 - `src/materials/` — finishes. `builtinCatalog.ts` (floors/walls), runtime
-  `procedural/` PBR generators (wood/tile/marble/carpet/concrete/terrazzo/
-  plaster), `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
+  `procedural/` PBR generators (wood/parquet/herringbone/tile/marble/carpet/
+  concrete/terrazzo/plaster/stripe/grasscloth/checker/brick/batten),
+  `furnitureMaterials.ts` (tintable fabric + wood-grain + stone/marble
   for furniture, plus `getSolidMaterial` for metal/plastic and the `mat:<id>`
   DLC-finish resolver), `worldUv.ts` (metre-space UVs so finishes tile
   consistently). `convert/` — **in-browser texture decode + re-encode** for
@@ -250,7 +260,11 @@ rediscover it.
 - `src/scene/` — the R3F `<Canvas>` and systems: `lighting/` (sun astronomy,
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
-  adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection.
+  adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection,
+  and `SceneBackdrop.tsx` (the **selectable surroundings**: a dispatcher over
+  `CityBackdrop` + procedural Park/Hills/Studio backdrops, keyed on
+  `uiSlice.backdrop`, all sharing `backdropOffset.ts` `useBackdropOffset()` so
+  they centre on the active plan; picked from the Scene menu).
   The main Canvas runs **`frameloop="demand"`**: `RenderPump.tsx` is one
   always-on rAF loop that calls `invalidate()` only when a frame is wanted —
   continuously while something animates (walk, turntable, tour, recording,
@@ -269,16 +283,27 @@ rediscover it.
   local `FurnitureDef` *or* not-yet-downloaded CC0 `RemoteEntry`) that merges
   built-ins, generated, user/IKEA uploads, installed-pack items, already-
   downloaded CC0, **and** the browsable Poly Haven CC0 index into one list — a
-  single fuzzy search spans all of it, and a downloaded CC0 entry replaces its
+  single fuzzy search spans all of it (relevance-ranked; the browse-only **Sort**
+  control — Featured/Name/Size, `CatalogDrawer` `sortCards`, shown for real
+  categories not favourites/recent — is bypassed while searching), and a
+  downloaded CC0 entry replaces its
   remote card with the resolved local card (`CatalogCard` for local,
   `RemoteCard` for un-downloaded CC0 — both share the `.cat-card` shape + heart
   `fav-btn`). A **favourites** pseudo-category (star chip, first in
-  `CategoryTabs`) houses everything in `collections`. **Layers**
+  `CategoryTabs`) houses everything in `collections`; a **recent**
+  pseudo-category (clock chip, shown only when non-empty) lists the
+  most-recently-placed items (`recentSlice`, hooked from `addItem`, persisted to
+  `localStorage` `hdb_recent_items`, kept out of the save schema/autosave).
+  **Layers**
   (`LayersPanel.tsx`) is the Objects tree (store-level `leftMode`, shared with
-  the command palette + mobile toolbar); **Packs** installs downloadable
+  the command palette + mobile toolbar; a **name filter** drops empty groups +
+  force-expands while filtering); **Packs** installs downloadable
   content whose items then appear in the unified grid (see **Downloadable
   content sources**). Then InspectorPanel
-  (`inspector/`), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
+  (`inspector/` — incl. an editable **Name** field per item: `FurnitureItem.label`
+  via `itemsSlice.renameItem`, overriding the def name in the title + Layers tree,
+  round-tripped in `schema.ts` as an optional field),
+  FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
   NavCluster (fused compass + zoom rail + minimap, bottom-right), the
   **CommandPalette** (⌘K), **ContextMenu** (right-click on a placed item),
   **Onboarding** (first-run 3-step intro), **HelpModal**, a shared **Modal**
@@ -313,9 +338,22 @@ rediscover it.
   vocabulary (`.panel`, `.btn`, `.toolbar`/`.tool-btn`, `.menu-item`, `.seg`,
   `.swatch`, `.act`, `.cmdk`, `.ctx-menu`, `.toast`, `.onb-*`, …) instead of
   Tailwind colour utilities. The toolbar **Appearance** control
-  (`ui/toolbar/AppearancePopover.tsx`) picks theme + Light/Dark/Auto (its
-  `AppearanceControls` body is shared; an anchored popover on desktop, a centred
-  blurred `Modal` on mobile); the choice persists in `localStorage`
+  (`ui/toolbar/AppearancePopover.tsx`) picks theme + Light/Dark/Auto **+ a
+  Simple/Pro interface toggle** (`uiSlice.uiMode`, persisted via `editorPrefs`):
+  **Simple** hides the advanced clusters — the analysis **Tools** menu and the
+  **floor-plan editor** entry (gated by a `uiMode === 'pro'` check in `Toolbar`,
+  `ArrangeMenu`, `MobileToolbar`) — for a friendlier first run; **Pro** (default)
+  shows all. (Its `AppearanceControls` body is shared; an anchored popover on
+  desktop, a centred blurred `Modal` on mobile.) Simple also hides advanced
+  options/fields across surfaces (Scene sun-direction, View saved-views/edit-room,
+  File record, inspector numeric Transform + duplicate-row, Graphics asset+
+  overrides+FPS) and collapses inspector sections by default (`ui/inspector/
+  InspectorSection.tsx`); the floor-plan editor stays available (crucial). A
+  **guided product tour** (`ui/tour/ProductTour.tsx` + `tourSteps.ts`, state in
+  `featuresSlice` `tourOpen`/`tourStep`) spotlights real UI elements (by
+  `aria-label`) through the build workflow; launched from onboarding/Help/⌘K,
+  completion in `localStorage` `hdb_tour_done`. The theme choice persists in
+  `localStorage`
   (`hdb_appearance`) and is applied pre-paint by an inline script in `index.html`
   (no flash). Auto follows the OS via `matchMedia` (`ui/useIsMobile.ts` is the
   shared ≤640px hook). `body.mobile` (toggled in `App` at ≤640px) switches
@@ -336,17 +374,32 @@ rediscover it.
   furniture", keyboard-navigable), the **right-click context menu**
   (`ContextMenu.tsx`), the first-run **onboarding** carousel (`Onboarding.tsx`,
   gated on `localStorage.hdb_onboarded`), and the catalog drawer's **Objects /
-  Layers** mode (`catalog/LayersPanel.tsx`, items grouped by room with select /
-  lock / delete). Production-grade feature panels, all wired to real data and
+  Layers** mode (`catalog/LayersPanel.tsx`, items grouped by room with a **name
+  filter**, select /
+  **hide** (eye toggle → `hiddenItemIds` in `selectionSlice`, visual-only +
+  session-only; `FurnitureLayer` skips them; a **per-room eye** in the group
+  header hides/shows a whole room via `setItemsHidden`; "Show all" in the footer)
+  / lock / delete). Production-grade feature panels, all wired to real data and
   mutually-exclusive in the centred-top `.aux` slot: **Swap with similar**
   (`SwapModal.tsx` — same-category alternatives with footprint-fit badges,
   replaces the def in place), **Clearance & fit checks** (`ClearancePanel.tsx`,
   from `layout/clearance.ts` `blockedDoorItems`), **Versions**
   (`VersionsPanel.tsx` — save / restore / delete over the real
-  `LocalStorageAdapter` slots + `slotThumbs`), **Shopping list + Collections**
+  `LocalStorageAdapter` slots + `slotThumbs`, a per-version **Compare** vs the
+  current design (`versionDiff.ts` `diffVersionItems` — gained/lost item types),
+  plus **Export/Import** a design as
+  a portable `.sofa.json` file via `storage/designFile.ts`), **History**
+  (`HistoryPanel.tsx` — a labelled timeline of every undoable step with the live
+  state marked; clicking a row **jumps** straight to that past/future state via
+  `historySlice.jumpHistory(index)` — multi-step undo/redo in one move. Step
+  labels are derived purely from adjacent-snapshot diffs in `historyTimeline.ts`
+  (`describeHistoryStep`/`buildHistoryTimeline`), so no label is threaded through
+  the `pushHistory` callers), **Shopping list + Collections**
   (`BudgetPanel` List/Saved tabs + a heart `fav-btn` on every catalog card —
   local *and* CC0 — toggling `collections`, which also feeds the catalog's
-  favourites category), and **Share & export** (`ShareModal.tsx` — link copy + a real
+  favourites category; an optional **budget target** — `featuresSlice.budgetTarget`,
+  persisted per-device via `storage/budgetPrefs.ts` — drives an over/under
+  progress indicator), and **Share & export** (`ShareModal.tsx` — link copy + a real
   PNG snapshot via the `sofa:export` event). The **2D floor-plan editor**
   (`ui/floorplan/`) and **upload dialogs** (`ui/upload/`) are fully token-themed
   (light + dark) — the floor-plan editor hides the main toolbar while open (its
@@ -538,8 +591,18 @@ rediscover it.
   `wallReveal` registry.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): a 2D top-down editor
   (toolbar "Floor plan") edits the store `floorPlan` — walls (interior/
-  exterior), rectangular rooms (auto area + total), doors/windows, grid +
-  corner snapping, drag-move, per-room floor finishes. **Non-rectangular
+  exterior), rectangular rooms (auto area + total), doors/windows, an
+  **adjustable ceiling height** — a global control (`PlanInspector`
+  no-selection → `updateFloorPlanMeta`, clamped 2.2–4 m) **and a per-room
+  override** (`PlanInspector` room selection → `updateRoom({ceilingHeight})`,
+  with a "Match home" reset; a dropped/false ceiling — walls stay full height,
+  like the built-in 2.4 m bathrooms). `Ceiling`/`MeasurementOverlay` read the
+  live per-room override from `floorPlan.rooms` (falling back to the `ROOMS`
+  constant then `floorPlan.ceilingHeight`); `WallSegment`/`RoomShell` read the
+  global height for wall tops, while `PlanShell` renders per-room ceilings that
+  honour the override. The measurement overlay surfaces each room's height. grid +
+  corner snapping, drag-move, per-room floor finishes, and persistent per-wall
+  **length labels** (a "Dims" header toggle, default on). **Non-rectangular
   shapes**: the **Split** tool (`splitWall`) cuts a wall into two segments
   (re-homing its openings) and dragging the selected wall's **endpoint handles**
   (`moveWallVertex`, which drags every wall sharing that corner together) lets
@@ -558,7 +621,10 @@ rediscover it.
   non-default plan
   renders via `PlanShell` and furniture/walk collision follow it (optional
   `walls` on `canPlace`, `planCollisionWalls`); the default flat keeps the
-  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). The editor
+  curated `<Apartment/>`. Saved plans persist (`floorPlanStore.ts`). Plan edits
+  are **undoable** — the history snapshot includes `floorPlan` and every granular
+  plan mutation pushes history (discrete ops a step; vertex-drag / numeric-field
+  streams coalesce). The editor
   also renders the **live furniture as top-down footprints** (category-coloured
   polygons from `itemFootprint`/`obbCorners`) — click to select (shared with the
   3D selection), drag (select tool) to move (grid-snapped + `canPlace`-checked,
@@ -567,7 +633,10 @@ rediscover it.
   item in 3D. A **reference photo/scan backdrop** (Wave F, no ML) can be loaded
   (file pick or drag-drop) to trace over: calibrate real scale with the **Scale
   tool** (drag a known dimension → type its length → `mPerPx`), adjust opacity,
-  trace walls on top. Session-scoped (object URL). **"AI walls"** (Wave E,
+  trace walls on top. The backdrop (blob + calibration: scale/opacity/offset) is
+  **persisted to IDB** (`ui/floorplan/backdropPersist.ts`, one fixed slot via
+  `IdbAssetStore`) so it survives closing the editor and reloading — rehydrated
+  when the editor opens, cleared with the ✕ button. **"AI walls"** (Wave E,
   experimental, bring-your-own-key) sends the backdrop to an OpenAI-compatible
   vision model (`ai/floorPlanAi.ts`) and seeds an editable draft plan from the
   recognised segments; degrades to manual tracing on no key / CORS / no result.
@@ -592,11 +661,61 @@ rediscover it.
   room structure. Async/honest UX, graceful no-key / CORS / error states. Pure
   request-builder + output-parser are unit-tested; the live round-trip needs a
   real key (and may need a proxy depending on provider CORS).
+- **Feature flags** (`features/featureFlags.ts`, `state/slices/featureFlagsSlice.ts`,
+  `ui/FlagsPanel.tsx`): a central registry (`FEATURE_FLAGS`) is the single source
+  of truth for what ships to prod — each flag has a production `default` +
+  optional `devOnly` (forced off in prod). Pure `resolveFlags(isDev, overrides,
+  isAdmin)`: a normal prod build is locked to the registry; a **dev build or
+  signed-in admin** unlocks `devOnly` + honours overrides (localStorage
+  `hdb_feature_flags` + a `?ff=report:off` URL param). The store slice mirrors the
+  resolved map reactively (`useFeature(flag)` hook; non-React `isFeatureEnabled`);
+  auth sign-in/out + boot re-resolve it. Entry points check their flag
+  (ToolsMenu/ArrangeMenu/SceneMenu/ViewMenu items, ⌘K via `COMMAND_FLAGS`, the AI
+  sections) and the dev/admin `FlagsPanel` toggles them. (TODO: mobile-toolbar +
+  catalog-packs parity — trivial additive wiring; see TASKS.)
+- **Accounts / auth** (`features/auth/`, `state/slices/authSlice.ts`,
+  `ui/auth/LoginScreen.tsx`): an `AuthProvider` interface (shaped for a future
+  backend OAuth/email provider) with a client-side `LocalAdminProvider` now —
+  admin sign-in (password from `VITE_ADMIN_PASSWORD`, dev fallback) unlocks the
+  dev-only features + the flags panel. Session in `authSlice` (persisted +
+  revived via the provider); `isAdminUser` + `UserRole` for future roles. Full
+  login screen reached via `#/login` or the Help "Sign in" entry. **NOT a
+  security boundary** (client-side gate hides UI; real auth needs the backend).
+- **Plan sharing** (`features/planShare.ts`): backend-less shareable links. A
+  design is serialized → deflated (fflate) → base64url-encoded into a code that
+  rides in a `#/plans/<code>` URL; opening it on any instance reconstructs the
+  design (decode reuses `migrate` + `SerializedStateZ`). The Share modal's "Copy
+  plan link" builds it; a boot step (`loadSharedPlanFromUrl`) loads it + clears
+  the hash. Like Excalidraw's default share — the "UID" *is* the encoded plan;
+  short vanity codes would need a server.
+- **View / edit split** (`state/editing.ts` `canEditScene`): the app has two
+  stances. **Orbit-over-the-whole-flat and walk are view-only** — camera
+  rotate/zoom/pan/tilt + first-person movement, with **no** furniture
+  selection/picking/drag/rotate/context-menu/placement and no floor/wall
+  click-to-finish. **All** selection, editing and customization happen **only
+  inside the per-room editor** (orbit camera). The single rule
+  `canEditScene(s) = s.roomEditor.active && s.cameraMode === 'orbit'` gates every
+  interaction handler (`Furniture`, `MarqueeSelector`, `RotateGizmo`,
+  `GridOverlay`, wall/floor clicks, the edit keyboard shortcuts + nudge in
+  `App`). There is **no** select-vs-rotate "tool" — the old `editorTool` is gone;
+  the orbit camera is frozen only *during* an item drag or a gizmo gesture
+  (`placementSlice.rotatingGizmo` + `draggingItemId`, read by
+  `OrbitCamera`), so click-drag on furniture moves it while click-drag on empty
+  space orbits. Catalog/Inspector/Finish-picker only mount inside the editor;
+  leaving it clears the selection. **Entering** the editor: a prominent toolbar
+  **"Edit a room"** button (and the mobile View accordion), **or clicking a
+  room's floor** in the orbit overview (navigation, not picking) — hovering a
+  room floor there shows a pointer cursor + soft highlight (`hoveredRoomId` +
+  `apartment/floor/RoomHoverHighlight`, default-plan overview only) as the
+  "click to edit" affordance. The structural
+  2D floor-plan editor is unaffected (a separate planning surface, reachable from
+  the overview).
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
-  `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-
-  style mode that isolates one room for furniture planning. Entered from the
-  toolbar **View** menu's single **"Edit a room"** entry (enters the first
-  non-external room); the room is then **switched in place** — while the editor is
+  `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-style mode that isolates
+  one room — now the app's **sole editing surface** (see **View / edit split**).
+  Entered from the prominent toolbar **"Edit a room"** button (enters the first
+  non-external room) or by **clicking a room's floor** in the orbit overview;
+  the room is then **switched in place** — while the editor is
   active the toolbar's leftmost cluster shows a **← exit button** (`Icon.ExitRoom`)
   + a **room-switcher `<select>`** (`.toolbar-room-select`, re-`enterRoomEditor`s
   on change), and **Esc** exits. On mobile the collapsed bar *becomes* the
@@ -631,8 +750,25 @@ rediscover it.
   `gridSize`): drag + initial placement quantise to a customizable grid
   (10/25/50 cm, 1 m); the floor overlay shows it. Persisted via `editorPrefs`.
 - **Drag aids**: `DragController` snaps a single drag to other items' centres/
-  edges (magenta `AlignmentGuides`) and shows the nearest-wall gap (`DragHud`
-  via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
+  edges (magenta `AlignmentGuides`), **snaps the footprint flush to a nearby
+  wall** (`collision/wallSnap.ts` `wallSnapOffset` — corner-capable, within
+  ~12 cm, gated off when grid-snap is on), and shows the nearest-wall gap
+  (`DragHud` via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
+- **Rotate gizmo** (`scene/selection/RotateGizmo.tsx` + pure
+  `rotateGizmoMath.ts`): a touch-friendly floor ring + knob drawn around the
+  **selection** (in the room editor — see **View / edit split** — unlocked, not
+  mid-drag; its gesture sets `rotatingGizmo` so the orbit camera holds still). One
+  unified gesture handles both cases: a **single** item spins about its own axis
+  (knob doubles as a heading indicator, snaps to absolute **15°** marks), a
+  **multi-selection** rotates every member rigidly about the group centroid
+  (`rotatePointAround`, snaps the *delta*, signed readout). Hold Shift for free
+  rotation; a live degree readout follows the knob, the ring tints green/red for
+  placement validity (intra-selection pairs ignored — rigid rotation preserves
+  their spacing), and an invalid release reverts the whole set (mirrors the
+  item-drag UX, reusing `canPlace`). The ring/knob meshes patch their `raycast`
+  to win the pointer pick over taller furniture (they draw always-on-top).
+  Mounted beside `SelectionOutline` in both the main and room-editor scenes;
+  complements the **R** key (90° / Shift+R 15°, single or group).
 - **Walk-mode controls** (`scene/cameras/FirstPersonCamera.tsx`,
   `scene/walkInput.ts`, `ui/walk/WalkJoystick.tsx`, `ui/WalkHud.tsx`,
   `ui/Crosshair.tsx`): first-person look/move adapts to the device.
@@ -650,16 +786,23 @@ rediscover it.
 - **Toolbar** (`ui/toolbar/`): a streamlined, horizontally-scrollable **icon
   island**. Frequent actions are direct icon buttons (`IconButton`); busy
   clusters collapse into labelled dropdown menus (`ToolbarMenu` + `MenuItem`):
-  **View** (top/reset/turntable), **Scene** (time presets + sun-direction
-  `CompassModal`), **Arrange** (Sets/Presets/Style/Floor plan/Tidy), **Tools**
+  **View** (top/reset/turntable/edit-room + **saved camera views**: a
+  `SavedViewsSection` to bookmark the current angle and fly back to it —
+  `cameraViewsSlice`, persisted to `localStorage`, mobile-parity in the View
+  accordion), **Scene** (time presets + a continuous time-of-day scrub slider +
+  sun-direction `CompassModal`), **Arrange** (Sets/Presets/Style/Floor plan/Tidy), **Tools**
   (Budget/Checks/Sun study/Walkthrough/Report), **File** (Save/Load/Export/
   Record). Every control has a custom portaled **Tooltip** showing its name +
   a keyboard-shortcut chip (label from `shortcuts.ts`, sourced from
   `controls/keybindings.ts` — never hardcoded). Tooltips and menus both render
   through `Popover` (a `createPortal` + fixed-position primitive) so the
-  scrollable island never clips them. Editing clusters show only in orbit mode;
-  Walk mode keeps the camera essentials. New view shortcuts: Top view **O**,
-  Reset **H**, Tidy **L**. `ui/Toolbar.tsx` re-exports `ui/toolbar` so the
+  scrollable island never clips them. The island has **three states** (see
+  **View / edit split**): the **orbit overview** (view-only) shows View + a
+  prominent **Edit a room** button + **Floor plan** + analysis Tools + graphics/
+  lights/file; the **room editor** shows the editing clusters (exit + room
+  switcher, undo/redo, snap/grid, Measure, Catalog, Arrange, graphics, file);
+  **walk** keeps just the camera essentials + Scene. New view shortcuts: Top view
+  **O**, Reset **H**, Tidy **L** (Tidy/edit shortcuts act only in the editor). `ui/Toolbar.tsx` re-exports `ui/toolbar` so the
   import path is stable. The island **claims the wheel while the cursor is over
   it** — a non-passive native `wheel` listener `preventDefault`s (so it never
   reaches OrbitControls to zoom the scene) and turns vertical wheel into
@@ -694,9 +837,32 @@ rediscover it.
   group); the **Tools** menu groups the Budget panel (`furniturePrices.ts`),
   **Checks** (door-swing clearance, `layout/clearance.ts` + `ClearanceOverlay`),
   **Sun study** (time-lapse), **Walkthrough** (auto camera tour + record, in
-  `OrbitCamera`), and **Report** (`ui/report.ts`, printable).
+  `OrbitCamera`), **Measure** (tape — `scene/TapeMeasure.tsx` +
+  `measurementsSlice` `tapeMode`/`tapePoints`/`tapeShape`; a transparent floor
+  plane captures two clicks and draws an always-on-top amber ruler. A
+  Distance/Area toggle (`ui/TapeModeToggle.tsx`) switches `tapeShape`: **line**
+  draws a ruler + distance label, **rect** treats the points as opposite corners
+  and fills the rectangle with a `W × D · area` label; desktop + mobile-parity.
+  A completed measurement shows a **📌 Pin** that saves it as a **persistent
+  dimension annotation** — `measurementsSlice.annotations` (`MeasurementAnnotation`
+  line/rect), rendered by `scene/AnnotationsOverlay.tsx` in calm slate with a
+  distance/area label + **×** remove, shown in orbit + walk and round-tripped in
+  `schema.ts` (optional/back-compat, saved with the design)),
+  and **Report** (`ui/report.ts`, printable).
   Multi-select shows an align/distribute panel; items can be **locked**;
   double-click focuses the camera; saved layouts get thumbnails (`slotThumbs`).
+- **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`):
+  a **metric/imperial** display toggle in the Graphics panel (mobile-parity via
+  the accordion), persisted per-device in `editorPrefs`. Metric stays the
+  canonical/editing unit (Singapore HDB context); imperial only reformats
+  read-outs. `utils/measurement.ts` is the single source of formatting —
+  `formatLength` (metric `2.60 m` / imperial feet-inches `8′ 6″`, carrying 12″
+  to the next foot), `formatArea` (`m²`/`ft²`), `formatDims`, `formatRoomSize`
+  (all take an optional `UnitSystem`, defaulting metric for back-compat). Routed
+  through every read-only display: `MeasurementOverlay`, `TapeMeasure`,
+  `DragHud`, `CatalogCard`, `FinishPicker`, and the floor-plan editor's
+  area/length/draft labels + `PlanInspector`. The plan editor's **numeric input
+  fields stay in metres** (precise drafting unit).
 - **Furniture groups** (`state/slices/groupsSlice.ts`): items sharing an optional
   `FurnitureItem.groupId` are an emergent group (no separate entity). First click
   selects the whole group (`selectItemGrouped` + transient `activeGroupId`); a

@@ -3,9 +3,13 @@ import type { SliceCreator } from './types'
 
 export interface SelectionSlice {
   selectedItemId: string | null
-  /** Item under the cursor (orbit + select mode) for a hover highlight. */
+  /** Item under the cursor (room editor) for a hover highlight. */
   hoveredItemId: string | null
   setHovered: (id: string | null) => void
+  /** Room whose floor is hovered in the orbit overview, for a "click to edit"
+   *  affordance. Ephemeral; only set in the view-only overview. */
+  hoveredRoomId: string | null
+  setHoveredRoom: (id: string | null) => void
   /** Multi-selection set, populated by marquee drag and shift-click.
    *  When a single item is selected this contains exactly that id; when
    *  empty, no items are selected. `selectedItemId` mirrors the "primary"
@@ -20,6 +24,17 @@ export interface SelectionSlice {
    *  selected. Set when a click lands on a grouped item; null when a click
    *  lands elsewhere or on an ungrouped item. Not persisted. */
   activeGroupId: string | null
+  /** Items hidden from the scene for decluttering (visual only — still placed,
+   *  still in collision/selection). Session-only; not persisted. */
+  hiddenItemIds: string[]
+  /** Toggle a single item's hidden (eye) state. */
+  toggleItemHidden: (id: string) => void
+  /** Bulk add/remove a set of ids from the hidden set (e.g. a whole room). */
+  setItemsHidden: (ids: string[], hidden: boolean) => void
+  /** Reveal everything (clear the hidden set). */
+  showAllItems: () => void
+  /** Hide every item except `keepIds` (focus on a subset). */
+  isolateItems: (keepIds: string[]) => void
   selectItem: (id: string | null) => void
   setSelectedItemIds: (ids: string[]) => void
   toggleSelectedItem: (id: string) => void
@@ -42,19 +57,46 @@ export const SELECTION_INITIAL: Pick<
   | 'selectedRoomId'
   | 'selectedWall'
   | 'hoveredItemId'
+  | 'hoveredRoomId'
   | 'activeGroupId'
+  | 'hiddenItemIds'
 > = {
   selectedItemId: null,
   selectedItemIds: [],
   selectedRoomId: null,
   selectedWall: null,
   hoveredItemId: null,
+  hoveredRoomId: null,
   activeGroupId: null,
+  hiddenItemIds: [],
 }
 
 export const createSelectionSlice: SliceCreator<SelectionSlice, RootState> = (set, get) => ({
   ...SELECTION_INITIAL,
+  toggleItemHidden: (id) =>
+    set((s) => ({
+      hiddenItemIds: s.hiddenItemIds.includes(id)
+        ? s.hiddenItemIds.filter((x) => x !== id)
+        : [...s.hiddenItemIds, id],
+    })),
+  setItemsHidden: (ids, hidden) =>
+    set((s) => {
+      const target = new Set(ids)
+      if (hidden) {
+        const merged = new Set(s.hiddenItemIds)
+        for (const id of target) merged.add(id)
+        return { hiddenItemIds: [...merged] }
+      }
+      return { hiddenItemIds: s.hiddenItemIds.filter((id) => !target.has(id)) }
+    }),
+  showAllItems: () => set((s) => (s.hiddenItemIds.length === 0 ? {} : { hiddenItemIds: [] })),
+  isolateItems: (keepIds) =>
+    set((s) => {
+      const keep = new Set(keepIds)
+      return { hiddenItemIds: s.items.filter((i) => !keep.has(i.id)).map((i) => i.id) }
+    }),
   setHovered: (id) => set((s) => (s.hoveredItemId === id ? {} : { hoveredItemId: id })),
+  setHoveredRoom: (id) => set((s) => (s.hoveredRoomId === id ? {} : { hoveredRoomId: id })),
   /** Selecting an item clears the room selection (and vice versa) so the
    *  Inspector / FinishPicker never both render at once. */
   selectItem: (id) =>

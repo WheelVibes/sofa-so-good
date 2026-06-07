@@ -149,6 +149,112 @@ describe('schema', () => {
     expect(patch.items?.length).toBe(1)
   })
 
+  it('round-trips a custom per-item label', () => {
+    useStore.getState().__resetForTest()
+    const id = useStore.getState().addItem({
+      defId: 'bed-double',
+      position: [2, 2],
+      rotation: 0,
+      props: {},
+    })
+    useStore.getState().renameItem(id, 'Master bed')
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const item = round.data.items.find((i) => i.defId === 'bed-double')
+      expect(item?.label).toBe('Master bed')
+    }
+  })
+
+  it('applySerialized resets the session selection + hidden set', () => {
+    const saved = {
+      version: 2,
+      items: [{ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} }],
+      doors: {},
+      finishes: { floor: {}, walls: {}, wallAccents: {} },
+      timeMode: 'system',
+    } as unknown as Parameters<typeof applySerialized>[0]
+    const patch = applySerialized(saved, new Set(['bed-double']))
+    expect(patch.selectedItemId).toBeNull()
+    expect(patch.selectedItemIds).toEqual([])
+    expect(patch.hiddenItemIds).toEqual([])
+  })
+
+  it('round-trips a custom plan’s wall colour', () => {
+    useStore.getState().__resetForTest()
+    // A custom plan (non-default) so floorPlan is serialized, with a wall colour.
+    useStore.setState({
+      floorPlan: { ...useStore.getState().floorPlan, id: 'custom-x', wallColor: '#2f6db0' },
+    })
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.wallColor).toBe('#2f6db0')
+    }
+  })
+
+  it('round-trips a custom plan’s per-room finishes (keyed by custom room ids)', () => {
+    useStore.getState().__resetForTest()
+    // A custom plan whose room id is NOT in the fixed ROOMS table.
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-finishes',
+        rooms: [{ id: 'studio-main', name: 'Studio', origin: [0, 0], width: 5, depth: 4 }],
+      },
+    })
+    // Set a floor + wall finish on the custom room (cast as the slice expects RoomId).
+    useStore.getState().setFloorFinish('studio-main' as never, 'floor-tile-marble')
+    useStore.getState().setWallFinish('studio-main' as never, 'wall-paint-sage')
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      // Custom-room finishes survive the load (regression: were stripped because
+      // the id isn't in the fixed ROOMS table).
+      expect((patch.finishes?.floor as Record<string, string>)['studio-main']).toBe(
+        'floor-tile-marble',
+      )
+      expect((patch.finishes?.walls as Record<string, string>)['studio-main']).toBe(
+        'wall-paint-sage',
+      )
+    }
+  })
+
+  it('round-trips a project design note', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setDesignNote('Client wants warm tones; keep the sofa.')
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.designNote).toBe('Client wants warm tones; keep the sofa.')
+    }
+  })
+
+  it('applySerialized drops items with non-finite position/rotation', () => {
+    const known = new Set(['bed-double'])
+    const saved = {
+      version: 2,
+      items: [
+        { defId: 'bed-double', position: [1, 1], rotation: 0, props: {} },
+        { defId: 'bed-double', position: [Number.NaN, 0], rotation: 0, props: {} },
+        { defId: 'bed-double', position: [0, 0], rotation: Number.POSITIVE_INFINITY, props: {} },
+      ],
+      doors: {},
+      finishes: { floor: {}, walls: {}, wallAccents: {} },
+      timeMode: 'system',
+    } as unknown as Parameters<typeof applySerialized>[0]
+    const patch = applySerialized(saved, known)
+    expect(patch.items?.length).toBe(1)
+    expect(patch.items?.[0].position).toEqual([1, 1])
+  })
+
   it('round-trips timeMode + manualHour for system mode', () => {
     useStore.getState().__resetForTest()
     // default is system / 12
@@ -171,6 +277,39 @@ describe('schema', () => {
       expect(parsed.data.timeMode).toBe('manual')
       expect(parsed.data.manualHour).toBe(15.5)
     }
+  })
+
+  it('round-trips lightsMode and defaults to auto when absent', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setLightsMode('on')
+    const out = serialize(useStore.getState())
+    expect(out.lightsMode).toBe('on')
+    // Absent (legacy) → applySerialized defaults to 'auto'.
+    const legacy = { ...out } as Record<string, unknown>
+    delete legacy.lightsMode
+    const patch = applySerialized(
+      legacy as unknown as Parameters<typeof applySerialized>[0],
+      new Set(['bed-double']),
+    )
+    expect((patch as { lightsMode?: string }).lightsMode).toBe('auto')
+  })
+
+  it('round-trips pinned measurement annotations', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().addAnnotation([0, 0], [3, 2], 'rect')
+    const out = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(out)
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.annotations).toHaveLength(1)
+      expect(parsed.data.annotations?.[0]).toMatchObject({ a: [0, 0], b: [3, 2], shape: 'rect' })
+    }
+    // Legacy save (no annotations) → applySerialized defaults to [].
+    const patch = applySerialized(
+      { ...out, annotations: undefined } as unknown as Parameters<typeof applySerialized>[0],
+      new Set(['bed-double']),
+    )
+    expect((patch as { annotations?: unknown[] }).annotations).toEqual([])
   })
 
   it('migrates legacy timeOfDay="day" to manual hour 12', () => {
