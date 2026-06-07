@@ -1,6 +1,10 @@
+import { planTotalArea } from '../floorplan/types'
+import { buildMergedCatalog } from '../furniture/catalog'
+import { itemPrice } from '../furniture/furniturePrices'
 import { EXPORT_EVENT } from '../scene/ScreenshotController'
 import { exportDesignToFile } from '../state/storage/designFile'
 import { useStore } from '../state/store'
+import { formatArea } from '../utils/measurement'
 import { AiPhotorealSection } from './ai/AiPhotorealSection'
 import { Modal } from './Modal'
 import { openDesignReport } from './openReport'
@@ -22,6 +26,26 @@ export function ShareModal() {
   const link = typeof window !== 'undefined' ? window.location.href : ''
 
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
+
+  // A one-line text summary (name · area · items · est. cost) for quick sharing
+  // in a chat/email — distinct from the full report / portable file.
+  const copySummary = () => {
+    const s = useStore.getState()
+    const catalog = buildMergedCatalog(s)
+    let cost = 0
+    for (const it of s.items) {
+      const d = catalog[it.defId]
+      if (d)
+        cost += itemPrice(
+          d,
+          d.category,
+          typeof it.props.variant === 'string' ? it.props.variant : undefined,
+        )
+    }
+    const text = `${s.floorPlan.name} — ${formatArea(planTotalArea(s.floorPlan), s.units)} · ${s.items.length} items · ~$${Math.round(cost).toLocaleString('en-SG')}`
+    void navigator.clipboard?.writeText(text)
+    toast('Summary copied to clipboard')
+  }
 
   if (!open) return null
 
@@ -123,6 +147,10 @@ export function ShareModal() {
           >
             <Icon.Download width={14} height={14} />
             Export file
+          </button>
+          <button type="button" className="btn btn-soft" onClick={copySummary}>
+            <Icon.Copy width={14} height={14} />
+            Copy summary
           </button>
         </div>
       </div>
