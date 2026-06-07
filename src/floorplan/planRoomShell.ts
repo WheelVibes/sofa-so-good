@@ -19,6 +19,15 @@ export interface PlanClippedWall {
   topHeight?: number
 }
 
+/** An opening attributed to a room, with its world placement resolved (so a
+ *  renderer needs no access to the source walls). `angle` is the host wall's
+ *  direction `atan2(dx, dz)`. */
+export interface PlanRoomOpening {
+  opening: PlanOpening
+  center: [number, number]
+  angle: number
+}
+
 /** Plan-based analogue of `apartment/roomShell`'s `RoomShell`, derived from the
  *  editable floor plan (custom apartments) rather than the built-in constants.
  *  Renderer-agnostic so a plan-aware per-room editor scene can consume it. */
@@ -30,8 +39,8 @@ export interface PlanRoomShell {
   rects: PlanRect[]
   /** The room's own (clipped) walls. */
   walls: PlanClippedWall[]
-  /** Openings (doors/windows) attributed to this room's walls. */
-  openings: PlanOpening[]
+  /** Openings (doors/windows) attributed to this room's walls, placed. */
+  openings: PlanRoomOpening[]
   center: [number, number]
   radius: number
   contains: (x: number, z: number) => boolean
@@ -150,13 +159,17 @@ export function planRoomShell(plan: FloorPlan, roomId: string): PlanRoomShell | 
 
   const wallById = new Map(plan.walls.map((w) => [w.id, w]))
   const clippedById = new Map(walls.map((cw) => [cw.wallId, cw]))
-  const openings: PlanOpening[] = []
+  const openings: PlanRoomOpening[] = []
   for (const op of plan.openings) {
     const cw = clippedById.get(op.wallId)
     const src = wallById.get(op.wallId)
     if (!cw || !src) continue
     const c = openingCenter(op, src)
-    if (c && pointOnSpan(c, cw.start, cw.end)) openings.push(op)
+    if (c && pointOnSpan(c, cw.start, cw.end)) {
+      const len = wallLength(src)
+      const angle = Math.atan2((src.end[0] - src.start[0]) / len, (src.end[1] - src.start[1]) / len)
+      openings.push({ opening: op, center: c, angle })
+    }
   }
 
   const x0 = Math.min(...rects.map((r) => r.x0))

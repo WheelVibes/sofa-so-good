@@ -320,5 +320,6 @@ Remaining (larger / focused-session):
 
 ## RE6 — plan-aware per-room editor (in progress)
 - [x] RE6.1. **Pure `planRoomShell` builder** + tests (footprint/clipped walls/openings; rect+L+polygon). (CHANGELOG)
-- [ ] RE6.2. **`PlanRoomShell.tsx` renderer** — clipped plan walls (camera-facing reveal like RoomShell), per-room floor from `PlanRoom.floor` (reuse `PlanRoomFloor`), plan openings as wall cut-outs. Walls have no per-room wall-finish on custom plans — use a neutral/default wall material.
+- [x] RE6.2. **`PlanRoomShell.tsx` renderer** (DONE — floors/clipped walls/reveal/openings; placed openings in planRoomShell). (CHANGELOG)
+- [ ] RE6.2-old. ~~renderer~~ — clipped plan walls (camera-facing reveal like RoomShell), per-room floor from `PlanRoom.floor` (reuse `PlanRoomFloor`), plan openings as wall cut-outs. Walls have no per-room wall-finish on custom plans — use a neutral/default wall material.
 - [ ] RE6.3. **Wire `RoomEditorScene`** to use `planRoomShell`+`PlanRoomShell` when `!isDefaultPlan`; ungate the View/Mobile "Edit a room" entries + room-switcher dropdowns to iterate `plan.rooms` (filter external only on default). Walk collision from plan walls. E2E-verify on a custom plan.

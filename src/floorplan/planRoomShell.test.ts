@@ -56,7 +56,10 @@ describe('planRoomShell', () => {
     expect(north?.start[0]).toBeCloseTo(0)
     expect(north?.end[0]).toBeCloseTo(4)
     // Only door dA (offset 1, in A's span) is attributed to room A — not dB.
-    expect(a.openings.map((o) => o.id)).toEqual(['dA'])
+    expect(a.openings.map((o) => o.opening.id)).toEqual(['dA'])
+    // Its world centre is resolved (offset 1 + width/2 = 1.45 along the north wall).
+    expect(a.openings[0].center[0]).toBeCloseTo(1.45)
+    expect(a.openings[0].center[1]).toBeCloseTo(0)
   })
 
   it('uses the polygon bbox for rects but the true polygon for containment', () => {

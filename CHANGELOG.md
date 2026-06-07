@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE6.2] Plan-aware per-room renderer (`PlanRoomShell.tsx`)
+
+The renderer half of the plan-aware per-room editor: `apartment/PlanRoomShell.tsx`
+draws one isolated room of a **custom floor plan** — per-rect (or polygon) floors
+with the room's own floor finish (`PlanRoomFloor`), walls clipped to the room
+footprint with the same camera-facing reveal as the default `RoomShell`, and
+door/window panels placed from the shell's resolved opening centres. To support
+that, `planRoomShell` now returns **placed openings** (`PlanRoomOpening` =
+opening + world centre + host-wall angle) so the renderer needs no source-wall
+access. Component compiles + lints clean and is not yet mounted (zero render risk
+until the RE6.3 wiring lands); builder remains fully unit-tested (now asserting
+resolved opening placement).
+
 ## [RE6.1b] Decouple the furniture room-filter from the concrete shell
 
 `FurnitureLayer` / `isItemInRoom` depended on the default-apartment `RoomShell`
