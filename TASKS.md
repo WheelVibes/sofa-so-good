@@ -282,3 +282,6 @@ Remaining (larger / focused-session):
   always-designed-but-unused current-room highlight + name into the real
   `Minimap`, using the tested `roomPathD` helper for accurate L/polygon rooms.
   E2E-verified. (CHANGELOG)
+- [x] N23. **Walk minimap shows doorways + windows** — `openingSegments` (pure,
+  unit-tested) resolves wall openings; doors render as gaps, windows as accent
+  ticks. E2E-verified. (CHANGELOG)

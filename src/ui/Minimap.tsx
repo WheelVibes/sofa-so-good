@@ -4,7 +4,7 @@ import { useCatalog } from '../furniture/catalog'
 import type { FurnitureCategory } from '../furniture/types'
 import { cameraForwardXZ, cameraPosXZ } from '../scene/cameras/cameraForward'
 import { useStore } from '../state/store'
-import { roomPathD } from './walk/minimapGeometry'
+import { openingSegments, roomPathD } from './walk/minimapGeometry'
 
 const SIZE = 168
 const PAD = 0.4
@@ -69,6 +69,9 @@ export function Minimap() {
         .filter((r) => r.d.length > 0),
     [plan],
   )
+  // Wall openings — doors drawn as gaps, windows as ticks, so room connections
+  // read at a glance.
+  const openings = useMemo(() => openingSegments(plan), [plan])
 
   // Animate the camera arrow each frame while in walk mode, and live-highlight +
   // name the room the player is currently inside (cheap attribute writes only).
@@ -144,6 +147,34 @@ export function Minimap() {
               stroke="var(--text-3)"
               strokeWidth={w.thickness === 'external' ? 2 : 1}
               strokeLinecap="round"
+            />
+          ),
+        )}
+        {/* Wall openings: doors "cut" the wall (drawn in the panel bg over it),
+            windows show a thin accent tick. */}
+        {openings.map((op) =>
+          op.kind === 'door' ? (
+            <line
+              key={op.id}
+              x1={toX(op.a[0])}
+              y1={toY(op.a[1])}
+              x2={toX(op.b[0])}
+              y2={toY(op.b[1])}
+              stroke="var(--surface)"
+              strokeWidth={3}
+              strokeLinecap="butt"
+            />
+          ) : (
+            <line
+              key={op.id}
+              x1={toX(op.a[0])}
+              y1={toY(op.a[1])}
+              x2={toX(op.b[0])}
+              y2={toY(op.b[1])}
+              stroke="var(--accent)"
+              strokeWidth={1.25}
+              strokeLinecap="butt"
+              opacity={0.7}
             />
           ),
         )}

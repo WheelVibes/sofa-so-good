@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N23] Walk minimap shows doorways + windows
+
+The walk-mode `Minimap` now draws wall **openings**: doors as a gap that "cuts"
+the wall (panel-bg line over it) and windows as a thin accent tick — so you can
+read at a glance where rooms connect and where the daylight comes in while
+walking. Driven by a new pure, unit-tested `openingSegments(plan)` helper
+(`ui/walk/minimapGeometry.ts`) that resolves each opening's span along its host
+wall and clamps it to the wall ends (malformed offsets can't draw past the wall;
+unknown/zero-length walls are skipped). E2E-verified in walk mode.
+
 ## [B20] Fix duplicate walk-mode minimaps + wire the current-room highlight
 
 Walk mode was rendering **two overlapping minimaps** bottom-right: the
