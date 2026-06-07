@@ -47,6 +47,14 @@ export function ProductTour() {
         setRect(null)
       }
     }
+    // Bring the target into view once per step (the toolbar scrolls horizontally
+    // on narrow desktops, so a target like Scene/View could be off-screen). Done
+    // here, NOT in `measure`, so the scroll it triggers can't loop the listener.
+    if (current.target) {
+      document
+        .querySelector<HTMLElement>(current.target)
+        ?.scrollIntoView({ block: 'nearest', inline: 'center' })
+    }
     measure()
     raf = requestAnimationFrame(measure)
     window.addEventListener('resize', measure)

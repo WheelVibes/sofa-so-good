@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N30c] Tour scrolls its target into view (narrow-desktop fix)
+
+On a narrower desktop the toolbar scrolls horizontally, so a tour target like
+Scene/View could sit off-screen — the spotlight would land off-frame. The tour
+now `scrollIntoView`s the target once per step (done outside the measure loop so
+the scroll it triggers can't re-fire the listeners). Verified the Scene step is
+in view + spotlighted at 980px.
+
 ## [N30b] Auto-start the tour on first visit
 
 The guided product tour now **auto-starts on a first visit** (gated on
