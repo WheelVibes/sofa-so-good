@@ -553,13 +553,11 @@ export function MobileToolbar() {
                   sub="Auto-arrange every room"
                   onClick={act(tidyHome)}
                 />
-                {proMode ? (
-                  <Item
-                    icon="FloorPlan"
-                    label="Floor plan editor"
-                    onClick={act(() => s.getState().setFloorPlanEditing(true))}
-                  />
-                ) : null}
+                <Item
+                  icon="FloorPlan"
+                  label="Floor plan editor"
+                  onClick={act(() => s.getState().setFloorPlanEditing(true))}
+                />
               </Section>
 
               {/* Arrange — sets / presets / styles */}

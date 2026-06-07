@@ -4,6 +4,30 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N30] Guided product tour for new users
+
+A spotlight **product tour** (`ui/tour/`) that walks a newcomer through building a
+design in the order they'd actually work — an 8-step path: welcome → shape the
+space (Floor plan: walls/rooms/doors/windows) → add furniture → move & customise →
+paint walls & floors → walk through → set time-of-day & backdrop → wrap-up (Pro +
+replay). Each step dims the scene and **spotlights the real UI element** (targeted
+by `aria-label`) with an explanatory card (Step N/M, progress dots, Back/Next/
+Skip; Esc/←/→ keys); steps whose target is hidden (e.g. behind the mobile
+hamburger) fall back to a centred card, so it reads on every viewport. State in
+`featuresSlice` (`tourOpen`/`tourStep` + `startTour`/`tourNext`/`tourPrev`/
+`endTour`, completion in `localStorage` `hdb_tour_done`). Launchable from the
+onboarding ("Take the guided tour", the first start option, which loads the demo
+flat first), the Help modal ("Replay the guided tour"), and ⌘K. E2E-verified:
+welcome card centres; the layout step rings the Arrange menu with its card below.
+
+## [N28d] Floor-plan editor available in Simple mode
+
+Shaping the space (walls, rooms, **doors & windows**) is crucial interior-design
+functionality + a core tour step, so the floor-plan editor is no longer gated out
+of Simple mode (it was over-gated in [N28c]). The genuinely-advanced gates (Tools,
+numeric transforms, graphics internals, sun direction, saved views, record, per-
+room editor) stay.
+
 ## [N29] Collapsible inspector sections (collapsed by default in Simple)
 
 The inspector's multi-field sections are now **expandable** via a clickable

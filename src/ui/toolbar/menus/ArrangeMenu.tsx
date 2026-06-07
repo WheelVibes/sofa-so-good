@@ -23,7 +23,6 @@ export function ArrangeMenu() {
   const deleteUserStyle = useStore((s) => s.deleteUserStyle)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const toggleFloorPlanEditing = useStore((s) => s.toggleFloorPlanEditing)
-  const proMode = useStore((s) => s.uiMode === 'pro')
   const recipes = ikeaSetRecipes()
 
   return (
@@ -41,15 +40,13 @@ export function ArrangeMenu() {
           sub="Auto-arrange every room"
           onClick={tidyHome}
         />
-        {proMode ? (
-          <Action
-            icon="FloorPlan"
-            label="Floor plan"
-            sub="Edit walls, rooms, doors"
-            active={floorPlanEditing}
-            onClick={toggleFloorPlanEditing}
-          />
-        ) : null}
+        <Action
+          icon="FloorPlan"
+          label="Floor plan"
+          sub="Edit walls, rooms, doors & windows"
+          active={floorPlanEditing}
+          onClick={toggleFloorPlanEditing}
+        />
 
         <Header>Sets</Header>
         {FURNITURE_SETS.map((s) => (

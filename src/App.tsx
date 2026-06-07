@@ -50,6 +50,7 @@ import { ShareModal } from './ui/ShareModal'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
 import { Toolbar } from './ui/Toolbar'
+import { ProductTour } from './ui/tour/ProductTour'
 import { VersionsPanel } from './ui/VersionsPanel'
 import { WalkHud } from './ui/WalkHud'
 import { WallAccentPicker } from './ui/WallAccentPicker'
@@ -649,6 +650,7 @@ export default function App() {
         <VersionsPanel />
         <SmartStartWizard />
         <Onboarding />
+        <ProductTour />
         <LocationPrompt />
         <PromptModal />
         <ConfirmModal />

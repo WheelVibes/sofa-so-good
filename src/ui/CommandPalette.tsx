@@ -159,6 +159,13 @@ export function CommandPalette() {
         run: () => s().setAppearanceOpen(true),
       },
       {
+        id: 'tour',
+        group: 'Tools & panels',
+        label: 'Guided product tour',
+        icon: 'Help',
+        run: () => s().startTour(),
+      },
+      {
         id: 'help',
         group: 'Tools & panels',
         label: 'Help & shortcuts',

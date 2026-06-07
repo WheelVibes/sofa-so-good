@@ -62,7 +62,7 @@ export function Onboarding() {
     setStep(0)
   }
 
-  const choose = (kind: 'catalog' | 'demo' | 'empty' | 'smart') => {
+  const choose = (kind: 'catalog' | 'demo' | 'empty' | 'smart' | 'tour') => {
     const s = useStore.getState()
     if (kind === 'empty') s.resetToEmpty()
     else if (kind === 'demo') s.resetToDefault()
@@ -71,6 +71,13 @@ export function Onboarding() {
       s.setCatalogOpen(true)
     } else if (kind === 'smart') {
       s.setSmartStartOpen(true)
+    } else if (kind === 'tour') {
+      // Load the demo flat so the tour highlights a real, furnished design, then
+      // launch the guided walkthrough.
+      s.resetToDefault()
+      finish()
+      s.startTour()
+      return
     }
     finish()
   }
@@ -132,6 +139,16 @@ export function Onboarding() {
             <div className="onb-body3">
               <h2 className="onb-title sm">Where would you like to start?</h2>
               <div className="onb-choices">
+                <button type="button" className="onb-choice" onClick={() => choose('tour')}>
+                  <span className="onb-choice-ic">
+                    <Icon.Help width={20} height={20} />
+                  </span>
+                  <div>
+                    <b>Take the guided tour</b>
+                    <em>New here? A 7-step walkthrough of the essentials</em>
+                  </div>
+                  <Icon.ChevronRight width={18} height={18} />
+                </button>
                 <button type="button" className="onb-choice" onClick={() => choose('smart')}>
                   <span className="onb-choice-ic">
                     <Icon.Palette width={20} height={20} />

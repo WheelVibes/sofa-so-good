@@ -343,3 +343,5 @@ Remaining (larger / focused-session):
 - [x] T5. **useDisposeOnUnmount test** — dispose-once-on-unmount / not-on-rerender / null-tolerant. Locks in B35. (CHANGELOG)
 - [x] N28c. **Simple mode gates advanced options/fields** — Scene sun-direction, View saved-views+edit-room, File record, Inspector transform+duplicate-row, Graphics asset+overrides+FPS. E2E-verified. (CHANGELOG)
 - [x] N29. **Collapsible inspector sections** — reusable InspectorSection (chevron header); Properties + Transform; collapsed by default in Simple, open in Pro. E2E-verified. (CHANGELOG)
+- [x] N28d. **Floor-plan editor available in Simple** (crucial; reconciles N28c over-gating). (CHANGELOG)
+- [x] N30. **Guided product tour** — 8-step spotlight walkthrough in build-workflow order; onboarding/Help/⌘K launch; aria-label targets + centred fallback; mobile-safe. E2E-verified. (CHANGELOG)

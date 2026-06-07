@@ -173,11 +173,17 @@ export the result — all in the browser.
   light + dark (or **Auto**, following your OS). Switch from the toolbar's
   **Appearance** menu; the whole UI — toolbar, catalog, inspector, nav cluster,
   panels, modals — recolours instantly and your choice persists.
-- **Simple / Pro interface** — a mode toggle (also in the **Appearance** menu) for
-  when the full feature set is more than you need. **Simple** hides the advanced
-  clusters (the analysis **Tools** menu and the **floor-plan editor**) for a
-  friendlier first run; **Pro** (the default) shows everything. Persists per
-  device.
+- **Simple / Pro interface** — a mode toggle (in the **Appearance** menu) for when
+  the full feature set is more than you need. **Simple** (the default) keeps the
+  crucial interior-design workflow and hides advanced clusters, options and fields
+  (analysis Tools, numeric transform fields, graphics internals, sun direction,
+  saved views, …) and collapses the inspector's sections by default; **Pro** shows
+  everything. Persists per device.
+- **Guided product tour** — a spotlight walkthrough for new users that steps
+  through the whole workflow in order (shape the space → add furniture → move &
+  customise → paint walls/floors → walk through → set the time of day & backdrop),
+  highlighting each control as it goes. Launch it from onboarding, the Help modal,
+  or ⌘K.
 - **Pro-tool interactions** — a **⌘K command palette** (fuzzy search across
   actions, panels, views, and "add furniture"), a **right-click context menu**
   on any placed piece, an **Objects / Layers** view (items grouped by room with

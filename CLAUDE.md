@@ -342,7 +342,15 @@ rediscover it.
   **floor-plan editor** entry (gated by a `uiMode === 'pro'` check in `Toolbar`,
   `ArrangeMenu`, `MobileToolbar`) — for a friendlier first run; **Pro** (default)
   shows all. (Its `AppearanceControls` body is shared; an anchored popover on
-  desktop, a centred blurred `Modal` on mobile); the theme choice persists in
+  desktop, a centred blurred `Modal` on mobile.) Simple also hides advanced
+  options/fields across surfaces (Scene sun-direction, View saved-views/edit-room,
+  File record, inspector numeric Transform + duplicate-row, Graphics asset+
+  overrides+FPS) and collapses inspector sections by default (`ui/inspector/
+  InspectorSection.tsx`); the floor-plan editor stays available (crucial). A
+  **guided product tour** (`ui/tour/ProductTour.tsx` + `tourSteps.ts`, state in
+  `featuresSlice` `tourOpen`/`tourStep`) spotlights real UI elements (by
+  `aria-label`) through the build workflow; launched from onboarding/Help/⌘K,
+  completion in `localStorage` `hdb_tour_done`. The theme choice persists in
   `localStorage`
   (`hdb_appearance`) and is applied pre-paint by an inline script in `index.html`
   (no flash). Auto follows the OS via `matchMedia` (`ui/useIsMobile.ts` is the

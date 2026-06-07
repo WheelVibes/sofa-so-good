@@ -1,3 +1,4 @@
+import { useStore } from '../state/store'
 import { DOCS_URL } from './docsUrl'
 import { Modal } from './Modal'
 import { Icon } from './toolbar/icons'
@@ -86,6 +87,19 @@ export function HelpModal({ open, onClose }: { open: boolean; onClose: () => voi
         <div className="sec-h">
           <span>Documentation</span>
         </div>
+        <button
+          type="button"
+          className="btn btn-soft btn-block"
+          style={{ marginBottom: 'var(--s-3)' }}
+          onClick={() => {
+            const s = useStore.getState()
+            s.setHelpOpen(false)
+            s.startTour()
+          }}
+        >
+          <Icon.Help width={14} height={14} />
+          Replay the guided tour
+        </button>
         <ul className="help-list">
           <li>
             <Icon.Book className="icn" width={16} height={16} />

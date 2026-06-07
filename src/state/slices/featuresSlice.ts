@@ -1,6 +1,25 @@
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
+const TOUR_DONE_KEY = 'hdb_tour_done'
+
+/** Whether the product tour has been completed/skipped on this device. */
+export function hasSeenTour(): boolean {
+  try {
+    return localStorage.getItem(TOUR_DONE_KEY) === '1'
+  } catch {
+    return false
+  }
+}
+
+function markTourDone(): void {
+  try {
+    localStorage.setItem(TOUR_DONE_KEY, '1')
+  } catch {
+    /* ignore (private mode) */
+  }
+}
+
 /** Position of the right-click context menu, in viewport px. */
 export interface ContextMenuState {
   x: number
@@ -22,6 +41,9 @@ export interface FeaturesSlice {
   /** Onboarding carousel visibility + step. */
   onboardingOpen: boolean
   onboardingStep: number
+  /** Guided product tour (spotlight walkthrough): open + current step index. */
+  tourOpen: boolean
+  tourStep: number
   /** Help & shortcuts modal visibility. */
   helpOpen: boolean
   /** Swap-with-similar modal — the item id being replaced, or null. */
@@ -49,6 +71,13 @@ export interface FeaturesSlice {
   closeContextMenu: () => void
   setOnboardingOpen: (open: boolean) => void
   setOnboardingStep: (step: number) => void
+  /** Start the product tour at step 0. */
+  startTour: () => void
+  /** Advance / go back; advancing past the last step (count) ends + marks done. */
+  tourNext: (count: number) => void
+  tourPrev: () => void
+  /** End the tour (Skip / Done) and mark it completed in localStorage. */
+  endTour: () => void
   setHelpOpen: (open: boolean) => void
   setSwapItemId: (id: string | null) => void
   setShareOpen: (open: boolean) => void
@@ -66,6 +95,8 @@ export const FEATURES_INITIAL = {
   contextMenu: null as ContextMenuState | null,
   onboardingOpen: false,
   onboardingStep: 0,
+  tourOpen: false,
+  tourStep: 0,
   helpOpen: false,
   swapItemId: null as string | null,
   shareOpen: false,
@@ -86,6 +117,21 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   closeContextMenu: () => set({ contextMenu: null }),
   setOnboardingOpen: (onboardingOpen) => set({ onboardingOpen }),
   setOnboardingStep: (onboardingStep) => set({ onboardingStep }),
+  startTour: () => set({ tourOpen: true, tourStep: 0, onboardingOpen: false }),
+  tourNext: (count) =>
+    set((s) => {
+      const next = s.tourStep + 1
+      if (next >= count) {
+        markTourDone()
+        return { tourOpen: false, tourStep: 0 }
+      }
+      return { tourStep: next }
+    }),
+  tourPrev: () => set((s) => ({ tourStep: Math.max(0, s.tourStep - 1) })),
+  endTour: () => {
+    markTourDone()
+    set({ tourOpen: false, tourStep: 0 })
+  },
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   setSwapItemId: (swapItemId) => set({ swapItemId }),
   setShareOpen: (shareOpen) => set({ shareOpen }),
