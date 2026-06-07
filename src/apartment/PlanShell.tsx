@@ -7,6 +7,7 @@ import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
+import { PlanDoorLeaf } from './PlanDoorLeaf'
 
 const DEFAULT_PLAN_FLOOR = 'floor-wood-oak'
 
@@ -190,6 +191,16 @@ export function PlanShell() {
       {/* (Crown molding removed — a light fixed-colour band at the wall top
           read as a discoloured strip; the wall face runs cleanly to the
           ceiling instead.) */}
+
+      {/* Door leaves — swinging, clickable; closed by default (matches collision). */}
+      {plan.openings
+        .filter((o) => o.kind === 'door')
+        .map((o) => {
+          const wall = plan.walls.find((w) => w.id === o.wallId)
+          return wall ? (
+            <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={ew / 2} cz={ed / 2} />
+          ) : null
+        })}
 
       {/* Window glass */}
       {windows.map((w) => (

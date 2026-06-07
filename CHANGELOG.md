@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F12a] 3D door leaf for custom-plan doors
+New `apartment/PlanDoorLeaf` renders a swinging, clickable, panelled leaf in each
+custom-plan door opening (was a plain gap even when closed). Hinge/swing honour
+the opening; click toggles via the shared `doors` store so render + walk
+collision stay in sync; fades with its wall like `FadeWall`. Screenshot-verified.
+
 ## [FG3e] Feature flags — gate packs / online materials / model upload
 Catalog Packs tab + model-upload entry now respect `packs`/`modelUpload`; the
 FinishPicker "Browse" (online materials) respects `remoteMaterials` — so a
