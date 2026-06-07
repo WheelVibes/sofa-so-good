@@ -396,3 +396,4 @@ Remaining (larger / focused-session):
 - [x] B36. **Finish swatches were thin strips (desktop grid)** — `.swatch-lg` was an inline `<span>` so `width:100%`/`aspect-ratio` were ignored; added `display:block` + square ratio. Root-cause fix. Verified desktop + mobile. (CHANGELOG)
 - [x] B37. **shot.mjs output-path guard** — rejects a flag-like (`--help`) or non-`.png` output path (exit 2, no browser launch) so a stray screenshot can no longer be written to a junk file. Verified. (CHANGELOG)
 - [x] B38. **Product tour fixed for the view/edit split** — steps no longer spotlight editor-only Arrange/Catalog from the overview; new "Edit a room" step + correct targets (Floor plan, Camera mode, Scene). Verified. (CHANGELOG)
+- [x] B39. **Onboarding fixed for the view/edit split** — "Browse the catalog" choice enters a room with the catalog open (was opening the now-editor-only catalog in the overview, a no-op); refreshed step-2 mini-tour cards. Verified. (CHANGELOG)

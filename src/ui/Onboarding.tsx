@@ -1,4 +1,6 @@
 import { createPortal } from 'react-dom'
+import { ROOMS } from '../apartment/constants'
+import { isDefaultPlan } from '../floorplan/planGeometry'
 import { useStore } from '../state/store'
 import { BrandMark } from './Logo'
 import { Icon, type IconName } from './toolbar/icons'
@@ -29,19 +31,19 @@ const FEATURES: { icon: IconName; title: string; sub: string }[] = [
 
 const TOUR: { icon: IconName; title: string; sub: string }[] = [
   {
+    icon: 'Cube',
+    title: 'Edit a room',
+    sub: 'Click a room (or the Edit a room button) to design it — the overview is just for looking.',
+  },
+  {
     icon: 'Catalog',
-    title: 'Drag to place',
-    sub: 'Pull any catalog item onto the floor — press R to rotate.',
+    title: 'Furnish & arrange',
+    sub: 'Inside a room, drag catalog items onto the floor; click to move, R to rotate.',
   },
   {
     icon: 'Palette',
     title: 'Refinish surfaces',
-    sub: 'Click a wall or the floor to change its finish.',
-  },
-  {
-    icon: 'Measure',
-    title: 'Check clearances',
-    sub: 'HDB 90 cm walkways and door swings are validated for you.',
+    sub: 'In the room, click a wall or the floor to change its finish.',
   },
   { icon: 'Walk', title: 'Walk it', sub: 'Switch to Walk to experience the flat at eye level.' },
 ]
@@ -67,8 +69,17 @@ export function Onboarding() {
     if (kind === 'empty') s.resetToEmpty()
     else if (kind === 'demo') s.resetToDefault()
     else if (kind === 'catalog') {
+      // Furnishing happens in the per-room editor now, so dive into a room with
+      // the catalog open (rather than opening it in the view-only overview,
+      // where the drawer doesn't mount).
       s.resetToDefault()
-      s.setCatalogOpen(true)
+      const st = useStore.getState()
+      const roomId = isDefaultPlan(st.floorPlan)
+        ? Object.values(ROOMS).find((r) => !r.external)?.id
+        : st.floorPlan.rooms[0]?.id
+      if (roomId) st.enterRoomEditor(roomId)
+      st.setLeftMode('catalog')
+      st.setCatalogOpen(true)
     } else if (kind === 'smart') {
       s.setSmartStartOpen(true)
     } else if (kind === 'tour') {
@@ -165,7 +176,7 @@ export function Onboarding() {
                   </span>
                   <div>
                     <b>Browse the catalog</b>
-                    <em>Start from the move-in layout, catalog open</em>
+                    <em>Jump into a room with the catalog open</em>
                   </div>
                   <Icon.ChevronRight width={18} height={18} />
                 </button>

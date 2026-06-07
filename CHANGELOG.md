@@ -54,6 +54,18 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [B39] Fix onboarding for the view/edit split
+
+The first-run onboarding still assumed the old model: its **"Browse the
+catalog"** start choice did `setCatalogOpen(true)` in the view-only overview,
+where the catalog no longer mounts — so the choice did nothing visible. It now
+dives into a room (first non-external) with the catalog open
+(`enterRoomEditor` + `leftMode:'catalog'` + open), so furnishing starts
+immediately. Also refreshed the step-2 mini-tour cards (which described
+dragging/refinishing in the overview) to lead with **"Edit a room"** then
+furnish/refinish *inside* the room. Verified the catalog choice lands in the
+editor (room=mainBedroom, catalogOpen, leftMode=catalog). 883 tests; tsc + lint clean.
+
 ## [B38] Update the product tour for the view/edit split
 
 The guided tour still described the pre-revamp model: its "layout"/"furniture"
