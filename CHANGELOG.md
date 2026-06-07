@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q54] Backdrop options in the command palette
+
+The four scene backdrops (City/Park/Hills/Studio) are now also reachable from ⌘K
+(a "Backdrop" group), consistent with how lighting moods + time presets are
+surfaced — discoverable even in Simple mode. tsc-clean; palette renders.
+
 ## [N28] Simple / Pro interface mode
 
 A **Simple / Pro** interface toggle (the app has a lot of features now). Persisted

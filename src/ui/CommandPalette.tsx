@@ -5,6 +5,7 @@ import { isDefaultPlan } from '../floorplan/planGeometry'
 import { useCatalogByCategory } from '../furniture/catalog'
 import { tidyHome } from '../layout/tidyHome'
 import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
+import { BACKDROPS } from '../scene/SceneBackdrop'
 import { useStore } from '../state/store'
 import { openDocs } from './docsUrl'
 import { openDesignReport } from './openReport'
@@ -222,6 +223,16 @@ export function CommandPalette() {
           hint: 'Mood',
           icon: 'Lights',
           run: () => applyLightingScene(sc),
+        }),
+      ),
+      ...BACKDROPS.map(
+        (b): Command => ({
+          id: `backdrop:${b.id}`,
+          group: 'Backdrop',
+          label: `Backdrop — ${b.label}`,
+          hint: b.sub,
+          icon: 'Cube',
+          run: () => s().setBackdrop(b.id),
         }),
       ),
     ]
