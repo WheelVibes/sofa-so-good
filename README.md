@@ -52,8 +52,11 @@ export the result — all in the browser.
   cool pane by day, dark and reflective after dark. One-click **lighting moods**
   (Scene menu / ⌘K) preview the room at daylight, golden hour, a cosy evening, or
   night.
-- **HDB-estate skyline** — neighbouring blocks ring the flat so windows frame
-  a real view; their windows light up warm at night.
+- **Selectable 3D backdrop** — choose the surroundings outside the flat from the
+  Scene menu: **City** (an HDB estate whose windows light up warm at night),
+  **Park** (low-poly trees on a green common), **Hills** (a calm green horizon),
+  or **Studio** (a clean, distraction-free ground). The backdrop re-centres on
+  whatever floor plan you load.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
   top-down plan (pair with Measurements for an annotated floor plan), a
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a
@@ -170,6 +173,11 @@ export the result — all in the browser.
   light + dark (or **Auto**, following your OS). Switch from the toolbar's
   **Appearance** menu; the whole UI — toolbar, catalog, inspector, nav cluster,
   panels, modals — recolours instantly and your choice persists.
+- **Simple / Pro interface** — a mode toggle (also in the **Appearance** menu) for
+  when the full feature set is more than you need. **Simple** hides the advanced
+  clusters (the analysis **Tools** menu and the **floor-plan editor**) for a
+  friendlier first run; **Pro** (the default) shows everything. Persists per
+  device.
 - **Pro-tool interactions** — a **⌘K command palette** (fuzzy search across
   actions, panels, views, and "add furniture"), a **right-click context menu**
   on any placed piece, an **Objects / Layers** view (items grouped by room with

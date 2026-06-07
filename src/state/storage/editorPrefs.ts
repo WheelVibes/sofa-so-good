@@ -17,6 +17,7 @@ export function loadEditorPrefs(): void {
       gridSize?: number
       units?: 'metric' | 'imperial'
       backdrop?: string
+      uiMode?: string
     }
     const backdrops = ['city', 'park', 'hills', 'none']
     useStore.setState({
@@ -26,6 +27,7 @@ export function loadEditorPrefs(): void {
       backdrop: backdrops.includes(p.backdrop ?? '')
         ? (p.backdrop as 'city' | 'park' | 'hills' | 'none')
         : 'city',
+      uiMode: p.uiMode === 'simple' ? 'simple' : 'pro',
     })
   } catch {
     /* ignore corrupt prefs */
@@ -40,6 +42,7 @@ export function watchEditorPrefs(): void {
       gridSize: s.gridSize,
       units: s.units,
       backdrop: s.backdrop,
+      uiMode: s.uiMode,
     })
     if (snap === last) return
     last = snap

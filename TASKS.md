@@ -336,4 +336,4 @@ Remaining (larger / focused-session):
 
 ## User-requested features (2026-06-07)
 - [x] N27. **Selectable 3D backdrops** (City/Park/Hills/Studio) — Scene menu + mobile, persisted. Replaces the "cluttered/boring" buildings-only backdrop. E2E-verified. (CHANGELOG)
-- [ ] N28. **Simple/Pro UI mode toggle** — hide advanced clusters in Simple mode for approachability; in progress.
+- [x] N28. **Simple/Pro UI mode toggle** — Simple hides Tools menu + floor-plan editor; Appearance popover toggle, persisted; default Pro. E2E-verified. (CHANGELOG)

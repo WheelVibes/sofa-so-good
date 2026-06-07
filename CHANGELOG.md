@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N28] Simple / Pro interface mode
+
+A **Simple / Pro** interface toggle (the app has a lot of features now). Persisted
+per-device via `editorPrefs`, switched from the **Appearance** popover (shared
+desktop + mobile, with a one-line explanation). **Simple** hides the advanced /
+technical clusters for a friendlier first experience — the analysis **Tools**
+menu (Budget / Checks / Sun study / Walkthrough / Report / Measure) and the
+**Floor-plan editor** entry (toolbar + Arrange menu + mobile accordion). **Pro**
+(the default, so nothing changes for existing users) shows everything. Gating is
+a single `uiMode === 'pro'` check at each surface, so it's trivial to extend.
+E2E-verified: Simple drops the Tools menu from the toolbar, Pro restores it; the
+Appearance toggle reflects + sets the mode.
+
 ## [N27] Selectable 3D scene backdrops (City / Park / Hills / Studio)
 
 The surroundings outside the flat are now a **choice**, not just the (cluttered)

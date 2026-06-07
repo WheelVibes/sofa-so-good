@@ -147,6 +147,7 @@ export function MobileToolbar() {
   const manualHour = useStore((st) => st.manualHour)
   const lightsMode = useStore((st) => st.lightsMode)
   const backdrop = useStore((st) => st.backdrop)
+  const proMode = useStore((st) => st.uiMode === 'pro')
   const canUndo = useStore((st) => st.past.length > 0)
   const canRedo = useStore((st) => st.future.length > 0)
   const recording = useStore((st) => st.recording)
@@ -551,11 +552,13 @@ export function MobileToolbar() {
                   sub="Auto-arrange every room"
                   onClick={act(tidyHome)}
                 />
-                <Item
-                  icon="FloorPlan"
-                  label="Floor plan editor"
-                  onClick={act(() => s.getState().setFloorPlanEditing(true))}
-                />
+                {proMode ? (
+                  <Item
+                    icon="FloorPlan"
+                    label="Floor plan editor"
+                    onClick={act(() => s.getState().setFloorPlanEditing(true))}
+                  />
+                ) : null}
               </Section>
 
               {/* Arrange — sets / presets / styles */}
@@ -623,61 +626,63 @@ export function MobileToolbar() {
                 ))}
               </Section>
 
-              {/* Tools */}
-              <Section id="tools" title="Tools" icon="Tools" {...sectionProps}>
-                <Item
-                  icon="Budget"
-                  label="Budget / shopping"
-                  on={budgetOpen}
-                  onClick={act(openBudget)}
-                />
-                <Item
-                  icon="Checks"
-                  label="Clearance checks"
-                  on={clearancePanelOpen}
-                  onClick={act(toggleChecks)}
-                />
-                <Item
-                  icon="Measure"
-                  label="Measure distance"
-                  on={tapeMode}
-                  onClick={act(() => s.getState().toggleTapeMode())}
-                />
-                <Item
-                  icon="Versions"
-                  label="Versions"
-                  on={versionsOpen}
-                  onClick={act(openVersions)}
-                />
-                <Item
-                  icon="Share"
-                  label="Share & export"
-                  onClick={act(() => s.getState().setShareOpen(true))}
-                />
-                {!roomEditorActive ? (
-                  <>
-                    <Item
-                      icon="SunStudy"
-                      label="Sun study"
-                      sub="Time-lapse dawn → dusk"
-                      on={sunStudy}
-                      onClick={act(() => setSunStudy((v) => !v), { keep: true })}
-                    />
-                    <Item
-                      icon="Walkthrough"
-                      label={touring ? 'Stop tour' : 'Walkthrough'}
-                      on={touring}
-                      onClick={act(startWalkthrough)}
-                    />
-                    <Item
-                      icon="Report"
-                      label="Report"
-                      sub="Printable design report"
-                      onClick={act(openReport)}
-                    />
-                  </>
-                ) : null}
-              </Section>
+              {/* Tools (advanced — hidden in Simple mode) */}
+              {proMode ? (
+                <Section id="tools" title="Tools" icon="Tools" {...sectionProps}>
+                  <Item
+                    icon="Budget"
+                    label="Budget / shopping"
+                    on={budgetOpen}
+                    onClick={act(openBudget)}
+                  />
+                  <Item
+                    icon="Checks"
+                    label="Clearance checks"
+                    on={clearancePanelOpen}
+                    onClick={act(toggleChecks)}
+                  />
+                  <Item
+                    icon="Measure"
+                    label="Measure distance"
+                    on={tapeMode}
+                    onClick={act(() => s.getState().toggleTapeMode())}
+                  />
+                  <Item
+                    icon="Versions"
+                    label="Versions"
+                    on={versionsOpen}
+                    onClick={act(openVersions)}
+                  />
+                  <Item
+                    icon="Share"
+                    label="Share & export"
+                    onClick={act(() => s.getState().setShareOpen(true))}
+                  />
+                  {!roomEditorActive ? (
+                    <>
+                      <Item
+                        icon="SunStudy"
+                        label="Sun study"
+                        sub="Time-lapse dawn → dusk"
+                        on={sunStudy}
+                        onClick={act(() => setSunStudy((v) => !v), { keep: true })}
+                      />
+                      <Item
+                        icon="Walkthrough"
+                        label={touring ? 'Stop tour' : 'Walkthrough'}
+                        on={touring}
+                        onClick={act(startWalkthrough)}
+                      />
+                      <Item
+                        icon="Report"
+                        label="Report"
+                        sub="Printable design report"
+                        onClick={act(openReport)}
+                      />
+                    </>
+                  ) : null}
+                </Section>
+              ) : null}
 
               {/* Graphics */}
               <Section id="graphics" title="Graphics" icon="Quality" {...sectionProps}>

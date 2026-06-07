@@ -25,6 +25,8 @@ export function AppearanceControls() {
   const setTheme = useStore((s) => s.setTheme)
   const modePref = useStore((s) => s.modePref)
   const setModePref = useStore((s) => s.setModePref)
+  const uiMode = useStore((s) => s.uiMode)
+  const setUiMode = useStore((s) => s.setUiMode)
 
   return (
     <>
@@ -74,6 +76,40 @@ export function AppearanceControls() {
           )
         })}
       </div>
+
+      <div className="pop-label" style={{ marginTop: 10 }}>
+        Interface
+      </div>
+      <div className="seg accent appe-mode">
+        <button
+          type="button"
+          className={uiMode === 'simple' ? 'on' : ''}
+          onClick={() => setUiMode('simple')}
+        >
+          <Icon.Star width={14} height={14} />
+          Simple
+        </button>
+        <button
+          type="button"
+          className={uiMode === 'pro' ? 'on' : ''}
+          onClick={() => setUiMode('pro')}
+        >
+          <Icon.Settings width={14} height={14} />
+          Pro
+        </button>
+      </div>
+      <p
+        style={{
+          fontSize: 'var(--t-2xs)',
+          color: 'var(--text-3)',
+          margin: '6px 2px 0',
+          lineHeight: 1.4,
+        }}
+      >
+        {uiMode === 'simple'
+          ? 'Essentials only — design tools, analysis & the floor-plan editor are hidden.'
+          : 'Every feature, including analysis tools and the floor-plan editor.'}
+      </p>
     </>
   )
 }

@@ -35,6 +35,7 @@ export function Toolbar() {
   const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const roomEditorRoomId = useStore((s) => s.roomEditor.roomId)
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const exitRoomEditor = useStore((s) => s.exitRoomEditor)
   const enterRoomEditor = useStore((s) => s.enterRoomEditor)
   const floorPlan = useStore((s) => s.floorPlan)
@@ -236,7 +237,7 @@ export function Toolbar() {
               onClick={toggleCatalogOpen}
             />
             <ArrangeMenu />
-            {!roomEditorActive && <ToolsMenu />}
+            {!roomEditorActive && proMode && <ToolsMenu />}
 
             <Divider />
             {/* Render */}

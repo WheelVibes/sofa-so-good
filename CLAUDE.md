@@ -129,7 +129,7 @@ rediscover it.
   finishes captured from the current design, persisted in `localStorage`
   (`hdb_user_styles`), re-appliable from the Arrange menu's "My styles"; not in
   the autosave/schema). Persistence + migrations under `storage/` (layout autosave;
-  `qualityPrefs.ts` graphics prefs; `editorPrefs.ts` snap/grid;
+  `qualityPrefs.ts` graphics prefs; `editorPrefs.ts` snap/grid/units/**backdrop**/**uiMode**;
   `appearancePrefs.ts` theme+mode → `[data-theme]`/`[data-mode]` on `<html>`;
   `floorPlanStore.ts` plan library
   + active custom plan; `hydrate.ts`/`hydrateAssets.ts` re-resolve user/IKEA
@@ -258,7 +258,11 @@ rediscover it.
 - `src/scene/` — the R3F `<Canvas>` and systems: `lighting/` (sun astronomy,
   hemisphere fill, `SceneEnvironment` IBL probe, `FurnitureLights`, `Sky`),
   `Effects.tsx` (bloom+SMAA), `quality.ts` + `QualityController` (tiers +
-  adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection.
+  adaptive 30fps), `ScreenshotController` (PNG export), cameras, selection,
+  and `SceneBackdrop.tsx` (the **selectable surroundings**: a dispatcher over
+  `CityBackdrop` + procedural Park/Hills/Studio backdrops, keyed on
+  `uiSlice.backdrop`, all sharing `backdropOffset.ts` `useBackdropOffset()` so
+  they centre on the active plan; picked from the Scene menu).
   The main Canvas runs **`frameloop="demand"`**: `RenderPump.tsx` is one
   always-on rAF loop that calls `invalidate()` only when a frame is wanted —
   continuously while something animates (walk, turntable, tour, recording,
@@ -332,9 +336,14 @@ rediscover it.
   vocabulary (`.panel`, `.btn`, `.toolbar`/`.tool-btn`, `.menu-item`, `.seg`,
   `.swatch`, `.act`, `.cmdk`, `.ctx-menu`, `.toast`, `.onb-*`, …) instead of
   Tailwind colour utilities. The toolbar **Appearance** control
-  (`ui/toolbar/AppearancePopover.tsx`) picks theme + Light/Dark/Auto (its
-  `AppearanceControls` body is shared; an anchored popover on desktop, a centred
-  blurred `Modal` on mobile); the choice persists in `localStorage`
+  (`ui/toolbar/AppearancePopover.tsx`) picks theme + Light/Dark/Auto **+ a
+  Simple/Pro interface toggle** (`uiSlice.uiMode`, persisted via `editorPrefs`):
+  **Simple** hides the advanced clusters — the analysis **Tools** menu and the
+  **floor-plan editor** entry (gated by a `uiMode === 'pro'` check in `Toolbar`,
+  `ArrangeMenu`, `MobileToolbar`) — for a friendlier first run; **Pro** (default)
+  shows all. (Its `AppearanceControls` body is shared; an anchored popover on
+  desktop, a centred blurred `Modal` on mobile); the theme choice persists in
+  `localStorage`
   (`hdb_appearance`) and is applied pre-paint by an inline script in `index.html`
   (no flash). Auto follows the OS via `matchMedia` (`ui/useIsMobile.ts` is the
   shared ≤640px hook). `body.mobile` (toggled in `App` at ≤640px) switches

@@ -16,6 +16,10 @@ export type LightsMode = 'auto' | 'on' | 'off'
 /** Selectable 3D scene surroundings (see `scene/SceneBackdrop`). */
 export type BackdropKind = 'city' | 'park' | 'hills' | 'none'
 
+/** Interface density. 'simple' hides advanced/technical clusters (analysis Tools,
+ *  the floor-plan editor) for a friendlier first experience; 'pro' shows all. */
+export type UiMode = 'simple' | 'pro'
+
 /** Boot lifecycle phase. `'hydrating'` until the async bootstrap (IDB user
  *  assets, packs, autosave) resolves; then `'ready'`. Drives the initial
  *  loading overlay. */
@@ -49,6 +53,9 @@ export interface UiSlice {
    *  editorPrefs, like snap/units. */
   backdrop: BackdropKind
   setBackdrop: (b: BackdropKind) => void
+  /** Interface density (simple hides advanced clusters). Persisted via editorPrefs. */
+  uiMode: UiMode
+  setUiMode: (m: UiMode) => void
   /** Whether the budget / shopping-list panel is open. */
   budgetOpen: boolean
   /** Whether clearance checks (door-swing blocking) are shown. */
@@ -148,6 +155,7 @@ export const UI_INITIAL: Pick<
   | 'lightsMode'
   | 'autoShadowsOff'
   | 'backdrop'
+  | 'uiMode'
   | 'snapEnabled'
   | 'gridSize'
   | 'budgetOpen'
@@ -174,6 +182,7 @@ export const UI_INITIAL: Pick<
   snapEnabled: false,
   gridSize: 0.5,
   backdrop: 'city' as BackdropKind,
+  uiMode: 'pro' as UiMode,
   budgetOpen: false,
   clearanceOn: false,
   recording: false,
@@ -263,6 +272,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),
+  setUiMode: (uiMode) => set({ uiMode }),
   cycleGridSize: () =>
     set((s) => {
       const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number])
