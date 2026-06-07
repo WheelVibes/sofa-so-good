@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q53b] Share "Copy summary" includes the room count
+
+For consistency with the richer report header ([Q53]), the Share modal's one-line
+summary now leads with the room count: "<name> — N rooms · <area> · M items · ~$cost".
+
 ## [Q53] Richer report header (room count + total area)
 
 The printable report's subheader now summarises the design at a glance —

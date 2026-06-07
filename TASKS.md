@@ -328,3 +328,4 @@ Remaining (larger / focused-session):
 - [x] Q52. **Room name+size caption in the per-room editor** (works default + custom plans). E2E-verified. (CHANGELOG)
 - [x] P8. **Room-editor caption mobile polish** — size-only on mobile (name is in the bar). Verified 390px. (CHANGELOG)
 - [x] Q53. **Richer report header** — room count + total area in the subheader. Verified. (CHANGELOG)
+- [x] Q53b. **Share "Copy summary" room count** — consistent with the report header. (CHANGELOG)

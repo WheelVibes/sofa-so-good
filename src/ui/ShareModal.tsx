@@ -42,7 +42,8 @@ export function ShareModal() {
           typeof it.props.variant === 'string' ? it.props.variant : undefined,
         )
     }
-    const text = `${s.floorPlan.name} — ${formatArea(planTotalArea(s.floorPlan), s.units)} · ${s.items.length} items · ~$${Math.round(cost).toLocaleString('en-SG')}`
+    const roomCount = s.floorPlan.rooms.length
+    const text = `${s.floorPlan.name} — ${roomCount} ${roomCount === 1 ? 'room' : 'rooms'} · ${formatArea(planTotalArea(s.floorPlan), s.units)} · ${s.items.length} items · ~$${Math.round(cost).toLocaleString('en-SG')}`
     void navigator.clipboard?.writeText(text)
     toast('Summary copied to clipboard')
   }
