@@ -661,11 +661,31 @@ rediscover it.
   room structure. Async/honest UX, graceful no-key / CORS / error states. Pure
   request-builder + output-parser are unit-tested; the live round-trip needs a
   real key (and may need a proxy depending on provider CORS).
+- **View / edit split** (`state/editing.ts` `canEditScene`): the app has two
+  stances. **Orbit-over-the-whole-flat and walk are view-only** — camera
+  rotate/zoom/pan/tilt + first-person movement, with **no** furniture
+  selection/picking/drag/rotate/context-menu/placement and no floor/wall
+  click-to-finish. **All** selection, editing and customization happen **only
+  inside the per-room editor** (orbit camera). The single rule
+  `canEditScene(s) = s.roomEditor.active && s.cameraMode === 'orbit'` gates every
+  interaction handler (`Furniture`, `MarqueeSelector`, `RotateGizmo`,
+  `GridOverlay`, wall/floor clicks, the edit keyboard shortcuts + nudge in
+  `App`). There is **no** select-vs-rotate "tool" — the old `editorTool` is gone;
+  the orbit camera is frozen only *during* an item drag or a gizmo gesture
+  (`placementSlice.rotatingGizmo` + `draggingItemId`, read by
+  `OrbitCamera`), so click-drag on furniture moves it while click-drag on empty
+  space orbits. Catalog/Inspector/Finish-picker only mount inside the editor;
+  leaving it clears the selection. **Entering** the editor: a prominent toolbar
+  **"Edit a room"** button (and the mobile View accordion), **or clicking a
+  room's floor** in the orbit overview (navigation, not picking). The structural
+  2D floor-plan editor is unaffected (a separate planning surface, reachable from
+  the overview).
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
-  `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-
-  style mode that isolates one room for furniture planning. Entered from the
-  toolbar **View** menu's single **"Edit a room"** entry (enters the first
-  non-external room); the room is then **switched in place** — while the editor is
+  `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-style mode that isolates
+  one room — now the app's **sole editing surface** (see **View / edit split**).
+  Entered from the prominent toolbar **"Edit a room"** button (enters the first
+  non-external room) or by **clicking a room's floor** in the orbit overview;
+  the room is then **switched in place** — while the editor is
   active the toolbar's leftmost cluster shows a **← exit button** (`Icon.ExitRoom`)
   + a **room-switcher `<select>`** (`.toolbar-room-select`, re-`enterRoomEditor`s
   on change), and **Esc** exits. On mobile the collapsed bar *becomes* the
@@ -706,7 +726,8 @@ rediscover it.
   (`DragHud` via `collision/clearanceGap.ts`). Hover highlight (`HoverHighlight`).
 - **Rotate gizmo** (`scene/selection/RotateGizmo.tsx` + pure
   `rotateGizmoMath.ts`): a touch-friendly floor ring + knob drawn around the
-  **selection** (orbit camera + **select** tool, unlocked, not mid-drag). One
+  **selection** (in the room editor — see **View / edit split** — unlocked, not
+  mid-drag; its gesture sets `rotatingGizmo` so the orbit camera holds still). One
   unified gesture handles both cases: a **single** item spins about its own axis
   (knob doubles as a heading indicator, snaps to absolute **15°** marks), a
   **multi-selection** rotates every member rigidly about the group centroid
@@ -745,9 +766,13 @@ rediscover it.
   a keyboard-shortcut chip (label from `shortcuts.ts`, sourced from
   `controls/keybindings.ts` — never hardcoded). Tooltips and menus both render
   through `Popover` (a `createPortal` + fixed-position primitive) so the
-  scrollable island never clips them. Editing clusters show only in orbit mode;
-  Walk mode keeps the camera essentials. New view shortcuts: Top view **O**,
-  Reset **H**, Tidy **L**. `ui/Toolbar.tsx` re-exports `ui/toolbar` so the
+  scrollable island never clips them. The island has **three states** (see
+  **View / edit split**): the **orbit overview** (view-only) shows View + a
+  prominent **Edit a room** button + **Floor plan** + analysis Tools + graphics/
+  lights/file; the **room editor** shows the editing clusters (exit + room
+  switcher, undo/redo, snap/grid, Measure, Catalog, Arrange, graphics, file);
+  **walk** keeps just the camera essentials + Scene. New view shortcuts: Top view
+  **O**, Reset **H**, Tidy **L** (Tidy/edit shortcuts act only in the editor). `ui/Toolbar.tsx` re-exports `ui/toolbar` so the
   import path is stable. The island **claims the wheel while the cursor is over
   it** — a non-passive native `wheel` listener `preventDefault`s (so it never
   reaches OrbitControls to zoom the scene) and turns vertical wheel into

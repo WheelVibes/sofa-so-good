@@ -3,11 +3,6 @@ import { RENDER_TIERS } from '../../scene/quality'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
-/** Editor tool while in orbit camera mode. 'orbit' lets click-drag rotate
- *  the camera (current default). 'select' disables camera rotation so a
- *  click-drag on furniture moves it; click-drag on empty space does nothing. */
-export type EditorTool = 'select' | 'orbit'
-
 /** Whether furniture fixture lights are driven automatically by the day/night
  *  cycle ('auto'), forced on (so windowless rooms read well in daylight), or
  *  forced off. */
@@ -28,7 +23,6 @@ export type BootPhase = 'hydrating' | 'ready'
 /** Ephemeral UI flags — opened drawers, dialogs, etc. Not persisted. */
 export interface UiSlice {
   catalogOpen: boolean
-  editorTool: EditorTool
   showFps: boolean
   /** Graphics quality tier. Auto-detected on boot, auto-downgraded by the
    *  adaptive performance monitor, and user-overridable from the toolbar. */
@@ -111,8 +105,6 @@ export interface UiSlice {
   exitRoomEditor: () => void
   setCatalogOpen: (open: boolean) => void
   toggleCatalogOpen: () => void
-  setEditorTool: (tool: EditorTool) => void
-  toggleEditorTool: () => void
   setShowFps: (show: boolean) => void
   toggleShowFps: () => void
   /** Manual tier change — clears overrides and marks qualityUserSet. */
@@ -146,7 +138,6 @@ export interface UiSlice {
 export const UI_INITIAL: Pick<
   UiSlice,
   | 'catalogOpen'
-  | 'editorTool'
   | 'showFps'
   | 'qualityTier'
   | 'qualityUserSet'
@@ -171,7 +162,6 @@ export const UI_INITIAL: Pick<
   | 'lastSavedAt'
 > = {
   catalogOpen: false,
-  editorTool: 'orbit',
   showFps: false,
   qualityTier: 'performance',
   qualityUserSet: false,
@@ -228,6 +218,10 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   exitRoomEditor: () => {
     const restore = priorTiers
     priorTiers = null
+    // Orbit/walk over the whole flat are view-only, so any selection made in
+    // the editor must clear — otherwise a stale Inspector/Finish picker would
+    // linger with no way to dismiss it (nothing is selectable outside the editor).
+    get().selectItem(null)
     set({
       roomEditor: { active: false, roomId: null },
       loading: { active: true, label: 'Exiting room…' },
@@ -238,9 +232,6 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   },
   setCatalogOpen: (open) => set({ catalogOpen: open }),
   toggleCatalogOpen: () => set((s) => ({ catalogOpen: !s.catalogOpen })),
-  setEditorTool: (tool) => set({ editorTool: tool }),
-  toggleEditorTool: () =>
-    set((s) => ({ editorTool: s.editorTool === 'orbit' ? 'select' : 'orbit' })),
   setShowFps: (show) => set({ showFps: show }),
   toggleShowFps: () => set((s) => ({ showFps: !s.showFps })),
   bumpMaterialEpoch: () => set((s) => ({ materialEpoch: s.materialEpoch + 1 })),

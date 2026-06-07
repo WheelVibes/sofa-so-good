@@ -1,9 +1,13 @@
 # Placing & arranging furniture
 
+> Furniture is placed and arranged **inside the [per‑room editor](/room-editor)**.
+> From the orbit overview, click the **Edit a room** button (or click a room's
+> floor) to start; the catalog and all editing tools live in there.
+
 ## The catalog
 
-Open the catalog with <kbd>C</kbd>. It's one **unified grid** that merges
-everything in one searchable place:
+Inside the room editor, open the catalog with <kbd>C</kbd>. It's one **unified
+grid** that merges everything in one searchable place:
 
 - built‑in parametric furniture and generated pieces,
 - your own uploaded models and imported IKEA products,

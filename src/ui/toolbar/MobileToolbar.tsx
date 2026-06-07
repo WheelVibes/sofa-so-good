@@ -140,7 +140,6 @@ export function MobileToolbar() {
   const versionsOpen = useStore((st) => st.versionsOpen)
   const historyOpen = useStore((st) => st.historyOpen)
   const clearancePanelOpen = useStore((st) => st.clearancePanelOpen)
-  const editorTool = useStore((st) => st.editorTool)
   const snapEnabled = useStore((st) => st.snapEnabled)
   const gridSize = useStore((st) => st.gridSize)
   const autoRotate = useStore((st) => st.autoRotate)
@@ -366,10 +365,18 @@ export function MobileToolbar() {
                 />
                 {!roomEditorActive && defaultEditRoomId ? (
                   <Item
-                    icon="FloorPlan"
+                    icon="Cube"
                     label="Edit a room"
-                    sub="Isolate a room to plan — pick which from the header"
+                    sub="Furnish + finish a room — pick which from the header"
                     onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
+                  />
+                ) : null}
+                {!roomEditorActive ? (
+                  <Item
+                    icon="FloorPlan"
+                    label="Floor plan editor"
+                    sub="Edit walls, rooms, doors & windows"
+                    onClick={act(() => s.getState().setFloorPlanEditing(true))}
                   />
                 ) : null}
                 <Item
@@ -483,154 +490,145 @@ export function MobileToolbar() {
                 </Section>
               ) : null}
 
-              {/* Edit */}
-              <Section id="edit" title="Edit" icon="Select" {...sectionProps}>
-                <Item
-                  icon={editorTool === 'select' ? 'Select' : 'Rotate'}
-                  label={`Tool: ${editorTool === 'select' ? 'Select' : 'Rotate'}`}
-                  on={editorTool === 'select'}
-                  onClick={act(
-                    () => s.getState().setEditorTool(editorTool === 'select' ? 'orbit' : 'select'),
-                    { keep: true },
-                  )}
-                />
-                <Item
-                  icon="Undo"
-                  label="Undo"
-                  disabled={!canUndo}
-                  onClick={act(() => s.getState().undo(), { keep: true })}
-                />
-                <Item
-                  icon="Redo"
-                  label="Redo"
-                  disabled={!canRedo}
-                  onClick={act(() => s.getState().redo(), { keep: true })}
-                />
-                <Item
-                  icon="Snap"
-                  label={`Snap to grid · ${gridLabel}`}
-                  on={snapEnabled}
-                  onClick={act(() => s.getState().toggleSnap(), { keep: true })}
-                />
-                {snapEnabled ? (
-                  <Item
-                    icon="Snap"
-                    label={`Grid size · ${gridLabel}`}
-                    sub="Tap to cycle"
-                    onClick={act(() => s.getState().cycleGridSize(), { keep: true })}
-                  />
-                ) : null}
-                <Item
-                  icon="Measure"
-                  label="Measurements"
-                  on={showMeasurements}
-                  onClick={act(() => s.getState().toggleMeasurements(), { keep: true })}
-                />
-              </Section>
+              {/* Edit / Design / Arrange — manual + bulk editing, only inside the
+                  per-room editor (the overview is view-only). */}
+              {roomEditorActive ? (
+                <>
+                  <Section id="edit" title="Edit" icon="Select" {...sectionProps}>
+                    <Item
+                      icon="Undo"
+                      label="Undo"
+                      disabled={!canUndo}
+                      onClick={act(() => s.getState().undo(), { keep: true })}
+                    />
+                    <Item
+                      icon="Redo"
+                      label="Redo"
+                      disabled={!canRedo}
+                      onClick={act(() => s.getState().redo(), { keep: true })}
+                    />
+                    <Item
+                      icon="Snap"
+                      label={`Snap to grid · ${gridLabel}`}
+                      on={snapEnabled}
+                      onClick={act(() => s.getState().toggleSnap(), { keep: true })}
+                    />
+                    {snapEnabled ? (
+                      <Item
+                        icon="Snap"
+                        label={`Grid size · ${gridLabel}`}
+                        sub="Tap to cycle"
+                        onClick={act(() => s.getState().cycleGridSize(), { keep: true })}
+                      />
+                    ) : null}
+                    <Item
+                      icon="Measure"
+                      label="Measurements"
+                      on={showMeasurements}
+                      onClick={act(() => s.getState().toggleMeasurements(), { keep: true })}
+                    />
+                  </Section>
 
-              {/* Design */}
-              <Section id="design" title="Design" icon="Catalog" {...sectionProps}>
-                <Item
-                  icon="Catalog"
-                  label="Catalog"
-                  on={catalogOpen && leftMode === 'catalog'}
-                  onClick={act(() => {
-                    s.getState().setLeftMode('catalog')
-                    s.getState().setCatalogOpen(true)
-                  })}
-                />
-                <Item
-                  icon="Layers"
-                  label="Objects / Layers"
-                  on={catalogOpen && leftMode === 'layers'}
-                  onClick={act(() => {
-                    s.getState().setLeftMode('layers')
-                    s.getState().setCatalogOpen(true)
-                  })}
-                />
-                <Item
-                  icon="Presets"
-                  label="Smart Start…"
-                  sub="Furnish every room"
-                  onClick={act(() => s.getState().setSmartStartOpen(true))}
-                />
-                <Item
-                  icon="Tidy"
-                  label="Tidy home"
-                  sub="Auto-arrange every room"
-                  onClick={act(tidyHome)}
-                />
-                <Item
-                  icon="FloorPlan"
-                  label="Floor plan editor"
-                  onClick={act(() => s.getState().setFloorPlanEditing(true))}
-                />
-              </Section>
+                  {/* Design */}
+                  <Section id="design" title="Design" icon="Catalog" {...sectionProps}>
+                    <Item
+                      icon="Catalog"
+                      label="Catalog"
+                      on={catalogOpen && leftMode === 'catalog'}
+                      onClick={act(() => {
+                        s.getState().setLeftMode('catalog')
+                        s.getState().setCatalogOpen(true)
+                      })}
+                    />
+                    <Item
+                      icon="Layers"
+                      label="Objects / Layers"
+                      on={catalogOpen && leftMode === 'layers'}
+                      onClick={act(() => {
+                        s.getState().setLeftMode('layers')
+                        s.getState().setCatalogOpen(true)
+                      })}
+                    />
+                    <Item
+                      icon="Presets"
+                      label="Smart Start…"
+                      sub="Furnish every room"
+                      onClick={act(() => s.getState().setSmartStartOpen(true))}
+                    />
+                    <Item
+                      icon="Tidy"
+                      label="Tidy home"
+                      sub="Auto-arrange every room"
+                      onClick={act(tidyHome)}
+                    />
+                  </Section>
 
-              {/* Arrange — sets / presets / styles */}
-              <Section id="arrange" title="Arrange" icon="Sets" {...sectionProps}>
-                <div className="m-sub-h">Sets</div>
-                {FURNITURE_SETS.map((set) => (
-                  <Item
-                    key={set.id}
-                    icon="Sets"
-                    label={set.name}
-                    onClick={act(() => dropBuiltinSet(set.id))}
-                  />
-                ))}
-                {recipes.map((r) => (
-                  <Item
-                    key={r.setKey}
-                    icon="Sets"
-                    label={r.setName}
-                    sub="IKEA set"
-                    onClick={act(() => dropIkeaSet(r.setKey))}
-                  />
-                ))}
-                <div className="m-sub-h">Presets</div>
-                {LAYOUT_PRESETS.map((p) => (
-                  <Item
-                    key={p.id}
-                    icon="Presets"
-                    label={p.name}
-                    sub={p.description}
-                    onClick={act(() => s.getState().applyLayoutPreset(p.id))}
-                  />
-                ))}
-                <div className="m-sub-h">Style</div>
-                {STYLE_PRESETS.map((p) => (
-                  <Item
-                    key={p.id}
-                    icon="Style"
-                    label={p.name}
-                    onClick={act(() =>
-                      applyStyle(p, s.getState().setFloorFinish, s.getState().setWallFinish),
-                    )}
-                  />
-                ))}
-                <div className="m-sub-h">My styles</div>
-                <Item
-                  icon="Style"
-                  label="Save current style…"
-                  onClick={act(async () => {
-                    const name = await s.getState().promptText({
-                      title: 'Save style',
-                      label: "Name this style (captures every room's finishes)",
-                      defaultValue: `My style ${userStyles.length + 1}`,
-                      submitLabel: 'Save',
-                    })
-                    if (name) s.getState().saveCurrentStyle(name)
-                  })}
-                />
-                {userStyles.map((st) => (
-                  <Item
-                    key={st.id}
-                    icon="Style"
-                    label={st.name}
-                    onClick={act(() => s.getState().applyUserStyle(st.id))}
-                  />
-                ))}
-              </Section>
+                  {/* Arrange — sets / presets / styles */}
+                  <Section id="arrange" title="Arrange" icon="Sets" {...sectionProps}>
+                    <div className="m-sub-h">Sets</div>
+                    {FURNITURE_SETS.map((set) => (
+                      <Item
+                        key={set.id}
+                        icon="Sets"
+                        label={set.name}
+                        onClick={act(() => dropBuiltinSet(set.id))}
+                      />
+                    ))}
+                    {recipes.map((r) => (
+                      <Item
+                        key={r.setKey}
+                        icon="Sets"
+                        label={r.setName}
+                        sub="IKEA set"
+                        onClick={act(() => dropIkeaSet(r.setKey))}
+                      />
+                    ))}
+                    <div className="m-sub-h">Presets</div>
+                    {LAYOUT_PRESETS.map((p) => (
+                      <Item
+                        key={p.id}
+                        icon="Presets"
+                        label={p.name}
+                        sub={p.description}
+                        onClick={act(() => s.getState().applyLayoutPreset(p.id))}
+                      />
+                    ))}
+                    <div className="m-sub-h">Style</div>
+                    {STYLE_PRESETS.map((p) => (
+                      <Item
+                        key={p.id}
+                        icon="Style"
+                        label={p.name}
+                        onClick={act(() =>
+                          applyStyle(p, s.getState().setFloorFinish, s.getState().setWallFinish),
+                        )}
+                      />
+                    ))}
+                    <div className="m-sub-h">My styles</div>
+                    <Item
+                      icon="Style"
+                      label="Save current style…"
+                      onClick={act(async () => {
+                        const name = await s.getState().promptText({
+                          title: 'Save style',
+                          label: "Name this style (captures every room's finishes)",
+                          defaultValue: `My style ${userStyles.length + 1}`,
+                          submitLabel: 'Save',
+                        })
+                        if (name) s.getState().saveCurrentStyle(name)
+                      })}
+                    />
+                    {userStyles.map((st) => (
+                      <Item
+                        key={st.id}
+                        icon="Style"
+                        label={st.name}
+                        onClick={act(() => s.getState().applyUserStyle(st.id))}
+                      />
+                    ))}
+                  </Section>
+                </>
+              ) : null}
 
               {/* Tools (advanced — hidden in Simple mode) */}
               {proMode ? (

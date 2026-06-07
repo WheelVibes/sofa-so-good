@@ -16,6 +16,7 @@ import {
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
+import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W, WALLS } from '../constants'
 import type { RoomId, WallSpec } from '../types'
@@ -294,6 +295,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   )
   const selectWall = useStore((s) => s.selectWall)
   const selectedWall = useStore((s) => s.selectedWall)
+  // Accent-wall finishing is editing, so it's only reachable inside the room
+  // editor (orbit). Outside it, wall-face clicks do nothing (view-only).
+  const selectWallIfEditing = (wallId: string, roomId: RoomId) => {
+    if (canEditScene(useStore.getState())) selectWall(wallId, roomId)
+  }
 
   return (
     <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
@@ -350,7 +356,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                       sign={1}
                       materialId={positiveMat}
                       onSelect={
-                        span.positive ? () => selectWall(wall.id, span.positive!) : undefined
+                        span.positive
+                          ? () => selectWallIfEditing(wall.id, span.positive!)
+                          : undefined
                       }
                     />
                   </Suspense>
@@ -383,7 +391,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                       sign={-1}
                       materialId={negativeMat}
                       onSelect={
-                        span.negative ? () => selectWall(wall.id, span.negative!) : undefined
+                        span.negative
+                          ? () => selectWallIfEditing(wall.id, span.negative!)
+                          : undefined
                       }
                     />
                   </Suspense>

@@ -14,7 +14,6 @@ const SHORTCUTS: [string, string][] = [
   ['Select all', '⌘A'],
   ['Cycle selection', '[ ]'],
   ['Nudge selection', '↑ ↓ ← →'],
-  ['Move / camera tool', 'G'],
   ['Delete', 'Del'],
   ['Measurements', 'M'],
   ['Tidy room', 'L'],
@@ -27,8 +26,13 @@ const SHORTCUTS: [string, string][] = [
 ]
 
 const TIPS: [string, string][] = [
-  ['Drag a catalog card onto the floor to place it — press R while dragging to rotate.'],
-  ['Click a wall or the floor to repaint or refinish it from the picker.'],
+  [
+    'Editing happens in the room editor — click a room’s floor (or the Edit a room button) to start.',
+  ],
+  [
+    'Inside a room, drag a catalog card onto the floor to place it — press R while dragging to rotate.',
+  ],
+  ['Inside a room, click a wall or the floor to repaint or refinish it from the picker.'],
   ['Switch to Walk to feel the scale of the flat at eye level.'],
   ['Open the Appearance menu to switch between the four themes and light / dark.'],
   ['Rename any object from the inspector — the name shows in the Objects list.'],

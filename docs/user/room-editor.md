@@ -1,8 +1,15 @@
 # Per‑room editor
 
-When you want to focus on a single room without the rest of the flat in the way,
-use the per‑room editor. Open it from the toolbar **View** menu — there's an
-**"Edit room: …"** entry for each room.
+The per‑room editor is **where you do all your editing** — placing furniture,
+moving and rotating it, customizing pieces, and finishing floors and walls. The
+orbit overview and walk mode are view‑only, so you always design *inside* a room.
+
+Open it in any of these ways:
+
+- Click the **Edit a room** button in the toolbar (dives into a room; switch
+  rooms from the dropdown that appears beside it).
+- **Click any room's floor** in the orbit overview to jump straight into that room.
+- On mobile, open the menu → **View** → **Edit a room**.
 
 
 ## What it does
@@ -12,10 +19,10 @@ use the per‑room editor. Open it from the toolbar **View** menu — there's an
   you can always see in.
 - **Frames the room** automatically on enter, and switches room when you pick a
   different one.
-- **Full editing** — placing, dragging, measuring, and walking all work exactly
-  as in the full flat, on the same furniture.
+- **Full editing** — placing, dragging, rotating, measuring, and finishing all
+  happen here, on the same furniture that makes up the whole flat.
 - **Bounded walk** — in walk mode you're confined to the room (an open door is
-  still a gap).
+  still a gap), and walk stays view‑only.
 
 For a fast, fluid editing experience the room editor pins the **Performance**
 render tier and **Original**‑quality assets while it's active, restoring your

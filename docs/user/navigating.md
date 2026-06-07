@@ -1,17 +1,21 @@
 # Navigating the flat
 
 There are two ways to look around: an **orbit** (dollhouse) view and a
-first‑person **walk**. Toggle between them with <kbd>V</kbd>.
+first‑person **walk**. Toggle between them with <kbd>V</kbd>. **Both are
+view‑only** — they're for *looking*, not editing. All furnishing and
+customizing happens inside the [per‑room editor](/room-editor) (open it with the
+**Edit a room** button, or just **click a room's floor** in the overview).
 
 
 ## Orbit view
 
-The default. You look at the whole flat from outside and above.
+The default. You look at the whole flat from outside and above — a calm
+dollhouse view for getting your bearings and presenting the design.
 
 - **Drag** to orbit around the flat.
 - **Scroll** to zoom in and out.
 - **Right‑drag** (or <kbd>Shift</kbd> + two‑finger scroll) to pan.
-- **Double‑click** any piece to smoothly focus the camera on it.
+- **Click a room's floor** to dive into the per‑room editor for that room.
 - Exterior walls between you and the interior fade out automatically so you can
   always see inside.
 

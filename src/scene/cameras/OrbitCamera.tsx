@@ -56,7 +56,13 @@ function topFraming(plan: FloorPlan): Pose {
 }
 
 export function OrbitCamera() {
-  const editorTool = useStore((s) => s.editorTool)
+  // The orbit camera is frozen only while directly manipulating furniture (an
+  // item drag or a rotate-gizmo gesture) so the gesture doesn't also spin the
+  // view — camera and editing now share the orbit camera in the room editor.
+  // Click-drag on empty space always orbits; nothing is "select mode" anymore.
+  const draggingItemId = useStore((s) => s.draggingItemId)
+  const rotatingGizmo = useStore((s) => s.rotatingGizmo)
+  const controlsEnabled = !draggingItemId && !rotatingGizmo
   const autoRotate = useStore((s) => s.autoRotate)
   const { camera, gl } = useThree()
   const controlsRef = useRef<OrbitControlsImpl>(null)
@@ -235,7 +241,6 @@ export function OrbitCamera() {
 
     const onWheel = (e: WheelEvent) => {
       if (!e.shiftKey) return
-      if (editorTool !== 'orbit') return
       const controls = controlsRef.current
       if (!controls) return
       e.preventDefault()
@@ -275,16 +280,16 @@ export function OrbitCamera() {
     return () => {
       dom.removeEventListener('wheel', onWheel, { capture: true })
     }
-  }, [camera, gl, editorTool])
+  }, [camera, gl])
 
-  // In select mode the camera is frozen so click-drag can move furniture
-  // (and click-drag on empty space does nothing). makeDefault is kept so
-  // the controls are still the default camera controls when re-enabled.
+  // Frozen only during a furniture drag / gizmo gesture (see controlsEnabled);
+  // otherwise the camera orbits, zooms, pans and tilts freely. makeDefault is
+  // kept so these stay the default camera controls when re-enabled.
   return (
     <OrbitControls
       ref={controlsRef}
       makeDefault
-      enabled={editorTool === 'orbit'}
+      enabled={controlsEnabled}
       autoRotate={autoRotate}
       autoRotateSpeed={0.6}
       enableDamping

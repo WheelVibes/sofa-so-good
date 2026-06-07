@@ -46,8 +46,8 @@ export function Toolbar() {
         .filter((r) => !r.external)
         .map((r) => ({ id: r.id as string, name: r.name }))
     : floorPlan.rooms.map((r) => ({ id: r.id, name: r.name }))
-  const editorTool = useStore((s) => s.editorTool)
-  const setEditorTool = useStore((s) => s.setEditorTool)
+  // Default room the prominent "Edit a room" button dives into.
+  const editRoomId = roomOptions[0]?.id
   const catalogOpen = useStore((s) => s.catalogOpen)
   const toggleCatalogOpen = useStore((s) => s.toggleCatalogOpen)
   const showMeasurements = useStore((s) => s.showMeasurements)
@@ -64,6 +64,7 @@ export function Toolbar() {
   const cycleLightsMode = useStore((s) => s.cycleLightsMode)
   const qualityTier = useStore((s) => s.qualityTier)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  const toggleFloorPlanEditing = useStore((s) => s.toggleFloorPlanEditing)
 
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const helpOpen = useStore((s) => s.helpOpen)
@@ -173,23 +174,15 @@ export function Toolbar() {
         <CameraControl mode={cameraMode} setMode={setCameraMode} />
 
         {/* Scene (time / lighting moods / sun) stays available in Walk too, so
-            you can experience the room at different times of day while walking. */}
+            you can experience the flat at different times of day while walking. */}
         {!roomEditorActive && <SceneMenu />}
 
-        {orbit && (
+        {/* EDIT MODE — inside the per-room editor (orbit): every editing cluster
+            lives here now. Selection/placement/finishes only happen in here. */}
+        {roomEditorActive && orbit && (
           <>
             <Divider />
-            <ViewMenu />
-
-            <Divider />
             {/* Edit */}
-            <IconButton
-              icon={editorTool === 'select' ? 'Select' : 'Rotate'}
-              label={`Tool: ${editorTool === 'select' ? 'Select' : 'Rotate'}`}
-              shortcut={shortcutLabel('toggleEditorTool')}
-              active={editorTool === 'select'}
-              onClick={() => setEditorTool(editorTool === 'select' ? 'orbit' : 'select')}
-            />
             <IconButton
               icon="Undo"
               label="Undo"
@@ -237,7 +230,43 @@ export function Toolbar() {
               onClick={toggleCatalogOpen}
             />
             <ArrangeMenu />
-            {!roomEditorActive && proMode && <ToolsMenu />}
+
+            <Divider />
+            <IconButton
+              icon="Quality"
+              label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+              onClick={() => setGraphicsOpen(true)}
+            />
+
+            <Divider />
+            <FileMenu />
+          </>
+        )}
+
+        {/* VIEW MODE — orbit over the whole flat (not editing): camera/scene
+            controls plus the prominent entry into the room editor. */}
+        {orbit && !roomEditorActive && (
+          <>
+            <Divider />
+            <ViewMenu />
+
+            <Divider />
+            {/* Primary editing entry: dive into a room to furnish + finish it. */}
+            <IconButton
+              icon="Cube"
+              label="Edit a room"
+              active={false}
+              onClick={() => editRoomId && enterRoomEditor(editRoomId)}
+            />
+            {/* Structural shell editor (walls/rooms/openings) — a whole-flat,
+                non-furniture surface, so it stays reachable from the overview. */}
+            <IconButton
+              icon="FloorPlan"
+              label="Floor plan"
+              active={false}
+              onClick={toggleFloorPlanEditing}
+            />
+            {proMode && <ToolsMenu />}
 
             <Divider />
             {/* Render */}
@@ -246,14 +275,12 @@ export function Toolbar() {
               label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
               onClick={() => setGraphicsOpen(true)}
             />
-            {!roomEditorActive && (
-              <IconButton
-                icon="Lights"
-                label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
-                active={lightsMode !== 'auto'}
-                onClick={cycleLightsMode}
-              />
-            )}
+            <IconButton
+              icon="Lights"
+              label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
+              active={lightsMode !== 'auto'}
+              onClick={cycleLightsMode}
+            />
 
             <Divider />
             <FileMenu />

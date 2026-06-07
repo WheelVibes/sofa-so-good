@@ -39,6 +39,11 @@ export interface PlacementSlice {
   /** Live gap (metres) from the dragged item to the nearest wall, or null. */
   dragClearance: number | null
   setDragClearance: (gap: number | null) => void
+  /** True while a rotate-gizmo gesture is in progress. The orbit camera is
+   *  frozen during it (and during an item drag) so the gesture doesn't also
+   *  spin the view — the view/edit split means camera + edit share orbit. */
+  rotatingGizmo: boolean
+  setRotatingGizmo: (v: boolean) => void
   setActiveDefId: (id: string | null) => void
   setCursor: (cursor: { x: number; y: number } | null) => void
   setGhostWorld: (pos: [number, number] | null, valid: boolean) => void
@@ -66,6 +71,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'dragGroupOriginals'
   | 'dragGuides'
   | 'dragClearance'
+  | 'rotatingGizmo'
 > = {
   activeDefId: null,
   cursor: null,
@@ -78,6 +84,7 @@ export const PLACEMENT_INITIAL: Pick<
   dragGroupOriginals: [],
   dragGuides: [],
   dragClearance: null,
+  rotatingGizmo: false,
 }
 
 export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (set, get) => ({
@@ -102,6 +109,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
   setDragValid: (valid) => set({ dragValid: valid }),
   setDragGuides: (dragGuides) => set({ dragGuides }),
   setDragClearance: (dragClearance) => set({ dragClearance }),
+  setRotatingGizmo: (rotatingGizmo) => set({ rotatingGizmo }),
   endDrag: () =>
     set({
       draggingItemId: null,

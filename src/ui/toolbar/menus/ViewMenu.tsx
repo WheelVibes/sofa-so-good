@@ -1,29 +1,19 @@
-import { ROOMS } from '../../../apartment/constants'
-import { isDefaultPlan } from '../../../floorplan/planGeometry'
 import { useStore } from '../../../state/store'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 import { SavedViewsSection } from './SavedViewsSection'
 
-/** View cluster: top-down view, reset to 3D overview, turntable auto-orbit,
- *  and a single "Edit a room" entry (isolate one room, IKEA-planner style;
- *  the room is then switched in place from the toolbar's room dropdown). */
+/** View cluster (orbit overview, view-only): top-down view, reset to the 3D
+ *  overview, turntable auto-orbit, and saved camera views. Entering a room to
+ *  edit is the dedicated "Edit a room" toolbar button, not a menu item. */
 export function ViewMenu() {
   const requestTopView = useStore((s) => s.requestTopView)
   const requestHomeView = useStore((s) => s.requestHomeView)
   const autoRotate = useStore((s) => s.autoRotate)
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
-  const enterRoomEditor = useStore((s) => s.enterRoomEditor)
-  const roomEditorActive = useStore((s) => s.roomEditor.active)
-  // First editable room of the ACTIVE plan: default apartment → first
-  // non-external ROOMS room; custom plan → its first room.
-  const plan = useStore((s) => s.floorPlan)
   const proMode = useStore((s) => s.uiMode === 'pro')
-  const firstRoomId = isDefaultPlan(plan)
-    ? Object.values(ROOMS).find((r) => !r.external)?.id
-    : plan.rooms[0]?.id
   return (
-    <ToolbarMenu icon="TopView" label="View" active={autoRotate || roomEditorActive}>
+    <ToolbarMenu icon="TopView" label="View" active={autoRotate}>
       <MenuItem
         icon="TopView"
         label={`Top view${chip(shortcutLabel('topView'))}`}
@@ -43,18 +33,6 @@ export function ViewMenu() {
         active={autoRotate}
         onClick={toggleAutoRotate}
       />
-      {firstRoomId && proMode ? (
-        <>
-          <div className="my-1 border-t border-[var(--border)]" />
-          <MenuItem
-            icon="FloorPlan"
-            label="Edit a room"
-            sub="Isolate a room — switch from the toolbar"
-            active={roomEditorActive}
-            onClick={() => enterRoomEditor(firstRoomId)}
-          />
-        </>
-      ) : null}
       {proMode ? <SavedViewsSection /> : null}
     </ToolbarMenu>
   )

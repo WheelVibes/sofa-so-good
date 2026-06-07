@@ -342,6 +342,14 @@ Remaining (larger / focused-session):
 - [x] B33. **City backdrop centres on the active plan** (was default-flat-only). Default offset proven (0,0); custom verified. (CHANGELOG)
 - [ ] B34/minor. **Lighting shadow frustum** is centred on the default apartment (`Lighting.tsx` CENTER) + fixed 9.5m half-extent — covers typical near-origin custom plans but a far-offset/oversized custom plan could miss sun shadows (Medium+ tiers only; default tier has none). Make CENTER+half-extent plan-aware; needs a real-GPU shadow-coverage check.
 
+## User-requested revamp (2026-06-07)
+- [x] VE1. **View/edit split** — orbit + walk are view-only; all selection/
+  picking/editing/customization moved into the per-room editor; removed the
+  select-vs-rotate `editorTool`; camera frozen only during drag/gizmo;
+  Edit-a-room button + click-a-room-floor entry; toolbars (desktop + mobile)
+  restructured into overview / editor / walk states; catalog gated to the editor;
+  2D plan editor untouched. Desktop + mobile verified. (CHANGELOG)
+
 ## User-requested features (2026-06-07)
 - [x] N27. **Selectable 3D backdrops** (City/Park/Hills/Studio) — Scene menu + mobile, persisted. Replaces the "cluttered/boring" buildings-only backdrop. E2E-verified. (CHANGELOG)
 - [x] N28. **Simple/Pro UI mode toggle** — Simple hides Tools menu + floor-plan editor; Appearance popover toggle, persisted; default Pro. E2E-verified. (CHANGELOG)

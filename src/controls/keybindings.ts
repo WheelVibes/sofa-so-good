@@ -18,7 +18,6 @@ export const KEYBINDINGS = {
   redo: 'KeyY', // Ctrl/Cmd+Y   (also Ctrl/Cmd+Shift+Z via undo)
   deselect: 'Escape',
   toggleCatalog: 'KeyC',
-  toggleEditorTool: 'KeyG', // G: toggle select / orbit-camera tool
   topView: 'KeyO', // O: top-down plan view
   resetView: 'KeyH', // H: reset to the 3D overview (Home)
   tidyHome: 'KeyL', // L: auto-arrange every room (cLeanup)

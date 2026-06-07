@@ -7,6 +7,7 @@ import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { useCatalog } from '../../furniture/catalog'
+import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { priorityRaycast } from '../raycastPriority'
 import {
@@ -67,8 +68,7 @@ export function RotateGizmo() {
   const { camera, gl } = useThree()
   const catalog = useCatalog()
 
-  const cameraMode = useStore((s) => s.cameraMode)
-  const editorTool = useStore((s) => s.editorTool)
+  const editing = useStore(canEditScene)
   const draggingItemId = useStore((s) => s.draggingItemId)
   const activeDefId = useStore((s) => s.activeDefId)
   // Live selected (unlocked) items — re-renders when their transform changes.
@@ -132,8 +132,7 @@ export function RotateGizmo() {
     }
   }, [selected, catalog])
 
-  const visible =
-    cameraMode === 'orbit' && editorTool === 'select' && !draggingItemId && !activeDefId && !!geom
+  const visible = editing && !draggingItemId && !activeDefId && !!geom
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: ndc/raycaster/hitPoint are stable refs; gesture is a mutable ref read lazily; re-binding per render would thrash listeners.
   useEffect(() => {
@@ -211,6 +210,7 @@ export function RotateGizmo() {
       }
       gesture.current = null
       setRotating(false)
+      useStore.getState().setRotatingGizmo(false)
       setValid(true)
       setLive(null)
     }
@@ -244,6 +244,7 @@ export function RotateGizmo() {
     setValid(true)
     setLive(single ? targets[0].rotation : 0)
     setRotating(true)
+    useStore.getState().setRotatingGizmo(true)
   }
 
   // Readout: single → absolute heading; group → signed turn applied.

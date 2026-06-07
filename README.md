@@ -65,14 +65,17 @@ export the result — all in the browser.
   **controls banner** greets you on entry with the right hints for your device,
   and a live **minimap** (bottom-right) shows where you are and which room
   you're in.
+- **View vs. edit** — the orbit (dollhouse) and walk views are **view-only**, for
+  looking and presenting; **all** furnishing, customizing and finishing happens
+  inside the **per-room editor**. Enter it with the prominent **Edit a room**
+  toolbar button, by **clicking a room's floor** in the overview, or ⌘K.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
-  plan its furniture (toolbar **View → Edit a room** or ⌘K, then switch rooms from
-  the dropdown that appears at the left of the toolbar; a **← exit button** or
-  **Esc** leaves; you can also jump straight in with **Edit in 3D** on a room in
-  the 2D plan editor). Works on the built-in flat **and any custom floor plan**.
-  It shows just that room's walls + floor + its own furniture,
-  with the camera-facing walls hidden so you always see in, supports orbit **and**
-  walk, and keeps the full catalog/placement/measurement tools. It's deliberately
+  plan its furniture (switch rooms from the dropdown beside the **← exit**
+  button; **Esc** leaves). Works on the built-in flat **and any custom floor
+  plan**. It shows just that room's walls + floor + its own furniture, with the
+  camera-facing walls hidden so you always see in, supports orbit **and** walk
+  (walk stays view-only), and holds the full catalog/placement/finish/measurement
+  tools. It's deliberately
   lightweight — locked to the fast Performance renderer with full-resolution
   models, and skips all the time-of-day/sun/shadow machinery.
 - **Editing** — drag to place (with optional **snap-to-grid** and alignment

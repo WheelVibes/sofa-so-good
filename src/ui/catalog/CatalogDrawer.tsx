@@ -49,6 +49,7 @@ function loadBrowsePrefs(): { active: CatalogCategory; sortBy: SortKey } {
 export function CatalogDrawer() {
   const open = useStore((s) => s.catalogOpen)
   const cameraMode = useStore((s) => s.cameraMode)
+  const roomEditorActive = useStore((s) => s.roomEditor.active)
   const setOpen = useStore((s) => s.setCatalogOpen)
   const leftMode = useStore((s) => s.leftMode)
   const setLeftMode = useStore((s) => s.setLeftMode)
@@ -92,7 +93,9 @@ export function CatalogDrawer() {
     setPage(0)
   }
 
-  if (!open || cameraMode !== 'orbit') return null
+  // Placing/customising furniture is editing, so the catalog only shows inside
+  // the per-room editor (orbit). Orbit-over-the-flat and walk are view-only.
+  if (!open || cameraMode !== 'orbit' || !roomEditorActive) return null
   const q = query.trim()
   // Fuzzy (typo-tolerant, ranked) search across the WHOLE catalog (local +
   // browsable CC0) when querying; otherwise the active category / favourites.

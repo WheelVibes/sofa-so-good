@@ -21,9 +21,11 @@
 | Time of day | <kbd>T</kbd> |
 | Measurements | <kbd>M</kbd> |
 | Tidy room | <kbd>L</kbd> |
-| Select / orbit tool | <kbd>G</kbd> |
 
 ## Editing a selection
+
+These work **inside the [per‑room editor](/room-editor)** only — the orbit
+overview and walk mode are view‑only.
 
 | Action | Shortcut |
 | --- | --- |

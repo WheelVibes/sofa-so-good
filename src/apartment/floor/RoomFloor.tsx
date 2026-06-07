@@ -15,6 +15,7 @@ import {
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
+import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import type { RoomId } from '../types'
 
@@ -42,11 +43,18 @@ function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
   const onClick = useCallback(
     (e: ThreeEvent<MouseEvent>) => {
       const state = useStore.getState()
-      // Walk mode and rotate-tool are view-only — don't open finishes.
-      if (state.cameraMode !== 'orbit') return
-      if (state.editorTool !== 'select') return
-      e.stopPropagation()
-      selectRoom(roomId)
+      if (canEditScene(state)) {
+        // Inside the room editor: clicking the floor opens the finish picker.
+        e.stopPropagation()
+        selectRoom(roomId)
+        return
+      }
+      // View-only orbit over the whole flat: clicking a room dives into its
+      // editor (the primary way to start editing). Walk mode does nothing.
+      if (state.cameraMode === 'orbit' && !state.roomEditor.active) {
+        e.stopPropagation()
+        state.enterRoomEditor(roomId)
+      }
     },
     [roomId, selectRoom],
   )

@@ -16,6 +16,7 @@ import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
 import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
+import { canEditScene } from './state/editing'
 import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
@@ -333,25 +334,8 @@ export default function App() {
   const onKey = useCallback(
     (code: string, e: KeyboardEvent) => {
       const mod = e.ctrlKey || e.metaKey
-      // Undo/redo: handle before any other mod-key path so they work
-      // regardless of camera mode and selection state.
-      if (mod && code === KEYBINDINGS.undo) {
-        e.preventDefault()
-        if (e.shiftKey) useStore.getState().redo()
-        else useStore.getState().undo()
-        return
-      }
-      if (mod && code === KEYBINDINGS.redo) {
-        e.preventDefault()
-        useStore.getState().redo()
-        return
-      }
-      // Escape leaves the per-room editor first (before it clears selection).
-      if (code === KEYBINDINGS.deselect && useStore.getState().roomEditor.active) {
-        useStore.getState().exitRoomEditor()
-        return
-      }
-      if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
+
+      // --- View / global keys (work in any mode) ---
       if (!mod && code === KEYBINDINGS.toggleCameraMode) {
         setCameraMode(cameraMode === 'orbit' ? 'firstPerson' : 'orbit')
       }
@@ -362,22 +346,55 @@ export default function App() {
         const { nearbyDoorId, toggleDoor } = useStore.getState()
         if (nearbyDoorId) toggleDoor(nearbyDoorId)
       }
+      if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
 
-      // Editor-only keys: scoped to orbit mode so first-person walking
-      // doesn't accidentally delete or rotate the player's selection.
-      if (cameraMode !== 'orbit') return
+      // Escape: cancel the tape tool, then clear any selection, then leave the
+      // per-room editor — so one key walks all the way back out to the overview.
+      if (code === KEYBINDINGS.deselect) {
+        const st = useStore.getState()
+        if (st.tapeMode) {
+          st.toggleTapeMode()
+          return
+        }
+        if (
+          st.selectedItemId ||
+          st.selectedItemIds.length > 0 ||
+          st.selectedRoomId ||
+          st.selectedWall
+        ) {
+          st.selectItem(null)
+          return
+        }
+        if (st.roomEditor.active) st.exitRoomEditor()
+        return
+      }
+
+      // Camera framing is available in any orbit view (whole-flat overview or
+      // room editor) — it's navigation, not editing.
+      if (cameraMode === 'orbit') {
+        if (!mod && code === KEYBINDINGS.topView) useStore.getState().requestTopView()
+        if (!mod && code === KEYBINDINGS.resetView) useStore.getState().requestHomeView()
+      }
+
+      // --- Editing keys: only inside the per-room editor (orbit camera). The
+      // whole-flat orbit overview and walk mode are view-only. ---
+      if (!canEditScene(useStore.getState())) return
       const state = useStore.getState()
+      if (mod && code === KEYBINDINGS.undo) {
+        e.preventDefault()
+        if (e.shiftKey) state.redo()
+        else state.undo()
+        return
+      }
+      if (mod && code === KEYBINDINGS.redo) {
+        e.preventDefault()
+        state.redo()
+        return
+      }
       if (!mod && code === KEYBINDINGS.toggleCatalog) {
         state.toggleCatalogOpen()
       }
-      if (!mod && code === KEYBINDINGS.topView) state.requestTopView()
-      if (!mod && code === KEYBINDINGS.resetView) state.requestHomeView()
       if (!mod && code === KEYBINDINGS.tidyHome) tidyHome()
-      if (code === KEYBINDINGS.deselect) {
-        // Esc backs out of the tape-measure tool first; otherwise deselects.
-        if (state.tapeMode) state.toggleTapeMode()
-        else state.selectItem(null)
-      }
       if (code === KEYBINDINGS.deleteSelected && state.selectedItemIds.length > 0) {
         // Snapshot ids before deleting — deleteItem mutates the set as it goes.
         // Locked items are skipped (pinned).
@@ -486,9 +503,6 @@ export default function App() {
           }
         }
       }
-      if (code === KEYBINDINGS.toggleEditorTool) {
-        state.toggleEditorTool()
-      }
     },
     [toggleMeasurements, cameraMode, setCameraMode, catalog, pasteClipboard, duplicateSelection],
   )
@@ -526,7 +540,7 @@ export default function App() {
       rafId = requestAnimationFrame(tick)
       if (held.size === 0) return
       const state = useStore.getState()
-      if (state.cameraMode !== 'orbit' || state.selectedItemIds.length === 0) return
+      if (!canEditScene(state) || state.selectedItemIds.length === 0) return
       const movingIds = state.selectedItemIds
       const movingItems = state.items.filter((i) => movingIds.includes(i.id) && !i.locked)
       if (movingItems.length === 0) return
@@ -592,7 +606,7 @@ export default function App() {
         return
       }
       if (!Object.hasOwn(dirs, e.code)) return
-      if (useStore.getState().cameraMode !== 'orbit') return
+      if (!canEditScene(useStore.getState())) return
       e.preventDefault()
       // First key in a nudge session: snapshot the pre-nudge transform so
       // the entire press-and-hold collapses into a single undo step.

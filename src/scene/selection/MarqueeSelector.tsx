@@ -4,6 +4,7 @@ import { type Camera, Vector3 } from 'three'
 import { obbCorners } from '../../collision/obb'
 import { itemFootprint } from '../../collision/placement'
 import { useCatalogGetter } from '../../furniture/catalog'
+import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { marqueeHitsScreenPoints } from './marqueeHit'
 
@@ -66,8 +67,7 @@ export function MarqueeSelector() {
     const onDown = (e: PointerEvent) => {
       if (e.button !== 0) return
       const state = useStore.getState()
-      if (state.cameraMode !== 'orbit') return
-      if (state.editorTool !== 'select') return
+      if (!canEditScene(state)) return
       if (state.activeDefId) return
       pending = { x: e.clientX, y: e.clientY, shift: e.shiftKey }
     }

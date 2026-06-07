@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { planBounds } from '../floorplan/types'
+import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
 import { useDisposeGeometry } from './geometryUtil'
 
@@ -12,6 +13,7 @@ import { useDisposeGeometry } from './geometryUtil'
  */
 export function GridOverlay() {
   const snapEnabled = useStore((s) => s.snapEnabled)
+  const editing = useStore(canEditScene)
   const gridSize = useStore((s) => s.gridSize)
   const plan = useStore((s) => s.floorPlan)
   const [boundW, boundD] = useMemo(() => planBounds(plan), [plan])
@@ -44,7 +46,7 @@ export function GridOverlay() {
   useDisposeGeometry(minor)
   useDisposeGeometry(major)
 
-  if (!snapEnabled) return null
+  if (!snapEnabled || !editing) return null
   return (
     <group position={[0, 0.02, 0]}>
       <lineSegments geometry={minor} renderOrder={3}>

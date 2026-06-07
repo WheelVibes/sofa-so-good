@@ -42,6 +42,42 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [VE1] View/edit split — orbit & walk are view-only, editing is room-editor-only
+
+Reworked the core interaction model per request. **Orbit-over-the-whole-flat and
+walk are now strictly view-only** (camera rotate/zoom/pan/tilt + first-person
+movement); **all** selection, picking, dragging, rotating, context-menu,
+placement and floor/wall finishing happen **only inside the per-room editor**.
+The old select-vs-rotate **tool toggle is gone** (`editorTool` removed end-to-end).
+
+- **One rule, one helper**: `state/editing.ts` `canEditScene(s) =
+  s.roomEditor.active && s.cameraMode === 'orbit'` now gates every interaction —
+  `Furniture` (click/drag/hover/double-click/context-menu), `MarqueeSelector`,
+  `RotateGizmo` visibility, `GridOverlay`, wall-face + floor clicks, and the
+  editing keyboard shortcuts + arrow-nudge in `App` (undo/redo included, per
+  request). View/navigation keys (V/O/H/T/M, door interact) still work anywhere.
+- **Camera vs. drag**: with no "select mode" to freeze the camera, `OrbitCamera`
+  now disables OrbitControls only *during* an item drag or a gizmo gesture
+  (`draggingItemId` / new `placementSlice.rotatingGizmo`), so click-drag on
+  furniture moves it while click-drag on empty space orbits — both coexist in the
+  editor.
+- **Entering edit**: a prominent **Edit a room** toolbar button (desktop + mobile
+  View accordion), **and clicking a room's floor** in the overview dives into that
+  room's editor (navigation, not picking). Leaving the editor clears the
+  selection so no stale Inspector lingers in the view-only overview.
+- **Toolbars** (desktop `Toolbar` + `MobileToolbar`): three states — **overview**
+  (View, Edit-a-room, Floor plan, analysis Tools, graphics/lights/file),
+  **room editor** (exit + room switcher, undo/redo, snap/grid, Measure, Catalog,
+  Arrange, graphics, file), **walk** (camera + Scene only). The Catalog drawer is
+  gated to the room editor too. The 2D floor-plan editor is **unchanged** and
+  stays reachable from the overview.
+
+Verified on desktop + mobile (390px): overview is view-only with the catalog
+hidden even when forced open; clicking a room / the Edit button opens the editor
+with the full editing toolbar + catalog + isolated 3D room; the mobile sheet
+shows Edit/Design/Arrange only inside the editor. 878 tests green (toolbar test
+updated to the new model); tsc + lint clean.
+
 ## [P-aux] Stop closed aux panels doing per-edit work
 
 The `ClearancePanel` and `HistoryPanel` stay mounted (so they can animate
