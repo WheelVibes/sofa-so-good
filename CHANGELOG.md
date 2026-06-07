@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N28e] Hide the catalog's Packs tab in Simple mode
+
+The catalog's **Packs** tab (downloadable-content installs — API keys, hosted
+archives) is advanced, so Simple mode now shows just **Catalog / Layers**; Pro
+keeps Packs. The `uiMode` read is placed with the other hooks (above the
+drawer's early return) to respect the rules of hooks. E2E-verified: the catalog
+opens cleanly with two tabs in Simple.
+
 ## [N30d] Tour spotlights the hamburger on mobile
 
 On mobile the desktop toolbar targets live inside the hamburger sheet, so the

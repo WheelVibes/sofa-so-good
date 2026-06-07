@@ -56,6 +56,9 @@ export function CatalogDrawer() {
   const setActiveDefId = useStore((s) => s.setActiveDefId)
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
+  // Packs (downloadable-content installs) is advanced — hidden in Simple mode.
+  // Read here (with the other hooks) so it stays above the early return below.
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const unified = useUnifiedCatalog()
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
@@ -115,7 +118,7 @@ export function CatalogDrawer() {
   // One flat tab row: the catalog grid, the Objects/Layers tree (store-level
   // `leftMode`, shared with the command palette + mobile toolbar), and Packs.
   const view: 'catalog' | 'layers' | 'packs' =
-    leftMode === 'layers' ? 'layers' : mode === 'packs' ? 'packs' : 'catalog'
+    leftMode === 'layers' ? 'layers' : mode === 'packs' && proMode ? 'packs' : 'catalog'
   const selectView = (v: 'catalog' | 'layers' | 'packs') => {
     if (v === 'layers') {
       setLeftMode('layers')
@@ -174,7 +177,7 @@ export function CatalogDrawer() {
           [
             ['catalog', 'Catalog'],
             ['layers', 'Layers'],
-            ['packs', 'Packs'],
+            ...(proMode ? ([['packs', 'Packs']] as const) : []),
           ] as const
         ).map(([v, label]) => (
           <button

@@ -348,3 +348,4 @@ Remaining (larger / focused-session):
 - [x] N30b. **Tour auto-starts on first visit** (gated hdb_tour_done; supersedes onboarding carousel) + replay from Help + ⌘K. E2E-verified. (CHANGELOG)
 - [x] N30c. **Tour scrolls target into view** — scrollIntoView once per step (narrow-desktop toolbar scroll); no listener loop. Verified 980px. (CHANGELOG)
 - [x] N30d. **Tour spotlights hamburger on mobile** — menu-step targets fall back to ☰ when hidden; no-target steps centre. Verified 390px. (CHANGELOG)
+- [x] N28e. **Hide catalog Packs tab in Simple** — Catalog/Layers only; Pro keeps Packs. (uiMode hook above the early return.) E2E-verified. (CHANGELOG)
