@@ -18,9 +18,13 @@ Open it in any of these ways:
   footprint, and each wall hides itself when the camera is on its outer side so
   you can always see in.
 - **Frames the room** automatically on enter, and switches room when you pick a
-  different one.
+  different one from the toolbar **room dropdown** — which shows a **furniture
+  count** per room so you can see at a glance which rooms still need work. Press
+  <kbd>,</kbd> / <kbd>.</kbd> to jump to the previous / next room without the menu.
 - **Full editing** — placing, dragging, rotating, measuring, and finishing all
-  happen here, on the same furniture that makes up the whole flat.
+  happen here, on the same furniture that makes up the whole flat. An empty room
+  shows a prompt to open the catalog; click a room's floor for the finish picker,
+  which also has a **Clear room** button to wipe its furniture and start over.
 - **Bounded walk** — in walk mode you're confined to the room (an open door is
   still a gap), and walk stays view‑only.
 

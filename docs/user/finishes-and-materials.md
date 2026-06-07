@@ -2,9 +2,12 @@
 
 ## Repaint a wall or refinish the floor
 
-1. Click any **wall** or the **floor** in orbit view.
-2. The **finish picker** opens with the available finishes.
+1. Inside the [per‑room editor](/room-editor), click any **wall** or the **floor**.
+2. The **finish picker** opens with the available finishes. Use the **search box**
+   to filter by name, and the **Recently used** row to re‑apply a finish you just
+   used (handy for the same floor across bedrooms).
 3. Pick one — it applies instantly to that surface (floors are per‑room).
+   **Apply floor / walls to all rooms** repeats it everywhere in one click.
 
 ![The finish picker open on a room](/screenshots/finish-picker.png)
 

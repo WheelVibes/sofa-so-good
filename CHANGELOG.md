@@ -54,6 +54,19 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [D1] Sync the user guide with recent features
+
+The deployed user guide had drifted behind a run of features. Updated it (and
+fixed two now-stale instructions): **keyboard-shortcuts** — added cycle-selection
+`[`/`]`, previous/next room `,`/`.`, catalog search `/`, and "exit room" on Esc;
+**room-editor** — the room dropdown's per-room furniture counts, `,`/`.` room
+cycling, the empty-room catalog prompt, and the finish picker's **Clear room**;
+**finishes-and-materials** — corrected "in orbit view" → inside the room editor,
+documented the finish **search** + **Recently used** row + apply-to-all-rooms;
+**design-tools** — described the report's furnished plan + by-room itemization;
+**floor-plan-editor** — the new custom-plan **Wall colour** control. Docs build
+clean (`docs:build`). No code change.
+
 ## [RE6] Wall colour for custom floor plans
 
 Custom-plan walls were a hardcoded off-white with no way to change them (the

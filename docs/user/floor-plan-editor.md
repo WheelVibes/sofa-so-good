@@ -61,11 +61,14 @@ Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
 any time with the **✕** next to the photo controls.
 
-## Ceiling height
+## Ceiling height & wall colour
 
 With nothing selected, the inspector shows a **Ceiling height** field — raise or
 lower it (2.2–4 m) and the whole home's walls and ceiling adjust in 3D.
 Bathrooms keep their lower dropped ceiling. The height is saved with your design.
+
+Below it, a **Wall colour** picker repaints every wall of a custom plan (Reset
+returns the default warm off‑white). It's saved with the plan too.
 
 ## Panning & zoom
 

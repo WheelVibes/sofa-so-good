@@ -56,4 +56,7 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 - **Share & export** — copy a shareable link or export a real **PNG snapshot** of
   the current view. *(Experimental: a "Make photoreal" option can restyle the
   snapshot via your own AI key.)*
-- **Report** — a printable summary of the design.
+- **Report** — a printable (save-as-PDF) summary: a hero render, a colour-keyed
+  **furnished floor plan** with a category legend, **furniture by room**
+  (itemized with quantities, prices, and each room's area), finishes per room, a
+  material palette, areas, and your design notes — a handoff-ready document.
