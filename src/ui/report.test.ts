@@ -43,6 +43,7 @@ describe('buildReportHtml', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'metric', finishes)
     expect(html).toContain('Finishes by room')
     expect(html).toMatch(/Oak|oak/) // the resolved floor material name
+    expect(html).toContain('class="msw"') // colour swatch chip next to the finish
   })
 
   it('omits the Finishes section when no finishes are supplied', () => {

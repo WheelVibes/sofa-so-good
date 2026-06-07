@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F23] Colour swatches in the report's "Finishes by room" table
+Each floor/wall finish now shows a colour chip beside its name (custom colour →
+itself, builtin → its swatch, unknown → none) so the table reads at a glance like
+the palette. Test + standalone render verified.
+
 ## [F22] Room W×D dimensions in the report's rooms table
 Rectangular rooms now list their width × depth alongside the area (a room-schedule
 detail); L-shape/polygon rooms show area only (a bbox would mislead). Test +

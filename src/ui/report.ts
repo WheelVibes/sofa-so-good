@@ -62,6 +62,19 @@ export function buildReportHtml(
   // ids fall back to the raw id). Only rendered when finishes are supplied.
   const matName = (id: string | undefined): string =>
     id ? (BUILTIN_MATERIALS[id]?.name ?? id) : '—'
+  // Chip colour for a finish id (custom colour → itself; builtin → its swatch;
+  // unknown/unset → none). Lets the finishes table read at a glance like the
+  // palette chips do.
+  const matSwatch = (id: string | undefined): string | null => {
+    if (!id) return null
+    if (id.startsWith('#')) return id
+    return BUILTIN_MATERIALS[id]?.swatch ?? null
+  }
+  const matCell = (id: string | undefined): string => {
+    const sw = matSwatch(id)
+    const chip = sw ? `<span class="msw" style="background:${esc(sw)}"></span>` : ''
+    return `${chip}${esc(matName(id))}`
+  }
   // Iterate the ACTIVE plan's rooms (not the default ROOMS constant) so custom
   // floor plans show their own rooms + finishes; skip only the default plan's
   // external (non-finishable) ledges. Finishes are keyed by room id.
@@ -72,7 +85,7 @@ export function buildReportHtml(
         .filter((r) => !ROOMS[r.id as keyof typeof ROOMS]?.external)
         .map(
           (r) =>
-            `<tr><td>${esc(r.name)}</td><td>${esc(matName(floorOf?.[r.id]))}</td><td>${esc(matName(wallOf?.[r.id]))}</td></tr>`,
+            `<tr><td>${esc(r.name)}</td><td>${matCell(floorOf?.[r.id])}</td><td>${matCell(wallOf?.[r.id])}</td></tr>`,
         )
         .join('')
     : ''
@@ -220,6 +233,7 @@ export function buildReportHtml(
   td { padding: 2px 0; }
   td.num { text-align: right; font-variant-numeric: tabular-nums; color: #374151; }
   td.dim { color: #9ca3af; font-variant-numeric: tabular-nums; font-size: 12px; padding-left: 12px; }
+  .msw { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; border: 1px solid rgba(0,0,0,.12); }
   tr.cat td { font-weight: 600; padding-top: 8px; }
   td.indent { padding-left: 12px; color: #4b5563; }
   .total { display: flex; justify-content: space-between; font-weight: 700; font-size: 15px; border-top: 2px solid #1f2937; margin-top: 8px; padding-top: 6px; }
