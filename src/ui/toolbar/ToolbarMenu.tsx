@@ -45,18 +45,22 @@ export function ToolbarMenu({
   )
 }
 
-/** A single row inside a ToolbarMenu: icon + label + optional description. */
+/** A single row inside a ToolbarMenu: icon + label + optional description.
+ *  `ariaLabel` overrides the accessible name (used so the product tour can
+ *  spotlight a specific menu item, e.g. "Edit a room"). */
 export function MenuItem({
   icon,
   label,
   sub,
   active,
+  ariaLabel,
   onClick,
 }: {
   icon: IconName
   label: string
   sub?: string
   active?: boolean
+  ariaLabel?: string
   onClick: () => void
 }) {
   const Cmp = Icon[icon]
@@ -64,6 +68,7 @@ export function MenuItem({
     <button
       type="button"
       role="menuitem"
+      aria-label={ariaLabel}
       onClick={onClick}
       className={`menu-item${active ? ' active' : ''}`}
     >

@@ -6,10 +6,11 @@ orbit overview and walk mode are view‑only, so you always design *inside* a ro
 
 Open it in any of these ways:
 
-- Click the **Edit a room** button in the toolbar (dives into a room; switch
-  rooms from the dropdown that appears beside it).
-- **Click any room's floor** in the orbit overview to jump straight into that room.
-- On mobile, open the menu → **View** → **Edit a room**.
+- Open the toolbar **Edit** menu → **Edit a room** (dives into a room; switch
+  rooms from the dropdown that appears beside the **← exit** button).
+- **Click any room's floor** in the orbit overview to jump straight into that
+  room — you'll confirm *"Enter <room>?"* first.
+- On mobile, open the menu → **Edit** → **Edit a room**.
 
 
 ## What it does

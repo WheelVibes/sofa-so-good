@@ -14,7 +14,7 @@ import {
 import { useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
-import { BACKDROPS } from '../../scene/SceneBackdrop'
+import { BACKDROPS, type BackdropKind } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
 import { firstEditableRoomId } from '../../state/rooms'
@@ -309,99 +309,112 @@ export function MobileToolbar() {
               </button>
             </div>
             <div className="m-sheet-body">
-              {/* Camera */}
-              <Section id="camera" title="Camera" icon="Orbit" {...sectionProps}>
+              {/* View — combined camera + framing (mirrors the desktop View menu).
+                  Orbit/Walk always; top/reset/turntable/saved only in the
+                  overview (the room editor frames its own room). */}
+              <Section id="view" title="View" icon="Orbit" {...sectionProps}>
+                <div className="m-sub-h">Camera</div>
                 <Item
                   icon="Orbit"
                   label="Orbit"
+                  sub="Look around the model"
                   on={cameraMode === 'orbit'}
                   onClick={act(() => s.getState().setCameraMode('orbit'))}
                 />
                 <Item
                   icon="Walk"
                   label="Walk through"
+                  sub="First-person walkthrough"
                   on={cameraMode === 'firstPerson'}
                   onClick={act(() => s.getState().setCameraMode('firstPerson'))}
                 />
+                {!roomEditorActive ? (
+                  <>
+                    <div className="m-sub-h">Framing</div>
+                    <Item
+                      icon="TopView"
+                      label="Top view"
+                      sub="Fit the whole flat, top-down"
+                      onClick={act(() => s.getState().requestTopView())}
+                    />
+                    <Item
+                      icon="Home"
+                      label="Reset view"
+                      sub="Fit the 3D overview"
+                      onClick={act(() => s.getState().requestHomeView())}
+                    />
+                    <Item
+                      icon="Turntable"
+                      label="Turntable"
+                      sub="Slowly auto-orbit"
+                      on={autoRotate}
+                      onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
+                    />
+                    <Item
+                      icon="Plus"
+                      label="Save current view"
+                      sub="Bookmark this camera angle"
+                      onClick={act(async () => {
+                        const thumb = captureThumb()
+                        const name = await s.getState().promptText({
+                          title: 'Save camera view',
+                          label: 'Name this view',
+                          defaultValue: `View ${savedViews.length + 1}`,
+                          submitLabel: 'Save',
+                        })
+                        if (name) s.getState().saveCurrentView(name, thumb)
+                      })}
+                    />
+                  </>
+                ) : null}
+                {!roomEditorActive &&
+                  savedViews.map((v) => (
+                    <div key={v.id} className="m-saved-view">
+                      <button
+                        type="button"
+                        className="m-item m-saved-view-go"
+                        onClick={act(() => s.getState().applyView(v.id))}
+                      >
+                        {v.thumb ? (
+                          <img src={v.thumb} alt="" className="saved-view-thumb" />
+                        ) : (
+                          <Icon.Eye className="icn" width={18} height={18} />
+                        )}
+                        <span className="m-item-tx">
+                          <span className="m-item-l">{v.name}</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="m-saved-view-del"
+                        aria-label={`Delete view ${v.name}`}
+                        onClick={() => s.getState().deleteView(v.id)}
+                      >
+                        <Icon.Trash width={16} height={16} />
+                      </button>
+                    </div>
+                  ))}
               </Section>
 
-              {/* View */}
-              <Section id="view" title="View" icon="TopView" {...sectionProps}>
-                <Item
-                  icon="TopView"
-                  label="Top view"
-                  onClick={act(() => s.getState().requestTopView())}
-                />
-                <Item
-                  icon="Home"
-                  label="Reset view"
-                  onClick={act(() => s.getState().requestHomeView())}
-                />
-                <Item
-                  icon="Turntable"
-                  label="Turntable"
-                  sub="Slowly auto-orbit"
-                  on={autoRotate}
-                  onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
-                />
-                {!roomEditorActive && defaultEditRoomId ? (
-                  <Item
-                    icon="Cube"
-                    label="Edit a room"
-                    sub="Furnish + finish a room — pick which from the header"
-                    onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
-                  />
-                ) : null}
-                {!roomEditorActive ? (
+              {/* Edit — step into a room / reshape the floor plan (overview only). */}
+              {!roomEditorActive ? (
+                <Section id="edit-home" title="Edit" icon="Cube" {...sectionProps}>
+                  {defaultEditRoomId ? (
+                    <Item
+                      icon="Cube"
+                      label="Edit a room"
+                      sub="Furnish + finish a room — pick which from the header"
+                      onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
+                    />
+                  ) : null}
                   <Item
                     icon="FloorPlan"
                     label="Floor plan editor"
                     sub="Edit walls, rooms, doors & windows"
                     onClick={act(() => s.getState().setFloorPlanEditing(true))}
                   />
-                ) : null}
-                <Item
-                  icon="Plus"
-                  label="Save current view"
-                  sub="Bookmark this camera angle"
-                  onClick={act(async () => {
-                    const thumb = captureThumb()
-                    const name = await s.getState().promptText({
-                      title: 'Save camera view',
-                      label: 'Name this view',
-                      defaultValue: `View ${savedViews.length + 1}`,
-                      submitLabel: 'Save',
-                    })
-                    if (name) s.getState().saveCurrentView(name, thumb)
-                  })}
-                />
-                {savedViews.map((v) => (
-                  <div key={v.id} className="m-saved-view">
-                    <button
-                      type="button"
-                      className="m-item m-saved-view-go"
-                      onClick={act(() => s.getState().applyView(v.id))}
-                    >
-                      {v.thumb ? (
-                        <img src={v.thumb} alt="" className="saved-view-thumb" />
-                      ) : (
-                        <Icon.Eye className="icn" width={18} height={18} />
-                      )}
-                      <span className="m-item-tx">
-                        <span className="m-item-l">{v.name}</span>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="m-saved-view-del"
-                      aria-label={`Delete view ${v.name}`}
-                      onClick={() => s.getState().deleteView(v.id)}
-                    >
-                      <Icon.Trash width={16} height={16} />
-                    </button>
-                  </div>
-                ))}
-              </Section>
+                </Section>
+              ) : null}
 
               {/* Scene */}
               {!roomEditorActive ? (
@@ -458,16 +471,21 @@ export function MobileToolbar() {
                     on={lightsMode !== 'auto'}
                     onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
                   />
-                  {BACKDROPS.map((b) => (
-                    <Item
-                      key={b.id}
-                      icon="Cube"
-                      label={`Backdrop: ${b.label}`}
-                      sub={b.sub}
-                      on={backdrop === b.id}
-                      onClick={act(() => s.getState().setBackdrop(b.id), { keep: true })}
-                    />
-                  ))}
+                  <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+                    <span>Backdrop</span>
+                    <select
+                      className="input scene-select"
+                      value={backdrop}
+                      aria-label="Backdrop"
+                      onChange={(e) => s.getState().setBackdrop(e.target.value as BackdropKind)}
+                    >
+                      {BACKDROPS.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.label} — {b.sub}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
                 </Section>
               ) : null}
 
@@ -670,16 +688,6 @@ export function MobileToolbar() {
                 </Section>
               ) : null}
 
-              {/* Graphics */}
-              <Section id="graphics" title="Graphics" icon="Quality" {...sectionProps}>
-                <Item
-                  icon="Quality"
-                  label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
-                  sub="Render & asset quality"
-                  onClick={act(() => setGraphicsOpen(true))}
-                />
-              </Section>
-
               {/* File */}
               <Section id="file" title="File" icon="Save" {...sectionProps}>
                 <Item
@@ -768,6 +776,12 @@ export function MobileToolbar() {
                   label="Theme & appearance"
                   sub="Colour theme, light / dark"
                   onClick={act(() => setAppearanceOpen(true))}
+                />
+                <Item
+                  icon="Quality"
+                  label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+                  sub="Render & asset quality"
+                  onClick={act(() => setGraphicsOpen(true))}
                 />
                 <Item icon="Book" label="User guide" onClick={act(openDocs)} />
                 <Item icon="Help" label="Help" onClick={act(() => setHelpOpen(true))} />

@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
 import { QUALITY_LABEL } from '../../scene/quality'
-import { firstEditableRoomId } from '../../state/rooms'
 import { useStore } from '../../state/store'
 import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
@@ -9,17 +8,15 @@ import { BrandMark } from '../Logo'
 import { useIsMobile } from '../useIsMobile'
 import { AppearancePopover } from './AppearancePopover'
 import { IconButton } from './IconButton'
-import { Icon } from './icons'
 import { MobileToolbar } from './MobileToolbar'
 import { ArrangeMenu } from './menus/ArrangeMenu'
+import { EditMenu } from './menus/EditMenu'
 import { FileMenu } from './menus/FileMenu'
 import { SceneMenu } from './menus/SceneMenu'
 import { ToolsMenu } from './menus/ToolsMenu'
 import { ViewMenu } from './menus/ViewMenu'
-import { Popover } from './Popover'
 import { RoomSwitcher } from './RoomSwitcher'
 import { shortcutLabel } from './shortcuts'
-import { MenuItem } from './ToolbarMenu'
 
 function Divider() {
   return <div className="tool-divider" />
@@ -32,15 +29,9 @@ const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 
  *  show only in orbit mode (Walk keeps the camera essentials). */
 export function Toolbar() {
   const cameraMode = useStore((s) => s.cameraMode)
-  const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const exitRoomEditor = useStore((s) => s.exitRoomEditor)
-  const enterRoomEditor = useStore((s) => s.enterRoomEditor)
-  const floorPlan = useStore((s) => s.floorPlan)
-  // Default room the prominent "Edit a room" button dives into (first editable
-  // room of the active plan — default apartment or a custom plan's own rooms).
-  const editRoomId = firstEditableRoomId(floorPlan)
   const catalogOpen = useStore((s) => s.catalogOpen)
   const toggleCatalogOpen = useStore((s) => s.toggleCatalogOpen)
   const showMeasurements = useStore((s) => s.showMeasurements)
@@ -57,7 +48,6 @@ export function Toolbar() {
   const cycleLightsMode = useStore((s) => s.cycleLightsMode)
   const qualityTier = useStore((s) => s.qualityTier)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
-  const toggleFloorPlanEditing = useStore((s) => s.toggleFloorPlanEditing)
 
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const helpOpen = useStore((s) => s.helpOpen)
@@ -152,8 +142,9 @@ export function Toolbar() {
           </>
         )}
 
-        {/* Camera */}
-        <CameraControl mode={cameraMode} setMode={setCameraMode} />
+        {/* View — combined camera + framing control, available in every mode so
+            you can always switch Orbit/Walk (and frame the overview). */}
+        <ViewMenu />
 
         {/* Scene (time / lighting moods / sun) stays available in Walk too, so
             you can experience the flat at different times of day while walking. */}
@@ -214,52 +205,19 @@ export function Toolbar() {
             <ArrangeMenu />
 
             <Divider />
-            <IconButton
-              icon="Quality"
-              label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
-              onClick={() => setGraphicsOpen(true)}
-            />
-
-            <Divider />
             <FileMenu />
           </>
         )}
 
-        {/* VIEW MODE — orbit over the whole flat (not editing): camera/scene
-            controls plus the prominent entry into the room editor. */}
+        {/* VIEW MODE — orbit over the whole flat (not editing): the Edit menu
+            (step into a room / floor-plan editor) plus analysis tools. */}
         {orbit && !roomEditorActive && (
           <>
             <Divider />
-            <ViewMenu />
-
-            <Divider />
-            {/* Primary editing entry: dive into a room to furnish + finish it.
-                The headline action of the view-only overview, so it's a filled
-                accent CTA with a visible label. */}
-            <IconButton
-              icon="Cube"
-              label="Edit a room"
-              showLabel
-              cta
-              onClick={() => editRoomId && enterRoomEditor(editRoomId)}
-            />
-            {/* Structural shell editor (walls/rooms/openings) — a whole-flat,
-                non-furniture surface, so it stays reachable from the overview. */}
-            <IconButton
-              icon="FloorPlan"
-              label="Floor plan"
-              active={false}
-              onClick={toggleFloorPlanEditing}
-            />
+            <EditMenu />
             {proMode && <ToolsMenu />}
 
             <Divider />
-            {/* Render */}
-            <IconButton
-              icon="Quality"
-              label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
-              onClick={() => setGraphicsOpen(true)}
-            />
             <IconButton
               icon="Lights"
               label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
@@ -272,8 +230,13 @@ export function Toolbar() {
           </>
         )}
 
-        {/* Appearance + Help live on the right of the island in every mode. */}
+        {/* Right cluster — graphics, appearance + help live here in every mode. */}
         <Divider />
+        <IconButton
+          icon="Quality"
+          label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+          onClick={() => setGraphicsOpen(true)}
+        />
         <AppearancePopover />
         <IconButton icon="Book" label="User guide" onClick={openDocs} />
         <IconButton
@@ -288,87 +251,5 @@ export function Toolbar() {
       <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
       <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
-  )
-}
-
-/** Orbit/Walk camera toggle as an icon + chevron opening a tiny popover. */
-function CameraControl({
-  mode,
-  setMode,
-}: {
-  mode: 'orbit' | 'firstPerson'
-  setMode: (m: 'orbit' | 'firstPerson') => void
-}) {
-  const ref = useRef<HTMLButtonElement>(null)
-  const [open, setOpen] = useState(false)
-  const isOrbit = mode === 'orbit'
-  return (
-    <>
-      <button
-        ref={ref}
-        type="button"
-        aria-label="Camera mode"
-        onClick={() => setOpen((v) => !v)}
-        className={`tool-btn${open ? ' active' : ''}`}
-      >
-        <span className="inline-flex">{isOrbit ? <OrbitGlyph /> : <WalkGlyph />}</span>
-        <span className="cap">{isOrbit ? 'Orbit' : 'Walk'}</span>
-        <ChevronGlyph />
-      </button>
-      <ToolbarMenuLite open={open} anchorRef={ref} onClose={() => setOpen(false)}>
-        <MenuItem
-          icon="Orbit"
-          label="Orbit"
-          sub="Look around the model"
-          active={isOrbit}
-          onClick={() => {
-            setMode('orbit')
-            setOpen(false)
-          }}
-        />
-        <MenuItem
-          icon="Walk"
-          label="Walk"
-          sub="First-person walkthrough"
-          active={!isOrbit}
-          onClick={() => {
-            setMode('firstPerson')
-            setOpen(false)
-          }}
-        />
-      </ToolbarMenuLite>
-    </>
-  )
-}
-
-// Minimal inline glyphs for the camera pill (full set lives in icons.tsx).
-function OrbitGlyph() {
-  return <Icon.Orbit />
-}
-function WalkGlyph() {
-  return <Icon.Walk />
-}
-function ChevronGlyph() {
-  return <Icon.Chevron width={12} height={12} className="chev" />
-}
-
-/** A bare popover panel (no trigger) for the camera control. */
-function ToolbarMenuLite({
-  open,
-  anchorRef,
-  onClose,
-  children,
-}: {
-  open: boolean
-  anchorRef: React.RefObject<HTMLElement | null>
-  onClose: () => void
-  children: React.ReactNode
-}) {
-  return (
-    <Popover open={open} anchorRef={anchorRef} onClose={onClose}>
-      <div role="menu" className="pop-panel" style={{ width: 220 }}>
-        {children}
-      </div>
-    </Popover>
   )
 }

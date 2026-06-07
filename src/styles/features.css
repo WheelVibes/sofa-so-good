@@ -341,3 +341,52 @@ body.mobile #clearancePanel, body.mobile #versionsPanel, body.mobile #shopPanel 
 body.mobile .modal-overlay > #swapPanel,
 body.mobile .modal-overlay > #sharePanel { width: calc(100vw - 24px); }
 body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
+
+/* ---- Scene menu (time of day / lighting / backdrop) -------------- */
+.scene-row-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 4px 6px 2px; font-size: var(--t-2xs); font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3);
+}
+.scene-clock { font-size: var(--t-xs); font-weight: 600; color: var(--text-2); text-transform: none; letter-spacing: 0; }
+.scene-slider { position: relative; padding: 6px 8px 10px; }
+.scene-ticks { position: absolute; left: 8px; right: 8px; bottom: 4px; height: 6px; pointer-events: none; }
+.scene-tick { position: absolute; top: 0; width: 2px; height: 6px; border-radius: 1px; background: var(--border-2); transform: translateX(-1px); }
+.scene-presets { display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px; padding: 2px 6px 4px; }
+.scene-presets.moods { grid-template-columns: repeat(2, 1fr); }
+.scene-chip {
+  display: inline-flex; align-items: center; justify-content: center; gap: 4px;
+  min-height: 30px; padding: 4px 6px; border-radius: var(--r-2);
+  border: 1px solid var(--border); background: var(--surface-2);
+  font-size: var(--t-2xs); font-weight: 600; color: var(--text-2);
+  white-space: nowrap; transition: var(--dur) var(--ease);
+}
+.scene-chip:hover { background: var(--surface-3); color: var(--text); }
+.scene-chip.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.scene-chip-i { font-size: 12px; line-height: 1; }
+.scene-chip.sm { min-height: 28px; }
+.scene-time-row { display: flex; align-items: center; gap: 6px; padding: 2px 6px 4px; }
+.scene-time-row .scene-chip { flex: none; }
+.scene-time-input {
+  flex: 1; min-width: 0; height: 28px; padding: 0 6px;
+  border: 1px solid var(--border); border-radius: var(--r-2);
+  background: var(--surface-solid); color: var(--text); font-size: var(--t-xs);
+}
+.scene-sep { height: 1px; background: var(--border); margin: 6px 0; }
+.scene-seg {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 0 6px 4px;
+  padding: 3px; background: var(--surface-2); border-radius: var(--r-2);
+}
+.scene-seg button {
+  min-height: 28px; border-radius: calc(var(--r-2) - 2px);
+  font-size: var(--t-xs); font-weight: 600; color: var(--text-2);
+}
+.scene-seg button.on { background: var(--accent); color: var(--on-accent); }
+.scene-field { display: block; padding: 0 6px 4px; }
+.scene-field > span { display: block; font-size: var(--t-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-3); padding: 2px 0 4px; }
+.scene-select { width: 100%; }
+
+/* ---- Arrange menu compact pick + apply rows --------------------- */
+.arr-pick { display: flex; align-items: center; gap: 6px; padding: 2px 6px 4px; }
+.arr-select { flex: 1; min-width: 0; height: 30px; font-size: var(--t-xs); }
+.arr-apply { flex: none; height: 30px; padding: 0 12px; }

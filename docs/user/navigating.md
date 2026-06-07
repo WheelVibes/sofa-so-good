@@ -2,9 +2,12 @@
 
 There are two ways to look around: an **orbit** (dollhouse) view and a
 first‑person **walk**. Toggle between them with <kbd>V</kbd>. **Both are
-view‑only** — they're for *looking*, not editing. All furnishing and
-customizing happens inside the [per‑room editor](/room-editor) (open it with the
-**Edit a room** button, or just **click a room's floor** in the overview).
+view‑only** — they're for *looking*, not editing. Switch the camera between
+orbit and walk from the toolbar's **View** menu (which also holds the framing
+shortcuts below). All furnishing and customizing happens inside the
+[per‑room editor](/room-editor) (open it from the toolbar **Edit** menu →
+**Edit a room**, or just **click a room's floor** in the overview — you'll be
+asked *"Enter <room>?"* first so you never dive in by accident).
 
 
 ## Orbit view
@@ -15,7 +18,8 @@ dollhouse view for getting your bearings and presenting the design.
 - **Drag** to orbit around the flat.
 - **Scroll** to zoom in and out.
 - **Right‑drag** (or <kbd>Shift</kbd> + two‑finger scroll) to pan.
-- **Click a room's floor** to dive into the per‑room editor for that room.
+- **Click a room's floor** to dive into the per‑room editor for that room
+  (you'll confirm *"Enter <room>?"* first).
 - Exterior walls between you and the interior fade out automatically so you can
   always see inside.
 
@@ -24,10 +28,14 @@ a zoom rail, and a minimap.
 
 ## Quick view shortcuts
 
+**Top view** and **Reset view** (in the **View** menu, or the shortcuts below)
+automatically zoom to fit — they centre the flat and frame it so the whole home
+just fills the screen, adapting to your window size.
+
 | Action | Shortcut |
 | --- | --- |
-| Top‑down plan view | <kbd>O</kbd> |
-| Reset to the 3/4 overview | <kbd>H</kbd> |
+| Top‑down plan view (fit) | <kbd>O</kbd> |
+| Reset to the 3/4 overview (fit) | <kbd>H</kbd> |
 | Switch orbit ⇄ walk | <kbd>V</kbd> |
 
 ## Walk mode
@@ -57,7 +65,7 @@ There's no mouse to capture, so walk mode switches to touch controls:
 
 - A translucent **joystick** appears at the bottom‑left — drag it to move.
 - **Drag anywhere else** on the scene to look around.
-- Tap **Walk** again (in the toolbar) to return to orbit.
+- Open the menu → **View** → **Orbit** to return to the overview.
 
 You're bounded by the walls — an open door is a gap you can walk through, a
 closed one isn't.

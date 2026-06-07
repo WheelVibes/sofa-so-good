@@ -67,8 +67,9 @@ export the result — all in the browser.
   you're in.
 - **View vs. edit** — the orbit (dollhouse) and walk views are **view-only**, for
   looking and presenting; **all** furnishing, customizing and finishing happens
-  inside the **per-room editor**. Enter it with the prominent **Edit a room**
-  toolbar button, by **clicking a room's floor** in the overview, or ⌘K.
+  inside the **per-room editor**. Enter it from the toolbar **Edit** menu →
+  **Edit a room**, by **clicking a room's floor** in the overview (which asks
+  "Enter <room>?" first, so you don't dive in by accident), or ⌘K.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
   plan its furniture (switch rooms from the dropdown beside the **← exit**
   button; **Esc** leaves). Works on the built-in flat **and any custom floor
@@ -94,7 +95,9 @@ export the result — all in the browser.
   any time (desktop + mobile).
 - **Streamlined toolbar** — a compact, scrollable **icon island**: frequent
   actions are one-click icons; related tools tuck into labelled dropdown menus
-  (View, Scene, Arrange, Tools, File). Hover any control for its name and
+  (**View** — combined camera Orbit/Walk + top/reset/turntable; **Scene**;
+  **Edit** — step into a room / floor-plan editor; **Arrange**; **Tools**;
+  **File** — with **Graphics** beside Appearance & Help on the right). Hover any control for its name and
   keyboard shortcut. Scroll the wheel over the island (or click-and-drag it) to
   pan it — the canvas behind never zooms. New view shortcuts: Top view **O**,
   Reset **H**, Tidy **L** (alongside Measurements **M**, Catalog **C**, camera
@@ -182,11 +185,13 @@ export the result — all in the browser.
   (analysis Tools, numeric transform fields, graphics internals, sun direction,
   saved views, …) and collapses the inspector's sections by default; **Pro** shows
   everything. Persists per device.
-- **Guided product tour** — a spotlight walkthrough for new users that steps
-  through the whole workflow in order (shape the space → add furniture → move &
-  customise → paint walls/floors → walk through → set the time of day & backdrop),
-  highlighting each control as it goes. Launch it from onboarding, the Help modal,
-  or ⌘K.
+- **Guided product tour** — an *interactive* spotlight walkthrough for new users
+  that steps through the whole workflow in order (look around → step into a room
+  → add furniture → move & customise → paint walls/floors → set the time of day &
+  backdrop). The highlighted control stays clickable and **performing the real
+  action advances the tour** — clicks elsewhere are harmless, and only the
+  explicit **Skip tour** button (or Esc) ends it. Launch it from onboarding, the
+  Help modal, or ⌘K.
 - **Pro-tool interactions** — a **⌘K command palette** (fuzzy search across
   actions, panels, views, and "add furniture"), a **right-click context menu**
   on any placed piece, an **Objects / Layers** view (items grouped by room with

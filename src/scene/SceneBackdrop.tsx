@@ -4,6 +4,9 @@ import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
 import { mulberry32 } from '../materials/procedural/noise'
 import type { BackdropKind } from '../state/slices/uiSlice'
 import { useStore } from '../state/store'
+
+export type { BackdropKind }
+
 import { useBackdropOffset } from './backdropOffset'
 import { CityBackdrop } from './CityBackdrop'
 import { useDisposeOnUnmount } from './geometryUtil'

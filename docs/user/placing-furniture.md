@@ -1,8 +1,9 @@
 # Placing & arranging furniture
 
 > Furniture is placed and arranged **inside the [per‑room editor](/room-editor)**.
-> From the orbit overview, click the **Edit a room** button (or click a room's
-> floor) to start; the catalog and all editing tools live in there.
+> From the orbit overview, open the toolbar **Edit** menu → **Edit a room** (or
+> click a room's floor and confirm) to start; the catalog and all editing tools
+> live in there.
 
 ## The catalog
 

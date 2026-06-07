@@ -104,7 +104,10 @@ body.mobile {
   }
   /* Room-editor header: brand + room dropdown + exit X + menu — keep the bar. */
   .toolbar.mobilebar.editing-room { justify-content: flex-start; }
-  .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; height: 36px; font-size: var(--t-sm); font-weight: 600; }
+  /* Keep the square brand from being squeezed; cap the dropdown so the bar has
+     breathing room for the brand + exit + menu controls. */
+  .toolbar.mobilebar.editing-room .brand-dot { width: 36px; height: 36px; font-size: 14px; }
+  .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; max-width: 56vw; height: 36px; font-size: var(--t-sm); font-weight: 600; }
 
   /* ---- Mobile menu sheet ----------------------------------- */
   .m-menu-overlay {

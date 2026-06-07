@@ -302,7 +302,11 @@ rediscover it.
   content sources**). Then InspectorPanel
   (`inspector/` — incl. an editable **Name** field per item: `FurnitureItem.label`
   via `itemsSlice.renameItem`, overriding the def name in the title + Layers tree,
-  round-tripped in `schema.ts` as an optional field),
+  round-tripped in `schema.ts` as an optional field; and a **minimize** toggle
+  (`useInspectorMinimize` — collapses the panel to just its header so it stops
+  blocking the furniture, especially on mobile; **auto-minimizes while a
+  move/rotate gesture is in progress**, keyed on `draggingItemId`/`rotatingGizmo`,
+  restoring afterwards),
   FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
   NavCluster (fused compass + zoom rail + minimap, bottom-right), the
   **CommandPalette** (⌘K), **ContextMenu** (right-click on a placed item),
@@ -352,7 +356,13 @@ rediscover it.
   **guided product tour** (`ui/tour/ProductTour.tsx` + `tourSteps.ts`, state in
   `featuresSlice` `tourOpen`/`tourStep`) spotlights real UI elements (by
   `aria-label`) through the build workflow; launched from onboarding/Help/⌘K,
-  completion in `localStorage` `hdb_tour_done`. The theme choice persists in
+  completion in `localStorage` `hdb_tour_done`. It's **interactive**: the
+  spotlight is a real click-through hole (the highlighted control stays usable),
+  the surrounding dim is blocked so a stray click can't disturb the app, and
+  **only the explicit "Skip tour" button (or Esc) ends it** — clicking the
+  highlighted control performs the real action and *advances* the tour. Steps
+  flagged `action` force that interaction (no Next button); the location prompt
+  is suppressed while the tour is open (it surfaces once the tour ends). The theme choice persists in
   `localStorage`
   (`hdb_appearance`) and is applied pre-paint by an inline script in `index.html`
   (no flash). Auto follows the OS via `matchMedia` (`ui/useIsMobile.ts` is the
@@ -713,9 +723,11 @@ rediscover it.
 - **Per-room editor** (`scene/RoomEditorScene.tsx`, `apartment/roomShell.ts` +
   `RoomShell.tsx`, `uiSlice.roomEditor`): an IKEA-planner-style mode that isolates
   one room — now the app's **sole editing surface** (see **View / edit split**).
-  Entered from the prominent toolbar **"Edit a room"** button (enters the first
-  non-external room) or by **clicking a room's floor** in the orbit overview;
-  the room is then **switched in place** — while the editor is
+  Entered from the toolbar **Edit menu → "Edit a room"** (enters the first
+  non-external room) or by **clicking a room's floor** in the orbit overview —
+  the floor click first asks **"Enter <room>?"** (`state/enterRoomConfirm.ts`
+  `confirmAndEnterRoom` → the themed `confirmAction`), since it's easy to click a
+  floor by accident while looking around. The room is then **switched in place** — while the editor is
   active the toolbar's leftmost cluster shows a **← exit button** (`Icon.ExitRoom`)
   + a **room-switcher `<select>`** (`.toolbar-room-select`, re-`enterRoomEditor`s
   on change), and **Esc** exits. On mobile the collapsed bar *becomes* the
@@ -786,22 +798,31 @@ rediscover it.
 - **Toolbar** (`ui/toolbar/`): a streamlined, horizontally-scrollable **icon
   island**. Frequent actions are direct icon buttons (`IconButton`); busy
   clusters collapse into labelled dropdown menus (`ToolbarMenu` + `MenuItem`):
-  **View** (top/reset/turntable/edit-room + **saved camera views**: a
-  `SavedViewsSection` to bookmark the current angle and fly back to it —
-  `cameraViewsSlice`, persisted to `localStorage`, mobile-parity in the View
-  accordion), **Scene** (time presets + a continuous time-of-day scrub slider +
-  sun-direction `CompassModal`), **Arrange** (Sets/Presets/Style/Floor plan/Tidy), **Tools**
+  **View** (a *combined camera + framing* control — Orbit/Walk mode selection,
+  always available so you can switch from any state, plus top/reset/turntable +
+  **saved camera views** in the orbit overview: a `SavedViewsSection` to bookmark
+  the current angle and fly back to it — `cameraViewsSlice`, persisted to
+  `localStorage`, mobile-parity in the View accordion), **Scene** (a redesigned
+  time-of-day panel: a scrub slider with **morning/noon/dusk/night checkpoint
+  ticks** + preset chips, a System/custom-time row, an Auto/On/Off **Lighting**
+  segmented + mood chips, a **Backdrop `<select>`** dropdown, and sun-direction
+  `CompassModal`), **Edit** (`EditMenu` — *step into a room* / **Floor plan
+  editor**, the two ways to change the home itself, grouped here rather than under
+  View), **Arrange** (Tidy + three compact pick→**Apply** dropdowns — Sets /
+  Presets / finish Styles — plus My styles; `PickApply`), **Tools**
   (Budget/Checks/Sun study/Walkthrough/Report), **File** (Save/Load/Export/
   Record). Every control has a custom portaled **Tooltip** showing its name +
   a keyboard-shortcut chip (label from `shortcuts.ts`, sourced from
   `controls/keybindings.ts` — never hardcoded). Tooltips and menus both render
   through `Popover` (a `createPortal` + fixed-position primitive) so the
   scrollable island never clips them. The island has **three states** (see
-  **View / edit split**): the **orbit overview** (view-only) shows View + a
-  prominent **Edit a room** button + **Floor plan** + analysis Tools + graphics/
-  lights/file; the **room editor** shows the editing clusters (exit + room
-  switcher, undo/redo, snap/grid, Measure, Catalog, Arrange, graphics, file);
-  **walk** keeps just the camera essentials + Scene. New view shortcuts: Top view
+  **View / edit split**): the **orbit overview** (view-only) shows View + Scene +
+  the **Edit** menu + analysis Tools; the **room editor** shows the editing
+  clusters (exit + room switcher, undo/redo, snap/grid, Measure, Catalog,
+  Arrange, file); **walk** keeps just the View + Scene controls. **Graphics**
+  (render/asset quality) lives in the **right cluster** in every mode, beside
+  Appearance + User guide + Help (it was a one-item section, now folded into
+  Appearance & help on mobile). New view shortcuts: Top view
   **O**, Reset **H**, Tidy **L** (Tidy/edit shortcuts act only in the editor). `ui/Toolbar.tsx` re-exports `ui/toolbar` so the
   import path is stable. The island **claims the wheel while the cursor is over
   it** — a non-passive native `wheel` listener `preventDefault`s (so it never

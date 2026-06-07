@@ -14,6 +14,33 @@ import { InspectorSection } from './InspectorSection'
 import { ParametricBody } from './ParametricBody'
 import { SourceLine } from './SourceLine'
 
+/**
+ * Minimize state for the inspector. The user can collapse it to just its header
+ * (so it stops blocking the furniture, especially on mobile), and it
+ * *auto-minimizes* while a move/rotate gesture is in progress so the piece is
+ * visible as it's manipulated — restoring to the user's chosen state afterwards.
+ */
+function useInspectorMinimize(): { minimized: boolean; toggle: () => void; manual: boolean } {
+  const gesturing = useStore((s) => !!s.draggingItemId || s.rotatingGizmo)
+  const [manual, setManual] = useState(false)
+  return { minimized: manual || gesturing, toggle: () => setManual((v) => !v), manual }
+}
+
+/** The minimize / expand toggle shown in an inspector panel header. */
+function MinimizeButton({ minimized, toggle }: { minimized: boolean; toggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className="icon-btn"
+      aria-label={minimized ? 'Expand inspector' : 'Minimize inspector'}
+      title={minimized ? 'Expand' : 'Minimize'}
+    >
+      {minimized ? <Icon.Plus width={16} height={16} /> : <Icon.Minus width={16} height={16} />}
+    </button>
+  )
+}
+
 /** Panel shown when 2+ items are selected: count + align / distribute / bulk
  *  actions (the marquee/shift-click multi-selection). */
 function MultiSelectPanel() {
@@ -23,6 +50,7 @@ function MultiSelectPanel() {
   const groupItems = useStore((s) => s.groupItems)
   const ungroup = useStore((s) => s.ungroup)
   const catalog = useCatalog()
+  const { minimized, toggle } = useInspectorMinimize()
 
   const wallsFor = (s: ReturnType<typeof useStore.getState>) =>
     isDefaultPlan(s.floorPlan) ? undefined : planCollisionWalls(s.floorPlan, s.doors)
@@ -103,96 +131,103 @@ function MultiSelectPanel() {
   }
 
   return (
-    <aside className="panel inspector">
+    <aside className={`panel inspector${minimized ? ' minimized' : ''}`}>
       <div className="panel-head">
         <div>
           <div className="panel-title">{count} items selected</div>
-          <div className="panel-sub">Multi-select</div>
+          {minimized ? null : <div className="panel-sub">Multi-select</div>}
         </div>
-        <button
-          type="button"
-          onClick={() => useStore.getState().selectItem(null)}
-          className="icon-btn"
-          aria-label="Clear selection"
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
+        <div className="insp-head-btns">
+          <MinimizeButton minimized={minimized} toggle={toggle} />
+          <button
+            type="button"
+            onClick={() => useStore.getState().selectItem(null)}
+            className="icon-btn"
+            aria-label="Clear selection"
+          >
+            <Icon.Close width={16} height={16} />
+          </button>
+        </div>
       </div>
-      <hr className="hr" />
-      <div className="panel-body">
-        <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-          <div className="sec-h">
-            <span>Align centres</span>
-          </div>
-          <div className="action-grid two">
-            <button type="button" className="act" onClick={() => align(0)}>
-              <Icon.AlignX width={16} height={16} />
-              Align X
-            </button>
-            <button type="button" className="act" onClick={() => align(1)}>
-              <Icon.AlignZ width={16} height={16} />
-              Align Z
-            </button>
-          </div>
-        </div>
-        <div className="sec">
-          <div className="sec-h">
-            <span>Distribute evenly</span>
-          </div>
-          <div className="action-grid two">
-            <button type="button" className="act" onClick={() => distribute(0)}>
-              <Icon.Distribute width={16} height={16} />
-              Across X
-            </button>
-            <button type="button" className="act" onClick={() => distribute(1)}>
-              <Icon.Distribute width={16} height={16} />
-              Across Z
-            </button>
-          </div>
-        </div>
-        <div className="sec">
-          {activeGroupId ? (
-            <button
-              type="button"
-              onClick={() => ungroup(activeGroupId)}
-              className="btn btn-soft btn-block"
-            >
-              <Icon.Group width={14} height={14} />
-              Ungroup
-            </button>
-          ) : (
-            selectedItemIds.length > 1 && (
+      {minimized ? null : (
+        <>
+          <hr className="hr" />
+          <div className="panel-body">
+            <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+              <div className="sec-h">
+                <span>Align centres</span>
+              </div>
+              <div className="action-grid two">
+                <button type="button" className="act" onClick={() => align(0)}>
+                  <Icon.AlignX width={16} height={16} />
+                  Align X
+                </button>
+                <button type="button" className="act" onClick={() => align(1)}>
+                  <Icon.AlignZ width={16} height={16} />
+                  Align Z
+                </button>
+              </div>
+            </div>
+            <div className="sec">
+              <div className="sec-h">
+                <span>Distribute evenly</span>
+              </div>
+              <div className="action-grid two">
+                <button type="button" className="act" onClick={() => distribute(0)}>
+                  <Icon.Distribute width={16} height={16} />
+                  Across X
+                </button>
+                <button type="button" className="act" onClick={() => distribute(1)}>
+                  <Icon.Distribute width={16} height={16} />
+                  Across Z
+                </button>
+              </div>
+            </div>
+            <div className="sec">
+              {activeGroupId ? (
+                <button
+                  type="button"
+                  onClick={() => ungroup(activeGroupId)}
+                  className="btn btn-soft btn-block"
+                >
+                  <Icon.Group width={14} height={14} />
+                  Ungroup
+                </button>
+              ) : (
+                selectedItemIds.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => groupItems(selectedItemIds)}
+                    className="btn btn-soft btn-block"
+                  >
+                    <Icon.Group width={14} height={14} />
+                    Group
+                  </button>
+                )
+              )}
               <button
                 type="button"
-                onClick={() => groupItems(selectedItemIds)}
+                onClick={duplicateAll}
                 className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                title="Duplicate every selected item (⌘/Ctrl+D)"
               >
-                <Icon.Group width={14} height={14} />
-                Group
+                <Icon.Copy width={14} height={14} />
+                Duplicate selection
               </button>
-            )
-          )}
-          <button
-            type="button"
-            onClick={duplicateAll}
-            className="btn btn-soft btn-block"
-            style={{ marginTop: 'var(--s-2)' }}
-            title="Duplicate every selected item (⌘/Ctrl+D)"
-          >
-            <Icon.Copy width={14} height={14} />
-            Duplicate selection
-          </button>
-          <button
-            type="button"
-            onClick={deleteAll}
-            className="btn btn-danger btn-block"
-            style={{ marginTop: 'var(--s-2)' }}
-          >
-            <Icon.Trash width={14} height={14} />
-            Delete all
-          </button>
-        </div>
-      </div>
+              <button
+                type="button"
+                onClick={deleteAll}
+                className="btn btn-danger btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+              >
+                <Icon.Trash width={14} height={14} />
+                Delete all
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   )
 }
@@ -265,6 +300,7 @@ export function InspectorPanel() {
   const addToGroup = useStore((s) => s.addToGroup)
   const units = useStore((s) => s.units)
   const renameItem = useStore((s) => s.renameItem)
+  const { minimized, toggle } = useInspectorMinimize()
   const [arrayCount, setArrayCount] = useState(3)
   const flip = (axis: 'x' | 'z') => {
     pushHistory()
@@ -404,7 +440,7 @@ export function InspectorPanel() {
   }
 
   return (
-    <aside className="panel inspector">
+    <aside className={`panel inspector${minimized ? ' minimized' : ''}`}>
       <div className="panel-head">
         <div>
           <div className="insp-thumb">
@@ -412,172 +448,186 @@ export function InspectorPanel() {
           </div>
           <div>
             <div className="panel-title">{item.label ?? def.name}</div>
-            <div className="panel-sub">{def.category}</div>
-            <div className="dims mono" title="Width × Depth × Height">
-              {formatDimsShort([w, d, def.defaultFootprint.h], units)}
-            </div>
+            {minimized ? null : (
+              <>
+                <div className="panel-sub">{def.category}</div>
+                <div className="dims mono" title="Width × Depth × Height">
+                  {formatDimsShort([w, d, def.defaultFootprint.h], units)}
+                </div>
+              </>
+            )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => selectItem(null)}
-          className="icon-btn"
-          aria-label="Close inspector"
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
-      <hr className="hr" />
-      <div className="panel-body">
-        <label className="flex items-center gap-2 text-xs" style={{ marginBottom: 'var(--s-2)' }}>
-          <span className="label" style={{ whiteSpace: 'nowrap' }}>
-            Name
-          </span>
-          <input
-            type="text"
-            value={item.label ?? ''}
-            placeholder={def.name}
-            aria-label="Custom item name"
-            onChange={(e) => renameItem(item.id, e.target.value)}
-            className="input"
-            style={{ flex: 1, minWidth: 0 }}
-          />
-        </label>
-        {proMode ? (
-          <InspectorSection
-            title="Transform"
-            defaultOpen
-            style={{ borderTop: 'none', paddingTop: 0 }}
-          >
-            <div className="transform-grid">
-              <PosField
-                label="X"
-                unit="m"
-                value={item.position[0]}
-                step={0.05}
-                onCommit={(v) => tryMove(v, item.position[1])}
-              />
-              <PosField
-                label="Z"
-                unit="m"
-                value={item.position[1]}
-                step={0.05}
-                onCommit={(v) => tryMove(item.position[0], v)}
-              />
-              <PosField
-                label="Rotation"
-                unit="°"
-                value={(item.rotation * 180) / Math.PI}
-                step={15}
-                onCommit={trySetRot}
-                integer
-              />
-            </div>
-          </InspectorSection>
-        ) : null}
-        {def.kind === 'parametric' ? (
-          <ParametricBody item={item} def={def} />
-        ) : isIkeaDef(def) ? (
-          <IkeaBody item={item} def={def} />
-        ) : (
-          <GltfBody item={item} def={def} />
-        )}
-        {def.kind === 'gltf' && (def.source === 'builtin' || def.source === 'ikea') && (
-          <SourceLine
-            attribution={def.attribution}
-            license={def.license}
-            sourceUrl={def.sourceUrl}
-          />
-        )}
-        <div className="sec">
-          <div className="action-grid">
-            <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
-              <Icon.Rotate width={16} height={16} />
-              Rotate
-            </button>
-            <button
-              type="button"
-              className={`act${item.flipX ? ' on' : ''}`}
-              onClick={() => flip('x')}
-              disabled={item.locked}
-            >
-              <Icon.FlipH width={16} height={16} />
-              Flip H
-            </button>
-            <button
-              type="button"
-              className={`act${item.flipZ ? ' on' : ''}`}
-              onClick={() => flip('z')}
-              disabled={item.locked}
-            >
-              <Icon.FlipV width={16} height={16} />
-              Flip V
-            </button>
-            <button type="button" className="act" onClick={duplicate}>
-              <Icon.Copy width={16} height={16} />
-              Duplicate
-            </button>
-            <button
-              type="button"
-              className={`act${item.locked ? ' on' : ''}`}
-              onClick={() => toggleLock(item.id)}
-            >
-              {item.locked ? (
-                <Icon.Lock width={16} height={16} />
-              ) : (
-                <Icon.Unlock width={16} height={16} />
-              )}
-              {item.locked ? 'Locked' : 'Lock'}
-            </button>
-            <button
-              type="button"
-              className="act danger"
-              onClick={() => !item.locked && deleteItem(item.id)}
-              disabled={item.locked}
-            >
-              <Icon.Trash width={16} height={16} />
-              Delete
-            </button>
-          </div>
-          {proMode ? (
-            <div className="act-array" title="Place a row of copies to the right of this item">
-              <span>Duplicate a row of</span>
-              <input
-                type="number"
-                min={2}
-                max={10}
-                value={arrayCount}
-                onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
-                aria-label="Number of copies in the row"
-              />
-              <button type="button" className="act-array-go" onClick={duplicateRow}>
-                <Icon.Copy width={13} height={13} />
-                Go
-              </button>
-            </div>
-          ) : null}
+        <div className="insp-head-btns">
+          <MinimizeButton minimized={minimized} toggle={toggle} />
           <button
             type="button"
-            onClick={() => useStore.getState().setSwapItemId(item.id)}
-            className="btn btn-soft btn-block"
-            style={{ marginTop: 'var(--s-2)' }}
+            onClick={() => selectItem(null)}
+            className="icon-btn"
+            aria-label="Close inspector"
           >
-            <Icon.Copy width={14} height={14} />
-            Swap with similar
+            <Icon.Close width={16} height={16} />
           </button>
-          {activeGroupId && item.groupId !== activeGroupId && (
-            <button
-              type="button"
-              onClick={() => addToGroup(item.id, activeGroupId)}
-              className="btn btn-soft btn-block"
-              style={{ marginTop: 'var(--s-2)' }}
-            >
-              <Icon.Group width={14} height={14} />
-              Add to group
-            </button>
-          )}
         </div>
       </div>
+      {minimized ? null : (
+        <>
+          <hr className="hr" />
+          <div className="panel-body">
+            <label
+              className="flex items-center gap-2 text-xs"
+              style={{ marginBottom: 'var(--s-2)' }}
+            >
+              <span className="label" style={{ whiteSpace: 'nowrap' }}>
+                Name
+              </span>
+              <input
+                type="text"
+                value={item.label ?? ''}
+                placeholder={def.name}
+                aria-label="Custom item name"
+                onChange={(e) => renameItem(item.id, e.target.value)}
+                className="input"
+                style={{ flex: 1, minWidth: 0 }}
+              />
+            </label>
+            {proMode ? (
+              <InspectorSection
+                title="Transform"
+                defaultOpen
+                style={{ borderTop: 'none', paddingTop: 0 }}
+              >
+                <div className="transform-grid">
+                  <PosField
+                    label="X"
+                    unit="m"
+                    value={item.position[0]}
+                    step={0.05}
+                    onCommit={(v) => tryMove(v, item.position[1])}
+                  />
+                  <PosField
+                    label="Z"
+                    unit="m"
+                    value={item.position[1]}
+                    step={0.05}
+                    onCommit={(v) => tryMove(item.position[0], v)}
+                  />
+                  <PosField
+                    label="Rotation"
+                    unit="°"
+                    value={(item.rotation * 180) / Math.PI}
+                    step={15}
+                    onCommit={trySetRot}
+                    integer
+                  />
+                </div>
+              </InspectorSection>
+            ) : null}
+            {def.kind === 'parametric' ? (
+              <ParametricBody item={item} def={def} />
+            ) : isIkeaDef(def) ? (
+              <IkeaBody item={item} def={def} />
+            ) : (
+              <GltfBody item={item} def={def} />
+            )}
+            {def.kind === 'gltf' && (def.source === 'builtin' || def.source === 'ikea') && (
+              <SourceLine
+                attribution={def.attribution}
+                license={def.license}
+                sourceUrl={def.sourceUrl}
+              />
+            )}
+            <div className="sec">
+              <div className="action-grid">
+                <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
+                  <Icon.Rotate width={16} height={16} />
+                  Rotate
+                </button>
+                <button
+                  type="button"
+                  className={`act${item.flipX ? ' on' : ''}`}
+                  onClick={() => flip('x')}
+                  disabled={item.locked}
+                >
+                  <Icon.FlipH width={16} height={16} />
+                  Flip H
+                </button>
+                <button
+                  type="button"
+                  className={`act${item.flipZ ? ' on' : ''}`}
+                  onClick={() => flip('z')}
+                  disabled={item.locked}
+                >
+                  <Icon.FlipV width={16} height={16} />
+                  Flip V
+                </button>
+                <button type="button" className="act" onClick={duplicate}>
+                  <Icon.Copy width={16} height={16} />
+                  Duplicate
+                </button>
+                <button
+                  type="button"
+                  className={`act${item.locked ? ' on' : ''}`}
+                  onClick={() => toggleLock(item.id)}
+                >
+                  {item.locked ? (
+                    <Icon.Lock width={16} height={16} />
+                  ) : (
+                    <Icon.Unlock width={16} height={16} />
+                  )}
+                  {item.locked ? 'Locked' : 'Lock'}
+                </button>
+                <button
+                  type="button"
+                  className="act danger"
+                  onClick={() => !item.locked && deleteItem(item.id)}
+                  disabled={item.locked}
+                >
+                  <Icon.Trash width={16} height={16} />
+                  Delete
+                </button>
+              </div>
+              {proMode ? (
+                <div className="act-array" title="Place a row of copies to the right of this item">
+                  <span>Duplicate a row of</span>
+                  <input
+                    type="number"
+                    min={2}
+                    max={10}
+                    value={arrayCount}
+                    onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
+                    aria-label="Number of copies in the row"
+                  />
+                  <button type="button" className="act-array-go" onClick={duplicateRow}>
+                    <Icon.Copy width={13} height={13} />
+                    Go
+                  </button>
+                </div>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => useStore.getState().setSwapItemId(item.id)}
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+              >
+                <Icon.Copy width={14} height={14} />
+                Swap with similar
+              </button>
+              {activeGroupId && item.groupId !== activeGroupId && (
+                <button
+                  type="button"
+                  onClick={() => addToGroup(item.id, activeGroupId)}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                >
+                  <Icon.Group width={14} height={14} />
+                  Add to group
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   )
 }
