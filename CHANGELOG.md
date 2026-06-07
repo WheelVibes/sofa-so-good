@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [FG3e] Feature flags — gate packs / online materials / model upload
+Catalog Packs tab + model-upload entry now respect `packs`/`modelUpload`; the
+FinishPicker "Browse" (online materials) respects `remoteMaterials` — so a
+disabled source hides everywhere, not just via dev-gating. tsc + suite green.
+
 ## [FG3d] Feature flags — gate mobile-toolbar items
 MobileToolbar accordion items now respect their flags (savedViews, floorPlan,
 lightingMoods, backdrops, smartStart, budget, checks, measure, history,

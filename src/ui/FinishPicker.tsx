@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
+import { useFeature } from '../features/useFeature'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
@@ -104,6 +105,7 @@ export function FinishPicker() {
   }
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
+  const fRemoteMaterials = useFeature('remoteMaterials')
   const materials = useMaterials()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [finishQuery, setFinishQuery] = useState('')
@@ -263,10 +265,12 @@ export function FinishPicker() {
             </button>
           ) : null}
           <div className="export-row" style={{ marginTop: 'var(--s-2)' }}>
-            <button type="button" onClick={() => setView('browse')} className="btn btn-soft">
-              <Icon.Search width={14} height={14} />
-              Browse
-            </button>
+            {fRemoteMaterials ? (
+              <button type="button" onClick={() => setView('browse')} className="btn btn-soft">
+                <Icon.Search width={14} height={14} />
+                Browse
+              </button>
+            ) : null}
             <button type="button" onClick={() => setUploadOpen(true)} className="btn btn-soft">
               <Icon.Upload width={14} height={14} />
               Upload

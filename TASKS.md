@@ -18,7 +18,6 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 - [ ] F12a. **3D plan-door leaf** — custom-plan doors render as a plain gap in `PlanShell`; add a swinging leaf (reuse `Door.tsx`/`doorSwingGeometry`) honouring hinge/swing. GPU-verified.
 
 ## Feature-flag retrofit (infra shipped: registry + resolver + admin + panel + desktop/⌘K gating)
-- [ ] FG3e. **Route catalog packs / online materials / model upload through flags** (`packs`/`remoteMaterials`/`modelUpload`) — currently only dev-gated via `visiblePacks`/`activeProviderIds`.
 
 ## Features (larger)
 - [ ] K1. **Parametric kitchen/bath cabinet engine** — millimetre-customisable cabinets with smart countertop/toe-kick/cornice generation (Coohom parity). Builds on the parametric system + auto-arrange.

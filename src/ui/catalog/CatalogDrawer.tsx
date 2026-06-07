@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { UploadModelDialog } from '../upload/UploadModelDialog'
@@ -60,6 +61,10 @@ export function CatalogDrawer() {
   // Packs (downloadable-content installs) is advanced — hidden in Simple mode.
   // Read here (with the other hooks) so it stays above the early return below.
   const proMode = useStore((s) => s.uiMode === 'pro')
+  // Feature flags: the Packs tab + model upload entry hide when their flag is off
+  // (parity with the dev/prod gating already applied inside each surface).
+  const fPacks = useFeature('packs')
+  const fUpload = useFeature('modelUpload')
   const unified = useUnifiedCatalog()
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
@@ -121,7 +126,7 @@ export function CatalogDrawer() {
   // One flat tab row: the catalog grid, the Objects/Layers tree (store-level
   // `leftMode`, shared with the command palette + mobile toolbar), and Packs.
   const view: 'catalog' | 'layers' | 'packs' =
-    leftMode === 'layers' ? 'layers' : mode === 'packs' && proMode ? 'packs' : 'catalog'
+    leftMode === 'layers' ? 'layers' : mode === 'packs' && proMode && fPacks ? 'packs' : 'catalog'
   const selectView = (v: 'catalog' | 'layers' | 'packs') => {
     if (v === 'layers') {
       setLeftMode('layers')
@@ -180,7 +185,7 @@ export function CatalogDrawer() {
           [
             ['catalog', 'Catalog'],
             ['layers', 'Layers'],
-            ...(proMode ? ([['packs', 'Packs']] as const) : []),
+            ...(proMode && fPacks ? ([['packs', 'Packs']] as const) : []),
           ] as const
         ).map(([v, label]) => (
           <button
@@ -332,14 +337,16 @@ export function CatalogDrawer() {
             <span className="hint">
               Drag onto the floor · <kbd>R</kbd> rotates
             </span>
-            <button
-              type="button"
-              onClick={() => setUploadOpen(true)}
-              className="btn btn-soft btn-sm"
-            >
-              <Icon.Upload width={14} height={14} />
-              Upload
-            </button>
+            {fUpload ? (
+              <button
+                type="button"
+                onClick={() => setUploadOpen(true)}
+                className="btn btn-soft btn-sm"
+              >
+                <Icon.Upload width={14} height={14} />
+                Upload
+              </button>
+            ) : null}
           </div>
         </>
       )}
