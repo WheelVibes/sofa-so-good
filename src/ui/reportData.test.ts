@@ -1,4 +1,5 @@
 import { describe, expect, it, vi } from 'vitest'
+import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildReportHtml } from './report'
@@ -115,6 +116,16 @@ describe('buildReportHtml — furniture by room section', () => {
   it('omits the section entirely when no furniture is placed', () => {
     const html = buildReportHtml(plan, [], catalog, null)
     expect(html).not.toContain('Furniture by room')
+  })
+})
+
+describe('buildReportHtml — furnished plan', () => {
+  it('renders furniture footprints + a category legend on the plan', () => {
+    // A real walled plan so reportPlanSvg emits a diagram; seating item inside it.
+    const html = buildReportHtml(buildDefaultPlan(), [item('1', 1.5, 1.5)], catalog, null)
+    expect(html).toContain('<polygon') // furniture footprint
+    expect(html).toContain('plan-legend')
+    expect(html).toContain('Seating') // legend entry for the item's category
   })
 })
 

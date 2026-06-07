@@ -54,6 +54,17 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [Q41b] Colour-key the report's furnished plan by category + legend
+
+Built on Q41: the report plan's furniture footprints are now **tinted by
+furniture category** (low-opacity, print-friendly, mirroring the walk-minimap
+palette) with a compact **legend** beneath the plan listing the categories
+present. Makes the furnished plan a properly keyed diagram (tell beds from
+seating from storage at a glance). `reportPlanSvg` footprints param became
+`{ corners, fill }[]`; `report.ts` maps category → fill (`CATEGORY_FILL`) and
+builds the legend from the categories actually placed. Unit-tested (tinted
+polygon + legend + category label in the HTML). 885 tests; tsc + lint clean.
+
 ## [Q41] Report floor plan now shows the furnished layout
 
 The report's 2D plan diagram drew only walls + room labels. It now also renders

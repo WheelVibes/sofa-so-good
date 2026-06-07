@@ -75,9 +75,10 @@ export function reportPlanSvg(
   plan: FloorPlan,
   annotations: MeasurementAnnotation[] = [],
   units: UnitSystem = 'metric',
-  /** Top-down furniture footprints (world-metre corner polygons) drawn under the
-   *  walls, so the report plan reads as a furnished layout — "where things go". */
-  footprints: [number, number][][] = [],
+  /** Top-down furniture footprints (world-metre corner polygons + a category
+   *  tint) drawn under the walls, so the report plan reads as a furnished
+   *  layout — "where things go", colour-keyed by furniture type. */
+  footprints: { corners: [number, number][]; fill: string }[] = [],
 ): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
@@ -91,10 +92,11 @@ export function reportPlanSvg(
   // Furniture footprints first (drawn under walls + labels): muted architectural
   // fill so the layout reads without competing with the structure.
   const furniture = footprints
-    .filter((c) => c.length >= 3)
-    .map((corners) => {
-      const pts = corners.map(([x, z]) => `${x.toFixed(3)},${z.toFixed(3)}`).join(' ')
-      return `<polygon points="${pts}" fill="#cbd5e1" fill-opacity="0.55" stroke="#94a3b8" stroke-width="0.03"/>`
+    .filter((f) => f.corners.length >= 3)
+    .map((f) => {
+      const pts = f.corners.map(([x, z]) => `${x.toFixed(3)},${z.toFixed(3)}`).join(' ')
+      // Low-opacity category tint (print-friendly) + a thin slate edge.
+      return `<polygon points="${pts}" fill="${f.fill}" fill-opacity="0.45" stroke="#475569" stroke-width="0.025"/>`
     })
     .join('')
 

@@ -16,14 +16,18 @@ describe('reportPlanSvg', () => {
     const plain = reportPlanSvg(buildDefaultPlan())
     expect(plain).not.toContain('<polygon')
     const withFurniture = reportPlanSvg(buildDefaultPlan(), [], 'metric', [
-      [
-        [1, 1],
-        [2, 1],
-        [2, 2],
-        [1, 2],
-      ],
+      {
+        corners: [
+          [1, 1],
+          [2, 1],
+          [2, 2],
+          [1, 2],
+        ],
+        fill: '#3b82f6',
+      },
     ])
     expect(withFurniture).toContain('<polygon')
+    expect(withFurniture).toContain('#3b82f6') // category tint
     // Footprint is drawn before the walls so the structure overlays it.
     expect(withFurniture.indexOf('<polygon')).toBeLessThan(withFurniture.indexOf('<line'))
   })

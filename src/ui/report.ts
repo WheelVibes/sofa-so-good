@@ -35,6 +35,26 @@ const CAT_LABEL: Record<FurnitureCategory, string> = {
   others: 'Others',
 }
 
+/** Per-category fill for the furnished-plan footprints + legend (mirrors the
+ *  walk minimap palette). Tinted at low opacity on the plan; full in the legend. */
+const CATEGORY_FILL: Record<FurnitureCategory, string> = {
+  beds: '#8b5cf6',
+  seating: '#3b82f6',
+  tables: '#f59e0b',
+  storage: '#10b981',
+  kitchen: '#ec4899',
+  bathroom: '#06b6d4',
+  appliances: '#ef4444',
+  lighting: '#eab308',
+  decor: '#a78bfa',
+  textiles: '#f97316',
+  outdoor: '#84cc16',
+  electronics: '#0ea5e9',
+  kids: '#d946ef',
+  laundry: '#14b8a6',
+  others: '#9ca3af',
+}
+
 const esc = (s: string) =>
   s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
 const sgd = (n: number) => `$${Math.round(n).toLocaleString('en-SG')}`
@@ -151,10 +171,24 @@ export function buildReportHtml(
     .map((it) => {
       const def = catalog[it.defId]
       // Guard defaultFootprint: a malformed def shouldn't crash the whole report.
-      return def?.defaultFootprint ? obbCorners(itemFootprint(it, def)) : null
+      if (!def?.defaultFootprint) return null
+      return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_FILL[def.category] }
     })
-    .filter((c): c is [number, number][] => c != null)
+    .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
   const planSvg = reportPlanSvg(plan, annotations, units, planFootprints)
+  // Legend: the furniture categories actually present, colour-keyed to the plan.
+  const presentCats = FURNITURE_CATEGORIES.filter((c) =>
+    items.some((it) => catalog[it.defId]?.category === c),
+  )
+  const planLegend =
+    planSvg && presentCats.length > 0
+      ? `<div class="plan-legend">${presentCats
+          .map(
+            (c) =>
+              `<span class="lg-item"><span class="lg-sw" style="background:${CATEGORY_FILL[c]}"></span>${CAT_LABEL[c]}</span>`,
+          )
+          .join('')}</div>`
+      : ''
 
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
@@ -189,6 +223,9 @@ export function buildReportHtml(
   .chip .sw { width: 20px; height: 20px; border-radius: 50%; border: 1px solid rgba(0,0,0,.12); flex: none; }
   .chip .cn { font-size: 12px; color: #374151; }
   .plan-svg { width: 100%; height: auto; max-height: 280px; display: block; }
+  .plan-legend { display: flex; flex-wrap: wrap; gap: 4px 12px; margin-top: 8px; font-size: 11px; color: #6b7280; }
+  .lg-item { display: inline-flex; align-items: center; gap: 5px; }
+  .lg-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; opacity: 0.7; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   @media print { body { padding: 0; } .hero { max-height: 300px; } }
 </style></head>
@@ -202,7 +239,7 @@ export function buildReportHtml(
       <h2>Rooms &amp; areas</h2>
       <table>${roomRows}</table>
       <div class="total"><span>Total interior</span><span>${formatArea(totalArea, units)}</span></div>
-      ${planSvg ? `<div class="plan-wrap">${planSvg}</div>` : ''}
+      ${planSvg ? `<div class="plan-wrap">${planSvg}</div>${planLegend}` : ''}
     </div>
     <div class="col">
       <h2>Furniture &amp; budget</h2>
