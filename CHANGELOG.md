@@ -42,6 +42,17 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [B35] Mobile Finish picker — dropdown instead of squished swatch strips
+
+On mobile the FinishPicker's 3-column swatch grid squeezed each `aspect-ratio:
+1.6/1` thumbnail into a thin strip in the narrow panel. Per the user, the mobile
+layout is now a **dropdown** per surface: a proper square **preview** of the
+current finish + a `<select>` of all finishes (with provider tags) + the
+custom-colour tile, plus the recent-colours row. Desktop keeps the swatch grid
+unchanged (extracted a shared `RecentColors` row used by both). Gated on
+`useIsMobile()`. Verified: mobile shows Floor/Walls dropdowns with square
+previews (no strips); desktop grid unchanged. 880 tests; tsc + lint clean.
+
 ## [Q38] Room switcher shows per-room furniture counts
 
 The per-room editor's room dropdown (desktop + mobile) now shows a furniture

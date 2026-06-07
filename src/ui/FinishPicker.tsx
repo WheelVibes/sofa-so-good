@@ -13,6 +13,7 @@ import { formatArea } from '../utils/measurement'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
 import { Icon } from './toolbar/icons'
 import { UploadMaterialDialog } from './upload/UploadMaterialDialog'
+import { useIsMobile } from './useIsMobile'
 
 /** Background-image URL for a swatch tile: the generated texture preview for
  *  procedural finishes, the provider thumbnail/albedo for textured ones. */
@@ -272,6 +273,38 @@ function providerTag(def: MaterialDef): { label: string; cls: string } | null {
   return null
 }
 
+/** A small finish-colour swatches row (recent custom colours). */
+function RecentColors({
+  recent,
+  active,
+  onCustom,
+}: {
+  recent: string[]
+  active: string
+  onCustom: (hex: string) => void
+}) {
+  return (
+    <div style={{ marginTop: 'var(--s-3)' }}>
+      <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+        <span>Recent</span>
+      </div>
+      <div className="swatches">
+        {recent.map((hex) => (
+          <button
+            type="button"
+            key={hex}
+            onClick={() => onCustom(hex)}
+            title={hex}
+            aria-label={`Recent colour ${hex}`}
+            className={`swatch${active === hex ? ' on' : ''}`}
+            style={{ backgroundColor: hex }}
+          />
+        ))}
+      </div>
+    </div>
+  )
+}
+
 function SwatchGroup({
   label,
   items,
@@ -282,6 +315,84 @@ function SwatchGroup({
   recent,
 }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#')
+  const isMobile = useIsMobile()
+
+  // Mobile: the 3-up swatch grid squeezes each thumbnail into a thin strip, so
+  // show a compact dropdown of finishes with a live preview of the current
+  // choice instead (+ the custom-colour control + recent row).
+  if (isMobile) {
+    const activeMat = items.find((m) => m.id === active)
+    const previewStyle: React.CSSProperties = activeMat
+      ? {
+          backgroundColor: activeMat.swatch,
+          backgroundImage: swatchImage(activeMat),
+          backgroundSize: 'cover',
+          backgroundPosition: 'center',
+        }
+      : customActive
+        ? { background: active }
+        : { background: 'var(--surface-3)' }
+    return (
+      <section className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+        <div className="sec-h">
+          <span>{label}</span>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
+          <span
+            className="swatch-lg"
+            aria-hidden
+            style={{ width: 52, height: 36, flex: '0 0 auto', ...previewStyle }}
+          />
+          <select
+            className="input"
+            style={{ flex: 1, minWidth: 0 }}
+            aria-label={`${label} finish`}
+            value={customActive ? '' : active}
+            onChange={(e) => onSelect(e.target.value)}
+          >
+            {customActive ? <option value="">Custom colour</option> : null}
+            {items.map((m) => {
+              const tag = providerTag(m)
+              return (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                  {tag ? ` · ${tag.label}` : ''}
+                </option>
+              )
+            })}
+          </select>
+          {onCustom ? (
+            <label
+              className="swatch-lg"
+              title="Custom colour"
+              style={{
+                width: 36,
+                height: 36,
+                flex: '0 0 auto',
+                position: 'relative',
+                cursor: 'pointer',
+                background: customActive
+                  ? (active as string)
+                  : 'conic-gradient(from 0deg, #f00, #ff0, #0f0, #0ff, #00f, #f0f, #f00)',
+              }}
+            >
+              <input
+                type="color"
+                value={customActive ? (active as string) : '#cccccc'}
+                onChange={(e) => onCustom(e.target.value)}
+                className="absolute inset-0 cursor-pointer opacity-0"
+                aria-label={`Custom ${label.toLowerCase()} colour`}
+              />
+            </label>
+          ) : null}
+        </div>
+        {onCustom && recent && recent.length > 0 ? (
+          <RecentColors recent={recent} active={active} onCustom={onCustom} />
+        ) : null}
+      </section>
+    )
+  }
+
   return (
     <section className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
       <div className="sec-h">
@@ -368,24 +479,7 @@ function SwatchGroup({
         ) : null}
       </div>
       {onCustom && recent && recent.length > 0 ? (
-        <div style={{ marginTop: 'var(--s-3)' }}>
-          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
-            <span>Recent</span>
-          </div>
-          <div className="swatches">
-            {recent.map((hex) => (
-              <button
-                type="button"
-                key={hex}
-                onClick={() => onCustom(hex)}
-                title={hex}
-                aria-label={`Recent colour ${hex}`}
-                className={`swatch${active === hex ? ' on' : ''}`}
-                style={{ backgroundColor: hex }}
-              />
-            ))}
-          </div>
-        </div>
+        <RecentColors recent={recent} active={active} onCustom={onCustom} />
       ) : null}
     </section>
   )
