@@ -1,3 +1,4 @@
+import { useFeature } from '../../../features/useFeature'
 import { dropBuiltinSet, dropIkeaSet } from '../../../furniture/arrangeActions'
 import { FURNITURE_SETS } from '../../../furniture/furnitureSets'
 import { ikeaSetRecipes } from '../../../furniture/ikeaSets'
@@ -24,29 +25,35 @@ export function ArrangeMenu() {
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const toggleFloorPlanEditing = useStore((s) => s.toggleFloorPlanEditing)
   const recipes = ikeaSetRecipes()
+  const fSmartStart = useFeature('smartStart')
+  const fFloorPlan = useFeature('floorPlanEditor')
 
   return (
     <ToolbarMenu icon="Sets" label="Arrange" active={floorPlanEditing} width={256}>
       <div className="max-h-[70vh] overflow-y-auto">
-        <Action
-          icon="Presets"
-          label="Smart Start…"
-          sub="Pick a style, furnish every room"
-          onClick={() => setSmartStartOpen(true)}
-        />
+        {fSmartStart && (
+          <Action
+            icon="Presets"
+            label="Smart Start…"
+            sub="Pick a style, furnish every room"
+            onClick={() => setSmartStartOpen(true)}
+          />
+        )}
         <Action
           icon="Tidy"
           label={`Tidy home${chip(shortcutLabel('tidyHome'))}`}
           sub="Auto-arrange every room"
           onClick={tidyHome}
         />
-        <Action
-          icon="FloorPlan"
-          label="Floor plan"
-          sub="Edit walls, rooms, doors & windows"
-          active={floorPlanEditing}
-          onClick={toggleFloorPlanEditing}
-        />
+        {fFloorPlan && (
+          <Action
+            icon="FloorPlan"
+            label="Floor plan"
+            sub="Edit walls, rooms, doors & windows"
+            active={floorPlanEditing}
+            onClick={toggleFloorPlanEditing}
+          />
+        )}
 
         <Header>Sets</Header>
         {FURNITURE_SETS.map((s) => (

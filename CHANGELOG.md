@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [FG3a] Feature flags — gate Tools + Arrange menu entries (3a/4)
+`useFeature` gates each Tools-menu item (budget/checks/measure/history/versions/
+share/sunStudy/walkthrough/report) + Arrange's Smart Start & Floor plan. Hidden
+when off. (Menu-open screenshot not captured — portaled-dropdown harness friction;
+logic is a trivial conditional over the 16-test flag slice.) ⌘K/mobile next.
+
 ## [A3] Accounts — admin unlocks dev-only features (3/3)
 `resolveFlags` gains an `isAdmin` param: a signed-in admin (even in a prod build)
 unlocks `devOnly` flags + can override; sign-in/out + boot re-resolve the flag

@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { useFeature } from '../../../features/useFeature'
 import { useCatalog } from '../../../furniture/catalog'
 import { blockedDoorItems } from '../../../layout/clearance'
 import { canRecord } from '../../../scene/RecordController'
@@ -91,64 +92,93 @@ export function ToolsMenu() {
 
   const openReport = () => openDesignReport()
 
+  // Per-feature gates: an item is hidden when its flag is off (see featureFlags).
+  const fBudget = useFeature('budget')
+  const fChecks = useFeature('clearanceChecks')
+  const fMeasure = useFeature('measure')
+  const fHistory = useFeature('history')
+  const fVersions = useFeature('versions')
+  const fShare = useFeature('shareExport')
+  const fSun = useFeature('sunStudy')
+  const fWalk = useFeature('walkthrough')
+  const fReport = useFeature('report')
+
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={anyActive}>
-      <MenuItem
-        icon="Budget"
-        label="Budget"
-        sub="Estimate furniture cost (SGD)"
-        active={budgetOpen}
-        onClick={openBudget}
-      />
-      <MenuItem
-        icon="Checks"
-        label={blockedCount > 0 ? `Checks · ${blockedCount}` : 'Checks'}
-        sub="Door-swing + walkway clearance"
-        active={clearancePanelOpen}
-        onClick={toggleChecks}
-      />
-      <MenuItem
-        icon="Measure"
-        label={tapeMode ? 'Measuring…' : 'Measure'}
-        sub="Tap two points for a distance"
-        active={tapeMode}
-        onClick={toggleTape}
-      />
-      <MenuItem
-        icon="Undo"
-        label="History"
-        sub="Timeline of edits — jump to any step"
-        active={historyOpen}
-        onClick={openHistory}
-      />
-      <MenuItem
-        icon="Versions"
-        label="Versions"
-        sub="Save, restore, compare & export layouts"
-        active={versionsOpen}
-        onClick={openVersions}
-      />
-      <MenuItem
-        icon="Share"
-        label="Share & export"
-        sub="Link, PNG snapshot, shoppable PDF"
-        onClick={() => setShareOpen(true)}
-      />
-      <MenuItem
-        icon="SunStudy"
-        label="Sun study"
-        sub="Time-lapse dawn → dusk"
-        active={sunStudy}
-        onClick={() => setSunStudy((v) => !v)}
-      />
-      <MenuItem
-        icon="Walkthrough"
-        label={touring ? 'Stop tour' : 'Walkthrough'}
-        sub="Fly a tour through every room"
-        active={touring}
-        onClick={startWalkthrough}
-      />
-      <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+      {fBudget && (
+        <MenuItem
+          icon="Budget"
+          label="Budget"
+          sub="Estimate furniture cost (SGD)"
+          active={budgetOpen}
+          onClick={openBudget}
+        />
+      )}
+      {fChecks && (
+        <MenuItem
+          icon="Checks"
+          label={blockedCount > 0 ? `Checks · ${blockedCount}` : 'Checks'}
+          sub="Door-swing + walkway clearance"
+          active={clearancePanelOpen}
+          onClick={toggleChecks}
+        />
+      )}
+      {fMeasure && (
+        <MenuItem
+          icon="Measure"
+          label={tapeMode ? 'Measuring…' : 'Measure'}
+          sub="Tap two points for a distance"
+          active={tapeMode}
+          onClick={toggleTape}
+        />
+      )}
+      {fHistory && (
+        <MenuItem
+          icon="Undo"
+          label="History"
+          sub="Timeline of edits — jump to any step"
+          active={historyOpen}
+          onClick={openHistory}
+        />
+      )}
+      {fVersions && (
+        <MenuItem
+          icon="Versions"
+          label="Versions"
+          sub="Save, restore, compare & export layouts"
+          active={versionsOpen}
+          onClick={openVersions}
+        />
+      )}
+      {fShare && (
+        <MenuItem
+          icon="Share"
+          label="Share & export"
+          sub="Link, PNG snapshot, shoppable PDF"
+          onClick={() => setShareOpen(true)}
+        />
+      )}
+      {fSun && (
+        <MenuItem
+          icon="SunStudy"
+          label="Sun study"
+          sub="Time-lapse dawn → dusk"
+          active={sunStudy}
+          onClick={() => setSunStudy((v) => !v)}
+        />
+      )}
+      {fWalk && (
+        <MenuItem
+          icon="Walkthrough"
+          label={touring ? 'Stop tour' : 'Walkthrough'}
+          sub="Fly a tour through every room"
+          active={touring}
+          onClick={startWalkthrough}
+        />
+      )}
+      {fReport && (
+        <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+      )}
     </ToolbarMenu>
   )
 }
