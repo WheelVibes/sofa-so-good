@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F19] Search synonyms for 40 catalog items
+Added keyword aliases to builtin defs (stove→oven/hob, aircon→air conditioner,
+nightstand→bedside table, rug→carpet, tv→television…) so common alternate terms
+find the right item. 14-case test through the real fuzzy search.
+
 ## [F18] Name-based room-kind for custom-plan auto-arrange
 `roomKindFromName` classifies a custom room by its name (kitchen/bath/bedroom/
 living), so "Tidy" routes named kitchens+baths to the work-triangle/fixtures
