@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [PS3] Plan sharing — "Copy plan link" in the Share modal (3/n)
+Replaced the old can't-carry-the-design "App link" with a real design-bearing
+**Copy plan link** (encodes the whole design into a `#/plans/<code>` URL). Share
+modal screenshot-verified.
+
 ## [PS2] Plan sharing — hash routing + load-on-boot (2/n)
 `#/plans/<code>` links: `parsePlanRoute`/`planShareHash`/`buildPlanShareUrl` +
 a boot step that decodes + loads a shared design (overriding the seed), then

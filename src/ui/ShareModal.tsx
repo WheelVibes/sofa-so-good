@@ -1,3 +1,4 @@
+import { buildPlanShareUrl, encodeDesignToCode, PlanShareError } from '../features/planShare'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { EXPORT_EVENT } from '../scene/ScreenshotController'
 import { exportDesignToFile } from '../state/storage/designFile'
@@ -18,12 +19,24 @@ export function ShareModal() {
   const designNote = useStore((s) => s.designNote)
   const setDesignNote = useStore((s) => s.setDesignNote)
 
-  // The real app URL (so the copied link actually opens the app). Designs live
-  // in the browser, so the link opens the editor — share the design itself as a
-  // portable file via the Versions panel's Export.
-  const link = typeof window !== 'undefined' ? window.location.href : ''
-
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
+
+  // A self-contained share link: the whole design (furniture, finishes, plan) is
+  // encoded into the URL hash, so opening it on any device/instance reconstructs
+  // it — no account or server (see features/planShare).
+  const copyPlanLink = () => {
+    try {
+      const url = buildPlanShareUrl(encodeDesignToCode(useStore.getState()))
+      void navigator.clipboard?.writeText(url)
+      toast('Plan link copied — opens this exact design anywhere')
+    } catch (e) {
+      useStore.getState().notify.start({
+        title: "Couldn't create a plan link",
+        kind: 'error',
+        message: e instanceof PlanShareError ? e.message : undefined,
+      })
+    }
+  }
 
   // A one-line text summary (name · area · items · est. cost) for quick sharing
   // in a chat/email — distinct from the full report / portable file.
@@ -47,7 +60,7 @@ export function ShareModal() {
     >
       <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
         <div className="sec-h">
-          <span>App link</span>
+          <span>Share this design</span>
         </div>
         <p
           style={{
@@ -57,26 +70,13 @@ export function ShareModal() {
             lineHeight: 1.4,
           }}
         >
-          Opens the editor. To send your actual design, use “Export file” below and share the
-          downloaded .sofa.json.
+          Copies a link that opens this exact design — furniture, finishes and floor plan — on any
+          device. No account needed; the whole design travels in the link.
         </p>
-        <div className="share-link">
-          <div className="field">
-            <Icon.Eye width={16} height={16} className="icn" />
-            <input className="input" readOnly value={link} />
-          </div>
-          <button
-            type="button"
-            className="btn btn-accent"
-            onClick={() => {
-              void navigator.clipboard?.writeText(link)
-              toast('Link copied to clipboard')
-            }}
-          >
-            <Icon.Copy width={14} height={14} />
-            Copy
-          </button>
-        </div>
+        <button type="button" className="btn btn-accent btn-block" onClick={copyPlanLink}>
+          <Icon.Copy width={14} height={14} />
+          Copy plan link
+        </button>
       </div>
 
       <div className="sec">
