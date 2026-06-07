@@ -1,3 +1,4 @@
+import { useFeature } from '../../../features/useFeature'
 import { useStore } from '../../../state/store'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
@@ -12,6 +13,7 @@ export function ViewMenu() {
   const autoRotate = useStore((s) => s.autoRotate)
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  const savedViews = useFeature('savedViews')
   return (
     <ToolbarMenu icon="TopView" label="View" active={autoRotate}>
       <MenuItem
@@ -33,7 +35,7 @@ export function ViewMenu() {
         active={autoRotate}
         onClick={toggleAutoRotate}
       />
-      {proMode ? <SavedViewsSection /> : null}
+      {proMode && savedViews ? <SavedViewsSection /> : null}
     </ToolbarMenu>
   )
 }

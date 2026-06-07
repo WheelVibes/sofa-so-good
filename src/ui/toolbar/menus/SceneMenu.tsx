@@ -1,4 +1,5 @@
 import { type ChangeEvent, useState } from 'react'
+import { useFeature } from '../../../features/useFeature'
 import {
   applyLightingScene,
   isLightingSceneActive,
@@ -25,6 +26,8 @@ export function SceneMenu() {
   const backdrop = useStore((s) => s.backdrop)
   const setBackdrop = useStore((s) => s.setBackdrop)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  const fLightingMoods = useFeature('lightingMoods')
+  const fBackdrops = useFeature('backdrops')
   const effectiveHour = useEffectiveHour()
   const [compassOpen, setCompassOpen] = useState(false)
 
@@ -77,36 +80,40 @@ export function SceneMenu() {
             style={{ width: '100%' }}
           />
         </div>
-        <div className="mt-1 border-t border-[var(--border)] pt-1">
-          <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-            Lighting moods
+        {fLightingMoods && (
+          <div className="mt-1 border-t border-[var(--border)] pt-1">
+            <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+              Lighting moods
+            </div>
+            {LIGHTING_SCENES.map((sc) => (
+              <MenuItem
+                key={sc.id}
+                icon="Lights"
+                label={sc.label}
+                sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
+                active={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
+                onClick={() => applyLightingScene(sc)}
+              />
+            ))}
           </div>
-          {LIGHTING_SCENES.map((sc) => (
-            <MenuItem
-              key={sc.id}
-              icon="Lights"
-              label={sc.label}
-              sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
-              active={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
-              onClick={() => applyLightingScene(sc)}
-            />
-          ))}
-        </div>
-        <div className="mt-1 border-t border-[var(--border)] pt-1">
-          <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-            Backdrop
+        )}
+        {fBackdrops && (
+          <div className="mt-1 border-t border-[var(--border)] pt-1">
+            <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
+              Backdrop
+            </div>
+            {BACKDROPS.map((b) => (
+              <MenuItem
+                key={b.id}
+                icon="Cube"
+                label={b.label}
+                sub={b.sub}
+                active={backdrop === b.id}
+                onClick={() => setBackdrop(b.id)}
+              />
+            ))}
           </div>
-          {BACKDROPS.map((b) => (
-            <MenuItem
-              key={b.id}
-              icon="Cube"
-              label={b.label}
-              sub={b.sub}
-              active={backdrop === b.id}
-              onClick={() => setBackdrop(b.id)}
-            />
-          ))}
-        </div>
+        )}
         {proMode ? (
           <div className="mt-1 border-t border-[var(--border)] pt-1">
             <MenuItem

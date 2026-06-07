@@ -4,6 +4,7 @@ import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isEditableTarget } from '../../controls/useKeyboard'
+import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { roomLabelPoint } from '../../floorplan/roomCentroid'
@@ -116,6 +117,7 @@ export function FloorPlanEditor() {
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
   const [aiBusy, setAiBusy] = useState(false)
+  const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).
   const [showWallDims, setShowWallDims] = useState(true)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -743,14 +745,16 @@ export function FloorPlanEditor() {
                 setBackdrop((b) => (b ? { ...b, opacity: Number(e.target.value) } : b))
               }
             />
-            <button
-              type="button"
-              onClick={runAiWalls}
-              disabled={aiBusy}
-              title="Experimental: recognise walls from the photo with a vision model (your API key)"
-            >
-              {aiBusy ? 'Recognising…' : 'AI walls'}
-            </button>
+            {aiWalls && (
+              <button
+                type="button"
+                onClick={runAiWalls}
+                disabled={aiBusy}
+                title="Experimental: recognise walls from the photo with a vision model (your API key)"
+              >
+                {aiBusy ? 'Recognising…' : 'AI walls'}
+              </button>
+            )}
             <button
               type="button"
               onClick={() => {

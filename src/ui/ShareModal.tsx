@@ -1,4 +1,5 @@
 import { buildPlanShareUrl, encodeDesignToCode, PlanShareError } from '../features/planShare'
+import { useFeature } from '../features/useFeature'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { EXPORT_EVENT } from '../scene/ScreenshotController'
 import { exportDesignToFile } from '../state/storage/designFile'
@@ -18,6 +19,7 @@ export function ShareModal() {
   const planName = useStore((s) => s.floorPlan.name)
   const designNote = useStore((s) => s.designNote)
   const setDesignNote = useStore((s) => s.setDesignNote)
+  const aiPhotoreal = useFeature('aiPhotoreal')
 
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
 
@@ -142,7 +144,7 @@ export function ShareModal() {
         </div>
       </div>
 
-      <AiPhotorealSection />
+      {aiPhotoreal && <AiPhotorealSection />}
     </Modal>
   )
 }

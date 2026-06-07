@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [FG3c] Feature flags — gate AI sections + Scene/View menus
+Share modal's AI photoreal (aiPhotoreal), floor-plan AI walls (aiWalls), Scene
+lighting-moods (lightingMoods) + backdrops (backdrops), View saved-views
+(savedViews) now hide when their flag is off. tsc + suite green.
+
 ## [FG3b] Feature flags — gate the ⌘K command palette
 `COMMAND_FLAGS` map filters palette commands (measure/smart-start/budget/
 clearance/versions/history/share/report/floorplan + saved-views) by flag, so a
