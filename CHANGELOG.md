@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F20] Explicit prices for 22 under/over-priced budget items
+22 builtin items fell back to the category base — wildly off (standing-fan/
+drying-rack at the $700 appliance base; piano/fireplace at the $60 decor base).
+Added real SGD prices + a coverage test that no builtin silently falls back.
+
 ## [F19] Search synonyms for 40 catalog items
 Added keyword aliases to builtin defs (stove→oven/hob, aircon→air conditioner,
 nightstand→bedside table, rug→carpet, tv→television…) so common alternate terms

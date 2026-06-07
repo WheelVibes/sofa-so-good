@@ -26,7 +26,7 @@ const CATEGORY_BASE: Record<FurnitureCategory, number> = {
 }
 
 /** Notable per-item prices (SGD). */
-const ITEM_PRICE: Record<string, number> = {
+export const ITEM_PRICE: Record<string, number> = {
   // Seating
   'sofa-3seat': 1200,
   'sofa-2seat': 900,
@@ -93,6 +93,30 @@ const ITEM_PRICE: Record<string, number> = {
   'roller-blind': 120,
   'wall-clock': 45,
   'wall-shelf': 60,
+  // Previously fell back to the (often wildly off) per-category base.
+  nightstand: 150,
+  vanity: 550,
+  'changing-table': 220,
+  'coat-rack': 80,
+  'high-chair': 120,
+  'chaise-lounge': 800,
+  'toy-storage': 90,
+  bathtub: 1100,
+  'towel-rail': 60,
+  'towel-ladder': 180,
+  'bathroom-mirror': 120,
+  'wall-cabinet': 220,
+  'kitchen-island': 1800,
+  'kitchen-counter-l': 1800,
+  'standing-fan': 90,
+  'drying-rack': 50,
+  'tabletop-decor': 60,
+  'hanging-plant': 50,
+  'floor-vase': 70,
+  'wall-mirror': 120,
+  fireplace: 900,
+  piano: 3500,
+  'feature-wall': 350,
 }
 
 /** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant

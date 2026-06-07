@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_CATALOG } from './builtinCatalog'
 import { defaultLayout } from './defaultLayout'
-import { itemPrice } from './furniturePrices'
+import { ITEM_PRICE, itemPrice } from './furniturePrices'
 import type { FurnitureDef, IkeaGltfDef } from './types'
 
 const ikea: IkeaGltfDef = {
@@ -128,6 +128,13 @@ describe('furniturePrices', () => {
     for (const def of Object.values(BUILTIN_CATALOG)) {
       expect(itemPrice(def, def.category)).toBeGreaterThan(0)
     }
+  })
+
+  it('every builtin item has an explicit price (no silent category fallback)', () => {
+    const missing = Object.values(BUILTIN_CATALOG)
+      .map((d) => d.id)
+      .filter((id) => !(id in ITEM_PRICE))
+    expect(missing).toEqual([])
   })
 
   it('the default move-in layout totals a sensible ballpark', () => {
