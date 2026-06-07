@@ -78,6 +78,20 @@ export function LoginScreen() {
                 ? 'Admin unlocks dev-only features and the feature-flags panel.'
                 : ''}
             </p>
+            {isAdminUser(currentUser) ? (
+              <button
+                type="button"
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                onClick={() => {
+                  setOpen(false)
+                  useStore.getState().setFlagsPanelOpen(true)
+                }}
+              >
+                <Icon.Tools width={14} height={14} />
+                Feature flags
+              </button>
+            ) : null}
             <div style={{ display: 'flex', gap: 'var(--s-2)', marginTop: 'var(--s-3)' }}>
               <button type="button" className="btn btn-danger" onClick={signOut}>
                 <Icon.ExitRoom width={14} height={14} />

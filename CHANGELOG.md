@@ -4,6 +4,10 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [FG4] Feature flags — dev/admin flags panel (4/4)
+`ui/FlagsPanel` lists every flag with a toggle + reset (dev build or signed-in
+admin only); opened from the login screen's admin view. Screenshot-verified.
+
 ## [FG3a] Feature flags — gate Tools + Arrange menu entries (3a/4)
 `useFeature` gates each Tools-menu item (budget/checks/measure/history/versions/
 share/sunStudy/walkthrough/report) + Arrange's Smart Start & Floor plan. Hidden

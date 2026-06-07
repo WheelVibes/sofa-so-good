@@ -35,6 +35,7 @@ import { DragHud } from './ui/DragHud'
 import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
+import { FlagsPanel } from './ui/FlagsPanel'
 import { FpsCounter } from './ui/FpsCounter'
 
 // Lazy-loaded: the 2D editor (+ its AI/template deps) is only needed once the
@@ -733,6 +734,7 @@ export default function App() {
         <HistoryPanel />
         <SmartStartWizard />
         <LoginScreen />
+        <FlagsPanel />
         <Onboarding />
         <ProductTour />
         <LocationPrompt />
