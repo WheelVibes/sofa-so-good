@@ -42,6 +42,20 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [VE3] Click-a-room-to-edit + hover affordance on custom plans too
+
+VE1/VE1c wired "click a room's floor to enter its editor" and the hover
+highlight only for the **default apartment** (`RoomFloor`); on a custom floor
+plan the only way in was the toolbar CTA. Closed the gap: `PlanRoomFloor` now
+takes a `roomId` and carries the same overview click-to-enter + pointer-cursor
+hover (`useOverviewRoomEntry`), threaded from `PlanShell` (main rect, polygon,
+and L-extension floors). Generalized `RoomHoverHighlight` to read
+`floorPlan.rooms` and triangulate the room outline via `roomPolygon` (rect /
+L-extension / free-polygon — one path), so it highlights any plan's rooms; now
+mounted unconditionally (was default-plan-only). Verified the highlight renders
+on both the default apartment (regression) and a custom oneBed template; 880
+tests; tsc + lint clean.
+
 ## [VE2] Show the furniture count in the room-editor caption
 
 The room-editor caption (name · size · area) now also shows **how many pieces

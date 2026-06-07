@@ -105,6 +105,7 @@ export function PlanShell() {
           return (
             <PlanRoomFloor
               key={r.id}
+              roomId={r.id}
               origin={r.origin}
               width={r.width}
               depth={r.depth}
@@ -115,9 +116,16 @@ export function PlanShell() {
         }
         return (
           <group key={r.id}>
-            <PlanRoomFloor origin={r.origin} width={r.width} depth={r.depth} materialId={mat} />
+            <PlanRoomFloor
+              roomId={r.id}
+              origin={r.origin}
+              width={r.width}
+              depth={r.depth}
+              materialId={mat}
+            />
             {r.extension && (
               <PlanRoomFloor
+                roomId={r.id}
                 origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
                 width={r.extension.width}
                 depth={r.extension.depth}

@@ -353,6 +353,10 @@ Remaining (larger / focused-session):
   returns null instead of crashing on ROOMS[id].origin. Unit-tested. (CHANGELOG)
 - [x] VE1c. **Room-floor hover affordance** in the overview — pointer cursor +
   soft highlight ("click to edit"), default-plan overview only. Verified. (CHANGELOG)
+- [x] VE1d. **Prominent "Edit a room" accent CTA** in the overview toolbar. (CHANGELOG)
+- [x] VE2. **Furniture count** in the room-editor caption (pointInRoom). (CHANGELOG)
+- [x] VE3. **Click-to-edit + hover on custom plans** — PlanRoomFloor click-to-enter
+  + generalized RoomHoverHighlight (roomPolygon, any plan). Verified default + custom. (CHANGELOG)
 
 ## User-requested features (2026-06-07)
 - [x] N27. **Selectable 3D backdrops** (City/Park/Hills/Studio) — Scene menu + mobile, persisted. Replaces the "cluttered/boring" buildings-only backdrop. E2E-verified. (CHANGELOG)

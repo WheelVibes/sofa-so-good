@@ -82,7 +82,8 @@ export function Scene() {
       <Lighting />
       <FurnitureLights />
       {customPlan ? <PlanShell /> : <Apartment />}
-      {!customPlan ? <RoomHoverHighlight /> : null}
+      {/* "Click a room to edit" hover highlight — works for both plans now. */}
+      <RoomHoverHighlight />
       <GridOverlay />
       <AlignmentGuides />
       <ClearanceOverlay />
