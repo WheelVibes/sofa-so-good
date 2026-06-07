@@ -5,6 +5,7 @@ import { tidyHome } from '../layout/tidyHome'
 import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
 import { useStore } from '../state/store'
 import { openDocs } from './docsUrl'
+import { openDesignReport } from './openReport'
 import { Icon, type IconName } from './toolbar/icons'
 
 interface Command {
@@ -117,6 +118,20 @@ export function CommandPalette() {
         label: 'Share & export',
         icon: 'Share',
         run: () => s().setShareOpen(true),
+      },
+      {
+        id: 'report',
+        group: 'Tools & panels',
+        label: 'Design report (printable)',
+        icon: 'Report',
+        run: () => openDesignReport(),
+      },
+      {
+        id: 'floorplan',
+        group: 'Tools & panels',
+        label: 'Floor plan editor',
+        icon: 'FloorPlan',
+        run: () => s().setFloorPlanEditing(true),
       },
       {
         id: 'appearance',

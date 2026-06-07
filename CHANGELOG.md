@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q48] Command palette: Design report + Floor plan editor
+
+Two top-level features were missing from ⌘K (which is meant to launch
+everything): added **Design report (printable)** and **Floor plan editor** to the
+Tools & panels group. E2E-verified (both appear with icons in the palette).
+
 ## [N26] Pinned dimensions in the 2D floor-plan editor (+ overlay-leak fix)
 
 Pinned dimension annotations now render in the **2D floor-plan editor** too —

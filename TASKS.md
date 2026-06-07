@@ -308,3 +308,4 @@ Remaining (larger / focused-session):
 - [x] N26. **Pinned dimensions in the 2D editor** + fixed drei `<Html>` overlay
   leaking over the editor (AnnotationsOverlay/MeasurementOverlay hide while
   editing). E2E-verified. (CHANGELOG)
+- [x] Q48. **⌘K: Design report + Floor plan editor** added to the palette. (CHANGELOG)
