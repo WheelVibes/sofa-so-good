@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q49] Name label for the selected item in the 2D editor
+
+The 2D floor-plan editor draws furniture as category-coloured footprints; with
+dozens of similar shapes it was hard to tell what you'd clicked. The **selected**
+item now shows its name (custom label or catalog name) centred on its footprint,
+with a halo so it reads over anything. Only the selected item is labelled, so the
+plan stays uncluttered. E2E-verified.
+
 ## [B25] Reject degenerate dimension annotations
 
 `addAnnotation` now ignores non-finite or degenerate spans (a zero-length line, a

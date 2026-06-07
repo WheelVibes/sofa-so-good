@@ -310,3 +310,4 @@ Remaining (larger / focused-session):
   editing). E2E-verified. (CHANGELOG)
 - [x] Q48. **⌘K: Design report + Floor plan editor** added to the palette. (CHANGELOG)
 - [x] B25. **Reject degenerate dimension annotations** — addAnnotation guards non-finite/zero spans. Unit-tested. (CHANGELOG)
+- [x] Q49. **Selected-item name label in the 2D editor** — haloed name on the selected footprint; only the selection, so no clutter. E2E-verified. (CHANGELOG)

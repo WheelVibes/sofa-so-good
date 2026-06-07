@@ -1004,6 +1004,37 @@ export function FloorPlanEditor() {
               )
             })}
 
+            {/* Name of the selected furniture item — a single label so the user
+                can tell what they clicked among many same-coloured footprints. */}
+            {(() => {
+              const it = items.find((i) => i.id === selectedItemId)
+              if (!it) return null
+              const def = getDef(it.defId)
+              const name = it.label ?? def?.name
+              if (!name) return null
+              return (
+                <text
+                  x={toPx(it.position[0])}
+                  y={toPx(it.position[1])}
+                  textAnchor="middle"
+                  dominantBaseline="middle"
+                  className="plan-item-label"
+                  style={{
+                    pointerEvents: 'none',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    fill: 'var(--text)',
+                    paintOrder: 'stroke',
+                    stroke: 'var(--surface)',
+                    strokeWidth: 3,
+                    strokeLinejoin: 'round',
+                  }}
+                >
+                  {name}
+                </text>
+              )
+            })()}
+
             {/* Walls */}
             {plan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
