@@ -311,3 +311,4 @@ Remaining (larger / focused-session):
 - [x] Q48. **⌘K: Design report + Floor plan editor** added to the palette. (CHANGELOG)
 - [x] B25. **Reject degenerate dimension annotations** — addAnnotation guards non-finite/zero spans. Unit-tested. (CHANGELOG)
 - [x] Q49. **Selected-item name label in the 2D editor** — haloed name on the selected footprint; only the selection, so no clutter. E2E-verified. (CHANGELOG)
+- [x] B26. **"Reset to HDB" undoable** — resetFloorPlan now pushes history first (was silent data loss of a custom plan). Unit-tested. (CHANGELOG)

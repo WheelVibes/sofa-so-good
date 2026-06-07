@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B26] "Reset to HDB" is now undoable (was silent data loss)
+
+`resetFloorPlan` replaced the active plan with the default **without snapshotting
+history**, so the 2D editor's "Reset to HDB" irreversibly destroyed a hand-built
+custom plan — Ctrl/⌘+Z couldn't bring it back. It now pushes history first, so a
+reset is undoable like every other plan edit (the editor's "New" was already
+wrapped in a snapshot). Unit-tested (reset → undo restores the custom plan).
+
 ## [Q49] Name label for the selected item in the 2D editor
 
 The 2D floor-plan editor draws furniture as category-coloured footprints; with

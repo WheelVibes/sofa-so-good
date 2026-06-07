@@ -134,7 +134,12 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
   toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
   setPlanSelection: (sel) => set({ planSelection: sel }),
-  resetFloorPlan: () => set({ floorPlan: buildDefaultPlan(), planSelection: null }),
+  resetFloorPlan: () => {
+    // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built
+    // custom plan is destroyed with no way back.
+    get().pushHistory()
+    set({ floorPlan: buildDefaultPlan(), planSelection: null })
+  },
   newFloorPlan: (name = 'New apartment') =>
     set({ floorPlan: blankPlan(name), planSelection: null }),
   updateFloorPlanMeta: (patch) => {

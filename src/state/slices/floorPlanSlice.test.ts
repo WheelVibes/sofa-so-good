@@ -93,6 +93,16 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().floorPlan.name).toBe('Test Apartment')
   })
 
+  it('makes Reset to HDB undoable (restores the custom plan)', () => {
+    const s = useStore.getState()
+    s.newFloorPlan('My Custom Flat')
+    expect(useStore.getState().floorPlan.name).toBe('My Custom Flat')
+    s.resetFloorPlan()
+    expect(useStore.getState().floorPlan.id).toBe('default-hdb-4room')
+    useStore.getState().undo()
+    expect(useStore.getState().floorPlan.name).toBe('My Custom Flat')
+  })
+
   it('re-saving under the same name updates rather than duplicates', () => {
     const s = useStore.getState()
     s.newFloorPlan('Dupe')
