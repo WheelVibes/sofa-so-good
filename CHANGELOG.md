@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [B28] Layout preset / Smart Start is a single undo step
+
+`applyLayoutPreset` snapshotted history once but then called `setFloorFinish` /
+`setWallFinish` in a per-room loop — and each of those pushes its own history
+entry, so applying a Smart Start preset stacked ~9 undo steps and reverting it
+took many Ctrl/⌘+Z presses. It now applies the furniture + the whole coordinated
+palette in a single `set`, so a preset is one clean undo. Unit-tested (one
+history entry; one undo restores the prior layout) and visually verified.
+
 ## [B27] Loading a saved plan is now undoable
 
 `loadSavedPlan` swapped in a saved plan without a history snapshot, so loading a

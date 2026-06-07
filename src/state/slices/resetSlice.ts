@@ -39,19 +39,23 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
   applyLayoutPreset: (presetId) => {
     const preset = LAYOUT_PRESETS.find((p) => p.id === presetId)
     if (!preset) return
+    // Snapshot once and apply furniture + the coordinated palette in a single
+    // `set`, so the whole preset is ONE undo step (calling the finish setters in
+    // a loop pushed history per room — a preset took ~9 undos to revert).
     get().pushHistory()
+    const cur = get().finishes
+    const floor = { ...cur.floor }
+    const walls = { ...cur.walls }
+    for (const room of PRESET_ROOMS) {
+      floor[room] = preset.dryFloor
+      walls[room] = preset.wall
+    }
     set({
       items: buildPresetItems(preset),
+      finishes: { ...cur, floor, walls },
       selectedItemId: null,
       selectedItemIds: [],
       hiddenItemIds: [],
     })
-    // Apply the coordinated palette across the designed living spaces.
-    const setFloor = get().setFloorFinish
-    const setWall = get().setWallFinish
-    for (const room of PRESET_ROOMS) {
-      setFloor(room, preset.dryFloor)
-      setWall(room, preset.wall)
-    }
   },
 })

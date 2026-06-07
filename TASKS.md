@@ -313,3 +313,4 @@ Remaining (larger / focused-session):
 - [x] Q49. **Selected-item name label in the 2D editor** — haloed name on the selected footprint; only the selection, so no clutter. E2E-verified. (CHANGELOG)
 - [x] B26. **"Reset to HDB" undoable** — resetFloorPlan now pushes history first (was silent data loss of a custom plan). Unit-tested. (CHANGELOG)
 - [x] B27. **Loading a saved plan undoable** — loadSavedPlan pushes history first. Unit-tested. (CHANGELOG)
+- [x] B28. **Layout preset = single undo step** — applyLayoutPreset batches finishes into one set (was ~9 history entries via per-room setters). Unit-tested + E2E. (CHANGELOG)
