@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N30d] Tour spotlights the hamburger on mobile
+
+On mobile the desktop toolbar targets live inside the hamburger sheet, so the
+menu-step spotlights had nothing to point at (cards just centred). The tour now
+falls back to spotlighting the **hamburger** (`aria-label="Menu"`) when a step's
+target is hidden, so mobile users see *where* the menus are; no-target steps
+(welcome/customise/finishes) still centre. E2E-verified: the layout step rings
+the ☰ at 390px.
+
 ## [N30c] Tour scrolls its target into view (narrow-desktop fix)
 
 On a narrower desktop the toolbar scrolls horizontally, so a tour target like

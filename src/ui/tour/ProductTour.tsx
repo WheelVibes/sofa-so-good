@@ -38,8 +38,18 @@ export function ProductTour() {
   useLayoutEffect(() => {
     if (!open || !current) return
     let raf = 0
+    // Resolve the step's target; on mobile the desktop toolbar targets live in
+    // the hamburger sheet, so fall back to spotlighting the hamburger (where the
+    // menus are). No-target steps stay centred (findTarget returns null).
+    const findTarget = (): HTMLElement | null => {
+      if (!current.target) return null
+      return (
+        document.querySelector<HTMLElement>(current.target) ??
+        document.querySelector<HTMLElement>('[aria-label="Menu"]')
+      )
+    }
     const measure = () => {
-      const el = current.target ? document.querySelector<HTMLElement>(current.target) : null
+      const el = findTarget()
       if (el) {
         const r = el.getBoundingClientRect()
         setRect(r.width > 0 ? { top: r.top, left: r.left, width: r.width, height: r.height } : null)
@@ -50,11 +60,7 @@ export function ProductTour() {
     // Bring the target into view once per step (the toolbar scrolls horizontally
     // on narrow desktops, so a target like Scene/View could be off-screen). Done
     // here, NOT in `measure`, so the scroll it triggers can't loop the listener.
-    if (current.target) {
-      document
-        .querySelector<HTMLElement>(current.target)
-        ?.scrollIntoView({ block: 'nearest', inline: 'center' })
-    }
+    findTarget()?.scrollIntoView({ block: 'nearest', inline: 'center' })
     measure()
     raf = requestAnimationFrame(measure)
     window.addEventListener('resize', measure)
