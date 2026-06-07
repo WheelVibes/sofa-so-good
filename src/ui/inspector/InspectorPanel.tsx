@@ -10,6 +10,7 @@ import { CategoryIcon } from '../catalog/CategoryIcon'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
 import { IkeaBody } from './IkeaBody'
+import { InspectorSection } from './InspectorSection'
 import { ParametricBody } from './ParametricBody'
 import { SourceLine } from './SourceLine'
 
@@ -443,10 +444,11 @@ export function InspectorPanel() {
           />
         </label>
         {proMode ? (
-          <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-            <div className="sec-h">
-              <span>Transform</span>
-            </div>
+          <InspectorSection
+            title="Transform"
+            defaultOpen
+            style={{ borderTop: 'none', paddingTop: 0 }}
+          >
             <div className="transform-grid">
               <PosField
                 label="X"
@@ -471,7 +473,7 @@ export function InspectorPanel() {
                 integer
               />
             </div>
-          </div>
+          </InspectorSection>
         ) : null}
         {def.kind === 'parametric' ? (
           <ParametricBody item={item} def={def} />

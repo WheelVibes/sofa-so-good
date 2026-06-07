@@ -8,6 +8,7 @@ import {
 import { useMaterials } from '../../materials/useMaterial'
 import { useStore } from '../../state/store'
 import { ColorField, EnumField, IntegerField, NumberField } from './fields'
+import { InspectorSection } from './InspectorSection'
 
 interface ParametricBodyProps {
   item: FurnitureItem
@@ -33,6 +34,7 @@ function useSurfaceMaterialOptions(): { value: string; label: string }[] {
  *  (memoised Furniture re-renders only this item). */
 export function ParametricBody({ item, def }: ParametricBodyProps) {
   const updateItemProps = useStore((s) => s.updateItemProps)
+  const proMode = useStore((s) => s.uiMode === 'pro')
   const surfaceMaterials = useSurfaceMaterialOptions()
 
   const setProp = (key: string, value: ParamValue) => updateItemProps(item.id, { [key]: value })
@@ -44,10 +46,11 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
   const defaults = defaultParamProps(def)
   const isModified = Object.keys(defaults).some((k) => item.props[k] !== defaults[k])
   return (
-    <div className="sec">
-      <div className="sec-h" style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-        <span>Properties</span>
-        {isModified ? (
+    <InspectorSection
+      title="Properties"
+      defaultOpen={proMode}
+      headerRight={
+        isModified ? (
           <button
             type="button"
             className="prop-reset"
@@ -56,8 +59,9 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
           >
             Reset
           </button>
-        ) : null}
-      </div>
+        ) : null
+      }
+    >
       {def.paramSchema.map((rawField) => {
         // Surface "finish" enums (those offering a Wood option) gain extra
         // entries for any catalog / downloaded CC0 PBR material.
@@ -110,6 +114,6 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
             return null
         }
       })}
-    </div>
+    </InspectorSection>
   )
 }

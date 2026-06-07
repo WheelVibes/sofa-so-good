@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N29] Collapsible inspector sections (collapsed by default in Simple)
+
+The inspector's multi-field sections are now **expandable** via a clickable
+header (chevron + title), so a selected item doesn't dump a wall of controls.
+New reusable `InspectorSection` wraps the parametric **Properties** section (with
+the Reset button moved to the header) and the **Transform** section. In **Simple**
+mode they start **collapsed** (`defaultOpen={uiMode === 'pro'}`) — tap to expand
+what you need; in **Pro** they're open by default. E2E-verified: Simple shows
+"› Properties" collapsed, clicking it reveals the fields; Pro opens it.
+
 ## [N28c] Simple mode also gates advanced options + fields
 
 Beyond hiding the Tools menu + floor-plan editor, Simple mode now hides advanced

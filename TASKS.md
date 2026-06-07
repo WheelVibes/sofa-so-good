@@ -342,3 +342,4 @@ Remaining (larger / focused-session):
 - [x] B35. **Dispose backdrop GPU objects on unmount** — useDisposeOnUnmount for City/Park/Hills/Studio geometries+materials(+City textures); no leak when switching backdrops. Verified. (CHANGELOG)
 - [x] T5. **useDisposeOnUnmount test** — dispose-once-on-unmount / not-on-rerender / null-tolerant. Locks in B35. (CHANGELOG)
 - [x] N28c. **Simple mode gates advanced options/fields** — Scene sun-direction, View saved-views+edit-room, File record, Inspector transform+duplicate-row, Graphics asset+overrides+FPS. E2E-verified. (CHANGELOG)
+- [x] N29. **Collapsible inspector sections** — reusable InspectorSection (chevron header); Properties + Transform; collapsed by default in Simple, open in Pro. E2E-verified. (CHANGELOG)
