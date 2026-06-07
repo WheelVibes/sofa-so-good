@@ -350,3 +350,7 @@ Remaining (larger / focused-session):
 - [x] N30d. **Tour spotlights hamburger on mobile** — menu-step targets fall back to ☰ when hidden; no-target steps centre. Verified 390px. (CHANGELOG)
 - [x] N28e. **Hide catalog Packs tab in Simple** — Catalog/Layers only; Pro keeps Packs. (uiMode hook above the early return.) E2E-verified. (CHANGELOG)
 - [x] R6. **Enable useHookAtTopLevel lint rule** (error) — catches hook-after-return/conditional-hook bugs (the N28e class) at lint/pre-commit; codebase passes clean (593 files). (CHANGELOG)
+- [x] R7. **Clear last useExhaustiveDependencies finding** — `useOverlayLifecycle` had an inert eslint-disable; replaced with the correct Biome directive. (CHANGELOG)
+- [x] R8. **Remove noAssignInExpressions in catalog.ts** — extracted a `bucket()` helper for the category grouping. (CHANGELOG)
+- [x] R9. **Clear final lint error** (noUselessSwitchCase in `applianceFinish`) — `biome check src/` now exits 0. (CHANGELOG)
+- [x] R10. **Clear scripts/ lint errors + make CI lint blocking** — repo at 0 lint errors; CI Lint step flipped from continue-on-error to blocking so regressions can't reland. (CHANGELOG)
