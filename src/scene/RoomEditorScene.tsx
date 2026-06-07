@@ -6,6 +6,7 @@ import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
+import { AnnotationsOverlay } from './AnnotationsOverlay'
 import { ClearanceOverlay } from './ClearanceOverlay'
 import { ContextLossGuard } from './ContextLossGuard'
 import { CameraRig } from './cameras/CameraRig'
@@ -64,6 +65,7 @@ export function RoomEditorScene() {
       <CameraRig />
       <CameraForwardTracker />
       <MeasurementOverlay />
+      <AnnotationsOverlay />
       <ScreenshotController />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}
     </Canvas>
