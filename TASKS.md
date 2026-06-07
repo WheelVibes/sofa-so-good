@@ -317,3 +317,8 @@ Remaining (larger / focused-session):
 - [x] B29. **Clear undo history on every design load** — version restore + desktop/mobile Load now clearHistory like import (no Ctrl+Z across designs). (CHANGELOG)
 - [x] B30. **2D editor delete furniture + typing guard** — Delete removes a selected furniture item (parity with 3D); handler skips input/textarea/select focus so field edits arent hijacked. E2E-verified. (CHANGELOG)
 - [x] P7. **DRY editor typing guards** — P + Delete handlers use shared isEditableTarget (was 3 inline copies; hardens P to include <select>). (CHANGELOG)
+
+## RE6 — plan-aware per-room editor (in progress)
+- [x] RE6.1. **Pure `planRoomShell` builder** + tests (footprint/clipped walls/openings; rect+L+polygon). (CHANGELOG)
+- [ ] RE6.2. **`PlanRoomShell.tsx` renderer** — clipped plan walls (camera-facing reveal like RoomShell), per-room floor from `PlanRoom.floor` (reuse `PlanRoomFloor`), plan openings as wall cut-outs. Walls have no per-room wall-finish on custom plans — use a neutral/default wall material.
+- [ ] RE6.3. **Wire `RoomEditorScene`** to use `planRoomShell`+`PlanRoomShell` when `!isDefaultPlan`; ungate the View/Mobile "Edit a room" entries + room-switcher dropdowns to iterate `plan.rooms` (filter external only on default). Walk collision from plan walls. E2E-verify on a custom plan.

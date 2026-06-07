@@ -4,6 +4,20 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE6.1] Plan-aware per-room shell builder (foundation)
+
+First step toward a per-room editor that works on **custom floor plans** (today
+it's gated to the default apartment because `apartment/roomShell` is built from
+the built-in constants). New pure `floorplan/planRoomShell.ts`: `planRoomShell(plan,
+roomId)` derives a room's footprint rects, its walls **clipped** to that footprint
+(shared long walls trimmed to the room's span), and the doors/windows attributed
+to those walls — the plan-data analogue of `roomShell`, renderer-agnostic so a
+plan-aware `RoomEditorScene` can consume it. Handles rect, L-extension, and
+polygon rooms (bbox for framing, true polygon for containment). Fully unit-tested
+(every default-plan room frames + is ≥3-walled; shared-wall clipping; opening
+attribution; polygon cut-out containment). Wiring the renderer + ungating the
+editor for custom plans follows as RE6.2/.3 (see TASKS.md).
+
 ## [P7] DRY the floor-plan editor's typing guards
 
 The editor had three hand-rolled "is the user typing?" checks (the `P` toggle, and
