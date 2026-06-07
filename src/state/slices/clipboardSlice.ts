@@ -12,6 +12,8 @@ export interface ClipboardEntry {
   /** Mirror flips, so copying a flipped piece keeps it flipped on paste. */
   flipX?: boolean
   flipZ?: boolean
+  /** Custom display name, so a duplicate keeps it (consistent with multi-dup). */
+  label?: string
   /** Source item's position at copy time. Paste uses this as the base
    *  for the offset search so the duplicate appears next to the original. */
   sourcePosition: [number, number]

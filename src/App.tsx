@@ -268,6 +268,7 @@ export default function App() {
           rotation: entry.rotation,
           flipX: entry.flipX,
           flipZ: entry.flipZ,
+          label: entry.label,
           props: { ...entry.props },
         })
         return
@@ -291,6 +292,7 @@ export default function App() {
         props: single.props,
         flipX: single.flipX,
         flipZ: single.flipZ,
+        label: single.label,
         sourcePosition: single.position,
       })
       pasteClipboard()
@@ -384,6 +386,7 @@ export default function App() {
             props: item.props,
             flipX: item.flipX,
             flipZ: item.flipZ,
+            label: item.label,
             sourcePosition: item.position,
           })
         }
