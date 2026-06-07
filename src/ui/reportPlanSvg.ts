@@ -75,6 +75,9 @@ export function reportPlanSvg(
   plan: FloorPlan,
   annotations: MeasurementAnnotation[] = [],
   units: UnitSystem = 'metric',
+  /** Top-down furniture footprints (world-metre corner polygons) drawn under the
+   *  walls, so the report plan reads as a furnished layout — "where things go". */
+  footprints: [number, number][][] = [],
 ): string {
   // Defensive: a malformed/partial plan (no extent or no walls) yields no
   // diagram rather than throwing.
@@ -84,6 +87,16 @@ export function reportPlanSvg(
   const [w, d] = planBounds(plan)
   if (!(w > 0.1 && d > 0.1)) return ''
   const pad = 0.4
+
+  // Furniture footprints first (drawn under walls + labels): muted architectural
+  // fill so the layout reads without competing with the structure.
+  const furniture = footprints
+    .filter((c) => c.length >= 3)
+    .map((corners) => {
+      const pts = corners.map(([x, z]) => `${x.toFixed(3)},${z.toFixed(3)}`).join(' ')
+      return `<polygon points="${pts}" fill="#cbd5e1" fill-opacity="0.55" stroke="#94a3b8" stroke-width="0.03"/>`
+    })
+    .join('')
 
   const walls = plan.walls
     .filter((wl) => wallLength(wl) > 0.001)
@@ -105,5 +118,5 @@ export function reportPlanSvg(
   const scaleStrip = 0.9
   const barY = d + pad + scaleStrip * 0.55
   const vbH = d + pad * 2 + scaleStrip
-  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${walls}${labels}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
+  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${labels}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
 }

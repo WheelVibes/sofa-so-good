@@ -12,6 +12,22 @@ describe('reportPlanSvg', () => {
     expect(svg).toContain('viewBox=')
   })
 
+  it('draws furniture footprints as polygons (under the walls)', () => {
+    const plain = reportPlanSvg(buildDefaultPlan())
+    expect(plain).not.toContain('<polygon')
+    const withFurniture = reportPlanSvg(buildDefaultPlan(), [], 'metric', [
+      [
+        [1, 1],
+        [2, 1],
+        [2, 2],
+        [1, 2],
+      ],
+    ])
+    expect(withFurniture).toContain('<polygon')
+    // Footprint is drawn before the walls so the structure overlays it.
+    expect(withFurniture.indexOf('<polygon')).toBeLessThan(withFurniture.indexOf('<line'))
+  })
+
   it('escapes room names', () => {
     const plan = buildDefaultPlan()
     plan.rooms[0] = { ...plan.rooms[0], name: '<b>x</b>' }

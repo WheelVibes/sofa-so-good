@@ -16,7 +16,12 @@ const plan = {
   ],
 } as unknown as FloorPlan
 
-const def = { id: 'd', name: 'Test Sofa', category: 'seating' } as unknown as FurnitureDef
+const def = {
+  id: 'd',
+  name: 'Test Sofa',
+  category: 'seating',
+  defaultFootprint: { w: 1, d: 1, h: 1 },
+} as unknown as FurnitureDef
 const catalog: Record<string, FurnitureDef> = { d: def }
 
 function item(id: string, x: number, z: number): FurnitureItem {

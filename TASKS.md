@@ -398,3 +398,4 @@ Remaining (larger / focused-session):
 - [x] B38. **Product tour fixed for the view/edit split** — steps no longer spotlight editor-only Arrange/Catalog from the overview; new "Edit a room" step + correct targets (Floor plan, Camera mode, Scene). Verified. (CHANGELOG)
 - [x] B39. **Onboarding fixed for the view/edit split** — "Browse the catalog" choice enters a room with the catalog open (was opening the now-editor-only catalog in the overview, a no-op); refreshed step-2 mini-tour cards. Verified. (CHANGELOG)
 - [x] Q40. **FinishPicker search** — filters Floor + Wall finishes by name (pure `filterFinishes`), desktop grid + mobile dropdown. Verified ("marble"→Marble). (CHANGELOG)
+- [x] Q41. **Report plan shows furniture** — reportPlanSvg renders top-down footprints (obbCorners) under the walls; report.ts derives them (guarded). Unit-tested. (CHANGELOG)

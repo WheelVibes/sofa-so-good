@@ -4,6 +4,8 @@
  * render. Opened in a new window so the user can print / save as PDF.
  */
 import { ROOMS } from '../apartment/constants'
+import { obbCorners } from '../collision/obb'
+import { itemFootprint } from '../collision/placement'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
@@ -143,6 +145,17 @@ export function buildReportHtml(
     )
     .join('')
 
+  // Furniture footprints (top-down OBB corners) for the plan diagram, so the
+  // report's floor plan shows a furnished layout — "where everything goes".
+  const planFootprints = items
+    .map((it) => {
+      const def = catalog[it.defId]
+      // Guard defaultFootprint: a malformed def shouldn't crash the whole report.
+      return def?.defaultFootprint ? obbCorners(itemFootprint(it, def)) : null
+    })
+    .filter((c): c is [number, number][] => c != null)
+  const planSvg = reportPlanSvg(plan, annotations, units, planFootprints)
+
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -189,7 +202,7 @@ export function buildReportHtml(
       <h2>Rooms &amp; areas</h2>
       <table>${roomRows}</table>
       <div class="total"><span>Total interior</span><span>${formatArea(totalArea, units)}</span></div>
-      ${reportPlanSvg(plan, annotations, units) ? `<div class="plan-wrap">${reportPlanSvg(plan, annotations, units)}</div>` : ''}
+      ${planSvg ? `<div class="plan-wrap">${planSvg}</div>` : ''}
     </div>
     <div class="col">
       <h2>Furniture &amp; budget</h2>

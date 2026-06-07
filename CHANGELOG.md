@@ -54,6 +54,17 @@ match `furnitureCostByRoom`. The report's "Cost by room" section is now
 (reusing the category-breakdown table styles). Unit-tested (grouping, totals
 match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
 
+## [Q41] Report floor plan now shows the furnished layout
+
+The report's 2D plan diagram drew only walls + room labels. It now also renders
+**furniture footprints** (top-down OBB corner polygons, muted architectural fill,
+drawn under the walls) so the report plan reads as a furnished layout — "where
+everything goes", complementing the itemised by-room list. `reportPlanSvg` takes
+an optional precomputed `footprints` array (stays a pure string builder);
+`report.ts` derives them via `itemFootprint` + `obbCorners` (guarded against a
+malformed def so it can't crash the report) and computes the SVG once.
+Unit-tested (polygons present + drawn before walls). 884 tests; tsc + lint clean.
+
 ## [Q40] Search box in the FinishPicker
 
 The finish picker lists ~35 built-in finishes plus any uploaded/DLC materials,
