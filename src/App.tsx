@@ -45,6 +45,7 @@ import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
 import { hasOnboarded, Onboarding } from './ui/Onboarding'
 import { PromptModal } from './ui/PromptModal'
+import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { ShareModal } from './ui/ShareModal'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
@@ -624,6 +625,7 @@ export default function App() {
           {roomEditorActive ? <RoomEditorScene /> : <Scene />}
         </ErrorBoundary>
         <FpsCounter />
+        <RoomEditorCaption />
         <MobileLongPress />
         <MarqueeSelector />
         <NavCluster />

@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Q52] Room name + size caption in the per-room editor
+
+A small top-centre caption while the per-room editor is active, naming the
+isolated room and its size (e.g. "Main Bedroom · 2.85 × 3.40 m · 15.4 m²") so you
+always know which room you're planning and its dimensions. Reads the room from
+the active plan, so it works for the built-in apartment and custom plans alike;
+pure DOM overlay, safe-area positioned, hidden otherwise. E2E-verified.
+
 ## [Q51] "Edit in 3D" from a selected room in the 2D plan editor
 
 The 2D floor-plan editor's room inspector now has an **Edit in 3D** button that
