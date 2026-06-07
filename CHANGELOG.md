@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F18] Name-based room-kind for custom-plan auto-arrange
+`roomKindFromName` classifies a custom room by its name (kitchen/bath/bedroom/
+living), so "Tidy" routes named kitchens+baths to the work-triangle/fixtures
+arrangers — item-inference only knew bed/seating. 12 tests.
+
 ## [F17] Door/window width labels in the 2D editor
 The "Dims" toggle now also labels each opening's width (accent-coloured, placed
 clear of a door's swing arc), not just wall lengths. Visually verified.

@@ -13,6 +13,7 @@ import {
   arrangeRoom,
   roleForCategory,
   roleOf,
+  roomKindFromName,
   roomOf,
 } from './autoArrange'
 import { blockedDoorItems } from './clearance'
@@ -413,5 +414,26 @@ describe('arrangeAllRooms with imported IKEA defs (whole-home Tidy regression gu
     expect(new Set(out.map((i) => i.id)).size).toBe(items.length)
     expect(out.find((i) => i.id === 's1')).toBeDefined()
     expect(out.find((i) => i.id === 'b1')).toBeDefined()
+  })
+})
+
+describe('roomKindFromName', () => {
+  it('classifies common room names', () => {
+    expect(roomKindFromName('Kitchen')).toBe('kitchen')
+    expect(roomKindFromName('Kitchenette')).toBe('kitchen')
+    expect(roomKindFromName('Bath/WC 1')).toBe('bath')
+    expect(roomKindFromName('Powder Room')).toBe('bath')
+    expect(roomKindFromName('Master Ensuite')).toBe('bath')
+    expect(roomKindFromName('Main Bedroom')).toBe('bedroom')
+    expect(roomKindFromName('Guest')).toBe('bedroom')
+    expect(roomKindFromName('Living / Dining')).toBe('living')
+    expect(roomKindFromName('Lounge')).toBe('living')
+  })
+
+  it('is case-insensitive and returns null for unknown / empty names', () => {
+    expect(roomKindFromName('STUDY')).toBeNull()
+    expect(roomKindFromName('Room 1')).toBeNull()
+    expect(roomKindFromName('')).toBeNull()
+    expect(roomKindFromName(undefined)).toBeNull()
   })
 })
