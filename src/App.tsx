@@ -16,6 +16,7 @@ import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
 import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
+import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
 import { BudgetPanel } from './ui/BudgetPanel'
@@ -43,7 +44,7 @@ import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
-import { hasOnboarded, Onboarding } from './ui/Onboarding'
+import { hasOnboarded, markOnboarded, Onboarding } from './ui/Onboarding'
 import { PromptModal } from './ui/PromptModal'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { ShareModal } from './ui/ShareModal'
@@ -203,11 +204,18 @@ export default function App() {
     }
   }, [booting])
 
-  // Show the first-run onboarding once boot is ready (so it sits above the
-  // furnished flat, not the loading overlay). Suppressed after completion.
+  // First run: once boot is ready, auto-start the guided product tour over the
+  // already-furnished default flat. The tour supersedes the old onboarding
+  // carousel, so we also mark onboarded; replay is available from Help + ⌘K.
+  // Returning users (tour already seen) get nothing.
   useEffect(() => {
-    if (!booting && !hasOnboarded()) {
-      useStore.getState().setOnboardingOpen(true)
+    if (booting) return
+    const s = useStore.getState()
+    if (!hasSeenTour()) {
+      markOnboarded()
+      s.startTour()
+    } else if (!hasOnboarded()) {
+      s.setOnboardingOpen(true)
     }
   }, [booting])
 

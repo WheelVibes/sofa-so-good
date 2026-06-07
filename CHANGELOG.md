@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [N30b] Auto-start the tour on first visit
+
+The guided product tour now **auto-starts on a first visit** (gated on
+`localStorage` `hdb_tour_done`), over the already-furnished default flat — it
+supersedes the old onboarding carousel (first run also marks onboarded so the
+carousel never double-shows). Returning users get nothing. **Replay** stays one
+tap away from the **Help** modal ("Replay the guided tour") and **⌘K** ("Guided
+product tour"). E2E-verified: a fresh load opens the welcome card unprompted.
+
 ## [N30] Guided product tour for new users
 
 A spotlight **product tour** (`ui/tour/`) that walks a newcomer through building a
