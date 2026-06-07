@@ -42,6 +42,18 @@ rule is intentionally `warn`). This retires the CLAUDE.md caveat that "lint is
 reported non-blocking until the ~26-finding backlog clears." Material tests +
 tsc green.
 
+## [Q39] Report: itemised furniture-by-room breakdown
+
+The report's by-room section showed only a count + total per room; for this
+room-centric app, the room-by-room *itemised* furnishing list is the standard
+client/installer handoff ("what goes in the bedroom"). New pure
+`reportData.furnitureItemsByRoom` groups each room's pieces by def (+ IKEA
+variant) with quantity + line cost, priciest first, with per-room totals that
+match `furnitureCostByRoom`. The report's "Cost by room" section is now
+"Furniture by room", rendering each room's items indented under a room header
+(reusing the category-breakdown table styles). Unit-tested (grouping, totals
+match, Unassigned bucket) + the HTML section test updated. 882 tests; tsc + lint clean.
+
 ## [B35] Mobile Finish picker — dropdown instead of squished swatch strips
 
 On mobile the FinishPicker's 3-column swatch grid squeezed each `aspect-ratio:

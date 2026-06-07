@@ -53,6 +53,69 @@ export function furnitureCostByRoom(
   return rows
 }
 
+export interface RoomItemLine {
+  defId: string
+  name: string
+  count: number
+  /** Estimated unit price (SGD). */
+  each: number
+}
+
+export interface RoomItems {
+  name: string
+  count: number
+  total: number
+  /** The room's furniture grouped by type (+ variant), priciest line first. */
+  lines: RoomItemLine[]
+}
+
+/**
+ * Itemised furniture breakdown per room: each room with the pieces inside it
+ * (grouped by def + IKEA variant, with quantity + estimated line cost), priciest
+ * first, plus the room's item count + total. Items outside every room go to an
+ * "Unassigned" bucket (appended only when non-empty); empty rooms are omitted;
+ * rooms returned in plan order. The room-by-room view a furnishing quote/handoff
+ * wants ("what goes in the bedroom"). Per-room totals match `furnitureCostByRoom`.
+ */
+export function furnitureItemsByRoom(
+  plan: FloorPlan,
+  items: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+): RoomItems[] {
+  type Bucket = { name: string; lines: Map<string, RoomItemLine> }
+  const byRoom = new Map<string, Bucket>()
+  const unassigned: Bucket = { name: 'Unassigned', lines: new Map() }
+  for (const it of items) {
+    const def = catalog[it.defId]
+    if (!def) continue
+    const each = lineEach(it, def)
+    const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
+    const key = variant ? `${it.defId}::${variant}` : it.defId
+    const room = plan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    const bucket = room
+      ? (byRoom.get(room.id) ?? { name: room.name, lines: new Map() })
+      : unassigned
+    if (room) byRoom.set(room.id, bucket)
+    const line = bucket.lines.get(key) ?? { defId: it.defId, name: def.name, count: 0, each }
+    line.count += 1
+    bucket.lines.set(key, line)
+  }
+  const build = (b: Bucket): RoomItems => {
+    const lines = [...b.lines.values()].sort(
+      (a, z) => z.each * z.count - a.each * a.count || a.name.localeCompare(z.name),
+    )
+    return {
+      name: b.name,
+      count: lines.reduce((s, l) => s + l.count, 0),
+      total: lines.reduce((s, l) => s + l.each * l.count, 0),
+      lines,
+    }
+  }
+  const rows = plan.rooms.filter((r) => byRoom.has(r.id)).map((r) => build(byRoom.get(r.id)!))
+  if (unassigned.lines.size > 0) rows.push(build(unassigned))
+  return rows
+}
+
 export interface PaletteSwatch {
   id: string
   name: string

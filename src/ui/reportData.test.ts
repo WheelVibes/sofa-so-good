@@ -2,7 +2,7 @@ import { describe, expect, it, vi } from 'vitest'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildReportHtml } from './report'
-import { designPalette, furnitureCostByRoom } from './reportData'
+import { designPalette, furnitureCostByRoom, furnitureItemsByRoom } from './reportData'
 
 // Stub itemPrice → a flat $100 per item so totals are predictable.
 vi.mock('../furniture/furniturePrices', () => ({ itemPrice: () => 100 }))
@@ -61,17 +61,55 @@ describe('furnitureCostByRoom', () => {
   })
 })
 
-describe('buildReportHtml — cost by room section', () => {
-  it('renders a Cost by room table with attributed rooms', () => {
+describe('furnitureItemsByRoom', () => {
+  it('groups each room’s items by def with quantities + per-room totals', () => {
+    const rows = furnitureItemsByRoom(
+      plan,
+      [item('1', 1, 1), item('2', 1.5, 0.5), item('3', 6, 1)],
+      catalog,
+    )
+    expect(rows).toEqual([
+      {
+        name: 'Room A',
+        count: 2,
+        total: 200,
+        lines: [{ defId: 'd', name: 'Test Sofa', count: 2, each: 100 }],
+      },
+      {
+        name: 'Room B',
+        count: 1,
+        total: 100,
+        lines: [{ defId: 'd', name: 'Test Sofa', count: 1, each: 100 }],
+      },
+    ])
+  })
+
+  it('per-room totals match furnitureCostByRoom (consistency)', () => {
+    const items = [item('1', 1, 1), item('2', 1.5, 0.5), item('3', 6, 1), item('4', 99, 99)]
+    const costs = furnitureCostByRoom(plan, items, catalog)
+    const breakdown = furnitureItemsByRoom(plan, items, catalog)
+    expect(breakdown.map((r) => ({ name: r.name, count: r.count, total: r.total }))).toEqual(costs)
+  })
+
+  it('buckets out-of-room items as Unassigned, last', () => {
+    const rows = furnitureItemsByRoom(plan, [item('1', 1, 1), item('2', 99, 99)], catalog)
+    expect(rows.map((r) => r.name)).toEqual(['Room A', 'Unassigned'])
+  })
+})
+
+describe('buildReportHtml — furniture by room section', () => {
+  it('renders an itemised Furniture by room table with attributed rooms', () => {
     const html = buildReportHtml(plan, [item('1', 1, 1), item('2', 6, 1)], catalog, null)
-    expect(html).toContain('Cost by room')
-    expect(html).toContain('Room A')
-    expect(html).toContain('Room B')
+    expect(html).toContain('Furniture by room')
+    expect(html).toContain('Room A · 1 item')
+    expect(html).toContain('Room B · 1 item')
+    // Itemised: each room lists its pieces by name.
+    expect(html).toContain('Test Sofa')
   })
 
   it('omits the section entirely when no furniture is placed', () => {
     const html = buildReportHtml(plan, [], catalog, null)
-    expect(html).not.toContain('Cost by room')
+    expect(html).not.toContain('Furniture by room')
   })
 })
 

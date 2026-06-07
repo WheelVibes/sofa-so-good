@@ -12,7 +12,7 @@ import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, type UnitSystem } from '../utils/measurement'
-import { designPalette, furnitureCostByRoom } from './reportData'
+import { designPalette, furnitureItemsByRoom } from './reportData'
 import { reportPlanSvg } from './reportPlanSvg'
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
@@ -116,13 +116,20 @@ export function buildReportHtml(
     })
     .join('')
 
-  // Cost by room — items attributed to the room containing their footprint
-  // centre (helps clients see where the budget goes).
-  const roomCosts = furnitureCostByRoom(plan, items, catalog)
-  const roomCostRows = roomCosts
+  // Furniture by room — each room's pieces (grouped + priced), attributed to the
+  // room containing each item's footprint centre. The room-by-room furnishing
+  // list a client/installer handoff wants.
+  const roomBreakdown = furnitureItemsByRoom(plan, items, catalog)
+  const roomCostRows = roomBreakdown
     .map(
       (r) =>
-        `<tr><td>${esc(r.name)}</td><td class="num">${r.count}</td><td class="num">${sgd(r.total)}</td></tr>`,
+        `<tr class="cat"><td>${esc(r.name)} · ${r.count} item${r.count === 1 ? '' : 's'}</td><td class="num">${sgd(r.total)}</td></tr>` +
+        r.lines
+          .map(
+            (l) =>
+              `<tr><td class="indent">${esc(l.name)}${l.count > 1 ? ` ×${l.count}` : ''}</td><td class="num">${sgd(l.each * l.count)}</td></tr>`,
+          )
+          .join(''),
     )
     .join('')
 
@@ -200,8 +207,8 @@ export function buildReportHtml(
   ${
     roomCostRows
       ? `<div class="room-cost">
-      <h2>Cost by room</h2>
-      <table><tr class="cat"><td>Room</td><td class="num">Items</td><td class="num">Estimated</td></tr>${roomCostRows}</table>
+      <h2>Furniture by room</h2>
+      <table><tr class="cat"><td>Room</td><td class="num">Estimated</td></tr>${roomCostRows}</table>
     </div>`
       : ''
   }
