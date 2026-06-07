@@ -32,6 +32,13 @@ export interface PlanOpening {
   sill: number
   /** Top edge above floor. */
   head: number
+  /** Doors only: which jamb the hinge pivots on, relative to the wall's
+   *  start→end direction. Defaults to 'start' when unset. */
+  hinge?: 'start' | 'end'
+  /** Doors only: which side of the wall the leaf swings toward — 'right' is the
+   *  wall's right-hand normal (−Z of the start→end tangent), 'left' the other.
+   *  Defaults to 'right' when unset. */
+  swing?: 'left' | 'right'
 }
 
 export interface PlanRoom {

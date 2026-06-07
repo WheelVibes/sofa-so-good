@@ -139,6 +139,8 @@ const PlanOpeningZ = z.object({
   width: z.number(),
   sill: z.number(),
   head: z.number(),
+  hinge: z.enum(['start', 'end']).optional(),
+  swing: z.enum(['left', 'right']).optional(),
 })
 const PlanRoomZ = z.object({
   id: z.string(),

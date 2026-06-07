@@ -11,7 +11,10 @@ between the 2D plan and the 3D scene at any time.
 - **Walls** — choose interior or exterior thickness, then drag to draw. Endpoints
   snap to the grid and to nearby wall corners.
 - **Rooms** — drag a rectangle; its area is computed and added to the total.
-- **Doors / windows** — click on a wall to drop one.
+- **Doors / windows** — click on a wall to drop one. Select a door to set which
+  way it opens: **Hinge** (which jamb it pivots on) and **Swing** (which side of
+  the wall the leaf opens toward). The plan redraws the door's swing arc to match,
+  and the **Checks** tool keeps that swing arc clear of furniture.
 - **Split** — click a wall to cut it into two segments at that point. Any door or
   window on it moves to the matching half.
 - **Select tool** — click to select, drag to move a room or a piece of furniture.

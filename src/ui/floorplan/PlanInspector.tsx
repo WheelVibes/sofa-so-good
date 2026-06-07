@@ -1,3 +1,4 @@
+import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { DEFAULT_PLAN_WALL_COLOR, planRoomArea, wallLength } from '../../floorplan/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
@@ -344,6 +345,42 @@ export function PlanInspector() {
             min={0.1}
             onChange={(v) => a.updateOpening(o.id, { head: Math.max(0.1, v) })}
           />
+          {o.kind === 'door' && (
+            <>
+              <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+                <span className="label">Hinge</span>
+                <div className="seg" style={{ marginLeft: 'auto' }}>
+                  {(['start', 'end'] as const).map((h) => (
+                    <button
+                      key={h}
+                      type="button"
+                      className={`capitalize${doorHinge(o) === h ? ' on' : ''}`}
+                      onClick={() => a.updateOpening(o.id, { hinge: h })}
+                      title={`Pivot the door on the ${h} jamb of the opening`}
+                    >
+                      {h}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div className="row" style={{ padding: '6px 0', alignItems: 'center' }}>
+                <span className="label">Swing</span>
+                <div className="seg" style={{ marginLeft: 'auto' }}>
+                  {(['left', 'right'] as const).map((s) => (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`capitalize${doorSwing(o) === s ? ' on' : ''}`}
+                      onClick={() => a.updateOpening(o.id, { swing: s })}
+                      title={`Swing the leaf to the wall's ${s}-hand side`}
+                    >
+                      {s}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </>
+          )}
           <DeleteBtn onClick={() => a.removeOpening(o.id)} label={`Delete ${o.kind}`} />
         </div>
       )

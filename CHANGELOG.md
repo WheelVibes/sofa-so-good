@@ -4,6 +4,31 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [F12] Editable door swing direction + hinge placement (custom plans)
+
+Doors in the floor-plan editor were drawn with a hardcoded swing arc — hinge
+always at the opening's start jamb, leaf always swinging to one fixed side — and
+custom-plan `PlanOpening` doors had no way to change it. (The fixed default flat
+already carried `hinge`/`swing` on its `DoorSpec`s and swung correctly in 3D;
+custom plans didn't expose the concept at all.) Added `hinge` (`start`/`end`) +
+`swing` (`left`/`right`) to `PlanOpening`, defaulting to `start`/`right` for
+back-compat, with a pure `floorplan/doorSwing.ts` helper
+(`doorSwingGeometry` + `doorSwingClearRect`) as the single source of truth for
+the symbol geometry. Wired through:
+- **Inspector** — a selected door now shows **Hinge** (Start/End) and **Swing**
+  (Left/Right) segmented controls (`PlanInspector`), updating live.
+- **2D editor** — the swing arc + leaf line redraw from the helper, honouring
+  both settings (verified: arcs visibly mirror when flipped).
+- **Clearance / Checks** — `doorSwingRects` is now side-correct (the quarter the
+  leaf actually sweeps) instead of a both-sides box, so furniture flush on a
+  door's push side is no longer falsely flagged.
+- **Persistence** — `FloorPlanZ` carries the new optional fields; the seeded
+  default plan inherits each door's hinge/swing from `apartment/constants`.
+
+8 new unit tests (`doorSwing.test.ts`); full suite (901) + tsc + lint green.
+(The 3D plan-door leaf for custom plans — currently rendered as a plain gap —
+is logged as a GPU-verified follow-up in TASKS.)
+
 ## [R12] Unify the furniture-category colour palette (report + minimap)
 
 The printable report's furnished-plan footprints/legend and the walk-mode

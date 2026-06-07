@@ -33,6 +33,8 @@ export function buildDefaultPlan(): FloorPlan {
         width: d.width,
         sill: 0,
         head: FLAT.doorHeight,
+        hinge: d.hinge,
+        swing: d.swing,
       }),
     ),
     ...WINDOWS.map(

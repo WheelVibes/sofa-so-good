@@ -4,6 +4,7 @@
  * are derived from the active floor plan's door openings (works for the seeded
  * default flat and user-authored plans alike).
  */
+import { doorSwingClearRect } from '../floorplan/doorSwing'
 import type { FloorPlan } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -15,34 +16,20 @@ export interface Rect {
   z1: number
 }
 
-/** Keep-clear rectangle in front of each door (both sides of the wall). */
+/**
+ * Keep-clear rectangle covering each door's swing arc — the quarter the leaf
+ * sweeps on its configured swing side (hinge + swing from the opening, defaulted
+ * via `doorSwingClearRect`). Side-correct, so furniture flush against the wall
+ * on the door's push side is no longer flagged.
+ */
 export function doorSwingRects(plan: FloorPlan): Rect[] {
   const rects: Rect[] = []
   for (const o of plan.openings) {
     if (o.kind !== 'door') continue
     const wall = plan.walls.find((w) => w.id === o.wallId)
     if (!wall) continue
-    const len = wallLength(wall)
-    if (len === 0) continue
-    const ux = (wall.end[0] - wall.start[0]) / len
-    const uz = (wall.end[1] - wall.start[1]) / len
-    const nx = -uz
-    const nz = ux
-    const depth = Math.max(o.width, 0.6) // swing reach
-    const a = o.offset
-    const b = o.offset + o.width
-    const pts: Array<[number, number]> = []
-    for (const s of [a, b]) {
-      for (const d of [-depth, depth]) {
-        pts.push([wall.start[0] + ux * s + nx * d, wall.start[1] + uz * s + nz * d])
-      }
-    }
-    rects.push({
-      x0: Math.min(...pts.map((p) => p[0])),
-      z0: Math.min(...pts.map((p) => p[1])),
-      x1: Math.max(...pts.map((p) => p[0])),
-      z1: Math.max(...pts.map((p) => p[1])),
-    })
+    const r = doorSwingClearRect(wall, o)
+    if (r) rects.push(r)
   }
   return rects
 }

@@ -4,6 +4,7 @@ import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isEditableTarget } from '../../controls/useKeyboard'
+import { doorSwingGeometry } from '../../floorplan/doorSwing'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
@@ -1236,24 +1237,31 @@ export function FloorPlanEditor() {
                     strokeLinecap="butt"
                   />
                   {o.kind === 'door' ? (
-                    <>
-                      {/* Door leaf + swing arc (hinge at the opening start) */}
-                      <line
-                        x1={toPx(sPt[0])}
-                        y1={toPx(sPt[1])}
-                        x2={toPx(sPt[0] + nx * o.width)}
-                        y2={toPx(sPt[1] + nz * o.width)}
-                        stroke={color}
-                        strokeWidth={isSel ? 3 : 2}
-                      />
-                      <path
-                        d={`M ${toPx(ePt[0])} ${toPx(ePt[1])} A ${o.width * PX} ${o.width * PX} 0 0 ${nx * uz - nz * ux > 0 ? 1 : 0} ${toPx(sPt[0] + nx * o.width)} ${toPx(sPt[1] + nz * o.width)}`}
-                        fill="none"
-                        stroke={color}
-                        strokeWidth={1}
-                        opacity={0.7}
-                      />
-                    </>
+                    (() => {
+                      // Leaf line (hinge → open tip) + swing arc, honouring the
+                      // door's configured hinge jamb + swing side.
+                      const g = doorSwingGeometry(wall, o)
+                      if (!g) return null
+                      return (
+                        <>
+                          <line
+                            x1={toPx(g.hinge[0])}
+                            y1={toPx(g.hinge[1])}
+                            x2={toPx(g.leafTip[0])}
+                            y2={toPx(g.leafTip[1])}
+                            stroke={color}
+                            strokeWidth={isSel ? 3 : 2}
+                          />
+                          <path
+                            d={`M ${toPx(g.freeJamb[0])} ${toPx(g.freeJamb[1])} A ${o.width * PX} ${o.width * PX} 0 0 ${g.sweep} ${toPx(g.leafTip[0])} ${toPx(g.leafTip[1])}`}
+                            fill="none"
+                            stroke={color}
+                            strokeWidth={1}
+                            opacity={0.7}
+                          />
+                        </>
+                      )
+                    })()
                   ) : (
                     <>
                       {/* Window double line across the opening */}
