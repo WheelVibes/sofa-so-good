@@ -108,6 +108,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'wall-cabinet': 220,
   'kitchen-island': 1800,
   'kitchen-counter-l': 1800,
+  dishwasher: 850,
   'cabinet-base': 420,
   'cabinet-wall': 260,
   'cabinet-tall': 680,

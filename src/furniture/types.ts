@@ -134,6 +134,7 @@ export type PrimitiveKind =
   | 'CabinetBase'
   | 'CabinetWall'
   | 'CabinetTall'
+  | 'Dishwasher'
 
 export type ParamField =
   | {

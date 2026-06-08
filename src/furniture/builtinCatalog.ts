@@ -2775,6 +2775,40 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       },
     ],
   },
+  dishwasher: {
+    kind: 'parametric',
+    id: 'dishwasher',
+    name: 'Dishwasher',
+    category: 'appliances',
+    keywords: ['dish washer', 'kitchen', 'built-in', 'integrated'],
+    primitive: 'Dishwasher',
+    defaultFootprint: { w: 0.6, d: 0.6, h: 0.85 },
+    frontClearance: 0.6,
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Colour', default: '#d7dadd' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'steel',
+        options: [
+          { value: 'steel', label: 'Stainless steel' },
+          { value: 'matte', label: 'Matte' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'integrated',
+        label: 'Integrated',
+        default: 'no',
+        options: [
+          { value: 'no', label: 'Visible controls' },
+          { value: 'yes', label: 'Panel-ready' },
+        ],
+      },
+    ],
+  },
   'ceiling-fan': {
     kind: 'parametric',
     id: 'ceiling-fan',

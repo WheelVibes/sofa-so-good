@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C55] New appliance — dishwasher
+Added a **Dishwasher** primitive + catalog entry (a real kitchen-appliance gap): base-
+cabinet-sized body, proud front door + recessed handle, top control strip with dials/LEDs,
+and a **panel-ready / integrated** option (hides controls to match cabinetry). Steel/matte/
+gloss finishes, priced. Screenshot-verified (visible-controls + integrated variants).
+
 ## [C54] New wall finish — glossy subway / metro tile
 Added a `subway` procedural pattern (`subwayFields` — running-bond 2:1 ceramic tiles, thin
 grout, soft bevel; seamless) + two wall finishes (white + sage) at metro scale. The classic

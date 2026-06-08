@@ -32,6 +32,7 @@ import { Curtain } from './Curtain'
 import { Desk } from './Desk'
 import { DiningChair } from './DiningChair'
 import { DiningTable } from './DiningTable'
+import { Dishwasher } from './Dishwasher'
 import { Dresser } from './Dresser'
 import { DryingRack } from './DryingRack'
 import { FeatureWall } from './FeatureWall'
@@ -163,4 +164,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   CabinetBase,
   CabinetWall,
   CabinetTall,
+  Dishwasher,
 }
