@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C38] K1 — parametric cabinet engine (base / wall / tall)
+New `furniture/cabinet/` engine: pure, unit-tested `buildCabinet` geometry model
+(toe-kick / carcass / countertop / cornice / slab·shaker·drawers·glass·open
+fronts, mm-customisable W/H/D + columns) + `CabinetModule` primitives and three
+catalog entries (Base / Wall upper / Tall pantry). Coohom-parity modular kitchen.
+
 ## [C37] Copy finishes to a specific room
 The room-editor Finish picker gains a "Copy finishes to…" dropdown beside the
 "Apply to all rooms" buttons — copies this room's floor + wall finish to one

@@ -131,6 +131,9 @@ export type PrimitiveKind =
   | 'Vanity'
   | 'ToyStorage'
   | 'TowelLadder'
+  | 'CabinetBase'
+  | 'CabinetWall'
+  | 'CabinetTall'
 
 export type ParamField =
   | {

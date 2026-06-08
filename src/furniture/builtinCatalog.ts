@@ -10,9 +10,12 @@
  * store slice and are merged in by `useCatalog()`.
  */
 
+import { CABINET_DEFS } from './cabinet/cabinetCatalog'
 import type { FurnitureCategory, FurnitureDef, FurnitureType } from './types'
 
 export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
+  // ── Parametric cabinet engine (base / wall / tall) ────────────────────────
+  ...CABINET_DEFS,
   // ── Beds ────────────────────────────────────────────────────────────────
   // Beds use fixed Singapore-standard mattress sizes — width/length are
   // not user-editable, so they're omitted from paramSchema and resolved

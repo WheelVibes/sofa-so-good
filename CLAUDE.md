@@ -424,6 +424,18 @@ rediscover it.
   (`ui/floorplan/`) and **upload dialogs** (`ui/upload/`) are fully token-themed
   (light + dark) — the floor-plan editor hides the main toolbar while open (its
   own header bar), and the upload dialogs portal to `document.body`.
+- **Parametric cabinet engine** (`furniture/cabinet/`): millimetre-customisable
+  modular cabinets (Coohom parity). `cabinetModel.ts` is the pure, unit-tested
+  `buildCabinet(spec)` geometry model — toe-kick / carcass / countertop /
+  cornice + front styles (slab·shaker·drawers·glass·open) → a flat
+  `CabinetPart[]` (footprint-centred, floor-anchored, front +Z), enforcing
+  structural soundness (carcass rests on the toe-kick, countertop/cornice cap
+  the carcass top, fronts proud of the front face). `primitives/CabinetModule.tsx`
+  renders it via three thin per-type wrappers (`CabinetBase`/`CabinetWall`/
+  `CabinetTall`) registered in `primitives/index.ts`; `cabinet/cabinetCatalog.ts`
+  holds the three `ParametricDef`s (Base / Wall upper / Tall pantry), merged into
+  `BUILTIN_CATALOG` via spread. The catalog's editable W/H/D fields use 1 cm
+  steps; the wall unit is `mounted` with a `verticalSpan`.
 - **Procedural materials**: `materials/procedural/generators.ts` paints one
   tiling tile (albedo+normal+roughness) per finish from seeded noise; plaster
   wall paints share one normal map (tinted by colour) to save memory.

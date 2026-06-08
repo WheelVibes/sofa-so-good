@@ -17,6 +17,7 @@ import { Bed } from './Bed'
 import { Bench } from './Bench'
 import { Bookshelf } from './Bookshelf'
 import { BunkBed } from './BunkBed'
+import { CabinetBase, CabinetTall, CabinetWall } from './CabinetModule'
 import { CeilingFan } from './CeilingFan'
 import { CeilingLight } from './CeilingLight'
 import { ChaiseLounge } from './ChaiseLounge'
@@ -159,4 +160,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Piano,
   Fireplace,
   Vanity,
+  CabinetBase,
+  CabinetWall,
+  CabinetTall,
 }

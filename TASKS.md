@@ -19,7 +19,7 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 ## Feature-flag retrofit (infra shipped: registry + resolver + admin + panel + desktop/⌘K gating)
 
 ## Features (larger)
-- [ ] K1. **Parametric kitchen/bath cabinet engine** — millimetre-customisable cabinets with smart countertop/toe-kick/cornice generation (Coohom parity). Builds on the parametric system + auto-arrange.
+- [ ] K1b. **Cabinet engine — next steps**: auto-arrange a run of base+wall cabinets along a wall; sink/hob cut-outs in a base cabinet; corner/blind units. (Core engine shipped C38.)
 - [ ] Q31. **Drag a material swatch onto a surface in 3D** to apply a finish (reuses `getSurfaceMaterial` / finish DLC); today it's picker-only. NOTE: the 3D drop raycast can't be screenshot-verified headless — needs a manual/GPU verify pass, so do the pure resolver + DOM-draggable parts test-first.
 - [ ] T3. Per-LOD multi-tier generation for uploads.
 - [~] T2. Crown-molding revisit + kitchen/bath template polish (herringbone floor already shipped).
