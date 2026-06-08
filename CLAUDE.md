@@ -4,11 +4,12 @@ A browser 3D sandbox of a Singapore HDB 4-room flat for interior design (furnish
 finish surfaces, light across the day, walk through). React + TypeScript + Three.js
 (@react-three/fiber), Zustand (sliced store), Vite, Vitest, Biome.
 
-> **This file is the entry point — hard rules + conventions only; keep it short.**
-> The full code map is **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. Area-specific
-> rules live in path-scoped `CLAUDE.md` files that load when you work in that folder:
-> `src/state/`, `src/furniture/`, `src/scene/`, `src/ui/`, `src/materials/`. Other
-> reference docs: `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
+> **This file is the entry point — hard rules + conventions only; keep it lean.**
+> It is loaded on *every* turn, so it must stay short: do **not** grow it with system
+> detail. The full code map is **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)**. Area-specific
+> rules live in path-scoped `CLAUDE.md` files that load only when you work in that folder:
+> `src/state/`, `src/furniture/`, `src/scene/`, `src/ui/`, `src/materials/`. Other reference
+> docs: `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
 > `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`.
 
 ## Hard rules (always)
@@ -17,6 +18,12 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
   `CLAUDE.md`) + `README.md`; **user docs** (`docs/user/`) if user-facing (verify labels
   against source — tabs/menu items are exact); **developer docs** (`docs/developer/`) if
   architecture/how-to.
+- **Keep the docs modular as the repo grows.** This root file is a lean entry point — when
+  detail would bloat it, push it to a dedicated file instead (e.g. a new `docs/*.md`, or split
+  `ARCHITECTURE.md` once a topic outgrows its line). **Add a path-scoped `CLAUDE.md` to any
+  `src/` subtree** that gains its own non-obvious rules or grows large (new top-level module →
+  new `src/<module>/CLAUDE.md`), so guidance loads only where it's relevant. Prefer many small,
+  scoped docs over one growing file.
 - **Visual verification after any app change** (not docs/tests-only): run the app, exercise
   via `window.__store` + `scripts/shot.mjs`, screenshot, **visually review** for bugs/
   artifacts, and report what you saw. Green `tsc`+tests is NOT proof the render is right.
