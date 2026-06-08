@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C53] New procedural finish — honeycomb hexagon tile
+Added a `hexagon` procedural pattern (`generators.ts` `hexagonFields` — Voronoi cells over
+an offset triangular lattice, toroidally seamless, recessed grout) + two catalog finishes
+(light + charcoal hex tile). A kitchen/bath staple matching Coohom/Planner-5D. Screenshot-verified seamless on a floor.
+
 ## [C52] GLB designer — stagger newly-added shapes
 Fixed a usability defect: every added shape spawned at the origin and overlapped
 invisibly. `addPart` now staggers each new shape 0.5 m along +X so they're distinct

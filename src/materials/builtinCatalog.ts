@@ -56,6 +56,15 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-carpet-grey': floor('floor-carpet-grey', 'Grey carpet', '#7a7c7e', 'carpet', [1.5, 1.5]),
   'floor-vinyl-light': floor('floor-vinyl-light', 'Light vinyl', '#c9b99c', 'wood', [1.4, 0.9]),
   'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
+  // Honeycomb hex tile — a kitchen/bath staple (Coohom/Planner-5D parity).
+  'floor-tile-hex': floor('floor-tile-hex', 'Hexagon tiles', '#e4e0d6', 'hexagon', [0.5, 0.5]),
+  'floor-tile-hex-charcoal': floor(
+    'floor-tile-hex-charcoal',
+    'Charcoal hex tiles',
+    '#3c3e42',
+    'hexagon',
+    [0.5, 0.5],
+  ),
   // Large-format porcelain — ubiquitous in modern HDB renovations.
   'floor-tile-grey': floor('floor-tile-grey', 'Grey porcelain', '#b9b9b6', 'tile', [0.8, 0.8]),
   'floor-tile-charcoal': floor(

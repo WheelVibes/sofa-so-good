@@ -38,6 +38,7 @@ export type ProceduralPattern =
   | 'herringbone'
   | 'brick'
   | 'batten'
+  | 'hexagon'
 
 /** A finish whose PBR maps are generated on-device at runtime (no fetch).
  *  `swatch` doubles as the base tint fed to the generator. */

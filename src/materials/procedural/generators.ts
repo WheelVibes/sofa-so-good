@@ -181,6 +181,74 @@ function tileFields(base: [number, number, number], seed: number): Fields {
   return f
 }
 
+/**
+ * Honeycomb hexagon tile (a kitchen/bath staple). Voronoi cells over an offset
+ * triangular lattice give hexagons; grout lines fall where the nearest two cell
+ * centres are roughly equidistant. Seamless: the lattice is periodic over the
+ * tile (cols/rows divide it, rows even so the half-row offset wraps) and centre
+ * distances are measured toroidally, so cells crossing the edge match up.
+ */
+function hexagonFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 20
+  const cols = 5
+  const rows = 6 // even → the alternate-row x-offset wraps cleanly
+  const dx = S / cols
+  const dy = S / rows
+  const rand = mulberry32(seed)
+  const tint: number[] = []
+  for (let i = 0; i < cols * rows; i++) tint.push(0.92 + rand() * 0.14)
+  const speck = makeFbm(seed + 3, 3, 50)
+  const grout: [number, number, number] = [base[0] * 0.6, base[1] * 0.6, base[2] * 0.58]
+  const groutW = 3.5 // px threshold on the gap between the two nearest centres
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      let best = Infinity
+      let second = Infinity
+      let bestCol = 0
+      let bestRow = 0
+      const cyApprox = Math.round(y / dy)
+      for (let rr = -1; rr <= 1; rr++) {
+        const rowRaw = cyApprox + rr
+        const row = ((rowRaw % rows) + rows) % rows
+        const offX = row % 2 ? 0.5 : 0
+        const colApprox = Math.round(x / dx - offX)
+        for (let cc = -1; cc <= 1; cc++) {
+          const colRaw = colApprox + cc
+          const centerX = (colRaw + offX) * dx
+          const centerY = rowRaw * dy
+          let ddx = x - centerX
+          ddx -= S * Math.round(ddx / S)
+          let ddy = y - centerY
+          ddy -= S * Math.round(ddy / S)
+          const d = ddx * ddx + ddy * ddy
+          const colW = ((colRaw % cols) + cols) % cols
+          if (d < best) {
+            second = best
+            best = d
+            bestCol = colW
+            bestRow = row
+          } else if (d < second) {
+            second = d
+          }
+        }
+      }
+      const edge = Math.sqrt(second) - Math.sqrt(best)
+      const i = y * S + x
+      if (edge < groutW) {
+        const t = edge / groutW
+        setPx(f, i, grout[0], grout[1], grout[2], 0.05 + t * 0.1, 0.9)
+      } else {
+        const tt = tint[bestRow * cols + bestCol]
+        const sp = (speck(x / S, y / S) - 0.5) * 0.05
+        const [r, g, b] = shade(base, clamp01(tt + sp))
+        setPx(f, i, r, g, b, 0.82, 0.2 + Math.abs(sp) * 1.5)
+      }
+    }
+  }
+  return f
+}
+
 function carpetFields(base: [number, number, number], seed: number): Fields {
   const f = blank()
   f.normalStrength = 6
@@ -639,6 +707,7 @@ const PATTERN_FN: Record<
   herringbone: herringboneFields,
   brick: brickFields,
   batten: battenFields,
+  hexagon: hexagonFields,
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only
