@@ -4,6 +4,10 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C35] Confirmation toasts for "Apply finish to all rooms"
+The Apply-floor/walls-to-all-rooms buttons applied silently; they now show a
+success toast so the bulk action is confirmed. DOM-verified.
+
 ## [C34] "Room layout" subheading in the FinishPicker
 Grouped the growing room-action cluster (Tidy / Mirror / Copy layout / Swap
 layout / Clear) under a "Room layout" subheading, separating it from the

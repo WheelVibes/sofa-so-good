@@ -341,7 +341,12 @@ export function FinishPicker() {
           <button
             type="button"
             className="finish-apply-all"
-            onClick={() => setAllFloorFinish(finishes.floor[roomId])}
+            onClick={() => {
+              setAllFloorFinish(finishes.floor[roomId])
+              useStore
+                .getState()
+                .notify.start({ title: 'Floor finish applied to every room', kind: 'success' })
+            }}
             title="Use this floor finish in every room"
           >
             Apply floor to all rooms
@@ -359,7 +364,12 @@ export function FinishPicker() {
           <button
             type="button"
             className="finish-apply-all"
-            onClick={() => setAllWallFinish(finishes.walls[roomId])}
+            onClick={() => {
+              setAllWallFinish(finishes.walls[roomId])
+              useStore
+                .getState()
+                .notify.start({ title: 'Wall finish applied to every room', kind: 'success' })
+            }}
             title="Use this wall finish in every room"
           >
             Apply walls to all rooms
