@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C15] Room cost in the per-room editor caption
+The room caption now appends the room's estimated furniture cost (e.g. "… · 21
+items · ~$6,760"), so spend is visible while editing a room — consistent with the
+inspector price + budget HUD + per-room spend. Screenshot-verified.
+
 ## [C14] Budget target + over/under in the printable report
 `buildReportHtml` now renders the budget target and how far over/under the
 estimated total is (when a target is set), beside the existing total + per-m² +

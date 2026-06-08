@@ -1,4 +1,6 @@
 import { planRoomArea, pointInRoom } from '../floorplan/types'
+import { useCatalog } from '../furniture/catalog'
+import { itemPrice } from '../furniture/furniturePrices'
 import { useStore } from '../state/store'
 import { formatRoomSize } from '../utils/measurement'
 import { useIsMobile } from './useIsMobile'
@@ -16,13 +18,21 @@ export function RoomEditorCaption() {
   const rooms = useStore((s) => s.floorPlan.rooms)
   const items = useStore((s) => s.items)
   const units = useStore((s) => s.units)
+  const catalog = useCatalog()
   // On mobile the room NAME is already in the collapsed top bar's dropdown, so
   // the caption drops it there and shows only the size (avoids redundancy).
   const isMobile = useIsMobile()
   if (!active || !roomId) return null
   const room = rooms.find((r) => r.id === roomId)
   if (!room) return null
-  const count = items.filter((it) => pointInRoom(room, it.position[0], it.position[1])).length
+  const inRoom = items.filter((it) => pointInRoom(room, it.position[0], it.position[1]))
+  const count = inRoom.length
+  const roomCost = inRoom.reduce((sum, it) => {
+    const def = catalog[it.defId]
+    if (!def) return sum
+    const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
+    return sum + itemPrice(def, def.category, variant)
+  }, 0)
   return (
     <div
       className="room-editor-caption pointer-events-none absolute z-20"
@@ -48,6 +58,7 @@ export function RoomEditorCaption() {
         {!isMobile && '  ·  '}
         {formatRoomSize(room.width, room.depth, planRoomArea(room), units)}
         {`  ·  ${count} ${count === 1 ? 'item' : 'items'}`}
+        {roomCost > 0 ? `  ·  ~$${roomCost.toLocaleString('en-SG')}` : ''}
       </span>
     </div>
   )
