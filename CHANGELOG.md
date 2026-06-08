@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C2] Always-on budget progress HUD
+New `ui/BudgetHud` — a bottom-centre pill (shown only once a budget target is set,
+orbit views only) with spend / target + over/under bar, so you stay on budget
+while arranging without opening the Budget panel. Screenshot-verified.
+
 ## [C4] Per-room spend breakdown in the Budget panel
 Added a "Spend by room" bar list (estimate-based, `pointInRoom` + `itemPrice`)
 beside the existing "Spend by category", so you can see which room the budget

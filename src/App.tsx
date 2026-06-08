@@ -24,6 +24,7 @@ import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
 import { LoginScreen } from './ui/auth/LoginScreen'
+import { BudgetHud } from './ui/BudgetHud'
 import { BudgetPanel } from './ui/BudgetPanel'
 import { ClearancePanel } from './ui/ClearancePanel'
 import { CommandPalette } from './ui/CommandPalette'
@@ -726,6 +727,7 @@ export default function App() {
         <MarqueeSelector />
         <NavCluster />
         <DragHud />
+        <BudgetHud />
         <TapeModeToggle />
         <Crosshair />
         <WalkJoystick />
