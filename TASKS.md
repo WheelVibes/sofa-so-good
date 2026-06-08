@@ -24,9 +24,6 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 - [ ] T3. Per-LOD multi-tier generation for uploads.
 - [~] T2. Crown-molding revisit + kitchen/bath template polish (herringbone floor already shipped).
 
-## QOL / commercial polish (small, DOM/unit-verifiable, prod-safe) — research-driven
-- [ ] C8. **Swap two rooms' layouts** (extend cloneRoom) — research follow-up.
-
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
 - Run `npm test` + `tsc` before each commit; visual-verify app-facing changes.

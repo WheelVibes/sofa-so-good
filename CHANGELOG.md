@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C8] Swap two rooms' layouts
+New `layout/swapRooms` (pure, 3 tests) + a "Swap layout with…" picker in the
+FinishPicker exchanges two rooms' unlocked furniture (centre-delta translation);
+all-or-nothing with a clear "doesn't fit" notice if room sizes differ too much.
+Verified: bedroom2↔bedroom3 counts exchanged (8↔9).
+
 ## [C32] Consistent chip counts on Favourites/Recent + full-suite gate
 Favourites/Recent catalog chips now use the same `.chip-count` styling as the
 category chips (Recent gained its count). Also ran the periodic full gate:

@@ -12,6 +12,7 @@ import { useCatalog } from '../furniture/catalog'
 import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
 import { cloneRoomItems } from '../layout/cloneRoom'
 import { mirrorRoomItems } from '../layout/mirrorRoom'
+import { swapRoomLayouts } from '../layout/swapRooms'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
@@ -175,6 +176,51 @@ export function FinishPicker() {
       title: `Copied ${placed.length} item${placed.length === 1 ? '' : 's'} to ${target.name}`,
       kind: 'success',
     })
+  }
+  // Swap this room's furniture with another room's (translate each set into the
+  // other, by the room-centre delta). All-or-nothing: if any piece wouldn't fit
+  // (rooms too different), nothing moves and we say so.
+  const swapLayoutWith = (targetId: string) => {
+    if (!planRoom) return
+    const st = useStore.getState()
+    const target = st.floorPlan.rooms.find((r) => r.id === targetId)
+    if (!target) return
+    const dx = target.origin[0] + target.width / 2 - (planRoom.origin[0] + planRoom.width / 2)
+    const dz = target.origin[1] + target.depth / 2 - (planRoom.origin[1] + planRoom.depth / 2)
+    const aIds = new Set(roomItemIds)
+    const bIds = new Set(
+      st.items
+        .filter((it) => !it.locked && pointInRoom(target, it.position[0], it.position[1]))
+        .map((it) => it.id),
+    )
+    if (aIds.size === 0 && bIds.size === 0) {
+      st.notify.start({ title: 'Nothing to swap between these rooms', kind: 'info' })
+      return
+    }
+    const swapped = swapRoomLayouts(st.items, aIds, bIds, dx, dz)
+    const walls = isDefaultPlan(st.floorPlan)
+      ? buildCollisionWalls(st.doors)
+      : planCollisionWalls(st.floorPlan, st.doors)
+    const moved = new Set([...aIds, ...bIds])
+    const others = swapped.filter((it) => !moved.has(it.id))
+    const allFit = swapped
+      .filter((it) => moved.has(it.id))
+      .every((it) => {
+        const def = furnitureCatalog[it.defId]
+        return def
+          ? canPlace(it, def, { others, defs: furnitureCatalog, doors: st.doors, walls })
+          : true
+      })
+    if (!allFit) {
+      st.notify.start({
+        title: `Swap doesn't fit — ${planRoom.name} & ${target.name} differ too much`,
+        kind: 'info',
+      })
+      return
+    }
+    st.pushHistory()
+    st.setItems(swapped)
+    st.notify.start({ title: `Swapped ${planRoom.name} ↔ ${target.name}`, kind: 'success' })
   }
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
@@ -353,6 +399,27 @@ export function FinishPicker() {
             >
               <option value="" disabled>
                 Copy layout to…
+              </option>
+              {otherRooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
+          {otherRooms.length > 0 ? (
+            <select
+              className="input"
+              aria-label="Swap this room's layout with another room"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) swapLayoutWith(e.target.value)
+                e.target.value = ''
+              }}
+              style={{ marginTop: 'var(--s-2)', width: '100%' }}
+            >
+              <option value="" disabled>
+                Swap layout with…
               </option>
               {otherRooms.map((r) => (
                 <option key={r.id} value={r.id}>
