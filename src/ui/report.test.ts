@@ -35,6 +35,36 @@ describe('buildReportHtml', () => {
     expect(imperial).toMatch(/Furnishing per ft²/)
   })
 
+  it('shows the budget target + over/under when one is set', () => {
+    const under = buildReportHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      undefined,
+      [],
+      1_000_000,
+    )
+    expect(under).toMatch(/Budget target/)
+    expect(under).toMatch(/under/)
+    const over = buildReportHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      undefined,
+      [],
+      1,
+    )
+    expect(over).toMatch(/over/)
+    // Omitted target → no budget-target row.
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toMatch(/Budget target/)
+  })
+
   it('renders a Finishes-by-room section when finishes are supplied', () => {
     const finishes = {
       floor: { livingDining: 'floor-wood-oak' },

@@ -56,6 +56,7 @@ export function buildReportHtml(
   finishes?: ReportFinishes,
   note?: string,
   annotations: MeasurementAnnotation[] = [],
+  budgetTarget?: number | null,
 ): string {
   // Finishes-by-room section: floor + wall material names per non-external room.
   // Material ids resolve to friendly names via the builtin catalog (DLC/custom
@@ -289,6 +290,15 @@ export function buildReportHtml(
       <h2>Furniture &amp; budget</h2>
       <table>${furnitureRows || '<tr><td>No furniture placed.</td></tr>'}</table>
       <div class="total"><span>Estimated total</span><span>${sgd(budget)}</span></div>
+      ${
+        budgetTarget != null && budgetTarget > 0
+          ? `<div class="subtotal"><span>Budget target</span><span>${sgd(budgetTarget)} · ${
+              budget > budgetTarget
+                ? `${sgd(budget - budgetTarget)} over`
+                : `${sgd(budgetTarget - budget)} under`
+            }</span></div>`
+          : ''
+      }
       ${
         totalArea > 0.01 && budget > 0
           ? `<div class="subtotal"><span>Furnishing per ${units === 'imperial' ? 'ft²' : 'm²'}</span><span>${sgd(

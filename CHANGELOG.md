@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C14] Budget target + over/under in the printable report
+`buildReportHtml` now renders the budget target and how far over/under the
+estimated total is (when a target is set), beside the existing total + per-m² +
+cost-by-room. Threaded from the live store via `openReport`. +1 test (14 total).
+
 ## [BUGFIX] BudgetHud no longer floats over the 2D floor-plan editor
 The budget pill rendered whenever the orbit camera was active — including the
 full-screen floor-plan editor (which hides the rest of the chrome). Now also
