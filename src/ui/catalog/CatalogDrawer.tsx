@@ -57,6 +57,8 @@ export function CatalogDrawer() {
   const setLeftMode = useStore((s) => s.setLeftMode)
   const removeUserFurniture = useStore((s) => s.removeUserFurniture)
   const setActiveDefId = useStore((s) => s.setActiveDefId)
+  const isPro = useStore((s) => s.uiMode === 'pro')
+  const setGlbDesignerOpen = useStore((s) => s.setGlbDesignerOpen)
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   // Packs (downloadable-content installs) is advanced — hidden in Simple mode.
@@ -349,16 +351,29 @@ export function CatalogDrawer() {
             <span className="hint">
               Drag onto the floor · <kbd>R</kbd> rotates
             </span>
-            {fUpload ? (
-              <button
-                type="button"
-                onClick={() => setUploadOpen(true)}
-                className="btn btn-soft btn-sm"
-              >
-                <Icon.Upload width={14} height={14} />
-                Upload
-              </button>
-            ) : null}
+            <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+              {isPro ? (
+                <button
+                  type="button"
+                  onClick={() => setGlbDesignerOpen(true)}
+                  className="btn btn-soft btn-sm"
+                  title="Design or edit a custom 3D asset"
+                >
+                  <Icon.Cube width={14} height={14} />
+                  Design
+                </button>
+              ) : null}
+              {fUpload ? (
+                <button
+                  type="button"
+                  onClick={() => setUploadOpen(true)}
+                  className="btn btn-soft btn-sm"
+                >
+                  <Icon.Upload width={14} height={14} />
+                  Upload
+                </button>
+              ) : null}
+            </div>
           </div>
         </>
       )}

@@ -4,6 +4,10 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C50] GLB designer — discoverable "Design" button
+Added a Pro-gated **Design** button to the catalog footer (beside Upload) that opens
+the asset designer, so it's discoverable without ⌘K. Hidden in Simple mode.
+
 ## [C49] GLB designer — full-screen + Pro-gated
 The asset designer now fills the whole viewport (100vw×100dvh, overriding the panel's
 max-height) for room to work, and is **Pro-only**: the dialog no-ops in Simple mode and
