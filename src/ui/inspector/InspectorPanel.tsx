@@ -759,6 +759,23 @@ export function InspectorPanel() {
                   Apply finish to all ({sameTypeCount - 1})
                 </button>
               ) : null}
+              {sameTypeCount > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const s = useStore.getState()
+                    s.setSelectedItemIds(
+                      s.items.filter((i) => i.defId === item.defId).map((i) => i.id),
+                    )
+                  }}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  title="Select every item of this type to move, rotate or delete them together"
+                >
+                  <Icon.Cube width={14} height={14} />
+                  Select all of type ({sameTypeCount})
+                </button>
+              ) : null}
               {activeGroupId && item.groupId !== activeGroupId && (
                 <button
                   type="button"

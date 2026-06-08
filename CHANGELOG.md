@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C73] "Select all of type" — bulk-select matching items
+Inspector button (shown when 2+ of a type exist) that selects every item sharing the def,
+so you can move/rotate/delete/align them together — complements "Apply finish to all".
+Verified (selects exactly the 3 chairs, not the nightstand).
+
 ## [C72] Test — guard against empty catalog department tabs
 Added a catalog-integrity test asserting every `FurnitureCategory` (except the `others`
 catch-all) has ≥1 built-in item — codifying the C66–C69 audit so a department tab can't
