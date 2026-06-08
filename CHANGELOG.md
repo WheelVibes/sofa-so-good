@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C25] Extract spendByRoom helper (tested)
+Moved the Budget panel's inline per-room spend grouping into a pure
+`furniture/spendByRoom` (pointInRoom + itemPrice, "Outside rooms" bucket), now
+unit-tested. BudgetPanel consumes it; behaviour unchanged. +2 tests; modular.
+
 ## [C24] Heartbeat hardening + theme-metadata guard test
 Fixed the autonomous heartbeat: the prior Monitor had hit its 30-min cap and
 stopped delivering beats. Re-armed fresh (4-min beat) with a **re-arm-FIRST**

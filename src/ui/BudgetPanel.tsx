@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLivePrices } from '../catalog/pricing/livePrice'
-import { pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
+import { spendByRoom } from '../furniture/spendByRoom'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../furniture/types'
 import { useStore } from '../state/store'
 import { CategoryIcon } from './catalog/CategoryIcon'
@@ -83,25 +83,7 @@ export function BudgetPanel() {
 
   // Per-room spend (estimate-based, so room subtotals always sum to `total`).
   // Complements "by category": which *room* is the budget going into.
-  const byRoom = useMemo(() => {
-    const amt = new Map<string, number>()
-    for (const it of items) {
-      const def = catalog[it.defId]
-      if (!def) continue
-      const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
-      const each = itemPrice(def, def.category, variant)
-      const room = plan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
-      const key = room?.id ?? '__none'
-      amt.set(key, (amt.get(key) ?? 0) + each)
-    }
-    const rows = [...amt.entries()]
-      .map(([id, value]) => ({
-        name: id === '__none' ? 'Outside rooms' : (plan.rooms.find((r) => r.id === id)?.name ?? id),
-        amt: value,
-      }))
-      .sort((a, b) => b.amt - a.amt)
-    return { rows, sum: rows.reduce((s, r) => s + r.amt, 0) }
-  }, [items, catalog, plan])
+  const byRoom = useMemo(() => spendByRoom(items, catalog, plan.rooms), [items, catalog, plan])
 
   // Live SG retailer prices (dev-only, via the `npm run price-server` sidecar).
   // Off by default; when on, each line shows the real top-match price + a buy
