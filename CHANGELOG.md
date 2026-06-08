@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C58] Shift-drop to keep placing (place a row fast)
+Holding **Shift** when committing a catalog placement now keeps the same piece armed
+(same orientation) so you can drop several in a row — a plain click or Esc finishes.
+Verified: 3 chairs placed with Shift, plain click disarmed.
+
 ## [C57] Rotate the placement ghost before dropping (R)
 While placing a catalog item you can now press **R** (Shift = 15°) to rotate the ghost
 before committing, so a piece lands facing the right way in one step instead of

@@ -50,7 +50,10 @@ export function usePlacementController() {
         rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
         props: defaultProps(def),
       })
-      cancelPlacement()
+      // Shift-click keeps the placement armed (with the same orientation) so a
+      // row of identical pieces can be dropped one after another; a plain click
+      // disarms. The ghost goes red over the piece just placed until moved.
+      if (!ev.shiftKey) cancelPlacement()
     }
     const onContext = (ev: MouseEvent) => {
       ev.preventDefault()
