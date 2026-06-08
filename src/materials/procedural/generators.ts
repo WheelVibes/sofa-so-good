@@ -526,6 +526,53 @@ function parquetFields(base: [number, number, number], seed: number): Fields {
  * the column count divides the tile and the row count is even so the half-offset
  * alternation wraps. `base` is the brick colour; mortar is a fixed warm grey.
  */
+/**
+ * Glossy ceramic subway/metro tile — running-bond 2:1 rectangles with thin grout
+ * and a soft bevel at each tile edge (the classic kitchen-backsplash / bathroom
+ * wall finish). Distinct from `brick` (matte, earthy, thick mortar): high tint,
+ * low roughness, crisp thin joints. Seamless — cols divide the tile, rows even so
+ * the half-offset running bond wraps.
+ */
+function subwayFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 14
+  const cols = 4
+  const tw = S / cols // tile width
+  const rows = 8 // even → half-offset running bond wraps; 2:1 tiles (tw = 2·th)
+  const th = S / rows
+  const grout = Math.max(2, Math.round(S / 150)) // thin joint
+  const bevel = Math.max(3, Math.round(S / 90)) // soft edge bevel band
+  const groutRgb: [number, number, number] = [218, 214, 206]
+  const speck = makeFbm(seed + 7, 3, 60)
+  for (let y = 0; y < S; y++) {
+    const row = Math.floor(y / th)
+    const yIn = y - row * th
+    const offset = (row & 1) * (tw / 2)
+    for (let x = 0; x < S; x++) {
+      const xs = (((x + offset) % S) + S) % S
+      const col = Math.floor(xs / tw)
+      const xIn = xs - col * tw
+      const edge = Math.min(xIn, tw - xIn, yIn, th - yIn)
+      const i = y * S + x
+      if (edge < grout) {
+        // Recessed grout joint.
+        setPx(f, i, groutRgb[0], groutRgb[1], groutRgb[2], 0.05, 0.8)
+        continue
+      }
+      // Ceramic face — bright, low roughness; a bevel band near the joint catches
+      // light (raised height) so each tile reads as proud + glossy.
+      const onBevel = edge < grout + bevel
+      const bv = onBevel ? (edge - grout) / bevel : 1
+      const sp = (speck(x / S, y / S) - 0.5) * 0.04
+      const factor = clamp01(0.97 + sp + (onBevel ? (1 - bv) * 0.06 : 0))
+      const [r, g, b] = shade(base, factor)
+      const height = onBevel ? 0.5 + bv * 0.45 : 0.95
+      setPx(f, i, r, g, b, height, 0.12 + Math.abs(sp) * 1.2)
+    }
+  }
+  return f
+}
+
 function brickFields(base: [number, number, number], seed: number): Fields {
   const f = blank()
   f.normalStrength = 5
@@ -708,6 +755,7 @@ const PATTERN_FN: Record<
   brick: brickFields,
   batten: battenFields,
   hexagon: hexagonFields,
+  subway: subwayFields,
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only

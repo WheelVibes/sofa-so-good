@@ -276,6 +276,26 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'wall-brick-red': wallpaper('wall-brick-red', 'Exposed brick', '#9c5a44', 'brick'),
   'wall-brick-white': wallpaper('wall-brick-white', 'White-washed brick', '#d9d3c8', 'brick'),
   'wall-brick-charcoal': wallpaper('wall-brick-charcoal', 'Charcoal brick', '#55504c', 'brick'),
+  // Glossy subway/metro tile — the classic kitchen-backsplash + bathroom finish.
+  // Smaller uvScale than wallpaper so the running-bond tiles read at metro size.
+  'wall-subway-white': {
+    id: 'wall-subway-white',
+    name: 'Subway tile (white)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'subway',
+    swatch: '#eceae4',
+    uvScale: [0.7, 0.7],
+  },
+  'wall-subway-sage': {
+    id: 'wall-subway-sage',
+    name: 'Subway tile (sage)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'subway',
+    swatch: '#b3bca9',
+    uvScale: [0.7, 0.7],
+  },
   // Microcement / concrete accent walls (smooth, large-scale tiling).
   'wall-concrete-light': {
     id: 'wall-concrete-light',

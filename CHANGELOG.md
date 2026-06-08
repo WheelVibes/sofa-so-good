@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C54] New wall finish — glossy subway / metro tile
+Added a `subway` procedural pattern (`subwayFields` — running-bond 2:1 ceramic tiles, thin
+grout, soft bevel; seamless) + two wall finishes (white + sage) at metro scale. The classic
+kitchen-backsplash/bathroom wall finish, distinct from the matte exposed-brick. Screenshot-verified.
+
 ## [C53] New procedural finish — honeycomb hexagon tile
 Added a `hexagon` procedural pattern (`generators.ts` `hexagonFields` — Voronoi cells over
 an offset triangular lattice, toroidally seamless, recessed grout) + two catalog finishes
