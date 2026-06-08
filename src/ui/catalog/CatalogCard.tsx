@@ -1,4 +1,5 @@
 import { isUserDef } from '../../furniture/catalog'
+import { itemPrice } from '../../furniture/furniturePrices'
 import type { FurnitureDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatDims } from '../../utils/measurement'
@@ -78,6 +79,8 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
       </div>
       <span className="pr mono">
         {formatDims(def.defaultFootprint.w, def.defaultFootprint.d, units)}
+        {' · '}
+        <b>~${itemPrice(def, def.category).toLocaleString('en-SG')}</b>
       </span>
       {isUser ? (
         <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>

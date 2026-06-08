@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C11] Show price on catalog cards
+Each catalog card now appends its estimated price (`itemPrice`) after the
+dimensions (accent-styled), so the new Price sort + Max-$ filter are visible at a
+glance while browsing. Screenshot-verified.
+
 ## [C10] Catalog "Price (low→high)" sort
 Added a price sort to the catalog browse `SortKey` (`catalogBrowse` `cardPrice`
 via `itemPrice`; free CC0 entries lead). UI picks it up automatically; prefs
