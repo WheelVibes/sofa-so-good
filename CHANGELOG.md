@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C23] Themes user-doc + verify Harbour in the Appearance picker
+Updated the themes-and-appearance guide page to list Harbour (5 themes). Verified
+the Appearance popover renders all five cards with correct swatches (Harbour =
+blue). Closes out C22's UI surface.
+
 ## [C22] New "Harbour" theme (cool marina blue)
 A 5th theme — estate's exact lightness/chroma hue-shifted to a slate-blue neutral
 + teal-blue accent (so contrast is preserved), light + dark. Registered in
