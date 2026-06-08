@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
+import { arrayOffsets } from '../../furniture/arrayPlacement'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
@@ -434,26 +435,21 @@ export function InspectorPanel() {
   const duplicateRow = () => {
     const st = useStore.getState()
     const count = Math.max(2, Math.min(10, Math.round(arrayCount)))
-    const rot = item.rotation
-    const rx = Math.cos(rot)
-    const rz = -Math.sin(rot) // local +X projected to world XZ
-    const step = w + 0.12
+    // Evenly-spaced copy positions to the item's right (tested `arrayOffsets`).
+    const positions = arrayOffsets(item, count - 1, w + 0.12, 'right')
     const gid =
       typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `grp-${Date.now()}`
     const newItems: (typeof item)[] = []
     let others = st.items
-    for (let i = 1; i < count; i++) {
-      const pos: [number, number] = [
-        item.position[0] + rx * step * i,
-        item.position[1] + rz * step * i,
-      ]
+    for (const pos of positions) {
       const probe = {
-        id: `row-${i}`,
+        id: 'row-probe',
         defId: item.defId,
         position: pos,
-        rotation: rot,
+        rotation: item.rotation,
         props: item.props,
       }
+      // Stop at the first blocked slot so the row stays contiguous.
       if (
         !canPlace(probe, def, { others, defs: catalog, doors: st.doors, walls: placementWalls(st) })
       )
@@ -463,7 +459,7 @@ export function InspectorPanel() {
         id:
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
-            : `id-${Date.now()}-${i}`,
+            : `id-${Date.now()}-${newItems.length}`,
         position: pos,
         props: { ...item.props },
         groupId: gid,

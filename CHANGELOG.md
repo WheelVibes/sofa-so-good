@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C45] Extract the array-row math into a tested pure module
+The inspector's "Duplicate a row" did its rotation/offset math inline; extracted it
+to a pure, unit-tested `furniture/arrayPlacement.ts` (`arrayOffsets` — rotation-aware
+linear array, 5 tests) and refactored `duplicateRow` to use it. Same behaviour
+(screenshot-verified: 4 evenly-spaced chairs), less duplication, now test-backed.
+
 ## [C44] K1b — "Kitchen run" set + wall-cabinet mount fix
 Added a one-click **Kitchen run** set (base sink · hob · drawers + wall uppers + tall
 pantry) assembling the cabinet engine into a kitchen. Also fixed a C38 bug: the
