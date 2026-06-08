@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [HEALTH] Reliability pass + BudgetHud mobile safe-area
+Full suite green (991 passed / 2 skipped), tsc + lint clean across all recent
+changes — no regressions. Polished the new BudgetHud to clear the iOS home
+indicator on mobile (`env(safe-area-inset-bottom)`).
+
 ## [C2] Always-on budget progress HUD
 New `ui/BudgetHud` — a bottom-centre pill (shown only once a budget target is set,
 orbit views only) with spend / target + over/under bar, so you stay on budget
