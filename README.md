@@ -288,12 +288,14 @@ catalogue* — assets land in (gitignored) `public/assets/ikea/`.
   `npm run docs:build` (or preview with `npm run docs:dev`).
 - **Developer guide** — maintainer docs under `docs/developer/` (plain Markdown,
   not deployed): architecture, per-system guides, and how-to recipes. Start at
-  `docs/developer/index.md`. `CLAUDE.md` is the terse always-current index.
+  `docs/developer/index.md`. `CLAUDE.md` is the lean agent entry point (hard rules +
+  conventions); `docs/ARCHITECTURE.md` is the full always-current code map, and each
+  major `src/` area has its own path-scoped `CLAUDE.md`.
 
 ## More
 
 Stack: React + TypeScript, three.js via @react-three/fiber, Zustand, Vite.
-See [CLAUDE.md](CLAUDE.md) for architecture and how to add content. Bundled
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for architecture and how to add content. Bundled
 assets are procedurally generated (CC0-equivalent) wherever possible; the few
 bundled GLBs (e.g. the pool tables) carry their real licence + attribution
 (CC-BY where required), surfaced in the inspector and `CREDITS.md`. Imported

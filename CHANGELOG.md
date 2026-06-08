@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C40] Modularize CLAUDE.md (entry point + ARCHITECTURE + path-scoped rules)
+Split the 1000-line CLAUDE.md: root `CLAUDE.md` is now a lean ≤60-line entry point
+(hard rules + conventions + pointers); the full code map moved to `docs/ARCHITECTURE.md`;
+and each major `src/` area (state/furniture/scene/ui/materials) gets its own path-scoped
+`CLAUDE.md` that loads only when working there. README pointers updated.
+
 ## [C39] Q31 (part 1) — drag a finish onto a furniture item
 Finish-picker swatches are now draggable; dropping one onto a piece in the
 Objects (Layers) list applies that finish (dashed drop-highlight + toast). New
