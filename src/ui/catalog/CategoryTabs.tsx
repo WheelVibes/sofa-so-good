@@ -78,6 +78,7 @@ export function CategoryTabs({
           >
             <CategoryIcon category={c} className="icn" width={14} height={14} />
             {LABELS[c]}
+            <span className="chip-count">{count}</span>
           </button>
         )
       })}

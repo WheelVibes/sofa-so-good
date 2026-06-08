@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C6] Category item counts on the catalog chips + visual review
+Each catalog category chip now shows its item count (e.g. "Seating 11") — subtle,
+tabular. Also did a holistic visual regression review (overview + room-editor
+inspector) after the run's UI changes: no artifacts/regressions found.
+
 ## [C18] Fix: remove duplicate "/" handler from C17 (it already existed)
 C17 wrongly added a second `/` handler — App already had one (my earlier grep
 excluded App.tsx). Removed the duplicate and folded the one improvement

@@ -20,6 +20,8 @@
 .chip:hover { background: var(--surface-3); }
 .chip.on { background: var(--accent-soft); color: var(--accent-soft-text); border-color: transparent; }
 .chip .icn { color: currentColor; }
+/* Per-category item count — subtle, sits after the label. */
+.chip-count { font-size: var(--t-2xs); font-weight: 700; opacity: 0.6; font-variant-numeric: tabular-nums; }
 
 /* card grid */
 /* minmax(0, 1fr) (not bare 1fr, whose implicit auto minimum lets a long name or
