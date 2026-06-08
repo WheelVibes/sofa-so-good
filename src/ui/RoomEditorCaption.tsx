@@ -1,6 +1,6 @@
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
-import { itemPrice } from '../furniture/furniturePrices'
+import { itemsCost } from '../furniture/itemsCost'
 import { useStore } from '../state/store'
 import { formatRoomSize } from '../utils/measurement'
 import { useIsMobile } from './useIsMobile'
@@ -27,12 +27,7 @@ export function RoomEditorCaption() {
   if (!room) return null
   const inRoom = items.filter((it) => pointInRoom(room, it.position[0], it.position[1]))
   const count = inRoom.length
-  const roomCost = inRoom.reduce((sum, it) => {
-    const def = catalog[it.defId]
-    if (!def) return sum
-    const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
-    return sum + itemPrice(def, def.category, variant)
-  }, 0)
+  const roomCost = itemsCost(inRoom, catalog)
   return (
     <div
       className="room-editor-caption pointer-events-none absolute z-20"

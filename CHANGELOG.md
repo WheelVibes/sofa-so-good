@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C16] Consolidate item-cost math into one tested helper
+New `furniture/itemsCost` (sum a set of items' prices, variant-aware) is now the
+single source of truth used by the budget HUD, the inspector selection total, and
+the room caption (was duplicated three ways). +1 test (3); modular + DRY.
+
 ## [C15] Room cost in the per-room editor caption
 The room caption now appends the room's estimated furniture cost (e.g. "… · 21
 items · ~$6,760"), so spend is visible while editing a room — consistent with the

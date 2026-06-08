@@ -5,6 +5,7 @@ import { placementWalls } from '../../collision/placementWalls'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
+import { itemsCost } from '../../furniture/itemsCost'
 import { isOffSquare, nearestRightAngle } from '../../layout/angle'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
@@ -56,19 +57,10 @@ function MultiSelectPanel() {
   // Combined estimated price of the current selection (mirrors the single-item
   // price line + the Budget panel's `itemPrice`).
   const totalPrice = useStore((s) =>
-    s.items
-      .filter((i) => s.selectedItemIds.includes(i.id))
-      .reduce((sum, it) => {
-        const def = catalog[it.defId]
-        return def
-          ? sum +
-              itemPrice(
-                def,
-                def.category,
-                typeof it.props.variant === 'string' ? it.props.variant : undefined,
-              )
-          : sum
-      }, 0),
+    itemsCost(
+      s.items.filter((i) => s.selectedItemIds.includes(i.id)),
+      catalog,
+    ),
   )
 
   const tryMove = (id: string, pos: [number, number]) => {

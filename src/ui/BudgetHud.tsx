@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useCatalog } from '../furniture/catalog'
-import { itemPrice } from '../furniture/furniturePrices'
+import { itemsCost } from '../furniture/itemsCost'
 import { useStore } from '../state/store'
 
 /**
@@ -19,16 +19,7 @@ export function BudgetHud() {
   const items = useStore((s) => s.items)
   const catalog = useCatalog()
 
-  const spent = useMemo(() => {
-    let sum = 0
-    for (const it of items) {
-      const def = catalog[it.defId]
-      if (!def) continue
-      const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
-      sum += itemPrice(def, def.category, variant)
-    }
-    return sum
-  }, [items, catalog])
+  const spent = useMemo(() => itemsCost(items, catalog), [items, catalog])
 
   if (target == null || cameraMode !== 'orbit' || floorPlanEditing) return null
   const over = spent > target
