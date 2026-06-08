@@ -52,6 +52,23 @@ function MultiSelectPanel() {
   const ungroup = useStore((s) => s.ungroup)
   const catalog = useCatalog()
   const { minimized, toggle } = useInspectorMinimize()
+  // Combined estimated price of the current selection (mirrors the single-item
+  // price line + the Budget panel's `itemPrice`).
+  const totalPrice = useStore((s) =>
+    s.items
+      .filter((i) => s.selectedItemIds.includes(i.id))
+      .reduce((sum, it) => {
+        const def = catalog[it.defId]
+        return def
+          ? sum +
+              itemPrice(
+                def,
+                def.category,
+                typeof it.props.variant === 'string' ? it.props.variant : undefined,
+              )
+          : sum
+      }, 0),
+  )
 
   const tryMove = (id: string, pos: [number, number]) => {
     const s = useStore.getState()
@@ -133,7 +150,11 @@ function MultiSelectPanel() {
       <div className="panel-head">
         <div>
           <div className="panel-title">{count} items selected</div>
-          {minimized ? null : <div className="panel-sub">Multi-select</div>}
+          {minimized ? null : (
+            <div className="panel-sub">
+              Multi-select{totalPrice > 0 ? ` · ~$${totalPrice.toLocaleString('en-SG')} total` : ''}
+            </div>
+          )}
         </div>
         <div className="insp-head-btns">
           <MinimizeButton minimized={minimized} toggle={toggle} />

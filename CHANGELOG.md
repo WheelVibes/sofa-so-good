@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [QOL-total] Selection total cost in the multi-select inspector
+The multi-select panel header now appends "~$N total" (sum of `itemPrice` over
+the selection) beside the count, so selecting a group/marquee shows its combined
+estimated cost. Screenshot-verified; tsc + biome green.
+
 ## [QOL-price] Per-item price estimate in the inspector header
 The inspector now shows an item's estimated price (`itemPrice`, IKEA variant-
 aware) under its dimensions, so cost is visible while designing — not only in the
