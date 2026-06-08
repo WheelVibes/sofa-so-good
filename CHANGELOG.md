@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C32] Consistent chip counts on Favourites/Recent + full-suite gate
+Favourites/Recent catalog chips now use the same `.chip-count` styling as the
+category chips (Recent gained its count). Also ran the periodic full gate:
+1009 tests pass, tsc + lint clean — no regressions. DOM-verified.
+
 ## [C31] "B" keyboard shortcut to toggle the Budget panel
 Added `B` (orbit views, not while typing, gated on the `budget` feature flag) to
 toggle the Budget/shopping panel — quick access to the now-rich spend view.

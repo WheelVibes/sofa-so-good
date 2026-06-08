@@ -51,7 +51,7 @@ export function CategoryTabs({
         title="Favourites"
       >
         <Icon.Star className="icn" width={14} height={14} />
-        {favCount > 0 ? favCount : null}
+        {favCount > 0 ? <span className="chip-count">{favCount}</span> : null}
       </button>
       {recentCount > 0 ? (
         <button
@@ -63,6 +63,7 @@ export function CategoryTabs({
         >
           <Icon.Time className="icn" width={14} height={14} />
           Recent
+          <span className="chip-count">{recentCount}</span>
         </button>
       ) : null}
       {FURNITURE_CATEGORIES.map((c) => {
