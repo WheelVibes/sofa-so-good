@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C65] Multi-select "Face into room"
+The align/distribute multi-select panel gains a **Face into room** button that orients
+every selected (unlocked) piece to its own nearest wall (bulk version of C63),
+collision-checked per item. Verified (two nightstands → 0 and π toward the room).
+
 ## [C64] Security — escape quotes in the printable report (HTML injection)
 The report's `esc()` only escaped `&<>`, but user strings (project note, room/material
 names, swatches) are embedded in `style="…"`/`title="…"` attributes — a `"` could break

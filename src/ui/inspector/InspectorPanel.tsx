@@ -111,6 +111,36 @@ function MultiSelectPanel() {
     })
   }
 
+  // Orient every selected (unlocked) piece so its back is to the nearest wall of
+  // whichever room contains it — a bulk version of the single-item action.
+  const faceAllIntoRoom = () => {
+    const s = useStore.getState()
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    if (sel.length === 0) return
+    s.pushHistory()
+    for (const it of sel) {
+      const def = catalog[it.defId]
+      const room = s.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+      if (!def || !room) continue
+      const rect = {
+        minX: room.origin[0],
+        minZ: room.origin[1],
+        maxX: room.origin[0] + room.width,
+        maxZ: room.origin[1] + room.depth,
+      }
+      const rot = rotationFacingRoom(it.position, rect)
+      if (
+        canPlace({ ...it, rotation: rot }, def, {
+          others: s.items.filter((o) => o.id !== it.id),
+          defs: catalog,
+          doors: s.doors,
+          walls: placementWalls(s),
+        })
+      )
+        s.rotateItem(it.id, rot)
+    }
+  }
+
   const deleteAll = () => {
     const s = useStore.getState()
     for (const id of [...s.selectedItemIds]) s.deleteItem(id)
@@ -197,6 +227,16 @@ function MultiSelectPanel() {
                   Across Z
                 </button>
               </div>
+              <button
+                type="button"
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                onClick={faceAllIntoRoom}
+                title="Turn each selected piece's back to its nearest wall"
+              >
+                <Icon.Rotate width={14} height={14} />
+                Face into room
+              </button>
             </div>
             <div className="sec">
               {activeGroupId ? (
