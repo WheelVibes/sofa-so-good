@@ -53,6 +53,7 @@ export function LayersPanel() {
   }, [items, plan])
 
   const roomCount = groups.filter((g) => g.key !== 'other').length
+  const allCollapsed = groups.length > 0 && groups.every((g) => collapsed[g.key])
   // Filter items by name; drop empty groups and force-expand while filtering so
   // matches are always visible regardless of a group's collapsed state.
   const visibleGroups = q
@@ -221,6 +222,20 @@ export function LayersPanel() {
           {hiddenIds.length > 0 ? (
             <button type="button" className="lyr-showall" onClick={() => showAllItems()}>
               Show all ({hiddenIds.length})
+            </button>
+          ) : null}
+          {!q && roomCount > 1 ? (
+            <button
+              type="button"
+              className="lyr-showall"
+              title={allCollapsed ? 'Expand all rooms' : 'Collapse all rooms'}
+              onClick={() =>
+                setCollapsed(
+                  allCollapsed ? {} : Object.fromEntries(groups.map((g) => [g.key, true])),
+                )
+              }
+            >
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
             </button>
           ) : null}
           {items.length > 0 ? (

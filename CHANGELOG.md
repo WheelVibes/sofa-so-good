@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C19] Expand/Collapse-all rooms in the Layers panel
+Added a footer toggle (shown with 2+ rooms, not while filtering) that collapses
+or expands every room group at once — handy for navigating large designs. Reuses
+the existing per-group collapse state. DOM-verified.
+
 ## [C6] Category item counts on the catalog chips + visual review
 Each catalog category chip now shows its item count (e.g. "Seating 11") — subtle,
 tabular. Also did a holistic visual regression review (overview + room-editor
