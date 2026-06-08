@@ -306,7 +306,9 @@ export function CatalogDrawer() {
                       ? 'No favourites yet — tap the heart on any card to save it here.'
                       : active === 'recent'
                         ? 'Nothing placed yet — items you add will appear here for quick reuse.'
-                        : 'No items in this category yet.'}
+                        : maxPrice.trim() && baseCards.length > 0
+                          ? `Nothing under $${maxPrice.trim()} here — raise the Max $ filter.`
+                          : 'No items in this category yet.'}
                 </span>
               </p>
             ) : (

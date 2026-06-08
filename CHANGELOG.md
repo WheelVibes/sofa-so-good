@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C20] Price-aware catalog empty state + production-build check
+A Max-$ filter that hides every card now shows "Nothing under $N here — raise the
+Max $ filter." instead of the misleading "No items in this category yet." Also
+verified `npm run build` succeeds with all the run's new modules. DOM-verified.
+
 ## [C19] Expand/Collapse-all rooms in the Layers panel
 Added a footer toggle (shown with 2+ rooms, not while filtering) that collapses
 or expands every room group at once — handy for navigating large designs. Reuses
