@@ -6,6 +6,7 @@ import {
   isBuildable,
   partsBounds,
   removePart,
+  setMeshOverride,
   updatePart,
 } from './editSpec'
 
@@ -38,6 +39,7 @@ describe('AssetEditSpec', () => {
   it('computes a footprint that wraps every part', () => {
     const spec: AssetEditSpec = {
       sourceScale: 1,
+      meshOverrides: {},
       parts: [
         { id: 'a', kind: 'box', position: [0, 0.2, 0], size: [0.4, 0.4, 0.4], color: '#fff' },
         { id: 'b', kind: 'box', position: [1, 0.5, 0], size: [0.4, 1.0, 0.4], color: '#fff' },
@@ -49,5 +51,30 @@ describe('AssetEditSpec', () => {
 
   it('returns null bounds when there are no parts', () => {
     expect(partsBounds([])).toBeNull()
+  })
+})
+
+describe('setMeshOverride', () => {
+  it('records a recolour / hide keyed by mesh name', () => {
+    const s = setMeshOverride(createEmptySpec(), 'Seat', { color: '#ff0000' })
+    expect(s.meshOverrides.Seat).toEqual({ color: '#ff0000' })
+  })
+
+  it('merges patches for the same mesh', () => {
+    let s = setMeshOverride(createEmptySpec(), 'Legs', { color: '#222' })
+    s = setMeshOverride(s, 'Legs', { hidden: true })
+    expect(s.meshOverrides.Legs).toEqual({ color: '#222', hidden: true })
+  })
+
+  it('drops an override that becomes empty (back to original look)', () => {
+    let s = setMeshOverride(createEmptySpec(), 'Seat', { hidden: true })
+    s = setMeshOverride(s, 'Seat', { hidden: false })
+    expect(s.meshOverrides.Seat).toBeUndefined()
+  })
+
+  it('clearing a colour with no hide removes the override', () => {
+    let s = setMeshOverride(createEmptySpec(), 'Seat', { color: '#abc' })
+    s = setMeshOverride(s, 'Seat', { color: undefined })
+    expect(s.meshOverrides.Seat).toBeUndefined()
   })
 })

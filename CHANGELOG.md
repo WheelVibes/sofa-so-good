@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C48] GLB designer v2 — per-mesh recolour / hide of a source GLB
+The designer now lists a source GLB's named meshes ("Recolour parts") with a colour
+picker + hide toggle, so you can recolour a cushion or hide a part to make a variant.
+Pure `setMeshOverride` + `applyMeshOverrides` (clones materials, no shared mutation),
+tested (+8); composed parts are now named so saved assets are re-editable. Verified.
+
 ## [C47] GLB Asset Designer — compose / edit custom 3D assets
 New in-browser asset designer (⌘K → "Design a 3D asset"): compose an asset from
 primitive shapes (box/cylinder/sphere, each with size/position/colour) and/or start

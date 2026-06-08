@@ -2,7 +2,7 @@ import { Bounds, OrbitControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import type { Object3D } from 'three'
+import { Mesh, type Object3D } from 'three'
 import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
 import {
   type AssetEditSpec,
@@ -11,6 +11,7 @@ import {
   isBuildable,
   removePart,
   type ShapeKind,
+  setMeshOverride,
   updatePart,
 } from '../../furniture/glbEdit/editSpec'
 import { exportAndSaveAsset } from '../../furniture/glbEdit/saveAsset'
@@ -82,7 +83,23 @@ export function GlbDesignerDialog() {
   const [category, setCategory] = useState<FurnitureCategory>('others')
   const [selId, setSelId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [meshNames, setMeshNames] = useState<string[]>([])
   const sourceSceneRef = useRef<Object3D | null>(null)
+
+  // Capture the loaded source scene (for export) + its named meshes (for the
+  // recolour/hide list). Clears both when the source is removed/changed.
+  const onScene = (o: Object3D | null) => {
+    sourceSceneRef.current = o
+    if (!o) {
+      setMeshNames([])
+      return
+    }
+    const names = new Set<string>()
+    o.traverse((m) => {
+      if (m instanceof Mesh && m.name) names.add(m.name)
+    })
+    setMeshNames([...names])
+  }
 
   const sourceUrl = useMemo(() => {
     const def = userGlbs.find((d) => d.id === spec.sourceAssetId)
@@ -163,13 +180,7 @@ export function GlbDesignerDialog() {
               <Suspense fallback={null}>
                 <Bounds fit clip observe margin={1.2}>
                   {sourceUrl && (
-                    <SourceModel
-                      url={sourceUrl}
-                      scale={spec.sourceScale}
-                      onScene={(o) => {
-                        sourceSceneRef.current = o
-                      }}
-                    />
+                    <SourceModel url={sourceUrl} scale={spec.sourceScale} onScene={onScene} />
                   )}
                   <PartsPreview spec={spec} />
                 </Bounds>
@@ -220,6 +231,61 @@ export function GlbDesignerDialog() {
                 </label>
               ) : null}
             </div>
+
+            {meshNames.length > 0 ? (
+              <div className="sec">
+                <div className="sec-h">
+                  <span>Recolour parts</span>
+                </div>
+                <div style={{ display: 'grid', gap: 4 }}>
+                  {meshNames.map((mn) => {
+                    const ov = spec.meshOverrides[mn] ?? {}
+                    return (
+                      <div key={mn} className="lyr-row" style={{ gap: 'var(--s-2)' }}>
+                        <input
+                          type="color"
+                          value={ov.color ?? '#cccccc'}
+                          aria-label={`Recolour ${mn}`}
+                          onChange={(e) =>
+                            setSpec((s) => setMeshOverride(s, mn, { color: e.target.value }))
+                          }
+                          disabled={ov.hidden}
+                        />
+                        <span className="lyr-nm" title={mn}>
+                          {mn}
+                        </span>
+                        <button
+                          type="button"
+                          className={`icon-btn${ov.hidden ? ' on' : ''}`}
+                          aria-label={`${ov.hidden ? 'Show' : 'Hide'} ${mn}`}
+                          title={ov.hidden ? 'Show part' : 'Hide part'}
+                          onClick={() =>
+                            setSpec((s) => setMeshOverride(s, mn, { hidden: !ov.hidden }))
+                          }
+                        >
+                          <Icon.Eye width={14} height={14} />
+                        </button>
+                        {ov.color !== undefined || ov.hidden ? (
+                          <button
+                            type="button"
+                            className="icon-btn"
+                            aria-label={`Reset ${mn}`}
+                            title="Reset to original"
+                            onClick={() =>
+                              setSpec((s) =>
+                                setMeshOverride(s, mn, { color: undefined, hidden: false }),
+                              )
+                            }
+                          >
+                            <Icon.Close width={13} height={13} />
+                          </button>
+                        ) : null}
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ) : null}
 
             <div className="sec">
               <div className="sec-h">

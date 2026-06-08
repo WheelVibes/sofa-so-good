@@ -20,6 +20,14 @@ export interface ShapePart {
   color: string
 }
 
+/** Per-named-mesh edit applied to a source GLB's components (recolour / hide). */
+export interface MeshOverride {
+  /** Hex colour to repaint this mesh (absent = keep its original material). */
+  color?: string
+  /** Hide this mesh entirely. */
+  hidden?: boolean
+}
+
 export interface AssetEditSpec {
   /** Optional source GLB asset id (a user/bundled def) to build around; absent =
    *  a fresh asset composed only of primitives. */
@@ -28,10 +36,27 @@ export interface AssetEditSpec {
   sourceScale: number
   /** Primitive shapes kit-bashed into the asset. */
   parts: ShapePart[]
+  /** Recolour/hide overrides keyed by the source GLB's mesh name. */
+  meshOverrides: Record<string, MeshOverride>
 }
 
 export function createEmptySpec(): AssetEditSpec {
-  return { sourceScale: 1, parts: [] }
+  return { sourceScale: 1, parts: [], meshOverrides: {} }
+}
+
+/** Set (or clear) a per-mesh override immutably. An override that becomes empty
+ *  (no colour, not hidden) is dropped so the mesh keeps its original look. */
+export function setMeshOverride(
+  spec: AssetEditSpec,
+  meshName: string,
+  patch: MeshOverride,
+): AssetEditSpec {
+  const next = { ...spec.meshOverrides[meshName], ...patch }
+  if (next.color === undefined && !next.hidden) {
+    const { [meshName]: _drop, ...rest } = spec.meshOverrides
+    return { ...spec, meshOverrides: rest }
+  }
+  return { ...spec, meshOverrides: { ...spec.meshOverrides, [meshName]: next } }
 }
 
 let seq = 0
