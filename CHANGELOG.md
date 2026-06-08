@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C24] Heartbeat hardening + theme-metadata guard test
+Fixed the autonomous heartbeat: the prior Monitor had hit its 30-min cap and
+stopped delivering beats. Re-armed fresh (4-min beat) with a **re-arm-FIRST**
+policy so each activation resets the window before doing work (a mid-cycle
+failure can't strand it). Added `appearanceSlice` tests asserting every
+THEME_NAME has complete metadata (guards half-added themes). 3 tests.
+
 ## [C23] Themes user-doc + verify Harbour in the Appearance picker
 Updated the themes-and-appearance guide page to list Harbour (5 themes). Verified
 the Appearance popover renders all five cards with correct swatches (Harbour =
