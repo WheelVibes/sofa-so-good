@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C27] Fix a wrong assertion in angle.test (full-suite gate)
+A full `vitest run` + production build pass caught a failing assertion shipped in
+C9: `nearestRightAngle(2.0)` correctly snaps to π/2 (nearer than π), but the test
+expected π. Fixed the expectation + added a 2.5→π case. Suite now 1006 green;
+build clean. (Lesson: confirm the pass *count*, not just that tests ran.)
+
 ## [C26] Esc clears/blurs the catalog search
 Pressing Esc in the catalog search now clears a non-empty query (keeping focus to
 keep typing) or blurs the field when already empty — a quick exit, pairing with

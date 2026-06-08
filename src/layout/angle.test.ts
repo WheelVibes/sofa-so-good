@@ -7,7 +7,9 @@ describe('nearestRightAngle', () => {
   it('snaps to the nearest multiple of 90°', () => {
     expect(nearestRightAngle(0.3)).toBeCloseTo(0)
     expect(nearestRightAngle(1.0)).toBeCloseTo(HALF_PI)
-    expect(nearestRightAngle(2.0)).toBeCloseTo(Math.PI)
+    // 2.0 rad is nearer π/2 (Δ0.43) than π (Δ1.14); 2.5 rad rounds up to π.
+    expect(nearestRightAngle(2.0)).toBeCloseTo(HALF_PI)
+    expect(nearestRightAngle(2.5)).toBeCloseTo(Math.PI)
     expect(nearestRightAngle(-0.2)).toBeCloseTo(0)
   })
   it('leaves an exact right angle unchanged', () => {
