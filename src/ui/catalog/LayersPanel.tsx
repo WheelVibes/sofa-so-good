@@ -4,6 +4,7 @@ import type { RoomId } from '../../apartment/types'
 import { pointInRoom } from '../../floorplan/types'
 import { useCatalog } from '../../furniture/catalog'
 import type { FurnitureItem } from '../../furniture/types'
+import { decodeFinishDrag, FINISH_DND_MIME, resolveFinishDrop } from '../../materials/finishDrop'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
@@ -24,7 +25,17 @@ export function LayersPanel() {
   const setItemsHidden = useStore((s) => s.setItemsHidden)
   const setItemsLocked = useStore((s) => s.setItemsLocked)
   const showAllItems = useStore((s) => s.showAllItems)
+  const updateItemProps = useStore((s) => s.updateItemProps)
   const hiddenSet = new Set<string>(hiddenIds)
+
+  /** Apply a finish dragged from the Finish picker onto a specific item. */
+  const applyFinishDrop = (itemId: string, dt: DataTransfer) => {
+    const payload = decodeFinishDrag(dt.getData(FINISH_DND_MIME))
+    const action = resolveFinishDrop({ kind: 'item', itemId }, payload)
+    if (action?.type !== 'item') return
+    updateItemProps(action.itemId, { finish: action.finishId })
+    useStore.getState().notify.start({ title: 'Finish applied', kind: 'success' })
+  }
   const catalog = useCatalog()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [filter, setFilter] = useState('')
@@ -157,6 +168,19 @@ export function LayersPanel() {
                         onClick={(e) =>
                           e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
                         }
+                        onDragOver={(e) => {
+                          if (e.dataTransfer.types.includes(FINISH_DND_MIME)) {
+                            e.preventDefault()
+                            e.dataTransfer.dropEffect = 'copy'
+                            e.currentTarget.classList.add('drop-target')
+                          }
+                        }}
+                        onDragLeave={(e) => e.currentTarget.classList.remove('drop-target')}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          e.currentTarget.classList.remove('drop-target')
+                          applyFinishDrop(it.id, e.dataTransfer)
+                        }}
                       >
                         <span className="lyr-ic">
                           {def ? (

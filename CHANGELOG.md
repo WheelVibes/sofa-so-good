@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C39] Q31 (part 1) — drag a finish onto a furniture item
+Finish-picker swatches are now draggable; dropping one onto a piece in the
+Objects (Layers) list applies that finish (dashed drop-highlight + toast). New
+pure, tested `materials/finishDrop.ts` (payload encode/decode + `resolveFinishDrop`
+routing floor/wall/item) is the shared core for the 3D-surface drop next.
+
 ## [C38] K1 — parametric cabinet engine (base / wall / tall)
 New `furniture/cabinet/` engine: pure, unit-tested `buildCabinet` geometry model
 (toe-kick / carcass / countertop / cornice / slab·shaker·drawers·glass·open

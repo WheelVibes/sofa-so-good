@@ -13,6 +13,7 @@ import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
 import { cloneRoomItems } from '../layout/cloneRoom'
 import { mirrorRoomItems } from '../layout/mirrorRoom'
 import { swapRoomLayouts } from '../layout/swapRooms'
+import { encodeFinishDrag, FINISH_DND_MIME } from '../materials/finishDrop'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
@@ -733,13 +734,21 @@ function SwatchGroup({
               key={m.id}
               role="button"
               tabIndex={0}
+              draggable
+              onDragStart={(e) => {
+                e.dataTransfer.setData(
+                  FINISH_DND_MIME,
+                  encodeFinishDrag({ finishId: m.id, label: m.name }),
+                )
+                e.dataTransfer.effectAllowed = 'copy'
+              }}
               onClick={() => onSelect(m.id)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') onSelect(m.id)
               }}
               className={`finish-cell group${isActive ? ' on' : ''}`}
               style={{ position: 'relative', cursor: 'pointer' }}
-              title={m.name}
+              title={`${m.name} — drag onto a piece in the Objects list to apply`}
             >
               <span
                 className="swatch-lg"

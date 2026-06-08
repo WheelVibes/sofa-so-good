@@ -20,7 +20,7 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 
 ## Features (larger)
 - [ ] K1b. **Cabinet engine — next steps**: auto-arrange a run of base+wall cabinets along a wall; sink/hob cut-outs in a base cabinet; corner/blind units. (Core engine shipped C38.)
-- [ ] Q31. **Drag a material swatch onto a surface in 3D** to apply a finish (reuses `getSurfaceMaterial` / finish DLC); today it's picker-only. NOTE: the 3D drop raycast can't be screenshot-verified headless — needs a manual/GPU verify pass, so do the pure resolver + DOM-draggable parts test-first.
+- [~] Q31. **Drag a material swatch onto a surface in 3D**. Part 1 shipped (C39): tested `finishDrop` resolver + draggable swatches + drop onto Objects-list rows. TODO part 2: the 3D-canvas raycast drop onto floor/wall/item (needs manual/GPU verify).
 - [ ] T3. Per-LOD multi-tier generation for uploads.
 - [~] T2. Crown-molding revisit + kitchen/bath template polish (herringbone floor already shipped).
 
