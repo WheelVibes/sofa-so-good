@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace } from '../../collision/placement'
-import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { placementWalls } from '../../collision/placementWalls'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { useStore } from '../../state/store'
@@ -52,9 +52,6 @@ function MultiSelectPanel() {
   const catalog = useCatalog()
   const { minimized, toggle } = useInspectorMinimize()
 
-  const wallsFor = (s: ReturnType<typeof useStore.getState>) =>
-    isDefaultPlan(s.floorPlan) ? undefined : planCollisionWalls(s.floorPlan, s.doors)
-
   const tryMove = (id: string, pos: [number, number]) => {
     const s = useStore.getState()
     const it = s.items.find((i) => i.id === id)
@@ -65,7 +62,7 @@ function MultiSelectPanel() {
         others: s.items.filter((o) => o.id !== id),
         defs: catalog,
         doors: s.doors,
-        walls: wallsFor(s),
+        walls: placementWalls(s),
       })
     )
       s.moveItem(id, pos)
@@ -319,7 +316,12 @@ export function InspectorPanel() {
     if (!it) return
     const next = it.rotation + Math.PI / 2
     if (
-      canPlace({ ...it, rotation: next }, def, { others: st.items, defs: catalog, doors: st.doors })
+      canPlace({ ...it, rotation: next }, def, {
+        others: st.items,
+        defs: catalog,
+        doors: st.doors,
+        walls: placementWalls(st),
+      })
     ) {
       st.pushHistory()
       st.rotateItem(it.id, next)
@@ -335,6 +337,7 @@ export function InspectorPanel() {
         others: st.items,
         defs: catalog,
         doors: st.doors,
+        walls: placementWalls(st),
       })
     ) {
       st.pushHistory()
@@ -347,7 +350,12 @@ export function InspectorPanel() {
     if (!it || Number.isNaN(deg)) return
     const rot = (deg * Math.PI) / 180
     if (
-      canPlace({ ...it, rotation: rot }, def, { others: st.items, defs: catalog, doors: st.doors })
+      canPlace({ ...it, rotation: rot }, def, {
+        others: st.items,
+        defs: catalog,
+        doors: st.doors,
+        walls: placementWalls(st),
+      })
     ) {
       st.pushHistory()
       st.rotateItem(it.id, rot)
@@ -369,7 +377,14 @@ export function InspectorPanel() {
             rotation: item.rotation,
             props: item.props,
           }
-          if (canPlace(probe, def, { others: st.items, defs: catalog, doors: st.doors })) {
+          if (
+            canPlace(probe, def, {
+              others: st.items,
+              defs: catalog,
+              doors: st.doors,
+              walls: placementWalls(st),
+            })
+          ) {
             st.addItem({
               defId: item.defId,
               position: pos,
@@ -418,7 +433,10 @@ export function InspectorPanel() {
         rotation: rot,
         props: item.props,
       }
-      if (!canPlace(probe, def, { others, defs: catalog, doors: st.doors })) break
+      if (
+        !canPlace(probe, def, { others, defs: catalog, doors: st.doors, walls: placementWalls(st) })
+      )
+        break
       const ni = {
         ...item,
         id:

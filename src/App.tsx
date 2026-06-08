@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
 import { canPlace } from './collision/placement'
+import { placementWalls } from './collision/placementWalls'
 import {
   KEYBINDINGS,
   NUDGE_FINE_SPEED,
@@ -330,6 +331,7 @@ export default function App() {
         others: state.items,
         defs: catalog,
         doors: state.doors,
+        walls: placementWalls(state),
       })
       if (ok) {
         state.addItem({
@@ -513,6 +515,7 @@ export default function App() {
             others: state.items,
             defs: catalog,
             doors: state.doors,
+            walls: placementWalls(state),
           })
           if (ok) {
             state.pushHistory()
@@ -541,7 +544,15 @@ export default function App() {
         const merged = state.items.map((i) => byId.get(i.id) ?? i)
         const allFit = candidates.every((c) => {
           const def = catalog[c.defId]
-          return def && canPlace(c, def, { others: merged, defs: catalog, doors: state.doors })
+          return (
+            def &&
+            canPlace(c, def, {
+              others: merged,
+              defs: catalog,
+              doors: state.doors,
+              walls: placementWalls(state),
+            })
+          )
         })
         if (allFit) {
           // All selected members share one group when this path is reached via
@@ -648,6 +659,7 @@ export default function App() {
             others,
             defs: catalogRef.current,
             doors: state.doors,
+            walls: placementWalls(state),
           })
         ) {
           ok = false

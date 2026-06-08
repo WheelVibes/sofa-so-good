@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [RE-bound3] Wall-bound keyboard nudge + inspector numeric edits
+The arrow-key nudge, paste, and single/group rotate (App) plus the inspector's
+numeric move/rotate + duplicate/duplicate-row (which previously called canPlace
+with NO walls) now all pass `placementWalls`, so no edit path can push furniture
+through a wall — consistent with drag/ghost/rotate. tsc + 44 tests + biome green.
+
 ## [RE-bound2] Centralize placement-wall selection (new-item + rotate too)
 New `collision/placementWalls` picks the room's solid perimeter inside the editor
 (else plan/flat walls); DragController, PlacementGhost (new-item drop) and
