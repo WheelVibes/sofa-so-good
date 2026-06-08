@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C70] New outdoor item — slatted bistro table
+Added an `OutdoorTable` primitive + catalog entry: a square slatted top on four legs with
+a lower stretcher (matching the outdoor chair), adjustable size + height (coffee↔bistro),
+teak/painted/metal. With the chair + planter, Outdoor is now a full balcony set.
+Screenshot-verified (table + 2 chairs + planter form a cohesive bistro setup).
+
 ## [C69] New outdoor item — slatted lounge chair
 Added an `OutdoorChair` primitive + catalog entry: a slatted patio/balcony lounge chair
 (side frames + legs + armrests, slatted seat, reclined slatted back), teak/painted/metal
