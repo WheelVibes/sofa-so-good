@@ -364,12 +364,21 @@ export function FinishPicker() {
           >
             Apply walls to all rooms
           </button>
+          <div
+            className="label"
+            style={{
+              fontSize: 'var(--t-2xs)',
+              color: 'var(--text-3)',
+              margin: 'var(--s-4) 0 var(--s-1)',
+            }}
+          >
+            Room layout
+          </div>
           <button
             type="button"
             onClick={tidyRoom}
             title="Auto-arrange this room's furniture: storage flush to walls, seating facing the TV, walkways + door clearances kept"
             className="btn btn-accent btn-block"
-            style={{ marginTop: 'var(--s-4)' }}
           >
             <Icon.Tidy width={14} height={14} />
             Tidy up room

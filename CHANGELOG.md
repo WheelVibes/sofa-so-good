@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C34] "Room layout" subheading in the FinishPicker
+Grouped the growing room-action cluster (Tidy / Mirror / Copy layout / Swap
+layout / Clear) under a "Room layout" subheading, separating it from the
+finish-apply actions for scannability. DOM-verified.
+
 ## [C33] Accessible names for the budget HUD + favourites/recent chips
 The budget HUD button now has a descriptive `aria-label` (spend/target, was
 title-only) and the Favourites/Recent catalog chips announce their counts
