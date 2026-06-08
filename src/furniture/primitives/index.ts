@@ -85,6 +85,7 @@ import { WallSconce } from './WallSconce'
 import { WallShelf } from './WallShelf'
 import { Wardrobe } from './Wardrobe'
 import { WashingMachine } from './WashingMachine'
+import { WineCooler } from './WineCooler'
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>
 
@@ -169,4 +170,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   CabinetCorner,
   Dishwasher,
   Oven,
+  WineCooler,
 }

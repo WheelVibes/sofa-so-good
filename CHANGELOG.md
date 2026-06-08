@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C60] New appliance — wine / beverage cooler
+Added a `WineCooler` primitive + catalog entry: slim under-counter unit with a tinted
+glass door, wire shelves, interior LED glow and a bar handle; width 30–60 cm,
+steel/matte/gloss. Screenshot-verified. (Also: prototyped + reverted a full-scene
+GLB export — it can't complete in the headless verify env; deferred in TASKS.)
+
 ## [C59] K1b — L-shaped corner base cabinet
 Added a `CabinetCorner` primitive + catalog entry completing the kitchen cabinet set:
 two perpendicular runs sharing the corner, an L countertop, recessed toe-kicks, and a

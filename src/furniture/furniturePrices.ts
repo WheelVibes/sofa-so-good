@@ -110,6 +110,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'kitchen-counter-l': 1800,
   dishwasher: 850,
   'built-in-oven': 950,
+  'wine-cooler': 700,
   'cabinet-base': 420,
   'cabinet-corner': 520,
   'cabinet-wall': 260,
