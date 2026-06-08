@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C56] New appliance — built-in oven
+Added a **Built-in oven** primitive + catalog entry (the split-kitchen counterpart to the
+cabinet hob): stainless body, dark glass door + bar handle, top fascia with control knobs.
+Built-under by default with an adjustable **mount height** for an eye-level column oven.
+Steel/matte/gloss, priced. Screenshot-verified (built-under + eye-level).
+
 ## [C55] New appliance — dishwasher
 Added a **Dishwasher** primitive + catalog entry (a real kitchen-appliance gap): base-
 cabinet-sized body, proud front door + recessed handle, top control strip with dials/LEDs,
