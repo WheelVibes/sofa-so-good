@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C17] Implement the "/" focus-catalog-search shortcut
+The Help modal advertised "Search catalog · /" but no handler existed. Added it
+to the global key handler: in the room editor (not while typing), `/` opens the
+catalog and focuses its search box. DOM-verified (catalog opens + search focused).
+
 ## [C16] Consolidate item-cost math into one tested helper
 New `furniture/itemsCost` (sum a set of items' prices, variant-aware) is now the
 single source of truth used by the budget HUD, the inspector selection total, and
