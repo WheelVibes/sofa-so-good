@@ -2,11 +2,14 @@ import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
+import { canPlace } from '../collision/placement'
+import { placementWalls } from '../collision/placementWalls'
 import { useFeature } from '../features/useFeature'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
+import { mirrorRoomItems } from '../layout/mirrorRoom'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
@@ -102,6 +105,33 @@ export function FinishPicker() {
     const st = useStore.getState()
     st.pushHistory()
     for (const id of roomItemIds) st.deleteItem(id)
+  }
+  const mirrorRoom = () => {
+    if (!planRoom || roomItemIds.length === 0) return
+    const st = useStore.getState()
+    const cx = planRoom.origin[0] + planRoom.width / 2
+    const idsInRoom = new Set(roomItemIds)
+    // Reflection preserves intra-room spacing, so only collisions with walls /
+    // out-of-room items can newly fail — check the mirror against those.
+    const others = st.items.filter((o) => !idsInRoom.has(o.id))
+    const walls = placementWalls(st)
+    const isValid = (m: (typeof st.items)[number]) => {
+      const def = furnitureCatalog[m.defId]
+      return def
+        ? canPlace(m, def, { others, defs: furnitureCatalog, doors: st.doors, walls })
+        : false
+    }
+    const { items: next, mirrored } = mirrorRoomItems(st.items, idsInRoom, cx, isValid)
+    if (mirrored === 0) {
+      st.notify.start({ title: 'Nothing to mirror here', kind: 'info' })
+      return
+    }
+    st.pushHistory()
+    st.setItems(next)
+    st.notify.start({
+      title: `Mirrored ${mirrored} item${mirrored === 1 ? '' : 's'}`,
+      kind: 'success',
+    })
   }
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
@@ -252,6 +282,18 @@ export function FinishPicker() {
             <Icon.Tidy width={14} height={14} />
             Tidy up room
           </button>
+          {roomItemIds.length > 0 ? (
+            <button
+              type="button"
+              onClick={mirrorRoom}
+              title="Flip this room's furniture left↔right across its centre (mirror the layout). Undoable."
+              className="btn btn-soft btn-block"
+              style={{ marginTop: 'var(--s-2)' }}
+            >
+              <Icon.FlipH width={14} height={14} />
+              Mirror room
+            </button>
+          ) : null}
           {roomItemIds.length > 0 ? (
             <button
               type="button"

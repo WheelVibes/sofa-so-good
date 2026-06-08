@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C3] Mirror room layout
+New `layout/mirrorRoom` (pure `mirrorItemX`/`mirrorRoomItems`) + a "Mirror room"
+button in the FinishPicker reflects a room's unlocked furniture left↔right across
+its centre (position + heading + flipX), skipping any item whose mirror would hit
+a wall/neighbour. 4 unit tests; screenshot-verified ("Mirrored 17 items").
+
 ## [QOL-total] Selection total cost in the multi-select inspector
 The multi-select panel header now appends "~$N total" (sum of `itemPrice` over
 the selection) beside the count, so selecting a group/marquee shows its combined

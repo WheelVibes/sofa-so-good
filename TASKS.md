@@ -25,9 +25,7 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 - [~] T2. Crown-molding revisit + kitchen/bath template polish (herringbone floor already shipped).
 
 ## QOL / commercial polish (small, DOM/unit-verifiable, prod-safe) — research-driven
-- [ ] C1. **Export shopping list as CSV** from the Budget panel (name, qty, each, line, buy link) — competitors (Planner5D/Coohom) offer cost export.
 - [ ] C2. **Budget target progress in the room editor** (mini over/under pill), not just the Budget panel.
-- [ ] C3. **"Mirror room layout"** — reflect a room's furniture across its centre axis (great for symmetric bedrooms); pure transform + canPlace-checked.
 - [ ] C4. **Per-room subtotal** line in the Budget panel (group lines by room) — uses `pointInRoom`.
 - [ ] C5. **Keyboard: Escape clears selection first, then exits the room editor** (two-stage), so Esc isn't an accidental full exit when something's selected.
 - [ ] C6. **Catalog: "Add to room" count badge** / recently-placed surfaced (recentSlice already exists) consistency audit.
