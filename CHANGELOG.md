@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C10] Catalog "Price (low→high)" sort
+Added a price sort to the catalog browse `SortKey` (`catalogBrowse` `cardPrice`
+via `itemPrice`; free CC0 entries lead). UI picks it up automatically; prefs
+validation + persistence updated. +1 test (8 total); DOM-verified.
+
 ## [DOCS] Sync CLAUDE.md + README with this run's features
 Documented the inspector price/selection-total/Quick-finishes/Apply-finish-to-all/
 Straighten, the Budget "Spend by room" + always-on budget HUD, and the

@@ -48,6 +48,19 @@ describe('sortCards', () => {
     expect(out[0]).toBe(stool)
     expect(out[out.length - 1]).toBe(r)
   })
+
+  it('price sorts cheapest first; free remote (price 0) leads', () => {
+    const r = remote('Free CC0')
+    const out = sortCards([sofa, stool, r], 'price')
+    // remote is free → first; among locals, the cheaper one precedes the dearer.
+    expect(out[0]).toBe(r)
+    const localOrder = out.filter((c) => c.kind === 'local')
+    const cheaperFirst =
+      itemPrice(stoolDef, 'seating') <= itemPrice(sofaDef, 'seating')
+        ? [stool, sofa]
+        : [sofa, stool]
+    expect(localOrder).toEqual(cheaperFirst)
+  })
 })
 
 describe('filterByMaxPrice', () => {

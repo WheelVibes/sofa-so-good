@@ -36,7 +36,8 @@ function loadBrowsePrefs(): { active: CatalogCategory; sortBy: SortKey } {
     const p = JSON.parse(raw) as { active?: string; sortBy?: string }
     return {
       active: typeof p.active === 'string' ? (p.active as CatalogCategory) : fallback.active,
-      sortBy: p.sortBy === 'name' || p.sortBy === 'size' ? p.sortBy : 'default',
+      sortBy:
+        p.sortBy === 'name' || p.sortBy === 'size' || p.sortBy === 'price' ? p.sortBy : 'default',
     }
   } catch {
     return fallback

@@ -2,12 +2,13 @@ import { itemPrice } from '../../furniture/furniturePrices'
 import type { GridItem } from './useUnifiedCatalog'
 
 /** Browse-time catalog ordering. `default` keeps the curated order. */
-export type SortKey = 'default' | 'name' | 'size'
+export type SortKey = 'default' | 'name' | 'size' | 'price'
 
 export const SORT_LABEL: Record<SortKey, string> = {
   default: 'Featured',
   name: 'Name (A–Z)',
   size: 'Size (small→large)',
+  price: 'Price (low→high)',
 }
 
 const cardName = (it: GridItem) => (it.kind === 'local' ? it.def.name : it.entry.name)
@@ -19,15 +20,19 @@ const cardArea = (it: GridItem) =>
     ? it.def.defaultFootprint.w * it.def.defaultFootprint.d
     : Number.POSITIVE_INFINITY
 
+/** Estimated price for local defs; un-downloaded CC0 entries are free, so they
+ *  sort first under a price sort. */
+const cardPrice = (it: GridItem) => (it.kind === 'local' ? itemPrice(it.def, it.def.category) : 0)
+
 /** Sort a category listing. `default` preserves the curated order (built-ins
  *  first, then CC0). Returns a new array; never mutates the input. */
 export function sortCards(cards: GridItem[], key: SortKey): GridItem[] {
   if (key === 'default') return cards
   const byName = (a: GridItem, b: GridItem) =>
     cardName(a).localeCompare(cardName(b), undefined, { sensitivity: 'base' })
-  return [...cards].sort(
-    key === 'name' ? byName : (a, b) => cardArea(a) - cardArea(b) || byName(a, b),
-  )
+  if (key === 'name') return [...cards].sort(byName)
+  if (key === 'price') return [...cards].sort((a, b) => cardPrice(a) - cardPrice(b) || byName(a, b))
+  return [...cards].sort((a, b) => cardArea(a) - cardArea(b) || byName(a, b))
 }
 
 /** Drop local items priced above `maxPrice` (a raw input string). Un-downloaded
