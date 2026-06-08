@@ -115,6 +115,21 @@ export function FinishPicker() {
       kind: 'success',
     })
   }
+  // Copy this room's floor + wall finish to another specific room (vs the
+  // "apply to all rooms" bulk buttons) — match two bedrooms without touching the
+  // rest of the home.
+  const copyFinishesTo = (targetId: string) => {
+    if (!roomId) return
+    const st = useStore.getState()
+    const target = st.floorPlan.rooms.find((r) => r.id === targetId)
+    if (!target) return
+    st.pushHistory()
+    const floor = st.finishes.floor[roomId]
+    const wall = st.finishes.walls[roomId]
+    if (floor) st.setFloorFinish(target.id as RoomId, floor)
+    if (wall) st.setWallFinish(target.id as RoomId, wall)
+    st.notify.start({ title: `Finishes copied to ${target.name}`, kind: 'success' })
+  }
   const mirrorRoom = () => {
     if (!planRoom || roomItemIds.length === 0) return
     const st = useStore.getState()
@@ -379,6 +394,27 @@ export function FinishPicker() {
           >
             Apply walls to all rooms
           </button>
+          {otherRooms.length > 0 ? (
+            <select
+              className="input"
+              aria-label="Copy this room's floor + wall finish to another room"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) copyFinishesTo(e.target.value)
+                e.target.value = ''
+              }}
+              style={{ marginTop: 'var(--s-2)', width: '100%' }}
+            >
+              <option value="" disabled>
+                Copy finishes to…
+              </option>
+              {otherRooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+          ) : null}
           <div
             className="label"
             style={{

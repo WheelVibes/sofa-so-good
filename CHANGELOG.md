@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C37] Copy finishes to a specific room
+The room-editor Finish picker gains a "Copy finishes to…" dropdown beside the
+"Apply to all rooms" buttons — copies this room's floor + wall finish to one
+chosen room (undoable, with a confirmation toast), complementing the
+apply-to-every-room actions. Mirrors the existing "Copy layout to…" select.
+
 ## [C36] Clear-room toast + production-build/suite gate
 "Clear room" now shows a "Cleared N items" toast (consistent with the other room
 actions). Also ran the full commercial-readiness gate: production build clean
