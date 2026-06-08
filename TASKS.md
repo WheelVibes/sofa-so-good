@@ -14,7 +14,6 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 ## Lighting / GPU-heavy realism (deferred under the "focus on non-GPU" constraint; need a focused real-GPU session)
 - [ ] L1/RE2/N6. **Lighting realism** — window-glass tint colouring the sun shaft + inter-room light bleed through open doors. Complex multi-file scene change; conflicts with the deliberate no-shadow fixture-light perf design, so needs a perf-aware approach.
 - [ ] R10. **Faster built-in PBR render path** — one-click high-quality still (local accumulation/denoise to match Coohom's "render in seconds"); investigate progressive path-trace via the existing AccumulativeShadows + a higher-sample pass.
-- [ ] B34. **Plan-aware lighting shadow frustum** — `Lighting.tsx` CENTER + fixed 9.5 m half-extent is default-apartment-centred; a far-offset/oversized custom plan could miss sun shadows (Medium+ tiers). Make it plan-aware; needs a real-GPU shadow-coverage check.
 
 ## Feature-flag retrofit (infra shipped: registry + resolver + admin + panel + desktop/⌘K gating)
 

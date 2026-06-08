@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C41] B34 — plan-aware sun-shadow frustum
+`Lighting.tsx` no longer hardcodes the apartment-centred shadow box; new pure tested
+`scene/lighting/shadowFrustum.ts` fits the ortho frustum centre + half-extent to the
+**active floor plan** (walls + rooms, offset-aware, clamped 9.5–40 m), so shadows reach
+a large or origin-offset custom plan instead of being aimed at empty space. Default flat
+unchanged (verified at Medium tier).
+
 ## [C40] Modularize CLAUDE.md (entry point + ARCHITECTURE + path-scoped rules)
 Split the 1000-line CLAUDE.md: root `CLAUDE.md` is now a lean ≤60-line entry point
 (hard rules + conventions + pointers); the full code map moved to `docs/ARCHITECTURE.md`;
