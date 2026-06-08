@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C68] Group baby items under the Baby & Kids department
+Moved crib / high-chair / changing-table into the **kids** category (they were split across
+beds/seating/storage), so the Baby & Kids tab now holds the nursery set (4 items) — matching
+IKEA's Children's department. Old category names kept as search keywords; bunk-bed stays in
+beds (dual-use). Verified the tab shows 4 cards.
+
 ## [C67] Recategorize items so empty department tabs populate
 The **Electronics / Textiles / Laundry** category tabs existed but were empty (their items
 were mis-filed): moved TV / soundbar / monitor → electronics, rug / curtains → textiles,
