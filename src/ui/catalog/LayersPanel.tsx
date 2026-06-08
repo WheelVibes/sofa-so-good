@@ -22,6 +22,7 @@ export function LayersPanel() {
   const hiddenIds = useStore((s) => s.hiddenItemIds)
   const toggleItemHidden = useStore((s) => s.toggleItemHidden)
   const setItemsHidden = useStore((s) => s.setItemsHidden)
+  const setItemsLocked = useStore((s) => s.setItemsLocked)
   const showAllItems = useStore((s) => s.showAllItems)
   const hiddenSet = new Set<string>(hiddenIds)
   const catalog = useCatalog()
@@ -94,6 +95,7 @@ export function LayersPanel() {
           visibleGroups.map((g) => {
             const isCollapsed = !q && !!collapsed[g.key]
             const groupHidden = g.items.length > 0 && g.items.every((it) => hiddenSet.has(it.id))
+            const groupLocked = g.items.length > 0 && g.items.every((it) => it.locked)
             return (
               <div className="lyr-group" key={g.key}>
                 <div className="lyr-ghead-row">
@@ -122,6 +124,24 @@ export function LayersPanel() {
                       <Icon.EyeOff width={14} height={14} />
                     ) : (
                       <Icon.Eye width={14} height={14} />
+                    )}
+                  </button>
+                  <button
+                    type="button"
+                    className={`lyr-geye${groupLocked ? ' on' : ''}`}
+                    title={groupLocked ? 'Unlock all in room' : 'Lock all in room'}
+                    aria-label={groupLocked ? 'Unlock all in room' : 'Lock all in room'}
+                    onClick={() =>
+                      setItemsLocked(
+                        g.items.map((it) => it.id),
+                        !groupLocked,
+                      )
+                    }
+                  >
+                    {groupLocked ? (
+                      <Icon.Lock width={14} height={14} />
+                    ) : (
+                      <Icon.Unlock width={14} height={14} />
                     )}
                   </button>
                 </div>
