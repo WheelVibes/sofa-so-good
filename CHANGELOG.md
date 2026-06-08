@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C67] Recategorize items so empty department tabs populate
+The **Electronics / Textiles / Laundry** category tabs existed but were empty (their items
+were mis-filed): moved TV / soundbar / monitor → electronics, rug / curtains → textiles,
+washing-machine / drying-rack → laundry. All 14 IKEA-style department tabs now populate;
+defId-keyed saves/layouts unaffected. Verified the chips render.
+
 ## [C66] New outdoor item — planter trough (fills the empty Outdoor category)
 The **Outdoor** category had zero items (its tab never showed). Added a `PlanterTrough`
 primitive + catalog entry: a length-adjustable balcony planter box (concrete/terracotta/
