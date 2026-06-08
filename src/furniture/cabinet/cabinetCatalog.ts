@@ -181,4 +181,33 @@ export const CABINET_DEFS: Record<string, ParametricDef> = {
       ...commonFields('tall'),
     ],
   },
+  'cabinet-corner': {
+    kind: 'parametric',
+    id: 'cabinet-corner',
+    name: 'Corner base cabinet',
+    category: 'kitchen',
+    primitive: 'CabinetCorner' satisfies PrimitiveKind,
+    keywords: ['cabinet', 'corner', 'L-shape', 'base unit', 'kitchen', 'modular'],
+    defaultFootprint: { w: 1.0, d: 1.0, h: 0.9 },
+    footprintParams: { w: 'width', d: 'width' },
+    paramSchema: [
+      dim('width', 'Size (square)', 0.8, 1.2, 1.0),
+      dim('height', 'Carcass height', 0.5, 0.95, 0.72),
+      dim('depth', 'Run depth', 0.4, 0.7, 0.6),
+      dim('toeKick', 'Toe-kick', 0, 0.18, 0.1),
+      { kind: 'color', key: 'color', label: 'Cabinet', default: '#e6e2d8' },
+      { kind: 'color', key: 'worktopColor', label: 'Worktop colour', default: '#34373d' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+    ],
+  },
 }

@@ -111,6 +111,7 @@ export const ITEM_PRICE: Record<string, number> = {
   dishwasher: 850,
   'built-in-oven': 950,
   'cabinet-base': 420,
+  'cabinet-corner': 520,
   'cabinet-wall': 260,
   'cabinet-tall': 680,
   'standing-fan': 90,

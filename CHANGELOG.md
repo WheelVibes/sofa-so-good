@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C59] K1b — L-shaped corner base cabinet
+Added a `CabinetCorner` primitive + catalog entry completing the kitchen cabinet set:
+two perpendicular runs sharing the corner, an L countertop, recessed toe-kicks, and a
+door on each run's inner face (back faces to the walls, opens to the room). Screenshot-
+verified (clean L carcass + L worktop + doors, no artifacts).
+
 ## [C58] Shift-drop to keep placing (place a row fast)
 Holding **Shift** when committing a catalog placement now keeps the same piece armed
 (same orientation) so you can drop several in a row — a plain click or Esc finishes.
