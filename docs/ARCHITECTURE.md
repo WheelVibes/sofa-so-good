@@ -5,6 +5,9 @@ points here; area-specific rules live in path-scoped `CLAUDE.md` files (`src/sta
 `src/furniture/`, `src/scene/`, `src/ui/`, `src/materials/`). Keep this current in the
 same change that reshapes a system.
 
+> **Keep this index ≤250 lines** — one dense line per system, not a manual. When you add
+> a system, add a line and trim/merge elsewhere; push deep detail to the path-scoped files.
+
 ## Commands (full)
 - `npm run dev` (localhost:5173; store on `window.__store`); `npm test`/`test:watch`;
   `npm run build` (= `tsc` + Vite prod build).
