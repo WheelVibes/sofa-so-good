@@ -4,15 +4,18 @@ import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import { canPlace } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
+import { buildCollisionWalls } from '../collision/wallsFromState'
 import { useFeature } from '../features/useFeature'
-import { isDefaultPlan } from '../floorplan/planGeometry'
+import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
+import { cloneRoomItems } from '../layout/cloneRoom'
 import { mirrorRoomItems } from '../layout/mirrorRoom'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
 import { useMaterials } from '../materials/useMaterial'
+import { editableRooms } from '../state/rooms'
 import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
@@ -133,6 +136,46 @@ export function FinishPicker() {
       kind: 'success',
     })
   }
+  // Copy this room's unlocked furniture into another room (translated by the
+  // room-centre delta), collision-checked against the whole flat — for repeated
+  // bedrooms etc. Skips any clone that wouldn't fit.
+  const cloneLayoutTo = (targetId: string) => {
+    if (!planRoom) return
+    const st = useStore.getState()
+    const target = st.floorPlan.rooms.find((r) => r.id === targetId)
+    if (!target) return
+    const dx = target.origin[0] + target.width / 2 - (planRoom.origin[0] + planRoom.width / 2)
+    const dz = target.origin[1] + target.depth / 2 - (planRoom.origin[1] + planRoom.depth / 2)
+    const srcItems = st.items.filter((it) => roomItemIds.includes(it.id))
+    if (srcItems.length === 0) return
+    const makeId = () =>
+      typeof crypto !== 'undefined' && crypto.randomUUID
+        ? crypto.randomUUID()
+        : `id-${Date.now()}-${Math.random().toString(36).slice(2)}`
+    const walls = isDefaultPlan(st.floorPlan)
+      ? buildCollisionWalls(st.doors)
+      : planCollisionWalls(st.floorPlan, st.doors)
+    let others = st.items
+    const placed: typeof srcItems = []
+    for (const c of cloneRoomItems(srcItems, dx, dz, makeId)) {
+      const def = furnitureCatalog[c.defId]
+      if (!def) continue
+      if (canPlace(c, def, { others, defs: furnitureCatalog, doors: st.doors, walls })) {
+        placed.push(c)
+        others = [...others, c]
+      }
+    }
+    if (placed.length === 0) {
+      st.notify.start({ title: `Couldn't fit any items in ${target.name}`, kind: 'info' })
+      return
+    }
+    st.pushHistory()
+    st.setItems([...st.items, ...placed])
+    st.notify.start({
+      title: `Copied ${placed.length} item${placed.length === 1 ? '' : 's'} to ${target.name}`,
+      kind: 'success',
+    })
+  }
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const fRemoteMaterials = useFeature('remoteMaterials')
@@ -170,6 +213,9 @@ export function FinishPicker() {
   const roomName = builtinRoom?.name ?? planRoom?.name
   const roomAreaM2 = builtinRoom ? roomArea(builtinRoom) : planRoom ? planRoomArea(planRoom) : 0
   if (!roomName) return null
+
+  // Other editable rooms — targets for "Copy layout to…".
+  const otherRooms = editableRooms(plan).filter((r) => r.id !== roomId)
 
   const groups: Record<MaterialCategory, MaterialDef[]> = {
     floor: [],
@@ -293,6 +339,27 @@ export function FinishPicker() {
               <Icon.FlipH width={14} height={14} />
               Mirror room
             </button>
+          ) : null}
+          {roomItemIds.length > 0 && otherRooms.length > 0 ? (
+            <select
+              className="input"
+              aria-label="Copy this room's layout to another room"
+              value=""
+              onChange={(e) => {
+                if (e.target.value) cloneLayoutTo(e.target.value)
+                e.target.value = ''
+              }}
+              style={{ marginTop: 'var(--s-2)', width: '100%' }}
+            >
+              <option value="" disabled>
+                Copy layout to…
+              </option>
+              {otherRooms.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
           ) : null}
           {roomItemIds.length > 0 ? (
             <button

@@ -26,6 +26,7 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 
 ## QOL / commercial polish (small, DOM/unit-verifiable, prod-safe) — research-driven
 - [ ] C6. **Catalog: "Add to room" count badge** / recently-placed surfaced (recentSlice already exists) consistency audit.
+- [ ] C8. **Swap two rooms' layouts** (extend cloneRoom) — research follow-up.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

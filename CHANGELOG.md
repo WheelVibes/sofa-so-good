@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C7] Copy a room's layout to another room
+New `layout/cloneRoom` (pure, 2 tests) + a "Copy layout to…" picker in the
+FinishPicker clones a room's unlocked furniture into another room (translated by
+the room-centre delta, fresh ids, groups remapped), skipping any clone that
+won't fit. Great for repeated bedrooms. Verified (66→73 items, toast).
+
 ## [HEALTH] Reliability pass + BudgetHud mobile safe-area
 Full suite green (991 passed / 2 skipped), tsc + lint clean across all recent
 changes — no regressions. Polished the new BudgetHud to clear the iOS home
