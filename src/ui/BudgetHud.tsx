@@ -13,6 +13,9 @@ import { useStore } from '../state/store'
 export function BudgetHud() {
   const target = useStore((s) => s.budgetTarget)
   const cameraMode = useStore((s) => s.cameraMode)
+  // The 2D floor-plan editor is a full-screen mode (still on the orbit camera)
+  // that hides the rest of the chrome — don't float the pill over it.
+  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const items = useStore((s) => s.items)
   const catalog = useCatalog()
 
@@ -27,7 +30,7 @@ export function BudgetHud() {
     return sum
   }, [items, catalog])
 
-  if (target == null || cameraMode !== 'orbit') return null
+  if (target == null || cameraMode !== 'orbit' || floorPlanEditing) return null
   const over = spent > target
   const pct = Math.min(100, Math.round((spent / target) * 100))
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`

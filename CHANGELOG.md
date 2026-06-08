@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [BUGFIX] BudgetHud no longer floats over the 2D floor-plan editor
+The budget pill rendered whenever the orbit camera was active — including the
+full-screen floor-plan editor (which hides the rest of the chrome). Now also
+gated on `!floorPlanEditing`. DOM-verified (shown in overview, hidden in editor).
+
 ## [C13] Budget HUD opens the Shopping panel on click
 The always-on budget pill is now a button (was `pointer-events:none`) — tapping
 it opens the Budget/Shopping panel for the full breakdown, with a hover affordance.
