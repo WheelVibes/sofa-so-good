@@ -36,6 +36,15 @@ describe('AssetEditSpec', () => {
     expect(s3.parts).toHaveLength(0)
   })
 
+  it('staggers each new part along +X so they do not overlap at the origin', () => {
+    let s = createEmptySpec()
+    s = addPart(s, 'box')
+    s = addPart(s, 'box')
+    s = addPart(s, 'box')
+    const xs = s.parts.map((p) => p.position[0])
+    expect(xs).toEqual([0, 0.5, 1])
+  })
+
   it('computes a footprint that wraps every part', () => {
     const spec: AssetEditSpec = {
       sourceScale: 1,

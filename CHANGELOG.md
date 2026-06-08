@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C52] GLB designer — stagger newly-added shapes
+Fixed a usability defect: every added shape spawned at the origin and overlapped
+invisibly. `addPart` now staggers each new shape 0.5 m along +X so they're distinct
+and editable from there. Tested + screenshot-verified (two side-by-side boxes).
+
 ## [C51] GLB designer — placement type (floor / wall-mounted / floor-covering)
 The designer gains a **Placement** select so a designed piece saves with the right
 collision flags — wall-mounted (`mounted`, skips wall-body collision) or a rug-style

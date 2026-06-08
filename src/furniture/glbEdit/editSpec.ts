@@ -76,7 +76,11 @@ export function defaultPart(kind: ShapeKind): ShapePart {
 }
 
 export function addPart(spec: AssetEditSpec, kind: ShapeKind): AssetEditSpec {
-  return { ...spec, parts: [...spec.parts, defaultPart(kind)] }
+  const part = defaultPart(kind)
+  // Stagger each new shape to the right of the previous ones so they don't pile
+  // up invisibly at the origin (the user then drags/positions from there).
+  part.position = [spec.parts.length * 0.5, part.position[1], part.position[2]]
+  return { ...spec, parts: [...spec.parts, part] }
 }
 
 export function removePart(spec: AssetEditSpec, id: string): AssetEditSpec {
