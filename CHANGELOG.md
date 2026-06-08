@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C66] New outdoor item — planter trough (fills the empty Outdoor category)
+The **Outdoor** category had zero items (its tab never showed). Added a `PlanterTrough`
+primitive + catalog entry: a length-adjustable balcony planter box (concrete/terracotta/
+wood) with soil + a run of bushy greenery, customizable planter + foliage colour.
+Screenshot-verified.
+
 ## [C65] Multi-select "Face into room"
 The align/distribute multi-select panel gains a **Face into room** button that orients
 every selected (unlocked) piece to its own nearest wall (bulk version of C63),

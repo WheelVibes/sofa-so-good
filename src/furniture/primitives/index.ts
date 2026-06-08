@@ -54,6 +54,7 @@ import { OfficeChair } from './OfficeChair'
 import { Ottoman } from './Ottoman'
 import { Oven } from './Oven'
 import { Piano } from './Piano'
+import { PlanterTrough } from './PlanterTrough'
 import { PottedPlant } from './PottedPlant'
 import { RangeHood } from './RangeHood'
 import { Refrigerator } from './Refrigerator'
@@ -171,4 +172,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Dishwasher,
   Oven,
   WineCooler,
+  PlanterTrough,
 }
