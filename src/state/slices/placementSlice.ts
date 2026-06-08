@@ -14,6 +14,10 @@ export interface PlacementSlice {
    *  uses the same position the user sees. */
   ghostWorld: [number, number] | null
   ghostValid: boolean
+  /** Extra rotation (radians) the user dialed in with R before committing a
+   *  placement — added to the def's defaultRotation. Reset when arming/cancelling. */
+  ghostRotation: number
+  rotateGhost: (deltaRad: number) => void
   /** Item currently being dragged in the scene; null when no drag is in
    *  progress. */
   draggingItemId: string | null
@@ -64,6 +68,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'cursor'
   | 'ghostWorld'
   | 'ghostValid'
+  | 'ghostRotation'
   | 'draggingItemId'
   | 'dragOriginal'
   | 'dragValid'
@@ -77,6 +82,7 @@ export const PLACEMENT_INITIAL: Pick<
   cursor: null,
   ghostWorld: null,
   ghostValid: false,
+  ghostRotation: 0,
   draggingItemId: null,
   dragOriginal: null,
   dragValid: true,
@@ -89,11 +95,13 @@ export const PLACEMENT_INITIAL: Pick<
 
 export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (set, get) => ({
   ...PLACEMENT_INITIAL,
-  setActiveDefId: (id) => set({ activeDefId: id }),
+  // Arming a new placement resets any dialed-in ghost rotation.
+  setActiveDefId: (id) => set({ activeDefId: id, ghostRotation: 0 }),
   setCursor: (cursor) => set({ cursor }),
   setGhostWorld: (ghostWorld, ghostValid) => set({ ghostWorld, ghostValid }),
+  rotateGhost: (deltaRad) => set((s) => ({ ghostRotation: s.ghostRotation + deltaRad })),
   cancelPlacement: () =>
-    set({ activeDefId: null, cursor: null, ghostWorld: null, ghostValid: false }),
+    set({ activeDefId: null, cursor: null, ghostWorld: null, ghostValid: false, ghostRotation: 0 }),
   startDrag: (id, original, offset, groupOriginals) => {
     // Snapshot before any per-frame moveItem fires so undo restores the
     // pre-drag transform of every dragged item in one step.

@@ -47,7 +47,7 @@ export function usePlacementController() {
       addItem({
         defId: def.id,
         position: ghostWorld,
-        rotation: def.defaultRotation ?? 0,
+        rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
         props: defaultProps(def),
       })
       cancelPlacement()
@@ -58,7 +58,16 @@ export function usePlacementController() {
     }
     const onKey = (ev: KeyboardEvent) => {
       if (isEditableTarget(ev)) return
-      if (ev.code === 'Escape') useStore.getState().cancelPlacement()
+      if (ev.code === 'Escape') {
+        useStore.getState().cancelPlacement()
+        return
+      }
+      // R rotates the ghost before committing, so a piece lands facing the right
+      // way (Shift = fine 15°, else 90°). Mirrors the placed-item R shortcut.
+      if (ev.code === 'KeyR') {
+        ev.preventDefault()
+        useStore.getState().rotateGhost((ev.shiftKey ? 15 : 90) * (Math.PI / 180))
+      }
     }
 
     // HTML5 drag-and-drop from a catalog card (desktop): dragging arms placement
@@ -83,7 +92,7 @@ export function usePlacementController() {
         addItem({
           defId: def.id,
           position: ghostWorld,
-          rotation: def.defaultRotation ?? 0,
+          rotation: (def.defaultRotation ?? 0) + useStore.getState().ghostRotation,
           props: defaultProps(def),
         })
       }

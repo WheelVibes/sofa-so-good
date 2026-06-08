@@ -34,7 +34,9 @@ Two ways, whichever feels natural:
 
 Either way the preview turns **red** where it can't go (overlapping another piece
 or a wall) and **green** where it fits — it only drops on a green spot, snaps to
-the grid, and won't push through walls. As you position it, **alignment guides**
+the grid, and won't push through walls. Press <kbd>R</kbd> (<kbd>Shift</kbd>+<kbd>R</kbd>
+= 15°) while the preview is up to **rotate it before dropping**, so it lands facing the
+right way. As you position it, **alignment guides**
 snap to other items' centres and edges, it can sit **flush against a nearby
 wall**, and a readout shows the gap to the nearest wall.
 

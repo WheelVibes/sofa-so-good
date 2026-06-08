@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C57] Rotate the placement ghost before dropping (R)
+While placing a catalog item you can now press **R** (Shift = 15°) to rotate the ghost
+before committing, so a piece lands facing the right way in one step instead of
+place-then-rotate. New `placementSlice.ghostRotation`/`rotateGhost`; the ghost preview +
+footprint + collision all reflect it; both click + drop commits apply it. Verified.
+
 ## [C56] New appliance — built-in oven
 Added a **Built-in oven** primitive + catalog entry (the split-kitchen counterpart to the
 cabinet hob): stainless body, dark glass door + bar handle, top fascia with control knobs.

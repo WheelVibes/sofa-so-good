@@ -521,7 +521,9 @@ export default function App() {
         for (const id of ids) useStore.getState().flipItem(id, axis)
         return
       }
-      if (!mod && code === KEYBINDINGS.rotate && state.selectedItemId) {
+      // While a catalog placement is armed, R rotates the *ghost*
+      // (usePlacementController) — don't also spin the current selection.
+      if (!mod && code === KEYBINDINGS.rotate && state.selectedItemId && !state.activeDefId) {
         const step = e.shiftKey ? ROTATE_FINE_STEP : ROTATE_STEP
         const ids =
           state.selectedItemIds.length > 0 ? state.selectedItemIds : [state.selectedItemId]
