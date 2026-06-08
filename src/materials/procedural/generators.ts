@@ -662,6 +662,34 @@ function battenFields(base: [number, number, number], seed: number): Fields {
 }
 
 /**
+ * Fluted / reeded panel — close-packed rounded vertical ribs (no flat gaps,
+ * unlike `batten`'s spaced slats), the on-trend feature-wall finish. A half-sine
+ * height profile per rib gives the rounded relief (the normal map does the work);
+ * the albedo carries faint lengthwise wood grain + a touch of groove shading.
+ * Seamless — the rib count divides the tile.
+ */
+function flutedFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 20
+  const ribs = 16 // divides S → seamless
+  const period = S / ribs
+  const grain = makeFbm(seed + 6, 3, 80)
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const frac = (x % period) / period // 0..1 across one rib
+      // Half-sine bump: groove (0) at rib edges, peak (1) at rib centre.
+      const h = Math.sin(Math.PI * frac)
+      const g = grain(x / S, y / S) - 0.5
+      // Rib faces catch light (lighter toward the peak); grooves sit darker.
+      const factor = 0.88 + h * 0.14 + g * 0.04
+      const [r, gg, b] = shade(base, clamp01(factor))
+      setPx(f, y * S + x, r, gg, b, 0.15 + h * 0.85, 0.6 + g * 0.1)
+    }
+  }
+  return f
+}
+
+/**
  * Herringbone parquet: rectangular wood planks (length L = n·W) laid in the
  * classic interlocking 45° zigzag — horizontal planks (L wide × W tall) and
  * vertical planks (W wide × L tall) alternate in diagonal bands. The plank a
@@ -756,6 +784,7 @@ const PATTERN_FN: Record<
   batten: battenFields,
   hexagon: hexagonFields,
   subway: subwayFields,
+  fluted: flutedFields,
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only

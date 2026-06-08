@@ -40,6 +40,7 @@ export type ProceduralPattern =
   | 'batten'
   | 'hexagon'
   | 'subway'
+  | 'fluted'
 
 /** A finish whose PBR maps are generated on-device at runtime (no fetch).
  *  `swatch` doubles as the base tint fed to the generator. */

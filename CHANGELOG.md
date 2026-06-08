@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C62] New wall finish — fluted / reeded panels
+Added a `fluted` procedural pattern (close-packed rounded vertical ribs via a half-sine
+height profile; seamless) + three feature-wall finishes (oak / walnut / white plaster).
+The on-trend reeded panel, distinct from spaced battens. Screenshot-verified.
+
 ## [C61] Test — parametric item props survive save/load
 Added a schema round-trip test asserting a parametric item's full `props` (cabinet
 worktop/handle/sink/columns/colour/finish + rotation) survive serialize → parse →

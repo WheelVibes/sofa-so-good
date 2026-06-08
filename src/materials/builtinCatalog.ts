@@ -296,6 +296,34 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
     swatch: '#b3bca9',
     uvScale: [0.7, 0.7],
   },
+  // Fluted / reeded feature-wall panels (close-packed rounded ribs).
+  'wall-fluted-oak': {
+    id: 'wall-fluted-oak',
+    name: 'Fluted oak panel',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'fluted',
+    swatch: '#b88f5d',
+    uvScale: [0.8, 0.8],
+  },
+  'wall-fluted-walnut': {
+    id: 'wall-fluted-walnut',
+    name: 'Fluted walnut panel',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'fluted',
+    swatch: '#6b4428',
+    uvScale: [0.8, 0.8],
+  },
+  'wall-fluted-white': {
+    id: 'wall-fluted-white',
+    name: 'Fluted plaster (white)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'fluted',
+    swatch: '#e8e4dc',
+    uvScale: [0.8, 0.8],
+  },
   // Microcement / concrete accent walls (smooth, large-scale tiling).
   'wall-concrete-light': {
     id: 'wall-concrete-light',
