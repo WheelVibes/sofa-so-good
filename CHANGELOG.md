@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C69] New outdoor item — slatted lounge chair
+Added an `OutdoorChair` primitive + catalog entry: a slatted patio/balcony lounge chair
+(side frames + legs + armrests, slatted seat, reclined slatted back), teak/painted/metal
+finishes. Outdoor now has seating + planter to furnish a balcony. Screenshot-verified.
+
 ## [C68] Group baby items under the Baby & Kids department
 Moved crib / high-chair / changing-table into the **kids** category (they were split across
 beds/seating/storage), so the Baby & Kids tab now holds the nursery set (4 items) — matching

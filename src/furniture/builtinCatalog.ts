@@ -3831,6 +3831,30 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'outdoor-chair': {
+    kind: 'parametric',
+    id: 'outdoor-chair',
+    name: 'Outdoor chair',
+    keywords: ['patio', 'balcony', 'garden chair', 'lounge', 'deck', 'slatted'],
+    category: 'outdoor',
+    primitive: 'OutdoorChair',
+    defaultFootprint: { w: 0.62, d: 0.62, h: 0.9 },
+    frontClearance: 0.4,
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Frame', default: '#a9763f' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Teak' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Metal' },
+        ],
+      },
+    ],
+  },
   'planter-trough': {
     kind: 'parametric',
     id: 'planter-trough',

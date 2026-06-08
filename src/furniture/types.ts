@@ -139,6 +139,7 @@ export type PrimitiveKind =
   | 'Oven'
   | 'WineCooler'
   | 'PlanterTrough'
+  | 'OutdoorChair'
 
 export type ParamField =
   | {
