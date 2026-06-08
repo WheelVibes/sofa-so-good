@@ -21,6 +21,22 @@ describe('buildReportHtml', () => {
     expect(html).toContain('data:image/png;base64,AAAA')
   })
 
+  it('escapes user-controlled strings (plan name + note) to prevent HTML injection', () => {
+    const evil = '"><script>alert(1)</script>'
+    const html = buildReportHtml(
+      { ...plan, name: evil },
+      items,
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      evil, // project note
+    )
+    expect(html).not.toContain('<script>alert(1)')
+    expect(html).toContain('&lt;script&gt;') // the angle brackets are escaped
+    expect(html).toContain('&quot;') // the breaking double-quote is escaped too
+  })
+
   it('shows W×D dimensions for rectangular rooms in the rooms table', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     // Default HDB rooms are plain rectangles → a "× … m" dimension appears.

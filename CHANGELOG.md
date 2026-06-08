@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C64] Security — escape quotes in the printable report (HTML injection)
+The report's `esc()` only escaped `&<>`, but user strings (project note, room/material
+names, swatches) are embedded in `style="…"`/`title="…"` attributes — a `"` could break
+out and inject markup. Now escapes `"` and `'` too (safe for text + attribute contexts).
+Added an injection test (a `"><script>` note/name is fully neutralised).
+
 ## [C63] "Face into room" — one-click orient against the nearest wall
 Inspector button that turns a selected piece's back to the nearest wall (front into
 the room) — fast correct orientation for beds/sofas/desks. Pure tested

@@ -37,8 +37,15 @@ const CAT_LABEL: Record<FurnitureCategory, string> = {
   others: 'Others',
 }
 
+// Escapes for BOTH text and attribute contexts (the report embeds names/notes/
+// swatches inside style="…" + title="…"), so quotes must be escaped too — a `"`
+// in a user-controlled value (a material swatch, a room name) would otherwise
+// break out of the attribute and inject markup.
 const esc = (s: string) =>
-  s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+  )
 const sgd = (n: number) => `$${Math.round(n).toLocaleString('en-SG')}`
 
 /** Per-room floor + wall finish material ids (the store's `finishes` slice). */
