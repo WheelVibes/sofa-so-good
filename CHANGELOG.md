@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C28] Extract tested buildShoppingGroups helper
+Moved the Budget panel's inline category-grouping + total/count computation into a
+pure `furniture/shoppingGroups` (`buildShoppingGroups`, `Line`/`ShoppingGroup`),
+now unit-tested (grouping, totals, unknown-def skip). BudgetPanel consumes it;
+behaviour unchanged. +3 tests; modular.
+
 ## [C27] Fix a wrong assertion in angle.test (full-suite gate)
 A full `vitest run` + production build pass caught a failing assertion shipped in
 C9: `nearestRightAngle(2.0)` correctly snaps to π/2 (nearer than π), but the test

@@ -2,8 +2,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { useLivePrices } from '../catalog/pricing/livePrice'
 import { useCatalog } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
+import { buildShoppingGroups, type Line } from '../furniture/shoppingGroups'
 import { spendByRoom } from '../furniture/spendByRoom'
-import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../furniture/types'
+import type { FurnitureCategory } from '../furniture/types'
 import { useStore } from '../state/store'
 import { CategoryIcon } from './catalog/CategoryIcon'
 import { buildShoppingCsv } from './shoppingCsv'
@@ -27,13 +28,6 @@ const CATEGORY_LABEL: Record<FurnitureCategory, string> = {
   others: 'Others',
 }
 
-interface Line {
-  defId: string
-  name: string
-  count: number
-  each: number
-}
-
 /**
  * Live budget / shopping list. Groups every placed furniture item by category,
  * tallies counts, and totals an approximate retail cost (SGD). A practical aid
@@ -52,34 +46,10 @@ export function BudgetPanel() {
   const setBudgetTarget = useStore((s) => s.setBudgetTarget)
   const plan = useStore((s) => s.floorPlan)
 
-  const { groups, total, count } = useMemo(() => {
-    const byCat = new Map<FurnitureCategory, Map<string, Line>>()
-    let total = 0
-    let count = 0
-    for (const it of items) {
-      const def = catalog[it.defId]
-      if (!def) continue
-      const cat = def.category
-      // Per-instance IKEA finish (if any) — so two instances on different,
-      // differently-priced finishes price + group as distinct lines.
-      const variant = typeof it.props['variant'] === 'string' ? it.props['variant'] : undefined
-      const each = itemPrice(def, cat, variant)
-      total += each
-      count += 1
-      if (!byCat.has(cat)) byCat.set(cat, new Map())
-      const lines = byCat.get(cat)!
-      const lineKey = variant ? `${it.defId}::${variant}` : it.defId
-      const existing = lines.get(lineKey)
-      if (existing) existing.count += 1
-      else lines.set(lineKey, { defId: it.defId, name: def.name, count: 1, each })
-    }
-    const groups = FURNITURE_CATEGORIES.filter((c) => byCat.has(c)).map((c) => {
-      const lines = [...byCat.get(c)!.values()].sort((a, b) => b.each * b.count - a.each * a.count)
-      const subtotal = lines.reduce((s, l) => s + l.each * l.count, 0)
-      return { cat: c, lines, subtotal }
-    })
-    return { groups, total, count }
-  }, [items, catalog])
+  const { groups, total, count } = useMemo(
+    () => buildShoppingGroups(items, catalog),
+    [items, catalog],
+  )
 
   // Per-room spend (estimate-based, so room subtotals always sum to `total`).
   // Complements "by category": which *room* is the budget going into.
