@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C72] Test — guard against empty catalog department tabs
+Added a catalog-integrity test asserting every `FurnitureCategory` (except the `others`
+catch-all) has ≥1 built-in item — codifying the C66–C69 audit so a department tab can't
+silently ship empty again.
+
 ## [C71] One-click "Balcony set"
 Added a **Balcony set** to the Sets list (Arrange menu): a slatted bistro table with two
 facing chairs + a planter, dropped pre-arranged. Reuses the C66/C69/C70 outdoor pieces +
