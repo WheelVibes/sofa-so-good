@@ -170,9 +170,10 @@ export function BudgetPanel() {
                 .map((g) => ({
                   cat: g.cat,
                   amt: g.lines.reduce((s, l) => s + eachOf(l) * l.count, 0),
+                  n: g.lines.reduce((s, l) => s + l.count, 0),
                 }))
                 .sort((a, b) => b.amt - a.amt)
-                .map(({ cat, amt }) => {
+                .map(({ cat, amt, n }) => {
                   const pct = Math.round((amt / shownTotal) * 100)
                   return (
                     <div key={cat} style={{ marginBottom: 5 }}>
@@ -185,7 +186,7 @@ export function BudgetPanel() {
                         }}
                       >
                         <span>
-                          {CATEGORY_LABEL[cat]} · {pct}%
+                          {CATEGORY_LABEL[cat]} · {n} · {pct}%
                         </span>
                         <span className="mono">{fmt(amt)}</span>
                       </div>

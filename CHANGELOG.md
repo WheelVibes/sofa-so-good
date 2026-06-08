@@ -4,6 +4,10 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C29] Item count in the Budget "Spend by category" rows
+Each category row now shows its item count alongside the % and amount (e.g.
+"Appliances · 9 · 26%"), matching the catalog chip counts. DOM-verified.
+
 ## [C28] Extract tested buildShoppingGroups helper
 Moved the Budget panel's inline category-grouping + total/count computation into a
 pure `furniture/shoppingGroups` (`buildShoppingGroups`, `Line`/`ShoppingGroup`),
