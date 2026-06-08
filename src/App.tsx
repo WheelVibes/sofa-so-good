@@ -48,6 +48,7 @@ const FloorPlanEditor = lazy(() =>
 )
 
 import { ConfirmModal } from './ui/ConfirmModal'
+import { GlbDesignerDialog } from './ui/glbEditor/GlbDesignerDialog'
 import { HistoryPanel } from './ui/HistoryPanel'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
@@ -767,6 +768,7 @@ export default function App() {
         <VersionsPanel />
         <HistoryPanel />
         <SmartStartWizard />
+        <GlbDesignerDialog />
         <LoginScreen />
         <FlagsPanel />
         <Onboarding />

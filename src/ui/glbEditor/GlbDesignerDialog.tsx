@@ -1,0 +1,374 @@
+import { Bounds, OrbitControls, useGLTF } from '@react-three/drei'
+import { Canvas } from '@react-three/fiber'
+import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+import type { Object3D } from 'three'
+import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
+import {
+  type AssetEditSpec,
+  addPart,
+  createEmptySpec,
+  isBuildable,
+  removePart,
+  type ShapeKind,
+  updatePart,
+} from '../../furniture/glbEdit/editSpec'
+import { exportAndSaveAsset } from '../../furniture/glbEdit/saveAsset'
+import type { UserGltfDef } from '../../furniture/types'
+import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
+import { useStore } from '../../state/store'
+import { Icon } from '../toolbar/icons'
+
+/** Loaded source GLB, uniformly scaled; reports its scene up for export. */
+function SourceModel({
+  url,
+  scale,
+  onScene,
+}: {
+  url: string
+  scale: number
+  onScene: (o: Object3D | null) => void
+}) {
+  const gltf = useGLTF(url)
+  useEffect(() => {
+    onScene(gltf.scene)
+    return () => onScene(null)
+  }, [gltf.scene, onScene])
+  return <primitive object={gltf.scene} scale={scale} />
+}
+
+/** The composed primitive parts, rendered declaratively (export uses buildEditedObject). */
+function PartsPreview({ spec }: { spec: AssetEditSpec }) {
+  return (
+    <>
+      {spec.parts.map((p) => (
+        <mesh key={p.id} position={p.position} castShadow receiveShadow>
+          {p.kind === 'box' && <boxGeometry args={p.size} />}
+          {p.kind === 'cylinder' && (
+            <cylinderGeometry args={[p.size[0] / 2, p.size[0] / 2, p.size[1], 32]} />
+          )}
+          {p.kind === 'sphere' && <sphereGeometry args={[Math.max(...p.size) / 2, 32, 16]} />}
+          <meshStandardMaterial color={p.color} roughness={0.6} metalness={0.05} />
+        </mesh>
+      ))}
+    </>
+  )
+}
+
+const SHAPES: { kind: ShapeKind; label: string }[] = [
+  { kind: 'box', label: 'Box' },
+  { kind: 'cylinder', label: 'Cylinder' },
+  { kind: 'sphere', label: 'Sphere' },
+]
+
+/**
+ * GLB Asset Designer — compose a new asset from primitive shapes and/or start
+ * from an uploaded GLB (uniformly scaled) to make a custom variant, preview it
+ * live, then export → save into the catalog (reusing the upload pipeline).
+ */
+export function GlbDesignerDialog() {
+  const open = useStore((s) => s.glbDesignerOpen)
+  const close = () => useStore.getState().setGlbDesignerOpen(false)
+  // Select the stable array ref, filter in a memo — filtering inside the selector
+  // returns a fresh array every render and spins Zustand into an update loop.
+  const userFurniture = useStore((s) => s.userFurniture)
+  const userGlbs = useMemo(
+    () => userFurniture.filter((d): d is UserGltfDef => d.source === 'user' && !!d.runtimeUrl),
+    [userFurniture],
+  )
+
+  const [spec, setSpec] = useState<AssetEditSpec>(createEmptySpec)
+  const [name, setName] = useState('Custom asset')
+  const [category, setCategory] = useState<FurnitureCategory>('others')
+  const [selId, setSelId] = useState<string | null>(null)
+  const [busy, setBusy] = useState(false)
+  const sourceSceneRef = useRef<Object3D | null>(null)
+
+  const sourceUrl = useMemo(() => {
+    const def = userGlbs.find((d) => d.id === spec.sourceAssetId)
+    return def?.runtimeUrl ?? null
+  }, [userGlbs, spec.sourceAssetId])
+
+  // Reset when reopened.
+  useEffect(() => {
+    if (open) {
+      setSpec(createEmptySpec())
+      setName('Custom asset')
+      setCategory('others')
+      setSelId(null)
+      sourceSceneRef.current = null
+    }
+  }, [open])
+
+  if (!open) return null
+
+  const sel = spec.parts.find((p) => p.id === selId) ?? null
+
+  const save = async () => {
+    if (!isBuildable(spec) || busy) return
+    setBusy(true)
+    try {
+      const obj = buildEditedObject(sourceSceneRef.current, spec)
+      const res = await exportAndSaveAsset(obj, name, category)
+      const notify = useStore.getState().notify
+      if (res.ok) {
+        notify.start({
+          title: res.duplicate ? 'That asset already exists' : `Saved "${name}" to your catalog`,
+          kind: res.duplicate ? 'info' : 'success',
+        })
+        close()
+      } else {
+        notify.start({ title: `Couldn't save: ${res.reason}`, kind: 'error' })
+      }
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return createPortal(
+    <div className="modal-overlay" onClick={close}>
+      <div
+        className="panel glb-designer"
+        onClick={(e) => e.stopPropagation()}
+        style={{
+          display: 'flex',
+          flexDirection: 'column',
+          width: 'min(960px, 94vw)',
+          height: 'min(640px, 90vh)',
+        }}
+      >
+        <div className="panel-head">
+          <div className="panel-title">3D asset designer</div>
+          <button type="button" className="icon-btn" aria-label="Close designer" onClick={close}>
+            <Icon.Close width={16} height={16} />
+          </button>
+        </div>
+        <hr className="hr" />
+        <div style={{ display: 'flex', gap: 'var(--s-3)', flex: 1, minHeight: 0 }}>
+          {/* Live preview */}
+          <div
+            style={{
+              flex: '1 1 60%',
+              minWidth: 0,
+              borderRadius: 'var(--r-2)',
+              overflow: 'hidden',
+              background: 'var(--scene-b)',
+            }}
+          >
+            <Canvas shadows camera={{ position: [1.6, 1.3, 1.8], fov: 40 }}>
+              <ambientLight intensity={0.7} />
+              <hemisphereLight intensity={0.6} />
+              <directionalLight position={[3, 5, 2]} intensity={1.1} castShadow />
+              <gridHelper args={[6, 12, '#999', '#ccc']} />
+              <Suspense fallback={null}>
+                <Bounds fit clip observe margin={1.2}>
+                  {sourceUrl && (
+                    <SourceModel
+                      url={sourceUrl}
+                      scale={spec.sourceScale}
+                      onScene={(o) => {
+                        sourceSceneRef.current = o
+                      }}
+                    />
+                  )}
+                  <PartsPreview spec={spec} />
+                </Bounds>
+              </Suspense>
+              <OrbitControls makeDefault />
+            </Canvas>
+          </div>
+
+          {/* Controls */}
+          <div
+            className="panel-body"
+            style={{ flex: '1 1 40%', minWidth: 280, overflowY: 'auto', paddingRight: 4 }}
+          >
+            <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+              <div className="sec-h">
+                <span>Start from</span>
+              </div>
+              <select
+                className="input"
+                aria-label="Source model"
+                value={spec.sourceAssetId ?? ''}
+                onChange={(e) =>
+                  setSpec((s) => ({ ...s, sourceAssetId: e.target.value || undefined }))
+                }
+                style={{ width: '100%' }}
+              >
+                <option value="">Blank (compose from shapes)</option>
+                {userGlbs.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.name}
+                  </option>
+                ))}
+              </select>
+              {spec.sourceAssetId ? (
+                <label className="fld" style={{ marginTop: 'var(--s-2)' }}>
+                  <span>Scale ×{spec.sourceScale.toFixed(2)}</span>
+                  <input
+                    type="range"
+                    min={0.1}
+                    max={3}
+                    step={0.05}
+                    value={spec.sourceScale}
+                    onChange={(e) =>
+                      setSpec((s) => ({ ...s, sourceScale: Number(e.target.value) }))
+                    }
+                    aria-label="Source scale"
+                  />
+                </label>
+              ) : null}
+            </div>
+
+            <div className="sec">
+              <div className="sec-h">
+                <span>Add shape</span>
+              </div>
+              <div className="action-grid two">
+                {SHAPES.map((s) => (
+                  <button
+                    key={s.kind}
+                    type="button"
+                    className="act"
+                    onClick={() =>
+                      setSpec((sp) => {
+                        const next = addPart(sp, s.kind)
+                        setSelId(next.parts[next.parts.length - 1].id)
+                        return next
+                      })
+                    }
+                  >
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+              {spec.parts.length > 0 ? (
+                <div style={{ marginTop: 'var(--s-2)', display: 'grid', gap: 4 }}>
+                  {spec.parts.map((p, i) => (
+                    <div
+                      key={p.id}
+                      className={`lyr-row${selId === p.id ? ' sel' : ''}`}
+                      onClick={() => setSelId(p.id)}
+                    >
+                      <span
+                        className="swatch"
+                        style={{ background: p.color, width: 16, height: 16, borderRadius: 3 }}
+                      />
+                      <span className="lyr-nm">
+                        {p.kind} {i + 1}
+                      </span>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Remove ${p.kind} ${i + 1}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSpec((sp) => removePart(sp, p.id))
+                          if (selId === p.id) setSelId(null)
+                        }}
+                      >
+                        <Icon.Close width={13} height={13} />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </div>
+
+            {sel ? (
+              <div className="sec">
+                <div className="sec-h">
+                  <span>Edit {sel.kind}</span>
+                </div>
+                {(['size', 'position'] as const).map((field) => (
+                  <div key={field} style={{ marginBottom: 'var(--s-2)' }}>
+                    <div
+                      className="label"
+                      style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                    >
+                      {field === 'size' ? 'Size (m)' : 'Position (m)'}
+                    </div>
+                    <div style={{ display: 'flex', gap: 4 }}>
+                      {[0, 1, 2].map((axis) => (
+                        <input
+                          key={axis}
+                          type="number"
+                          className="input"
+                          step={0.05}
+                          min={field === 'size' ? 0.02 : -3}
+                          value={sel[field][axis]}
+                          aria-label={`${sel.kind} ${field} ${'XYZ'[axis]}`}
+                          onChange={(e) => {
+                            const v = Number(e.target.value)
+                            setSpec((sp) =>
+                              updatePart(sp, sel.id, {
+                                [field]: sel[field].map((o, k) => (k === axis ? v : o)) as [
+                                  number,
+                                  number,
+                                  number,
+                                ],
+                              }),
+                            )
+                          }}
+                          style={{ width: '33%' }}
+                        />
+                      ))}
+                    </div>
+                  </div>
+                ))}
+                <label className="fld">
+                  <span>Colour</span>
+                  <input
+                    type="color"
+                    value={sel.color}
+                    aria-label="Shape colour"
+                    onChange={(e) =>
+                      setSpec((sp) => updatePart(sp, sel.id, { color: e.target.value }))
+                    }
+                  />
+                </label>
+              </div>
+            ) : null}
+
+            <div className="sec">
+              <div className="sec-h">
+                <span>Save to catalog</span>
+              </div>
+              <input
+                className="input"
+                value={name}
+                aria-label="Asset name"
+                onChange={(e) => setName(e.target.value)}
+                placeholder="Asset name"
+                style={{ width: '100%', marginBottom: 'var(--s-2)' }}
+              />
+              <select
+                className="input"
+                aria-label="Asset category"
+                value={category}
+                onChange={(e) => setCategory(e.target.value as FurnitureCategory)}
+                style={{ width: '100%', marginBottom: 'var(--s-2)' }}
+              >
+                {FURNITURE_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+              <button
+                type="button"
+                className="btn btn-accent btn-block"
+                disabled={!isBuildable(spec) || busy}
+                onClick={save}
+              >
+                {busy ? 'Saving…' : 'Save asset'}
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  )
+}

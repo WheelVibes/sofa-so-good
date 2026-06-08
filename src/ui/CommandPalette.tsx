@@ -89,6 +89,13 @@ export function CommandPalette() {
         run: () => s().setSmartStartOpen(true),
       },
       {
+        id: 'glb-designer',
+        group: 'Actions',
+        label: 'Design a 3D asset (edit / create)',
+        icon: 'Cube',
+        run: () => s().setGlbDesignerOpen(true),
+      },
+      {
         id: 'tidy',
         group: 'Actions',
         label: 'Tidy home',

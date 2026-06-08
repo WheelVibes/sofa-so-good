@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C47] GLB Asset Designer — compose / edit custom 3D assets
+New in-browser asset designer (⌘K → "Design a 3D asset"): compose an asset from
+primitive shapes (box/cylinder/sphere, each with size/position/colour) and/or start
+from an uploaded GLB scaled into a custom variant, with a live R3F preview, then
+export via GLTFExporter → `persistUserGlb` so it lands in the catalog like any upload.
+Pure `editSpec.ts` (tested) + `buildObject.ts` + `saveAsset.ts` + dialog. v2: per-mesh
+recolour/hide of a source GLB.
+
 ## [C46] Cabinet handle styles (bar / knob / handleless)
 Cabinets gain a **Handles** option: `buildCabinet` now reports a `handleStyle` and
 omits handle parts when `'none'`; the renderer draws a round knob (cylinder) vs the

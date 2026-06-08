@@ -99,6 +99,13 @@ same change that reshapes a system.
   Toolbar **Appearance** popover = theme + Light/Dark/Auto + **Simple/Pro** `uiMode`
   (Simple hides advanced clusters + collapses inspector sections; floor-plan always
   available). `useIsMobile.ts` ≤640px hook; `body.mobile` → bottom-sheets + minimal bar.
+- **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
+  `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
+  (box/cylinder/sphere — pure tested `editSpec.ts`) and/or start from an uploaded GLB
+  (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
+  `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
+  in the catalog like any upload. Launched from ⌘K. TODO: per-component recolour/
+  hide of a source GLB's meshes (v2).
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
   **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through
   spotlight; only "Skip tour"/Esc ends it; location prompt suppressed while open),
