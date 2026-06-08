@@ -2,12 +2,14 @@ import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
+import { pointInRoom } from '../../floorplan/types'
 import { arrayOffsets } from '../../furniture/arrayPlacement'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { itemsCost } from '../../furniture/itemsCost'
 import { isOffSquare, nearestRightAngle } from '../../layout/angle'
+import { rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
@@ -384,6 +386,23 @@ export function InspectorPanel() {
     }
   }
 
+  // Orient the item so its back is to the nearest wall (front faces the room) —
+  // one-click correct orientation for beds/sofas/desks. Collision-checked via trySetRot.
+  const faceIntoRoom = () => {
+    const st = useStore.getState()
+    const it = st.items.find((i) => i.id === item.id)
+    if (!it) return
+    const room = st.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    if (!room) return
+    const rect = {
+      minX: room.origin[0],
+      minZ: room.origin[1],
+      maxX: room.origin[0] + room.width,
+      maxZ: room.origin[1] + room.depth,
+    }
+    trySetRot((rotationFacingRoom(it.position, rect) * 180) / Math.PI)
+  }
+
   const duplicate = () => {
     const st = useStore.getState()
     const STEP = 0.3
@@ -662,6 +681,16 @@ export function InspectorPanel() {
                   Straighten
                 </button>
               ) : null}
+              <button
+                type="button"
+                onClick={faceIntoRoom}
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                title="Turn this piece's back to the nearest wall (face into the room)"
+              >
+                <Icon.Rotate width={14} height={14} />
+                Face into room
+              </button>
               <button
                 type="button"
                 onClick={() => useStore.getState().setSwapItemId(item.id)}

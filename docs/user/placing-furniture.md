@@ -53,8 +53,9 @@ wall**, and a readout shows the gap to the nearest wall.
 | Delete | <kbd>Del</kbd> |
 
 Select a piece to open its **inspector**, where parametric items expose
-dimensions, colours, and style options. **Double‑click** focuses the camera on
-it.
+dimensions, colours, and style options. The inspector's **Face into room** button
+turns a piece's back to the nearest wall in one click (handy for beds, sofas and
+desks). **Double‑click** focuses the camera on it.
 
 ### Modular kitchen cabinets
 

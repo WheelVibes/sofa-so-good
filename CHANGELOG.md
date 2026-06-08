@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C63] "Face into room" — one-click orient against the nearest wall
+Inspector button that turns a selected piece's back to the nearest wall (front into
+the room) — fast correct orientation for beds/sofas/desks. Pure tested
+`layout/faceWall.ts` `rotationFacingRoom` (+4 tests), collision-checked apply. Verified.
+
 ## [C62] New wall finish — fluted / reeded panels
 Added a `fluted` procedural pattern (close-packed rounded vertical ribs via a half-sine
 height profile; seamless) + three feature-wall finishes (oak / walnut / white plaster).
