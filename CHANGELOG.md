@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C22] New "Harbour" theme (cool marina blue)
+A 5th theme — estate's exact lightness/chroma hue-shifted to a slate-blue neutral
++ teal-blue accent (so contrast is preserved), light + dark. Registered in
+`appearanceSlice` (auto-listed in the Appearance picker). Screenshot-verified L+D;
+docs updated (5 themes / 10 palettes).
+
 ## [C21] Budget-target quick-set chips
 When no budget target is set, the Budget panel shows one-tap $10k/$25k/$50k/$100k
 chips so users can start tracking spend instantly (the number field stays for

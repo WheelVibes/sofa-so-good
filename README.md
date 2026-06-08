@@ -184,9 +184,9 @@ export the result — all in the browser.
   transitions into walkthrough and the per-room editor, with a contextual
   caption ("Furnishing your flat…", "Entering walkthrough…", "Entering room…").
   It fades quickly on fast loads and respects reduced-motion preferences.
-- **One warm design system, four themes** — a domestic, Singapore-rooted
-  interface authored in OKLCH: **Clay** (terracotta), **Kampong** (garden
-  green), **Porcelain** (teal-jade), and **Estate** (HDB ochre), each in
+- **One design system, five themes** — a Singapore-rooted interface authored in
+  OKLCH: **Clay** (terracotta), **Kampong** (garden green), **Porcelain**
+  (teal-jade), **Estate** (HDB ochre), and **Harbour** (cool marina blue), each in
   light + dark (or **Auto**, following your OS). Switch from the toolbar's
   **Appearance** menu; the whole UI — toolbar, catalog, inspector, nav cluster,
   panels, modals — recolours instantly and your choice persists.

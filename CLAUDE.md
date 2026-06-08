@@ -323,7 +323,7 @@ rediscover it.
   **Toolbar** + **Design system** below; the toolbar's `AppearancePopover`
   switches theme + light/dark/auto).
 - `src/styles/` — the **design-system CSS** (ported from `design/assets/`):
-  `tokens.css` (type/spacing/radii + the 8 OKLCH theme palettes),
+  `tokens.css` (type/spacing/radii + the 10 OKLCH theme palettes),
   `components.css` (`.panel`/`.btn`/`.toolbar`/`.menu`/inputs…), `parts.css`
   (catalog/inspector/navcluster compound UI), `features.css` (layers/cmdk/
   context-menu/toasts/badges), `flows.css` (onboarding/edit-room/presets),
@@ -341,8 +341,8 @@ rediscover it.
 
 ## Key systems
 - **Design system & theming** (`src/styles/`, `state/slices/appearanceSlice.ts`,
-  `storage/appearancePrefs.ts`): one warm, Singapore-rooted system — **4 themes
-  (Clay / Kampong / Porcelain / Estate) × light/dark = 8 OKLCH palettes**,
+  `storage/appearancePrefs.ts`): one Singapore-rooted system — **5 themes
+  (Clay / Kampong / Porcelain / Estate / Harbour) × light/dark = 10 OKLCH palettes**,
   switched by `[data-theme]` + `[data-mode]` on `<html>`. Every colour is a CSS
   custom property (`--surface`/`--text`/`--accent`/`--border`/`--scene-*`/…) so
   components never hardcode colour — UI is restyled to the design class
