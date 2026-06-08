@@ -9,7 +9,7 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
 > rules live in path-scoped `CLAUDE.md` files that load when you work in that folder:
 > `src/state/`, `src/furniture/`, `src/scene/`, `src/ui/`, `src/materials/`. Other
 > reference docs: `docs/visual-verification-playbook.md`, `docs/interior-design-guidelines.md`,
-> `CHANGELOG.md`/`TASKS.md`/`TODO.md`.
+> `REFERENCES.md` (competitor apps to study), `CHANGELOG.md`/`TASKS.md`/`TODO.md`.
 
 ## Hard rules (always)
 - **Keep docs current in the same change.** After adding/removing/reshaping a system,
@@ -29,6 +29,10 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
   never Tailwind colour utilities or literals; every surface works in light + dark + 5 themes.
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).
   Commit/push only when asked; one focused change per commit; log shipped work in `CHANGELOG.md`.
+- **Research against references.** When designing a new feature or judging what good UI/UX
+  should look like, consult **[REFERENCES.md](REFERENCES.md)** (competitor/reference apps —
+  Coohom, Planner 5D, IKEA Kreativ, Sweet Home 3D, …) and aim to match or surpass them. Any
+  new relevant app/tool you discover while researching must be **added to `REFERENCES.md`**.
 
 ## Commands (essentials — full list in ARCHITECTURE.md)
 - `npm run dev` (5173; `window.__store`) · `npm test` · `npm run build` (`tsc` + Vite).
