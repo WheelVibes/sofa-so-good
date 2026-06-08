@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C71] One-click "Balcony set"
+Added a **Balcony set** to the Sets list (Arrange menu): a slatted bistro table with two
+facing chairs + a planter, dropped pre-arranged. Reuses the C66/C69/C70 outdoor pieces +
+the shared set-drop path; validated by the sets test (defIds + structure) and the C70
+screenshot of the identical layout.
+
 ## [C70] New outdoor item — slatted bistro table
 Added an `OutdoorTable` primitive + catalog entry: a square slatted top on four legs with
 a lower stretcher (matching the outdoor chair), adjustable size + height (coffee↔bistro),

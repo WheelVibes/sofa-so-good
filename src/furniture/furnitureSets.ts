@@ -147,4 +147,16 @@ export const FURNITURE_SETS: FurnitureSet[] = [
       },
     ],
   },
+  {
+    // A balcony bistro: a slatted table with two facing chairs and a planter
+    // behind — the outdoor pieces dropped as a ready-made set.
+    id: 'balcony',
+    name: 'Balcony set',
+    items: [
+      { defId: 'outdoor-table', dx: 0, dz: 0, rotation: 0 },
+      { defId: 'outdoor-chair', dx: -0.6, dz: 0, rotation: Math.PI / 2 },
+      { defId: 'outdoor-chair', dx: 0.6, dz: 0, rotation: -Math.PI / 2 },
+      { defId: 'planter-trough', dx: 0, dz: -0.95, rotation: 0, props: { length: 1.2 } },
+    ],
+  },
 ]
