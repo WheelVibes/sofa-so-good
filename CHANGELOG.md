@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C44] K1b — "Kitchen run" set + wall-cabinet mount fix
+Added a one-click **Kitchen run** set (base sink · hob · drawers + wall uppers + tall
+pantry) assembling the cabinet engine into a kitchen. Also fixed a C38 bug: the
+parametric **wall (upper) cabinet rendered on the floor** — it now lifts to its
+`mountHeight` (default 1.45 m, new inspector field). Screenshot-verified.
+
 ## [C43] K1b — hob/cooktop worktop fitting
 Generalised the base cabinet's `sinkCutout` to a typed `worktopCutout`
 (`kind: 'sink' | 'hob'`) and added a **hob** option: same worktop-frame cut, with

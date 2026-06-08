@@ -107,4 +107,44 @@ export const FURNITURE_SETS: FurnitureSet[] = [
       { defId: 'bookshelf', dx: 1.2, dz: -0.05, rotation: 0, props: { width: 0.9, height: 1.8 } },
     ],
   },
+  {
+    // A modular kitchen run: three 0.6 m base cabinets (sink · hob · drawers) in
+    // a row with matching wall uppers above and a tall pantry at the end — the
+    // parametric cabinet engine assembled into a one-click kitchen.
+    id: 'kitchen-run',
+    name: 'Kitchen run',
+    items: [
+      {
+        defId: 'cabinet-base',
+        dx: -0.6,
+        dz: 0,
+        rotation: 0,
+        props: { worktop: 'sink', front: 'slab' },
+      },
+      {
+        defId: 'cabinet-base',
+        dx: 0,
+        dz: 0,
+        rotation: 0,
+        props: { worktop: 'hob', front: 'drawers' },
+      },
+      {
+        defId: 'cabinet-base',
+        dx: 0.6,
+        dz: 0,
+        rotation: 0,
+        props: { worktop: 'none', front: 'drawers' },
+      },
+      { defId: 'cabinet-wall', dx: -0.6, dz: -0.13, rotation: 0, props: { front: 'slab' } },
+      { defId: 'cabinet-wall', dx: 0, dz: -0.13, rotation: 0, props: { front: 'slab' } },
+      { defId: 'cabinet-wall', dx: 0.6, dz: -0.13, rotation: 0, props: { front: 'glass' } },
+      {
+        defId: 'cabinet-tall',
+        dx: 1.4,
+        dz: 0,
+        rotation: 0,
+        props: { cornice: 'yes', front: 'slab' },
+      },
+    ],
+  },
 ]

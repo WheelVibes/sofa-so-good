@@ -45,8 +45,12 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
   const bodyMat = getSurfaceMaterial(finish, color, 1, sheen)
   const handleMat = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const
 
+  // Wall (upper) cabinets mount off the floor — lift the whole carcass to the
+  // underside mount height (the model builds floor-anchored at y=0).
+  const mountY = type === 'wall' ? readNum(props, 'mountHeight', 1.45) : 0
+
   return (
-    <group>
+    <group position={[0, mountY, 0]}>
       {model.parts.map((p, i) => {
         const key = `${p.role}-${i}`
         if (p.role === 'countertop') {

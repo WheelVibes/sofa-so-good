@@ -129,6 +129,7 @@ export const CABINET_DEFS: Record<string, ParametricDef> = {
       dim('width', 'Width', 0.3, 1.0, 0.6),
       dim('height', 'Height', 0.4, 0.95, 0.72),
       dim('depth', 'Depth', 0.28, 0.4, 0.35),
+      dim('mountHeight', 'Mount height', 1.2, 1.8, 1.45),
       {
         kind: 'enum',
         key: 'cornice',
