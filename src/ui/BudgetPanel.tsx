@@ -494,6 +494,24 @@ function BudgetTarget({
           />
         </span>
       </label>
+      {!has && (
+        <div style={{ display: 'flex', gap: 4, marginTop: 6 }}>
+          {[10000, 25000, 50000, 100000].map((v) => (
+            <button
+              key={v}
+              type="button"
+              className="btn btn-soft"
+              style={{ flex: 1, fontSize: 'var(--t-2xs)', padding: '3px 0' }}
+              onClick={() => {
+                setDraft(String(v))
+                onChange(v)
+              }}
+            >
+              ${v / 1000}k
+            </button>
+          ))}
+        </div>
+      )}
       {has && (
         <>
           <div
