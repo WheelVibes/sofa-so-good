@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C51] GLB designer — placement type (floor / wall-mounted / floor-covering)
+The designer gains a **Placement** select so a designed piece saves with the right
+collision flags — wall-mounted (`mounted`, skips wall-body collision) or a rug-style
+floor covering (`noClip`, never blocks). Pure `placementFlags` (tested); verified the
+saved def carries `mounted: true` for a wall piece.
+
 ## [C50] GLB designer — discoverable "Design" button
 Added a Pro-gated **Design** button to the catalog footer (beside Upload) that opens
 the asset designer, so it's discoverable without ⌘K. Hidden in Simple mode.

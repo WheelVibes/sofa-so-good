@@ -14,7 +14,7 @@ import {
   setMeshOverride,
   updatePart,
 } from '../../furniture/glbEdit/editSpec'
-import { exportAndSaveAsset } from '../../furniture/glbEdit/saveAsset'
+import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
 import type { UserGltfDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
@@ -85,6 +85,7 @@ export function GlbDesignerDialog() {
   const [spec, setSpec] = useState<AssetEditSpec>(createEmptySpec)
   const [name, setName] = useState('Custom asset')
   const [category, setCategory] = useState<FurnitureCategory>('others')
+  const [placement, setPlacement] = useState<'floor' | 'wall' | 'floorCovering'>('floor')
   const [selId, setSelId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [meshNames, setMeshNames] = useState<string[]>([])
@@ -116,6 +117,7 @@ export function GlbDesignerDialog() {
       setSpec(createEmptySpec())
       setName('Custom asset')
       setCategory('others')
+      setPlacement('floor')
       setSelId(null)
       sourceSceneRef.current = null
     }
@@ -130,7 +132,7 @@ export function GlbDesignerDialog() {
     setBusy(true)
     try {
       const obj = buildEditedObject(sourceSceneRef.current, spec)
-      const res = await exportAndSaveAsset(obj, name, category)
+      const res = await exportAndSaveAsset(obj, name, category, placementFlags(placement))
       const notify = useStore.getState().notify
       if (res.ok) {
         notify.start({
@@ -428,6 +430,17 @@ export function GlbDesignerDialog() {
                     {c}
                   </option>
                 ))}
+              </select>
+              <select
+                className="input"
+                aria-label="Placement type"
+                value={placement}
+                onChange={(e) => setPlacement(e.target.value as typeof placement)}
+                style={{ width: '100%', marginBottom: 'var(--s-2)' }}
+              >
+                <option value="floor">Stands on the floor</option>
+                <option value="wall">Mounts on a wall</option>
+                <option value="floorCovering">Floor covering (rug — never blocks)</option>
               </select>
               <button
                 type="button"

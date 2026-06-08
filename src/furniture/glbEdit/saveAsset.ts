@@ -14,9 +14,25 @@ export async function exportAndSaveAsset(
   object: Object3D,
   name: string,
   category: FurnitureCategory,
+  opts: { mounted?: boolean; noClip?: boolean } = {},
 ): Promise<PersistResult> {
   const buffer = await exportGlb(object)
   const safe = (name.trim() || 'Custom asset').replace(/[^\w\- ]+/g, '').slice(0, 60)
   const file = new File([buffer], `${safe || 'asset'}.glb`, { type: 'model/gltf-binary' })
-  return persistUserGlb(file, { name: name.trim() || 'Custom asset', category })
+  return persistUserGlb(file, {
+    name: name.trim() || 'Custom asset',
+    category,
+    mounted: opts.mounted,
+    noClip: opts.noClip,
+  })
+}
+
+/** UI placement choice → the collision flags a piece needs. */
+export function placementFlags(placement: 'floor' | 'wall' | 'floorCovering'): {
+  mounted?: boolean
+  noClip?: boolean
+} {
+  if (placement === 'wall') return { mounted: true }
+  if (placement === 'floorCovering') return { noClip: true }
+  return {}
 }
