@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C61] Test — parametric item props survive save/load
+Added a schema round-trip test asserting a parametric item's full `props` (cabinet
+worktop/handle/sink/columns/colour/finish + rotation) survive serialize → parse →
+`applySerialized` verbatim — guarding persistence of every new cabinet/appliance option.
+
 ## [C60] New appliance — wine / beverage cooler
 Added a `WineCooler` primitive + catalog entry: slim under-counter unit with a tinted
 glass door, wire shelves, interior LED glow and a bar handle; width 30–60 cm,
