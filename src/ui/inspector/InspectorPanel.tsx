@@ -286,6 +286,12 @@ function PosField({
 export function InspectorPanel() {
   const multiCount = useStore((s) => s.selectedItemIds.length)
   const item = useStore(useShallow((s) => s.items.find((i) => i.id === s.selectedItemId) ?? null))
+  // How many *other* placed items share this def — gates the "apply finish to
+  // all of this type" action (also in the right-click menu, surfaced here for
+  // touch where right-click is a long-press).
+  const sameTypeCount = useStore((s) =>
+    item ? s.items.filter((i) => i.defId === item.defId).length : 0,
+  )
   const proMode = useStore((s) => s.uiMode === 'pro')
   const catalog = useCatalog()
   const deleteItem = useStore((s) => s.deleteItem)
@@ -631,6 +637,25 @@ export function InspectorPanel() {
                 <Icon.Copy width={14} height={14} />
                 Swap with similar
               </button>
+              {sameTypeCount > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const n = useStore.getState().applyStyleToAll(item.id)
+                    if (n > 0)
+                      useStore.getState().notify.start({
+                        title: `Applied this finish to ${n} more`,
+                        kind: 'success',
+                      })
+                  }}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  title="Copy this item's finish, colour & material to every other item of the same type"
+                >
+                  <Icon.Palette width={14} height={14} />
+                  Apply finish to all ({sameTypeCount - 1})
+                </button>
+              ) : null}
               {activeGroupId && item.groupId !== activeGroupId && (
                 <button
                   type="button"

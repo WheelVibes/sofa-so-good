@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [QOL-styleall] Surface "Apply finish to all of this type" in the inspector
+The existing `applyStyleToAll` (copy an item's finish/colour/material to every
+same-def piece) was right-click-only — now also a one-tap inspector button
+(shown when 2+ of the type exist), reachable on touch where right-click is a
+long-press. Screenshot-verified; reuses the tested store action.
+
 ## [RE-bound3] Wall-bound keyboard nudge + inspector numeric edits
 The arrow-key nudge, paste, and single/group rotate (App) plus the inspector's
 numeric move/rotate + duplicate/duplicate-row (which previously called canPlace
