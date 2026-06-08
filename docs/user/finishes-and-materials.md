@@ -39,7 +39,10 @@ and ambientCG:
 You can apply a real PBR material — including a CC0 set downloaded from Poly Haven
 or ambientCG — directly to a piece of furniture. In a selected item's inspector,
 the wood / surface **finish** dropdown lists these as **"CC0 DLC"** options; pick
-one and the piece re‑renders with that material.
+one and the piece re‑renders with that material. Below the dropdown, a **Quick
+finishes** row offers common woods + marble (oak, walnut, teak, ash, ebony,
+marble) as one‑tap swatches, and **Apply finish to all** copies the piece's
+finish to every other item of the same type.
 
 ## Tidy up a room
 

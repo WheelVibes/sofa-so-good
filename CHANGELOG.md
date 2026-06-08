@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [DOCS2] User-guide coverage for the run's features
+Documented in the VitePress user guide: budget HUD + per-room/category spend +
+budget-in-report (design-tools), Mirror room / Copy layout / per-room lock /
+collapse-all (room-editor), and Quick finishes + Apply-finish-to-all (finishes).
+
 ## [C20] Price-aware catalog empty state + production-build check
 A Max-$ filter that hides every card now shows "Nothing under $N here — raise the
 Max $ filter." instead of the misleading "No items in this category yet." Also

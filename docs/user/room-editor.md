@@ -33,6 +33,20 @@ For a fast, fluid editing experience the room editor pins the **Performance**
 render tier and **Original**‑quality assets while it's active, restoring your
 previous settings on exit.
 
+## Room layout shortcuts
+
+Click a wall or the floor to open the finish picker, which also hosts per‑room
+layout actions:
+
+- **Tidy up room** — auto‑arrange the room to interior‑design clearances.
+- **Mirror room** — flip the room's furniture left↔right across its centre
+  (great for symmetric bedrooms). Pieces that would hit a wall stay put.
+- **Copy layout to…** — clone this room's arrangement into another room
+  (perfect for repeated bedrooms); anything that won't fit is skipped.
+
+In the **Objects / Layers** view each room group has an **eye** (hide) and a
+**lock** toggle, and the footer can **collapse / expand all rooms** at once.
+
 ## Exiting
 
 Click the **left‑arrow exit button** at the far left of the toolbar (labelled
