@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C13] Budget HUD opens the Shopping panel on click
+The always-on budget pill is now a button (was `pointer-events:none`) — tapping
+it opens the Budget/Shopping panel for the full breakdown, with a hover affordance.
+DOM-verified (click → budgetOpen).
+
 ## [C12] Per-room lock toggle in the Layers panel
 New `itemsSlice.setItemsLocked(ids, locked)` (one history step) + a lock/unlock
 icon in each Layers room-group header (beside the per-room eye), so you can

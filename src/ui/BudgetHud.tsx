@@ -33,9 +33,13 @@ export function BudgetHud() {
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`
 
   return (
-    <div
+    <button
+      type="button"
       className={`budget-hud${over ? ' over' : ''}`}
-      title="Estimated spend vs your budget target"
+      title="Estimated spend vs your budget target — open the Shopping list"
+      onClick={() => {
+        if (!useStore.getState().budgetOpen) useStore.getState().toggleBudget()
+      }}
     >
       <div className="budget-hud-row">
         <span className="budget-hud-spent mono">{fmt(spent)}</span>
@@ -47,6 +51,6 @@ export function BudgetHud() {
       <div className="budget-hud-bar">
         <div className="budget-hud-fill" style={{ width: `${pct}%` }} />
       </div>
-    </div>
+    </button>
   )
 }
