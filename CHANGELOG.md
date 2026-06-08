@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C49] GLB designer — full-screen + Pro-gated
+The asset designer now fills the whole viewport (100vw×100dvh, overriding the panel's
+max-height) for room to work, and is **Pro-only**: the dialog no-ops in Simple mode and
+its ⌘K entry is hidden there (new `PRO_ONLY_COMMANDS` gate in the command palette).
+
 ## [C48] GLB designer v2 — per-mesh recolour / hide of a source GLB
 The designer now lists a source GLB's named meshes ("Recolour parts") with a colour
 picker + hide toggle, so you can recolour a cushion or hide a part to make a variant.

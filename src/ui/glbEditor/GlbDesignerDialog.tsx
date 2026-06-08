@@ -69,6 +69,10 @@ const SHAPES: { kind: ShapeKind; label: string }[] = [
  */
 export function GlbDesignerDialog() {
   const open = useStore((s) => s.glbDesignerOpen)
+  // Pro-only tool: a power feature that needs the full canvas. Simple mode keeps
+  // the UI minimal, so never surface it there (defensive — the ⌘K entry is also
+  // hidden in simple mode).
+  const isPro = useStore((s) => s.uiMode === 'pro')
   const close = () => useStore.getState().setGlbDesignerOpen(false)
   // Select the stable array ref, filter in a memo — filtering inside the selector
   // returns a fresh array every render and spins Zustand into an update loop.
@@ -117,7 +121,7 @@ export function GlbDesignerDialog() {
     }
   }, [open])
 
-  if (!open) return null
+  if (!open || !isPro) return null
 
   const sel = spec.parts.find((p) => p.id === selId) ?? null
 
@@ -150,8 +154,11 @@ export function GlbDesignerDialog() {
         style={{
           display: 'flex',
           flexDirection: 'column',
-          width: 'min(960px, 94vw)',
-          height: 'min(640px, 90vh)',
+          width: '100vw',
+          height: '100dvh',
+          maxWidth: 'none',
+          maxHeight: 'none',
+          borderRadius: 0,
         }}
       >
         <div className="panel-head">

@@ -26,6 +26,9 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   floorplan: 'floorPlanEditor',
 }
 
+/** ⌘K command ids that are Pro-only (hidden in Simple mode). */
+const PRO_ONLY_COMMANDS = new Set<string>(['glb-designer'])
+
 interface Command {
   id: string
   group: string
@@ -308,15 +311,18 @@ export function CommandPalette() {
   }, [byCategory])
 
   // Drop commands whose feature flag is off (saved-view commands gate on the
-  // savedViews flag) so the palette can't launch a disabled feature.
+  // savedViews flag) so the palette can't launch a disabled feature. Pro-only
+  // commands are also hidden in Simple mode.
   const flags = useStore((s) => s.featureFlags)
+  const isPro = useStore((s) => s.uiMode === 'pro')
   const allowed = useMemo(
     () =>
       commands.filter((c) => {
+        if (PRO_ONLY_COMMANDS.has(c.id) && !isPro) return false
         const flag = COMMAND_FLAGS[c.id] ?? (c.id.startsWith('view:') ? 'savedViews' : undefined)
         return !flag || flags[flag]
       }),
-    [commands, flags],
+    [commands, flags, isPro],
   )
 
   const q = query.trim().toLowerCase()
