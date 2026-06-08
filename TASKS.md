@@ -18,7 +18,7 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 ## Feature-flag retrofit (infra shipped: registry + resolver + admin + panel + desktop/⌘K gating)
 
 ## Features (larger)
-- [ ] K1b. **Cabinet engine — next steps**: auto-arrange a run of base+wall cabinets along a wall; sink/hob cut-outs in a base cabinet; corner/blind units. (Core engine shipped C38.)
+- [~] K1b. **Cabinet engine — next steps**: sink cut-out shipped (C42). TODO: hob cut-out, auto-arrange a run of base+wall cabinets along a wall, corner/blind units.
 - [~] Q31. **Drag a material swatch onto a surface in 3D**. Part 1 shipped (C39): tested `finishDrop` resolver + draggable swatches + drop onto Objects-list rows. TODO part 2: the 3D-canvas raycast drop onto floor/wall/item (needs manual/GPU verify).
 - [ ] T3. Per-LOD multi-tier generation for uploads.
 - [~] T2. Crown-molding revisit + kitchen/bath template polish (herringbone floor already shipped).

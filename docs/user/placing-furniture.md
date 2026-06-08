@@ -59,9 +59,9 @@ The **Kitchen** category includes three fully customisable cabinet carcasses —
 **Base cabinet**, **Wall cabinet (upper)** and **Tall pantry cabinet**. Place
 one and use its inspector to dial in the **width, height and depth** (down to the
 centimetre), the number of **door columns**, the **front style** (slab, shaker,
-drawers, glass or open shelves), and toggles for the **countertop** (base),
-**cornice/crown cap** (wall & tall) and **toe‑kick**. Build a whole run by
-placing several side by side.
+drawers, glass or open shelves), and toggles for the **countertop** (base), a
+**sink basin** cut into the base worktop, the **cornice/crown cap** (wall & tall)
+and the **toe‑kick**. Build a whole run by placing several side by side.
 
 ### Drag‑to‑rotate ring
 

@@ -46,6 +46,8 @@ export interface CabinetSpec {
   cornice: boolean
   /** Rows of drawers per column when `front === 'drawers'`. */
   drawerRows: number
+  /** Base + countertop only: cut a sink basin into the worktop. */
+  sink?: boolean
 }
 
 export type CabinetPartRole =
@@ -67,12 +69,27 @@ export interface CabinetPart {
   size: [number, number, number]
 }
 
+/** Where the worktop is cut for a sink (footprint-centred X/Z + the worktop top
+ *  Y), so the renderer can drop a basin + faucet into the opening. */
+export interface SinkCutout {
+  /** Centre X/Z of the opening (m). */
+  x: number
+  z: number
+  /** Opening width × depth (m). */
+  w: number
+  d: number
+  /** World Y of the worktop top surface (basin rim sits just below). */
+  topY: number
+}
+
 export interface CabinetModel {
   parts: CabinetPart[]
   /** Floor → top of the tallest element (countertop or cornice or carcass). */
   totalHeight: number
   /** Overall bounding footprint incl. countertop overhang. */
   bounds: { w: number; d: number; h: number }
+  /** Set when a sink is cut into a base countertop; null otherwise. */
+  sinkCutout: SinkCutout | null
 }
 
 const FRONT_T = 0.018 // door/drawer panel thickness
@@ -94,6 +111,7 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
   const toe = type === 'wall' ? 0 : clamp(input.toeKick, 0, 0.2)
   const wantCountertop = type === 'base' && input.countertop
   const ctT = wantCountertop ? clamp(input.countertopThickness, 0.02, 0.08) : 0
+  const wantSink = wantCountertop && !!input.sink
   const wantCornice = type !== 'base' && input.cornice
   const corniceH = wantCornice ? 0.05 : 0
   const drawerRows = clamp(Math.round(input.drawerRows), 1, 5)
@@ -120,13 +138,29 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
     size: [w, carcassH, d],
   })
 
-  // Countertop (base) — sits on the carcass top with a slight overhang.
-  if (wantCountertop) {
-    parts.push({
-      role: 'countertop',
-      position: [0, carcassTop + ctT / 2, COUNTERTOP_OVERHANG / 2],
-      size: [w + COUNTERTOP_OVERHANG, ctT, d + COUNTERTOP_OVERHANG],
-    })
+  // Countertop (base) — sits on the carcass top with a slight overhang. With a
+  // sink it becomes a frame of four strips around a centred cut-out so a basin
+  // can drop in; without one it's a single slab.
+  const ctW = w + COUNTERTOP_OVERHANG
+  const ctD = d + COUNTERTOP_OVERHANG
+  const ctY = carcassTop + ctT / 2
+  const ctZ = COUNTERTOP_OVERHANG / 2
+  let sinkCutout: SinkCutout | null = null
+  if (wantCountertop && !wantSink) {
+    parts.push({ role: 'countertop', position: [0, ctY, ctZ], size: [ctW, ctT, ctD] })
+  } else if (wantSink) {
+    // Opening sized to the cabinet, leaving a solid rim on every side.
+    const ow = clamp(w - 0.16, 0.3, 0.8)
+    const od = clamp(d - 0.18, 0.28, 0.5)
+    const ct = (x: number, z: number, sw: number, sd: number) =>
+      parts.push({ role: 'countertop', position: [x, ctY, z], size: [sw, ctT, sd] })
+    const sideW = (ctW - ow) / 2
+    const railD = (ctD - od) / 2
+    ct(-ctW / 2 + sideW / 2, ctZ, sideW, ctD) // left
+    ct(ctW / 2 - sideW / 2, ctZ, sideW, ctD) // right
+    ct(0, ctZ - ctD / 2 + railD / 2, ow, railD) // back
+    ct(0, ctZ + ctD / 2 - railD / 2, ow, railD) // front
+    sinkCutout = { x: 0, z: ctZ, w: ow, d: od, topY: carcassTop + ctT }
   }
 
   // Cornice (tall/wall) — caps the carcass top.
@@ -195,5 +229,6 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
       d: d + (wantCountertop ? COUNTERTOP_OVERHANG : 0) + FRONT_T,
       h: topY,
     },
+    sinkCutout,
   }
 }

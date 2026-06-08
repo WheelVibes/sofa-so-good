@@ -33,6 +33,7 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
     countertopThickness: readNum(props, 'countertopThickness', 0.04),
     cornice: readStr(props, 'cornice', 'no') === 'yes',
     drawerRows: readNum(props, 'drawerRows', 3),
+    sink: readStr(props, 'sink', 'no') === 'yes',
   })
 
   const bodyMat = getSurfaceMaterial(finish, color, 1, sheen)
@@ -93,6 +94,58 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
           </group>
         )
       })}
+      {model.sinkCutout && <SinkBasin cut={model.sinkCutout} />}
+    </group>
+  )
+}
+
+/** Stainless basin + faucet dropped into a worktop cut-out (`SinkCutout`). The
+ *  bowl is an open box (floor + 4 inset walls) recessed below the rim so no face
+ *  is coplanar with the worktop (avoids z-fighting), mirroring KitchenCounter. */
+function SinkBasin({ cut }: { cut: NonNullable<ReturnType<typeof buildCabinet>['sinkCutout']> }) {
+  const steel = { color: '#b7bdc2', roughness: 0.25, metalness: 0.8 } as const
+  const wallT = 0.02
+  const bw = cut.w - 0.02
+  const bd = cut.d - 0.02
+  const rimY = cut.topY - 0.008
+  const floorY = cut.topY - 0.18 // bowl depth ~17 cm
+  const wallH = rimY - floorY
+  const wallCY = floorY + wallH / 2
+  const walls: [number, number, number, number][] = [
+    [-bw / 2 + wallT / 2, 0, wallT, bd],
+    [bw / 2 - wallT / 2, 0, wallT, bd],
+    [0, -bd / 2 + wallT / 2, bw, wallT],
+    [0, bd / 2 - wallT / 2, bw, wallT],
+  ]
+  return (
+    <group position={[cut.x, 0, cut.z]}>
+      <mesh receiveShadow position={[0, floorY, 0]}>
+        <boxGeometry args={[bw - wallT * 2, 0.016, bd - wallT * 2]} />
+        <meshStandardMaterial {...steel} />
+      </mesh>
+      {walls.map(([dx, dz, sw, sd], k) => (
+        <mesh key={k} receiveShadow position={[dx, wallCY, dz]}>
+          <boxGeometry args={[sw, wallH, sd]} />
+          <meshStandardMaterial {...steel} />
+        </mesh>
+      ))}
+      {/* Faucet: base + riser + curved spout, at the back edge of the bowl. */}
+      <mesh castShadow position={[0, cut.topY + 0.02, -bd / 2 - 0.03]}>
+        <cylinderGeometry args={[0.03, 0.035, 0.04, 12]} />
+        <meshStandardMaterial {...steel} />
+      </mesh>
+      <mesh castShadow position={[0, cut.topY + 0.15, -bd / 2 - 0.03]}>
+        <cylinderGeometry args={[0.014, 0.014, 0.26, 10]} />
+        <meshStandardMaterial {...steel} />
+      </mesh>
+      <mesh
+        castShadow
+        position={[0, cut.topY + 0.27, -bd / 2 + 0.04]}
+        rotation={[Math.PI / 2.2, 0, 0]}
+      >
+        <cylinderGeometry args={[0.013, 0.013, 0.18, 10]} />
+        <meshStandardMaterial {...steel} />
+      </mesh>
     </group>
   )
 }

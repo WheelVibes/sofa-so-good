@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C42] K1b — sink basin in the base cabinet
+The parametric base cabinet gains a **Sink** option: `buildCabinet` cuts the worktop
+into a 4-strip frame around a centred opening and exposes a `sinkCutout`; the renderer
+drops a recessed stainless basin + faucet into it. Pure model tested (+4 cases);
+screenshot-verified. Coohom-parity kitchen sink unit.
+
 ## [C41] B34 — plan-aware sun-shadow frustum
 `Lighting.tsx` no longer hardcodes the apartment-centred shadow box; new pure tested
 `scene/lighting/shadowFrustum.ts` fits the ortho frustum centre + half-extent to the

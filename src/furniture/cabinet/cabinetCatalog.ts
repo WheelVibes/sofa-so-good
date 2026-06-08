@@ -95,6 +95,16 @@ export const CABINET_DEFS: Record<string, ParametricDef> = {
           { value: 'no', label: 'None' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'sink',
+        label: 'Sink',
+        default: 'no',
+        options: [
+          { value: 'no', label: 'None' },
+          { value: 'yes', label: 'Sink basin' },
+        ],
+      },
       { kind: 'color', key: 'worktopColor', label: 'Worktop', default: '#34373d' },
       dim('countertopThickness', 'Worktop thickness', 0.02, 0.08, 0.04),
       dim('toeKick', 'Toe-kick', 0, 0.18, 0.1),
