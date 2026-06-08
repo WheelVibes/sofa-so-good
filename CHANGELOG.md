@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C4] Per-room spend breakdown in the Budget panel
+Added a "Spend by room" bar list (estimate-based, `pointInRoom` + `itemPrice`)
+beside the existing "Spend by category", so you can see which room the budget
+goes into. Additive; screenshot-verified.
+
 ## [C3] Mirror room layout
 New `layout/mirrorRoom` (pure `mirrorItemX`/`mirrorRoomItems`) + a "Mirror room"
 button in the FinishPicker reflects a room's unlocked furniture left↔right across
