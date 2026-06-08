@@ -47,7 +47,7 @@ export function CategoryTabs({
         type="button"
         onClick={() => onSelect('favourites')}
         className={`chip${active === 'favourites' ? ' on' : ''}`}
-        aria-label="Favourites"
+        aria-label={`Favourites (${favCount})`}
         title="Favourites"
       >
         <Icon.Star className="icn" width={14} height={14} />
@@ -58,7 +58,7 @@ export function CategoryTabs({
           type="button"
           onClick={() => onSelect('recent')}
           className={`chip${active === 'recent' ? ' on' : ''}`}
-          aria-label="Recently used"
+          aria-label={`Recently used (${recentCount})`}
           title="Recently used"
         >
           <Icon.Time className="icn" width={14} height={14} />

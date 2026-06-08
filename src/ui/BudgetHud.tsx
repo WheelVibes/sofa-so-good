@@ -30,6 +30,7 @@ export function BudgetHud() {
     <button
       type="button"
       className={`budget-hud${over ? ' over' : ''}`}
+      aria-label={`Spend ${fmt(spent)} of ${fmt(target)} budget — open the shopping list`}
       title="Estimated spend vs your budget target — open the Shopping list"
       onClick={() => {
         if (!useStore.getState().budgetOpen) useStore.getState().toggleBudget()

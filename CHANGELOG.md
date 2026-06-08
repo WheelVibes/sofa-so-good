@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C33] Accessible names for the budget HUD + favourites/recent chips
+The budget HUD button now has a descriptive `aria-label` (spend/target, was
+title-only) and the Favourites/Recent catalog chips announce their counts
+(badges were visual-only). Small a11y/commercial-readiness pass. DOM-verified.
+
 ## [C8] Swap two rooms' layouts
 New `layout/swapRooms` (pure, 3 tests) + a "Swap layout with…" picker in the
 FinishPicker exchanges two rooms' unlocked furniture (centre-delta translation);
