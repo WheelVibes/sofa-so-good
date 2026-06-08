@@ -114,25 +114,31 @@ describe('buildCabinet — type-specific elements', () => {
     expect(byRole(m, 'cornice')).toHaveLength(0)
   })
 
-  it('a plain countertop is one slab with no sink cutout', () => {
-    const m = buildCabinet(base({ countertop: true, sink: false }))
+  it('a plain countertop is one slab with no worktop cutout', () => {
+    const m = buildCabinet(base({ countertop: true, worktop: 'none' }))
     expect(byRole(m, 'countertop')).toHaveLength(1)
-    expect(m.sinkCutout).toBeNull()
+    expect(m.worktopCutout).toBeNull()
   })
 
   it('a sink turns the worktop into a 4-strip frame around a cutout', () => {
-    const m = buildCabinet(base({ width: 0.8, countertop: true, sink: true }))
+    const m = buildCabinet(base({ width: 0.8, countertop: true, worktop: 'sink' }))
     expect(byRole(m, 'countertop')).toHaveLength(4) // left/right/back/front rim
-    expect(m.sinkCutout).not.toBeNull()
-    const cut = m.sinkCutout!
+    expect(m.worktopCutout?.kind).toBe('sink')
+    const cut = m.worktopCutout!
     // Opening fits inside the cabinet width/depth and sits at the worktop top.
     expect(cut.w).toBeLessThan(0.8)
     expect(cut.topY).toBeCloseTo(m.totalHeight)
   })
 
-  it('a sink only applies with a countertop on a base cabinet', () => {
-    expect(buildCabinet(base({ countertop: false, sink: true })).sinkCutout).toBeNull()
-    expect(buildCabinet(base({ type: 'tall', sink: true })).sinkCutout).toBeNull()
+  it('a hob cuts the worktop the same way and is tagged as a hob', () => {
+    const m = buildCabinet(base({ width: 0.8, countertop: true, worktop: 'hob' }))
+    expect(byRole(m, 'countertop')).toHaveLength(4)
+    expect(m.worktopCutout?.kind).toBe('hob')
+  })
+
+  it('a worktop feature only applies with a countertop on a base cabinet', () => {
+    expect(buildCabinet(base({ countertop: false, worktop: 'sink' })).worktopCutout).toBeNull()
+    expect(buildCabinet(base({ type: 'tall', worktop: 'hob' })).worktopCutout).toBeNull()
   })
 
   it('reports a footprint that includes the countertop overhang + front proudness', () => {

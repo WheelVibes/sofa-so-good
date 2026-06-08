@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C43] K1b — hob/cooktop worktop fitting
+Generalised the base cabinet's `sinkCutout` to a typed `worktopCutout`
+(`kind: 'sink' | 'hob'`) and added a **hob** option: same worktop-frame cut, with
+the renderer dropping a black glass-ceramic panel + four burner rings into it. One
+**Worktop** select (Plain / Sink / Hob). Model tested (16); screenshot-verified.
+
 ## [C42] K1b — sink basin in the base cabinet
 The parametric base cabinet gains a **Sink** option: `buildCabinet` cuts the worktop
 into a 4-strip frame around a centred opening and exposes a `sinkCutout`; the renderer

@@ -1,5 +1,11 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
-import { buildCabinet, type CabinetFront, type CabinetType } from '../cabinet/cabinetModel'
+import {
+  buildCabinet,
+  type CabinetFront,
+  type CabinetType,
+  type WorktopCutout,
+  type WorktopFeature,
+} from '../cabinet/cabinetModel'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 
@@ -33,7 +39,7 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
     countertopThickness: readNum(props, 'countertopThickness', 0.04),
     cornice: readStr(props, 'cornice', 'no') === 'yes',
     drawerRows: readNum(props, 'drawerRows', 3),
-    sink: readStr(props, 'sink', 'no') === 'yes',
+    worktop: readStr(props, 'worktop', 'none') as WorktopFeature,
   })
 
   const bodyMat = getSurfaceMaterial(finish, color, 1, sheen)
@@ -94,15 +100,49 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
           </group>
         )
       })}
-      {model.sinkCutout && <SinkBasin cut={model.sinkCutout} />}
+      {model.worktopCutout?.kind === 'sink' && <SinkBasin cut={model.worktopCutout} />}
+      {model.worktopCutout?.kind === 'hob' && <Hob cut={model.worktopCutout} />}
     </group>
   )
 }
 
-/** Stainless basin + faucet dropped into a worktop cut-out (`SinkCutout`). The
- *  bowl is an open box (floor + 4 inset walls) recessed below the rim so no face
- *  is coplanar with the worktop (avoids z-fighting), mirroring KitchenCounter. */
-function SinkBasin({ cut }: { cut: NonNullable<ReturnType<typeof buildCabinet>['sinkCutout']> }) {
+/** Black glass-ceramic hob panel inset into a worktop cut-out, with four burner
+ *  rings etched on top. Sits flush at the worktop surface (proud by ~6 mm). */
+function Hob({ cut }: { cut: WorktopCutout }) {
+  const panel = { color: '#15171a', roughness: 0.18, metalness: 0.2 } as const
+  const ring = { color: '#3a3d42', roughness: 0.5, metalness: 0.3 } as const
+  const pw = cut.w
+  const pd = cut.d
+  // Four zones in a 2×2 grid, radii scaled to the panel.
+  const r = Math.min(pw, pd) * 0.18
+  const ox = pw * 0.24
+  const oz = pd * 0.24
+  const zones: [number, number][] = [
+    [-ox, -oz],
+    [ox, -oz],
+    [-ox, oz],
+    [ox, oz],
+  ]
+  return (
+    <group position={[cut.x, cut.topY, cut.z]}>
+      <mesh receiveShadow position={[0, -0.004, 0]}>
+        <boxGeometry args={[pw, 0.02, pd]} />
+        <meshStandardMaterial {...panel} />
+      </mesh>
+      {zones.map(([dx, dz], k) => (
+        <mesh key={k} position={[dx, 0.008, dz]} rotation={[-Math.PI / 2, 0, 0]}>
+          <ringGeometry args={[r * 0.7, r, 24]} />
+          <meshStandardMaterial {...ring} side={2} />
+        </mesh>
+      ))}
+    </group>
+  )
+}
+
+/** Stainless basin + faucet dropped into a worktop cut-out. The bowl is an open
+ *  box (floor + 4 inset walls) recessed below the rim so no face is coplanar with
+ *  the worktop (avoids z-fighting), mirroring KitchenCounter. */
+function SinkBasin({ cut }: { cut: WorktopCutout }) {
   const steel = { color: '#b7bdc2', roughness: 0.25, metalness: 0.8 } as const
   const wallT = 0.02
   const bw = cut.w - 0.02

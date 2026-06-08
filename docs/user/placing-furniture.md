@@ -60,8 +60,9 @@ The **Kitchen** category includes three fully customisable cabinet carcasses —
 one and use its inspector to dial in the **width, height and depth** (down to the
 centimetre), the number of **door columns**, the **front style** (slab, shaker,
 drawers, glass or open shelves), and toggles for the **countertop** (base), a
-**sink basin** cut into the base worktop, the **cornice/crown cap** (wall & tall)
-and the **toe‑kick**. Build a whole run by placing several side by side.
+**worktop fitting** — a **sink basin** or a **hob/cooktop** cut into the base
+worktop — the **cornice/crown cap** (wall & tall) and the **toe‑kick**. Build a
+whole run by placing several side by side.
 
 ### Drag‑to‑rotate ring
 
