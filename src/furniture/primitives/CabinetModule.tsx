@@ -3,6 +3,7 @@ import {
   buildCabinet,
   type CabinetFront,
   type CabinetType,
+  type HandleStyle,
   type WorktopCutout,
   type WorktopFeature,
 } from '../cabinet/cabinetModel'
@@ -40,6 +41,7 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
     cornice: readStr(props, 'cornice', 'no') === 'yes',
     drawerRows: readNum(props, 'drawerRows', 3),
     worktop: readStr(props, 'worktop', 'none') as WorktopFeature,
+    handle: readStr(props, 'handle', 'bar') as HandleStyle,
   })
 
   const bodyMat = getSurfaceMaterial(finish, color, 1, sheen)
@@ -76,6 +78,16 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
           )
         }
         if (p.role === 'handle') {
+          // A knob is a small round pull at the handle anchor; a bar fills the
+          // part's box. (`none` emits no handle parts, so we never reach here.)
+          if (model.handleStyle === 'knob') {
+            return (
+              <mesh key={key} castShadow position={p.position} rotation={[Math.PI / 2, 0, 0]}>
+                <cylinderGeometry args={[0.014, 0.014, 0.03, 12]} />
+                <meshStandardMaterial {...handleMat} />
+              </mesh>
+            )
+          }
           return (
             <mesh key={key} castShadow position={p.position}>
               <boxGeometry args={p.size} />

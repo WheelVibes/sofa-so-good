@@ -56,6 +56,17 @@ function commonFields(type: CabinetType): ParamField[] {
       ],
     },
     { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
+    {
+      kind: 'enum',
+      key: 'handle',
+      label: 'Handles',
+      default: 'bar',
+      options: [
+        { value: 'bar', label: 'Bar' },
+        { value: 'knob', label: 'Knob' },
+        { value: 'none', label: 'Handleless' },
+      ],
+    },
   ]
 }
 

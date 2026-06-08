@@ -140,6 +140,26 @@ describe('buildCabinet — type-specific elements', () => {
     expect(buildCabinet(base({ countertop: false, worktop: 'sink' })).worktopCutout).toBeNull()
     expect(buildCabinet(base({ type: 'tall', worktop: 'hob' })).worktopCutout).toBeNull()
   })
+})
+
+describe('buildCabinet — handle styles', () => {
+  it('defaults to bar handles (one per door)', () => {
+    const m = buildCabinet(base({ columns: 2, front: 'slab' }))
+    expect(m.handleStyle).toBe('bar')
+    expect(byRole(m, 'handle')).toHaveLength(2)
+  })
+
+  it('omits all handle parts for a handleless cabinet', () => {
+    const m = buildCabinet(base({ columns: 2, front: 'slab', handle: 'none' }))
+    expect(m.handleStyle).toBe('none')
+    expect(byRole(m, 'handle')).toHaveLength(0)
+  })
+
+  it('keeps a handle part per drawer for the knob style', () => {
+    const m = buildCabinet(base({ columns: 2, front: 'drawers', drawerRows: 3, handle: 'knob' }))
+    expect(m.handleStyle).toBe('knob')
+    expect(byRole(m, 'handle')).toHaveLength(6)
+  })
 
   it('reports a footprint that includes the countertop overhang + front proudness', () => {
     const m = buildCabinet(base({ width: 0.6, depth: 0.6 }))

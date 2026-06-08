@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C46] Cabinet handle styles (bar / knob / handleless)
+Cabinets gain a **Handles** option: `buildCabinet` now reports a `handleStyle` and
+omits handle parts when `'none'`; the renderer draws a round knob (cylinder) vs the
+bar (box). Model tested (+3); screenshot-verified across all three styles.
+
 ## [C45] Extract the array-row math into a tested pure module
 The inspector's "Duplicate a row" did its rotation/offset math inline; extracted it
 to a pure, unit-tested `furniture/arrayPlacement.ts` (`arrayOffsets` — rotation-aware

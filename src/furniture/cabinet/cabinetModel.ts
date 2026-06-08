@@ -48,7 +48,12 @@ export interface CabinetSpec {
   drawerRows: number
   /** Base + countertop only: cut a sink basin or a hob/cooktop into the worktop. */
   worktop?: WorktopFeature
+  /** Door/drawer pull style; defaults to a bar. `'none'` = handleless (push-open). */
+  handle?: HandleStyle
 }
+
+/** Pull hardware style on cabinet fronts. */
+export type HandleStyle = 'bar' | 'knob' | 'none'
 
 /** What's set into a base cabinet's worktop (besides a plain slab). */
 export type WorktopFeature = 'none' | 'sink' | 'hob'
@@ -95,6 +100,8 @@ export interface CabinetModel {
   bounds: { w: number; d: number; h: number }
   /** Set when a sink/hob is cut into a base countertop; null otherwise. */
   worktopCutout: WorktopCutout | null
+  /** Pull style the renderer should draw at each `handle` part. */
+  handleStyle: HandleStyle
 }
 
 const FRONT_T = 0.018 // door/drawer panel thickness
@@ -121,6 +128,8 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
   const wantCornice = type !== 'base' && input.cornice
   const corniceH = wantCornice ? 0.05 : 0
   const drawerRows = clamp(Math.round(input.drawerRows), 1, 5)
+  const handleStyle: HandleStyle = input.handle ?? 'bar'
+  const wantHandles = handleStyle !== 'none'
 
   const carcassBottom = toe
   const carcassTop = carcassBottom + carcassH
@@ -199,11 +208,12 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
       for (let r = 0; r < drawerRows; r++) {
         const y = carcassBottom + REVEAL + dh / 2 + r * (dh + gap)
         parts.push({ role: 'drawer', position: [cx, y, frontProudZ], size: [colW, dh, FRONT_T] })
-        parts.push({
-          role: 'handle',
-          position: [cx, y + dh / 2 - 0.03, frontProudZ + FRONT_T / 2 + 0.01],
-          size: [colW * 0.45, HANDLE_W, 0.02],
-        })
+        if (wantHandles)
+          parts.push({
+            role: 'handle',
+            position: [cx, y + dh / 2 - 0.03, frontProudZ + FRONT_T / 2 + 0.01],
+            size: [colW * 0.45, HANDLE_W, 0.02],
+          })
       }
       continue
     }
@@ -220,11 +230,12 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
     }
     // Vertical bar handle on the cabinet's outward edge of each door.
     const hingeSign = c < columns / 2 ? 1 : -1
-    parts.push({
-      role: 'handle',
-      position: [cx + hingeSign * (colW / 2 - 0.035), cy, frontProudZ + FRONT_T / 2 + 0.01],
-      size: [HANDLE_W, Math.min(0.16, frontH * 0.4), 0.02],
-    })
+    if (wantHandles)
+      parts.push({
+        role: 'handle',
+        position: [cx + hingeSign * (colW / 2 - 0.035), cy, frontProudZ + FRONT_T / 2 + 0.01],
+        size: [HANDLE_W, Math.min(0.16, frontH * 0.4), 0.02],
+      })
   }
 
   const topY = wantCountertop ? carcassTop + ctT : carcassTop + corniceH
@@ -237,5 +248,6 @@ export function buildCabinet(input: CabinetSpec): CabinetModel {
       h: topY,
     },
     worktopCutout,
+    handleStyle,
   }
 }
