@@ -146,20 +146,6 @@ export default function App() {
         s.setHelpOpen(!s.helpOpen)
         return
       }
-      // `/` focuses the catalog search (opening the catalog if needed) — a
-      // power-user jump-to-search, only inside the editor and never while typing.
-      if (e.key === '/' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
-        const s = useStore.getState()
-        if (canEditScene(s)) {
-          e.preventDefault()
-          s.setLeftMode('catalog')
-          s.setCatalogOpen(true)
-          requestAnimationFrame(() =>
-            document.querySelector<HTMLInputElement>('.cat-search input')?.focus(),
-          )
-          return
-        }
-      }
       // Ctrl/⌘+A selects every item in the room being edited (editing is
       // room-editor-only now; the overview/walk are view-only). Not while typing.
       if ((e.metaKey || e.ctrlKey) && (e.key === 'a' || e.key === 'A') && !isEditableTarget(e)) {
@@ -226,6 +212,9 @@ export default function App() {
         canEditScene(useStore.getState())
       ) {
         e.preventDefault()
+        // Force the Catalog tab (not Layers) so the search box is the catalog's,
+        // then ensure the drawer is open.
+        useStore.getState().setLeftMode('catalog')
         if (!useStore.getState().catalogOpen) useStore.getState().setCatalogOpen(true)
         // The drawer (and Layers filter) reuse `.cat-search input`; focus it once
         // the panel has mounted/painted.

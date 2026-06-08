@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C18] Fix: remove duplicate "/" handler from C17 (it already existed)
+C17 wrongly added a second `/` handler — App already had one (my earlier grep
+excluded App.tsx). Removed the duplicate and folded the one improvement
+(force the Catalog tab, not Layers) into the original. Verified: `/` from Layers
+switches to Catalog + focuses search.
+
 ## [C17] Implement the "/" focus-catalog-search shortcut
 The Help modal advertised "Search catalog · /" but no handler existed. Added it
 to the global key handler: in the room editor (not while typing), `/` opens the
