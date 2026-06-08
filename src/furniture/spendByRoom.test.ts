@@ -32,6 +32,7 @@ describe('spendByRoom', () => {
     expect(sum).toBe(itemPrice(sofa, sofa.category) + itemPrice(stool, stool.category))
     expect(rows[0].amt).toBeGreaterThanOrEqual(rows[1].amt) // sorted desc
     expect(rows.find((r) => r.name === 'a')!.amt).toBe(itemPrice(sofa, sofa.category))
+    expect(rows.find((r) => r.name === 'a')!.count).toBe(1)
   })
 
   it('buckets items outside any room under "Outside rooms"', () => {

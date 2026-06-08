@@ -6,6 +6,7 @@ import type { FurnitureDef, FurnitureItem } from './types'
 export interface RoomSpendRow {
   name: string
   amt: number
+  count: number
 }
 
 /**
@@ -19,7 +20,7 @@ export function spendByRoom(
   catalog: Record<string, FurnitureDef>,
   rooms: PlanRoom[],
 ): { rows: RoomSpendRow[]; sum: number } {
-  const amt = new Map<string, number>()
+  const agg = new Map<string, { amt: number; count: number }>()
   for (const it of items) {
     const def = catalog[it.defId]
     if (!def) continue
@@ -27,12 +28,14 @@ export function spendByRoom(
     const each = itemPrice(def, def.category, variant)
     const room = rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
     const key = room?.id ?? '__none'
-    amt.set(key, (amt.get(key) ?? 0) + each)
+    const cur = agg.get(key) ?? { amt: 0, count: 0 }
+    agg.set(key, { amt: cur.amt + each, count: cur.count + 1 })
   }
-  const rows = [...amt.entries()]
-    .map(([id, value]) => ({
+  const rows = [...agg.entries()]
+    .map(([id, v]) => ({
       name: id === '__none' ? 'Outside rooms' : (rooms.find((r) => r.id === id)?.name ?? id),
-      amt: value,
+      amt: v.amt,
+      count: v.count,
     }))
     .sort((a, b) => b.amt - a.amt)
   return { rows, sum: rows.reduce((s, r) => s + r.amt, 0) }

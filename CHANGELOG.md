@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C30] Item counts in "Spend by room" + Budget panel visual review
+Extended `spendByRoom` to carry per-room item counts (test updated) and surfaced
+them in the breakdown (e.g. "Living / Dining · 21 · 31%"), matching the category
+rows. Also reviewed the full Budget panel — cohesive, no layout issues. Verified.
+
 ## [C29] Item count in the Budget "Spend by category" rows
 Each category row now shows its item count alongside the % and amount (e.g.
 "Appliances · 9 · 26%"), matching the catalog chip counts. DOM-verified.

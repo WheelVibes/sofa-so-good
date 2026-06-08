@@ -216,7 +216,7 @@ export function BudgetPanel() {
               >
                 Spend by room
               </div>
-              {byRoom.rows.map(({ name, amt }) => {
+              {byRoom.rows.map(({ name, amt, count }) => {
                 const pct = Math.round((amt / byRoom.sum) * 100)
                 return (
                   <div key={name} style={{ marginBottom: 5 }}>
@@ -229,7 +229,7 @@ export function BudgetPanel() {
                       }}
                     >
                       <span>
-                        {name} · {pct}%
+                        {name} · {count} · {pct}%
                       </span>
                       <span className="mono">{fmt(amt)}</span>
                     </div>
