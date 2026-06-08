@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C31] "B" keyboard shortcut to toggle the Budget panel
+Added `B` (orbit views, not while typing, gated on the `budget` feature flag) to
+toggle the Budget/shopping panel — quick access to the now-rich spend view.
+Registered in KEYBINDINGS + Help modal + keyboard-shortcuts doc. DOM-verified.
+
 ## [C30] Item counts in "Spend by room" + Budget panel visual review
 Extended `spendByRoom` to carry per-room item counts (test updated) and surfaced
 them in the breakdown (e.g. "Living / Dining · 21 · 31%"), matching the category

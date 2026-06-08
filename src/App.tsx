@@ -9,6 +9,7 @@ import {
   ROTATE_STEP,
 } from './controls/keybindings'
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
+import { isFeatureEnabled } from './features/featureFlags'
 import { useCatalog } from './furniture/catalog'
 import { planDuplicates } from './furniture/duplicatePlacement'
 import { tidyHome } from './layout/tidyHome'
@@ -144,6 +145,22 @@ export default function App() {
         e.preventDefault()
         const s = useStore.getState()
         s.setHelpOpen(!s.helpOpen)
+        return
+      }
+      // `B` toggles the Budget / shopping panel (an orbit-view .aux panel) when
+      // the budget feature is enabled — quick access to spend tracking. Not while
+      // typing / for modifier combos / in walk.
+      if (
+        (e.key === 'b' || e.key === 'B') &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditableTarget(e) &&
+        useStore.getState().cameraMode === 'orbit' &&
+        isFeatureEnabled('budget')
+      ) {
+        e.preventDefault()
+        useStore.getState().toggleBudget()
         return
       }
       // Ctrl/⌘+A selects every item in the room being edited (editing is

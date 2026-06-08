@@ -8,6 +8,7 @@ const SHORTCUTS: [string, string][] = [
   ['Command palette', '⌘K'],
   ['Search catalog', '/'],
   ['Toggle catalog', 'C'],
+  ['Budget / shopping', 'B'],
   ['Rotate selection', 'R'],
   ['Flip selection', 'F'],
   ['Duplicate', '⌘D'],
