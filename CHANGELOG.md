@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C26] Esc clears/blurs the catalog search
+Pressing Esc in the catalog search now clears a non-empty query (keeping focus to
+keep typing) or blurs the field when already empty — a quick exit, pairing with
+the `/` focus shortcut. DOM-verified ("sofa" → cleared).
+
 ## [C25] Extract spendByRoom helper (tested)
 Moved the Budget panel's inline per-room spend grouping into a pure
 `furniture/spendByRoom` (pointInRoom + itemPrice, "Outside rooms" bucket), now

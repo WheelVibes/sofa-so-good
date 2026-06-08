@@ -218,6 +218,15 @@ export function CatalogDrawer() {
                 type="search"
                 value={query}
                 onChange={(e) => onSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  // Esc clears a non-empty query (keeping focus to keep typing),
+                  // else blurs the field — a quick way out of search.
+                  if (e.key === 'Escape') {
+                    e.stopPropagation()
+                    if (query) onSearch('')
+                    else e.currentTarget.blur()
+                  }
+                }}
                 placeholder={`Search ${totalCount} items…`}
                 className="input"
               />
