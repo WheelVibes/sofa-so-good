@@ -108,7 +108,12 @@ export function FinishPicker() {
     if (!ok) return
     const st = useStore.getState()
     st.pushHistory()
+    const n = roomItemIds.length
     for (const id of roomItemIds) st.deleteItem(id)
+    st.notify.start({
+      title: `Cleared ${n} item${n === 1 ? '' : 's'} from this room`,
+      kind: 'success',
+    })
   }
   const mirrorRoom = () => {
     if (!planRoom || roomItemIds.length === 0) return

@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C36] Clear-room toast + production-build/suite gate
+"Clear room" now shows a "Cleared N items" toast (consistent with the other room
+actions). Also ran the full commercial-readiness gate: production build clean
+(1179 modules) + 1012 tests pass — no regressions across the run's new modules.
+
 ## [C35] Confirmation toasts for "Apply finish to all rooms"
 The Apply-floor/walls-to-all-rooms buttons applied silently; they now show a
 success toast so the bulk action is confirmed. DOM-verified.
