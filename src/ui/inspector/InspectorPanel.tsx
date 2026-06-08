@@ -5,6 +5,7 @@ import { placementWalls } from '../../collision/placementWalls'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
+import { isOffSquare, nearestRightAngle } from '../../layout/angle'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
@@ -660,6 +661,18 @@ export function InspectorPanel() {
                     Go
                   </button>
                 </div>
+              ) : null}
+              {isOffSquare(item.rotation) ? (
+                <button
+                  type="button"
+                  onClick={() => trySetRot((nearestRightAngle(item.rotation) * 180) / Math.PI)}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  title="Snap this item's rotation to the nearest 90°"
+                >
+                  <Icon.Rotate width={14} height={14} />
+                  Straighten
+                </button>
               ) : null}
               <button
                 type="button"

@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C9] "Straighten" — snap a freely-rotated item to 90°
+New `layout/angle` (pure `nearestRightAngle`/`isOffSquare`, 4 tests) + an inspector
+"Straighten" button shown only when an item is off a right angle (the gizmo allows
+free angles with Shift); one tap squares it, collision-checked. Verified
+(0.40→0.00 rad).
+
 ## [C7] Copy a room's layout to another room
 New `layout/cloneRoom` (pure, 2 tests) + a "Copy layout to…" picker in the
 FinishPicker clones a room's unlocked furniture into another room (translated by
