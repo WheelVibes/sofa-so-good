@@ -306,7 +306,14 @@ rediscover it.
   (`useInspectorMinimize` — collapses the panel to just its header so it stops
   blocking the furniture, especially on mobile; **auto-minimizes while a
   move/rotate gesture is in progress**, keyed on `draggingItemId`/`rotatingGizmo`,
-  restoring afterwards),
+  restoring afterwards; a per-item **price estimate** line (`itemPrice`) + the
+  multi-select header's **selection total**; **Quick finishes** swatch row under
+  the wood/surface finish dropdown (`inspector/QuickFinishes` — curated oak/
+  walnut/teak/ash/ebony/marble one-tap); an **Apply finish to all** of this type
+  button (touch-reachable parity with the right-click menu's `applyStyleToAll`);
+  and a **Straighten** button (`layout/angle` `nearestRightAngle`/`isOffSquare`)
+  shown when an item is off a right angle, snapping its rotation to the nearest
+  90°),
   FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel,
   NavCluster (fused compass + zoom rail + minimap, bottom-right), the
   **CommandPalette** (⌘K), **ContextMenu** (right-click on a placed item),
@@ -409,7 +416,10 @@ rediscover it.
   local *and* CC0 — toggling `collections`, which also feeds the catalog's
   favourites category; an optional **budget target** — `featuresSlice.budgetTarget`,
   persisted per-device via `storage/budgetPrefs.ts` — drives an over/under
-  progress indicator), and **Share & export** (`ShareModal.tsx` — link copy + a real
+  progress indicator, a **Spend by room** breakdown beside Spend by category, and
+  an always-on **budget HUD** pill (`ui/BudgetHud` — spend/target + over/under bar,
+  shown only when a target is set, orbit views, bottom-centre)), and **Share &
+  export** (`ShareModal.tsx` — link copy + a real
   PNG snapshot via the `sofa:export` event). The **2D floor-plan editor**
   (`ui/floorplan/`) and **upload dialogs** (`ui/upload/`) are fully token-themed
   (light + dark) — the floor-plan editor hides the main toolbar while open (its
@@ -990,7 +1000,12 @@ rediscover it.
   faces the TV, walkways + door/window clearances preserved. Clearance values
   live in `src/layout/designRules.ts` (`CLEARANCE`) and drive the per-room
   auto-arranger in `src/layout/autoArrange.ts` (`arrangeRoom`, exposed in-app
-  as the Finish-picker "Tidy up room" button). Per-room strategies by
+  as the Finish-picker "Tidy up room" button). The Finish-picker also hosts
+  per-room layout actions: **Mirror room** (`layout/mirrorRoom` — reflect the
+  room's furniture left↔right across its centre, skipping clones that won't fit)
+  and **Copy layout to…** (`layout/cloneRoom` — clone the room's furniture into
+  another room, translated by the room-centre delta, collision-checked). Per-room
+  strategies by
   `roomKind`: living, bedroom, **kitchen** (`arrangeKitchen` — counters flush
   largest-first, then fridge + stove biased to opposite ends of the longest run
   so the sink sits between them: the refrigerator→sink→range work triangle),

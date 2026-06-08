@@ -112,6 +112,17 @@ export the result — all in the browser.
   a **per-room ceiling height** for dropped/false ceilings) or
   start from a template; the 3D flat, finishes, and furniture collision all
   follow your custom plan, and plans save to a named library.
+- **Stay on budget while you design** — set a **budget target** and an always-on
+  pill shows spend vs. target (green under, red over) as you place furniture; the
+  Shopping list breaks spend down **by category and by room**, and every item
+  shows its **price** in the inspector (with a live **selection total** when you
+  multi-select).
+- **Room layout shortcuts** — **Mirror room** flips a room's furniture left↔right
+  across its centre, **Copy layout to…** clones a room's arrangement into another
+  (perfect for repeated bedrooms), **Apply finish to all** of a type recolours
+  every matching piece in one tap, **Quick finishes** put oak/walnut/teak/marble
+  one tap under the finish dropdown, and **Straighten** squares up a
+  freely-rotated piece to the nearest 90°. All collision-checked and undoable.
 - **Design tools** — a SGD **budget** / shopping list (with an optional **budget
   target** that tracks how far over/under you are), door-swing **clearance
   checks**, a **sun study** time-lapse, an auto **walkthrough** tour, point-to-

@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [DOCS] Sync CLAUDE.md + README with this run's features
+Documented the inspector price/selection-total/Quick-finishes/Apply-finish-to-all/
+Straighten, the Budget "Spend by room" + always-on budget HUD, and the
+Finish-picker Mirror-room / Copy-layout-to actions, so the architecture index +
+README match the shipped code.
+
 ## [C9] "Straighten" — snap a freely-rotated item to 90°
 New `layout/angle` (pure `nearestRightAngle`/`isOffSquare`, 4 tests) + an inspector
 "Straighten" button shown only when an item is off a right angle (the gizmo allows
