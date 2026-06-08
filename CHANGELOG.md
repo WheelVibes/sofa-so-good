@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [QOL-price] Per-item price estimate in the inspector header
+The inspector now shows an item's estimated price (`itemPrice`, IKEA variant-
+aware) under its dimensions, so cost is visible while designing — not only in the
+Budget panel. Hidden when minimized. Screenshot-verified.
+
 ## [QOL-styleall] Surface "Apply finish to all of this type" in the inspector
 The existing `applyStyleToAll` (copy an item's finish/colour/material to every
 same-def piece) was right-click-only — now also a one-tap inspector button

@@ -4,6 +4,7 @@ import { canPlace } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
+import { itemPrice } from '../../furniture/furniturePrices'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
@@ -477,6 +478,17 @@ export function InspectorPanel() {
                 <div className="panel-sub">{def.category}</div>
                 <div className="dims mono" title="Width × Depth × Height">
                   {formatDimsShort([w, d, def.defaultFootprint.h], units)}
+                </div>
+                <div
+                  className="insp-price mono"
+                  title="Estimated price (see the Budget panel for the full list)"
+                >
+                  ~$
+                  {itemPrice(
+                    def,
+                    def.category,
+                    typeof item.props.variant === 'string' ? item.props.variant : undefined,
+                  ).toLocaleString('en-SG')}
                 </div>
               </>
             )}

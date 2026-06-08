@@ -234,3 +234,6 @@
 .quick-finish-h { display: block; font-size: var(--t-2xs); font-weight: 600; color: var(--text-3); margin-bottom: 4px; }
 .quick-finish-row { display: flex; flex-wrap: wrap; gap: var(--s-2); }
 .quick-finish-row .swatch { width: 30px; height: 30px; }
+
+/* Estimated price line in the inspector header */
+.insp-price { font-size: var(--t-2xs); color: var(--accent-soft-text); font-weight: 700; margin-top: 2px; }
