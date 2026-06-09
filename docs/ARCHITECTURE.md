@@ -186,7 +186,8 @@ same change that reshapes a system.
   **Checks** (`layout/clearance.ts`), **Sun study**, **Walkthrough** (tour+record),
   **Measure** (`TapeMeasure.tsx`, Distance/Area, 📌 Pin → persistent `annotations`),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
-  even-gap distribute (`layout/alignDistribute.ts`); lock; double-click focus.
+  even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
+  snap-to-wall (`layout/faceWall.ts`); lock; double-click focus.
 - **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`): metric/
   imperial display toggle (`editorPrefs`); metric canonical, `formatLength`/`formatArea`/…
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group

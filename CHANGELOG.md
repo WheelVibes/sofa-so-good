@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C90] "Snap to wall" for multi-select (+ pure flush/edge helpers)
+Added a **Snap to wall** bulk action: pushes every selected piece flush against its nearest
+room wall and turns its back to it (orient + move collision-checked together). Factored the
+maths into pure, tested `faceWall.ts` helpers (`nearestWallEdge`, `rotationForEdge`,
+`flushToWall`). Verified end-to-end (dresser → flush west wall, bookshelf → flush north wall).
+
 ## [C89] Bulk rotate ±90° for multi-select
 Added **Rotate −90° / +90°** buttons to the multi-select panel: turns every selected
 (unlocked) piece in place by a quarter turn, collision-checked per item (a piece that would
