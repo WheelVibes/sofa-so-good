@@ -13,7 +13,7 @@ export the result — all in the browser.
   derived from a measured floor plan; openable doors; a household-shelter
   blast door; and HDB-signature touches like window safety grilles and a
   kitchen backsplash.
-- **~75-item furniture catalog** across 15 categories mirroring IKEA's
+- **~95-item furniture catalog** across 15 categories mirroring IKEA's
   departments — beds, seating, tables, storage, kitchen, bathroom, appliances,
   lighting, decor, textiles, outdoor, **electronics**, **kids**, **laundry**,
   and **others** (catch-all) — all parametric (resize / recolour / configure

@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C102] Docs: refresh catalog count (~75 → ~95) after this session's additions
+Updated the README's stale "~75-item" catalog claim to "~95-item" (now ~97 entries: 93 builtin
++ 4 cabinet defs) after the session added toddler bed, laundry hamper, wall tapestry, floor
+speaker, outdoor lounger, pet bed and aquarium. Verified the full default flat (66 items, 11
+rooms) still boots + renders cleanly end-to-end — no regression from the session's changes.
+
 ## [C101] Aquarium glows at night + emitter-spec guard test
 Registered the aquarium as a soft cool-aqua night-time light emitter (bulb placed inside the
 water column) so it reads as a glowing tank after dark, matching the existing fixture emitters.
