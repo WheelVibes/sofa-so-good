@@ -8,6 +8,7 @@
 import type { ComponentType } from 'react'
 import type { ParamProps, PrimitiveKind } from '../types'
 import { AirconUnit } from './AirconUnit'
+import { Aquarium } from './Aquarium'
 import { Armchair } from './Armchair'
 import { BarCart } from './BarCart'
 import { BarStool } from './BarStool'
@@ -176,6 +177,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   ChaiseLounge,
   KitchenIsland,
   PetBed,
+  Aquarium,
   Piano,
   Fireplace,
   Vanity,

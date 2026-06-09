@@ -88,6 +88,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'wall-sconce': 70,
   'cove-light': 110,
   // Decor
+  aquarium: 450,
   'pet-bed': 60,
   'potted-plant': 70,
   'wall-art': 90,

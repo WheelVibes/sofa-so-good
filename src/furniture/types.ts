@@ -131,6 +131,7 @@ export type PrimitiveKind =
   | 'ChaiseLounge'
   | 'KitchenIsland'
   | 'PetBed'
+  | 'Aquarium'
   | 'Piano'
   | 'Fireplace'
   | 'Vanity'

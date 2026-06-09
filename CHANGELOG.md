@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C100] New decor centrepiece — aquarium / fish tank
+Added an `Aquarium` primitive + catalog entry (decor): a tintable stand cabinet with a clear
+glass tank over a gravel bed, tinted water filled to just below the rim, planted stems and a
+black top trim. A real interior centrepiece that was missing. Screenshot-verified (glass shows
+the water/gravel/plants through it; sits on its stand).
+
 ## [C99] Security regression test — escape malicious user-furniture names in the report
 Audited every HTML sink in the printable report (the only `document.write` path): plan name,
 note, room/finish names, item names and annotation labels all already route through `esc()`.
