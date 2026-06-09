@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C87] Edge alignment for multi-select (Left / Right / Top / Bottom)
+Wired the footprint-aware `alignEdge` helper into the inspector's multi-select panel as a new
+**Align edges** section — snap every selected piece's near/far edge along X or Z to the
+selection's extreme edge (vs only centre alignment before). Verified end-to-end (3 mixed-depth
+items → back edges flush to a line).
+
 ## [C86] Footprint-aware even-gap distribute (+ pure align/distribute module)
 Extracted the multi-select align/distribute maths into a tested pure module
 (`layout/alignDistribute.ts`, 12 tests) and upgraded **Distribute evenly** to space

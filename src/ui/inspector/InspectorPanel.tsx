@@ -8,7 +8,12 @@ import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { itemsCost } from '../../furniture/itemsCost'
-import { alignCenter, distributeEvenGaps, obbAxisHalf } from '../../layout/alignDistribute'
+import {
+  alignCenter,
+  alignEdge,
+  distributeEvenGaps,
+  obbAxisHalf,
+} from '../../layout/alignDistribute'
 import { isOffSquare, nearestRightAngle } from '../../layout/angle'
 import { rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
@@ -92,6 +97,29 @@ function MultiSelectPanel() {
     for (const it of sel) {
       const pos: [number, number] = axis === 0 ? [target, it.position[1]] : [it.position[0], target]
       tryMove(it.id, pos)
+    }
+  }
+
+  // Footprint-aware edge alignment: snap every selected piece's near (`min`) or
+  // far (`max`) edge along an axis to the matching extreme of the selection.
+  const edge = (axis: 0 | 1, side: 'min' | 'max') => {
+    const s = useStore.getState()
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    const boxes = sel.flatMap((it) => {
+      const def = catalog[it.defId]
+      if (!def) return []
+      const obb = itemFootprint(it, def)
+      return [
+        { id: it.id, center: it.position[axis], half: obbAxisHalf(obb.hx, obb.hz, obb.rot, axis) },
+      ]
+    })
+    const next = alignEdge(boxes, side)
+    if (next.size === 0) return
+    s.pushHistory()
+    for (const it of sel) {
+      const v = next.get(it.id)
+      if (v === undefined || v === it.position[axis]) continue
+      tryMove(it.id, axis === 0 ? [v, it.position[1]] : [it.position[0], v])
     }
   }
 
@@ -217,6 +245,29 @@ function MultiSelectPanel() {
                 <button type="button" className="act" onClick={() => align(1)}>
                   <Icon.AlignZ width={16} height={16} />
                   Align Z
+                </button>
+              </div>
+            </div>
+            <div className="sec">
+              <div className="sec-h">
+                <span>Align edges</span>
+              </div>
+              <div className="action-grid two">
+                <button type="button" className="act" onClick={() => edge(0, 'min')}>
+                  <Icon.AlignX width={16} height={16} />
+                  Left
+                </button>
+                <button type="button" className="act" onClick={() => edge(0, 'max')}>
+                  <Icon.AlignX width={16} height={16} />
+                  Right
+                </button>
+                <button type="button" className="act" onClick={() => edge(1, 'min')}>
+                  <Icon.AlignZ width={16} height={16} />
+                  Top
+                </button>
+                <button type="button" className="act" onClick={() => edge(1, 'max')}>
+                  <Icon.AlignZ width={16} height={16} />
+                  Bottom
                 </button>
               </div>
             </div>

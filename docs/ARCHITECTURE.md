@@ -185,7 +185,8 @@ same change that reshapes a system.
 - **Design tools** (Arrange/Tools): **Sets** (`furnitureSets.ts` + IKEA `ikeaSets.ts`),
   **Checks** (`layout/clearance.ts`), **Sun study**, **Walkthrough** (tour+record),
   **Measure** (`TapeMeasure.tsx`, Distance/Area, 📌 Pin → persistent `annotations`),
-  **Report** (`ui/report.ts`). Multi-select align/distribute; lock; double-click focus.
+  **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
+  even-gap distribute (`layout/alignDistribute.ts`); lock; double-click focus.
 - **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`): metric/
   imperial display toggle (`editorPrefs`); metric canonical, `formatLength`/`formatArea`/…
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group
