@@ -445,6 +445,30 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'toddler-bed': {
+    kind: 'parametric',
+    id: 'toddler-bed',
+    name: 'Toddler bed',
+    category: 'kids',
+    keywords: ['kids bed', 'junior bed', 'child bed', 'nursery', 'bed', 'cot'],
+    primitive: 'ToddlerBed',
+    defaultFootprint: { w: 0.78, d: 1.45, h: 0.5 },
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Frame', default: '#c8b48f' },
+      { kind: 'color', key: 'bedding', label: 'Bedding', default: '#e7e0d2' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'painted',
+        options: [
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Gloss' },
+        ],
+      },
+    ],
+  },
 
   // ── Seating ─────────────────────────────────────────────────────────────
   'sofa-3seat': {

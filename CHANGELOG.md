@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C81] New kids item — toddler bed
+Added a `ToddlerBed` primitive + catalog entry (kids category): a low junior bed with four
+legs, slatted base, mattress + pillow, a tall headboard and a low footboard, plus short
+safety side rails over the head-half of each side (the foot-half stays open to climb in) —
+the nursery's step up from the crib. Params: frame colour, bedding colour, finish
+(wood/painted/gloss). Fills the gap where kids had a crib but no actual kids bed.
+Screenshot-verified (profile view: floor contact, headboard/footboard heights, side rail).
+
 ## [C80] Lock toggle in the single-item inspector header
 Added a lock/unlock button to the inspector header (lock icon when locked, unlock when not)
 so a bed/built-in can be pinned in place without opening the Layers tab. Verified the

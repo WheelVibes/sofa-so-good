@@ -115,6 +115,7 @@ export type PrimitiveKind =
   | 'StandingFan'
   | 'TowelRail'
   | 'BunkBed'
+  | 'ToddlerBed'
   | 'Crib'
   | 'Soundbar'
   | 'WallMirror'

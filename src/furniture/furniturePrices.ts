@@ -43,6 +43,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'bed-queen': 900,
   'bed-king': 1200,
   'bunk-bed': 850,
+  'toddler-bed': 250,
   crib: 320,
   // Tables
   'coffee-table': 240,
