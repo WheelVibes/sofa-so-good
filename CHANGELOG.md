@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C101] Aquarium glows at night + emitter-spec guard test
+Registered the aquarium as a soft cool-aqua night-time light emitter (bulb placed inside the
+water column) so it reads as a glowing tank after dark, matching the existing fixture emitters.
+Added `lightEmitters.test.ts` validating every emitter spec (real catalog id, finite height,
+positive intensity/distance, hex colour) + that the aquarium bulb sits within its tank. (The
+night glow itself renders only on a dark scene/real GPU, like the other fixture lights.)
+
 ## [C100] New decor centrepiece — aquarium / fish tank
 Added an `Aquarium` primitive + catalog entry (decor): a tintable stand cabinet with a clear
 glass tank over a gravel bed, tinted water filled to just below the rim, planted stems and a
