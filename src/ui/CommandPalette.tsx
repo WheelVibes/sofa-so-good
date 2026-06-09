@@ -5,6 +5,7 @@ import { useCatalog, useCatalogByCategory } from '../furniture/catalog'
 import {
   arrangeSelectionAsRun,
   faceSelectionIntoRoom,
+  mirrorSelectionX,
   snapSelectionToWall,
 } from '../layout/selectionActions'
 import { tidyHome } from '../layout/tidyHome'
@@ -334,6 +335,13 @@ export function CommandPalette() {
               label: 'Face selection into room',
               icon: 'Rotate',
               run: () => faceSelectionIntoRoom(catalog),
+            },
+            {
+              id: 'sel-mirror',
+              group: 'Selection',
+              label: 'Mirror selection (left ↔ right)',
+              icon: 'FlipH',
+              run: () => mirrorSelectionX(catalog),
             },
           ]
         : []

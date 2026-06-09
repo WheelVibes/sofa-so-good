@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C104] Mirror selection (left ↔ right) — multi-select + ⌘K
+Added a **Mirror** bulk action that reflects the selection across its own centre line — each
+piece's X reflects, heading negates and geometry flips (`flipX`), so an asymmetric layout reads
+as its true mirror image (reuses the tested `mirrorItemX`). Commits **all-or-nothing** so a
+piece that would clip a wall on the far side never half-mirrors the group into an overlap.
+Wired into the inspector + the ⌘K Selection group. Verified (positions swap across centroid + flip).
+
 ## [C103] New storage item — freestanding garment rack
 Added a `GarmentRack` primitive + catalog entry (storage): an open clothing rail on a
 metal/wood/painted frame with a lower shoe shelf and a row of hung garments on hangers — the

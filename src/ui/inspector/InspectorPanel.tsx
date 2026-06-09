@@ -19,6 +19,7 @@ import { rotationFacingRoom } from '../../layout/faceWall'
 import {
   arrangeSelectionAsRun,
   faceSelectionIntoRoom,
+  mirrorSelectionX,
   snapSelectionToWall,
 } from '../../layout/selectionActions'
 import { useStore } from '../../state/store'
@@ -181,6 +182,7 @@ function MultiSelectPanel() {
   // Wall-aware bulk actions (shared with the command palette via selectionActions).
   const snapToWall = () => snapSelectionToWall(catalog)
   const arrangeAsRun = () => arrangeSelectionAsRun(catalog)
+  const mirror = () => mirrorSelectionX(catalog)
 
   const deleteAll = () => {
     const s = useStore.getState()
@@ -309,6 +311,15 @@ function MultiSelectPanel() {
                 >
                   <Icon.Rotate width={16} height={16} />
                   Rotate +90°
+                </button>
+                <button
+                  type="button"
+                  className="act"
+                  onClick={mirror}
+                  title="Mirror the selection left↔right across its centre"
+                >
+                  <Icon.FlipH width={16} height={16} />
+                  Mirror
                 </button>
               </div>
               <button

@@ -13,6 +13,7 @@ import { useStore } from '../state/store'
 import { obbAxisHalf } from './alignDistribute'
 import { arrangeRun, type RunItem } from './arrangeRun'
 import { flushToWall, nearestWallEdge, rotationFacingRoom } from './faceWall'
+import { mirrorItemX } from './mirrorRoom'
 
 type Catalog = Record<string, FurnitureDef>
 
@@ -83,6 +84,36 @@ export function snapSelectionToWall(catalog: Catalog): void {
       s.rotateItem(it.id, rot)
       s.moveItem(it.id, pos)
     }
+  }
+}
+
+/**
+ * Mirror the selection left↔right across its own centre line: each piece's X
+ * reflects, its heading negates and its geometry flips, so an asymmetric layout
+ * (an L-sofa + chaise) reads as its mirror image. Per-piece collision-checked.
+ */
+export function mirrorSelectionX(catalog: Catalog): void {
+  const s = useStore.getState()
+  const sel = selectedUnlocked()
+  if (sel.length === 0) return
+  const cx = sel.reduce((a, i) => a + i.position[0], 0) / sel.length
+  const selIds = new Set(sel.map((i) => i.id))
+  const others = s.items.filter((o) => !selIds.has(o.id))
+  // A mirror is a rigid reflection of the whole group, so intra-group spacing is
+  // preserved — only a wall / outside-piece clash can spoil it. Compute every
+  // mirrored placement and commit ALL-OR-NOTHING, so a piece that would clip a
+  // wall on the far side never leaves the layout half-mirrored + overlapping.
+  const planned = sel.map((it) => ({ it, m: mirrorItemX(it, cx), def: catalog[it.defId] }))
+  const allFit = planned.every(
+    ({ m, def }) =>
+      def && canPlace(m, def, { others, defs: catalog, doors: s.doors, walls: placementWalls(s) }),
+  )
+  if (!allFit) return
+  s.pushHistory()
+  for (const { it, m } of planned) {
+    s.moveItem(it.id, m.position)
+    s.rotateItem(it.id, m.rotation)
+    if (m.flipX !== it.flipX) s.flipItem(it.id, 'x')
   }
 }
 
