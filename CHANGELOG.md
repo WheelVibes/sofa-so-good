@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C75] Report — wall-finish schedule (paint/tile to order)
+The printable report gains a **Wall finish schedule** beside the flooring schedule: gross
+wall area per wall finish (room perimeter × ceiling height, honouring per-room overrides),
+the paint/tile procurement view. Pure tested `wallAreaByFinish` (+3); report test asserts it.
+
 ## [C74] GLB designer — accurate saved footprint
 A designer-saved asset got a generic 1×1×1 `defaultFootprint` (wrong catalog dimensions +
 first-placement collision until the GLB loaded). Now `saveAsset` measures the built

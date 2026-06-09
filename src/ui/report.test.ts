@@ -92,6 +92,8 @@ describe('buildReportHtml', () => {
     expect(html).toContain('class="msw"') // colour swatch chip next to the finish
     // Flooring schedule: total area per floor finish.
     expect(html).toContain('Flooring schedule')
+    // Wall finish schedule: gross wall area per wall finish (perimeter × height).
+    expect(html).toContain('Wall finish schedule')
   })
 
   it('omits the Finishes section when no finishes are supplied', () => {

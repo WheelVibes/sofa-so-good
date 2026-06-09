@@ -8,6 +8,7 @@ import {
   floorAreaByFinish,
   furnitureCostByRoom,
   furnitureItemsByRoom,
+  wallAreaByFinish,
 } from './reportData'
 
 // Stub itemPrice → a flat $100 per item so totals are predictable.
@@ -206,5 +207,25 @@ describe('floorAreaByFinish', () => {
   it('skips rooms with no finish set and tolerates undefined', () => {
     expect(floorAreaByFinish(plan, { a: 'oak' })).toEqual([{ id: 'oak', area: 4 }])
     expect(floorAreaByFinish(plan, undefined)).toEqual([])
+  })
+})
+
+describe('wallAreaByFinish', () => {
+  it('sums perimeter × ceiling height per wall finish', () => {
+    // Each 2×2 room: perimeter 2·(2+2)=8 m × height 2.5 = 20 m². Both → 'paint' → 40.
+    const out = wallAreaByFinish(plan, { a: 'paint', b: 'paint' }, 2.5)
+    expect(out).toEqual([{ id: 'paint', area: 40 }])
+  })
+
+  it('uses a room-level ceiling override when present', () => {
+    const p = {
+      rooms: [{ id: 'a', name: 'A', origin: [0, 0], width: 2, depth: 2, ceilingHeight: 3 }],
+    } as unknown as FloorPlan
+    // perimeter 8 × 3 = 24 (override beats the 2.5 default).
+    expect(wallAreaByFinish(p, { a: 'tile' }, 2.5)).toEqual([{ id: 'tile', area: 24 }])
+  })
+
+  it('returns nothing when walls are undefined', () => {
+    expect(wallAreaByFinish(plan, undefined, 2.5)).toEqual([])
   })
 })
