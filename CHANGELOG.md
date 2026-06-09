@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C88] New surface finish — matte concrete / micro-cement
+Added a `concrete` finish to `getSurfaceMaterial` (`getConcreteMaterial` — a tinted matte grey
+with cloudy mottle, sparse aggregate specks and a fine-pore normal) and offered it on the
+coffee/side/dining tables, kitchen island & counter, wall cabinet and vanity — the on-trend
+industrial look. Screenshot-verified (coffee table + island read as believable concrete).
+
 ## [C87] Edge alignment for multi-select (Left / Right / Top / Bottom)
 Wired the footprint-aware `alignEdge` helper into the inspector's multi-select panel as a new
 **Align edges** section — snap every selected piece's near/far edge along X or Z to the

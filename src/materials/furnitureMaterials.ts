@@ -178,6 +178,66 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
   return m
 }
 
+// Polished / micro-cement concrete: a near-uniform grey ground carrying a faint
+// cloudy mottle and sparse darker aggregate specks, over a fine-pore normal — the
+// matte industrial look for worktops, table tops and cabinet carcasses.
+let concreteMaps: { albedo: CanvasTexture; normal: CanvasTexture } | null = null
+function getConcreteMaps(): { albedo: CanvasTexture; normal: CanvasTexture } {
+  if (concreteMaps) return concreteMaps
+  const cloud = makeFbm(0x3c0f, 5, 5)
+  const speck = makeFbm(0x71b3, 4, 80)
+  const pore = makeFbm(0x4d29, 4, 64)
+  const albedo = new Uint8ClampedArray(N * N * 4)
+  const height = new Float32Array(N * N)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N
+      const v = y / N
+      const i = y * N + x
+      // Broad tonal clouds + faint fine grain → a luminance the colour tints.
+      const mottle = (cloud(u, v) - 0.5) * 0.12 + (pore(u, v) - 0.5) * 0.04
+      const sp = speck(u, v)
+      const spot = sp > 0.82 ? -(sp - 0.82) * 1.4 : 0 // sparse dark aggregate
+      const lum = clamp01(0.86 + mottle + spot)
+      const c = Math.round(lum * 255)
+      albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = c
+      albedo[i * 4 + 3] = 255
+      // Shallow surface relief: fine pores + the odd deeper pit at a speck.
+      height[i] = clamp01(pore(u, v) * 0.5 + (sp > 0.86 ? 0.5 : 0))
+    }
+  }
+  const a = canvasFrom(albedo)
+  a.colorSpace = SRGBColorSpace
+  const n = canvasFrom(heightToNormalRGBA(height, N, 1.1))
+  concreteMaps = { albedo: a, normal: n }
+  return concreteMaps
+}
+
+/** Matte concrete / micro-cement tinted to `color` (defaults to a neutral grey
+ *  at the call site). High roughness, no sheen; `repeat` tiles to the piece. */
+export function getConcreteMaterial(color: string, repeat = 1, rough = 0.85): MeshStandardMaterial {
+  const key = `concrete:${color}:${repeat}:${rough.toFixed(2)}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const maps = getConcreteMaps()
+  const map = maps.albedo.clone()
+  const normal = maps.normal.clone()
+  map.repeat.set(repeat, repeat)
+  normal.repeat.set(repeat, repeat)
+  map.needsUpdate = normal.needsUpdate = true
+  const [r, g, b] = hexToRgb(color)
+  const m = new MeshStandardMaterial({
+    color: `rgb(${r},${g},${b})`,
+    roughness: rough,
+    metalness: 0,
+    map,
+    normalMap: normal,
+  })
+  m.normalScale.set(0.4, 0.4)
+  cache.set(key, m)
+  return m
+}
+
 let leatherNormal: Texture | null = null
 function getLeatherNormal(): Texture {
   if (leatherNormal) return leatherNormal
@@ -475,6 +535,8 @@ export function getSurfaceMaterial(
   if (kind === 'marble' || kind === 'stone')
     return getStoneMaterial(color, repeat, sheen > 0 ? sheenRough(0.12, sheen) : 0.12)
   if (kind === 'rattan') return getRattanMaterial(color, repeat * 3)
+  if (kind === 'concrete')
+    return getConcreteMaterial(color, repeat, sheen > 0 ? sheenRough(0.85, sheen) : 0.85)
   return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
 }
 
