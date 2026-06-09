@@ -176,6 +176,29 @@ function MultiSelectPanel() {
     }
   }
 
+  // Rotate every selected (unlocked) piece in place by `delta` (collision-checked
+  // per item, so a piece that would clip a wall/neighbour after turning is left).
+  const rotateAll = (delta: number) => {
+    const s = useStore.getState()
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    if (sel.length === 0) return
+    s.pushHistory()
+    for (const it of sel) {
+      const def = catalog[it.defId]
+      if (!def) continue
+      const rot = it.rotation + delta
+      if (
+        canPlace({ ...it, rotation: rot }, def, {
+          others: s.items.filter((o) => o.id !== it.id),
+          defs: catalog,
+          doors: s.doors,
+          walls: placementWalls(s),
+        })
+      )
+        s.rotateItem(it.id, rot)
+    }
+  }
+
   const deleteAll = () => {
     const s = useStore.getState()
     for (const id of [...s.selectedItemIds]) s.deleteItem(id)
@@ -283,6 +306,26 @@ function MultiSelectPanel() {
                 <button type="button" className="act" onClick={() => distribute(1)}>
                   <Icon.Distribute width={16} height={16} />
                   Across Z
+                </button>
+              </div>
+              <div className="action-grid two" style={{ marginTop: 'var(--s-2)' }}>
+                <button
+                  type="button"
+                  className="act"
+                  onClick={() => rotateAll(-Math.PI / 2)}
+                  title="Rotate each selected piece 90° anticlockwise"
+                >
+                  <Icon.Rotate width={16} height={16} />
+                  Rotate −90°
+                </button>
+                <button
+                  type="button"
+                  className="act"
+                  onClick={() => rotateAll(Math.PI / 2)}
+                  title="Rotate each selected piece 90° clockwise"
+                >
+                  <Icon.Rotate width={16} height={16} />
+                  Rotate +90°
                 </button>
               </div>
               <button

@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C89] Bulk rotate ±90° for multi-select
+Added **Rotate −90° / +90°** buttons to the multi-select panel: turns every selected
+(unlocked) piece in place by a quarter turn, collision-checked per item (a piece that would
+clip after turning is skipped). Fills the gap where multi-select could face-into-room but not
+free-rotate. Verified end-to-end (two chairs turn 0→π/2 and re-render correctly).
+
 ## [C88] New surface finish — matte concrete / micro-cement
 Added a `concrete` finish to `getSurfaceMaterial` (`getConcreteMaterial` — a tinted matte grey
 with cloudy mottle, sparse aggregate specks and a fine-pore normal) and offered it on the
