@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C77] New furniture finish — woven rattan / wicker
+Added a `rattan` finish to `getSurfaceMaterial` (`getRattanMaterial` — a coarse plain
+over-under basketweave normal, tan, cached/tiled) and offered it on the outdoor chair +
+table. Gives a real rattan look (beyond flat teak) for patio furniture/baskets. Verified.
+
 ## [C76] New outdoor item — parasol / umbrella
 Added an `OutdoorParasol` primitive + catalog entry: weighted base, metal pole, octagonal
 fabric canopy (adjustable ⌀) with valance + finial. Completes the balcony collection

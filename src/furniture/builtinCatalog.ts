@@ -3891,6 +3891,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         default: 'wood',
         options: [
           { value: 'wood', label: 'Teak' },
+          { value: 'rattan', label: 'Rattan' },
           { value: 'painted', label: 'Painted' },
           { value: 'gloss', label: 'Metal' },
         ],
@@ -3915,6 +3916,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         default: 'wood',
         options: [
           { value: 'wood', label: 'Teak' },
+          { value: 'rattan', label: 'Rattan' },
           { value: 'painted', label: 'Painted' },
           { value: 'gloss', label: 'Metal' },
         ],

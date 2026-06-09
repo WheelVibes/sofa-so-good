@@ -474,6 +474,7 @@ export function getSurfaceMaterial(
     return getPaintedMaterial(color, true, sheen > 0 ? sheenRough(0.16, sheen) : undefined)
   if (kind === 'marble' || kind === 'stone')
     return getStoneMaterial(color, repeat, sheen > 0 ? sheenRough(0.12, sheen) : 0.12)
+  if (kind === 'rattan') return getRattanMaterial(color, repeat * 3)
   return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
 }
 
@@ -502,6 +503,56 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
     roughnessMap: roughMap,
   })
   m.normalScale.set(0.55, 0.55)
+  cache.set(key, m)
+  return m
+}
+
+// Woven rattan / wicker: a coarse plain over-under weave. At each strand crossing
+// the horizontal or vertical strand is "over" (raised) in a checker, giving the
+// basketweave relief; fine noise adds organic fibre variation. One shared normal.
+let rattanNormal: Texture | null = null
+function getRattanNormal(): Texture {
+  if (rattanNormal) return rattanNormal
+  const strands = 11 // strands across the tile
+  const period = N / strands
+  const fine = makeFbm(0x9a7e, 3, 70)
+  const height = new Float32Array(N * N)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const col = Math.floor(x / period)
+      const row = Math.floor(y / period)
+      // Rounded ridge profile across each strand's width (cos: 1 at centre → 0 at gap).
+      const hProf = Math.cos((((y % period) / period) * 2 - 1) * (Math.PI / 2))
+      const vProf = Math.cos((((x % period) / period) * 2 - 1) * (Math.PI / 2))
+      // Plain weave: alternate which strand sits over at each crossing.
+      const horizOver = (col + row) % 2 === 0
+      const over = horizOver ? hProf : vProf
+      const under = horizOver ? vProf * 0.45 : hProf * 0.45
+      const h = Math.max(over, under)
+      height[y * N + x] = clamp01(h * 0.82 + fine(x / N, y / N) * 0.18)
+    }
+  }
+  rattanNormal = canvasFrom(heightToNormalRGBA(height, N, 3.2))
+  return rattanNormal
+}
+
+/** Woven rattan / wicker — a tan basketweave for outdoor furniture, baskets and
+ *  light decor. Tinted by `color`; `repeat` tiles the weave to the piece size. */
+export function getRattanMaterial(color: string, repeat = 3): MeshStandardMaterial {
+  const key = `rattan:${color}:${repeat}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const normal = getRattanNormal().clone()
+  normal.repeat.set(repeat, repeat)
+  normal.needsUpdate = true
+  const [r, g, b] = hexToRgb(color)
+  const m = new MeshStandardMaterial({
+    color: `rgb(${r},${g},${b})`,
+    roughness: 0.78,
+    metalness: 0.02,
+    normalMap: normal,
+  })
+  m.normalScale.set(0.85, 0.85)
   cache.set(key, m)
   return m
 }
