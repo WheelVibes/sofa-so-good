@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C82] New one-click vignette — Kids room set
+Added a `kids-room` furniture set (toddler bed against the wall + bedside nightstand & lamp
++ low toy-storage organiser + play rug) — the post-crib sibling of the Nursery set, dropped
+group-selected in one click. Screenshot-verified the arrangement (top-down: no overlaps).
+
 ## [C81] New kids item — toddler bed
 Added a `ToddlerBed` primitive + catalog entry (kids category): a low junior bed with four
 legs, slatted base, mattress + pillow, a tall headboard and a low footboard, plus short

@@ -64,6 +64,26 @@ export const FURNITURE_SETS: FurnitureSet[] = [
     ],
   },
   {
+    // The grown-up sibling of the nursery: a toddler bed against the wall with a
+    // bedside nightstand + lamp, a low toy-storage organiser and a soft play rug —
+    // the kids' room once they've graduated from the crib.
+    id: 'kids-room',
+    name: 'Kids room set',
+    items: [
+      { defId: 'rug', dx: 0, dz: 0.45, rotation: 0, props: { width: 1.8, depth: 2.0 } },
+      { defId: 'toddler-bed', dx: 0, dz: 0, rotation: 0 },
+      { defId: 'nightstand', dx: 0.68, dz: -0.5, rotation: 0 },
+      { defId: 'table-lamp', dx: 0.68, dz: -0.5, rotation: 0, props: { surfaceHeight: 0.5 } },
+      {
+        defId: 'toy-storage',
+        dx: -1.05,
+        dz: -0.55,
+        rotation: 0,
+        props: { cols: 3, rows: 2 },
+      },
+    ],
+  },
+  {
     id: 'reading-nook',
     name: 'Reading nook',
     items: [
