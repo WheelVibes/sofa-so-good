@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C99] Security regression test — escape malicious user-furniture names in the report
+Audited every HTML sink in the printable report (the only `document.write` path): plan name,
+note, room/finish names, item names and annotation labels all already route through `esc()`.
+Locked it in with a regression test that a user-uploaded piece named with an `<img onerror>`
+payload is escaped in the shopping list (the one user-controlled string that wasn't yet tested).
+
 ## [C98] New decor item — pet bed (round basket / rectangular mat)
 Added a `PetBed` primitive + catalog entry (decor): a round basket (cushion pad inside a raised
 bolster ring) or a rectangular mat with bolsters on three sides, open at the front. Pets are a

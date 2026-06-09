@@ -170,4 +170,22 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('<script>x</script>')
     expect(html).toContain('&lt;script&gt;')
   })
+
+  it('escapes a malicious user-furniture name in the shopping list', () => {
+    // A user-uploaded/renamed piece carries an arbitrary `name`; it must be
+    // escaped where the report lists it (def.name → the furniture rows).
+    const evil = '<img src=x onerror=alert(1)>'
+    const base = BUILTIN_CATALOG['sofa-3seat']
+    const catalog = { ...BUILTIN_CATALOG, evil: { ...base, id: 'evil', name: evil } }
+    const evilItem = {
+      id: 'e1',
+      defId: 'evil',
+      position: [5, 5] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const html = buildReportHtml(plan, [evilItem], catalog, null)
+    expect(html).not.toContain('<img src=x onerror=alert(1)>')
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+  })
 })
