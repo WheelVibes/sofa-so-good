@@ -15,7 +15,7 @@ import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
-import { formatArea, formatDims, type UnitSystem } from '../utils/measurement'
+import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
 import {
   designPalette,
   floorAreaByFinish,
@@ -125,12 +125,17 @@ export function buildReportHtml(
   // Rooms (skip external ledges with ~0 interior use are still listed). Plain
   // rectangular rooms show their W×D dimensions (a room schedule detail); L-shape
   // / polygon rooms omit them (a bounding box would mislead) — area only.
-  const roomRows = plan.rooms
-    .map((r) => {
-      const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
-      return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
-    })
-    .join('')
+  const roomHeader =
+    '<tr class="cat"><td>Room</td><td class="dim">Size</td><td class="num">Ceiling</td><td class="num">Area</td></tr>'
+  const roomRows =
+    roomHeader +
+    plan.rooms
+      .map((r) => {
+        const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
+        const height = formatLength(r.ceilingHeight ?? plan.ceilingHeight, units)
+        return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${esc(height)}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
+      })
+      .join('')
   const totalArea = planTotalArea(plan)
 
   // Furniture grouped by category.

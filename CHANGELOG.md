@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C79] Report — room schedule header + ceiling-height column
+The report's rooms table now has a labelled header (Room / Size / Ceiling / Area) and a
+**ceiling-height** column (per-room override or the plan default) — a proper room schedule
+for a spec/quote, surfacing the per-room ceiling feature. Report test asserts it.
+
 ## [C78] "Centre in room" — one-click move to room centre
 Added a **Centre** inspector button (paired with Face-into-room in a 2-up row) that moves
 the selected item to the centre of its room, collision-checked — handy for a rug, coffee

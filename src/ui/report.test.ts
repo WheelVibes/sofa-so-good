@@ -42,6 +42,8 @@ describe('buildReportHtml', () => {
     // Default HDB rooms are plain rectangles → a "× … m" dimension appears.
     expect(html).toContain('class="dim"')
     expect(html).toMatch(/\d+\.\d+ × \d+\.\d+ m/)
+    // Room schedule has a header + a ceiling-height column.
+    expect(html).toContain('Ceiling')
   })
 
   it('includes a furnishing-per-area figure when there is area + budget', () => {
