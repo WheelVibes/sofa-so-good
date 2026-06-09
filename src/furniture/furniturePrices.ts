@@ -89,6 +89,7 @@ export const ITEM_PRICE: Record<string, number> = {
   // Decor
   'potted-plant': 70,
   'wall-art': 90,
+  'wall-tapestry': 70,
   rug: 240,
   curtains: 160,
   'roller-blind': 120,

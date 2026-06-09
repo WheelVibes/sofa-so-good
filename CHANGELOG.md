@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C84] New textile decor — wall tapestry (macramé / woven)
+Added a `WallTapestry` primitive + catalog entry (textiles category): a wall hanging on a
+wooden dowel, either a fringed macramé panel or a flat woven panel, with adjustable width /
+drop / rod height. A mounted item that fills out the thin textiles category. Screenshot-
+verified both styles flat against the wall (rod overhang + knotted fringe).
+
 ## [C83] New laundry item — laundry hamper
 Added a `LaundryHamper` primitive + catalog entry (laundry category): a floor basket with a
 round-woven or rectangular bin shape, woven-rattan or canvas body, a fabric liner over the

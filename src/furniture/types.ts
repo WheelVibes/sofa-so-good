@@ -108,6 +108,7 @@ export type PrimitiveKind =
   | 'ShoeCabinet'
   | 'WallShelf'
   | 'WallSconce'
+  | 'WallTapestry'
   | 'CoveLight'
   | 'FloorMirror'
   | 'RollerBlind'

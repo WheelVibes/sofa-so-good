@@ -89,6 +89,7 @@ import { WallClock } from './WallClock'
 import { WallMirror } from './WallMirror'
 import { WallSconce } from './WallSconce'
 import { WallShelf } from './WallShelf'
+import { WallTapestry } from './WallTapestry'
 import { Wardrobe } from './Wardrobe'
 import { WashingMachine } from './WashingMachine'
 import { WineCooler } from './WineCooler'
@@ -147,6 +148,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   ShoeCabinet,
   WallShelf,
   WallSconce,
+  WallTapestry,
   CoveLight,
   FloorMirror,
   RollerBlind,
