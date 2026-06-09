@@ -59,6 +59,7 @@ import { OutdoorLounger } from './OutdoorLounger'
 import { OutdoorParasol } from './OutdoorParasol'
 import { OutdoorTable } from './OutdoorTable'
 import { Oven } from './Oven'
+import { PetBed } from './PetBed'
 import { Piano } from './Piano'
 import { PlanterTrough } from './PlanterTrough'
 import { PottedPlant } from './PottedPlant'
@@ -174,6 +175,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   HangingPlant,
   ChaiseLounge,
   KitchenIsland,
+  PetBed,
   Piano,
   Fireplace,
   Vanity,

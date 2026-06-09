@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C98] New decor item — pet bed (round basket / rectangular mat)
+Added a `PetBed` primitive + catalog entry (decor): a round basket (cushion pad inside a raised
+bolster ring) or a rectangular mat with bolsters on three sides, open at the front. Pets are a
+real interior consideration that was entirely missing. Screenshot-verified both shapes.
+
 ## [C97] Shared selection-action module + ⌘K commands for wall actions
 Extracted the multi-select wall/orient actions (snap-to-wall, arrange-as-run, face-into-room)
 out of the inspector into a reusable `layout/selectionActions.ts` (slimming the panel and

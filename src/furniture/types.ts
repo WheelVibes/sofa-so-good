@@ -130,6 +130,7 @@ export type PrimitiveKind =
   | 'HangingPlant'
   | 'ChaiseLounge'
   | 'KitchenIsland'
+  | 'PetBed'
   | 'Piano'
   | 'Fireplace'
   | 'Vanity'
