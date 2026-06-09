@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C92] New one-click vignette — Sun deck set
+Added a `sun-deck` furniture set (two loungers sharing a side table, parasol behind for shade)
+— the poolside/balcony lounging counterpart to the bistro Balcony set. Screenshot-verified the
+arrangement (loungers separated, parasol canopy overhead, no overlaps).
+
 ## [C91] New outdoor item — sun lounger / daybed
 Added an `OutdoorLounger` primitive + catalog entry (outdoor category): a low slatted frame on
 short feet with a thick seat cushion and an inclined back cushion at the head, in teak / rattan

@@ -179,4 +179,16 @@ export const FURNITURE_SETS: FurnitureSet[] = [
       { defId: 'planter-trough', dx: 0, dz: -0.95, rotation: 0, props: { length: 1.2 } },
     ],
   },
+  {
+    // A sun deck: two loungers side by side sharing a small side table, with a
+    // parasol behind for shade — the poolside/balcony lounging vignette.
+    id: 'sun-deck',
+    name: 'Sun deck',
+    items: [
+      { defId: 'outdoor-lounger', dx: -0.7, dz: 0, rotation: 0 },
+      { defId: 'outdoor-lounger', dx: 0.7, dz: 0, rotation: 0 },
+      { defId: 'side-table', dx: 0, dz: -0.55, rotation: 0 },
+      { defId: 'outdoor-parasol', dx: 0, dz: -1.0, rotation: 0 },
+    ],
+  },
 ]
