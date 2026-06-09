@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C80] Lock toggle in the single-item inspector header
+Added a lock/unlock button to the inspector header (lock icon when locked, unlock when not)
+so a bed/built-in can be pinned in place without opening the Layers tab. Verified the
+toggle flips `item.locked`.
+
 ## [C79] Report — room schedule header + ceiling-height column
 The report's rooms table now has a labelled header (Room / Size / Ceiling / Area) and a
 **ceiling-height** column (per-room override or the plan default) — a proper room schedule

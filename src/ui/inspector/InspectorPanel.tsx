@@ -574,6 +574,19 @@ export function InspectorPanel() {
           </div>
         </div>
         <div className="insp-head-btns">
+          <button
+            type="button"
+            onClick={() => useStore.getState().toggleLock(item.id)}
+            className={`icon-btn${item.locked ? ' on' : ''}`}
+            aria-label={item.locked ? 'Unlock item' : 'Lock item in place'}
+            title={item.locked ? 'Unlock — allow moving/editing' : 'Lock in place'}
+          >
+            {item.locked ? (
+              <Icon.Lock width={16} height={16} />
+            ) : (
+              <Icon.Unlock width={16} height={16} />
+            )}
+          </button>
           <MinimizeButton minimized={minimized} toggle={toggle} />
           <button
             type="button"
