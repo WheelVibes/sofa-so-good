@@ -15,8 +15,12 @@ import {
   obbAxisHalf,
 } from '../../layout/alignDistribute'
 import { isOffSquare, nearestRightAngle } from '../../layout/angle'
-import { arrangeRun, type RunItem } from '../../layout/arrangeRun'
-import { flushToWall, nearestWallEdge, rotationFacingRoom } from '../../layout/faceWall'
+import { rotationFacingRoom } from '../../layout/faceWall'
+import {
+  arrangeSelectionAsRun,
+  faceSelectionIntoRoom,
+  snapSelectionToWall,
+} from '../../layout/selectionActions'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
@@ -149,33 +153,7 @@ function MultiSelectPanel() {
 
   // Orient every selected (unlocked) piece so its back is to the nearest wall of
   // whichever room contains it — a bulk version of the single-item action.
-  const faceAllIntoRoom = () => {
-    const s = useStore.getState()
-    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
-    if (sel.length === 0) return
-    s.pushHistory()
-    for (const it of sel) {
-      const def = catalog[it.defId]
-      const room = s.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
-      if (!def || !room) continue
-      const rect = {
-        minX: room.origin[0],
-        minZ: room.origin[1],
-        maxX: room.origin[0] + room.width,
-        maxZ: room.origin[1] + room.depth,
-      }
-      const rot = rotationFacingRoom(it.position, rect)
-      if (
-        canPlace({ ...it, rotation: rot }, def, {
-          others: s.items.filter((o) => o.id !== it.id),
-          defs: catalog,
-          doors: s.doors,
-          walls: placementWalls(s),
-        })
-      )
-        s.rotateItem(it.id, rot)
-    }
-  }
+  const faceAllIntoRoom = () => faceSelectionIntoRoom(catalog)
 
   // Rotate every selected (unlocked) piece in place by `delta` (collision-checked
   // per item, so a piece that would clip a wall/neighbour after turning is left).
@@ -200,90 +178,9 @@ function MultiSelectPanel() {
     }
   }
 
-  // Push every selected (unlocked) piece flush against its nearest room wall and
-  // turn its back to that wall — the bulk version of dragging a piece into a wall.
-  // Orient + move are collision-checked together, then committed.
-  const snapToWall = () => {
-    const s = useStore.getState()
-    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
-    if (sel.length === 0) return
-    s.pushHistory()
-    for (const it of sel) {
-      const def = catalog[it.defId]
-      const room = s.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
-      if (!def || !room) continue
-      const rect = {
-        minX: room.origin[0],
-        minZ: room.origin[1],
-        maxX: room.origin[0] + room.width,
-        maxZ: room.origin[1] + room.depth,
-      }
-      const edge = nearestWallEdge(it.position, rect)
-      const rot = rotationFacingRoom(it.position, rect)
-      const obb = itemFootprint({ ...it, rotation: rot }, def)
-      const halfX = obbAxisHalf(obb.hx, obb.hz, rot, 0)
-      const halfZ = obbAxisHalf(obb.hx, obb.hz, rot, 1)
-      const pos = flushToWall(it.position, rect, edge, halfX, halfZ)
-      if (
-        canPlace({ ...it, rotation: rot, position: pos }, def, {
-          others: s.items.filter((o) => o.id !== it.id),
-          defs: catalog,
-          doors: s.doors,
-          walls: placementWalls(s),
-        })
-      ) {
-        s.rotateItem(it.id, rot)
-        s.moveItem(it.id, pos)
-      }
-    }
-  }
-
-  // Arrange the selection as a single run flush against the nearest wall — butted
-  // edge-to-edge in left-to-right order, backs to the wall (the kitchen-run /
-  // wardrobe-wall move). Per-piece collision-checked before committing.
-  const arrangeAsRun = () => {
-    const s = useStore.getState()
-    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
-    if (sel.length < 2) return
-    const cx = sel.reduce((a, i) => a + i.position[0], 0) / sel.length
-    const cz = sel.reduce((a, i) => a + i.position[1], 0) / sel.length
-    const room = s.floorPlan.rooms.find((r) => pointInRoom(r, cx, cz)) ?? s.floorPlan.rooms[0]
-    if (!room) return
-    const rect = {
-      minX: room.origin[0],
-      minZ: room.origin[1],
-      maxX: room.origin[0] + room.width,
-      maxZ: room.origin[1] + room.depth,
-    }
-    const edge = nearestWallEdge([cx, cz], rect)
-    const runItems: RunItem[] = sel.flatMap((it) => {
-      const def = catalog[it.defId]
-      if (!def) return []
-      const ob = itemFootprint(it, def)
-      return [{ id: it.id, w: ob.hx * 2, d: ob.hz * 2, pos: it.position }]
-    })
-    const placements = arrangeRun(runItems, edge, rect)
-    s.pushHistory()
-    const selIds = new Set(sel.map((i) => i.id))
-    for (const p of placements) {
-      const it = sel.find((i) => i.id === p.id)
-      const def = it && catalog[it.defId]
-      if (!it || !def) continue
-      if (
-        canPlace({ ...it, rotation: p.rotation, position: p.position }, def, {
-          // Ignore the other run members while arranging (they butt together by
-          // design); still respect walls + everything outside the selection.
-          others: s.items.filter((o) => !selIds.has(o.id)),
-          defs: catalog,
-          doors: s.doors,
-          walls: placementWalls(s),
-        })
-      ) {
-        s.rotateItem(it.id, p.rotation)
-        s.moveItem(it.id, p.position)
-      }
-    }
-  }
+  // Wall-aware bulk actions (shared with the command palette via selectionActions).
+  const snapToWall = () => snapSelectionToWall(catalog)
+  const arrangeAsRun = () => arrangeSelectionAsRun(catalog)
 
   const deleteAll = () => {
     const s = useStore.getState()

@@ -1,7 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import type { FeatureFlag } from '../features/featureFlags'
-import { useCatalogByCategory } from '../furniture/catalog'
+import { useCatalog, useCatalogByCategory } from '../furniture/catalog'
+import {
+  arrangeSelectionAsRun,
+  faceSelectionIntoRoom,
+  snapSelectionToWall,
+} from '../layout/selectionActions'
 import { tidyHome } from '../layout/tidyHome'
 import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
 import { BACKDROPS } from '../scene/SceneBackdrop'
@@ -45,6 +50,9 @@ export function CommandPalette() {
   const open = useStore((s) => s.cmdkOpen)
   const setOpen = useStore((s) => s.setCmdkOpen)
   const byCategory = useCatalogByCategory()
+  const catalog = useCatalog()
+  // Selection-aware layout commands appear only when a multi-selection is live.
+  const selCount = useStore((s) => s.selectedItemIds.length)
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -301,14 +309,42 @@ export function CommandPalette() {
           useStore.getState().setActiveDefId(def.id)
         },
       }))
-    return [...base, ...furniture].map((c) => ({
+    // Selection-aware layout commands (only when 2+ pieces are selected — these
+    // share their logic with the inspector's multi-select panel).
+    const layout: Command[] =
+      selCount >= 2
+        ? [
+            {
+              id: 'sel-snap-wall',
+              group: 'Selection',
+              label: 'Snap selection to wall',
+              icon: 'Snap',
+              run: () => snapSelectionToWall(catalog),
+            },
+            {
+              id: 'sel-arrange-run',
+              group: 'Selection',
+              label: 'Arrange selection as a run (along wall)',
+              icon: 'Tidy',
+              run: () => arrangeSelectionAsRun(catalog),
+            },
+            {
+              id: 'sel-face-room',
+              group: 'Selection',
+              label: 'Face selection into room',
+              icon: 'Rotate',
+              run: () => faceSelectionIntoRoom(catalog),
+            },
+          ]
+        : []
+    return [...base, ...layout, ...furniture].map((c) => ({
       ...c,
       run: () => {
         c.run()
         close()
       },
     }))
-  }, [byCategory])
+  }, [byCategory, catalog, selCount])
 
   // Drop commands whose feature flag is off (saved-view commands gate on the
   // savedViews flag) so the palette can't launch a disabled feature. Pro-only

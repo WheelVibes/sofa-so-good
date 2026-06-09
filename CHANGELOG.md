@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C97] Shared selection-action module + ⌘K commands for wall actions
+Extracted the multi-select wall/orient actions (snap-to-wall, arrange-as-run, face-into-room)
+out of the inspector into a reusable `layout/selectionActions.ts` (slimming the panel and
+de-duplicating the logic), then surfaced them in the **command palette** as a *Selection* group
+that appears whenever 2+ pieces are selected. Screenshot-verified the ⌘K commands appear + run.
+
 ## [C96] Wall-aware "Arrange as run" for multi-select (kitchen-run feature)
 Added an **Arrange as run** bulk action (pure, tested `layout/arrangeRun.ts`): lines the
 selection up as one run — backs flush to the nearest wall, butted edge-to-edge in left-to-right
