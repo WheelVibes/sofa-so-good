@@ -41,6 +41,7 @@ import { Fireplace } from './Fireplace'
 import { FlatscreenTV } from './FlatscreenTV'
 import { FloorLamp } from './FloorLamp'
 import { FloorMirror } from './FloorMirror'
+import { FloorSpeaker } from './FloorSpeaker'
 import { FloorVase } from './FloorVase'
 import { HangingPlant } from './HangingPlant'
 import { HighChair } from './HighChair'
@@ -162,6 +163,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   BunkBed,
   Crib,
   Soundbar,
+  FloorSpeaker,
   WallMirror,
   FloorVase,
   HighChair,

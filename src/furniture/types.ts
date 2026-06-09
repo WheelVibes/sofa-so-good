@@ -120,6 +120,7 @@ export type PrimitiveKind =
   | 'ToddlerBed'
   | 'Crib'
   | 'Soundbar'
+  | 'FloorSpeaker'
   | 'WallMirror'
   | 'FloorVase'
   | 'HighChair'

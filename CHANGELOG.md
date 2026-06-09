@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C85] New electronics — floor-standing speaker
+Added a `FloorSpeaker` primitive + catalog entry (electronics category): a hi-fi tower on a
+low plinth with a tweeter + 1–3 woofer cones on the front baffle, matte or wood-veneer
+finish, adjustable height. Pairs with the TV/soundbar and fills the thin electronics
+category. Screenshot-verified both finishes (driver stack reads on the wood variant).
+
 ## [C84] New textile decor — wall tapestry (macramé / woven)
 Added a `WallTapestry` primitive + catalog entry (textiles category): a wall hanging on a
 wooden dowel, either a fringed macramé panel or a flat woven panel, with adjustable width /

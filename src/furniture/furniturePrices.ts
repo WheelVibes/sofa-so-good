@@ -70,6 +70,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'tv-wall': 1100,
   monitor: 350,
   soundbar: 380,
+  'floor-speaker': 600,
   stove: 600,
   microwave: 180,
   'range-hood': 350,
