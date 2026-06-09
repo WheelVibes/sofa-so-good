@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C86] Footprint-aware even-gap distribute (+ pure align/distribute module)
+Extracted the multi-select align/distribute maths into a tested pure module
+(`layout/alignDistribute.ts`, 12 tests) and upgraded **Distribute evenly** to space
+edge-to-edge *gaps* equally using each piece's footprint — so a row of differently-sized
+items reads tidy (the old centre-spacing left uneven gaps). Verified end-to-end (4 mixed-size
+items → equal ~0.82 m gaps, extremes pinned). Also exposes a footprint-aware edge-align helper.
+
 ## [C85] New electronics — floor-standing speaker
 Added a `FloorSpeaker` primitive + catalog entry (electronics category): a hi-fi tower on a
 low plinth with a tweeter + 1–3 woofer cones on the front baffle, matte or wood-veneer

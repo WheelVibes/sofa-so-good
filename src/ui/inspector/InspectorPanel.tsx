@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { canPlace } from '../../collision/placement'
+import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { pointInRoom } from '../../floorplan/types'
 import { arrayOffsets } from '../../furniture/arrayPlacement'
@@ -8,6 +8,7 @@ import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { itemsCost } from '../../furniture/itemsCost'
+import { alignCenter, distributeEvenGaps, obbAxisHalf } from '../../layout/alignDistribute'
 import { isOffSquare, nearestRightAngle } from '../../layout/angle'
 import { rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
@@ -85,30 +86,36 @@ function MultiSelectPanel() {
   const align = (axis: 0 | 1) => {
     const s = useStore.getState()
     const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
-    if (sel.length < 2) return
-    const mean = sel.reduce((a, i) => a + i.position[axis], 0) / sel.length
+    const target = alignCenter(sel.map((it) => ({ id: it.id, center: it.position[axis], half: 0 })))
+    if (target === null) return
     s.pushHistory()
     for (const it of sel) {
-      const pos: [number, number] = axis === 0 ? [mean, it.position[1]] : [it.position[0], mean]
+      const pos: [number, number] = axis === 0 ? [target, it.position[1]] : [it.position[0], target]
       tryMove(it.id, pos)
     }
   }
 
+  // Footprint-aware even-gap distribution: spaces the edge-to-edge gaps equally
+  // (not just the centres), so a row of differently-sized pieces reads tidy.
   const distribute = (axis: 0 | 1) => {
     const s = useStore.getState()
-    const sel = s.items
-      .filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
-      .sort((a, b) => a.position[axis] - b.position[axis])
-    if (sel.length < 3) return
-    const lo = sel[0].position[axis]
-    const hi = sel[sel.length - 1].position[axis]
-    const step = (hi - lo) / (sel.length - 1)
-    s.pushHistory()
-    sel.forEach((it, i) => {
-      if (i === 0 || i === sel.length - 1) return
-      const v = lo + step * i
-      tryMove(it.id, axis === 0 ? [v, it.position[1]] : [it.position[0], v])
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    const boxes = sel.flatMap((it) => {
+      const def = catalog[it.defId]
+      if (!def) return []
+      const obb = itemFootprint(it, def)
+      return [
+        { id: it.id, center: it.position[axis], half: obbAxisHalf(obb.hx, obb.hz, obb.rot, axis) },
+      ]
     })
+    const next = distributeEvenGaps(boxes)
+    if (next.size === 0) return
+    s.pushHistory()
+    for (const it of sel) {
+      const v = next.get(it.id)
+      if (v === undefined || v === it.position[axis]) continue
+      tryMove(it.id, axis === 0 ? [v, it.position[1]] : [it.position[0], v])
+    }
   }
 
   // Orient every selected (unlocked) piece so its back is to the nearest wall of
