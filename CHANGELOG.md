@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C106] Fix broken user-guide build + document the multi-select toolset
+Fixed a **pre-existing broken `docs:build`**: three `*"Enter <room>?"*` placeholders (navigating
++ room-editor docs) were parsed by VitePress/Vue as unclosed `<room>` tags, failing the whole
+user guide (and `build:all`); escaped them to `&lt;room&gt;`. Verified `npm run docs:build` now
+completes. Also rewrote the user guide's "Multi-select" section to document the full toolset with
+exact button labels (align centre/edge, even-gap distribute, rotate, mirror, snap, arrange-as-run).
+
 ## [C105] Docs: multi-select toolset map + full-panel render check
 Brought `docs/ARCHITECTURE.md`'s multi-select line current — it now lists the full toolset
 (align centre/edge, even-gap distribute, rotate ±90°, face-into-room, snap-to-wall, arrange-as-

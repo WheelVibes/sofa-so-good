@@ -124,12 +124,30 @@ The floor shows the active grid while you drag.
 
 ## Multi‑select, align & group
 
-- **Marquee‑drag** on empty floor (in Select mode) to select several pieces; an
-  align / distribute panel appears.
-- **Group** the selection so it moves and rotates as one. The first click selects
-  the whole group; a second click (or <kbd>Alt</kbd>+click) drills into a single
-  member. Group / Ungroup live in the inspector.
-- **Lock** a piece to protect it from accidental moves.
+**Marquee‑drag** on empty floor (in Select mode) — or <kbd>Shift</kbd>+click pieces,
+or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>A</kbd> to grab the whole room — and the inspector
+turns into a multi‑select panel with a full set of one‑click layout tools:
+
+- **Align centres** — *Align X* / *Align Z* line the pieces' centres up on one axis.
+- **Align edges** — *Left* / *Right* / *Top* / *Bottom* snap a chosen edge of every
+  piece to the selection's outermost edge (footprint‑aware, so mixed sizes stay flush).
+- **Distribute evenly** — *Across X* / *Across Z* space the pieces so the **gaps**
+  between them are equal (not just their centres), keeping the end pieces put.
+- **Rotate −90° / +90°** turn every piece in place; **Mirror** reflects the whole
+  arrangement left↔right (positions, headings and asymmetric shapes all flip).
+- **Face into room** turns each piece's back to its nearest wall; **Snap to wall**
+  also slides it flush against that wall.
+- **Arrange as run** lines the selection up as one run — backs to the nearest wall,
+  butted edge‑to‑edge — the one‑click kitchen‑run / wardrobe‑wall move.
+- **Group** so the pieces move and rotate as one (first click selects the group, a
+  second click or <kbd>Alt</kbd>+click drills into a member); **Duplicate selection**
+  and **Delete all** act on the whole set.
+
+All of the wall / orient / mirror actions are also on the **⌘K** command palette
+(under *Selection*) when two or more pieces are selected.
+
+**Lock** a piece to protect it from accidental moves — locked pieces are skipped by
+every bulk action above.
 
 ## Combining compatible pieces ("Complete with")
 

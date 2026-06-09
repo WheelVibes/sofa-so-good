@@ -7,7 +7,7 @@ orbit and walk from the toolbar's **View** menu (which also holds the framing
 shortcuts below). All furnishing and customizing happens inside the
 [per‑room editor](/room-editor) (open it from the toolbar **Edit** menu →
 **Edit a room**, or just **click a room's floor** in the overview — you'll be
-asked *"Enter <room>?"* first so you never dive in by accident).
+asked *"Enter &lt;room&gt;?"* first so you never dive in by accident).
 
 
 ## Orbit view
@@ -19,7 +19,7 @@ dollhouse view for getting your bearings and presenting the design.
 - **Scroll** to zoom in and out.
 - **Right‑drag** (or <kbd>Shift</kbd> + two‑finger scroll) to pan.
 - **Click a room's floor** to dive into the per‑room editor for that room
-  (you'll confirm *"Enter <room>?"* first).
+  (you'll confirm *"Enter &lt;room&gt;?"* first).
 - Exterior walls between you and the interior fade out automatically so you can
   always see inside.
 
