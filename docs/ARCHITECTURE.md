@@ -187,7 +187,8 @@ same change that reshapes a system.
   **Measure** (`TapeMeasure.tsx`, Distance/Area, 📌 Pin → persistent `annotations`),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
-  snap-to-wall (`layout/faceWall.ts`); lock; double-click focus.
+  snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen
+  run flush along a wall); lock; double-click focus.
 - **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`): metric/
   imperial display toggle (`editorPrefs`); metric canonical, `formatLength`/`formatArea`/…
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group

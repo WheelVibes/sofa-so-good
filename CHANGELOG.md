@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C96] Wall-aware "Arrange as run" for multi-select (kitchen-run feature)
+Added an **Arrange as run** bulk action (pure, tested `layout/arrangeRun.ts`): lines the
+selection up as one run — backs flush to the nearest wall, butted edge-to-edge in left-to-right
+order, centred on where they were. The headline kitchen-run / wardrobe-wall move. Verified
+end-to-end (3 scattered base cabinets → a flush butted run against the wall, fronts to room).
+
 ## [C95] Worktop materials on the kitchen island + counter primitives
 Extended C94's worktop finishes to the `KitchenIsland` (was hardcoded marble) and
 `KitchenCounter` (was a glossy slab) primitives via a `worktopFinish` option — island defaults

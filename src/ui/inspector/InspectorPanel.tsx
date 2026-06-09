@@ -15,6 +15,7 @@ import {
   obbAxisHalf,
 } from '../../layout/alignDistribute'
 import { isOffSquare, nearestRightAngle } from '../../layout/angle'
+import { arrangeRun, type RunItem } from '../../layout/arrangeRun'
 import { flushToWall, nearestWallEdge, rotationFacingRoom } from '../../layout/faceWall'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
@@ -237,6 +238,53 @@ function MultiSelectPanel() {
     }
   }
 
+  // Arrange the selection as a single run flush against the nearest wall — butted
+  // edge-to-edge in left-to-right order, backs to the wall (the kitchen-run /
+  // wardrobe-wall move). Per-piece collision-checked before committing.
+  const arrangeAsRun = () => {
+    const s = useStore.getState()
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    if (sel.length < 2) return
+    const cx = sel.reduce((a, i) => a + i.position[0], 0) / sel.length
+    const cz = sel.reduce((a, i) => a + i.position[1], 0) / sel.length
+    const room = s.floorPlan.rooms.find((r) => pointInRoom(r, cx, cz)) ?? s.floorPlan.rooms[0]
+    if (!room) return
+    const rect = {
+      minX: room.origin[0],
+      minZ: room.origin[1],
+      maxX: room.origin[0] + room.width,
+      maxZ: room.origin[1] + room.depth,
+    }
+    const edge = nearestWallEdge([cx, cz], rect)
+    const runItems: RunItem[] = sel.flatMap((it) => {
+      const def = catalog[it.defId]
+      if (!def) return []
+      const ob = itemFootprint(it, def)
+      return [{ id: it.id, w: ob.hx * 2, d: ob.hz * 2, pos: it.position }]
+    })
+    const placements = arrangeRun(runItems, edge, rect)
+    s.pushHistory()
+    const selIds = new Set(sel.map((i) => i.id))
+    for (const p of placements) {
+      const it = sel.find((i) => i.id === p.id)
+      const def = it && catalog[it.defId]
+      if (!it || !def) continue
+      if (
+        canPlace({ ...it, rotation: p.rotation, position: p.position }, def, {
+          // Ignore the other run members while arranging (they butt together by
+          // design); still respect walls + everything outside the selection.
+          others: s.items.filter((o) => !selIds.has(o.id)),
+          defs: catalog,
+          doors: s.doors,
+          walls: placementWalls(s),
+        })
+      ) {
+        s.rotateItem(it.id, p.rotation)
+        s.moveItem(it.id, p.position)
+      }
+    }
+  }
+
   const deleteAll = () => {
     const s = useStore.getState()
     for (const id of [...s.selectedItemIds]) s.deleteItem(id)
@@ -385,6 +433,16 @@ function MultiSelectPanel() {
               >
                 <Icon.Snap width={14} height={14} />
                 Snap to wall
+              </button>
+              <button
+                type="button"
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                onClick={arrangeAsRun}
+                title="Line the selection up as one run, butted edge-to-edge along the nearest wall"
+              >
+                <Icon.Tidy width={14} height={14} />
+                Arrange as run
               </button>
             </div>
             <div className="sec">
