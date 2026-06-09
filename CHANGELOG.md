@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C105] Docs: multi-select toolset map + full-panel render check
+Brought `docs/ARCHITECTURE.md`'s multi-select line current — it now lists the full toolset
+(align centre/edge, even-gap distribute, rotate ±90°, face-into-room, snap-to-wall, arrange-as-
+run, mirror) and notes the shared `layout/selectionActions.ts` module (inspector + ⌘K).
+Screenshot-verified the now-rich panel renders cleanly with no overflow (incl. the Mirror button).
+
 ## [C104] Mirror selection (left ↔ right) — multi-select + ⌘K
 Added a **Mirror** bulk action that reflects the selection across its own centre line — each
 piece's X reflects, heading negates and geometry flips (`flipX`), so an asymmetric layout reads

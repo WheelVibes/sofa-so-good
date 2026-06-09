@@ -188,7 +188,9 @@ same change that reshapes a system.
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen
-  run flush along a wall); lock; double-click focus.
+  run flush along a wall) / mirror (`layout/mirrorRoom.ts` `mirrorItemX`). The wall/orient/
+  mirror actions live in `layout/selectionActions.ts`, shared by the inspector + ⌘K. Lock;
+  double-click focus.
 - **Measurement units** (`utils/measurement.ts`, `measurementsSlice.units`): metric/
   imperial display toggle (`editorPrefs`); metric canonical, `formatLength`/`formatArea`/…
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group
