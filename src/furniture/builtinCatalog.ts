@@ -3831,6 +3831,28 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'number', key: 'sheen', label: 'Sheen', min: 0, max: 1, step: 0.05, default: 0 },
     ],
   },
+  'outdoor-parasol': {
+    kind: 'parametric',
+    id: 'outdoor-parasol',
+    name: 'Parasol',
+    keywords: ['umbrella', 'patio umbrella', 'sunshade', 'balcony', 'garden', 'shade'],
+    category: 'outdoor',
+    primitive: 'OutdoorParasol',
+    defaultFootprint: { w: 2.2, d: 2.2, h: 2.3 },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'diameter',
+        label: 'Canopy ⌀',
+        min: 1.5,
+        max: 3,
+        step: 0.1,
+        default: 2.2,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'fabric', label: 'Canopy', default: '#b5654a' },
+    ],
+  },
   'outdoor-table': {
     kind: 'parametric',
     id: 'outdoor-table',

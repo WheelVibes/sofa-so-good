@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C76] New outdoor item — parasol / umbrella
+Added an `OutdoorParasol` primitive + catalog entry: weighted base, metal pole, octagonal
+fabric canopy (adjustable ⌀) with valance + finial. Completes the balcony collection
+(planter / chair / table / parasol). Screenshot-verified shading a table.
+
 ## [C75] Report — wall-finish schedule (paint/tile to order)
 The printable report gains a **Wall finish schedule** beside the flooring schedule: gross
 wall area per wall finish (room perimeter × ceiling height, honouring per-room overrides),
