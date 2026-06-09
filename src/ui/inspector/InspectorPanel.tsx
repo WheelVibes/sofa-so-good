@@ -442,6 +442,16 @@ export function InspectorPanel() {
     }
     trySetRot((rotationFacingRoom(it.position, rect) * 180) / Math.PI)
   }
+  // Move the item to the centre of the room it's in (collision-checked) — handy
+  // for centring a rug, coffee table or pendant.
+  const centreInRoom = () => {
+    const st = useStore.getState()
+    const it = st.items.find((i) => i.id === item.id)
+    if (!it) return
+    const room = st.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    if (!room) return
+    tryMove(room.origin[0] + room.width / 2, room.origin[1] + room.depth / 2)
+  }
 
   const duplicate = () => {
     const st = useStore.getState()
@@ -721,16 +731,26 @@ export function InspectorPanel() {
                   Straighten
                 </button>
               ) : null}
-              <button
-                type="button"
-                onClick={faceIntoRoom}
-                className="btn btn-soft btn-block"
-                style={{ marginTop: 'var(--s-2)' }}
-                title="Turn this piece's back to the nearest wall (face into the room)"
-              >
-                <Icon.Rotate width={14} height={14} />
-                Face into room
-              </button>
+              <div className="action-grid two" style={{ marginTop: 'var(--s-2)' }}>
+                <button
+                  type="button"
+                  onClick={faceIntoRoom}
+                  className="act"
+                  title="Turn this piece's back to the nearest wall (face into the room)"
+                >
+                  <Icon.Rotate width={14} height={14} />
+                  Face room
+                </button>
+                <button
+                  type="button"
+                  onClick={centreInRoom}
+                  className="act"
+                  title="Move this piece to the centre of its room"
+                >
+                  <Icon.AlignX width={14} height={14} />
+                  Centre
+                </button>
+              </div>
               <button
                 type="button"
                 onClick={() => useStore.getState().setSwapItemId(item.id)}

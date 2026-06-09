@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C78] "Centre in room" — one-click move to room centre
+Added a **Centre** inspector button (paired with Face-into-room in a 2-up row) that moves
+the selected item to the centre of its room, collision-checked — handy for a rug, coffee
+table or pendant. Verified (off-corner item snaps to the exact room centre).
+
 ## [C77] New furniture finish — woven rattan / wicker
 Added a `rattan` finish to `getSurfaceMaterial` (`getRattanMaterial` — a coarse plain
 over-under basketweave normal, tan, cached/tiled) and offered it on the outdoor chair +
