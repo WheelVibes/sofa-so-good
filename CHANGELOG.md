@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C107] Regression guard — lint docs prose for build-breaking placeholder tags
+Added `docsMarkdownLint.test.ts`: strips code spans/blocks from every user + developer guide
+`.md`, then fails if any prose contains an unknown `<tag>` (the `<room>`-style placeholder that
+silently broke the VitePress build in C106). Catches the whole class of bug in `npm test` —
+far faster than a full `vitepress build` in CI — so the guides can't regress unnoticed again.
+
 ## [C106] Fix broken user-guide build + document the multi-select toolset
 Fixed a **pre-existing broken `docs:build`**: three `*"Enter <room>?"*` placeholders (navigating
 + room-editor docs) were parsed by VitePress/Vue as unclosed `<room>` tags, failing the whole
