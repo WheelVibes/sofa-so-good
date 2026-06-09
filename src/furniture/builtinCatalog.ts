@@ -4005,6 +4005,10 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
     category: 'outdoor',
     primitive: 'OutdoorParasol',
     defaultFootprint: { w: 2.2, d: 2.2, h: 2.3 },
+    // The wide footprint is the canopy, which floats up high — only the thin pole
+    // touches the floor. Span it at canopy height so furniture (loungers, tables)
+    // can sit in its shade without the canopy reading as a floor-level obstacle.
+    verticalSpan: { base: 1.9, top: 2.3 },
     paramSchema: [
       {
         kind: 'number',

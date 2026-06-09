@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C93] Overlap guard for furniture sets + de-clip vignettes + parasol shade fix
+Added a collision-validity test for every `FURNITURE_SETS` vignette (ungrouped, so it catches
+real geometry overlaps; rugs/different-height items stay exempt) and nudged the pieces it
+flagged so nothing clips — lounge, reading-nook, entryway, study, balcony, kids-room, sun-deck.
+Also fixed a real bug: the **parasol had no `verticalSpan`**, so its 2.2 m canopy read as a
+floor-level obstacle and nothing could sit in its shade — now spanned at canopy height so
+loungers/tables tuck underneath. Verified (entryway row + all sets collision-clean).
+
 ## [C92] New one-click vignette — Sun deck set
 Added a `sun-deck` furniture set (two loungers sharing a side table, parasol behind for shade)
 — the poolside/balcony lounging counterpart to the bistro Balcony set. Screenshot-verified the
