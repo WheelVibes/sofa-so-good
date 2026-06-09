@@ -18,6 +18,11 @@ export interface PersistOptions {
    *  store — the caller batch-commits (avoids per-file catalog rebuilds in a
    *  large bulk import). The def is still returned. Default true. */
   commit?: boolean
+  /** Optional measured footprint (m). When known up front (e.g. the asset
+   *  designer builds the geometry), it seeds an accurate `defaultFootprint` so
+   *  the catalog card + first-placement collision are right before the GLB
+   *  loads. Defaults to a 1 m cube (refined from the GLB bbox at render). */
+  footprint?: { w: number; d: number; h: number }
 }
 
 export type PersistResult =
@@ -87,7 +92,7 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
     assetId,
     contentHash,
     uploadedAt: new Date().toISOString(),
-    defaultFootprint: { w: 1.0, d: 1.0, h: 1.0 },
+    defaultFootprint: opts.footprint ?? { w: 1.0, d: 1.0, h: 1.0 },
     runtimeUrl: URL.createObjectURL(blob),
     mounted: opts.mounted,
     noClip: opts.noClip,

@@ -99,27 +99,3 @@ export function updatePart(
 export function isBuildable(spec: AssetEditSpec): boolean {
   return !!spec.sourceAssetId || spec.parts.length > 0
 }
-
-/**
- * Axis-aligned footprint + height of the primitive parts only (metres), used to
- * seed the new def's `defaultFootprint`. Returns null when there are no parts
- * (the caller falls back to the source GLB's measured bounds). Each part spans
- * ±size/2 about its centre; spheres/cylinders use their diameter as width/depth.
- */
-export function partsBounds(parts: ShapePart[]): { w: number; d: number; h: number } | null {
-  if (parts.length === 0) return null
-  let minX = Infinity
-  let maxX = -Infinity
-  let minZ = Infinity
-  let maxZ = -Infinity
-  let maxY = 0
-  for (const p of parts) {
-    const [sx, sy, sz] = p.size
-    minX = Math.min(minX, p.position[0] - sx / 2)
-    maxX = Math.max(maxX, p.position[0] + sx / 2)
-    minZ = Math.min(minZ, p.position[2] - sz / 2)
-    maxZ = Math.max(maxZ, p.position[2] + sz / 2)
-    maxY = Math.max(maxY, p.position[1] + sy / 2)
-  }
-  return { w: maxX - minX, d: maxZ - minZ, h: maxY }
-}

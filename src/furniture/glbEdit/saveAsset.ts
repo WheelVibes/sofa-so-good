@@ -1,7 +1,17 @@
-import type { Object3D } from 'three'
+import { Box3, type Object3D, Vector3 } from 'three'
 import { exportGlb } from '../convert/toGlb'
 import type { FurnitureCategory } from '../types'
 import { type PersistResult, persistUserGlb } from '../upload/persist'
+
+/** Measured world footprint (m) of a built object, for an accurate
+ *  `defaultFootprint`. Returns null for an empty/degenerate object. */
+function measureFootprint(object: Object3D): { w: number; d: number; h: number } | null {
+  const box = new Box3().setFromObject(object)
+  if (box.isEmpty()) return null
+  const size = box.getSize(new Vector3())
+  if (!Number.isFinite(size.x) || size.x <= 0) return null
+  return { w: size.x, d: size.z, h: size.y }
+}
 
 /**
  * Export a designer-built object to a binary GLB and persist it as a new user
@@ -24,6 +34,7 @@ export async function exportAndSaveAsset(
     category,
     mounted: opts.mounted,
     noClip: opts.noClip,
+    footprint: measureFootprint(object) ?? undefined,
   })
 }
 

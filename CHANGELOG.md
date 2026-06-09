@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C74] GLB designer — accurate saved footprint
+A designer-saved asset got a generic 1×1×1 `defaultFootprint` (wrong catalog dimensions +
+first-placement collision until the GLB loaded). Now `saveAsset` measures the built
+object's bounding box (`Box3`) and passes it as the footprint (new `persistUserGlb`
+option). Removed the superseded unused `partsBounds`. Verified: a 0.4 m box saves as a
+0.4 m-cube footprint, not 1×1×1.
+
 ## [C73] "Select all of type" — bulk-select matching items
 Inspector button (shown when 2+ of a type exist) that selects every item sharing the def,
 so you can move/rotate/delete/align them together — complements "Apply finish to all".

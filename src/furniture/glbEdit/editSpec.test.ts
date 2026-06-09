@@ -1,10 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import {
-  type AssetEditSpec,
   addPart,
   createEmptySpec,
   isBuildable,
-  partsBounds,
   removePart,
   setMeshOverride,
   updatePart,
@@ -43,23 +41,6 @@ describe('AssetEditSpec', () => {
     s = addPart(s, 'box')
     const xs = s.parts.map((p) => p.position[0])
     expect(xs).toEqual([0, 0.5, 1])
-  })
-
-  it('computes a footprint that wraps every part', () => {
-    const spec: AssetEditSpec = {
-      sourceScale: 1,
-      meshOverrides: {},
-      parts: [
-        { id: 'a', kind: 'box', position: [0, 0.2, 0], size: [0.4, 0.4, 0.4], color: '#fff' },
-        { id: 'b', kind: 'box', position: [1, 0.5, 0], size: [0.4, 1.0, 0.4], color: '#fff' },
-      ],
-    }
-    // x spans -0.2 … 1.2 = 1.4; z spans ±0.2 = 0.4; max height = 0.5+0.5 = 1.0
-    expect(partsBounds(spec.parts)).toEqual({ w: 1.4, d: 0.4, h: 1.0 })
-  })
-
-  it('returns null bounds when there are no parts', () => {
-    expect(partsBounds([])).toBeNull()
   })
 })
 
