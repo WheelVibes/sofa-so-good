@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C103] New storage item — freestanding garment rack
+Added a `GarmentRack` primitive + catalog entry (storage): an open clothing rail on a
+metal/wood/painted frame with a lower shoe shelf and a row of hung garments on hangers — the
+open-storage alternative to a closed wardrobe (bedrooms, staging, retail). Screenshot-verified
+both frame finishes (rail, shelf, varied hung garments).
+
 ## [C102] Docs: refresh catalog count (~75 → ~95) after this session's additions
 Updated the README's stale "~75-item" catalog claim to "~95-item" (now ~97 entries: 93 builtin
 + 4 cabinet defs) after the session added toddler bed, laundry hamper, wall tapestry, floor

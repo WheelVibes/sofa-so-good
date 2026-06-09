@@ -123,6 +123,7 @@ export type PrimitiveKind =
   | 'FloorSpeaker'
   | 'WallMirror'
   | 'FloorVase'
+  | 'GarmentRack'
   | 'HighChair'
   | 'ChangingTable'
   | 'Bathtub'

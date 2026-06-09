@@ -850,6 +850,41 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
   },
 
   // ── Storage ─────────────────────────────────────────────────────────────
+  'garment-rack': {
+    kind: 'parametric',
+    id: 'garment-rack',
+    name: 'Garment rack',
+    category: 'storage',
+    keywords: ['clothes rail', 'clothing rack', 'open wardrobe', 'rail', 'closet', 'rack'],
+    primitive: 'GarmentRack',
+    defaultFootprint: { w: 1.1, d: 0.45, h: 1.6 },
+    footprintParams: { w: 'width' },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.6,
+        max: 1.8,
+        step: 0.05,
+        default: 1.1,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Frame', default: '#3b3d42' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Frame finish',
+        default: 'gloss',
+        options: [
+          { value: 'gloss', label: 'Metal' },
+          { value: 'wood', label: 'Wood' },
+          { value: 'painted', label: 'Painted' },
+        ],
+      },
+      { kind: 'color', key: 'clothes', label: 'Garments', default: '#9aa6ad' },
+    ],
+  },
   'wardrobe-3door': {
     kind: 'parametric',
     id: 'wardrobe-3door',

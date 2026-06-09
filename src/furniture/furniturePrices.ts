@@ -54,6 +54,7 @@ export const ITEM_PRICE: Record<string, number> = {
   desk: 350,
   // Storage
   wardrobe: 900,
+  'garment-rack': 120,
   'wardrobe-3door': 1100,
   bookshelf: 320,
   'cube-shelf': 280,

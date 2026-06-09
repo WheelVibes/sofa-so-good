@@ -44,6 +44,7 @@ import { FloorLamp } from './FloorLamp'
 import { FloorMirror } from './FloorMirror'
 import { FloorSpeaker } from './FloorSpeaker'
 import { FloorVase } from './FloorVase'
+import { GarmentRack } from './GarmentRack'
 import { HangingPlant } from './HangingPlant'
 import { HighChair } from './HighChair'
 import { KitchenCounter } from './KitchenCounter'
@@ -169,6 +170,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   FloorSpeaker,
   WallMirror,
   FloorVase,
+  GarmentRack,
   HighChair,
   ChangingTable,
   Bathtub,
