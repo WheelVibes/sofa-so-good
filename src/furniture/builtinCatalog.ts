@@ -4089,6 +4089,32 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       },
     ],
   },
+  'outdoor-lounger': {
+    kind: 'parametric',
+    id: 'outdoor-lounger',
+    name: 'Outdoor lounger',
+    keywords: ['sunbed', 'sun lounger', 'daybed', 'deck chair', 'patio', 'balcony', 'poolside'],
+    category: 'outdoor',
+    primitive: 'OutdoorLounger',
+    defaultFootprint: { w: 0.72, d: 1.95, h: 0.5 },
+    frontClearance: 0.4,
+    paramSchema: [
+      { kind: 'color', key: 'color', label: 'Frame', default: '#a9763f' },
+      { kind: 'color', key: 'cushion', label: 'Cushion', default: '#dfe3e1' },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'wood',
+        options: [
+          { value: 'wood', label: 'Teak' },
+          { value: 'rattan', label: 'Rattan' },
+          { value: 'painted', label: 'Painted' },
+          { value: 'gloss', label: 'Metal' },
+        ],
+      },
+    ],
+  },
   'planter-trough': {
     kind: 'parametric',
     id: 'planter-trough',

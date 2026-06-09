@@ -55,6 +55,7 @@ import { Nightstand } from './Nightstand'
 import { OfficeChair } from './OfficeChair'
 import { Ottoman } from './Ottoman'
 import { OutdoorChair } from './OutdoorChair'
+import { OutdoorLounger } from './OutdoorLounger'
 import { OutdoorParasol } from './OutdoorParasol'
 import { OutdoorTable } from './OutdoorTable'
 import { Oven } from './Oven'
@@ -187,4 +188,5 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   OutdoorChair,
   OutdoorTable,
   OutdoorParasol,
+  OutdoorLounger,
 }

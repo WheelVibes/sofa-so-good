@@ -116,6 +116,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'wine-cooler': 700,
   'planter-trough': 90,
   'outdoor-chair': 160,
+  'outdoor-lounger': 380,
   'outdoor-table': 240,
   'outdoor-parasol': 130,
   'cabinet-base': 420,

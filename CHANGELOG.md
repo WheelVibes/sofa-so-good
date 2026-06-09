@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C91] New outdoor item — sun lounger / daybed
+Added an `OutdoorLounger` primitive + catalog entry (outdoor category): a low slatted frame on
+short feet with a thick seat cushion and an inclined back cushion at the head, in teak / rattan
+/ painted / metal finishes. Expands the balcony/poolside set. Screenshot-verified (profile:
+feet on floor, reclined backrest, cushions).
+
 ## [C90] "Snap to wall" for multi-select (+ pure flush/edge helpers)
 Added a **Snap to wall** bulk action: pushes every selected piece flush against its nearest
 room wall and turns its back to it (orient + move collision-checked together). Factored the
