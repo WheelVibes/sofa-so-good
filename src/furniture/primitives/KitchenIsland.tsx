@@ -16,13 +16,14 @@ export function KitchenIsland({ props }: { props: ParamProps }) {
   const finish = readStr(props, 'finish', 'painted')
   const sheen = readNum(props, 'sheen', 0.1)
   const top = readStr(props, 'top', 'plain') // plain / sink / hob
+  const worktopFinish = readStr(props, 'worktopFinish', 'marble')
 
   const cabinetH = 0.85
   const topT = 0.05
   const overhang = 0.28
   const cabDepth = depth - overhang
   const cabMat = getSurfaceMaterial(finish, color, 1.2, sheen)
-  const stone = getSurfaceMaterial('marble', worktopColor, 1.4, 0.55)
+  const stone = getSurfaceMaterial(worktopFinish, worktopColor, 1.4, 0.55)
   const handle = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const
   const metal = { color: '#cfd2d6', roughness: 0.2, metalness: 0.85 } as const
 

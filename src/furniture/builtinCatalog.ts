@@ -4381,6 +4381,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'worktopColor', label: 'Worktop', default: '#2c2f34' },
       {
         kind: 'enum',
+        key: 'worktopFinish',
+        label: 'Worktop material',
+        default: 'marble',
+        options: [
+          { value: 'marble', label: 'Stone / marble' },
+          { value: 'concrete', label: 'Concrete' },
+          { value: 'wood', label: 'Butcher block' },
+          { value: 'gloss', label: 'Gloss / solid' },
+        ],
+      },
+      {
+        kind: 'enum',
         key: 'top',
         label: 'Top',
         default: 'plain',
@@ -4436,6 +4448,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       },
       { kind: 'color', key: 'color', label: 'Cabinet', default: '#e3dfd6' },
       { kind: 'color', key: 'worktopColor', label: 'Worktop', default: '#34373d' },
+      {
+        kind: 'enum',
+        key: 'worktopFinish',
+        label: 'Worktop material',
+        default: 'solid',
+        options: [
+          { value: 'solid', label: 'Solid (laminate)' },
+          { value: 'marble', label: 'Stone / marble' },
+          { value: 'concrete', label: 'Concrete' },
+          { value: 'wood', label: 'Butcher block' },
+        ],
+      },
       {
         kind: 'enum',
         key: 'frontStyle',

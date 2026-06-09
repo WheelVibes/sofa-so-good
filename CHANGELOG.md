@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C95] Worktop materials on the kitchen island + counter primitives
+Extended C94's worktop finishes to the `KitchenIsland` (was hardcoded marble) and
+`KitchenCounter` (was a glossy slab) primitives via a `worktopFinish` option — island defaults
+to marble, counter to solid (both back-compat). Concrete/marble/wood counters now span the
+whole modular kitchen. Screenshot-verified (concrete island top + marble counter).
+
 ## [C94] Cabinet worktop materials — marble / concrete / butcher block
 The parametric base cabinet's worktop was a flat glossy slab; added a `worktopFinish` option
 (solid / stone-marble / concrete / wood) so it renders a real textured worktop via
