@@ -27,6 +27,7 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
   const finish = readStr(props, 'finish', 'painted')
   const sheen = readNum(props, 'sheen', 0)
   const worktopColor = readStr(props, 'worktopColor', '#34373d')
+  const worktopFinish = readStr(props, 'worktopFinish', 'solid')
 
   const model = buildCabinet({
     type,
@@ -45,6 +46,10 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
   })
 
   const bodyMat = getSurfaceMaterial(finish, color, 1, sheen)
+  // A textured worktop (marble / concrete / wood) over the default solid slab —
+  // stone/concrete tiled ~2× to read at counter scale.
+  const worktopMat =
+    worktopFinish === 'solid' ? null : getSurfaceMaterial(worktopFinish, worktopColor, 2, 0.3)
   const handleMat = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const
 
   // Wall (upper) cabinets mount off the floor — lift the whole carcass to the
@@ -57,9 +62,17 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
         const key = `${p.role}-${i}`
         if (p.role === 'countertop') {
           return (
-            <mesh key={key} castShadow receiveShadow position={p.position}>
+            <mesh
+              key={key}
+              castShadow
+              receiveShadow
+              position={p.position}
+              material={worktopMat ?? undefined}
+            >
               <boxGeometry args={p.size} />
-              <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
+              {worktopMat ? null : (
+                <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
+              )}
             </mesh>
           )
         }

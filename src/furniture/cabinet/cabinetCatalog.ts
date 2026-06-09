@@ -118,6 +118,18 @@ export const CABINET_DEFS: Record<string, ParametricDef> = {
         ],
       },
       { kind: 'color', key: 'worktopColor', label: 'Worktop colour', default: '#34373d' },
+      {
+        kind: 'enum',
+        key: 'worktopFinish',
+        label: 'Worktop material',
+        default: 'solid',
+        options: [
+          { value: 'solid', label: 'Solid (laminate)' },
+          { value: 'marble', label: 'Stone / marble' },
+          { value: 'concrete', label: 'Concrete' },
+          { value: 'wood', label: 'Butcher block' },
+        ],
+      },
       dim('countertopThickness', 'Worktop thickness', 0.02, 0.08, 0.04),
       dim('toeKick', 'Toe-kick', 0, 0.18, 0.1),
       ...commonFields('base'),

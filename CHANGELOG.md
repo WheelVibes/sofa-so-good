@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C94] Cabinet worktop materials — marble / concrete / butcher block
+The parametric base cabinet's worktop was a flat glossy slab; added a `worktopFinish` option
+(solid / stone-marble / concrete / wood) so it renders a real textured worktop via
+`getSurfaceMaterial` (tiled ~2× for counter scale), defaulting to the old solid for back-compat.
+Concrete & stone counters are the signature kitchen finish. Screenshot-verified (marble + concrete tops).
+
 ## [C93] Overlap guard for furniture sets + de-clip vignettes + parasol shade fix
 Added a collision-validity test for every `FURNITURE_SETS` vignette (ungrouped, so it catches
 real geometry overlaps; rugs/different-height items stay exempt) and nudged the pieces it
