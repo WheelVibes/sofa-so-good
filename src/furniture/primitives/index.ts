@@ -46,6 +46,7 @@ import { HangingPlant } from './HangingPlant'
 import { HighChair } from './HighChair'
 import { KitchenCounter } from './KitchenCounter'
 import { KitchenIsland } from './KitchenIsland'
+import { LaundryHamper } from './LaundryHamper'
 import { Microwave } from './Microwave'
 import { Mirror } from './Mirror'
 import { Monitor } from './Monitor'
@@ -141,6 +142,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   TableLamp,
   Microwave,
   DryingRack,
+  LaundryHamper,
   TabletopDecor,
   ShoeCabinet,
   WallShelf,

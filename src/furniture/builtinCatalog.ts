@@ -2776,6 +2776,49 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
       { kind: 'color', key: 'color', label: 'Finish', default: '#c9ccd1' },
     ],
   },
+  'laundry-hamper': {
+    kind: 'parametric',
+    id: 'laundry-hamper',
+    name: 'Laundry hamper',
+    keywords: ['laundry basket', 'washing basket', 'linen basket', 'hamper'],
+    category: 'laundry',
+    primitive: 'LaundryHamper',
+    defaultFootprint: { w: 0.42, d: 0.42, h: 0.56 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'style',
+        label: 'Shape',
+        default: 'round',
+        options: [
+          { value: 'round', label: 'Round basket' },
+          { value: 'rect', label: 'Rectangular bin' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'weave',
+        label: 'Material',
+        default: 'rattan',
+        options: [
+          { value: 'rattan', label: 'Woven rattan' },
+          { value: 'fabric', label: 'Canvas' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Basket', default: '#cbb791' },
+      { kind: 'color', key: 'liner', label: 'Liner', default: '#eee7d8' },
+      {
+        kind: 'enum',
+        key: 'lid',
+        label: 'Lid',
+        default: 'none',
+        options: [
+          { value: 'none', label: 'Open' },
+          { value: 'flat', label: 'Lidded' },
+        ],
+      },
+    ],
+  },
   'washing-machine': {
     kind: 'parametric',
     id: 'washing-machine',

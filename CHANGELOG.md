@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C83] New laundry item — laundry hamper
+Added a `LaundryHamper` primitive + catalog entry (laundry category): a floor basket with a
+round-woven or rectangular bin shape, woven-rattan or canvas body, a fabric liner over the
+rim and an optional lid. Fills out the thin laundry category. Screenshot-verified both
+variants (round rattan + lidded canvas bin) sitting on the floor.
+
 ## [C82] New one-click vignette — Kids room set
 Added a `kids-room` furniture set (toddler bed against the wall + bedside nightstand & lamp
 + low toy-storage organiser + play rug) — the post-crib sibling of the Nursery set, dropped

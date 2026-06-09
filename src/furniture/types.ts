@@ -103,6 +103,7 @@ export type PrimitiveKind =
   | 'TableLamp'
   | 'Microwave'
   | 'DryingRack'
+  | 'LaundryHamper'
   | 'TabletopDecor'
   | 'ShoeCabinet'
   | 'WallShelf'

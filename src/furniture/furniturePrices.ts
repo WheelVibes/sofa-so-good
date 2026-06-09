@@ -122,6 +122,7 @@ export const ITEM_PRICE: Record<string, number> = {
   'cabinet-tall': 680,
   'standing-fan': 90,
   'drying-rack': 50,
+  'laundry-hamper': 40,
   'tabletop-decor': 60,
   'hanging-plant': 50,
   'floor-vase': 70,
