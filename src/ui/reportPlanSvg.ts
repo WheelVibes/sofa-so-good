@@ -5,8 +5,13 @@ import { planBounds, planRoomArea, wallLength } from '../floorplan/types'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
 
+// Full escape (incl. quotes) — these SVGs render via dangerouslySetInnerHTML, so
+// keep it attribute-safe even if a user string is ever placed in an attribute.
 const esc = (s: string) =>
-  s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+  )
 
 const ANN = '#0d9488' // teal — dimension callouts, distinct from the wall strokes
 

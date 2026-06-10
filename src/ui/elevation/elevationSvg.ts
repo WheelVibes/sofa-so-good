@@ -20,8 +20,14 @@ export interface ElevationPalette {
   text: string
 }
 
+// Escape for BOTH text and attribute contexts (these SVGs render via
+// dangerouslySetInnerHTML in-app) — quotes too, so a user string can never break
+// out of an attribute if a future edit places one there.
 const esc = (s: string) =>
-  s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] ?? c)
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+  )
 
 const f = (n: number) => n.toFixed(3)
 

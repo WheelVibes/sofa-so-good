@@ -10,8 +10,13 @@ import type { FloorPlan } from '../../floorplan/types'
 import { planBounds } from '../../floorplan/types'
 import type { PlanLight } from '../../lighting2d/lightingPlan'
 
+// Full escape (incl. quotes) — these SVGs render via dangerouslySetInnerHTML, so
+// keep it attribute-safe even if a user string is ever placed in an attribute.
 const esc = (s: string) =>
-  s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] ?? c)
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+  )
 
 export interface LightingPalette {
   /** Wall context lines. */
