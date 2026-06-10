@@ -3,14 +3,48 @@ import { INTERIOR_AREA_M2 } from '../apartment/constants'
 import { buildDefaultPlan } from './defaultPlan'
 import { PLAN_TEMPLATES } from './templates'
 import {
+  type PlanRoom,
   planRoomArea,
   planTotalArea,
   pointInPolygon,
   pointInRoom,
   polygonArea,
+  rectUnionOutline,
   roomPolygon,
   wallLength,
 } from './types'
+
+describe('rectUnionOutline / roomPolygon L-shapes', () => {
+  it('builds a correct L outline for an extension on ANY side (not just south)', () => {
+    // Main 4×4 at origin; extension 2×2 jutting off the NORTH edge (offset z<0
+    // region) — the old code only handled south extensions.
+    const main: PlanRoom = {
+      id: 'm',
+      name: 'M',
+      origin: [0, 0],
+      width: 4,
+      depth: 4,
+      extension: { offset: [0, -2], width: 2, depth: 2 },
+    }
+    const poly = roomPolygon(main)
+    // Closed simple polygon; area = 16 + 4 = 20 (the two rects don't overlap).
+    expect(poly.length).toBeGreaterThanOrEqual(6)
+    expect(polygonArea(poly)).toBeCloseTo(20, 5)
+    // A point inside the north extension is inside the outline.
+    expect(pointInPolygon(1, -1, poly)).toBe(true)
+    // A point in the notch (outside both rects) is NOT inside.
+    expect(pointInPolygon(3, -1, poly)).toBe(false)
+  })
+
+  it('rectUnionOutline merges overlapping rects without double-counting area', () => {
+    // Two 3×3 rects overlapping in a 1×1 corner → union area = 9 + 9 - 1 = 17.
+    const poly = rectUnionOutline([
+      [0, 0, 3, 3],
+      [2, 2, 5, 5],
+    ])
+    expect(polygonArea(poly)).toBeCloseTo(17, 5)
+  })
+})
 
 describe('floor plan model', () => {
   it('builds a default plan from the fixed flat', () => {
