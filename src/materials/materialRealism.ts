@@ -1,0 +1,134 @@
+/**
+ * PR3c — material-realism decision logic. Pure functions (no GPU / no three
+ * imports) that decide which physically-based finishing layers a finish earns
+ * and how strong they are, plus the tier-gate for the expensive ones. Kept
+ * separate from `furnitureMaterials.ts` so the decisions are unit-testable
+ * without a WebGL context.
+ *
+ * Three layers are added on top of the base PBR finish:
+ *  - **sheen** — the soft retroreflective halo real velvet / satin / brushed
+ *    upholstery shows at grazing angles. Cheap; only visible with IBL, so it is
+ *    effectively free on Performance (no IBL there) and never regresses it.
+ *  - **clearcoat** — a thin glossy lacquer film over an otherwise matte base
+ *    (lacquered wood, ceramic, glossy plastic). Also cheap + IBL-driven.
+ *  - **transmission** — real refractive glass (windows, glass table tops,
+ *    cabinet/vase glass). This one is GPU-expensive (an extra transmission
+ *    render pass), so it is **tier-gated**: only High / Maximum get true
+ *    transmission; Performance / Medium keep the cheap transparent+opacity look.
+ */
+import type { RenderTier } from '../scene/quality'
+
+/** Render tiers that can afford real glass transmission (extra render pass).
+ *  Performance + Medium stay on cheap transparency so the flat default and the
+ *  mid tier never pay for it. Mirrors `mirrorReflectorConfig`'s High/Maximum
+ *  gate. */
+export function transmissionTiers(tier: RenderTier): boolean {
+  return tier === 'high' || tier === 'maximum'
+}
+
+/** Physical glass parameters for the transmission-capable tiers. `transmission`
+ *  drives the refractive pass; `ior` ≈ 1.5 is window / architectural glass;
+ *  `thickness` feeds the volume tint; low `roughness` keeps it clear. */
+export interface GlassPhysical {
+  transmission: number
+  ior: number
+  thickness: number
+  roughness: number
+  metalness: number
+}
+
+/** Cheap fallback glass (transparent + opacity) for Performance / Medium — no
+ *  transmission pass. Mirrors the look the inline primitives already used. */
+export interface GlassCheap {
+  transparent: true
+  opacity: number
+  roughness: number
+  metalness: number
+}
+
+/**
+ * Resolve glass material parameters for a tier. `opacity` is the legacy cheap
+ * opacity the caller used (so each piece keeps its own clarity); on the
+ * transmission tiers it is mapped to a transmission strength (clearer glass =
+ * higher transmission) and a matching thickness.
+ */
+export function glassConfig(
+  tier: RenderTier,
+  opacity = 0.3,
+  tint = 0,
+): { physical: GlassPhysical | null; cheap: GlassCheap | null } {
+  if (transmissionTiers(tier)) {
+    // A nearly-clear pane (low opacity) transmits almost fully; a frosted /
+    // tinted pane (high opacity) transmits less. Clamp so it never hits the
+    // degenerate 0 / 1 ends.
+    const transmission = clamp(1 - opacity * 0.85, 0.55, 0.98)
+    return {
+      physical: {
+        transmission,
+        ior: 1.5,
+        // Thicker volume for tinted glass so the tint reads; thin for clear.
+        thickness: 0.02 + tint * 0.3,
+        roughness: 0.04,
+        metalness: 0,
+      },
+      cheap: null,
+    }
+  }
+  return {
+    physical: null,
+    cheap: { transparent: true, opacity, roughness: 0.05, metalness: 0.1 },
+  }
+}
+
+/** Sheen layer for a soft-fabric finish kind. Velvet shows the strongest, most
+ *  coloured sheen; satin / woven fabric a subtler one; leather a faint specular
+ *  sheen. Returns `null` for finishes that should stay matte. `sheenColorLift`
+ *  is how far the caller lifts the body colour toward white for the sheen lobe
+ *  (a brighter lobe than the body reads as real pile). */
+export interface SheenLayer {
+  sheen: number
+  sheenRoughness: number
+  /** 0..1 — how much to lift the body colour toward white for the sheen lobe. */
+  sheenColorLift: number
+}
+
+export function sheenLayer(kind: string): SheenLayer | null {
+  switch (kind) {
+    case 'velvet':
+      return { sheen: 1, sheenRoughness: 0.3, sheenColorLift: 0.45 }
+    case 'leather':
+      return { sheen: 0.35, sheenRoughness: 0.5, sheenColorLift: 0.2 }
+    // Woven fabric gets a gentle satin sheen so linen / cotton catch grazing
+    // light without looking plasticky.
+    case 'fabric':
+      return { sheen: 0.4, sheenRoughness: 0.6, sheenColorLift: 0.25 }
+    default:
+      return null
+  }
+}
+
+/** Clearcoat layer for a hard finish kind. Lacquered (gloss) surfaces and
+ *  polished stone get a thin, fairly smooth coat; ceramic a glossier one. Matte
+ *  paint / wood / concrete / rattan get none. */
+export interface ClearcoatLayer {
+  clearcoat: number
+  clearcoatRoughness: number
+}
+
+export function clearcoatLayer(kind: string): ClearcoatLayer | null {
+  switch (kind) {
+    case 'gloss': // lacquered / high-gloss laminate
+      return { clearcoat: 0.8, clearcoatRoughness: 0.12 }
+    case 'ceramic':
+      return { clearcoat: 1, clearcoatRoughness: 0.06 }
+    case 'marble':
+    case 'stone': // polished stone reads wet under a faint coat
+      return { clearcoat: 0.5, clearcoatRoughness: 0.18 }
+    default:
+      return null
+  }
+}
+
+function clamp(v: number, lo: number, hi: number): number {
+  return Math.min(hi, Math.max(lo, v))
+}

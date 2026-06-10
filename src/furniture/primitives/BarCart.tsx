@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { GlassMaterial } from './GlassMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -28,12 +29,12 @@ export function BarCart({ props }: { props: ParamProps }) {
         ? { color: '#cfd2d6', roughness: 0.18, metalness: 0.95 }
         : { color: '#26262a', roughness: 0.4, metalness: 0.7 }
 
+  // Glass shelves render the tier-gated GlassMaterial (real transmission on
+  // High/Maximum); wood/marble use the cached surface material instances.
   const shelfMat =
-    shelf === 'glass'
-      ? { color: '#bfd6d8', roughness: 0.05, metalness: 0, transparent: true, opacity: 0.34 }
-      : shelf === 'marble'
-        ? getSurfaceMaterial('marble', '#e9e6df', 1.0, 0.6)
-        : getSurfaceMaterial('wood', shelfColor, 0.8, 0.1)
+    shelf === 'marble'
+      ? getSurfaceMaterial('marble', '#e9e6df', 1.0, 0.6)
+      : getSurfaceMaterial('wood', shelfColor, 0.8, 0.1)
 
   // Shelf Y positions: bottom just above wheels, top below the handle.
   const yBottom = wheelR * 2 + 0.04
@@ -68,7 +69,7 @@ export function BarCart({ props }: { props: ParamProps }) {
         shelf === 'glass' ? (
           <mesh key={i} castShadow receiveShadow position={[0, y, 0]}>
             <boxGeometry args={[width - postT, shelfThk, depth - postT]} />
-            <meshStandardMaterial {...(shelfMat as Record<string, unknown>)} />
+            <GlassMaterial color="#bfd6d8" opacity={0.34} />
           </mesh>
         ) : (
           <mesh key={i} castShadow receiveShadow position={[0, y, 0]} material={shelfMat as never}>
