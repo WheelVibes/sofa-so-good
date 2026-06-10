@@ -155,6 +155,8 @@ const PlanRoomZ = z.object({
   polygon: z.array(Vec2Z).optional(),
   ceilingHeight: z.number().optional(),
   floor: z.string().optional(),
+  // Per-room wall finish (optional + additive → no schema-version bump).
+  wall: z.string().optional(),
   // Per-room ceiling treatment (tray/coffered/dropped). Optional + additive →
   // no schema-version bump; absent → flat (the prior behaviour).
   ceiling: z

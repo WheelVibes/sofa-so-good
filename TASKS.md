@@ -1,6 +1,6 @@
 # TASKS — autonomous improvement backlog
 
-Working branch: `claude/codebase-analysis-optimization-QKCK6`.
+Working branch: `claude/codebase-analysis-optimization-f6yag0`.
 Each task = its own commit; log every shipped task in `CHANGELOG.md`.
 Licensed/non-redistributable additions are dev-gated; unlicensed ship in prod too.
 
@@ -26,7 +26,7 @@ visually verify any app (non-docs/test) change via `scripts/shot.mjs` and review
 
 **How to resume after a context clear:** read this section + `CHANGELOG.md` (newest first) to see what
 shipped, then pick the next unchecked item below (highest priority first). Working branch:
-`claude/codebase-analysis-optimization-QKCK6`. Use parallel read-only subagents for audits/research and
+`claude/codebase-analysis-optimization-f6yag0`. Use parallel read-only subagents for audits/research and
 worktree subagents for independent build slices (note: worktree agents branch from an older base — prefer
 having them produce self-contained new files you integrate, or 3-way merge carefully).
 
@@ -235,10 +235,9 @@ test over all templates.
 - [x] FP-furnish: auto-arranger (`arrangeAllRoomsForPlan`) + **Smart Start** now work on custom plans
   — C153 `furnishPlanItems` seeds a per-room kit + arranges it, so every template furnishes in one click.
 - [x] FP-palette: Smart Start now applies the preset floor/wall palette to a custom plan too (C157).
-- [ ] FP-next: route **interactive** per-room finish editing (the 3D FinishPicker / drag-apply) through
-  the active plan — the `finishes` slice is still `RoomId`-keyed, so in-editor finish changes don't
-  render for custom-plan rooms (whose floors live on `PlanRoom.floor`, editable in the 2D inspector).
-  Smart Start + the 2D inspector cover the common cases, so this is polish.
+- [x] FP-next (C213): interactive per-room finish editing routed through the active plan —
+  `roomFinishes.ts` resolvers, finish-setter write-through to `PlanRoom.floor`/`wall`, plan-wall finish
+  rendering in the room editor, 2D inspector wall-finish select, prune-on-plan-switch.
 
 ### LIGHTING PLAN (reflected-ceiling-style) — next large feature (research: Chief Architect/RoomSketcher RCP + lighting schedules)
 Derive from the existing `LIGHT_EMITTERS` registry (every placed light's height/intensity/distance/

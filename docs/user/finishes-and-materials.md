@@ -9,6 +9,10 @@
 3. Pick one — it applies instantly to that surface (floors are per‑room).
    **Apply floor / walls to all rooms** repeats it everywhere in one click.
 
+This works the same on a **custom floor plan** (a template or one you drew
+yourself): each plan room takes its own floor and wall finish, live in 3D, and
+the picks are saved with the plan.
+
 ![The finish picker open on a room](/screenshots/finish-picker.png)
 
 ## Built‑in finishes

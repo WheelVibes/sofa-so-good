@@ -61,6 +61,8 @@ export interface PlanRoom {
   ceilingHeight?: number
   /** Optional floor finish (catalog material id); defaults to oak in the shell. */
   floor?: string
+  /** Optional wall finish (catalog material id); plain plaster when unset. */
+  wall?: string
   /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
   ceiling?: CeilingConfig
 }

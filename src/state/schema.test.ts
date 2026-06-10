@@ -45,6 +45,36 @@ describe('schema', () => {
     expect(room?.polygon).toEqual(polygon)
   })
 
+  it('round-trips per-room floor + wall finishes on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'finish-plan',
+        name: 'Finishes',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [
+          {
+            id: 'R',
+            name: 'Room',
+            origin: [0.2, 0.2],
+            width: 3.8,
+            depth: 3.8,
+            floor: 'floor-tile-grey',
+            wall: 'wall-paint-sage',
+          },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    const room = patch.floorPlan?.rooms.find((r) => r.id === 'R')
+    expect(room?.floor).toBe('floor-tile-grey')
+    expect(room?.wall).toBe('wall-paint-sage')
+  })
+
   it('round-trips imported-GLB metadata on user furniture defs', () => {
     useStore.getState().__resetForTest()
     useStore.getState().setUserFurniture([

@@ -66,6 +66,13 @@ Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
 any time with the **✕** next to the photo controls.
 
+## Room finishes
+
+Select a room and the inspector shows **Floor finish** and **Wall finish**
+dropdowns — the pick renders immediately in 3D and stays in sync with the
+finish picker inside the per‑room editor. **Wall finish** offers **Plaster
+(default)** to return a room's walls to the plain shell.
+
 ## Ceiling height & wall colour
 
 With nothing selected, the inspector shows a **Ceiling height** field — raise or

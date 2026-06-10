@@ -7,6 +7,7 @@ import type {
   PlanWall,
 } from '../../floorplan/types'
 import type { RootState } from '../store'
+import { pruneFinishesForPlan } from './finishesSlice'
 import type { SliceCreator } from './types'
 
 /** Selected element in the floor-plan editor (for the inspector panel). */
@@ -121,7 +122,14 @@ function blankPlan(name: string): FloorPlan {
 export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (set, get) => ({
   ...FLOOR_PLAN_INITIAL,
 
-  setFloorPlan: (plan) => set({ floorPlan: plan, baselinePlan: clonePlan(plan) }),
+  setFloorPlan: (plan) =>
+    set((s) => ({
+      floorPlan: plan,
+      baselinePlan: clonePlan(plan),
+      // Activating a different plan: drop finish entries keyed by the previous
+      // plan's room ids so they can't shadow the new plan's per-room finishes.
+      finishes: pruneFinishesForPlan(s.finishes, plan),
+    })),
   saveCurrentPlan: (name) => {
     const id = planId('plan')
     let savedId = id
@@ -144,7 +152,15 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (!found) return
     // Snapshot first so loading a saved plan over the current one is undoable.
     get().pushHistory()
-    set({ floorPlan: clonePlan(found), baselinePlan: clonePlan(found), planSelection: null })
+    set((s) => {
+      const fresh = clonePlan(found)
+      return {
+        floorPlan: fresh,
+        baselinePlan: clonePlan(found),
+        planSelection: null,
+        finishes: pruneFinishesForPlan(s.finishes, fresh),
+      }
+    })
   },
   deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
   setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
@@ -155,11 +171,21 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     // custom plan is destroyed with no way back.
     get().pushHistory()
     const fresh = buildDefaultPlan()
-    set({ floorPlan: fresh, baselinePlan: clonePlan(fresh), planSelection: null })
+    set((s) => ({
+      floorPlan: fresh,
+      baselinePlan: clonePlan(fresh),
+      planSelection: null,
+      finishes: pruneFinishesForPlan(s.finishes, fresh),
+    }))
   },
   newFloorPlan: (name = 'New apartment') => {
     const fresh = blankPlan(name)
-    set({ floorPlan: fresh, baselinePlan: clonePlan(fresh), planSelection: null })
+    set((s) => ({
+      floorPlan: fresh,
+      baselinePlan: clonePlan(fresh),
+      planSelection: null,
+      finishes: pruneFinishesForPlan(s.finishes, fresh),
+    }))
   },
   updateFloorPlanMeta: (patch) => {
     get().pushHistoryCoalesced('plan-meta')

@@ -2,7 +2,18 @@
 
 Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
-`claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
+`claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
+
+## [C213 / FP-next] Custom-plan rooms: live 3D finish editing (floor + wall)
+The 3D finish picker silently didn't render on custom plans (the shells read only `PlanRoom.floor`; walls
+were fixed plaster). Now: new `floorplan/roomFinishes.ts` resolvers (live `finishes` slice → plan room →
+default) drive `PlanShell` + `PlanRoomShell`; `setFloorFinish`/`setWallFinish`/`setAll*` write through to
+the active plan's room (`floor` + new optional `wall`, schema round-tripped); new `clearWallFinish`;
+`PlanRoomShell` walls render the room's wall finish via `PlanWallFinishFace` (world-UV, any catalog
+material incl. textured + #hex); 2D `PlanInspector` gains a Wall-finish select and routes floor picks
+through the slice; plan activation prunes stale custom-room finish keys. Harness: `SHOT_URL` +
+`SHOT_NAV_TIMEOUT` env overrides in `scripts/shot.mjs` (parallel worktree dev servers / busy-CPU loads).
+Verified: room editor renders grey-tile floor + red-brick walls on `tpl-studio` (screenshot), 10 new tests.
 
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:

@@ -2,14 +2,13 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import type { Mesh, MeshStandardMaterial } from 'three'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
+import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { DEFAULT_PLAN_WALL_COLOR, planBounds, wallLength } from '../floorplan/types'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
-
-const DEFAULT_PLAN_FLOOR = 'floor-wood-oak'
 
 /**
  * One plan wall, fading out in orbit mode when it sits between the camera and
@@ -58,6 +57,7 @@ function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number
  */
 export function PlanShell() {
   const plan = useStore((s) => s.floorPlan)
+  const finishes = useStore((s) => s.finishes)
   const wallColor = plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR
   const [ew, ed] = planBounds(plan)
 
@@ -100,7 +100,7 @@ export function PlanShell() {
 
       {/* Per-room floors (catalog finish, defaulting to oak) */}
       {plan.rooms.map((r) => {
-        const mat = (r.floor ?? DEFAULT_PLAN_FLOOR) as MaterialId
+        const mat = resolvePlanRoomFloor(finishes, r) as MaterialId
         // A non-rectangular room renders one triangulated polygon floor; a
         // rect room renders its rectangle (+ optional L-extension rect).
         if (r.polygon && r.polygon.length >= 3) {

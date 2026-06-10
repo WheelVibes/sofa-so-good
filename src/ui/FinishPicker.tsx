@@ -7,6 +7,7 @@ import { placementWalls } from '../collision/placementWalls'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { useFeature } from '../features/useFeature'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
+import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
@@ -126,8 +127,11 @@ export function FinishPicker() {
     const target = st.floorPlan.rooms.find((r) => r.id === targetId)
     if (!target) return
     st.pushHistory()
-    const floor = st.finishes.floor[roomId]
-    const wall = st.finishes.walls[roomId]
+    const src = st.floorPlan.rooms.find((r) => r.id === roomId)
+    const floor = src ? resolvePlanRoomFloor(st.finishes, src) : st.finishes.floor[roomId]
+    const wall = src
+      ? (resolvePlanRoomWall(st.finishes, src) ?? st.finishes.walls[roomId])
+      : st.finishes.walls[roomId]
     if (floor) st.setFloorFinish(target.id as RoomId, floor)
     if (wall) st.setWallFinish(target.id as RoomId, wall)
     st.notify.start({ title: `Finishes copied to ${target.name}`, kind: 'success' })
@@ -292,6 +296,13 @@ export function FinishPicker() {
   }
   for (const m of Object.values(materials)) groups[m.category].push(m)
 
+  // Active picks resolve through the plan-room fallback so a template/2D-
+  // inspector-authored finish highlights even before the slice has an entry.
+  const activeFloor = planRoom ? resolvePlanRoomFloor(finishes, planRoom) : finishes.floor[roomId]
+  const activeWall = planRoom
+    ? (resolvePlanRoomWall(finishes, planRoom) ?? finishes.walls[roomId])
+    : finishes.walls[roomId]
+
   const handleSelect = (surface: Surface, id: string) => {
     setLastSurface(surface)
     if (id.startsWith('#')) pushRecentColor(id)
@@ -354,7 +365,7 @@ export function FinishPicker() {
           <SwatchGroup
             label="Floor"
             items={filterFinishes(groups.floor, finishQuery)}
-            active={finishes.floor[roomId]}
+            active={activeFloor}
             onSelect={(id) => handleSelect('floor', id)}
             onRemoveUser={removeUserMaterial}
             onCustom={(hex) => handleSelect('floor', hex)}
@@ -366,7 +377,7 @@ export function FinishPicker() {
             type="button"
             className="finish-apply-all"
             onClick={() => {
-              setAllFloorFinish(finishes.floor[roomId])
+              setAllFloorFinish(activeFloor)
               useStore
                 .getState()
                 .notify.start({ title: 'Floor finish applied to every room', kind: 'success' })
@@ -378,7 +389,7 @@ export function FinishPicker() {
           <SwatchGroup
             label="Walls"
             items={filterFinishes(groups.wall, finishQuery)}
-            active={finishes.walls[roomId]}
+            active={activeWall}
             onSelect={(id) => handleSelect('wall', id)}
             onRemoveUser={removeUserMaterial}
             onCustom={(hex) => handleSelect('wall', hex)}
@@ -390,7 +401,7 @@ export function FinishPicker() {
             type="button"
             className="finish-apply-all"
             onClick={() => {
-              setAllWallFinish(finishes.walls[roomId])
+              setAllWallFinish(activeWall)
               useStore
                 .getState()
                 .notify.start({ title: 'Wall finish applied to every room', kind: 'success' })

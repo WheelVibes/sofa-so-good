@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import {
@@ -14,6 +15,7 @@ import { formatArea, formatLength } from '../../utils/measurement'
 import { useIsMobile } from '../useIsMobile'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
+const WALL_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.wall ?? []
 
 /** Numeric field with a label, editing one metre value. Holds the raw text while
  *  focused so the user can clear / type a partial value ("1.", "-") freely, and
@@ -264,10 +266,32 @@ export function PlanInspector() {
             <span className="label">Floor finish</span>
             <select
               value={r.floor ?? 'floor-wood-oak'}
-              onChange={(e) => a.updateRoom(r.id, { floor: e.target.value })}
+              onChange={(e) =>
+                // Routed through the finishes slice (not a bare updateRoom) so
+                // the live finishes map stays in sync with the plan data.
+                a.setFloorFinish(r.id as RoomId, e.target.value)
+              }
               className="input"
             >
               {FLOOR_MATERIALS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="label">Wall finish</span>
+            <select
+              value={r.wall ?? ''}
+              onChange={(e) => {
+                if (e.target.value) a.setWallFinish(r.id as RoomId, e.target.value)
+                else a.clearWallFinish(r.id as RoomId)
+              }}
+              className="input"
+            >
+              <option value="">Plaster (default)</option>
+              {WALL_MATERIALS.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
                 </option>
