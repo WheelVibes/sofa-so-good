@@ -56,6 +56,13 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('Design score')
   })
 
+  it('includes an Accessibility section with door-width + turning-circle checks', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Accessibility')
+    expect(html).toMatch(/doors ≥ \d+ cm clear/)
+    expect(html).toMatch(/turning circle/)
+  })
+
   it('includes an FF&E schedule with per-item rooms, sizes and a grand total', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('FF&amp;E schedule')

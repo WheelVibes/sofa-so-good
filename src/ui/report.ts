@@ -4,6 +4,7 @@
  * render. Opened in a new window so the user can print / save as PDF.
  */
 
+import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDesignScore } from '../analysis/designScore'
 import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
@@ -353,6 +354,48 @@ export function buildReportHtml(
         .join('')}
     </div>`
 
+  // Accessibility / universal-design — plan-level door-width + turning-circle
+  // check (BCA Code on Accessibility rule of thumb). Plan-only, so it shows even
+  // for an unfurnished shell; skipped when the plan has no doors or rooms.
+  const a11y = buildAccessibilityReport(plan)
+  const a11yFailDoors = a11y.doors.filter((d) => !d.pass)
+  const a11yFailRooms = a11y.rooms.filter((r) => !r.pass)
+  const doorName = (id: string) => {
+    const it = plan.openings?.find((o) => o.id === id)
+    return it ? `Door (${(it.width * 100).toFixed(0)} cm)` : id
+  }
+  const accessibilitySection =
+    a11y.doors.length === 0 && a11y.rooms.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Accessibility</h2>
+      <div class="${a11y.allPass ? 'ok' : 'warn'}">
+        ${a11y.doorPassCount}/${a11y.doors.length} doors ≥ ${Math.round(a11y.thresholds.door * 100)} cm clear ·
+        ${a11y.turnPassCount}/${a11y.rooms.length} rooms fit a ${a11y.thresholds.turn} m turning circle
+      </div>${
+        a11yFailDoors.length > 0
+          ? `<div class="warn">Doorways below the accessible clear width:</div><table>${a11yFailDoors
+              .map(
+                (d) =>
+                  `<tr><td class="indent">${esc(doorName(d.id))} — widen to ≥ ${Math.round(a11y.thresholds.door * 100)} cm</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        a11yFailRooms.length > 0
+          ? `<div class="warn">Rooms too tight for a wheelchair turn:</div><table>${a11yFailRooms
+              .map(
+                (r) =>
+                  `<tr><td class="indent">${esc(r.roomName)} — ${r.minDim.toFixed(2)} m min span</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        a11y.allPass
+          ? '<div class="ok">✓ Step-free routes, accessible doors and turning space throughout.</div>'
+          : ''
+      }</div>`
+
   // Wall elevations — the vertical drawings, only for walls that actually carry
   // furniture or openings (skip the many bare structural segments).
   const elevations = hasItems
@@ -541,6 +584,7 @@ export function buildReportHtml(
   ${ffeSection}
   ${clearanceSection}
   ${designScoreSection}
+  ${accessibilitySection}
   ${elevationsSection}
   ${lightingSection}
   ${
