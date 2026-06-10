@@ -222,7 +222,8 @@ export the result — all in the browser.
   dark.
 - **Smart Start** — pick a style and the whole flat is furnished + the walls and
   floors finished in one click (from onboarding, the ⌘K palette, or the Arrange
-  menu).
+  menu). Works on any floor plan too: load an HDB, condo or landed template (or
+  draw your own) and Smart Start fits a suitable furniture set to each room.
 - **2D⇄3D layout** — the floor-plan editor shows your furniture as a top-down
   layout (click to select, drag to move); press **P** to flip between the 2D
   plan and the 3D scene. Drop a **floor-plan photo** to trace over (calibrate its

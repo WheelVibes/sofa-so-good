@@ -35,8 +35,11 @@ existing pure check + 2 new heuristics (furnishing coverage, per-room emitter co
 `floorplan/templates.ts` now ships HDB 2/3/4/5-room + Exec/3Gen/Jumbo, condo 1-bed/1+study/2/3-bed/
 penthouse, terrace (`docs/research/{hdb,condo}-floor-plans.md`); generalised overlap/bounds/opening
 test over all templates.
-- [ ] FP-next: route `roomOf`/auto-arranger/finishes through the active plan so custom plans are
-  fully furnish-aware (carried from the floor-plan-editor follow-ups in TODO.md).
+- [x] FP-furnish: auto-arranger (`arrangeAllRoomsForPlan`) + **Smart Start** now work on custom plans
+  — C153 `furnishPlanItems` seeds a per-room kit + arranges it, so every template furnishes in one click.
+- [ ] FP-next: route per-room **finishes editing** through the active plan (the `finishes` slice is still
+  keyed on the fixed `RoomId` table; custom-plan floors live on `PlanRoom.floor`). Templates ship their
+  own floors, so this is now polish, not a blocker.
 
 ### LIGHTING PLAN (reflected-ceiling-style) — next large feature (research: Chief Architect/RoomSketcher RCP + lighting schedules)
 Derive from the existing `LIGHT_EMITTERS` registry (every placed light's height/intensity/distance/

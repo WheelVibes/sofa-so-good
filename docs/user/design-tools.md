@@ -10,7 +10,9 @@ a plan you can act on.
 **Arrange → Smart Start** (also on the ⌘K command palette and the first‑run
 onboarding): pick a style and the whole flat is furnished and the walls and floors
 finished in one click, with a matching UI theme. A fast way to a complete starting
-point you then tweak.
+point you then tweak. It works on **any floor plan** too — load one of the HDB,
+condominium or landed templates (or draw your own) and Smart Start picks a
+suitable furniture set for each room and arranges it to that plan's walls.
 
 ## Sets, presets & styles
 

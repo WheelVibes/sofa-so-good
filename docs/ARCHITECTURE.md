@@ -120,7 +120,9 @@ same change that reshapes a system.
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
   **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through
   spotlight; only "Skip tour"/Esc ends it; location prompt suppressed while open),
-  **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`).
+  **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
+  **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
+  `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).
 - **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
   Maximum. **Performance is the default for everyone** (flat: no shadows/IBL/post, DPR 1);
   Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+HueSat+Vignette+SMAA); Maximum=+cinematic

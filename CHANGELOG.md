@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C153] Smart Start furnishes any custom plan / template (not just the default flat)
+The Smart-Start presets are authored at the built-in flat's exact coordinates, so applying one to any
+of the 16 HDB/condo/landed templates dumped furniture in the wrong places. New pure
+`furniture/furnishPlan.ts` `furnishPlanItems(plan, preset, defs, doors)`: seeds a kind-appropriate kit
+per room (living/dining · master/standard bedroom · kitchen · bath; utility/balcony left empty), drops
+each at the room centre, runs the existing plan-aware arranger to flush everything to the plan's own
+walls, then sweeps residual overlaps so the result is always collision-clean. The preset palette
+restyles the seeded furniture. `applyLayoutPreset` branches on `isDefaultPlan` → uses this for custom
+plans. 5 tests; verified by furnishing a custom HDB-style plan via the screenshot harness. Turns the
+exhaustive template library (C148) from empty shells into one-click furnished starts.
+
 ## [C152] Cabinet glass fronts adopt the tier-gated GlassMaterial
 Wired the display-cabinet glass door (`CabinetModule` `'glass'` front) through the PR3c
 `GlassMaterial` component — real refractive transmission on High/Maximum, cheap transparent pane on
