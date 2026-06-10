@@ -63,156 +63,238 @@ export interface FlagDef {
   default: boolean
   /** Forced off in a production build (a dev/QA-only surface). */
   devOnly?: boolean
+  /**
+   * UI tier: `simple` features are part of the minimal core experience and show
+   * in both Simple and Pro mode; `pro` features are advanced/professional and are
+   * **forced off in Simple mode** (the app's default), keeping the simple UI
+   * uncluttered. Every flag must declare a tier (see CLAUDE.md).
+   */
+  tier: 'simple' | 'pro'
 }
 
-/** The registry. Order here is the display order in the dev panel. */
+/** The registry. Order here is the display order in the dev panel.
+ *  `tier` categorises each feature for Simple/Pro mode (see CLAUDE.md): Simple =
+ *  the minimal core design loop (furnish, finish, view, share, budget); Pro =
+ *  everything analytical/professional/advanced, hidden in Simple mode. */
 export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   report: {
     label: 'Design report',
     description: 'Printable PDF report (Tools / Share)',
     default: true,
+    tier: 'pro',
   },
-  walkthrough: { label: 'Walkthrough', description: 'Auto camera tour + recording', default: true },
-  sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true },
-  measure: { label: 'Measure', description: 'Tape / area measure tool', default: true },
-  budget: { label: 'Budget', description: 'Shopping list + budget panel', default: true },
+  walkthrough: {
+    label: 'Walkthrough',
+    description: 'Auto camera tour + recording',
+    default: true,
+    tier: 'simple',
+  },
+  sunStudy: { label: 'Sun study', description: 'Time-lapse sun path', default: true, tier: 'pro' },
+  measure: {
+    label: 'Measure',
+    description: 'Tape / area measure tool',
+    default: true,
+    tier: 'pro',
+  },
+  budget: {
+    label: 'Budget',
+    description: 'Shopping list + budget panel',
+    default: true,
+    tier: 'simple',
+  },
   clearanceChecks: {
     label: 'Clearance checks',
     description: 'Door-swing / fit checks',
     default: true,
+    tier: 'pro',
   },
-  versions: { label: 'Versions', description: 'Save / restore / compare snapshots', default: true },
-  history: { label: 'Edit history', description: 'Undo timeline panel', default: true },
+  versions: {
+    label: 'Versions',
+    description: 'Save / restore / compare snapshots',
+    default: true,
+    tier: 'pro',
+  },
+  history: {
+    label: 'Edit history',
+    description: 'Undo timeline panel',
+    default: true,
+    tier: 'pro',
+  },
   shareExport: {
     label: 'Share & export',
     description: 'Share modal (link / PNG / file)',
     default: true,
+    tier: 'simple',
   },
-  floorPlanEditor: { label: 'Floor-plan editor', description: '2D plan editor', default: true },
-  smartStart: { label: 'Smart Start', description: 'One-click furnish wizard', default: true },
-  savedViews: { label: 'Saved views', description: 'Camera bookmarks', default: true },
+  floorPlanEditor: {
+    label: 'Floor-plan editor',
+    description: '2D plan editor',
+    default: true,
+    tier: 'pro',
+  },
+  smartStart: {
+    label: 'Smart Start',
+    description: 'One-click furnish wizard',
+    default: true,
+    tier: 'simple',
+  },
+  savedViews: {
+    label: 'Saved views',
+    description: 'Camera bookmarks',
+    default: true,
+    tier: 'simple',
+  },
   backdrops: {
     label: 'Backdrops',
     description: 'Selectable surroundings (city/park/…)',
     default: true,
+    tier: 'simple',
   },
   lightingMoods: {
     label: 'Lighting moods',
     description: 'Golden hour / night presets',
     default: true,
+    tier: 'simple',
   },
   packs: {
     label: 'Content packs',
     description: 'Downloadable furniture/material packs',
     default: true,
+    tier: 'pro',
   },
   remoteMaterials: {
     label: 'Online materials',
     description: 'CC0 material browser',
     default: true,
+    tier: 'pro',
   },
-  modelUpload: { label: 'Model upload', description: 'Import GLB / OBJ / … models', default: true },
+  modelUpload: {
+    label: 'Model upload',
+    description: 'Import GLB / OBJ / … models',
+    default: true,
+    tier: 'pro',
+  },
   aiPhotoreal: {
     label: 'AI photoreal export',
     description: 'BYO-key image-to-image (experimental)',
     default: true,
+    tier: 'pro',
   },
   aiWalls: {
     label: 'AI wall recognition',
     description: 'Vision-model plan tracing (experimental)',
     default: true,
+    tier: 'pro',
   },
   ikeaLive: {
     label: 'IKEA live scrape',
     description: 'Local scraper pack (needs a sidecar)',
     default: true,
     devOnly: true,
+    tier: 'pro',
   },
   livePrices: {
     label: 'Live IKEA prices',
     description: 'Live price lookup (needs a sidecar)',
     default: true,
     devOnly: true,
+    tier: 'pro',
   },
   drawings: {
     label: 'Drawings',
     description: 'Wall elevations + lighting plan panel',
     default: true,
+    tier: 'pro',
   },
   daylight: {
     label: 'Daylight check',
     description: 'Window glazing & ventilation per room',
     default: true,
+    tier: 'pro',
   },
   designScore: {
     label: 'Design score',
     description: 'Aggregate layout-quality grade + fixes',
     default: true,
+    tier: 'pro',
   },
   accessibility: {
     label: 'Accessibility check',
     description: 'Door widths + wheelchair turning space',
     default: true,
+    tier: 'pro',
   },
   moodboard: {
     label: 'Moodboard',
     description: 'Shareable style-board export',
     default: true,
+    tier: 'pro',
   },
   paletteFromPhoto: {
     label: 'Palette from photo',
     description: 'Extract a palette from an image → finishes',
     default: true,
+    tier: 'pro',
   },
   dxfExport: {
     label: 'DXF export',
     description: '2D plan → DXF for CAD/contractor handoff',
     default: true,
+    tier: 'pro',
   },
   boq: {
     label: 'Quote (BOQ)',
     description: 'Bill-of-quantities quote export',
     default: true,
+    tier: 'pro',
   },
   suggestions: {
     label: 'Design suggestions',
     description: 'Contextual "what to add" hints in Design score',
     default: true,
+    tier: 'pro',
   },
   electricalPlan: {
     label: 'Electrical plan',
     description: 'Power / data / switch layout in the drawing set',
     default: true,
+    tier: 'pro',
   },
   mountHeights: {
     label: 'Mount-height presets',
     description: 'One-tap standard heights for wall/ceiling items',
     default: true,
+    tier: 'pro',
   },
   copyAppearance: {
     label: 'Copy appearance',
     description: 'Copy/paste finish between items + recolour a category',
     default: true,
+    tier: 'pro',
   },
   userSets: {
     label: 'My sets',
     description: 'Save a selection as a reusable furniture set',
     default: true,
+    tier: 'pro',
   },
   designerPicks: {
     label: 'Designer picks',
     description: 'Curated one-tap floor/wall finishes in the picker',
     default: true,
+    tier: 'simple',
   },
   ceilingDesign: {
     label: 'Ceiling design',
     description: 'Per-room tray / coffered / dropped ceilings',
     default: true,
+    tier: 'pro',
   },
   presentation: {
     label: 'Presentation mode',
     description: 'Full-screen saved-views slideshow with notes',
     default: true,
+    tier: 'pro',
   },
 }
 
@@ -233,17 +315,26 @@ function isFlag(k: string): k is FeatureFlag {
  * **privileged** session (dev build *or* a signed-in admin) unlocks `devOnly`
  * flags and honours overrides — so an ordinary shipped build can't be flipped by
  * a stray URL/LS value, but an admin (or dev) can toggle features for QA.
+ *
+ * `uiMode` gates the Simple/Pro experience: a `pro`-tier feature is forced **off**
+ * in Simple mode (the app default) so the simple UI stays minimal, while Simple
+ * mode still retains the core design loop (every `simple`-tier feature stays on).
+ * `pro` is the default here so non-store callers (tests) see the full set.
  */
 export function resolveFlags(
   isDev: boolean,
   overrides: FlagOverrides = {},
   isAdmin = false,
+  uiMode: 'simple' | 'pro' = 'pro',
 ): Record<FeatureFlag, boolean> {
   const privileged = isDev || isAdmin
   const out = {} as Record<FeatureFlag, boolean>
   for (const key of FEATURE_FLAG_KEYS) {
     const def = FEATURE_FLAGS[key]
     if (def.devOnly && !privileged) {
+      out[key] = false
+    } else if (def.tier === 'pro' && uiMode === 'simple') {
+      // Pro features are hidden in Simple mode regardless of default/override.
       out[key] = false
     } else if (privileged && key in overrides) {
       out[key] = overrides[key]!

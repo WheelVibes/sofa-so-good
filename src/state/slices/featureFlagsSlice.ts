@@ -28,7 +28,9 @@ export interface FeatureFlagsSlice {
 
 const IS_DEV = !!import.meta.env?.DEV
 
-const initialFlags = resolveFlags(IS_DEV, loadOverrides())
+// The app boots in Simple mode (UI_INITIAL.uiMode) — seed the flags to match so
+// pro features start hidden; `loadEditorPrefs` re-resolves with the saved mode.
+const initialFlags = resolveFlags(IS_DEV, loadOverrides(), false, 'simple')
 // Seed the module snapshot so non-React `isFeatureEnabled` matches the store.
 setResolvedFlags(initialFlags)
 
@@ -50,12 +52,12 @@ export const createFeatureFlagsSlice: SliceCreator<FeatureFlagsSlice, RootState>
   resetFeatureFlags: () => {
     if (!IS_DEV && !isAdminUser(get().currentUser)) return
     clearStoredOverrides()
-    const next = resolveFlags(IS_DEV, {}, isAdminUser(get().currentUser))
+    const next = resolveFlags(IS_DEV, {}, isAdminUser(get().currentUser), get().uiMode)
     setResolvedFlags(next)
     set({ featureFlags: next })
   },
   reresolveFeatureFlags: () => {
-    const next = resolveFlags(IS_DEV, loadOverrides(), isAdminUser(get().currentUser))
+    const next = resolveFlags(IS_DEV, loadOverrides(), isAdminUser(get().currentUser), get().uiMode)
     setResolvedFlags(next)
     set({ featureFlags: next })
   },

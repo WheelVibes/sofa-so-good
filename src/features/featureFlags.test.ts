@@ -45,6 +45,46 @@ describe('resolveFlags', () => {
   })
 })
 
+describe('Simple/Pro tiering', () => {
+  it('every flag declares a valid tier', () => {
+    for (const key of FEATURE_FLAG_KEYS) {
+      expect(['simple', 'pro']).toContain(FEATURE_FLAGS[key].tier)
+    }
+  })
+
+  it('Simple mode hides every pro feature and keeps every simple feature', () => {
+    // Privileged (dev) so overrides/devOnly aren't the thing being tested here.
+    const simple = resolveFlags(true, {}, false, 'simple')
+    for (const key of FEATURE_FLAG_KEYS) {
+      const def = FEATURE_FLAGS[key]
+      if (def.tier === 'pro') {
+        expect(simple[key]).toBe(false)
+      } else if (!def.devOnly) {
+        expect(simple[key]).toBe(def.default)
+      }
+    }
+  })
+
+  it('Pro mode restores pro features to their normal resolution', () => {
+    const pro = resolveFlags(true, {}, false, 'pro')
+    // A representative pro feature is on in pro, off in simple.
+    expect(pro.measure).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').measure).toBe(false)
+    // Simple features are unaffected by the mode.
+    expect(pro.smartStart).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').smartStart).toBe(true)
+  })
+
+  it('Simple mode wins over a dev override (pro stays hidden)', () => {
+    const simple = resolveFlags(true, { measure: true }, false, 'simple')
+    expect(simple.measure).toBe(false)
+  })
+
+  it('defaults to Pro when no mode is passed (non-store callers see everything)', () => {
+    expect(resolveFlags(true, {}).measure).toBe(true)
+  })
+})
+
 describe('parseFlagOverrides (URL ?ff=)', () => {
   it('parses on/off pairs for known flags, ignoring junk', () => {
     expect(parseFlagOverrides('report:off,walkthrough:on')).toEqual({

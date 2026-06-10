@@ -39,6 +39,17 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
   `useFeature` guard on its toolbar/menu entries (desktop **and** mobile). Set `default` (prod
   on/off); add `devOnly: true` for licensed/sidecar-dependent features (forced off in prod by
   `resolveFlags`); prod-safe CC0/pure-code features default `true`. No feature ships ungated.
+- **Every feature is categorised `tier: 'simple' | 'pro'`** on its `FEATURE_FLAGS` entry.
+  **Simple is the app default** and shows only the minimal *core design loop* (furnish, finish,
+  view, share, budget); `pro`-tier features are forced **off in Simple mode** by `resolveFlags`
+  (so the existing `useFeature`/`isFeatureEnabled` gates hide them automatically — no extra
+  gating code). Keep Simple genuinely minimal yet fully functional for a casual user; put
+  anything analytical/professional/advanced (measure, checks, drawings, scores, AI, versions,
+  authoring tools, …) in `pro`. The Simple↔Pro toggle itself is **not** flag-gated.
+- **Test BOTH modes.** Anything whose visibility/behaviour depends on the Simple/Pro mode (or on
+  a `pro`-tier flag) must be unit-tested in **both** modes — default Simple AND Pro
+  (`resolveFlags(..., 'simple')` vs `'pro'`, or set `uiMode` then `reresolveFeatureFlags()`).
+  A `pro` feature must verify it is hidden in Simple and present in Pro.
 - **No hardcoded colour.** Use the CSS token class vocabulary (`.panel`/`.btn`/`.toolbar`/…),
   never Tailwind colour utilities or literals; every surface works in light + dark + 5 themes.
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).

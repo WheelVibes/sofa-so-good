@@ -298,7 +298,11 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),
-  setUiMode: (uiMode) => set({ uiMode }),
+  setUiMode: (uiMode) => {
+    set({ uiMode })
+    // Pro features are gated on the mode, so re-resolve the flag map when it flips.
+    get().reresolveFeatureFlags()
+  },
   cycleGridSize: () =>
     set((s) => {
       const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number])
