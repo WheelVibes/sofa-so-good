@@ -16,7 +16,7 @@ import type { CollisionWall } from '../collision/walls'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
-import { isEmitter } from '../furniture/lightEmitters'
+import { isItemEmitter } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps } from '../layout/walkway'
@@ -319,7 +319,7 @@ function lightingCategory(
   }
   // A room is "lit" if it contains at least one light-emitting fixture.
   const emitterPts = items
-    .filter((it) => isEmitter(it.defId) && defs[it.defId])
+    .filter((it) => isItemEmitter(it.defId, it.props) && defs[it.defId])
     .map((it) => it.position)
   let litRooms = 0
   const dark: string[] = []

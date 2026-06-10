@@ -112,6 +112,18 @@ the desktop **File → Shopping list**, the mobile File section, and a ⌘K comm
 links are dev-gated behind the dev-only `ikeaLive` flag per the licensing rule. 25 tests incl.
 both-modes flag resolution.
 
+## [C216] Vanity configurator — parametric dressing table with layout variants
+The dressing table gains a wardrobe-style (C205) configurator. New `layout` param reshapes the base —
+`Open legs` (four-leg + apron drawer band), `Single pedestal` (3-drawer pedestal left, legs right) and
+`Double pedestal (kneehole)` (mirrored pedestals + slim centre drawer over a ≥0.35 m knee space) — and the
+`mirror` enum gains `None (table only)`; width range widens to 0.8–1.5 m. Pure layout maths live in
+`primitives/vanityLayout.ts` (slatLayout pattern: supports reach floor→underside, every part inside the
+footprint, drawer fronts backed flush — 8 tests). The Hollywood-bulb option now emits real light at night:
+`LIGHT_EMITTERS` gains a per-item `enabled` gate (`isItemEmitter`) honoured by `FurnitureLights`, the 2D
+lighting plan and the design score, so a vanity only counts/glows with `lights=yes` on the rect mirror.
+Harness: `shot.mjs` honours `SHOT_URL` + 120 s nav timeout (playbook updated). Visually verified all three
+layouts, mirror none, and night bulbs on/off.
+
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
 - **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above

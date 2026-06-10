@@ -9,7 +9,7 @@
  * "where are the lights, how high, how bright" deliverable (Chief Architect /
  * RoomSketcher reflected ceiling plans). Pure (no three, no React) → testable.
  */
-import { LIGHT_EMITTERS } from '../furniture/lightEmitters'
+import { isItemEmitter, LIGHT_EMITTERS } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
 export interface PlanLight {
@@ -60,7 +60,7 @@ export function buildLightingPlan(
 
   for (const item of items) {
     const spec = LIGHT_EMITTERS[item.defId]
-    if (!spec) continue
+    if (!spec || !isItemEmitter(item.defId, item.props)) continue
     const def = defs[item.defId]
     const label = item.label ?? def?.name ?? item.defId
     const r = item.rotation

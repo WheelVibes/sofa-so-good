@@ -30,6 +30,12 @@ landmine someone already stepped on so you don't have to.
   there — but only the last 30 lines, so if you log in a tight poll loop the
   early ones scroll off. Prefer one summary log at the end.
 - `window.__store` (the Zustand store) is exposed in dev. That's your main lever.
+- `SHOT_URL=http://localhost:<port>/?…` targets a non-default dev server (run your
+  own on a free port with `npm run dev -- --port <port> --strictPort` so you never
+  fight another session's server). Query params survive into the page, so an
+  evalFile can read variants from `location.search` and one evalFile serves many
+  shots. Navigation waits for `networkidle2` with a 120 s timeout — on a slow
+  (software-render) box the first cold load can take >60 s, so don't shorten it.
 
 ## Rules
 
@@ -75,7 +81,14 @@ with actions — `wheel` dy negative to zoom in, then a vertical `drag` from hig
 to low screen-Y to tilt down to a side view. Example that yields a usable
 profile:
 `[{"type":"drag","from":[700,160],"to":[700,520]},{"type":"wait","ms":400},{"type":"wheel","x":700,"y":400,"dy":-400},{"type":"wait","ms":1200}]`
-Tune the drag magnitude per scene; large vertical drags tilt more.
+Tune the drag magnitude per scene; large vertical drags tilt more. **Check which
+way your drag tilted**: from the default dollhouse pose a downward drag can pin
+the camera to straight top-down (polar → 0) instead of a profile — if your shot
+comes out plan-view, drag the *other* way (low→high screen-Y, e.g.
+`from:[700,520] to:[700,230]`) to tilt toward the horizon, then wheel-zoom in.
+Also set a daytime hour first (`setManualHour(12)`) or a night scene hides
+geometry faults; and place the item with `rotation: 0` facing the camera side
+you'll shoot from so drawer fronts/handles are visible.
 
 ### Items must be on-screen to mount (and to run their effects)
 GLB geometry effects (footprint, support-plane caches) run in `GltfModel`'s

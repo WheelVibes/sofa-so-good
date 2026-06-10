@@ -20,7 +20,8 @@ same change that reshapes a system.
   in-app via `src/ui/docsUrl.ts` (guide only in a built `dist/`, `docs:dev` port 5175).
   **Developer docs** = local-only `docs/developer/` (`docs:dev:developer` 5176).
 - `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — Puppeteer
-  screenshot harness (actions drag/rdrag/wheel/click/type/key/wait); `crop.mjs`/`perf.mjs`.
+  screenshot harness (actions drag/rdrag/wheel/click/type/key/wait; `SHOT_URL` env targets a
+  non-default dev port); `crop.mjs`/`perf.mjs`.
 - `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) IKEA price lookup.

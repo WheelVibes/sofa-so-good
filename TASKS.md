@@ -58,7 +58,8 @@ standing themed backlog below + the existing sections further down hold the open
 - [x] C-MAT. Curated "Designer picks" one-tap floor/wall finishes row in the finish picker (C202,
   `materials/designerPicks.ts`, `designerPicks` flag).
 - [ ] C-PLANTS/DECOR. More CC0 decor/plants/art variety; ensure category coverage is exhaustive.
-- [~] C-WARDROBE. Wardrobe interior configurator done (C205, F10); vanity configurator still TODO.
+- [x] C-WARDROBE. Wardrobe interior configurator done (C205, F10); vanity configurator done (C216:
+  `layout` legs / single-pedestal / double-pedestal kneehole + mirror none + emitting Hollywood bulbs).
 
 #### Productivity / QOL (match + surpass)
 - [ ] Q-MULTILEVEL. Multi-storey / multi-level plans (maisonette upper floor, landed 2nd storey, condo loft) — architectural.

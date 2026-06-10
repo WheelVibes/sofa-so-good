@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { LIGHT_EMITTERS } from '../../furniture/lightEmitters'
+import { isItemEmitter, LIGHT_EMITTERS } from '../../furniture/lightEmitters'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { useQuality } from '../useQuality'
@@ -71,7 +71,7 @@ export function FurnitureLights() {
     lastItemsRef.current = items
     const emitters: { item: FurnitureItem; d2: number }[] = []
     for (const item of items) {
-      if (!(item.defId in LIGHT_EMITTERS)) continue
+      if (!isItemEmitter(item.defId, item.props)) continue
       const dx = item.position[0] - cx
       const dz = item.position[1] - cz
       emitters.push({ item, d2: dx * dx + dz * dz })

@@ -19,6 +19,9 @@ export interface EmitterSpec {
    *  Used by fixtures whose bulb is offset from their footprint centre (e.g.
    *  an arc floor lamp whose shade reaches out over a sofa). */
   offset?: (props: ParamProps) => [number, number]
+  /** Optional per-item gate: emit only when the item's params switch its
+   *  light on (e.g. the vanity's Hollywood bulbs). Defaults to always-on. */
+  enabled?: (props: ParamProps) => boolean
 }
 
 export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
@@ -66,6 +69,17 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 2.6,
     distance: 3.2,
   },
+  vanity: {
+    // Hollywood bulb ring around the rectangular mirror — a warm wash centred
+    // on the mirror face, just in front of the glass. Only when the item's
+    // `lights` param is on (bulbs render only with the rectangular mirror).
+    enabled: (p) => p.lights === 'yes' && p.mirror === 'rect',
+    height: () => 1.05,
+    offset: (p) => [0, -(typeof p.depth === 'number' ? p.depth : 0.42) / 2 + 0.2],
+    color: '#ffeec8',
+    intensity: 2.8,
+    distance: 2.6,
+  },
   aquarium: {
     // The tank's own light glows from within the water — a cool aqua accent that
     // reads beautifully at night. Low intensity (mood, not room lighting).
@@ -78,4 +92,11 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
 
 export function isEmitter(defId: FurnitureType): boolean {
   return defId in LIGHT_EMITTERS
+}
+
+/** Whether a *placed item* currently emits: registered AND its per-item
+ *  `enabled` gate (if any) passes for the item's params. */
+export function isItemEmitter(defId: FurnitureType, props: ParamProps): boolean {
+  const spec = LIGHT_EMITTERS[defId]
+  return spec !== undefined && (spec.enabled?.(props) ?? true)
 }
