@@ -24,7 +24,7 @@ export function AccessibilityPanel() {
   const cm = (m: number) => `${Math.round(m * 100)} cm`
 
   return (
-    <aside className="panel mini aux" id="accessibilityPanel" style={{ width: 360 }}>
+    <aside className="panel mini aux aux-360" id="accessibilityPanel">
       <div className="panel-head">
         <div>
           <div className="panel-title">Accessibility</div>

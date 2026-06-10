@@ -20,7 +20,7 @@ export function DaylightPanel() {
   const fmtPct = (v: number) => `${(v * 100).toFixed(1)}%`
 
   return (
-    <aside className="panel mini aux" id="daylightPanel" style={{ width: 360 }}>
+    <aside className="panel mini aux aux-360" id="daylightPanel">
       <div className="panel-head">
         <div>
           <div className="panel-title">Daylight & ventilation</div>

@@ -182,6 +182,9 @@
 /* ---- Generic small panel (budget / graphics / finishes) ------ */
 .mini { width: 290px; }
 .aux { left: 50%; top: 74px; transform: translateX(-50%); position: absolute; z-index: var(--z-pop); animation: pop var(--dur) var(--ease); max-height: calc(100vh - 96px); }
+/* Fixed width for the analysis aux panels (daylight / design-score / accessibility);
+   the mobile responsive rule overrides .aux width to auto. */
+.aux-360 { width: 360px; }
 /* display:block so width:100% + aspect-ratio apply — as a <span> (inline) they
    were ignored, collapsing every swatch to a thin strip. Square thumbnails. */
 .swatch-lg { display: block; width: 100%; aspect-ratio: 1/1; border-radius: var(--r-2); border: 1px solid var(--border-2); cursor: pointer; position: relative; overflow: hidden; }

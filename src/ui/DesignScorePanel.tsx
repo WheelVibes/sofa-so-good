@@ -80,7 +80,7 @@ export function DesignScorePanel() {
   const dialColor = gradeColor(score.grade)
 
   return (
-    <aside className="panel mini aux" id="designScorePanel" style={{ width: 360 }}>
+    <aside className="panel mini aux aux-360" id="designScorePanel">
       <div className="panel-head">
         <div>
           <div className="panel-title">Design score</div>
