@@ -96,7 +96,7 @@ standing themed backlog below + the existing sections further down hold the open
   attribute. Make them the full 5-char esc.
 - [ ] S2 (MED-low). Vision-AI key POSTed to a user-configurable non-origin-pinned URL (`ai/floorPlanAi.ts`)
   — surface/warn on a non-default endpoint.
-- [ ] S3 (LOW). Validate report finish swatch against a hex/rgb pattern before emitting into `style=`.
+- [x] S3 (C183). Validate report finish swatch against a hex/rgb pattern before emitting into `style=`.
 
 **Perf (from prod build):**
 - [ ] P-CHUNK. Prod build chunks are large (three 1.16 MB, index 932 KB, vendor 870 KB, EffectsImpl 308 KB).
@@ -122,7 +122,7 @@ standing themed backlog below + the existing sections further down hold the open
 - [ ] PERF8 (M). `DragController.onMove` does repeated O(n) `.find`/scans per pointermove — id→item Map at
   drag start, reuse `others`. `scene/DragController.tsx:141`.
 - [ ] PERF9 (S). Procedural texture default 512² on main thread — drop to 256² where quality allows / OffscreenCanvas worker; bound `thumbCache` (LRU). `materials/procedural/generators.ts`.
-- [ ] PERF10 (S). Reuse a single mutable `PumpInputs` in `RenderPump` rAF instead of allocating per frame. `scene/RenderPump.tsx:60`.
+- [x] PERF10 (C182) (S). Reuse a single mutable `PumpInputs` in `RenderPump` rAF instead of allocating per frame. `scene/RenderPump.tsx:60`.
 
 ### COMPETITOR-RESEARCH BACKLOG (2026-06-10) — "surpass the market" features
 Researched vs Coohom/Planner5D/IKEA Kreativ/Homestyler/RoomSketcher/Cedreo/Live Home 3D/Foyr/Spacejoy/

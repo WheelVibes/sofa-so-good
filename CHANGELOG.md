@@ -4,6 +4,10 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C182–C183] Perf + security polish
+- **C182** (PERF10): RenderPump reuses one PumpInputs object across rAF frames (zero per-frame garbage).
+- **C183** (S3): report finish swatches validated against a hex/rgb pattern before entering `style=`.
+
 ## [C181] Lazy-load rarely-opened panels — trim the boot bundle (PERF5)
 ShareModal / VersionsPanel / ElevationPanel / HistoryPanel / ProductTour / SmartStartWizard are now
 `React.lazy` + gated on their open flag in App → their code loads only on open. Main entry chunk
