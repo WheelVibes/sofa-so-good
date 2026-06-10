@@ -124,12 +124,17 @@ function roomForWindow(
  * is not used by the glazing maths today.
  */
 export function buildDaylightReport(plan: FloorPlan, _items?: unknown): DaylightReport {
-  const interiorRooms = plan.rooms.filter((r) => !isExternalRoom(r))
-  const wallsById = new Map(plan.walls.map((w) => [w.id, w]))
+  // Guard a partial / hand-built plan whose arrays may be absent, so every caller
+  // is safe without its own outer guard.
+  const planRooms = Array.isArray(plan.rooms) ? plan.rooms : []
+  const planWalls = Array.isArray(plan.walls) ? plan.walls : []
+  const planOpenings = Array.isArray(plan.openings) ? plan.openings : []
+  const interiorRooms = planRooms.filter((r) => !isExternalRoom(r))
+  const wallsById = new Map(planWalls.map((w) => [w.id, w]))
 
   // Sum glazing per room id.
   const glazingByRoom = new Map<string, number>()
-  for (const o of plan.openings) {
+  for (const o of planOpenings) {
     if (o.kind !== 'window') continue
     const room = roomForWindow(interiorRooms, wallsById, o)
     if (!room) continue

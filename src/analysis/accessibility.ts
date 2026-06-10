@@ -68,7 +68,7 @@ export function buildAccessibilityReport(plan: FloorPlan): AccessibilityReport {
     .filter((o) => o.kind === 'door')
     .map((o) => ({ id: o.id, width: o.width, pass: o.width >= MIN_DOOR_CLEAR }))
 
-  const rooms: RoomAccessRow[] = plan.rooms
+  const rooms: RoomAccessRow[] = (Array.isArray(plan.rooms) ? plan.rooms : [])
     .filter((r) => !isExternalRoom(r) && r.width > 0 && r.depth > 0)
     .map((r) => {
       const minDim = roomMinDim(r)
