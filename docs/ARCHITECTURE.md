@@ -65,7 +65,9 @@ same change that reshapes a system.
   `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR, `reencode.ts`→WebP; 16MB cap, KTX2/DDS deferred).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
-  `quality.ts`+`QualityController`, `ScreenshotController`, cameras, selection,
+  `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
+  (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in
+  `ui/PanoramaModal.tsx`, `panorama` flag), cameras, selection,
   `SceneBackdrop.tsx` dispatcher (City/Park/Hills/Studio); `CityBackdrop.tsx` (instanced two-ring HDB
   estate + rooftop tanks + night-lit windows), `ParkBackdrop.tsx`/`HillsBackdrop.tsx` (instanced trees /
   depth-banded hills), `StudioBackdrop.tsx` (seamless gradient-dome cyclorama) — all share `Ground.tsx`
@@ -262,7 +264,9 @@ same change that reshapes a system.
   — `jumpHistory`, `historyTimeline.ts`), **Shopping + Collections** (`BudgetPanel` + heart
   `fav-btn`; budget target → over/under + Spend by room/category; `ui/BudgetHud`; pure
   `itemsCost`/`spendByRoom`/`shoppingGroups`/`shoppingCsv`), **Share** (`ShareModal` —
-  `sofa:export` PNG + photoreal/link).
+  `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
+  capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` drag-to-look
+  viewer + PNG, `panorama` flag, pro).
 - **Mirror reflections** (`primitives/MirrorMaterial.tsx`): real planar reflection on
   High/Maximum (`mirrorReflectorConfig(tier)`), fake-shiny pane below. Uploaded GLB
   mirrors via inspector "Reflective surface" (`props.reflective`, `gltf/mirrorPlane.ts`).

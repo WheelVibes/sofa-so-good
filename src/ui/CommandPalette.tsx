@@ -35,6 +35,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'design-score': 'designScore',
   accessibility: 'accessibility',
   'palette-from-photo': 'paletteFromPhoto',
+  panorama: 'panorama',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -187,6 +188,13 @@ export function CommandPalette() {
         label: 'Share & export',
         icon: 'Share',
         run: () => s().setShareOpen(true),
+      },
+      {
+        id: 'panorama',
+        group: 'Tools & panels',
+        label: '360° panorama',
+        icon: 'Export',
+        run: () => s().setPanoramaOpen(true),
       },
       {
         id: 'palette-from-photo',

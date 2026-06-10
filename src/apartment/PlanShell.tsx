@@ -23,7 +23,10 @@ function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
     let target = 1
-    if (cameraMode === 'orbit') {
+    // Same wallReveal override the default flat's WallSegment honours (also
+    // forced off during panorama capture so walls don't leave holes).
+    const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
+    if (cameraMode === 'orbit' && revealEnabled) {
       // Wall is "between" camera and centre when (K-W)·(C-W) < 0.
       const kx = camera.position.x - box.cx
       const kz = camera.position.z - box.cz

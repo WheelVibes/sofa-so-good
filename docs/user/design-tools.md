@@ -128,3 +128,11 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
   the lighting plan, and the FF&E schedule. Print or save as PDF for builders and
   permits — the multi-sheet counterpart to the one-page Report.
+
+## 360° panorama (Pro)
+
+**File → 360° panorama** captures a full look-around panorama from where you're
+standing (in walk mode, your exact position; in orbit, the point you're looking
+at, at standing height). Drag inside the preview to look around, scroll to
+zoom, and **Download PNG** saves the equirectangular image — ready for any
+360° viewer or a VR headset app.

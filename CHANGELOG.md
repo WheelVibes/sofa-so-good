@@ -4,6 +4,18 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C217 / F2] 360° panorama — equirect capture + drag-to-look viewer + PNG export
+Six 90° renders through the normal screen pipeline (tone mapping/colour match the live view; the
+camera-facing wall-reveal is settled opaque first via a `wallReveal` override + `registerAnimatedSource`
+pump hold; composer render-state reset around the manual renders) cropped to exact 90°×90° squares and
+CPU-assembled by pure `scene/panorama/equirect.ts` (unit-tested face math + bilinear assembler). Eye =
+walk camera, or the orbit pivot at standing height. `PanoramaModal` (lazy, `panorama` flag, pro-tier)
+shows a self-contained three sphere viewer (drag look, wheel zoom, context-loss tolerant) + PNG download;
+entries in File menu, mobile File sheet, ⌘K. Also: custom-plan `FadeWall` now honours the `wallReveal`
+override like the default flat. Verified headless: capture correctness via pixel probes at six directions
++ modal/viewer screenshots; the *interactive* viewer rotation provably updates the camera but SwiftShader
+won't present a second WebGL context's redraws — real-GPU pass deferred (consistent with PR3c precedent).
+
 ## [C214 / F25] Text-to-room brief — "describe it" box in Smart Start
 New pure `furniture/briefParser.ts`: deterministic keyword scoring (curated synonym table over all 15
 layout presets + name/description fallback, whole-word matching) maps a free-text brief to the closest

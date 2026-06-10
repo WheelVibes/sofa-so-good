@@ -28,6 +28,7 @@ export type FeatureFlag =
   | 'floorPlanEditor'
   | 'smartStart'
   | 'textBrief'
+  | 'panorama'
   | 'savedViews'
   | 'backdrops'
   | 'lightingMoods'
@@ -145,6 +146,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Free-text brief matched to a Smart Start style + budget',
     default: true,
     tier: 'simple',
+  },
+  panorama: {
+    label: '360° panorama',
+    description: 'Equirect 360° capture with drag-to-look viewer + PNG export',
+    default: true,
+    tier: 'pro',
   },
   savedViews: {
     label: 'Saved views',

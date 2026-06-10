@@ -118,3 +118,10 @@ describe('textBrief flag (Smart Start describe-it box)', () => {
     expect(resolveFlags(true, { textBrief: false }, false, 'pro').textBrief).toBe(false)
   })
 })
+
+describe('panorama flag (360° capture)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').panorama).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').panorama).toBe(true)
+  })
+})

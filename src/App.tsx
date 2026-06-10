@@ -58,6 +58,9 @@ const GlbDesignerDialog = lazy(() =>
 // open flag so their code (AI client, GLTF/design-file IO, elevation projection,
 // SVG builders, tour) stays out of the initial bundle (PERF5).
 const ShareModal = lazy(() => import('./ui/ShareModal').then((m) => ({ default: m.ShareModal })))
+const PanoramaModal = lazy(() =>
+  import('./ui/PanoramaModal').then((m) => ({ default: m.PanoramaModal })),
+)
 const VersionsPanel = lazy(() =>
   import('./ui/VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
 )
@@ -118,6 +121,7 @@ export default function App() {
   // chunk loads only when the panel is opened.
   const lazyPanels = {
     shareOpen: useStore((s) => s.shareOpen),
+    panoramaOpen: useStore((s) => s.panoramaOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -814,6 +818,11 @@ export default function App() {
         {lazyPanels.shareOpen ? (
           <Suspense fallback={null}>
             <ShareModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.panoramaOpen ? (
+          <Suspense fallback={null}>
+            <PanoramaModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

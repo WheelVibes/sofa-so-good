@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useFeature } from '../../../features/useFeature'
 import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
 import { canRecord } from '../../../scene/RecordController'
 import { EXPORT_EVENT } from '../../../scene/ScreenshotController'
@@ -16,6 +17,7 @@ export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  const fPanorama = useFeature('panorama')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
   const [slots, setSlots] = useState<SlotMeta[]>([])
@@ -75,6 +77,14 @@ export function FileMenu() {
         sub="Save the current view as an image"
         onClick={() => window.dispatchEvent(new Event(EXPORT_EVENT))}
       />
+      {fPanorama ? (
+        <MenuItem
+          icon="Export"
+          label="360° panorama"
+          sub="Capture a look-around panorama"
+          onClick={() => useStore.getState().setPanoramaOpen(true)}
+        />
+      ) : null}
       {canRecord() && proMode ? (
         <MenuItem
           icon="Record"

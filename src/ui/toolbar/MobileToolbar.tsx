@@ -176,6 +176,7 @@ export function MobileToolbar() {
   const fLightingMoods = useFeature('lightingMoods')
   const fBackdrops = useFeature('backdrops')
   const fSmartStart = useFeature('smartStart')
+  const fPanorama = useFeature('panorama')
   const fBudget = useFeature('budget')
   const fChecks = useFeature('clearanceChecks')
   const fMeasure = useFeature('measure')
@@ -840,6 +841,14 @@ export function MobileToolbar() {
                   label="Export PNG"
                   onClick={act(() => window.dispatchEvent(new Event(EXPORT_EVENT)))}
                 />
+                {fPanorama ? (
+                  <Item
+                    icon="Export"
+                    label="360° panorama"
+                    sub="Capture a look-around panorama"
+                    onClick={act(() => s.getState().setPanoramaOpen(true))}
+                  />
+                ) : null}
                 {canRecord() ? (
                   <Item
                     icon="Record"

@@ -25,6 +25,7 @@ import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
 import { Sky } from './lighting/Sky'
 import { DEFAULT_TONE_MAPPING } from './look'
+import { PanoramaController } from './PanoramaController'
 import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
@@ -113,6 +114,7 @@ export function Scene() {
       <ShowcaseController />
       <QualityController />
       <ScreenshotController />
+      <PanoramaController />
       <RecordController />
       <SceneReadySignal />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}

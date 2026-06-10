@@ -48,7 +48,7 @@ standing themed backlog below + the existing sections further down hold the open
 #### Realism & rendering (photorealism — surpass-the-market)
 - [ ] R-HDRI. Real HDRI environment lighting option (CC0 Poly Haven .hdr) for High/Maximum — image-based
   lighting + reflections beyond the procedural probe; dev-gate only if the asset isn't CC0 (Poly Haven is CC0 → prod-ok).
-- [ ] R-PANO. 360° panorama export (equirectangular render) for VR/▢ sharing — a pro presentation deliverable.
+- [x] R-PANO (C217). 360° panorama export — shipped with F2.
 - [ ] R-SSAO/PR4. Soft-shadow (PCSS/VSM) + contact-shadow refinement + grounding AO on all tiers (needs real-GPU verify).
 - [ ] R-CURTAIN. Window glass tint colouring the sun shaft + curtains/blinds affecting cast light (TODO.md L1/N6).
 - [x] R-DAYNIGHT. Already shipped: morning/noon/dusk(golden)/night one-click presets in the Scene menu +
@@ -162,7 +162,8 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 **Photoreal/render (biggest gap):**
 - [ ] F1 [PROD] GPU path-traced "HQ render" still — `three-gpu-pathtracer`, progressive→2-4K, denoise,
   download; High/Max only + raster fallback. Marquee feature. V:L E:M-L. (real-GPU verify deferred)
-- [ ] F2 [PROD] 360° panorama render (equirect cube-cam capture) + drag-to-look viewer + export. V:L E:M.
+- [x] F2 (C217) [PROD] 360° panorama — six-face screen-path capture → pure equirect assembly, sphere
+  viewer + PNG export, `panorama` flag (pro). Real-GPU viewer-drag pass deferred (SwiftShader limit).
 - [ ] F3 [PROD] HDRI environment library (Poly Haven CC0 .hdr) for IBL+backdrop (clear/overcast/golden/
   studio). V:M E:S-M. (sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.)
 - [ ] F4 [PROD] Environment-coupled render presets (sun+HDRI+exposure) + A/B compare. V:M E:S.
