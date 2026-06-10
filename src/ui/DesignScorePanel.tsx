@@ -6,8 +6,11 @@ import {
   type Grade,
   type IssueSeverity,
 } from '../analysis/designScore'
+import { buildSuggestions } from '../analysis/suggestions'
 import { buildCollisionWalls } from '../collision/wallsFromState'
+import { useFeature } from '../features/useFeature'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
+import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
@@ -59,6 +62,22 @@ export function DesignScorePanel() {
     lastScore.current = result
     return result
   }, [open, items, plan, doors, catalogInputs, dragging])
+
+  // Contextual "what to add" suggestions per room (gated by its own flag).
+  const suggestEnabled = useFeature('suggestions')
+  const suggestions = useMemo(() => {
+    if (!open || !suggestEnabled || dragging) return []
+    const merged = buildMergedCatalog(catalogInputs)
+    const rooms = plan.rooms.map((r) => {
+      const cats = new Set<string>()
+      for (const it of items) {
+        const def = merged[it.defId]
+        if (def && pointInRoom(r, it.position[0], it.position[1])) cats.add(def.category)
+      }
+      return { id: r.id, name: r.name, areaSqm: planRoomArea(r), itemCategories: [...cats] }
+    })
+    return buildSuggestions({ rooms })
+  }, [open, suggestEnabled, dragging, items, plan, catalogInputs])
 
   // Select + frame the items behind a category's issues (clearance / circulation).
   const selectOffenders = (ids: string[]) => {
@@ -224,6 +243,23 @@ export function DesignScorePanel() {
             )
           })}
         </div>
+
+        {suggestions.length > 0 && (
+          <div style={{ marginTop: 'var(--s-3)' }}>
+            <div className="panel-sub" style={{ marginBottom: 4 }}>
+              Suggestions
+            </div>
+            {suggestions.slice(0, 6).map((sg, i) => (
+              <div
+                key={`${sg.roomId}-${i}`}
+                className="ci-detail"
+                style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-2)', marginTop: 2 }}
+              >
+                💡 <strong>{sg.roomName}</strong> — {sg.message}
+              </div>
+            ))}
+          </div>
+        )}
       </div>
     </aside>
   )

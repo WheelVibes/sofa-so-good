@@ -45,6 +45,8 @@ export type FeatureFlag =
   | 'paletteFromPhoto'
   | 'dxfExport'
   | 'boq'
+  | 'suggestions'
+  | 'electricalPlan'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -164,6 +166,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   boq: {
     label: 'Quote (BOQ)',
     description: 'Bill-of-quantities quote export',
+    default: true,
+  },
+  suggestions: {
+    label: 'Design suggestions',
+    description: 'Contextual "what to add" hints in Design score',
+    default: true,
+  },
+  electricalPlan: {
+    label: 'Electrical plan',
+    description: 'Power / data / switch layout in the drawing set',
     default: true,
   },
 }
