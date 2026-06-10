@@ -51,6 +51,15 @@ Boot JS payload cut ~24% (3,027 → 2,290 KB minified; 837 → 632 KB gzip) with
   990→863 KB. Verified: full test suite, prod-build boot screenshot, and the lazified report path
   end-to-end in the harness.
 
+## [POPOVER-SCROLL] Toolbar popovers vs. toolbar scroll
+Verified the reported "popover detaches when the toolbar scrolls" on a narrow desktop (660 px, room-editor
+toolbar): the shared `Popover` already closes on any capture-phase ancestor scroll, so no detach occurs. The
+actual defect was the inverse — that same global listener also fired for scrolls *inside* a menu's own
+overflow list (File → saved layouts, Arrange), instantly closing the menu you were scrolling. `Popover` now
+ignores scroll events originating within its panel (they don't move the anchor) while still closing on
+toolbar/page/ancestor scrolls. Unit tests cover both directions; mobile is unaffected (the mobile sheet
+doesn't use `Popover`).
+
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
 - **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above

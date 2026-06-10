@@ -80,8 +80,11 @@ From the parallel bug/perf/UI agent sweep; the high-value items were fixed in th
   in `screens.css`, `--sun`/`--sun-edge` in `tokens.css`; upload `ConfirmDialog` now uses
   `.modal-overlay`/`.btn` classes). Exception: `PlanInspector.tsx` cove `#ffe6c0` stays a literal — it is a
   persisted scene-data default (`coveColor`, consumed by the 3D cove light + `<input type="color">`), not UI chrome.
-- [ ] POPOVER-SCROLL. Toolbar popovers/menus are fixed-positioned to their button; when the toolbar scrolls
+- [x] POPOVER-SCROLL. Toolbar popovers/menus are fixed-positioned to their button; when the toolbar scrolls
   horizontally (narrow desktop) the popover detaches. Close or reposition popovers on toolbar scroll.
+  (Verified: the shared `Popover` already closed on capture-phase ancestor scroll — the real defect was the
+  inverse: scrolling a menu's *own* overflow list (File's saved layouts, Arrange) also closed it. Internal
+  panel scrolls are now ignored; ancestor-scroll close kept + unit-tested.)
 - [ ] MOBILE-TAP-TARGETS. Audit mobile accordion sub-items (`.m-item-s`) for the 44 px min touch target.
 - [ ] MODAL-HOTKEYS. Global keyboard shortcuts still fire while a modal is open (typing into a
   mis-focused modal triggered the `P` 2D-plan toggle behind Smart Start). Gate the keybinding
