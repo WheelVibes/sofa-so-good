@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C121] GE2a — per-part rotation in the GLB designer
+Each composed primitive now carries an optional Euler `rotation` (degrees), edited via a new
+Rotation (°) row, so cones/capsules/torus rings/pyramids can be laid on their side or angled
+(previously fixed-orientation). `buildEditedObject` converts deg→rad onto the mesh; the live
+preview applies the same. Unit-tested (90° → π/2 on the built mesh). A full drag gizmo stays GE2b.
+
 ## [C120] GE3b — GLB designer parts can glow + go translucent
 Rounded out the per-part material editor with **glow** (emissive in the part's own colour — neon,
 lamp shades, screens) and **opacity** (translucent glass/acrylic) sliders. `partMaterial` sets

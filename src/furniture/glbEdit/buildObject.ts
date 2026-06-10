@@ -7,6 +7,7 @@ import {
   CylinderGeometry,
   Group,
   type Material,
+  MathUtils,
   Mesh,
   MeshStandardMaterial,
   type Object3D,
@@ -132,6 +133,13 @@ export function buildEditedObject(source: Object3D | null, spec: AssetEditSpec):
     // reopened as a source for per-mesh recolour/hide.
     mesh.name = `${part.kind}-${i + 1}`
     mesh.position.set(part.position[0], part.position[1], part.position[2])
+    if (part.rotation) {
+      mesh.rotation.set(
+        MathUtils.degToRad(part.rotation[0]),
+        MathUtils.degToRad(part.rotation[1]),
+        MathUtils.degToRad(part.rotation[2]),
+      )
+    }
     mesh.castShadow = true
     mesh.receiveShadow = true
     group.add(mesh)

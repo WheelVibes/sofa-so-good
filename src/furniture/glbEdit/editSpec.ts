@@ -39,6 +39,9 @@ export interface ShapePart {
   position: [number, number, number]
   /** Box: full W/H/D. Cylinder: [diameter, height, diameter]. Sphere: [d,d,d]. */
   size: [number, number, number]
+  /** Euler rotation in DEGREES (X,Y,Z), asset-local. Absent → no rotation.
+   *  Lets a cone/capsule/torus/pyramid be laid on its side or angled. */
+  rotation?: [number, number, number]
   color: string
   /** PBR surface roughness 0 (mirror-smooth) … 1 (fully matte). Absent → 0.6. */
   roughness?: number

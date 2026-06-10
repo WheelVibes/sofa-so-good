@@ -41,7 +41,8 @@ Today (`GlbDesignerDialog` + `furniture/glbEdit/`): compose-from-shapes, scale-a
 per-mesh recolour/hide. More verifiable in software-GL than PRx (deterministic geometry/UI).
 - [x] GE1. More primitives — cone/pyramid/capsule/torus shipped C115 (wedge/plane deferred).
 - [ ] GE1b. **Wedge / plane / tube** primitives (need custom or extra geometry).
-- [ ] GE2. **Per-part transform gizmo** (move/rotate/scale) — carried TODO from C47/C48.
+- [~] GE2. Per-part transform. GE2a (C121): numeric rotation inputs. TODO GE2b: a drag gizmo
+  (drei TransformControls) for move/rotate/scale in the preview.
 - [x] GE3. Per-part PBR — roughness/metalness (C119) + glow/opacity (C120). TODO GE3c: texture pick.
 - [ ] GE4. **Save edits back over an existing asset** (vs always-new) — carried TODO.
 - [ ] GE5. **CSG boolean ops** (union/subtract/intersect) via three-bvh-csg or similar.

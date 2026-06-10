@@ -2,7 +2,7 @@ import { Bounds, OrbitControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Mesh, type Object3D } from 'three'
+import { MathUtils, Mesh, type Object3D } from 'three'
 import { buildEditedObject, partGeometry } from '../../furniture/glbEdit/buildObject'
 import {
   type AssetEditSpec,
@@ -52,8 +52,19 @@ function PartMesh({ part }: { part: ShapePart }) {
   useEffect(() => () => geom.dispose(), [geom])
   const glow = part.emissiveIntensity ?? 0
   const opacity = part.opacity ?? 1
+  const rot = part.rotation
   return (
-    <mesh position={part.position} castShadow receiveShadow geometry={geom}>
+    <mesh
+      position={part.position}
+      rotation={
+        rot
+          ? [MathUtils.degToRad(rot[0]), MathUtils.degToRad(rot[1]), MathUtils.degToRad(rot[2])]
+          : undefined
+      }
+      castShadow
+      receiveShadow
+      geometry={geom}
+    >
       <meshStandardMaterial
         color={part.color}
         roughness={part.roughness ?? DEFAULT_PART_ROUGHNESS}
@@ -413,6 +424,39 @@ export function GlbDesignerDialog() {
                     </div>
                   </div>
                 ))}
+                <div style={{ marginBottom: 'var(--s-2)' }}>
+                  <div
+                    className="label"
+                    style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                  >
+                    Rotation (°)
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[0, 1, 2].map((axis) => (
+                      <input
+                        key={axis}
+                        type="number"
+                        className="input"
+                        step={15}
+                        min={-180}
+                        max={180}
+                        value={(sel.rotation ?? [0, 0, 0])[axis]}
+                        aria-label={`${sel.kind} rotation ${'XYZ'[axis]}`}
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          setSpec((sp) =>
+                            updatePart(sp, sel.id, {
+                              rotation: (sel.rotation ?? [0, 0, 0]).map((o, k) =>
+                                k === axis ? v : o,
+                              ) as [number, number, number],
+                            }),
+                          )
+                        }}
+                        style={{ width: '33%' }}
+                      />
+                    ))}
+                  </div>
+                </div>
                 <label className="fld">
                   <span>Colour</span>
                   <input

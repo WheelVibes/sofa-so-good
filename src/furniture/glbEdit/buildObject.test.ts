@@ -132,4 +132,14 @@ describe('partMaterial — per-part PBR', () => {
     expect(mat.metalness).toBeCloseTo(1)
     expect(mat.roughness).toBeCloseTo(0.2)
   })
+
+  it('applies a part’s degree rotation to the built mesh (converted to radians)', () => {
+    let spec = createEmptySpec()
+    spec = addPart(spec, 'cone')
+    spec.parts[0]!.rotation = [90, 0, 0]
+    const obj = buildEditedObject(null, spec)
+    const mesh = obj.children.find((c) => c instanceof Mesh) as Mesh
+    expect(mesh.rotation.x).toBeCloseTo(Math.PI / 2)
+    expect(mesh.rotation.y).toBeCloseTo(0)
+  })
 })

@@ -62,7 +62,7 @@ No model to import? Open the **3D asset designer** (⌘K → "Design a 3D asset"
 build one in the browser:
 
 - **Compose from shapes** — add boxes, cylinders, spheres, cones, pyramids, capsules
-  and torus rings, then set each one's size, position, colour and **surface finish**
+  and torus rings, then set each one's size, position, **rotation**, colour and **surface finish**
   (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
   wood, polished metal, a lit neon/lamp, or translucent glass). A live 3D preview
   updates as you go.
