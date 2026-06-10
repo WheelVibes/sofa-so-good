@@ -9,11 +9,13 @@ import { buildDesignScore } from '../analysis/designScore'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
+import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
 import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { projectAllElevations } from '../elevation/projectElevation'
+import { isFeatureEnabled } from '../features/featureFlags'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
 import { diffWalls } from '../floorplan/demolitionPlan'
@@ -157,15 +159,22 @@ export function buildReportHtml(
   // Rooms (skip external ledges with ~0 interior use are still listed). Plain
   // rectangular rooms show their W×D dimensions (a room schedule detail); L-shape
   // / polygon rooms omit them (a bounding box would mislead) — area only.
-  const roomHeader =
-    '<tr class="cat"><td>Room</td><td class="dim">Size</td><td class="num">Ceiling</td><td class="num">Area</td></tr>'
+  // Show a ceiling-treatment column only when the feature is on and at least one
+  // room actually has a non-flat ceiling (avoids an all-"Flat" column).
+  const showCeiling =
+    isFeatureEnabled('ceilingDesign') &&
+    plan.rooms.some((r) => r.ceiling && r.ceiling.style !== 'flat')
+  const roomHeader = `<tr class="cat"><td>Room</td><td class="dim">Size</td><td class="num">Ceiling</td>${
+    showCeiling ? '<td>Ceiling style</td>' : ''
+  }<td class="num">Area</td></tr>`
   const roomRows =
     roomHeader +
     plan.rooms
       .map((r) => {
         const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
         const height = formatLength(r.ceilingHeight ?? plan.ceilingHeight, units)
-        return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${esc(height)}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
+        const ceilCell = showCeiling ? `<td>${esc(ceilingStyleLabel(r.ceiling))}</td>` : ''
+        return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${esc(height)}</td>${ceilCell}<td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
       })
       .join('')
   const totalArea = planTotalArea(plan)

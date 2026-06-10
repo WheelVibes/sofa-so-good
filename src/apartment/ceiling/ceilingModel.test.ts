@@ -1,5 +1,17 @@
 import { describe, expect, it } from 'vitest'
-import { buildCeiling } from './ceilingModel'
+import { buildCeiling, ceilingStyleLabel } from './ceilingModel'
+
+describe('ceilingStyleLabel', () => {
+  it('labels absent / flat as Flat', () => {
+    expect(ceilingStyleLabel(undefined)).toBe('Flat')
+    expect(ceilingStyleLabel({ style: 'flat' })).toBe('Flat')
+  })
+  it('labels coffered with its grid, and a cove suffix', () => {
+    expect(ceilingStyleLabel({ style: 'coffered', grid: [3, 2] })).toBe('Coffered 3×2')
+    expect(ceilingStyleLabel({ style: 'tray', coveLight: true })).toBe('Tray + cove')
+    expect(ceilingStyleLabel({ style: 'dropped' })).toBe('Dropped')
+  })
+})
 
 const RECT: [number, number][] = [
   [0, 0],

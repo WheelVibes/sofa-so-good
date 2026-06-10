@@ -55,6 +55,18 @@ export interface CeilingModel {
   fallback: boolean
 }
 
+/** Short human label for a room's ceiling treatment (for schedules/reports).
+ *  Absent or flat → "Flat". Pure. */
+export function ceilingStyleLabel(config?: CeilingConfig): string {
+  if (!config || config.style === 'flat') return 'Flat'
+  const cove = config.coveLight ? ' + cove' : ''
+  if (config.style === 'coffered') {
+    const [c, r] = config.grid ?? [2, 2]
+    return `Coffered ${c}×${r}${cove}`
+  }
+  return `${config.style[0].toUpperCase()}${config.style.slice(1)}${cove}`
+}
+
 const MIN_CEILING_CLEARANCE = 2.0 // never drop a ceiling element below this (m)
 const MIN_COFFER_CELL = 0.6 // smallest coffer cell side (m)
 const BEAM_W = 0.12 // coffered beam width (m)
