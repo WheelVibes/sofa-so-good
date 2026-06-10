@@ -78,7 +78,7 @@ standing themed backlog below + the existing sections further down hold the open
 - [x] B2 (C166). ⌘K command palette + MobileToolbar don't fully close the newer `.aux` panels
   (daylight/elevations/designScore/accessibility) → stacked overlapping panels. Extract one shared
   `closeAllAuxPanels(state)` and use it in ToolsMenu, MobileToolbar, CommandPalette. `ui/CommandPalette.tsx:118`, `ui/toolbar/MobileToolbar.tsx:197`.
-- [ ] B3 (HIGH, mobile parity). MobileToolbar Tools section is missing Daylight, Design score,
+- [x] B3 (C177). MobileToolbar Tools section is missing Daylight, Design score,
   Accessibility, Drawings — desktop-only. Add them (same feature gates) via the shared closeAux. `ui/toolbar/MobileToolbar.tsx:661`.
 - [x] B4 (C172). Guard `Array.isArray` for plan members inside the pure cores so every caller is safe +
   drop duplicated outer guards: `daylight.ts` (walls/openings/rooms), `accessibility.ts` (rooms),
@@ -106,7 +106,7 @@ standing themed backlog below + the existing sections further down hold the open
 - [ ] PERF1 (M, big). In-canvas overlays call reactive `useCatalog()` (rebuilds full merged catalog +
   re-renders on any catalog change) — CLAUDE.md says use `useCatalogGetter`. Fix: `FurnitureLayer.tsx`,
   `selection/SelectionOutline.tsx`, `HoverHighlight.tsx`, `RotateGizmo.tsx`, `ClearanceOverlay.tsx`, `PlacementGhost.tsx`.
-- [ ] PERF2 (S, big). `DesignScorePanel` (and check `ClearanceOverlay`) rerun O(n²) scans every
+- [x] PERF2 (C178) (S, big). `DesignScorePanel` (and check `ClearanceOverlay`) rerun O(n²) scans every
   pointermove while open — gate recompute on `!draggingItemId` / debounce 250–400ms. `ui/DesignScorePanel.tsx:44`.
 - [ ] PERF3 (S). `Lighting` `useFrame` allocates arrays+object every frame even when settled — early-out
   when inputs unchanged; only the exposure write needs per-frame. `scene/lighting/Lighting.tsx:92`.
@@ -117,7 +117,7 @@ standing themed backlog below + the existing sections further down hold the open
   ProductTour) — trims boot bundle. `App.tsx:27`.
 - [ ] PERF6 (M). `Scene` Canvas hardcodes `antialias:true` + `preserveDrawingBuffer:true` + DPR≤1.75;
   tier-gate (Performance → DPR1/AA off), arm `preserveDrawingBuffer` only for export/record. `scene/Scene.tsx:64`.
-- [ ] PERF7 (M). Broadphase (spatial grid / sweep-prune) for `findItemOverlaps`/`findNarrowGaps`/
+- [x] PERF7 (C179) (M). Broadphase (spatial grid / sweep-prune) for `findItemOverlaps`/`findNarrowGaps`/
   `findWallClips` (O(n²) today) for 100s-of-items scale; compute scans once + share between report + designScore.
 - [ ] PERF8 (M). `DragController.onMove` does repeated O(n) `.find`/scans per pointermove — id→item Map at
   drag start, reuse `others`. `scene/DragController.tsx:141`.
@@ -176,7 +176,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F32 [PROD] Cross-section drawing (reuse elevation core along a cut line). V:M E:M.
 
 **SG renovation workflow (differentiator):**
-- [ ] F33 [PROD] Quote-ready BOQ handoff export (FF&E+reno+drawings; carpentry in linear-feet). V:M E:M.
+- [x] F33 (C180) [PROD] Quote-ready BOQ handoff export (FF&E+reno+drawings; carpentry in linear-feet). V:M E:M.
 - [x] F34 (C167) [PROD] HDB compliance hints (structural/wet-area/permit advisories on edits). V:M E:S-M.
 - [x] F35 (C168) [PROD] Renovation timeline/phase planner (Gantt-ish, pure data/SVG). V:S-M E:S.
 

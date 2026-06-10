@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C177–C180] Commercial-readiness program — mobile parity + perf + commerce
+- **C177** (B3): mobile Tools sheet gains Drawings / Daylight / Design score / Accessibility (desktop
+  parity, shared closeAux).
+- **C178** (PERF2): Design Score skips its O(n²) recompute mid-drag (gated on draggingItemId).
+- **C179** (PERF7): new `collision/broadphase.ts` spatial grid; `findItemOverlaps` + `findNarrowGaps` run
+  their exact tests only on near candidate pairs — O(n) for sparse designs, identical results. 21 tests.
+- **C180** (F33): quote-ready **BOQ** export (`export/boq.ts` + `ui/openBoq.ts`) — FF&E + flooring/wall
+  finishes + carpentry (linear-metre/feet), printable; the SG design→quote handoff. 11 tests.
+
 ## [C172–C176] Commercial-readiness program — reliability hardening + commerce/AI features
 - **C172** (B4): `buildDaylightReport` / `buildAccessibilityReport` / `planCollisionWalls` now guard
   `Array.isArray` on plan walls/openings/rooms internally — every caller is safe on a partial plan.
