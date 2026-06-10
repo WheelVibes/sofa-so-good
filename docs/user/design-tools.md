@@ -73,5 +73,6 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   **furnished floor plan** drawn like a real architectural plan — door **swing
   arcs** and window breaks, a category legend — plus **furniture by room**
   (itemized with quantities, prices, and each room's area), finishes per room, a
-  material palette, a **clearance & fit** check (any furniture blocking a
-  doorway), areas, and your design notes — a handoff-ready document.
+  material palette, a **clearance & fit** check (furniture blocking a doorway,
+  overlapping pieces, or anything embedded in a wall), areas, and your design
+  notes — a handoff-ready document.

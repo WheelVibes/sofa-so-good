@@ -145,12 +145,29 @@ describe('buildReportHtml', () => {
     }
     const html = buildReportHtml(plan, [art], BUILTIN_CATALOG, null)
     expect(html).toContain('Clearance &amp; fit')
-    expect(html).toContain('All doorways clear')
+    expect(html).toContain('Everything fits')
   })
 
   it('omits the Clearance section with no furniture', () => {
     const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
     expect(html).not.toContain('Clearance &amp; fit')
+  })
+
+  it('reports overlapping items and pieces inside a wall', () => {
+    const overlapA = {
+      id: 'oa',
+      defId: 'sofa-3seat',
+      position: [3, 3] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const overlapB = { ...overlapA, id: 'ob', position: [3.3, 3.1] as [number, number] }
+    // A sofa straddling the south external wall (z=0) is embedded in a wall.
+    const inWall = { ...overlapA, id: 'iw', position: [2, 0] as [number, number] }
+    const html = buildReportHtml(plan, [overlapA, overlapB, inWall], BUILTIN_CATALOG, null)
+    expect(html).toContain('Clearance &amp; fit')
+    expect(html).toContain('of items overlap')
+    expect(html).toContain('sit inside a wall')
   })
 
   it('handles an empty layout and a missing hero image', () => {

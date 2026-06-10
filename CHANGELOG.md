@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C113] Design report surfaces overlaps + wall-clips (not just door blocks)
+Extended the report's "Clearance & fit" section to run the full check set (door-swing blocks +
+`findItemOverlaps` + `findWallClips`), matching the in-app Checks panel, so a printed/handoff report
+flags overlapping pieces and furniture embedded in a wall — not just blocked doorways. All names are
+HTML-escaped (same XSS-safe path). Tests + user doc updated.
+
 ## [C112] Clearance panel now flags furniture left inside a wall
 Added `findWallClips(items,defs,walls)` (collision/placement.ts) — scans non-mounted, non-rug items
 for footprints poking into a wall *body* (the same full-thickness wall OBBs `canPlace` rejects, so

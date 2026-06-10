@@ -5,7 +5,9 @@
  */
 import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
-import { itemFootprint } from '../collision/placement'
+import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
+import { buildCollisionWalls } from '../collision/wallsFromState'
+import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
@@ -225,30 +227,55 @@ export function buildReportHtml(
           .join('')}</div>`
       : ''
 
-  // Clearance & fit: flag any furniture sitting in a doorway path (the same
-  // check the in-app "Checks" overlay runs), grouped by name with counts. A
-  // handoff report should say plainly whether the layout is buildable.
+  // Clearance & fit: flag furniture sitting in a doorway path, two pieces
+  // overlapping, or a piece embedded in a wall — the same checks the in-app
+  // "Checks" overlay runs. A handoff report should say plainly whether the
+  // layout is buildable.
+  const hasItems = items.length > 0
   const hasDoors = (plan.openings ?? []).some((o) => o.kind === 'door')
-  const blockedIds = hasDoors && items.length > 0 ? blockedDoorItems(items, catalog, plan) : []
-  const blockedCounts = new Map<string, number>()
-  for (const id of blockedIds) {
+  const itemName = (id: string) => {
     const it = items.find((i) => i.id === id)
-    const name = it?.label ?? (it && catalog[it.defId]?.name) ?? 'Item'
-    blockedCounts.set(name, (blockedCounts.get(name) ?? 0) + 1)
+    return it?.label ?? (it && catalog[it.defId]?.name) ?? 'Item'
   }
-  const clearanceSection =
-    hasDoors && items.length > 0
-      ? blockedCounts.size === 0
-        ? `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="ok">✓ All doorways clear — no furniture blocks a door.</div></div>`
-        : `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="warn">${blockedCounts.size} item${
-            blockedCounts.size === 1 ? '' : 's'
-          } block a doorway:</div><table>${[...blockedCounts.entries()]
-            .map(
-              ([name, n]) =>
-                `<tr><td class="indent">${esc(name)}${n > 1 ? ` ×${n}` : ''}</td></tr>`,
-            )
-            .join('')}</table></div>`
-      : ''
+  const countByName = (ids: string[]) => {
+    const m = new Map<string, number>()
+    for (const id of ids) m.set(itemName(id), (m.get(itemName(id)) ?? 0) + 1)
+    return m
+  }
+  const blockedCounts = countByName(
+    hasDoors && hasItems ? blockedDoorItems(items, catalog, plan) : [],
+  )
+  const overlaps = hasItems ? findItemOverlaps(items, catalog) : []
+  // Whole-plan collision walls; default door states are fine for a static report.
+  const clipWalls = isDefaultPlan(plan) ? buildCollisionWalls({}) : planCollisionWalls(plan, {})
+  const wallClipCounts = countByName(hasItems ? findWallClips(items, catalog, clipWalls) : [])
+  const anyIssue = blockedCounts.size > 0 || overlaps.length > 0 || wallClipCounts.size > 0
+  const countRows = (m: Map<string, number>) =>
+    [...m.entries()]
+      .map(([name, n]) => `<tr><td class="indent">${esc(name)}${n > 1 ? ` ×${n}` : ''}</td></tr>`)
+      .join('')
+  const clearanceSection = !hasItems
+    ? ''
+    : !anyIssue
+      ? `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="ok">✓ Everything fits — no blocked doorways, overlaps, or pieces inside a wall.</div></div>`
+      : `<div class="room-cost"><h2>Clearance &amp; fit</h2>${
+          blockedCounts.size > 0
+            ? `<div class="warn">${blockedCounts.size} item${blockedCounts.size === 1 ? '' : 's'} block a doorway:</div><table>${countRows(blockedCounts)}</table>`
+            : ''
+        }${
+          overlaps.length > 0
+            ? `<div class="warn">${overlaps.length} pair${overlaps.length === 1 ? '' : 's'} of items overlap:</div><table>${overlaps
+                .map(
+                  (o) =>
+                    `<tr><td class="indent">${esc(itemName(o.a))} ↔ ${esc(itemName(o.b))}</td></tr>`,
+                )
+                .join('')}</table>`
+            : ''
+        }${
+          wallClipCounts.size > 0
+            ? `<div class="warn">${wallClipCounts.size} item${wallClipCounts.size === 1 ? '' : 's'} sit inside a wall:</div><table>${countRows(wallClipCounts)}</table>`
+            : ''
+        }</div>`
 
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
