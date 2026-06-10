@@ -8,6 +8,7 @@ import {
   type WorktopFeature,
 } from '../cabinet/cabinetModel'
 import type { ParamProps } from '../types'
+import { GlassMaterial } from './GlassMaterial'
 import { readNum, readStr } from './shared'
 
 /**
@@ -77,16 +78,12 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
           )
         }
         if (p.role === 'glass') {
+          // Tier-gated glass: real transmission on High/Maximum, cheap transparent
+          // pane on Performance/Medium (see GlassMaterial / getGlassMaterial).
           return (
             <mesh key={key} position={p.position}>
               <boxGeometry args={p.size} />
-              <meshStandardMaterial
-                color="#cfe0e6"
-                roughness={0.05}
-                metalness={0.1}
-                transparent
-                opacity={0.35}
-              />
+              <GlassMaterial color="#cfe0e6" opacity={0.35} />
             </mesh>
           )
         }
