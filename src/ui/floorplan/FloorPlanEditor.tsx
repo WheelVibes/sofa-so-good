@@ -33,23 +33,25 @@ import {
 import { exportPlanPng } from './exportPlanPng'
 import { PlanInspector } from './PlanInspector'
 
-/** Muted top-down fill per furniture category for the 2D plan layer. */
+/** Muted top-down fill per furniture category for the 2D plan layer.
+ *  Tokens live in `screens.css` (`--plan-cat-*`) so the plan themes correctly;
+ *  `exportPlanPng.ts` PLAN_VARS must list every var used here. */
 const CATEGORY_FILL: Record<FurnitureCategory, string> = {
-  beds: '#b08a6a',
-  seating: '#8a9a7a',
-  tables: '#c0a070',
-  storage: '#9a8470',
-  kitchen: '#9aa0a8',
-  bathroom: '#88a8b0',
-  appliances: '#8890a0',
-  lighting: '#d8c080',
-  decor: '#b89a8a',
-  textiles: '#b0907a',
-  outdoor: '#7a9a70',
-  electronics: '#7a8088',
-  kids: '#c89aa8',
-  laundry: '#90a0a8',
-  others: '#9a9488',
+  beds: 'var(--plan-cat-beds)',
+  seating: 'var(--plan-cat-seating)',
+  tables: 'var(--plan-cat-tables)',
+  storage: 'var(--plan-cat-storage)',
+  kitchen: 'var(--plan-cat-kitchen)',
+  bathroom: 'var(--plan-cat-bathroom)',
+  appliances: 'var(--plan-cat-appliances)',
+  lighting: 'var(--plan-cat-lighting)',
+  decor: 'var(--plan-cat-decor)',
+  textiles: 'var(--plan-cat-textiles)',
+  outdoor: 'var(--plan-cat-outdoor)',
+  electronics: 'var(--plan-cat-electronics)',
+  kids: 'var(--plan-cat-kids)',
+  laundry: 'var(--plan-cat-laundry)',
+  others: 'var(--plan-cat-others)',
 }
 
 type Tool =
@@ -1036,7 +1038,11 @@ export function FloorPlanEditor() {
                 <polygon
                   key={it.id}
                   points={pts}
-                  fill={isSel ? 'var(--accent-soft)' : (CATEGORY_FILL[def.category] ?? '#9a9488')}
+                  fill={
+                    isSel
+                      ? 'var(--accent-soft)'
+                      : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
+                  }
                   fillOpacity={isSel ? 0.95 : 0.55}
                   stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
                   strokeWidth={isSel ? 2 : 1}
@@ -1197,9 +1203,9 @@ export function FloorPlanEditor() {
                       y={toPx(z)}
                       width={w * PX}
                       height={h * PX}
-                      fill="#0d9488"
+                      fill="var(--plan-annot)"
                       fillOpacity={0.1}
-                      stroke="#0d9488"
+                      stroke="var(--plan-annot)"
                       strokeWidth={1.5}
                       strokeDasharray="5 3"
                     />
@@ -1208,7 +1214,7 @@ export function FloorPlanEditor() {
                       y={toPx(z + h / 2)}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fill="#0d9488"
+                      fill="var(--plan-annot)"
                       style={{ fontSize: 11, fontWeight: 600 }}
                     >
                       {`${formatDims(w, h, units)} · ${formatArea(w * h, units)}`}
@@ -1225,7 +1231,7 @@ export function FloorPlanEditor() {
                     y1={toPx(az)}
                     x2={toPx(bx)}
                     y2={toPx(bz)}
-                    stroke="#0d9488"
+                    stroke="var(--plan-annot)"
                     strokeWidth={2}
                     strokeDasharray="5 3"
                   />
@@ -1234,7 +1240,7 @@ export function FloorPlanEditor() {
                     y={toPx((az + bz) / 2) - 6}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill="#0d9488"
+                    fill="var(--plan-annot)"
                     style={{ fontSize: 11, fontWeight: 600 }}
                   >
                     {formatLength(len, units)}

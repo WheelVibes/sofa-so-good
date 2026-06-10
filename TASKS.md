@@ -76,10 +76,10 @@ standing themed backlog below + the existing sections further down hold the open
 
 ### AGENT SWEEP FOLLOW-UPS (2026-06-10) — found but deferred (lower-impact)
 From the parallel bug/perf/UI agent sweep; the high-value items were fixed in the bug-fix batch. Remaining:
-- [ ] THEME-COLORS. Several hardcoded hex colours bypass the token vocabulary (would mis-render in dark / the
-  5 themes): `FloorPlanEditor.tsx` room-annotation SVG (`#0d9488`) + `CATEGORY_FILL` table; `CompassModal.tsx`
-  SVG; `ConfirmDialog.tsx` (upload) light-only `#fffdf9`/`#3a3127`; `IkeaBody.tsx` swatch fallback `#cccccc`;
-  `PlanInspector.tsx` cove default `#ffe6c0`. A dedicated theming pass (map to `var(--…)` tokens).
+- [x] THEME-COLORS. Done — all listed hexes mapped to `var(--…)` tokens (new `--plan-annot`/`--plan-cat-*`
+  in `screens.css`, `--sun`/`--sun-edge` in `tokens.css`; upload `ConfirmDialog` now uses
+  `.modal-overlay`/`.btn` classes). Exception: `PlanInspector.tsx` cove `#ffe6c0` stays a literal — it is a
+  persisted scene-data default (`coveColor`, consumed by the 3D cove light + `<input type="color">`), not UI chrome.
 - [ ] POPOVER-SCROLL. Toolbar popovers/menus are fixed-positioned to their button; when the toolbar scrolls
   horizontally (narrow desktop) the popover detaches. Close or reposition popovers on toolbar scroll.
 - [ ] MOBILE-TAP-TARGETS. Audit mobile accordion sub-items (`.m-item-s`) for the 44 px min touch target.

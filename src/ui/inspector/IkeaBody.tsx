@@ -191,12 +191,14 @@ export function IkeaBody({ item, def }: IkeaBodyProps) {
                   title={disabled ? 'not available' : v.label}
                   onClick={() => !disabled && selectVariant(v)}
                   className={`flex items-center gap-1 rounded border px-1.5 py-1 text-[10px] ${
-                    isActive ? 'border-blue-500 ring-1 ring-blue-500' : 'border-[var(--border)]'
+                    isActive
+                      ? 'border-[var(--accent)] ring-1 ring-[var(--accent)]'
+                      : 'border-[var(--border)]'
                   } ${disabled ? 'cursor-not-allowed opacity-40' : 'hover:border-[var(--accent)]'}`}
                 >
                   <span
                     className="h-3 w-3 rounded-sm border border-[var(--border-2)]"
-                    style={{ backgroundColor: v.swatchHex ?? '#cccccc' }}
+                    style={{ backgroundColor: v.swatchHex ?? 'var(--surface-3)' }}
                   />
                   {v.label}
                 </button>

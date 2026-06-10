@@ -13,8 +13,8 @@ interface ConfirmDialogProps {
 }
 
 /**
- * A small modal confirmation popup styled to match the loading overlay (soft
- * warm gradient, warm-neutral type). Renders on top of whatever opened it (the
+ * A small modal confirmation popup (soft surface-token gradient so it themes in
+ * light + dark across all themes). Renders on top of whatever opened it (the
  * caller controls z-order by placement). Esc cancels, Enter confirms, and focus
  * lands on the cancel button so the safe choice is the default.
  */
@@ -55,37 +55,32 @@ export function ConfirmDialog({
       role="alertdialog"
       aria-modal="true"
       aria-label={title}
-      className="absolute inset-0 z-10 flex items-center justify-center rounded-lg p-4"
-      style={{ background: 'rgba(58, 49, 39, 0.28)' }}
+      className="modal-overlay rounded-lg p-4"
+      style={{ zIndex: 10 }}
     >
       <div
-        className="w-full max-w-xs rounded-xl px-5 py-4 text-center shadow-xl"
+        className="w-full max-w-xs rounded-xl px-5 py-4 text-center"
         style={{
           background:
-            'radial-gradient(120% 120% at 50% 30%, #fdfbf7 0%, #f6efe4 55%, #efe4d2 100%)',
+            'radial-gradient(120% 120% at 50% 30%, var(--surface-solid) 0%, var(--surface-2) 55%, var(--surface-3) 100%)',
+          border: '1px solid var(--border)',
+          boxShadow: 'var(--shadow-pop)',
         }}
       >
-        <h3 className="text-sm font-bold" style={{ color: '#3a3127' }}>
+        <h3 className="text-sm font-bold" style={{ color: 'var(--text)' }}>
           {title}
         </h3>
-        <p className="mt-1.5 text-xs leading-relaxed" style={{ color: '#8a7d68' }}>
+        <p className="mt-1.5 text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
           {message}
         </p>
         <div className="mt-4 flex justify-center gap-2">
-          <button
-            ref={cancelRef}
-            type="button"
-            onClick={onCancel}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium shadow-sm ring-1 ring-black/10"
-            style={{ background: '#fffdf9', color: '#3a3127' }}
-          >
+          <button ref={cancelRef} type="button" onClick={onCancel} className="btn btn-sm">
             {cancelLabel}
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-lg px-3 py-1.5 text-xs font-medium text-white shadow-sm"
-            style={{ background: tone === 'danger' ? '#c0463b' : '#3a3127' }}
+            className={`btn btn-sm ${tone === 'danger' ? 'btn-danger' : 'btn-accent'}`}
           >
             {confirmLabel}
           </button>

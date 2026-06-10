@@ -15,6 +15,17 @@ through the slice; plan activation prunes stale custom-room finish keys. Harness
 `SHOT_NAV_TIMEOUT` env overrides in `scripts/shot.mjs` (parallel worktree dev servers / busy-CPU loads).
 Verified: room editor renders grey-tile floor + red-brick walls on `tpl-studio` (screenshot), 10 new tests.
 
+## [THEME-COLORS] Theme-token pass — replace hardcoded hex colours
+Hardcoded hexes that bypassed the CSS token vocabulary (mis-rendering in dark mode / the 5 themes) now use
+`var(--…)` tokens: `FloorPlanEditor` measurement annotations (new `--plan-annot`, light + dark) and the
+`CATEGORY_FILL` furniture fills (new `--plan-cat-*` tokens in `screens.css`; `exportPlanPng` PLAN_VARS kept
+in sync); `CompassModal` dial SVG (surface/border/text/danger tokens + new theme-independent `--sun`/
+`--sun-edge`); upload `ConfirmDialog` rebuilt on `.modal-overlay`/`.btn`/`.btn-accent`/`.btn-danger` + a
+surface-token gradient; `IkeaBody` swatch fallback (`--surface-3`) + active-variant ring (`--accent`, was
+Tailwind blue). Left as a literal by design: `PlanInspector` cove `#ffe6c0` — a persisted scene-data default
+(`coveColor`, consumed by the 3D cove light + `<input type="color">`), not UI chrome. Visually verified:
+plan editor + compass modal screenshotted in clay light, clay dark, and porcelain dark.
+
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
 - **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above
