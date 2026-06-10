@@ -51,6 +51,7 @@ export type FeatureFlag =
   | 'copyAppearance'
   | 'userSets'
   | 'designerPicks'
+  | 'ceilingDesign'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -200,6 +201,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   designerPicks: {
     label: 'Designer picks',
     description: 'Curated one-tap floor/wall finishes in the picker',
+    default: true,
+  },
+  ceilingDesign: {
+    label: 'Ceiling design',
+    description: 'Per-room tray / coffered / dropped ceilings',
     default: true,
   },
 }

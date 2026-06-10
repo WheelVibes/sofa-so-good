@@ -61,6 +61,25 @@ export interface PlanRoom {
   ceilingHeight?: number
   /** Optional floor finish (catalog material id); defaults to oak in the shell. */
   floor?: string
+  /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
+  ceiling?: CeilingConfig
+}
+
+/** Per-room ceiling treatment. `flat` (or absent) renders the plain ceiling. */
+export type CeilingStyle = 'flat' | 'tray' | 'coffered' | 'dropped'
+
+export interface CeilingConfig {
+  style: CeilingStyle
+  /** Recess / drop depth in metres (tray border + coffer + dropped box). */
+  drop?: number
+  /** Perimeter border width (tray) / box inset (dropped) in metres. */
+  margin?: number
+  /** Coffered grid divisions [cols, rows]. */
+  grid?: [number, number]
+  /** Perimeter cove-light glow (tray / dropped). */
+  coveLight?: boolean
+  /** Cove glow colour (hex); defaults to a warm white. */
+  coveColor?: string
 }
 
 export interface FloorPlan {

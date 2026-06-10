@@ -1,5 +1,11 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
-import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../../floorplan/types'
+import type {
+  CeilingConfig,
+  FloorPlan,
+  PlanOpening,
+  PlanRoom,
+  PlanWall,
+} from '../../floorplan/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -68,6 +74,9 @@ export interface FloorPlanSlice {
 
   addRoom: (room: Omit<PlanRoom, 'id'>) => string
   updateRoom: (id: string, patch: Partial<PlanRoom>) => void
+  /** Patch a room's ceiling treatment (coalesced for slider drags). `null`
+   *  clears it back to a flat ceiling. */
+  setRoomCeiling: (id: string, patch: Partial<CeilingConfig> | null) => void
   removeRoom: (id: string) => void
 
   addOpening: (opening: Omit<PlanOpening, 'id'>) => string
@@ -255,6 +264,23 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       floorPlan: {
         ...s.floorPlan,
         rooms: s.floorPlan.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      },
+    }))
+  },
+  setRoomCeiling: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-ceiling-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        rooms: s.floorPlan.rooms.map((r) => {
+          if (r.id !== id) return r
+          if (patch === null) {
+            const { ceiling: _drop, ...rest } = r
+            return rest
+          }
+          const base: CeilingConfig = r.ceiling ?? { style: 'flat' }
+          return { ...r, ceiling: { ...base, ...patch } }
+        }),
       },
     }))
   },

@@ -155,6 +155,18 @@ const PlanRoomZ = z.object({
   polygon: z.array(Vec2Z).optional(),
   ceilingHeight: z.number().optional(),
   floor: z.string().optional(),
+  // Per-room ceiling treatment (tray/coffered/dropped). Optional + additive →
+  // no schema-version bump; absent → flat (the prior behaviour).
+  ceiling: z
+    .object({
+      style: z.enum(['flat', 'tray', 'coffered', 'dropped']),
+      drop: z.number().optional(),
+      margin: z.number().optional(),
+      grid: z.tuple([z.number(), z.number()]).optional(),
+      coveLight: z.boolean().optional(),
+      coveColor: z.string().optional(),
+    })
+    .optional(),
 })
 const FloorPlanZ = z.object({
   id: z.string(),
