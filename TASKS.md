@@ -94,8 +94,8 @@ standing themed backlog below + the existing sections further down hold the open
 - [x] S1 (C165). SVG builders `elevationSvg.ts`/`reportPlanSvg.ts`/`lightingPlanSvg.ts` `esc` only escapes
   `&<>` not quotes, yet render via `dangerouslySetInnerHTML` — latent XSS if a string ever lands in an
   attribute. Make them the full 5-char esc.
-- [ ] S2 (MED-low). Vision-AI key POSTed to a user-configurable non-origin-pinned URL (`ai/floorPlanAi.ts`)
-  — surface/warn on a non-default endpoint.
+- [x] S2 (C199). `classifyVisionEndpoint` refuses to POST the bearer key over plaintext HTTP to a remote
+  host and flags non-allowlisted HTTPS hosts; the editor warns + requires typed confirmation before sending.
 - [x] S3 (C183). Validate report finish swatch against a hex/rgb pattern before emitting into `style=`.
 
 **Perf (from prod build):**

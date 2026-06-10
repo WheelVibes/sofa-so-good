@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C199] Vision-AI endpoint safety (S2)
+The BYO-key floor-plan vision call now classifies its (user-configurable) endpoint before sending:
+`classifyVisionEndpoint` refuses to POST the bearer key over plaintext HTTP to a remote host (it would leak
+on the wire — localhost proxies over http are still allowed), and flags any HTTPS host that isn't a
+recognised provider. The editor surfaces the warning and requires the user to type the host name to confirm
+before the key leaves for an unfamiliar origin. Pure + 5 tests.
+
 ## [C198] Copy/paste appearance + recolour-by-category (F17 / Q-COPYSTYLE)
 Look-only style transfer between pieces: "Copy appearance" captures an item's finish/colour/material/variant
 (not its size or position), then "Paste appearance" applies it to the selection — keeping only the dims each
