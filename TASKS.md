@@ -85,7 +85,11 @@ From the parallel bug/perf/UI agent sweep; the high-value items were fixed in th
   (Verified: the shared `Popover` already closed on capture-phase ancestor scroll — the real defect was the
   inverse: scrolling a menu's *own* overflow list (File's saved layouts, Arrange) also closed it. Internal
   panel scrolls are now ignored; ancestor-scroll close kept + unit-tested.)
-- [ ] MOBILE-TAP-TARGETS. Audit mobile accordion sub-items (`.m-item-s`) for the 44 px min touch target.
+- [x] MOBILE-TAP-TARGETS. Audit mobile accordion sub-items (`.m-item-s`) for the 44 px min touch target.
+  (Audited in-browser at 360×780 + 430×932: `.m-item` rows incl. their `.m-item-s` sub-labels were already
+  ≥44 px. Fixed the 7 controls that weren't: hamburger 38→44, room-editor exit 34→44, room select 36→44,
+  sheet close X 26→44 effective (padded `::after` hit area, visual unchanged), saved-layout delete 36→44,
+  backdrop select 34→44, time slider 4→44 (thin track kept via track pseudos).)
 - [ ] MODAL-HOTKEYS. Global keyboard shortcuts still fire while a modal is open (typing into a
   mis-focused modal triggered the `P` 2D-plan toggle behind Smart Start). Gate the keybinding
   handler on "no modal open" (or document.activeElement) — audit all Modal consumers.

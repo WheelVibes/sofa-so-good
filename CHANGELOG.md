@@ -51,6 +51,16 @@ Boot JS payload cut ~24% (3,027 → 2,290 KB minified; 837 → 632 KB gzip) with
   990→863 KB. Verified: full test suite, prod-build boot screenshot, and the lazified report path
   end-to-end in the harness.
 
+## [MOBILE-TAP-TARGETS] Mobile toolbar controls meet the 44px touch-target minimum
+In-browser audit of every interactive control in the mobile bar + hamburger sheet (360×780 and 430×932,
+touch-emulated): the accordion rows (`.m-item`, incl. `.m-item-s` sub-label rows), section headers,
+saved-view delete and slot-load were already ≥44px. Seven controls were under and are now ≥44px effective:
+hamburger (38→44), room-editor exit X (34→44), room select (36→44), sheet close X (26×26 visual kept,
+hit area padded to 44×44 via an invisible `::after`), saved-layout delete (36→44), Scene backdrop select
+(34→44), and the time-of-day slider (4px-tall input → 44px hit area, thin 4px track preserved on the
+track pseudo-elements). Verified with `getBoundingClientRect` + `elementFromPoint` probes and screenshots
+at both widths.
+
 ## [POPOVER-SCROLL] Toolbar popovers vs. toolbar scroll
 Verified the reported "popover detaches when the toolbar scrolls" on a narrow desktop (660 px, room-editor
 toolbar): the shared `Popover` already closes on any capture-phase ancestor scroll, so no detach occurs. The

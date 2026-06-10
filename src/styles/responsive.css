@@ -88,7 +88,10 @@ body.mobile {
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     padding-left: 2px;
   }
-  .toolbar.mobilebar .m-menu-btn { flex: none; width: 38px; height: 38px; }
+  /* 44px minimum touch targets on every bar control (MOBILE-TAP-TARGETS):
+     hamburger, room-editor exit X — the icons stay their size, the hit area grows. */
+  .toolbar.mobilebar .tool-btn { min-width: 44px; min-height: 44px; }
+  .toolbar.mobilebar .m-menu-btn { flex: none; width: 44px; height: 44px; }
   .toolbar.mobilebar .brand-dot { width: 32px; height: 32px; font-size: 14px; box-shadow: var(--shadow-panel); }
   /* Default state is just two controls — drop the panel chrome so they float
      directly over the scene; each control keeps its own surface. */
@@ -107,7 +110,7 @@ body.mobile {
   /* Keep the square brand from being squeezed; cap the dropdown so the bar has
      breathing room for the brand + exit + menu controls. */
   .toolbar.mobilebar.editing-room .brand-dot { width: 36px; height: 36px; font-size: 14px; }
-  .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; max-width: 56vw; height: 36px; font-size: var(--t-sm); font-weight: 600; }
+  .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; max-width: 56vw; height: 44px; font-size: var(--t-sm); font-weight: 600; }
 
   /* ---- Mobile menu sheet ----------------------------------- */
   .m-menu-overlay {
@@ -133,6 +136,10 @@ body.mobile {
   }
   .m-sheet-grab { width: 36px; height: 4px; border-radius: 999px; background: var(--border-2); margin: 8px auto 0; flex: none; }
   .m-sheet-head { display: flex; align-items: center; justify-content: space-between; padding: 10px var(--s-4) 8px; }
+  /* Sheet close X: keep the compact 26px visual but pad the hit area to 44px
+     (26 + 2×9) with an invisible pseudo-element (MOBILE-TAP-TARGETS). */
+  .m-sheet-head .icon-btn { position: relative; }
+  .m-sheet-head .icon-btn::after { content: ''; position: absolute; inset: -9px; }
   .m-sheet-brand { display: flex; align-items: center; gap: var(--s-3); min-width: 0; }
   .m-sheet-brand .brand-dot { width: 32px; height: 32px; font-size: 14px; flex: none; }
   .m-sheet-brand .panel-title { font-size: var(--t-lg); font-weight: 800; letter-spacing: -0.01em; }
@@ -185,13 +192,22 @@ body.mobile {
   .m-acc-body .m-item { padding-left: 13px; }
   .m-sub-h { font-size: var(--t-2xs); text-transform: uppercase; letter-spacing: 0.08em; color: var(--text-3); font-weight: 700; padding: 8px 9px 3px; }
   .m-empty { padding: 6px 9px; font-size: var(--t-sm); color: var(--text-3); }
+  /* In-accordion form controls meet the 44px touch target too: the Scene
+     backdrop <select>, and the time-of-day slider — the slider keeps its thin
+     4px track (moved onto the track pseudos) while the input grows to a 44px
+     hit area (MOBILE-TAP-TARGETS). */
+  .m-acc-body select.input { min-height: 44px; }
+  .m-acc-body .slider { height: 44px; background: transparent; }
+  .m-acc-body .slider::-webkit-slider-runnable-track { height: 4px; border-radius: 999px; background: var(--surface-3); }
+  .m-acc-body .slider::-webkit-slider-thumb { margin-top: -5.5px; }
+  .m-acc-body .slider::-moz-range-track { height: 4px; border-radius: 999px; background: var(--surface-3); }
 
   /* ---- Saved-layout rows ----------------------------------- */
   .m-slot { display: flex; align-items: center; gap: 2px; padding-left: 9px; }
   .m-slot-load { display: flex; align-items: center; gap: var(--s-3); flex: 1; min-width: 0; min-height: 44px; padding: 8px 9px; border-radius: var(--r-2); text-align: left; }
   .m-slot-load:active { background: var(--surface-3); }
   .m-slot-load .icn { color: var(--text-3); flex: none; }
-  .m-slot-del { flex: none; width: 36px; height: 36px; display: grid; place-items: center; border-radius: var(--r-2); color: var(--text-3); }
+  .m-slot-del { flex: none; width: 44px; height: 44px; display: grid; place-items: center; border-radius: var(--r-2); color: var(--text-3); }
   .m-slot-del:active { background: var(--danger-soft); color: var(--danger); }
 
   /* ---- Floating panels → bottom sheets (inset, floating) --- */
