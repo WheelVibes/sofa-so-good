@@ -115,6 +115,20 @@ describe('buildDesignScore', () => {
     expect(score.categories.reduce((a, c) => a + c.weight, 0)).toBeCloseTo(1, 5)
   })
 
+  it('is robust to a partial plan with no walls / openings arrays', () => {
+    const partial = {
+      id: 'partial',
+      name: 'Partial',
+      ceilingHeight: 2.6,
+      extent: [6, 6],
+      rooms: [{ id: 'r', name: 'Living', origin: [0.2, 0.2], width: 5.6, depth: 5.6 }],
+    } as unknown as FloorPlan
+    const score = buildDesignScore([mk('box', 3, 3)], defs, partial)
+    expect(score.overall).toBeGreaterThanOrEqual(0)
+    expect(score.overall).toBeLessThanOrEqual(100)
+    expect(score.categories).toHaveLength(5)
+  })
+
   it('rewards a well-furnished, lit room over an empty shell on furnishing', () => {
     // Fill Living to ~30% of its 24.84 m² (≈7.5 m²) with boxes → ideal band.
     const items = [

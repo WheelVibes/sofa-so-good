@@ -3,6 +3,8 @@
  * total, a furniture shopping list with an approximate budget, and a hero
  * render. Opened in a new window so the user can print / save as PDF.
  */
+
+import { buildDesignScore } from '../analysis/designScore'
 import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
 import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
@@ -316,6 +318,41 @@ export function buildReportHtml(
             : ''
         }</div>`
 
+  // Design score — the aggregate 0–100 quality read (clearance / furnishing /
+  // circulation / daylight / lighting) the in-app panel shows, so the handoff
+  // report carries the same at-a-glance verdict + the actionable fixes.
+  const score = hasItems ? buildDesignScore(items, catalog, plan) : null
+  const gradeColor = (g: string) =>
+    g === 'A' || g === 'B' ? '#047857' : g === 'C' ? '#b45309' : '#b91c1c'
+  const barColor = (n: number) => (n >= 80 ? '#047857' : n >= 60 ? '#b45309' : '#b91c1c')
+  const issueColor = (s: string) =>
+    s === 'critical' ? '#b91c1c' : s === 'warning' ? '#b45309' : '#6b7280'
+  const designScoreSection = !score
+    ? ''
+    : `<div class="room-cost ds">
+      <h2>Design score</h2>
+      <div class="ds-head">
+        <span class="ds-grade" style="background:${gradeColor(score.grade)}">${score.grade}</span>
+        <span class="ds-num">${score.overall}<span class="ds-den">/100</span></span>
+        <span class="ds-meta">${score.itemCount} pieces · ${score.roomCount} ${score.roomCount === 1 ? 'room' : 'rooms'}</span>
+      </div>
+      ${score.categories
+        .map(
+          (c) =>
+            `<div class="ds-cat">
+        <div class="ds-cat-row"><span>${esc(c.label)}</span><span class="ds-cat-score">${c.score}</span></div>
+        <div class="score-bar"><div class="score-fill" style="width:${c.score}%;background:${barColor(c.score)}"></div></div>
+        ${c.issues
+          .map(
+            (i) =>
+              `<div class="ds-issue" style="color:${issueColor(i.severity)}">${esc(i.message)}</div>`,
+          )
+          .join('')}
+      </div>`,
+        )
+        .join('')}
+    </div>`
+
   // Wall elevations — the vertical drawings, only for walls that actually carry
   // furniture or openings (skip the many bare structural segments).
   const elevations = hasItems
@@ -405,6 +442,17 @@ export function buildReportHtml(
   .lg-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; opacity: 0.7; }
   .ok { color: #047857; font-weight: 600; margin-top: 6px; }
   .warn { color: #b45309; font-weight: 600; margin-top: 6px; }
+  .ds-head { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
+  .ds-grade { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; font-weight: 700; flex: none; }
+  .ds-num { font-size: 20px; font-weight: 700; }
+  .ds-den { font-size: 12px; color: #9ca3af; font-weight: 400; }
+  .ds-meta { font-size: 11px; color: #9ca3af; margin-left: auto; }
+  .ds-cat { margin-top: 8px; break-inside: avoid; }
+  .ds-cat-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #374151; }
+  .ds-cat-score { font-variant-numeric: tabular-nums; }
+  .score-bar { height: 5px; background: #eef2f7; border-radius: 3px; overflow: hidden; margin: 3px 0; }
+  .score-fill { height: 100%; }
+  .ds-issue { font-size: 11px; margin-top: 2px; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   /* Keep sections + tables whole across PDF pages, and never strand a heading. */
   .room-cost, .palette, .plan-wrap, .note { break-inside: avoid; }
@@ -492,6 +540,7 @@ export function buildReportHtml(
   }
   ${ffeSection}
   ${clearanceSection}
+  ${designScoreSection}
   ${elevationsSection}
   ${lightingSection}
   ${

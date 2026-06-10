@@ -129,7 +129,8 @@ function clearanceCategory(
 ): ScoreCategory {
   const overlaps = findItemOverlaps(items, defs)
   const clips = findWallClips(items, defs, walls)
-  const blocked = blockedDoorItems(items, defs, plan)
+  // `blockedDoorItems` walks `plan.openings`; guard a partial plan that omits it.
+  const blocked = Array.isArray(plan.openings) ? blockedDoorItems(items, defs, plan) : []
   const penalty =
     overlaps.length * CLEARANCE_PENALTY.overlap +
     clips.length * CLEARANCE_PENALTY.wallClip +
@@ -193,6 +194,16 @@ function circulationCategory(
 }
 
 function daylightCategory(plan: FloorPlan): ScoreCategory {
+  // A partial plan without a walls array can't attribute windows to rooms.
+  if (!Array.isArray(plan.walls) || !Array.isArray(plan.openings)) {
+    return {
+      id: 'daylight',
+      label: 'Daylight & airflow',
+      score: 100,
+      weight: WEIGHTS.daylight,
+      issues: [{ severity: 'info', message: 'No wall data to assess daylight.' }],
+    }
+  }
   const report = buildDaylightReport(plan)
   const total = report.rooms.length
   const issues: ScoreIssue[] = []
@@ -326,7 +337,10 @@ export function buildDesignScore(
   opts: { doors?: Record<string, { open: boolean }>; walls?: CollisionWall[] } = {},
 ): DesignScore {
   const rooms = habitableRooms(plan)
-  const walls = opts.walls ?? planCollisionWalls(plan, opts.doors ?? {})
+  // Guard a partial / hand-built plan with no `walls` array (mirrors the
+  // report's wall-clip guard) so this stays safe for any caller.
+  const walls =
+    opts.walls ?? (Array.isArray(plan.walls) ? planCollisionWalls(plan, opts.doors ?? {}) : [])
   const categories: ScoreCategory[] = [
     clearanceCategory(items, defs, plan, walls),
     furnishingCategory(items, defs, rooms),

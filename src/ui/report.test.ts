@@ -36,6 +36,26 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('Wall elevations')
   })
 
+  it('includes a Design score section with an overall grade and per-category bars', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Design score')
+    expect(html).toContain('class="ds-grade"')
+    expect(html).toContain('class="score-fill"')
+    expect(html).toMatch(/\/100/)
+    for (const label of [
+      'Clearance &amp; fit',
+      'Furnishing balance',
+      'Circulation',
+      'Lighting coverage',
+    ])
+      expect(html).toContain(label)
+  })
+
+  it('omits the Design score section when there is no furniture', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Design score')
+  })
+
   it('includes an FF&E schedule with per-item rooms, sizes and a grand total', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('FF&amp;E schedule')
