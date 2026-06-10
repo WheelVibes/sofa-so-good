@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C184] Demolition / hacking + new-wall plan (F30)
+Pure `floorplan/demolitionPlan.ts` `diffWalls` (order-independent wall match → kept/demolished/added +
+hacked/added metres) + `demolitionPlanSvg.ts` (kept solid / demolished dashed-red / added bold-green +
+legend). A session `baselinePlan` captures the plan as-loaded (template/saved/reset/new, not on edits);
+the report's "Hacking & new walls" section diffs current vs baseline when walls changed. 11 tests.
+
 ## [C182–C183] Perf + security polish
 - **C182** (PERF10): RenderPump reuses one PumpInputs object across rAF frames (zero per-frame garbage).
 - **C183** (S3): report finish swatches validated against a hex/rgb pattern before entering `style=`.
