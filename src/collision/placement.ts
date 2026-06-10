@@ -11,6 +11,7 @@
 
 import { getCachedGltfFootprint } from '../furniture/GltfModel'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { type AabbItem, buildGrid, candidatePairs } from './broadphase'
 import { type OBB, obbVsObb } from './obb'
 import type { CollisionWall } from './walls'
 import { buildCollisionWalls } from './wallsFromState'
@@ -179,18 +180,37 @@ export function findItemOverlaps(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
 ): OverlapPair[] {
+  // Broadphase: only run the exact (height-aware) collision test on pairs whose
+  // footprint AABBs are near each other — O(n) for sparse designs instead of
+  // O(n²), with identical results (candidatePairs is a superset of overlaps).
+  const part = items.filter((it) => {
+    const d = defs[it.defId]
+    return d && !d.noClip
+  })
+  if (part.length < 2) return []
+  const grid = buildGrid(part.map((it) => itemAabbBox(it, defs[it.defId]!)))
+  const byId = new Map(part.map((it) => [it.id, it] as const))
   const pairs: OverlapPair[] = []
-  for (let i = 0; i < items.length; i++) {
-    const a = items[i]!
+  for (const [ia, ib] of candidatePairs(grid)) {
+    const a = byId.get(ia)
+    const b = byId.get(ib)
+    if (!a || !b) continue
     const aDef = defs[a.defId]
-    if (!aDef || aDef.noClip) continue
-    const aSpan = verticalSpan(a, aDef)
-    for (let j = i + 1; j < items.length; j++) {
-      const b = items[j]!
-      if (itemsCollide(a, aDef, aSpan, b, defs[b.defId])) pairs.push({ a: a.id, b: b.id })
-    }
+    if (!aDef) continue
+    if (itemsCollide(a, aDef, verticalSpan(a, aDef), b, defs[b.defId]))
+      pairs.push({ a: a.id, b: b.id })
   }
   return pairs
+}
+
+/** Axis-aligned bounding box of an item footprint OBB (for the broadphase). */
+function itemAabbBox(item: FurnitureItem, def: FurnitureDef): AabbItem {
+  const o = itemFootprint(item, def)
+  const c = Math.abs(Math.cos(o.rot))
+  const s = Math.abs(Math.sin(o.rot))
+  const hx = c * o.hx + s * o.hz
+  const hz = s * o.hx + c * o.hz
+  return { id: item.id, minX: o.cx - hx, minZ: o.cz - hz, maxX: o.cx + hx, maxZ: o.cz + hz }
 }
 
 /**

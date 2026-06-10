@@ -31,6 +31,7 @@
  * callers should gate it behind an open panel / report build.
  */
 
+import { type AabbItem, buildGrid, candidatePairs } from '../collision/broadphase'
 import { type OBB, obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
@@ -43,6 +44,15 @@ import { CLEARANCE } from './designRules'
 /** Only consider pieces whose footprint centres are within this many metres of
  *  each other — beyond it the gap between them isn't a walkway anyone uses. */
 const PROXIMITY = 3
+
+/** Axis-aligned bounding box of an item-footprint OBB (for the broadphase). */
+function obbToAabb(id: string, o: OBB): AabbItem {
+  const c = Math.abs(Math.cos(o.rot))
+  const s = Math.abs(Math.sin(o.rot))
+  const hx = c * o.hx + s * o.hz
+  const hz = s * o.hx + c * o.hz
+  return { id, minX: o.cx - hx, minZ: o.cz - hz, maxX: o.cx + hx, maxZ: o.cz + hz }
+}
 
 /** Severity of a narrow gap, mapped to the two HDB thresholds. */
 export type GapSeverity = 'tight' | 'sub-ideal'
@@ -196,18 +206,20 @@ export function findNarrowGaps(
     parts.push({ id: it.id, obb: itemFootprint(it, def) })
   }
 
-  // Item ↔ item.
-  for (let i = 0; i < parts.length; i++) {
-    const a = parts[i]!
-    for (let j = i + 1; j < parts.length; j++) {
-      const b = parts[j]!
-      if (dist2(a.obb.cx, a.obb.cz, b.obb.cx, b.obb.cz) > PROXIMITY * PROXIMITY) continue
-      const gap = obbGap(a.obb, b.obb)
-      // Skip overlaps (gap ~0, handled elsewhere) and intentional close spacing.
-      if (gap <= CLEARANCE.sofaToCoffee) continue
-      const severity = classify(gap)
-      if (severity) out.push({ a: a.id, b: b.id, gap, severity, wall: false })
-    }
+  // Item ↔ item — broadphase to near pairs (within PROXIMITY) instead of O(n²);
+  // the exact centre-distance + gap test below reproduces the same result.
+  const byId = new Map(parts.map((p) => [p.id, p] as const))
+  const grid = buildGrid(parts.map((p) => obbToAabb(p.id, p.obb)))
+  for (const [ia, ib] of candidatePairs(grid, { padding: PROXIMITY })) {
+    const a = byId.get(ia)
+    const b = byId.get(ib)
+    if (!a || !b) continue
+    if (dist2(a.obb.cx, a.obb.cz, b.obb.cx, b.obb.cz) > PROXIMITY * PROXIMITY) continue
+    const gap = obbGap(a.obb, b.obb)
+    // Skip overlaps (gap ~0, handled elsewhere) and intentional close spacing.
+    if (gap <= CLEARANCE.sofaToCoffee) continue
+    const severity = classify(gap)
+    if (severity) out.push({ a: a.id, b: b.id, gap, severity, wall: false })
   }
 
   // Item ↔ wall — default flat only (fixed door-aware walls); skip otherwise.
