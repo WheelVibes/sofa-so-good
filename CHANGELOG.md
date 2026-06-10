@@ -4,6 +4,29 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C164–C171] Commercial-readiness program — audit fixes + parallel feature modules
+Driven by the 4-front audit (see TASKS.md). Each its own commit:
+- **C164** (B1, HIGH data-loss): `PlanRoomZ` now serializes `polygon` — free-form/Auto-room rooms no
+  longer revert to their bounding rect on reload. Round-trip test.
+- **C165** (S1, security): the three SVG builders (`elevationSvg`/`reportPlanSvg`/`lightingPlanSvg`) now
+  use the full 5-char escape (incl. quotes) — attribute-safe under `dangerouslySetInnerHTML`.
+- **C166** (B2): one shared `ui/auxPanels.ts` `closeAllAuxPanels` used by Tools menu + Mobile toolbar +
+  ⌘K — fixes stacked/overlapping `.aux` panels (daylight/elevations/design-score/accessibility).
+- **C167** (F34): HDB renovation **compliance hints** — pure `analysis/hdbCompliance.ts` (permit/caution/
+  info advisories: structural hacking, wet-area waterproofing, floor loading, facade windows, ceiling,
+  permits) + a report section. SG-market trust feature. 12 tests.
+- **C168** (F35): **renovation timeline** — pure `analysis/renoTimeline.ts` (phase schedule scaled by
+  area+rooms, 6-day week, 3–24 wk clamp) + a report Gantt section. 9 tests.
+- **C169** (F15): **auto-dimensioned plan** — pure `floorplan/autoDimension.ts` + `autoDimensionSvg.ts`
+  (overall + per-room running dimensions → palette-injected SVG) + a report drawing. 15 tests.
+- **C170** (F31): **DXF export** — pure `export/dxf.ts` `planToDxf` (ASCII DXF R12, layered walls/rooms/
+  openings/labels, +Z→-Y) + `ui/openDxf.ts` download + a Tools-menu action. 15 tests.
+- **C171** (F8): **staircase primitive** (straight/L/U/spiral) — pure `staircaseModel.ts` `buildStaircase`
+  (structurally sound, 19 tests) + `Staircase.tsx` + catalog registration + price.
+The pure modules (C167–C171) were authored by parallel worktree subagents and integrated file-by-file
+(no merge). Deferred: a `WindowBlind` (roller/roman/venetian) primitive was authored but overlaps the
+existing `Curtain`+`RollerBlind` — better to add a `roman` style to `RollerBlind` than ship a duplicate.
+
 ## [C163] Studio backdrop → seamless infinity-cove cyclorama
 Replaced the Studio backdrop's bare ground disc with a product-shot cyclorama: a large unlit gradient
 dome (brighter at the zenith, gently deeper at the horizon; `MeshBasicMaterial` + fog-off so it reads

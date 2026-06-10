@@ -73,9 +73,9 @@ standing themed backlog below + the existing sections further down hold the open
 
 ### AUDIT FINDINGS (2026-06-10) — execute these first, one commit each
 **Reliability/bugs (high→low):**
-- [ ] B1 (HIGH, data loss). `schema.ts` `PlanRoomZ` omits `polygon` → polygon/Auto-room rooms revert to
+- [x] B1 (C164). `schema.ts` `PlanRoomZ` omits `polygon` → polygon/Auto-room rooms revert to
   their bounding rect on save/load. Add `polygon` to the schema (optional) + round-trip test. `state/schema.ts:145`.
-- [ ] B2 (HIGH). ⌘K command palette + MobileToolbar don't fully close the newer `.aux` panels
+- [x] B2 (C166). ⌘K command palette + MobileToolbar don't fully close the newer `.aux` panels
   (daylight/elevations/designScore/accessibility) → stacked overlapping panels. Extract one shared
   `closeAllAuxPanels(state)` and use it in ToolsMenu, MobileToolbar, CommandPalette. `ui/CommandPalette.tsx:118`, `ui/toolbar/MobileToolbar.tsx:197`.
 - [ ] B3 (HIGH, mobile parity). MobileToolbar Tools section is missing Daylight, Design score,
@@ -91,7 +91,7 @@ standing themed backlog below + the existing sections further down hold the open
 - [ ] B8 (LOW). `.aux` panels use inline `width:360` (mobile override via `!important`) — move to a class.
 
 **Security (no high-sev; defense-in-depth):**
-- [ ] S1 (MED). SVG builders `elevationSvg.ts`/`reportPlanSvg.ts`/`lightingPlanSvg.ts` `esc` only escapes
+- [x] S1 (C165). SVG builders `elevationSvg.ts`/`reportPlanSvg.ts`/`lightingPlanSvg.ts` `esc` only escapes
   `&<>` not quotes, yet render via `dangerouslySetInnerHTML` — latent XSS if a string ever lands in an
   attribute. Make them the full 5-char esc.
 - [ ] S2 (MED-low). Vision-AI key POSTed to a user-configurable non-origin-pinned URL (`ai/floorPlanAi.ts`)
@@ -141,7 +141,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 
 **Content/catalog:**
 - [ ] F7 [PROD] Curtains/blinds window-treatment system (window-aware parametric). V:M E:M.
-- [ ] F8 [PROD] Staircase primitive (straight/L/U/spiral) — needed by maisonette/penthouse/landed. V:M E:M.
+- [x] F8 (C171) [PROD] Staircase primitive (straight/L/U/spiral) — needed by maisonette/penthouse/landed. V:M E:M.
 - [ ] F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza) so designs look styled. V:M E:S.
 - [ ] F10 [PROD] Wardrobe/closet configurator (extend cabinet engine: rails/shelves/drawers). V:M E:M.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate). V:L E:L.
@@ -150,7 +150,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 **Productivity/QOL:**
 - [ ] F13 [PROD] Multi-floor / multi-storey levels (schema+camera+stairs) — unblocks existing templates. V:L E:L.
 - [ ] F14 [PROD] Save selection as a custom Set (user-authored sets). V:M E:S.
-- [ ] F15 [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
+- [x] F15 (C169) [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
 - [ ] F16 [PROD] In-canvas magic suggestions (next-item / fill-empty-wall, rule-based). V:M E:M.
 - [ ] F17 [PROD] Finish eyedropper + whole-room style copy. V:S E:S.
 - [ ] F18 [PROD] Standard mount-height presets (art 1.45 m, pendant over table). V:S E:S.
@@ -172,13 +172,13 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 **2D/CAD outputs:**
 - [ ] F29 [PROD] Electrical/power+data layout plan + schedule (lighting-plan pattern). V:M E:M.
 - [ ] F30 [PROD] Demolition/hacking + new-wall plan (diff vs template) → feeds reno estimate. V:M E:M.
-- [ ] F31 [PROD] DXF plan export (client-side DXF writer from plan polygons). V:M E:M.
+- [x] F31 (C170) [PROD] DXF plan export (client-side DXF writer from plan polygons). V:M E:M.
 - [ ] F32 [PROD] Cross-section drawing (reuse elevation core along a cut line). V:M E:M.
 
 **SG renovation workflow (differentiator):**
 - [ ] F33 [PROD] Quote-ready BOQ handoff export (FF&E+reno+drawings; carpentry in linear-feet). V:M E:M.
-- [ ] F34 [PROD] HDB compliance hints (structural/wet-area/permit advisories on edits). V:M E:S-M.
-- [ ] F35 [PROD] Renovation timeline/phase planner (Gantt-ish, pure data/SVG). V:S-M E:S.
+- [x] F34 (C167) [PROD] HDB compliance hints (structural/wet-area/permit advisories on edits). V:M E:S-M.
+- [x] F35 (C168) [PROD] Renovation timeline/phase planner (Gantt-ish, pure data/SVG). V:S-M E:S.
 
 ## Performance / scalability
 - [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders (needs profiling on real hardware to justify).
