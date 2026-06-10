@@ -30,7 +30,7 @@ cabinet/fixture/backsplash heights + openings; used for permits, installers, cli
 Plan-wall-based so default + custom plans work uniformly. Phases (each its own commit):
 - [x] EL1. Pure `src/elevation/projectElevation.ts` + 9 tests — shipped C129. ← EL2 NEXT
 - [x] EL2. SVG renderer (C130) + Elevations panel in Tools (C131) — verified desktop + mobile. ← EL3 NEXT
-- [ ] EL3. **Dimensions** — wall width/height, opening sill/head, item widths. Screenshot-verified.
+- [x] EL3. Dimensions — overall width/height + opening sill heights — shipped C132. ← EL4 NEXT
 - [ ] EL4. **Report integration** — an Elevations section in the printable report. HTML-content tested.
 - [ ] EL5. Mobile responsiveness + section/depth detail polish.
 

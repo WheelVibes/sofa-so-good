@@ -20,7 +20,7 @@ const el: WallElevation = {
 
 describe('elevationSvg', () => {
   it('emits an svg sized to the wall with a floor-anchored item + window pane', () => {
-    const svg = elevationSvg(el, { palette })
+    const svg = elevationSvg(el, { palette, dimensions: false })
     expect(svg.startsWith('<svg')).toBe(true)
     // viewBox spans the wall plus margins (4 + 2·0.35 = 4.700).
     expect(svg).toContain('viewBox="-0.350 -0.350 4.700 3.500"')
@@ -30,6 +30,17 @@ describe('elevationSvg', () => {
     expect(svg).toContain('width="1.000" height="2.000"')
     expect(svg).toContain('y="0.800"')
     expect(svg).toContain('>Cabinet</text>')
+  })
+
+  it('draws dimensions (overall width/height + window sill height) when enabled', () => {
+    const svg = elevationSvg(el, { palette, units: 'metric', dimensions: true })
+    // Overall width + height labels.
+    expect(svg).toContain('>4.00 m</text>')
+    expect(svg).toContain('>2.80 m</text>')
+    // The window sill (0.9 m) is dimensioned.
+    expect(svg).toContain('>0.90 m</text>')
+    // Extra left/bottom padding is reserved for the dim lines.
+    expect(svg).toContain('viewBox="-0.950 -0.350 5.300 4.100"')
   })
 
   it('escapes a malicious item label (no markup injection)', () => {
@@ -43,7 +54,7 @@ describe('elevationSvg', () => {
   })
 
   it('omits labels when disabled or too narrow', () => {
-    const svg = elevationSvg(el, { palette, labels: false })
+    const svg = elevationSvg(el, { palette, labels: false, dimensions: false })
     expect(svg).not.toContain('<text')
   })
 

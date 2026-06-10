@@ -32,6 +32,8 @@ export interface ElevationSvgOptions {
   units?: UnitSystem
   /** Outer margin in metres around the wall rectangle. Default 0.35. */
   margin?: number
+  /** Draw dimension lines (overall width/height + opening sill heights). Default true. */
+  dimensions?: boolean
 }
 
 /**
@@ -41,7 +43,7 @@ export interface ElevationSvgOptions {
  * width/height or letting it scale to its container via the viewBox.
  */
 export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): string {
-  const { palette: p, labels = true, margin = 0.35 } = opts
+  const { palette: p, labels = true, margin = 0.35, units = 'metric', dimensions = true } = opts
   const { length: L, height: H } = el
   if (L <= 0 || H <= 0) {
     return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1 1" role="img" aria-label="empty elevation"></svg>`
@@ -97,7 +99,51 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     }
   }
 
-  const vb = `${f(-margin)} ${f(-margin)} ${f(L + 2 * margin)} ${f(H + 2 * margin)}`
+  // Dimension lines (architectural read): overall width below, overall height at
+  // the left, and each opening's sill height — the key "how high" elevation info.
+  // Extra room is reserved on the left + bottom for the dim lines + labels.
+  const pad = dimensions ? 0.95 : margin
+  if (dimensions) {
+    const dfs = Math.max(0.13, Math.min(0.22, Math.min(L, H) * 0.06)) // dim font size
+    const tick = sw * 4
+    const dimLine = (
+      x1: number,
+      y1: number,
+      x2: number,
+      y2: number,
+      label: string,
+      vertical: boolean,
+    ): void => {
+      // Line + perpendicular end ticks.
+      parts.push(
+        `<line x1="${f(x1)}" y1="${f(y1)}" x2="${f(x2)}" y2="${f(y2)}" stroke="${p.text}" stroke-width="${f(sw * 0.8)}"/>`,
+      )
+      const tx = vertical ? tick : 0
+      const ty = vertical ? 0 : tick
+      parts.push(
+        `<line x1="${f(x1 - tx)}" y1="${f(y1 - ty)}" x2="${f(x1 + tx)}" y2="${f(y1 + ty)}" stroke="${p.text}" stroke-width="${f(sw * 0.8)}"/>`,
+        `<line x1="${f(x2 - tx)}" y1="${f(y2 - ty)}" x2="${f(x2 + tx)}" y2="${f(y2 + ty)}" stroke="${p.text}" stroke-width="${f(sw * 0.8)}"/>`,
+      )
+      const mx = (x1 + x2) / 2
+      const my = (y1 + y2) / 2
+      const rot = vertical ? ` transform="rotate(-90 ${f(mx)} ${f(my)})"` : ''
+      const dy = vertical ? 0 : -dfs * 0.5
+      parts.push(
+        `<text x="${f(mx)}" y="${f(my + dy)}" font-size="${f(dfs)}" fill="${p.text}" text-anchor="middle" dominant-baseline="${vertical ? 'middle' : 'auto'}"${rot}>${esc(label)}</text>`,
+      )
+    }
+    // Overall width (below the floor) + overall height (left of the wall).
+    dimLine(0, H + 0.55, L, H + 0.55, formatLength(L, units), false)
+    dimLine(-0.55, 0, -0.55, H, formatLength(H, units), true)
+    // Opening sill heights (skip floor-level doors).
+    for (const o of el.openings) {
+      if (o.sill <= 0.01) continue
+      const x = Math.max(0.04, o.x0 - 0.18)
+      dimLine(x, y(o.sill), x, y(0), formatLength(o.sill, units), true)
+    }
+  }
+
+  const vb = `${f(-pad)} ${f(-margin)} ${f(L + pad + margin)} ${f(H + margin + pad)}`
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="wall elevation, ${f(L)} by ${f(H)} metres">${parts.join('')}</svg>`
 }
 

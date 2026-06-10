@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C132] EL3 — dimensions on wall elevations
+`elevationSvg` now draws architectural dimension lines (overall width below, overall height at the
+left with a rotated label, and each window/raised opening's sill height) with tick marks + unit
+labels (metric/imperial) — turning the elevation into a real technical drawing for cabinet/fixture/
+backsplash heights. On by default (`dimensions` opt); reserves left+bottom padding for the lines.
+Tests cover the dim labels + the expanded viewBox; verified the dims render in the panel.
+
 ## [C131] EL2b — Elevations panel (Tools → Elevations)
 Wired wall elevations into the app: a new `ElevationPanel` (`.aux` panel, so it docks top-centre on
 desktop + becomes a full-width bottom sheet on mobile for free) with a wall picker + theme-token SVG;
