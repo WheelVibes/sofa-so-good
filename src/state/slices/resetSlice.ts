@@ -1,5 +1,7 @@
+import { isDefaultPlan } from '../../floorplan/planGeometry'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { defaultLayout } from '../../furniture/defaultLayout'
+import { furnishPlanItems } from '../../furniture/furnishPlan'
 import { buildPresetItems, LAYOUT_PRESETS, PRESET_ROOMS } from '../../furniture/layoutPresets'
 import { defaultParamProps } from '../../furniture/types'
 import type { RootState } from '../store'
@@ -43,6 +45,20 @@ export const createResetSlice: SliceCreator<ResetSlice, RootState> = (set, get) 
     // `set`, so the whole preset is ONE undo step (calling the finish setters in
     // a loop pushed history per room — a preset took ~9 undos to revert).
     get().pushHistory()
+    // Custom plan / template: the preset's authored coordinates are for the
+    // built-in flat, so instead seed a kind-appropriate furniture kit per room
+    // and arrange it to the plan's own walls (restyled by the preset palette).
+    // The template's own per-room floor finishes are kept.
+    const plan = get().floorPlan
+    if (!isDefaultPlan(plan)) {
+      set({
+        items: furnishPlanItems(plan, preset, BUILTIN_CATALOG, get().doors),
+        selectedItemId: null,
+        selectedItemIds: [],
+        hiddenItemIds: [],
+      })
+      return
+    }
     const cur = get().finishes
     const floor = { ...cur.floor }
     const walls = { ...cur.walls }
