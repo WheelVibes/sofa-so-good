@@ -308,7 +308,7 @@
 /* ============================================================
    TOASTS
    ============================================================ */
-.toast-host { position: absolute; left: 50%; bottom: calc(var(--s-6) + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: var(--z-overlay); display: flex; flex-direction: column; gap: var(--s-2); align-items: center; pointer-events: none; }
+.toast-host { position: absolute; left: 50%; bottom: calc(var(--s-6) + env(safe-area-inset-bottom)); transform: translateX(-50%); z-index: var(--z-toast); display: flex; flex-direction: column; gap: var(--s-2); align-items: center; pointer-events: none; }
 .toast {
   display: flex; align-items: center; gap: var(--s-3); pointer-events: auto;
   padding: 10px var(--s-3) 10px var(--s-4); border-radius: var(--r-2);
