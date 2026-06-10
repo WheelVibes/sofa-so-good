@@ -103,9 +103,10 @@ standing themed backlog below + the existing sections further down hold the open
   Improve code-splitting/manual chunks; lazy-load heavy/rare paths. (Verify with `npm run build` sizes.)
 
 **Perf/scalability/memory (audit, impact-first):**
-- [ ] PERF1 (M, big). In-canvas overlays call reactive `useCatalog()` (rebuilds full merged catalog +
-  re-renders on any catalog change) — CLAUDE.md says use `useCatalogGetter`. Fix: `FurnitureLayer.tsx`,
-  `selection/SelectionOutline.tsx`, `HoverHighlight.tsx`, `RotateGizmo.tsx`, `ClearanceOverlay.tsx`, `PlacementGhost.tsx`.
+- [x] PERF1 (C195) (M, big). `useCatalog` now memoised on its input slices (was rebuilding the whole merged
+  catalog on every consumer render — incl. FurnitureLayer on every drag pointermove). In-canvas overlays
+  (SelectionOutline / HoverHighlight / RotateGizmo / ClearanceOverlay / PlacementGhost) switched to the
+  non-reactive `useCatalogGetter` so catalog churn (bulk import) never re-renders the R3F tree.
 - [x] PERF2 (C178) (S, big). `DesignScorePanel` (and check `ClearanceOverlay`) rerun O(n²) scans every
   pointermove while open — gate recompute on `!draggingItemId` / debounce 250–400ms. `ui/DesignScorePanel.tsx:44`.
 - [x] PERF3 (C193) (S). `Lighting` tween target memoized — no per-frame object/array alloc when settled;

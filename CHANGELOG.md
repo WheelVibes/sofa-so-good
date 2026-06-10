@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C195] Catalog hook memoisation + in-canvas getter (PERF1)
+`useCatalog` is now memoised on its three input slices, so the non-trivial merged-catalog build runs only
+when a slice actually changes — not on every consumer re-render (a FurnitureLayer re-render on every drag
+pointermove was rebuilding the whole catalog). The in-canvas overlays (SelectionOutline, HoverHighlight,
+RotateGizmo, ClearanceOverlay, PlacementGhost) now read through the non-reactive `useCatalogGetter` ref so
+catalog churn during a bulk import never re-renders the R3F tree. Verified: furniture, clearance rings, and
+selection outline all render correctly.
+
 ## [C192–C194] Hot-path perf
 - **C192** (PERF8): `DragController.onMove` indexes the item list into id→item Maps once per pointermove,
   replacing several full-list `.find` scans (including an O(n·m) per-moved-item collision loop) with O(1) lookups.
