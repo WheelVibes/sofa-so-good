@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C185–C186] Memory bound + complete pro drawing set
+- **C185** (PERF9): procedural thumbnail cache is now a 300-entry LRU (was unbounded over a long catalog browse).
+- **C186** (F32): cross-section drawing (`floorplan/section.ts` + `sectionSvg.ts`); the formal drawing set
+  now adds Dimensioned plan + Section A–A + Demolition sheets (cover · plan · dimensions · elevations ·
+  lighting · section · demolition · FF&E). 18 tests.
+
 ## [C184] Demolition / hacking + new-wall plan (F30)
 Pure `floorplan/demolitionPlan.ts` `diffWalls` (order-independent wall match → kept/demolished/added +
 hacked/added metres) + `demolitionPlanSvg.ts` (kept solid / demolished dashed-red / added bold-green +

@@ -173,7 +173,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F29 [PROD] Electrical/power+data layout plan + schedule (lighting-plan pattern). V:M E:M.
 - [x] F30 (C184) [PROD] Demolition/hacking + new-wall plan (diff vs template) → feeds reno estimate. V:M E:M.
 - [x] F31 (C170) [PROD] DXF plan export (client-side DXF writer from plan polygons). V:M E:M.
-- [ ] F32 [PROD] Cross-section drawing (reuse elevation core along a cut line). V:M E:M.
+- [x] F32 (C186) [PROD] Cross-section drawing (reuse elevation core along a cut line). V:M E:M.
 
 **SG renovation workflow (differentiator):**
 - [x] F33 (C180) [PROD] Quote-ready BOQ handoff export (FF&E+reno+drawings; carpentry in linear-feet). V:M E:M.
