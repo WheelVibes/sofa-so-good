@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { FloorPlan } from '../../floorplan/types'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
+import { BUILTIN_MATERIALS } from '../../materials/builtinCatalog'
 import { useStore } from '../store'
 
 describe('applyLayoutPreset', () => {
@@ -24,6 +26,61 @@ describe('applyLayoutPreset', () => {
     // One undo fully reverts furniture + finishes.
     useStore.getState().undo()
     expect(useStore.getState().items.length).toBe(beforeItems)
+  })
+
+  it('furnishes a custom plan + applies the preset palette in one undo step', () => {
+    const ext: FloorPlan['walls'][number]['thickness'] = 'external'
+    const plan: FloorPlan = {
+      id: 'custom-reset-test',
+      name: 'Custom',
+      ceilingHeight: 2.6,
+      extent: [9, 7],
+      walls: [
+        { id: 'n', start: [0.1, 0.1], end: [8.9, 0.1], thickness: ext },
+        { id: 'e', start: [8.9, 0.1], end: [8.9, 6.9], thickness: ext },
+        { id: 's', start: [8.9, 6.9], end: [0.1, 6.9], thickness: ext },
+        { id: 'w', start: [0.1, 6.9], end: [0.1, 0.1], thickness: ext },
+      ],
+      openings: [{ id: 'd', kind: 'door', wallId: 's', offset: 4, width: 0.9, sill: 0, head: 2.1 }],
+      rooms: [
+        { id: 'liv', name: 'Living', origin: [0.2, 0.2], width: 4.4, depth: 6.6, floor: 'floor-x' },
+        {
+          id: 'bed',
+          name: 'Master Bedroom',
+          origin: [4.8, 0.2],
+          width: 4.0,
+          depth: 4.0,
+          floor: 'floor-x',
+        },
+        {
+          id: 'kit',
+          name: 'Kitchen',
+          origin: [4.8, 4.4],
+          width: 4.0,
+          depth: 2.4,
+          floor: 'floor-tile-grey',
+        },
+      ],
+    }
+    useStore.getState().setFloorPlan(plan)
+    useStore.setState({ past: [], future: [] } as never)
+    const preset = LAYOUT_PRESETS.find((p) => p.id === 'scandi-calm')!
+    useStore.getState().applyLayoutPreset(preset.id)
+
+    const s = useStore.getState()
+    expect(s.items.length).toBeGreaterThan(0)
+    const room = (id: string) => s.floorPlan.rooms.find((r) => r.id === id)!
+    // Dry rooms take the preset floor; the kitchen keeps its own.
+    expect(room('liv').floor).toBe(preset.dryFloor)
+    expect(room('bed').floor).toBe(preset.dryFloor)
+    expect(room('kit').floor).toBe('floor-tile-grey')
+    // The plan wall colour follows the preset wall swatch.
+    expect(s.floorPlan.wallColor).toBe(BUILTIN_MATERIALS[preset.wall]?.swatch)
+    // One undo step reverts furniture AND the plan palette together.
+    expect(s.past.length).toBe(1)
+    useStore.getState().undo()
+    expect(useStore.getState().items.length).toBe(0)
+    expect(useStore.getState().floorPlan.rooms.find((r) => r.id === 'liv')!.floor).toBe('floor-x')
   })
 
   it('is a no-op for an unknown preset id', () => {
