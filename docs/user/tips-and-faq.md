@@ -29,6 +29,13 @@ The app starts on the **Performance** graphics tier so it loads instantly and
 stays smooth on any laptop. Raise the quality in **Graphics** (shadows, ambient
 lighting, post‑processing, higher‑detail assets) whenever you want a richer look.
 
+**Can I change the overall colour / "look" of the render?**
+Yes — **Graphics → Look (tone mapping)** picks the view transform applied to the
+whole scene: **Filmic** (punchy contrast, the default), **AgX** (gentler
+highlights, more photographic — great for daylight), or **Neutral** (minimal
+shift, truest material colour — best for product/showroom shots). It applies on
+every quality tier and is remembered per device.
+
 **Do mirrors actually reflect the room?**
 Yes, on the **High** and **Maximum** graphics tiers — wall, bathroom and floor
 mirrors render a true reflection of the room, so you can see how a mirror opens

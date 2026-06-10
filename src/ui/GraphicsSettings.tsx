@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
+import { TONE_MAPPING_LABEL, TONE_MAPPING_MODES } from '../scene/look'
 import {
   type AssetTier,
   QUALITY_DESCRIPTION,
@@ -12,6 +13,12 @@ import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
 
 const TIERS = RENDER_TIERS
+/** One-line description per tone-mapping look for the Graphics panel. */
+const TONE_MAPPING_HINT: Record<string, string> = {
+  filmic: 'ACES Filmic — punchy contrast. The classic default.',
+  agx: 'AgX — gentler highlights, more photographic. Great for daylight scenes.',
+  neutral: 'Neutral — minimal shift, truest material colour. Best for product/showroom looks.',
+}
 /** Asset-quality options: Auto (follow render tier) + the three asset tiers
  *  ('high' surfaces as "Original" — full-resolution GLB + untouched textures). */
 const ASSET_OPTIONS: { value: AssetTier | null; label: string }[] = [
@@ -36,6 +43,8 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
   const setOverride = useStore((s) => s.setQualityOverride)
   const resetOverrides = useStore((s) => s.resetQualityOverrides)
   const setAssetTier = useStore((s) => s.setAssetTier)
+  const toneMapping = useStore((s) => s.toneMapping)
+  const setToneMapping = useStore((s) => s.setToneMapping)
   const showFps = useStore((s) => s.showFps)
   const toggleShowFps = useStore((s) => s.toggleShowFps)
   const unitSystem = useStore((s) => s.units)
@@ -131,6 +140,35 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
                 ? 'Custom settings (overriding the preset).'
                 : 'Manual — auto fps-adjust is off.'
               : 'Auto-adjusts to hold 30+ fps. Changing anything pins it.'}
+          </p>
+
+          {/* Tone-mapping "look" (view transform) — applies on every tier,
+              so it lives outside the Pro-only advanced block. */}
+          <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+            <span>Look (tone mapping)</span>
+          </div>
+          <div className="seg accent" style={{ display: 'flex', width: '100%' }}>
+            {TONE_MAPPING_MODES.map((m) => (
+              <button
+                key={m}
+                type="button"
+                onClick={() => setToneMapping(m)}
+                className={toneMapping === m ? 'on' : ''}
+                style={{ flex: 1 }}
+              >
+                {TONE_MAPPING_LABEL[m]}
+              </button>
+            ))}
+          </div>
+          <p
+            style={{
+              fontSize: 'var(--t-2xs)',
+              lineHeight: 1.45,
+              color: 'var(--text-3)',
+              margin: 'var(--s-2) 0 var(--s-3)',
+            }}
+          >
+            {TONE_MAPPING_HINT[toneMapping]}
           </p>
 
           {/* Advanced graphics (asset detail + per-effect overrides + FPS) —

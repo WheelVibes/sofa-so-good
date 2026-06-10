@@ -1,3 +1,4 @@
+import { DEFAULT_TONE_MAPPING, type ToneMappingMode } from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
 import type { RootState } from '../store'
@@ -36,6 +37,9 @@ export interface UiSlice {
    *  `null` = Auto (follow `qualityTier`); an explicit tier pins asset detail
    *  independently and is immune to the FPS auto-downgrade. */
   assetTier: AssetTier | null
+  /** Tone-mapping "look" (view transform) applied by the renderer — a per-device
+   *  graphics preference, persisted via qualityPrefs. */
+  toneMapping: ToneMappingMode
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode
   /** Snap dragged/placed furniture to the alignment grid, and show the grid
@@ -122,6 +126,8 @@ export interface UiSlice {
   resetQualityOverrides: () => void
   /** Set the GLB asset detail tier (`null` = Auto / follow the render tier). */
   setAssetTier: (t: AssetTier | null) => void
+  /** Set the tone-mapping look. */
+  setToneMapping: (m: ToneMappingMode) => void
   setLightsMode: (m: LightsMode) => void
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void
@@ -148,6 +154,7 @@ export const UI_INITIAL: Pick<
   | 'qualityUserSet'
   | 'qualityOverrides'
   | 'assetTier'
+  | 'toneMapping'
   | 'lightsMode'
   | 'autoShadowsOff'
   | 'backdrop'
@@ -173,6 +180,7 @@ export const UI_INITIAL: Pick<
   qualityUserSet: false,
   qualityOverrides: {},
   assetTier: null,
+  toneMapping: DEFAULT_TONE_MAPPING,
   lightsMode: 'auto',
   autoShadowsOff: false,
   snapEnabled: false,
@@ -261,6 +269,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     })),
   resetQualityOverrides: () => set({ qualityOverrides: {} }),
   setAssetTier: (t) => set({ assetTier: t }),
+  setToneMapping: (toneMapping) => set({ toneMapping }),
   setLightsMode: (m) => set({ lightsMode: m }),
   cycleLightsMode: () =>
     set((s) => ({

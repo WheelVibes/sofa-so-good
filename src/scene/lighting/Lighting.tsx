@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3D } from 'three'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
-import { grade, SOFT_SHADOW } from '../look'
+import { grade, SOFT_SHADOW, toneExposureBias } from '../look'
+import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
 import { shadowFrustumForPlan } from './shadowFrustum'
@@ -100,9 +101,12 @@ export function Lighting() {
       a[2] = approach(a[2], b[2])
     }
 
-    // Drive tone-mapping exposure from the sun altitude every frame — cheap,
-    // and it must keep tracking even after the light tween settles.
-    gl.toneMappingExposure = grade(sunPos.altitude).exposure
+    // Drive tone-mapping operator + exposure from the user's "look" and the sun
+    // altitude every frame — cheap (three only recompiles when the operator
+    // actually changes), and it must keep tracking after the light tween settles.
+    const toneMode = useStore.getState().toneMapping
+    gl.toneMapping = TONE_MAPPING_THREE[toneMode]
+    gl.toneMappingExposure = grade(sunPos.altitude).exposure * toneExposureBias(toneMode)
 
     // Cheap settle check on the dominant channels. When unsettled, ease the
     // current values toward the target; when settled we still fall through to

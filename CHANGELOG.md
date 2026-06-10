@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C114] PR1 — selectable tone-mapping "Look" (Filmic / AgX / Neutral)
+First step of the ultra-photorealism program. Made the renderer's view transform user-selectable in
+**Graphics → Look**: Filmic (ACES, the existing default — no regression), AgX (gentler highlights,
+more photographic), Neutral (Khronos PBR-neutral, truest material colour for showroom shots).
+Pure/unit-tested operator + per-mode exposure bias in `look.ts`; `toneMappingThree.ts` maps to the
+three constant; `Lighting` sets `gl.toneMapping`+exposure per-frame; persisted in qualityPrefs
+(back-compat). Verified all three render distinctly + correctly (no artifacts) at high tier. Docs +
+ARCHITECTURE updated.
+
 ## [C113] Design report surfaces overlaps + wall-clips (not just door blocks)
 Extended the report's "Clearance & fit" section to run the full check set (door-swing blocks +
 `findItemOverlaps` + `findWallClips`), matching the in-app Checks panel, so a printed/handoff report

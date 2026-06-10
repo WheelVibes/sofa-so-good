@@ -1,7 +1,7 @@
 import { useProgress } from '@react-three/drei'
 import { Canvas, useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import { ACESFilmicToneMapping, PCFSoftShadowMap } from 'three'
+import { PCFSoftShadowMap } from 'three'
 import { Apartment } from '../apartment/Apartment'
 import { RoomHoverHighlight } from '../apartment/floor/RoomHoverHighlight'
 import { PlanShell } from '../apartment/PlanShell'
@@ -24,6 +24,7 @@ import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
 import { Sky } from './lighting/Sky'
+import { DEFAULT_TONE_MAPPING } from './look'
 import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
@@ -36,6 +37,7 @@ import { MarqueeCameraTracker } from './selection/MarqueeSelector'
 import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 import { TapeMeasure } from './TapeMeasure'
+import { TONE_MAPPING_THREE } from './toneMappingThree'
 
 /** Flips `sceneReady` once the scene has painted a few solid frames (so
  *  shaders + procedural textures are warm) and nothing is still streaming
@@ -70,8 +72,10 @@ export function Scene() {
         // Keep the drawing buffer readable so the in-app Export (PNG) and
         // Record (.webm) capture features reliably grab rendered frames.
         preserveDrawingBuffer: true,
-        toneMapping: ACESFilmicToneMapping,
-        toneMappingExposure: 1.05, // initial only — Lighting.tsx drives this per-frame from grade(altitude)
+        // Initial only — Lighting.tsx drives both the operator (from the user's
+        // tone-mapping "look") and the exposure per-frame from grade(altitude).
+        toneMapping: TONE_MAPPING_THREE[DEFAULT_TONE_MAPPING],
+        toneMappingExposure: 1.05,
       }}
     >
       <ContextLossGuard />

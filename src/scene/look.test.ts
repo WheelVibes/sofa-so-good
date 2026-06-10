@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { AO, grade, SOFT_SHADOW } from './look'
+import {
+  AO,
+  DEFAULT_TONE_MAPPING,
+  grade,
+  SOFT_SHADOW,
+  TONE_MAPPING_MODES,
+  toneExposureBias,
+} from './look'
 
 describe('grade', () => {
   it('exposure rises monotonically with sun altitude', () => {
@@ -32,5 +39,21 @@ describe('grade', () => {
     expect(AO.aoRadius).toBeGreaterThan(0)
     expect(AO.distanceFalloff).toBeGreaterThan(0)
     expect(AO.intensity).toBeGreaterThan(0)
+  })
+})
+
+describe('tone mapping look', () => {
+  it('defaults to filmic (no regression from the historical ACES look)', () => {
+    expect(DEFAULT_TONE_MAPPING).toBe('filmic')
+    expect(TONE_MAPPING_MODES).toContain('filmic')
+  })
+
+  it('gives a positive exposure bias for every mode, boosting only AgX', () => {
+    for (const m of TONE_MAPPING_MODES) expect(toneExposureBias(m)).toBeGreaterThan(0)
+    // AgX maps middle-grey lower than ACES, so it needs a brightness boost;
+    // filmic/neutral track the historical exposure (bias 1).
+    expect(toneExposureBias('agx')).toBeGreaterThan(1)
+    expect(toneExposureBias('filmic')).toBeCloseTo(1)
+    expect(toneExposureBias('neutral')).toBeCloseTo(1)
   })
 })

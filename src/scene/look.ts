@@ -19,6 +19,46 @@ export interface Grade {
   warmth: number
 }
 
+/**
+ * Tone-mapping "look" (view transform) the user can pick in the Graphics panel.
+ * Pure string union here (no three.js, so `look.ts` stays unit-testable); the
+ * renderer maps it to a three `ToneMapping` constant via `TONE_MAPPING_THREE`
+ * in `Scene`/`Lighting`.
+ *
+ *  - `filmic`  — ACES Filmic. Punchy, slightly contrasty; the long-standing
+ *    default, so it stays the default (no regression).
+ *  - `agx`     — AgX. Gentler highlight roll-off + better hue stability in
+ *    bright areas (the modern Blender-4 standard); reads more "photographic".
+ *  - `neutral` — Khronos PBR Neutral. Minimal shift, preserves material albedo
+ *    — best for true-to-catalogue product/showroom colour.
+ */
+export type ToneMappingMode = 'filmic' | 'agx' | 'neutral'
+
+export const TONE_MAPPING_MODES: ToneMappingMode[] = ['filmic', 'agx', 'neutral']
+
+export const DEFAULT_TONE_MAPPING: ToneMappingMode = 'filmic'
+
+export const TONE_MAPPING_LABEL: Record<ToneMappingMode, string> = {
+  filmic: 'Filmic',
+  agx: 'AgX',
+  neutral: 'Neutral',
+}
+
+/** Exposure compensation per operator so switching the look keeps the scene at
+ *  roughly the same perceived brightness (AgX maps middle-grey lower than ACES,
+ *  so it gets a small boost; Neutral tracks ACES closely). Multiplies the
+ *  altitude-driven `grade().exposure`. */
+export function toneExposureBias(mode: ToneMappingMode): number {
+  switch (mode) {
+    case 'agx':
+      return 1.15
+    case 'neutral':
+      return 1.0
+    default:
+      return 1.0
+  }
+}
+
 /** Map sun altitude → exposure + white-balance warmth. */
 export function grade(altitude: number): Grade {
   // Smoothstep ramps from civil dusk (~-0.12 rad) to mid-morning (~0.5 rad).

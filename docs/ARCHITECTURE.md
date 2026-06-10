@@ -115,6 +115,9 @@ same change that reshapes a system.
   Medium=+sun shadows+IBL; High=+post; Maximum maxes all. `QualityController` only steps
   **down** for 30fps, off once pinned. **Asset quality** = separate `AssetTier`
   (low/medium/high=Original LOD), follows render (`null`=Auto) but pinnable + FPS-immune.
+  **Tone-mapping look** (`look.ts` `ToneMappingMode` Filmic/AgX/Neutral → three constant via
+  `toneMappingThree.ts`; `Lighting` sets `gl.toneMapping`+exposure per-frame): user-selectable
+  view transform, all tiers, persisted in qualityPrefs. Filmic = default (historical ACES).
 - **GLB models + LOD** (`furniture/gltf/`): bundled CC0 + user + IKEA via one loader.
   `optimize:glb` writes `-low`/`-medium` (≤512/1024px WebP + ~50/75% tris, Draco);
   `lod.ts` picks per asset tier; `textureBudget.ts` = last-resort downscale. `--ktx2`
