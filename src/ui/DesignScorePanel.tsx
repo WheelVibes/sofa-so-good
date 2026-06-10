@@ -1,6 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { buildDesignScore, type Grade, type IssueSeverity } from '../analysis/designScore'
+import {
+  buildDesignScore,
+  type DesignScore,
+  type Grade,
+  type IssueSeverity,
+} from '../analysis/designScore'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildMergedCatalog } from '../furniture/catalog'
@@ -41,12 +46,19 @@ export function DesignScorePanel() {
     })),
   )
 
+  // Skip the O(n²) recompute while an item is being dragged (items changes every
+  // pointermove) — keep showing the last score until the drag settles.
+  const dragging = useStore((s) => s.draggingItemId)
+  const lastScore = useRef<DesignScore | null>(null)
   const score = useMemo(() => {
     if (!open) return null
+    if (dragging) return lastScore.current
     const merged = buildMergedCatalog(catalogInputs)
     const walls = isDefaultPlan(plan) ? buildCollisionWalls(doors) : planCollisionWalls(plan, doors)
-    return buildDesignScore(items, merged, plan, { walls })
-  }, [open, items, plan, doors, catalogInputs])
+    const result = buildDesignScore(items, merged, plan, { walls })
+    lastScore.current = result
+    return result
+  }, [open, items, plan, doors, catalogInputs, dragging])
 
   // Select + frame the items behind a category's issues (clearance / circulation).
   const selectOffenders = (ids: string[]) => {
