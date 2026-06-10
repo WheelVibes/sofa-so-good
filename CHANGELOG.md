@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C110] Harden share-link decode against decompression bombs
+`decodePlan` only capped the *compressed* code length (2 MB) — but deflate expands that into
+gigabytes, so the claimed zip-bomb guard didn't hold (a single `inflateSync` allocates the whole
+output before any size check). Replaced it with a bounded streaming inflate that feeds the deflate
+stream in 16 KB slices and aborts once decompressed output passes a 50 MB cap (mirroring the
+`.sofa.json` import limit). Added a regression test that feeds a 64 MB-of-zeros bomb and asserts a
+clean `PlanShareError` instead of an OOM.
+
 ## [C109] Fix autosave dropping floor-plan / lights / annotation / orientation / note edits
 The autosave watcher (`pickPersistent`/`shallowEqual`) only tracked a subset of what `serialize()`
 persists, so editing *only* the floor plan, lights mode, a pinned dimension annotation, scene

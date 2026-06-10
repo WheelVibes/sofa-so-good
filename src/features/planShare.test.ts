@@ -1,3 +1,4 @@
+import { deflateSync } from 'fflate'
 import { describe, expect, it } from 'vitest'
 import { applySerialized } from '../state/schema'
 import { loadSharedPlanFromUrl } from '../state/storage/bootstrap'
@@ -31,6 +32,18 @@ describe('encodePlan / decodePlan', () => {
     expect(() => decodePlan('')).toThrow(PlanShareError)
     expect(() => decodePlan('!!!not base64!!!')).toThrow(PlanShareError)
     expect(() => decodePlan('aGVsbG8')).toThrow(PlanShareError) // valid b64, not deflate
+  })
+
+  it('refuses a decompression bomb instead of inflating it into memory', () => {
+    // ~64 MB of zeros compresses to a tiny code that passes MAX_CODE_LENGTH but
+    // would blow past the decompressed cap — the bounded inflate must reject it.
+    const bomb = new Uint8Array(64 * 1024 * 1024)
+    const compressed = deflateSync(bomb, { level: 6 })
+    expect(compressed.length).toBeLessThan(2_000_000) // small enough to pass the code-length guard
+    let bin = ''
+    for (let i = 0; i < compressed.length; i++) bin += String.fromCharCode(compressed[i])
+    const code = btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '')
+    expect(() => decodePlan(code)).toThrow(PlanShareError)
   })
 })
 
