@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C214 / F25] Text-to-room brief — "describe it" box in Smart Start
+New pure `furniture/briefParser.ts`: deterministic keyword scoring (curated synonym table over all 15
+layout presets + name/description fallback, whole-word matching) maps a free-text brief to the closest
+preset, plus budget extraction ("$15k" / "S$ 12,500" / "budget of 18k" → `setBudgetTarget`). Wizard gains
+a flag-gated (`textBrief`, simple-tier) textarea + "Match my brief" with an honest matched-terms/budget
+line (and an explicit "couldn't match" state). 9 new tests incl. both-mode flag resolution. Verified
+end-to-end in the wizard (typed brief → Japandi matched + selected).
+
 ## [C213 / FP-next] Custom-plan rooms: live 3D finish editing (floor + wall)
 The 3D finish picker silently didn't render on custom plans (the shells read only `PlanRoom.floor`; walls
 were fixed plaster). Now: new `floorplan/roomFinishes.ts` resolvers (live `finishes` slice → plan room →

@@ -83,6 +83,9 @@ From the parallel bug/perf/UI agent sweep; the high-value items were fixed in th
 - [ ] POPOVER-SCROLL. Toolbar popovers/menus are fixed-positioned to their button; when the toolbar scrolls
   horizontally (narrow desktop) the popover detaches. Close or reposition popovers on toolbar scroll.
 - [ ] MOBILE-TAP-TARGETS. Audit mobile accordion sub-items (`.m-item-s`) for the 44 px min touch target.
+- [ ] MODAL-HOTKEYS. Global keyboard shortcuts still fire while a modal is open (typing into a
+  mis-focused modal triggered the `P` 2D-plan toggle behind Smart Start). Gate the keybinding
+  handler on "no modal open" (or document.activeElement) — audit all Modal consumers.
 - [ ] PERF-FOLLOWUPS. `historySlice` tail re-slice on every push past the cap; `placement.findItemOverlaps`
   rebuilds the broadphase grid per call (cache within a frame). Low-impact; revisit if profiling flags them.
 
@@ -187,7 +190,8 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F24 [PROD-partial] Pinned comments on a shared design (live presence = backend, defer). V:M E:L.
 
 **AI (BYO-key):**
-- [ ] F25 [PROD] Text-to-room brief → Smart-Start preset+budget+palette → `furnishPlanItems`. V:L E:M.
+- [x] F25 (C214) [PROD] Text-to-room brief — `briefParser.ts` keyword matcher + budget extraction,
+  `textBrief` flag, wizard "describe it" box. (Custom-plan `furnishPlanItems` routing already covered by Smart Start.)
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud). V:L E:L.
 - [ ] F27 [PROD] "Redesign this render" style-variant explorer (extend Share i2i). V:M E:S.
 - [x] F28 (C176) [PROD] AI palette/finish recommender from an inspiration image (client-side color extract). V:M E:S-M.

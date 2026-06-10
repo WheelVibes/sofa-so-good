@@ -27,6 +27,7 @@ export type FeatureFlag =
   | 'shareExport'
   | 'floorPlanEditor'
   | 'smartStart'
+  | 'textBrief'
   | 'savedViews'
   | 'backdrops'
   | 'lightingMoods'
@@ -136,6 +137,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   smartStart: {
     label: 'Smart Start',
     description: 'One-click furnish wizard',
+    default: true,
+    tier: 'simple',
+  },
+  textBrief: {
+    label: 'Describe-it brief',
+    description: 'Free-text brief matched to a Smart Start style + budget',
     default: true,
     tier: 'simple',
   },

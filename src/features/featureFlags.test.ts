@@ -108,3 +108,13 @@ describe('parseStoredOverrides (localStorage JSON)', () => {
     expect(parseStoredOverrides(null)).toEqual({})
   })
 })
+
+describe('textBrief flag (Smart Start describe-it box)', () => {
+  it('is enabled in BOTH Simple and Pro modes by default (simple-tier)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').textBrief).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').textBrief).toBe(true)
+  })
+  it('can still be turned off by a privileged (dev/admin) override', () => {
+    expect(resolveFlags(true, { textBrief: false }, false, 'pro').textBrief).toBe(false)
+  })
+})
