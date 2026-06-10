@@ -20,6 +20,33 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 - [ ] L1/RE2/N6. **Lighting realism** — window-glass tint colouring the sun shaft + inter-room light bleed through open doors. Complex multi-file scene change; conflicts with the deliberate no-shadow fixture-light perf design, so needs a perf-aware approach.
 - [ ] R10. **Faster built-in PBR render path** — one-click high-quality still (local accumulation/denoise to match Coohom's "render in seconds"); investigate progressive path-trace via the existing AccumulativeShadows + a higher-sample pass.
 
+## ⭐ MAJOR: Ultra photo-realism (user-requested 2026-06-10) — phased, each its own commit
+Goal: showroom-grade fidelity. Stack today: ACESFilmic tone-map (Scene.tsx gl), per-frame
+exposure/warmth (`look.ts grade`), IBL probe (`SceneEnvironment`), PCFSoft sun shadows, post stack
+(N8AO+Bloom+HueSat+Vignette+SMAA on high/maximum). Verification caveat: subtle GPU effects render
+weakly under the headless **software-GL** harness — tone curve / vignette / grain DO show; SSR / DoF
+/ TAA do not. Tune-heavy steps need a real-GPU pass (consistent with existing R10/L1 notes).
+- [~] PR1. **Configurable tone-mapping in `look.ts`** + switch renderer to **AgX** (filmic highlight
+  rolloff, the modern Blender-4 standard) with retuned exposure baseline. Pure/unit-tested curve;
+  visual before/after at high tier. ← START HERE
+- [ ] PR2. **Cinematic post stack** (new top behaviour): full-res AO, refined Bloom, a `ToneMapping`
+  pass, faint film-grain `Noise` + `ChromaticAberration` for "shot not rendered", optional
+  TiltShift/DoF. Tier-gated; verify each effect individually.
+- [ ] PR3. **Material realism pass**: env-map intensity, clearcoat/sheen where apt, glass
+  transmission, sharper normal/roughness. Touches `materials/`.
+- [ ] PR4. **Soft-shadow upgrade** (PCSS-ish / VSM, contact-shadow refinement).
+- [ ] PR5. **Local progressive render** (one-click high-quality still via AccumulativeShadows +
+  higher samples) — supersedes/ą merges R10.
+
+## ⭐ MAJOR: GLB editor pro tooling (user-requested 2026-06-10) — phased, each its own commit
+Today (`GlbDesignerDialog` + `furniture/glbEdit/`): compose-from-shapes, scale-a-source-GLB,
+per-mesh recolour/hide. More verifiable in software-GL than PRx (deterministic geometry/UI).
+- [ ] GE1. **More primitive shapes** (cylinder, sphere, cone, torus, plane, wedge) beyond box.
+- [ ] GE2. **Per-part transform gizmo** (move/rotate/scale) — carried TODO from C47/C48.
+- [ ] GE3. **Per-part PBR material editor** (metalness, roughness, emissive, opacity + texture pick).
+- [ ] GE4. **Save edits back over an existing asset** (vs always-new) — carried TODO.
+- [ ] GE5. **CSG boolean ops** (union/subtract/intersect) via three-bvh-csg or similar.
+
 ## Feature-flag retrofit (infra shipped: registry + resolver + admin + panel + desktop/⌘K gating)
 
 ## Features (larger)
