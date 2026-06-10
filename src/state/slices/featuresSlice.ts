@@ -30,6 +30,8 @@ export interface FeaturesSlice {
   shareOpen: boolean
   /** Clearance & fit checks panel visibility. */
   clearancePanelOpen: boolean
+  /** Daylight & ventilation check panel visibility. */
+  daylightOpen: boolean
   /** Versions (save / restore / compare) panel visibility. */
   versionsOpen: boolean
   /** Smart Start wizard (pick a style → furnished flat) visibility. */
@@ -50,6 +52,7 @@ export interface FeaturesSlice {
   setSwapItemId: (id: string | null) => void
   setShareOpen: (open: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
+  setDaylightOpen: (open: boolean) => void
   setVersionsOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
@@ -66,6 +69,7 @@ export const FEATURES_INITIAL = {
   swapItemId: null as string | null,
   shareOpen: false,
   clearancePanelOpen: false,
+  daylightOpen: false,
   versionsOpen: false,
   smartStartOpen: false,
   shopTab: 'list' as 'list' | 'saved',
@@ -85,6 +89,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setSwapItemId: (swapItemId) => set({ swapItemId }),
   setShareOpen: (shareOpen) => set({ shareOpen }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
+  setDaylightOpen: (daylightOpen) => set({ daylightOpen }),
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setShopTab: (shopTab) => set({ shopTab }),

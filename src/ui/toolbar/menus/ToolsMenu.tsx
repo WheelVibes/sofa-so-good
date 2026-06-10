@@ -11,17 +11,20 @@ import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 export function ToolsMenu() {
   const budgetOpen = useStore((s) => s.budgetOpen)
   const clearancePanelOpen = useStore((s) => s.clearancePanelOpen)
+  const daylightOpen = useStore((s) => s.daylightOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
   const touring = useStore((s) => s.touring)
   const recording = useStore((s) => s.recording)
 
-  // The budget / clearance / versions panels all dock to the same centred-top
-  // `.aux` slot, so they're mutually exclusive — opening one closes the others.
+  // The budget / clearance / daylight / versions panels all dock to the same
+  // centred-top `.aux` slot, so they're mutually exclusive — opening one closes
+  // the others.
   const closeAux = () => {
     const s = useStore.getState()
     if (s.budgetOpen) s.toggleBudget()
     s.setClearancePanelOpen(false)
+    s.setDaylightOpen(false)
     s.setVersionsOpen(false)
   }
   const openBudget = () => {
@@ -35,6 +38,11 @@ export function ToolsMenu() {
     closeAux()
     s.setClearancePanelOpen(next)
     if (next && !s.clearanceOn) s.toggleClearance()
+  }
+  const toggleDaylight = () => {
+    const wasOpen = useStore.getState().daylightOpen
+    closeAux()
+    useStore.getState().setDaylightOpen(!wasOpen)
   }
   const openVersions = () => {
     const wasOpen = useStore.getState().versionsOpen
@@ -54,7 +62,13 @@ export function ToolsMenu() {
   useSunStudy(sunStudy)
 
   const anyActive =
-    budgetOpen || clearancePanelOpen || touring || recording || sunStudy || versionsOpen
+    budgetOpen ||
+    clearancePanelOpen ||
+    daylightOpen ||
+    touring ||
+    recording ||
+    sunStudy ||
+    versionsOpen
 
   const startWalkthrough = () => {
     const s = useStore.getState()
@@ -101,6 +115,13 @@ export function ToolsMenu() {
         sub="Door-swing + walkway clearance"
         active={clearancePanelOpen}
         onClick={toggleChecks}
+      />
+      <MenuItem
+        icon="SunStudy"
+        label="Daylight"
+        sub="Window glazing & ventilation per room"
+        active={daylightOpen}
+        onClick={toggleDaylight}
       />
       <MenuItem
         icon="Versions"
