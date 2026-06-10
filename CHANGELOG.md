@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C152] Cabinet glass fronts adopt the tier-gated GlassMaterial
+Wired the display-cabinet glass door (`CabinetModule` `'glass'` front) through the PR3c
+`GlassMaterial` component — real refractive transmission on High/Maximum, cheap transparent pane on
+Performance/Medium — extending the glass rollout beyond Shower + BarCart with the same verified pattern.
+
 ## [C151] Richer, instanced HDB-estate city backdrop (photorealism + perf)
 Reworked the default **City** backdrop (`CityBackdrop.tsx`) for fidelity *and* draw-call economy:
 blocks render as **instanced batches** (3 façade-tint `InstancedMesh`es + 1 rooftop-tank batch) instead
