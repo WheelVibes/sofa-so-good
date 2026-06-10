@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C140] EL5 — per-item width dimensions on wall elevations
+Elevations now dimension each furniture piece's width in a row just below the floor (the cabinet/
+unit widths installers read off NKBA elevations), above the overall-width dimension. Narrow pieces
+(<0.3 m) are skipped to avoid clutter. Verified on a busy wall (3 beds + nightstands) — widths read
+cleanly. Test asserts the per-item width label.
+
 ## [C139] FF&E schedule — the item-level procurement table in the report
 Third research-grounded large feature (FF&E = Furniture, Fixtures & Equipment — the central designer
 hand-off per Fohlio/Houzz/Programa). New pure `src/ffe/ffeSchedule.ts` `buildFfeSchedule(plan,items,

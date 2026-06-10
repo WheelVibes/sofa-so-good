@@ -39,6 +39,8 @@ describe('elevationSvg', () => {
     expect(svg).toContain('>2.80 m</text>')
     // The window sill (0.9 m) is dimensioned.
     expect(svg).toContain('>0.90 m</text>')
+    // The 1 m-wide item carries a per-item width dimension.
+    expect(svg).toContain('>1.00 m</text>')
     // Extra left/bottom padding is reserved for the dim lines.
     expect(svg).toContain('viewBox="-0.950 -0.350 5.300 4.100"')
   })

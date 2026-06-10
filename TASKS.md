@@ -41,8 +41,8 @@ Plan-wall-based so default + custom plans work uniformly. Phases (each its own c
 - [x] EL2. SVG renderer (C130) + Elevations panel in Tools (C131) — verified desktop + mobile. ← EL3 NEXT
 - [x] EL3. Dimensions — overall width/height + opening sill heights — shipped C132. ← EL4 NEXT
 - [x] EL4. Report integration — "Wall elevations" section in the printable report — shipped C133.
-- [ ] EL5. Polish: per-item width dims, door leaf/arc symbol, kitchen-cabinet section detail, label
-  de-overlap on narrow items. (Panel mobile already works.)
+- [~] EL5. Per-item width dims shipped C140. Remaining polish: door leaf/arc symbol, label
+  de-overlap on very narrow adjacent items.
 
 ## ⭐ MAJOR: Ultra photo-realism (user-requested 2026-06-10) — phased, each its own commit
 Goal: showroom-grade fidelity. Stack today: ACESFilmic tone-map (Scene.tsx gl), per-frame

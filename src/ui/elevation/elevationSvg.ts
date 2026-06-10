@@ -133,8 +133,15 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
         `<text x="${f(mx)}" y="${f(my + dy)}" font-size="${f(dfs)}" fill="${p.text}" text-anchor="middle" dominant-baseline="${vertical ? 'middle' : 'auto'}"${rot}>${esc(label)}</text>`,
       )
     }
-    // Overall width (below the floor) + overall height (left of the wall).
-    dimLine(0, H + 0.55, L, H + 0.55, formatLength(L, units), false)
+    // Per-item width dimensions, in a row just below the floor (the cabinet/
+    // unit widths installers need). Skip narrow pieces to avoid clutter.
+    for (const it of el.items) {
+      const w = it.x1 - it.x0
+      if (w < 0.3) continue
+      dimLine(it.x0, H + 0.22, it.x1, H + 0.22, formatLength(w, units), false)
+    }
+    // Overall width (further below) + overall height (left of the wall).
+    dimLine(0, H + 0.6, L, H + 0.6, formatLength(L, units), false)
     dimLine(-0.55, 0, -0.55, H, formatLength(H, units), true)
     // Opening sill heights (skip floor-level doors).
     for (const o of el.openings) {
