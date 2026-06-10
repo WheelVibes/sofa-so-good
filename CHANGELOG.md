@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C136] LP2 — lighting-plan SVG renderer
+Pure, palette-injected `lightingPlanSvg(plan, lights, {palette})` (`src/ui/lighting2d/`): top-down
+drawing matching the floor plan — thin wall context, each fixture's coverage (falloff) circle, and a
+light glyph (warm bulb dot + 4-ray star) at the bulb position. Shared by the report (print inks) and
+any in-app view (CSS tokens), mirroring the elevation renderer. 3 tests (walls/coverage/glyph,
+coverage-off, degenerate-plan). LP3 wires it + the schedule into the report.
+
 ## [C135] LP1 — lighting plan: pure data core
 Started a second large, research-grounded drawing feature (reflected-ceiling / lighting plan — a
 Chief Architect / RoomSketcher deliverable). New pure `src/lighting2d/lightingPlan.ts`
