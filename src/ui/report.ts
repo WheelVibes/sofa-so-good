@@ -326,7 +326,10 @@ export function buildReportHtml(
   // Design score — the aggregate 0–100 quality read (clearance / furnishing /
   // circulation / daylight / lighting) the in-app panel shows, so the handoff
   // report carries the same at-a-glance verdict + the actionable fixes.
-  const score = hasItems ? buildDesignScore(items, catalog, plan) : null
+  // Reuse the door-aware collision walls already computed for the clearance
+  // section so the report's design score matches the in-app panel (which passes
+  // live doors) instead of silently recomputing with all doors closed.
+  const score = hasItems ? buildDesignScore(items, catalog, plan, { walls: clipWalls }) : null
   const gradeColor = (g: string) =>
     g === 'A' || g === 'B' ? '#047857' : g === 'C' ? '#b45309' : '#b91c1c'
   const barColor = (n: number) => (n >= 80 ? '#047857' : n >= 60 ? '#b45309' : '#b91c1c')
