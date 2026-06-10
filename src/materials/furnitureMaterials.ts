@@ -155,6 +155,13 @@ function getMarbleMaps(): { albedo: Texture; normal: Texture } {
 /** Polished stone / marble material tinted to `color` (near-white veins on a
  *  tinted ground). Low roughness + faint metalness give a polished sheen;
  *  `rough` overrides for honed/matte stone. */
+/** Environment-map reflection strength for the glossy upholstery/stone finishes.
+ *  >1 makes them catch more of the IBL probe so marble, leather and velvet read
+ *  premium + photographic (vs the flat default of 1). Matte finishes (fabric,
+ *  concrete) keep the default — extra reflection would only muddy them. The IBL
+ *  itself is only present from the Medium tier up, so this is free on Performance. */
+export const GLOSSY_ENV_INTENSITY = 1.3
+
 export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshStandardMaterial {
   const key = `stone:${color}:${repeat}:${rough.toFixed(2)}`
   const hit = cache.get(key)
@@ -172,6 +179,7 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
     metalness: 0.04,
     map,
     normalMap: normal,
+    envMapIntensity: GLOSSY_ENV_INTENSITY,
   })
   m.normalScale.set(0.3, 0.3)
   cache.set(key, m)
@@ -453,6 +461,7 @@ export function getLeatherMaterial(color: string, rough = 0.42): MeshStandardMat
     roughness: rough,
     metalness: 0.06,
     normalMap: getLeatherNormal(),
+    envMapIntensity: GLOSSY_ENV_INTENSITY,
   })
   m.normalScale.set(0.35, 0.35)
   cache.set(key, m)
@@ -470,6 +479,7 @@ export function getVelvetMaterial(color: string, rough = 0.62): MeshStandardMate
     roughness: rough,
     metalness: 0.02,
     normalMap: getFabricNormal(),
+    envMapIntensity: GLOSSY_ENV_INTENSITY,
   })
   m.normalScale.set(0.22, 0.22)
   cache.set(key, m)

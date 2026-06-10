@@ -29,9 +29,9 @@ weakly under the headless **software-GL** harness — tone curve / vignette / gr
 - [x] PR1. Selectable tone-mapping Look (Filmic/AgX/Neutral) — C114. PR1b: Exposure slider — C123.
 - [x] PR2. Cinematic post stack (Maximum: full-res AO + film grain + chromatic aberration) — C117.
   (User verifies subtle grading in prod; DoF/TiltShift deferred to PR4-adjacent.)
-- [~] PR3. **Material realism pass**. PR3a (C118): tier-driven IBL probe resolution (sharper
-  reflections). PR3b TODO: env-map intensity, clearcoat/sheen where apt, glass transmission,
-  sharper normal/roughness in `materials/furnitureMaterials.ts`. ← NEXT
+- [~] PR3. **Material realism pass**. PR3a (C118): tier-driven IBL probe resolution. PR3b (C127):
+  envMapIntensity boost on glossy finishes (stone/leather/velvet). PR3c TODO: clearcoat/sheen on
+  appropriate finishes, glass transmission for windows/glass-top tables, sharper normals.
 - [ ] PR4. **Soft-shadow upgrade** (PCSS-ish / VSM, contact-shadow refinement).
 - [ ] PR5. **Local progressive render** (one-click high-quality still via AccumulativeShadows +
   higher samples) — supersedes/ą merges R10.

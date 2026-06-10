@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C127] PR3b — glossy furniture finishes catch more of the IBL
+Set `envMapIntensity` (`GLOSSY_ENV_INTENSITY` = 1.3) on the glossy furniture material factories —
+marble/stone, leather, velvet — so they pick up more of the procedural IBL probe and read premium +
+photographic; matte finishes (fabric, concrete) stay at the neutral default of 1 (extra reflection
+would only muddy them). Free on Performance (no IBL there). Smoke-verified the scene renders cleanly
+at high tier (66 items, no artifacts); the reflection gain shows on a real GPU (prod verification).
+
 ## [C126] GE4 — "Update original": save GLB-designer edits back over an existing asset
 When the designer is built from one of your own assets, a new **Update original** toggle overwrites
 that asset in place instead of adding a new catalog entry — built on the tested `replaceUserFurniture`
