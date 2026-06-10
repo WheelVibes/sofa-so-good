@@ -154,7 +154,9 @@ same change that reshapes a system.
   by `activeProviderIds`/`PROD_PROVIDER_IDS`. Add a source: poly-pizza-style client
   reusing `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
-  walls?})`; items carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
+  walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
+  rule across the whole design (powers the Clearance panel's overlap check); items
+  carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter). **Wall reveal**
   (`apartment/walls/`): exterior walls between camera and interior fade out.
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,

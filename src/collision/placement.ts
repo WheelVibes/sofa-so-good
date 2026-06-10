@@ -135,15 +135,60 @@ export function canPlace(item: FurnitureItem, def: FurnitureDef, ctx: PlacementC
   const span = verticalSpan(item, def)
   for (const other of ctx.others) {
     if (other.id === item.id) continue
-    // Group-mates never collide with each other — a stacked mattress sits inside
-    // its frame's OBB by design, and grouped pieces move as a unit.
-    if (item.groupId && other.groupId === item.groupId) continue
-    const oDef = ctx.defs[other.defId]
-    if (!oDef) continue
-    if (oDef.noClip) continue
-    if (!spansOverlap(span, verticalSpan(other, oDef))) continue
-    if (obbVsObb(obb, itemFootprint(other, oDef))) return false
+    if (itemsCollide(item, def, span, other, ctx.defs[other.defId])) return false
   }
 
   return true
+}
+
+/** Shared furniture-vs-furniture overlap test (the exact rule `canPlace` uses
+ *  per pair): height-aware, group-mate- and rug-exempt. `aSpan` is `a`'s
+ *  pre-computed vertical span (callers usually have it to hand). */
+function itemsCollide(
+  a: FurnitureItem,
+  aDef: FurnitureDef,
+  aSpan: { base: number; top: number },
+  b: FurnitureItem,
+  bDef: FurnitureDef | undefined,
+): boolean {
+  if (!bDef) return false
+  if (bDef.noClip) return false
+  // Group-mates never collide with each other — a stacked mattress sits inside
+  // its frame's OBB by design, and grouped pieces move as a unit.
+  if (a.groupId && b.groupId === a.groupId) return false
+  if (!spansOverlap(aSpan, verticalSpan(b, bDef))) return false
+  return obbVsObb(itemFootprint(a, aDef), itemFootprint(b, bDef))
+}
+
+/** An unordered pair of placed-item ids whose footprints intersect. */
+export interface OverlapPair {
+  a: string
+  b: string
+}
+
+/**
+ * Every pair of placed items that overlap — the same furniture-vs-furniture
+ * test {@link canPlace} runs, evaluated across the whole design instead of for
+ * one candidate. Because it reuses the OBB + height-aware + group/rug rules it
+ * never flags a pendant over a table, a stacked mattress inside its frame, a
+ * rug under a sofa, or grouped pieces. Each colliding pair is reported once
+ * (`a` before `b` in iteration order). O(n²) over placed items, which is fine
+ * for design-scale counts; callers should debounce/gate behind an open panel.
+ */
+export function findItemOverlaps(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+): OverlapPair[] {
+  const pairs: OverlapPair[] = []
+  for (let i = 0; i < items.length; i++) {
+    const a = items[i]!
+    const aDef = defs[a.defId]
+    if (!aDef || aDef.noClip) continue
+    const aSpan = verticalSpan(a, aDef)
+    for (let j = i + 1; j < items.length; j++) {
+      const b = items[j]!
+      if (itemsCollide(a, aDef, aSpan, b, defs[b.defId])) pairs.push({ a: a.id, b: b.id })
+    }
+  }
+  return pairs
 }

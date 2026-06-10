@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C111] Clearance panel now flags furniture-vs-furniture overlaps
+The Clearance panel only checked door-swing blocking despite its "fit checks" framing. Added
+`findItemOverlaps(items,defs)` (collision/placement.ts) — reuses the proven `canPlace`
+furniture-vs-furniture rule (OBB + height-aware vertical spans + group-mate / rug / mounted
+exemptions) across the whole design, so it never false-flags a stacked mattress, decor on a
+surface, a rug, or grouped pieces. Surfaced as a second "Overlapping" issue category (amber) with
+a Blocking/Overlapping/Clear summary; clicking an overlap selects + frames both pieces. Verified
+both the overlap and all-clear states visually. Docs + ARCHITECTURE updated.
+
 ## [C110] Harden share-link decode against decompression bombs
 `decodePlan` only capped the *compressed* code length (2 MB) — but deflate expands that into
 gigabytes, so the claimed zip-bomb guard didn't hold (a single `inflateSync` allocates the whole

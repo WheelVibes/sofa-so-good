@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { ROOMS } from '../apartment/constants'
 import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import type { BuiltinGltfDef, FurnitureItem } from '../furniture/types'
-import { canPlace, itemFootprint } from './placement'
+import { canPlace, findItemOverlaps, itemFootprint } from './placement'
 
 const sofa = BUILTIN_CATALOG['sofa-3seat']
 const bed = BUILTIN_CATALOG['bed-double']
@@ -128,6 +128,68 @@ describe('placement', () => {
 
     it('still blocks an overlapping item with no shared group', () => {
       expect(canPlace(ungrouped, topDef, stackCtx)).toBe(false)
+    })
+  })
+
+  describe('findItemOverlaps', () => {
+    it('reports each colliding pair exactly once', () => {
+      const a = placedSofa(5, 5)
+      const b = { ...placedBed(5.2, 5), id: 'b1' }
+      const pairs = findItemOverlaps([a, b], BUILTIN_CATALOG)
+      expect(pairs).toHaveLength(1)
+      // Unordered pair — both ids present, reported once.
+      expect(new Set([pairs[0]!.a, pairs[0]!.b])).toEqual(new Set(['s1', 'b1']))
+    })
+
+    it('returns nothing when items are well separated', () => {
+      const a = placedSofa(2, 2)
+      const b = { ...placedBed(6, 6), id: 'b1' }
+      expect(findItemOverlaps([a, b], BUILTIN_CATALOG)).toEqual([])
+    })
+
+    it('reuses the height-aware + group rules (no false positives on stacks)', () => {
+      const baseDef: BuiltinGltfDef = {
+        id: 'frame',
+        name: 'Frame',
+        category: 'beds',
+        kind: 'gltf',
+        source: 'builtin',
+        url: '/assets/test/frame.glb',
+        license: 'CC0',
+        defaultFootprint: { w: 1, d: 2, h: 1 },
+      }
+      const topDef: BuiltinGltfDef = {
+        ...baseDef,
+        id: 'top',
+        name: 'Top',
+        defaultFootprint: { w: 1, d: 2, h: 0.25 },
+      }
+      const base: FurnitureItem = {
+        id: 'base',
+        defId: 'frame',
+        position: [0, 0],
+        rotation: 0,
+        groupId: 'g1',
+        props: {},
+      }
+      const grouped: FurnitureItem = {
+        id: 'mattress',
+        defId: 'top',
+        position: [0, 0],
+        rotation: 0,
+        groupId: 'g1',
+        props: { surfaceHeight: 0.13 },
+      }
+      const defs = { frame: baseDef, top: topDef }
+      // Group-mates sharing footprint + span are NOT flagged.
+      expect(findItemOverlaps([base, grouped], defs)).toEqual([])
+      // Drop the shared group → it is a genuine overlap again.
+      expect(findItemOverlaps([base, { ...grouped, groupId: undefined }], defs)).toHaveLength(1)
+    })
+
+    it('scales to a clean design without flagging anything', () => {
+      const items = [placedSofa(2, 2), { ...placedBed(7, 7), id: 'b1' }]
+      expect(findItemOverlaps(items, BUILTIN_CATALOG)).toEqual([])
     })
   })
 })
