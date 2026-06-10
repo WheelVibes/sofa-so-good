@@ -121,7 +121,9 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   **lighting plan** (every fixture plotted over the walls with its coverage, plus
   a schedule of type/quantity/height/intensity), an **FF&E schedule** (the
   item-level procurement table — room, item, source, SKU, size W×D×H, quantity,
-  unit + line price), areas, and your design notes — a handoff-ready document.
+  unit + line price), a **renovation estimate** (indicative flooring + painting
+  supply‑and‑install cost per finish, with a combined furniture + finishes
+  total), areas, and your design notes — a handoff-ready document.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
   the lighting plan, and the FF&E schedule. Print or save as PDF for builders and

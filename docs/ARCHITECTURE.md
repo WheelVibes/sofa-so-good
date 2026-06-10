@@ -195,6 +195,9 @@ same change that reshapes a system.
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
   emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
   a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
+- **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas)`:
+  indicative SG supply+install $/m² per finish category, `RENO_RATES` table). The report's Renovation
+  estimate section (finishes subtotal + combined furniture+finishes total).
 - **Accessibility check** (`analysis/accessibility.ts` pure → `buildAccessibilityReport(plan)`:
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.

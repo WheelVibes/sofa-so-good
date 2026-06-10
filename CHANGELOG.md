@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C162] Renovation cost estimate (finishes) in the report
+New pure `src/analysis/renovationCost.ts` `estimateRenovation(floorAreas, wallAreas)` — the finishes
+counterpart to the furniture budget: indicative SG supply+install rates ($/m²) per finish category
+(floor tile/stone/wood/vinyl; wall paint/tile/wallpaper, classified by id keyword) over the per-finish
+areas the report already computes → flooring + wall line items + a subtotal (biggest spend first). Rates
+live in one auditable `RENO_RATES` table. Surfaced as a **Renovation estimate** report section (area ·
+rate · est. cost, finishes subtotal, and a combined Furniture + finishes total), clearly labelled
+indicative (excludes hacking / M&E / margin). 5 module tests + 2 report assertions.
+
 ## [C161] Two more templates — Condo Studio (shoebox) + Condo 4-Bedroom
 Library now 18 plans, filling the smallest + largest condo gaps: **Condo Studio** (~37 m²: open
 living/sleeping + kitchenette + bath + balcony) and **Condo 4-Bedroom** (~140 m²: 4 beds + master
