@@ -103,7 +103,8 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   arcs** and window breaks, a category legend — plus **furniture by room**
   (itemized with quantities, prices, and each room's area), finishes per room, a
   material palette, a **clearance & fit** check (furniture blocking a doorway,
-  overlapping pieces, or anything embedded in a wall), **wall elevations** (a
+  overlapping pieces, or anything embedded in a wall), the **design score** (the
+  same 0–100 grade + per-category breakdown as the panel), **wall elevations** (a
   side-on drawing per wall with dimensions, for cabinet/fixture heights), a
   **lighting plan** (every fixture plotted over the walls with its coverage, plus
   a schedule of type/quantity/height/intensity), an **FF&E schedule** (the

@@ -192,7 +192,8 @@ same change that reshapes a system.
 - **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
   clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
-  emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K.
+  emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
+  a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design and `findWallClips(items,defs,walls)` flags pieces

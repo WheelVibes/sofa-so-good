@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C154] Design score in the printable report (DS2)
+The handoff report (`ui/report.ts`) now carries the same aggregate 0–100 design score + A–F grade +
+per-category bars (clearance / furnishing / circulation / daylight / lighting) and actionable fixes the
+in-app `DesignScorePanel` shows, so the quality verdict travels with the PDF. Rendered from
+`buildDesignScore` between the Clearance and Wall-elevations sections; omitted when the design is empty.
+Also hardened `buildDesignScore` against a partial/hand-built plan with no `walls`/`openings` arrays
+(guards the clearance + daylight categories). 2 report tests + a partial-plan robustness test.
+
 ## [C153] Smart Start furnishes any custom plan / template (not just the default flat)
 The Smart-Start presets are authored at the built-in flat's exact coordinates, so applying one to any
 of the 16 HDB/condo/landed templates dumped furniture in the wrong places. New pure

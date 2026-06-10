@@ -29,7 +29,8 @@ Prioritise large, verifiable features over small/QOL. Research-grounded (REFEREN
 Pure `analysis/designScore.ts` → weighted 0–100 + A–F grade over clearance/furnishing/circulation/
 daylight/lighting, each with actionable fixes; `DesignScorePanel` (`.aux` dial + bars). Reuses every
 existing pure check + 2 new heuristics (furnishing coverage, per-room emitter coverage). 9 tests.
-- [ ] DS2 (optional): report-section integration; per-category drill-down click-to-select offenders.
+- [x] DS2: report-section integration — design score + grade + per-category bars in the printable
+  report (C154). Remaining (optional): in-panel per-category drill-down that click-selects the offenders.
 
 ### EXHAUSTIVE FLOOR PLANS — shipped C148 (HDB + condominium + landed, 16 templates)
 `floorplan/templates.ts` now ships HDB 2/3/4/5-room + Exec/3Gen/Jumbo, condo 1-bed/1+study/2/3-bed/
