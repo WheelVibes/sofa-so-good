@@ -190,6 +190,20 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('Clearance &amp; fit')
   })
 
+  it('reports a narrow walkway between two close pieces', () => {
+    // Two beds ~0.5 m apart (inside the narrow band 0.4–0.9 m, not overlapping).
+    const a = {
+      id: 'na',
+      defId: 'bed-double',
+      position: [3, 3] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const b = { ...a, id: 'nb', position: [3, 4.5] as [number, number] }
+    const html = buildReportHtml(plan, [a, b], BUILTIN_CATALOG, null)
+    expect(html).toMatch(/narrow walkway/i)
+  })
+
   it('reports overlapping items and pieces inside a wall', () => {
     const overlapA = {
       id: 'oa',

@@ -17,6 +17,7 @@ import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
+import { findNarrowGaps } from '../layout/walkway'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -272,7 +273,13 @@ export function buildReportHtml(
   const wallClipCounts = countByName(
     hasItems && clipWalls.length > 0 ? findWallClips(items, catalog, clipWalls) : [],
   )
-  const anyIssue = blockedCounts.size > 0 || overlaps.length > 0 || wallClipCounts.size > 0
+  const narrowGaps = hasItems ? findNarrowGaps(items, catalog, plan) : []
+  const gapPartner = (b: string) => (b.startsWith('wall:') ? 'a wall' : itemName(b))
+  const anyIssue =
+    blockedCounts.size > 0 ||
+    overlaps.length > 0 ||
+    wallClipCounts.size > 0 ||
+    narrowGaps.length > 0
   const countRows = (m: Map<string, number>) =>
     [...m.entries()]
       .map(([name, n]) => `<tr><td class="indent">${esc(name)}${n > 1 ? ` ×${n}` : ''}</td></tr>`)
@@ -280,7 +287,7 @@ export function buildReportHtml(
   const clearanceSection = !hasItems
     ? ''
     : !anyIssue
-      ? `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="ok">✓ Everything fits — no blocked doorways, overlaps, or pieces inside a wall.</div></div>`
+      ? `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="ok">✓ Everything fits — no blocked doorways, overlaps, pieces in a wall, or tight walkways.</div></div>`
       : `<div class="room-cost"><h2>Clearance &amp; fit</h2>${
           blockedCounts.size > 0
             ? `<div class="warn">${blockedCounts.size} item${blockedCounts.size === 1 ? '' : 's'} block a doorway:</div><table>${countRows(blockedCounts)}</table>`
@@ -297,6 +304,15 @@ export function buildReportHtml(
         }${
           wallClipCounts.size > 0
             ? `<div class="warn">${wallClipCounts.size} item${wallClipCounts.size === 1 ? '' : 's'} sit inside a wall:</div><table>${countRows(wallClipCounts)}</table>`
+            : ''
+        }${
+          narrowGaps.length > 0
+            ? `<div class="warn">${narrowGaps.length} narrow walkway${narrowGaps.length === 1 ? '' : 's'} (under 90 cm):</div><table>${narrowGaps
+                .map(
+                  (g) =>
+                    `<tr><td class="indent">${esc(itemName(g.a))} ↔ ${esc(gapPartner(g.b))} · ${(g.gap * 100).toFixed(0)} cm</td></tr>`,
+                )
+                .join('')}</table>`
             : ''
         }</div>`
 

@@ -6,6 +6,7 @@ import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
+import { findNarrowGaps, type NarrowGap } from '../layout/walkway'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
 
@@ -31,12 +32,13 @@ export function ClearancePanel() {
     })),
   )
 
-  const { blocked, overlaps, wallClips, catalog } = useMemo(() => {
+  const { blocked, overlaps, wallClips, narrowGaps, catalog } = useMemo(() => {
     if (!open)
       return {
         blocked: [] as string[],
         overlaps: [] as OverlapPair[],
         wallClips: [] as string[],
+        narrowGaps: [] as NarrowGap[],
         catalog: {} as Record<FurnitureType, FurnitureDef>,
       }
     const merged = buildMergedCatalog(catalogInputs)
@@ -47,6 +49,7 @@ export function ClearancePanel() {
       blocked: blockedDoorItems(items, merged, plan),
       overlaps: findItemOverlaps(items, merged),
       wallClips: findWallClips(items, merged, walls),
+      narrowGaps: findNarrowGaps(items, merged, plan),
       catalog: merged,
     }
   }, [open, items, plan, doors, catalogInputs])
@@ -57,6 +60,7 @@ export function ClearancePanel() {
   const blockingCount = blocked.length
   const overlapCount = overlaps.length
   const wallClipCount = wallClips.length
+  const narrowCount = narrowGaps.length
   // Items involved in ANY issue — so the "Clear" count never double-discounts a
   // piece that both blocks a door and overlaps a neighbour (or sits in a wall).
   const flagged = new Set<string>([...blocked, ...wallClips])
@@ -65,7 +69,24 @@ export function ClearancePanel() {
     flagged.add(o.b)
   }
   const clearCount = Math.max(0, total - flagged.size)
-  const allClear = blockingCount === 0 && overlapCount === 0 && wallClipCount === 0
+  const allClear =
+    blockingCount === 0 && overlapCount === 0 && wallClipCount === 0 && narrowCount === 0
+
+  // Human label for a narrow-gap participant (a second item, or a wall).
+  const gapPartner = (b: string) => (b.startsWith('wall:') ? 'a wall' : name(b))
+  const selectGap = (g: NarrowGap) => {
+    const s = useStore.getState()
+    if (g.wall) {
+      select(g.a)
+      return
+    }
+    const a = s.items.find((i) => i.id === g.a)
+    const b = s.items.find((i) => i.id === g.b)
+    s.setSelectedItemIds([g.a, g.b])
+    if (a && b)
+      s.focusOn([(a.position[0] + b.position[0]) / 2, (a.position[1] + b.position[1]) / 2])
+    else if (a) s.focusOn(a.position)
+  }
 
   const name = (id: string) => catalog[items.find((i) => i.id === id)?.defId ?? '']?.name ?? 'Item'
 
@@ -117,6 +138,10 @@ export function ClearancePanel() {
           <div className="clr-stat err">
             <div className="n">{wallClipCount}</div>
             <div className="l">In wall</div>
+          </div>
+          <div className="clr-stat warn">
+            <div className="n">{narrowCount}</div>
+            <div className="l">Walkways</div>
           </div>
           <div className="clr-stat ok">
             <div className="n">{clearCount}</div>
@@ -185,6 +210,30 @@ export function ClearancePanel() {
                 <div className="ci-fix">
                   <Icon.Check width={14} height={14} />
                   Drag it back into the room, clear of the wall.
+                </div>
+              </button>
+            ))}
+            {narrowGaps.map((g) => (
+              <button
+                type="button"
+                key={`${g.a}|${g.b}`}
+                className="clr-item warn"
+                onClick={() => selectGap(g)}
+              >
+                <div className="ci-head">
+                  <span className="badge warn">{g.severity === 'tight' ? 'Tight' : 'Narrow'}</span>
+                  <span className="ci-title">
+                    {name(g.a)} ↔ {gapPartner(g.b)} · {(g.gap * 100).toFixed(0)} cm
+                  </span>
+                </div>
+                <div className="ci-detail">
+                  {g.severity === 'tight'
+                    ? 'Below the 60 cm minimum walkway — tight to squeeze through.'
+                    : 'Under the ideal 90 cm walkway — a touch tight to pass comfortably.'}
+                </div>
+                <div className="ci-fix">
+                  <Icon.Check width={14} height={14} />
+                  Widen the gap to ≥ 90 cm for a comfortable path.
                 </div>
               </button>
             ))}
