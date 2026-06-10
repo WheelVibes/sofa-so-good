@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C139] FF&E schedule — the item-level procurement table in the report
+Third research-grounded large feature (FF&E = Furniture, Fixtures & Equipment — the central designer
+hand-off per Fohlio/Houzz/Programa). New pure `src/ffe/ffeSchedule.ts` `buildFfeSchedule(plan,items,
+defs)` → one row per (room, def, variant): room, category, name, **source** (Built-in/IKEA/Custom/…),
+**SKU** (IKEA article number), real **W×D×H**, qty, unit + line price — room-ordered, value-sorted,
+reusing `pointInRoom` + `itemPrice`. Rendered as a full-width **FF&E schedule** table in the report
+with a grand total. (Checked first — distinct from the existing category-cost summary + the existing
+shopping CSV.) 4 core tests + 2 report tests; 1179 green. Docs + ARCHITECTURE updated.
+
 ## [C138] LP4 — unified in-app "Drawings" panel (elevations + lighting)
 Extended the elevations panel into a **Drawings** panel with an Elevations/Lighting toggle, surfacing
 the lighting plan in-app (it was report-only): the lighting view draws the fixtures + coverage circles

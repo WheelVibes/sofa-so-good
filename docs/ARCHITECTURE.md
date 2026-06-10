@@ -168,6 +168,8 @@ same change that reshapes a system.
 - **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
   the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
   shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
+- **FF&E schedule** (`ffe/ffeSchedule.ts` pure → per-(room,def,variant) rows: source/SKU/real dims/
+  qty/pricing, reusing `pointInRoom` + `itemPrice`). Rendered as the report's procurement table.
 - **Lighting plan** (`lighting2d/lightingPlan.ts` pure → fixtures from the `LIGHT_EMITTERS` registry
   with world pos/height/intensity/coverage + a schedule; `ui/lighting2d/lightingPlanSvg.ts` draws
   walls + coverage circles + glyphs). Surfaced in the report (plan + schedule). Same pure-core →

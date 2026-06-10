@@ -93,5 +93,6 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   overlapping pieces, or anything embedded in a wall), **wall elevations** (a
   side-on drawing per wall with dimensions, for cabinet/fixture heights), a
   **lighting plan** (every fixture plotted over the walls with its coverage, plus
-  a schedule of type/quantity/height/intensity), areas, and your design notes —
-  a handoff-ready document.
+  a schedule of type/quantity/height/intensity), an **FF&E schedule** (the
+  item-level procurement table — room, item, source, SKU, size W×D×H, quantity,
+  unit + line price), areas, and your design notes — a handoff-ready document.

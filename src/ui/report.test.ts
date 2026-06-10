@@ -36,6 +36,19 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('Wall elevations')
   })
 
+  it('includes an FF&E schedule with per-item rooms, sizes and a grand total', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('FF&amp;E schedule')
+    expect(html).toContain('Size (W×D×H)')
+    expect(html).toContain('class="ffe"')
+    // Size cells use the "× × ×" form.
+    expect(html).toMatch(/m × .*m × .*m/)
+  })
+
+  it('omits the FF&E schedule when there is no furniture', () => {
+    expect(buildReportHtml(plan, [], BUILTIN_CATALOG, null)).not.toContain('FF&amp;E schedule')
+  })
+
   it('includes a Lighting plan + schedule when the design has light fixtures', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     // The default move-in layout has ceiling lights / lamps.

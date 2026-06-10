@@ -8,6 +8,7 @@ import { obbCorners } from '../collision/obb'
 import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { projectAllElevations } from '../elevation/projectElevation'
+import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
@@ -332,6 +333,22 @@ export function buildReportHtml(
           .join('')}</table></div>`
     : ''
 
+  // FF&E schedule — the item-level procurement table (room · item · source · SKU
+  // · size · qty · pricing), the central designer hand-off. Full width.
+  const ffe = hasItems ? buildFfeSchedule(plan, items, catalog) : []
+  const dim = (n: number) => esc(formatLength(n, units))
+  const ffeSection = ffe.length
+    ? `<div class="elev-section"><h2>FF&amp;E schedule</h2>
+        <table class="ffe"><tr class="cat"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="num">Qty</td><td class="num">Unit</td><td class="num">Total</td></tr>${ffe
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="num">${r.qty}</td><td class="num">${sgd(r.unit)}</td><td class="num">${sgd(r.total)}</td></tr>`,
+          )
+          .join('')}<tr class="cat"><td colspan="7">Total</td><td class="num">${sgd(
+          ffe.reduce((s, r) => s + r.total, 0),
+        )}</td></tr></table></div>`
+    : ''
+
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -380,6 +397,9 @@ export function buildReportHtml(
   .elev-fig { margin: 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; background: #fff; break-inside: avoid; }
   .elev-fig figcaption { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
   .elev-fig svg { width: 100%; height: auto; display: block; max-height: 220px; }
+  table.ffe { font-size: 11px; }
+  table.ffe td { padding: 3px 8px 3px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  table.ffe tr.cat td { font-weight: 600; border-bottom: 1px solid #e5e7eb; }
   tr, .chip, .lg-item, .total { break-inside: avoid; }
   h2 { break-after: avoid; }
   @media print {
@@ -454,6 +474,7 @@ export function buildReportHtml(
     </div>`
       : ''
   }
+  ${ffeSection}
   ${clearanceSection}
   ${elevationsSection}
   ${lightingSection}
