@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C187–C189] Reliability polish + feature-flag coverage
+- **C187** (B7): undo/redo/jump prunes dangling selection ids no longer in the restored items.
+- **C188** (B8): analysis-panel width moved to an `.aux-360` class (off the inline JSX style).
+- **C189** (feature flags): new CLAUDE.md rule — every feature must have a `FEATURE_FLAGS` entry + be
+  gated. Added flags for the previously-ungated tools (drawings/daylight/designScore/accessibility) and
+  split moodboard/dxfExport/boq off the broad `report` flag; gated their Tools + mobile + ⌘K entries.
+
 ## [C185–C186] Memory bound + complete pro drawing set
 - **C185** (PERF9): procedural thumbnail cache is now a 300-entry LRU (was unbounded over a long catalog browse).
 - **C186** (F32): cross-section drawing (`floorplan/section.ts` + `sectionSvg.ts`); the formal drawing set

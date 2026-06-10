@@ -87,8 +87,8 @@ standing themed backlog below + the existing sections further down hold the open
   disagree with the panel. Pass `{ walls: clipWalls }`. `ui/report.ts:326`.
 - [x] B6 (C174). `roomPolygon` L-shape outline only correct for a south-edge extension; wrong/
   self-intersecting for other offsets → wrong floor render + containment. `floorplan/types.ts:111`.
-- [ ] B7 (LOW). After undo/redo/jump, prune `selectedItemId`/`selectedItemIds` to ids still present. `historySlice.ts`.
-- [ ] B8 (LOW). `.aux` panels use inline `width:360` (mobile override via `!important`) — move to a class.
+- [x] B7 (C187). After undo/redo/jump, prune `selectedItemId`/`selectedItemIds` to ids still present. `historySlice.ts`.
+- [x] B8 (C188). `.aux` panels use inline `width:360` (mobile override via `!important`) — move to a class.
 
 **Security (no high-sev; defense-in-depth):**
 - [x] S1 (C165). SVG builders `elevationSvg.ts`/`reportPlanSvg.ts`/`lightingPlanSvg.ts` `esc` only escapes
