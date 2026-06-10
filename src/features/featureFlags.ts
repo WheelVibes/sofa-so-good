@@ -53,6 +53,7 @@ export type FeatureFlag =
   | 'designerPicks'
   | 'ceilingDesign'
   | 'presentation'
+  | 'pbrSurfaces'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -295,6 +296,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Full-screen saved-views slideshow with notes',
     default: true,
     tier: 'pro',
+  },
+  pbrSurfaces: {
+    label: 'Realistic surfaces',
+    description: 'Higher-fidelity procedural furniture textures (wood/painted/fabric)',
+    default: true,
+    tier: 'simple',
   },
 }
 

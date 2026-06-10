@@ -15,6 +15,7 @@ import {
   SRGBColorSpace,
   type Texture,
 } from 'three'
+import { isFeatureEnabled } from '../features/featureFlags'
 import type { RenderTier } from '../scene/quality'
 import { getCachedMaterial } from './cache'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
@@ -31,6 +32,12 @@ export function parseFurnitureMaterialFinish(finish: string): string | null {
 }
 
 const N = 256
+
+/** Deterministic 0..1 hash for per-plank / per-cell variation (no allocation). */
+function hash01(n: number): number {
+  const s = Math.sin(n * 12.9898) * 43758.5453
+  return s - Math.floor(s)
+}
 
 function canvasFrom(data: Uint8ClampedArray): CanvasTexture {
   const c = document.createElement('canvas')
@@ -51,14 +58,35 @@ function getFabricNormal(): Texture {
   if (fabricNormal) return fabricNormal
   const fine = makeFbm(4242, 4, 120)
   const height = new Float32Array(N * N)
+  // PR6: a perfectly regular sin-grid reads synthetic. Warp the thread phase
+  // with low-freq noise + add occasional slubs (thicker threads) and surface
+  // fuzz so the weave looks like real cloth. Off → the legacy clean grid.
+  const richWeave = isFeatureEnabled('pbrSurfaces')
+  const warp = richWeave ? makeFbm(0x6d2f, 3, 6) : null
+  const slub = richWeave ? makeFbm(0x1f88, 3, 22) : null
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
-      // Soft over/under weave: a fine grid modulated by noise.
-      const weave = 0.5 + 0.5 * Math.sin(x * 0.9) * Math.sin(y * 0.9)
-      height[y * N + x] = weave * 0.6 + fine(x / N, y / N) * 0.4
+      const u = x / N
+      const v = y / N
+      if (warp && slub) {
+        // Per-thread phase jitter (a few % of a thread) so rows/cols meander.
+        const jx = (warp(u, v) - 0.5) * 1.6
+        const jy = (warp(v + 3.1, u + 1.7) - 0.5) * 1.6
+        const warpThread = 0.5 + 0.5 * Math.sin(x * 0.9 + jx)
+        const weftThread = 0.5 + 0.5 * Math.sin(y * 0.9 + jy)
+        // Over/under interlace + a slub bump where a thread thickens.
+        const weave = warpThread * weftThread
+        const sl = slub(u * 1.2, v * 1.2)
+        const slubBump = sl > 0.74 ? (sl - 0.74) * 1.3 : 0
+        height[y * N + x] = weave * 0.55 + slubBump * 0.3 + fine(u, v) * 0.15
+      } else {
+        // Soft over/under weave: a fine grid modulated by noise.
+        const weave = 0.5 + 0.5 * Math.sin(x * 0.9) * Math.sin(y * 0.9)
+        height[y * N + x] = weave * 0.6 + fine(u, v) * 0.4
+      }
     }
   }
-  fabricNormal = canvasFrom(heightToNormalRGBA(height, N, 2.2))
+  fabricNormal = canvasFrom(heightToNormalRGBA(height, N, richWeave ? 2.6 : 2.2))
   return fabricNormal
 }
 
@@ -76,14 +104,33 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
   const albedo = new Uint8ClampedArray(N * N * 4)
   const height = new Float32Array(N * N)
   const rough = new Uint8ClampedArray(N * N * 4)
+  // PR6: lay the grain out as discrete planks — each with its own value tone,
+  // grain phase + a darker groove at the seam — so a tiled top reads as real
+  // boards instead of one uniform sheet. Off → the legacy single-sheet grain.
+  const planked = isFeatureEnabled('pbrSurfaces')
+  const PLANKS = 3
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const u = x / N
       const v = y / N
+      // Per-plank: index across u, a value offset, a grain-phase shift so the
+      // figure doesn't line up across boards, and a seam groove at the edges.
+      let plankTone = 0
+      let groove = 0
+      let phase = 0
+      if (planked) {
+        const pp = u * PLANKS
+        const idx = Math.floor(pp)
+        const frac = pp - idx
+        plankTone = (hash01(idx * 1.7 + 0.3) - 0.5) * 0.16 // ±0.08 board-to-board
+        phase = hash01(idx * 3.1 + 1.2) * 0.9 // de-align grain across boards
+        const edge = Math.min(frac, 1 - frac)
+        groove = edge < 0.012 ? (1 - edge / 0.012) * 0.6 : 0
+      }
       // Straight grain running along v, with only a slight lengthwise waver so
       // the lines stay parallel (clean sawn board, not a knotty burl).
       const waver = (warpN(u * 0.6, v * 2.5) - 0.5) * 0.25
-      const ring = (u + waver) * Math.PI * 11
+      const ring = (u + waver + phase) * Math.PI * 11
       // Latewood lines: sharp dark bands where the ring turns over. Raising
       // the sine to a power tightens the dark line so earlywood stays pale.
       const s = Math.abs(Math.sin(ring))
@@ -93,16 +140,16 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
       const pore = clamp01((poreN(u * 18, v * 1.2) - 0.6) * 2.5)
       const figure = (figureN(u * 1.2, v * 3) - 0.5) * 0.05
       // White-ish luminance so material.color tints it into real wood; the
-      // latewood lines and pores darken it.
-      const lum = clamp01(0.99 - late * 0.3 - pore * 0.1 + figure)
+      // latewood lines, pores, per-board tone + seam grooves darken it.
+      const lum = clamp01(0.99 + plankTone - late * 0.3 - pore * 0.1 + figure - groove * 0.45)
       const i = y * N + x
       const c = Math.round(lum * 255)
       albedo[i * 4] = c
       albedo[i * 4 + 1] = c
       albedo[i * 4 + 2] = c
       albedo[i * 4 + 3] = 255
-      // Pores + latewood sit slightly recessed for a tactile normal.
-      height[i] = late * 0.5 + pore * 0.4 + figure
+      // Pores + latewood + seam grooves sit slightly recessed for a tactile normal.
+      height[i] = late * 0.5 + pore * 0.4 + figure + groove * 0.8
       // Open pores and latewood scatter more (rougher); earlywood is smoother.
       const r = clamp01(0.4 + late * 0.24 + pore * 0.2)
       const rc = Math.round(r * 255)
@@ -256,6 +303,27 @@ export function getConcreteMaterial(color: string, repeat = 1, rough = 0.85): Me
   m.normalScale.set(0.4, 0.4)
   cache.set(key, m)
   return m
+}
+
+// Painted / laminate micro-texture: a very faint orange-peel + roller stipple so
+// a matte painted panel catches grazing light instead of reading as dead-flat
+// plastic. One shared, subtle normal (PR6).
+let paintNormal: Texture | null = null
+function getPaintNormal(): Texture {
+  if (paintNormal) return paintNormal
+  const peel = makeFbm(0x4ab1, 4, 26) // broad orange-peel undulation
+  const stipple = makeFbm(0x77c5, 3, 110) // fine roller stipple
+  const height = new Float32Array(N * N)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N
+      const v = y / N
+      height[y * N + x] = (peel(u, v) - 0.5) * 0.6 + (stipple(u, v) - 0.5) * 0.4
+    }
+  }
+  // Low strength — paint relief is subtle; just enough to break specular.
+  paintNormal = canvasFrom(heightToNormalRGBA(height, N, 0.5))
+  return paintNormal
 }
 
 let leatherNormal: Texture | null = null
@@ -563,6 +631,10 @@ export function getPaintedMaterial(
   const key = `paint:${color}:${r.toFixed(2)}:${metal}`
   const hit = cache.get(key)
   if (hit) return hit
+  // PR6: a faint shared paint micro-normal so painted/laminate panels aren't
+  // dead-flat (the most common cabinet/bed/wardrobe finish). Subtle + shared, so
+  // it costs nothing extra per piece.
+  const micro = isFeatureEnabled('pbrSurfaces') ? getPaintNormal() : null
   // Lacquered (gloss) paint gets a thin clearcoat film so it reads as a
   // varnished/laminate sheen rather than flat plastic; matte paint stays a
   // plain MeshStandardMaterial (cheaper, and no coat to show).
@@ -573,7 +645,9 @@ export function getPaintedMaterial(
       roughness: r,
       metalness: metal,
       envMapIntensity: GLOSSY_ENV_INTENSITY,
+      normalMap: micro,
     })
+    if (micro) g.normalScale.set(0.35, 0.35)
     if (coat) {
       g.clearcoat = coat.clearcoat
       g.clearcoatRoughness = coat.clearcoatRoughness
@@ -581,7 +655,8 @@ export function getPaintedMaterial(
     cache.set(key, g)
     return g
   }
-  const m = new MeshStandardMaterial({ color, roughness: r, metalness: metal })
+  const m = new MeshStandardMaterial({ color, roughness: r, metalness: metal, normalMap: micro })
+  if (micro) m.normalScale.set(0.35, 0.35)
   cache.set(key, m)
   return m
 }
