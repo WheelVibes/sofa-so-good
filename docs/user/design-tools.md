@@ -58,6 +58,16 @@ room is comfortably filled — neither sparse nor crowded), **circulation**
 plain‑language suggestions for what to improve, so the score doubles as a
 to‑do list for a better layout.
 
+## Accessibility
+
+**Accessibility** (Tools → *Accessibility*, or ⌘K) is a universal‑design check
+on the floor plan, in the spirit of the BCA Code on Accessibility: every doorway
+is checked for an accessible **clear width** (≥ 85 cm), and every habitable room
+for whether it fits a **1.5 m wheelchair turning circle**. You get a Doorways /
+Turning‑space pass count and a row per door and room, with what to widen — handy
+for aging‑in‑place and barrier‑free designs. It works on a bare shell (no
+furniture needed).
+
 ## Drawings — elevations & lighting plan
 
 **Drawings** (Tools menu) opens a panel with two professional 2D views, toggled

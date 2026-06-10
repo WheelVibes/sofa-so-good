@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C160] In-app Accessibility panel (Tools + ⌘K)
+Surfaced the C159 check live: a new `AccessibilityPanel` (`.aux` slot) renders the Doorways +
+Turning-space summary and per-door/per-room pass/fail rows with fix hints, mirroring the Daylight panel.
+Wired into `featuresSlice` (`accessibilityOpen`), the Tools menu (+ `closeAux`), the Command Palette, and
+App. Verified via the screenshot harness.
+
 ## [C159] Accessibility / universal-design check + report section
 New pure `src/analysis/accessibility.ts` `buildAccessibilityReport(plan)` — a plan-level BCA-Code-on-
 Accessibility rule-of-thumb QC: each door's clear opening width vs 0.85 m, and whether each habitable

@@ -197,7 +197,8 @@ same change that reshapes a system.
   a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
 - **Accessibility check** (`analysis/accessibility.ts` pure → `buildAccessibilityReport(plan)`:
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
-  thumb). Surfaced as the report's Accessibility section. Plan-only (reads for a bare shell).
+  thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
+  Plan-only (reads for a bare shell).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design and `findWallClips(items,defs,walls)` flags pieces
