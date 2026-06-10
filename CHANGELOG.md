@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C207] Ceiling treatments in the report
+The design report's room schedule gains a "Ceiling style" column (Flat / Tray / Coffered 3×2 / Dropped, with
+a "+ cove" suffix) whenever the `ceilingDesign` feature is on and any room carries a non-flat ceiling — so the
+printable spec reflects the F12 ceiling design. Pure `ceilingStyleLabel` helper (+ tests).
+
 ## [C206] Client presentation mode (F23)
 A full-screen "Present" mode that turns the saved camera views into a client slideshow: each slide applies the
 view's angle + lighting and captions it with the view name and an optional presenter note (editable per view
