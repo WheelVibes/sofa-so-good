@@ -1,5 +1,5 @@
 import { useLayoutEffect, useRef } from 'react'
-import { Color, type InstancedMesh, Object3D } from 'three'
+import { Color, type InstancedMesh, type Matrix4, Object3D } from 'three'
 
 export interface BoxInstance {
   /** World-local centre of the box. */
@@ -9,6 +9,22 @@ export interface BoxInstance {
   /** Optional per-instance colour (hex). Requires the child material to be
    *  white so the instance colour shows through unmodulated. */
   color?: string
+}
+
+/**
+ * Bakes one box instance into a transform matrix: translate to its centre and
+ * scale a unit (1×1×1) box to its size. Pure (writes through the supplied
+ * scratch `Object3D` and returns its `matrix`) so the instance-placement maths
+ * is testable without a renderer. Used per-instance by {@link InstancedBoxes}.
+ */
+export function bakeInstanceMatrix(inst: BoxInstance, scratch: Object3D): Matrix4 {
+  scratch.position.set(inst.position[0], inst.position[1], inst.position[2])
+  scratch.scale.set(inst.size[0], inst.size[1], inst.size[2])
+  // Boxes are axis-aligned; keep the scratch rotation at identity even if a
+  // caller reuses a dirtied Object3D between instances.
+  scratch.rotation.set(0, 0, 0)
+  scratch.updateMatrix()
+  return scratch.matrix
 }
 
 /**
@@ -40,10 +56,7 @@ export function InstancedBoxes({
     const color = new Color()
     let hasColor = false
     instances.forEach((inst, i) => {
-      dummy.position.set(inst.position[0], inst.position[1], inst.position[2])
-      dummy.scale.set(inst.size[0], inst.size[1], inst.size[2])
-      dummy.updateMatrix()
-      mesh.setMatrixAt(i, dummy.matrix)
+      mesh.setMatrixAt(i, bakeInstanceMatrix(inst, dummy))
       if (inst.color) {
         color.set(inst.color)
         mesh.setColorAt(i, color)
