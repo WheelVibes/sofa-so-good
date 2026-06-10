@@ -119,6 +119,40 @@ describe('plan templates', () => {
       for (const o of tpl.openings) {
         expect(tpl.walls.some((w) => w.id === o.wallId)).toBe(true)
       }
+      // Unique room ids.
+      const roomIds = new Set(tpl.rooms.map((r) => r.id))
+      expect(roomIds.size).toBe(tpl.rooms.length)
+    }
+  })
+
+  it('HDB templates have no overlapping rooms and stay within the footprint', () => {
+    const hdb = PLAN_TEMPLATES.filter((t) => t.id.startsWith('tpl-hdb-'))
+    expect(hdb.length).toBe(4)
+    for (const tpl of hdb) {
+      const [W, D] = tpl.extent
+      const rects = tpl.rooms.map((r) => ({
+        id: r.id,
+        x0: r.origin[0],
+        z0: r.origin[1],
+        x1: r.origin[0] + r.width,
+        z1: r.origin[1] + r.depth,
+      }))
+      for (const r of rects) {
+        expect(r.x0).toBeGreaterThanOrEqual(-1e-6)
+        expect(r.z0).toBeGreaterThanOrEqual(-1e-6)
+        expect(r.x1).toBeLessThanOrEqual(W + 1e-6)
+        expect(r.z1).toBeLessThanOrEqual(D + 1e-6)
+      }
+      // No two rooms overlap (shared edges fine — strict interior overlap only).
+      for (let i = 0; i < rects.length; i++) {
+        for (let j = i + 1; j < rects.length; j++) {
+          const a = rects[i]!
+          const b = rects[j]!
+          const overlap =
+            a.x0 < b.x1 - 1e-6 && b.x0 < a.x1 - 1e-6 && a.z0 < b.z1 - 1e-6 && b.z0 < a.z1 - 1e-6
+          expect(overlap, `${tpl.id}: ${a.id} overlaps ${b.id}`).toBe(false)
+        }
+      }
     }
   })
 })

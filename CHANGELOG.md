@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C146] HDB flat floor-plan templates (researched via a worktree subagent)
+Dispatched a dedicated research subagent (own worktree) to gather representative Singapore HDB
+flat-type floor plans → `docs/research/hdb-floor-plans.md` (2-room Flexi, 3/4/5-room, Exec/3Gen:
+bounding footprints + per-room W×D + layout adjacency + sources). Integrated four as reusable
+`FloorPlan` templates (`hdb2Room`/`hdb3Room`/`hdb4Room`/`hdb5Room` in `templates.ts`) — non-overlapping
+rooms, perimeter + partition walls, entrance/doors/windows, 2.6 m ceiling — appended to
+`PLAN_TEMPLATES` so they auto-appear in the floor-plan editor's Template picker. Added a test asserting
+HDB templates have no overlapping rooms + stay within bounds + unique room ids. Verified each renders
+cleanly (4-room/2-room as labelled 2D plans; 3/5-room as valid 3D shells).
+
 ## [C145] Circulation / walkway-width check (built in parallel via a worktree subagent)
 New pure `src/layout/walkway.ts` `findNarrowGaps(items, defs, plan)` → pinch points where the clear
 gap between footprints (item↔item + item↔wall, reusing `itemFootprint`+`obbCorners`) falls in the

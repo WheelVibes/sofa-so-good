@@ -40,7 +40,8 @@ same change that reshapes a system.
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active.
 - `src/floorplan/` — editable plan model: `types.ts` (FloorPlan + area/bounds/polygon
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
-  `isDefaultPlan`), `templates.ts`, `roomDetect.ts`. 2D editor = `ui/floorplan/`.
+  `isDefaultPlan`), `templates.ts` (starter `PLAN_TEMPLATES` incl. representative HDB 2/3/4/5-room
+  flats — see `docs/research/hdb-floor-plans.md`), `roomDetect.ts`. 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (parametric defs),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
