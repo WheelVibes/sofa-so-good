@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C112] Clearance panel now flags furniture left inside a wall
+Added `findWallClips(items,defs,walls)` (collision/placement.ts) — scans non-mounted, non-rug items
+for footprints poking into a wall *body* (the same full-thickness wall OBBs `canPlace` rejects, so
+flush-against-the-face placement is never flagged). Catches pieces stranded inside a wall after a
+floor-plan edit. Surfaced as an "In wall" issue category; the panel resolves whole-plan collision
+walls (default flat or custom plan). Verified the wall-clip card + 4-column summary render with no
+false positive on a clear item. Tests + docs + ARCHITECTURE updated.
+
 ## [C111] Clearance panel now flags furniture-vs-furniture overlaps
 The Clearance panel only checked door-swing blocking despite its "fit checks" framing. Added
 `findItemOverlaps(items,defs)` (collision/placement.ts) — reuses the proven `canPlace`

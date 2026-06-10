@@ -192,3 +192,29 @@ export function findItemOverlaps(
   }
   return pairs
 }
+
+/**
+ * Ids of placed items whose footprint pokes into a wall *body* — typically
+ * furniture left embedded in a wall after the floor plan was edited (moving a
+ * wall onto a piece). Uses the same full-thickness wall OBBs `canPlace` rejects
+ * against, and the same exemptions: mounted (wall/ceiling) and noClip (rug)
+ * items are skipped. Flush-against-the-face placement is *not* flagged — the OBB
+ * test tolerates touching — so only genuine penetration is reported. `walls` are
+ * the resolved collision walls for the active plan.
+ */
+export function findWallClips(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+  walls: CollisionWall[],
+): string[] {
+  if (walls.length === 0) return []
+  const wallObbs = walls.map(wallToObb)
+  const clipped: string[] = []
+  for (const it of items) {
+    const def = defs[it.defId]
+    if (!def || def.mounted || def.noClip) continue
+    const obb = itemFootprint(it, def)
+    if (wallObbs.some((w) => obbVsObb(obb, w))) clipped.push(it.id)
+  }
+  return clipped
+}

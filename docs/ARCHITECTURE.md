@@ -155,7 +155,8 @@ same change that reshapes a system.
   reusing `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
-  rule across the whole design (powers the Clearance panel's overlap check); items
+  rule across the whole design and `findWallClips(items,defs,walls)` flags pieces
+  embedded in a wall (both power the Clearance panel's checks); items
   carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter). **Wall reveal**
   (`apartment/walls/`): exterior walls between camera and interior fade out.

@@ -38,11 +38,12 @@ the design report.
 ## Clearance & fit checks
 
 **Checks** validates door‑swing clearance and flags any piece blocking a door,
-plus any two pieces that **overlap** (occupy the same floor space). The panel
-shows a Blocking / Overlapping / Clear summary and a card per issue with fix
-hints; clicking a card selects and frames the offending piece (both pieces, for
-an overlap). Stacked items (a mattress on its frame, decor on a surface) and
-rugs are never flagged.
+any two pieces that **overlap** (occupy the same floor space), and any piece
+left **inside a wall** (e.g. after the floor plan was edited around it). The
+panel shows a Blocking / Overlapping / In‑wall / Clear summary and a card per
+issue with fix hints; clicking a card selects and frames the offending piece
+(both pieces, for an overlap). Stacked items (a mattress on its frame, decor on
+a surface), rugs, and wall‑mounted items are never flagged.
 
 ## Measure
 

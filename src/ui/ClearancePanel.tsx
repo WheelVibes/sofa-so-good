@@ -1,25 +1,28 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { findItemOverlaps, type OverlapPair } from '../collision/placement'
+import { findItemOverlaps, findWallClips, type OverlapPair } from '../collision/placement'
+import { buildCollisionWalls } from '../collision/wallsFromState'
+import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { useStore } from '../state/store'
 import { Icon } from './toolbar/icons'
 
-/** Clearance & fit checks: surfaces HDB door-swing blocking (`blockedDoorItems`)
- *  and furniture-vs-furniture overlaps (`findItemOverlaps`), with a summary and
- *  a fix-suggestion list. Clicking an issue selects + frames the offending
- *  piece(s). */
+/** Clearance & fit checks: surfaces HDB door-swing blocking (`blockedDoorItems`),
+ *  furniture-vs-furniture overlaps (`findItemOverlaps`), and pieces embedded in a
+ *  wall (`findWallClips`), with a summary and a fix-suggestion list. Clicking an
+ *  issue selects + frames the offending piece(s). */
 export function ClearancePanel() {
   const open = useStore((s) => s.clearancePanelOpen)
   const setOpen = useStore((s) => s.setClearancePanelOpen)
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
+  const doors = useStore((s) => s.doors)
   // Catalog inputs (not the merged catalog) so the O(catalog) merge + the
-  // O(items·doors) door-swing check + O(items²) overlap scan run only while the
-  // panel is open — this component stays mounted, so otherwise every furniture
-  // drag would pay for them even with the panel closed.
+  // door-swing / overlap / wall-clip scans run only while the panel is open —
+  // this component stays mounted, so otherwise every furniture drag would pay
+  // for them even with the panel closed.
   const catalogInputs = useStore(
     useShallow((s) => ({
       userFurniture: s.userFurniture,
@@ -28,35 +31,41 @@ export function ClearancePanel() {
     })),
   )
 
-  const { blocked, overlaps, catalog } = useMemo(() => {
+  const { blocked, overlaps, wallClips, catalog } = useMemo(() => {
     if (!open)
       return {
         blocked: [] as string[],
         overlaps: [] as OverlapPair[],
+        wallClips: [] as string[],
         catalog: {} as Record<FurnitureType, FurnitureDef>,
       }
     const merged = buildMergedCatalog(catalogInputs)
+    // Whole-plan collision walls (not the room-editor subset) so the check has
+    // the same scope as the panel — default flat builds the fixed walls.
+    const walls = isDefaultPlan(plan) ? buildCollisionWalls(doors) : planCollisionWalls(plan, doors)
     return {
       blocked: blockedDoorItems(items, merged, plan),
       overlaps: findItemOverlaps(items, merged),
+      wallClips: findWallClips(items, merged, walls),
       catalog: merged,
     }
-  }, [open, items, plan, catalogInputs])
+  }, [open, items, plan, doors, catalogInputs])
 
   if (!open) return null
 
   const total = items.length
   const blockingCount = blocked.length
   const overlapCount = overlaps.length
+  const wallClipCount = wallClips.length
   // Items involved in ANY issue — so the "Clear" count never double-discounts a
-  // piece that both blocks a door and overlaps a neighbour.
-  const flagged = new Set<string>(blocked)
+  // piece that both blocks a door and overlaps a neighbour (or sits in a wall).
+  const flagged = new Set<string>([...blocked, ...wallClips])
   for (const o of overlaps) {
     flagged.add(o.a)
     flagged.add(o.b)
   }
   const clearCount = Math.max(0, total - flagged.size)
-  const allClear = blockingCount === 0 && overlapCount === 0
+  const allClear = blockingCount === 0 && overlapCount === 0 && wallClipCount === 0
 
   const name = (id: string) => catalog[items.find((i) => i.id === id)?.defId ?? '']?.name ?? 'Item'
 
@@ -104,6 +113,10 @@ export function ClearancePanel() {
           <div className="clr-stat warn">
             <div className="n">{overlapCount}</div>
             <div className="l">Overlapping</div>
+          </div>
+          <div className="clr-stat err">
+            <div className="n">{wallClipCount}</div>
+            <div className="l">In wall</div>
           </div>
           <div className="clr-stat ok">
             <div className="n">{clearCount}</div>
@@ -157,6 +170,21 @@ export function ClearancePanel() {
                 <div className="ci-fix">
                   <Icon.Check width={14} height={14} />
                   Move one aside, or stack it on a surface if that's intended.
+                </div>
+              </button>
+            ))}
+            {wallClips.map((id) => (
+              <button type="button" key={id} className="clr-item err" onClick={() => select(id)}>
+                <div className="ci-head">
+                  <span className="badge err">In wall</span>
+                  <span className="ci-title">{name(id)} is inside a wall</span>
+                </div>
+                <div className="ci-detail">
+                  This piece pokes through a wall — likely left behind after the floor plan changed.
+                </div>
+                <div className="ci-fix">
+                  <Icon.Check width={14} height={14} />
+                  Drag it back into the room, clear of the wall.
                 </div>
               </button>
             ))}
