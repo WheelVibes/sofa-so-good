@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C118] PR3a — sharper IBL reflections at higher tiers
+Made the procedural IBL probe's cubemap resolution tier-driven (`QualitySettings.envResolution`:
+64 perf / 96 medium / 192 high / 256 maximum) instead of a flat 64px, so glossy surfaces
+(glass, metal, varnished wood, marble) get crisper reflections as quality rises — at a one-time
+build cost only. Test asserts the resolution ladder is monotonic. (First slice of the material
+realism phase; deeper PBR work continues in PR3b.)
+
 ## [C117] PR2 — cinematic post stack on the Maximum tier
 Made `EffectsImpl` tier-aware via two new `QualitySettings` flags (`aoFullRes`, `cinematic`, both
 on only at Maximum, both gated behind `postprocessing`): full-resolution + high-quality N8AO, plus

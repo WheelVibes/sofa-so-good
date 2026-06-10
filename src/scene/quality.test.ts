@@ -52,6 +52,11 @@ describe('quality presets', () => {
     }
   })
 
+  it('IBL probe resolution is monotonically non-decreasing across the tier order', () => {
+    const res = RENDER_TIERS.map((t) => QUALITY_PRESETS[t].envResolution)
+    for (let i = 1; i < res.length; i++) expect(res[i]).toBeGreaterThanOrEqual(res[i - 1]!)
+  })
+
   it('cinematic/full-res AO only ever apply where the post stack runs', () => {
     // aoFullRes + cinematic are no-ops without `postprocessing`; the presets must
     // never enable them on a tier that has the post stack off.

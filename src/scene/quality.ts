@@ -57,6 +57,10 @@ export interface QualitySettings {
   /** Cinematic finish — a faint film grain + subtle chromatic aberration in the
    *  post stack so stills read "photographed, not rendered". Top tier only. */
   cinematic: boolean
+  /** Procedural IBL probe cubemap resolution (px). Higher = sharper reflections
+   *  on glossy surfaces (glass/metal/varnish) at a one-time build cost. Only
+   *  used when `ibl` is on. */
+  envResolution: number
 }
 
 export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
@@ -75,6 +79,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     showcase: false,
     aoFullRes: false,
     cinematic: false,
+    envResolution: 64,
   },
   medium: {
     shadowMapSize: 1024,
@@ -88,6 +93,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     showcase: true,
     aoFullRes: false,
     cinematic: false,
+    envResolution: 96,
   },
   high: {
     shadowMapSize: 2048,
@@ -101,6 +107,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     showcase: true,
     aoFullRes: false,
     cinematic: false,
+    envResolution: 192,
   },
   maximum: {
     shadowMapSize: 4096,
@@ -114,6 +121,7 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     showcase: true,
     aoFullRes: true,
     cinematic: true,
+    envResolution: 256,
   },
 }
 
