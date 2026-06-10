@@ -257,6 +257,15 @@ export function OrbitCamera() {
       tour.current = null
       c.enabled = true
     }
+    // Keep the orbit pivot on/above the floor: panning (shift-wheel or right-drag
+    // with screenSpacePanning) can otherwise drag the target below Y=0, after
+    // which orbiting dips the camera under the floor. maxPolarAngle then keeps
+    // the camera above the (floor-level) target, so the view never goes
+    // underground. A 1-frame reconcile via OrbitControls' own damping update.
+    if (c.target.y < 0) {
+      c.target.y = 0
+      if (camera.position.y < 0.05) camera.position.y = 0.05
+    }
     // Publish the live pose every frame so saveCurrentView() can snapshot it.
     writePose(camera.position, c.target)
   })
