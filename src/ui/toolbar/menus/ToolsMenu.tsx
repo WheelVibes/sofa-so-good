@@ -6,6 +6,7 @@ import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
 import { closeAllAuxPanels } from '../../auxPanels'
 import { openDrawingSet } from '../../openDrawingSet'
+import { downloadPlanDxf } from '../../openDxf'
 import { openDesignReport } from '../../openReport'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
@@ -230,6 +231,14 @@ export function ToolsMenu() {
       )}
       {fReport && (
         <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+      )}
+      {fReport && (
+        <MenuItem
+          icon="Export"
+          label="Export DXF (CAD)"
+          sub="2D plan for AutoCAD / contractor handoff"
+          onClick={() => downloadPlanDxf()}
+        />
       )}
       {fReport && (
         <MenuItem
