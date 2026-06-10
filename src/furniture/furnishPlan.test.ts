@@ -34,7 +34,7 @@ function makePlan(): FloorPlan {
       { id: 'kitchen', name: 'Kitchen', origin: [4.8, 0.2], width: 3.9, depth: 2.6 },
       { id: 'master', name: 'Master Bedroom', origin: [4.8, 3.0], width: 3.9, depth: 4.0 },
       { id: 'bath', name: 'Bathroom', origin: [0.2, 6.0], width: 2.2, depth: 2.7 },
-      { id: 'balcony', name: 'Balcony', origin: [2.6, 6.0], width: 2.0, depth: 2.7 },
+      { id: 'shelter', name: 'Household Shelter', origin: [2.6, 6.0], width: 2.0, depth: 2.7 },
     ],
   }
 }
@@ -64,12 +64,12 @@ describe('furnishPlanItems', () => {
     expect(inRoom('bath', 'toilet')).toBe(true)
   })
 
-  it('leaves utility / balcony rooms unfurnished', () => {
+  it('leaves utility rooms (household shelter) unfurnished', () => {
     const plan = makePlan()
     const items = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {})
-    const balcony = plan.rooms.find((r) => r.id === 'balcony')!
-    const inBalcony = items.filter((it) => pointInRoom(balcony, it.position[0], it.position[1]))
-    expect(inBalcony).toHaveLength(0)
+    const shelter = plan.rooms.find((r) => r.id === 'shelter')!
+    const inShelter = items.filter((it) => pointInRoom(shelter, it.position[0], it.position[1]))
+    expect(inShelter).toHaveLength(0)
   })
 
   it('keeps every placed piece inside the plan footprint', () => {
@@ -81,6 +81,48 @@ describe('furnishPlanItems', () => {
       expect(it.position[1]).toBeGreaterThanOrEqual(0)
       expect(it.position[1]).toBeLessThanOrEqual(plan.extent[1])
     }
+  })
+
+  it('furnishes study / standalone-dining / powder / balcony rooms appropriately', () => {
+    const ext: FloorPlan['walls'][number]['thickness'] = 'external'
+    const plan: FloorPlan = {
+      id: 'rooms-test',
+      name: 'Rooms',
+      ceilingHeight: 2.6,
+      extent: [12, 8],
+      walls: [
+        { id: 'n', start: [0.1, 0.1], end: [11.9, 0.1], thickness: ext },
+        { id: 'e', start: [11.9, 0.1], end: [11.9, 7.9], thickness: ext },
+        { id: 's', start: [11.9, 7.9], end: [0.1, 7.9], thickness: ext },
+        { id: 'w', start: [0.1, 7.9], end: [0.1, 0.1], thickness: ext },
+      ],
+      openings: [],
+      rooms: [
+        { id: 'study', name: 'Study', origin: [0.2, 0.2], width: 3.2, depth: 3.0 },
+        { id: 'dining', name: 'Dining', origin: [3.6, 0.2], width: 4.0, depth: 3.6 },
+        { id: 'powder', name: 'Powder Room', origin: [8.0, 0.2], width: 1.8, depth: 2.0 },
+        { id: 'balcony', name: 'Balcony', origin: [0.2, 4.0], width: 3.6, depth: 3.6 },
+      ],
+    }
+    const items = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {})
+    const has = (id: string, defId: string) => {
+      const room = plan.rooms.find((r) => r.id === id)!
+      return items.some(
+        (it) => it.defId === defId && pointInRoom(room, it.position[0], it.position[1]),
+      )
+    }
+    const none = (id: string, defId: string) => !has(id, defId)
+    expect(has('study', 'desk')).toBe(true)
+    expect(none('study', 'bed-queen')).toBe(true)
+    // Standalone dining gets the table but NOT a sofa.
+    expect(has('dining', 'dining-table-4')).toBe(true)
+    expect(none('dining', 'sofa-3seat')).toBe(true)
+    // Powder room: toilet, no shower.
+    expect(has('powder', 'toilet')).toBe(true)
+    expect(none('powder', 'shower')).toBe(true)
+    // Balcony gets outdoor furniture.
+    expect(has('balcony', 'outdoor-table')).toBe(true)
+    expect(findItemOverlaps(items, BUILTIN_CATALOG)).toHaveLength(0)
   })
 
   it('applies the preset cosmetic style to seeded furniture', () => {

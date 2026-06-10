@@ -71,6 +71,32 @@ const KITS = {
     { defId: 'bathroom-mirror', props: { mountHeight: 1.4 } },
     { defId: 'towel-rail', props: { mountHeight: 1.1 } },
   ],
+  // A powder room / WC is a half-bath: no shower.
+  powder: [
+    { defId: 'toilet' },
+    { defId: 'bathroom-sink' },
+    { defId: 'bathroom-mirror', props: { mountHeight: 1.4 } },
+  ],
+  // Study / home office.
+  study: [
+    { defId: 'desk' },
+    { defId: 'office-chair' },
+    { defId: 'bookshelf' },
+    { defId: 'ceiling-light' },
+  ],
+  // Standalone dining room (no lounge): just the dining set — the arranger still
+  // treats a "Dining" room as living-kind and centres the table + rings chairs.
+  diningRoom: [
+    { defId: 'dining-table-4' },
+    { defId: 'dining-chair', count: 4 },
+    { defId: 'ceiling-light', props: { style: 'pendant' } },
+  ],
+  // Balcony / patio: light outdoor set + greenery.
+  balcony: [
+    { defId: 'outdoor-table' },
+    { defId: 'outdoor-chair', count: 2 },
+    { defId: 'planter-trough' },
+  ],
 } satisfies Record<string, KitPiece[]>
 
 /** Bounding-box centre of a room (origin/width/depth are kept as the bbox even
@@ -87,6 +113,11 @@ function isMasterName(name: string): boolean {
 /** Choose the kit list for a room, or null to leave it unfurnished (utility /
  *  balcony / shelter / store / yard rooms stay empty — that's realistic). */
 function kitForRoom(room: PlanRoom): KitPiece[] | null {
+  const name = room.name.toLowerCase()
+  // Specials the name-kind classifier misses or over-furnishes — check first.
+  if (/balcon|patio/.test(name)) return KITS.balcony
+  if (/powder|\bwc\b/.test(name)) return KITS.powder
+  if (/stud(y|io\b)|home\s?office|\boffice\b/.test(name)) return KITS.study
   const kind = roomKindFromName(room.name)
   if (kind === 'kitchen') return KITS.kitchen
   if (kind === 'bath') return KITS.bath
@@ -94,8 +125,11 @@ function kitForRoom(room: PlanRoom): KitPiece[] | null {
     return isMasterName(room.name) || planRoomArea(room) >= 11 ? KITS.bedroomMaster : KITS.bedroom
   }
   if (kind === 'living') {
-    // A combined living/dining room also gets a dining set.
-    return /dining|dine/i.test(room.name) ? [...KITS.living, ...KITS.dining] : KITS.living
+    const isDining = /dining|dine/.test(name)
+    const isLounge = /living|lounge|family|great/.test(name)
+    // Standalone dining → dining set only; combined living/dining → both; else living.
+    if (isDining && !isLounge) return KITS.diningRoom
+    return isDining ? [...KITS.living, ...KITS.dining] : KITS.living
   }
   return null
 }
