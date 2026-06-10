@@ -62,7 +62,8 @@ same change that reshapes a system.
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR, `reencode.ts`→WebP; 16MB cap, KTX2/DDS deferred).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
   `quality.ts`+`QualityController`, `ScreenshotController`, cameras, selection,
-  `SceneBackdrop.tsx` (City/Park/Hills/Studio). Main Canvas is **`frameloop="demand"`**:
+  `SceneBackdrop.tsx` (City/Park/Hills/Studio; City = `CityBackdrop.tsx`, instanced two-ring HDB
+  estate + rooftop tanks + night-lit windows). Main Canvas is **`frameloop="demand"`**:
   `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
   `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
   `bakeInstanceMatrix`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/

@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C151] Richer, instanced HDB-estate city backdrop (photorealism + perf)
+Reworked the default **City** backdrop (`CityBackdrop.tsx`) for fidelity *and* draw-call economy:
+blocks render as **instanced batches** (3 façade-tint `InstancedMesh`es + 1 rooftop-tank batch) instead
+of ~22 separate meshes; a **denser two-ring skyline** (near mid-rise + far towers, ~40 blocks) gives
+real depth; **rooftop water-tanks / lift cores** add silhouette interest; the façade texture gains
+floor banding, lit window reveals and AC-ledge sills. The night window-emissive ramp is preserved per
+material group. Verified day + night with the screenshot harness — the estate reads as a layered HDB
+neighbourhood and windows light up warm after dark, with no artifacts.
+
 ## [C150] Performance — instance four more repeat-geometry primitives (parallel worktree subagent)
 Extended the `InstancedBoxes` draw-call collapse to **RoomDivider** (slat/grid: ~24–40 meshes → 1),
 **CubeShelf** (carcass + boxes + colour-varied books → 2), **FeatureWall** (slat backing + ~33 battens

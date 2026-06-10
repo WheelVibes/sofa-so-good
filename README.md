@@ -53,7 +53,8 @@ export the result — all in the browser.
   (Scene menu / ⌘K) preview the room at daylight, golden hour, a cosy evening, or
   night.
 - **Selectable 3D backdrop** — choose the surroundings outside the flat from the
-  Scene menu: **City** (an HDB estate whose windows light up warm at night),
+  Scene menu: **City** (a layered HDB estate — two rings of towers with rooftop
+  water-tanks whose windows light up warm at night),
   **Park** (low-poly trees on a green common), **Hills** (a calm green horizon),
   or **Studio** (a clean, distraction-free ground). The backdrop re-centres on
   whatever floor plan you load.
