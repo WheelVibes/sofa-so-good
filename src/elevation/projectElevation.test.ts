@@ -102,6 +102,11 @@ describe('projectWallElevation', () => {
 })
 
 describe('projectAllElevations', () => {
+  it('tolerates a partial plan with no walls array', () => {
+    const partial = { ceilingHeight: 2.8 } as unknown as FloorPlan
+    expect(projectAllElevations(partial, [], defs)).toEqual([])
+  })
+
   it('returns one elevation per wall, in plan order', () => {
     const plan = wallPlan({
       walls: [

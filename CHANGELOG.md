@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C134] Guard projectAllElevations against a plan with no walls array
+`projectAllElevations` mapped `plan.walls` directly, which threw for a partial/hand-built plan stub
+(caught by `reportData.test.ts` after EL4 wired elevations into the report — same class as C116).
+Now defends with `plan.walls ?? []`; added a regression test.
+
 ## [C133] EL4 — wall elevations in the printable report
 The design report now has a **Wall elevations** section: every wall that carries furniture or
 openings is drawn (2-up grid, print palette, captioned + dimensioned) — so the PDF hand-off carries

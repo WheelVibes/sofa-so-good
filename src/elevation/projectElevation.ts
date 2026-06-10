@@ -147,5 +147,6 @@ export function projectAllElevations(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
 ): WallElevation[] {
-  return plan.walls.map((w) => projectWallElevation(plan, w, items, defs))
+  // Tolerate a partial/hand-built plan with no `walls` array.
+  return (plan.walls ?? []).map((w) => projectWallElevation(plan, w, items, defs))
 }
