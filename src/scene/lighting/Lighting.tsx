@@ -73,14 +73,20 @@ export function Lighting() {
     sunTarget.position.set(center[0], center[1], center[2])
     sunTarget.updateMatrixWorld()
   }, [sunTarget, center])
-  const initial = targetVals(sunPos, orientation, center)
+  // The tween target only changes with the sun/orientation/plan-centre — recompute
+  // it then, not every frame (the useFrame loop ran `targetVals` per frame even
+  // when fully settled, allocating an object + several arrays each time).
+  const target = useMemo(
+    () => targetVals(sunPos, orientation, center),
+    [sunPos, orientation, center],
+  )
   const current = useRef<Vals>({
-    sun: initial.sun,
-    ambient: initial.ambient,
-    sunPos: [...initial.sunPos] as [number, number, number],
-    sunColor: [...initial.sunColor] as [number, number, number],
-    skyColor: [...initial.skyColor] as [number, number, number],
-    groundColor: [...initial.groundColor] as [number, number, number],
+    sun: target.sun,
+    ambient: target.ambient,
+    sunPos: [...target.sunPos] as [number, number, number],
+    sunColor: [...target.sunColor] as [number, number, number],
+    skyColor: [...target.skyColor] as [number, number, number],
+    groundColor: [...target.groundColor] as [number, number, number],
   })
 
   // While the day/night tween is mid-transition it must keep rendering even in
@@ -90,7 +96,6 @@ export function Lighting() {
   useEffect(() => () => holdRef.current?.(), [])
 
   useFrame((_, dt) => {
-    const target = targetVals(sunPos, orientation, center)
     const cur = current.current
     const k = Math.min(1, dt / TWEEN_DURATION)
 
