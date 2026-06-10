@@ -1,4 +1,4 @@
-import { type OptimizeOptions, type OptimizeReport, optimizeGlb } from './optimizeGlb'
+import type { OptimizeOptions, OptimizeReport } from './optimizeGlb'
 
 /**
  * Main-thread entry point for the optimize pass. Runs {@link optimizeGlb} in a
@@ -54,7 +54,17 @@ export async function runOptimize(
   })
 
   const w = ensureWorker()
-  if (!w) return optimizeGlb(input, opts)
+  if (!w) {
+    // Direct-call fallback (no Worker available). Dynamic import keeps the
+    // @gltf-transform optimize stack out of the boot bundle (P-CHUNK); if the
+    // chunk itself can't load, keep the original GLB — optimize is best-effort.
+    try {
+      const { optimizeGlb } = await import('./optimizeGlb')
+      return await optimizeGlb(input, opts)
+    } catch {
+      return fallback()
+    }
+  }
 
   const result = await new Promise<{ data: Uint8Array; report: OptimizeReport } | null>(
     (resolve) => {

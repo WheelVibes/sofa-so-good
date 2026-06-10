@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
@@ -24,8 +24,14 @@ import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
 import { Icon } from './toolbar/icons'
-import { UploadMaterialDialog } from './upload/UploadMaterialDialog'
 import { useIsMobile } from './useIsMobile'
+
+// Lazy-loaded: the texture upload dialog (and its TGA/TIFF/EXR/HDR decode
+// pipeline) only loads once the user opens it (P-CHUNK). It resets its state
+// on close anyway, so mount-gating on `uploadOpen` is behaviour-identical.
+const UploadMaterialDialog = lazy(() =>
+  import('./upload/UploadMaterialDialog').then((m) => ({ default: m.UploadMaterialDialog })),
+)
 
 /** Filter finishes by a free-text query against the material name (empty query
  *  passes everything). Keeps the picker scannable as the catalog grows. */
@@ -528,7 +534,11 @@ export function FinishPicker() {
               Upload
             </button>
           </div>
-          <UploadMaterialDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+          {uploadOpen && (
+            <Suspense fallback={null}>
+              <UploadMaterialDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+            </Suspense>
+          )}
         </div>
       ) : (
         <div

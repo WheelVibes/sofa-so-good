@@ -20,20 +20,30 @@ export default defineConfig(({ command }) => ({
       output: {
         manualChunks(id) {
           if (!id.includes('node_modules')) return undefined
-          // The post-processing stack (only used on the high tier) is loaded
-          // lazily via Effects.tsx — leave it unchunked so Rollup keeps it in
-          // that async chunk instead of the always-loaded vendor bundle.
+          // Dependencies only reachable through a dynamic import() stay
+          // unchunked so Rollup keeps them in their async chunk instead of the
+          // always-loaded vendor/three bundles: the post-processing stack
+          // (high tier only, lazy via Effects.tsx), the GLB optimize pass
+          // (@gltf-transform/draco, bulk-import only), TIFF decode (utif,
+          // texture upload only).
           if (
-            /[\\/]node_modules[\\/](postprocessing|n8ao|@react-three[\\/]postprocessing)[\\/]/.test(
+            /[\\/]node_modules[\\/](postprocessing|n8ao|@react-three[\\/]postprocessing|@gltf-transform|draco3dgltf|utif)[\\/]/.test(
               id,
             )
           )
             return undefined
+          // three/examples/jsm holds the rare-format loaders/exporters (FBX,
+          // Collada, USDZ, EXR, GLTFExporter…) that are only dynamic-imported
+          // from upload/convert paths — keep them out of the eager three chunk.
+          if (/[\\/]node_modules[\\/]three[\\/]examples[\\/]/.test(id)) return undefined
           // Only the three core + its stdlib get their own chunk; everything
-          // else (react, drei, fiber, zustand…) shares vendor. A precise match
+          // else (drei, fiber, zustand…) shares vendor. A precise match
           // avoids the import cycles a greedy 'three' test creates with
           // @react-three/* paths.
           if (/[\\/]node_modules[\\/](three|three-stdlib)[\\/]/.test(id)) return 'three'
+          // React core in its own long-lived chunk: it changes on a different
+          // cadence from the rest of vendor and parses in parallel.
+          if (/[\\/]node_modules[\\/](react|react-dom|scheduler)[\\/]/.test(id)) return 'react'
           return 'vendor'
         },
       },

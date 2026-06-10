@@ -1,15 +1,24 @@
-import { useEffect, useState } from 'react'
+import { lazy, Suspense, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
-import { UploadModelDialog } from '../upload/UploadModelDialog'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
 import { fuzzySearch } from './fuzzySearch'
 import { LayersPanel } from './LayersPanel'
-import { PacksTab } from './PacksTab'
 import { RemoteCard } from './RemoteCard'
+
+// Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
+// renderer) and the model upload dialog (format converters + optimize pass)
+// are only needed once the user opens them, so they stay out of the boot
+// bundle (P-CHUNK). The upload dialog resets its state on close anyway, so
+// mount-gating it on `uploadOpen` is behaviour-identical.
+const PacksTab = lazy(() => import('./PacksTab').then((m) => ({ default: m.PacksTab })))
+const UploadModelDialog = lazy(() =>
+  import('../upload/UploadModelDialog').then((m) => ({ default: m.UploadModelDialog })),
+)
+
 import { ThumbnailHost } from './thumbnails'
 import { type GridItem, gridItemId, useUnifiedCatalog } from './useUnifiedCatalog'
 
@@ -209,7 +218,9 @@ export function CatalogDrawer() {
           className="panel-body"
           style={{ display: 'flex', flexDirection: 'column', minHeight: 0, flex: 1 }}
         >
-          <PacksTab />
+          <Suspense fallback={null}>
+            <PacksTab />
+          </Suspense>
         </div>
       ) : (
         <>
@@ -377,7 +388,11 @@ export function CatalogDrawer() {
           </div>
         </>
       )}
-      <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+      {uploadOpen && (
+        <Suspense fallback={null}>
+          <UploadModelDialog open={uploadOpen} onClose={() => setUploadOpen(false)} />
+        </Suspense>
+      )}
       <ThumbnailHost />
     </aside>
   )

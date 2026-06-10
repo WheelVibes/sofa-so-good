@@ -34,6 +34,23 @@ Tailwind blue). Left as a literal by design: `PlanInspector` cove `#ffe6c0` — 
 (`coveColor`, consumed by the 3D cove light + `<input type="color">`), not UI chrome. Visually verified:
 plan editor + compass modal screenshotted in clay light, clay dark, and porcelain dark.
 
+## [P-CHUNK] Code-split heavy paths + manual vendor chunks
+Boot JS payload cut ~24% (3,027 → 2,290 KB minified; 837 → 632 KB gzip) with no behaviour change:
+- **Dynamic imports at call sites** for heavy, rarely-used graphs: the rare-format three loaders
+  (FBX/Collada/USDZ/3MF/OBJ/STL/PLY in `loadToObject`, ~198 KB) + `GLTFExporter` (`toGlb`), the
+  @gltf-transform optimize pass (`runOptimize` fallback, ~255 KB; now best-effort — a failed chunk load
+  keeps the original GLB), TGA/EXR/HDR/TIFF texture decoders (`decodeImage`), the pack `ThumbnailRenderer`
+  (`hydratePacks`), and the report/moodboard/BOQ/DXF/drawing-set builders. The popup-based exports open
+  their window synchronously inside the click (pop-up blockers still allow it) and build the document
+  after the chunk loads, closing the window + toasting if the chunk fails.
+- **Lazy components**: `PacksTab` and both upload dialogs (model + material) in the catalog drawer /
+  finish picker — both dialogs reset state on close, so mount-gating is behaviour-identical.
+- **Manual chunks** (`vite.config.ts`): react/react-dom/scheduler split into their own `react` chunk;
+  `three/examples/jsm`, `utif`, `@gltf-transform`/`draco3dgltf` excluded from the eager `three`/`vendor`
+  chunks so they follow their async importers. three 1,166→849 KB, vendor 870→387 (+190 react), index
+  990→863 KB. Verified: full test suite, prod-build boot screenshot, and the lazified report path
+  end-to-end in the harness.
+
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
 - **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above

@@ -5,7 +5,6 @@ import { wallLength } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { useStore } from '../state/store'
-import { buildDrawingSetHtml } from './drawingSet'
 
 /** defIds / categories that imply a power point at the item's position. */
 const SOCKET_RE =
@@ -60,27 +59,36 @@ function deriveElectricalPoints(
  * Build the multi-sheet drawing set from the live store and open it in a new
  * window for print / save-as-PDF. Mirrors `openDesignReport`; surfaces a
  * notification when the pop-up is blocked.
+ *
+ * The window is opened synchronously (inside the click's user activation) and
+ * the sheet builder is dynamic-imported afterwards — it stays out of the boot
+ * bundle (P-CHUNK).
  */
-export function openDrawingSet(): void {
+export async function openDrawingSet(): Promise<void> {
   const s = useStore.getState()
-  const catalog = buildMergedCatalog(s)
-  const electrical = isFeatureEnabled('electricalPlan')
-    ? deriveElectricalPoints(s.floorPlan, s.items, catalog)
-    : undefined
-  const html = buildDrawingSetHtml(
-    s.floorPlan,
-    s.items,
-    catalog,
-    s.units,
-    s.baselinePlan,
-    electrical,
-  )
   const win = window.open('', '_blank')
   if (!win) {
     s.notify.start({
       title: 'Drawing set blocked',
       kind: 'error',
       message: 'Allow pop-ups for this site, then open the drawing set again.',
+    })
+    return
+  }
+  let html: string
+  try {
+    const { buildDrawingSetHtml } = await import('./drawingSet')
+    const catalog = buildMergedCatalog(s)
+    const electrical = isFeatureEnabled('electricalPlan')
+      ? deriveElectricalPoints(s.floorPlan, s.items, catalog)
+      : undefined
+    html = buildDrawingSetHtml(s.floorPlan, s.items, catalog, s.units, s.baselinePlan, electrical)
+  } catch {
+    win.close()
+    s.notify.start({
+      title: 'Drawing set failed',
+      kind: 'error',
+      message: 'Could not load the drawing-set builder — check your connection and try again.',
     })
     return
   }

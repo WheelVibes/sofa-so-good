@@ -2,7 +2,7 @@ import { glbFootprint } from '../../catalog/packs/footprint'
 import { InstalledPackStore } from '../../catalog/packs/installedPackStore'
 import { AVAILABLE_PACKS } from '../../catalog/packs/registry'
 import { packEntryScale, scaledFootprint } from '../../catalog/packs/scaleHeuristic'
-import { ThumbnailRenderer } from '../../catalog/packs/thumbnail'
+import type { ThumbnailRenderer } from '../../catalog/packs/thumbnail'
 import type { InstalledPack } from '../../catalog/packs/types'
 import type { PackGltfDef } from '../../furniture/types'
 import { useStore } from '../store'
@@ -39,7 +39,9 @@ export async function hydratePacks(): Promise<void> {
     if (!thumb) return undefined
     if (thumb.mime !== 'image/jpeg') return thumb.blob
     try {
-      thumbRenderer ??= new ThumbnailRenderer()
+      // Dynamic import: the WebGL thumbnail renderer (and its GLTFLoader) only
+      // loads when a legacy JPEG thumb actually needs re-rendering (P-CHUNK).
+      thumbRenderer ??= new (await import('../../catalog/packs/thumbnail')).ThumbnailRenderer()
       const bytes = new Uint8Array(await glbBlob.arrayBuffer())
       const png = await thumbRenderer.render(bytes)
       await IdbAssetStore.put({ ...thumb, mime: 'image/png', blob: png })

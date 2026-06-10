@@ -1,6 +1,5 @@
 import { detectModelFormat, MAX_BYTES_BY_FORMAT, type ModelFormat } from './formats'
-import { loadToObject, type SiblingPool } from './loadToObject'
-import { exportGlb } from './toGlb'
+import type { SiblingPool } from './loadToObject'
 
 /** Thrown when a model can't be converted; carries a user-facing message. */
 export class ConvertError extends Error {}
@@ -45,6 +44,13 @@ export async function convertModel(
   }
   const pool = buildPool(entry, [entry, ...siblings])
   try {
+    // Dynamic imports keep the rare-format three loaders (FBX/Collada/USDZ/…)
+    // and the GLTFExporter out of the boot bundle — they only load when a
+    // conversion actually runs (P-CHUNK).
+    const [{ loadToObject }, { exportGlb }] = await Promise.all([
+      import('./loadToObject'),
+      import('./toGlb'),
+    ])
     const object = await loadToObject(format, pool)
     const buf = await exportGlb(object)
     if (buf.byteLength === 0) {

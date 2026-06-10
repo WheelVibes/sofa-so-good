@@ -2,7 +2,6 @@ import { extractPalette, nearestColor, type Rgb } from '../analysis/imagePalette
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../materials/builtinCatalog'
 import { hexToRgb } from '../materials/procedural/noise'
 import { useStore } from '../state/store'
-import { buildMoodboardHtml } from './moodboard'
 
 /** Candidate finishes (floor + wall) with a resolved RGB swatch, for nearest-match. */
 function finishCandidates(): Array<Rgb & { name: string; swatch: string }> {
@@ -68,6 +67,10 @@ export function pickPaletteFromPhoto(): void {
         s.notify.start({ title: 'No colours found', kind: 'error', message: 'Try another image.' })
         return
       }
+      // Dynamic import keeps the moodboard builder out of the boot bundle
+      // (P-CHUNK); we're already past an await here, and the window opens
+      // after a file-picker round-trip anyway.
+      const { buildMoodboardHtml } = await import('./moodboard')
       const candidates = finishCandidates()
       const materials = palette.map((p) => {
         const near = candidates.length ? nearestColor(p, candidates) : undefined

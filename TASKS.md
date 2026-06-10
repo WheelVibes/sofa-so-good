@@ -117,8 +117,11 @@ From the parallel bug/perf/UI agent sweep; the high-value items were fixed in th
 - [x] S3 (C183). Validate report finish swatch against a hex/rgb pattern before emitting into `style=`.
 
 **Perf (from prod build):**
-- [ ] P-CHUNK. Prod build chunks are large (three 1.16 MB, index 932 KB, vendor 870 KB, EffectsImpl 308 KB).
-  Improve code-splitting/manual chunks; lazy-load heavy/rare paths. (Verify with `npm run build` sizes.)
+- [x] P-CHUNK. Prod build chunks were large (three 1.16 MB, index 990 KB, vendor 870 KB). Boot payload cut
+  ~24% (3,027→2,290 KB min; 837→632 KB gzip): rare-format three loaders + GLTFExporter, the
+  @gltf-transform optimize pass, utif, the report/moodboard/BOQ/DXF/drawing-set builders, PacksTab and
+  both upload dialogs now dynamic-import at their call sites; react split out of vendor; three/examples +
+  utif + @gltf-transform excluded from the eager manual chunks so they follow their async importers.
 
 **Perf/scalability/memory (audit, impact-first):**
 - [x] PERF1 (C195) (M, big). `useCatalog` now memoised on its input slices (was rebuilding the whole merged
