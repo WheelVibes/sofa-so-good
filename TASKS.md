@@ -51,7 +51,8 @@ standing themed backlog below + the existing sections further down hold the open
 - [ ] R-PANO. 360° panorama export (equirectangular render) for VR/▢ sharing — a pro presentation deliverable.
 - [ ] R-SSAO/PR4. Soft-shadow (PCSS/VSM) + contact-shadow refinement + grounding AO on all tiers (needs real-GPU verify).
 - [ ] R-CURTAIN. Window glass tint colouring the sun shaft + curtains/blinds affecting cast light (TODO.md L1/N6).
-- [ ] R-DAYNIGHT. One-click day/golden-hour/night lighting presets (quick mood switch competitors have).
+- [x] R-DAYNIGHT. Already shipped: morning/noon/dusk(golden)/night one-click presets in the Scene menu +
+  T-key cycle (`timeSlice` `setPresetTime`/`cyclePresetTime`, `SceneMenu`).
 
 #### Content & catalog (variety — surpass-the-market)
 - [x] C-MAT. Curated "Designer picks" one-tap floor/wall finishes row in the finish picker (C202,
