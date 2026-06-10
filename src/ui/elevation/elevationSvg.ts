@@ -93,9 +93,14 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
         `<line x1="${f(o.x0)}" y1="${f(y((o.head + o.sill) / 2))}" x2="${f(o.x1)}" y2="${f(y((o.head + o.sill) / 2))}" stroke="${p.stroke}" stroke-width="${f(sw)}"/>`,
       )
     } else {
-      // Door: a cut-out panel (bg) with a dashed head, opening to the floor.
+      // Door: a leaf panel (frame + a thin inset reveal + a handle) so it reads
+      // as a door in elevation rather than a blank cut-out.
+      const inset = Math.min(w, oh) * 0.08
       parts.push(
-        `<rect x="${f(o.x0)}" y="${f(y(o.head))}" width="${f(w)}" height="${f(oh)}" fill="${p.bg}" stroke="${p.stroke}" stroke-width="${f(sw)}" stroke-dasharray="${f(sw * 4)} ${f(sw * 3)}"/>`,
+        `<rect x="${f(o.x0)}" y="${f(y(o.head))}" width="${f(w)}" height="${f(oh)}" fill="${p.bg}" stroke="${p.stroke}" stroke-width="${f(sw)}"/>`,
+        `<rect x="${f(o.x0 + inset)}" y="${f(y(o.head) + inset)}" width="${f(Math.max(0, w - inset * 2))}" height="${f(Math.max(0, oh - inset * 2))}" fill="none" stroke="${p.stroke}" stroke-width="${f(sw * 0.6)}"/>`,
+        // Handle: a short bar on the leading edge at ~1 m above the floor.
+        `<circle cx="${f(o.x1 - inset * 1.6)}" cy="${f(y(Math.min(1.0, oh * 0.45)))}" r="${f(Math.max(0.015, sw * 1.5))}" fill="${p.stroke}"/>`,
       )
     }
   }

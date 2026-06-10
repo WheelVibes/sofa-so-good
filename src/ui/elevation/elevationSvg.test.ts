@@ -19,6 +19,20 @@ const el: WallElevation = {
 }
 
 describe('elevationSvg', () => {
+  it('draws a door as a framed leaf with a handle (not a dashed cut-out)', () => {
+    const withDoor: WallElevation = {
+      ...el,
+      openings: [{ kind: 'door', x0: 0.5, x1: 1.4, sill: 0, head: 2.05 }],
+      items: [],
+    }
+    const svg = elevationSvg(withDoor, { palette, dimensions: false })
+    // No legacy dashed cut-out; has a handle dot (a small filled circle).
+    expect(svg).not.toContain('stroke-dasharray')
+    expect(svg).toContain('<circle')
+    // The door panel rect spans the opening (0.9 wide).
+    expect(svg).toContain('width="0.900"')
+  })
+
   it('emits an svg sized to the wall with a floor-anchored item + window pane', () => {
     const svg = elevationSvg(el, { palette, dimensions: false })
     expect(svg.startsWith('<svg')).toBe(true)

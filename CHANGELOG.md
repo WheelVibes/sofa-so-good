@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C142] Elevations: clearer door symbol (framed leaf + handle)
+Doors in elevations now render as a framed leaf panel — an outer frame, a thin inset reveal, and a
+handle dot at ~1 m on the leading edge — instead of a blank dashed cut-out, so they read as doors.
+Internal to `elevationSvg`; covered by a new test (frame width + handle, no legacy dashed style).
+
 ## [C141] Drawing set — paginated multi-sheet "plan set" export
 Fourth research-grounded large feature: a formal construction **drawing set** (Tools → Drawing set),
 distinct from the one-page summary report. Paginated A4-landscape sheets with title blocks — cover +
