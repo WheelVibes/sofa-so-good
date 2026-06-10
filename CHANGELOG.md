@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C135] LP1 — lighting plan: pure data core
+Started a second large, research-grounded drawing feature (reflected-ceiling / lighting plan — a
+Chief Architect / RoomSketcher deliverable). New pure `src/lighting2d/lightingPlan.ts`
+`buildLightingPlan(items, defs)` → every placed light fixture (from the existing `LIGHT_EMITTERS`
+registry) with world position (footprint centre + its rotated emitter offset), emit height,
+intensity, coverage radius + colour, plus a grouped schedule. Reuses real emitter data (no new
+placement UI). 5 unit tests (filtering, flush height, offset rotation, schedule grouping, label
+fallback). No GPU — fully verifiable. LP2 (SVG over the plan) + LP3 (report schedule) next.
+
 ## [C134] Guard projectAllElevations against a plan with no walls array
 `projectAllElevations` mapped `plan.walls` directly, which threw for a partial/hand-built plan stub
 (caught by `reportData.test.ts` after EL4 wired elevations into the report — same class as C116).

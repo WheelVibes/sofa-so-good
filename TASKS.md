@@ -23,6 +23,13 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 ## ⭐⭐ MAJOR (user-prioritised 2026-06-10): LARGE verifiable features via research→plan→build
 Prioritise large, verifiable features over small/QOL. Research-grounded (REFERENCES.md + web).
 
+### LIGHTING PLAN (reflected-ceiling-style) — next large feature (research: Chief Architect/RoomSketcher RCP + lighting schedules)
+Derive from the existing `LIGHT_EMITTERS` registry (every placed light's height/intensity/distance/
+offset) — no new placement UI. Pure-core + 2D SVG + report, fully verifiable like elevations.
+- [x] LP1. Pure `src/lighting2d/lightingPlan.ts` + 5 tests — shipped C135. ← LP2 NEXT
+- [ ] LP2. SVG over the floor plan (light symbols + coverage circles + legend) — panel + report.
+- [ ] LP3. Lighting schedule table in the report.
+
 ### Interior WALL ELEVATIONS (a pro deliverable competitors have; we only have a top-down plan)
 Why: Chief Architect / Cedreo / RoomSketcher / NKBA — vertical "side-on" drawings per wall showing
 cabinet/fixture/backsplash heights + openings; used for permits, installers, client sign-off.
