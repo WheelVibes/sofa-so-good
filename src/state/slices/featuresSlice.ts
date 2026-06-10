@@ -56,6 +56,8 @@ export interface FeaturesSlice {
   elevationsOpen: boolean
   /** Daylight & ventilation check panel visibility. */
   daylightOpen: boolean
+  /** Design Score (aggregate layout-quality feedback) panel visibility. */
+  designScoreOpen: boolean
   /** Versions (save / restore / compare) panel visibility. */
   versionsOpen: boolean
   /** Undo/redo history (timeline + jump-to-step) panel visibility. */
@@ -96,6 +98,7 @@ export interface FeaturesSlice {
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
   setDaylightOpen: (open: boolean) => void
+  setDesignScoreOpen: (open: boolean) => void
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
@@ -121,6 +124,7 @@ export const FEATURES_INITIAL = {
   clearancePanelOpen: false,
   elevationsOpen: false,
   daylightOpen: false,
+  designScoreOpen: false,
   versionsOpen: false,
   historyOpen: false,
   smartStartOpen: false,
@@ -162,6 +166,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),
   setDaylightOpen: (daylightOpen) => set({ daylightOpen }),
+  setDesignScoreOpen: (designScoreOpen) => set({ designScoreOpen }),
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),

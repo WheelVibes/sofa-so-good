@@ -15,6 +15,7 @@ export function ToolsMenu() {
   const clearancePanelOpen = useStore((s) => s.clearancePanelOpen)
   const elevationsOpen = useStore((s) => s.elevationsOpen)
   const daylightOpen = useStore((s) => s.daylightOpen)
+  const designScoreOpen = useStore((s) => s.designScoreOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
   const historyOpen = useStore((s) => s.historyOpen)
@@ -30,6 +31,7 @@ export function ToolsMenu() {
     s.setClearancePanelOpen(false)
     s.setElevationsOpen(false)
     s.setDaylightOpen(false)
+    s.setDesignScoreOpen(false)
     s.setVersionsOpen(false)
     s.setHistoryOpen(false)
   }
@@ -54,6 +56,11 @@ export function ToolsMenu() {
     const wasOpen = useStore.getState().daylightOpen
     closeAux()
     useStore.getState().setDaylightOpen(!wasOpen)
+  }
+  const toggleDesignScore = () => {
+    const wasOpen = useStore.getState().designScoreOpen
+    closeAux()
+    useStore.getState().setDesignScoreOpen(!wasOpen)
   }
   const openVersions = () => {
     const wasOpen = useStore.getState().versionsOpen
@@ -88,6 +95,7 @@ export function ToolsMenu() {
     clearancePanelOpen ||
     elevationsOpen ||
     daylightOpen ||
+    designScoreOpen ||
     touring ||
     recording ||
     sunStudy ||
@@ -153,6 +161,13 @@ export function ToolsMenu() {
         sub="Window glazing & ventilation per room"
         active={daylightOpen}
         onClick={toggleDaylight}
+      />
+      <MenuItem
+        icon="Star"
+        label="Design score"
+        sub="Overall layout quality + fixes"
+        active={designScoreOpen}
+        onClick={toggleDesignScore}
       />
       {fMeasure && (
         <MenuItem

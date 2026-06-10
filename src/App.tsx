@@ -34,6 +34,7 @@ import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
 import { DaylightPanel } from './ui/DaylightPanel'
+import { DesignScorePanel } from './ui/DesignScorePanel'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
 import { ElevationPanel } from './ui/ElevationPanel'
@@ -775,6 +776,7 @@ export default function App() {
         <ShareModal />
         <ClearancePanel />
         <DaylightPanel />
+        <DesignScorePanel />
         <ElevationPanel />
         <VersionsPanel />
         <HistoryPanel />

@@ -141,6 +141,21 @@ export function CommandPalette() {
         },
       },
       {
+        id: 'design-score',
+        group: 'Tools & panels',
+        label: 'Design score — layout quality',
+        icon: 'Star',
+        run: () => {
+          if (s().budgetOpen) s().toggleBudget()
+          s().setClearancePanelOpen(false)
+          s().setDaylightOpen(false)
+          s().setElevationsOpen(false)
+          s().setVersionsOpen(false)
+          s().setHistoryOpen(false)
+          s().setDesignScoreOpen(true)
+        },
+      },
+      {
         id: 'versions',
         group: 'Tools & panels',
         label: 'Versions — save / restore',
