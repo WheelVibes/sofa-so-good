@@ -4,6 +4,26 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [Bug-fix batch] Reported bugs + agent-found defects
+Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
+- **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above
+  the mobile hamburger sheet) auto-started on mobile and blocked the hamburger. Mobile now shows the centred
+  onboarding carousel instead; `ProductTour` self-disables on a mobile viewport. Verified on a 390-px phone.
+- **Backdrop occlusion**: the city near-ring (radius 34 m, wide blocks → inner edge ~9 m) could sit between
+  the dollhouse camera (~23 m out) and the flat. Added a no-build clearance (`BUILD_CLEAR = 30 m`) so the city
+  rings an open plaza and never occludes the apartment from any orbit angle. (Not a renderOrder issue — opaque
+  depth testing already sorts correctly.)
+- **Orbit floor clamp**: panning (shift-wheel / right-drag with screen-space panning) could drag the orbit
+  target below Y=0 and dip the camera under the floor; the pivot is now clamped to the floor each frame.
+- **Floor-plan editor** moved to the Simple tier (was hidden in Simple mode).
+- **Walk-mode furniture collision**: new pure `collision/furnitureBlock.ts` (`buildWalkBlockers` +
+  `resolveCircleVsObbs`, 8 tests) blocks the first-person walker against furniture footprints (skips
+  mounted / no-clip / shin-height-or-lower items so you can step over a rug); resolved walls→furniture→walls
+  so a piece can't shove you through a wall.
+- **Found**: memoised FurnitureLayer's hidden-set (per-drag realloc); dispose PlacementGhost's tint material on
+  unmount (GPU leak); clear item selection on entering a room editor (no stale cross-room Inspector); toasts
+  render above modals (`--z-toast`).
+
 ## [C212] Marble tonal clouding (PR6 follow-on)
 Added a broad low-freq tonal cloud to the marble albedo so a slab isn't a uniform white field between veins.
 Subtle + tint-preserving (a clamped ±0.05 luminance drift). Behind `pbrSurfaces`. Visual verification was
