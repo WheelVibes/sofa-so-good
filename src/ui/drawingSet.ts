@@ -11,6 +11,11 @@ import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
+import { dimensionSvg } from '../floorplan/autoDimensionSvg'
+import { diffWalls } from '../floorplan/demolitionPlan'
+import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
+import { buildSection } from '../floorplan/section'
+import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
@@ -50,6 +55,7 @@ export function buildDrawingSetHtml(
   items: FurnitureItem[],
   catalog: Record<string, FurnitureDef>,
   units: UnitSystem = 'metric',
+  baselinePlan?: FloorPlan,
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -97,6 +103,55 @@ export function buildDrawingSetHtml(
           .join('')}</table>`,
     })
     next += 1
+  }
+
+  // Dimensioned plan — overall + per-room running dimensions.
+  if (Array.isArray(plan.walls) && plan.walls.length > 0) {
+    sheets.push({
+      num: `A-${next}`,
+      name: 'Dimensioned plan',
+      body: `<div class="draw">${dimensionSvg(plan, {
+        palette: { ink: '#374151', faint: '#cbd5e1' },
+        widthPx: 900,
+      })}</div>`,
+    })
+    next += 1
+  }
+
+  // Cross-section — a vertical cut through the middle of the plan (along Z).
+  const section = buildSection(plan, { axis: 'z', at: plan.extent[1] / 2 })
+  if (section.walls.length > 0) {
+    sheets.push({
+      num: `A-${next}`,
+      name: 'Section A–A',
+      body: `<div class="draw">${sectionSvg(section, {
+        palette: {
+          wall: '#9ca3af',
+          floor: '#374151',
+          ceil: '#9ca3af',
+          opening: '#93c5fd',
+          ink: '#4b5563',
+        },
+        widthPx: 900,
+      })}</div>`,
+    })
+    next += 1
+  }
+
+  // Demolition / hacking plan — only when walls changed vs the as-loaded baseline.
+  if (baselinePlan) {
+    const wallDiff = diffWalls(baselinePlan, plan)
+    if (wallDiff.demolished.length > 0 || wallDiff.added.length > 0) {
+      sheets.push({
+        num: `A-${next}`,
+        name: 'Demolition & new walls',
+        body: `<div class="draw">${demolitionSvg(wallDiff, {
+          palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
+          widthPx: 900,
+        })}</div>`,
+      })
+      next += 1
+    }
   }
 
   // FF&E schedule.

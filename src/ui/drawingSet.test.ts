@@ -32,6 +32,22 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('Lighting plan')
   })
 
+  it('includes a dimensioned-plan + cross-section sheet', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('Dimensioned plan')
+    expect(html).toContain('Section A')
+  })
+
+  it('includes a demolition sheet only when the plan diverged from its baseline', () => {
+    const baseline = plan
+    const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
+    const html = buildDrawingSetHtml(hacked, items, BUILTIN_CATALOG, 'metric', baseline)
+    expect(html).toContain('Demolition &amp; new walls')
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', baseline)).not.toContain(
+      'Demolition &amp; new walls',
+    )
+  })
+
   it('still produces a valid cover-only set with no furniture', () => {
     const html = buildDrawingSetHtml(plan, [], BUILTIN_CATALOG)
     expect(html).toContain('Sheet index')

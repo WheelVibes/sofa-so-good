@@ -9,7 +9,13 @@ import { buildDrawingSetHtml } from './drawingSet'
  */
 export function openDrawingSet(): void {
   const s = useStore.getState()
-  const html = buildDrawingSetHtml(s.floorPlan, s.items, buildMergedCatalog(s), s.units)
+  const html = buildDrawingSetHtml(
+    s.floorPlan,
+    s.items,
+    buildMergedCatalog(s),
+    s.units,
+    s.baselinePlan,
+  )
   const win = window.open('', '_blank')
   if (!win) {
     s.notify.start({
