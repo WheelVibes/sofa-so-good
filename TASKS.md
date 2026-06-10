@@ -151,7 +151,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F13 [PROD] Multi-floor / multi-storey levels (schema+camera+stairs) — unblocks existing templates. V:L E:L.
 - [ ] F14 [PROD] Save selection as a custom Set (user-authored sets). V:M E:S.
 - [x] F15 (C169) [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
-- [ ] F16 [PROD] In-canvas magic suggestions (next-item / fill-empty-wall, rule-based). V:M E:M.
+- [x] F16 [PROD] Magic suggestions — per-room "what to add" hints in Design Score (C190, `suggestions` flag).
 - [ ] F17 [PROD] Finish eyedropper + whole-room style copy. V:S E:S.
 - [ ] F18 [PROD] Standard mount-height presets (art 1.45 m, pendant over table). V:S E:S.
 
@@ -170,7 +170,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [x] F28 (C176) [PROD] AI palette/finish recommender from an inspiration image (client-side color extract). V:M E:S-M.
 
 **2D/CAD outputs:**
-- [ ] F29 [PROD] Electrical/power+data layout plan + schedule (lighting-plan pattern). V:M E:M.
+- [x] F29 [PROD] Electrical/power+data plan + schedule in the drawing set (C191, `electricalPlan` flag).
 - [x] F30 (C184) [PROD] Demolition/hacking + new-wall plan (diff vs template) → feeds reno estimate. V:M E:M.
 - [x] F31 (C170) [PROD] DXF plan export (client-side DXF writer from plan polygons). V:M E:M.
 - [x] F32 (C186) [PROD] Cross-section drawing (reuse elevation core along a cut line). V:M E:M.

@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C190–C191] Suggestions + electrical plan
+- **C190** (F16): "magic" contextual suggestions in the Design Score panel — per-room "what to add" hints
+  from `analysis/suggestions.ts` (pure, category-gap heuristics by room type + area), gated by the new
+  `suggestions` flag; skipped while dragging (mirrors the score recompute gating).
+- **C191** (F29): electrical / power & data plan in the formal drawing set — pure `floorplan/electricalPlan.ts`
+  + `electricalPlanSvg.ts` (socket / switch / aircon / TV / data / water-heater symbols + schedule), with
+  `deriveElectricalPoints` inferring points from appliances/electronics/aircon/TV/wet-area items + a switch
+  inside each door. Gated by the new `electricalPlan` flag.
+
 ## [C187–C189] Reliability polish + feature-flag coverage
 - **C187** (B7): undo/redo/jump prunes dangling selection ids no longer in the restored items.
 - **C188** (B8): analysis-panel width moved to an `.aux-360` class (off the inline JSX style).
