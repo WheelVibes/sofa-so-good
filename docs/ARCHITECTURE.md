@@ -235,7 +235,9 @@ same change that reshapes a system.
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split** + draggable endpoint handles (`moveWallVertex`) for
   non-orthogonal shapes. Live furniture as `canPlace`-checked footprints. **`P` toggles
-  2D⇄3D**. **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
+  2D⇄3D** — the binding lives in `controls/planEditorHotkey.ts` (always mounted via App,
+  modal-guarded), NOT in the lazy-mounted editor, so it opens from the 3D view too.
+  **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
   Undoable + persists (`floorPlanStore.ts`).
 - **Toolbar** (`ui/toolbar/`): scrollable icon island (`IconButton` + `ToolbarMenu`).
   Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice`),

@@ -147,6 +147,24 @@ lighting plan and the design score, so a vanity only counts/glows with `lights=y
 Harness: `shot.mjs` honours `SHOT_URL` + 120 s nav timeout (playbook updated). Visually verified all three
 layouts, mirror none, and night bulbs on/off.
 
+## [P-OPENS-PLAN] `P` toggles the 2D plan editor open from the 3D view
+`FloorPlanEditor` is lazy-mounted only while `floorPlanEditing` is true (PERF5/C181), so its own
+"`P` toggles the editor" keydown listener only existed once the editor was already open — `P` could
+CLOSE the 2D plan but never OPEN it from the 3D view. The toggle now lives in an always-mounted
+binding: new `controls/planEditorHotkey.ts` (`togglePlanEditor: 'KeyP'` in `keybindings.ts`,
+`usePlanEditorHotkey()` mounted from App via the shared `useKeyboard` hook, so the repeat /
+editable-target / open-modal guards all apply; walk mode + modifier combos + a disabled
+`floorPlanEditor` flag are ignored). Closing via `P` keeps the frame-the-selected-item behaviour
+(shared `exitPlanEditorToScene`, also used by the editor's Escape/Done). The editor keeps only its
+editor-scoped keys (Enter/Esc/Delete). `controls/modalGuard.ts` (open-modal counter; `Modal`
+registers via `useModalGuard`) suppresses the binding behind dialogs. Shortcut surfaces updated:
+Edit-menu chip "(P)" from `shortcutLabel('togglePlanEditor')`, Help modal row "2D plan editor · P"
+(user docs already listed `P`). Unit tests: opens from the closed 3D state with only the hook
+mounted; closes + refocuses; suppressed while a modal is open and resumes after; editable-target /
+walk / modifier guards; works in BOTH Simple and Pro mode and no-ops when the flag is off.
+Visually verified: `P` from the 3D overview opens the 2D editor, `P` again returns to 3D, and `P`
+behind the open Help modal does nothing.
+
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
 - **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above

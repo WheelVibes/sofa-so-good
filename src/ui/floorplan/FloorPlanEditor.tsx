@@ -11,6 +11,7 @@ import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { isAnyModalOpen } from '../../controls/modalGuard'
+import { exitPlanEditorToScene } from '../../controls/planEditorHotkey'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
@@ -281,34 +282,10 @@ export function FloorPlanEditor() {
     img.src = url
   }
 
-  // Frame the selected furniture in 3D when leaving the editor, so toggling
-  // 2D->3D lands on whatever you were working on (the seamless-toggle payoff).
-  const exitToScene = useCallback(() => {
-    const st = useStore.getState()
-    st.setFloorPlanEditing(false)
-    if (st.selectedItemId) {
-      const it = st.items.find((i) => i.id === st.selectedItemId)
-      if (it) st.focusOn(it.position)
-    }
-  }, [])
-
-  // `P` toggles the editor from anywhere (a persistent 2D<->3D switch), unless
-  // the user is typing or in walk mode. Always mounted so it works from 3D too.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code !== 'KeyP' || e.metaKey || e.ctrlKey || e.altKey) return
-      // Not while a modal dialog is open (e.g. Smart Start) — typing into a
-      // mis-focused modal must not flip the 2D plan behind it.
-      if (isAnyModalOpen()) return
-      if (isEditableTarget(e)) return
-      const st = useStore.getState()
-      if (st.cameraMode === 'firstPerson') return
-      if (st.floorPlanEditing) exitToScene()
-      else st.setFloorPlanEditing(true)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [exitToScene])
+  // Exiting back to 3D (Done button / Escape) frames the selected furniture via
+  // the shared `exitPlanEditorToScene`. NOTE: the `P` open/close binding lives in
+  // `controls/planEditorHotkey.ts` (always mounted via App) — this component is
+  // lazy-mounted only while open, so a listener here could never OPEN it.
 
   const [ew, ed] = planBounds(plan)
   const basePX = useMemo(() => {
@@ -392,7 +369,7 @@ export function FloorPlanEditor() {
           return
         }
         setDraft(null)
-        exitToScene()
+        exitPlanEditorToScene()
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         // Don't hijack Backspace/Delete while editing a field (e.g. the room
         // name / dimension inputs in the inspector) — that would silently delete
@@ -411,7 +388,7 @@ export function FloorPlanEditor() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing, sel, exitToScene, polyDraft, commitPolyRoom])
+  }, [editing, sel, polyDraft, commitPolyRoom])
 
   if (!editing) return null
 
@@ -877,7 +854,7 @@ export function FloorPlanEditor() {
             </b>{' '}
             · {plan.rooms.length} rooms
           </span>
-          <button type="button" onClick={exitToScene} className="btn btn-accent btn-sm">
+          <button type="button" onClick={exitPlanEditorToScene} className="btn btn-accent btn-sm">
             Done
           </button>
         </div>

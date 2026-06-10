@@ -9,6 +9,7 @@ import {
   ROTATE_STEP,
 } from './controls/keybindings'
 import { isAnyModalOpen } from './controls/modalGuard'
+import { usePlanEditorHotkey } from './controls/planEditorHotkey'
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
 import { isFeatureEnabled } from './features/featureFlags'
 import { useCatalog } from './furniture/catalog'
@@ -662,6 +663,9 @@ export default function App() {
     [toggleMeasurements, cameraMode, setCameraMode, catalog, pasteClipboard, duplicateSelection],
   )
   useKeyboard(onKey)
+  // `P` ⇄ 2D plan editor lives in its own always-mounted hook: the editor is
+  // lazy-mounted only while open, so an editor-scoped listener couldn't OPEN it.
+  usePlanEditorHotkey()
 
   // Press-and-hold nudge: arrow keys move the selected item continuously
   // along world-XZ at NUDGE_SPEED m/s (Shift = fine). preventDefault on

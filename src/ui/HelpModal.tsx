@@ -20,6 +20,7 @@ const SHORTCUTS: [string, string][] = [
   ['Measurements', 'M'],
   ['Tidy room', 'L'],
   ['Top view', 'O'],
+  ['2D plan editor', 'P'],
   ['Reset view', 'H'],
   ['Walk / orbit', 'V'],
   ['Time of day', 'T'],

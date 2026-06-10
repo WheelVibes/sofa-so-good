@@ -2,6 +2,7 @@ import { useFeature } from '../../../features/useFeature'
 import { isDefaultPlan } from '../../../floorplan/planGeometry'
 import { firstEditableRoomId } from '../../../state/rooms'
 import { useStore } from '../../../state/store'
+import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** Edit cluster (orbit overview): the ways to *change the home itself* — step
@@ -29,7 +30,7 @@ export function EditMenu() {
       {fFloorPlan ? (
         <MenuItem
           icon="FloorPlan"
-          label="Floor plan editor"
+          label={`Floor plan editor${chip(shortcutLabel('togglePlanEditor'))}`}
           sub={`Reshape ${planLabel}`}
           active={floorPlanEditing}
           onClick={toggleFloorPlanEditing}
@@ -37,4 +38,8 @@ export function EditMenu() {
       ) : null}
     </ToolbarMenu>
   )
+}
+
+function chip(s: string): string {
+  return s ? `  (${s})` : ''
 }

@@ -91,6 +91,11 @@ standing themed backlog below + the existing sections further down hold the open
 
 ### AGENT SWEEP FOLLOW-UPS (2026-06-10) — found but deferred (lower-impact)
 From the parallel bug/perf/UI agent sweep; the high-value items were fixed in the bug-fix batch. Remaining:
+- [x] P-OPENS-PLAN. `P` could close the 2D plan editor but not OPEN it from the 3D view — the
+  keydown listener lived inside the lazy-mounted `FloorPlanEditor` (PERF5/C181), which only exists
+  while the editor is open. Fixed: the toggle moved to the always-mounted
+  `controls/planEditorHotkey.ts` (`usePlanEditorHotkey` in App; modal-guarded via
+  `controls/modalGuard.ts` + editable-target guard); the editor keeps Enter/Esc/Delete. See CHANGELOG.
 - [x] MODAL-HOTKEYS. Global shortcuts fired while a modal was open (typing into a mis-focused modal toggled
   the `P` 2D plan behind Smart Start). Fixed via `controls/modalGuard.ts` open-modal counter: `Modal` (+
   non-`Modal` overlays) register while open; every global keydown handler early-returns. Escape stays

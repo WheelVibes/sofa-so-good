@@ -1,7 +1,7 @@
 # Floor‑plan editor
 
 The 2D top‑down editor lets you reshape the flat itself — walls, rooms, doors,
-and windows. Open it from **Arrange → Floor plan**, or press <kbd>P</kbd> to flip
+and windows. Open it from **Edit → Floor plan editor**, or press <kbd>P</kbd> to flip
 between the 2D plan and the 3D scene at any time.
 
 ![The 2D floor-plan editor showing furniture footprints](/screenshots/floor-plan-editor.png)
