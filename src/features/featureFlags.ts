@@ -47,6 +47,7 @@ export type FeatureFlag =
   | 'boq'
   | 'suggestions'
   | 'electricalPlan'
+  | 'mountHeights'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -176,6 +177,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   electricalPlan: {
     label: 'Electrical plan',
     description: 'Power / data / switch layout in the drawing set',
+    default: true,
+  },
+  mountHeights: {
+    label: 'Mount-height presets',
+    description: 'One-tap standard heights for wall/ceiling items',
     default: true,
   },
 }
