@@ -806,6 +806,87 @@ function condoTerrace(): FloorPlan {
   }
 }
 
+/** Condo Studio / "shoebox" (~37 m²): one open living/sleeping space, a
+ *  kitchenette niche, a bath and a small balcony. */
+function condoStudio(): FloorPlan {
+  const W = 6.0
+  const D = 6.2
+  return {
+    id: 'tpl-condo-studio',
+    name: 'Condo Studio',
+    ceilingHeight: 2.85,
+    extent: [W, D],
+    walls: [
+      ...perimeter('su', W, D),
+      // East service column: bath / kitchenette / balcony stacked top→bottom.
+      iwall('su-col', [3.7, T], [3.7, D - T]),
+      iwall('su-bk', [3.7, 2.7], [W - T, 2.7]),
+      parapet('su-kb', [3.7, 4.5], [W - T, 4.5]),
+    ],
+    openings: [
+      door('su-main', 'su-w', 2.4),
+      door('su-bath', 'su-col', 0.8, 0.7),
+      window('su-liv-win', 'su-n', 0.6, 2.0),
+      window('su-bath-win', 'su-e', 0.4, 1.0),
+    ],
+    rooms: [
+      room('su-living', 'Living / Sleeping', 0.2, 0.2, 3.4, 5.8, 'floor-wood-oak'),
+      room('su-bath', 'Bathroom', 3.8, 0.2, 2.0, 2.4, 'floor-tile-marble'),
+      room('su-kit', 'Kitchenette', 3.8, 2.8, 2.0, 1.6, 'floor-tile-grey'),
+      room('su-balcony', 'Balcony', 3.8, 4.6, 2.0, 1.4, 'floor-terrazzo'),
+    ],
+  }
+}
+
+/** Condo 4-Bedroom (~140 m²): four bedrooms + master ensuite across the north,
+ *  a common + shared bath, open living/dining, kitchen + yard and a wide
+ *  balcony to the south. */
+function condo4Bed(): FloorPlan {
+  const W = 12.0
+  const D = 11.4
+  return {
+    id: 'tpl-condo-4bed',
+    name: 'Condo 4-Bedroom',
+    ceilingHeight: 2.85,
+    extent: [W, D],
+    walls: [
+      ...perimeter('c4', W, D),
+      // North bedroom row dividers + the row's south wall.
+      iwall('c4-b23', [3.1, T], [3.1, 4.0]),
+      iwall('c4-b34', [6.1, T], [6.1, 4.0]),
+      iwall('c4-bm', [8.9, T], [8.9, 4.0]),
+      iwall('c4-bednorth', [T, 4.0], [W - T, 4.0]),
+      // North/south split, living/kitchen/yard dividers, balcony parapet.
+      iwall('c4-mid', [T, 6.1], [W - T, 6.1]),
+      iwall('c4-livk', [6.3, 6.1], [6.3, D - T]),
+      iwall('c4-ky', [9.5, 6.1], [9.5, 7.9]),
+      parapet('c4-bal', [6.3, 9.3], [W - T, 9.3]),
+    ],
+    openings: [
+      door('c4-main', 'c4-s', 5.0, 1.1),
+      door('c4-master', 'c4-bednorth', 9.5, 1.0),
+      window('c4-b2win', 'c4-n', 0.8, 1.6),
+      window('c4-b3win', 'c4-n', 3.6, 1.6),
+      window('c4-mwin', 'c4-n', 9.4, 1.8),
+      window('c4-livwin', 'c4-w', 1.0, 2.4),
+      window('c4-balwin', 'c4-e', 9.2, 1.6),
+    ],
+    rooms: [
+      room('c4-bed2', 'Bedroom 2', 0.2, 0.2, 2.8, 3.8, 'floor-wood-walnut'),
+      room('c4-bed3', 'Bedroom 3', 3.2, 0.2, 2.8, 3.8, 'floor-wood-walnut'),
+      room('c4-bed4', 'Bedroom 4', 6.2, 0.2, 2.6, 3.8, 'floor-wood-walnut'),
+      room('c4-master', 'Master Bedroom', 9.0, 0.2, 2.8, 3.8, 'floor-wood-oak'),
+      room('c4-cbath', 'Common Bath', 0.2, 4.2, 2.0, 1.8, 'floor-tile-white'),
+      room('c4-bath2', 'Bathroom 2', 2.4, 4.2, 2.0, 1.8, 'floor-tile-white'),
+      room('c4-mbath', 'Master Bath', 9.0, 4.2, 2.8, 1.8, 'floor-tile-marble'),
+      room('c4-living', 'Living / Dining', 0.2, 6.2, 6.0, 5.0, 'floor-wood-oak'),
+      room('c4-kit', 'Kitchen', 6.4, 6.2, 3.0, 3.0, 'floor-tile-grey'),
+      room('c4-yard', 'Service Yard', 9.6, 6.2, 2.2, 1.6, 'floor-tile-grey'),
+      room('c4-balcony', 'Balcony', 6.4, 9.4, 5.4, 1.6, 'floor-terrazzo'),
+    ],
+  }
+}
+
 export const PLAN_TEMPLATES: FloorPlan[] = [
   studio(),
   oneBed(),
@@ -823,4 +904,6 @@ export const PLAN_TEMPLATES: FloorPlan[] = [
   condo3Bed(),
   condoPenthouse(),
   condoTerrace(),
+  condoStudio(),
+  condo4Bed(),
 ]

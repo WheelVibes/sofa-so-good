@@ -224,6 +224,8 @@ describe('plan templates', () => {
       'tpl-condo-3bed',
       'tpl-condo-penthouse',
       'tpl-terrace-ground',
+      'tpl-condo-studio',
+      'tpl-condo-4bed',
     ]) {
       expect(ids.has(id), `missing template ${id}`).toBe(true)
     }
