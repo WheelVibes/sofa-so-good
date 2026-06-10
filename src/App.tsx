@@ -38,7 +38,6 @@ import { DaylightPanel } from './ui/DaylightPanel'
 import { DesignScorePanel } from './ui/DesignScorePanel'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
-import { ElevationPanel } from './ui/ElevationPanel'
 import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
@@ -55,9 +54,27 @@ const FloorPlanEditor = lazy(() =>
 const GlbDesignerDialog = lazy(() =>
   import('./ui/glbEditor/GlbDesignerDialog').then((m) => ({ default: m.GlbDesignerDialog })),
 )
+// Rarely-opened, dependency-heavy panels/modals — lazy-loaded + gated on their
+// open flag so their code (AI client, GLTF/design-file IO, elevation projection,
+// SVG builders, tour) stays out of the initial bundle (PERF5).
+const ShareModal = lazy(() => import('./ui/ShareModal').then((m) => ({ default: m.ShareModal })))
+const VersionsPanel = lazy(() =>
+  import('./ui/VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
+)
+const ElevationPanel = lazy(() =>
+  import('./ui/ElevationPanel').then((m) => ({ default: m.ElevationPanel })),
+)
+const HistoryPanel = lazy(() =>
+  import('./ui/HistoryPanel').then((m) => ({ default: m.HistoryPanel })),
+)
+const ProductTour = lazy(() =>
+  import('./ui/tour/ProductTour').then((m) => ({ default: m.ProductTour })),
+)
+const SmartStartWizard = lazy(() =>
+  import('./ui/wizard/SmartStartWizard').then((m) => ({ default: m.SmartStartWizard })),
+)
 
 import { ConfirmModal } from './ui/ConfirmModal'
-import { HistoryPanel } from './ui/HistoryPanel'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
@@ -66,17 +83,13 @@ import { NotificationContainer } from './ui/notifications/NotificationContainer'
 import { hasOnboarded, markOnboarded, Onboarding } from './ui/Onboarding'
 import { PromptModal } from './ui/PromptModal'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
-import { ShareModal } from './ui/ShareModal'
 import { SwapModal } from './ui/SwapModal'
 import { TapeModeToggle } from './ui/TapeModeToggle'
 import { Toolbar } from './ui/Toolbar'
-import { ProductTour } from './ui/tour/ProductTour'
-import { VersionsPanel } from './ui/VersionsPanel'
 import { WalkHud } from './ui/WalkHud'
 import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
 import { WalkJoystick } from './ui/walk/WalkJoystick'
-import { SmartStartWizard } from './ui/wizard/SmartStartWizard'
 
 /** Ids of the furniture in the room currently being edited (the set the room
  *  editor renders). Used by the room-scoped select-all / cycle shortcuts. Falls
@@ -100,6 +113,16 @@ export default function App() {
   const sceneReady = useStore((s) => s.sceneReady)
   const loading = useStore((s) => s.loading)
   const hideLoading = useStore((s) => s.hideLoading)
+  // Open flags for the lazy-loaded panels (PERF5) — gate their mount so each
+  // chunk loads only when the panel is opened.
+  const lazyPanels = {
+    shareOpen: useStore((s) => s.shareOpen),
+    elevationsOpen: useStore((s) => s.elevationsOpen),
+    versionsOpen: useStore((s) => s.versionsOpen),
+    historyOpen: useStore((s) => s.historyOpen),
+    smartStartOpen: useStore((s) => s.smartStartOpen),
+    tourOpen: useStore((s) => s.tourOpen),
+  }
   const catalog = useCatalog()
   usePlacementController()
 
@@ -774,15 +797,36 @@ export default function App() {
         <CommandPalette />
         <ContextMenu />
         <SwapModal />
-        <ShareModal />
         <ClearancePanel />
         <DaylightPanel />
         <DesignScorePanel />
         <AccessibilityPanel />
-        <ElevationPanel />
-        <VersionsPanel />
-        <HistoryPanel />
-        <SmartStartWizard />
+        {/* Lazy + flag-gated: chunk loads only when the panel is opened (PERF5). */}
+        {lazyPanels.shareOpen ? (
+          <Suspense fallback={null}>
+            <ShareModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.elevationsOpen ? (
+          <Suspense fallback={null}>
+            <ElevationPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.versionsOpen ? (
+          <Suspense fallback={null}>
+            <VersionsPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.historyOpen ? (
+          <Suspense fallback={null}>
+            <HistoryPanel />
+          </Suspense>
+        ) : null}
+        {lazyPanels.smartStartOpen ? (
+          <Suspense fallback={null}>
+            <SmartStartWizard />
+          </Suspense>
+        ) : null}
         {glbDesignerOpen ? (
           <Suspense fallback={null}>
             <GlbDesignerDialog />
@@ -791,7 +835,11 @@ export default function App() {
         <LoginScreen />
         <FlagsPanel />
         <Onboarding />
-        <ProductTour />
+        {lazyPanels.tourOpen ? (
+          <Suspense fallback={null}>
+            <ProductTour />
+          </Suspense>
+        ) : null}
         <LocationPrompt />
         <PromptModal />
         <ConfirmModal />
