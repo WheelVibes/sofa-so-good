@@ -43,7 +43,12 @@ describe('appearanceKeys', () => {
   })
 
   it('uses variant/tint for gltf items', () => {
-    const gltf = { kind: 'gltf', id: 'x', name: 'x', category: 'seating' } as unknown as FurnitureDef
+    const gltf = {
+      kind: 'gltf',
+      id: 'x',
+      name: 'x',
+      category: 'seating',
+    } as unknown as FurnitureDef
     expect(appearanceKeys(gltf)).toContain('variant')
     expect(appearanceKeys(gltf)).toContain('tint')
   })
