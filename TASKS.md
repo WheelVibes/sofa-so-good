@@ -155,7 +155,8 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [x] F15 (C169) [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
 - [x] F16 [PROD] Magic suggestions — per-room "what to add" hints in Design Score (C190, `suggestions` flag).
 - [ ] F17 [PROD] Finish eyedropper + whole-room style copy. V:S E:S.
-- [ ] F18 [PROD] Standard mount-height presets (art 1.45 m, pendant over table). V:S E:S.
+- [x] F18 [PROD] Standard mount-height presets — one-tap chips under the `mountHeight` slider (C197,
+  `furniture/mountHeightPresets.ts` + inspector `MountHeightPresets`, `mountHeights` flag).
 
 **Collaboration/commerce/presentation:**
 - [x] F19 (C175) [PROD] Moodboard / style-board builder (images+product tiles+palette, export). V:M E:M.

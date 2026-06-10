@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C197] Standard mount-height presets (F18)
+A "Standard heights" chip row under a mounted item's `mountHeight` slider in the inspector — designer
+conventions (gallery picture-centre 1.45 m, TV seated-eye 1.1 m, pendant-over-table 1.5 m, sconce 1.65 m,
+…) so wall/ceiling items snap to a sensible height in one tap. Pure data in `furniture/mountHeightPresets.ts`
+(matched by def id, generic fallback, clamped to the slider range; 7 tests); presentational
+`MountHeightPresets` chips. Behind the `mountHeights` flag. Verified in the room editor on wall art.
+
 ## [C196] Tier-gate the Canvas DPR ceiling (PERF6, partial)
 The main Canvas now takes its device-pixel-ratio ceiling from the active quality tier's `dprMax`
 (Performance = 1, was a hardcoded 1.75) — a real fill-rate saving on the default tier / weak GPUs, applied
