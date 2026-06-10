@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { useQuality } from '../scene/useQuality'
 import { useStore } from '../state/store'
@@ -26,7 +27,9 @@ export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
   const materialEpoch = useStore((s) => s.materialEpoch)
   // Items hidden for decluttering (visual only) are skipped here.
   const hidden = useStore(useShallow((s) => s.hiddenItemIds))
-  const hiddenSet = hidden.length > 0 ? new Set(hidden) : null
+  // Memoised so a drag (which re-renders this layer every pointermove via the
+  // items change) doesn't reallocate the Set when the hidden set is unchanged.
+  const hiddenSet = useMemo(() => (hidden.length > 0 ? new Set(hidden) : null), [hidden])
   return (
     <group>
       {items.map((item) => {
