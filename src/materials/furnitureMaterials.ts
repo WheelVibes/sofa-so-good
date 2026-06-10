@@ -173,6 +173,9 @@ function getMarbleMaps(): { albedo: Texture; normal: Texture } {
   const baseN = makeFbm(0x5a17, 5, 4)
   const veinWarp = makeFbm(0x7d31, 4, 6)
   const grime = makeFbm(0x1133, 4, 20)
+  // PR6: broad low-freq tonal clouding so a slab isn't a uniform white field
+  // between veins (real stone has soft light/dark drifts). Tint-preserving.
+  const cloudN = isFeatureEnabled('pbrSurfaces') ? makeFbm(0x2f6b, 4, 2.2) : null
   const albedo = new Uint8ClampedArray(N * N * 4)
   const height = new Float32Array(N * N)
   for (let y = 0; y < N; y++) {
@@ -189,7 +192,8 @@ function getMarbleMaps(): { albedo: Texture; normal: Texture } {
       const field2 = Math.sin((v * 1.8 - u * 0.4 + warp2) * Math.PI * 3.1)
       const vein2 = clamp01(1 - Math.abs(field2) * 11) * 0.5
       const mottle = (grime(u * 4, v * 4) - 0.5) * 0.06
-      const lum = clamp01(0.97 - vein * 0.4 - vein2 * 0.22 + mottle)
+      const cloud = cloudN ? (cloudN(u, v) - 0.5) * 0.1 : 0
+      const lum = clamp01(0.97 - vein * 0.4 - vein2 * 0.22 + mottle + cloud)
       const i = y * N + x
       const c = Math.round(lum * 255)
       albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = c
