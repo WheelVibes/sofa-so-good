@@ -46,9 +46,13 @@ import { FpsCounter } from './ui/FpsCounter'
 const FloorPlanEditor = lazy(() =>
   import('./ui/floorplan/FloorPlanEditor').then((m) => ({ default: m.FloorPlanEditor })),
 )
+// The GLB designer is a large, Pro-only, fullscreen tool that few sessions open —
+// lazy-load it so its editor + GLTF exporter stay out of the initial bundle.
+const GlbDesignerDialog = lazy(() =>
+  import('./ui/glbEditor/GlbDesignerDialog').then((m) => ({ default: m.GlbDesignerDialog })),
+)
 
 import { ConfirmModal } from './ui/ConfirmModal'
-import { GlbDesignerDialog } from './ui/glbEditor/GlbDesignerDialog'
 import { HistoryPanel } from './ui/HistoryPanel'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
@@ -87,6 +91,7 @@ export default function App() {
   const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  const glbDesignerOpen = useStore((s) => s.glbDesignerOpen)
   const bootPhase = useStore((s) => s.bootPhase)
   const sceneReady = useStore((s) => s.sceneReady)
   const loading = useStore((s) => s.loading)
@@ -770,7 +775,11 @@ export default function App() {
         <VersionsPanel />
         <HistoryPanel />
         <SmartStartWizard />
-        <GlbDesignerDialog />
+        {glbDesignerOpen ? (
+          <Suspense fallback={null}>
+            <GlbDesignerDialog />
+          </Suspense>
+        ) : null}
         <LoginScreen />
         <FlagsPanel />
         <Onboarding />

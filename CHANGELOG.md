@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C108] Code-split the GLB Designer out of the initial bundle
+Release-readiness checkpoint (tsc + 1102 tests + prod build + both doc guides — all green) flagged
+the main JS chunk >1 MB. Lazy-loaded the Pro-only, fullscreen **GLB Designer** (`React.lazy` +
+mount gated on `glbDesignerOpen`, matching the FloorPlanEditor pattern) so its editor + GLTF
+exporter leave the initial bundle — the build now emits a separate `GlbDesignerDialog` chunk
+(~3.9 kB gzip + its deps, loaded on open). Verified it still opens + renders in Pro mode.
+
 ## [C107] Regression guard — lint docs prose for build-breaking placeholder tags
 Added `docsMarkdownLint.test.ts`: strips code spans/blocks from every user + developer guide
 `.md`, then fails if any prose contains an unknown `<tag>` (the `<room>`-style placeholder that
