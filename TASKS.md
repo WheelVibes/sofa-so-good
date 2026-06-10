@@ -9,7 +9,10 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 
 ## Performance / scalability
 - [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders (needs profiling on real hardware to justify).
-- [ ] P3. More **instancing** for repeat-geometry primitives where profiling justifies.
+- [~] P3. More **instancing** for repeat-geometry primitives. Done: bookshelf + crib (earlier) and
+  RoomDivider / CubeShelf / FeatureWall / ToyStorage (C150, via shared `slatLayout.ts`). Remaining:
+  rotation-capable instancing for venetian blinds / drying-rack slats (needs a rotation-aware
+  `InstancedBoxes` sibling — deferred until a consumer justifies it).
 
 ## Clearance / validation (panel now: door-swing + overlaps + wall-clip + walkways, C111/C112/C145)
 - [x] CL2. Walkway-width check (`findNarrowGaps`, item↔item + item↔wall, band 0.4–0.9 m) — C145.

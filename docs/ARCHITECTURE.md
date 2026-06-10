@@ -64,8 +64,10 @@ same change that reshapes a system.
   `quality.ts`+`QualityController`, `ScreenshotController`, cameras, selection,
   `SceneBackdrop.tsx` (City/Park/Hills/Studio). Main Canvas is **`frameloop="demand"`**:
   `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
-  `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` collapses repeat
-  geometry; `ContextLossGuard.tsx` recovers WebGL context loss.
+  `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
+  `bakeInstanceMatrix`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
+  FeatureWall/ToyStorage (batten maths in pure `primitives/slatLayout.ts`);
+  `ContextLossGuard.tsx` recovers WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice`).

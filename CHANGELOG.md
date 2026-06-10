@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C150] Performance — instance four more repeat-geometry primitives (parallel worktree subagent)
+Extended the `InstancedBoxes` draw-call collapse to **RoomDivider** (slat/grid: ~24–40 meshes → 1),
+**CubeShelf** (carcass + boxes + colour-varied books → 2), **FeatureWall** (slat backing + ~33 battens
+→ 1), and **ToyStorage** (carcass → 1). New pure `primitives/slatLayout.ts` (batten/grid count/step/
+offset maths) shared by RoomDivider + FeatureWall, and a pure `bakeInstanceMatrix` extracted from
+`InstancedBoxes.tsx` — both unit-tested (14 assertions) against the exact original inline formulas, so
+geometry is byte-identical. Fluted (cylinder) ribs and per-item-material bins/hangers intentionally
+stay separate (axis-aligned single-material instancing only; no cross-item instancing). Built by a
+subagent in an isolated worktree, integrated by 3-way merge.
+
 ## [C149] PR3c — material realism: sheen + clearcoat + tier-gated glass transmission (parallel worktree subagent)
 New pure `src/materials/materialRealism.ts` (no three/GPU deps, 15 tests): `transmissionTiers(tier)`
 (the High/Maximum gate), `glassConfig(tier, opacity, tint)` (real refractive params vs cheap
