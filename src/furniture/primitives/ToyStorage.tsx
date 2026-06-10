@@ -1,5 +1,6 @@
 import { getFabricMaterial, getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
 
 /**
@@ -24,29 +25,22 @@ export function ToyStorage({ props }: { props: ParamProps }) {
   // Cheerful primary-ish bin palette.
   const BIN_COLORS = ['#d98a3b', '#3b78d9', '#4caf6a', '#e0b93e', '#c14d7d', '#5ac2c2']
 
-  const verticals = Array.from({ length: cols + 1 }, (_, i) => {
+  // Carcass = back panel + vertical dividers + horizontal shelves, all sharing
+  // `wood` — collapse into ONE InstancedMesh (one draw call) instead of up to
+  // ~10 panel meshes. The bins vary in fabric colour/material so they stay as
+  // their own meshes below.
+  const carcass: BoxInstance[] = [
+    // Back panel so toys don't fall through (distinguishes it from the divider).
+    { position: [0, height / 2, -depth / 2 + t / 2], size: [width, height, t] },
+  ]
+  for (let i = 0; i < cols + 1; i++) {
     const x = -width / 2 + t / 2 + i * (cube + t)
-    return (
-      <mesh key={`v${i}`} castShadow receiveShadow position={[x, height / 2, 0]} material={wood}>
-        <boxGeometry args={[t, height, depth]} />
-      </mesh>
-    )
-  })
-  const horizontals = Array.from({ length: rows + 1 }, (_, i) => {
+    carcass.push({ position: [x, height / 2, 0], size: [t, height, depth] })
+  }
+  for (let i = 0; i < rows + 1; i++) {
     const y = t / 2 + i * (cube + t)
-    return (
-      <mesh key={`h${i}`} castShadow receiveShadow position={[0, y, 0]} material={wood}>
-        <boxGeometry args={[width, t, depth]} />
-      </mesh>
-    )
-  })
-
-  // Back panel so toys don't fall through (distinguishes it from the divider).
-  const back = (
-    <mesh receiveShadow position={[0, height / 2, -depth / 2 + t / 2]} material={wood}>
-      <boxGeometry args={[width, height, t]} />
-    </mesh>
-  )
+    carcass.push({ position: [0, y, 0], size: [width, t, depth] })
+  }
 
   // Bright fabric bins in most cubbies (deterministic; a few left open).
   const bins = []
@@ -72,9 +66,9 @@ export function ToyStorage({ props }: { props: ParamProps }) {
 
   return (
     <group>
-      {back}
-      {verticals}
-      {horizontals}
+      <InstancedBoxes instances={carcass} castShadow receiveShadow>
+        <primitive object={wood} attach="material" />
+      </InstancedBoxes>
       {bins}
     </group>
   )
