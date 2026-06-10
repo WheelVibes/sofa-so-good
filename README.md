@@ -57,7 +57,8 @@ export the result — all in the browser.
   water-tanks whose windows light up warm at night),
   **Park** (layered broadleaf + conifer trees and shrubs on a green common),
   **Hills** (depth-banded green hills receding into an aerial-perspective haze),
-  or **Studio** (a clean, distraction-free ground). The backdrop re-centres on
+  or **Studio** (a seamless product-shot cyclorama — a soft gradient cove, no
+  horizon). The backdrop re-centres on
   whatever floor plan you load.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
   top-down plan (pair with Measurements for an annotated floor plan), a

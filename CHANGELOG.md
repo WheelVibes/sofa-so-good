@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C163] Studio backdrop → seamless infinity-cove cyclorama
+Replaced the Studio backdrop's bare ground disc with a product-shot cyclorama: a large unlit gradient
+dome (brighter at the zenith, gently deeper at the horizon; `MeshBasicMaterial` + fog-off so it reads
+evenly-lit on every tier) wraps the scene with no hard skyline, over a matching neutral floor. Extracted
+to `StudioBackdrop.tsx` (consistent with Park/Hills). Cheap (one mesh + a tiny gradient texture),
+disposed on unmount. Verified via the screenshot harness.
+
 ## [C162] Renovation cost estimate (finishes) in the report
 New pure `src/analysis/renovationCost.ts` `estimateRenovation(floorAreas, wallAreas)` — the finishes
 counterpart to the furniture budget: indicative SG supply+install rates ($/m²) per finish category

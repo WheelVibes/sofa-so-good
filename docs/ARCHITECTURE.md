@@ -64,7 +64,8 @@ same change that reshapes a system.
   `quality.ts`+`QualityController`, `ScreenshotController`, cameras, selection,
   `SceneBackdrop.tsx` dispatcher (City/Park/Hills/Studio); `CityBackdrop.tsx` (instanced two-ring HDB
   estate + rooftop tanks + night-lit windows), `ParkBackdrop.tsx`/`HillsBackdrop.tsx` (instanced trees /
-  depth-banded hills) — all share `Ground.tsx` + `instancedBatch.tsx`. Main Canvas is **`frameloop="demand"`**:
+  depth-banded hills), `StudioBackdrop.tsx` (seamless gradient-dome cyclorama) — all share `Ground.tsx`
+  + `instancedBatch.tsx`. Main Canvas is **`frameloop="demand"`**:
   `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
   `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
   `bakeInstanceMatrix`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
