@@ -50,12 +50,18 @@ function PartMesh({ part }: { part: ShapePart }) {
   // it rebuilds the geometry exactly when kind/size change.
   const geom = useMemo(() => partGeometry(part), [part])
   useEffect(() => () => geom.dispose(), [geom])
+  const glow = part.emissiveIntensity ?? 0
+  const opacity = part.opacity ?? 1
   return (
     <mesh position={part.position} castShadow receiveShadow geometry={geom}>
       <meshStandardMaterial
         color={part.color}
         roughness={part.roughness ?? DEFAULT_PART_ROUGHNESS}
         metalness={part.metalness ?? DEFAULT_PART_METALNESS}
+        emissive={glow > 0 ? part.color : '#000000'}
+        emissiveIntensity={glow}
+        transparent={opacity < 1}
+        opacity={opacity}
       />
     </mesh>
   )
@@ -420,10 +426,27 @@ export function GlbDesignerDialog() {
                 </label>
                 {(
                   [
-                    ['roughness', sel.roughness ?? DEFAULT_PART_ROUGHNESS],
-                    ['metalness', sel.metalness ?? DEFAULT_PART_METALNESS],
+                    {
+                      prop: 'roughness',
+                      value: sel.roughness ?? DEFAULT_PART_ROUGHNESS,
+                      min: 0,
+                      max: 1,
+                    },
+                    {
+                      prop: 'metalness',
+                      value: sel.metalness ?? DEFAULT_PART_METALNESS,
+                      min: 0,
+                      max: 1,
+                    },
+                    {
+                      prop: 'emissiveIntensity',
+                      value: sel.emissiveIntensity ?? 0,
+                      min: 0,
+                      max: 3,
+                    },
+                    { prop: 'opacity', value: sel.opacity ?? 1, min: 0.1, max: 1 },
                   ] as const
-                ).map(([prop, value]) => (
+                ).map(({ prop, value, min, max }) => (
                   <div key={prop} style={{ marginTop: 'var(--s-2)' }}>
                     <div
                       className="label"
@@ -434,14 +457,16 @@ export function GlbDesignerDialog() {
                         justifyContent: 'space-between',
                       }}
                     >
-                      <span style={{ textTransform: 'capitalize' }}>{prop}</span>
+                      <span style={{ textTransform: 'capitalize' }}>
+                        {prop === 'emissiveIntensity' ? 'glow' : prop}
+                      </span>
                       <span>{value.toFixed(2)}</span>
                     </div>
                     <input
                       type="range"
                       className="slider"
-                      min={0}
-                      max={1}
+                      min={min}
+                      max={max}
                       step={0.05}
                       value={value}
                       aria-label={`${sel.kind} ${prop}`}

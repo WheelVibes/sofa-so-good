@@ -101,6 +101,26 @@ describe('partMaterial — per-part PBR', () => {
     expect(m.color.getHexString()).toBe('b08d57')
   })
 
+  it('is opaque + non-glowing by default', () => {
+    const m = partMaterial(defaultPart('box'))
+    expect(m.transparent).toBe(false)
+    expect(m.opacity).toBe(1)
+    expect(m.emissiveIntensity).toBe(0)
+    expect(m.emissive.getHexString()).toBe('000000')
+  })
+
+  it('glows in its own colour when emissiveIntensity > 0', () => {
+    const m = partMaterial({ ...defaultPart('sphere'), color: '#ff0000', emissiveIntensity: 2 })
+    expect(m.emissiveIntensity).toBe(2)
+    expect(m.emissive.getHexString()).toBe('ff0000')
+  })
+
+  it('goes translucent (transparent flag set) when opacity < 1', () => {
+    const m = partMaterial({ ...defaultPart('box'), opacity: 0.4 })
+    expect(m.transparent).toBe(true)
+    expect(m.opacity).toBeCloseTo(0.4)
+  })
+
   it('the built object carries each part’s material values', () => {
     let spec = createEmptySpec()
     spec = addPart(spec, 'box')

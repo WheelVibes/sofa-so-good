@@ -25,10 +25,17 @@ import {
  *  roughness/metalness (falling back to the matte-ish defaults). Used by both
  *  the export (`buildEditedObject`) and the live preview so they never diverge. */
 export function partMaterial(part: ShapePart): MeshStandardMaterial {
+  const glow = part.emissiveIntensity ?? 0
+  const opacity = part.opacity ?? 1
   return new MeshStandardMaterial({
     color: part.color,
     roughness: part.roughness ?? DEFAULT_PART_ROUGHNESS,
     metalness: part.metalness ?? DEFAULT_PART_METALNESS,
+    // Glow in the part's own colour (so a red part glows red); black = no glow.
+    emissive: new Color(glow > 0 ? part.color : 0x000000),
+    emissiveIntensity: glow,
+    transparent: opacity < 1,
+    opacity,
   })
 }
 

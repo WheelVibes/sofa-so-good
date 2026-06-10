@@ -63,8 +63,9 @@ build one in the browser:
 
 - **Compose from shapes** — add boxes, cylinders, spheres, cones, pyramids, capsules
   and torus rings, then set each one's size, position, colour and **surface finish**
-  (roughness + metalness sliders, so a part can read as matte wood, soft plastic or
-  polished metal). A live 3D preview updates as you go.
+  (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
+  wood, polished metal, a lit neon/lamp, or translucent glass). A live 3D preview
+  updates as you go.
 - **Start from an uploaded model** — pick one of your uploaded GLBs as the base and
   resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
 

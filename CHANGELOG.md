@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C120] GE3b — GLB designer parts can glow + go translucent
+Rounded out the per-part material editor with **glow** (emissive in the part's own colour — neon,
+lamp shades, screens) and **opacity** (translucent glass/acrylic) sliders. `partMaterial` sets
+emissive/emissiveIntensity + the `transparent` flag, shared by preview + export. Verified all four
+material sliders (roughness/metalness/glow/opacity) render with correct defaults; unit tests cover
+the opaque/glow/translucent paths. Docs updated.
+
 ## [C119] GE3 — per-part PBR finish (roughness + metalness) in the GLB designer
 Each composed primitive now carries optional `roughness`/`metalness` (defaulting to the old
 0.6/0.05 matte look), driven by two sliders in the part Edit panel — so a part can read as matte

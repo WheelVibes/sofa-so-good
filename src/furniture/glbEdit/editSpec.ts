@@ -44,6 +44,12 @@ export interface ShapePart {
   roughness?: number
   /** PBR metalness 0 (dielectric: wood/plastic/fabric) … 1 (metal). Absent → 0.05. */
   metalness?: number
+  /** Self-illumination strength (emissive in the part's own colour). 0/absent →
+   *  no glow; >0 makes the part read as lit (neon, a lamp shade, a screen). */
+  emissiveIntensity?: number
+  /** Surface opacity 0…1. <1 makes the part translucent (glass, acrylic).
+   *  Absent → 1 (opaque). */
+  opacity?: number
 }
 
 /** Fallback PBR finish for a part that hasn't set its own (keeps old specs +
