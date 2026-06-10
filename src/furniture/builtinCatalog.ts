@@ -916,6 +916,18 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
           { value: 'open', label: 'Open (no doors)' },
         ],
       },
+      {
+        kind: 'enum',
+        key: 'interior',
+        label: 'Interior (open)',
+        default: 'mixed',
+        options: [
+          { value: 'mixed', label: 'Rail + shelves' },
+          { value: 'hanging', label: 'All hanging' },
+          { value: 'shelves', label: 'All shelves' },
+          { value: 'drawers', label: 'Drawers + hanging' },
+        ],
+      },
       { kind: 'color', key: 'color', label: 'Colour', default: '#caa478' },
       {
         kind: 'enum',
