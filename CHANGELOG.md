@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C137] LP3 — lighting plan + schedule in the report
+The design report now has a **Lighting plan** section: every fixture plotted over the walls (coverage
+circles + glyphs via `lightingPlanSvg`, print inks) plus a **schedule** table (fixture · qty · height ·
+intensity in candela). Only when the design has lights. 1 report test (plan svg + schedule present);
+1173 tests green. Completes the second large drawing feature (LP1 core → LP2 renderer → LP3 report).
+Docs + ARCHITECTURE updated.
+
 ## [C136] LP2 — lighting-plan SVG renderer
 Pure, palette-injected `lightingPlanSvg(plan, lights, {palette})` (`src/ui/lighting2d/`): top-down
 drawing matching the floor plan — thin wall context, each fixture's coverage (falloff) circle, and a

@@ -36,6 +36,15 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('Wall elevations')
   })
 
+  it('includes a Lighting plan + schedule when the design has light fixtures', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    // The default move-in layout has ceiling lights / lamps.
+    expect(html).toContain('Lighting plan')
+    expect(html).toContain('lighting plan,') // svg aria-label
+    expect(html).toMatch(/×\d+/) // a fixture quantity in the schedule
+    expect(html).toContain('cd</td>') // intensity column (candela)
+  })
+
   it('escapes user-controlled strings (plan name + note) to prevent HTML injection', () => {
     const evil = '"><script>alert(1)</script>'
     const html = buildReportHtml(

@@ -16,10 +16,12 @@ import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
+import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
+import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
 import {
   designPalette,
   floorAreaByFinish,
@@ -37,6 +39,7 @@ const ELEV_PRINT: ElevationPalette = {
   item: '#d8c8b0',
   text: '#4b5563',
 }
+const LIGHTING_PRINT: LightingPalette = { wall: '#9ca3af', ink: '#374151', coverage: '#f59e0b' }
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds',
@@ -315,6 +318,20 @@ export function buildReportHtml(
         .join('')}</div></div>`
     : ''
 
+  // Lighting plan — fixtures (from the light-emitter registry) plotted over the
+  // walls + a schedule. Only when the design actually has lights.
+  const lighting = hasItems ? buildLightingPlan(items, catalog) : { lights: [], schedule: [] }
+  const lightingSection = lighting.lights.length
+    ? `<div class="elev-section"><h2>Lighting plan</h2>
+        <div class="plan-wrap">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>
+        <table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td class="num">Qty</td><td class="num">Height</td><td class="num">Intensity</td></tr>${lighting.schedule
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.label)}</td><td class="num">×${r.count}</td><td class="num">${esc(formatLength(r.height, units))}</td><td class="num">${r.intensity} cd</td></tr>`,
+          )
+          .join('')}</table></div>`
+    : ''
+
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -439,6 +456,7 @@ export function buildReportHtml(
   }
   ${clearanceSection}
   ${elevationsSection}
+  ${lightingSection}
   ${
     paletteChips
       ? `<div class="palette">
