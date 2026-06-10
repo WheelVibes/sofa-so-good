@@ -5,6 +5,7 @@ import { blockedDoorItems } from '../../../layout/clearance'
 import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
 import { closeAllAuxPanels } from '../../auxPanels'
+import { openBoq } from '../../openBoq'
 import { openDrawingSet } from '../../openDrawingSet'
 import { downloadPlanDxf } from '../../openDxf'
 import { openMoodboard } from '../../openMoodboard'
@@ -240,6 +241,14 @@ export function ToolsMenu() {
       )}
       {fReport && (
         <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+      )}
+      {fReport && (
+        <MenuItem
+          icon="Budget"
+          label="Quote (BOQ)"
+          sub="Bill of quantities — FF&E, finishes, carpentry"
+          onClick={() => openBoq()}
+        />
       )}
       {fReport && (
         <MenuItem
