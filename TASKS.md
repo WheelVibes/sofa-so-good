@@ -32,6 +32,8 @@ offset) — no new placement UI. Pure-core + 2D SVG + report, fully verifiable l
 - [x] LP4. In-app lighting view — unified "Drawings" panel (Elevations | Lighting) — shipped C138.
 - [ ] LP5. (optional) 3D coverage overlay on the floor; per-room lux estimate.
 
+### DRAWING SET (paginated plan set) — shipped C141 (cover + plan + elevations + lighting + FF&E sheets).
+
 ### Interior WALL ELEVATIONS (a pro deliverable competitors have; we only have a top-down plan)
 Why: Chief Architect / Cedreo / RoomSketcher / NKBA — vertical "side-on" drawings per wall showing
 cabinet/fixture/backsplash heights + openings; used for permits, installers, client sign-off.

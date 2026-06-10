@@ -96,3 +96,7 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   a schedule of type/quantity/height/intensity), an **FF&E schedule** (the
   item-level procurement table — room, item, source, SKU, size W×D×H, quantity,
   unit + line price), areas, and your design notes — a handoff-ready document.
+- **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
+  sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
+  the lighting plan, and the FF&E schedule. Print or save as PDF for builders and
+  permits — the multi-sheet counterpart to the one-page Report.

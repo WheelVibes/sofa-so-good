@@ -4,6 +4,7 @@ import { useCatalog } from '../../../furniture/catalog'
 import { blockedDoorItems } from '../../../layout/clearance'
 import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
+import { openDrawingSet } from '../../openDrawingSet'
 import { openDesignReport } from '../../openReport'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
@@ -193,6 +194,14 @@ export function ToolsMenu() {
       )}
       {fReport && (
         <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
+      )}
+      {fReport && (
+        <MenuItem
+          icon="FloorPlan"
+          label="Drawing set"
+          sub="Paginated plan + elevations + schedules (PDF)"
+          onClick={() => openDrawingSet()}
+        />
       )}
     </ToolbarMenu>
   )

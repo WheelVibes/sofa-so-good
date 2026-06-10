@@ -170,6 +170,9 @@ same change that reshapes a system.
   shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
 - **FF&E schedule** (`ffe/ffeSchedule.ts` pure → per-(room,def,variant) rows: source/SKU/real dims/
   qty/pricing, reusing `pointInRoom` + `itemPrice`). Rendered as the report's procurement table.
+- **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
+  (cover + plan + per-wall elevations + lighting + FF&E, title blocks, `@page` A4) reusing all the
+  pure renderers — the formal counterpart to the one-page `report.ts`.
 - **Lighting plan** (`lighting2d/lightingPlan.ts` pure → fixtures from the `LIGHT_EMITTERS` registry
   with world pos/height/intensity/coverage + a schedule; `ui/lighting2d/lightingPlanSvg.ts` draws
   walls + coverage circles + glyphs). Surfaced in the report (plan + schedule). Same pure-core →

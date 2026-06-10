@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C141] Drawing set — paginated multi-sheet "plan set" export
+Fourth research-grounded large feature: a formal construction **drawing set** (Tools → Drawing set),
+distinct from the one-page summary report. Paginated A4-landscape sheets with title blocks — cover +
+sheet index, floor plan (A-1), one wall elevation per sheet, lighting plan + schedule, and the FF&E
+schedule — each on its own page (`@page` + page-break) for clean print/PDF. Reuses every pure
+renderer (`reportPlanSvg`, `elevationSvg`, `lightingPlanSvg`, `buildFfeSchedule`) so it stays in
+lock-step. All user text HTML-escaped. 4 content tests; 1183 green. Opens in a print window (verified
+via content tests + renderer reuse, per the report convention).
+
 ## [C140] EL5 — per-item width dimensions on wall elevations
 Elevations now dimension each furniture piece's width in a row just below the floor (the cabinet/
 unit widths installers read off NKBA elevations), above the overall-width dimension. Narrow pieces
