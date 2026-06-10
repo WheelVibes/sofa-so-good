@@ -22,6 +22,19 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 ## ⭐⭐ MAJOR (user-prioritised 2026-06-10): LARGE verifiable features via research→plan→build
 Prioritise large, verifiable features over small/QOL. Research-grounded (REFERENCES.md + web).
 
+### DESIGN SCORE — shipped C147 (Coohom/Planner-5D-style live feedback)
+Pure `analysis/designScore.ts` → weighted 0–100 + A–F grade over clearance/furnishing/circulation/
+daylight/lighting, each with actionable fixes; `DesignScorePanel` (`.aux` dial + bars). Reuses every
+existing pure check + 2 new heuristics (furnishing coverage, per-room emitter coverage). 9 tests.
+- [ ] DS2 (optional): report-section integration; per-category drill-down click-to-select offenders.
+
+### EXHAUSTIVE FLOOR PLANS — shipped C148 (HDB + condominium + landed, 16 templates)
+`floorplan/templates.ts` now ships HDB 2/3/4/5-room + Exec/3Gen/Jumbo, condo 1-bed/1+study/2/3-bed/
+penthouse, terrace (`docs/research/{hdb,condo}-floor-plans.md`); generalised overlap/bounds/opening
+test over all templates.
+- [ ] FP-next: route `roomOf`/auto-arranger/finishes through the active plan so custom plans are
+  fully furnish-aware (carried from the floor-plan-editor follow-ups in TODO.md).
+
 ### LIGHTING PLAN (reflected-ceiling-style) — next large feature (research: Chief Architect/RoomSketcher RCP + lighting schedules)
 Derive from the existing `LIGHT_EMITTERS` registry (every placed light's height/intensity/distance/
 offset) — no new placement UI. Pure-core + 2D SVG + report, fully verifiable like elevations.
@@ -54,9 +67,11 @@ weakly under the headless **software-GL** harness — tone curve / vignette / gr
 - [x] PR1. Selectable tone-mapping Look (Filmic/AgX/Neutral) — C114. PR1b: Exposure slider — C123.
 - [x] PR2. Cinematic post stack (Maximum: full-res AO + film grain + chromatic aberration) — C117.
   (User verifies subtle grading in prod; DoF/TiltShift deferred to PR4-adjacent.)
-- [~] PR3. **Material realism pass**. PR3a (C118): tier-driven IBL probe resolution. PR3b (C127):
-  envMapIntensity boost on glossy finishes (stone/leather/velvet). PR3c TODO: clearcoat/sheen on
-  appropriate finishes, glass transmission for windows/glass-top tables, sharper normals.
+- [x] PR3. **Material realism pass**. PR3a (C118): tier-driven IBL probe resolution. PR3b (C127):
+  envMapIntensity boost on glossy finishes (stone/leather/velvet). PR3c (C149): sheen (velvet/satin/
+  leather) + clearcoat (gloss/stone) via `MeshPhysicalMaterial` + tier-gated glass transmission
+  (`materialRealism.ts` + `getGlassMaterial`/`GlassMaterial.tsx`) + sharper normals. Real-GPU visual
+  verify of transmission/clearcoat/sheen still deferred (software-GL harness can't show them).
 - [ ] PR4. **Soft-shadow upgrade** (PCSS-ish / VSM, contact-shadow refinement).
 - [ ] PR5. **Local progressive render** (one-click high-quality still via AccumulativeShadows +
   higher samples) — supersedes/ą merges R10.

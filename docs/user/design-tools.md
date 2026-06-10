@@ -45,6 +45,17 @@ issue with fix hints; clicking a card selects and frames the offending piece
 (both pieces, for an overlap). Stacked items (a mattress on its frame, decor on
 a surface), rugs, and wall‑mounted items are never flagged.
 
+## Design score
+
+**Design score** (Tools → *Design score*, or ⌘K) rates the whole design out of
+100 with a letter grade and a breakdown across five areas: **clearance & fit**
+(overlaps, blocked doors, pieces in walls), **furnishing balance** (whether each
+room is comfortably filled — neither sparse nor crowded), **circulation**
+(walkway pinch‑points), **daylight & airflow** (window glazing per room), and
+**lighting coverage** (rooms with a light fixture). Each area shows a bar plus
+plain‑language suggestions for what to improve, so the score doubles as a
+to‑do list for a better layout.
+
 ## Drawings — elevations & lighting plan
 
 **Drawings** (Tools menu) opens a panel with two professional 2D views, toggled

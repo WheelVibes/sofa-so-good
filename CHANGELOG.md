@@ -4,6 +4,39 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C149] PR3c — material realism: sheen + clearcoat + tier-gated glass transmission (parallel worktree subagent)
+New pure `src/materials/materialRealism.ts` (no three/GPU deps, 15 tests): `transmissionTiers(tier)`
+(the High/Maximum gate), `glassConfig(tier, opacity, tint)` (real refractive params vs cheap
+transparent fallback), `sheenLayer(kind)` (velvet/satin-fabric/leather), `clearcoatLayer(kind)`
+(gloss/ceramic/marble/stone). Wired into `furnitureMaterials.ts`: velvet/leather/fabric/ombre get a
+`MeshPhysicalMaterial` sheen lobe; lacquered paint + polished stone get a thin clearcoat; wood/fabric/
+leather/velvet normals sharpened. New `getGlassMaterial(tier,…)` factory + `GlassMaterial.tsx`
+component (reads `qualityTier` like `MirrorMaterial`) — **real transmission only on High/Maximum**, cheap
+transparency on Performance/Medium so the flat default never pays for it. Applied to Shower screens +
+BarCart glass shelves. Built by a subagent in an isolated worktree; integrated via a 3-way merge that
+preserved the newer PR3b (`GLOSSY_ENV_INTENSITY`) + concrete/rattan work. Real-GPU visual verification
+of transmission/clearcoat/sheen deferred (software-GL harness can't show them — see TASKS).
+
+## [C148] Exhaustive HDB + condominium floor-plan template library (parallel worktree subagent)
+Expanded `floorplan/templates.ts` from 4 HDB types to 16 starter plans: added **HDB Executive Apartment**
+(~138 m²), **HDB 3Gen** (~118 m²) and **HDB Jumbo** (~190 m²); plus a condominium/landed set —
+**Condo 1-Bed / 1+Study / 2-Bed / 3-Bed**, **Penthouse** (3.0 m ceiling) and a **Terrace house** ground
+floor. Balconies/car-porch modelled as `floor-terrazzo` rooms with a parapet (`topHeight`). New research
+doc `docs/research/condo-floor-plans.md`. Generalised the templates test to cover ALL templates (unique
+ids, no room overlaps, in-bounds, every opening references a real wall and fits within it) — 12 tests.
+Built by a subagent in an isolated worktree, integrated by 3-way merge (resolved the HDB-count assertion
+4→7). All auto-appear in the floor-plan editor's Template picker.
+
+## [C147] Design Score — aggregate layout-quality feedback panel
+New pure `src/analysis/designScore.ts` `buildDesignScore(items, defs, plan)` → a weighted 0–100 score +
+letter grade across five categories (clearance, furnishing balance, circulation, daylight, lighting),
+each with actionable issues. Reuses the existing pure checks (`findItemOverlaps`/`findWallClips`/
+`blockedDoorItems`/`findNarrowGaps`/`buildDaylightReport`) and adds two new heuristics — furnishing
+coverage (footprint area vs room area, ideal ~22–45%) and per-room lighting coverage (emitters via
+`LIGHT_EMITTERS`). Surfaced as a new `DesignScorePanel` (`.aux` slot: grade dial + per-category bars +
+fix list), wired into the Tools menu + Command Palette + `closeAux`. 9 module tests. A Coohom/Planner-5D-
+style live design-feedback feature, fully verifiable without a GPU.
+
 ## [C146] HDB flat floor-plan templates (researched via a worktree subagent)
 Dispatched a dedicated research subagent (own worktree) to gather representative Singapore HDB
 flat-type floor plans → `docs/research/hdb-floor-plans.md` (2-room Flexi, 3/4/5-room, Exec/3Gen:

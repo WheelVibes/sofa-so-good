@@ -40,8 +40,9 @@ same change that reshapes a system.
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active.
 - `src/floorplan/` — editable plan model: `types.ts` (FloorPlan + area/bounds/polygon
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
-  `isDefaultPlan`), `templates.ts` (starter `PLAN_TEMPLATES` incl. representative HDB 2/3/4/5-room
-  flats — see `docs/research/hdb-floor-plans.md`), `roomDetect.ts`. 2D editor = `ui/floorplan/`.
+  `isDefaultPlan`), `templates.ts` (16 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo,
+  condo 1-bed/1+study/2/3-bed/penthouse, terrace — `docs/research/{hdb,condo}-floor-plans.md`),
+  `roomDetect.ts`. 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (parametric defs),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
@@ -134,7 +135,12 @@ same change that reshapes a system.
   emits Basis-Universal (needs `toktx`, else WebP).
 - **Procedural materials**: `procedural/generators.ts` paints one tiling tile per finish
   from seeded noise; world-space UVs tile at fixed physical scale. `furnitureMaterials.ts`
-  = tintable wood/stone/fabric + `getSolidMaterial`.
+  = tintable wood/stone/fabric/concrete/rattan + `getSolidMaterial`.
+- **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
+  + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
+  `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
+  transmission (High/Maximum) vs cheap transparency (Performance/Medium). `GLOSSY_ENV_INTENSITY`
+  boosts IBL on glossy finishes (free on Performance — no IBL there).
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
   `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`materials/finishDrop.ts`):
@@ -178,6 +184,10 @@ same change that reshapes a system.
   with world pos/height/intensity/coverage + a schedule; `ui/lighting2d/lightingPlanSvg.ts` draws
   walls + coverage circles + glyphs). Surfaced in the report (plan + schedule). Same pure-core →
   palette-injected-SVG pattern as elevations.
+- **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
+  clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the
+  overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
+  emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design and `findWallClips(items,defs,walls)` flags pieces

@@ -212,7 +212,9 @@ export the result — all in the browser.
 - **Production-grade panels** — **Swap with similar** (replace a piece in place
   with same-category alternatives, each tagged with a footprint-fit badge),
   **Clearance & fit checks** (HDB door-swing validation with a summary + fix
-  suggestions), **Versions** (save / restore named layout snapshots with
+  suggestions), a **Design score** (an aggregate 0–100 grade across clearance,
+  furnishing balance, circulation, daylight and lighting, with actionable
+  fixes), **Versions** (save / restore named layout snapshots with
   thumbnails), a **Shopping list + Saved collections** (heart any catalog card),
   and **Share & export** (shareable link + a real PNG snapshot). The **2D
   floor-plan editor** and **upload dialogs** are fully theme-aware in light and
