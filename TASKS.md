@@ -268,6 +268,24 @@ weakly under the headless **software-GL** harness — tone curve / vignette / gr
 - [ ] PR4. **Soft-shadow upgrade** (PCSS-ish / VSM, contact-shadow refinement).
 - [ ] PR5. **Local progressive render** (one-click high-quality still via AccumulativeShadows +
   higher samples) — supersedes/ą merges R10.
+- [ ] PR6. **Furniture-surface PBR overhaul** (user-flagged 2026-06-10: parametric surfaces look fake).
+  Planned (agent design). Root causes: (1) no env map on Performance → glossy/metal/stone collapse to flat;
+  (2) `painted` finish is map-less (most common cabinet/bed finish → dead-flat); (3) furniture wood/marble
+  albedo too uniform vs the richer floor `woodFields`; (4) furniture tiles 256² + many finishes carry no
+  albedo map; (5) no AO/edge-wear; (6) ad-hoc UV repeat per primitive; (7) fabric weave normal too regular.
+  Plan = route furniture finishes through the richer `procedural/generators.ts` engine (add fabric/leather/
+  velvet/brushed-metal `*Fields`), make material helpers **tier-aware** (new `furnitureFamily.ts` `familyPbr`
+  + thread `RenderTier` into `getSurfaceMaterial`/`getUpholsteryMaterial`), gate maps Medium+ (Performance =
+  improved flat albedo only, stays cheap), default common finishes (oak/walnut/marble) to existing CC0
+  `mat:<id>` via a new `furnitureDefaultMaterials.ts`, give matte `painted` a faint shared micro-normal.
+  Behind a new `pbrSurfaces` flag (`tier: pro` for the heavy path; the improved-albedo base is prod-safe).
+  One commit per step: (1) plumb tier → material helpers; (2) `furnitureFamily.ts`+tests; (3) tier-gate maps
+  + `pbrSurfaces` flag; (4) richer wood/marble albedo @256²; (5) new fabric/leather/velvet/metal `*Fields`
+  + `generateProceduralAt(size)`; (6) painted micro-normal; (7) default-DLC mapping; (8) optional Performance
+  env hint; (9) docs (`src/materials/CLAUDE.md`, ARCHITECTURE, developer docs, CHANGELOG). Perf: 256² cap,
+  singleton neutral maps + per-(kind,tint) cache reuse, zero new textures/layers on Performance. Verify caveat:
+  software-GL harness can't judge reflections/clearcoat/anisotropy — validate albedo/normal presence + that
+  Performance stays flat; reflection quality needs a real-GPU pass.
 
 ## ⭐ MAJOR: GLB editor pro tooling (user-requested 2026-06-10) — phased, each its own commit
 Today (`GlbDesignerDialog` + `furniture/glbEdit/`): compose-from-shapes, scale-a-source-GLB,

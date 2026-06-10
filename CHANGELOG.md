@@ -4,6 +4,18 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C208] Simple / Pro feature tiering
+Every `FEATURE_FLAGS` entry now declares `tier: 'simple' | 'pro'`, and `resolveFlags` forces **pro-tier
+features off in Simple mode** (the app default) — so the existing `useFeature`/`isFeatureEnabled`/`COMMAND_FLAGS`
+gates hide them automatically with no new gating code. Simple mode keeps the minimal core loop (furnish via
+Smart Start, finishes incl. Designer picks, backdrops/lighting/walkthrough/saved-views, budget, share/export);
+everything analytical/professional/advanced (measure, checks, drawings, scores, daylight, accessibility, AI,
+versions/history, floor-plan editor, packs, model upload, moodboard, palette, DXF/BOQ/electrical, mount-heights,
+copy-appearance, user-sets, ceiling design, presentation, …) is Pro. `setUiMode` + `loadEditorPrefs` re-resolve
+the flag map on mode change; the Simple↔Pro toggle is itself ungated. CLAUDE.md gained the tiering rule + a
+"test both modes" rule; `featureFlags`/`featureFlagsSlice` tests cover Simple **and** Pro. Verified: Simple
+hides the Tools menu + advanced actions, Pro restores them.
+
 ## [C207] Ceiling treatments in the report
 The design report's room schedule gains a "Ceiling style" column (Flat / Tray / Coffered 3×2 / Dropped, with
 a "+ cove" suffix) whenever the `ceilingDesign` feature is on and any room carries a non-flat ceiling — so the
