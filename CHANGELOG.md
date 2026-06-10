@@ -4,6 +4,18 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C172–C176] Commercial-readiness program — reliability hardening + commerce/AI features
+- **C172** (B4): `buildDaylightReport` / `buildAccessibilityReport` / `planCollisionWalls` now guard
+  `Array.isArray` on plan walls/openings/rooms internally — every caller is safe on a partial plan.
+- **C173** (B5): the report's `buildDesignScore` reuses the door-aware collision walls (was recomputing
+  with doors closed → could disagree with the in-app panel).
+- **C174** (B6): new pure `rectUnionOutline(rects)` — `roomPolygon` L-shapes are now correct for an
+  extension on ANY side (grid overlay → boundary stitch), not just the south edge. Tests for north-L + overlap.
+- **C175** (F19): **Moodboard / style-board** export (`ui/moodboard.ts` + `openMoodboard.ts`) — palette +
+  finishes + furniture tiles + hero, escaped + colour-validated; Tools-menu action.
+- **C176** (F28): **Palette-from-photo** (`analysis/imagePalette.ts` median-cut + `ui/paletteFromPhoto.ts`)
+  — pick a photo → extract dominant colours → nearest catalog finishes → moodboard; ⌘K command.
+
 ## [C164–C171] Commercial-readiness program — audit fixes + parallel feature modules
 Driven by the 4-front audit (see TASKS.md). Each its own commit:
 - **C164** (B1, HIGH data-loss): `PlanRoomZ` now serializes `polygon` — free-form/Auto-room rooms no

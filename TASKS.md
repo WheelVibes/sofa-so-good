@@ -62,7 +62,7 @@ standing themed backlog below + the existing sections further down hold the open
 - [ ] Q-MULTILEVEL. Multi-storey / multi-level plans (maisonette upper floor, landed 2nd storey, condo loft) — architectural.
 - [ ] Q-CEILING. Ceiling design (cove/false ceiling, pendant zones) — RCP-adjacent.
 - [ ] Q-COPYSTYLE. Copy-style / paste-appearance between items; bulk recolour by category.
-- [ ] Q-MOODBOARD. Moodboard / style board export from the design (decor + palette).
+- [x] Q-MOODBOARD (C175). Moodboard / style board export from the design (decor + palette).
 - [ ] Q-3DEXPORT. Whole-scene glTF/GLB + USDZ (AR) export (deferred — needs worker-streamed export; verify on real GPU).
 
 #### Commerce / collaboration
@@ -80,12 +80,12 @@ standing themed backlog below + the existing sections further down hold the open
   `closeAllAuxPanels(state)` and use it in ToolsMenu, MobileToolbar, CommandPalette. `ui/CommandPalette.tsx:118`, `ui/toolbar/MobileToolbar.tsx:197`.
 - [ ] B3 (HIGH, mobile parity). MobileToolbar Tools section is missing Daylight, Design score,
   Accessibility, Drawings — desktop-only. Add them (same feature gates) via the shared closeAux. `ui/toolbar/MobileToolbar.tsx:661`.
-- [ ] B4 (MED). Guard `Array.isArray` for plan members inside the pure cores so every caller is safe +
+- [x] B4 (C172). Guard `Array.isArray` for plan members inside the pure cores so every caller is safe +
   drop duplicated outer guards: `daylight.ts` (walls/openings/rooms), `accessibility.ts` (rooms),
   `planGeometry.ts` (walls/openings).
-- [ ] B5 (MED). Report's `buildDesignScore` call omits `{walls}` → recomputes with doors-closed, can
+- [x] B5 (C173). Report's `buildDesignScore` call omits `{walls}` → recomputes with doors-closed, can
   disagree with the panel. Pass `{ walls: clipWalls }`. `ui/report.ts:326`.
-- [ ] B6 (MED). `roomPolygon` L-shape outline only correct for a south-edge extension; wrong/
+- [x] B6 (C174). `roomPolygon` L-shape outline only correct for a south-edge extension; wrong/
   self-intersecting for other offsets → wrong floor render + containment. `floorplan/types.ts:111`.
 - [ ] B7 (LOW). After undo/redo/jump, prune `selectedItemId`/`selectedItemIds` to ids still present. `historySlice.ts`.
 - [ ] B8 (LOW). `.aux` panels use inline `width:360` (mobile override via `!important`) — move to a class.
@@ -156,7 +156,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F18 [PROD] Standard mount-height presets (art 1.45 m, pendant over table). V:S E:S.
 
 **Collaboration/commerce/presentation:**
-- [ ] F19 [PROD] Moodboard / style-board builder (images+product tiles+palette, export). V:M E:M.
+- [x] F19 (C175) [PROD] Moodboard / style-board builder (images+product tiles+palette, export). V:M E:M.
 - [ ] F20 [PROD] Shoppable design export (clickable buy-list, totals by retailer; brand links dev-gated). V:M E:S-M.
 - [ ] F21 [PROD] WebXR VR walkthrough (`@react-three/xr` over walk mode). V:M E:M.
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer). V:L E:M.
@@ -167,7 +167,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F25 [PROD] Text-to-room brief → Smart-Start preset+budget+palette → `furnishPlanItems`. V:L E:M.
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud). V:L E:L.
 - [ ] F27 [PROD] "Redesign this render" style-variant explorer (extend Share i2i). V:M E:S.
-- [ ] F28 [PROD] AI palette/finish recommender from an inspiration image (client-side color extract). V:M E:S-M.
+- [x] F28 (C176) [PROD] AI palette/finish recommender from an inspiration image (client-side color extract). V:M E:S-M.
 
 **2D/CAD outputs:**
 - [ ] F29 [PROD] Electrical/power+data layout plan + schedule (lighting-plan pattern). V:M E:M.
