@@ -63,6 +63,28 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/turning circle/)
   })
 
+  it('includes a Hacking & new walls section when the plan diverged from its baseline', () => {
+    // Baseline = the default flat; current = default minus one wall (a "hack").
+    const baseline = buildDefaultPlan()
+    const current = { ...plan, walls: plan.walls.slice(0, -1) }
+    const html = buildReportHtml(
+      current,
+      items,
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      undefined,
+      [],
+      undefined,
+      baseline,
+    )
+    expect(html).toContain('Hacking &amp; new walls')
+    expect(html).toMatch(/wall(s)? hacked/)
+    // No baseline → no section.
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toContain('Hacking &amp; new walls')
+  })
+
   it('includes an auto-dimensioned plan drawing', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Dimensioned plan')

@@ -16,6 +16,8 @@ import { buildCollisionWalls } from '../collision/wallsFromState'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
+import { diffWalls } from '../floorplan/demolitionPlan'
+import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
@@ -95,6 +97,7 @@ export function buildReportHtml(
   note?: string,
   annotations: MeasurementAnnotation[] = [],
   budgetTarget?: number | null,
+  baselinePlan?: FloorPlan,
 ): string {
   // Finishes-by-room section: floor + wall material names per non-external room.
   // Material ids resolve to friendly names via the builtin catalog (DLC/custom
@@ -441,6 +444,19 @@ export function buildReportHtml(
     ? `<div class="elev-section"><h2>Dimensioned plan</h2><div class="plan-wrap">${dimSvg}</div></div>`
     : ''
 
+  // Demolition / hacking plan — walls added or removed vs the as-loaded baseline
+  // (template / saved plan). Only shown when the user actually changed walls.
+  const wallDiff = baselinePlan ? diffWalls(baselinePlan, plan) : null
+  const hackingSection =
+    wallDiff && (wallDiff.demolished.length > 0 || wallDiff.added.length > 0)
+      ? `<div class="elev-section"><h2>Hacking &amp; new walls</h2>
+      <div class="warn">${wallDiff.demolished.length} wall${wallDiff.demolished.length === 1 ? '' : 's'} hacked (${wallDiff.hackedLengthM.toFixed(1)} m) · ${wallDiff.added.length} new (${wallDiff.addedLengthM.toFixed(1)} m) vs the original layout — hacking needs HDB approval.</div>
+      <div class="plan-wrap">${demolitionSvg(wallDiff, {
+        palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
+        widthPx: 700,
+      })}</div></div>`
+      : ''
+
   // Renovation timeline — an estimated phase schedule (hacking → … → handover)
   // scaled by floor area + room count, the way SG IDs present a project plan.
   const timeline = buildRenoTimeline(plan)
@@ -677,6 +693,7 @@ export function buildReportHtml(
   ${designScoreSection}
   ${accessibilitySection}
   ${complianceSection}
+  ${hackingSection}
   ${dimensionedPlanSection}
   ${elevationsSection}
   ${lightingSection}
