@@ -38,9 +38,11 @@ penthouse, terrace (`docs/research/{hdb,condo}-floor-plans.md`); generalised ove
 test over all templates.
 - [x] FP-furnish: auto-arranger (`arrangeAllRoomsForPlan`) + **Smart Start** now work on custom plans
   — C153 `furnishPlanItems` seeds a per-room kit + arranges it, so every template furnishes in one click.
-- [ ] FP-next: route per-room **finishes editing** through the active plan (the `finishes` slice is still
-  keyed on the fixed `RoomId` table; custom-plan floors live on `PlanRoom.floor`). Templates ship their
-  own floors, so this is now polish, not a blocker.
+- [x] FP-palette: Smart Start now applies the preset floor/wall palette to a custom plan too (C157).
+- [ ] FP-next: route **interactive** per-room finish editing (the 3D FinishPicker / drag-apply) through
+  the active plan — the `finishes` slice is still `RoomId`-keyed, so in-editor finish changes don't
+  render for custom-plan rooms (whose floors live on `PlanRoom.floor`, editable in the 2D inspector).
+  Smart Start + the 2D inspector cover the common cases, so this is polish.
 
 ### LIGHTING PLAN (reflected-ceiling-style) — next large feature (research: Chief Architect/RoomSketcher RCP + lighting schedules)
 Derive from the existing `LIGHT_EMITTERS` registry (every placed light's height/intensity/distance/

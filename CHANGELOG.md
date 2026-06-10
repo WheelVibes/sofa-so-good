@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C157] Smart Start applies the preset floor/wall palette to custom plans too
+Completes C153: on a custom plan/template, `applyLayoutPreset` now also restyles the shell — dry living
+spaces (living/bedroom rooms, by inferred kind) take the preset's dry floor, the plan's wall colour
+follows the preset wall swatch, and wet/utility rooms keep their hard-wearing floors. Furniture + plan
+finishes apply in one `set` (the history snapshot includes `floorPlan` → a single undo step). Test
+covers custom-plan furnish + palette + one-undo revert.
+
 ## [C156] Richer, instanced Park & Hills backdrops (photorealism + perf)
 Reworked the non-city backdrops (built by a parallel worktree subagent, integrated here). Extracted the
 shared `Ground` + a reusable `InstancedBatch` (Matrix4-composed instances) into their own files.
