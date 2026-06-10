@@ -33,6 +33,7 @@ import { ContextMenu } from './ui/ContextMenu'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
+import { DaylightPanel } from './ui/DaylightPanel'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
 import { ElevationPanel } from './ui/ElevationPanel'
@@ -773,6 +774,7 @@ export default function App() {
         <SwapModal />
         <ShareModal />
         <ClearancePanel />
+        <DaylightPanel />
         <ElevationPanel />
         <VersionsPanel />
         <HistoryPanel />

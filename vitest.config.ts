@@ -11,6 +11,9 @@ export default defineConfig({
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
+    // Never pick up test files inside transient Claude agent worktrees (full
+    // repo copies under .claude/worktrees/) or other vendored dirs.
+    exclude: ['**/node_modules/**', '**/dist/**', '.claude/**'],
     env: {
       TZ: 'Asia/Singapore',
     },

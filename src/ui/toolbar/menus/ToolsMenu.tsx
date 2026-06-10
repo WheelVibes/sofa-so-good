@@ -14,6 +14,7 @@ export function ToolsMenu() {
   const budgetOpen = useStore((s) => s.budgetOpen)
   const clearancePanelOpen = useStore((s) => s.clearancePanelOpen)
   const elevationsOpen = useStore((s) => s.elevationsOpen)
+  const daylightOpen = useStore((s) => s.daylightOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
   const historyOpen = useStore((s) => s.historyOpen)
@@ -28,6 +29,7 @@ export function ToolsMenu() {
     if (s.budgetOpen) s.toggleBudget()
     s.setClearancePanelOpen(false)
     s.setElevationsOpen(false)
+    s.setDaylightOpen(false)
     s.setVersionsOpen(false)
     s.setHistoryOpen(false)
   }
@@ -47,6 +49,11 @@ export function ToolsMenu() {
     const wasOpen = useStore.getState().elevationsOpen
     closeAux()
     useStore.getState().setElevationsOpen(!wasOpen)
+  }
+  const toggleDaylight = () => {
+    const wasOpen = useStore.getState().daylightOpen
+    closeAux()
+    useStore.getState().setDaylightOpen(!wasOpen)
   }
   const openVersions = () => {
     const wasOpen = useStore.getState().versionsOpen
@@ -80,6 +87,7 @@ export function ToolsMenu() {
     budgetOpen ||
     clearancePanelOpen ||
     elevationsOpen ||
+    daylightOpen ||
     touring ||
     recording ||
     sunStudy ||
@@ -138,6 +146,13 @@ export function ToolsMenu() {
         sub="Wall elevations + lighting plan"
         active={elevationsOpen}
         onClick={toggleElevations}
+      />
+      <MenuItem
+        icon="SunStudy"
+        label="Daylight"
+        sub="Window glazing & ventilation per room"
+        active={daylightOpen}
+        onClick={toggleDaylight}
       />
       {fMeasure && (
         <MenuItem

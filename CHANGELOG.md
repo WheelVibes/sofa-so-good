@@ -4,6 +4,25 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C145] Circulation / walkway-width check (built in parallel via a worktree subagent)
+New pure `src/layout/walkway.ts` `findNarrowGaps(items, defs, plan)` → pinch points where the clear
+gap between footprints (item↔item + item↔wall, reusing `itemFootprint`+`obbCorners`) falls in the
+band (0.4 m, 0.9 m): **tight** < 0.6 m, **sub-ideal** < 0.9 m. Excludes overlaps (separate check) +
+intentionally-close pairs (≤ sofaToCoffee). Surfaced as a "Walkways" category in the Clearance panel
+(+ the summary now wraps to fit 5 stats) and folded into the report's Clearance & fit section. Built
+by a subagent in an isolated git worktree; I took its tested pure module verbatim and re-applied the
+UI/report wiring onto the current (newer) files. 20 module tests + a report test.
+
+## [C144] Daylight & ventilation check (built in parallel via a worktree subagent)
+New pure `src/analysis/daylight.ts` `buildDaylightReport(plan)` → per interior room: window glazing
+area vs floor area (daylight ≥ 10%) + openable area (ventilation ≥ 5%, openable ≈ 50% of glazing),
+each PASS/FAIL — an HDB/BCA-style code check. Windows attributed to rooms via the wall normal +
+`pointInRoom`; external/ledge rooms skipped. Surfaced as a new **Daylight** `.aux` panel (Tools →
+Daylight) with per-room cards. Built by a subagent in an isolated worktree; new files taken verbatim,
+wiring (featuresSlice/App/ToolsMenu) re-applied onto current files. 14 unit tests. Verified the panel
+renders (4/10 daylight·vent pass on the default flat; windowless Corridor/Bath correctly FAIL).
+Also: excluded `.claude/**` agent worktrees from the vitest glob (they were doubling the test count).
+
 ## [C143] Lighting plan: room name labels
 The lighting plan now labels each room at its centroid (`roomLabelPoint`), so the reflected-ceiling
 plan reads room-by-room instead of as an unlabelled grid of fixtures. Internal to `lightingPlanSvg`;
