@@ -7,6 +7,70 @@ Licensed/non-redistributable additions are dev-gated; unlicensed ship in prod to
 Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 (not here — this file is the open backlog only).
 
+---
+
+## ⭐⭐⭐ COMMERCIAL-READINESS PROGRAM (2026-06-10, ongoing — primary directive)
+
+**Mandate (from the user):** systematically analyze ALL aspects of the codebase and continuously
+improve it — performance/optimization, scalability, reliability, realism, bug fixes, security, clearing
+`TODO.md`, and new functionality/aesthetic/QOL features informed by researching other interior-design
+apps — until the app **surpasses every interior-design app on the market and is commercial-ready**.
+Autonomy granted for large features incl. architectural revamps. Loop continuously; when out of ideas,
+do more research. **Do not stop until the user says so.**
+
+**Hard rules for every item:** one focused commit per item; log it in `CHANGELOG.md`; keep code modular
++ flexible + extensible (no monolithic files); handle edge cases; no functional bugs or visual artifacts;
+viewport-responsive with desktop **and** mobile/touch parity; licensed/non-redistributable additions are
+**dev-gated**, CC0/unlicensed ship in prod too; run `npm test` + `tsc` + `biome` before each commit;
+visually verify any app (non-docs/test) change via `scripts/shot.mjs` and review the pixels.
+
+**How to resume after a context clear:** read this section + `CHANGELOG.md` (newest first) to see what
+shipped, then pick the next unchecked item below (highest priority first). Working branch:
+`claude/codebase-analysis-optimization-QKCK6`. Use parallel read-only subagents for audits/research and
+worktree subagents for independent build slices (note: worktree agents branch from an older base — prefer
+having them produce self-contained new files you integrate, or 3-way merge carefully).
+
+### Shipped in this program so far (see CHANGELOG for detail)
+C147 Design Score panel · C148 exhaustive HDB+condo templates (→18 w/ C161) · C149 PR3c material realism
+(sheen/clearcoat/tier-gated glass) · C150 instancing (4 primitives) · C151 instanced City backdrop ·
+C152 cabinet glass · C153 Smart-Start furnish ANY plan · C154 Design Score in report · C155 score
+click-to-select offenders · C156 instanced Park/Hills · C157 Smart-Start palette on custom plans · C158
+richer furnish kits (study/dining/powder/balcony) · C159 accessibility check + report · C160 in-app
+Accessibility panel · C161 Condo Studio + 4-Bedroom templates · C162 renovation cost estimate · C163
+Studio infinity-cove backdrop.
+
+### Backlog — being deepened by a 4-front audit (perf, reliability/bugs, security, competitor research)
+Audit findings get appended here as discrete `[ ]` items with `file:line` + fix. Until they land, the
+standing themed backlog below + the existing sections further down hold the open work. **Prioritization:**
+(1) correctness/security bugs → (2) reliability/edge-cases + mobile parity → (3) performance/memory →
+(4) realism + high-value features → (5) QOL/aesthetic polish.
+
+#### Realism & rendering (photorealism — surpass-the-market)
+- [ ] R-HDRI. Real HDRI environment lighting option (CC0 Poly Haven .hdr) for High/Maximum — image-based
+  lighting + reflections beyond the procedural probe; dev-gate only if the asset isn't CC0 (Poly Haven is CC0 → prod-ok).
+- [ ] R-PANO. 360° panorama export (equirectangular render) for VR/▢ sharing — a pro presentation deliverable.
+- [ ] R-SSAO/PR4. Soft-shadow (PCSS/VSM) + contact-shadow refinement + grounding AO on all tiers (needs real-GPU verify).
+- [ ] R-CURTAIN. Window glass tint colouring the sun shaft + curtains/blinds affecting cast light (TODO.md L1/N6).
+- [ ] R-DAYNIGHT. One-click day/golden-hour/night lighting presets (quick mood switch competitors have).
+
+#### Content & catalog (variety — surpass-the-market)
+- [ ] C-MAT. Curated "designer materials" shortlist (oak/walnut/teak/marble/brass…) as one-tap finishes (TODO follow-up).
+- [ ] C-PLANTS/DECOR. More CC0 decor/plants/art variety; ensure category coverage is exhaustive.
+- [ ] C-WARDROBE. Wardrobe/closet + vanity configurators (parametric, like the cabinet engine) — kitchen done, extend.
+
+#### Productivity / QOL (match + surpass)
+- [ ] Q-MULTILEVEL. Multi-storey / multi-level plans (maisonette upper floor, landed 2nd storey, condo loft) — architectural.
+- [ ] Q-CEILING. Ceiling design (cove/false ceiling, pendant zones) — RCP-adjacent.
+- [ ] Q-COPYSTYLE. Copy-style / paste-appearance between items; bulk recolour by category.
+- [ ] Q-MOODBOARD. Moodboard / style board export from the design (decor + palette).
+- [ ] Q-3DEXPORT. Whole-scene glTF/GLB + USDZ (AR) export (deferred — needs worker-streamed export; verify on real GPU).
+
+#### Commerce / collaboration
+- [ ] X-SHOP. Shoppable list polish: per-retailer grouping, live SG prices beyond IKEA (Courts/HipVan/Castlery).
+- [ ] X-PRESENT. Client presentation mode / shareable interactive 3D link (planShare exists — extend to full design).
+
+(Competitor-research agent will expand/replace these with cited, prioritized items.)
+
 ## Performance / scalability
 - [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders (needs profiling on real hardware to justify).
 - [~] P3. More **instancing** for repeat-geometry primitives. Done: bookshelf + crib (earlier) and
