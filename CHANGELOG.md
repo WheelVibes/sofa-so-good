@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C129] EL1 — interior wall elevations: pure projection core
+First step of a large, research-grounded feature (wall elevations are a standard pro deliverable —
+Chief Architect / Cedreo / NKBA — that we lacked; we only had a top-down plan). New pure module
+`src/elevation/projectElevation.ts`: per plan wall → a `WallElevation` (length × height, door/window
+openings placed by offset/width/sill/head, and the furniture against the wall projected onto the wall
+axis with its height, near-wall-filtered + sorted back-to-front). Plan-wall based so default + custom
+plans share one path; reuses the collision OBB helpers. 9 unit tests (extent, openings, projection,
+near/off-span/clamp, ordering, missing-def). No GPU — fully verifiable. EL2 adds the SVG + panel.
+
 ## [C128] Fix GLB designer layout on mobile (responsiveness)
 The designer's side-by-side preview+controls `flex` row broke on phones — the preview collapsed to a
 ~120px sliver and the 280px controls column overflowed off-screen (shape buttons + dropdowns clipped).

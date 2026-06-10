@@ -28,9 +28,7 @@ Why: Chief Architect / Cedreo / RoomSketcher / NKBA — vertical "side-on" drawi
 cabinet/fixture/backsplash heights + openings; used for permits, installers, client sign-off.
 **Fully verifiable here** (pure 2D geometry → SVG; unit-testable + screenshottable; no GPU).
 Plan-wall-based so default + custom plans work uniformly. Phases (each its own commit):
-- [ ] EL1. **Pure `src/elevation/projectElevation.ts`** — per plan wall → `WallElevation` {length, height,
-  openings (x0,x1,sill,head from offset/width/sill/head), items (footprint projected onto the wall
-  axis → x0,x1 + height + perp-depth, near-wall filtered)}. Reuse `itemFootprint`+`obbCorners`. Unit-tested.
+- [x] EL1. Pure `src/elevation/projectElevation.ts` + 9 tests — shipped C129. ← EL2 NEXT
 - [ ] EL2. **`ElevationSvg` renderer + Elevations panel** (Tools): pick a wall/room, draw wall rect +
   openings + furniture silhouettes (token colours, theme-aware). Screenshot-verified.
 - [ ] EL3. **Dimensions** — wall width/height, opening sill/head, item widths. Screenshot-verified.
