@@ -20,6 +20,23 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 - [ ] L1/RE2/N6. **Lighting realism** — window-glass tint colouring the sun shaft + inter-room light bleed through open doors. Complex multi-file scene change; conflicts with the deliberate no-shadow fixture-light perf design, so needs a perf-aware approach.
 - [ ] R10. **Faster built-in PBR render path** — one-click high-quality still (local accumulation/denoise to match Coohom's "render in seconds"); investigate progressive path-trace via the existing AccumulativeShadows + a higher-sample pass.
 
+## ⭐⭐ MAJOR (user-prioritised 2026-06-10): LARGE verifiable features via research→plan→build
+Prioritise large, verifiable features over small/QOL. Research-grounded (REFERENCES.md + web).
+
+### Interior WALL ELEVATIONS (a pro deliverable competitors have; we only have a top-down plan)
+Why: Chief Architect / Cedreo / RoomSketcher / NKBA — vertical "side-on" drawings per wall showing
+cabinet/fixture/backsplash heights + openings; used for permits, installers, client sign-off.
+**Fully verifiable here** (pure 2D geometry → SVG; unit-testable + screenshottable; no GPU).
+Plan-wall-based so default + custom plans work uniformly. Phases (each its own commit):
+- [ ] EL1. **Pure `src/elevation/projectElevation.ts`** — per plan wall → `WallElevation` {length, height,
+  openings (x0,x1,sill,head from offset/width/sill/head), items (footprint projected onto the wall
+  axis → x0,x1 + height + perp-depth, near-wall filtered)}. Reuse `itemFootprint`+`obbCorners`. Unit-tested.
+- [ ] EL2. **`ElevationSvg` renderer + Elevations panel** (Tools): pick a wall/room, draw wall rect +
+  openings + furniture silhouettes (token colours, theme-aware). Screenshot-verified.
+- [ ] EL3. **Dimensions** — wall width/height, opening sill/head, item widths. Screenshot-verified.
+- [ ] EL4. **Report integration** — an Elevations section in the printable report. HTML-content tested.
+- [ ] EL5. Mobile responsiveness + section/depth detail polish.
+
 ## ⭐ MAJOR: Ultra photo-realism (user-requested 2026-06-10) — phased, each its own commit
 Goal: showroom-grade fidelity. Stack today: ACESFilmic tone-map (Scene.tsx gl), per-frame
 exposure/warmth (`look.ts grade`), IBL probe (`SceneEnvironment`), PCFSoft sun shadows, post stack
