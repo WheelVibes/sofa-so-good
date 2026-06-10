@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C161] Two more templates — Condo Studio (shoebox) + Condo 4-Bedroom
+Library now 18 plans, filling the smallest + largest condo gaps: **Condo Studio** (~37 m²: open
+living/sleeping + kitchenette + bath + balcony) and **Condo 4-Bedroom** (~140 m²: 4 beds + master
+ensuite, common/shared baths, open living/dining, kitchen + yard, wide balcony). Hand-authored to pass
+the strict templates test (no overlaps, in-bounds, openings fit their walls) and furnish cleanly via
+Smart Start — the 4-bed verified end-to-end (render + 53-item furnish) via the screenshot harness.
+
 ## [C160] In-app Accessibility panel (Tools + ⌘K)
 Surfaced the C159 check live: a new `AccessibilityPanel` (`.aux` slot) renders the Doorways +
 Turning-space summary and per-door/per-room pass/fail rows with fix hints, mirroring the Daylight panel.

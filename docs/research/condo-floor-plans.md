@@ -27,10 +27,12 @@ footprint without overlap — a faithful *typology*, not a specific unit.
 
 | Type            | Strata (typical) | Modelled footprint W×D | Beds | Baths | Notes |
 |-----------------|------------------|------------------------|------|-------|-------|
+| Studio (shoebox)| ~35–40 m²        | 6.0 × 6.2              | 0    | 1     | one open living/sleeping space, kitchenette niche, small balcony |
 | 1-Bedroom       | ~47–52 m²        | 7.6 × 6.6              | 1    | 1     | open kitchen, balcony off living |
 | 1+Study         | ~57–62 m²        | 8.4 × 7.2              | 1+study | 1   | enclosed study nook, balcony |
 | 2-Bedroom       | ~70–78 m²        | 9.2 × 8.4              | 2    | 2     | master ensuite, common bath, balcony |
 | 3-Bedroom       | ~95–105 m²       | 11.0 × 9.6             | 3    | 2     | master ensuite, balcony, kitchen + yard/WC |
+| 4-Bedroom       | ~130–145 m²      | 12.0 × 11.4            | 4    | 3     | master ensuite + common/shared baths, open living/dining, kitchen + yard, wide balcony |
 | Penthouse (3BR) | ~150–170 m²      | 13.0 × 11.6            | 3    | 2     | dual-aspect living, large balcony, yard, master ensuite |
 | Terrace (ground)| ~90 m² / floor   | 6.4 × 14.0             | —    | 1 WC  | landed inter-terrace: car porch, living/dining, kitchen + yard, powder room, stair hall; bedrooms are upstairs |
 
