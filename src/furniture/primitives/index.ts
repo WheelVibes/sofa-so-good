@@ -77,6 +77,7 @@ import { SideTable } from './SideTable'
 import { Sofa } from './Sofa'
 import { SofaSectional } from './SofaSectional'
 import { Soundbar } from './Soundbar'
+import { Staircase } from './Staircase'
 import { StandingFan } from './StandingFan'
 import { Stove } from './Stove'
 import { TableLamp } from './TableLamp'
@@ -142,6 +143,7 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   Dresser,
   BarStool,
   Shower,
+  Staircase,
   Mirror,
   Monitor,
   RangeHood,
