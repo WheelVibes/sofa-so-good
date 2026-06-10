@@ -55,7 +55,8 @@ export the result — all in the browser.
 - **Selectable 3D backdrop** — choose the surroundings outside the flat from the
   Scene menu: **City** (a layered HDB estate — two rings of towers with rooftop
   water-tanks whose windows light up warm at night),
-  **Park** (low-poly trees on a green common), **Hills** (a calm green horizon),
+  **Park** (layered broadleaf + conifer trees and shrubs on a green common),
+  **Hills** (depth-banded green hills receding into an aerial-perspective haze),
   or **Studio** (a clean, distraction-free ground). The backdrop re-centres on
   whatever floor plan you load.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click

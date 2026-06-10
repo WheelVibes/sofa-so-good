@@ -4,6 +4,20 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C156] Richer, instanced Park & Hills backdrops (photorealism + perf)
+Reworked the non-city backdrops (built by a parallel worktree subagent, integrated here). Extracted the
+shared `Ground` + a reusable `InstancedBatch` (Matrix4-composed instances) into their own files.
+**Park** now scatters varied broadleaf + conifer trees and shrubs across two depth rings on a tinted
+common (~128 meshes → ~12 draw calls); **Hills** layers three depth bands with aerial-perspective colour
+(farther = lighter toward the sky) + distant tree clusters (~16 meshes → ~5 draw calls). `SceneBackdrop`
+imports these (the subagent branched from an older base, so its duplicate dispatcher + ported helpers
+were discarded in favour of the current ones). Verified Park + Hills via the screenshot harness.
+
+## [C155] Design score categories click to select + frame their offending items
+`buildDesignScore` attaches per-category `offenders` (item ids) for Clearance (overlap/wall-clip/blocked)
+and Circulation (pinch-point items); the `DesignScorePanel` renders those categories as buttons that
+select + frame the offenders — the score doubles as a jump-to-the-fix list. Tests for the offender ids.
+
 ## [C154] Design score in the printable report (DS2)
 The handoff report (`ui/report.ts`) now carries the same aggregate 0–100 design score + A–F grade +
 per-category bars (clearance / furnishing / circulation / daylight / lighting) and actionable fixes the
