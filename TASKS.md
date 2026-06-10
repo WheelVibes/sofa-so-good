@@ -69,7 +69,7 @@ standing themed backlog below + the existing sections further down hold the open
   `docs/research/multi-level-design.md` (additive `upperLevels` + `FurnitureItem.levelId` +
   pure `floorplan/levels.ts` resolution layer). Build phases ML1–ML7 below, one commit each:
   - [x] ML1 (C221) types+schema round-trip + `levels.ts` helpers + tests (incl. level-aware finish-key collectors)
-  - [ ] ML2 PlanShell stacked rendering + level-visibility View control
+  - [x] ML2 (C222) PlanShell stacked rendering + level-visibility View control (desktop+mobile)
   - [ ] ML3 furniture/drag/placement level-awareness
   - [ ] ML4 2D editor level tabs + add/remove level
   - [ ] ML5 room editor/finishes/score/report per level

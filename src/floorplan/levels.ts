@@ -75,3 +75,28 @@ export function allPlanRooms(plan: FloorPlan): PlanRoom[] {
   if (!isMultiLevel(plan)) return plan.rooms
   return planLevels(plan).flatMap((l) => l.rooms)
 }
+
+/** A pseudo-plan whose walls/openings/rooms/ceilingHeight are one level's —
+ *  lets every existing single-level geometry helper (wallBoxes, room shells,
+ *  collision walls, …) work per storey unchanged. Ground returns the plan
+ *  itself (same reference, no realloc). */
+export function levelAsPlan(plan: FloorPlan, level: PlanLevel): FloorPlan {
+  if (level.id === GROUND_LEVEL_ID) return plan
+  return {
+    ...plan,
+    walls: level.walls,
+    openings: level.openings,
+    rooms: level.rooms,
+    ceilingHeight: level.ceilingHeight ?? plan.ceilingHeight,
+    upperLevels: undefined,
+  }
+}
+
+/** The levels to render for a view selection ('all' | a level id). An unknown
+ *  or stale id (plan switched) falls back to every level. */
+export function visibleLevels(plan: FloorPlan, viewLevelId: string): PlanLevel[] {
+  const levels = planLevels(plan)
+  if (viewLevelId === 'all') return levels
+  const match = levels.filter((l) => l.id === viewLevelId)
+  return match.length > 0 ? match : levels
+}

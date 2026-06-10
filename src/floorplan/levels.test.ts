@@ -3,11 +3,13 @@ import {
   allPlanRooms,
   GROUND_LEVEL_ID,
   isMultiLevel,
+  levelAsPlan,
   levelById,
   levelElevation,
   levelOfItem,
   levelOfRoom,
   planLevels,
+  visibleLevels,
 } from './levels'
 import type { FloorPlan, PlanUpperLevel } from './types'
 
@@ -73,5 +75,22 @@ describe('levelOfRoom / allPlanRooms', () => {
     expect(allPlanRooms(multi).map((r) => r.id)).toEqual(['g-living', 'up-bed'])
     // Single-storey plans return the same array (no realloc).
     expect(allPlanRooms(single)).toBe(single.rooms)
+  })
+})
+
+describe('levelAsPlan / visibleLevels', () => {
+  it('adapts an upper level into a single-level pseudo-plan', () => {
+    const lvl = planLevels(multi)[1]
+    const p = levelAsPlan(multi, lvl)
+    expect(p.walls).toBe(upper.walls)
+    expect(p.rooms).toBe(upper.rooms)
+    expect(p.upperLevels).toBeUndefined()
+    // Ground returns the plan reference itself.
+    expect(levelAsPlan(multi, planLevels(multi)[0])).toBe(multi)
+  })
+  it('filters to the selected level, falling back to all for stale ids', () => {
+    expect(visibleLevels(multi, 'all').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
+    expect(visibleLevels(multi, 'lvl-2').map((l) => l.id)).toEqual(['lvl-2'])
+    expect(visibleLevels(multi, 'stale').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
   })
 })

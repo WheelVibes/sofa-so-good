@@ -1,4 +1,5 @@
 import { useFeature } from '../../../features/useFeature'
+import { isMultiLevel, planLevels } from '../../../floorplan/levels'
 import { useStore } from '../../../state/store'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
@@ -18,6 +19,9 @@ export function ViewMenu() {
   const autoRotate = useStore((s) => s.autoRotate)
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  const plan = useStore((s) => s.floorPlan)
+  const viewLevelId = useStore((s) => s.viewLevelId)
+  const setViewLevel = useStore((s) => s.setViewLevel)
   const savedViews = useFeature('savedViews')
 
   const isOrbit = cameraMode === 'orbit'
@@ -45,6 +49,31 @@ export function ViewMenu() {
         active={!isOrbit}
         onClick={() => setCameraMode('firstPerson')}
       />
+      {isMultiLevel(plan) ? (
+        <>
+          <div className="my-1 border-t border-[var(--border)]" />
+          <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
+            Levels
+          </div>
+          <MenuItem
+            icon="TopView"
+            label="All levels"
+            sub="Show every storey"
+            active={viewLevelId === 'all'}
+            onClick={() => setViewLevel('all')}
+          />
+          {planLevels(plan).map((l) => (
+            <MenuItem
+              key={l.id}
+              icon="TopView"
+              label={l.name}
+              sub={l.elevation > 0 ? `Storey at ${l.elevation.toFixed(1)} m` : 'Street level'}
+              active={viewLevelId === l.id}
+              onClick={() => setViewLevel(l.id)}
+            />
+          ))}
+        </>
+      ) : null}
       {overview ? (
         <>
           <div className="my-1 border-t border-[var(--border)]" />

@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C222 / ML2] Multi-storey rendering — stacked levels + level-visibility control
+`PlanShell` restructured into per-level `PlanLevelShell`s (floors/ceilings/walls/skirting/doors/
+windows run on a `levelAsPlan` pseudo-plan, so ground + upper storeys share one code path), each
+offset by its elevation with a slab under upper floors; new `visibleLevels` filter drives a
+"Levels" section in the View menu + mobile View sheet (All / per storey; only shown on multi-level
+plans; hidden storeys unmount so picking can't hit them). `viewLevelId` lives in cameraSlice
+(session-only). Upper-room click-to-enter deliberately disabled until ML5. Verified: two-storey
+plan renders stacked with reveal working; upper-only view floats the storey at 2.9 m.
+
 ## [C221 / ML1] Multi-storey foundations — types, schema, resolution layer
 F13 phase 1 (design: `docs/research/multi-level-design.md`): additive `FloorPlan.upperLevels`
 (`PlanUpperLevel` — own walls/openings/rooms at an elevation) + `FurnitureItem.levelId`, both

@@ -1,9 +1,10 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import type { Mesh, MeshStandardMaterial } from 'three'
+import { GROUND_LEVEL_ID, levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
-import { DEFAULT_PLAN_WALL_COLOR, planBounds, wallLength } from '../floorplan/types'
+import { DEFAULT_PLAN_WALL_COLOR, type FloorPlan, planBounds, wallLength } from '../floorplan/types'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
@@ -57,21 +58,80 @@ function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number
  * neutral per-room floors, and extruded walls with door/window openings (plus
  * glass panes in windows). Used in place of the curated <Apartment/> when a
  * non-default plan is active, so custom apartments are furnishable in 3D.
+ * Multi-storey plans (F13) render one `PlanLevelShell` per visible level,
+ * each offset by its elevation; the View menu's level control filters via
+ * `visibleLevels` (storeys unmount when hidden, so picking can't hit them).
  */
 export function PlanShell() {
   const plan = useStore((s) => s.floorPlan)
-  const finishes = useStore((s) => s.finishes)
+  const viewLevelId = useStore((s) => s.viewLevelId)
   const wallColor = plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR
   const [ew, ed] = planBounds(plan)
+  const levels = visibleLevels(plan, viewLevelId)
 
-  const boxes = useMemo(() => plan.walls.flatMap((w) => wallBoxes(plan, w)), [plan])
+  return (
+    <group>
+      {/* Grounding slab — top kept 10 cm below the plan floors to avoid
+          z-fighting (see Apartment.tsx). */}
+      <mesh position={[ew / 2, -0.2, ed / 2]} receiveShadow>
+        <boxGeometry args={[ew + 0.5, 0.2, ed + 0.5]} />
+        <meshStandardMaterial color="#9a958d" roughness={0.95} />
+      </mesh>
+
+      {levels.map((level) => (
+        <group key={level.id} position={[0, level.elevation, 0]}>
+          {level.elevation > 0 ? <LevelSlab level={level} /> : null}
+          <PlanLevelShell plan={plan} level={level} wallColor={wallColor} cx={ew / 2} cz={ed / 2} />
+        </group>
+      ))}
+    </group>
+  )
+}
+
+/** Floor slab under an upper storey (bbox of its rooms; top at local y=0). */
+function LevelSlab({ level }: { level: PlanLevel }) {
+  const rects = level.rooms.map((r) => [r.origin[0], r.origin[1], r.width, r.depth] as const)
+  if (rects.length === 0) return null
+  const x0 = Math.min(...rects.map((r) => r[0])) - 0.15
+  const z0 = Math.min(...rects.map((r) => r[1])) - 0.15
+  const x1 = Math.max(...rects.map((r) => r[0] + r[2])) + 0.15
+  const z1 = Math.max(...rects.map((r) => r[1] + r[3])) + 0.15
+  return (
+    <mesh position={[(x0 + x1) / 2, -0.125, (z0 + z1) / 2]} castShadow receiveShadow>
+      <boxGeometry args={[x1 - x0, 0.25, z1 - z0]} />
+      <meshStandardMaterial color="#b9b4ab" roughness={0.9} />
+    </mesh>
+  )
+}
+
+/** One storey's floors / ceilings / walls / openings, in level-local space
+ *  (the parent group applies the elevation offset). All geometry helpers run
+ *  on the `levelAsPlan` pseudo-plan, so ground + upper levels share one path. */
+function PlanLevelShell({
+  plan,
+  level,
+  wallColor,
+  cx,
+  cz,
+}: {
+  plan: FloorPlan
+  level: PlanLevel
+  wallColor: string
+  cx: number
+  cz: number
+}) {
+  const finishes = useStore((s) => s.finishes)
+  const lp = useMemo(() => levelAsPlan(plan, level), [plan, level])
+  const isGround = level.id === GROUND_LEVEL_ID
+
+  const boxes = useMemo(() => lp.walls.flatMap((w) => wallBoxes(lp, w)), [lp])
 
   // Window glass panes (between sill and head, in the wall gap).
   const windows = useMemo(() => {
-    return plan.openings
+    return lp.openings
       .filter((o) => o.kind === 'window')
       .map((o) => {
-        const wall = plan.walls.find((w) => w.id === o.wallId)
+        const wall = lp.walls.find((w) => w.id === o.wallId)
         if (!wall) return null
         const len = wallLength(wall)
         if (len === 0) return null
@@ -90,27 +150,20 @@ export function PlanShell() {
         }
       })
       .filter((x): x is NonNullable<typeof x> => x != null)
-  }, [plan])
+  }, [lp])
 
   return (
     <group>
-      {/* Grounding slab — top kept 10 cm below the plan floors to avoid
-          z-fighting (see Apartment.tsx). */}
-      <mesh position={[ew / 2, -0.2, ed / 2]} receiveShadow>
-        <boxGeometry args={[ew + 0.5, 0.2, ed + 0.5]} />
-        <meshStandardMaterial color="#9a958d" roughness={0.95} />
-      </mesh>
-
-      {/* Per-room floors (catalog finish, defaulting to oak) */}
-      {plan.rooms.map((r) => {
+      {/* Per-room floors (catalog finish, defaulting to oak). Click-to-enter
+          is ground-only until the room editor is level-aware (ML5). */}
+      {lp.rooms.map((r) => {
         const mat = resolvePlanRoomFloor(finishes, r) as MaterialId
-        // A non-rectangular room renders one triangulated polygon floor; a
-        // rect room renders its rectangle (+ optional L-extension rect).
+        const roomId = isGround ? r.id : undefined
         if (r.polygon && r.polygon.length >= 3) {
           return (
             <PlanRoomFloor
               key={r.id}
-              roomId={r.id}
+              roomId={roomId}
               origin={r.origin}
               width={r.width}
               depth={r.depth}
@@ -122,7 +175,7 @@ export function PlanShell() {
         return (
           <group key={r.id}>
             <PlanRoomFloor
-              roomId={r.id}
+              roomId={roomId}
               origin={r.origin}
               width={r.width}
               depth={r.depth}
@@ -130,7 +183,7 @@ export function PlanShell() {
             />
             {r.extension && (
               <PlanRoomFloor
-                roomId={r.id}
+                roomId={roomId}
                 origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
                 width={r.extension.width}
                 depth={r.extension.depth}
@@ -142,9 +195,9 @@ export function PlanShell() {
       })}
 
       {/* Per-room ceilings (downward-facing — seen in walk, culled in orbit).
-          Honour a per-room override, falling back to the plan height. */}
-      {plan.rooms.map((r) => {
-        const h = r.ceilingHeight ?? plan.ceilingHeight
+          Honour a per-room override, falling back to the level/plan height. */}
+      {lp.rooms.map((r) => {
+        const h = r.ceilingHeight ?? lp.ceilingHeight
         if (r.polygon && r.polygon.length >= 3) {
           return (
             <PlanRoomCeiling
@@ -183,7 +236,7 @@ export function PlanShell() {
 
       {/* Walls (fade when between the orbit camera and the plan centre) */}
       {boxes.map((b, i) => (
-        <FadeWall key={i} box={b} cx={ew / 2} cz={ed / 2} color={wallColor} />
+        <FadeWall key={i} box={b} cx={cx} cz={cz} color={wallColor} />
       ))}
 
       {/* Skirting along floor-reaching wall spans */}
@@ -200,18 +253,13 @@ export function PlanShell() {
             <meshStandardMaterial color="#eceae4" roughness={0.7} />
           </mesh>
         ))}
-      {/* (Crown molding removed — a light fixed-colour band at the wall top
-          read as a discoloured strip; the wall face runs cleanly to the
-          ceiling instead.) */}
 
       {/* Door leaves — swinging, clickable; closed by default (matches collision). */}
-      {plan.openings
+      {lp.openings
         .filter((o) => o.kind === 'door')
         .map((o) => {
-          const wall = plan.walls.find((w) => w.id === o.wallId)
-          return wall ? (
-            <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={ew / 2} cz={ed / 2} />
-          ) : null
+          const wall = lp.walls.find((w) => w.id === o.wallId)
+          return wall ? <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={cx} cz={cz} /> : null
         })}
 
       {/* Window glass */}

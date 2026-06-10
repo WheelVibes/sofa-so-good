@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
+import { isMultiLevel, planLevels } from '../../floorplan/levels'
 import { dropBuiltinSet, dropIkeaSet, dropUserSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { FURNITURE_SETS } from '../../furniture/furnitureSets'
@@ -135,6 +136,8 @@ export function MobileToolbar() {
 
   const s = useStore
   const cameraMode = useStore((st) => st.cameraMode)
+  const viewLevelId = useStore((st) => st.viewLevelId)
+  const mobilePlan = useStore((st) => st.floorPlan)
   const catalogOpen = useStore((st) => st.catalogOpen)
   const leftMode = useStore((st) => st.leftMode)
   const showMeasurements = useStore((st) => st.showMeasurements)
@@ -376,6 +379,26 @@ export function MobileToolbar() {
                   on={cameraMode === 'firstPerson'}
                   onClick={act(() => s.getState().setCameraMode('firstPerson'))}
                 />
+                {isMultiLevel(mobilePlan) ? (
+                  <>
+                    <div className="m-sub-h">Levels</div>
+                    <Item
+                      icon="Orbit"
+                      label="All levels"
+                      on={viewLevelId === 'all'}
+                      onClick={act(() => s.getState().setViewLevel('all'), { keep: true })}
+                    />
+                    {planLevels(mobilePlan).map((l) => (
+                      <Item
+                        key={l.id}
+                        icon="Orbit"
+                        label={l.name}
+                        on={viewLevelId === l.id}
+                        onClick={act(() => s.getState().setViewLevel(l.id), { keep: true })}
+                      />
+                    ))}
+                  </>
+                ) : null}
                 {!roomEditorActive ? (
                   <>
                     <div className="m-sub-h">Framing</div>
