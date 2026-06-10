@@ -151,12 +151,21 @@ export function PlanShell() {
               depth={r.depth}
               height={h}
               polygon={r.polygon}
+              ceiling={r.ceiling}
             />
           )
         }
         return (
           <group key={r.id}>
-            <PlanRoomCeiling origin={r.origin} width={r.width} depth={r.depth} height={h} />
+            <PlanRoomCeiling
+              origin={r.origin}
+              width={r.width}
+              depth={r.depth}
+              height={h}
+              ceiling={r.ceiling}
+            />
+            {/* An L-extension keeps a plain flat ceiling — the treatment applies
+                to the main rectangle only. */}
             {r.extension && (
               <PlanRoomCeiling
                 origin={[r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1]]}
