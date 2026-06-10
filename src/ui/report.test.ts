@@ -160,6 +160,16 @@ describe('buildReportHtml', () => {
     expect(html).toContain('Flooring schedule')
     // Wall finish schedule: gross wall area per wall finish (perimeter × height).
     expect(html).toContain('Wall finish schedule')
+    // Renovation estimate: finishes subtotal + a combined furniture+finishes line.
+    expect(html).toContain('Renovation estimate')
+    expect(html).toContain('Finishes subtotal')
+    expect(html).toContain('Furniture + finishes')
+    expect(html).toMatch(/\$[\d,]+\/m²/) // a per-m² rate
+  })
+
+  it('omits the Renovation estimate when no finishes are supplied', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Renovation estimate')
   })
 
   it('omits the Finishes section when no finishes are supplied', () => {

@@ -6,6 +6,7 @@
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDesignScore } from '../analysis/designScore'
+import { estimateRenovation } from '../analysis/renovationCost'
 import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
 import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
@@ -124,26 +125,26 @@ export function buildReportHtml(
         )
         .join('')
     : ''
+  // Per-finish floor + wall areas — shared by the flooring/wall schedules AND the
+  // renovation estimate below (computed once).
+  const floorAreas = finishes ? floorAreaByFinish(plan, floorOf) : []
+  const wallAreas = finishes ? wallAreaByFinish(plan, wallOf, plan.ceilingHeight) : []
   // Flooring schedule: total floor area per finish — the "how much to order"
   // procurement view (only when finishes are supplied + at least one finish set).
-  const flooringRows = finishes
-    ? floorAreaByFinish(plan, floorOf)
-        .map(
-          (f) =>
-            `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
-        )
-        .join('')
-    : ''
+  const flooringRows = floorAreas
+    .map(
+      (f) =>
+        `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
+    )
+    .join('')
   // Wall-finish schedule: gross wall area per finish (perimeter × ceiling height),
   // the paint/tile procurement counterpart to the flooring schedule.
-  const wallRows = finishes
-    ? wallAreaByFinish(plan, wallOf, plan.ceilingHeight)
-        .map(
-          (f) =>
-            `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
-        )
-        .join('')
-    : ''
+  const wallRows = wallAreas
+    .map(
+      (f) =>
+        `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
+    )
+    .join('')
   // Rooms (skip external ledges with ~0 interior use are still listed). Plain
   // rectangular rooms show their W×D dimensions (a room schedule detail); L-shape
   // / polygon rooms omit them (a bounding box would mislead) — area only.
@@ -396,6 +397,31 @@ export function buildReportHtml(
           : ''
       }</div>`
 
+  // Renovation estimate — the finishes counterpart to the furniture budget:
+  // flooring + painting/wall supply+install over the per-finish areas, at
+  // indicative SG rates. Only when finishes are supplied + something to cost.
+  const reno = estimateRenovation(floorAreas, wallAreas)
+  const renoLineRows = (rows: ReturnType<typeof estimateRenovation>['floors']) =>
+    rows
+      .map(
+        (l) =>
+          `<tr><td>${matCell(l.id)}</td><td class="num">${esc(formatArea(l.area, units))}</td><td class="num">${sgd(l.rate)}/m²</td><td class="num">${sgd(l.cost)}</td></tr>`,
+      )
+      .join('')
+  const renovationSection =
+    reno.floors.length === 0 && reno.walls.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Renovation estimate</h2>
+      <table>
+        <tr class="cat"><td>Finish</td><td class="num">Area</td><td class="num">Rate</td><td class="num">Est. cost</td></tr>
+        ${renoLineRows(reno.floors)}${renoLineRows(reno.walls)}
+      </table>
+      <div class="total"><span>Finishes subtotal</span><span>${sgd(reno.subtotal)}</span></div>
+      <div class="subtotal"><span>Furniture + finishes</span><span>${sgd(budget + reno.subtotal)}</span></div>
+      <div class="foot" style="margin-top:6px">Indicative supply &amp; install only — excludes hacking/disposal, false ceilings, carpentry, M&amp;E and contractor margin.</div>
+    </div>`
+
   // Wall elevations — the vertical drawings, only for walls that actually carry
   // furniture or openings (skip the many bare structural segments).
   const elevations = hasItems
@@ -581,6 +607,7 @@ export function buildReportHtml(
     </div>`
       : ''
   }
+  ${renovationSection}
   ${ffeSection}
   ${clearanceSection}
   ${designScoreSection}
