@@ -71,6 +71,115 @@ standing themed backlog below + the existing sections further down hold the open
 
 (Competitor-research agent will expand/replace these with cited, prioritized items.)
 
+### AUDIT FINDINGS (2026-06-10) — execute these first, one commit each
+**Reliability/bugs (high→low):**
+- [ ] B1 (HIGH, data loss). `schema.ts` `PlanRoomZ` omits `polygon` → polygon/Auto-room rooms revert to
+  their bounding rect on save/load. Add `polygon` to the schema (optional) + round-trip test. `state/schema.ts:145`.
+- [ ] B2 (HIGH). ⌘K command palette + MobileToolbar don't fully close the newer `.aux` panels
+  (daylight/elevations/designScore/accessibility) → stacked overlapping panels. Extract one shared
+  `closeAllAuxPanels(state)` and use it in ToolsMenu, MobileToolbar, CommandPalette. `ui/CommandPalette.tsx:118`, `ui/toolbar/MobileToolbar.tsx:197`.
+- [ ] B3 (HIGH, mobile parity). MobileToolbar Tools section is missing Daylight, Design score,
+  Accessibility, Drawings — desktop-only. Add them (same feature gates) via the shared closeAux. `ui/toolbar/MobileToolbar.tsx:661`.
+- [ ] B4 (MED). Guard `Array.isArray` for plan members inside the pure cores so every caller is safe +
+  drop duplicated outer guards: `daylight.ts` (walls/openings/rooms), `accessibility.ts` (rooms),
+  `planGeometry.ts` (walls/openings).
+- [ ] B5 (MED). Report's `buildDesignScore` call omits `{walls}` → recomputes with doors-closed, can
+  disagree with the panel. Pass `{ walls: clipWalls }`. `ui/report.ts:326`.
+- [ ] B6 (MED). `roomPolygon` L-shape outline only correct for a south-edge extension; wrong/
+  self-intersecting for other offsets → wrong floor render + containment. `floorplan/types.ts:111`.
+- [ ] B7 (LOW). After undo/redo/jump, prune `selectedItemId`/`selectedItemIds` to ids still present. `historySlice.ts`.
+- [ ] B8 (LOW). `.aux` panels use inline `width:360` (mobile override via `!important`) — move to a class.
+
+**Security (no high-sev; defense-in-depth):**
+- [ ] S1 (MED). SVG builders `elevationSvg.ts`/`reportPlanSvg.ts`/`lightingPlanSvg.ts` `esc` only escapes
+  `&<>` not quotes, yet render via `dangerouslySetInnerHTML` — latent XSS if a string ever lands in an
+  attribute. Make them the full 5-char esc.
+- [ ] S2 (MED-low). Vision-AI key POSTed to a user-configurable non-origin-pinned URL (`ai/floorPlanAi.ts`)
+  — surface/warn on a non-default endpoint.
+- [ ] S3 (LOW). Validate report finish swatch against a hex/rgb pattern before emitting into `style=`.
+
+**Perf (from prod build):**
+- [ ] P-CHUNK. Prod build chunks are large (three 1.16 MB, index 932 KB, vendor 870 KB, EffectsImpl 308 KB).
+  Improve code-splitting/manual chunks; lazy-load heavy/rare paths. (Verify with `npm run build` sizes.)
+
+**Perf/scalability/memory (audit, impact-first):**
+- [ ] PERF1 (M, big). In-canvas overlays call reactive `useCatalog()` (rebuilds full merged catalog +
+  re-renders on any catalog change) — CLAUDE.md says use `useCatalogGetter`. Fix: `FurnitureLayer.tsx`,
+  `selection/SelectionOutline.tsx`, `HoverHighlight.tsx`, `RotateGizmo.tsx`, `ClearanceOverlay.tsx`, `PlacementGhost.tsx`.
+- [ ] PERF2 (S, big). `DesignScorePanel` (and check `ClearanceOverlay`) rerun O(n²) scans every
+  pointermove while open — gate recompute on `!draggingItemId` / debounce 250–400ms. `ui/DesignScorePanel.tsx:44`.
+- [ ] PERF3 (S). `Lighting` `useFrame` allocates arrays+object every frame even when settled — early-out
+  when inputs unchanged; only the exposure write needs per-frame. `scene/lighting/Lighting.tsx:92`.
+- [ ] PERF4 (S–M). `FurnitureLights` rebuilds+sorts all emitters every rendered frame at night — gate on
+  camera-move/item-change. `scene/lighting/FurnitureLights.tsx:46`.
+- [ ] PERF5 (M). Lazy-load rarely-opened modals/panels (ShareModal, VersionsPanel, HistoryPanel,
+  ElevationPanel, DesignScorePanel, AccessibilityPanel, DaylightPanel, SwapModal, SmartStartWizard,
+  ProductTour) — trims boot bundle. `App.tsx:27`.
+- [ ] PERF6 (M). `Scene` Canvas hardcodes `antialias:true` + `preserveDrawingBuffer:true` + DPR≤1.75;
+  tier-gate (Performance → DPR1/AA off), arm `preserveDrawingBuffer` only for export/record. `scene/Scene.tsx:64`.
+- [ ] PERF7 (M). Broadphase (spatial grid / sweep-prune) for `findItemOverlaps`/`findNarrowGaps`/
+  `findWallClips` (O(n²) today) for 100s-of-items scale; compute scans once + share between report + designScore.
+- [ ] PERF8 (M). `DragController.onMove` does repeated O(n) `.find`/scans per pointermove — id→item Map at
+  drag start, reuse `others`. `scene/DragController.tsx:141`.
+- [ ] PERF9 (S). Procedural texture default 512² on main thread — drop to 256² where quality allows / OffscreenCanvas worker; bound `thumbCache` (LRU). `materials/procedural/generators.ts`.
+- [ ] PERF10 (S). Reuse a single mutable `PumpInputs` in `RenderPump` rAF instead of allocating per frame. `scene/RenderPump.tsx:60`.
+
+### COMPETITOR-RESEARCH BACKLOG (2026-06-10) — "surpass the market" features
+Researched vs Coohom/Planner5D/IKEA Kreativ/Homestyler/RoomSketcher/Cedreo/Live Home 3D/Foyr/Spacejoy/
+Modsy/Roomle/Enscape + SG (Qanvast/HomeRenoGuru/Hometrust). [PROD] = CC0/MIT/pure-code; [DEV] = licensed/
+BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
+
+**Photoreal/render (biggest gap):**
+- [ ] F1 [PROD] GPU path-traced "HQ render" still — `three-gpu-pathtracer`, progressive→2-4K, denoise,
+  download; High/Max only + raster fallback. Marquee feature. V:L E:M-L. (real-GPU verify deferred)
+- [ ] F2 [PROD] 360° panorama render (equirect cube-cam capture) + drag-to-look viewer + export. V:L E:M.
+- [ ] F3 [PROD] HDRI environment library (Poly Haven CC0 .hdr) for IBL+backdrop (clear/overcast/golden/
+  studio). V:M E:S-M. (sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.)
+- [ ] F4 [PROD] Environment-coupled render presets (sun+HDRI+exposure) + A/B compare. V:M E:S.
+- [ ] F5 [PROD] DoF + photographic camera (focal length/f-stop) on render path. V:M E:S-M.
+- [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle + WebGL fallback. V:M E:L.
+
+**Content/catalog:**
+- [ ] F7 [PROD] Curtains/blinds window-treatment system (window-aware parametric). V:M E:M.
+- [ ] F8 [PROD] Staircase primitive (straight/L/U/spiral) — needed by maisonette/penthouse/landed. V:M E:M.
+- [ ] F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza) so designs look styled. V:M E:S.
+- [ ] F10 [PROD] Wardrobe/closet configurator (extend cabinet engine: rails/shelves/drawers). V:M E:M.
+- [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate). V:L E:L.
+- [ ] F12 [PROD] Ceiling design (tray/cove/coffer/false-ceiling boxes tied to room polygon). V:M E:M.
+
+**Productivity/QOL:**
+- [ ] F13 [PROD] Multi-floor / multi-storey levels (schema+camera+stairs) — unblocks existing templates. V:L E:L.
+- [ ] F14 [PROD] Save selection as a custom Set (user-authored sets). V:M E:S.
+- [ ] F15 [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
+- [ ] F16 [PROD] In-canvas magic suggestions (next-item / fill-empty-wall, rule-based). V:M E:M.
+- [ ] F17 [PROD] Finish eyedropper + whole-room style copy. V:S E:S.
+- [ ] F18 [PROD] Standard mount-height presets (art 1.45 m, pendant over table). V:S E:S.
+
+**Collaboration/commerce/presentation:**
+- [ ] F19 [PROD] Moodboard / style-board builder (images+product tiles+palette, export). V:M E:M.
+- [ ] F20 [PROD] Shoppable design export (clickable buy-list, totals by retailer; brand links dev-gated). V:M E:S-M.
+- [ ] F21 [PROD] WebXR VR walkthrough (`@react-three/xr` over walk mode). V:M E:M.
+- [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer). V:L E:M.
+- [ ] F23 [PROD] Client presentation mode (saved views + panoramas + notes slideshow). V:M E:M.
+- [ ] F24 [PROD-partial] Pinned comments on a shared design (live presence = backend, defer). V:M E:L.
+
+**AI (BYO-key):**
+- [ ] F25 [PROD] Text-to-room brief → Smart-Start preset+budget+palette → `furnishPlanItems`. V:L E:M.
+- [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud). V:L E:L.
+- [ ] F27 [PROD] "Redesign this render" style-variant explorer (extend Share i2i). V:M E:S.
+- [ ] F28 [PROD] AI palette/finish recommender from an inspiration image (client-side color extract). V:M E:S-M.
+
+**2D/CAD outputs:**
+- [ ] F29 [PROD] Electrical/power+data layout plan + schedule (lighting-plan pattern). V:M E:M.
+- [ ] F30 [PROD] Demolition/hacking + new-wall plan (diff vs template) → feeds reno estimate. V:M E:M.
+- [ ] F31 [PROD] DXF plan export (client-side DXF writer from plan polygons). V:M E:M.
+- [ ] F32 [PROD] Cross-section drawing (reuse elevation core along a cut line). V:M E:M.
+
+**SG renovation workflow (differentiator):**
+- [ ] F33 [PROD] Quote-ready BOQ handoff export (FF&E+reno+drawings; carpentry in linear-feet). V:M E:M.
+- [ ] F34 [PROD] HDB compliance hints (structural/wet-area/permit advisories on edits). V:M E:S-M.
+- [ ] F35 [PROD] Renovation timeline/phase planner (Gantt-ish, pure data/SVG). V:S-M E:S.
+
 ## Performance / scalability
 - [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders (needs profiling on real hardware to justify).
 - [~] P3. More **instancing** for repeat-geometry primitives. Done: bookshelf + crib (earlier) and
