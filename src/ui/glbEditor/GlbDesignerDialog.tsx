@@ -8,6 +8,8 @@ import {
   type AssetEditSpec,
   addPart,
   createEmptySpec,
+  DEFAULT_PART_METALNESS,
+  DEFAULT_PART_ROUGHNESS,
   isBuildable,
   removePart,
   SHAPE_KINDS,
@@ -50,7 +52,11 @@ function PartMesh({ part }: { part: ShapePart }) {
   useEffect(() => () => geom.dispose(), [geom])
   return (
     <mesh position={part.position} castShadow receiveShadow geometry={geom}>
-      <meshStandardMaterial color={part.color} roughness={0.6} metalness={0.05} />
+      <meshStandardMaterial
+        color={part.color}
+        roughness={part.roughness ?? DEFAULT_PART_ROUGHNESS}
+        metalness={part.metalness ?? DEFAULT_PART_METALNESS}
+      />
     </mesh>
   )
 }
@@ -412,6 +418,40 @@ export function GlbDesignerDialog() {
                     }
                   />
                 </label>
+                {(
+                  [
+                    ['roughness', sel.roughness ?? DEFAULT_PART_ROUGHNESS],
+                    ['metalness', sel.metalness ?? DEFAULT_PART_METALNESS],
+                  ] as const
+                ).map(([prop, value]) => (
+                  <div key={prop} style={{ marginTop: 'var(--s-2)' }}>
+                    <div
+                      className="label"
+                      style={{
+                        fontSize: 'var(--t-2xs)',
+                        color: 'var(--text-3)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span style={{ textTransform: 'capitalize' }}>{prop}</span>
+                      <span>{value.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      className="slider"
+                      min={0}
+                      max={1}
+                      step={0.05}
+                      value={value}
+                      aria-label={`${sel.kind} ${prop}`}
+                      onChange={(e) =>
+                        setSpec((sp) => updatePart(sp, sel.id, { [prop]: Number(e.target.value) }))
+                      }
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                ))}
               </div>
             ) : null}
 

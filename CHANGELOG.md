@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C119] GE3 — per-part PBR finish (roughness + metalness) in the GLB designer
+Each composed primitive now carries optional `roughness`/`metalness` (defaulting to the old
+0.6/0.05 matte look), driven by two sliders in the part Edit panel — so a part can read as matte
+wood, soft plastic or polished metal. A shared `partMaterial` builds the material for both the
+export and the live preview (no drift). Verified the sliders render with correct defaults; unit
+tests assert defaults + explicit values flow into the built mesh material. Docs updated.
+
 ## [C118] PR3a — sharper IBL reflections at higher tiers
 Made the procedural IBL probe's cubemap resolution tier-driven (`QualitySettings.envResolution`:
 64 perf / 96 medium / 192 high / 256 maximum) instead of a flat 64px, so glossy surfaces

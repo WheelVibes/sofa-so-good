@@ -102,7 +102,8 @@ same change that reshapes a system.
 - **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
   `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
   (box/cylinder/sphere/cone/pyramid/capsule/torus — pure tested `editSpec.ts` `SHAPE_KINDS`;
-  geometry via `buildObject.ts` `partGeometry`, shared by the live preview so it can't drift)
+  geometry via `buildObject.ts` `partGeometry` + per-part PBR via `partMaterial` — both shared by
+  the live preview so it can't drift; each part carries colour + roughness + metalness)
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands

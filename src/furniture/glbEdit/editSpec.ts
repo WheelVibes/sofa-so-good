@@ -40,7 +40,16 @@ export interface ShapePart {
   /** Box: full W/H/D. Cylinder: [diameter, height, diameter]. Sphere: [d,d,d]. */
   size: [number, number, number]
   color: string
+  /** PBR surface roughness 0 (mirror-smooth) … 1 (fully matte). Absent → 0.6. */
+  roughness?: number
+  /** PBR metalness 0 (dielectric: wood/plastic/fabric) … 1 (metal). Absent → 0.05. */
+  metalness?: number
 }
+
+/** Fallback PBR finish for a part that hasn't set its own (keeps old specs +
+ *  the export/preview in lock-step). */
+export const DEFAULT_PART_ROUGHNESS = 0.6
+export const DEFAULT_PART_METALNESS = 0.05
 
 /** Per-named-mesh edit applied to a source GLB's components (recolour / hide). */
 export interface MeshOverride {

@@ -42,7 +42,8 @@ per-mesh recolour/hide. More verifiable in software-GL than PRx (deterministic g
 - [x] GE1. More primitives — cone/pyramid/capsule/torus shipped C115 (wedge/plane deferred).
 - [ ] GE1b. **Wedge / plane / tube** primitives (need custom or extra geometry).
 - [ ] GE2. **Per-part transform gizmo** (move/rotate/scale) — carried TODO from C47/C48.
-- [ ] GE3. **Per-part PBR material editor** (metalness, roughness, emissive, opacity + texture pick).
+- [~] GE3. Per-part PBR — roughness + metalness sliders shipped C119. TODO: emissive + opacity +
+  texture pick.
 - [ ] GE4. **Save edits back over an existing asset** (vs always-new) — carried TODO.
 - [ ] GE5. **CSG boolean ops** (union/subtract/intersect) via three-bvh-csg or similar.
 

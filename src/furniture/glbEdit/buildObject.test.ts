@@ -1,7 +1,14 @@
 import { BufferGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
 import { describe, expect, it } from 'vitest'
-import { applyMeshOverrides, buildEditedObject, partGeometry } from './buildObject'
-import { addPart, createEmptySpec, defaultPart, SHAPE_KINDS } from './editSpec'
+import { applyMeshOverrides, buildEditedObject, partGeometry, partMaterial } from './buildObject'
+import {
+  addPart,
+  createEmptySpec,
+  DEFAULT_PART_METALNESS,
+  DEFAULT_PART_ROUGHNESS,
+  defaultPart,
+  SHAPE_KINDS,
+} from './editSpec'
 
 function graph() {
   const g = new Group()
@@ -77,5 +84,32 @@ describe('partGeometry — every shape kind builds valid, finite geometry', () =
       if (o instanceof Mesh) meshes.push(o)
     })
     expect(meshes).toHaveLength(SHAPE_KINDS.length)
+  })
+})
+
+describe('partMaterial — per-part PBR', () => {
+  it('falls back to the matte defaults when roughness/metalness are unset', () => {
+    const m = partMaterial(defaultPart('box'))
+    expect(m.roughness).toBeCloseTo(DEFAULT_PART_ROUGHNESS)
+    expect(m.metalness).toBeCloseTo(DEFAULT_PART_METALNESS)
+  })
+
+  it('honours explicit roughness + metalness (e.g. a polished metal part)', () => {
+    const m = partMaterial({ ...defaultPart('cylinder'), roughness: 0.1, metalness: 0.9 })
+    expect(m.roughness).toBeCloseTo(0.1)
+    expect(m.metalness).toBeCloseTo(0.9)
+    expect(m.color.getHexString()).toBe('b08d57')
+  })
+
+  it('the built object carries each part’s material values', () => {
+    let spec = createEmptySpec()
+    spec = addPart(spec, 'box')
+    spec.parts[0]!.metalness = 1
+    spec.parts[0]!.roughness = 0.2
+    const obj = buildEditedObject(null, spec)
+    const mesh = obj.children.find((c) => c instanceof Mesh) as Mesh
+    const mat = mesh.material as MeshStandardMaterial
+    expect(mat.metalness).toBeCloseTo(1)
+    expect(mat.roughness).toBeCloseTo(0.2)
   })
 })

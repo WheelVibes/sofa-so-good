@@ -13,7 +13,24 @@ import {
   SphereGeometry,
   TorusGeometry,
 } from 'three'
-import type { AssetEditSpec, MeshOverride, ShapePart } from './editSpec'
+import {
+  type AssetEditSpec,
+  DEFAULT_PART_METALNESS,
+  DEFAULT_PART_ROUGHNESS,
+  type MeshOverride,
+  type ShapePart,
+} from './editSpec'
+
+/** The shared PBR material for a primitive part — honours its per-part
+ *  roughness/metalness (falling back to the matte-ish defaults). Used by both
+ *  the export (`buildEditedObject`) and the live preview so they never diverge. */
+export function partMaterial(part: ShapePart): MeshStandardMaterial {
+  return new MeshStandardMaterial({
+    color: part.color,
+    roughness: part.roughness ?? DEFAULT_PART_ROUGHNESS,
+    metalness: part.metalness ?? DEFAULT_PART_METALNESS,
+  })
+}
 
 /**
  * Apply per-mesh recolour/hide overrides to a (cloned) source object, in place.
@@ -103,10 +120,7 @@ export function buildEditedObject(source: Object3D | null, spec: AssetEditSpec):
   }
 
   spec.parts.forEach((part, i) => {
-    const mesh = new Mesh(
-      partGeometry(part),
-      new MeshStandardMaterial({ color: part.color, roughness: 0.6, metalness: 0.05 }),
-    )
+    const mesh = new Mesh(partGeometry(part), partMaterial(part))
     // Name parts so a saved asset's components are addressable when it's later
     // reopened as a source for per-mesh recolour/hide.
     mesh.name = `${part.kind}-${i + 1}`
