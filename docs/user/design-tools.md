@@ -29,6 +29,14 @@ and totals an approximate cost in **SGD**, with a **Saved collections** tab for
 everything you've hearted. **Export CSV** downloads the list (category, item,
 quantity, unit price, line total) for a spreadsheet or to send to a supplier.
 
+For a buy-list you can share, **File → Shopping list** (also on ⌘K and the
+mobile menu's **File** section — available in Simple mode too) opens a polished
+one-page document: every placed piece with its room, quantity, unit price and
+line total, **grouped by retailer** where known (anything without a retailer is
+listed under *Unpriced / generic* with the same indicative estimates as the
+Budget panel), with a subtotal per retailer, the grand total, and your budget
+target's under/over. Print it, save it as PDF, or send it with your design.
+
 Spend is shown wherever it helps: each catalog card and the inspector show a
 per‑item price (with a **selection total** when you multi‑select), the panel
 breaks spend down **by category and by room**, and the per‑room editor caption

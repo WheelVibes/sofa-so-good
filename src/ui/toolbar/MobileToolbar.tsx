@@ -31,6 +31,7 @@ import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
 import { openDesignReport } from '../openReport'
+import { openShoppingList } from '../openShoplist'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
@@ -191,6 +192,7 @@ export function MobileToolbar() {
   const fDesignScore = useFeature('designScore')
   const fAccessibility = useFeature('accessibility')
   const fUserSets = useFeature('userSets')
+  const fShopExport = useFeature('shopExport')
   const userSets = useStore((st) => st.userSets)
 
   const close = () => setMenuOpen(false)
@@ -847,6 +849,14 @@ export function MobileToolbar() {
                     label="360° panorama"
                     sub="Capture a look-around panorama"
                     onClick={act(() => s.getState().setPanoramaOpen(true))}
+                  />
+                ) : null}
+                {fShopExport ? (
+                  <Item
+                    icon="Budget"
+                    label="Shopping list"
+                    sub="Buy-list with prices, grouped by retailer"
+                    onClick={act(() => openShoppingList())}
                   />
                 ) : null}
                 {canRecord() ? (

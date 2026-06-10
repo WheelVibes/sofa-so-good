@@ -99,6 +99,19 @@ input/textarea/contenteditable guard, Modal registers+releases on open/close/unm
 end-to-end — P/V suppressed behind Smart Start over the 2D editor, P exits the editor again once
 closed, Escape still closes the wizard.
 
+## [C215] Shoppable design export (F20)
+A polished, self-contained buy-list HTML export: every placed piece with name, room, quantity
+(identical defId+variant grouped per room), unit + line price, **grouped per retailer** (IKEA defs
+carry retailer info/SKUs; everything else under "Unpriced / generic" with the Budget panel's
+estimates via the shared `itemPrice`), per-retailer subtotals + grand total, and the design/budget
+context (name, note, budget target under/over). Pure tested builder `ui/shoplist.ts`
+(`buildShopList` + `buildShopListHtml`, 5-char escaping, http(s)-only hrefs);
+`ui/openShoplist.ts` opens the window synchronously then dynamic-imports the builder
+(popup-blocker-safe, out of the main chunk). New `shopExport` flag (simple tier, prod on) gating
+the desktop **File → Shopping list**, the mobile File section, and a ⌘K command; IKEA product
+links are dev-gated behind the dev-only `ikeaLive` flag per the licensing rule. 25 tests incl.
+both-modes flag resolution.
+
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
 - **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above

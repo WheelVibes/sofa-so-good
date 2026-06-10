@@ -194,7 +194,9 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 
 **Collaboration/commerce/presentation:**
 - [x] F19 (C175) [PROD] Moodboard / style-board builder (images+product tiles+palette, export). V:M E:M.
-- [ ] F20 [PROD] Shoppable design export (clickable buy-list, totals by retailer; brand links dev-gated). V:M E:S-M.
+- [x] F20 (C215) [PROD] Shoppable design export — buy-list HTML grouped per retailer with totals +
+  budget context (`ui/shoplist.ts` + `openShoplist.ts`, `shopExport` flag simple-tier; IKEA product
+  links dev-gated via `ikeaLive`). V:M E:S-M.
 - [ ] F21 [PROD] WebXR VR walkthrough (`@react-three/xr` over walk mode). V:M E:M.
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer). V:L E:M.
 - [x] F23 [PROD] Client presentation mode — full-screen saved-views slideshow with per-view notes +

@@ -47,6 +47,7 @@ export type FeatureFlag =
   | 'paletteFromPhoto'
   | 'dxfExport'
   | 'boq'
+  | 'shopExport'
   | 'suggestions'
   | 'electricalPlan'
   | 'mountHeights'
@@ -262,6 +263,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Bill-of-quantities quote export',
     default: true,
     tier: 'pro',
+  },
+  shopExport: {
+    label: 'Shopping list export',
+    description: 'Shoppable buy-list HTML — items, prices, per-retailer totals',
+    default: true,
+    tier: 'simple',
   },
   suggestions: {
     label: 'Design suggestions',

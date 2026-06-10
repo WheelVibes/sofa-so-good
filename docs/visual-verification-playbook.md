@@ -17,7 +17,10 @@ landmine someone already stepped on so you don't have to.
   agents must run their **own** server on a free port, e.g.
   `npm run dev -- --port 5199 --strictPort`, and never `pkill -f vite`),
   `SHOT_NAV_TIMEOUT` ms (cold Vite transforms under parallel jobs easily blow
-  the default 60 s `goto`; nav timeouts also fall through to `waitMs` now).
+  the default 60 s `goto`).
+- A dev server with a live HMR socket may never reach `networkidle2`; the harness
+  catches the goto timeout and continues (the page has committed — `waitMs` covers
+  boot), logging a `[harness] goto…` line. Treat that line as informational.
 - `evalFile` is a JS file run **in the page** after `waitMs`. `actionsJson` is a
   JSON array of input actions, run **after** the evalFile.
 - Actions: `{type:'drag',from:[x,y],to:[x,y]}`, `wheel:{x,y,dy}`, `click:{x,y}`,
@@ -206,6 +209,20 @@ move-cancel logic works (`store.contextMenu` / a one-shot `contextmenu` listener
 flag). The raycast→handler link is the same path a real right-click uses, so
 proving the synthesized event matches a real one is sufficient. (This is the same
 class of issue as the "orbit drag/zoom emulation is unreliable headless" note.)
+
+### Verifying a new-window exporter (report / BOQ / shopping list)
+The harness screenshots only the original page, so a `window.open(…) → document.
+write(html)` exporter renders off-screen. Patch `window.open` in the evalFile to
+redirect the written HTML into the **main** document, then click the real menu
+item — this exercises the whole opener path (flag gate, dynamic import, data
+assembly, write) and leaves the export in the page for the screenshot:
+```js
+window.open = () => ({
+  document: { write: (h) => { document.open(); document.write(h); document.close(); },
+    close() {} }, focus() {}, close() {},
+});
+```
+Scroll the resulting plain-HTML page with `{type:'key',key:'End'}` for the footer.
 
 ### Driving a native `<select>` dropdown
 A click at the select's coordinates only *opens* the OS popup (which Chromium

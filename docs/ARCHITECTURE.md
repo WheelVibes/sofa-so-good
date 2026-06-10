@@ -193,6 +193,11 @@ same change that reshapes a system.
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + lighting + FF&E, title blocks, `@page` A4) reusing all the
   pure renderers — the formal counterpart to the one-page `report.ts`.
+- **Shoppable buy-list** (`ui/shoplist.ts` pure `buildShopList`+`buildShopListHtml` →
+  per-retailer-grouped buy-list HTML: qty/unit/line totals per (def,variant,room), grand + per-retailer
+  totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the
+  builder). Flag `shopExport` (simple, prod); File menu + mobile File + ⌘K. IKEA product links/SKUs only
+  with retailer defs; links dev-gated via `ikeaLive` (licensing) — generic export ships in prod.
 - **Lighting plan** (`lighting2d/lightingPlan.ts` pure → fixtures from the `LIGHT_EMITTERS` registry
   with world pos/height/intensity/coverage + a schedule; `ui/lighting2d/lightingPlanSvg.ts` draws
   walls + coverage circles + glyphs). Surfaced in the report (plan + schedule). Same pure-core →

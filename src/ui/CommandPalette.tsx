@@ -17,6 +17,7 @@ import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
 import { openDesignReport } from './openReport'
+import { openShoppingList } from './openShoplist'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
 import { Icon, type IconName } from './toolbar/icons'
 
@@ -36,6 +37,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   accessibility: 'accessibility',
   'palette-from-photo': 'paletteFromPhoto',
   panorama: 'panorama',
+  'shopping-list': 'shopExport',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -209,6 +211,13 @@ export function CommandPalette() {
         label: 'Design report (printable)',
         icon: 'Report',
         run: () => openDesignReport(),
+      },
+      {
+        id: 'shopping-list',
+        group: 'Tools & panels',
+        label: 'Shopping list (buy-list export)',
+        icon: 'Budget',
+        run: () => openShoppingList(),
       },
       {
         id: 'floorplan',
