@@ -1,6 +1,6 @@
-import type { ReactNode } from 'react'
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
 
 /**
@@ -24,25 +24,23 @@ export function CubeShelf({ props }: { props: ParamProps }) {
   const wood = getSurfaceMaterial(finish, color, 1.4, sheen)
   const BOX_COLORS = ['#7d3b3b', '#3b5a7d', '#5a7d3b', '#b08a3e', '#6b4a7d']
 
-  const verticals = Array.from({ length: cols + 1 }, (_, i) => {
+  // Carcass + wood storage boxes are all axis-aligned boxes sharing `wood`, so
+  // they collapse into one InstancedMesh (one draw call) instead of ~5–9 panels
+  // plus a box per filled cubby. Decorative books vary in colour, so they ride a
+  // second instanced set with per-instance `instanceColor`.
+  const woodBoxes: BoxInstance[] = []
+  for (let i = 0; i < cols + 1; i++) {
     const x = -width / 2 + t / 2 + i * (cube + t)
-    return (
-      <mesh key={`v${i}`} castShadow receiveShadow position={[x, height / 2, 0]} material={wood}>
-        <boxGeometry args={[t, height, depth]} />
-      </mesh>
-    )
-  })
-  const horizontals = Array.from({ length: rows + 1 }, (_, i) => {
+    woodBoxes.push({ position: [x, height / 2, 0], size: [t, height, depth] })
+  }
+  for (let i = 0; i < rows + 1; i++) {
     const y = t / 2 + i * (cube + t)
-    return (
-      <mesh key={`h${i}`} castShadow receiveShadow position={[0, y, 0]} material={wood}>
-        <boxGeometry args={[width, t, depth]} />
-      </mesh>
-    )
-  })
+    woodBoxes.push({ position: [0, y, 0], size: [width, t, depth] })
+  }
 
-  // Sparse decorative fills (deterministic).
-  const fills: ReactNode[] = []
+  // Sparse decorative fills (deterministic — preserve the exact rnd() call order
+  // so the layout is byte-identical to the per-mesh version).
+  const books: BoxInstance[] = []
   let seed = cols * 131 + rows * 17
   const rnd = () => {
     seed = (seed * 1103515245 + 12345) & 0x7fffffff
@@ -55,31 +53,26 @@ export function CubeShelf({ props }: { props: ParamProps }) {
       const cy = t + cube / 2 + r * (cube + t)
       if (rnd() > 0.5) {
         // a small stack of books leaning
-        fills.push(
-          <mesh key={`b${r}-${c}`} castShadow position={[cx, t + r * (cube + t) + 0.11, 0.02]}>
-            <boxGeometry args={[cube * 0.6, 0.22, depth * 0.6]} />
-            <meshStandardMaterial
-              color={BOX_COLORS[Math.floor(rnd() * BOX_COLORS.length)]}
-              roughness={0.8}
-            />
-          </mesh>,
-        )
+        books.push({
+          position: [cx, t + r * (cube + t) + 0.11, 0.02],
+          size: [cube * 0.6, 0.22, depth * 0.6],
+          color: BOX_COLORS[Math.floor(rnd() * BOX_COLORS.length)],
+        })
       } else {
         // a storage box
-        fills.push(
-          <mesh key={`x${r}-${c}`} castShadow position={[cx, cy, 0]} material={wood}>
-            <boxGeometry args={[cube * 0.9, cube * 0.88, depth * 0.86]} />
-          </mesh>,
-        )
+        woodBoxes.push({ position: [cx, cy, 0], size: [cube * 0.9, cube * 0.88, depth * 0.86] })
       }
     }
   }
 
   return (
     <group>
-      {verticals}
-      {horizontals}
-      {fills}
+      <InstancedBoxes instances={woodBoxes} castShadow receiveShadow>
+        <primitive object={wood} attach="material" />
+      </InstancedBoxes>
+      <InstancedBoxes instances={books} castShadow>
+        <meshStandardMaterial roughness={0.8} metalness={0} />
+      </InstancedBoxes>
     </group>
   )
 }
