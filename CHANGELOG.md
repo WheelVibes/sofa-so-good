@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C128] Fix GLB designer layout on mobile (responsiveness)
+The designer's side-by-side preview+controls `flex` row broke on phones — the preview collapsed to a
+~120px sliver and the 280px controls column overflowed off-screen (shape buttons + dropdowns clipped).
+Now stacks vertically on mobile (`useIsMobile`): full-width preview on top (38vh), scrollable controls
+below. Desktop layout unchanged. Verified before (broken) → after (usable) at 390px + that desktop is
+intact. Closes a real commercial-readiness gap (the repo's desktop+mobile rule).
+
 ## [C127] PR3b — glossy furniture finishes catch more of the IBL
 Set `envMapIntensity` (`GLOSSY_ENV_INTENSITY` = 1.3) on the glossy furniture material factories —
 marble/stone, leather, velvet — so they pick up more of the procedural IBL probe and read premium +

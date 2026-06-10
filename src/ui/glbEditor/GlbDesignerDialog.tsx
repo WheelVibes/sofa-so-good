@@ -25,6 +25,7 @@ import type { UserGltfDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
+import { useIsMobile } from '../useIsMobile'
 
 /** Loaded source GLB, uniformly scaled; reports its scene up for export. */
 function SourceModel({
@@ -107,6 +108,7 @@ export function GlbDesignerDialog() {
   // the UI minimal, so never surface it there (defensive — the ⌘K entry is also
   // hidden in simple mode).
   const isPro = useStore((s) => s.uiMode === 'pro')
+  const isMobile = useIsMobile()
   const close = () => useStore.getState().setGlbDesignerOpen(false)
   // Select the stable array ref, filter in a memo — filtering inside the selector
   // returns a fresh array every render and spins Zustand into an update loop.
@@ -217,12 +219,23 @@ export function GlbDesignerDialog() {
           </button>
         </div>
         <hr className="hr" />
-        <div style={{ display: 'flex', gap: 'var(--s-3)', flex: 1, minHeight: 0 }}>
+        {/* On mobile the side-by-side layout collapses the preview to a sliver and
+            overflows the controls — stack vertically (preview on top) instead. */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: 'var(--s-3)',
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
           {/* Live preview */}
           <div
             style={{
-              flex: '1 1 60%',
+              flex: isMobile ? '0 0 38vh' : '1 1 60%',
               minWidth: 0,
+              minHeight: 0,
               borderRadius: 'var(--r-2)',
               overflow: 'hidden',
               background: 'var(--scene-b)',
@@ -248,7 +261,13 @@ export function GlbDesignerDialog() {
           {/* Controls */}
           <div
             className="panel-body"
-            style={{ flex: '1 1 40%', minWidth: 280, overflowY: 'auto', paddingRight: 4 }}
+            style={{
+              flex: isMobile ? '1 1 auto' : '1 1 40%',
+              minWidth: 0,
+              width: isMobile ? '100%' : undefined,
+              overflowY: 'auto',
+              paddingRight: 4,
+            }}
           >
             <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
               <div className="sec-h">
