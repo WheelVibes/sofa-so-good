@@ -149,6 +149,10 @@ const PlanRoomZ = z.object({
   width: z.number(),
   depth: z.number(),
   extension: z.object({ offset: Vec2Z, width: z.number(), depth: z.number() }).optional(),
+  // Explicit polygon outline (absolute metres) for free-form / Auto-room rooms —
+  // authoritative for area/render/containment, so it MUST round-trip or the room
+  // silently reverts to its bounding rectangle on reload.
+  polygon: z.array(Vec2Z).optional(),
   ceilingHeight: z.number().optional(),
   floor: z.string().optional(),
 })
