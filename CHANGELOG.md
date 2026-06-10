@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C143] Lighting plan: room name labels
+The lighting plan now labels each room at its centroid (`roomLabelPoint`), so the reflected-ceiling
+plan reads room-by-room instead of as an unlabelled grid of fixtures. Internal to `lightingPlanSvg`;
+user-entered room names are HTML-escaped (test covers escaping).
+
 ## [C142] Elevations: clearer door symbol (framed leaf + handle)
 Doors in elevations now render as a framed leaf panel — an outer frame, a thin inset reveal, and a
 handle dot at ~1 m on the leading edge — instead of a blank dashed cut-out, so they read as doors.

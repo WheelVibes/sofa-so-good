@@ -5,9 +5,13 @@
  * Draws thin wall context, each fixture's coverage circle (its falloff radius)
  * and a light glyph at the bulb position.
  */
+import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import type { FloorPlan } from '../../floorplan/types'
 import { planBounds } from '../../floorplan/types'
 import type { PlanLight } from '../../lighting2d/lightingPlan'
+
+const esc = (s: string) =>
+  s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c] ?? c)
 
 export interface LightingPalette {
   /** Wall context lines. */
@@ -47,6 +51,15 @@ export function lightingPlanSvg(
   for (const w of plan.walls) {
     parts.push(
       `<line x1="${f(w.start[0])}" y1="${f(w.start[1])}" x2="${f(w.end[0])}" y2="${f(w.end[1])}" stroke="${p.wall}" stroke-width="${f(sw)}" stroke-linecap="round"/>`,
+    )
+  }
+
+  // Room name labels (escaped — custom plans carry user-entered names).
+  const labelFs = Math.max(0.12, Math.min(mx, mz) * 0.025)
+  for (const r of plan.rooms) {
+    const [lx, lz] = roomLabelPoint(r)
+    parts.push(
+      `<text x="${f(lx)}" y="${f(lz)}" font-size="${f(labelFs)}" fill="${p.ink}" fill-opacity="0.5" text-anchor="middle" dominant-baseline="middle">${esc(r.name)}</text>`,
     )
   }
 

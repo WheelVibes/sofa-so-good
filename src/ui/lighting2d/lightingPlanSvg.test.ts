@@ -42,6 +42,16 @@ describe('lightingPlanSvg', () => {
     expect(svg).toContain('fill="#fff0d4"')
   })
 
+  it('labels rooms (escaping user-entered names)', () => {
+    const withRoom = {
+      ...plan,
+      rooms: [{ id: 'r', name: '<b>Kitchen</b>', origin: [0, 0], width: 3, depth: 3 }],
+    } as unknown as FloorPlan
+    const svg = lightingPlanSvg(withRoom, [light], { palette })
+    expect(svg).toContain('&lt;b&gt;Kitchen&lt;/b&gt;')
+    expect(svg).not.toContain('<b>Kitchen')
+  })
+
   it('omits coverage circles when disabled', () => {
     const svg = lightingPlanSvg(plan, [light], { palette, coverage: false })
     expect(svg).not.toContain('r="3.000"')
