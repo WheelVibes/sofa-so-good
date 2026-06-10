@@ -245,6 +245,10 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
       assetTier: 'high',
       cameraMode: 'orbit',
       loading: { active: true, label: 'Entering room…' },
+      // Enter a fresh room with nothing pre-selected — a selection carried in
+      // from another room would show a stale Inspector for a piece you can't see.
+      selectedItemId: null,
+      selectedItemIds: [],
     })
   },
   exitRoomEditor: () => {

@@ -321,9 +321,16 @@ export default function App() {
   useEffect(() => {
     if (booting) return
     const s = useStore.getState()
+    // The spotlight tour highlights desktop toolbar controls that live inside the
+    // hamburger sheet on mobile — and its overlay would sit above that sheet — so
+    // on mobile we show the centred onboarding carousel instead (ProductTour also
+    // self-disables on mobile as a safety net).
+    const isMobile =
+      typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
     if (!hasSeenTour()) {
       markOnboarded()
-      s.startTour()
+      if (isMobile) s.setOnboardingOpen(true)
+      else s.startTour()
     } else if (!hasOnboarded()) {
       s.setOnboardingOpen(true)
     }

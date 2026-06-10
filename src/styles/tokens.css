@@ -42,6 +42,8 @@
   --z-panel: 20;
   --z-pop: 40;
   --z-overlay: 60;
+  /* Toasts sit above modals/overlays so a confirmation isn't hidden behind a dialog. */
+  --z-toast: 70;
 }
 
 /* ============================================================

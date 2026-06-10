@@ -173,6 +173,9 @@ function getMarbleMaps(): { albedo: Texture; normal: Texture } {
   const baseN = makeFbm(0x5a17, 5, 4)
   const veinWarp = makeFbm(0x7d31, 4, 6)
   const grime = makeFbm(0x1133, 4, 20)
+  // PR6: broad low-freq tonal clouding so a slab isn't a uniform white field
+  // between veins (real stone has soft light/dark drifts). Tint-preserving.
+  const cloudN = isFeatureEnabled('pbrSurfaces') ? makeFbm(0x2f6b, 4, 2.2) : null
   const albedo = new Uint8ClampedArray(N * N * 4)
   const height = new Float32Array(N * N)
   for (let y = 0; y < N; y++) {
@@ -189,7 +192,8 @@ function getMarbleMaps(): { albedo: Texture; normal: Texture } {
       const field2 = Math.sin((v * 1.8 - u * 0.4 + warp2) * Math.PI * 3.1)
       const vein2 = clamp01(1 - Math.abs(field2) * 11) * 0.5
       const mottle = (grime(u * 4, v * 4) - 0.5) * 0.06
-      const lum = clamp01(0.97 - vein * 0.4 - vein2 * 0.22 + mottle)
+      const cloud = cloudN ? (cloudN(u, v) - 0.5) * 0.1 : 0
+      const lum = clamp01(0.97 - vein * 0.4 - vein2 * 0.22 + mottle + cloud)
       const i = y * N + x
       const c = Math.round(lum * 255)
       albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = c
@@ -342,6 +346,65 @@ function getLeatherNormal(): Texture {
   }
   leatherNormal = canvasFrom(heightToNormalRGBA(height, N, 1.4))
   return leatherNormal
+}
+
+// PR6: leather had a pebble normal but a flat tint — real hide has tonal
+// mottle + faint creases/burnish. A near-white greyscale albedo (so the
+// material colour still tints it) carrying broad mottle + a few darker creases.
+let leatherAlbedo: Texture | null = null
+function getLeatherAlbedo(): Texture {
+  if (leatherAlbedo) return leatherAlbedo
+  const mottle = makeFbm(0x3b9c, 4, 7) // broad hide tone variation
+  const grain = makeFbm(0x1ea7, 4, 18) // align faint shading with the pebble
+  const crease = makeFbm(0x6f22, 3, 4) // long creases / burnish bands
+  const data = new Uint8ClampedArray(N * N * 4)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N
+      const v = y / N
+      // Creases: where the warped sine is near zero → a darker fold line.
+      const cf = Math.sin((u * 1.6 + v * 0.5 + (crease(u, v) - 0.5) * 2.4) * Math.PI * 2.2)
+      const fold = clamp01(1 - Math.abs(cf) * 9) * 0.16
+      const lum = clamp01(0.96 + (mottle(u, v) - 0.5) * 0.14 - (grain(u, v) - 0.5) * 0.06 - fold)
+      const i = (y * N + x) * 4
+      const c = Math.round(lum * 255)
+      data[i] = data[i + 1] = data[i + 2] = c
+      data[i + 3] = 255
+    }
+  }
+  const t = canvasFrom(data)
+  t.colorSpace = SRGBColorSpace
+  leatherAlbedo = t
+  return leatherAlbedo
+}
+
+// Velvet pile (PR6): smooth, dense pile — NOT a woven grid (so it must not reuse
+// the slubby fabric weave). A very fine isotropic nap normal + a faint low-freq
+// albedo clumping so the sheen lobe varies across the pile like real velvet.
+let velvetMaps: { albedo: Texture; normal: Texture } | null = null
+function getVelvetMaps(): { albedo: Texture; normal: Texture } {
+  if (velvetMaps) return velvetMaps
+  const nap = makeFbm(0x5e1d, 4, 150) // dense fine pile
+  const clump = makeFbm(0x2a44, 3, 7) // soft directional clumping
+  const height = new Float32Array(N * N)
+  const albedo = new Uint8ClampedArray(N * N * 4)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N
+      const v = y / N
+      height[y * N + x] = nap(u, v) * 0.7 + clump(u, v) * 0.3
+      // Pile clumping subtly lightens/darkens the body so the sheen reads uneven.
+      const lum = clamp01(0.95 + (clump(u, v) - 0.5) * 0.12)
+      const i = (y * N + x) * 4
+      const c = Math.round(lum * 255)
+      albedo[i] = albedo[i + 1] = albedo[i + 2] = c
+      albedo[i + 3] = 255
+    }
+  }
+  const a = canvasFrom(albedo)
+  a.colorSpace = SRGBColorSpace
+  velvetMaps = { albedo: a, normal: canvasFrom(heightToNormalRGBA(height, N, 0.8)) }
+  return velvetMaps
 }
 
 // Tone-on-tone weave patterns: a near-white luminance albedo (so the
@@ -571,6 +634,7 @@ export function getLeatherMaterial(color: string, rough = 0.42): MeshStandardMat
     color,
     roughness: rough,
     metalness: 0.06,
+    map: isFeatureEnabled('pbrSurfaces') ? getLeatherAlbedo() : null,
     normalMap: getLeatherNormal(),
     envMapIntensity: GLOSSY_ENV_INTENSITY,
   })
@@ -588,11 +652,16 @@ export function getVelvetMaterial(color: string, rough = 0.62): MeshStandardMate
   const key = `velv:${color}:${rough.toFixed(2)}`
   const hit = cache.get(key)
   if (hit) return hit
+  // PR6: velvet gets its own smooth pile (own normal + faint albedo), not the
+  // slubby woven-fabric normal; legacy path keeps the shared fabric normal.
+  const rich = isFeatureEnabled('pbrSurfaces')
+  const vm = rich ? getVelvetMaps() : null
   const m = new MeshPhysicalMaterial({
     color,
     roughness: rough,
     metalness: 0.02,
-    normalMap: getFabricNormal(),
+    map: vm?.albedo ?? null,
+    normalMap: vm?.normal ?? getFabricNormal(),
     envMapIntensity: GLOSSY_ENV_INTENSITY,
   })
   m.normalScale.set(0.3, 0.3)

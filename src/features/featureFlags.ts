@@ -131,7 +131,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Floor-plan editor',
     description: '2D plan editor',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   smartStart: {
     label: 'Smart Start',

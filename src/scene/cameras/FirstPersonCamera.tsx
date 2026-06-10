@@ -1,8 +1,11 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
 import { Euler, PerspectiveCamera, Vector3 } from 'three'
+import { useShallow } from 'zustand/react/shallow'
 import { DOORS, WALLS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
+import { buildWalkBlockers, resolveCircleVsObbs } from '../../collision/furnitureBlock'
+import type { OBB } from '../../collision/obb'
 import {
   buildPlanRoomCollisionWalls,
   buildRoomCollisionWalls,
@@ -14,6 +17,7 @@ import { isEditableTarget } from '../../controls/useKeyboard'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { planRoomShell } from '../../floorplan/planRoomShell'
 import { planBounds, planRoomArea } from '../../floorplan/types'
+import { useCatalogGetter } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
@@ -79,6 +83,13 @@ export function FirstPersonCamera() {
   const floorPlan = useStore((s) => s.floorPlan)
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
   const collisionWalls = useRef<CollisionWall[]>([])
+  // Furniture footprints the walker can't pass through (rebuilt on item change).
+  const items = useStore(useShallow((s) => s.items))
+  const { getDef } = useCatalogGetter()
+  const blockers = useRef<OBB[]>([])
+  useEffect(() => {
+    blockers.current = buildWalkBlockers(items, getDef)
+  }, [items, getDef])
 
   useEffect(() => {
     // In the per-room editor, bound the player to the isolated room's clipped
@@ -323,7 +334,13 @@ export function FirstPersonCamera() {
       dz = (dz / len) * speed * stepDt
       const from: [number, number] = [camera.position.x, camera.position.z]
       const to: [number, number] = [from[0] + dx, from[1] + dz]
-      const next = resolveMovement(from, to, PLAYER_RADIUS, collisionWalls.current)
+      let next = resolveMovement(from, to, PLAYER_RADIUS, collisionWalls.current)
+      // Block walking through furniture: push out of any footprint, then
+      // re-resolve walls so a piece can't shove the walker through a wall.
+      if (blockers.current.length > 0) {
+        const pushed = resolveCircleVsObbs(next[0], next[1], PLAYER_RADIUS, blockers.current)
+        next = resolveMovement([next[0], next[1]], pushed, PLAYER_RADIUS, collisionWalls.current)
+      }
       camera.position.x = next[0]
       camera.position.z = next[1]
     }

@@ -1,5 +1,5 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { Color, MeshBasicMaterial, Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../collision/placement'
@@ -76,6 +76,8 @@ export function PlacementGhost() {
   }, [])
   const greenColor = useMemo(() => new Color('#22c55e'), [])
   const redColor = useMemo(() => new Color('#ef4444'), [])
+  // Dispose the tint material's GPU buffer when the controller unmounts.
+  useEffect(() => () => tintMaterial.dispose(), [tintMaterial])
 
   useFrame(() => {
     if (!def || !ghostItem || !cursor || !groupRef.current) return

@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
+import { useIsMobile } from '../useIsMobile'
 import { TOUR_STEPS } from './tourSteps'
 
 interface Rect {
@@ -32,8 +33,17 @@ export function ProductTour() {
   const prev = useStore((s) => s.tourPrev)
   const end = useStore((s) => s.endTour)
 
+  const isMobile = useIsMobile()
   const [rect, setRect] = useState<Rect | null>(null)
   const current = TOUR_STEPS[step]
+
+  // The spotlight tour targets desktop toolbar controls and its overlay sits
+  // above the mobile hamburger sheet — so it can't work on mobile and would
+  // block the hamburger. End it if it somehow opens on a mobile viewport
+  // (App shows the centred onboarding carousel there instead).
+  useEffect(() => {
+    if (open && isMobile) end()
+  }, [open, isMobile, end])
   // The live resolved target element for the current step (real target or the
   // mobile hamburger fallback). Used by the click-to-advance listener.
   const targetRef = useRef<HTMLElement | null>(null)
@@ -117,7 +127,7 @@ export function ProductTour() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, next, prev, end])
 
-  if (!open || !current) return null
+  if (!open || !current || isMobile) return null
 
   const isLast = step === TOUR_STEPS.length - 1
   // An action step forces interaction (no Next) — but only when we actually have

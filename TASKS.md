@@ -74,6 +74,18 @@ standing themed backlog below + the existing sections further down hold the open
 
 (Competitor-research agent will expand/replace these with cited, prioritized items.)
 
+### AGENT SWEEP FOLLOW-UPS (2026-06-10) — found but deferred (lower-impact)
+From the parallel bug/perf/UI agent sweep; the high-value items were fixed in the bug-fix batch. Remaining:
+- [ ] THEME-COLORS. Several hardcoded hex colours bypass the token vocabulary (would mis-render in dark / the
+  5 themes): `FloorPlanEditor.tsx` room-annotation SVG (`#0d9488`) + `CATEGORY_FILL` table; `CompassModal.tsx`
+  SVG; `ConfirmDialog.tsx` (upload) light-only `#fffdf9`/`#3a3127`; `IkeaBody.tsx` swatch fallback `#cccccc`;
+  `PlanInspector.tsx` cove default `#ffe6c0`. A dedicated theming pass (map to `var(--…)` tokens).
+- [ ] POPOVER-SCROLL. Toolbar popovers/menus are fixed-positioned to their button; when the toolbar scrolls
+  horizontally (narrow desktop) the popover detaches. Close or reposition popovers on toolbar scroll.
+- [ ] MOBILE-TAP-TARGETS. Audit mobile accordion sub-items (`.m-item-s`) for the 44 px min touch target.
+- [ ] PERF-FOLLOWUPS. `historySlice` tail re-slice on every push past the cap; `placement.findItemOverlaps`
+  rebuilds the broadphase grid per call (cache within a frame). Low-impact; revisit if profiling flags them.
+
 ### AUDIT FINDINGS (2026-06-10) — execute these first, one commit each
 **Reliability/bugs (high→low):**
 - [x] B1 (C164). `schema.ts` `PlanRoomZ` omits `polygon` → polygon/Auto-room rooms revert to
