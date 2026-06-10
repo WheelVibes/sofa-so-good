@@ -14,6 +14,8 @@ import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
 import { diffWalls } from '../floorplan/demolitionPlan'
 import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
+import { buildElectricalPlan, type ElectricalPoint } from '../floorplan/electricalPlan'
+import { electricalSvg } from '../floorplan/electricalPlanSvg'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
@@ -56,6 +58,7 @@ export function buildDrawingSetHtml(
   catalog: Record<string, FurnitureDef>,
   units: UnitSystem = 'metric',
   baselinePlan?: FloorPlan,
+  electricalPoints?: ElectricalPoint[],
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -134,6 +137,23 @@ export function buildDrawingSetHtml(
         },
         widthPx: 900,
       })}</div>`,
+    })
+    next += 1
+  }
+
+  // Electrical / power & data plan (points derived from appliances + doors).
+  if (electricalPoints && electricalPoints.length > 0) {
+    const elec = buildElectricalPlan(plan, electricalPoints)
+    sheets.push({
+      num: `A-${next}`,
+      name: 'Electrical plan',
+      body: `<div class="draw">${electricalSvg(plan, elec, {
+        palette: { wall: '#9ca3af', ink: '#374151', symbol: '#2563eb' },
+        widthPx: 900,
+      })}</div>
+        <table class="sched"><tr class="h"><td>Point</td><td class="n">Qty</td></tr>${elec.schedule
+          .map((r) => `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td></tr>`)
+          .join('')}</table>`,
     })
     next += 1
   }

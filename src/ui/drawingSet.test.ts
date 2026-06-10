@@ -38,6 +38,17 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('Section A')
   })
 
+  it('includes an electrical-plan sheet when electrical points are supplied', () => {
+    const points = [
+      { x: 1, z: 1, kind: 'socket' as const },
+      { x: 2, z: 1, kind: 'switch' as const },
+    ]
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG, 'metric', undefined, points)
+    expect(html).toContain('Electrical plan')
+    // No points → no electrical sheet.
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Electrical plan')
+  })
+
   it('includes a demolition sheet only when the plan diverged from its baseline', () => {
     const baseline = plan
     const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
