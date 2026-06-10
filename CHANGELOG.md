@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C211] Velvet pile maps (PR6 follow-on)
+Velvet was borrowing the woven-fabric normal (now slubby after C209), which is wrong for smooth pile. Gave
+velvet its own dense fine-nap normal + a faint low-freq pile-clumping albedo so the sheen reads uneven like
+real velvet. Behind `pbrSurfaces`; verified on a green velvet sofa.
+
 ## [C210] Leather albedo (PR6 follow-on)
 Leather upholstery had a pebble normal but a flat tint; added a near-white greyscale albedo (so the colour
 still tints it) carrying broad hide mottle + faint crease/burnish lines, so leather reads as real hide.
