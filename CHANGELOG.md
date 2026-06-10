@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C205] Configurable wardrobe interior (F10)
+The open-style wardrobe gained an `interior` param — **Rail + shelves** (default), **All hanging**, **All
+shelves**, or **Drawers + hanging** — reshaping the carcass fit-out (rails with garments, shelf stacks, and a
+pulled drawer bank) so storage reads realistically in a layout. Verified up-close on the drawers layout.
+
 ## [C203–C204] Per-room ceiling design (F12 / Q-CEILING)
 - **C203** (core): `CeilingConfig`/`CeilingStyle` types on `PlanRoom`; pure `apartment/ceiling/ceilingModel.ts`
   `buildCeiling` (tray = lower perimeter frame + raised centre; coffered = base + beam grid; dropped = base +

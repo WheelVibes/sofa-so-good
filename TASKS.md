@@ -58,7 +58,7 @@ standing themed backlog below + the existing sections further down hold the open
 - [x] C-MAT. Curated "Designer picks" one-tap floor/wall finishes row in the finish picker (C202,
   `materials/designerPicks.ts`, `designerPicks` flag).
 - [ ] C-PLANTS/DECOR. More CC0 decor/plants/art variety; ensure category coverage is exhaustive.
-- [ ] C-WARDROBE. Wardrobe/closet + vanity configurators (parametric, like the cabinet engine) — kitchen done, extend.
+- [~] C-WARDROBE. Wardrobe interior configurator done (C205, F10); vanity configurator still TODO.
 
 #### Productivity / QOL (match + surpass)
 - [ ] Q-MULTILEVEL. Multi-storey / multi-level plans (maisonette upper floor, landed 2nd storey, condo loft) — architectural.
@@ -148,7 +148,8 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F7 [PROD] Curtains/blinds window-treatment system (window-aware parametric). V:M E:M.
 - [x] F8 (C171) [PROD] Staircase primitive (straight/L/U/spiral) — needed by maisonette/penthouse/landed. V:M E:M.
 - [ ] F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza) so designs look styled. V:M E:S.
-- [ ] F10 [PROD] Wardrobe/closet configurator (extend cabinet engine: rails/shelves/drawers). V:M E:M.
+- [x] F10 [PROD] Wardrobe interior configurator — `interior` param (rail+shelves / all-hanging / all-shelves
+  / drawers+hanging) reshapes the open wardrobe (C205).
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate). V:L E:L.
 - [x] F12 [PROD] Ceiling design — tray/coffered/dropped + cove glow per room (C203/C204, see Q-CEILING).
 
