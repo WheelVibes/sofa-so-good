@@ -195,6 +195,9 @@ same change that reshapes a system.
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
   emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
   a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
+- **Accessibility check** (`analysis/accessibility.ts` pure → `buildAccessibilityReport(plan)`:
+  door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
+  thumb). Surfaced as the report's Accessibility section. Plan-only (reads for a bare shell).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design and `findWallClips(items,defs,walls)` flags pieces

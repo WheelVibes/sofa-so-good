@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C159] Accessibility / universal-design check + report section
+New pure `src/analysis/accessibility.ts` `buildAccessibilityReport(plan)` — a plan-level BCA-Code-on-
+Accessibility rule-of-thumb QC: each door's clear opening width vs 0.85 m, and whether each habitable
+room fits a 1.5 m wheelchair turning circle (smaller plan span ≥ 1.5 m); external rooms skipped, robust
+to an empty plan. Surfaced as an **Accessibility** section in the printable report (pass counts + the
+failing doorways/rooms to widen, or an all-clear). Plan-only, so it reads even for an unfurnished shell.
+4 module tests + a report assertion.
+
 ## [C158] Richer auto-furnish kits — study, standalone dining, powder room, balcony
 `furnishPlan` now covers more room types so Smart Start furnishes the templates' full variety:
 **Study/home-office** (desk + office chair + bookshelf), **standalone Dining** (dining set only — no
