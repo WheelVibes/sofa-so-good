@@ -40,7 +40,7 @@ weakly under the headless **software-GL** harness — tone curve / vignette / gr
 Today (`GlbDesignerDialog` + `furniture/glbEdit/`): compose-from-shapes, scale-a-source-GLB,
 per-mesh recolour/hide. More verifiable in software-GL than PRx (deterministic geometry/UI).
 - [x] GE1. More primitives — cone/pyramid/capsule/torus shipped C115 (wedge/plane deferred).
-- [ ] GE1b. **Wedge / plane / tube** primitives (need custom or extra geometry).
+- [x] GE1b. Wedge primitive — shipped C124. (Plane = a thin box; tube = a torus — both already covered.)
 - [~] GE2. Per-part transform. GE2a (C121): numeric rotation inputs. TODO GE2b: a drag gizmo
   (drei TransformControls) for move/rotate/scale in the preview.
 - [x] GE3. Per-part PBR — roughness/metalness (C119) + glow/opacity (C120). TODO GE3c: texture pick.

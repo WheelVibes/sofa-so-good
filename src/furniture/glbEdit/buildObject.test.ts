@@ -75,6 +75,15 @@ describe('partGeometry — every shape kind builds valid, finite geometry', () =
     expect(bb.max.y - bb.min.y).toBeGreaterThan(0)
   })
 
+  it('wedge maps its size to w×h×d (extrude axis → X)', () => {
+    const geo = partGeometry({ ...defaultPart('wedge'), size: [0.6, 0.4, 0.8] })
+    geo.computeBoundingBox()
+    const bb = geo.boundingBox!
+    expect(bb.max.x - bb.min.x).toBeCloseTo(0.6, 2)
+    expect(bb.max.y - bb.min.y).toBeCloseTo(0.4, 2)
+    expect(bb.max.z - bb.min.z).toBeCloseTo(0.8, 2)
+  })
+
   it('builds one mesh per part across all kinds (preview == export parity)', () => {
     let spec = createEmptySpec()
     for (const kind of SHAPE_KINDS) spec = addPart(spec, kind)

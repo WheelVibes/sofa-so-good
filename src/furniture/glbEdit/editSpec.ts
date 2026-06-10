@@ -8,7 +8,15 @@
  * decisions (bounds, validation, part maths) unit-testable without a GPU.
  */
 
-export type ShapeKind = 'box' | 'cylinder' | 'sphere' | 'cone' | 'torus' | 'capsule' | 'pyramid'
+export type ShapeKind =
+  | 'box'
+  | 'cylinder'
+  | 'sphere'
+  | 'cone'
+  | 'torus'
+  | 'capsule'
+  | 'pyramid'
+  | 'wedge'
 
 /** All primitive kinds, in palette order. Source of truth for the designer's
  *  "add shape" controls + the geometry switch in `buildObject.ts`. */
@@ -20,6 +28,7 @@ export const SHAPE_KINDS: ShapeKind[] = [
   'pyramid',
   'capsule',
   'torus',
+  'wedge',
 ]
 
 export const SHAPE_LABEL: Record<ShapeKind, string> = {
@@ -30,6 +39,7 @@ export const SHAPE_LABEL: Record<ShapeKind, string> = {
   pyramid: 'Pyramid',
   capsule: 'Capsule',
   torus: 'Torus',
+  wedge: 'Wedge',
 }
 
 export interface ShapePart {
@@ -118,6 +128,7 @@ const DEFAULT_SIZE: Record<ShapeKind, [number, number, number]> = {
   pyramid: [0.5, 0.5, 0.5],
   capsule: [0.25, 0.6, 0.25],
   torus: [0.4, 0.12, 0.4],
+  wedge: [0.5, 0.4, 0.5],
 }
 
 /** Sensible starting dimensions/colour + floor-resting Y per shape kind. */

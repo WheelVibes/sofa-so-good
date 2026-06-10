@@ -101,7 +101,7 @@ same change that reshapes a system.
   available). `useIsMobile.ts` ≤640px hook; `body.mobile` → bottom-sheets + minimal bar.
 - **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
   `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
-  (box/cylinder/sphere/cone/pyramid/capsule/torus — pure tested `editSpec.ts` `SHAPE_KINDS`;
+  (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;
   geometry via `buildObject.ts` `partGeometry` + per-part PBR via `partMaterial` — both shared by
   the live preview so it can't drift; each part carries colour + roughness + metalness +
   emissive glow + opacity)

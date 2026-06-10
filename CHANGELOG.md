@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C124] GE1b — wedge (ramp) primitive in the GLB designer
+Added an 8th primitive, **wedge** (a right-triangular prism / ramp — angled supports, roof slopes,
+door stops). Built via `ExtrudeGeometry` of a triangle so three derives correct winding + normals,
+then mapped (extrude axis → X) and centred. Unit tests confirm finite geometry + an exact w×h×d
+bounding box; verified it renders as a clean flat-shaded ramp in the designer. Docs updated.
+
 ## [C123] PR1b — user Exposure (brightness) slider
 Added an **Exposure** control in Graphics (0.6–1.6×) that rides on top of the altitude-driven
 auto-exposure — like a camera's exposure-compensation dial — so users can brighten or darken the

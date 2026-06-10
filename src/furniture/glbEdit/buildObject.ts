@@ -5,12 +5,14 @@ import {
   Color,
   ConeGeometry,
   CylinderGeometry,
+  ExtrudeGeometry,
   Group,
   type Material,
   MathUtils,
   Mesh,
   MeshStandardMaterial,
   type Object3D,
+  Shape,
   SphereGeometry,
   TorusGeometry,
 } from 'three'
@@ -102,6 +104,20 @@ export function partGeometry(part: ShapePart): BufferGeometry {
       const tube = Math.max(0.01, h / 2)
       const radius = Math.max(tube, w / 2 - tube)
       return new TorusGeometry(radius, tube, 16, 48)
+    }
+    case 'wedge': {
+      // Right-triangular prism (a ramp): triangle in the Z/Y plane rising toward
+      // +Z, extruded across the width (X). Built via ExtrudeGeometry so three
+      // handles winding + normals; then mapped (extrude axis Z→X) and centred.
+      const shape = new Shape()
+      shape.moveTo(-d / 2, -h / 2)
+      shape.lineTo(d / 2, -h / 2)
+      shape.lineTo(d / 2, h / 2)
+      shape.closePath()
+      const geo = new ExtrudeGeometry(shape, { depth: w, bevelEnabled: false })
+      geo.translate(0, 0, -w / 2) // centre along the extrude axis
+      geo.rotateY(-Math.PI / 2) // extrude axis Z → X (so width = w on X, depth = d on Z)
+      return geo
     }
     default:
       return new SphereGeometry(Math.max(w, h, d) / 2, 32, 16)
