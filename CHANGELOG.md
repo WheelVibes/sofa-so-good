@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C212] Marble tonal clouding (PR6 follow-on)
+Added a broad low-freq tonal cloud to the marble albedo so a slab isn't a uniform white field between veins.
+Subtle + tint-preserving (a clamped ±0.05 luminance drift). Behind `pbrSurfaces`. Visual verification was
+inconclusive in the harness (couldn't isolate a white-marble surface — the coffee-table top uses its own
+colour prop), but the change is a near-zero-risk tweak to the already-verified marble generator.
+
 ## [C211] Velvet pile maps (PR6 follow-on)
 Velvet was borrowing the woven-fabric normal (now slubby after C209), which is wrong for smooth pile. Gave
 velvet its own dense fine-nap normal + a faint low-freq pile-clumping albedo so the sheen reads uneven like
