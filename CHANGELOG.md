@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C158] Richer auto-furnish kits — study, standalone dining, powder room, balcony
+`furnishPlan` now covers more room types so Smart Start furnishes the templates' full variety:
+**Study/home-office** (desk + office chair + bookshelf), **standalone Dining** (dining set only — no
+stray sofa/TV), **Powder Room/WC** (half-bath: toilet + sink + mirror, no shower), and **Balcony/patio**
+(outdoor table + chairs + planter). `kitForRoom` checks these specials before the generic name-kind
+classifier. Tests cover each kit + a utility room staying empty; verified via the screenshot harness.
+
 ## [C157] Smart Start applies the preset floor/wall palette to custom plans too
 Completes C153: on a custom plan/template, `applyLayoutPreset` now also restyles the shell — dry living
 spaces (living/bedroom rooms, by inferred kind) take the preset's dry floor, the plan's wall colour
