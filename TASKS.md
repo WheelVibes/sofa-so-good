@@ -116,8 +116,9 @@ standing themed backlog below + the existing sections further down hold the open
 - [x] PERF5 (C181) (M). Lazy-load rarely-opened modals/panels (ShareModal, VersionsPanel, HistoryPanel,
   ElevationPanel, DesignScorePanel, AccessibilityPanel, DaylightPanel, SwapModal, SmartStartWizard,
   ProductTour) — trims boot bundle. `App.tsx:27`.
-- [ ] PERF6 (M). `Scene` Canvas hardcodes `antialias:true` + `preserveDrawingBuffer:true` + DPR≤1.75;
-  tier-gate (Performance → DPR1/AA off), arm `preserveDrawingBuffer` only for export/record. `scene/Scene.tsx:64`.
+- [~] PERF6 (C196 DPR done) (M). Canvas DPR ceiling now driven by `useQuality().dprMax` (Performance → 1).
+  Remaining: `antialias` + `preserveDrawingBuffer` are WebGL context-creation attributes — can't toggle
+  reactively without recreating the context (flash + real-GPU verify); deferred. `scene/Scene.tsx`.
 - [x] PERF7 (C179) (M). Broadphase (spatial grid / sweep-prune) for `findItemOverlaps`/`findNarrowGaps`/
   `findWallClips` (O(n²) today) for 100s-of-items scale; compute scans once + share between report + designScore.
 - [x] PERF8 (C192) (M). `DragController.onMove` indexes items into id→item Maps once per move (was repeated

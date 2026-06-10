@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C196] Tier-gate the Canvas DPR ceiling (PERF6, partial)
+The main Canvas now takes its device-pixel-ratio ceiling from the active quality tier's `dprMax`
+(Performance = 1, was a hardcoded 1.75) — a real fill-rate saving on the default tier / weak GPUs, applied
+live on a tier switch. `antialias` + `preserveDrawingBuffer` are WebGL context-creation attributes and can't
+be toggled without recreating the context, so they're left as-is (deferred, needs real-GPU verification).
+
 ## [C195] Catalog hook memoisation + in-canvas getter (PERF1)
 `useCatalog` is now memoised on its three input slices, so the non-trivial merged-catalog build runs only
 when a slice actually changes — not on every consumer re-render (a FurnitureLayer re-render on every drag
