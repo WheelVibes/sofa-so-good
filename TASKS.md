@@ -61,7 +61,8 @@ standing themed backlog below + the existing sections further down hold the open
 
 #### Productivity / QOL (match + surpass)
 - [ ] Q-MULTILEVEL. Multi-storey / multi-level plans (maisonette upper floor, landed 2nd storey, condo loft) — architectural.
-- [ ] Q-CEILING. Ceiling design (cove/false ceiling, pendant zones) — RCP-adjacent.
+- [x] Q-CEILING / F12. Ceiling design — per-room tray/coffered/dropped + cove glow (C203/C204,
+  `apartment/ceiling/`, `ceilingDesign` flag). Real-GPU walk-mode appearance pass still TODO.
 - [x] Q-COPYSTYLE. Copy-style / paste-appearance between items + bulk recolour by category (C198, F17).
 - [x] Q-MOODBOARD (C175). Moodboard / style board export from the design (decor + palette).
 - [ ] Q-3DEXPORT. Whole-scene glTF/GLB + USDZ (AR) export (deferred — needs worker-streamed export; verify on real GPU).
@@ -148,7 +149,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza) so designs look styled. V:M E:S.
 - [ ] F10 [PROD] Wardrobe/closet configurator (extend cabinet engine: rails/shelves/drawers). V:M E:M.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate). V:L E:L.
-- [ ] F12 [PROD] Ceiling design (tray/cove/coffer/false-ceiling boxes tied to room polygon). V:M E:M.
+- [x] F12 [PROD] Ceiling design — tray/coffered/dropped + cove glow per room (C203/C204, see Q-CEILING).
 
 **Productivity/QOL:**
 - [ ] F13 [PROD] Multi-floor / multi-storey levels (schema+camera+stairs) — unblocks existing templates. V:L E:L.

@@ -38,6 +38,10 @@ same change that reshapes a system.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
   windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`. `PlanShell.tsx`
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active.
+  `ceiling/` = per-room ceiling treatments: pure `ceilingModel.ts` `buildCeiling` (tray/coffered/
+  dropped → planes + risers, rect-room only, flat fallback) + `RoomCeiling.tsx` (tier-gated:
+  risers/cove on High+); both `Ceiling.tsx` (default flat) and `PlanRoomCeiling.tsx` delegate to it
+  when a room's `ceiling` config is set (`ceilingDesign` flag).
 - `src/floorplan/` — editable plan model: `types.ts` (FloorPlan + area/bounds/polygon
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
   `isDefaultPlan`), `templates.ts` (18 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo,

@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C203–C204] Per-room ceiling design (F12 / Q-CEILING)
+- **C203** (core): `CeilingConfig`/`CeilingStyle` types on `PlanRoom`; pure `apartment/ceiling/ceilingModel.ts`
+  `buildCeiling` (tray = lower perimeter frame + raised centre; coffered = base + beam grid; dropped = base +
+  lowered soffit box; all hole-free, rect-room only with a flat fallback for L-shapes/too-small rooms, drop
+  clamped to a 2.0 m clearance; 9 tests); `schema.ts` round-trip (additive, no version bump); coalesced
+  `setRoomCeiling` store action; `ceilingDesign` flag.
+- **C204** (render + UI): `RoomCeiling.tsx` maps parts → meshes (BackSide planes, tier-gated risers + an
+  emissive cove glow on High+); both `Ceiling.tsx` (default flat) and `PlanRoomCeiling.tsx` delegate to it.
+  Per-room ceiling picker (style + depth/border/grid + cove) in `PlanInspector`. Verified: the coffered grid
+  reads correctly from an interior up-view in daylight.
+
 ## [C202] Curated "Designer picks" finishes (C-MAT)
 A one-tap "Designer picks" swatch row above the floor + wall grids in the finish picker — the handful of
 finishes designers reach for most (oak/walnut/parquet/marble for floors; warm-white/greige/sage/navy/fluted-
