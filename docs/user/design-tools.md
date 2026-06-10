@@ -45,15 +45,21 @@ issue with fix hints; clicking a card selects and frames the offending piece
 (both pieces, for an overlap). Stacked items (a mattress on its frame, decor on
 a surface), rugs, and wall‑mounted items are never flagged.
 
-## Wall elevations
+## Drawings — elevations & lighting plan
 
-**Elevations** (Tools menu) draws each wall "side‑on" — the vertical counterpart
-to the floor plan. Pick a wall to see a scaled drawing of it: the wall rectangle
-(width × height), its windows (pane + mullions) and doors, and the furniture
-standing against that wall as labelled silhouettes at their real positions and
-heights. It's the view kitchen/bath designers and installers use for cabinet,
-fixture and backsplash heights — and a clear way to show a client what a wall
-will look like. Works on desktop and as a mobile sheet.
+**Drawings** (Tools menu) opens a panel with two professional 2D views, toggled
+at the top:
+
+- **Elevations** draw each wall "side‑on" — the vertical counterpart to the floor
+  plan. Pick a wall to see a scaled, dimensioned drawing: the wall rectangle, its
+  windows (pane + mullions) and doors, and the furniture standing against that
+  wall as labelled silhouettes at their real positions and heights. It's the view
+  kitchen/bath designers and installers use for cabinet, fixture and backsplash
+  heights.
+- **Lighting** plots every light fixture over the walls with its coverage circle —
+  a reflected‑ceiling‑style plan showing where the light falls.
+
+Both also appear in the printable **Report**. Works on desktop and as a mobile sheet.
 
 ## Measure
 

@@ -29,7 +29,8 @@ offset) — no new placement UI. Pure-core + 2D SVG + report, fully verifiable l
 - [x] LP1. Pure `src/lighting2d/lightingPlan.ts` + 5 tests — shipped C135. ← LP2 NEXT
 - [x] LP2. Lighting-plan SVG renderer (walls + coverage + glyphs) — shipped C136.
 - [x] LP3. Report integration: lighting plan SVG + schedule table — shipped C137.
-- [ ] LP4. (optional) in-app lighting-plan panel + a 3D coverage overlay.
+- [x] LP4. In-app lighting view — unified "Drawings" panel (Elevations | Lighting) — shipped C138.
+- [ ] LP5. (optional) 3D coverage overlay on the floor; per-room lux estimate.
 
 ### Interior WALL ELEVATIONS (a pro deliverable competitors have; we only have a top-down plan)
 Why: Chief Architect / Cedreo / RoomSketcher / NKBA — vertical "side-on" drawings per wall showing

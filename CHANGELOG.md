@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C138] LP4 — unified in-app "Drawings" panel (elevations + lighting)
+Extended the elevations panel into a **Drawings** panel with an Elevations/Lighting toggle, surfacing
+the lighting plan in-app (it was report-only): the lighting view draws the fixtures + coverage circles
+over the walls (theme-token `lightingPlanSvg`) with a fixture/type count. Tools entry relabelled
+"Drawings". Verified: the Lighting view shows the default flat's 15 fixtures · 6 types with coverage.
+Avoids panel proliferation; desktop + mobile-sheet both work. Docs updated.
+
 ## [C137] LP3 — lighting plan + schedule in the report
 The design report now has a **Lighting plan** section: every fixture plotted over the walls (coverage
 circles + glyphs via `lightingPlanSvg`, print inks) plus a **schedule** table (fixture · qty · height ·

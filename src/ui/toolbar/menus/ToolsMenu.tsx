@@ -133,8 +133,8 @@ export function ToolsMenu() {
       )}
       <MenuItem
         icon="FloorPlan"
-        label="Elevations"
-        sub="Side-on wall drawings (cabinet/fixture heights)"
+        label="Drawings"
+        sub="Wall elevations + lighting plan"
         active={elevationsOpen}
         onClick={toggleElevations}
       />
