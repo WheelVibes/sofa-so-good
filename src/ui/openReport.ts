@@ -28,6 +28,7 @@ export function openDesignReport(): void {
     s.designNote,
     s.annotations,
     s.budgetTarget,
+    s.baselinePlan,
   )
   const win = window.open('', '_blank')
   if (!win) {

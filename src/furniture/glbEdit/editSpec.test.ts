@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest'
 import {
   addPart,
   createEmptySpec,
+  duplicatePart,
   isBuildable,
+  mirrorPart,
   removePart,
   setMeshOverride,
   updatePart,
@@ -66,5 +68,50 @@ describe('setMeshOverride', () => {
     let s = setMeshOverride(createEmptySpec(), 'Seat', { color: '#abc' })
     s = setMeshOverride(s, 'Seat', { color: undefined })
     expect(s.meshOverrides.Seat).toBeUndefined()
+  })
+
+  it('duplicatePart clones transform + material with a fresh id and deep-copied arrays', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    const orig = s.parts[0]!
+    s = updatePart(s, orig.id, { metalness: 0.8, rotation: [0, 45, 0] })
+    const before = s.parts.find((p) => p.id === orig.id)!
+    s = duplicatePart(s, orig.id)
+    expect(s.parts).toHaveLength(2)
+    const copy = s.parts[1]!
+    expect(copy.id).not.toBe(before.id)
+    expect(copy.metalness).toBe(0.8)
+    expect(copy.rotation).toEqual([0, 45, 0])
+    // Deep-copied: mutating the clone's tuples doesn't touch the original.
+    copy.rotation![1] = 90
+    copy.size[0] = 999
+    expect(before.rotation).toEqual([0, 45, 0])
+    expect(before.size[0]).not.toBe(999)
+    // Offset along X so the copy is visible.
+    expect(copy.position[0]).toBeCloseTo(before.position[0] + 0.2)
+  })
+
+  it('duplicatePart is a no-op for an unknown id', () => {
+    const s = addPart(createEmptySpec(), 'box')
+    expect(duplicatePart(s, 'nope')).toBe(s)
+  })
+
+  it('mirrorPart clones across the X centre with Y/Z rotation negated', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    const id = s.parts[0]!.id
+    s = updatePart(s, id, { position: [0.4, 0.2, 0.1], rotation: [10, 30, 45] })
+    s = mirrorPart(s, id)
+    expect(s.parts).toHaveLength(2)
+    const m = s.parts[1]!
+    expect(m.id).not.toBe(id)
+    expect(m.position).toEqual([-0.4, 0.2, 0.1])
+    expect(m.rotation).toEqual([10, -30, -45])
+    // Deep-copied tuples (mutating the mirror doesn't touch the source).
+    m.position[1] = 9
+    expect(s.parts[0]!.position[1]).toBe(0.2)
+  })
+
+  it('mirrorPart is a no-op for an unknown id', () => {
+    const s = addPart(createEmptySpec(), 'box')
+    expect(mirrorPart(s, 'nope')).toBe(s)
   })
 })

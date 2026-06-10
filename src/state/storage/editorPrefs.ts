@@ -29,6 +29,9 @@ export function loadEditorPrefs(): void {
         : 'city',
       uiMode: p.uiMode === 'pro' ? 'pro' : 'simple',
     })
+    // Pro features are gated on uiMode, so re-resolve the flag map now that the
+    // saved mode is applied (the boot seed assumed the Simple default).
+    useStore.getState().reresolveFeatureFlags()
   } catch {
     /* ignore corrupt prefs */
   }

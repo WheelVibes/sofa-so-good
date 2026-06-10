@@ -1,9 +1,11 @@
 import type { ParamProps } from '../types'
+import { GlassMaterial } from './GlassMaterial'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
 /** Corner shower: low tray + two glass panels + wall riser with head and
- *  mixer. The glass faces +X/+Z (open corner toward −X/−Z walls). */
+ *  mixer. The glass faces +X/+Z (open corner toward −X/−Z walls). The panels
+ *  use the tier-gated `GlassMaterial` (real transmission on High/Maximum). */
 export function Shower({ props }: { props: ParamProps }) {
   const size = readNum(props, 'size', 0.9)
   const detail = useDetail()
@@ -12,13 +14,6 @@ export function Shower({ props }: { props: ParamProps }) {
   const corner = style === 'corner'
   const h = 2.0
   const half = size / 2
-  const glass = {
-    color: '#bcd4e6',
-    roughness: 0.05,
-    metalness: 0.1,
-    transparent: true,
-    opacity: 0.22,
-  }
   const chrome = { color: '#cdd2d6', roughness: 0.2, metalness: 0.85 }
 
   return (
@@ -36,13 +31,13 @@ export function Shower({ props }: { props: ParamProps }) {
       {/* Glass panels on the two open sides (+X and +Z) */}
       <mesh position={[half, h / 2, 0]} rotation={[0, Math.PI / 2, 0]}>
         <planeGeometry args={[size, h]} />
-        <meshStandardMaterial {...glass} side={2} />
+        <GlassMaterial color="#bcd4e6" opacity={0.22} />
       </mesh>
       {/* Second panel only on the corner enclosure; walk-in leaves +Z open */}
       {corner && (
         <mesh position={[0, h / 2, half]}>
           <planeGeometry args={[size, h]} />
-          <meshStandardMaterial {...glass} side={2} />
+          <GlassMaterial color="#bcd4e6" opacity={0.22} />
         </mesh>
       )}
       {/* Glass frame edges */}

@@ -4,6 +4,630 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C209] PR6 — realistic furniture surfaces
+Overhauls the procedural furniture textures that read flat/fake, behind the new `pbrSurfaces` flag (Simple
+tier, default on — surface quality applies in both modes):
+- **Wood** now lays out as discrete **planks** — each board gets its own value tone, a de-aligned grain phase,
+  and a darker seam groove — so a tiled top reads as real boards instead of one uniform sheet.
+- **Fabric** weave is no longer a perfect sin-grid: thread phases are warped by low-freq noise with occasional
+  **slubs** + surface fuzz, so cloth (and velvet, which shares the weave) looks woven, not synthetic.
+- **Painted/laminate** matte panels gain a faint shared **orange-peel + roller micro-normal** so the most
+  common cabinet/bed/wardrobe finish stops reading as dead-flat plastic.
+Maps stay 256² shared singletons + per-(kind,tint) cached — no extra GPU cost per piece — and are kept on
+**all tiers** (incl. the default Performance tier, where most users are) since removing them would make the
+default *flatter*, not better (a deliberate deviation from the plan's "Performance = no maps" step).
+Verified close-up in daylight (software-GL shows the normal-driven grain/weave + albedo variation). The
+remaining plan tail — defaulting common finishes to the local CC0 `mat:<id>` textures (needs
+`FurnitureMaterialLoader` plumbing + per-furniture UV scaling) and an optional Performance env hint — stays
+in `TASKS.md` PR6 for a real-GPU pass (reflections/clearcoat can't be judged under software-GL).
+
+## [C208] Simple / Pro feature tiering
+Every `FEATURE_FLAGS` entry now declares `tier: 'simple' | 'pro'`, and `resolveFlags` forces **pro-tier
+features off in Simple mode** (the app default) — so the existing `useFeature`/`isFeatureEnabled`/`COMMAND_FLAGS`
+gates hide them automatically with no new gating code. Simple mode keeps the minimal core loop (furnish via
+Smart Start, finishes incl. Designer picks, backdrops/lighting/walkthrough/saved-views, budget, share/export);
+everything analytical/professional/advanced (measure, checks, drawings, scores, daylight, accessibility, AI,
+versions/history, floor-plan editor, packs, model upload, moodboard, palette, DXF/BOQ/electrical, mount-heights,
+copy-appearance, user-sets, ceiling design, presentation, …) is Pro. `setUiMode` + `loadEditorPrefs` re-resolve
+the flag map on mode change; the Simple↔Pro toggle is itself ungated. CLAUDE.md gained the tiering rule + a
+"test both modes" rule; `featureFlags`/`featureFlagsSlice` tests cover Simple **and** Pro. Verified: Simple
+hides the Tools menu + advanced actions, Pro restores them.
+
+## [C207] Ceiling treatments in the report
+The design report's room schedule gains a "Ceiling style" column (Flat / Tray / Coffered 3×2 / Dropped, with
+a "+ cove" suffix) whenever the `ceilingDesign` feature is on and any room carries a non-flat ceiling — so the
+printable spec reflects the F12 ceiling design. Pure `ceilingStyleLabel` helper (+ tests).
+
+## [C206] Client presentation mode (F23)
+A full-screen "Present" mode that turns the saved camera views into a client slideshow: each slide applies the
+view's angle + lighting and captions it with the view name and an optional presenter note (editable per view
+from the saved-views menu). Arrow keys / on-screen prev-next navigate, Esc exits, and an Auto toggle advances
+every 6 s; the overlay is pointer-through except its control bar so the camera can still be nudged mid-slide.
+Added `note` to `SavedView` (+ `setViewNote`) and a `presenting` UI flag. Behind the `presentation` flag.
+
+## [C205] Configurable wardrobe interior (F10)
+The open-style wardrobe gained an `interior` param — **Rail + shelves** (default), **All hanging**, **All
+shelves**, or **Drawers + hanging** — reshaping the carcass fit-out (rails with garments, shelf stacks, and a
+pulled drawer bank) so storage reads realistically in a layout. Verified up-close on the drawers layout.
+
+## [C203–C204] Per-room ceiling design (F12 / Q-CEILING)
+- **C203** (core): `CeilingConfig`/`CeilingStyle` types on `PlanRoom`; pure `apartment/ceiling/ceilingModel.ts`
+  `buildCeiling` (tray = lower perimeter frame + raised centre; coffered = base + beam grid; dropped = base +
+  lowered soffit box; all hole-free, rect-room only with a flat fallback for L-shapes/too-small rooms, drop
+  clamped to a 2.0 m clearance; 9 tests); `schema.ts` round-trip (additive, no version bump); coalesced
+  `setRoomCeiling` store action; `ceilingDesign` flag.
+- **C204** (render + UI): `RoomCeiling.tsx` maps parts → meshes (BackSide planes, tier-gated risers + an
+  emissive cove glow on High+); both `Ceiling.tsx` (default flat) and `PlanRoomCeiling.tsx` delegate to it.
+  Per-room ceiling picker (style + depth/border/grid + cove) in `PlanInspector`. Verified: the coffered grid
+  reads correctly from an interior up-view in daylight.
+
+## [C202] Curated "Designer picks" finishes (C-MAT)
+A one-tap "Designer picks" swatch row above the floor + wall grids in the finish picker — the handful of
+finishes designers reach for most (oak/walnut/parquet/marble for floors; warm-white/greige/sage/navy/fluted-
+oak/microcement for walls). Pure `materials/designerPicks.ts` resolves curated ids against the live catalog
+(missing ids silently skipped, 3 tests). Behind the `designerPicks` flag.
+
+## [C201] Flag-gating consistency for the devOnly sidecar features
+Closed the last two gaps in feature-flag coverage: the Budget panel's "Live IKEA SG prices" toggle and the
+PacksTab IKEA live-scrape card now gate through `useFeature('livePrices')` / `useFeature('ikeaLive')` instead
+of a raw `import.meta.env.DEV` / `visiblePacks` check — so the flag registry is the single source of truth
+(both stay devOnly/off in prod, but an admin/QA session can toggle them). Every flag now routes through the
+flag system.
+
+## [C200] Save selection as a custom set (F14)
+Users can capture the current selection as a reusable, named furniture set — the new `userSetsSlice` stores
+each piece as a centroid-relative offset (+ rotation + props) in localStorage, and `dropUserSet` drops it at
+the largest room's centre as a selected group (the same path built-in sets use). A "My sets" section in the
+Arrange menu (desktop) and the mobile Arrange sheet lets you save, drop and delete. Pure `captureSetItems`
++ slice tests. Behind the `userSets` flag.
+
+## [C199] Vision-AI endpoint safety (S2)
+The BYO-key floor-plan vision call now classifies its (user-configurable) endpoint before sending:
+`classifyVisionEndpoint` refuses to POST the bearer key over plaintext HTTP to a remote host (it would leak
+on the wire — localhost proxies over http are still allowed), and flags any HTTPS host that isn't a
+recognised provider. The editor surfaces the warning and requires the user to type the host name to confirm
+before the key leaves for an unfamiliar origin. Pure + 5 tests.
+
+## [C198] Copy/paste appearance + recolour-by-category (F17 / Q-COPYSTYLE)
+Look-only style transfer between pieces: "Copy appearance" captures an item's finish/colour/material/variant
+(not its size or position), then "Paste appearance" applies it to the selection — keeping only the dims each
+target understands, so a walnut finish jumps cleanly between differently-sized pieces. "Recolour category (N)"
+applies one item's look to every other item in its category. Pure `furniture/appearanceProps.ts`
+(`appearanceKeys`/`extractAppearance`/`mergeAppearance`, 5 tests) + an ephemeral `styleClipboardSlice`
+(`copyAppearance`/`pasteAppearanceTo`/`applyAppearanceToCategory`, 4 tests, history-pushed, skips locked).
+Inspector buttons on both the single-item and multi-select panels. Behind the `copyAppearance` flag.
+
+## [C197] Standard mount-height presets (F18)
+A "Standard heights" chip row under a mounted item's `mountHeight` slider in the inspector — designer
+conventions (gallery picture-centre 1.45 m, TV seated-eye 1.1 m, pendant-over-table 1.5 m, sconce 1.65 m,
+…) so wall/ceiling items snap to a sensible height in one tap. Pure data in `furniture/mountHeightPresets.ts`
+(matched by def id, generic fallback, clamped to the slider range; 7 tests); presentational
+`MountHeightPresets` chips. Behind the `mountHeights` flag. Verified in the room editor on wall art.
+
+## [C196] Tier-gate the Canvas DPR ceiling (PERF6, partial)
+The main Canvas now takes its device-pixel-ratio ceiling from the active quality tier's `dprMax`
+(Performance = 1, was a hardcoded 1.75) — a real fill-rate saving on the default tier / weak GPUs, applied
+live on a tier switch. `antialias` + `preserveDrawingBuffer` are WebGL context-creation attributes and can't
+be toggled without recreating the context, so they're left as-is (deferred, needs real-GPU verification).
+
+## [C195] Catalog hook memoisation + in-canvas getter (PERF1)
+`useCatalog` is now memoised on its three input slices, so the non-trivial merged-catalog build runs only
+when a slice actually changes — not on every consumer re-render (a FurnitureLayer re-render on every drag
+pointermove was rebuilding the whole catalog). The in-canvas overlays (SelectionOutline, HoverHighlight,
+RotateGizmo, ClearanceOverlay, PlacementGhost) now read through the non-reactive `useCatalogGetter` ref so
+catalog churn during a bulk import never re-renders the R3F tree. Verified: furniture, clearance rings, and
+selection outline all render correctly.
+
+## [C192–C194] Hot-path perf
+- **C192** (PERF8): `DragController.onMove` indexes the item list into id→item Maps once per pointermove,
+  replacing several full-list `.find` scans (including an O(n·m) per-moved-item collision loop) with O(1) lookups.
+- **C193** (PERF3): `Lighting` memoizes its tween target so `targetVals` (an object + 4 arrays) no longer
+  allocates every frame once the day/night tween has settled — only the tone-mapping/exposure write stays per-frame.
+- **C194** (PERF4): `FurnitureLights` gates its per-frame nearest-emitter rebuild+sort on a real input change
+  (camera moved >0.2 m or items changed) — a stationary night scene no longer re-scans every frame.
+
+## [C190–C191] Suggestions + electrical plan
+- **C190** (F16): "magic" contextual suggestions in the Design Score panel — per-room "what to add" hints
+  from `analysis/suggestions.ts` (pure, category-gap heuristics by room type + area), gated by the new
+  `suggestions` flag; skipped while dragging (mirrors the score recompute gating).
+- **C191** (F29): electrical / power & data plan in the formal drawing set — pure `floorplan/electricalPlan.ts`
+  + `electricalPlanSvg.ts` (socket / switch / aircon / TV / data / water-heater symbols + schedule), with
+  `deriveElectricalPoints` inferring points from appliances/electronics/aircon/TV/wet-area items + a switch
+  inside each door. Gated by the new `electricalPlan` flag.
+
+## [C187–C189] Reliability polish + feature-flag coverage
+- **C187** (B7): undo/redo/jump prunes dangling selection ids no longer in the restored items.
+- **C188** (B8): analysis-panel width moved to an `.aux-360` class (off the inline JSX style).
+- **C189** (feature flags): new CLAUDE.md rule — every feature must have a `FEATURE_FLAGS` entry + be
+  gated. Added flags for the previously-ungated tools (drawings/daylight/designScore/accessibility) and
+  split moodboard/dxfExport/boq off the broad `report` flag; gated their Tools + mobile + ⌘K entries.
+
+## [C185–C186] Memory bound + complete pro drawing set
+- **C185** (PERF9): procedural thumbnail cache is now a 300-entry LRU (was unbounded over a long catalog browse).
+- **C186** (F32): cross-section drawing (`floorplan/section.ts` + `sectionSvg.ts`); the formal drawing set
+  now adds Dimensioned plan + Section A–A + Demolition sheets (cover · plan · dimensions · elevations ·
+  lighting · section · demolition · FF&E). 18 tests.
+
+## [C184] Demolition / hacking + new-wall plan (F30)
+Pure `floorplan/demolitionPlan.ts` `diffWalls` (order-independent wall match → kept/demolished/added +
+hacked/added metres) + `demolitionPlanSvg.ts` (kept solid / demolished dashed-red / added bold-green +
+legend). A session `baselinePlan` captures the plan as-loaded (template/saved/reset/new, not on edits);
+the report's "Hacking & new walls" section diffs current vs baseline when walls changed. 11 tests.
+
+## [C182–C183] Perf + security polish
+- **C182** (PERF10): RenderPump reuses one PumpInputs object across rAF frames (zero per-frame garbage).
+- **C183** (S3): report finish swatches validated against a hex/rgb pattern before entering `style=`.
+
+## [C181] Lazy-load rarely-opened panels — trim the boot bundle (PERF5)
+ShareModal / VersionsPanel / ElevationPanel / HistoryPanel / ProductTour / SmartStartWizard are now
+`React.lazy` + gated on their open flag in App → their code loads only on open. Main entry chunk
+**932 KB → 719 KB** (gzip 250 → 202 KB, ~23% smaller). Panels render identically when opened.
+
+## [C177–C180] Commercial-readiness program — mobile parity + perf + commerce
+- **C177** (B3): mobile Tools sheet gains Drawings / Daylight / Design score / Accessibility (desktop
+  parity, shared closeAux).
+- **C178** (PERF2): Design Score skips its O(n²) recompute mid-drag (gated on draggingItemId).
+- **C179** (PERF7): new `collision/broadphase.ts` spatial grid; `findItemOverlaps` + `findNarrowGaps` run
+  their exact tests only on near candidate pairs — O(n) for sparse designs, identical results. 21 tests.
+- **C180** (F33): quote-ready **BOQ** export (`export/boq.ts` + `ui/openBoq.ts`) — FF&E + flooring/wall
+  finishes + carpentry (linear-metre/feet), printable; the SG design→quote handoff. 11 tests.
+
+## [C172–C176] Commercial-readiness program — reliability hardening + commerce/AI features
+- **C172** (B4): `buildDaylightReport` / `buildAccessibilityReport` / `planCollisionWalls` now guard
+  `Array.isArray` on plan walls/openings/rooms internally — every caller is safe on a partial plan.
+- **C173** (B5): the report's `buildDesignScore` reuses the door-aware collision walls (was recomputing
+  with doors closed → could disagree with the in-app panel).
+- **C174** (B6): new pure `rectUnionOutline(rects)` — `roomPolygon` L-shapes are now correct for an
+  extension on ANY side (grid overlay → boundary stitch), not just the south edge. Tests for north-L + overlap.
+- **C175** (F19): **Moodboard / style-board** export (`ui/moodboard.ts` + `openMoodboard.ts`) — palette +
+  finishes + furniture tiles + hero, escaped + colour-validated; Tools-menu action.
+- **C176** (F28): **Palette-from-photo** (`analysis/imagePalette.ts` median-cut + `ui/paletteFromPhoto.ts`)
+  — pick a photo → extract dominant colours → nearest catalog finishes → moodboard; ⌘K command.
+
+## [C164–C171] Commercial-readiness program — audit fixes + parallel feature modules
+Driven by the 4-front audit (see TASKS.md). Each its own commit:
+- **C164** (B1, HIGH data-loss): `PlanRoomZ` now serializes `polygon` — free-form/Auto-room rooms no
+  longer revert to their bounding rect on reload. Round-trip test.
+- **C165** (S1, security): the three SVG builders (`elevationSvg`/`reportPlanSvg`/`lightingPlanSvg`) now
+  use the full 5-char escape (incl. quotes) — attribute-safe under `dangerouslySetInnerHTML`.
+- **C166** (B2): one shared `ui/auxPanels.ts` `closeAllAuxPanels` used by Tools menu + Mobile toolbar +
+  ⌘K — fixes stacked/overlapping `.aux` panels (daylight/elevations/design-score/accessibility).
+- **C167** (F34): HDB renovation **compliance hints** — pure `analysis/hdbCompliance.ts` (permit/caution/
+  info advisories: structural hacking, wet-area waterproofing, floor loading, facade windows, ceiling,
+  permits) + a report section. SG-market trust feature. 12 tests.
+- **C168** (F35): **renovation timeline** — pure `analysis/renoTimeline.ts` (phase schedule scaled by
+  area+rooms, 6-day week, 3–24 wk clamp) + a report Gantt section. 9 tests.
+- **C169** (F15): **auto-dimensioned plan** — pure `floorplan/autoDimension.ts` + `autoDimensionSvg.ts`
+  (overall + per-room running dimensions → palette-injected SVG) + a report drawing. 15 tests.
+- **C170** (F31): **DXF export** — pure `export/dxf.ts` `planToDxf` (ASCII DXF R12, layered walls/rooms/
+  openings/labels, +Z→-Y) + `ui/openDxf.ts` download + a Tools-menu action. 15 tests.
+- **C171** (F8): **staircase primitive** (straight/L/U/spiral) — pure `staircaseModel.ts` `buildStaircase`
+  (structurally sound, 19 tests) + `Staircase.tsx` + catalog registration + price.
+The pure modules (C167–C171) were authored by parallel worktree subagents and integrated file-by-file
+(no merge). Deferred: a `WindowBlind` (roller/roman/venetian) primitive was authored but overlaps the
+existing `Curtain`+`RollerBlind` — better to add a `roman` style to `RollerBlind` than ship a duplicate.
+
+## [C163] Studio backdrop → seamless infinity-cove cyclorama
+Replaced the Studio backdrop's bare ground disc with a product-shot cyclorama: a large unlit gradient
+dome (brighter at the zenith, gently deeper at the horizon; `MeshBasicMaterial` + fog-off so it reads
+evenly-lit on every tier) wraps the scene with no hard skyline, over a matching neutral floor. Extracted
+to `StudioBackdrop.tsx` (consistent with Park/Hills). Cheap (one mesh + a tiny gradient texture),
+disposed on unmount. Verified via the screenshot harness.
+
+## [C162] Renovation cost estimate (finishes) in the report
+New pure `src/analysis/renovationCost.ts` `estimateRenovation(floorAreas, wallAreas)` — the finishes
+counterpart to the furniture budget: indicative SG supply+install rates ($/m²) per finish category
+(floor tile/stone/wood/vinyl; wall paint/tile/wallpaper, classified by id keyword) over the per-finish
+areas the report already computes → flooring + wall line items + a subtotal (biggest spend first). Rates
+live in one auditable `RENO_RATES` table. Surfaced as a **Renovation estimate** report section (area ·
+rate · est. cost, finishes subtotal, and a combined Furniture + finishes total), clearly labelled
+indicative (excludes hacking / M&E / margin). 5 module tests + 2 report assertions.
+
+## [C161] Two more templates — Condo Studio (shoebox) + Condo 4-Bedroom
+Library now 18 plans, filling the smallest + largest condo gaps: **Condo Studio** (~37 m²: open
+living/sleeping + kitchenette + bath + balcony) and **Condo 4-Bedroom** (~140 m²: 4 beds + master
+ensuite, common/shared baths, open living/dining, kitchen + yard, wide balcony). Hand-authored to pass
+the strict templates test (no overlaps, in-bounds, openings fit their walls) and furnish cleanly via
+Smart Start — the 4-bed verified end-to-end (render + 53-item furnish) via the screenshot harness.
+
+## [C160] In-app Accessibility panel (Tools + ⌘K)
+Surfaced the C159 check live: a new `AccessibilityPanel` (`.aux` slot) renders the Doorways +
+Turning-space summary and per-door/per-room pass/fail rows with fix hints, mirroring the Daylight panel.
+Wired into `featuresSlice` (`accessibilityOpen`), the Tools menu (+ `closeAux`), the Command Palette, and
+App. Verified via the screenshot harness.
+
+## [C159] Accessibility / universal-design check + report section
+New pure `src/analysis/accessibility.ts` `buildAccessibilityReport(plan)` — a plan-level BCA-Code-on-
+Accessibility rule-of-thumb QC: each door's clear opening width vs 0.85 m, and whether each habitable
+room fits a 1.5 m wheelchair turning circle (smaller plan span ≥ 1.5 m); external rooms skipped, robust
+to an empty plan. Surfaced as an **Accessibility** section in the printable report (pass counts + the
+failing doorways/rooms to widen, or an all-clear). Plan-only, so it reads even for an unfurnished shell.
+4 module tests + a report assertion.
+
+## [C158] Richer auto-furnish kits — study, standalone dining, powder room, balcony
+`furnishPlan` now covers more room types so Smart Start furnishes the templates' full variety:
+**Study/home-office** (desk + office chair + bookshelf), **standalone Dining** (dining set only — no
+stray sofa/TV), **Powder Room/WC** (half-bath: toilet + sink + mirror, no shower), and **Balcony/patio**
+(outdoor table + chairs + planter). `kitForRoom` checks these specials before the generic name-kind
+classifier. Tests cover each kit + a utility room staying empty; verified via the screenshot harness.
+
+## [C157] Smart Start applies the preset floor/wall palette to custom plans too
+Completes C153: on a custom plan/template, `applyLayoutPreset` now also restyles the shell — dry living
+spaces (living/bedroom rooms, by inferred kind) take the preset's dry floor, the plan's wall colour
+follows the preset wall swatch, and wet/utility rooms keep their hard-wearing floors. Furniture + plan
+finishes apply in one `set` (the history snapshot includes `floorPlan` → a single undo step). Test
+covers custom-plan furnish + palette + one-undo revert.
+
+## [C156] Richer, instanced Park & Hills backdrops (photorealism + perf)
+Reworked the non-city backdrops (built by a parallel worktree subagent, integrated here). Extracted the
+shared `Ground` + a reusable `InstancedBatch` (Matrix4-composed instances) into their own files.
+**Park** now scatters varied broadleaf + conifer trees and shrubs across two depth rings on a tinted
+common (~128 meshes → ~12 draw calls); **Hills** layers three depth bands with aerial-perspective colour
+(farther = lighter toward the sky) + distant tree clusters (~16 meshes → ~5 draw calls). `SceneBackdrop`
+imports these (the subagent branched from an older base, so its duplicate dispatcher + ported helpers
+were discarded in favour of the current ones). Verified Park + Hills via the screenshot harness.
+
+## [C155] Design score categories click to select + frame their offending items
+`buildDesignScore` attaches per-category `offenders` (item ids) for Clearance (overlap/wall-clip/blocked)
+and Circulation (pinch-point items); the `DesignScorePanel` renders those categories as buttons that
+select + frame the offenders — the score doubles as a jump-to-the-fix list. Tests for the offender ids.
+
+## [C154] Design score in the printable report (DS2)
+The handoff report (`ui/report.ts`) now carries the same aggregate 0–100 design score + A–F grade +
+per-category bars (clearance / furnishing / circulation / daylight / lighting) and actionable fixes the
+in-app `DesignScorePanel` shows, so the quality verdict travels with the PDF. Rendered from
+`buildDesignScore` between the Clearance and Wall-elevations sections; omitted when the design is empty.
+Also hardened `buildDesignScore` against a partial/hand-built plan with no `walls`/`openings` arrays
+(guards the clearance + daylight categories). 2 report tests + a partial-plan robustness test.
+
+## [C153] Smart Start furnishes any custom plan / template (not just the default flat)
+The Smart-Start presets are authored at the built-in flat's exact coordinates, so applying one to any
+of the 16 HDB/condo/landed templates dumped furniture in the wrong places. New pure
+`furniture/furnishPlan.ts` `furnishPlanItems(plan, preset, defs, doors)`: seeds a kind-appropriate kit
+per room (living/dining · master/standard bedroom · kitchen · bath; utility/balcony left empty), drops
+each at the room centre, runs the existing plan-aware arranger to flush everything to the plan's own
+walls, then sweeps residual overlaps so the result is always collision-clean. The preset palette
+restyles the seeded furniture. `applyLayoutPreset` branches on `isDefaultPlan` → uses this for custom
+plans. 5 tests; verified by furnishing a custom HDB-style plan via the screenshot harness. Turns the
+exhaustive template library (C148) from empty shells into one-click furnished starts.
+
+## [C152] Cabinet glass fronts adopt the tier-gated GlassMaterial
+Wired the display-cabinet glass door (`CabinetModule` `'glass'` front) through the PR3c
+`GlassMaterial` component — real refractive transmission on High/Maximum, cheap transparent pane on
+Performance/Medium — extending the glass rollout beyond Shower + BarCart with the same verified pattern.
+
+## [C151] Richer, instanced HDB-estate city backdrop (photorealism + perf)
+Reworked the default **City** backdrop (`CityBackdrop.tsx`) for fidelity *and* draw-call economy:
+blocks render as **instanced batches** (3 façade-tint `InstancedMesh`es + 1 rooftop-tank batch) instead
+of ~22 separate meshes; a **denser two-ring skyline** (near mid-rise + far towers, ~40 blocks) gives
+real depth; **rooftop water-tanks / lift cores** add silhouette interest; the façade texture gains
+floor banding, lit window reveals and AC-ledge sills. The night window-emissive ramp is preserved per
+material group. Verified day + night with the screenshot harness — the estate reads as a layered HDB
+neighbourhood and windows light up warm after dark, with no artifacts.
+
+## [C150] Performance — instance four more repeat-geometry primitives (parallel worktree subagent)
+Extended the `InstancedBoxes` draw-call collapse to **RoomDivider** (slat/grid: ~24–40 meshes → 1),
+**CubeShelf** (carcass + boxes + colour-varied books → 2), **FeatureWall** (slat backing + ~33 battens
+→ 1), and **ToyStorage** (carcass → 1). New pure `primitives/slatLayout.ts` (batten/grid count/step/
+offset maths) shared by RoomDivider + FeatureWall, and a pure `bakeInstanceMatrix` extracted from
+`InstancedBoxes.tsx` — both unit-tested (14 assertions) against the exact original inline formulas, so
+geometry is byte-identical. Fluted (cylinder) ribs and per-item-material bins/hangers intentionally
+stay separate (axis-aligned single-material instancing only; no cross-item instancing). Built by a
+subagent in an isolated worktree, integrated by 3-way merge.
+
+## [C149] PR3c — material realism: sheen + clearcoat + tier-gated glass transmission (parallel worktree subagent)
+New pure `src/materials/materialRealism.ts` (no three/GPU deps, 15 tests): `transmissionTiers(tier)`
+(the High/Maximum gate), `glassConfig(tier, opacity, tint)` (real refractive params vs cheap
+transparent fallback), `sheenLayer(kind)` (velvet/satin-fabric/leather), `clearcoatLayer(kind)`
+(gloss/ceramic/marble/stone). Wired into `furnitureMaterials.ts`: velvet/leather/fabric/ombre get a
+`MeshPhysicalMaterial` sheen lobe; lacquered paint + polished stone get a thin clearcoat; wood/fabric/
+leather/velvet normals sharpened. New `getGlassMaterial(tier,…)` factory + `GlassMaterial.tsx`
+component (reads `qualityTier` like `MirrorMaterial`) — **real transmission only on High/Maximum**, cheap
+transparency on Performance/Medium so the flat default never pays for it. Applied to Shower screens +
+BarCart glass shelves. Built by a subagent in an isolated worktree; integrated via a 3-way merge that
+preserved the newer PR3b (`GLOSSY_ENV_INTENSITY`) + concrete/rattan work. Real-GPU visual verification
+of transmission/clearcoat/sheen deferred (software-GL harness can't show them — see TASKS).
+
+## [C148] Exhaustive HDB + condominium floor-plan template library (parallel worktree subagent)
+Expanded `floorplan/templates.ts` from 4 HDB types to 16 starter plans: added **HDB Executive Apartment**
+(~138 m²), **HDB 3Gen** (~118 m²) and **HDB Jumbo** (~190 m²); plus a condominium/landed set —
+**Condo 1-Bed / 1+Study / 2-Bed / 3-Bed**, **Penthouse** (3.0 m ceiling) and a **Terrace house** ground
+floor. Balconies/car-porch modelled as `floor-terrazzo` rooms with a parapet (`topHeight`). New research
+doc `docs/research/condo-floor-plans.md`. Generalised the templates test to cover ALL templates (unique
+ids, no room overlaps, in-bounds, every opening references a real wall and fits within it) — 12 tests.
+Built by a subagent in an isolated worktree, integrated by 3-way merge (resolved the HDB-count assertion
+4→7). All auto-appear in the floor-plan editor's Template picker.
+
+## [C147] Design Score — aggregate layout-quality feedback panel
+New pure `src/analysis/designScore.ts` `buildDesignScore(items, defs, plan)` → a weighted 0–100 score +
+letter grade across five categories (clearance, furnishing balance, circulation, daylight, lighting),
+each with actionable issues. Reuses the existing pure checks (`findItemOverlaps`/`findWallClips`/
+`blockedDoorItems`/`findNarrowGaps`/`buildDaylightReport`) and adds two new heuristics — furnishing
+coverage (footprint area vs room area, ideal ~22–45%) and per-room lighting coverage (emitters via
+`LIGHT_EMITTERS`). Surfaced as a new `DesignScorePanel` (`.aux` slot: grade dial + per-category bars +
+fix list), wired into the Tools menu + Command Palette + `closeAux`. 9 module tests. A Coohom/Planner-5D-
+style live design-feedback feature, fully verifiable without a GPU.
+
+## [C146] HDB flat floor-plan templates (researched via a worktree subagent)
+Dispatched a dedicated research subagent (own worktree) to gather representative Singapore HDB
+flat-type floor plans → `docs/research/hdb-floor-plans.md` (2-room Flexi, 3/4/5-room, Exec/3Gen:
+bounding footprints + per-room W×D + layout adjacency + sources). Integrated four as reusable
+`FloorPlan` templates (`hdb2Room`/`hdb3Room`/`hdb4Room`/`hdb5Room` in `templates.ts`) — non-overlapping
+rooms, perimeter + partition walls, entrance/doors/windows, 2.6 m ceiling — appended to
+`PLAN_TEMPLATES` so they auto-appear in the floor-plan editor's Template picker. Added a test asserting
+HDB templates have no overlapping rooms + stay within bounds + unique room ids. Verified each renders
+cleanly (4-room/2-room as labelled 2D plans; 3/5-room as valid 3D shells).
+
+## [C145] Circulation / walkway-width check (built in parallel via a worktree subagent)
+New pure `src/layout/walkway.ts` `findNarrowGaps(items, defs, plan)` → pinch points where the clear
+gap between footprints (item↔item + item↔wall, reusing `itemFootprint`+`obbCorners`) falls in the
+band (0.4 m, 0.9 m): **tight** < 0.6 m, **sub-ideal** < 0.9 m. Excludes overlaps (separate check) +
+intentionally-close pairs (≤ sofaToCoffee). Surfaced as a "Walkways" category in the Clearance panel
+(+ the summary now wraps to fit 5 stats) and folded into the report's Clearance & fit section. Built
+by a subagent in an isolated git worktree; I took its tested pure module verbatim and re-applied the
+UI/report wiring onto the current (newer) files. 20 module tests + a report test.
+
+## [C144] Daylight & ventilation check (built in parallel via a worktree subagent)
+New pure `src/analysis/daylight.ts` `buildDaylightReport(plan)` → per interior room: window glazing
+area vs floor area (daylight ≥ 10%) + openable area (ventilation ≥ 5%, openable ≈ 50% of glazing),
+each PASS/FAIL — an HDB/BCA-style code check. Windows attributed to rooms via the wall normal +
+`pointInRoom`; external/ledge rooms skipped. Surfaced as a new **Daylight** `.aux` panel (Tools →
+Daylight) with per-room cards. Built by a subagent in an isolated worktree; new files taken verbatim,
+wiring (featuresSlice/App/ToolsMenu) re-applied onto current files. 14 unit tests. Verified the panel
+renders (4/10 daylight·vent pass on the default flat; windowless Corridor/Bath correctly FAIL).
+Also: excluded `.claude/**` agent worktrees from the vitest glob (they were doubling the test count).
+
+## [C143] Lighting plan: room name labels
+The lighting plan now labels each room at its centroid (`roomLabelPoint`), so the reflected-ceiling
+plan reads room-by-room instead of as an unlabelled grid of fixtures. Internal to `lightingPlanSvg`;
+user-entered room names are HTML-escaped (test covers escaping).
+
+## [C142] Elevations: clearer door symbol (framed leaf + handle)
+Doors in elevations now render as a framed leaf panel — an outer frame, a thin inset reveal, and a
+handle dot at ~1 m on the leading edge — instead of a blank dashed cut-out, so they read as doors.
+Internal to `elevationSvg`; covered by a new test (frame width + handle, no legacy dashed style).
+
+## [C141] Drawing set — paginated multi-sheet "plan set" export
+Fourth research-grounded large feature: a formal construction **drawing set** (Tools → Drawing set),
+distinct from the one-page summary report. Paginated A4-landscape sheets with title blocks — cover +
+sheet index, floor plan (A-1), one wall elevation per sheet, lighting plan + schedule, and the FF&E
+schedule — each on its own page (`@page` + page-break) for clean print/PDF. Reuses every pure
+renderer (`reportPlanSvg`, `elevationSvg`, `lightingPlanSvg`, `buildFfeSchedule`) so it stays in
+lock-step. All user text HTML-escaped. 4 content tests; 1183 green. Opens in a print window (verified
+via content tests + renderer reuse, per the report convention).
+
+## [C140] EL5 — per-item width dimensions on wall elevations
+Elevations now dimension each furniture piece's width in a row just below the floor (the cabinet/
+unit widths installers read off NKBA elevations), above the overall-width dimension. Narrow pieces
+(<0.3 m) are skipped to avoid clutter. Verified on a busy wall (3 beds + nightstands) — widths read
+cleanly. Test asserts the per-item width label.
+
+## [C139] FF&E schedule — the item-level procurement table in the report
+Third research-grounded large feature (FF&E = Furniture, Fixtures & Equipment — the central designer
+hand-off per Fohlio/Houzz/Programa). New pure `src/ffe/ffeSchedule.ts` `buildFfeSchedule(plan,items,
+defs)` → one row per (room, def, variant): room, category, name, **source** (Built-in/IKEA/Custom/…),
+**SKU** (IKEA article number), real **W×D×H**, qty, unit + line price — room-ordered, value-sorted,
+reusing `pointInRoom` + `itemPrice`. Rendered as a full-width **FF&E schedule** table in the report
+with a grand total. (Checked first — distinct from the existing category-cost summary + the existing
+shopping CSV.) 4 core tests + 2 report tests; 1179 green. Docs + ARCHITECTURE updated.
+
+## [C138] LP4 — unified in-app "Drawings" panel (elevations + lighting)
+Extended the elevations panel into a **Drawings** panel with an Elevations/Lighting toggle, surfacing
+the lighting plan in-app (it was report-only): the lighting view draws the fixtures + coverage circles
+over the walls (theme-token `lightingPlanSvg`) with a fixture/type count. Tools entry relabelled
+"Drawings". Verified: the Lighting view shows the default flat's 15 fixtures · 6 types with coverage.
+Avoids panel proliferation; desktop + mobile-sheet both work. Docs updated.
+
+## [C137] LP3 — lighting plan + schedule in the report
+The design report now has a **Lighting plan** section: every fixture plotted over the walls (coverage
+circles + glyphs via `lightingPlanSvg`, print inks) plus a **schedule** table (fixture · qty · height ·
+intensity in candela). Only when the design has lights. 1 report test (plan svg + schedule present);
+1173 tests green. Completes the second large drawing feature (LP1 core → LP2 renderer → LP3 report).
+Docs + ARCHITECTURE updated.
+
+## [C136] LP2 — lighting-plan SVG renderer
+Pure, palette-injected `lightingPlanSvg(plan, lights, {palette})` (`src/ui/lighting2d/`): top-down
+drawing matching the floor plan — thin wall context, each fixture's coverage (falloff) circle, and a
+light glyph (warm bulb dot + 4-ray star) at the bulb position. Shared by the report (print inks) and
+any in-app view (CSS tokens), mirroring the elevation renderer. 3 tests (walls/coverage/glyph,
+coverage-off, degenerate-plan). LP3 wires it + the schedule into the report.
+
+## [C135] LP1 — lighting plan: pure data core
+Started a second large, research-grounded drawing feature (reflected-ceiling / lighting plan — a
+Chief Architect / RoomSketcher deliverable). New pure `src/lighting2d/lightingPlan.ts`
+`buildLightingPlan(items, defs)` → every placed light fixture (from the existing `LIGHT_EMITTERS`
+registry) with world position (footprint centre + its rotated emitter offset), emit height,
+intensity, coverage radius + colour, plus a grouped schedule. Reuses real emitter data (no new
+placement UI). 5 unit tests (filtering, flush height, offset rotation, schedule grouping, label
+fallback). No GPU — fully verifiable. LP2 (SVG over the plan) + LP3 (report schedule) next.
+
+## [C134] Guard projectAllElevations against a plan with no walls array
+`projectAllElevations` mapped `plan.walls` directly, which threw for a partial/hand-built plan stub
+(caught by `reportData.test.ts` after EL4 wired elevations into the report — same class as C116).
+Now defends with `plan.walls ?? []`; added a regression test.
+
+## [C133] EL4 — wall elevations in the printable report
+The design report now has a **Wall elevations** section: every wall that carries furniture or
+openings is drawn (2-up grid, print palette, captioned + dimensioned) — so the PDF hand-off carries
+the vertical drawings alongside the floor plan, clearance checks and shopping list. Reuses the same
+`elevationSvg` renderer (already visually verified in the panel) with print inks; the section is
+omitted when the flat is empty. 2 new report tests (section present + omitted-when-empty). Docs updated.
+(The report opens in a popup the screenshot harness can't capture — verified via content tests +
+renderer reuse, per the repo's report-verification convention.)
+
+## [C132] EL3 — dimensions on wall elevations
+`elevationSvg` now draws architectural dimension lines (overall width below, overall height at the
+left with a rotated label, and each window/raised opening's sill height) with tick marks + unit
+labels (metric/imperial) — turning the elevation into a real technical drawing for cabinet/fixture/
+backsplash heights. On by default (`dimensions` opt); reserves left+bottom padding for the lines.
+Tests cover the dim labels + the expanded viewBox; verified the dims render in the panel.
+
+## [C131] EL2b — Elevations panel (Tools → Elevations)
+Wired wall elevations into the app: a new `ElevationPanel` (`.aux` panel, so it docks top-centre on
+desktop + becomes a full-width bottom sheet on mobile for free) with a wall picker + theme-token SVG;
+`elevationsOpen` state (featuresSlice, in the mutually-exclusive aux group) + a Tools-menu "Elevations"
+entry. Verified on desktop + mobile: Wall 1 of the default flat correctly draws its 3 windows + the
+Queen/Single/Double bed silhouettes at their real positions/heights. 1160 tests green.
+
+## [C130] EL2a — wall-elevation SVG renderer
+Pure, palette-parameterised `elevationSvg(el, {palette})` (`src/ui/elevation/elevationSvg.ts`): draws a
+`WallElevation` to a standalone SVG string in world metres (floor at the bottom) — wall panel + floor
+line, furniture silhouettes (back-to-front, labelled), windows (translucent pane + mullion cross) and
+doors (dashed cut-out). Palette is injected so the in-app panel (CSS tokens) and the report (print
+hexes) share it; `elevationCaption` summarises dims/openings/items. User labels are HTML-escaped
+(XSS-safe). 6 tests incl. injection + degenerate-wall. EL2b wires the panel next.
+
+## [C129] EL1 — interior wall elevations: pure projection core
+First step of a large, research-grounded feature (wall elevations are a standard pro deliverable —
+Chief Architect / Cedreo / NKBA — that we lacked; we only had a top-down plan). New pure module
+`src/elevation/projectElevation.ts`: per plan wall → a `WallElevation` (length × height, door/window
+openings placed by offset/width/sill/head, and the furniture against the wall projected onto the wall
+axis with its height, near-wall-filtered + sorted back-to-front). Plan-wall based so default + custom
+plans share one path; reuses the collision OBB helpers. 9 unit tests (extent, openings, projection,
+near/off-span/clamp, ordering, missing-def). No GPU — fully verifiable. EL2 adds the SVG + panel.
+
+## [C128] Fix GLB designer layout on mobile (responsiveness)
+The designer's side-by-side preview+controls `flex` row broke on phones — the preview collapsed to a
+~120px sliver and the 280px controls column overflowed off-screen (shape buttons + dropdowns clipped).
+Now stacks vertically on mobile (`useIsMobile`): full-width preview on top (38vh), scrollable controls
+below. Desktop layout unchanged. Verified before (broken) → after (usable) at 390px + that desktop is
+intact. Closes a real commercial-readiness gap (the repo's desktop+mobile rule).
+
+## [C127] PR3b — glossy furniture finishes catch more of the IBL
+Set `envMapIntensity` (`GLOSSY_ENV_INTENSITY` = 1.3) on the glossy furniture material factories —
+marble/stone, leather, velvet — so they pick up more of the procedural IBL probe and read premium +
+photographic; matte finishes (fabric, concrete) stay at the neutral default of 1 (extra reflection
+would only muddy them). Free on Performance (no IBL there). Smoke-verified the scene renders cleanly
+at high tier (66 items, no artifacts); the reflection gain shows on a real GPU (prod verification).
+
+## [C126] GE4 — "Update original": save GLB-designer edits back over an existing asset
+When the designer is built from one of your own assets, a new **Update original** toggle overwrites
+that asset in place instead of adding a new catalog entry — built on the tested `replaceUserFurniture`
+(keeps every placed copy referencing it + frees the old blob). `exportAndSaveAsset` gained an
+`overwriteId`; the export is re-homed under the source id via the pure, unit-tested `buildOverwriteDef`.
+Logic + UI verified; the full export round-trip needs a real uploaded source asset (left for prod
+verification — the headless GLTFExporter/IDB path isn't set-up-able here). Docs updated.
+
+## [C125] GE7 — mirror a part across the centre in the GLB designer
+Added `mirrorPart` + a "Mirror across centre" button (part Edit panel): clones the selected shape to
+the opposite X with its Y/Z rotations negated, so a symmetric pair (chair arms, table legs, sofa
+sides) is one click. Unit-tested (position/rotation negation + deep-copied tuples + unknown-id
+no-op); verified the button renders in the editor. Pairs with C122's duplicate for fast builds.
+
+## [C124] GE1b — wedge (ramp) primitive in the GLB designer
+Added an 8th primitive, **wedge** (a right-triangular prism / ramp — angled supports, roof slopes,
+door stops). Built via `ExtrudeGeometry` of a triangle so three derives correct winding + normals,
+then mapped (extrude axis → X) and centred. Unit tests confirm finite geometry + an exact w×h×d
+bounding box; verified it renders as a clean flat-shaded ramp in the designer. Docs updated.
+
+## [C123] PR1b — user Exposure (brightness) slider
+Added an **Exposure** control in Graphics (0.6–1.6×) that rides on top of the altitude-driven
+auto-exposure — like a camera's exposure-compensation dial — so users can brighten or darken the
+whole scene to taste. Pure `clampExposure` helper (tested), persisted per-device in qualityPrefs;
+`Lighting` folds it into `gl.toneMappingExposure`. Verified 0.6× vs 1.6× visibly darken/brighten
+the render with no artifacts. Docs updated.
+
+## [C122] GE6 — duplicate a part in the GLB designer
+Added a per-row **duplicate** button (and `duplicatePart` in `editSpec.ts`) that clones a shape with
+its full transform + material, deep-copying the size/rotation tuples and offsetting the copy along X
+so it's visible — fast symmetric/repeated builds (table legs, slats). Unit-tested (clone independence
++ unknown-id no-op); verified the button adds a selected copy in the designer.
+
+## [C121] GE2a — per-part rotation in the GLB designer
+Each composed primitive now carries an optional Euler `rotation` (degrees), edited via a new
+Rotation (°) row, so cones/capsules/torus rings/pyramids can be laid on their side or angled
+(previously fixed-orientation). `buildEditedObject` converts deg→rad onto the mesh; the live
+preview applies the same. Unit-tested (90° → π/2 on the built mesh). A full drag gizmo stays GE2b.
+
+## [C120] GE3b — GLB designer parts can glow + go translucent
+Rounded out the per-part material editor with **glow** (emissive in the part's own colour — neon,
+lamp shades, screens) and **opacity** (translucent glass/acrylic) sliders. `partMaterial` sets
+emissive/emissiveIntensity + the `transparent` flag, shared by preview + export. Verified all four
+material sliders (roughness/metalness/glow/opacity) render with correct defaults; unit tests cover
+the opaque/glow/translucent paths. Docs updated.
+
+## [C119] GE3 — per-part PBR finish (roughness + metalness) in the GLB designer
+Each composed primitive now carries optional `roughness`/`metalness` (defaulting to the old
+0.6/0.05 matte look), driven by two sliders in the part Edit panel — so a part can read as matte
+wood, soft plastic or polished metal. A shared `partMaterial` builds the material for both the
+export and the live preview (no drift). Verified the sliders render with correct defaults; unit
+tests assert defaults + explicit values flow into the built mesh material. Docs updated.
+
+## [C118] PR3a — sharper IBL reflections at higher tiers
+Made the procedural IBL probe's cubemap resolution tier-driven (`QualitySettings.envResolution`:
+64 perf / 96 medium / 192 high / 256 maximum) instead of a flat 64px, so glossy surfaces
+(glass, metal, varnished wood, marble) get crisper reflections as quality rises — at a one-time
+build cost only. Test asserts the resolution ladder is monotonic. (First slice of the material
+realism phase; deeper PBR work continues in PR3b.)
+
+## [C117] PR2 — cinematic post stack on the Maximum tier
+Made `EffectsImpl` tier-aware via two new `QualitySettings` flags (`aoFullRes`, `cinematic`, both
+on only at Maximum, both gated behind `postprocessing`): full-resolution + high-quality N8AO, plus
+a faint luminance-aware film grain (`Noise`) and a sub-pixel radial chromatic aberration so stills
+read "photographed, not rendered". Effects assembled as a keyed array (composer children reject
+conditional nulls). Smoke-verified the Maximum tier mounts + renders with no errors in the
+software-GL harness; the subtle grading is for production GPU verification. Tests + docs updated.
+
+## [C116] Fix report crash on a plan with no walls array (C113 regression)
+The C113 wall-clip check called `planCollisionWalls(plan, {})` for any non-default plan, which threw
+`plan.walls is not iterable` for a partial/hand-built plan (caught by `reportData.test.ts`). Guarded
+it to skip the wall-clip scan when the plan has no `walls` array.
+
+## [C115] GE1 — GLB designer: cone, pyramid, capsule & torus primitives
+First step of the GLB-editor-pro program. Added four primitive shapes beyond box/cylinder/sphere —
+cone, pyramid (45°-rotated square cone), capsule, torus — driven by a single `SHAPE_KINDS`/
+`SHAPE_LABEL` source of truth in `editSpec.ts` with per-kind default sizes + floor-resting Y.
+`partGeometry` (now exported) builds them and is reused by the live preview so it can't drift from
+the export. Verified all four render correctly + selectable/editable in the designer; unit tests
+assert every kind yields finite, non-degenerate geometry + one mesh per part. Docs updated.
+
+## [C114] PR1 — selectable tone-mapping "Look" (Filmic / AgX / Neutral)
+First step of the ultra-photorealism program. Made the renderer's view transform user-selectable in
+**Graphics → Look**: Filmic (ACES, the existing default — no regression), AgX (gentler highlights,
+more photographic), Neutral (Khronos PBR-neutral, truest material colour for showroom shots).
+Pure/unit-tested operator + per-mode exposure bias in `look.ts`; `toneMappingThree.ts` maps to the
+three constant; `Lighting` sets `gl.toneMapping`+exposure per-frame; persisted in qualityPrefs
+(back-compat). Verified all three render distinctly + correctly (no artifacts) at high tier. Docs +
+ARCHITECTURE updated.
+
+## [C113] Design report surfaces overlaps + wall-clips (not just door blocks)
+Extended the report's "Clearance & fit" section to run the full check set (door-swing blocks +
+`findItemOverlaps` + `findWallClips`), matching the in-app Checks panel, so a printed/handoff report
+flags overlapping pieces and furniture embedded in a wall — not just blocked doorways. All names are
+HTML-escaped (same XSS-safe path). Tests + user doc updated.
+
+## [C112] Clearance panel now flags furniture left inside a wall
+Added `findWallClips(items,defs,walls)` (collision/placement.ts) — scans non-mounted, non-rug items
+for footprints poking into a wall *body* (the same full-thickness wall OBBs `canPlace` rejects, so
+flush-against-the-face placement is never flagged). Catches pieces stranded inside a wall after a
+floor-plan edit. Surfaced as an "In wall" issue category; the panel resolves whole-plan collision
+walls (default flat or custom plan). Verified the wall-clip card + 4-column summary render with no
+false positive on a clear item. Tests + docs + ARCHITECTURE updated.
+
+## [C111] Clearance panel now flags furniture-vs-furniture overlaps
+The Clearance panel only checked door-swing blocking despite its "fit checks" framing. Added
+`findItemOverlaps(items,defs)` (collision/placement.ts) — reuses the proven `canPlace`
+furniture-vs-furniture rule (OBB + height-aware vertical spans + group-mate / rug / mounted
+exemptions) across the whole design, so it never false-flags a stacked mattress, decor on a
+surface, a rug, or grouped pieces. Surfaced as a second "Overlapping" issue category (amber) with
+a Blocking/Overlapping/Clear summary; clicking an overlap selects + frames both pieces. Verified
+both the overlap and all-clear states visually. Docs + ARCHITECTURE updated.
+
+## [C110] Harden share-link decode against decompression bombs
+`decodePlan` only capped the *compressed* code length (2 MB) — but deflate expands that into
+gigabytes, so the claimed zip-bomb guard didn't hold (a single `inflateSync` allocates the whole
+output before any size check). Replaced it with a bounded streaming inflate that feeds the deflate
+stream in 16 KB slices and aborts once decompressed output passes a 50 MB cap (mirroring the
+`.sofa.json` import limit). Added a regression test that feeds a 64 MB-of-zeros bomb and asserts a
+clean `PlanShareError` instead of an OOM.
+
+## [C109] Fix autosave dropping floor-plan / lights / annotation / orientation / note edits
+The autosave watcher (`pickPersistent`/`shallowEqual`) only tracked a subset of what `serialize()`
+persists, so editing *only* the floor plan, lights mode, a pinned dimension annotation, scene
+orientation, or the design note never triggered a save — the change was silently lost on reload
+unless an unrelated tracked field also changed. Added all five fields to the watcher (in lock-step
+with `serialize()`) + a parametric regression test asserting each one autosaves on its own.
+
 ## [C108] Code-split the GLB Designer out of the initial bundle
 Release-readiness checkpoint (tsc + 1102 tests + prod build + both doc guides — all green) flagged
 the main JS chunk >1 MB. Lazy-loaded the Pro-only, fullscreen **GLB Designer** (`React.lazy` +

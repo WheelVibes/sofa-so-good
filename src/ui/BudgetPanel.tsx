@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useLivePrices } from '../catalog/pricing/livePrice'
+import { useFeature } from '../features/useFeature'
 import { useCatalog } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
 import { buildShoppingGroups, type Line } from '../furniture/shoppingGroups'
@@ -59,11 +60,14 @@ export function BudgetPanel() {
   // Off by default; when on, each line shows the real top-match price + a buy
   // link, falling back to the estimate for anything the sidecar can't resolve.
   const [liveOn, setLiveOn] = useState(false)
+  // Gated through the (devOnly) feature flag, not the raw build env, so the
+  // flag registry is the single source of truth (admins/QA can toggle it).
+  const livePricesEnabled = useFeature('livePrices')
   const liveEntries = useMemo(
     () => groups.flatMap((g) => g.lines.map((l) => ({ id: l.name, query: l.name }))),
     [groups],
   )
-  const livePrices = useLivePrices(liveEntries, liveOn && open)
+  const livePrices = useLivePrices(liveEntries, livePricesEnabled && liveOn && open)
 
   if (!open) return null
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`
@@ -284,7 +288,7 @@ export function BudgetPanel() {
               Export CSV
             </button>
           ) : null}
-          {import.meta.env.DEV && (
+          {livePricesEnabled && (
             <label
               className="panel-sub"
               style={{

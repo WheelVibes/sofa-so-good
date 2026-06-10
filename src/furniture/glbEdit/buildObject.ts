@@ -1,16 +1,46 @@
 import {
   BoxGeometry,
   type BufferGeometry,
+  CapsuleGeometry,
   Color,
+  ConeGeometry,
   CylinderGeometry,
+  ExtrudeGeometry,
   Group,
   type Material,
+  MathUtils,
   Mesh,
   MeshStandardMaterial,
   type Object3D,
+  Shape,
   SphereGeometry,
+  TorusGeometry,
 } from 'three'
-import type { AssetEditSpec, MeshOverride, ShapePart } from './editSpec'
+import {
+  type AssetEditSpec,
+  DEFAULT_PART_METALNESS,
+  DEFAULT_PART_ROUGHNESS,
+  type MeshOverride,
+  type ShapePart,
+} from './editSpec'
+
+/** The shared PBR material for a primitive part — honours its per-part
+ *  roughness/metalness (falling back to the matte-ish defaults). Used by both
+ *  the export (`buildEditedObject`) and the live preview so they never diverge. */
+export function partMaterial(part: ShapePart): MeshStandardMaterial {
+  const glow = part.emissiveIntensity ?? 0
+  const opacity = part.opacity ?? 1
+  return new MeshStandardMaterial({
+    color: part.color,
+    roughness: part.roughness ?? DEFAULT_PART_ROUGHNESS,
+    metalness: part.metalness ?? DEFAULT_PART_METALNESS,
+    // Glow in the part's own colour (so a red part glows red); black = no glow.
+    emissive: new Color(glow > 0 ? part.color : 0x000000),
+    emissiveIntensity: glow,
+    transparent: opacity < 1,
+    opacity,
+  })
+}
 
 /**
  * Apply per-mesh recolour/hide overrides to a (cloned) source object, in place.
@@ -43,12 +73,55 @@ export function applyMeshOverrides(
   })
 }
 
-/** Geometry for one primitive part, sized in metres (footprint-centred). */
-function partGeometry(part: ShapePart): BufferGeometry {
+/** Geometry for one primitive part, sized in metres (footprint-centred).
+ *  `torus` reads size as [outer diameter, tube diameter, _]; `capsule` as
+ *  [diameter, total height, _]; `pyramid` is a 4-sided cone rotated so a flat
+ *  face points +Z (front). Exported so the live designer preview builds the
+ *  exact geometry the export will, with no per-kind drift. */
+export function partGeometry(part: ShapePart): BufferGeometry {
   const [w, h, d] = part.size
-  if (part.kind === 'box') return new BoxGeometry(w, h, d)
-  if (part.kind === 'cylinder') return new CylinderGeometry(w / 2, w / 2, h, 32)
-  return new SphereGeometry(Math.max(w, h, d) / 2, 32, 16)
+  switch (part.kind) {
+    case 'box':
+      return new BoxGeometry(w, h, d)
+    case 'cylinder':
+      return new CylinderGeometry(w / 2, w / 2, h, 32)
+    case 'cone':
+      return new ConeGeometry(w / 2, h, 32)
+    case 'pyramid': {
+      // 4 radial segments = square base; widen so flat-to-flat ≈ w, then turn a
+      // face to the front instead of a corner.
+      const geo = new ConeGeometry(w / Math.SQRT2, h, 4)
+      geo.rotateY(Math.PI / 4)
+      return geo
+    }
+    case 'capsule': {
+      const radius = Math.max(0.01, w / 2)
+      // CapsuleGeometry's `length` excludes the two hemispherical caps.
+      const length = Math.max(0, h - 2 * radius)
+      return new CapsuleGeometry(radius, length, 8, 24)
+    }
+    case 'torus': {
+      const tube = Math.max(0.01, h / 2)
+      const radius = Math.max(tube, w / 2 - tube)
+      return new TorusGeometry(radius, tube, 16, 48)
+    }
+    case 'wedge': {
+      // Right-triangular prism (a ramp): triangle in the Z/Y plane rising toward
+      // +Z, extruded across the width (X). Built via ExtrudeGeometry so three
+      // handles winding + normals; then mapped (extrude axis Z→X) and centred.
+      const shape = new Shape()
+      shape.moveTo(-d / 2, -h / 2)
+      shape.lineTo(d / 2, -h / 2)
+      shape.lineTo(d / 2, h / 2)
+      shape.closePath()
+      const geo = new ExtrudeGeometry(shape, { depth: w, bevelEnabled: false })
+      geo.translate(0, 0, -w / 2) // centre along the extrude axis
+      geo.rotateY(-Math.PI / 2) // extrude axis Z → X (so width = w on X, depth = d on Z)
+      return geo
+    }
+    default:
+      return new SphereGeometry(Math.max(w, h, d) / 2, 32, 16)
+  }
 }
 
 /**
@@ -71,14 +144,18 @@ export function buildEditedObject(source: Object3D | null, spec: AssetEditSpec):
   }
 
   spec.parts.forEach((part, i) => {
-    const mesh = new Mesh(
-      partGeometry(part),
-      new MeshStandardMaterial({ color: part.color, roughness: 0.6, metalness: 0.05 }),
-    )
+    const mesh = new Mesh(partGeometry(part), partMaterial(part))
     // Name parts so a saved asset's components are addressable when it's later
     // reopened as a source for per-mesh recolour/hide.
     mesh.name = `${part.kind}-${i + 1}`
     mesh.position.set(part.position[0], part.position[1], part.position[2])
+    if (part.rotation) {
+      mesh.rotation.set(
+        MathUtils.degToRad(part.rotation[0]),
+        MathUtils.degToRad(part.rotation[1]),
+        MathUtils.degToRad(part.rotation[2]),
+      )
+    }
     mesh.castShadow = true
     mesh.receiveShadow = true
     group.add(mesh)

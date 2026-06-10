@@ -1,0 +1,403 @@
+/**
+ * Cross-section drawing (feature F32).
+ *
+ * A vertical section cut through the plan — companion to wall elevations. The
+ * cut is a horizontal line across the plan, either at a fixed `x` (running
+ * along Z) or a fixed `z` (running along X). Looking along the cut we project
+ * everything onto a vertical plane and report, left→right along the OTHER axis:
+ *
+ *  - the floor line (y=0) and ceiling line (per-room ceiling height where set),
+ *  - each wall the cut line crosses as a filled "cut" column (position along
+ *    the section axis + thickness + floor→ceiling height, or `topHeight` for
+ *    parapets),
+ *  - openings on those cut walls as gaps with sill/head,
+ *  - rooms the cut passes through as labelled floor segments.
+ *
+ * Walls running parallel to the cut (never crossed by the cut line) are
+ * omitted — this is the cut profile only, not a full back-wall elevation.
+ *
+ * Pure + self-contained: imports only `./types`. All lengths in metres.
+ */
+
+import {
+  type FloorPlan,
+  type PlanOpening,
+  type PlanRoom,
+  type PlanVec2,
+  type PlanWall,
+  roomPolygon,
+  wallLength,
+} from './types'
+
+export type SectionAxis = 'x' | 'z'
+
+export interface SectionCut {
+  /** Which world axis the cut line is fixed on. `'x'` → a vertical plane at
+   *  x=at running along Z; `'z'` → a plane at z=at running along X. */
+  axis: SectionAxis
+  /** The fixed coordinate of the cut line (metres). */
+  at: number
+}
+
+/** A wall the cut crosses, as a filled column on the section. */
+export interface SectionWall {
+  /** Centre position along the section axis (the non-fixed axis), metres. */
+  pos: number
+  /** Wall thickness (metres) — its visible width in the section. */
+  thickness: number
+  /** Bottom of the column (floor), metres. Always 0 here. */
+  base: number
+  /** Top of the column (ceiling, or `topHeight` for parapets), metres. */
+  top: number
+  /** True — every wall reported here is a cut wall. */
+  cut: boolean
+}
+
+/** An opening on a cut wall, as a gap in that wall column. */
+export interface SectionOpening {
+  /** Centre position along the section axis, metres. */
+  pos: number
+  /** Visible width of the gap along the section axis, metres. */
+  width: number
+  /** Bottom of the gap above floor, metres (0 for doors). */
+  sill: number
+  /** Top of the gap above floor, metres. */
+  head: number
+  kind: 'door' | 'window'
+}
+
+/** A room the cut passes through, as a labelled floor segment. */
+export interface SectionRoom {
+  name: string
+  /** Start position along the section axis, metres. */
+  start: number
+  /** End position along the section axis, metres. */
+  end: number
+}
+
+/** A ceiling run at height `y` spanning `[start,end]` along the section axis. */
+export interface SectionCeil {
+  start: number
+  end: number
+  y: number
+}
+
+export interface Section {
+  axis: SectionAxis
+  at: number
+  /** Span of the section along the non-fixed axis, metres. */
+  length: number
+  /** Overall section height (max ceiling / wall top), metres. */
+  height: number
+  walls: SectionWall[]
+  openings: SectionOpening[]
+  rooms: SectionRoom[]
+  /** Floor line height, metres (0). */
+  floorY: number
+  ceil: SectionCeil[]
+}
+
+/** Default fall-back ceiling height (metres) when nothing else is known. */
+const DEFAULT_CEIL = 2.8
+/** Half a millimetre — tolerance for "on the line" / degenerate spans. */
+const EPS = 5e-4
+
+function isArr<T>(v: unknown): v is T[] {
+  return Array.isArray(v)
+}
+
+function thicknessM(w: PlanWall): number {
+  return w.thickness === 'external' ? 0.2 : 0.1
+}
+
+/** Plan extent along the non-fixed (section) axis, as a fall-back span. */
+function planSpan(plan: FloorPlan, axis: SectionAxis): number {
+  const ext = isArr<number>(plan.extent) ? plan.extent : [0, 0]
+  const v = axis === 'x' ? ext[1] : ext[0]
+  return typeof v === 'number' && Number.isFinite(v) && v > 0 ? v : 0
+}
+
+/** Coordinate of a point along the fixed axis (the one the cut is at). */
+function fixedOf(p: PlanVec2, axis: SectionAxis): number {
+  return axis === 'x' ? p[0] : p[1]
+}
+
+/** Coordinate of a point along the section axis (the one we lay out left→right). */
+function alongOf(p: PlanVec2, axis: SectionAxis): number {
+  return axis === 'x' ? p[1] : p[0]
+}
+
+/**
+ * Where (along the section axis) a segment crosses the cut line `fixed=at`,
+ * or `null` if it does not cross (parallel / outside its fixed-span). A segment
+ * touching the line only at an endpoint is treated as crossing at that point.
+ */
+function crossAlong(a: PlanVec2, b: PlanVec2, axis: SectionAxis, at: number): number | null {
+  const fa = fixedOf(a, axis)
+  const fb = fixedOf(b, axis)
+  const min = Math.min(fa, fb)
+  const max = Math.max(fa, fb)
+  if (at < min - EPS || at > max + EPS) return null
+  if (Math.abs(fb - fa) < EPS) {
+    // Segment runs parallel to (along) the cut and lies on it: not a crossing.
+    return null
+  }
+  const t = (at - fa) / (fb - fa)
+  const tc = Math.min(1, Math.max(0, t))
+  const aa = alongOf(a, axis)
+  const ba = alongOf(b, axis)
+  return aa + (ba - aa) * tc
+}
+
+/**
+ * Build a vertical section through `plan` at `cut`. Defensive: guards
+ * non-array walls/openings/rooms, an empty plan, and a cut line outside the
+ * plan bounds (→ an empty section, never throws). All values clamped ≥ 0.
+ */
+export function buildSection(plan: FloorPlan, cut: SectionCut): Section {
+  const axis: SectionAxis = cut?.axis === 'x' ? 'x' : 'z'
+  const at = typeof cut?.at === 'number' && Number.isFinite(cut.at) ? cut.at : 0
+  const empty: Section = {
+    axis,
+    at,
+    length: 0,
+    height: 0,
+    walls: [],
+    openings: [],
+    rooms: [],
+    floorY: 0,
+    ceil: [],
+  }
+  if (!plan || typeof plan !== 'object') return empty
+
+  const walls = isArr<PlanWall>(plan.walls) ? plan.walls : []
+  const openings = isArr<PlanOpening>(plan.openings) ? plan.openings : []
+  const rooms = isArr<PlanRoom>(plan.rooms) ? plan.rooms : []
+
+  const planCeil =
+    typeof plan.ceilingHeight === 'number' && plan.ceilingHeight > 0
+      ? plan.ceilingHeight
+      : DEFAULT_CEIL
+
+  // Bounds along the fixed axis: if the cut line lies entirely outside every
+  // wall/room, there is nothing to cut → empty section.
+  let fMin = Number.POSITIVE_INFINITY
+  let fMax = Number.NEGATIVE_INFINITY
+  const noteFixed = (v: number) => {
+    if (v < fMin) fMin = v
+    if (v > fMax) fMax = v
+  }
+  for (const w of walls) {
+    if (!w || !isArr<number>(w.start) || !isArr<number>(w.end)) continue
+    noteFixed(fixedOf(w.start, axis))
+    noteFixed(fixedOf(w.end, axis))
+  }
+  for (const r of rooms) {
+    const poly = safePolygon(r)
+    for (const p of poly) noteFixed(fixedOf(p, axis))
+  }
+  if (!Number.isFinite(fMin) || !Number.isFinite(fMax)) return empty
+  if (at < fMin - EPS || at > fMax + EPS) return empty
+
+  // --- Cut walls + their openings -----------------------------------------
+  const sectionWalls: SectionWall[] = []
+  const sectionOpenings: SectionOpening[] = []
+  let maxTop = 0
+
+  for (const w of walls) {
+    if (!w || !isArr<number>(w.start) || !isArr<number>(w.end)) continue
+    const pos = crossAlong(w.start, w.end, axis, at)
+    if (pos === null) continue
+
+    const ceilHere = ceilingAt(rooms, w.start, w.end, axis, at, planCeil)
+    const parapet = typeof w.topHeight === 'number' && w.topHeight > 0 ? w.topHeight : undefined
+    const top = Math.max(0, parapet ?? ceilHere)
+    sectionWalls.push({ pos, thickness: thicknessM(w), base: 0, top, cut: true })
+    if (top > maxTop) maxTop = top
+
+    // Openings on this wall → gaps. The cut crosses the wall at a single point,
+    // so an opening contributes a gap only when the cut line falls within the
+    // opening's run along the wall.
+    const len = wallLength(w)
+    if (len < EPS) continue
+    for (const o of openings) {
+      if (!o || o.wallId !== w.id) continue
+      const off = clampNum(o.offset, 0, len)
+      const wid = clampNum(o.width, 0, len - off)
+      const dCut = crossDistAlongWall(w, axis, at)
+      if (dCut === null) continue
+      if (dCut < off - EPS || dCut > off + wid + EPS) continue
+      const sill = o.kind === 'door' ? 0 : Math.max(0, o.sill ?? 0)
+      const head = Math.max(sill, o.head ?? top)
+      sectionOpenings.push({
+        pos,
+        width: Math.max(0, wid),
+        sill,
+        head: Math.min(head, top),
+        kind: o.kind === 'door' ? 'door' : 'window',
+      })
+    }
+  }
+
+  // --- Rooms the cut passes through → labelled floor segments + ceiling ----
+  const sectionRooms: SectionRoom[] = []
+  const ceil: SectionCeil[] = []
+  for (const r of rooms) {
+    const poly = safePolygon(r)
+    if (poly.length < 3) continue
+    const spans = polygonCutSpans(poly, axis, at)
+    if (spans.length === 0) continue
+    const rCeil =
+      typeof r.ceilingHeight === 'number' && r.ceilingHeight > 0 ? r.ceilingHeight : planCeil
+    for (const [s, e] of spans) {
+      if (e - s < EPS) continue
+      sectionRooms.push({ name: typeof r.name === 'string' ? r.name : '', start: s, end: e })
+      ceil.push({ start: s, end: e, y: rCeil })
+      if (rCeil > maxTop) maxTop = rCeil
+    }
+  }
+  sectionRooms.sort((p, q) => p.start - q.start)
+  ceil.sort((p, q) => p.start - q.start)
+  sectionWalls.sort((p, q) => p.pos - q.pos)
+  sectionOpenings.sort((p, q) => p.pos - q.pos)
+
+  // --- Section span (length) -----------------------------------------------
+  let aMin = Number.POSITIVE_INFINITY
+  let aMax = Number.NEGATIVE_INFINITY
+  const noteAlong = (v: number) => {
+    if (v < aMin) aMin = v
+    if (v > aMax) aMax = v
+  }
+  for (const w of sectionWalls) {
+    noteAlong(w.pos - w.thickness / 2)
+    noteAlong(w.pos + w.thickness / 2)
+  }
+  for (const r of sectionRooms) {
+    noteAlong(r.start)
+    noteAlong(r.end)
+  }
+  let length = 0
+  if (Number.isFinite(aMin) && Number.isFinite(aMax)) {
+    length = Math.max(0, aMax - aMin)
+  }
+  if (length < EPS) length = planSpan(plan, axis)
+
+  const height = maxTop > 0 ? maxTop : planCeil
+
+  return {
+    axis,
+    at,
+    length,
+    height,
+    walls: sectionWalls,
+    openings: sectionOpenings,
+    rooms: sectionRooms,
+    floorY: 0,
+    ceil,
+  }
+}
+
+function clampNum(v: unknown, lo: number, hi: number): number {
+  const x = typeof v === 'number' && Number.isFinite(v) ? v : 0
+  return Math.min(Math.max(x, lo), Math.max(lo, hi))
+}
+
+/** Room polygon, guarded against malformed rooms. */
+function safePolygon(r: PlanRoom | undefined): PlanVec2[] {
+  if (!r || typeof r !== 'object') return []
+  try {
+    const poly = roomPolygon(r)
+    return isArr<PlanVec2>(poly) ? poly.filter((p) => isArr<number>(p) && p.length >= 2) : []
+  } catch {
+    return []
+  }
+}
+
+/** Highest ceiling among rooms containing the wall's crossing point. */
+function ceilingAt(
+  rooms: PlanRoom[],
+  start: PlanVec2,
+  end: PlanVec2,
+  axis: SectionAxis,
+  at: number,
+  fallback: number,
+): number {
+  const pos = crossAlong(start, end, axis, at)
+  if (pos === null) return fallback
+  const wx = axis === 'x' ? at : pos
+  const wz = axis === 'x' ? pos : at
+  // A perimeter wall sits ON its room's boundary, so the crossing point itself
+  // is not strictly inside any polygon. Probe a small nudge in every direction
+  // so the wall picks up its adjacent room's ceiling.
+  const d = 0.02
+  const samples: PlanVec2[] = [
+    [wx, wz],
+    [wx + d, wz],
+    [wx - d, wz],
+    [wx, wz + d],
+    [wx, wz - d],
+  ]
+  let best = fallback
+  let found = false
+  for (const r of rooms) {
+    const poly = safePolygon(r)
+    if (poly.length < 3) continue
+    if (!samples.some(([sx, sz]) => pointInPoly(sx, sz, poly))) continue
+    const rc =
+      typeof r.ceilingHeight === 'number' && r.ceilingHeight > 0 ? r.ceilingHeight : fallback
+    if (!found || rc > best) best = rc
+    found = true
+  }
+  return best
+}
+
+/** Even-odd point-in-polygon (local copy to stay self-contained). */
+function pointInPoly(x: number, z: number, pts: PlanVec2[]): boolean {
+  let inside = false
+  for (let i = 0, j = pts.length - 1; i < pts.length; j = i++) {
+    const [xi, zi] = pts[i]!
+    const [xj, zj] = pts[j]!
+    const intersects = zi > z !== zj > z && x < ((xj - xi) * (z - zi)) / (zj - zi) + xi
+    if (intersects) inside = !inside
+  }
+  return inside
+}
+
+/** Distance along a wall (from its start) at which the cut line crosses it. */
+function crossDistAlongWall(w: PlanWall, axis: SectionAxis, at: number): number | null {
+  const fa = fixedOf(w.start, axis)
+  const fb = fixedOf(w.end, axis)
+  if (Math.abs(fb - fa) < EPS) return null
+  const t = (at - fa) / (fb - fa)
+  if (t < -EPS || t > 1 + EPS) return null
+  return Math.min(1, Math.max(0, t)) * wallLength(w)
+}
+
+/**
+ * The intervals (along the section axis) where the cut line lies inside a
+ * polygon — the room's floor footprint on the section. Sweeps the polygon's
+ * edge crossings of the cut line and pairs them up (even-odd).
+ */
+function polygonCutSpans(poly: PlanVec2[], axis: SectionAxis, at: number): Array<[number, number]> {
+  const xs: number[] = []
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]!
+    const b = poly[(i + 1) % poly.length]!
+    const fa = fixedOf(a, axis)
+    const fb = fixedOf(b, axis)
+    // Half-open crossing test (count the lower endpoint, skip the upper) so a
+    // vertex exactly on the cut line is not double-counted.
+    if (fa > at !== fb > at) {
+      const t = (at - fa) / (fb - fa)
+      const aa = alongOf(a, axis)
+      const ba = alongOf(b, axis)
+      xs.push(aa + (ba - aa) * t)
+    }
+  }
+  xs.sort((p, q) => p - q)
+  const spans: Array<[number, number]> = []
+  for (let i = 0; i + 1 < xs.length; i += 2) {
+    spans.push([xs[i]!, xs[i + 1]!])
+  }
+  return spans
+}

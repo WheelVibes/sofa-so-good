@@ -61,6 +61,25 @@ export interface PlanRoom {
   ceilingHeight?: number
   /** Optional floor finish (catalog material id); defaults to oak in the shell. */
   floor?: string
+  /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
+  ceiling?: CeilingConfig
+}
+
+/** Per-room ceiling treatment. `flat` (or absent) renders the plain ceiling. */
+export type CeilingStyle = 'flat' | 'tray' | 'coffered' | 'dropped'
+
+export interface CeilingConfig {
+  style: CeilingStyle
+  /** Recess / drop depth in metres (tray border + coffer + dropped box). */
+  drop?: number
+  /** Perimeter border width (tray) / box inset (dropped) in metres. */
+  margin?: number
+  /** Coffered grid divisions [cols, rows]. */
+  grid?: [number, number]
+  /** Perimeter cove-light glow (tray / dropped). */
+  coveLight?: boolean
+  /** Cove glow colour (hex); defaults to a warm white. */
+  coveColor?: string
 }
 
 export interface FloorPlan {
@@ -105,6 +124,74 @@ export function pointInPolygon(x: number, z: number, pts: PlanVec2[]): boolean {
   return inside
 }
 
+/** Outline polygon of the union of axis-aligned rectangles (`[x0,z0,x1,z1]`).
+ *  Robust for ANY arrangement (adjacent on any side, overlapping, or a notch):
+ *  it overlays the rect edges into a coarse grid, marks filled cells, then
+ *  stitches the cell-boundary edges into a single closed loop. Winding is not
+ *  guaranteed (consumers use shoelace |area| + even-odd containment, both
+ *  winding-agnostic). Collinear vertices are dropped. */
+export function rectUnionOutline(rects: Array<[number, number, number, number]>): PlanVec2[] {
+  const xs = [...new Set(rects.flatMap((r) => [r[0], r[2]]))].sort((a, b) => a - b)
+  const zs = [...new Set(rects.flatMap((r) => [r[1], r[3]]))].sort((a, b) => a - b)
+  const filled = (i: number, j: number): boolean => {
+    if (i < 0 || j < 0 || i >= xs.length - 1 || j >= zs.length - 1) return false
+    const cx = (xs[i]! + xs[i + 1]!) / 2
+    const cz = (zs[j]! + zs[j + 1]!) / 2
+    return rects.some((r) => cx > r[0] && cx < r[2] && cz > r[1] && cz < r[3])
+  }
+  // Boundary edges = a filled cell's side whose neighbour across it is empty.
+  const key = (p: PlanVec2) => `${p[0]},${p[1]}`
+  const adj = new Map<string, PlanVec2[]>()
+  const addEdge = (a: PlanVec2, b: PlanVec2) => {
+    for (const [p, q] of [
+      [a, b],
+      [b, a],
+    ] as const) {
+      const list = adj.get(key(p))
+      if (list) list.push(q)
+      else adj.set(key(p), [q])
+    }
+  }
+  for (let i = 0; i < xs.length - 1; i++) {
+    for (let j = 0; j < zs.length - 1; j++) {
+      if (!filled(i, j)) continue
+      const x0 = xs[i]!
+      const x1 = xs[i + 1]!
+      const z0 = zs[j]!
+      const z1 = zs[j + 1]!
+      if (!filled(i - 1, j)) addEdge([x0, z0], [x0, z1])
+      if (!filled(i + 1, j)) addEdge([x1, z0], [x1, z1])
+      if (!filled(i, j - 1)) addEdge([x0, z0], [x1, z0])
+      if (!filled(i, j + 1)) addEdge([x0, z1], [x1, z1])
+    }
+  }
+  if (adj.size === 0) return []
+  // Walk the loop from any vertex.
+  const startKey = adj.keys().next().value as string
+  const start: PlanVec2 = [Number(startKey.split(',')[0]), Number(startKey.split(',')[1])]
+  const loop: PlanVec2[] = [start]
+  let prev: PlanVec2 | null = null
+  let cur = start
+  for (let guard = 0; guard < adj.size + 2; guard++) {
+    const nexts = adj.get(key(cur)) ?? []
+    const next = nexts.find((p) => !prev || key(p) !== key(prev)) ?? nexts[0]
+    if (!next || (key(next) === key(start) && loop.length > 2)) break
+    loop.push(next)
+    prev = cur
+    cur = next
+  }
+  // Drop collinear vertices.
+  const out: PlanVec2[] = []
+  for (let i = 0; i < loop.length; i++) {
+    const a = loop[(i - 1 + loop.length) % loop.length]!
+    const b = loop[i]!
+    const c = loop[(i + 1) % loop.length]!
+    const cross = (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+    if (Math.abs(cross) > 1e-9) out.push(b)
+  }
+  return out.length >= 3 ? out : loop
+}
+
 /** The room's outline as an absolute-metre polygon: the explicit `polygon`
  *  when set, else derived from the rectangle (+ L-extension) so every room has
  *  a single polygon representation for area / render / containment. */
@@ -121,33 +208,15 @@ export function roomPolygon(r: PlanRoom): PlanVec2[] {
       [ox, z1],
     ]
   }
-  // L-shape: union of the main rect + the extension rect. Returned as the
-  // outline polygon. The extension is axis-aligned and offset from origin.
+  // L-shape: the rectilinear union of the main rect + the offset extension rect,
+  // correct for an extension attached on ANY side (not just the south edge).
   const e = r.extension
   const ex0 = ox + e.offset[0]
   const ez0 = oz + e.offset[1]
-  const ex1 = ex0 + e.width
-  const ez1 = ez0 + e.depth
-  // Two disjoint-or-touching rects → return the simple 8-point staircase via a
-  // bounding merge isn't trivial for all offsets; for the common corner L we
-  // approximate the outline as the convex/concave hull of the 8 rect corners.
-  // Consumers using area() use polygonArea on this; for an axis-aligned L the
-  // outline is the 6-point notch. Build it for the canonical corner case.
-  const pts: PlanVec2[] = [
-    [ox, oz],
-    [x1, oz],
-    [x1, z1],
-    [ex1, z1],
-    [ex1, ez1],
-    [ex0, ez1],
-    [ex0, oz],
-    [ox, oz],
-  ]
-  // The generic fallback above only holds for an extension attached to the
-  // south edge; for robustness across offsets, callers that need exact L area
-  // should rely on planRoomArea (which sums the two rects). roomPolygon is used
-  // for render/containment where the explicit `polygon` is the real path.
-  return pts
+  return rectUnionOutline([
+    [ox, oz, x1, z1],
+    [ex0, ez0, ex0 + e.width, ez0 + e.depth],
+  ])
 }
 
 /** Interior floor area of a room (m²): shoelace over an explicit polygon, else

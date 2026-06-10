@@ -1,6 +1,9 @@
 import { useMemo } from 'react'
 import { BackSide, MeshStandardMaterial } from 'three'
+import { isFeatureEnabled } from '../../features/featureFlags'
+import type { CeilingConfig } from '../../floorplan/types'
 import { worldUvPlaneGeometry, worldUvShapeGeometry } from '../../materials/worldUv'
+import { RoomCeiling } from '../ceiling/RoomCeiling'
 
 /**
  * A flat white ceiling for a user-authored plan room, placed at the room's
@@ -15,6 +18,8 @@ interface Props {
   depth: number
   height: number
   polygon?: [number, number][]
+  /** Optional ceiling treatment (tray/coffered/dropped). Absent → flat. */
+  ceiling?: CeilingConfig
 }
 
 // One shared material: uniform matte white, back-faces only (downward-facing).
@@ -24,12 +29,24 @@ const CEILING_MATERIAL = new MeshStandardMaterial({
   side: BackSide,
 })
 
-export function PlanRoomCeiling({ origin, width, depth, height, polygon }: Props) {
+export function PlanRoomCeiling({ origin, width, depth, height, polygon, ceiling }: Props) {
   const isPoly = !!polygon && polygon.length >= 3
   const geometry = useMemo(
     () => (isPoly ? worldUvShapeGeometry(polygon!) : worldUvPlaneGeometry(width, depth)),
     [isPoly, polygon, width, depth],
   )
+  // A designed ceiling (tray/coffered/dropped) replaces the flat plane.
+  if (ceiling && ceiling.style !== 'flat' && isFeatureEnabled('ceilingDesign')) {
+    const poly: [number, number][] = isPoly
+      ? polygon!
+      : [
+          [origin[0], origin[1]],
+          [origin[0] + width, origin[1]],
+          [origin[0] + width, origin[1] + depth],
+          [origin[0], origin[1] + depth],
+        ]
+    return <RoomCeiling polygon={poly} height={height} config={ceiling} />
+  }
   // Polygon verts are absolute world metres (no offset); a rect centres on its
   // origin. Both share the floor's [-π/2] tilt so the back face points down.
   const position: [number, number, number] = isPoly

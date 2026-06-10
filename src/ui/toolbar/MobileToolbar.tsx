@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
-import { dropBuiltinSet, dropIkeaSet } from '../../furniture/arrangeActions'
+import { dropBuiltinSet, dropIkeaSet, dropUserSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { FURNITURE_SETS } from '../../furniture/furnitureSets'
 import { ikeaSetRecipes } from '../../furniture/ikeaSets'
@@ -25,6 +25,7 @@ import { LocalStorageAdapter } from '../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, saveThumb } from '../../state/storage/slotThumbs'
 import { useStore } from '../../state/store'
+import { closeAllAuxPanels } from '../auxPanels'
 import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
@@ -141,6 +142,10 @@ export function MobileToolbar() {
   const versionsOpen = useStore((st) => st.versionsOpen)
   const historyOpen = useStore((st) => st.historyOpen)
   const clearancePanelOpen = useStore((st) => st.clearancePanelOpen)
+  const elevationsOpen = useStore((st) => st.elevationsOpen)
+  const daylightOpen = useStore((st) => st.daylightOpen)
+  const designScoreOpen = useStore((st) => st.designScoreOpen)
+  const accessibilityOpen = useStore((st) => st.accessibilityOpen)
   const snapEnabled = useStore((st) => st.snapEnabled)
   const gridSize = useStore((st) => st.gridSize)
   const autoRotate = useStore((st) => st.autoRotate)
@@ -180,6 +185,12 @@ export function MobileToolbar() {
   const fSun = useFeature('sunStudy')
   const fWalk = useFeature('walkthrough')
   const fReport = useFeature('report')
+  const fDrawings = useFeature('drawings')
+  const fDaylight = useFeature('daylight')
+  const fDesignScore = useFeature('designScore')
+  const fAccessibility = useFeature('accessibility')
+  const fUserSets = useFeature('userSets')
+  const userSets = useStore((st) => st.userSets)
 
   const close = () => setMenuOpen(false)
   // Most actions dismiss the sheet; pass {keep:true} for in-place toggles.
@@ -193,14 +204,9 @@ export function MobileToolbar() {
   // active plan (default apartment or a custom plan's own rooms).
   const defaultEditRoomId = firstEditableRoomId(floorPlanForRooms)
 
-  // Mutually-exclusive .aux panels (budget / checks / versions / history).
-  const closeAux = () => {
-    const st = s.getState()
-    if (st.budgetOpen) st.toggleBudget()
-    st.setClearancePanelOpen(false)
-    st.setVersionsOpen(false)
-    st.setHistoryOpen(false)
-  }
+  // Mutually-exclusive .aux panels — shared helper (covers budget / checks /
+  // elevations / daylight / design-score / accessibility / versions / history).
+  const closeAux = () => closeAllAuxPanels(s.getState())
   const openBudget = () => {
     const wasOpen = s.getState().budgetOpen
     closeAux()
@@ -217,6 +223,27 @@ export function MobileToolbar() {
     const wasOpen = s.getState().versionsOpen
     closeAux()
     s.getState().setVersionsOpen(!wasOpen)
+  }
+  // Analysis / drawing panels — same mutual-exclusion as desktop (B3 parity).
+  const toggleElevations = () => {
+    const wasOpen = s.getState().elevationsOpen
+    closeAux()
+    s.getState().setElevationsOpen(!wasOpen)
+  }
+  const toggleDaylight = () => {
+    const wasOpen = s.getState().daylightOpen
+    closeAux()
+    s.getState().setDaylightOpen(!wasOpen)
+  }
+  const toggleDesignScore = () => {
+    const wasOpen = s.getState().designScoreOpen
+    closeAux()
+    s.getState().setDesignScoreOpen(!wasOpen)
+  }
+  const toggleAccessibility = () => {
+    const wasOpen = s.getState().accessibilityOpen
+    closeAux()
+    s.getState().setAccessibilityOpen(!wasOpen)
   }
   const openHistory = () => {
     const wasOpen = s.getState().historyOpen
@@ -610,6 +637,40 @@ export function MobileToolbar() {
                         onClick={act(() => dropIkeaSet(r.setKey))}
                       />
                     ))}
+                    {fUserSets ? (
+                      <>
+                        <div className="m-sub-h">My sets</div>
+                        <Item
+                          icon="Sets"
+                          label="Save selection as set…"
+                          onClick={act(async () => {
+                            if (s.getState().selectedItemIds.length === 0) {
+                              s.getState().notify.start({
+                                title: 'Select items to save as a set',
+                                kind: 'info',
+                              })
+                              return
+                            }
+                            const name = await s.getState().promptText({
+                              title: 'Save set',
+                              label: 'Name this set',
+                              defaultValue: `My set ${userSets.length + 1}`,
+                              submitLabel: 'Save',
+                            })
+                            if (name) s.getState().saveSelectionAsSet(name)
+                          })}
+                        />
+                        {userSets.map((u) => (
+                          <Item
+                            key={u.id}
+                            icon="Sets"
+                            label={u.name}
+                            sub={`${u.items.length} items`}
+                            onClick={act(() => dropUserSet(u.id))}
+                          />
+                        ))}
+                      </>
+                    ) : null}
                     <div className="m-sub-h">Presets</div>
                     {LAYOUT_PRESETS.map((p) => (
                       <Item
@@ -674,6 +735,38 @@ export function MobileToolbar() {
                       label="Clearance checks"
                       on={clearancePanelOpen}
                       onClick={act(toggleChecks)}
+                    />
+                  ) : null}
+                  {fDrawings ? (
+                    <Item
+                      icon="FloorPlan"
+                      label="Drawings"
+                      on={elevationsOpen}
+                      onClick={act(toggleElevations)}
+                    />
+                  ) : null}
+                  {fDaylight ? (
+                    <Item
+                      icon="SunStudy"
+                      label="Daylight"
+                      on={daylightOpen}
+                      onClick={act(toggleDaylight)}
+                    />
+                  ) : null}
+                  {fDesignScore ? (
+                    <Item
+                      icon="Star"
+                      label="Design score"
+                      on={designScoreOpen}
+                      onClick={act(toggleDesignScore)}
+                    />
+                  ) : null}
+                  {fAccessibility ? (
+                    <Item
+                      icon="Checks"
+                      label="Accessibility"
+                      on={accessibilityOpen}
+                      onClick={act(toggleAccessibility)}
                     />
                   ) : null}
                   {fMeasure ? (

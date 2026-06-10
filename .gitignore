@@ -43,3 +43,6 @@ docs/user/.vitepress/.temp
 docs/developer/.vitepress/cache
 docs/developer/.vitepress/.temp
 docs/developer/.vitepress/dist
+
+# Claude Code harness (agent worktrees, local settings) — transient, never commit
+.claude/

@@ -10,6 +10,7 @@ import { installPack, installPolyPizzaPack } from '../../catalog/packs/install'
 import { visiblePacks } from '../../catalog/packs/registry'
 import type { Pack } from '../../catalog/packs/types'
 import { uninstallPack } from '../../catalog/packs/uninstall'
+import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 
 const fmtMB = (bytes: number) => `${(bytes / 1024 / 1024).toFixed(1)} MB`
@@ -319,7 +320,13 @@ function renderCard(pack: Pack) {
 }
 
 export function PacksTab() {
-  const packs = visiblePacks(import.meta.env.DEV)
+  // The IKEA live-scrape pack additionally routes through its (devOnly) flag, so
+  // the flag registry is the single gate even though `visiblePacks` already
+  // dev-scopes it.
+  const ikeaLiveOn = useFeature('ikeaLive')
+  const packs = visiblePacks(import.meta.env.DEV).filter(
+    (p) => p.kind !== 'ikea-live' || ikeaLiveOn,
+  )
   const furniture = packs.filter((p) => (p.assetType ?? 'furniture') === 'furniture')
   const materials = packs.filter((p) => p.assetType === 'material')
   return (

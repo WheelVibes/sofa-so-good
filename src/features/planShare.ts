@@ -10,7 +10,7 @@
  * schema-tied wrappers reuse `migrate` + `SerializedStateZ`, so a hand-edited or
  * older link is migrated + validated, never blindly trusted.
  */
-import { deflateSync, inflateSync, strFromU8, strToU8 } from 'fflate'
+import { deflateSync, Inflate, strFromU8, strToU8 } from 'fflate'
 import { type SerializedState, SerializedStateZ, serialize } from '../state/schema'
 import { migrate } from '../state/storage/migrations'
 import type { RootState } from '../state/store'
@@ -40,9 +40,46 @@ export function buildPlanShareUrl(code: string): string {
   return `${origin}${base}${planShareHash(code)}`
 }
 
-/** Reject an oversized code before inflating (cheap zip-bomb / DoS guard). A
+/** Reject an oversized code before inflating (cheap first-line DoS guard). A
  *  real design compresses to well under this. */
 export const MAX_CODE_LENGTH = 2_000_000
+
+/** Cap on the *decompressed* payload. The compressed-size limit alone is not a
+ *  zip-bomb guard — deflate easily expands 2 MB into gigabytes — so inflation is
+ *  bounded to this many bytes and aborted past it. A real design's JSON is a few
+ *  MB even with thousands of items, well under this ceiling (which mirrors the
+ *  `.sofa.json` import limit so both untrusted paths refuse the same oversize). */
+export const MAX_DECOMPRESSED_BYTES = 50 * 1024 * 1024
+
+class DecompressionLimitError extends Error {}
+
+/** Inflate `bytes`, aborting if the output would exceed `maxBytes`. Feeds the
+ *  deflate stream to fflate in small slices so a malicious payload is stopped
+ *  near the cap instead of fully expanding into memory first (a single
+ *  `inflateSync` allocates the entire output before we could check its size). */
+function inflateBounded(bytes: Uint8Array, maxBytes: number): Uint8Array {
+  const parts: Uint8Array[] = []
+  let total = 0
+  const inf = new Inflate((chunk) => {
+    total += chunk.length
+    if (total > maxBytes) throw new DecompressionLimitError('decompressed payload too large')
+    // Copy: fflate may reuse its internal output buffer across pushes.
+    parts.push(chunk.slice())
+  })
+  const STEP = 16_384
+  for (let i = 0; i < bytes.length; i += STEP) {
+    const final = i + STEP >= bytes.length
+    inf.push(bytes.subarray(i, Math.min(i + STEP, bytes.length)), final)
+    if (total > maxBytes) throw new DecompressionLimitError('decompressed payload too large')
+  }
+  const out = new Uint8Array(total)
+  let o = 0
+  for (const p of parts) {
+    out.set(p, o)
+    o += p.length
+  }
+  return out
+}
 
 function toBase64Url(bytes: Uint8Array): string {
   let bin = ''
@@ -71,8 +108,9 @@ export function decodePlan(code: string): unknown {
   if (!trimmed) throw new PlanShareError('Empty plan link.')
   if (trimmed.length > MAX_CODE_LENGTH) throw new PlanShareError('Plan link is too large.')
   try {
-    return JSON.parse(strFromU8(inflateSync(fromBase64Url(trimmed))))
-  } catch {
+    return JSON.parse(strFromU8(inflateBounded(fromBase64Url(trimmed), MAX_DECOMPRESSED_BYTES)))
+  } catch (e) {
+    if (e instanceof DecompressionLimitError) throw new PlanShareError('Plan link is too large.')
     throw new PlanShareError('That plan link is invalid or corrupted.')
   }
 }

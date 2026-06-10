@@ -38,9 +38,15 @@ same change that reshapes a system.
 - `src/apartment/` — default flat. `constants.ts` = source of truth for walls/doors/
   windows/rooms. `walls/`, `floor/`, `Window`/`Door`/`Ceiling`/`Skirting`. `PlanShell.tsx`
   renders a user-authored plan (extruded walls + per-room floor/ceiling) when active.
+  `ceiling/` = per-room ceiling treatments: pure `ceilingModel.ts` `buildCeiling` (tray/coffered/
+  dropped → planes + risers, rect-room only, flat fallback) + `RoomCeiling.tsx` (tier-gated:
+  risers/cove on High+); both `Ceiling.tsx` (default flat) and `PlanRoomCeiling.tsx` delegate to it
+  when a room's `ceiling` config is set (`ceilingDesign` flag).
 - `src/floorplan/` — editable plan model: `types.ts` (FloorPlan + area/bounds/polygon
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
-  `isDefaultPlan`), `templates.ts`, `roomDetect.ts`. 2D editor = `ui/floorplan/`.
+  `isDefaultPlan`), `templates.ts` (18 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo,
+  condo studio/1-bed/1+study/2/3/4-bed/penthouse, terrace — `docs/research/{hdb,condo}-floor-plans.md`),
+  `roomDetect.ts`. 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (parametric defs),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
@@ -60,10 +66,15 @@ same change that reshapes a system.
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR, `reencode.ts`→WebP; 16MB cap, KTX2/DDS deferred).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
   `quality.ts`+`QualityController`, `ScreenshotController`, cameras, selection,
-  `SceneBackdrop.tsx` (City/Park/Hills/Studio). Main Canvas is **`frameloop="demand"`**:
+  `SceneBackdrop.tsx` dispatcher (City/Park/Hills/Studio); `CityBackdrop.tsx` (instanced two-ring HDB
+  estate + rooftop tanks + night-lit windows), `ParkBackdrop.tsx`/`HillsBackdrop.tsx` (instanced trees /
+  depth-banded hills), `StudioBackdrop.tsx` (seamless gradient-dome cyclorama) — all share `Ground.tsx`
+  + `instancedBatch.tsx`. Main Canvas is **`frameloop="demand"`**:
   `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
-  `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` collapses repeat
-  geometry; `ContextLossGuard.tsx` recovers WebGL context loss.
+  `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
+  `bakeInstanceMatrix`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
+  FeatureWall/ToyStorage (batten maths in pure `primitives/slatLayout.ts`);
+  `ContextLossGuard.tsx` recovers WebGL context loss.
 - `src/ui/` — DOM overlays. **CatalogDrawer** (`catalog/`, tab row Catalog/Layers/Packs):
   Catalog = unified grid (`useUnifiedCatalog.ts`) of built-ins/generated/user/IKEA/packs/
   CC0 + Poly Haven, one fuzzy search + browse Sort + favourites/recent (`recentSlice`).
@@ -101,27 +112,46 @@ same change that reshapes a system.
   available). `useIsMobile.ts` ≤640px hook; `body.mobile` → bottom-sheets + minimal bar.
 - **GLB Asset Designer** (`furniture/glbEdit/`, `ui/glbEditor/GlbDesignerDialog.tsx`,
   `featuresSlice.glbDesignerOpen`): compose a custom asset from primitive shapes
-  (box/cylinder/sphere — pure tested `editSpec.ts`) and/or start from an uploaded GLB
+  (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;
+  geometry via `buildObject.ts` `partGeometry` + per-part PBR via `partMaterial` — both shared by
+  the live preview so it can't drift; each part carries colour + roughness + metalness +
+  emissive glow + opacity)
+  and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
-  in the catalog like any upload. Launched from ⌘K. TODO: per-component recolour/
+  in the catalog like any upload — or, with **Update original** (when built from a user asset),
+  re-homes the export under the source's id via `replaceUserFurniture` so placed copies update
+  (`buildOverwriteDef`, pure-tested). Launched from ⌘K. TODO: per-component recolour/
   hide of a source GLB's meshes (v2).
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
   **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through
   spotlight; only "Skip tour"/Esc ends it; location prompt suppressed while open),
-  **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`).
+  **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
+  **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
+  `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).
 - **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
   Maximum. **Performance is the default for everyone** (flat: no shadows/IBL/post, DPR 1);
-  Medium=+sun shadows+IBL; High=+post; Maximum maxes all. `QualityController` only steps
+  Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+HueSat+Vignette+SMAA); Maximum=+cinematic
+  (full-res AO + film grain + chromatic aberration, `EffectsImpl` props from `aoFullRes`/`cinematic`).
+  `QualityController` only steps
   **down** for 30fps, off once pinned. **Asset quality** = separate `AssetTier`
   (low/medium/high=Original LOD), follows render (`null`=Auto) but pinnable + FPS-immune.
+  **Tone-mapping look** (`look.ts` `ToneMappingMode` Filmic/AgX/Neutral → three constant via
+  `toneMappingThree.ts`; `Lighting` sets `gl.toneMapping`+exposure per-frame): user-selectable
+  view transform, all tiers, persisted in qualityPrefs. Filmic = default (historical ACES). A user
+  **exposure** multiplier (`clampExposure`, Graphics slider) rides on top of the auto-exposure.
 - **GLB models + LOD** (`furniture/gltf/`): bundled CC0 + user + IKEA via one loader.
   `optimize:glb` writes `-low`/`-medium` (≤512/1024px WebP + ~50/75% tris, Draco);
   `lod.ts` picks per asset tier; `textureBudget.ts` = last-resort downscale. `--ktx2`
   emits Basis-Universal (needs `toktx`, else WebP).
 - **Procedural materials**: `procedural/generators.ts` paints one tiling tile per finish
   from seeded noise; world-space UVs tile at fixed physical scale. `furnitureMaterials.ts`
-  = tintable wood/stone/fabric + `getSolidMaterial`.
+  = tintable wood/stone/fabric/concrete/rattan + `getSolidMaterial`.
+- **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
+  + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
+  `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
+  transmission (High/Maximum) vs cheap transparency (Performance/Medium). `GLOSSY_ENV_INTENSITY`
+  boosts IBL on glossy finishes (free on Performance — no IBL there).
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
   `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`materials/finishDrop.ts`):
@@ -153,8 +183,35 @@ same change that reshapes a system.
   (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
   by `activeProviderIds`/`PROD_PROVIDER_IDS`. Add a source: poly-pizza-style client
   reusing `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
+- **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
+  the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
+  shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
+- **FF&E schedule** (`ffe/ffeSchedule.ts` pure → per-(room,def,variant) rows: source/SKU/real dims/
+  qty/pricing, reusing `pointInRoom` + `itemPrice`). Rendered as the report's procurement table.
+- **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
+  (cover + plan + per-wall elevations + lighting + FF&E, title blocks, `@page` A4) reusing all the
+  pure renderers — the formal counterpart to the one-page `report.ts`.
+- **Lighting plan** (`lighting2d/lightingPlan.ts` pure → fixtures from the `LIGHT_EMITTERS` registry
+  with world pos/height/intensity/coverage + a schedule; `ui/lighting2d/lightingPlanSvg.ts` draws
+  walls + coverage circles + glyphs). Surfaced in the report (plan + schedule). Same pure-core →
+  palette-injected-SVG pattern as elevations.
+- **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
+  clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the
+  overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
+  emitter coverage). `ui/DesignScorePanel.tsx` (`.aux`: grade dial + bars + fixes); Tools + ⌘K; +
+  a section in the printable `report.ts`. Guards a partial plan (missing walls/openings).
+- **Renovation estimate** (`analysis/renovationCost.ts` pure → `estimateRenovation(floorAreas,wallAreas)`:
+  indicative SG supply+install $/m² per finish category, `RENO_RATES` table). The report's Renovation
+  estimate section (finishes subtotal + combined furniture+finishes total).
+- **Accessibility check** (`analysis/accessibility.ts` pure → `buildAccessibilityReport(plan)`:
+  door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
+  thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
+  Plan-only (reads for a bare shell).
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
-  walls?})`; items carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
+  walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
+  rule across the whole design and `findWallClips(items,defs,walls)` flags pieces
+  embedded in a wall (both power the Clearance panel's checks); items
+  carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter). **Wall reveal**
   (`apartment/walls/`): exterior walls between camera and interior fade out.
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,

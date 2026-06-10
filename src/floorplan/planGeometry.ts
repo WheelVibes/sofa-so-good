@@ -92,7 +92,10 @@ export function planCollisionWalls(
   doorState: Record<string, { open: boolean }>,
 ): CollisionWall[] {
   const segs: CollisionWall[] = []
-  for (const wall of plan.walls) {
+  // Guard partial plans whose arrays may be absent.
+  const walls = Array.isArray(plan.walls) ? plan.walls : []
+  const openings = Array.isArray(plan.openings) ? plan.openings : []
+  for (const wall of walls) {
     const len = wallLength(wall)
     if (len === 0) continue
     const dx = (wall.end[0] - wall.start[0]) / len
@@ -102,7 +105,7 @@ export function planCollisionWalls(
 
     // Gaps come from OPEN doors only.
     const gaps: Array<{ start: number; end: number }> = []
-    for (const o of plan.openings) {
+    for (const o of openings) {
       if (o.wallId !== wall.id || o.kind !== 'door') continue
       if (doorState[o.id]?.open) gaps.push({ start: o.offset, end: o.offset + o.width })
     }

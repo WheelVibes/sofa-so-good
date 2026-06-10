@@ -14,7 +14,8 @@ import { useSunPosition } from './useSunPosition'
 export function SceneEnvironment() {
   const { scene } = useThree()
   const sun = useSunPosition()
-  const enabled = useQuality().ibl
+  const quality = useQuality()
+  const enabled = quality.ibl
 
   useFrame(() => {
     if (!enabled) return
@@ -28,7 +29,7 @@ export function SceneEnvironment() {
     return null
   }
   return (
-    <Environment resolution={64} frames={1} background={false}>
+    <Environment resolution={quality.envResolution} frames={1} background={false}>
       {/* Bright sky cap + cooler horizon for a soft top-down gradient. */}
       <Lightformer
         form="rect"

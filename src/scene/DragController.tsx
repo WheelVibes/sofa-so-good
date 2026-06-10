@@ -144,6 +144,9 @@ export function DragController() {
       if (!id) return
       const hit = project(ev.clientX, ev.clientY)
       if (!hit) return
+      // Index items once per move so the repeated lookups below are O(1) rather
+      // than re-scanning the whole list several times per pointermove.
+      const itemsById = new Map(state.items.map((i) => [i.id, i]))
       const [hx, hz] = hit
       const [ox, oz] = state.dragOffset
       let next: [number, number] = [hx - ox, hz - oz]
@@ -156,8 +159,8 @@ export function DragController() {
       // lines. Edge + adjacency candidates make pieces sit flush.
       const guides: Array<{ axis: 'x' | 'z'; value: number }> = []
       if (group.length <= 1) {
-        const dragDef = catalogRef.current[state.items.find((i) => i.id === id)?.defId ?? '']
-        const dragItem = state.items.find((i) => i.id === id)
+        const dragItem = itemsById.get(id)
+        const dragDef = dragItem ? catalogRef.current[dragItem.defId] : undefined
         if (dragDef && dragItem) {
           const dh = halfExtents(dragItem, dragDef)
           const others = state.items
@@ -208,7 +211,7 @@ export function DragController() {
       // normal free drag.
       let snap: FurnitureItem | null = null
       if (group.length <= 1) {
-        const draggedItem = state.items.find((i) => i.id === id)
+        const draggedItem = itemsById.get(id)
         const draggedDef = draggedItem ? catalogRef.current[draggedItem.defId] : undefined
         if (draggedItem && draggedDef) {
           for (const cand of state.items) {
@@ -239,6 +242,7 @@ export function DragController() {
 
       // Re-read state so freshly-moved items are included in canPlace.
       const after = useStore.getState()
+      const afterById = new Map(after.items.map((i) => [i.id, i]))
       const movedIds = group.length > 1 ? group.map((g) => g.id) : [id]
       // For group drags, ignore in-group pairs when checking collisions —
       // their relative positions don't change, so any pair-wise overlap
@@ -253,7 +257,7 @@ export function DragController() {
       const planWalls = placementWalls(after)
       let valid = true
       for (const mid of movedIds) {
-        const item = after.items.find((i) => i.id === mid)
+        const item = afterById.get(mid)
         const def = item ? catalogRef.current[item.defId] : null
         if (!item || !def) continue
         if (
@@ -272,7 +276,7 @@ export function DragController() {
 
       // Live wall-clearance readout for a single-item drag.
       if (group.length <= 1) {
-        const item = after.items.find((i) => i.id === id)
+        const item = afterById.get(id)
         const def = item ? catalogRef.current[item.defId] : null
         if (item && def) {
           const [hx, hz] = halfExtents(item, def)

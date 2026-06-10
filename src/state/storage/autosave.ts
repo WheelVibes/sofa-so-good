@@ -7,48 +7,70 @@ const DEBOUNCE_MS = 500
 
 /** Subset of the root state that should trigger an autosave. Comparing
  *  these by reference catches any persistent change without recreating
- *  on every selectedItemId / nearbyDoorId / catalogOpen flip. */
+ *  on every selectedItemId / nearbyDoorId / catalogOpen flip.
+ *
+ *  IMPORTANT: every field that `serialize()` (schema.ts) writes must be
+ *  watched here, or a change to an unwatched-but-persisted field is lost on
+ *  reload unless some *other* watched field also happens to change. Keep this
+ *  list in lock-step with `serialize()`. (`finishes.wallAccents` is covered by
+ *  the `finishes` object reference; `floorPlan` is reference-stable because the
+ *  floor-plan slice replaces the object on every edit.) */
 type Persistent = {
   items: unknown
+  floorPlan: unknown
   doors: unknown
   finishes: unknown
   userFurniture: unknown
   userMaterials: unknown
   timeMode: unknown
   manualHour: unknown
+  lightsMode: unknown
+  annotations: unknown
   cameraMode: unknown
+  orientationDeg: unknown
   location: unknown
   locationPromptDismissed: unknown
+  designNote: unknown
 }
 
 function pickPersistent(): Persistent {
   const s = useStore.getState()
   return {
     items: s.items,
+    floorPlan: s.floorPlan,
     doors: s.doors,
     finishes: s.finishes,
     userFurniture: s.userFurniture,
     userMaterials: s.userMaterials,
     timeMode: s.timeMode,
     manualHour: s.manualHour,
+    lightsMode: s.lightsMode,
+    annotations: s.annotations,
     cameraMode: s.cameraMode,
+    orientationDeg: s.orientationDeg,
     location: s.location,
     locationPromptDismissed: s.locationPromptDismissed,
+    designNote: s.designNote,
   }
 }
 
 function shallowEqual(a: Persistent, b: Persistent): boolean {
   return (
     a.items === b.items &&
+    a.floorPlan === b.floorPlan &&
     a.doors === b.doors &&
     a.finishes === b.finishes &&
     a.userFurniture === b.userFurniture &&
     a.userMaterials === b.userMaterials &&
     a.timeMode === b.timeMode &&
     a.manualHour === b.manualHour &&
+    a.lightsMode === b.lightsMode &&
+    a.annotations === b.annotations &&
     a.cameraMode === b.cameraMode &&
+    a.orientationDeg === b.orientationDeg &&
     a.location === b.location &&
-    a.locationPromptDismissed === b.locationPromptDismissed
+    a.locationPromptDismissed === b.locationPromptDismissed &&
+    a.designNote === b.designNote
   )
 }
 

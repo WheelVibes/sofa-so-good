@@ -1,5 +1,45 @@
 import { describe, expect, it } from 'vitest'
-import { buildVisionRequest, extractContent, parseWallsResponse } from './floorPlanAi'
+import {
+  buildVisionRequest,
+  classifyVisionEndpoint,
+  extractContent,
+  parseWallsResponse,
+} from './floorPlanAi'
+
+describe('classifyVisionEndpoint', () => {
+  it('trusts the default OpenAI endpoint', () => {
+    const c = classifyVisionEndpoint('https://api.openai.com/v1/chat/completions')
+    expect(c.secure).toBe(true)
+    expect(c.trusted).toBe(true)
+    expect(c.reason).toBeUndefined()
+  })
+
+  it('refuses a plaintext remote endpoint (key would leak on the wire)', () => {
+    const c = classifyVisionEndpoint('http://evil.example.com/v1')
+    expect(c.secure).toBe(false)
+    expect(c.reason).toMatch(/insecure/i)
+  })
+
+  it('allows a localhost proxy over http', () => {
+    const c = classifyVisionEndpoint('http://localhost:3001/v1/chat/completions')
+    expect(c.secure).toBe(true)
+    expect(c.trusted).toBe(true)
+  })
+
+  it('flags an unknown https host as untrusted (still secure)', () => {
+    const c = classifyVisionEndpoint('https://my-proxy.example.net/v1')
+    expect(c.secure).toBe(true)
+    expect(c.trusted).toBe(false)
+    expect(c.host).toBe('my-proxy.example.net')
+    expect(c.reason).toMatch(/not a recognised/i)
+  })
+
+  it('reports an invalid URL', () => {
+    const c = classifyVisionEndpoint('not a url')
+    expect(c.secure).toBe(false)
+    expect(c.reason).toMatch(/invalid/i)
+  })
+})
 
 describe('parseWallsResponse', () => {
   it('parses a clean JSON walls object', () => {

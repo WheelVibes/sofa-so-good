@@ -18,6 +18,7 @@ export function Wardrobe({ props }: WardrobeProps) {
   const finish = readStr(props, 'finish', 'wood')
   const sheen = readNum(props, 'sheen', 0)
   const doorStyle = readStr(props, 'doorStyle', 'hinged')
+  const interiorLayout = readStr(props, 'interior', 'mixed')
 
   const depth = 0.6
   const height = 2.1
@@ -30,18 +31,98 @@ export function Wardrobe({ props }: WardrobeProps) {
   const frameMetal = { color: '#b8bcc0', roughness: 0.35, metalness: 0.75 } as const
   const open = doorStyle === 'open'
 
-  // Open wardrobe: an exposed carcass (no doors) with a hanging rail + a few
-  // garments on one side and stacked shelves on the other — useful for
-  // visualising storage in an interior-design layout.
+  // Open wardrobe: an exposed carcass (no doors) with a configurable fit-out
+  // (`interior`): hanging rails, shelf stacks and/or a drawer bank — for
+  // visualising real storage in an interior-design layout.
   const interior = (() => {
     if (!open) return null
     const t = 0.02
     const innerW = width - t * 2
     const railY = height - 0.32
     const clothesColors = ['#6b4f6b', '#3b5a7d', '#9c5a3c', '#3f6b3a', '#7d3b3b', '#4a4f56']
+
+    // A hanging bay: a rail centred on (cx) spanning bw, with garments below.
+    const hangingBay = (cx: number, bw: number, key: string, lowRail = false) => {
+      const ry = lowRail ? height / 2 + 0.45 : railY
+      const n = Math.max(3, Math.round(bw / 0.14))
+      return (
+        <group key={key}>
+          <mesh position={[cx, ry, 0]} rotation={[0, 0, Math.PI / 2]}>
+            <cylinderGeometry args={[0.012, 0.012, bw - 0.06, 10]} />
+            <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
+          </mesh>
+          {Array.from({ length: n }, (_, i) => {
+            const x = cx - bw / 2 + 0.08 + i * ((bw - 0.16) / (n - 1))
+            const h = 0.62 + (i % 3) * 0.08
+            return (
+              <mesh key={i} castShadow position={[x, ry - h / 2, 0]}>
+                <boxGeometry args={[0.05, h, depth * 0.5]} />
+                <meshStandardMaterial
+                  color={clothesColors[i % clothesColors.length]}
+                  roughness={0.85}
+                  metalness={0}
+                />
+              </mesh>
+            )
+          })}
+        </group>
+      )
+    }
+
+    // A shelf bay: evenly spaced shelves with a couple of folded stacks.
+    const shelfBay = (cx: number, bw: number, key: string) => (
+      <group key={key}>
+        {[0.45, 0.83, 1.21, 1.59].map((y, i) => (
+          <mesh key={i} castShadow receiveShadow position={[cx, y, 0]} material={wood}>
+            <boxGeometry args={[bw - 0.04, t, depth - 0.04]} />
+          </mesh>
+        ))}
+        {[0.45, 0.83].map((y, i) => (
+          <mesh key={`f${i}`} castShadow position={[cx, y + 0.1, 0]}>
+            <boxGeometry args={[bw - 0.14, 0.15, depth - 0.12]} />
+            <meshStandardMaterial color={i ? '#cdc4b4' : '#b7c0c8'} roughness={0.8} metalness={0} />
+          </mesh>
+        ))}
+      </group>
+    )
+
+    // A drawer bank (lower half): stacked drawer fronts with slim pulls.
+    const drawerBay = (cx: number, bw: number, key: string) => (
+      <group key={key}>
+        {[0.18, 0.45, 0.72, 0.99].map((y, i) => (
+          <group key={i}>
+            <mesh castShadow position={[cx, y, depth / 2 - 0.04]} material={wood}>
+              <boxGeometry args={[bw - 0.05, 0.24, 0.02]} />
+            </mesh>
+            <mesh position={[cx, y + 0.08, depth / 2 - 0.02]}>
+              <boxGeometry args={[bw * 0.4, 0.015, 0.02]} />
+              <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
+            </mesh>
+          </group>
+        ))}
+      </group>
+    )
+
+    const twoBays = interiorLayout === 'mixed' || interiorLayout === 'drawers'
+    const bays: React.ReactNode[] = []
+    if (interiorLayout === 'hanging') {
+      bays.push(hangingBay(0, innerW, 'h-top'))
+    } else if (interiorLayout === 'shelves') {
+      bays.push(shelfBay(0, innerW, 's-full'))
+    } else if (interiorLayout === 'drawers') {
+      bays.push(drawerBay(-innerW / 4, innerW / 2, 'd-left'))
+      bays.push(hangingBay(-innerW / 4, innerW / 2, 'h-left', true))
+      bays.push(hangingBay(innerW / 4, innerW / 2, 'h-right'))
+    } else {
+      // mixed (default): hanging left, shelves right.
+      bays.push(hangingBay(-innerW / 4, innerW / 2, 'h-left'))
+      bays.push(shelfBay(innerW / 4, innerW / 2, 's-right'))
+    }
+
     return (
       <group>
-        {/* Carcass: back + two sides + top + bottom + a central divider */}
+        {/* Carcass: back + two sides + top + bottom (+ a central divider for
+            two-bay layouts). */}
         <mesh receiveShadow position={[0, height / 2, -depth / 2 + t / 2]} material={wood}>
           <boxGeometry args={[width, height, t]} />
         </mesh>
@@ -60,40 +141,12 @@ export function Wardrobe({ props }: WardrobeProps) {
             <boxGeometry args={[width, t, depth]} />
           </mesh>
         ))}
-        <mesh castShadow position={[0, height / 2, 0]} material={wood}>
-          <boxGeometry args={[t, height, depth]} />
-        </mesh>
-        {/* Left bay: hanging rail + garments */}
-        <mesh position={[-innerW / 4, railY, 0]} rotation={[0, 0, Math.PI / 2]}>
-          <cylinderGeometry args={[0.012, 0.012, innerW / 2 - 0.06, 10]} />
-          <meshStandardMaterial color="#9aa0a6" roughness={0.3} metalness={0.7} />
-        </mesh>
-        {Array.from({ length: 6 }, (_, i) => {
-          const x = -innerW / 2 + 0.1 + i * ((innerW / 2 - 0.16) / 5)
-          const h = 0.7 + (i % 3) * 0.08
-          return (
-            <mesh key={i} castShadow position={[x, railY - h / 2, 0]}>
-              <boxGeometry args={[0.05, h, depth * 0.5]} />
-              <meshStandardMaterial
-                color={clothesColors[i % clothesColors.length]}
-                roughness={0.85}
-                metalness={0}
-              />
-            </mesh>
-          )
-        })}
-        {/* Right bay: three shelves with a couple of folded stacks */}
-        {[0.45, 0.95, 1.45].map((y, i) => (
-          <mesh key={i} castShadow receiveShadow position={[innerW / 4, y, 0]} material={wood}>
-            <boxGeometry args={[innerW / 2 - 0.04, t, depth - 0.04]} />
+        {twoBays ? (
+          <mesh castShadow position={[0, height / 2, 0]} material={wood}>
+            <boxGeometry args={[t, height, depth]} />
           </mesh>
-        ))}
-        {[0.45, 0.95].map((y, i) => (
-          <mesh key={`f${i}`} castShadow position={[innerW / 4, y + 0.1, 0]}>
-            <boxGeometry args={[innerW / 2 - 0.14, 0.16, depth - 0.12]} />
-            <meshStandardMaterial color={i ? '#cdc4b4' : '#b7c0c8'} roughness={0.8} metalness={0} />
-          </mesh>
-        ))}
+        ) : null}
+        {bays}
       </group>
     )
   })()

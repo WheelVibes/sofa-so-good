@@ -53,9 +53,12 @@ export the result — all in the browser.
   (Scene menu / ⌘K) preview the room at daylight, golden hour, a cosy evening, or
   night.
 - **Selectable 3D backdrop** — choose the surroundings outside the flat from the
-  Scene menu: **City** (an HDB estate whose windows light up warm at night),
-  **Park** (low-poly trees on a green common), **Hills** (a calm green horizon),
-  or **Studio** (a clean, distraction-free ground). The backdrop re-centres on
+  Scene menu: **City** (a layered HDB estate — two rings of towers with rooftop
+  water-tanks whose windows light up warm at night),
+  **Park** (layered broadleaf + conifer trees and shrubs on a green common),
+  **Hills** (depth-banded green hills receding into an aerial-perspective haze),
+  or **Studio** (a seamless product-shot cyclorama — a soft gradient cove, no
+  horizon). The backdrop re-centres on
   whatever floor plan you load.
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
   top-down plan (pair with Measurements for an annotated floor plan), a
@@ -212,14 +215,17 @@ export the result — all in the browser.
 - **Production-grade panels** — **Swap with similar** (replace a piece in place
   with same-category alternatives, each tagged with a footprint-fit badge),
   **Clearance & fit checks** (HDB door-swing validation with a summary + fix
-  suggestions), **Versions** (save / restore named layout snapshots with
+  suggestions), a **Design score** (an aggregate 0–100 grade across clearance,
+  furnishing balance, circulation, daylight and lighting, with actionable
+  fixes), **Versions** (save / restore named layout snapshots with
   thumbnails), a **Shopping list + Saved collections** (heart any catalog card),
   and **Share & export** (shareable link + a real PNG snapshot). The **2D
   floor-plan editor** and **upload dialogs** are fully theme-aware in light and
   dark.
 - **Smart Start** — pick a style and the whole flat is furnished + the walls and
   floors finished in one click (from onboarding, the ⌘K palette, or the Arrange
-  menu).
+  menu). Works on any floor plan too: load an HDB, condo or landed template (or
+  draw your own) and Smart Start fits a suitable furniture set to each room.
 - **2D⇄3D layout** — the floor-plan editor shows your furniture as a top-down
   layout (click to select, drag to move); press **P** to flip between the 2D
   plan and the 3D scene. Drop a **floor-plan photo** to trace over (calibrate its

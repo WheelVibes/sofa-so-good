@@ -1,4 +1,6 @@
+import { isFeatureEnabled } from '../features/featureFlags'
 import { useStore } from '../state/store'
+import { RoomCeiling } from './ceiling/RoomCeiling'
 import { ROOMS } from './constants'
 
 export function Ceiling() {
@@ -13,8 +15,20 @@ export function Ceiling() {
       {Object.values(ROOMS)
         .filter((r) => !r.external)
         .flatMap((r) => {
-          const override = planRooms.find((p) => p.id === r.id)?.ceilingHeight
-          const h = override ?? r.ceilingHeight ?? ceilingHeight
+          const planRoom = planRooms.find((p) => p.id === r.id)
+          const h = planRoom?.ceilingHeight ?? r.ceilingHeight ?? ceilingHeight
+          // A designed ceiling (tray/coffered/dropped) replaces the flat tile(s)
+          // for the room's main rectangle.
+          const cfg = planRoom?.ceiling
+          if (cfg && cfg.style !== 'flat' && isFeatureEnabled('ceilingDesign')) {
+            const poly: [number, number][] = [
+              [r.origin[0], r.origin[1]],
+              [r.origin[0] + r.width, r.origin[1]],
+              [r.origin[0] + r.width, r.origin[1] + r.depth],
+              [r.origin[0], r.origin[1] + r.depth],
+            ]
+            return [<RoomCeiling key={r.id} polygon={poly} height={h} config={cfg} />]
+          }
           const tiles: { cx: number; cz: number; w: number; d: number; key: string }[] = [
             {
               cx: r.origin[0] + r.width / 2,

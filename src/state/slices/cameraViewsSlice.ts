@@ -18,6 +18,8 @@ export interface SavedView {
   mode?: 'system' | 'manual'
   hour?: number
   lights?: LightsMode
+  /** Optional presenter note shown as a caption in presentation mode. */
+  note?: string
 }
 
 const LS_KEY = 'hdb_camera_views'
@@ -43,6 +45,8 @@ export interface CameraViewsSlice {
   applyView: (id: string) => void
   deleteView: (id: string) => void
   renameView: (id: string, name: string) => void
+  /** Set (or clear, with an empty string) a view's presenter note. */
+  setViewNote: (id: string, note: string) => void
 }
 
 function loadViews(): SavedView[] {
@@ -127,6 +131,14 @@ export const createCameraViewsSlice: SliceCreator<CameraViewsSlice, RootState> =
   renameView: (id, name) => {
     const next = get().savedViews.map((v) =>
       v.id === id ? { ...v, name: name.trim() || v.name } : v,
+    )
+    persistViews(next)
+    set({ savedViews: next })
+  },
+  setViewNote: (id, note) => {
+    const trimmed = note.trim()
+    const next = get().savedViews.map((v) =>
+      v.id === id ? { ...v, note: trimmed || undefined } : v,
     )
     persistViews(next)
     set({ savedViews: next })

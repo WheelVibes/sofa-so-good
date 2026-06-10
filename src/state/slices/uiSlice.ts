@@ -1,3 +1,9 @@
+import {
+  clampExposure,
+  DEFAULT_EXPOSURE,
+  DEFAULT_TONE_MAPPING,
+  type ToneMappingMode,
+} from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
 import type { RootState } from '../store'
@@ -36,6 +42,12 @@ export interface UiSlice {
    *  `null` = Auto (follow `qualityTier`); an explicit tier pins asset detail
    *  independently and is immune to the FPS auto-downgrade. */
   assetTier: AssetTier | null
+  /** Tone-mapping "look" (view transform) applied by the renderer — a per-device
+   *  graphics preference, persisted via qualityPrefs. */
+  toneMapping: ToneMappingMode
+  /** User exposure (brightness) multiplier on top of auto-exposure. Per-device,
+   *  persisted via qualityPrefs. 1 = neutral. */
+  exposure: number
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode
   /** Snap dragged/placed furniture to the alignment grid, and show the grid
@@ -50,6 +62,9 @@ export interface UiSlice {
   /** Interface density (simple hides advanced clusters). Persisted via editorPrefs. */
   uiMode: UiMode
   setUiMode: (m: UiMode) => void
+  /** True while the full-screen client presentation (saved-views slideshow) runs. */
+  presenting: boolean
+  setPresenting: (v: boolean) => void
   /** Whether the budget / shopping-list panel is open. */
   budgetOpen: boolean
   /** Whether clearance checks (door-swing blocking) are shown. */
@@ -122,6 +137,10 @@ export interface UiSlice {
   resetQualityOverrides: () => void
   /** Set the GLB asset detail tier (`null` = Auto / follow the render tier). */
   setAssetTier: (t: AssetTier | null) => void
+  /** Set the tone-mapping look. */
+  setToneMapping: (m: ToneMappingMode) => void
+  /** Set the user exposure multiplier (clamped to the supported range). */
+  setExposure: (e: number) => void
   setLightsMode: (m: LightsMode) => void
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void
@@ -148,12 +167,15 @@ export const UI_INITIAL: Pick<
   | 'qualityUserSet'
   | 'qualityOverrides'
   | 'assetTier'
+  | 'toneMapping'
+  | 'exposure'
   | 'lightsMode'
   | 'autoShadowsOff'
   | 'backdrop'
   | 'uiMode'
   | 'snapEnabled'
   | 'gridSize'
+  | 'presenting'
   | 'budgetOpen'
   | 'clearanceOn'
   | 'recording'
@@ -173,12 +195,15 @@ export const UI_INITIAL: Pick<
   qualityUserSet: false,
   qualityOverrides: {},
   assetTier: null,
+  toneMapping: DEFAULT_TONE_MAPPING,
+  exposure: DEFAULT_EXPOSURE,
   lightsMode: 'auto',
   autoShadowsOff: false,
   snapEnabled: false,
   gridSize: 0.5,
   backdrop: 'city' as BackdropKind,
   uiMode: 'simple' as UiMode,
+  presenting: false,
   budgetOpen: false,
   clearanceOn: false,
   recording: false,
@@ -261,7 +286,10 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
     })),
   resetQualityOverrides: () => set({ qualityOverrides: {} }),
   setAssetTier: (t) => set({ assetTier: t }),
+  setToneMapping: (toneMapping) => set({ toneMapping }),
+  setExposure: (e) => set({ exposure: clampExposure(e) }),
   setLightsMode: (m) => set({ lightsMode: m }),
+  setPresenting: (presenting) => set({ presenting }),
   cycleLightsMode: () =>
     set((s) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
@@ -270,7 +298,11 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),
-  setUiMode: (uiMode) => set({ uiMode }),
+  setUiMode: (uiMode) => {
+    set({ uiMode })
+    // Pro features are gated on the mode, so re-resolve the flag map when it flips.
+    get().reresolveFeatureFlags()
+  },
   cycleGridSize: () =>
     set((s) => {
       const i = GRID_SIZES.indexOf(s.gridSize as (typeof GRID_SIZES)[number])

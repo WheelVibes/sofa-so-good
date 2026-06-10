@@ -1,3 +1,4 @@
+import { useFeature } from '../../features/useFeature'
 import {
   defaultParamProps,
   type FurnitureItem,
@@ -9,6 +10,7 @@ import { useMaterials } from '../../materials/useMaterial'
 import { useStore } from '../../state/store'
 import { ColorField, EnumField, IntegerField, NumberField } from './fields'
 import { InspectorSection } from './InspectorSection'
+import { MountHeightPresets } from './MountHeightPresets'
 import { QuickFinishes } from './QuickFinishes'
 
 interface ParametricBodyProps {
@@ -37,6 +39,7 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
   const updateItemProps = useStore((s) => s.updateItemProps)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const surfaceMaterials = useSurfaceMaterialOptions()
+  const mountPresetsOn = useFeature('mountHeights')
 
   const setProp = (key: string, value: ParamValue) => updateItemProps(item.id, { [key]: value })
 
@@ -77,15 +80,23 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
             : rawField
         const v = item.props[field.key] ?? field.default
         switch (field.kind) {
-          case 'number':
+          case 'number': {
+            const numVal = typeof v === 'number' ? v : field.default
             return (
-              <NumberField
-                key={field.key}
-                field={field}
-                value={typeof v === 'number' ? v : field.default}
-                onChange={(n) => setProp(field.key, n)}
-              />
+              <div key={field.key}>
+                <NumberField field={field} value={numVal} onChange={(n) => setProp(field.key, n)} />
+                {mountPresetsOn && field.key === 'mountHeight' ? (
+                  <MountHeightPresets
+                    defId={def.id}
+                    value={numVal}
+                    min={field.min}
+                    max={field.max}
+                    onPick={(h) => setProp(field.key, h)}
+                  />
+                ) : null}
+              </div>
             )
+          }
           case 'integer':
             return (
               <IntegerField

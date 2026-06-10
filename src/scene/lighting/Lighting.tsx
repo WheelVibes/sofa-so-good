@@ -3,7 +3,8 @@ import { useEffect, useMemo, useRef } from 'react'
 import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3D } from 'three'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
-import { grade, SOFT_SHADOW } from '../look'
+import { grade, SOFT_SHADOW, toneExposureBias } from '../look'
+import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
 import { shadowFrustumForPlan } from './shadowFrustum'
@@ -72,14 +73,20 @@ export function Lighting() {
     sunTarget.position.set(center[0], center[1], center[2])
     sunTarget.updateMatrixWorld()
   }, [sunTarget, center])
-  const initial = targetVals(sunPos, orientation, center)
+  // The tween target only changes with the sun/orientation/plan-centre — recompute
+  // it then, not every frame (the useFrame loop ran `targetVals` per frame even
+  // when fully settled, allocating an object + several arrays each time).
+  const target = useMemo(
+    () => targetVals(sunPos, orientation, center),
+    [sunPos, orientation, center],
+  )
   const current = useRef<Vals>({
-    sun: initial.sun,
-    ambient: initial.ambient,
-    sunPos: [...initial.sunPos] as [number, number, number],
-    sunColor: [...initial.sunColor] as [number, number, number],
-    skyColor: [...initial.skyColor] as [number, number, number],
-    groundColor: [...initial.groundColor] as [number, number, number],
+    sun: target.sun,
+    ambient: target.ambient,
+    sunPos: [...target.sunPos] as [number, number, number],
+    sunColor: [...target.sunColor] as [number, number, number],
+    skyColor: [...target.skyColor] as [number, number, number],
+    groundColor: [...target.groundColor] as [number, number, number],
   })
 
   // While the day/night tween is mid-transition it must keep rendering even in
@@ -89,7 +96,6 @@ export function Lighting() {
   useEffect(() => () => holdRef.current?.(), [])
 
   useFrame((_, dt) => {
-    const target = targetVals(sunPos, orientation, center)
     const cur = current.current
     const k = Math.min(1, dt / TWEEN_DURATION)
 
@@ -100,9 +106,14 @@ export function Lighting() {
       a[2] = approach(a[2], b[2])
     }
 
-    // Drive tone-mapping exposure from the sun altitude every frame — cheap,
-    // and it must keep tracking even after the light tween settles.
-    gl.toneMappingExposure = grade(sunPos.altitude).exposure
+    // Drive tone-mapping operator + exposure from the user's "look" and the sun
+    // altitude every frame — cheap (three only recompiles when the operator
+    // actually changes), and it must keep tracking after the light tween settles.
+    const st = useStore.getState()
+    const toneMode = st.toneMapping
+    gl.toneMapping = TONE_MAPPING_THREE[toneMode]
+    gl.toneMappingExposure =
+      grade(sunPos.altitude).exposure * toneExposureBias(toneMode) * st.exposure
 
     // Cheap settle check on the dominant channels. When unsettled, ease the
     // current values toward the target; when settled we still fall through to

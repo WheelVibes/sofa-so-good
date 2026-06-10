@@ -1,5 +1,11 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
-import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../../floorplan/types'
+import type {
+  CeilingConfig,
+  FloorPlan,
+  PlanOpening,
+  PlanRoom,
+  PlanWall,
+} from '../../floorplan/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -25,6 +31,10 @@ function clonePlan(p: FloorPlan): FloorPlan {
 export interface FloorPlanSlice {
   /** The active, rendered floor plan. */
   floorPlan: FloorPlan
+  /** The plan as it was when last LOADED (template / saved / reset / new) —
+   *  the "as-built" baseline the demolition/hacking plan diffs against. Updated
+   *  only on a plan load, never on a wall edit. Session-only (not persisted). */
+  baselinePlan: FloorPlan
   /** Whether the 2D Floor Plan Editor overlay is open. */
   floorPlanEditing: boolean
   /** Currently-selected element in the editor. */
@@ -64,6 +74,9 @@ export interface FloorPlanSlice {
 
   addRoom: (room: Omit<PlanRoom, 'id'>) => string
   updateRoom: (id: string, patch: Partial<PlanRoom>) => void
+  /** Patch a room's ceiling treatment (coalesced for slider drags). `null`
+   *  clears it back to a flat ceiling. */
+  setRoomCeiling: (id: string, patch: Partial<CeilingConfig> | null) => void
   removeRoom: (id: string) => void
 
   addOpening: (opening: Omit<PlanOpening, 'id'>) => string
@@ -73,9 +86,10 @@ export interface FloorPlanSlice {
 
 export const FLOOR_PLAN_INITIAL: Pick<
   FloorPlanSlice,
-  'floorPlan' | 'floorPlanEditing' | 'planSelection' | 'savedPlans'
+  'floorPlan' | 'baselinePlan' | 'floorPlanEditing' | 'planSelection' | 'savedPlans'
 > = {
   floorPlan: buildDefaultPlan(),
+  baselinePlan: buildDefaultPlan(),
   floorPlanEditing: false,
   planSelection: null,
   savedPlans: [],
@@ -107,7 +121,7 @@ function blankPlan(name: string): FloorPlan {
 export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (set, get) => ({
   ...FLOOR_PLAN_INITIAL,
 
-  setFloorPlan: (plan) => set({ floorPlan: plan }),
+  setFloorPlan: (plan) => set({ floorPlan: plan, baselinePlan: clonePlan(plan) }),
   saveCurrentPlan: (name) => {
     const id = planId('plan')
     let savedId = id
@@ -130,7 +144,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (!found) return
     // Snapshot first so loading a saved plan over the current one is undoable.
     get().pushHistory()
-    set({ floorPlan: clonePlan(found), planSelection: null })
+    set({ floorPlan: clonePlan(found), baselinePlan: clonePlan(found), planSelection: null })
   },
   deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
   setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
@@ -140,10 +154,13 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built
     // custom plan is destroyed with no way back.
     get().pushHistory()
-    set({ floorPlan: buildDefaultPlan(), planSelection: null })
+    const fresh = buildDefaultPlan()
+    set({ floorPlan: fresh, baselinePlan: clonePlan(fresh), planSelection: null })
   },
-  newFloorPlan: (name = 'New apartment') =>
-    set({ floorPlan: blankPlan(name), planSelection: null }),
+  newFloorPlan: (name = 'New apartment') => {
+    const fresh = blankPlan(name)
+    set({ floorPlan: fresh, baselinePlan: clonePlan(fresh), planSelection: null })
+  },
   updateFloorPlanMeta: (patch) => {
     get().pushHistoryCoalesced('plan-meta')
     set((s) => ({ floorPlan: { ...s.floorPlan, ...patch } }))
@@ -247,6 +264,23 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       floorPlan: {
         ...s.floorPlan,
         rooms: s.floorPlan.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      },
+    }))
+  },
+  setRoomCeiling: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-ceiling-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        rooms: s.floorPlan.rooms.map((r) => {
+          if (r.id !== id) return r
+          if (patch === null) {
+            const { ceiling: _drop, ...rest } = r
+            return rest
+          }
+          const base: CeilingConfig = r.ceiling ?? { style: 'flat' }
+          return { ...r, ceiling: { ...base, ...patch } }
+        }),
       },
     }))
   },

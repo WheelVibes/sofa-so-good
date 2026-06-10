@@ -97,6 +97,7 @@ export type PrimitiveKind =
   | 'Dresser'
   | 'BarStool'
   | 'Shower'
+  | 'Staircase'
   | 'Mirror'
   | 'Monitor'
   | 'RangeHood'

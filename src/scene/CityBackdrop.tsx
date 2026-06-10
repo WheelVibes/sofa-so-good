@@ -1,11 +1,15 @@
 import { useFrame } from '@react-three/fiber'
-import { useMemo } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import {
   BoxGeometry,
   CanvasTexture,
+  type InstancedMesh,
+  Matrix4,
   MeshStandardMaterial,
+  Quaternion,
   RepeatWrapping,
   SRGBColorSpace,
+  Vector3,
 } from 'three'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
 import { mulberry32 } from '../materials/procedural/noise'
@@ -15,11 +19,12 @@ import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
 
 /**
- * Distant HDB-estate backdrop — the neighbouring blocks you always see out
- * an HDB window. A ring of low-poly towers (one shared unit-box geometry,
- * scaled per block) plus a far ground plane, rendered cheaply: no shadows,
- * a handful of shared materials, and one procedural façade texture. Window
- * emissive ramps up at night via the shared fixtureGlow signal, so the
+ * Distant HDB-estate backdrop — the neighbouring blocks you always see out an
+ * HDB window. Two concentric rings of towers (one shared unit-box geometry,
+ * **instanced** into a handful of draw calls) plus rooftop water-tanks / lift
+ * cores and a far ground plane, rendered cheaply: no shadows, a few shared
+ * materials, one procedural façade texture with floor banding + window sills.
+ * Window emissive ramps up at night via the shared sky-darkness signal, so the
  * skyline reads as lit windows after dark — at near-zero per-frame cost.
  */
 
@@ -57,7 +62,9 @@ function repeatTexture(canvas: HTMLCanvasElement, srgb: boolean): CanvasTexture 
   return tex
 }
 
-/** Shared concrete façade with recessed glazing. */
+/** Shared concrete façade: tonal floor banding, recessed glazing with a lit
+ *  upper edge + a darker AC-ledge sill — the texture that sells "HDB block"
+ *  even at distance. */
 function makeAlbedo(cells: ReturnType<typeof windowCells>): CanvasTexture {
   const a = document.createElement('canvas')
   a.width = TEX_W
@@ -65,9 +72,22 @@ function makeAlbedo(cells: ReturnType<typeof windowCells>): CanvasTexture {
   const ac = a.getContext('2d')!
   ac.fillStyle = '#9498a0'
   ac.fillRect(0, 0, TEX_W, TEX_H)
+  // Faint horizontal floor banding (every row) for storey rhythm.
+  const my = TEX_H * 0.06
+  const gh = (TEX_H - my * 2) / GRID_ROWS
+  for (let r = 0; r <= GRID_ROWS; r++) {
+    ac.fillStyle = 'rgba(60,66,74,0.16)'
+    ac.fillRect(0, Math.round(my + r * gh) - 1, TEX_W, 2)
+  }
   for (const cell of cells) {
+    // Recessed glazing.
     ac.fillStyle = '#384350'
     ac.fillRect(cell.x, cell.y, cell.w, cell.h)
+    // Lit upper reveal (sky reflection) + darker AC-ledge sill below.
+    ac.fillStyle = 'rgba(190,205,220,0.5)'
+    ac.fillRect(cell.x, cell.y, cell.w, 1.5)
+    ac.fillStyle = 'rgba(40,46,54,0.65)'
+    ac.fillRect(cell.x - 1, cell.y + cell.h, cell.w + 2, 2)
   }
   return repeatTexture(a, true)
 }
@@ -100,27 +120,94 @@ interface Block {
   h: number
   rot: number
   mat: number
+  /** Rooftop detail box (water tank / lift core): dims + offset, or null. */
+  tank: { w: number; d: number; h: number; ox: number; oz: number } | null
 }
 
-/** Deterministic ring of blocks around the flat, with a wide gap left clear
- *  so the skyline doesn't feel like a solid wall. */
+/**
+ * Two deterministic rings of blocks around the flat: a nearer ring of mid-rise
+ * slabs and a farther ring of taller towers for depth, with a wide gap left
+ * clear so the skyline doesn't feel like a solid wall.
+ */
 function makeBlocks(): Block[] {
   const rnd = mulberry32(0xb10c)
   const blocks: Block[] = []
-  const count = 22
-  for (let i = 0; i < count; i++) {
-    const ang = (i / count) * Math.PI * 2 + (rnd() - 0.5) * 0.18
-    const radius = 34 + rnd() * 46
-    const x = CX + Math.cos(ang) * radius
-    const z = CZ + Math.sin(ang) * radius
-    const w = 16 + rnd() * 34
-    const d = 14 + rnd() * 26
-    const h = 26 + rnd() * 64
-    // Face roughly toward the flat, with jitter.
-    const rot = -ang + (rnd() - 0.5) * 0.6
-    blocks.push({ x, z, w, d, h, rot, mat: i % 3 })
+  const ring = (count: number, rMin: number, rSpan: number, hMin: number, hSpan: number) => {
+    for (let i = 0; i < count; i++) {
+      const ang = (i / count) * Math.PI * 2 + (rnd() - 0.5) * 0.18
+      const radius = rMin + rnd() * rSpan
+      const x = CX + Math.cos(ang) * radius
+      const z = CZ + Math.sin(ang) * radius
+      const w = 16 + rnd() * 34
+      const d = 14 + rnd() * 26
+      const h = hMin + rnd() * hSpan
+      const rot = -ang + (rnd() - 0.5) * 0.6
+      // Most blocks carry a rooftop tank/lift-core; the odd one stays flat.
+      const tank =
+        rnd() < 0.78
+          ? {
+              w: w * (0.18 + rnd() * 0.18),
+              d: d * (0.18 + rnd() * 0.18),
+              h: 2 + rnd() * 3.5,
+              ox: (rnd() - 0.5) * w * 0.4,
+              oz: (rnd() - 0.5) * d * 0.4,
+            }
+          : null
+      blocks.push({ x, z, w, d, h, rot, mat: i % 3, tank })
+    }
   }
+  ring(22, 34, 46, 26, 64) // near mid-rise
+  ring(18, 84, 60, 44, 70) // far towers
   return blocks
+}
+
+const SCRATCH_M = new Matrix4()
+const SCRATCH_Q = new Quaternion()
+const SCRATCH_P = new Vector3()
+const SCRATCH_S = new Vector3()
+const Y_AXIS = new Vector3(0, 1, 0)
+
+/** An instanced batch of unit boxes placed by (position, Y-rotation, scale). */
+function InstancedBatch({
+  geometry,
+  material,
+  instances,
+}: {
+  geometry: BoxGeometry
+  material: MeshStandardMaterial
+  instances: {
+    px: number
+    py: number
+    pz: number
+    rot: number
+    sx: number
+    sy: number
+    sz: number
+  }[]
+}) {
+  const ref = useRef<InstancedMesh>(null)
+  useLayoutEffect(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    for (let i = 0; i < instances.length; i++) {
+      const it = instances[i]!
+      SCRATCH_P.set(it.px, it.py, it.pz)
+      SCRATCH_Q.setFromAxisAngle(Y_AXIS, it.rot)
+      SCRATCH_S.set(it.sx, it.sy, it.sz)
+      SCRATCH_M.compose(SCRATCH_P, SCRATCH_Q, SCRATCH_S)
+      mesh.setMatrixAt(i, SCRATCH_M)
+    }
+    mesh.instanceMatrix.needsUpdate = true
+  }, [instances])
+  return (
+    <instancedMesh
+      ref={ref}
+      args={[geometry, material, instances.length]}
+      castShadow={false}
+      receiveShadow={false}
+      frustumCulled={false}
+    />
+  )
 }
 
 export function CityBackdrop() {
@@ -149,6 +236,11 @@ export function CityBackdrop() {
     )
   }, [])
 
+  // Rooftop water-tanks / lift cores: a darker unlit concrete, one instanced batch.
+  const tankMat = useMemo(
+    () => new MeshStandardMaterial({ color: '#6c7178', roughness: 0.95, metalness: 0 }),
+    [],
+  )
   const groundMat = useMemo(
     () => new MeshStandardMaterial({ color: '#6f7468', roughness: 1, metalness: 0 }),
     [],
@@ -159,10 +251,55 @@ export function CityBackdrop() {
   useDisposeOnUnmount([
     geom,
     groundMat,
+    tankMat,
     ...materials,
     materials[0]?.map ?? null,
     ...materials.map((m) => m.emissiveMap),
   ])
+
+  // Per-material instance lists (blocks) + the rooftop-tank instance list.
+  const { byMat, tanks } = useMemo(() => {
+    type Inst = {
+      px: number
+      py: number
+      pz: number
+      rot: number
+      sx: number
+      sy: number
+      sz: number
+    }
+    const byMat: Inst[][] = [[], [], []]
+    const tankList: Inst[] = []
+    for (const b of blocks) {
+      byMat[b.mat]!.push({
+        px: b.x,
+        py: b.h / 2 - 0.2,
+        pz: b.z,
+        rot: b.rot,
+        sx: b.w,
+        sy: b.h,
+        sz: b.d,
+      })
+      if (b.tank) {
+        // Place the tank on the block roof, offset within the footprint and
+        // rotated with the block so it sits square on top.
+        const cos = Math.cos(b.rot)
+        const sin = Math.sin(b.rot)
+        const ox = b.tank.ox * cos - b.tank.oz * sin
+        const oz = b.tank.ox * sin + b.tank.oz * cos
+        tankList.push({
+          px: b.x + ox,
+          py: b.h - 0.2 + b.tank.h / 2,
+          pz: b.z + oz,
+          rot: b.rot,
+          sx: b.tank.w,
+          sy: b.tank.h,
+          sz: b.tank.d,
+        })
+      }
+    }
+    return { byMat, tanks: tankList }
+  }, [blocks])
 
   // Night window glow tracks the actual sky darkness (NOT the user's interior
   // lights mode) — distant blocks stay dark in daylight even if the flat's
@@ -189,18 +326,10 @@ export function CityBackdrop() {
       >
         <circleGeometry args={[240, 48]} />
       </mesh>
-      {blocks.map((b, i) => (
-        <mesh
-          key={i}
-          geometry={geom}
-          material={materials[b.mat]}
-          position={[b.x, b.h / 2 - 0.2, b.z]}
-          rotation={[0, b.rot, 0]}
-          scale={[b.w, b.h, b.d]}
-          castShadow={false}
-          receiveShadow={false}
-        />
+      {materials.map((m, i) => (
+        <InstancedBatch key={i} geometry={geom} material={m} instances={byMat[i]!} />
       ))}
+      {tanks.length > 0 && <InstancedBatch geometry={geom} material={tankMat} instances={tanks} />}
     </group>
   )
 }

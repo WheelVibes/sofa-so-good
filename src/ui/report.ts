@@ -3,9 +3,24 @@
  * total, a furniture shopping list with an approximate budget, and a hero
  * render. Opened in a new window so the user can print / save as PDF.
  */
+
+import { buildAccessibilityReport } from '../analysis/accessibility'
+import { buildDesignScore } from '../analysis/designScore'
+import { buildComplianceReport } from '../analysis/hdbCompliance'
+import { buildRenoTimeline } from '../analysis/renoTimeline'
+import { estimateRenovation } from '../analysis/renovationCost'
+import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
-import { itemFootprint } from '../collision/placement'
+import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
+import { buildCollisionWalls } from '../collision/wallsFromState'
+import { projectAllElevations } from '../elevation/projectElevation'
+import { isFeatureEnabled } from '../features/featureFlags'
+import { buildFfeSchedule } from '../ffe/ffeSchedule'
+import { dimensionSvg } from '../floorplan/autoDimensionSvg'
+import { diffWalls } from '../floorplan/demolitionPlan'
+import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
+import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
@@ -13,9 +28,13 @@ import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
 import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
+import { findNarrowGaps } from '../layout/walkway'
+import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
+import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
+import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
 import {
   designPalette,
   floorAreaByFinish,
@@ -23,6 +42,17 @@ import {
   wallAreaByFinish,
 } from './reportData'
 import { reportPlanSvg } from './reportPlanSvg'
+
+/** Print palette for elevations — fixed inks (the report window has its own CSS,
+ *  not the app's CSS tokens). */
+const ELEV_PRINT: ElevationPalette = {
+  bg: '#f9fafb',
+  stroke: '#374151',
+  opening: '#93c5fd',
+  item: '#d8c8b0',
+  text: '#4b5563',
+}
+const LIGHTING_PRINT: LightingPalette = { wall: '#9ca3af', ink: '#374151', coverage: '#f59e0b' }
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds',
@@ -69,6 +99,7 @@ export function buildReportHtml(
   note?: string,
   annotations: MeasurementAnnotation[] = [],
   budgetTarget?: number | null,
+  baselinePlan?: FloorPlan,
 ): string {
   // Finishes-by-room section: floor + wall material names per non-external room.
   // Material ids resolve to friendly names via the builtin catalog (DLC/custom
@@ -80,8 +111,11 @@ export function buildReportHtml(
   // palette chips do.
   const matSwatch = (id: string | undefined): string | null => {
     if (!id) return null
-    if (id.startsWith('#')) return id
-    return BUILTIN_MATERIALS[id]?.swatch ?? null
+    const raw = id.startsWith('#') ? id : (BUILTIN_MATERIALS[id]?.swatch ?? null)
+    // Only emit a validated colour into the `style="background:…"` — reject
+    // anything else so a custom finish id can't inject CSS (S3, defense-in-depth).
+    if (raw && /^#[0-9a-fA-F]{3,8}$|^(rgb|hsl)a?\([\d\s.,%/-]+\)$/.test(raw)) return raw
+    return null
   }
   const matCell = (id: string | undefined): string => {
     const sw = matSwatch(id)
@@ -102,38 +136,45 @@ export function buildReportHtml(
         )
         .join('')
     : ''
+  // Per-finish floor + wall areas — shared by the flooring/wall schedules AND the
+  // renovation estimate below (computed once).
+  const floorAreas = finishes ? floorAreaByFinish(plan, floorOf) : []
+  const wallAreas = finishes ? wallAreaByFinish(plan, wallOf, plan.ceilingHeight) : []
   // Flooring schedule: total floor area per finish — the "how much to order"
   // procurement view (only when finishes are supplied + at least one finish set).
-  const flooringRows = finishes
-    ? floorAreaByFinish(plan, floorOf)
-        .map(
-          (f) =>
-            `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
-        )
-        .join('')
-    : ''
+  const flooringRows = floorAreas
+    .map(
+      (f) =>
+        `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
+    )
+    .join('')
   // Wall-finish schedule: gross wall area per finish (perimeter × ceiling height),
   // the paint/tile procurement counterpart to the flooring schedule.
-  const wallRows = finishes
-    ? wallAreaByFinish(plan, wallOf, plan.ceilingHeight)
-        .map(
-          (f) =>
-            `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
-        )
-        .join('')
-    : ''
+  const wallRows = wallAreas
+    .map(
+      (f) =>
+        `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
+    )
+    .join('')
   // Rooms (skip external ledges with ~0 interior use are still listed). Plain
   // rectangular rooms show their W×D dimensions (a room schedule detail); L-shape
   // / polygon rooms omit them (a bounding box would mislead) — area only.
-  const roomHeader =
-    '<tr class="cat"><td>Room</td><td class="dim">Size</td><td class="num">Ceiling</td><td class="num">Area</td></tr>'
+  // Show a ceiling-treatment column only when the feature is on and at least one
+  // room actually has a non-flat ceiling (avoids an all-"Flat" column).
+  const showCeiling =
+    isFeatureEnabled('ceilingDesign') &&
+    plan.rooms.some((r) => r.ceiling && r.ceiling.style !== 'flat')
+  const roomHeader = `<tr class="cat"><td>Room</td><td class="dim">Size</td><td class="num">Ceiling</td>${
+    showCeiling ? '<td>Ceiling style</td>' : ''
+  }<td class="num">Area</td></tr>`
   const roomRows =
     roomHeader +
     plan.rooms
       .map((r) => {
         const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
         const height = formatLength(r.ceilingHeight ?? plan.ceilingHeight, units)
-        return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${esc(height)}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
+        const ceilCell = showCeiling ? `<td>${esc(ceilingStyleLabel(r.ceiling))}</td>` : ''
+        return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${esc(height)}</td>${ceilCell}<td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
       })
       .join('')
   const totalArea = planTotalArea(plan)
@@ -225,30 +266,297 @@ export function buildReportHtml(
           .join('')}</div>`
       : ''
 
-  // Clearance & fit: flag any furniture sitting in a doorway path (the same
-  // check the in-app "Checks" overlay runs), grouped by name with counts. A
-  // handoff report should say plainly whether the layout is buildable.
+  // Clearance & fit: flag furniture sitting in a doorway path, two pieces
+  // overlapping, or a piece embedded in a wall — the same checks the in-app
+  // "Checks" overlay runs. A handoff report should say plainly whether the
+  // layout is buildable.
+  const hasItems = items.length > 0
   const hasDoors = (plan.openings ?? []).some((o) => o.kind === 'door')
-  const blockedIds = hasDoors && items.length > 0 ? blockedDoorItems(items, catalog, plan) : []
-  const blockedCounts = new Map<string, number>()
-  for (const id of blockedIds) {
+  const itemName = (id: string) => {
     const it = items.find((i) => i.id === id)
-    const name = it?.label ?? (it && catalog[it.defId]?.name) ?? 'Item'
-    blockedCounts.set(name, (blockedCounts.get(name) ?? 0) + 1)
+    return it?.label ?? (it && catalog[it.defId]?.name) ?? 'Item'
   }
-  const clearanceSection =
-    hasDoors && items.length > 0
-      ? blockedCounts.size === 0
-        ? `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="ok">✓ All doorways clear — no furniture blocks a door.</div></div>`
-        : `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="warn">${blockedCounts.size} item${
-            blockedCounts.size === 1 ? '' : 's'
-          } block a doorway:</div><table>${[...blockedCounts.entries()]
-            .map(
-              ([name, n]) =>
-                `<tr><td class="indent">${esc(name)}${n > 1 ? ` ×${n}` : ''}</td></tr>`,
-            )
-            .join('')}</table></div>`
+  const countByName = (ids: string[]) => {
+    const m = new Map<string, number>()
+    for (const id of ids) m.set(itemName(id), (m.get(itemName(id)) ?? 0) + 1)
+    return m
+  }
+  const blockedCounts = countByName(
+    hasDoors && hasItems ? blockedDoorItems(items, catalog, plan) : [],
+  )
+  const overlaps = hasItems ? findItemOverlaps(items, catalog) : []
+  // Whole-plan collision walls; default door states are fine for a static report.
+  // Guard a partial/hand-built plan with no `walls` array (skips the wall-clip check).
+  const clipWalls = isDefaultPlan(plan)
+    ? buildCollisionWalls({})
+    : Array.isArray(plan.walls)
+      ? planCollisionWalls(plan, {})
+      : []
+  const wallClipCounts = countByName(
+    hasItems && clipWalls.length > 0 ? findWallClips(items, catalog, clipWalls) : [],
+  )
+  const narrowGaps = hasItems ? findNarrowGaps(items, catalog, plan) : []
+  const gapPartner = (b: string) => (b.startsWith('wall:') ? 'a wall' : itemName(b))
+  const anyIssue =
+    blockedCounts.size > 0 ||
+    overlaps.length > 0 ||
+    wallClipCounts.size > 0 ||
+    narrowGaps.length > 0
+  const countRows = (m: Map<string, number>) =>
+    [...m.entries()]
+      .map(([name, n]) => `<tr><td class="indent">${esc(name)}${n > 1 ? ` ×${n}` : ''}</td></tr>`)
+      .join('')
+  const clearanceSection = !hasItems
+    ? ''
+    : !anyIssue
+      ? `<div class="room-cost"><h2>Clearance &amp; fit</h2><div class="ok">✓ Everything fits — no blocked doorways, overlaps, pieces in a wall, or tight walkways.</div></div>`
+      : `<div class="room-cost"><h2>Clearance &amp; fit</h2>${
+          blockedCounts.size > 0
+            ? `<div class="warn">${blockedCounts.size} item${blockedCounts.size === 1 ? '' : 's'} block a doorway:</div><table>${countRows(blockedCounts)}</table>`
+            : ''
+        }${
+          overlaps.length > 0
+            ? `<div class="warn">${overlaps.length} pair${overlaps.length === 1 ? '' : 's'} of items overlap:</div><table>${overlaps
+                .map(
+                  (o) =>
+                    `<tr><td class="indent">${esc(itemName(o.a))} ↔ ${esc(itemName(o.b))}</td></tr>`,
+                )
+                .join('')}</table>`
+            : ''
+        }${
+          wallClipCounts.size > 0
+            ? `<div class="warn">${wallClipCounts.size} item${wallClipCounts.size === 1 ? '' : 's'} sit inside a wall:</div><table>${countRows(wallClipCounts)}</table>`
+            : ''
+        }${
+          narrowGaps.length > 0
+            ? `<div class="warn">${narrowGaps.length} narrow walkway${narrowGaps.length === 1 ? '' : 's'} (under 90 cm):</div><table>${narrowGaps
+                .map(
+                  (g) =>
+                    `<tr><td class="indent">${esc(itemName(g.a))} ↔ ${esc(gapPartner(g.b))} · ${(g.gap * 100).toFixed(0)} cm</td></tr>`,
+                )
+                .join('')}</table>`
+            : ''
+        }</div>`
+
+  // Design score — the aggregate 0–100 quality read (clearance / furnishing /
+  // circulation / daylight / lighting) the in-app panel shows, so the handoff
+  // report carries the same at-a-glance verdict + the actionable fixes.
+  // Reuse the door-aware collision walls already computed for the clearance
+  // section so the report's design score matches the in-app panel (which passes
+  // live doors) instead of silently recomputing with all doors closed.
+  const score = hasItems ? buildDesignScore(items, catalog, plan, { walls: clipWalls }) : null
+  const gradeColor = (g: string) =>
+    g === 'A' || g === 'B' ? '#047857' : g === 'C' ? '#b45309' : '#b91c1c'
+  const barColor = (n: number) => (n >= 80 ? '#047857' : n >= 60 ? '#b45309' : '#b91c1c')
+  const issueColor = (s: string) =>
+    s === 'critical' ? '#b91c1c' : s === 'warning' ? '#b45309' : '#6b7280'
+  const designScoreSection = !score
+    ? ''
+    : `<div class="room-cost ds">
+      <h2>Design score</h2>
+      <div class="ds-head">
+        <span class="ds-grade" style="background:${gradeColor(score.grade)}">${score.grade}</span>
+        <span class="ds-num">${score.overall}<span class="ds-den">/100</span></span>
+        <span class="ds-meta">${score.itemCount} pieces · ${score.roomCount} ${score.roomCount === 1 ? 'room' : 'rooms'}</span>
+      </div>
+      ${score.categories
+        .map(
+          (c) =>
+            `<div class="ds-cat">
+        <div class="ds-cat-row"><span>${esc(c.label)}</span><span class="ds-cat-score">${c.score}</span></div>
+        <div class="score-bar"><div class="score-fill" style="width:${c.score}%;background:${barColor(c.score)}"></div></div>
+        ${c.issues
+          .map(
+            (i) =>
+              `<div class="ds-issue" style="color:${issueColor(i.severity)}">${esc(i.message)}</div>`,
+          )
+          .join('')}
+      </div>`,
+        )
+        .join('')}
+    </div>`
+
+  // Accessibility / universal-design — plan-level door-width + turning-circle
+  // check (BCA Code on Accessibility rule of thumb). Plan-only, so it shows even
+  // for an unfurnished shell; skipped when the plan has no doors or rooms.
+  const a11y = buildAccessibilityReport(plan)
+  const a11yFailDoors = a11y.doors.filter((d) => !d.pass)
+  const a11yFailRooms = a11y.rooms.filter((r) => !r.pass)
+  const doorName = (id: string) => {
+    const it = plan.openings?.find((o) => o.id === id)
+    return it ? `Door (${(it.width * 100).toFixed(0)} cm)` : id
+  }
+  const accessibilitySection =
+    a11y.doors.length === 0 && a11y.rooms.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Accessibility</h2>
+      <div class="${a11y.allPass ? 'ok' : 'warn'}">
+        ${a11y.doorPassCount}/${a11y.doors.length} doors ≥ ${Math.round(a11y.thresholds.door * 100)} cm clear ·
+        ${a11y.turnPassCount}/${a11y.rooms.length} rooms fit a ${a11y.thresholds.turn} m turning circle
+      </div>${
+        a11yFailDoors.length > 0
+          ? `<div class="warn">Doorways below the accessible clear width:</div><table>${a11yFailDoors
+              .map(
+                (d) =>
+                  `<tr><td class="indent">${esc(doorName(d.id))} — widen to ≥ ${Math.round(a11y.thresholds.door * 100)} cm</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        a11yFailRooms.length > 0
+          ? `<div class="warn">Rooms too tight for a wheelchair turn:</div><table>${a11yFailRooms
+              .map(
+                (r) =>
+                  `<tr><td class="indent">${esc(r.roomName)} — ${r.minDim.toFixed(2)} m min span</td></tr>`,
+              )
+              .join('')}</table>`
+          : ''
+      }${
+        a11y.allPass
+          ? '<div class="ok">✓ Step-free routes, accessible doors and turning space throughout.</div>'
+          : ''
+      }</div>`
+
+  // Renovation estimate — the finishes counterpart to the furniture budget:
+  // flooring + painting/wall supply+install over the per-finish areas, at
+  // indicative SG rates. Only when finishes are supplied + something to cost.
+  const reno = estimateRenovation(floorAreas, wallAreas)
+  const renoLineRows = (rows: ReturnType<typeof estimateRenovation>['floors']) =>
+    rows
+      .map(
+        (l) =>
+          `<tr><td>${matCell(l.id)}</td><td class="num">${esc(formatArea(l.area, units))}</td><td class="num">${sgd(l.rate)}/m²</td><td class="num">${sgd(l.cost)}</td></tr>`,
+      )
+      .join('')
+  const renovationSection =
+    reno.floors.length === 0 && reno.walls.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Renovation estimate</h2>
+      <table>
+        <tr class="cat"><td>Finish</td><td class="num">Area</td><td class="num">Rate</td><td class="num">Est. cost</td></tr>
+        ${renoLineRows(reno.floors)}${renoLineRows(reno.walls)}
+      </table>
+      <div class="total"><span>Finishes subtotal</span><span>${sgd(reno.subtotal)}</span></div>
+      <div class="subtotal"><span>Furniture + finishes</span><span>${sgd(budget + reno.subtotal)}</span></div>
+      <div class="foot" style="margin-top:6px">Indicative supply &amp; install only — excludes hacking/disposal, false ceilings, carpentry, M&amp;E and contractor margin.</div>
+    </div>`
+
+  // Dimensioned plan — an auto-generated running-dimension drawing (overall wall
+  // lengths + per-room sizes), a pro 2D deliverable competitors auto-produce.
+  const dimSvg =
+    Array.isArray(plan.walls) && plan.walls.length > 0
+      ? dimensionSvg(plan, { palette: { ink: '#374151', faint: '#cbd5e1' }, widthPx: 700 })
       : ''
+  const dimensionedPlanSection = dimSvg
+    ? `<div class="elev-section"><h2>Dimensioned plan</h2><div class="plan-wrap">${dimSvg}</div></div>`
+    : ''
+
+  // Demolition / hacking plan — walls added or removed vs the as-loaded baseline
+  // (template / saved plan). Only shown when the user actually changed walls.
+  const wallDiff = baselinePlan ? diffWalls(baselinePlan, plan) : null
+  const hackingSection =
+    wallDiff && (wallDiff.demolished.length > 0 || wallDiff.added.length > 0)
+      ? `<div class="elev-section"><h2>Hacking &amp; new walls</h2>
+      <div class="warn">${wallDiff.demolished.length} wall${wallDiff.demolished.length === 1 ? '' : 's'} hacked (${wallDiff.hackedLengthM.toFixed(1)} m) · ${wallDiff.added.length} new (${wallDiff.addedLengthM.toFixed(1)} m) vs the original layout — hacking needs HDB approval.</div>
+      <div class="plan-wrap">${demolitionSvg(wallDiff, {
+        palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
+        widthPx: 700,
+      })}</div></div>`
+      : ''
+
+  // Renovation timeline — an estimated phase schedule (hacking → … → handover)
+  // scaled by floor area + room count, the way SG IDs present a project plan.
+  const timeline = buildRenoTimeline(plan)
+  const timelineSection =
+    timeline.phases.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Renovation timeline</h2>
+      <div class="subtotal"><span>Estimated duration</span><span>${timeline.totalWeeks} weeks (${timeline.totalDays} working days)</span></div>
+      <table>
+        <tr class="cat"><td>Phase</td><td class="num">Days</td><td style="width:45%">Schedule</td></tr>
+        ${timeline.phases
+          .map((p) => {
+            const left = (p.startDay / timeline.totalDays) * 100
+            const w = Math.max(2, (p.days / timeline.totalDays) * 100)
+            return `<tr><td>${esc(p.name)}</td><td class="num">${p.days}</td><td><div style="position:relative;height:10px;background:#eef2f7;border-radius:3px"><div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:#6b7f9e;border-radius:3px"></div></div></td></tr>`
+          })
+          .join('')}
+      </table>
+      <div class="foot" style="margin-top:6px">Indicative schedule (SG 6-day work week); phases shown sequential — actual trades may overlap.</div>
+    </div>`
+
+  // HDB renovation compliance hints — rule-based advisories (permit / caution /
+  // info) over the plan; a trust feature for the SG renovation workflow.
+  const compliance = buildComplianceReport(plan)
+  const compBadge = (sev: string) =>
+    sev === 'permit' ? '#b91c1c' : sev === 'caution' ? '#b45309' : '#6b7280'
+  const complianceSection =
+    compliance.advisories.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>HDB compliance hints</h2>
+      <div class="${compliance.permitCount > 0 ? 'warn' : 'ok'}">
+        ${compliance.permitCount} permit-sensitive · ${compliance.cautionCount} caution — guidance only, confirm with HDB / your contractor.
+      </div>
+      ${compliance.advisories
+        .map(
+          (a) =>
+            `<div class="ci-detail" style="margin-top:6px"><span class="badge" style="background:${compBadge(a.severity)};color:#fff">${esc(a.severity)}</span> <strong>${esc(a.title)}</strong><br>${esc(a.detail)} <span style="color:#9ca3af">(${esc(a.cite)})</span></div>`,
+        )
+        .join('')}
+    </div>`
+
+  // Wall elevations — the vertical drawings, only for walls that actually carry
+  // furniture or openings (skip the many bare structural segments).
+  const elevations = hasItems
+    ? projectAllElevations(plan, items, catalog).filter(
+        (e) => e.length > 0 && e.height > 0 && (e.items.length > 0 || e.openings.length > 0),
+      )
+    : []
+  const elevationsSection = elevations.length
+    ? `<div class="elev-section"><h2>Wall elevations</h2><div class="elev-grid">${elevations
+        .map(
+          (e, i) =>
+            `<figure class="elev-fig"><figcaption>${esc(elevationCaption(e, i, units))}</figcaption>${elevationSvg(
+              e,
+              { palette: ELEV_PRINT, units },
+            )}</figure>`,
+        )
+        .join('')}</div></div>`
+    : ''
+
+  // Lighting plan — fixtures (from the light-emitter registry) plotted over the
+  // walls + a schedule. Only when the design actually has lights.
+  const lighting = hasItems ? buildLightingPlan(items, catalog) : { lights: [], schedule: [] }
+  const lightingSection = lighting.lights.length
+    ? `<div class="elev-section"><h2>Lighting plan</h2>
+        <div class="plan-wrap">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>
+        <table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td class="num">Qty</td><td class="num">Height</td><td class="num">Intensity</td></tr>${lighting.schedule
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.label)}</td><td class="num">×${r.count}</td><td class="num">${esc(formatLength(r.height, units))}</td><td class="num">${r.intensity} cd</td></tr>`,
+          )
+          .join('')}</table></div>`
+    : ''
+
+  // FF&E schedule — the item-level procurement table (room · item · source · SKU
+  // · size · qty · pricing), the central designer hand-off. Full width.
+  const ffe = hasItems ? buildFfeSchedule(plan, items, catalog) : []
+  const dim = (n: number) => esc(formatLength(n, units))
+  const ffeSection = ffe.length
+    ? `<div class="elev-section"><h2>FF&amp;E schedule</h2>
+        <table class="ffe"><tr class="cat"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="num">Qty</td><td class="num">Unit</td><td class="num">Total</td></tr>${ffe
+          .map(
+            (r) =>
+              `<tr><td>${esc(r.room)}</td><td>${esc(r.name)}</td><td>${esc(r.source)}</td><td>${esc(r.sku || '—')}</td><td>${dim(r.w)} × ${dim(r.d)} × ${dim(r.h)}</td><td class="num">${r.qty}</td><td class="num">${sgd(r.unit)}</td><td class="num">${sgd(r.total)}</td></tr>`,
+          )
+          .join('')}<tr class="cat"><td colspan="7">Total</td><td class="num">${sgd(
+          ffe.reduce((s, r) => s + r.total, 0),
+        )}</td></tr></table></div>`
+    : ''
 
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
@@ -290,9 +598,29 @@ export function buildReportHtml(
   .lg-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; opacity: 0.7; }
   .ok { color: #047857; font-weight: 600; margin-top: 6px; }
   .warn { color: #b45309; font-weight: 600; margin-top: 6px; }
+  .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
+  .ds-head { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
+  .ds-grade { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; font-weight: 700; flex: none; }
+  .ds-num { font-size: 20px; font-weight: 700; }
+  .ds-den { font-size: 12px; color: #9ca3af; font-weight: 400; }
+  .ds-meta { font-size: 11px; color: #9ca3af; margin-left: auto; }
+  .ds-cat { margin-top: 8px; break-inside: avoid; }
+  .ds-cat-row { display: flex; justify-content: space-between; font-size: 12px; font-weight: 600; color: #374151; }
+  .ds-cat-score { font-variant-numeric: tabular-nums; }
+  .score-bar { height: 5px; background: #eef2f7; border-radius: 3px; overflow: hidden; margin: 3px 0; }
+  .score-fill { height: 100%; }
+  .ds-issue { font-size: 11px; margin-top: 2px; }
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   /* Keep sections + tables whole across PDF pages, and never strand a heading. */
   .room-cost, .palette, .plan-wrap, .note { break-inside: avoid; }
+  .elev-section { margin-top: 24px; }
+  .elev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+  .elev-fig { margin: 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; background: #fff; break-inside: avoid; }
+  .elev-fig figcaption { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+  .elev-fig svg { width: 100%; height: auto; display: block; max-height: 220px; }
+  table.ffe { font-size: 11px; }
+  table.ffe td { padding: 3px 8px 3px 0; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+  table.ffe tr.cat td { font-weight: 600; border-bottom: 1px solid #e5e7eb; }
   tr, .chip, .lg-item, .total { break-inside: avoid; }
   h2 { break-after: avoid; }
   @media print {
@@ -367,7 +695,17 @@ export function buildReportHtml(
     </div>`
       : ''
   }
+  ${renovationSection}
+  ${timelineSection}
+  ${ffeSection}
   ${clearanceSection}
+  ${designScoreSection}
+  ${accessibilitySection}
+  ${complianceSection}
+  ${hackingSection}
+  ${dimensionedPlanSection}
+  ${elevationsSection}
+  ${lightingSection}
   ${
     paletteChips
       ? `<div class="palette">

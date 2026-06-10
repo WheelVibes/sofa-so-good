@@ -69,6 +69,33 @@ describe('startAutosave error handling', () => {
     stop()
   })
 
+  // Regression: every field `serialize()` persists must trigger an autosave on
+  // its own. Before this guard, editing only the floor plan / lights / a pinned
+  // annotation / orientation / the design note left autosave silent, so the
+  // change was lost on reload unless an unrelated tracked field also changed.
+  it.each([
+    ['lightsMode', (s: ReturnType<typeof useStore.getState>) => s.setLightsMode?.('on')],
+    ['orientationDeg', () => useStore.setState({ orientationDeg: 90 })],
+    ['designNote', (s: ReturnType<typeof useStore.getState>) => s.setDesignNote('client brief')],
+    [
+      'annotations',
+      () => useStore.setState({ annotations: [{ id: 'a1', a: [0, 0], b: [1, 1], shape: 'line' }] }),
+    ],
+    [
+      'floorPlan',
+      (s: ReturnType<typeof useStore.getState>) =>
+        useStore.setState({ floorPlan: { ...s.floorPlan, name: 'Renamed plan' } }),
+    ],
+  ])('autosaves when only %s changes', async (_label, mutate) => {
+    const adapter = makeAdapter(async () => {})
+    const stop = startAutosave({ adapter })
+    mutate(useStore.getState())
+    await vi.advanceTimersByTimeAsync(600)
+    await Promise.resolve()
+    expect(adapter.save).toHaveBeenCalledTimes(1)
+    stop()
+  })
+
   it('flushes on visibilitychange → hidden', async () => {
     const adapter = makeAdapter(async () => {})
     const stop = startAutosave({ adapter })

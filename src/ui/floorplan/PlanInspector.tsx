@@ -1,6 +1,13 @@
 import { useState } from 'react'
+import { useFeature } from '../../features/useFeature'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
-import { DEFAULT_PLAN_WALL_COLOR, planRoomArea, wallLength } from '../../floorplan/types'
+import {
+  type CeilingConfig,
+  type CeilingStyle,
+  DEFAULT_PLAN_WALL_COLOR,
+  planRoomArea,
+  wallLength,
+} from '../../floorplan/types'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
@@ -50,6 +57,107 @@ function Num({
   )
 }
 
+const CEILING_STYLES: { id: CeilingStyle; label: string }[] = [
+  { id: 'flat', label: 'Flat' },
+  { id: 'tray', label: 'Tray' },
+  { id: 'coffered', label: 'Coffered' },
+  { id: 'dropped', label: 'Dropped' },
+]
+
+/** Per-room ceiling-treatment editor: style picker + style-specific params +
+ *  a perimeter cove-light toggle. Writes through `setRoomCeiling` (coalesced). */
+function CeilingControls({
+  roomId,
+  style,
+  config,
+}: {
+  roomId: string
+  style: CeilingStyle
+  config?: CeilingConfig
+}) {
+  const set = (patch: Partial<CeilingConfig> | null) =>
+    useStore.getState().setRoomCeiling(roomId, patch)
+  const drop = config?.drop ?? 0.15
+  const margin = config?.margin ?? 0.35
+  const grid = config?.grid ?? [2, 2]
+  return (
+    <>
+      <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>
+        <span>Ceiling style</span>
+      </div>
+      <div className="seg">
+        {CEILING_STYLES.map((s) => (
+          <button
+            key={s.id}
+            type="button"
+            className={`seg-btn${style === s.id ? ' on' : ''}`}
+            onClick={() => set(s.id === 'flat' ? null : { style: s.id })}
+          >
+            {s.label}
+          </button>
+        ))}
+      </div>
+      {style !== 'flat' ? (
+        <>
+          {style !== 'coffered' ? (
+            <Num
+              label="Border / inset (m)"
+              value={margin}
+              step={0.05}
+              min={0.1}
+              onChange={(v) => set({ margin: Math.max(0.1, v) })}
+            />
+          ) : null}
+          <Num
+            label="Depth (m)"
+            value={drop}
+            step={0.02}
+            min={0.03}
+            onChange={(v) => set({ drop: Math.max(0.03, Math.min(0.4, v)) })}
+          />
+          {style === 'coffered' ? (
+            <div className="flex gap-2">
+              <Num
+                label="Columns"
+                value={grid[0]}
+                step={1}
+                min={1}
+                onChange={(v) => set({ grid: [Math.max(1, Math.round(v)), grid[1]] })}
+              />
+              <Num
+                label="Rows"
+                value={grid[1]}
+                step={1}
+                min={1}
+                onChange={(v) => set({ grid: [grid[0], Math.max(1, Math.round(v))] })}
+              />
+            </div>
+          ) : null}
+          {style === 'tray' || style === 'dropped' ? (
+            <label className="flex items-center gap-2" style={{ marginTop: 'var(--s-2)' }}>
+              <input
+                type="checkbox"
+                checked={!!config?.coveLight}
+                onChange={(e) => set({ coveLight: e.target.checked })}
+              />
+              <span>Cove light</span>
+              {config?.coveLight ? (
+                <input
+                  type="color"
+                  aria-label="Cove light colour"
+                  value={config?.coveColor ?? '#ffe6c0'}
+                  onChange={(e) => set({ coveColor: e.target.value })}
+                  style={{ marginLeft: 'auto' }}
+                />
+              ) : null}
+            </label>
+          ) : null}
+        </>
+      ) : null}
+    </>
+  )
+}
+
 /** Right-hand inspector for the selected floor-plan element. */
 export function PlanInspector() {
   const sel = useStore((s) => s.planSelection)
@@ -57,6 +165,7 @@ export function PlanInspector() {
   const units = useStore((s) => s.units)
   const a = useStore.getState()
   const isMobile = useIsMobile()
+  const ceilingDesignOn = useFeature('ceilingDesign')
 
   let body: React.ReactNode = (
     <div className="flex flex-col gap-3">
@@ -189,6 +298,9 @@ export function PlanInspector() {
               </button>
             )}
           </div>
+          {ceilingDesignOn ? (
+            <CeilingControls roomId={r.id} style={r.ceiling?.style ?? 'flat'} config={r.ceiling} />
+          ) : null}
           {/* L-shape extension: a second rectangle offset from the origin.
               planRoomArea sums both, and the 3D shell renders both floors. */}
           <div className="sec-h" style={{ marginTop: 'var(--s-2)' }}>

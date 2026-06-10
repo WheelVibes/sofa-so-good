@@ -61,11 +61,16 @@ glass model). On lower tiers it stays a normal surface.
 No model to import? Open the **3D asset designer** (⌘K → "Design a 3D asset") to
 build one in the browser:
 
-- **Compose from shapes** — add boxes, cylinders and spheres, then set each one's
-  size, position and colour. A live 3D preview updates as you go.
+- **Compose from shapes** — add boxes, cylinders, spheres, cones, pyramids, capsules,
+  torus rings and wedges, then set each one's size, position, **rotation**, colour and **surface finish**
+  (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
+  wood, polished metal, a lit neon/lamp, or translucent glass). A live 3D preview
+  updates as you go.
 - **Start from an uploaded model** — pick one of your uploaded GLBs as the base and
   resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
 
 Give it a name and category and hit **Save asset** — it's exported to a GLB and
-added to your catalog like any upload, ready to place and reuse.
+added to your catalog like any upload, ready to place and reuse. When you started
+from one of your own models, flip **Update original** before saving to overwrite
+that asset in place — every copy you've already placed updates to the new edit.
 

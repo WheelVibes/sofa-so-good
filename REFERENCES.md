@@ -22,3 +22,10 @@ docs are public. Proprietary ones are studied via their live apps + help docs.
 | **Remodel AI** | Proprietary | AI photo → restyle into alternative aesthetics (our AI-photoreal-export analog). | [app](https://www.remodelai.io) · [docs](https://www.remodelai.io/blog) |
 | **Blender (Archipack/Archimesh)** | GPL | **Open source.** Ultra-realistic architectural rendering + custom interiors via plugins — the ceiling for render quality. | [app](https://www.blender.org) · [docs](https://docs.blender.org) · [source](https://projects.blender.org/blender/blender) |
 | **Roomstyler** | Proprietary | Web 3D room planner with a design community + large real-world branded furniture catalog. | [app](https://roomstyler.com) · [docs](https://roomstyler.com/faq) |
+| **Cedreo** | Proprietary | Pro home-design: fast 2D→3D, photoreal renders, project deliverables; multi-storey + sections. | [app](https://cedreo.com) · [docs](https://cedreo.com/features/) |
+| **Foyr Neo** | Proprietary | Browser 4K photoreal rendering + large library + fast designer workflow. | [app](https://foyr.com) · [docs](https://foyr.com/neo) |
+| **Spacejoy** | Proprietary | Shoppable, heavily-styled room designs + moodboards (commerce-led). | [app](https://www.spacejoy.com) · [docs](https://www.spacejoy.com/interior-designs-blog) |
+| **Roomle** | Proprietary | Parametric product configurators + AR; manufacturer-catalog focus. | [app](https://www.roomle.com) · [docs](https://www.roomle.com/en/configurator) |
+| **Enscape (for SketchUp)** | Proprietary | Real-time GI/SSGI live photoreal preview — the real-time-render ceiling. | [app](https://www.chaos.com/enscape) · [docs](https://blog.enscape3d.com) |
+| **Spoak** | Proprietary | Consumer moodboard + room-design community; styling-board UX. | [app](https://www.spoak.com) · [docs](https://www.spoak.com) |
+| **Qanvast (SG)** | Proprietary | Singapore reno discovery + get-quotes + firm trust — the design→quote handoff we can bridge. | [app](https://qanvast.com) · [docs](https://renovate.qanvast.com/get-quotes/) |

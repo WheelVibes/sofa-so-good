@@ -52,6 +52,14 @@ export interface FeaturesSlice {
   shareOpen: boolean
   /** Clearance & fit checks panel visibility. */
   clearancePanelOpen: boolean
+  /** Wall-elevations panel visibility. */
+  elevationsOpen: boolean
+  /** Daylight & ventilation check panel visibility. */
+  daylightOpen: boolean
+  /** Design Score (aggregate layout-quality feedback) panel visibility. */
+  designScoreOpen: boolean
+  /** Accessibility / universal-design check panel visibility. */
+  accessibilityOpen: boolean
   /** Versions (save / restore / compare) panel visibility. */
   versionsOpen: boolean
   /** Undo/redo history (timeline + jump-to-step) panel visibility. */
@@ -90,6 +98,10 @@ export interface FeaturesSlice {
   setSwapItemId: (id: string | null) => void
   setShareOpen: (open: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
+  setElevationsOpen: (open: boolean) => void
+  setDaylightOpen: (open: boolean) => void
+  setDesignScoreOpen: (open: boolean) => void
+  setAccessibilityOpen: (open: boolean) => void
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
@@ -113,6 +125,10 @@ export const FEATURES_INITIAL = {
   swapItemId: null as string | null,
   shareOpen: false,
   clearancePanelOpen: false,
+  elevationsOpen: false,
+  daylightOpen: false,
+  designScoreOpen: false,
+  accessibilityOpen: false,
   versionsOpen: false,
   historyOpen: false,
   smartStartOpen: false,
@@ -152,6 +168,10 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setSwapItemId: (swapItemId) => set({ swapItemId }),
   setShareOpen: (shareOpen) => set({ shareOpen }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
+  setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),
+  setDaylightOpen: (daylightOpen) => set({ daylightOpen }),
+  setDesignScoreOpen: (designScoreOpen) => set({ designScoreOpen }),
+  setAccessibilityOpen: (accessibilityOpen) => set({ accessibilityOpen }),
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),

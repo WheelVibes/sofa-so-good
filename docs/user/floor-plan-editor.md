@@ -92,6 +92,9 @@ clean plan.)
 ## Templates & saving
 
 Start from a **template** apartment, **Reset to HDB** for the default flat, or
-**New** for an empty shell. Saved plans persist in your browser. A non‑default
-plan re‑renders the 3D flat, and furniture placement and walk collisions follow
-the new walls.
+**New** for an empty shell. The template picker covers the common Singapore home
+types — HDB 2‑Room Flexi, 3/4/5‑Room, Executive Apartment, 3Gen and Jumbo, plus
+condominium layouts (Studio, 1‑Bedroom, 1+Study, 2‑, 3‑ and 4‑Bedroom, Penthouse)
+and a landed terrace — alongside the Studio / One‑bed / Loft starters. Saved plans
+persist in your browser. A non‑default plan re‑renders the 3D flat, and furniture
+placement and walk collisions follow the new walls.

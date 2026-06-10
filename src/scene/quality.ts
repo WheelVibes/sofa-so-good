@@ -51,6 +51,16 @@ export interface QualitySettings {
   /** Accumulate soft, noise-free shadows while the camera is parked
    *  (drei AccumulativeShadows). Off on performance; forced on during capture. */
   showcase: boolean
+  /** Render SSAO at full resolution instead of half-res — sharper, deeper
+   *  contact darkening at a higher fill cost. Top tier only (needs `postprocessing`). */
+  aoFullRes: boolean
+  /** Cinematic finish — a faint film grain + subtle chromatic aberration in the
+   *  post stack so stills read "photographed, not rendered". Top tier only. */
+  cinematic: boolean
+  /** Procedural IBL probe cubemap resolution (px). Higher = sharper reflections
+   *  on glossy surfaces (glass/metal/varnish) at a one-time build cost. Only
+   *  used when `ibl` is on. */
+  envResolution: number
 }
 
 export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
@@ -67,6 +77,9 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     contactShadows: false,
     geometryDetail: 0.7,
     showcase: false,
+    aoFullRes: false,
+    cinematic: false,
+    envResolution: 64,
   },
   medium: {
     shadowMapSize: 1024,
@@ -78,6 +91,9 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     contactShadows: true,
     geometryDetail: 1,
     showcase: true,
+    aoFullRes: false,
+    cinematic: false,
+    envResolution: 96,
   },
   high: {
     shadowMapSize: 2048,
@@ -89,6 +105,9 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     contactShadows: true,
     geometryDetail: 1.4,
     showcase: true,
+    aoFullRes: false,
+    cinematic: false,
+    envResolution: 192,
   },
   maximum: {
     shadowMapSize: 4096,
@@ -100,6 +119,9 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     contactShadows: true,
     geometryDetail: 1.8,
     showcase: true,
+    aoFullRes: true,
+    cinematic: true,
+    envResolution: 256,
   },
 }
 
@@ -115,7 +137,8 @@ export const QUALITY_DESCRIPTION: Record<RenderTier, string> = {
   performance: 'Flat & fast — no shadows or effects. Best for laptops/phones without a GPU.',
   medium: 'Sun shadows + soft reflections. Good all-round default.',
   high: 'Adds bloom, ambient occlusion & antialiasing. Needs a dedicated GPU.',
-  maximum: 'Everything maxed — sharpest shadows, full resolution. Strong GPUs only.',
+  maximum:
+    'Cinematic — sharpest shadows, full-res ambient occlusion, film grain & subtle lens defocus. Strong GPUs only.',
 }
 
 /** Map a render tier to the asset-LOD tier it implies when asset quality is on

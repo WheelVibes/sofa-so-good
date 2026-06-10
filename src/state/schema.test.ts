@@ -18,6 +18,33 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips a polygon (free-form / Auto-room) room shape on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    const polygon: [number, number][] = [
+      [0.2, 0.2],
+      [4.0, 0.2],
+      [4.0, 2.0],
+      [2.0, 2.0],
+      [2.0, 4.0],
+      [0.2, 4.0],
+    ]
+    useStore.setState({
+      floorPlan: {
+        id: 'poly-plan',
+        name: 'Poly',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'L', name: 'L-room', origin: [0.2, 0.2], width: 3.8, depth: 3.8, polygon }],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    const room = patch.floorPlan?.rooms.find((r) => r.id === 'L')
+    expect(room?.polygon).toEqual(polygon)
+  })
+
   it('round-trips imported-GLB metadata on user furniture defs', () => {
     useStore.getState().__resetForTest()
     useStore.getState().setUserFurniture([

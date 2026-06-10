@@ -136,6 +136,7 @@ export const ITEM_PRICE: Record<string, number> = {
   fireplace: 900,
   piano: 3500,
   'feature-wall': 350,
+  staircase: 2800,
 }
 
 /** Estimated price (SGD) for one item. For an IKEA def the per-INSTANCE variant

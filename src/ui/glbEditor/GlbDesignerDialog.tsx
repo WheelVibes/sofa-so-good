@@ -2,15 +2,21 @@ import { Bounds, OrbitControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { Mesh, type Object3D } from 'three'
-import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
+import { MathUtils, Mesh, type Object3D } from 'three'
+import { buildEditedObject, partGeometry } from '../../furniture/glbEdit/buildObject'
 import {
   type AssetEditSpec,
   addPart,
   createEmptySpec,
+  DEFAULT_PART_METALNESS,
+  DEFAULT_PART_ROUGHNESS,
+  duplicatePart,
   isBuildable,
+  mirrorPart,
   removePart,
-  type ShapeKind,
+  SHAPE_KINDS,
+  SHAPE_LABEL,
+  type ShapePart,
   setMeshOverride,
   updatePart,
 } from '../../furniture/glbEdit/editSpec'
@@ -19,6 +25,7 @@ import type { UserGltfDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
+import { useIsMobile } from '../useIsMobile'
 
 /** Loaded source GLB, uniformly scaled; reports its scene up for export. */
 function SourceModel({
@@ -38,29 +45,57 @@ function SourceModel({
   return <primitive object={gltf.scene} scale={scale} />
 }
 
+/** One primitive part, built from the SAME `partGeometry` the export uses (so
+ *  the preview can never drift from the saved GLB). Geometry is memoised on the
+ *  part's kind+size and disposed when it changes/unmounts. */
+function PartMesh({ part }: { part: ShapePart }) {
+  // `part` is recreated immutably by updatePart on every edit, so depending on
+  // it rebuilds the geometry exactly when kind/size change.
+  const geom = useMemo(() => partGeometry(part), [part])
+  useEffect(() => () => geom.dispose(), [geom])
+  const glow = part.emissiveIntensity ?? 0
+  const opacity = part.opacity ?? 1
+  const rot = part.rotation
+  return (
+    <mesh
+      position={part.position}
+      rotation={
+        rot
+          ? [MathUtils.degToRad(rot[0]), MathUtils.degToRad(rot[1]), MathUtils.degToRad(rot[2])]
+          : undefined
+      }
+      castShadow
+      receiveShadow
+      geometry={geom}
+    >
+      <meshStandardMaterial
+        color={part.color}
+        roughness={part.roughness ?? DEFAULT_PART_ROUGHNESS}
+        metalness={part.metalness ?? DEFAULT_PART_METALNESS}
+        emissive={glow > 0 ? part.color : '#000000'}
+        emissiveIntensity={glow}
+        transparent={opacity < 1}
+        opacity={opacity}
+      />
+    </mesh>
+  )
+}
+
 /** The composed primitive parts, rendered declaratively (export uses buildEditedObject). */
 function PartsPreview({ spec }: { spec: AssetEditSpec }) {
   return (
     <>
       {spec.parts.map((p) => (
-        <mesh key={p.id} position={p.position} castShadow receiveShadow>
-          {p.kind === 'box' && <boxGeometry args={p.size} />}
-          {p.kind === 'cylinder' && (
-            <cylinderGeometry args={[p.size[0] / 2, p.size[0] / 2, p.size[1], 32]} />
-          )}
-          {p.kind === 'sphere' && <sphereGeometry args={[Math.max(...p.size) / 2, 32, 16]} />}
-          <meshStandardMaterial color={p.color} roughness={0.6} metalness={0.05} />
-        </mesh>
+        <PartMesh key={p.id} part={p} />
       ))}
     </>
   )
 }
 
-const SHAPES: { kind: ShapeKind; label: string }[] = [
-  { kind: 'box', label: 'Box' },
-  { kind: 'cylinder', label: 'Cylinder' },
-  { kind: 'sphere', label: 'Sphere' },
-]
+const SHAPES: { kind: (typeof SHAPE_KINDS)[number]; label: string }[] = SHAPE_KINDS.map((kind) => ({
+  kind,
+  label: SHAPE_LABEL[kind],
+}))
 
 /**
  * GLB Asset Designer — compose a new asset from primitive shapes and/or start
@@ -73,6 +108,7 @@ export function GlbDesignerDialog() {
   // the UI minimal, so never surface it there (defensive — the ⌘K entry is also
   // hidden in simple mode).
   const isPro = useStore((s) => s.uiMode === 'pro')
+  const isMobile = useIsMobile()
   const close = () => useStore.getState().setGlbDesignerOpen(false)
   // Select the stable array ref, filter in a memo — filtering inside the selector
   // returns a fresh array every render and spins Zustand into an update loop.
@@ -88,6 +124,7 @@ export function GlbDesignerDialog() {
   const [placement, setPlacement] = useState<'floor' | 'wall' | 'floorCovering'>('floor')
   const [selId, setSelId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [overwrite, setOverwrite] = useState(false)
   const [meshNames, setMeshNames] = useState<string[]>([])
   const sourceSceneRef = useRef<Object3D | null>(null)
 
@@ -119,6 +156,7 @@ export function GlbDesignerDialog() {
       setCategory('others')
       setPlacement('floor')
       setSelId(null)
+      setOverwrite(false)
       sourceSceneRef.current = null
     }
   }, [open])
@@ -132,11 +170,22 @@ export function GlbDesignerDialog() {
     setBusy(true)
     try {
       const obj = buildEditedObject(sourceSceneRef.current, spec)
-      const res = await exportAndSaveAsset(obj, name, category, placementFlags(placement))
+      const overwriteId = overwrite && spec.sourceAssetId ? spec.sourceAssetId : undefined
+      const res = await exportAndSaveAsset(
+        obj,
+        name,
+        category,
+        placementFlags(placement),
+        overwriteId,
+      )
       const notify = useStore.getState().notify
       if (res.ok) {
         notify.start({
-          title: res.duplicate ? 'That asset already exists' : `Saved "${name}" to your catalog`,
+          title: res.duplicate
+            ? 'That asset already exists'
+            : overwriteId
+              ? `Updated "${name}"`
+              : `Saved "${name}" to your catalog`,
           kind: res.duplicate ? 'info' : 'success',
         })
         close()
@@ -170,12 +219,23 @@ export function GlbDesignerDialog() {
           </button>
         </div>
         <hr className="hr" />
-        <div style={{ display: 'flex', gap: 'var(--s-3)', flex: 1, minHeight: 0 }}>
+        {/* On mobile the side-by-side layout collapses the preview to a sliver and
+            overflows the controls — stack vertically (preview on top) instead. */}
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: isMobile ? 'column' : 'row',
+            gap: 'var(--s-3)',
+            flex: 1,
+            minHeight: 0,
+          }}
+        >
           {/* Live preview */}
           <div
             style={{
-              flex: '1 1 60%',
+              flex: isMobile ? '0 0 38vh' : '1 1 60%',
               minWidth: 0,
+              minHeight: 0,
               borderRadius: 'var(--r-2)',
               overflow: 'hidden',
               background: 'var(--scene-b)',
@@ -201,7 +261,13 @@ export function GlbDesignerDialog() {
           {/* Controls */}
           <div
             className="panel-body"
-            style={{ flex: '1 1 40%', minWidth: 280, overflowY: 'auto', paddingRight: 4 }}
+            style={{
+              flex: isMobile ? '1 1 auto' : '1 1 40%',
+              minWidth: 0,
+              width: isMobile ? '100%' : undefined,
+              overflowY: 'auto',
+              paddingRight: 4,
+            }}
           >
             <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
               <div className="sec-h">
@@ -336,6 +402,23 @@ export function GlbDesignerDialog() {
                       <button
                         type="button"
                         className="icon-btn"
+                        aria-label={`Duplicate ${p.kind} ${i + 1}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSpec((sp) => {
+                            const next = duplicatePart(sp, p.id)
+                            if (next.parts.length > sp.parts.length) {
+                              setSelId(next.parts[next.parts.length - 1]!.id)
+                            }
+                            return next
+                          })
+                        }}
+                      >
+                        <Icon.Copy width={13} height={13} />
+                      </button>
+                      <button
+                        type="button"
+                        className="icon-btn"
                         aria-label={`Remove ${p.kind} ${i + 1}`}
                         onClick={(e) => {
                           e.stopPropagation()
@@ -392,6 +475,39 @@ export function GlbDesignerDialog() {
                     </div>
                   </div>
                 ))}
+                <div style={{ marginBottom: 'var(--s-2)' }}>
+                  <div
+                    className="label"
+                    style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                  >
+                    Rotation (°)
+                  </div>
+                  <div style={{ display: 'flex', gap: 4 }}>
+                    {[0, 1, 2].map((axis) => (
+                      <input
+                        key={axis}
+                        type="number"
+                        className="input"
+                        step={15}
+                        min={-180}
+                        max={180}
+                        value={(sel.rotation ?? [0, 0, 0])[axis]}
+                        aria-label={`${sel.kind} rotation ${'XYZ'[axis]}`}
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          setSpec((sp) =>
+                            updatePart(sp, sel.id, {
+                              rotation: (sel.rotation ?? [0, 0, 0]).map((o, k) =>
+                                k === axis ? v : o,
+                              ) as [number, number, number],
+                            }),
+                          )
+                        }}
+                        style={{ width: '33%' }}
+                      />
+                    ))}
+                  </div>
+                </div>
                 <label className="fld">
                   <span>Colour</span>
                   <input
@@ -403,6 +519,76 @@ export function GlbDesignerDialog() {
                     }
                   />
                 </label>
+                {(
+                  [
+                    {
+                      prop: 'roughness',
+                      value: sel.roughness ?? DEFAULT_PART_ROUGHNESS,
+                      min: 0,
+                      max: 1,
+                    },
+                    {
+                      prop: 'metalness',
+                      value: sel.metalness ?? DEFAULT_PART_METALNESS,
+                      min: 0,
+                      max: 1,
+                    },
+                    {
+                      prop: 'emissiveIntensity',
+                      value: sel.emissiveIntensity ?? 0,
+                      min: 0,
+                      max: 3,
+                    },
+                    { prop: 'opacity', value: sel.opacity ?? 1, min: 0.1, max: 1 },
+                  ] as const
+                ).map(({ prop, value, min, max }) => (
+                  <div key={prop} style={{ marginTop: 'var(--s-2)' }}>
+                    <div
+                      className="label"
+                      style={{
+                        fontSize: 'var(--t-2xs)',
+                        color: 'var(--text-3)',
+                        display: 'flex',
+                        justifyContent: 'space-between',
+                      }}
+                    >
+                      <span style={{ textTransform: 'capitalize' }}>
+                        {prop === 'emissiveIntensity' ? 'glow' : prop}
+                      </span>
+                      <span>{value.toFixed(2)}</span>
+                    </div>
+                    <input
+                      type="range"
+                      className="slider"
+                      min={min}
+                      max={max}
+                      step={0.05}
+                      value={value}
+                      aria-label={`${sel.kind} ${prop}`}
+                      onChange={(e) =>
+                        setSpec((sp) => updatePart(sp, sel.id, { [prop]: Number(e.target.value) }))
+                      }
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+                ))}
+                <button
+                  type="button"
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-3)' }}
+                  onClick={() =>
+                    setSpec((sp) => {
+                      const next = mirrorPart(sp, sel.id)
+                      if (next.parts.length > sp.parts.length) {
+                        setSelId(next.parts[next.parts.length - 1]!.id)
+                      }
+                      return next
+                    })
+                  }
+                >
+                  <Icon.Copy width={14} height={14} />
+                  Mirror across centre
+                </button>
               </div>
             ) : null}
 
@@ -442,13 +628,44 @@ export function GlbDesignerDialog() {
                 <option value="wall">Mounts on a wall</option>
                 <option value="floorCovering">Floor covering (rug — never blocks)</option>
               </select>
+              {spec.sourceAssetId ? (
+                <label
+                  className="row"
+                  style={{ cursor: 'pointer', marginBottom: 'var(--s-2)' }}
+                  title="Replace the source asset in place — every piece already placed from it updates to this edit."
+                >
+                  <div
+                    className="rk"
+                    style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
+                  >
+                    <div>Update original</div>
+                    <div
+                      style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}
+                    >
+                      Overwrite the source asset (keeps placed copies)
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={overwrite}
+                    aria-label="Update original"
+                    onClick={() => setOverwrite((v) => !v)}
+                    className={`switch${overwrite ? ' on' : ''}`}
+                  />
+                </label>
+              ) : null}
               <button
                 type="button"
                 className="btn btn-accent btn-block"
                 disabled={!isBuildable(spec) || busy}
                 onClick={save}
               >
-                {busy ? 'Saving…' : 'Save asset'}
+                {busy
+                  ? 'Saving…'
+                  : overwrite && spec.sourceAssetId
+                    ? 'Update original'
+                    : 'Save asset'}
               </button>
             </div>
           </div>
