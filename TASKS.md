@@ -62,7 +62,16 @@ standing themed backlog below + the existing sections further down hold the open
   `layout` legs / single-pedestal / double-pedestal kneehole + mirror none + emitting Hollywood bulbs).
 
 #### Productivity / QOL (match + surpass)
-- [ ] Q-MULTILEVEL. Multi-storey / multi-level plans (maisonette upper floor, landed 2nd storey, condo loft) — architectural.
+- [~] Q-MULTILEVEL / F13. Multi-storey plans — **design accepted**: see
+  `docs/research/multi-level-design.md` (additive `upperLevels` + `FurnitureItem.levelId` +
+  pure `floorplan/levels.ts` resolution layer). Build phases ML1–ML7 below, one commit each:
+  - [ ] ML1 types+schema round-trip + `levels.ts` helpers + tests
+  - [ ] ML2 PlanShell stacked rendering + level-visibility View control
+  - [ ] ML3 furniture/drag/placement level-awareness
+  - [ ] ML4 2D editor level tabs + add/remove level
+  - [ ] ML5 room editor/finishes/score/report per level
+  - [ ] ML6 stair-connectivity advisory + walk teleport + real maisonette/loft templates
+  - [ ] ML7 docs sweep
 - [x] Q-CEILING / F12. Ceiling design — per-room tray/coffered/dropped + cove glow (C203/C204,
   `apartment/ceiling/`, `ceilingDesign` flag). Real-GPU walk-mode appearance pass still TODO.
 - [x] Q-COPYSTYLE. Copy-style / paste-appearance between items + bulk recolour by category (C198, F17).
@@ -183,7 +192,7 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [x] F12 [PROD] Ceiling design — tray/coffered/dropped + cove glow per room (C203/C204, see Q-CEILING).
 
 **Productivity/QOL:**
-- [ ] F13 [PROD] Multi-floor / multi-storey levels (schema+camera+stairs) — unblocks existing templates. V:L E:L.
+- [~] F13 [PROD] Multi-floor levels — designed; phased as ML1–ML7 under Q-MULTILEVEL above. V:L E:L.
 - [x] F14 [PROD] Save selection as a custom Set — `userSetsSlice` (centroid-relative capture, localStorage)
   + `dropUserSet`; "My sets" in Arrange menu (desktop + mobile), `userSets` flag (C200).
 - [x] F15 (C169) [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
