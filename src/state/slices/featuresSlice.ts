@@ -52,6 +52,8 @@ export interface FeaturesSlice {
   shareOpen: boolean
   /** Clearance & fit checks panel visibility. */
   clearancePanelOpen: boolean
+  /** Wall-elevations panel visibility. */
+  elevationsOpen: boolean
   /** Versions (save / restore / compare) panel visibility. */
   versionsOpen: boolean
   /** Undo/redo history (timeline + jump-to-step) panel visibility. */
@@ -90,6 +92,7 @@ export interface FeaturesSlice {
   setSwapItemId: (id: string | null) => void
   setShareOpen: (open: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
+  setElevationsOpen: (open: boolean) => void
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
@@ -113,6 +116,7 @@ export const FEATURES_INITIAL = {
   swapItemId: null as string | null,
   shareOpen: false,
   clearancePanelOpen: false,
+  elevationsOpen: false,
   versionsOpen: false,
   historyOpen: false,
   smartStartOpen: false,
@@ -152,6 +156,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setSwapItemId: (swapItemId) => set({ swapItemId }),
   setShareOpen: (shareOpen) => set({ shareOpen }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
+  setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),

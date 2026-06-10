@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C131] EL2b — Elevations panel (Tools → Elevations)
+Wired wall elevations into the app: a new `ElevationPanel` (`.aux` panel, so it docks top-centre on
+desktop + becomes a full-width bottom sheet on mobile for free) with a wall picker + theme-token SVG;
+`elevationsOpen` state (featuresSlice, in the mutually-exclusive aux group) + a Tools-menu "Elevations"
+entry. Verified on desktop + mobile: Wall 1 of the default flat correctly draws its 3 windows + the
+Queen/Single/Double bed silhouettes at their real positions/heights. 1160 tests green.
+
 ## [C130] EL2a — wall-elevation SVG renderer
 Pure, palette-parameterised `elevationSvg(el, {palette})` (`src/ui/elevation/elevationSvg.ts`): draws a
 `WallElevation` to a standalone SVG string in world metres (floor at the bottom) — wall panel + floor

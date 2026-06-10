@@ -29,8 +29,7 @@ cabinet/fixture/backsplash heights + openings; used for permits, installers, cli
 **Fully verifiable here** (pure 2D geometry → SVG; unit-testable + screenshottable; no GPU).
 Plan-wall-based so default + custom plans work uniformly. Phases (each its own commit):
 - [x] EL1. Pure `src/elevation/projectElevation.ts` + 9 tests — shipped C129. ← EL2 NEXT
-- [ ] EL2. **`ElevationSvg` renderer + Elevations panel** (Tools): pick a wall/room, draw wall rect +
-  openings + furniture silhouettes (token colours, theme-aware). Screenshot-verified.
+- [x] EL2. SVG renderer (C130) + Elevations panel in Tools (C131) — verified desktop + mobile. ← EL3 NEXT
 - [ ] EL3. **Dimensions** — wall width/height, opening sill/head, item widths. Screenshot-verified.
 - [ ] EL4. **Report integration** — an Elevations section in the printable report. HTML-content tested.
 - [ ] EL5. Mobile responsiveness + section/depth detail polish.

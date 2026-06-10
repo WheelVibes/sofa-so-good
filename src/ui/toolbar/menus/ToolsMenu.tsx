@@ -12,6 +12,7 @@ import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 export function ToolsMenu() {
   const budgetOpen = useStore((s) => s.budgetOpen)
   const clearancePanelOpen = useStore((s) => s.clearancePanelOpen)
+  const elevationsOpen = useStore((s) => s.elevationsOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
   const historyOpen = useStore((s) => s.historyOpen)
@@ -25,6 +26,7 @@ export function ToolsMenu() {
     const s = useStore.getState()
     if (s.budgetOpen) s.toggleBudget()
     s.setClearancePanelOpen(false)
+    s.setElevationsOpen(false)
     s.setVersionsOpen(false)
     s.setHistoryOpen(false)
   }
@@ -39,6 +41,11 @@ export function ToolsMenu() {
     closeAux()
     s.setClearancePanelOpen(next)
     if (next && !s.clearanceOn) s.toggleClearance()
+  }
+  const toggleElevations = () => {
+    const wasOpen = useStore.getState().elevationsOpen
+    closeAux()
+    useStore.getState().setElevationsOpen(!wasOpen)
   }
   const openVersions = () => {
     const wasOpen = useStore.getState().versionsOpen
@@ -71,6 +78,7 @@ export function ToolsMenu() {
   const anyActive =
     budgetOpen ||
     clearancePanelOpen ||
+    elevationsOpen ||
     touring ||
     recording ||
     sunStudy ||
@@ -123,6 +131,13 @@ export function ToolsMenu() {
           onClick={toggleChecks}
         />
       )}
+      <MenuItem
+        icon="FloorPlan"
+        label="Elevations"
+        sub="Side-on wall drawings (cabinet/fixture heights)"
+        active={elevationsOpen}
+        onClick={toggleElevations}
+      />
       {fMeasure && (
         <MenuItem
           icon="Measure"

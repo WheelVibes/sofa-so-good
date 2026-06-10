@@ -165,6 +165,9 @@ same change that reshapes a system.
   (`catalog/remote/providers/`): Poly Haven (CORS, prod) + ambientCG (proxy, dev), gated
   by `activeProviderIds`/`PROD_PROVIDER_IDS`. Add a source: poly-pizza-style client
   reusing `buildEntry`/`commit`, a `RemoteProvider`, or a `'manual'` entry.
+- **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
+  the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
+  shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design and `findWallClips(items,defs,walls)` flags pieces

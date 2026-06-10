@@ -45,6 +45,16 @@ issue with fix hints; clicking a card selects and frames the offending piece
 (both pieces, for an overlap). Stacked items (a mattress on its frame, decor on
 a surface), rugs, and wall‑mounted items are never flagged.
 
+## Wall elevations
+
+**Elevations** (Tools menu) draws each wall "side‑on" — the vertical counterpart
+to the floor plan. Pick a wall to see a scaled drawing of it: the wall rectangle
+(width × height), its windows (pane + mullions) and doors, and the furniture
+standing against that wall as labelled silhouettes at their real positions and
+heights. It's the view kitchen/bath designers and installers use for cabinet,
+fixture and backsplash heights — and a clear way to show a client what a wall
+will look like. Works on desktop and as a mobile sheet.
+
 ## Measure
 
 **Measure** (Tools menu) turns on a tape measure: click two points on the floor

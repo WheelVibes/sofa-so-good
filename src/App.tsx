@@ -35,6 +35,7 @@ import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
 import { usePlacementController } from './ui/catalog/usePlacementController'
 import { DoorPrompt } from './ui/DoorPrompt'
 import { DragHud } from './ui/DragHud'
+import { ElevationPanel } from './ui/ElevationPanel'
 import { EmptyRoomHint } from './ui/EmptyRoomHint'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
@@ -772,6 +773,7 @@ export default function App() {
         <SwapModal />
         <ShareModal />
         <ClearancePanel />
+        <ElevationPanel />
         <VersionsPanel />
         <HistoryPanel />
         <SmartStartWizard />
