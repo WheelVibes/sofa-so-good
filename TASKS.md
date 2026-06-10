@@ -61,7 +61,7 @@ standing themed backlog below + the existing sections further down hold the open
 #### Productivity / QOL (match + surpass)
 - [ ] Q-MULTILEVEL. Multi-storey / multi-level plans (maisonette upper floor, landed 2nd storey, condo loft) — architectural.
 - [ ] Q-CEILING. Ceiling design (cove/false ceiling, pendant zones) — RCP-adjacent.
-- [ ] Q-COPYSTYLE. Copy-style / paste-appearance between items; bulk recolour by category.
+- [x] Q-COPYSTYLE. Copy-style / paste-appearance between items + bulk recolour by category (C198, F17).
 - [x] Q-MOODBOARD (C175). Moodboard / style board export from the design (decor + palette).
 - [ ] Q-3DEXPORT. Whole-scene glTF/GLB + USDZ (AR) export (deferred — needs worker-streamed export; verify on real GPU).
 
@@ -154,7 +154,8 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F14 [PROD] Save selection as a custom Set (user-authored sets). V:M E:S.
 - [x] F15 (C169) [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
 - [x] F16 [PROD] Magic suggestions — per-room "what to add" hints in Design Score (C190, `suggestions` flag).
-- [ ] F17 [PROD] Finish eyedropper + whole-room style copy. V:S E:S.
+- [x] F17 [PROD] Copy/paste appearance (look-only transfer) + recolour-by-category (C198,
+  `furniture/appearanceProps.ts` + `state/slices/styleClipboardSlice.ts`, inspector buttons, `copyAppearance` flag).
 - [x] F18 [PROD] Standard mount-height presets — one-tap chips under the `mountHeight` slider (C197,
   `furniture/mountHeightPresets.ts` + inspector `MountHeightPresets`, `mountHeights` flag).
 

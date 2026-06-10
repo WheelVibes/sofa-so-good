@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C198] Copy/paste appearance + recolour-by-category (F17 / Q-COPYSTYLE)
+Look-only style transfer between pieces: "Copy appearance" captures an item's finish/colour/material/variant
+(not its size or position), then "Paste appearance" applies it to the selection — keeping only the dims each
+target understands, so a walnut finish jumps cleanly between differently-sized pieces. "Recolour category (N)"
+applies one item's look to every other item in its category. Pure `furniture/appearanceProps.ts`
+(`appearanceKeys`/`extractAppearance`/`mergeAppearance`, 5 tests) + an ephemeral `styleClipboardSlice`
+(`copyAppearance`/`pasteAppearanceTo`/`applyAppearanceToCategory`, 4 tests, history-pushed, skips locked).
+Inspector buttons on both the single-item and multi-select panels. Behind the `copyAppearance` flag.
+
 ## [C197] Standard mount-height presets (F18)
 A "Standard heights" chip row under a mounted item's `mountHeight` slider in the inspector — designer
 conventions (gallery picture-centre 1.45 m, TV seated-eye 1.1 m, pendant-over-table 1.5 m, sconce 1.65 m,
