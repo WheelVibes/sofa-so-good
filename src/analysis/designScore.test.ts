@@ -93,6 +93,10 @@ describe('buildDesignScore', () => {
     expect(
       clearance.issues.some((i) => i.severity === 'critical' && /overlap/i.test(i.message)),
     ).toBe(true)
+    // The overlapping pair is exposed as offenders for click-to-select.
+    expect(new Set(clearance.offenders)).toEqual(new Set([a.id, b.id]))
+    // Room-level categories carry no item offenders.
+    expect(score.categories.find((c) => c.id === 'daylight')!.offenders).toHaveLength(0)
   })
 
   it('credits a room with a light fixture and flags a dark one', () => {

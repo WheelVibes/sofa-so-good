@@ -48,6 +48,21 @@ export function DesignScorePanel() {
     return buildDesignScore(items, merged, plan, { walls })
   }, [open, items, plan, doors, catalogInputs])
 
+  // Select + frame the items behind a category's issues (clearance / circulation).
+  const selectOffenders = (ids: string[]) => {
+    if (ids.length === 0) return
+    const s = useStore.getState()
+    s.setSelectedItemIds(ids)
+    const pts = ids
+      .map((id) => items.find((it) => it.id === id)?.position)
+      .filter((p): p is [number, number] => Array.isArray(p))
+    if (pts.length > 0) {
+      const cx = pts.reduce((a, p) => a + p[0], 0) / pts.length
+      const cz = pts.reduce((a, p) => a + p[1], 0) / pts.length
+      s.focusOn([cx, cz])
+    }
+  }
+
   if (!open || !score) return null
 
   const dialColor = gradeColor(score.grade)
@@ -120,66 +135,82 @@ export function DesignScorePanel() {
           </div>
         </div>
 
-        {/* Per-category breakdown */}
+        {/* Per-category breakdown. Categories with offending items are clickable
+            → select + frame them so the user can jump straight to the fix. */}
         <div className="clr-list">
-          {score.categories.map((cat) => (
-            <div
-              key={cat.id}
-              className="clr-item"
-              style={{ borderLeftColor: cat.score >= 80 ? 'var(--accent)' : 'var(--err, #d9534f)' }}
-            >
-              <div
-                className="ci-head"
-                style={{ justifyContent: 'space-between', alignItems: 'baseline' }}
-              >
-                <span className="ci-title">{cat.label}</span>
-                <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
-                  {cat.score}
-                </span>
-              </div>
-              {/* score bar */}
-              <div
-                style={{
-                  height: 5,
-                  borderRadius: 3,
-                  margin: '5px 0',
-                  background: 'var(--surface-2, rgba(127,127,127,0.18))',
-                  overflow: 'hidden',
-                }}
-              >
+          {score.categories.map((cat) => {
+            const fill = cat.score >= 80 ? 'var(--accent)' : 'var(--err, #d9534f)'
+            const clickable = cat.offenders.length > 0
+            const body = (
+              <>
+                <div
+                  className="ci-head"
+                  style={{ justifyContent: 'space-between', alignItems: 'baseline' }}
+                >
+                  <span className="ci-title">{cat.label}</span>
+                  <span style={{ fontVariantNumeric: 'tabular-nums', fontWeight: 600 }}>
+                    {cat.score}
+                  </span>
+                </div>
                 <div
                   style={{
-                    width: `${cat.score}%`,
-                    height: '100%',
-                    background: cat.score >= 80 ? 'var(--accent)' : 'var(--err, #d9534f)',
+                    height: 5,
+                    borderRadius: 3,
+                    margin: '5px 0',
+                    background: 'var(--surface-2, rgba(127,127,127,0.18))',
+                    overflow: 'hidden',
                   }}
-                />
+                >
+                  <div style={{ width: `${cat.score}%`, height: '100%', background: fill }} />
+                </div>
+                <div className="ci-detail">
+                  {cat.issues.map((iss, i) => (
+                    <div
+                      key={`${cat.id}-${i}`}
+                      style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'flex-start' }}
+                    >
+                      <span
+                        aria-hidden
+                        style={{
+                          flex: '0 0 auto',
+                          width: 6,
+                          height: 6,
+                          borderRadius: '50%',
+                          marginTop: 6,
+                          background: severityColor(iss.severity),
+                        }}
+                      />
+                      <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-2)' }}>
+                        {iss.message}
+                      </span>
+                    </div>
+                  ))}
+                  {clickable && (
+                    <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--accent)', marginTop: 4 }}>
+                      → Select {cat.offenders.length} affected{' '}
+                      {cat.offenders.length === 1 ? 'item' : 'items'}
+                    </div>
+                  )}
+                </div>
+              </>
+            )
+            return clickable ? (
+              <button
+                type="button"
+                key={cat.id}
+                className="clr-item"
+                style={{ borderLeftColor: fill, cursor: 'pointer' }}
+                title={`Select the ${cat.offenders.length} affected ${cat.offenders.length === 1 ? 'item' : 'items'}`}
+                onClick={() => selectOffenders(cat.offenders)}
+              >
+                {body}
+              </button>
+            ) : (
+              <div key={cat.id} className="clr-item" style={{ borderLeftColor: fill }}>
+                {body}
               </div>
-              <div className="ci-detail">
-                {cat.issues.map((iss, i) => (
-                  <div
-                    key={`${cat.id}-${i}`}
-                    style={{ display: 'flex', gap: 'var(--s-2)', alignItems: 'flex-start' }}
-                  >
-                    <span
-                      aria-hidden
-                      style={{
-                        flex: '0 0 auto',
-                        width: 6,
-                        height: 6,
-                        borderRadius: '50%',
-                        marginTop: 6,
-                        background: severityColor(iss.severity),
-                      }}
-                    />
-                    <span style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-2)' }}>
-                      {iss.message}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          ))}
+            )
+          })}
         </div>
       </div>
     </aside>

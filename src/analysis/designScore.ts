@@ -39,6 +39,9 @@ export interface ScoreCategory {
   /** Relative weight in the overall score (sums to 1 across categories). */
   weight: number
   issues: ScoreIssue[]
+  /** Item ids contributing to this category's issues (for click-to-select in
+   *  the panel). Empty for room-level categories (daylight/furnishing/lighting). */
+  offenders: string[]
 }
 
 export type Grade = 'A' | 'B' | 'C' | 'D' | 'F'
@@ -153,12 +156,14 @@ function clearanceCategory(
     })
   if (issues.length === 0)
     issues.push({ severity: 'info', message: 'No overlaps, wall clips, or blocked doors.' })
+  const offenders = [...new Set([...overlaps.flatMap((o) => [o.a, o.b]), ...clips, ...blocked])]
   return {
     id: 'clearance',
     label: 'Clearance & fit',
     score: clamp(100 - penalty),
     weight: WEIGHTS.clearance,
     issues,
+    offenders,
   }
 }
 
@@ -184,12 +189,15 @@ function circulationCategory(
     })
   if (issues.length === 0)
     issues.push({ severity: 'info', message: 'Walkways are comfortably wide.' })
+  // Item ids on either side of a pinch (skip the wall pseudo-ids in `g.b`).
+  const offenders = [...new Set(gaps.flatMap((g) => (g.wall ? [g.a] : [g.a, g.b])))]
   return {
     id: 'circulation',
     label: 'Circulation',
     score: clamp(100 - penalty),
     weight: WEIGHTS.circulation,
     issues,
+    offenders,
   }
 }
 
@@ -202,6 +210,7 @@ function daylightCategory(plan: FloorPlan): ScoreCategory {
       score: 100,
       weight: WEIGHTS.daylight,
       issues: [{ severity: 'info', message: 'No wall data to assess daylight.' }],
+      offenders: [],
     }
   }
   const report = buildDaylightReport(plan)
@@ -223,7 +232,14 @@ function daylightCategory(plan: FloorPlan): ScoreCategory {
     else
       issues.push({ severity: 'info', message: 'Every room meets the daylight & airflow guide.' })
   }
-  return { id: 'daylight', label: 'Daylight & airflow', score, weight: WEIGHTS.daylight, issues }
+  return {
+    id: 'daylight',
+    label: 'Daylight & airflow',
+    score,
+    weight: WEIGHTS.daylight,
+    issues,
+    offenders: [],
+  }
 }
 
 function furnishingCategory(
@@ -280,6 +296,7 @@ function furnishingCategory(
     score,
     weight: WEIGHTS.furnishing,
     issues,
+    offenders: [],
   }
 }
 
@@ -297,6 +314,7 @@ function lightingCategory(
       score: 100,
       weight: WEIGHTS.lighting,
       issues,
+      offenders: [],
     }
   }
   // A room is "lit" if it contains at least one light-emitting fixture.
@@ -319,7 +337,14 @@ function lightingCategory(
       } — add a lamp or ceiling light.`,
     })
   else issues.push({ severity: 'info', message: 'Every room has a light fixture.' })
-  return { id: 'lighting', label: 'Lighting coverage', score, weight: WEIGHTS.lighting, issues }
+  return {
+    id: 'lighting',
+    label: 'Lighting coverage',
+    score,
+    weight: WEIGHTS.lighting,
+    issues,
+    offenders: [],
+  }
 }
 
 function plural(n: number, word: string): string {
