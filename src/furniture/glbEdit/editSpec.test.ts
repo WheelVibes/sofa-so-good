@@ -4,6 +4,7 @@ import {
   createEmptySpec,
   duplicatePart,
   isBuildable,
+  mirrorPart,
   removePart,
   setMeshOverride,
   updatePart,
@@ -92,5 +93,25 @@ describe('setMeshOverride', () => {
   it('duplicatePart is a no-op for an unknown id', () => {
     const s = addPart(createEmptySpec(), 'box')
     expect(duplicatePart(s, 'nope')).toBe(s)
+  })
+
+  it('mirrorPart clones across the X centre with Y/Z rotation negated', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    const id = s.parts[0]!.id
+    s = updatePart(s, id, { position: [0.4, 0.2, 0.1], rotation: [10, 30, 45] })
+    s = mirrorPart(s, id)
+    expect(s.parts).toHaveLength(2)
+    const m = s.parts[1]!
+    expect(m.id).not.toBe(id)
+    expect(m.position).toEqual([-0.4, 0.2, 0.1])
+    expect(m.rotation).toEqual([10, -30, -45])
+    // Deep-copied tuples (mutating the mirror doesn't touch the source).
+    m.position[1] = 9
+    expect(s.parts[0]!.position[1]).toBe(0.2)
+  })
+
+  it('mirrorPart is a no-op for an unknown id', () => {
+    const s = addPart(createEmptySpec(), 'box')
+    expect(mirrorPart(s, 'nope')).toBe(s)
   })
 })

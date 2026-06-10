@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C125] GE7 — mirror a part across the centre in the GLB designer
+Added `mirrorPart` + a "Mirror across centre" button (part Edit panel): clones the selected shape to
+the opposite X with its Y/Z rotations negated, so a symmetric pair (chair arms, table legs, sofa
+sides) is one click. Unit-tested (position/rotation negation + deep-copied tuples + unknown-id
+no-op); verified the button renders in the editor. Pairs with C122's duplicate for fast builds.
+
 ## [C124] GE1b — wedge (ramp) primitive in the GLB designer
 Added an 8th primitive, **wedge** (a right-triangular prism / ramp — angled supports, roof slopes,
 door stops). Built via `ExtrudeGeometry` of a triangle so three derives correct winding + normals,

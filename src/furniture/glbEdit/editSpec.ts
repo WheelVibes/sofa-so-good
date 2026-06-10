@@ -168,6 +168,25 @@ export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
   return { ...spec, parts: [...spec.parts, copy] }
 }
 
+/** Clone a part mirrored across the asset's centre (the X=0 / YZ plane): the
+ *  copy sits at the opposite X with its Y/Z rotations negated, so a symmetric
+ *  pair (chair arms, table legs, sofa sides) is one click. Geometry isn't
+ *  negatively scaled, so symmetric primitives mirror exactly and an asymmetric
+ *  one (wedge) mirrors its placement but keeps its own handedness. No-op for an
+ *  unknown id. */
+export function mirrorPart(spec: AssetEditSpec, id: string): AssetEditSpec {
+  const src = spec.parts.find((p) => p.id === id)
+  if (!src) return spec
+  const copy: ShapePart = {
+    ...src,
+    id: shapeId(),
+    position: [-src.position[0], src.position[1], src.position[2]],
+    size: [...src.size],
+    rotation: src.rotation ? [src.rotation[0], -src.rotation[1], -src.rotation[2]] : undefined,
+  }
+  return { ...spec, parts: [...spec.parts, copy] }
+}
+
 export function updatePart(
   spec: AssetEditSpec,
   id: string,

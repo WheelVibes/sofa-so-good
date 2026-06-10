@@ -12,6 +12,7 @@ import {
   DEFAULT_PART_ROUGHNESS,
   duplicatePart,
   isBuildable,
+  mirrorPart,
   removePart,
   SHAPE_KINDS,
   SHAPE_LABEL,
@@ -539,6 +540,23 @@ export function GlbDesignerDialog() {
                     />
                   </div>
                 ))}
+                <button
+                  type="button"
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-3)' }}
+                  onClick={() =>
+                    setSpec((sp) => {
+                      const next = mirrorPart(sp, sel.id)
+                      if (next.parts.length > sp.parts.length) {
+                        setSelId(next.parts[next.parts.length - 1]!.id)
+                      }
+                      return next
+                    })
+                  }
+                >
+                  <Icon.Copy width={14} height={14} />
+                  Mirror across centre
+                </button>
               </div>
             ) : null}
 
