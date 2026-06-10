@@ -17,6 +17,7 @@ import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
 import { openDesignReport } from './openReport'
+import { pickPaletteFromPhoto } from './paletteFromPhoto'
 import { Icon, type IconName } from './toolbar/icons'
 
 /** ⌘K command id → the feature flag that gates it (so a disabled feature can't
@@ -183,6 +184,13 @@ export function CommandPalette() {
         label: 'Share & export',
         icon: 'Share',
         run: () => s().setShareOpen(true),
+      },
+      {
+        id: 'palette-from-photo',
+        group: 'Tools & panels',
+        label: 'Palette from photo',
+        icon: 'Palette',
+        run: () => pickPaletteFromPhoto(),
       },
       {
         id: 'report',
