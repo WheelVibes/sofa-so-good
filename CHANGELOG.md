@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C200] Save selection as a custom set (F14)
+Users can capture the current selection as a reusable, named furniture set — the new `userSetsSlice` stores
+each piece as a centroid-relative offset (+ rotation + props) in localStorage, and `dropUserSet` drops it at
+the largest room's centre as a selected group (the same path built-in sets use). A "My sets" section in the
+Arrange menu (desktop) and the mobile Arrange sheet lets you save, drop and delete. Pure `captureSetItems`
++ slice tests. Behind the `userSets` flag.
+
 ## [C199] Vision-AI endpoint safety (S2)
 The BYO-key floor-plan vision call now classifies its (user-configurable) endpoint before sending:
 `classifyVisionEndpoint` refuses to POST the bearer key over plaintext HTTP to a remote host (it would leak

@@ -151,7 +151,8 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 
 **Productivity/QOL:**
 - [ ] F13 [PROD] Multi-floor / multi-storey levels (schema+camera+stairs) — unblocks existing templates. V:L E:L.
-- [ ] F14 [PROD] Save selection as a custom Set (user-authored sets). V:M E:S.
+- [x] F14 [PROD] Save selection as a custom Set — `userSetsSlice` (centroid-relative capture, localStorage)
+  + `dropUserSet`; "My sets" in Arrange menu (desktop + mobile), `userSets` flag (C200).
 - [x] F15 (C169) [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
 - [x] F16 [PROD] Magic suggestions — per-room "what to add" hints in Design Score (C190, `suggestions` flag).
 - [x] F17 [PROD] Copy/paste appearance (look-only transfer) + recolour-by-category (C198,
