@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
-import { dropBuiltinSet, dropIkeaSet } from '../../../furniture/arrangeActions'
+import { dropBuiltinSet, dropIkeaSet, dropUserSet } from '../../../furniture/arrangeActions'
 import { FURNITURE_SETS } from '../../../furniture/furnitureSets'
 import { ikeaSetRecipes } from '../../../furniture/ikeaSets'
 import { LAYOUT_PRESETS } from '../../../furniture/layoutPresets'
@@ -23,8 +23,13 @@ export function ArrangeMenu() {
   const saveCurrentStyle = useStore((s) => s.saveCurrentStyle)
   const applyUserStyle = useStore((s) => s.applyUserStyle)
   const deleteUserStyle = useStore((s) => s.deleteUserStyle)
+  const userSets = useStore((s) => s.userSets)
+  const saveSelectionAsSet = useStore((s) => s.saveSelectionAsSet)
+  const deleteUserSet = useStore((s) => s.deleteUserSet)
+  const selectionCount = useStore((s) => s.selectedItemIds.length)
   const recipes = ikeaSetRecipes()
   const fSmartStart = useFeature('smartStart')
+  const fUserSets = useFeature('userSets')
 
   const setOptions = [
     ...FURNITURE_SETS.map((s) => ({ id: `b:${s.id}`, name: s.name })),
@@ -60,6 +65,72 @@ export function ArrangeMenu() {
           applyLabel="Drop"
           onApply={applySet}
         />
+
+        {fUserSets && (
+          <>
+            <Header>My sets</Header>
+            <Action
+              icon="Sets"
+              label="Save selection as set…"
+              sub={
+                selectionCount > 0
+                  ? `Capture ${selectionCount} selected ${selectionCount === 1 ? 'item' : 'items'}`
+                  : 'Select items first, then save'
+              }
+              onClick={async () => {
+                if (selectionCount === 0) {
+                  useStore.getState().notify.start({
+                    title: 'Select items to save as a set',
+                    kind: 'info',
+                  })
+                  return
+                }
+                const name = await useStore.getState().promptText({
+                  title: 'Save set',
+                  label: 'Name this set (drop it again from this menu)',
+                  defaultValue: `My set ${userSets.length + 1}`,
+                  submitLabel: 'Save',
+                })
+                if (name && saveSelectionAsSet(name))
+                  useStore.getState().notify.start({ title: `Saved “${name}”`, kind: 'success' })
+              }}
+            />
+            {userSets.length === 0 ? (
+              <div className="px-2 py-1 text-[10px] text-[var(--text-3)]">
+                No saved sets yet — select a few pieces, then save.
+              </div>
+            ) : (
+              userSets.map((u) => (
+                <div
+                  key={u.id}
+                  className="flex items-center gap-1 rounded-md pr-1 hover:bg-[var(--surface-2)]"
+                >
+                  <button
+                    type="button"
+                    role="menuitem"
+                    onClick={() => dropUserSet(u.id)}
+                    title={`Drop “${u.name}” (${u.items.length} items)`}
+                    className="flex flex-1 items-center gap-2.5 rounded-md px-2 py-1.5 text-left"
+                  >
+                    <span className="text-[var(--text-2)]">
+                      <Icon.Sets width={16} height={16} />
+                    </span>
+                    <span className="block flex-1 text-[13px] text-[var(--text)]">{u.name}</span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={`Delete ${u.name}`}
+                    title="Delete set"
+                    onClick={() => deleteUserSet(u.id)}
+                    className="rounded px-1.5 py-1 text-[var(--text-3)] hover:bg-[var(--surface-3)] hover:text-[var(--danger)]"
+                  >
+                    ×
+                  </button>
+                </div>
+              ))
+            )}
+          </>
+        )}
 
         <Header>Apply a preset</Header>
         <PickApply

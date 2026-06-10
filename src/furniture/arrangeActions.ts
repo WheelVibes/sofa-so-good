@@ -50,6 +50,24 @@ export function dropBuiltinSet(setId: string) {
   )
 }
 
+/** Drop a user-authored set (saved from a selection) at the centre of the
+ *  largest room — same placement path as a built-in set. */
+export function dropUserSet(setId: string) {
+  const st = useStore.getState()
+  const set = st.userSets.find((s) => s.id === setId)
+  if (!set) return
+  const [bx, bz] = dropCentre()
+  dropArranged(
+    set.items.map((e) => ({
+      id: newSetItemId(),
+      defId: e.defId,
+      position: [bx + e.dx, bz + e.dz] as [number, number],
+      rotation: e.rotation,
+      props: e.props ?? {},
+    })),
+  )
+}
+
 /** Drop an imported IKEA set recipe at the centre of the largest room. */
 export function dropIkeaSet(setKey: string) {
   const recipe = ikeaSetRecipes().find((r) => r.setKey === setKey)

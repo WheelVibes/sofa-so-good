@@ -84,6 +84,7 @@ import {
   USER_ASSETS_INITIAL,
   type UserAssetsSlice,
 } from './slices/userAssetsSlice'
+import { createUserSetsSlice, USER_SETS_INITIAL, type UserSetsSlice } from './slices/userSetsSlice'
 import {
   createUserStylesSlice,
   USER_STYLES_INITIAL,
@@ -119,6 +120,7 @@ export interface RootState
     AppearanceSlice,
     FeaturesSlice,
     StyleClipboardSlice,
+    UserSetsSlice,
     UserStylesSlice,
     RecentSlice,
     CameraViewsSlice,
@@ -158,6 +160,7 @@ const INITIAL = {
   ...PROMPT_INITIAL,
   ...PROJECT_INITIAL,
   ...STYLE_CLIPBOARD_INITIAL,
+  ...USER_SETS_INITIAL,
 }
 
 export const useStore = create<RootState>((set, get, api) => ({
@@ -191,5 +194,6 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createPromptSlice(set, get, api),
   ...createProjectSlice(set, get, api),
   ...createStyleClipboardSlice(set, get, api),
+  ...createUserSetsSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))

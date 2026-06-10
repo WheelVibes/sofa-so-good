@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
-import { dropBuiltinSet, dropIkeaSet } from '../../furniture/arrangeActions'
+import { dropBuiltinSet, dropIkeaSet, dropUserSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { FURNITURE_SETS } from '../../furniture/furnitureSets'
 import { ikeaSetRecipes } from '../../furniture/ikeaSets'
@@ -189,6 +189,8 @@ export function MobileToolbar() {
   const fDaylight = useFeature('daylight')
   const fDesignScore = useFeature('designScore')
   const fAccessibility = useFeature('accessibility')
+  const fUserSets = useFeature('userSets')
+  const userSets = useStore((st) => st.userSets)
 
   const close = () => setMenuOpen(false)
   // Most actions dismiss the sheet; pass {keep:true} for in-place toggles.
@@ -635,6 +637,40 @@ export function MobileToolbar() {
                         onClick={act(() => dropIkeaSet(r.setKey))}
                       />
                     ))}
+                    {fUserSets ? (
+                      <>
+                        <div className="m-sub-h">My sets</div>
+                        <Item
+                          icon="Sets"
+                          label="Save selection as set…"
+                          onClick={act(async () => {
+                            if (s.getState().selectedItemIds.length === 0) {
+                              s.getState().notify.start({
+                                title: 'Select items to save as a set',
+                                kind: 'info',
+                              })
+                              return
+                            }
+                            const name = await s.getState().promptText({
+                              title: 'Save set',
+                              label: 'Name this set',
+                              defaultValue: `My set ${userSets.length + 1}`,
+                              submitLabel: 'Save',
+                            })
+                            if (name) s.getState().saveSelectionAsSet(name)
+                          })}
+                        />
+                        {userSets.map((u) => (
+                          <Item
+                            key={u.id}
+                            icon="Sets"
+                            label={u.name}
+                            sub={`${u.items.length} items`}
+                            onClick={act(() => dropUserSet(u.id))}
+                          />
+                        ))}
+                      </>
+                    ) : null}
                     <div className="m-sub-h">Presets</div>
                     {LAYOUT_PRESETS.map((p) => (
                       <Item

@@ -49,6 +49,7 @@ export type FeatureFlag =
   | 'electricalPlan'
   | 'mountHeights'
   | 'copyAppearance'
+  | 'userSets'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -188,6 +189,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   copyAppearance: {
     label: 'Copy appearance',
     description: 'Copy/paste finish between items + recolour a category',
+    default: true,
+  },
+  userSets: {
+    label: 'My sets',
+    description: 'Save a selection as a reusable furniture set',
     default: true,
   },
 }
