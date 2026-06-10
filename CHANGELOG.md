@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C202] Curated "Designer picks" finishes (C-MAT)
+A one-tap "Designer picks" swatch row above the floor + wall grids in the finish picker — the handful of
+finishes designers reach for most (oak/walnut/parquet/marble for floors; warm-white/greige/sage/navy/fluted-
+oak/microcement for walls). Pure `materials/designerPicks.ts` resolves curated ids against the live catalog
+(missing ids silently skipped, 3 tests). Behind the `designerPicks` flag.
+
 ## [C201] Flag-gating consistency for the devOnly sidecar features
 Closed the last two gaps in feature-flag coverage: the Budget panel's "Live IKEA SG prices" toggle and the
 PacksTab IKEA live-scrape card now gate through `useFeature('livePrices')` / `useFeature('ikeaLive')` instead

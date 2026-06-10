@@ -54,7 +54,8 @@ standing themed backlog below + the existing sections further down hold the open
 - [ ] R-DAYNIGHT. One-click day/golden-hour/night lighting presets (quick mood switch competitors have).
 
 #### Content & catalog (variety — surpass-the-market)
-- [ ] C-MAT. Curated "designer materials" shortlist (oak/walnut/teak/marble/brass…) as one-tap finishes (TODO follow-up).
+- [x] C-MAT. Curated "Designer picks" one-tap floor/wall finishes row in the finish picker (C202,
+  `materials/designerPicks.ts`, `designerPicks` flag).
 - [ ] C-PLANTS/DECOR. More CC0 decor/plants/art variety; ensure category coverage is exhaustive.
 - [ ] C-WARDROBE. Wardrobe/closet + vanity configurators (parametric, like the cabinet engine) — kitchen done, extend.
 
