@@ -39,7 +39,8 @@ weakly under the headless **software-GL** harness — tone curve / vignette / gr
 ## ⭐ MAJOR: GLB editor pro tooling (user-requested 2026-06-10) — phased, each its own commit
 Today (`GlbDesignerDialog` + `furniture/glbEdit/`): compose-from-shapes, scale-a-source-GLB,
 per-mesh recolour/hide. More verifiable in software-GL than PRx (deterministic geometry/UI).
-- [ ] GE1. **More primitive shapes** (cylinder, sphere, cone, torus, plane, wedge) beyond box.
+- [x] GE1. More primitives — cone/pyramid/capsule/torus shipped C115 (wedge/plane deferred).
+- [ ] GE1b. **Wedge / plane / tube** primitives (need custom or extra geometry).
 - [ ] GE2. **Per-part transform gizmo** (move/rotate/scale) — carried TODO from C47/C48.
 - [ ] GE3. **Per-part PBR material editor** (metalness, roughness, emissive, opacity + texture pick).
 - [ ] GE4. **Save edits back over an existing asset** (vs always-new) — carried TODO.

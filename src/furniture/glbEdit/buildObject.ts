@@ -1,7 +1,9 @@
 import {
   BoxGeometry,
   type BufferGeometry,
+  CapsuleGeometry,
   Color,
+  ConeGeometry,
   CylinderGeometry,
   Group,
   type Material,
@@ -9,6 +11,7 @@ import {
   MeshStandardMaterial,
   type Object3D,
   SphereGeometry,
+  TorusGeometry,
 } from 'three'
 import type { AssetEditSpec, MeshOverride, ShapePart } from './editSpec'
 
@@ -43,12 +46,41 @@ export function applyMeshOverrides(
   })
 }
 
-/** Geometry for one primitive part, sized in metres (footprint-centred). */
-function partGeometry(part: ShapePart): BufferGeometry {
+/** Geometry for one primitive part, sized in metres (footprint-centred).
+ *  `torus` reads size as [outer diameter, tube diameter, _]; `capsule` as
+ *  [diameter, total height, _]; `pyramid` is a 4-sided cone rotated so a flat
+ *  face points +Z (front). Exported so the live designer preview builds the
+ *  exact geometry the export will, with no per-kind drift. */
+export function partGeometry(part: ShapePart): BufferGeometry {
   const [w, h, d] = part.size
-  if (part.kind === 'box') return new BoxGeometry(w, h, d)
-  if (part.kind === 'cylinder') return new CylinderGeometry(w / 2, w / 2, h, 32)
-  return new SphereGeometry(Math.max(w, h, d) / 2, 32, 16)
+  switch (part.kind) {
+    case 'box':
+      return new BoxGeometry(w, h, d)
+    case 'cylinder':
+      return new CylinderGeometry(w / 2, w / 2, h, 32)
+    case 'cone':
+      return new ConeGeometry(w / 2, h, 32)
+    case 'pyramid': {
+      // 4 radial segments = square base; widen so flat-to-flat ≈ w, then turn a
+      // face to the front instead of a corner.
+      const geo = new ConeGeometry(w / Math.SQRT2, h, 4)
+      geo.rotateY(Math.PI / 4)
+      return geo
+    }
+    case 'capsule': {
+      const radius = Math.max(0.01, w / 2)
+      // CapsuleGeometry's `length` excludes the two hemispherical caps.
+      const length = Math.max(0, h - 2 * radius)
+      return new CapsuleGeometry(radius, length, 8, 24)
+    }
+    case 'torus': {
+      const tube = Math.max(0.01, h / 2)
+      const radius = Math.max(tube, w / 2 - tube)
+      return new TorusGeometry(radius, tube, 16, 48)
+    }
+    default:
+      return new SphereGeometry(Math.max(w, h, d) / 2, 32, 16)
+  }
 }
 
 /**

@@ -1,6 +1,7 @@
-import { Group, Mesh, MeshStandardMaterial } from 'three'
+import { BufferGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
 import { describe, expect, it } from 'vitest'
-import { applyMeshOverrides } from './buildObject'
+import { applyMeshOverrides, buildEditedObject, partGeometry } from './buildObject'
+import { addPart, createEmptySpec, defaultPart, SHAPE_KINDS } from './editSpec'
 
 function graph() {
   const g = new Group()
@@ -49,5 +50,32 @@ describe('applyMeshOverrides', () => {
     expect((a.material as MeshStandardMaterial).color.getHexString()).toBe('ff0000')
     expect((b.material as MeshStandardMaterial).color.getHexString()).toBe('00ff00')
     expect(shared.color.getHexString()).toBe('ffffff') // original shared mat intact
+  })
+})
+
+describe('partGeometry — every shape kind builds valid, finite geometry', () => {
+  it.each(SHAPE_KINDS)('builds non-degenerate geometry for %s', (kind) => {
+    const geo = partGeometry(defaultPart(kind))
+    expect(geo).toBeInstanceOf(BufferGeometry)
+    const pos = geo.getAttribute('position')
+    expect(pos.count).toBeGreaterThan(0)
+    // No NaN/Infinity slipped into the vertex buffer (would break export + render).
+    for (let i = 0; i < pos.array.length; i++) expect(Number.isFinite(pos.array[i])).toBe(true)
+    // Has a real bounding box with positive extent.
+    geo.computeBoundingBox()
+    const bb = geo.boundingBox!
+    expect(bb.max.x - bb.min.x).toBeGreaterThan(0)
+    expect(bb.max.y - bb.min.y).toBeGreaterThan(0)
+  })
+
+  it('builds one mesh per part across all kinds (preview == export parity)', () => {
+    let spec = createEmptySpec()
+    for (const kind of SHAPE_KINDS) spec = addPart(spec, kind)
+    const obj = buildEditedObject(null, spec)
+    const meshes: Mesh[] = []
+    obj.traverse((o) => {
+      if (o instanceof Mesh) meshes.push(o)
+    })
+    expect(meshes).toHaveLength(SHAPE_KINDS.length)
   })
 })

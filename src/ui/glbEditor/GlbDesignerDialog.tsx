@@ -3,14 +3,16 @@ import { Canvas } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { Mesh, type Object3D } from 'three'
-import { buildEditedObject } from '../../furniture/glbEdit/buildObject'
+import { buildEditedObject, partGeometry } from '../../furniture/glbEdit/buildObject'
 import {
   type AssetEditSpec,
   addPart,
   createEmptySpec,
   isBuildable,
   removePart,
-  type ShapeKind,
+  SHAPE_KINDS,
+  SHAPE_LABEL,
+  type ShapePart,
   setMeshOverride,
   updatePart,
 } from '../../furniture/glbEdit/editSpec'
@@ -38,29 +40,36 @@ function SourceModel({
   return <primitive object={gltf.scene} scale={scale} />
 }
 
+/** One primitive part, built from the SAME `partGeometry` the export uses (so
+ *  the preview can never drift from the saved GLB). Geometry is memoised on the
+ *  part's kind+size and disposed when it changes/unmounts. */
+function PartMesh({ part }: { part: ShapePart }) {
+  // `part` is recreated immutably by updatePart on every edit, so depending on
+  // it rebuilds the geometry exactly when kind/size change.
+  const geom = useMemo(() => partGeometry(part), [part])
+  useEffect(() => () => geom.dispose(), [geom])
+  return (
+    <mesh position={part.position} castShadow receiveShadow geometry={geom}>
+      <meshStandardMaterial color={part.color} roughness={0.6} metalness={0.05} />
+    </mesh>
+  )
+}
+
 /** The composed primitive parts, rendered declaratively (export uses buildEditedObject). */
 function PartsPreview({ spec }: { spec: AssetEditSpec }) {
   return (
     <>
       {spec.parts.map((p) => (
-        <mesh key={p.id} position={p.position} castShadow receiveShadow>
-          {p.kind === 'box' && <boxGeometry args={p.size} />}
-          {p.kind === 'cylinder' && (
-            <cylinderGeometry args={[p.size[0] / 2, p.size[0] / 2, p.size[1], 32]} />
-          )}
-          {p.kind === 'sphere' && <sphereGeometry args={[Math.max(...p.size) / 2, 32, 16]} />}
-          <meshStandardMaterial color={p.color} roughness={0.6} metalness={0.05} />
-        </mesh>
+        <PartMesh key={p.id} part={p} />
       ))}
     </>
   )
 }
 
-const SHAPES: { kind: ShapeKind; label: string }[] = [
-  { kind: 'box', label: 'Box' },
-  { kind: 'cylinder', label: 'Cylinder' },
-  { kind: 'sphere', label: 'Sphere' },
-]
+const SHAPES: { kind: (typeof SHAPE_KINDS)[number]; label: string }[] = SHAPE_KINDS.map((kind) => ({
+  kind,
+  label: SHAPE_LABEL[kind],
+}))
 
 /**
  * GLB Asset Designer — compose a new asset from primitive shapes and/or start

@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C115] GE1 — GLB designer: cone, pyramid, capsule & torus primitives
+First step of the GLB-editor-pro program. Added four primitive shapes beyond box/cylinder/sphere —
+cone, pyramid (45°-rotated square cone), capsule, torus — driven by a single `SHAPE_KINDS`/
+`SHAPE_LABEL` source of truth in `editSpec.ts` with per-kind default sizes + floor-resting Y.
+`partGeometry` (now exported) builds them and is reused by the live preview so it can't drift from
+the export. Verified all four render correctly + selectable/editable in the designer; unit tests
+assert every kind yields finite, non-degenerate geometry + one mesh per part. Docs updated.
+
 ## [C114] PR1 — selectable tone-mapping "Look" (Filmic / AgX / Neutral)
 First step of the ultra-photorealism program. Made the renderer's view transform user-selectable in
 **Graphics → Look**: Filmic (ACES, the existing default — no regression), AgX (gentler highlights,

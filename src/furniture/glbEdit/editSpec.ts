@@ -8,7 +8,29 @@
  * decisions (bounds, validation, part maths) unit-testable without a GPU.
  */
 
-export type ShapeKind = 'box' | 'cylinder' | 'sphere'
+export type ShapeKind = 'box' | 'cylinder' | 'sphere' | 'cone' | 'torus' | 'capsule' | 'pyramid'
+
+/** All primitive kinds, in palette order. Source of truth for the designer's
+ *  "add shape" controls + the geometry switch in `buildObject.ts`. */
+export const SHAPE_KINDS: ShapeKind[] = [
+  'box',
+  'cylinder',
+  'sphere',
+  'cone',
+  'pyramid',
+  'capsule',
+  'torus',
+]
+
+export const SHAPE_LABEL: Record<ShapeKind, string> = {
+  box: 'Box',
+  cylinder: 'Cylinder',
+  sphere: 'Sphere',
+  cone: 'Cone',
+  pyramid: 'Pyramid',
+  capsule: 'Capsule',
+  torus: 'Torus',
+}
 
 export interface ShapePart {
   id: string
@@ -68,11 +90,25 @@ function shapeId(): string {
   return `shape-${Date.now().toString(36)}-${seq}`
 }
 
-/** Sensible starting dimensions/colour per shape kind (metres). */
+/** Sensible starting dimensions per shape kind (metres). For `torus`, size is
+ *  [outer diameter, tube diameter, _]; `capsule` is [diameter, total height, _]. */
+const DEFAULT_SIZE: Record<ShapeKind, [number, number, number]> = {
+  box: [0.4, 0.4, 0.4],
+  cylinder: [0.3, 0.5, 0.3],
+  sphere: [0.3, 0.3, 0.3],
+  cone: [0.4, 0.5, 0.4],
+  pyramid: [0.5, 0.5, 0.5],
+  capsule: [0.25, 0.6, 0.25],
+  torus: [0.4, 0.12, 0.4],
+}
+
+/** Sensible starting dimensions/colour + floor-resting Y per shape kind. */
 export function defaultPart(kind: ShapeKind): ShapePart {
-  const size: [number, number, number] =
-    kind === 'box' ? [0.4, 0.4, 0.4] : kind === 'cylinder' ? [0.3, 0.5, 0.3] : [0.3, 0.3, 0.3]
-  return { id: shapeId(), kind, position: [0, size[1] / 2, 0], size, color: '#b08d57' }
+  const size = [...DEFAULT_SIZE[kind]] as [number, number, number]
+  // Rest the shape on the floor: a standing torus spans its outer radius in Y
+  // (it lies in the XY plane), everything else spans half its height.
+  const y = kind === 'torus' ? size[0] / 2 : size[1] / 2
+  return { id: shapeId(), kind, position: [0, y, 0], size, color: '#b08d57' }
 }
 
 export function addPart(spec: AssetEditSpec, kind: ShapeKind): AssetEditSpec {
