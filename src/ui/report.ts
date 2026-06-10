@@ -15,6 +15,7 @@ import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/pla
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
+import { dimensionSvg } from '../floorplan/autoDimensionSvg'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
@@ -424,6 +425,16 @@ export function buildReportHtml(
       <div class="foot" style="margin-top:6px">Indicative supply &amp; install only — excludes hacking/disposal, false ceilings, carpentry, M&amp;E and contractor margin.</div>
     </div>`
 
+  // Dimensioned plan — an auto-generated running-dimension drawing (overall wall
+  // lengths + per-room sizes), a pro 2D deliverable competitors auto-produce.
+  const dimSvg =
+    Array.isArray(plan.walls) && plan.walls.length > 0
+      ? dimensionSvg(plan, { palette: { ink: '#374151', faint: '#cbd5e1' }, widthPx: 700 })
+      : ''
+  const dimensionedPlanSection = dimSvg
+    ? `<div class="elev-section"><h2>Dimensioned plan</h2><div class="plan-wrap">${dimSvg}</div></div>`
+    : ''
+
   // Renovation timeline — an estimated phase schedule (hacking → … → handover)
   // scaled by floor area + room count, the way SG IDs present a project plan.
   const timeline = buildRenoTimeline(plan)
@@ -660,6 +671,7 @@ export function buildReportHtml(
   ${designScoreSection}
   ${accessibilitySection}
   ${complianceSection}
+  ${dimensionedPlanSection}
   ${elevationsSection}
   ${lightingSection}
   ${

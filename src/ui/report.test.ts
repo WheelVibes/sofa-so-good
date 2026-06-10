@@ -63,6 +63,12 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/turning circle/)
   })
 
+  it('includes an auto-dimensioned plan drawing', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Dimensioned plan')
+    expect(html).toMatch(/<svg/)
+  })
+
   it('includes a Renovation timeline with phases + an estimated duration', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Renovation timeline')
