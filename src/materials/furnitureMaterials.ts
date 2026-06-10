@@ -344,6 +344,36 @@ function getLeatherNormal(): Texture {
   return leatherNormal
 }
 
+// PR6: leather had a pebble normal but a flat tint — real hide has tonal
+// mottle + faint creases/burnish. A near-white greyscale albedo (so the
+// material colour still tints it) carrying broad mottle + a few darker creases.
+let leatherAlbedo: Texture | null = null
+function getLeatherAlbedo(): Texture {
+  if (leatherAlbedo) return leatherAlbedo
+  const mottle = makeFbm(0x3b9c, 4, 7) // broad hide tone variation
+  const grain = makeFbm(0x1ea7, 4, 18) // align faint shading with the pebble
+  const crease = makeFbm(0x6f22, 3, 4) // long creases / burnish bands
+  const data = new Uint8ClampedArray(N * N * 4)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N
+      const v = y / N
+      // Creases: where the warped sine is near zero → a darker fold line.
+      const cf = Math.sin((u * 1.6 + v * 0.5 + (crease(u, v) - 0.5) * 2.4) * Math.PI * 2.2)
+      const fold = clamp01(1 - Math.abs(cf) * 9) * 0.16
+      const lum = clamp01(0.96 + (mottle(u, v) - 0.5) * 0.14 - (grain(u, v) - 0.5) * 0.06 - fold)
+      const i = (y * N + x) * 4
+      const c = Math.round(lum * 255)
+      data[i] = data[i + 1] = data[i + 2] = c
+      data[i + 3] = 255
+    }
+  }
+  const t = canvasFrom(data)
+  t.colorSpace = SRGBColorSpace
+  leatherAlbedo = t
+  return leatherAlbedo
+}
+
 // Tone-on-tone weave patterns: a near-white luminance albedo (so the
 // material colour tints it) carrying striped or herringbone structure.
 const patternTex = new Map<string, Texture>()
@@ -571,6 +601,7 @@ export function getLeatherMaterial(color: string, rough = 0.42): MeshStandardMat
     color,
     roughness: rough,
     metalness: 0.06,
+    map: isFeatureEnabled('pbrSurfaces') ? getLeatherAlbedo() : null,
     normalMap: getLeatherNormal(),
     envMapIntensity: GLOSSY_ENV_INTENSITY,
   })
