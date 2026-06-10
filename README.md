@@ -13,7 +13,7 @@ export the result — all in the browser.
   derived from a measured floor plan; openable doors; a household-shelter
   blast door; and HDB-signature touches like window safety grilles and a
   kitchen backsplash.
-- **~75-item furniture catalog** across 15 categories mirroring IKEA's
+- **~95-item furniture catalog** across 15 categories mirroring IKEA's
   departments — beds, seating, tables, storage, kitchen, bathroom, appliances,
   lighting, decor, textiles, outdoor, **electronics**, **kids**, **laundry**,
   and **others** (catch-all) — all parametric (resize / recolour / configure
@@ -67,8 +67,9 @@ export the result — all in the browser.
   you're in.
 - **View vs. edit** — the orbit (dollhouse) and walk views are **view-only**, for
   looking and presenting; **all** furnishing, customizing and finishing happens
-  inside the **per-room editor**. Enter it with the prominent **Edit a room**
-  toolbar button, by **clicking a room's floor** in the overview, or ⌘K.
+  inside the **per-room editor**. Enter it from the toolbar **Edit** menu →
+  **Edit a room**, by **clicking a room's floor** in the overview (which asks
+  "Enter <room>?" first, so you don't dive in by accident), or ⌘K.
 - **Per-room editor** — an IKEA-planner-style mode that isolates one room to
   plan its furniture (switch rooms from the dropdown beside the **← exit**
   button; **Esc** leaves). Works on the built-in flat **and any custom floor
@@ -94,7 +95,9 @@ export the result — all in the browser.
   any time (desktop + mobile).
 - **Streamlined toolbar** — a compact, scrollable **icon island**: frequent
   actions are one-click icons; related tools tuck into labelled dropdown menus
-  (View, Scene, Arrange, Tools, File). Hover any control for its name and
+  (**View** — combined camera Orbit/Walk + top/reset/turntable; **Scene**;
+  **Edit** — step into a room / floor-plan editor; **Arrange**; **Tools**;
+  **File** — with **Graphics** beside Appearance & Help on the right). Hover any control for its name and
   keyboard shortcut. Scroll the wheel over the island (or click-and-drag it) to
   pan it — the canvas behind never zooms. New view shortcuts: Top view **O**,
   Reset **H**, Tidy **L** (alongside Measurements **M**, Catalog **C**, camera
@@ -109,6 +112,17 @@ export the result — all in the browser.
   a **per-room ceiling height** for dropped/false ceilings) or
   start from a template; the 3D flat, finishes, and furniture collision all
   follow your custom plan, and plans save to a named library.
+- **Stay on budget while you design** — set a **budget target** and an always-on
+  pill shows spend vs. target (green under, red over) as you place furniture; the
+  Shopping list breaks spend down **by category and by room**, and every item
+  shows its **price** in the inspector (with a live **selection total** when you
+  multi-select).
+- **Room layout shortcuts** — **Mirror room** flips a room's furniture left↔right
+  across its centre, **Copy layout to…** clones a room's arrangement into another
+  (perfect for repeated bedrooms), **Apply finish to all** of a type recolours
+  every matching piece in one tap, **Quick finishes** put oak/walnut/teak/marble
+  one tap under the finish dropdown, and **Straighten** squares up a
+  freely-rotated piece to the nearest 90°. All collision-checked and undoable.
 - **Design tools** — a SGD **budget** / shopping list (with an optional **budget
   target** that tracks how far over/under you are), door-swing **clearance
   checks**, a **sun study** time-lapse, an auto **walkthrough** tour, point-to-
@@ -170,9 +184,9 @@ export the result — all in the browser.
   transitions into walkthrough and the per-room editor, with a contextual
   caption ("Furnishing your flat…", "Entering walkthrough…", "Entering room…").
   It fades quickly on fast loads and respects reduced-motion preferences.
-- **One warm design system, four themes** — a domestic, Singapore-rooted
-  interface authored in OKLCH: **Clay** (terracotta), **Kampong** (garden
-  green), **Porcelain** (teal-jade), and **Estate** (HDB ochre), each in
+- **One design system, five themes** — a Singapore-rooted interface authored in
+  OKLCH: **Clay** (terracotta), **Kampong** (garden green), **Porcelain**
+  (teal-jade), **Estate** (HDB ochre), and **Harbour** (cool marina blue), each in
   light + dark (or **Auto**, following your OS). Switch from the toolbar's
   **Appearance** menu; the whole UI — toolbar, catalog, inspector, nav cluster,
   panels, modals — recolours instantly and your choice persists.
@@ -182,11 +196,13 @@ export the result — all in the browser.
   (analysis Tools, numeric transform fields, graphics internals, sun direction,
   saved views, …) and collapses the inspector's sections by default; **Pro** shows
   everything. Persists per device.
-- **Guided product tour** — a spotlight walkthrough for new users that steps
-  through the whole workflow in order (shape the space → add furniture → move &
-  customise → paint walls/floors → walk through → set the time of day & backdrop),
-  highlighting each control as it goes. Launch it from onboarding, the Help modal,
-  or ⌘K.
+- **Guided product tour** — an *interactive* spotlight walkthrough for new users
+  that steps through the whole workflow in order (look around → step into a room
+  → add furniture → move & customise → paint walls/floors → set the time of day &
+  backdrop). The highlighted control stays clickable and **performing the real
+  action advances the tour** — clicks elsewhere are harmless, and only the
+  explicit **Skip tour** button (or Esc) ends it. Launch it from onboarding, the
+  Help modal, or ⌘K.
 - **Pro-tool interactions** — a **⌘K command palette** (fuzzy search across
   actions, panels, views, and "add furniture"), a **right-click context menu**
   on any placed piece, an **Objects / Layers** view (items grouped by room with
@@ -272,12 +288,14 @@ catalogue* — assets land in (gitignored) `public/assets/ikea/`.
   `npm run docs:build` (or preview with `npm run docs:dev`).
 - **Developer guide** — maintainer docs under `docs/developer/` (plain Markdown,
   not deployed): architecture, per-system guides, and how-to recipes. Start at
-  `docs/developer/index.md`. `CLAUDE.md` is the terse always-current index.
+  `docs/developer/index.md`. `CLAUDE.md` is the lean agent entry point (hard rules +
+  conventions); `docs/ARCHITECTURE.md` is the full always-current code map, and each
+  major `src/` area has its own path-scoped `CLAUDE.md`.
 
 ## More
 
 Stack: React + TypeScript, three.js via @react-three/fiber, Zustand, Vite.
-See [CLAUDE.md](CLAUDE.md) for architecture and how to add content. Bundled
+See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for architecture and how to add content. Bundled
 assets are procedurally generated (CC0-equivalent) wherever possible; the few
 bundled GLBs (e.g. the pool tables) carry their real licence + attribution
 (CC-BY where required), surfaced in the inspector and `CREDITS.md`. Imported

@@ -6,10 +6,11 @@ orbit overview and walk mode are view‑only, so you always design *inside* a ro
 
 Open it in any of these ways:
 
-- Click the **Edit a room** button in the toolbar (dives into a room; switch
-  rooms from the dropdown that appears beside it).
-- **Click any room's floor** in the orbit overview to jump straight into that room.
-- On mobile, open the menu → **View** → **Edit a room**.
+- Open the toolbar **Edit** menu → **Edit a room** (dives into a room; switch
+  rooms from the dropdown that appears beside the **← exit** button).
+- **Click any room's floor** in the orbit overview to jump straight into that
+  room — you'll confirm *"Enter &lt;room&gt;?"* first.
+- On mobile, open the menu → **Edit** → **Edit a room**.
 
 
 ## What it does
@@ -31,6 +32,20 @@ Open it in any of these ways:
 For a fast, fluid editing experience the room editor pins the **Performance**
 render tier and **Original**‑quality assets while it's active, restoring your
 previous settings on exit.
+
+## Room layout shortcuts
+
+Click a wall or the floor to open the finish picker, which also hosts per‑room
+layout actions:
+
+- **Tidy up room** — auto‑arrange the room to interior‑design clearances.
+- **Mirror room** — flip the room's furniture left↔right across its centre
+  (great for symmetric bedrooms). Pieces that would hit a wall stay put.
+- **Copy layout to…** — clone this room's arrangement into another room
+  (perfect for repeated bedrooms); anything that won't fit is skipped.
+
+In the **Objects / Layers** view each room group has an **eye** (hide) and a
+**lock** toggle, and the footer can **collapse / expand all rooms** at once.
 
 ## Exiting
 

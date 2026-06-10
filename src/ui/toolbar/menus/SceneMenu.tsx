@@ -6,15 +6,29 @@ import {
   LIGHTING_SCENES,
 } from '../../../scene/lighting/lightingScenes'
 import { useEffectiveHour } from '../../../scene/lighting/useEffectiveHour'
+import type { BackdropKind } from '../../../scene/SceneBackdrop'
 import { BACKDROPS } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS, type TimePreset } from '../../../state/slices/timeSlice'
+import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
 import { CompassModal } from '../CompassModal'
-import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
+import { ToolbarMenu } from '../ToolbarMenu'
 
 const PRESETS: TimePreset[] = ['morning', 'noon', 'dusk', 'night']
+const PRESET_ICON: Record<TimePreset, string> = {
+  morning: '🌅',
+  noon: '☀️',
+  dusk: '🌇',
+  night: '🌙',
+}
+const LIGHTS_MODES: { key: LightsMode; label: string }[] = [
+  { key: 'auto', label: 'Auto' },
+  { key: 'on', label: 'On' },
+  { key: 'off', label: 'Off' },
+]
 
-/** Scene cluster: time of day (system / presets / custom) + sun direction. */
+/** Scene cluster: time of day (slider + preset checkpoints), lighting (mood +
+ *  fixture mode), backdrop, and sun direction. */
 export function SceneMenu() {
   const timeMode = useStore((s) => s.timeMode)
   const manualHour = useStore((s) => s.manualHour)
@@ -23,6 +37,7 @@ export function SceneMenu() {
   const setManualHour = useStore((s) => s.setManualHour)
   const orientationDeg = useStore((s) => s.orientationDeg)
   const lightsMode = useStore((s) => s.lightsMode)
+  const setLightsMode = useStore((s) => s.setLightsMode)
   const backdrop = useStore((s) => s.backdrop)
   const setBackdrop = useStore((s) => s.setBackdrop)
   const proMode = useStore((s) => s.uiMode === 'pro')
@@ -36,38 +51,19 @@ export function SceneMenu() {
     if (Number.isFinite(hh) && Number.isFinite(mm)) setManualHour(hh + mm / 60)
   }
 
+  const isPresetActive = (p: TimePreset) =>
+    timeMode === 'manual' && Math.abs(manualHour - PRESET_HOURS[p]) < 1e-3
+
   return (
     <>
-      <ToolbarMenu icon="Time" label="Scene" width={248}>
-        <MenuItem
-          icon="Time"
-          label="System time"
-          sub={formatClock(effectiveHour)}
-          active={timeMode === 'system'}
-          onClick={() => setTimeMode('system')}
-        />
-        {PRESETS.map((p) => (
-          <MenuItem
-            key={p}
-            icon="Sun"
-            label={p[0].toUpperCase() + p.slice(1)}
-            sub={formatClock(PRESET_HOURS[p])}
-            active={timeMode === 'manual' && manualHour === PRESET_HOURS[p]}
-            onClick={() => setPresetTime(p)}
-          />
-        ))}
-        {/* Custom time row — stopPropagation so editing the input doesn't close the menu. */}
-        <div className="flex items-center gap-2 px-2 py-1.5" onClick={(e) => e.stopPropagation()}>
-          <span className="flex-1 text-[13px] text-[var(--text)]">Custom</span>
-          <input
-            type="time"
-            value={formatTimeInput(effectiveHour)}
-            onChange={onCustomChange}
-            className="rounded border border-[var(--border)] bg-[var(--surface-solid)] px-1 py-0.5 text-xs"
-          />
+      <ToolbarMenu icon="Time" label="Scene" width={264}>
+        {/* ---- Time of day ---- */}
+        <div className="scene-row-head">
+          <span>Time of day</span>
+          <span className="scene-clock mono">{formatClock(effectiveHour)}</span>
         </div>
-        {/* Scrub slider — drag to sweep the day and watch the light change live. */}
-        <div className="px-2 pb-1.5" onClick={(e) => e.stopPropagation()}>
+        {/* Scrub slider with preset checkpoints marked along the track. */}
+        <div className="scene-slider" onClick={(e) => e.stopPropagation()}>
           <input
             type="range"
             min={0}
@@ -79,50 +75,120 @@ export function SceneMenu() {
             className="slider"
             style={{ width: '100%' }}
           />
+          <div className="scene-ticks" aria-hidden>
+            {PRESETS.map((p) => (
+              <span
+                key={p}
+                className="scene-tick"
+                style={{ left: `${(PRESET_HOURS[p] / 24) * 100}%` }}
+              />
+            ))}
+          </div>
+        </div>
+        {/* Preset checkpoint chips. */}
+        <div className="scene-presets" onClick={(e) => e.stopPropagation()}>
+          {PRESETS.map((p) => (
+            <button
+              key={p}
+              type="button"
+              className={`scene-chip${isPresetActive(p) ? ' on' : ''}`}
+              onClick={() => setPresetTime(p)}
+              title={formatClock(PRESET_HOURS[p])}
+            >
+              <span className="scene-chip-i" aria-hidden>
+                {PRESET_ICON[p]}
+              </span>
+              {p[0].toUpperCase() + p.slice(1)}
+            </button>
+          ))}
+        </div>
+        {/* System time + precise custom time. */}
+        <div className="scene-time-row" onClick={(e) => e.stopPropagation()}>
+          <button
+            type="button"
+            className={`scene-chip sm${timeMode === 'system' ? ' on' : ''}`}
+            onClick={() => setTimeMode('system')}
+          >
+            System
+          </button>
+          <input
+            type="time"
+            value={formatTimeInput(effectiveHour)}
+            onChange={onCustomChange}
+            aria-label="Custom time"
+            className="scene-time-input"
+          />
+        </div>
+
+        {/* ---- Lighting ---- */}
+        <div className="scene-sep" />
+        <div className="scene-row-head">
+          <span>Lighting</span>
+        </div>
+        <div className="scene-seg" onClick={(e) => e.stopPropagation()}>
+          {LIGHTS_MODES.map((m) => (
+            <button
+              key={m.key}
+              type="button"
+              className={lightsMode === m.key ? 'on' : ''}
+              onClick={() => setLightsMode(m.key)}
+              title={`Light fixtures: ${m.label}`}
+            >
+              {m.label}
+            </button>
+          ))}
         </div>
         {fLightingMoods && (
-          <div className="mt-1 border-t border-[var(--border)] pt-1">
-            <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-              Lighting moods
-            </div>
+          <div className="scene-presets moods" onClick={(e) => e.stopPropagation()}>
             {LIGHTING_SCENES.map((sc) => (
-              <MenuItem
+              <button
                 key={sc.id}
-                icon="Lights"
-                label={sc.label}
-                sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
-                active={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
+                type="button"
+                className={`scene-chip${
+                  isLightingSceneActive(sc, { timeMode, manualHour, lightsMode }) ? ' on' : ''
+                }`}
                 onClick={() => applyLightingScene(sc)}
-              />
+                title={`${formatClock(sc.hour)} · lights ${sc.lights}`}
+              >
+                {sc.label}
+              </button>
             ))}
           </div>
         )}
+
+        {/* ---- Backdrop ---- */}
         {fBackdrops && (
-          <div className="mt-1 border-t border-[var(--border)] pt-1">
-            <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--text-3)]">
-              Backdrop
-            </div>
-            {BACKDROPS.map((b) => (
-              <MenuItem
-                key={b.id}
-                icon="Cube"
-                label={b.label}
-                sub={b.sub}
-                active={backdrop === b.id}
-                onClick={() => setBackdrop(b.id)}
-              />
-            ))}
-          </div>
+          <>
+            <div className="scene-sep" />
+            <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+              <span>Backdrop</span>
+              <select
+                className="input scene-select"
+                value={backdrop}
+                aria-label="Backdrop"
+                onChange={(e) => setBackdrop(e.target.value as BackdropKind)}
+              >
+                {BACKDROPS.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.label} — {b.sub}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </>
         )}
+
+        {/* ---- Sun direction (Pro) ---- */}
         {proMode ? (
-          <div className="mt-1 border-t border-[var(--border)] pt-1">
-            <MenuItem
-              icon="Sun"
-              label="Sun direction"
-              sub={`${Math.round(orientationDeg)}° — where the sun rises`}
-              onClick={() => setCompassOpen(true)}
-            />
-          </div>
+          <>
+            <div className="scene-sep" />
+            <button type="button" className="menu-item" onClick={() => setCompassOpen(true)}>
+              <span className="mi-text">
+                <span className="mi-main">Sun direction</span>
+                <span className="mi-sub">{Math.round(orientationDeg)}° — where the sun rises</span>
+              </span>
+            </button>
+          </>
         ) : null}
       </ToolbarMenu>
       <CompassModal open={compassOpen} onClose={() => setCompassOpen(false)} />

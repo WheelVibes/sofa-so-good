@@ -9,11 +9,11 @@ const firstRoom = Object.values(ROOMS).find((r) => !r.external)!.id
 describe('Toolbar', () => {
   beforeEach(() => useStore.getState().__resetForTest())
 
-  it('the orbit overview is view-only: it offers the Edit-a-room entry, not editing clusters', () => {
+  it('the orbit overview is view-only: it offers the Edit menu entry, not editing clusters', () => {
     useStore.getState().setCameraMode('orbit')
     render(<Toolbar />)
-    // Primary entry into editing.
-    expect(screen.getByRole('button', { name: /edit a room/i })).toBeTruthy()
+    // Primary entry into editing — the Edit menu (Edit a room / Floor plan).
+    expect(screen.getByRole('button', { name: 'Edit' })).toBeTruthy()
     // Furniture-editing clusters are NOT in the overview anymore.
     expect(screen.queryByRole('button', { name: /catalog/i })).toBeNull()
     expect(screen.queryByRole('button', { name: /arrange/i })).toBeNull()

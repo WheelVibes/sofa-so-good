@@ -17,10 +17,12 @@ Finishes are generated procedurally, so they tile at a fixed real‑world scale 
 matter how big the surface is:
 
 - **Floors & walls** — wood planks, **parquet** (basketweave) and **herringbone**
-  (premium 45° interlocking planks, in oak or walnut), tile, marble, carpet,
-  concrete, terrazzo, plaster.
-- **Wall treatments** — wallpapers (stripe / grasscloth) and checker, plus a
-  **wall accent** picker for a single feature wall.
+  (premium 45° interlocking planks, in oak or walnut), square tile, **hexagon
+  tile** (honeycomb), marble, carpet, concrete, terrazzo, plaster.
+- **Wall treatments** — wallpapers (stripe / grasscloth), checker, exposed brick,
+  glossy **subway / metro tile** (kitchen backsplash + bathroom), and **fluted /
+  reeded panels** (oak / walnut / plaster feature walls), plus a **wall accent**
+  picker for a single feature wall.
 
 ## Browse the online library
 
@@ -39,7 +41,10 @@ and ambientCG:
 You can apply a real PBR material — including a CC0 set downloaded from Poly Haven
 or ambientCG — directly to a piece of furniture. In a selected item's inspector,
 the wood / surface **finish** dropdown lists these as **"CC0 DLC"** options; pick
-one and the piece re‑renders with that material.
+one and the piece re‑renders with that material. Below the dropdown, a **Quick
+finishes** row offers common woods + marble (oak, walnut, teak, ash, ebony,
+marble) as one‑tap swatches, and **Apply finish to all** copies the piece's
+finish to every other item of the same type.
 
 ## Tidy up a room
 

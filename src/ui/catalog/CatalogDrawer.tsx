@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { UploadModelDialog } from '../upload/UploadModelDialog'
@@ -35,7 +36,8 @@ function loadBrowsePrefs(): { active: CatalogCategory; sortBy: SortKey } {
     const p = JSON.parse(raw) as { active?: string; sortBy?: string }
     return {
       active: typeof p.active === 'string' ? (p.active as CatalogCategory) : fallback.active,
-      sortBy: p.sortBy === 'name' || p.sortBy === 'size' ? p.sortBy : 'default',
+      sortBy:
+        p.sortBy === 'name' || p.sortBy === 'size' || p.sortBy === 'price' ? p.sortBy : 'default',
     }
   } catch {
     return fallback
@@ -55,11 +57,17 @@ export function CatalogDrawer() {
   const setLeftMode = useStore((s) => s.setLeftMode)
   const removeUserFurniture = useStore((s) => s.removeUserFurniture)
   const setActiveDefId = useStore((s) => s.setActiveDefId)
+  const isPro = useStore((s) => s.uiMode === 'pro')
+  const setGlbDesignerOpen = useStore((s) => s.setGlbDesignerOpen)
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   // Packs (downloadable-content installs) is advanced — hidden in Simple mode.
   // Read here (with the other hooks) so it stays above the early return below.
   const proMode = useStore((s) => s.uiMode === 'pro')
+  // Feature flags: the Packs tab + model upload entry hide when their flag is off
+  // (parity with the dev/prod gating already applied inside each surface).
+  const fPacks = useFeature('packs')
+  const fUpload = useFeature('modelUpload')
   const unified = useUnifiedCatalog()
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
@@ -121,7 +129,7 @@ export function CatalogDrawer() {
   // One flat tab row: the catalog grid, the Objects/Layers tree (store-level
   // `leftMode`, shared with the command palette + mobile toolbar), and Packs.
   const view: 'catalog' | 'layers' | 'packs' =
-    leftMode === 'layers' ? 'layers' : mode === 'packs' && proMode ? 'packs' : 'catalog'
+    leftMode === 'layers' ? 'layers' : mode === 'packs' && proMode && fPacks ? 'packs' : 'catalog'
   const selectView = (v: 'catalog' | 'layers' | 'packs') => {
     if (v === 'layers') {
       setLeftMode('layers')
@@ -180,7 +188,7 @@ export function CatalogDrawer() {
           [
             ['catalog', 'Catalog'],
             ['layers', 'Layers'],
-            ...(proMode ? ([['packs', 'Packs']] as const) : []),
+            ...(proMode && fPacks ? ([['packs', 'Packs']] as const) : []),
           ] as const
         ).map(([v, label]) => (
           <button
@@ -212,6 +220,15 @@ export function CatalogDrawer() {
                 type="search"
                 value={query}
                 onChange={(e) => onSearch(e.target.value)}
+                onKeyDown={(e) => {
+                  // Esc clears a non-empty query (keeping focus to keep typing),
+                  // else blurs the field — a quick way out of search.
+                  if (e.key === 'Escape') {
+                    e.stopPropagation()
+                    if (query) onSearch('')
+                    else e.currentTarget.blur()
+                  }
+                }}
                 placeholder={`Search ${totalCount} items…`}
                 className="input"
               />
@@ -300,7 +317,9 @@ export function CatalogDrawer() {
                       ? 'No favourites yet — tap the heart on any card to save it here.'
                       : active === 'recent'
                         ? 'Nothing placed yet — items you add will appear here for quick reuse.'
-                        : 'No items in this category yet.'}
+                        : maxPrice.trim() && baseCards.length > 0
+                          ? `Nothing under $${maxPrice.trim()} here — raise the Max $ filter.`
+                          : 'No items in this category yet.'}
                 </span>
               </p>
             ) : (
@@ -332,14 +351,29 @@ export function CatalogDrawer() {
             <span className="hint">
               Drag onto the floor · <kbd>R</kbd> rotates
             </span>
-            <button
-              type="button"
-              onClick={() => setUploadOpen(true)}
-              className="btn btn-soft btn-sm"
-            >
-              <Icon.Upload width={14} height={14} />
-              Upload
-            </button>
+            <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+              {isPro ? (
+                <button
+                  type="button"
+                  onClick={() => setGlbDesignerOpen(true)}
+                  className="btn btn-soft btn-sm"
+                  title="Design or edit a custom 3D asset"
+                >
+                  <Icon.Cube width={14} height={14} />
+                  Design
+                </button>
+              ) : null}
+              {fUpload ? (
+                <button
+                  type="button"
+                  onClick={() => setUploadOpen(true)}
+                  className="btn btn-soft btn-sm"
+                >
+                  <Icon.Upload width={14} height={14} />
+                  Upload
+                </button>
+              ) : null}
+            </div>
           </div>
         </>
       )}

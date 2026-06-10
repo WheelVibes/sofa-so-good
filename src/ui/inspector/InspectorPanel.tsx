@@ -1,9 +1,27 @@
 import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { canPlace } from '../../collision/placement'
-import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { canPlace, itemFootprint } from '../../collision/placement'
+import { placementWalls } from '../../collision/placementWalls'
+import { pointInRoom } from '../../floorplan/types'
+import { arrayOffsets } from '../../furniture/arrayPlacement'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
+import { itemPrice } from '../../furniture/furniturePrices'
+import { itemsCost } from '../../furniture/itemsCost'
+import {
+  alignCenter,
+  alignEdge,
+  distributeEvenGaps,
+  obbAxisHalf,
+} from '../../layout/alignDistribute'
+import { isOffSquare, nearestRightAngle } from '../../layout/angle'
+import { rotationFacingRoom } from '../../layout/faceWall'
+import {
+  arrangeSelectionAsRun,
+  faceSelectionIntoRoom,
+  mirrorSelectionX,
+  snapSelectionToWall,
+} from '../../layout/selectionActions'
 import { useStore } from '../../state/store'
 import { formatDimsShort } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
@@ -14,6 +32,33 @@ import { InspectorSection } from './InspectorSection'
 import { ParametricBody } from './ParametricBody'
 import { SourceLine } from './SourceLine'
 
+/**
+ * Minimize state for the inspector. The user can collapse it to just its header
+ * (so it stops blocking the furniture, especially on mobile), and it
+ * *auto-minimizes* while a move/rotate gesture is in progress so the piece is
+ * visible as it's manipulated — restoring to the user's chosen state afterwards.
+ */
+function useInspectorMinimize(): { minimized: boolean; toggle: () => void; manual: boolean } {
+  const gesturing = useStore((s) => !!s.draggingItemId || s.rotatingGizmo)
+  const [manual, setManual] = useState(false)
+  return { minimized: manual || gesturing, toggle: () => setManual((v) => !v), manual }
+}
+
+/** The minimize / expand toggle shown in an inspector panel header. */
+function MinimizeButton({ minimized, toggle }: { minimized: boolean; toggle: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={toggle}
+      className="icon-btn"
+      aria-label={minimized ? 'Expand inspector' : 'Minimize inspector'}
+      title={minimized ? 'Expand' : 'Minimize'}
+    >
+      {minimized ? <Icon.Plus width={16} height={16} /> : <Icon.Minus width={16} height={16} />}
+    </button>
+  )
+}
+
 /** Panel shown when 2+ items are selected: count + align / distribute / bulk
  *  actions (the marquee/shift-click multi-selection). */
 function MultiSelectPanel() {
@@ -23,9 +68,15 @@ function MultiSelectPanel() {
   const groupItems = useStore((s) => s.groupItems)
   const ungroup = useStore((s) => s.ungroup)
   const catalog = useCatalog()
-
-  const wallsFor = (s: ReturnType<typeof useStore.getState>) =>
-    isDefaultPlan(s.floorPlan) ? undefined : planCollisionWalls(s.floorPlan, s.doors)
+  const { minimized, toggle } = useInspectorMinimize()
+  // Combined estimated price of the current selection (mirrors the single-item
+  // price line + the Budget panel's `itemPrice`).
+  const totalPrice = useStore((s) =>
+    itemsCost(
+      s.items.filter((i) => s.selectedItemIds.includes(i.id)),
+      catalog,
+    ),
+  )
 
   const tryMove = (id: string, pos: [number, number]) => {
     const s = useStore.getState()
@@ -37,7 +88,7 @@ function MultiSelectPanel() {
         others: s.items.filter((o) => o.id !== id),
         defs: catalog,
         doors: s.doors,
-        walls: wallsFor(s),
+        walls: placementWalls(s),
       })
     )
       s.moveItem(id, pos)
@@ -46,31 +97,92 @@ function MultiSelectPanel() {
   const align = (axis: 0 | 1) => {
     const s = useStore.getState()
     const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
-    if (sel.length < 2) return
-    const mean = sel.reduce((a, i) => a + i.position[axis], 0) / sel.length
+    const target = alignCenter(sel.map((it) => ({ id: it.id, center: it.position[axis], half: 0 })))
+    if (target === null) return
     s.pushHistory()
     for (const it of sel) {
-      const pos: [number, number] = axis === 0 ? [mean, it.position[1]] : [it.position[0], mean]
+      const pos: [number, number] = axis === 0 ? [target, it.position[1]] : [it.position[0], target]
       tryMove(it.id, pos)
     }
   }
 
+  // Footprint-aware edge alignment: snap every selected piece's near (`min`) or
+  // far (`max`) edge along an axis to the matching extreme of the selection.
+  const edge = (axis: 0 | 1, side: 'min' | 'max') => {
+    const s = useStore.getState()
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    const boxes = sel.flatMap((it) => {
+      const def = catalog[it.defId]
+      if (!def) return []
+      const obb = itemFootprint(it, def)
+      return [
+        { id: it.id, center: it.position[axis], half: obbAxisHalf(obb.hx, obb.hz, obb.rot, axis) },
+      ]
+    })
+    const next = alignEdge(boxes, side)
+    if (next.size === 0) return
+    s.pushHistory()
+    for (const it of sel) {
+      const v = next.get(it.id)
+      if (v === undefined || v === it.position[axis]) continue
+      tryMove(it.id, axis === 0 ? [v, it.position[1]] : [it.position[0], v])
+    }
+  }
+
+  // Footprint-aware even-gap distribution: spaces the edge-to-edge gaps equally
+  // (not just the centres), so a row of differently-sized pieces reads tidy.
   const distribute = (axis: 0 | 1) => {
     const s = useStore.getState()
-    const sel = s.items
-      .filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
-      .sort((a, b) => a.position[axis] - b.position[axis])
-    if (sel.length < 3) return
-    const lo = sel[0].position[axis]
-    const hi = sel[sel.length - 1].position[axis]
-    const step = (hi - lo) / (sel.length - 1)
-    s.pushHistory()
-    sel.forEach((it, i) => {
-      if (i === 0 || i === sel.length - 1) return
-      const v = lo + step * i
-      tryMove(it.id, axis === 0 ? [v, it.position[1]] : [it.position[0], v])
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    const boxes = sel.flatMap((it) => {
+      const def = catalog[it.defId]
+      if (!def) return []
+      const obb = itemFootprint(it, def)
+      return [
+        { id: it.id, center: it.position[axis], half: obbAxisHalf(obb.hx, obb.hz, obb.rot, axis) },
+      ]
     })
+    const next = distributeEvenGaps(boxes)
+    if (next.size === 0) return
+    s.pushHistory()
+    for (const it of sel) {
+      const v = next.get(it.id)
+      if (v === undefined || v === it.position[axis]) continue
+      tryMove(it.id, axis === 0 ? [v, it.position[1]] : [it.position[0], v])
+    }
   }
+
+  // Orient every selected (unlocked) piece so its back is to the nearest wall of
+  // whichever room contains it — a bulk version of the single-item action.
+  const faceAllIntoRoom = () => faceSelectionIntoRoom(catalog)
+
+  // Rotate every selected (unlocked) piece in place by `delta` (collision-checked
+  // per item, so a piece that would clip a wall/neighbour after turning is left).
+  const rotateAll = (delta: number) => {
+    const s = useStore.getState()
+    const sel = s.items.filter((i) => s.selectedItemIds.includes(i.id) && !i.locked)
+    if (sel.length === 0) return
+    s.pushHistory()
+    for (const it of sel) {
+      const def = catalog[it.defId]
+      if (!def) continue
+      const rot = it.rotation + delta
+      if (
+        canPlace({ ...it, rotation: rot }, def, {
+          others: s.items.filter((o) => o.id !== it.id),
+          defs: catalog,
+          doors: s.doors,
+          walls: placementWalls(s),
+        })
+      )
+        s.rotateItem(it.id, rot)
+    }
+  }
+
+  // Wall-aware bulk actions (shared with the command palette via selectionActions).
+  const snapToWall = () => snapSelectionToWall(catalog)
+  const arrangeAsRun = () => arrangeSelectionAsRun(catalog)
+  const mirror = () => mirrorSelectionX(catalog)
 
   const deleteAll = () => {
     const s = useStore.getState()
@@ -103,96 +215,189 @@ function MultiSelectPanel() {
   }
 
   return (
-    <aside className="panel inspector">
+    <aside className={`panel inspector${minimized ? ' minimized' : ''}`}>
       <div className="panel-head">
         <div>
           <div className="panel-title">{count} items selected</div>
-          <div className="panel-sub">Multi-select</div>
+          {minimized ? null : (
+            <div className="panel-sub">
+              Multi-select{totalPrice > 0 ? ` · ~$${totalPrice.toLocaleString('en-SG')} total` : ''}
+            </div>
+          )}
         </div>
-        <button
-          type="button"
-          onClick={() => useStore.getState().selectItem(null)}
-          className="icon-btn"
-          aria-label="Clear selection"
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
+        <div className="insp-head-btns">
+          <MinimizeButton minimized={minimized} toggle={toggle} />
+          <button
+            type="button"
+            onClick={() => useStore.getState().selectItem(null)}
+            className="icon-btn"
+            aria-label="Clear selection"
+          >
+            <Icon.Close width={16} height={16} />
+          </button>
+        </div>
       </div>
-      <hr className="hr" />
-      <div className="panel-body">
-        <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
-          <div className="sec-h">
-            <span>Align centres</span>
-          </div>
-          <div className="action-grid two">
-            <button type="button" className="act" onClick={() => align(0)}>
-              <Icon.AlignX width={16} height={16} />
-              Align X
-            </button>
-            <button type="button" className="act" onClick={() => align(1)}>
-              <Icon.AlignZ width={16} height={16} />
-              Align Z
-            </button>
-          </div>
-        </div>
-        <div className="sec">
-          <div className="sec-h">
-            <span>Distribute evenly</span>
-          </div>
-          <div className="action-grid two">
-            <button type="button" className="act" onClick={() => distribute(0)}>
-              <Icon.Distribute width={16} height={16} />
-              Across X
-            </button>
-            <button type="button" className="act" onClick={() => distribute(1)}>
-              <Icon.Distribute width={16} height={16} />
-              Across Z
-            </button>
-          </div>
-        </div>
-        <div className="sec">
-          {activeGroupId ? (
-            <button
-              type="button"
-              onClick={() => ungroup(activeGroupId)}
-              className="btn btn-soft btn-block"
-            >
-              <Icon.Group width={14} height={14} />
-              Ungroup
-            </button>
-          ) : (
-            selectedItemIds.length > 1 && (
+      {minimized ? null : (
+        <>
+          <hr className="hr" />
+          <div className="panel-body">
+            <div className="sec" style={{ borderTop: 'none', paddingTop: 0 }}>
+              <div className="sec-h">
+                <span>Align centres</span>
+              </div>
+              <div className="action-grid two">
+                <button type="button" className="act" onClick={() => align(0)}>
+                  <Icon.AlignX width={16} height={16} />
+                  Align X
+                </button>
+                <button type="button" className="act" onClick={() => align(1)}>
+                  <Icon.AlignZ width={16} height={16} />
+                  Align Z
+                </button>
+              </div>
+            </div>
+            <div className="sec">
+              <div className="sec-h">
+                <span>Align edges</span>
+              </div>
+              <div className="action-grid two">
+                <button type="button" className="act" onClick={() => edge(0, 'min')}>
+                  <Icon.AlignX width={16} height={16} />
+                  Left
+                </button>
+                <button type="button" className="act" onClick={() => edge(0, 'max')}>
+                  <Icon.AlignX width={16} height={16} />
+                  Right
+                </button>
+                <button type="button" className="act" onClick={() => edge(1, 'min')}>
+                  <Icon.AlignZ width={16} height={16} />
+                  Top
+                </button>
+                <button type="button" className="act" onClick={() => edge(1, 'max')}>
+                  <Icon.AlignZ width={16} height={16} />
+                  Bottom
+                </button>
+              </div>
+            </div>
+            <div className="sec">
+              <div className="sec-h">
+                <span>Distribute evenly</span>
+              </div>
+              <div className="action-grid two">
+                <button type="button" className="act" onClick={() => distribute(0)}>
+                  <Icon.Distribute width={16} height={16} />
+                  Across X
+                </button>
+                <button type="button" className="act" onClick={() => distribute(1)}>
+                  <Icon.Distribute width={16} height={16} />
+                  Across Z
+                </button>
+              </div>
+              <div className="action-grid two" style={{ marginTop: 'var(--s-2)' }}>
+                <button
+                  type="button"
+                  className="act"
+                  onClick={() => rotateAll(-Math.PI / 2)}
+                  title="Rotate each selected piece 90° anticlockwise"
+                >
+                  <Icon.Rotate width={16} height={16} />
+                  Rotate −90°
+                </button>
+                <button
+                  type="button"
+                  className="act"
+                  onClick={() => rotateAll(Math.PI / 2)}
+                  title="Rotate each selected piece 90° clockwise"
+                >
+                  <Icon.Rotate width={16} height={16} />
+                  Rotate +90°
+                </button>
+                <button
+                  type="button"
+                  className="act"
+                  onClick={mirror}
+                  title="Mirror the selection left↔right across its centre"
+                >
+                  <Icon.FlipH width={16} height={16} />
+                  Mirror
+                </button>
+              </div>
               <button
                 type="button"
-                onClick={() => groupItems(selectedItemIds)}
                 className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                onClick={faceAllIntoRoom}
+                title="Turn each selected piece's back to its nearest wall"
               >
-                <Icon.Group width={14} height={14} />
-                Group
+                <Icon.Rotate width={14} height={14} />
+                Face into room
               </button>
-            )
-          )}
-          <button
-            type="button"
-            onClick={duplicateAll}
-            className="btn btn-soft btn-block"
-            style={{ marginTop: 'var(--s-2)' }}
-            title="Duplicate every selected item (⌘/Ctrl+D)"
-          >
-            <Icon.Copy width={14} height={14} />
-            Duplicate selection
-          </button>
-          <button
-            type="button"
-            onClick={deleteAll}
-            className="btn btn-danger btn-block"
-            style={{ marginTop: 'var(--s-2)' }}
-          >
-            <Icon.Trash width={14} height={14} />
-            Delete all
-          </button>
-        </div>
-      </div>
+              <button
+                type="button"
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                onClick={snapToWall}
+                title="Push each selected piece flush against its nearest wall"
+              >
+                <Icon.Snap width={14} height={14} />
+                Snap to wall
+              </button>
+              <button
+                type="button"
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                onClick={arrangeAsRun}
+                title="Line the selection up as one run, butted edge-to-edge along the nearest wall"
+              >
+                <Icon.Tidy width={14} height={14} />
+                Arrange as run
+              </button>
+            </div>
+            <div className="sec">
+              {activeGroupId ? (
+                <button
+                  type="button"
+                  onClick={() => ungroup(activeGroupId)}
+                  className="btn btn-soft btn-block"
+                >
+                  <Icon.Group width={14} height={14} />
+                  Ungroup
+                </button>
+              ) : (
+                selectedItemIds.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => groupItems(selectedItemIds)}
+                    className="btn btn-soft btn-block"
+                  >
+                    <Icon.Group width={14} height={14} />
+                    Group
+                  </button>
+                )
+              )}
+              <button
+                type="button"
+                onClick={duplicateAll}
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+                title="Duplicate every selected item (⌘/Ctrl+D)"
+              >
+                <Icon.Copy width={14} height={14} />
+                Duplicate selection
+              </button>
+              <button
+                type="button"
+                onClick={deleteAll}
+                className="btn btn-danger btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+              >
+                <Icon.Trash width={14} height={14} />
+                Delete all
+              </button>
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   )
 }
@@ -254,6 +459,12 @@ function PosField({
 export function InspectorPanel() {
   const multiCount = useStore((s) => s.selectedItemIds.length)
   const item = useStore(useShallow((s) => s.items.find((i) => i.id === s.selectedItemId) ?? null))
+  // How many *other* placed items share this def — gates the "apply finish to
+  // all of this type" action (also in the right-click menu, surfaced here for
+  // touch where right-click is a long-press).
+  const sameTypeCount = useStore((s) =>
+    item ? s.items.filter((i) => i.defId === item.defId).length : 0,
+  )
   const proMode = useStore((s) => s.uiMode === 'pro')
   const catalog = useCatalog()
   const deleteItem = useStore((s) => s.deleteItem)
@@ -265,6 +476,7 @@ export function InspectorPanel() {
   const addToGroup = useStore((s) => s.addToGroup)
   const units = useStore((s) => s.units)
   const renameItem = useStore((s) => s.renameItem)
+  const { minimized, toggle } = useInspectorMinimize()
   const [arrayCount, setArrayCount] = useState(3)
   const flip = (axis: 'x' | 'z') => {
     pushHistory()
@@ -283,7 +495,12 @@ export function InspectorPanel() {
     if (!it) return
     const next = it.rotation + Math.PI / 2
     if (
-      canPlace({ ...it, rotation: next }, def, { others: st.items, defs: catalog, doors: st.doors })
+      canPlace({ ...it, rotation: next }, def, {
+        others: st.items,
+        defs: catalog,
+        doors: st.doors,
+        walls: placementWalls(st),
+      })
     ) {
       st.pushHistory()
       st.rotateItem(it.id, next)
@@ -299,6 +516,7 @@ export function InspectorPanel() {
         others: st.items,
         defs: catalog,
         doors: st.doors,
+        walls: placementWalls(st),
       })
     ) {
       st.pushHistory()
@@ -311,11 +529,43 @@ export function InspectorPanel() {
     if (!it || Number.isNaN(deg)) return
     const rot = (deg * Math.PI) / 180
     if (
-      canPlace({ ...it, rotation: rot }, def, { others: st.items, defs: catalog, doors: st.doors })
+      canPlace({ ...it, rotation: rot }, def, {
+        others: st.items,
+        defs: catalog,
+        doors: st.doors,
+        walls: placementWalls(st),
+      })
     ) {
       st.pushHistory()
       st.rotateItem(it.id, rot)
     }
+  }
+
+  // Orient the item so its back is to the nearest wall (front faces the room) —
+  // one-click correct orientation for beds/sofas/desks. Collision-checked via trySetRot.
+  const faceIntoRoom = () => {
+    const st = useStore.getState()
+    const it = st.items.find((i) => i.id === item.id)
+    if (!it) return
+    const room = st.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    if (!room) return
+    const rect = {
+      minX: room.origin[0],
+      minZ: room.origin[1],
+      maxX: room.origin[0] + room.width,
+      maxZ: room.origin[1] + room.depth,
+    }
+    trySetRot((rotationFacingRoom(it.position, rect) * 180) / Math.PI)
+  }
+  // Move the item to the centre of the room it's in (collision-checked) — handy
+  // for centring a rug, coffee table or pendant.
+  const centreInRoom = () => {
+    const st = useStore.getState()
+    const it = st.items.find((i) => i.id === item.id)
+    if (!it) return
+    const room = st.floorPlan.rooms.find((r) => pointInRoom(r, it.position[0], it.position[1]))
+    if (!room) return
+    tryMove(room.origin[0] + room.width / 2, room.origin[1] + room.depth / 2)
   }
 
   const duplicate = () => {
@@ -333,7 +583,14 @@ export function InspectorPanel() {
             rotation: item.rotation,
             props: item.props,
           }
-          if (canPlace(probe, def, { others: st.items, defs: catalog, doors: st.doors })) {
+          if (
+            canPlace(probe, def, {
+              others: st.items,
+              defs: catalog,
+              doors: st.doors,
+              walls: placementWalls(st),
+            })
+          ) {
             st.addItem({
               defId: item.defId,
               position: pos,
@@ -362,33 +619,31 @@ export function InspectorPanel() {
   const duplicateRow = () => {
     const st = useStore.getState()
     const count = Math.max(2, Math.min(10, Math.round(arrayCount)))
-    const rot = item.rotation
-    const rx = Math.cos(rot)
-    const rz = -Math.sin(rot) // local +X projected to world XZ
-    const step = w + 0.12
+    // Evenly-spaced copy positions to the item's right (tested `arrayOffsets`).
+    const positions = arrayOffsets(item, count - 1, w + 0.12, 'right')
     const gid =
       typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `grp-${Date.now()}`
     const newItems: (typeof item)[] = []
     let others = st.items
-    for (let i = 1; i < count; i++) {
-      const pos: [number, number] = [
-        item.position[0] + rx * step * i,
-        item.position[1] + rz * step * i,
-      ]
+    for (const pos of positions) {
       const probe = {
-        id: `row-${i}`,
+        id: 'row-probe',
         defId: item.defId,
         position: pos,
-        rotation: rot,
+        rotation: item.rotation,
         props: item.props,
       }
-      if (!canPlace(probe, def, { others, defs: catalog, doors: st.doors })) break
+      // Stop at the first blocked slot so the row stays contiguous.
+      if (
+        !canPlace(probe, def, { others, defs: catalog, doors: st.doors, walls: placementWalls(st) })
+      )
+        break
       const ni = {
         ...item,
         id:
           typeof crypto !== 'undefined' && crypto.randomUUID
             ? crypto.randomUUID()
-            : `id-${Date.now()}-${i}`,
+            : `id-${Date.now()}-${newItems.length}`,
         position: pos,
         props: { ...item.props },
         groupId: gid,
@@ -404,7 +659,7 @@ export function InspectorPanel() {
   }
 
   return (
-    <aside className="panel inspector">
+    <aside className={`panel inspector${minimized ? ' minimized' : ''}`}>
       <div className="panel-head">
         <div>
           <div className="insp-thumb">
@@ -412,172 +667,278 @@ export function InspectorPanel() {
           </div>
           <div>
             <div className="panel-title">{item.label ?? def.name}</div>
-            <div className="panel-sub">{def.category}</div>
-            <div className="dims mono" title="Width × Depth × Height">
-              {formatDimsShort([w, d, def.defaultFootprint.h], units)}
-            </div>
+            {minimized ? null : (
+              <>
+                <div className="panel-sub">{def.category}</div>
+                <div className="dims mono" title="Width × Depth × Height">
+                  {formatDimsShort([w, d, def.defaultFootprint.h], units)}
+                </div>
+                <div
+                  className="insp-price mono"
+                  title="Estimated price (see the Budget panel for the full list)"
+                >
+                  ~$
+                  {itemPrice(
+                    def,
+                    def.category,
+                    typeof item.props.variant === 'string' ? item.props.variant : undefined,
+                  ).toLocaleString('en-SG')}
+                </div>
+              </>
+            )}
           </div>
         </div>
-        <button
-          type="button"
-          onClick={() => selectItem(null)}
-          className="icon-btn"
-          aria-label="Close inspector"
-        >
-          <Icon.Close width={16} height={16} />
-        </button>
-      </div>
-      <hr className="hr" />
-      <div className="panel-body">
-        <label className="flex items-center gap-2 text-xs" style={{ marginBottom: 'var(--s-2)' }}>
-          <span className="label" style={{ whiteSpace: 'nowrap' }}>
-            Name
-          </span>
-          <input
-            type="text"
-            value={item.label ?? ''}
-            placeholder={def.name}
-            aria-label="Custom item name"
-            onChange={(e) => renameItem(item.id, e.target.value)}
-            className="input"
-            style={{ flex: 1, minWidth: 0 }}
-          />
-        </label>
-        {proMode ? (
-          <InspectorSection
-            title="Transform"
-            defaultOpen
-            style={{ borderTop: 'none', paddingTop: 0 }}
-          >
-            <div className="transform-grid">
-              <PosField
-                label="X"
-                unit="m"
-                value={item.position[0]}
-                step={0.05}
-                onCommit={(v) => tryMove(v, item.position[1])}
-              />
-              <PosField
-                label="Z"
-                unit="m"
-                value={item.position[1]}
-                step={0.05}
-                onCommit={(v) => tryMove(item.position[0], v)}
-              />
-              <PosField
-                label="Rotation"
-                unit="°"
-                value={(item.rotation * 180) / Math.PI}
-                step={15}
-                onCommit={trySetRot}
-                integer
-              />
-            </div>
-          </InspectorSection>
-        ) : null}
-        {def.kind === 'parametric' ? (
-          <ParametricBody item={item} def={def} />
-        ) : isIkeaDef(def) ? (
-          <IkeaBody item={item} def={def} />
-        ) : (
-          <GltfBody item={item} def={def} />
-        )}
-        {def.kind === 'gltf' && (def.source === 'builtin' || def.source === 'ikea') && (
-          <SourceLine
-            attribution={def.attribution}
-            license={def.license}
-            sourceUrl={def.sourceUrl}
-          />
-        )}
-        <div className="sec">
-          <div className="action-grid">
-            <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
-              <Icon.Rotate width={16} height={16} />
-              Rotate
-            </button>
-            <button
-              type="button"
-              className={`act${item.flipX ? ' on' : ''}`}
-              onClick={() => flip('x')}
-              disabled={item.locked}
-            >
-              <Icon.FlipH width={16} height={16} />
-              Flip H
-            </button>
-            <button
-              type="button"
-              className={`act${item.flipZ ? ' on' : ''}`}
-              onClick={() => flip('z')}
-              disabled={item.locked}
-            >
-              <Icon.FlipV width={16} height={16} />
-              Flip V
-            </button>
-            <button type="button" className="act" onClick={duplicate}>
-              <Icon.Copy width={16} height={16} />
-              Duplicate
-            </button>
-            <button
-              type="button"
-              className={`act${item.locked ? ' on' : ''}`}
-              onClick={() => toggleLock(item.id)}
-            >
-              {item.locked ? (
-                <Icon.Lock width={16} height={16} />
-              ) : (
-                <Icon.Unlock width={16} height={16} />
-              )}
-              {item.locked ? 'Locked' : 'Lock'}
-            </button>
-            <button
-              type="button"
-              className="act danger"
-              onClick={() => !item.locked && deleteItem(item.id)}
-              disabled={item.locked}
-            >
-              <Icon.Trash width={16} height={16} />
-              Delete
-            </button>
-          </div>
-          {proMode ? (
-            <div className="act-array" title="Place a row of copies to the right of this item">
-              <span>Duplicate a row of</span>
-              <input
-                type="number"
-                min={2}
-                max={10}
-                value={arrayCount}
-                onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
-                aria-label="Number of copies in the row"
-              />
-              <button type="button" className="act-array-go" onClick={duplicateRow}>
-                <Icon.Copy width={13} height={13} />
-                Go
-              </button>
-            </div>
-          ) : null}
+        <div className="insp-head-btns">
           <button
             type="button"
-            onClick={() => useStore.getState().setSwapItemId(item.id)}
-            className="btn btn-soft btn-block"
-            style={{ marginTop: 'var(--s-2)' }}
+            onClick={() => useStore.getState().toggleLock(item.id)}
+            className={`icon-btn${item.locked ? ' on' : ''}`}
+            aria-label={item.locked ? 'Unlock item' : 'Lock item in place'}
+            title={item.locked ? 'Unlock — allow moving/editing' : 'Lock in place'}
           >
-            <Icon.Copy width={14} height={14} />
-            Swap with similar
+            {item.locked ? (
+              <Icon.Lock width={16} height={16} />
+            ) : (
+              <Icon.Unlock width={16} height={16} />
+            )}
           </button>
-          {activeGroupId && item.groupId !== activeGroupId && (
-            <button
-              type="button"
-              onClick={() => addToGroup(item.id, activeGroupId)}
-              className="btn btn-soft btn-block"
-              style={{ marginTop: 'var(--s-2)' }}
-            >
-              <Icon.Group width={14} height={14} />
-              Add to group
-            </button>
-          )}
+          <MinimizeButton minimized={minimized} toggle={toggle} />
+          <button
+            type="button"
+            onClick={() => selectItem(null)}
+            className="icon-btn"
+            aria-label="Close inspector"
+          >
+            <Icon.Close width={16} height={16} />
+          </button>
         </div>
       </div>
+      {minimized ? null : (
+        <>
+          <hr className="hr" />
+          <div className="panel-body">
+            <label
+              className="flex items-center gap-2 text-xs"
+              style={{ marginBottom: 'var(--s-2)' }}
+            >
+              <span className="label" style={{ whiteSpace: 'nowrap' }}>
+                Name
+              </span>
+              <input
+                type="text"
+                value={item.label ?? ''}
+                placeholder={def.name}
+                aria-label="Custom item name"
+                onChange={(e) => renameItem(item.id, e.target.value)}
+                className="input"
+                style={{ flex: 1, minWidth: 0 }}
+              />
+            </label>
+            {proMode ? (
+              <InspectorSection
+                title="Transform"
+                defaultOpen
+                style={{ borderTop: 'none', paddingTop: 0 }}
+              >
+                <div className="transform-grid">
+                  <PosField
+                    label="X"
+                    unit="m"
+                    value={item.position[0]}
+                    step={0.05}
+                    onCommit={(v) => tryMove(v, item.position[1])}
+                  />
+                  <PosField
+                    label="Z"
+                    unit="m"
+                    value={item.position[1]}
+                    step={0.05}
+                    onCommit={(v) => tryMove(item.position[0], v)}
+                  />
+                  <PosField
+                    label="Rotation"
+                    unit="°"
+                    value={(item.rotation * 180) / Math.PI}
+                    step={15}
+                    onCommit={trySetRot}
+                    integer
+                  />
+                </div>
+              </InspectorSection>
+            ) : null}
+            {def.kind === 'parametric' ? (
+              <ParametricBody item={item} def={def} />
+            ) : isIkeaDef(def) ? (
+              <IkeaBody item={item} def={def} />
+            ) : (
+              <GltfBody item={item} def={def} />
+            )}
+            {def.kind === 'gltf' && (def.source === 'builtin' || def.source === 'ikea') && (
+              <SourceLine
+                attribution={def.attribution}
+                license={def.license}
+                sourceUrl={def.sourceUrl}
+              />
+            )}
+            <div className="sec">
+              <div className="action-grid">
+                <button type="button" className="act" onClick={rotate90} disabled={item.locked}>
+                  <Icon.Rotate width={16} height={16} />
+                  Rotate
+                </button>
+                <button
+                  type="button"
+                  className={`act${item.flipX ? ' on' : ''}`}
+                  onClick={() => flip('x')}
+                  disabled={item.locked}
+                >
+                  <Icon.FlipH width={16} height={16} />
+                  Flip H
+                </button>
+                <button
+                  type="button"
+                  className={`act${item.flipZ ? ' on' : ''}`}
+                  onClick={() => flip('z')}
+                  disabled={item.locked}
+                >
+                  <Icon.FlipV width={16} height={16} />
+                  Flip V
+                </button>
+                <button type="button" className="act" onClick={duplicate}>
+                  <Icon.Copy width={16} height={16} />
+                  Duplicate
+                </button>
+                <button
+                  type="button"
+                  className={`act${item.locked ? ' on' : ''}`}
+                  onClick={() => toggleLock(item.id)}
+                >
+                  {item.locked ? (
+                    <Icon.Lock width={16} height={16} />
+                  ) : (
+                    <Icon.Unlock width={16} height={16} />
+                  )}
+                  {item.locked ? 'Locked' : 'Lock'}
+                </button>
+                <button
+                  type="button"
+                  className="act danger"
+                  onClick={() => !item.locked && deleteItem(item.id)}
+                  disabled={item.locked}
+                >
+                  <Icon.Trash width={16} height={16} />
+                  Delete
+                </button>
+              </div>
+              {proMode ? (
+                <div className="act-array" title="Place a row of copies to the right of this item">
+                  <span>Duplicate a row of</span>
+                  <input
+                    type="number"
+                    min={2}
+                    max={10}
+                    value={arrayCount}
+                    onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
+                    aria-label="Number of copies in the row"
+                  />
+                  <button type="button" className="act-array-go" onClick={duplicateRow}>
+                    <Icon.Copy width={13} height={13} />
+                    Go
+                  </button>
+                </div>
+              ) : null}
+              {isOffSquare(item.rotation) ? (
+                <button
+                  type="button"
+                  onClick={() => trySetRot((nearestRightAngle(item.rotation) * 180) / Math.PI)}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  title="Snap this item's rotation to the nearest 90°"
+                >
+                  <Icon.Rotate width={14} height={14} />
+                  Straighten
+                </button>
+              ) : null}
+              <div className="action-grid two" style={{ marginTop: 'var(--s-2)' }}>
+                <button
+                  type="button"
+                  onClick={faceIntoRoom}
+                  className="act"
+                  title="Turn this piece's back to the nearest wall (face into the room)"
+                >
+                  <Icon.Rotate width={14} height={14} />
+                  Face room
+                </button>
+                <button
+                  type="button"
+                  onClick={centreInRoom}
+                  className="act"
+                  title="Move this piece to the centre of its room"
+                >
+                  <Icon.AlignX width={14} height={14} />
+                  Centre
+                </button>
+              </div>
+              <button
+                type="button"
+                onClick={() => useStore.getState().setSwapItemId(item.id)}
+                className="btn btn-soft btn-block"
+                style={{ marginTop: 'var(--s-2)' }}
+              >
+                <Icon.Copy width={14} height={14} />
+                Swap with similar
+              </button>
+              {sameTypeCount > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const n = useStore.getState().applyStyleToAll(item.id)
+                    if (n > 0)
+                      useStore.getState().notify.start({
+                        title: `Applied this finish to ${n} more`,
+                        kind: 'success',
+                      })
+                  }}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  title="Copy this item's finish, colour & material to every other item of the same type"
+                >
+                  <Icon.Palette width={14} height={14} />
+                  Apply finish to all ({sameTypeCount - 1})
+                </button>
+              ) : null}
+              {sameTypeCount > 1 ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const s = useStore.getState()
+                    s.setSelectedItemIds(
+                      s.items.filter((i) => i.defId === item.defId).map((i) => i.id),
+                    )
+                  }}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  title="Select every item of this type to move, rotate or delete them together"
+                >
+                  <Icon.Cube width={14} height={14} />
+                  Select all of type ({sameTypeCount})
+                </button>
+              ) : null}
+              {activeGroupId && item.groupId !== activeGroupId && (
+                <button
+                  type="button"
+                  onClick={() => addToGroup(item.id, activeGroupId)}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                >
+                  <Icon.Group width={14} height={14} />
+                  Add to group
+                </button>
+              )}
+            </div>
+          </div>
+        </>
+      )}
     </aside>
   )
 }

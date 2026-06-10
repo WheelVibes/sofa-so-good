@@ -4,6 +4,692 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C108] Code-split the GLB Designer out of the initial bundle
+Release-readiness checkpoint (tsc + 1102 tests + prod build + both doc guides — all green) flagged
+the main JS chunk >1 MB. Lazy-loaded the Pro-only, fullscreen **GLB Designer** (`React.lazy` +
+mount gated on `glbDesignerOpen`, matching the FloorPlanEditor pattern) so its editor + GLTF
+exporter leave the initial bundle — the build now emits a separate `GlbDesignerDialog` chunk
+(~3.9 kB gzip + its deps, loaded on open). Verified it still opens + renders in Pro mode.
+
+## [C107] Regression guard — lint docs prose for build-breaking placeholder tags
+Added `docsMarkdownLint.test.ts`: strips code spans/blocks from every user + developer guide
+`.md`, then fails if any prose contains an unknown `<tag>` (the `<room>`-style placeholder that
+silently broke the VitePress build in C106). Catches the whole class of bug in `npm test` —
+far faster than a full `vitepress build` in CI — so the guides can't regress unnoticed again.
+
+## [C106] Fix broken user-guide build + document the multi-select toolset
+Fixed a **pre-existing broken `docs:build`**: three `*"Enter <room>?"*` placeholders (navigating
++ room-editor docs) were parsed by VitePress/Vue as unclosed `<room>` tags, failing the whole
+user guide (and `build:all`); escaped them to `&lt;room&gt;`. Verified `npm run docs:build` now
+completes. Also rewrote the user guide's "Multi-select" section to document the full toolset with
+exact button labels (align centre/edge, even-gap distribute, rotate, mirror, snap, arrange-as-run).
+
+## [C105] Docs: multi-select toolset map + full-panel render check
+Brought `docs/ARCHITECTURE.md`'s multi-select line current — it now lists the full toolset
+(align centre/edge, even-gap distribute, rotate ±90°, face-into-room, snap-to-wall, arrange-as-
+run, mirror) and notes the shared `layout/selectionActions.ts` module (inspector + ⌘K).
+Screenshot-verified the now-rich panel renders cleanly with no overflow (incl. the Mirror button).
+
+## [C104] Mirror selection (left ↔ right) — multi-select + ⌘K
+Added a **Mirror** bulk action that reflects the selection across its own centre line — each
+piece's X reflects, heading negates and geometry flips (`flipX`), so an asymmetric layout reads
+as its true mirror image (reuses the tested `mirrorItemX`). Commits **all-or-nothing** so a
+piece that would clip a wall on the far side never half-mirrors the group into an overlap.
+Wired into the inspector + the ⌘K Selection group. Verified (positions swap across centroid + flip).
+
+## [C103] New storage item — freestanding garment rack
+Added a `GarmentRack` primitive + catalog entry (storage): an open clothing rail on a
+metal/wood/painted frame with a lower shoe shelf and a row of hung garments on hangers — the
+open-storage alternative to a closed wardrobe (bedrooms, staging, retail). Screenshot-verified
+both frame finishes (rail, shelf, varied hung garments).
+
+## [C102] Docs: refresh catalog count (~75 → ~95) after this session's additions
+Updated the README's stale "~75-item" catalog claim to "~95-item" (now ~97 entries: 93 builtin
++ 4 cabinet defs) after the session added toddler bed, laundry hamper, wall tapestry, floor
+speaker, outdoor lounger, pet bed and aquarium. Verified the full default flat (66 items, 11
+rooms) still boots + renders cleanly end-to-end — no regression from the session's changes.
+
+## [C101] Aquarium glows at night + emitter-spec guard test
+Registered the aquarium as a soft cool-aqua night-time light emitter (bulb placed inside the
+water column) so it reads as a glowing tank after dark, matching the existing fixture emitters.
+Added `lightEmitters.test.ts` validating every emitter spec (real catalog id, finite height,
+positive intensity/distance, hex colour) + that the aquarium bulb sits within its tank. (The
+night glow itself renders only on a dark scene/real GPU, like the other fixture lights.)
+
+## [C100] New decor centrepiece — aquarium / fish tank
+Added an `Aquarium` primitive + catalog entry (decor): a tintable stand cabinet with a clear
+glass tank over a gravel bed, tinted water filled to just below the rim, planted stems and a
+black top trim. A real interior centrepiece that was missing. Screenshot-verified (glass shows
+the water/gravel/plants through it; sits on its stand).
+
+## [C99] Security regression test — escape malicious user-furniture names in the report
+Audited every HTML sink in the printable report (the only `document.write` path): plan name,
+note, room/finish names, item names and annotation labels all already route through `esc()`.
+Locked it in with a regression test that a user-uploaded piece named with an `<img onerror>`
+payload is escaped in the shopping list (the one user-controlled string that wasn't yet tested).
+
+## [C98] New decor item — pet bed (round basket / rectangular mat)
+Added a `PetBed` primitive + catalog entry (decor): a round basket (cushion pad inside a raised
+bolster ring) or a rectangular mat with bolsters on three sides, open at the front. Pets are a
+real interior consideration that was entirely missing. Screenshot-verified both shapes.
+
+## [C97] Shared selection-action module + ⌘K commands for wall actions
+Extracted the multi-select wall/orient actions (snap-to-wall, arrange-as-run, face-into-room)
+out of the inspector into a reusable `layout/selectionActions.ts` (slimming the panel and
+de-duplicating the logic), then surfaced them in the **command palette** as a *Selection* group
+that appears whenever 2+ pieces are selected. Screenshot-verified the ⌘K commands appear + run.
+
+## [C96] Wall-aware "Arrange as run" for multi-select (kitchen-run feature)
+Added an **Arrange as run** bulk action (pure, tested `layout/arrangeRun.ts`): lines the
+selection up as one run — backs flush to the nearest wall, butted edge-to-edge in left-to-right
+order, centred on where they were. The headline kitchen-run / wardrobe-wall move. Verified
+end-to-end (3 scattered base cabinets → a flush butted run against the wall, fronts to room).
+
+## [C95] Worktop materials on the kitchen island + counter primitives
+Extended C94's worktop finishes to the `KitchenIsland` (was hardcoded marble) and
+`KitchenCounter` (was a glossy slab) primitives via a `worktopFinish` option — island defaults
+to marble, counter to solid (both back-compat). Concrete/marble/wood counters now span the
+whole modular kitchen. Screenshot-verified (concrete island top + marble counter).
+
+## [C94] Cabinet worktop materials — marble / concrete / butcher block
+The parametric base cabinet's worktop was a flat glossy slab; added a `worktopFinish` option
+(solid / stone-marble / concrete / wood) so it renders a real textured worktop via
+`getSurfaceMaterial` (tiled ~2× for counter scale), defaulting to the old solid for back-compat.
+Concrete & stone counters are the signature kitchen finish. Screenshot-verified (marble + concrete tops).
+
+## [C93] Overlap guard for furniture sets + de-clip vignettes + parasol shade fix
+Added a collision-validity test for every `FURNITURE_SETS` vignette (ungrouped, so it catches
+real geometry overlaps; rugs/different-height items stay exempt) and nudged the pieces it
+flagged so nothing clips — lounge, reading-nook, entryway, study, balcony, kids-room, sun-deck.
+Also fixed a real bug: the **parasol had no `verticalSpan`**, so its 2.2 m canopy read as a
+floor-level obstacle and nothing could sit in its shade — now spanned at canopy height so
+loungers/tables tuck underneath. Verified (entryway row + all sets collision-clean).
+
+## [C92] New one-click vignette — Sun deck set
+Added a `sun-deck` furniture set (two loungers sharing a side table, parasol behind for shade)
+— the poolside/balcony lounging counterpart to the bistro Balcony set. Screenshot-verified the
+arrangement (loungers separated, parasol canopy overhead, no overlaps).
+
+## [C91] New outdoor item — sun lounger / daybed
+Added an `OutdoorLounger` primitive + catalog entry (outdoor category): a low slatted frame on
+short feet with a thick seat cushion and an inclined back cushion at the head, in teak / rattan
+/ painted / metal finishes. Expands the balcony/poolside set. Screenshot-verified (profile:
+feet on floor, reclined backrest, cushions).
+
+## [C90] "Snap to wall" for multi-select (+ pure flush/edge helpers)
+Added a **Snap to wall** bulk action: pushes every selected piece flush against its nearest
+room wall and turns its back to it (orient + move collision-checked together). Factored the
+maths into pure, tested `faceWall.ts` helpers (`nearestWallEdge`, `rotationForEdge`,
+`flushToWall`). Verified end-to-end (dresser → flush west wall, bookshelf → flush north wall).
+
+## [C89] Bulk rotate ±90° for multi-select
+Added **Rotate −90° / +90°** buttons to the multi-select panel: turns every selected
+(unlocked) piece in place by a quarter turn, collision-checked per item (a piece that would
+clip after turning is skipped). Fills the gap where multi-select could face-into-room but not
+free-rotate. Verified end-to-end (two chairs turn 0→π/2 and re-render correctly).
+
+## [C88] New surface finish — matte concrete / micro-cement
+Added a `concrete` finish to `getSurfaceMaterial` (`getConcreteMaterial` — a tinted matte grey
+with cloudy mottle, sparse aggregate specks and a fine-pore normal) and offered it on the
+coffee/side/dining tables, kitchen island & counter, wall cabinet and vanity — the on-trend
+industrial look. Screenshot-verified (coffee table + island read as believable concrete).
+
+## [C87] Edge alignment for multi-select (Left / Right / Top / Bottom)
+Wired the footprint-aware `alignEdge` helper into the inspector's multi-select panel as a new
+**Align edges** section — snap every selected piece's near/far edge along X or Z to the
+selection's extreme edge (vs only centre alignment before). Verified end-to-end (3 mixed-depth
+items → back edges flush to a line).
+
+## [C86] Footprint-aware even-gap distribute (+ pure align/distribute module)
+Extracted the multi-select align/distribute maths into a tested pure module
+(`layout/alignDistribute.ts`, 12 tests) and upgraded **Distribute evenly** to space
+edge-to-edge *gaps* equally using each piece's footprint — so a row of differently-sized
+items reads tidy (the old centre-spacing left uneven gaps). Verified end-to-end (4 mixed-size
+items → equal ~0.82 m gaps, extremes pinned). Also exposes a footprint-aware edge-align helper.
+
+## [C85] New electronics — floor-standing speaker
+Added a `FloorSpeaker` primitive + catalog entry (electronics category): a hi-fi tower on a
+low plinth with a tweeter + 1–3 woofer cones on the front baffle, matte or wood-veneer
+finish, adjustable height. Pairs with the TV/soundbar and fills the thin electronics
+category. Screenshot-verified both finishes (driver stack reads on the wood variant).
+
+## [C84] New textile decor — wall tapestry (macramé / woven)
+Added a `WallTapestry` primitive + catalog entry (textiles category): a wall hanging on a
+wooden dowel, either a fringed macramé panel or a flat woven panel, with adjustable width /
+drop / rod height. A mounted item that fills out the thin textiles category. Screenshot-
+verified both styles flat against the wall (rod overhang + knotted fringe).
+
+## [C83] New laundry item — laundry hamper
+Added a `LaundryHamper` primitive + catalog entry (laundry category): a floor basket with a
+round-woven or rectangular bin shape, woven-rattan or canvas body, a fabric liner over the
+rim and an optional lid. Fills out the thin laundry category. Screenshot-verified both
+variants (round rattan + lidded canvas bin) sitting on the floor.
+
+## [C82] New one-click vignette — Kids room set
+Added a `kids-room` furniture set (toddler bed against the wall + bedside nightstand & lamp
++ low toy-storage organiser + play rug) — the post-crib sibling of the Nursery set, dropped
+group-selected in one click. Screenshot-verified the arrangement (top-down: no overlaps).
+
+## [C81] New kids item — toddler bed
+Added a `ToddlerBed` primitive + catalog entry (kids category): a low junior bed with four
+legs, slatted base, mattress + pillow, a tall headboard and a low footboard, plus short
+safety side rails over the head-half of each side (the foot-half stays open to climb in) —
+the nursery's step up from the crib. Params: frame colour, bedding colour, finish
+(wood/painted/gloss). Fills the gap where kids had a crib but no actual kids bed.
+Screenshot-verified (profile view: floor contact, headboard/footboard heights, side rail).
+
+## [C80] Lock toggle in the single-item inspector header
+Added a lock/unlock button to the inspector header (lock icon when locked, unlock when not)
+so a bed/built-in can be pinned in place without opening the Layers tab. Verified the
+toggle flips `item.locked`.
+
+## [C79] Report — room schedule header + ceiling-height column
+The report's rooms table now has a labelled header (Room / Size / Ceiling / Area) and a
+**ceiling-height** column (per-room override or the plan default) — a proper room schedule
+for a spec/quote, surfacing the per-room ceiling feature. Report test asserts it.
+
+## [C78] "Centre in room" — one-click move to room centre
+Added a **Centre** inspector button (paired with Face-into-room in a 2-up row) that moves
+the selected item to the centre of its room, collision-checked — handy for a rug, coffee
+table or pendant. Verified (off-corner item snaps to the exact room centre).
+
+## [C77] New furniture finish — woven rattan / wicker
+Added a `rattan` finish to `getSurfaceMaterial` (`getRattanMaterial` — a coarse plain
+over-under basketweave normal, tan, cached/tiled) and offered it on the outdoor chair +
+table. Gives a real rattan look (beyond flat teak) for patio furniture/baskets. Verified.
+
+## [C76] New outdoor item — parasol / umbrella
+Added an `OutdoorParasol` primitive + catalog entry: weighted base, metal pole, octagonal
+fabric canopy (adjustable ⌀) with valance + finial. Completes the balcony collection
+(planter / chair / table / parasol). Screenshot-verified shading a table.
+
+## [C75] Report — wall-finish schedule (paint/tile to order)
+The printable report gains a **Wall finish schedule** beside the flooring schedule: gross
+wall area per wall finish (room perimeter × ceiling height, honouring per-room overrides),
+the paint/tile procurement view. Pure tested `wallAreaByFinish` (+3); report test asserts it.
+
+## [C74] GLB designer — accurate saved footprint
+A designer-saved asset got a generic 1×1×1 `defaultFootprint` (wrong catalog dimensions +
+first-placement collision until the GLB loaded). Now `saveAsset` measures the built
+object's bounding box (`Box3`) and passes it as the footprint (new `persistUserGlb`
+option). Removed the superseded unused `partsBounds`. Verified: a 0.4 m box saves as a
+0.4 m-cube footprint, not 1×1×1.
+
+## [C73] "Select all of type" — bulk-select matching items
+Inspector button (shown when 2+ of a type exist) that selects every item sharing the def,
+so you can move/rotate/delete/align them together — complements "Apply finish to all".
+Verified (selects exactly the 3 chairs, not the nightstand).
+
+## [C72] Test — guard against empty catalog department tabs
+Added a catalog-integrity test asserting every `FurnitureCategory` (except the `others`
+catch-all) has ≥1 built-in item — codifying the C66–C69 audit so a department tab can't
+silently ship empty again.
+
+## [C71] One-click "Balcony set"
+Added a **Balcony set** to the Sets list (Arrange menu): a slatted bistro table with two
+facing chairs + a planter, dropped pre-arranged. Reuses the C66/C69/C70 outdoor pieces +
+the shared set-drop path; validated by the sets test (defIds + structure) and the C70
+screenshot of the identical layout.
+
+## [C70] New outdoor item — slatted bistro table
+Added an `OutdoorTable` primitive + catalog entry: a square slatted top on four legs with
+a lower stretcher (matching the outdoor chair), adjustable size + height (coffee↔bistro),
+teak/painted/metal. With the chair + planter, Outdoor is now a full balcony set.
+Screenshot-verified (table + 2 chairs + planter form a cohesive bistro setup).
+
+## [C69] New outdoor item — slatted lounge chair
+Added an `OutdoorChair` primitive + catalog entry: a slatted patio/balcony lounge chair
+(side frames + legs + armrests, slatted seat, reclined slatted back), teak/painted/metal
+finishes. Outdoor now has seating + planter to furnish a balcony. Screenshot-verified.
+
+## [C68] Group baby items under the Baby & Kids department
+Moved crib / high-chair / changing-table into the **kids** category (they were split across
+beds/seating/storage), so the Baby & Kids tab now holds the nursery set (4 items) — matching
+IKEA's Children's department. Old category names kept as search keywords; bunk-bed stays in
+beds (dual-use). Verified the tab shows 4 cards.
+
+## [C67] Recategorize items so empty department tabs populate
+The **Electronics / Textiles / Laundry** category tabs existed but were empty (their items
+were mis-filed): moved TV / soundbar / monitor → electronics, rug / curtains → textiles,
+washing-machine / drying-rack → laundry. All 14 IKEA-style department tabs now populate;
+defId-keyed saves/layouts unaffected. Verified the chips render.
+
+## [C66] New outdoor item — planter trough (fills the empty Outdoor category)
+The **Outdoor** category had zero items (its tab never showed). Added a `PlanterTrough`
+primitive + catalog entry: a length-adjustable balcony planter box (concrete/terracotta/
+wood) with soil + a run of bushy greenery, customizable planter + foliage colour.
+Screenshot-verified.
+
+## [C65] Multi-select "Face into room"
+The align/distribute multi-select panel gains a **Face into room** button that orients
+every selected (unlocked) piece to its own nearest wall (bulk version of C63),
+collision-checked per item. Verified (two nightstands → 0 and π toward the room).
+
+## [C64] Security — escape quotes in the printable report (HTML injection)
+The report's `esc()` only escaped `&<>`, but user strings (project note, room/material
+names, swatches) are embedded in `style="…"`/`title="…"` attributes — a `"` could break
+out and inject markup. Now escapes `"` and `'` too (safe for text + attribute contexts).
+Added an injection test (a `"><script>` note/name is fully neutralised).
+
+## [C63] "Face into room" — one-click orient against the nearest wall
+Inspector button that turns a selected piece's back to the nearest wall (front into
+the room) — fast correct orientation for beds/sofas/desks. Pure tested
+`layout/faceWall.ts` `rotationFacingRoom` (+4 tests), collision-checked apply. Verified.
+
+## [C62] New wall finish — fluted / reeded panels
+Added a `fluted` procedural pattern (close-packed rounded vertical ribs via a half-sine
+height profile; seamless) + three feature-wall finishes (oak / walnut / white plaster).
+The on-trend reeded panel, distinct from spaced battens. Screenshot-verified.
+
+## [C61] Test — parametric item props survive save/load
+Added a schema round-trip test asserting a parametric item's full `props` (cabinet
+worktop/handle/sink/columns/colour/finish + rotation) survive serialize → parse →
+`applySerialized` verbatim — guarding persistence of every new cabinet/appliance option.
+
+## [C60] New appliance — wine / beverage cooler
+Added a `WineCooler` primitive + catalog entry: slim under-counter unit with a tinted
+glass door, wire shelves, interior LED glow and a bar handle; width 30–60 cm,
+steel/matte/gloss. Screenshot-verified. (Also: prototyped + reverted a full-scene
+GLB export — it can't complete in the headless verify env; deferred in TASKS.)
+
+## [C59] K1b — L-shaped corner base cabinet
+Added a `CabinetCorner` primitive + catalog entry completing the kitchen cabinet set:
+two perpendicular runs sharing the corner, an L countertop, recessed toe-kicks, and a
+door on each run's inner face (back faces to the walls, opens to the room). Screenshot-
+verified (clean L carcass + L worktop + doors, no artifacts).
+
+## [C58] Shift-drop to keep placing (place a row fast)
+Holding **Shift** when committing a catalog placement now keeps the same piece armed
+(same orientation) so you can drop several in a row — a plain click or Esc finishes.
+Verified: 3 chairs placed with Shift, plain click disarmed.
+
+## [C57] Rotate the placement ghost before dropping (R)
+While placing a catalog item you can now press **R** (Shift = 15°) to rotate the ghost
+before committing, so a piece lands facing the right way in one step instead of
+place-then-rotate. New `placementSlice.ghostRotation`/`rotateGhost`; the ghost preview +
+footprint + collision all reflect it; both click + drop commits apply it. Verified.
+
+## [C56] New appliance — built-in oven
+Added a **Built-in oven** primitive + catalog entry (the split-kitchen counterpart to the
+cabinet hob): stainless body, dark glass door + bar handle, top fascia with control knobs.
+Built-under by default with an adjustable **mount height** for an eye-level column oven.
+Steel/matte/gloss, priced. Screenshot-verified (built-under + eye-level).
+
+## [C55] New appliance — dishwasher
+Added a **Dishwasher** primitive + catalog entry (a real kitchen-appliance gap): base-
+cabinet-sized body, proud front door + recessed handle, top control strip with dials/LEDs,
+and a **panel-ready / integrated** option (hides controls to match cabinetry). Steel/matte/
+gloss finishes, priced. Screenshot-verified (visible-controls + integrated variants).
+
+## [C54] New wall finish — glossy subway / metro tile
+Added a `subway` procedural pattern (`subwayFields` — running-bond 2:1 ceramic tiles, thin
+grout, soft bevel; seamless) + two wall finishes (white + sage) at metro scale. The classic
+kitchen-backsplash/bathroom wall finish, distinct from the matte exposed-brick. Screenshot-verified.
+
+## [C53] New procedural finish — honeycomb hexagon tile
+Added a `hexagon` procedural pattern (`generators.ts` `hexagonFields` — Voronoi cells over
+an offset triangular lattice, toroidally seamless, recessed grout) + two catalog finishes
+(light + charcoal hex tile). A kitchen/bath staple matching Coohom/Planner-5D. Screenshot-verified seamless on a floor.
+
+## [C52] GLB designer — stagger newly-added shapes
+Fixed a usability defect: every added shape spawned at the origin and overlapped
+invisibly. `addPart` now staggers each new shape 0.5 m along +X so they're distinct
+and editable from there. Tested + screenshot-verified (two side-by-side boxes).
+
+## [C51] GLB designer — placement type (floor / wall-mounted / floor-covering)
+The designer gains a **Placement** select so a designed piece saves with the right
+collision flags — wall-mounted (`mounted`, skips wall-body collision) or a rug-style
+floor covering (`noClip`, never blocks). Pure `placementFlags` (tested); verified the
+saved def carries `mounted: true` for a wall piece.
+
+## [C50] GLB designer — discoverable "Design" button
+Added a Pro-gated **Design** button to the catalog footer (beside Upload) that opens
+the asset designer, so it's discoverable without ⌘K. Hidden in Simple mode.
+
+## [C49] GLB designer — full-screen + Pro-gated
+The asset designer now fills the whole viewport (100vw×100dvh, overriding the panel's
+max-height) for room to work, and is **Pro-only**: the dialog no-ops in Simple mode and
+its ⌘K entry is hidden there (new `PRO_ONLY_COMMANDS` gate in the command palette).
+
+## [C48] GLB designer v2 — per-mesh recolour / hide of a source GLB
+The designer now lists a source GLB's named meshes ("Recolour parts") with a colour
+picker + hide toggle, so you can recolour a cushion or hide a part to make a variant.
+Pure `setMeshOverride` + `applyMeshOverrides` (clones materials, no shared mutation),
+tested (+8); composed parts are now named so saved assets are re-editable. Verified.
+
+## [C47] GLB Asset Designer — compose / edit custom 3D assets
+New in-browser asset designer (⌘K → "Design a 3D asset"): compose an asset from
+primitive shapes (box/cylinder/sphere, each with size/position/colour) and/or start
+from an uploaded GLB scaled into a custom variant, with a live R3F preview, then
+export via GLTFExporter → `persistUserGlb` so it lands in the catalog like any upload.
+Pure `editSpec.ts` (tested) + `buildObject.ts` + `saveAsset.ts` + dialog. v2: per-mesh
+recolour/hide of a source GLB.
+
+## [C46] Cabinet handle styles (bar / knob / handleless)
+Cabinets gain a **Handles** option: `buildCabinet` now reports a `handleStyle` and
+omits handle parts when `'none'`; the renderer draws a round knob (cylinder) vs the
+bar (box). Model tested (+3); screenshot-verified across all three styles.
+
+## [C45] Extract the array-row math into a tested pure module
+The inspector's "Duplicate a row" did its rotation/offset math inline; extracted it
+to a pure, unit-tested `furniture/arrayPlacement.ts` (`arrayOffsets` — rotation-aware
+linear array, 5 tests) and refactored `duplicateRow` to use it. Same behaviour
+(screenshot-verified: 4 evenly-spaced chairs), less duplication, now test-backed.
+
+## [C44] K1b — "Kitchen run" set + wall-cabinet mount fix
+Added a one-click **Kitchen run** set (base sink · hob · drawers + wall uppers + tall
+pantry) assembling the cabinet engine into a kitchen. Also fixed a C38 bug: the
+parametric **wall (upper) cabinet rendered on the floor** — it now lifts to its
+`mountHeight` (default 1.45 m, new inspector field). Screenshot-verified.
+
+## [C43] K1b — hob/cooktop worktop fitting
+Generalised the base cabinet's `sinkCutout` to a typed `worktopCutout`
+(`kind: 'sink' | 'hob'`) and added a **hob** option: same worktop-frame cut, with
+the renderer dropping a black glass-ceramic panel + four burner rings into it. One
+**Worktop** select (Plain / Sink / Hob). Model tested (16); screenshot-verified.
+
+## [C42] K1b — sink basin in the base cabinet
+The parametric base cabinet gains a **Sink** option: `buildCabinet` cuts the worktop
+into a 4-strip frame around a centred opening and exposes a `sinkCutout`; the renderer
+drops a recessed stainless basin + faucet into it. Pure model tested (+4 cases);
+screenshot-verified. Coohom-parity kitchen sink unit.
+
+## [C41] B34 — plan-aware sun-shadow frustum
+`Lighting.tsx` no longer hardcodes the apartment-centred shadow box; new pure tested
+`scene/lighting/shadowFrustum.ts` fits the ortho frustum centre + half-extent to the
+**active floor plan** (walls + rooms, offset-aware, clamped 9.5–40 m), so shadows reach
+a large or origin-offset custom plan instead of being aimed at empty space. Default flat
+unchanged (verified at Medium tier).
+
+## [C40] Modularize CLAUDE.md (entry point + ARCHITECTURE + path-scoped rules)
+Split the 1000-line CLAUDE.md: root `CLAUDE.md` is now a lean ≤60-line entry point
+(hard rules + conventions + pointers); the full code map moved to `docs/ARCHITECTURE.md`;
+and each major `src/` area (state/furniture/scene/ui/materials) gets its own path-scoped
+`CLAUDE.md` that loads only when working there. README pointers updated.
+
+## [C39] Q31 (part 1) — drag a finish onto a furniture item
+Finish-picker swatches are now draggable; dropping one onto a piece in the
+Objects (Layers) list applies that finish (dashed drop-highlight + toast). New
+pure, tested `materials/finishDrop.ts` (payload encode/decode + `resolveFinishDrop`
+routing floor/wall/item) is the shared core for the 3D-surface drop next.
+
+## [C38] K1 — parametric cabinet engine (base / wall / tall)
+New `furniture/cabinet/` engine: pure, unit-tested `buildCabinet` geometry model
+(toe-kick / carcass / countertop / cornice / slab·shaker·drawers·glass·open
+fronts, mm-customisable W/H/D + columns) + `CabinetModule` primitives and three
+catalog entries (Base / Wall upper / Tall pantry). Coohom-parity modular kitchen.
+
+## [C37] Copy finishes to a specific room
+The room-editor Finish picker gains a "Copy finishes to…" dropdown beside the
+"Apply to all rooms" buttons — copies this room's floor + wall finish to one
+chosen room (undoable, with a confirmation toast), complementing the
+apply-to-every-room actions. Mirrors the existing "Copy layout to…" select.
+
+## [C36] Clear-room toast + production-build/suite gate
+"Clear room" now shows a "Cleared N items" toast (consistent with the other room
+actions). Also ran the full commercial-readiness gate: production build clean
+(1179 modules) + 1012 tests pass — no regressions across the run's new modules.
+
+## [C35] Confirmation toasts for "Apply finish to all rooms"
+The Apply-floor/walls-to-all-rooms buttons applied silently; they now show a
+success toast so the bulk action is confirmed. DOM-verified.
+
+## [C34] "Room layout" subheading in the FinishPicker
+Grouped the growing room-action cluster (Tidy / Mirror / Copy layout / Swap
+layout / Clear) under a "Room layout" subheading, separating it from the
+finish-apply actions for scannability. DOM-verified.
+
+## [C33] Accessible names for the budget HUD + favourites/recent chips
+The budget HUD button now has a descriptive `aria-label` (spend/target, was
+title-only) and the Favourites/Recent catalog chips announce their counts
+(badges were visual-only). Small a11y/commercial-readiness pass. DOM-verified.
+
+## [C8] Swap two rooms' layouts
+New `layout/swapRooms` (pure, 3 tests) + a "Swap layout with…" picker in the
+FinishPicker exchanges two rooms' unlocked furniture (centre-delta translation);
+all-or-nothing with a clear "doesn't fit" notice if room sizes differ too much.
+Verified: bedroom2↔bedroom3 counts exchanged (8↔9).
+
+## [C32] Consistent chip counts on Favourites/Recent + full-suite gate
+Favourites/Recent catalog chips now use the same `.chip-count` styling as the
+category chips (Recent gained its count). Also ran the periodic full gate:
+1009 tests pass, tsc + lint clean — no regressions. DOM-verified.
+
+## [C31] "B" keyboard shortcut to toggle the Budget panel
+Added `B` (orbit views, not while typing, gated on the `budget` feature flag) to
+toggle the Budget/shopping panel — quick access to the now-rich spend view.
+Registered in KEYBINDINGS + Help modal + keyboard-shortcuts doc. DOM-verified.
+
+## [C30] Item counts in "Spend by room" + Budget panel visual review
+Extended `spendByRoom` to carry per-room item counts (test updated) and surfaced
+them in the breakdown (e.g. "Living / Dining · 21 · 31%"), matching the category
+rows. Also reviewed the full Budget panel — cohesive, no layout issues. Verified.
+
+## [C29] Item count in the Budget "Spend by category" rows
+Each category row now shows its item count alongside the % and amount (e.g.
+"Appliances · 9 · 26%"), matching the catalog chip counts. DOM-verified.
+
+## [C28] Extract tested buildShoppingGroups helper
+Moved the Budget panel's inline category-grouping + total/count computation into a
+pure `furniture/shoppingGroups` (`buildShoppingGroups`, `Line`/`ShoppingGroup`),
+now unit-tested (grouping, totals, unknown-def skip). BudgetPanel consumes it;
+behaviour unchanged. +3 tests; modular.
+
+## [C27] Fix a wrong assertion in angle.test (full-suite gate)
+A full `vitest run` + production build pass caught a failing assertion shipped in
+C9: `nearestRightAngle(2.0)` correctly snaps to π/2 (nearer than π), but the test
+expected π. Fixed the expectation + added a 2.5→π case. Suite now 1006 green;
+build clean. (Lesson: confirm the pass *count*, not just that tests ran.)
+
+## [C26] Esc clears/blurs the catalog search
+Pressing Esc in the catalog search now clears a non-empty query (keeping focus to
+keep typing) or blurs the field when already empty — a quick exit, pairing with
+the `/` focus shortcut. DOM-verified ("sofa" → cleared).
+
+## [C25] Extract spendByRoom helper (tested)
+Moved the Budget panel's inline per-room spend grouping into a pure
+`furniture/spendByRoom` (pointInRoom + itemPrice, "Outside rooms" bucket), now
+unit-tested. BudgetPanel consumes it; behaviour unchanged. +2 tests; modular.
+
+## [C24] Heartbeat hardening + theme-metadata guard test
+Fixed the autonomous heartbeat: the prior Monitor had hit its 30-min cap and
+stopped delivering beats. Re-armed fresh (4-min beat) with a **re-arm-FIRST**
+policy so each activation resets the window before doing work (a mid-cycle
+failure can't strand it). Added `appearanceSlice` tests asserting every
+THEME_NAME has complete metadata (guards half-added themes). 3 tests.
+
+## [C23] Themes user-doc + verify Harbour in the Appearance picker
+Updated the themes-and-appearance guide page to list Harbour (5 themes). Verified
+the Appearance popover renders all five cards with correct swatches (Harbour =
+blue). Closes out C22's UI surface.
+
+## [C22] New "Harbour" theme (cool marina blue)
+A 5th theme — estate's exact lightness/chroma hue-shifted to a slate-blue neutral
++ teal-blue accent (so contrast is preserved), light + dark. Registered in
+`appearanceSlice` (auto-listed in the Appearance picker). Screenshot-verified L+D;
+docs updated (5 themes / 10 palettes).
+
+## [C21] Budget-target quick-set chips
+When no budget target is set, the Budget panel shows one-tap $10k/$25k/$50k/$100k
+chips so users can start tracking spend instantly (the number field stays for
+custom values). DOM-verified.
+
+## [DOCS2] User-guide coverage for the run's features
+Documented in the VitePress user guide: budget HUD + per-room/category spend +
+budget-in-report (design-tools), Mirror room / Copy layout / per-room lock /
+collapse-all (room-editor), and Quick finishes + Apply-finish-to-all (finishes).
+
+## [C20] Price-aware catalog empty state + production-build check
+A Max-$ filter that hides every card now shows "Nothing under $N here — raise the
+Max $ filter." instead of the misleading "No items in this category yet." Also
+verified `npm run build` succeeds with all the run's new modules. DOM-verified.
+
+## [C19] Expand/Collapse-all rooms in the Layers panel
+Added a footer toggle (shown with 2+ rooms, not while filtering) that collapses
+or expands every room group at once — handy for navigating large designs. Reuses
+the existing per-group collapse state. DOM-verified.
+
+## [C6] Category item counts on the catalog chips + visual review
+Each catalog category chip now shows its item count (e.g. "Seating 11") — subtle,
+tabular. Also did a holistic visual regression review (overview + room-editor
+inspector) after the run's UI changes: no artifacts/regressions found.
+
+## [C18] Fix: remove duplicate "/" handler from C17 (it already existed)
+C17 wrongly added a second `/` handler — App already had one (my earlier grep
+excluded App.tsx). Removed the duplicate and folded the one improvement
+(force the Catalog tab, not Layers) into the original. Verified: `/` from Layers
+switches to Catalog + focuses search.
+
+## [C17] Implement the "/" focus-catalog-search shortcut
+The Help modal advertised "Search catalog · /" but no handler existed. Added it
+to the global key handler: in the room editor (not while typing), `/` opens the
+catalog and focuses its search box. DOM-verified (catalog opens + search focused).
+
+## [C16] Consolidate item-cost math into one tested helper
+New `furniture/itemsCost` (sum a set of items' prices, variant-aware) is now the
+single source of truth used by the budget HUD, the inspector selection total, and
+the room caption (was duplicated three ways). +1 test (3); modular + DRY.
+
+## [C15] Room cost in the per-room editor caption
+The room caption now appends the room's estimated furniture cost (e.g. "… · 21
+items · ~$6,760"), so spend is visible while editing a room — consistent with the
+inspector price + budget HUD + per-room spend. Screenshot-verified.
+
+## [C14] Budget target + over/under in the printable report
+`buildReportHtml` now renders the budget target and how far over/under the
+estimated total is (when a target is set), beside the existing total + per-m² +
+cost-by-room. Threaded from the live store via `openReport`. +1 test (14 total).
+
+## [BUGFIX] BudgetHud no longer floats over the 2D floor-plan editor
+The budget pill rendered whenever the orbit camera was active — including the
+full-screen floor-plan editor (which hides the rest of the chrome). Now also
+gated on `!floorPlanEditing`. DOM-verified (shown in overview, hidden in editor).
+
+## [C13] Budget HUD opens the Shopping panel on click
+The always-on budget pill is now a button (was `pointer-events:none`) — tapping
+it opens the Budget/Shopping panel for the full breakdown, with a hover affordance.
+DOM-verified (click → budgetOpen).
+
+## [C12] Per-room lock toggle in the Layers panel
+New `itemsSlice.setItemsLocked(ids, locked)` (one history step) + a lock/unlock
+icon in each Layers room-group header (beside the per-room eye), so you can
+protect a finished room in one tap. DOM-verified (locks the room's 10 items).
+
+## [C11] Show price on catalog cards
+Each catalog card now appends its estimated price (`itemPrice`) after the
+dimensions (accent-styled), so the new Price sort + Max-$ filter are visible at a
+glance while browsing. Screenshot-verified.
+
+## [C10] Catalog "Price (low→high)" sort
+Added a price sort to the catalog browse `SortKey` (`catalogBrowse` `cardPrice`
+via `itemPrice`; free CC0 entries lead). UI picks it up automatically; prefs
+validation + persistence updated. +1 test (8 total); DOM-verified.
+
+## [DOCS] Sync CLAUDE.md + README with this run's features
+Documented the inspector price/selection-total/Quick-finishes/Apply-finish-to-all/
+Straighten, the Budget "Spend by room" + always-on budget HUD, and the
+Finish-picker Mirror-room / Copy-layout-to actions, so the architecture index +
+README match the shipped code.
+
+## [C9] "Straighten" — snap a freely-rotated item to 90°
+New `layout/angle` (pure `nearestRightAngle`/`isOffSquare`, 4 tests) + an inspector
+"Straighten" button shown only when an item is off a right angle (the gizmo allows
+free angles with Shift); one tap squares it, collision-checked. Verified
+(0.40→0.00 rad).
+
+## [C7] Copy a room's layout to another room
+New `layout/cloneRoom` (pure, 2 tests) + a "Copy layout to…" picker in the
+FinishPicker clones a room's unlocked furniture into another room (translated by
+the room-centre delta, fresh ids, groups remapped), skipping any clone that
+won't fit. Great for repeated bedrooms. Verified (66→73 items, toast).
+
+## [HEALTH] Reliability pass + BudgetHud mobile safe-area
+Full suite green (991 passed / 2 skipped), tsc + lint clean across all recent
+changes — no regressions. Polished the new BudgetHud to clear the iOS home
+indicator on mobile (`env(safe-area-inset-bottom)`).
+
+## [C2] Always-on budget progress HUD
+New `ui/BudgetHud` — a bottom-centre pill (shown only once a budget target is set,
+orbit views only) with spend / target + over/under bar, so you stay on budget
+while arranging without opening the Budget panel. Screenshot-verified.
+
+## [C4] Per-room spend breakdown in the Budget panel
+Added a "Spend by room" bar list (estimate-based, `pointInRoom` + `itemPrice`)
+beside the existing "Spend by category", so you can see which room the budget
+goes into. Additive; screenshot-verified.
+
+## [C3] Mirror room layout
+New `layout/mirrorRoom` (pure `mirrorItemX`/`mirrorRoomItems`) + a "Mirror room"
+button in the FinishPicker reflects a room's unlocked furniture left↔right across
+its centre (position + heading + flipX), skipping any item whose mirror would hit
+a wall/neighbour. 4 unit tests; screenshot-verified ("Mirrored 17 items").
+
+## [QOL-total] Selection total cost in the multi-select inspector
+The multi-select panel header now appends "~$N total" (sum of `itemPrice` over
+the selection) beside the count, so selecting a group/marquee shows its combined
+estimated cost. Screenshot-verified; tsc + biome green.
+
+## [QOL-price] Per-item price estimate in the inspector header
+The inspector now shows an item's estimated price (`itemPrice`, IKEA variant-
+aware) under its dimensions, so cost is visible while designing — not only in the
+Budget panel. Hidden when minimized. Screenshot-verified.
+
+## [QOL-styleall] Surface "Apply finish to all of this type" in the inspector
+The existing `applyStyleToAll` (copy an item's finish/colour/material to every
+same-def piece) was right-click-only — now also a one-tap inspector button
+(shown when 2+ of the type exist), reachable on touch where right-click is a
+long-press. Screenshot-verified; reuses the tested store action.
+
+## [RE-bound3] Wall-bound keyboard nudge + inspector numeric edits
+The arrow-key nudge, paste, and single/group rotate (App) plus the inspector's
+numeric move/rotate + duplicate/duplicate-row (which previously called canPlace
+with NO walls) now all pass `placementWalls`, so no edit path can push furniture
+through a wall — consistent with drag/ghost/rotate. tsc + 44 tests + biome green.
+
+## [RE-bound2] Centralize placement-wall selection (new-item + rotate too)
+New `collision/placementWalls` picks the room's solid perimeter inside the editor
+(else plan/flat walls); DragController, PlacementGhost (new-item drop) and
+RotateGizmo now all route through it, so dropping a fresh catalog item or
+rotating a piece can't cross the room walls either. +1 test module; suites green.
+
+## [RE-bound] Bound furniture to room walls in the per-room editor
+New `collision/roomEditorWalls.roomEditorPlacementWalls` builds the edited room's
+*solid* perimeter (openings treated solid); DragController uses it for both
+collision-validity and wall-snap while the room editor is active, so a piece
+can't be dragged/dropped past the room's walls into adjacent rooms (default flat
++ custom plans). 3 new tests; collision suite green.
+
+## [T1] Curated one-tap furniture finishes
+New `inspector/QuickFinishes` adds a swatch row (oak/walnut/teak/ash/ebony/
+marble — bundled procedural, ships in prod) under a furniture piece's wood/
+surface finish dropdown, so common finishes are one tap instead of a dropdown
+scroll or remote-catalog browse. Encoded as `mat:<id>`. Screenshot-verified.
+
+## [F12a] 3D door leaf for custom-plan doors
+New `apartment/PlanDoorLeaf` renders a swinging, clickable, panelled leaf in each
+custom-plan door opening (was a plain gap even when closed). Hinge/swing honour
+the opening; click toggles via the shared `doors` store so render + walk
+collision stay in sync; fades with its wall like `FadeWall`. Screenshot-verified.
+
+## [FG3e] Feature flags — gate packs / online materials / model upload
+Catalog Packs tab + model-upload entry now respect `packs`/`modelUpload`; the
+FinishPicker "Browse" (online materials) respects `remoteMaterials` — so a
+disabled source hides everywhere, not just via dev-gating. tsc + suite green.
+
+## [FG3d] Feature flags — gate mobile-toolbar items
+MobileToolbar accordion items now respect their flags (savedViews, floorPlan,
+lightingMoods, backdrops, smartStart, budget, checks, measure, history,
+versions, share, sunStudy, walkthrough, report) — parity with desktop / ⌘K.
+tsc + 38 feature/toolbar tests + lint green.
+
+## [UX1] Toolbar/tour/inspector UX overhaul + room-entry confirm
+Combined Camera+View menu; new Edit menu group (edit-room/floor-plan); Graphics
+moved to right cluster; redesigned Scene menu (slider checkpoints + lighting
+segment + backdrop dropdown); compact Arrange pick→Apply; interactive product
+tour (click-through spotlight, only Skip ends it); minimizable + auto-minimizing
+inspector; viewport-fit Top/Reset view; "Enter <room>?" confirm on floor-click;
+square mobile room-editor logo. tsc + 981 tests + lint green; screenshot-verified.
+
 ## [FG3c] Feature flags — gate AI sections + Scene/View menus
 Share modal's AI photoreal (aiPhotoreal), floor-plan AI walls (aiWalls), Scene
 lighting-moods (lightingMoods) + backdrops (backdrops), View saved-views

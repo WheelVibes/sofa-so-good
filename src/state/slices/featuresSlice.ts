@@ -58,6 +58,8 @@ export interface FeaturesSlice {
   historyOpen: boolean
   /** Smart Start wizard (pick a style → furnished flat) visibility. */
   smartStartOpen: boolean
+  /** GLB Asset Designer (compose/edit a custom asset → catalog) visibility. */
+  glbDesignerOpen: boolean
   /** Login screen (admin sign-in) visibility. */
   loginOpen: boolean
   /** Feature-flags panel (dev/admin) visibility. */
@@ -91,6 +93,7 @@ export interface FeaturesSlice {
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
+  setGlbDesignerOpen: (open: boolean) => void
   setLoginOpen: (open: boolean) => void
   setFlagsPanelOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
@@ -113,6 +116,7 @@ export const FEATURES_INITIAL = {
   versionsOpen: false,
   historyOpen: false,
   smartStartOpen: false,
+  glbDesignerOpen: false,
   loginOpen: false,
   flagsPanelOpen: false,
   shopTab: 'list' as 'list' | 'saved',
@@ -151,6 +155,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
+  setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
   setLoginOpen: (loginOpen) => set({ loginOpen }),
   setFlagsPanelOpen: (flagsPanelOpen) => set({ flagsPanelOpen }),
   setShopTab: (shopTab) => set({ shopTab }),

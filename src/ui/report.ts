@@ -15,8 +15,13 @@ import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
-import { formatArea, formatDims, type UnitSystem } from '../utils/measurement'
-import { designPalette, floorAreaByFinish, furnitureItemsByRoom } from './reportData'
+import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
+import {
+  designPalette,
+  floorAreaByFinish,
+  furnitureItemsByRoom,
+  wallAreaByFinish,
+} from './reportData'
 import { reportPlanSvg } from './reportPlanSvg'
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
@@ -37,8 +42,15 @@ const CAT_LABEL: Record<FurnitureCategory, string> = {
   others: 'Others',
 }
 
+// Escapes for BOTH text and attribute contexts (the report embeds names/notes/
+// swatches inside style="…" + title="…"), so quotes must be escaped too — a `"`
+// in a user-controlled value (a material swatch, a room name) would otherwise
+// break out of the attribute and inject markup.
 const esc = (s: string) =>
-  s.replace(/[&<>]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;' })[c]!)
+  s.replace(
+    /[&<>"']/g,
+    (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c] ?? c,
+  )
 const sgd = (n: number) => `$${Math.round(n).toLocaleString('en-SG')}`
 
 /** Per-room floor + wall finish material ids (the store's `finishes` slice). */
@@ -56,6 +68,7 @@ export function buildReportHtml(
   finishes?: ReportFinishes,
   note?: string,
   annotations: MeasurementAnnotation[] = [],
+  budgetTarget?: number | null,
 ): string {
   // Finishes-by-room section: floor + wall material names per non-external room.
   // Material ids resolve to friendly names via the builtin catalog (DLC/custom
@@ -99,15 +112,30 @@ export function buildReportHtml(
         )
         .join('')
     : ''
+  // Wall-finish schedule: gross wall area per finish (perimeter × ceiling height),
+  // the paint/tile procurement counterpart to the flooring schedule.
+  const wallRows = finishes
+    ? wallAreaByFinish(plan, wallOf, plan.ceilingHeight)
+        .map(
+          (f) =>
+            `<tr><td>${matCell(f.id)}</td><td class="num">${esc(formatArea(f.area, units))}</td></tr>`,
+        )
+        .join('')
+    : ''
   // Rooms (skip external ledges with ~0 interior use are still listed). Plain
   // rectangular rooms show their W×D dimensions (a room schedule detail); L-shape
   // / polygon rooms omit them (a bounding box would mislead) — area only.
-  const roomRows = plan.rooms
-    .map((r) => {
-      const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
-      return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
-    })
-    .join('')
+  const roomHeader =
+    '<tr class="cat"><td>Room</td><td class="dim">Size</td><td class="num">Ceiling</td><td class="num">Area</td></tr>'
+  const roomRows =
+    roomHeader +
+    plan.rooms
+      .map((r) => {
+        const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
+        const height = formatLength(r.ceilingHeight ?? plan.ceilingHeight, units)
+        return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${esc(height)}</td><td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
+      })
+      .join('')
   const totalArea = planTotalArea(plan)
 
   // Furniture grouped by category.
@@ -290,6 +318,15 @@ export function buildReportHtml(
       <table>${furnitureRows || '<tr><td>No furniture placed.</td></tr>'}</table>
       <div class="total"><span>Estimated total</span><span>${sgd(budget)}</span></div>
       ${
+        budgetTarget != null && budgetTarget > 0
+          ? `<div class="subtotal"><span>Budget target</span><span>${sgd(budgetTarget)} · ${
+              budget > budgetTarget
+                ? `${sgd(budget - budgetTarget)} over`
+                : `${sgd(budgetTarget - budget)} under`
+            }</span></div>`
+          : ''
+      }
+      ${
         totalArea > 0.01 && budget > 0
           ? `<div class="subtotal"><span>Furnishing per ${units === 'imperial' ? 'ft²' : 'm²'}</span><span>${sgd(
               budget / (units === 'imperial' ? totalArea * 10.7639 : totalArea),
@@ -319,6 +356,14 @@ export function buildReportHtml(
       ? `<div class="room-cost">
       <h2>Flooring schedule</h2>
       <table><tr class="cat"><td>Finish</td><td class="num">Floor area</td></tr>${flooringRows}</table>
+    </div>`
+      : ''
+  }
+  ${
+    wallRows
+      ? `<div class="room-cost">
+      <h2>Wall finish schedule</h2>
+      <table><tr class="cat"><td>Finish</td><td class="num">Wall area</td></tr>${wallRows}</table>
     </div>`
       : ''
   }

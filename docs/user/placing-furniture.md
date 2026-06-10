@@ -1,8 +1,9 @@
 # Placing & arranging furniture
 
 > Furniture is placed and arranged **inside the [per‑room editor](/room-editor)**.
-> From the orbit overview, click the **Edit a room** button (or click a room's
-> floor) to start; the catalog and all editing tools live in there.
+> From the orbit overview, open the toolbar **Edit** menu → **Edit a room** (or
+> click a room's floor and confirm) to start; the catalog and all editing tools
+> live in there.
 
 ## The catalog
 
@@ -33,7 +34,10 @@ Two ways, whichever feels natural:
 
 Either way the preview turns **red** where it can't go (overlapping another piece
 or a wall) and **green** where it fits — it only drops on a green spot, snaps to
-the grid, and won't push through walls. As you position it, **alignment guides**
+the grid, and won't push through walls. Press <kbd>R</kbd> (<kbd>Shift</kbd>+<kbd>R</kbd>
+= 15°) while the preview is up to **rotate it before dropping**, so it lands facing the
+right way. **Hold <kbd>Shift</kbd> when you drop** to keep the same piece loaded and place
+several in a row (a plain click or <kbd>Esc</kbd> finishes). As you position it, **alignment guides**
 snap to other items' centres and edges, it can sit **flush against a nearby
 wall**, and a readout shows the gap to the nearest wall.
 
@@ -49,8 +53,20 @@ wall**, and a readout shows the gap to the nearest wall.
 | Delete | <kbd>Del</kbd> |
 
 Select a piece to open its **inspector**, where parametric items expose
-dimensions, colours, and style options. **Double‑click** focuses the camera on
-it.
+dimensions, colours, and style options. The inspector's **Face into room** button
+turns a piece's back to the nearest wall in one click (handy for beds, sofas and
+desks). **Double‑click** focuses the camera on it.
+
+### Modular kitchen cabinets
+
+The **Kitchen** category includes three fully customisable cabinet carcasses —
+**Base cabinet**, **Wall cabinet (upper)** and **Tall pantry cabinet**. Place
+one and use its inspector to dial in the **width, height and depth** (down to the
+centimetre), the number of **door columns**, the **front style** (slab, shaker,
+drawers, glass or open shelves), and toggles for the **countertop** (base), a
+**worktop fitting** — a **sink basin** or a **hob/cooktop** cut into the base
+worktop — the **cornice/crown cap** (wall & tall) and the **toe‑kick**. Build a
+whole run by placing several side by side.
 
 ### Drag‑to‑rotate ring
 
@@ -108,12 +124,30 @@ The floor shows the active grid while you drag.
 
 ## Multi‑select, align & group
 
-- **Marquee‑drag** on empty floor (in Select mode) to select several pieces; an
-  align / distribute panel appears.
-- **Group** the selection so it moves and rotates as one. The first click selects
-  the whole group; a second click (or <kbd>Alt</kbd>+click) drills into a single
-  member. Group / Ungroup live in the inspector.
-- **Lock** a piece to protect it from accidental moves.
+**Marquee‑drag** on empty floor (in Select mode) — or <kbd>Shift</kbd>+click pieces,
+or <kbd>Ctrl</kbd>/<kbd>⌘</kbd>+<kbd>A</kbd> to grab the whole room — and the inspector
+turns into a multi‑select panel with a full set of one‑click layout tools:
+
+- **Align centres** — *Align X* / *Align Z* line the pieces' centres up on one axis.
+- **Align edges** — *Left* / *Right* / *Top* / *Bottom* snap a chosen edge of every
+  piece to the selection's outermost edge (footprint‑aware, so mixed sizes stay flush).
+- **Distribute evenly** — *Across X* / *Across Z* space the pieces so the **gaps**
+  between them are equal (not just their centres), keeping the end pieces put.
+- **Rotate −90° / +90°** turn every piece in place; **Mirror** reflects the whole
+  arrangement left↔right (positions, headings and asymmetric shapes all flip).
+- **Face into room** turns each piece's back to its nearest wall; **Snap to wall**
+  also slides it flush against that wall.
+- **Arrange as run** lines the selection up as one run — backs to the nearest wall,
+  butted edge‑to‑edge — the one‑click kitchen‑run / wardrobe‑wall move.
+- **Group** so the pieces move and rotate as one (first click selects the group, a
+  second click or <kbd>Alt</kbd>+click drills into a member); **Duplicate selection**
+  and **Delete all** act on the whole set.
+
+All of the wall / orient / mirror actions are also on the **⌘K** command palette
+(under *Selection*) when two or more pieces are selected.
+
+**Lock** a piece to protect it from accidental moves — locked pieces are skipped by
+every bulk action above.
 
 ## Combining compatible pieces ("Complete with")
 

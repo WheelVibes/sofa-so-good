@@ -16,6 +16,7 @@ import {
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
+import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
 import { useStore } from '../../state/store'
 import type { RoomId } from '../types'
 
@@ -50,10 +51,11 @@ function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
         return
       }
       // View-only orbit over the whole flat: clicking a room dives into its
-      // editor (the primary way to start editing). Walk mode does nothing.
+      // editor (the primary way to start editing) — after a confirm, since it's
+      // easy to click a floor by accident while looking around. Walk does nothing.
       if (state.cameraMode === 'orbit' && !state.roomEditor.active) {
         e.stopPropagation()
-        state.enterRoomEditor(roomId)
+        void confirmAndEnterRoom(roomId)
       }
     },
     [roomId, selectRoom],

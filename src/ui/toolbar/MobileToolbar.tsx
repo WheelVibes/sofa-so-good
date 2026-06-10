@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useState } from 'react'
+import { useFeature } from '../../features/useFeature'
 import { dropBuiltinSet, dropIkeaSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { FURNITURE_SETS } from '../../furniture/furnitureSets'
@@ -14,7 +15,7 @@ import {
 import { useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
-import { BACKDROPS } from '../../scene/SceneBackdrop'
+import { BACKDROPS, type BackdropKind } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
 import { firstEditableRoomId } from '../../state/rooms'
@@ -163,6 +164,23 @@ export function MobileToolbar() {
   const effectiveHour = useEffectiveHour()
   const recipes = ikeaSetRecipes()
 
+  // Feature flags — keep the mobile sheet at parity with the desktop menus / ⌘K,
+  // so a disabled feature can't be reached from any surface.
+  const fSavedViews = useFeature('savedViews')
+  const fFloorPlan = useFeature('floorPlanEditor')
+  const fLightingMoods = useFeature('lightingMoods')
+  const fBackdrops = useFeature('backdrops')
+  const fSmartStart = useFeature('smartStart')
+  const fBudget = useFeature('budget')
+  const fChecks = useFeature('clearanceChecks')
+  const fMeasure = useFeature('measure')
+  const fHistory = useFeature('history')
+  const fVersions = useFeature('versions')
+  const fShare = useFeature('shareExport')
+  const fSun = useFeature('sunStudy')
+  const fWalk = useFeature('walkthrough')
+  const fReport = useFeature('report')
+
   const close = () => setMenuOpen(false)
   // Most actions dismiss the sheet; pass {keep:true} for in-place toggles.
   const act = (fn: () => void, opts?: { keep?: boolean }) => () => {
@@ -309,99 +327,117 @@ export function MobileToolbar() {
               </button>
             </div>
             <div className="m-sheet-body">
-              {/* Camera */}
-              <Section id="camera" title="Camera" icon="Orbit" {...sectionProps}>
+              {/* View — combined camera + framing (mirrors the desktop View menu).
+                  Orbit/Walk always; top/reset/turntable/saved only in the
+                  overview (the room editor frames its own room). */}
+              <Section id="view" title="View" icon="Orbit" {...sectionProps}>
+                <div className="m-sub-h">Camera</div>
                 <Item
                   icon="Orbit"
                   label="Orbit"
+                  sub="Look around the model"
                   on={cameraMode === 'orbit'}
                   onClick={act(() => s.getState().setCameraMode('orbit'))}
                 />
                 <Item
                   icon="Walk"
                   label="Walk through"
+                  sub="First-person walkthrough"
                   on={cameraMode === 'firstPerson'}
                   onClick={act(() => s.getState().setCameraMode('firstPerson'))}
                 />
+                {!roomEditorActive ? (
+                  <>
+                    <div className="m-sub-h">Framing</div>
+                    <Item
+                      icon="TopView"
+                      label="Top view"
+                      sub="Fit the whole flat, top-down"
+                      onClick={act(() => s.getState().requestTopView())}
+                    />
+                    <Item
+                      icon="Home"
+                      label="Reset view"
+                      sub="Fit the 3D overview"
+                      onClick={act(() => s.getState().requestHomeView())}
+                    />
+                    <Item
+                      icon="Turntable"
+                      label="Turntable"
+                      sub="Slowly auto-orbit"
+                      on={autoRotate}
+                      onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
+                    />
+                    {fSavedViews ? (
+                      <Item
+                        icon="Plus"
+                        label="Save current view"
+                        sub="Bookmark this camera angle"
+                        onClick={act(async () => {
+                          const thumb = captureThumb()
+                          const name = await s.getState().promptText({
+                            title: 'Save camera view',
+                            label: 'Name this view',
+                            defaultValue: `View ${savedViews.length + 1}`,
+                            submitLabel: 'Save',
+                          })
+                          if (name) s.getState().saveCurrentView(name, thumb)
+                        })}
+                      />
+                    ) : null}
+                  </>
+                ) : null}
+                {!roomEditorActive &&
+                  fSavedViews &&
+                  savedViews.map((v) => (
+                    <div key={v.id} className="m-saved-view">
+                      <button
+                        type="button"
+                        className="m-item m-saved-view-go"
+                        onClick={act(() => s.getState().applyView(v.id))}
+                      >
+                        {v.thumb ? (
+                          <img src={v.thumb} alt="" className="saved-view-thumb" />
+                        ) : (
+                          <Icon.Eye className="icn" width={18} height={18} />
+                        )}
+                        <span className="m-item-tx">
+                          <span className="m-item-l">{v.name}</span>
+                        </span>
+                      </button>
+                      <button
+                        type="button"
+                        className="m-saved-view-del"
+                        aria-label={`Delete view ${v.name}`}
+                        onClick={() => s.getState().deleteView(v.id)}
+                      >
+                        <Icon.Trash width={16} height={16} />
+                      </button>
+                    </div>
+                  ))}
               </Section>
 
-              {/* View */}
-              <Section id="view" title="View" icon="TopView" {...sectionProps}>
-                <Item
-                  icon="TopView"
-                  label="Top view"
-                  onClick={act(() => s.getState().requestTopView())}
-                />
-                <Item
-                  icon="Home"
-                  label="Reset view"
-                  onClick={act(() => s.getState().requestHomeView())}
-                />
-                <Item
-                  icon="Turntable"
-                  label="Turntable"
-                  sub="Slowly auto-orbit"
-                  on={autoRotate}
-                  onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
-                />
-                {!roomEditorActive && defaultEditRoomId ? (
-                  <Item
-                    icon="Cube"
-                    label="Edit a room"
-                    sub="Furnish + finish a room — pick which from the header"
-                    onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
-                  />
-                ) : null}
-                {!roomEditorActive ? (
-                  <Item
-                    icon="FloorPlan"
-                    label="Floor plan editor"
-                    sub="Edit walls, rooms, doors & windows"
-                    onClick={act(() => s.getState().setFloorPlanEditing(true))}
-                  />
-                ) : null}
-                <Item
-                  icon="Plus"
-                  label="Save current view"
-                  sub="Bookmark this camera angle"
-                  onClick={act(async () => {
-                    const thumb = captureThumb()
-                    const name = await s.getState().promptText({
-                      title: 'Save camera view',
-                      label: 'Name this view',
-                      defaultValue: `View ${savedViews.length + 1}`,
-                      submitLabel: 'Save',
-                    })
-                    if (name) s.getState().saveCurrentView(name, thumb)
-                  })}
-                />
-                {savedViews.map((v) => (
-                  <div key={v.id} className="m-saved-view">
-                    <button
-                      type="button"
-                      className="m-item m-saved-view-go"
-                      onClick={act(() => s.getState().applyView(v.id))}
-                    >
-                      {v.thumb ? (
-                        <img src={v.thumb} alt="" className="saved-view-thumb" />
-                      ) : (
-                        <Icon.Eye className="icn" width={18} height={18} />
-                      )}
-                      <span className="m-item-tx">
-                        <span className="m-item-l">{v.name}</span>
-                      </span>
-                    </button>
-                    <button
-                      type="button"
-                      className="m-saved-view-del"
-                      aria-label={`Delete view ${v.name}`}
-                      onClick={() => s.getState().deleteView(v.id)}
-                    >
-                      <Icon.Trash width={16} height={16} />
-                    </button>
-                  </div>
-                ))}
-              </Section>
+              {/* Edit — step into a room / reshape the floor plan (overview only). */}
+              {!roomEditorActive ? (
+                <Section id="edit-home" title="Edit" icon="Cube" {...sectionProps}>
+                  {defaultEditRoomId ? (
+                    <Item
+                      icon="Cube"
+                      label="Edit a room"
+                      sub="Furnish + finish a room — pick which from the header"
+                      onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
+                    />
+                  ) : null}
+                  {fFloorPlan ? (
+                    <Item
+                      icon="FloorPlan"
+                      label="Floor plan editor"
+                      sub="Edit walls, rooms, doors & windows"
+                      onClick={act(() => s.getState().setFloorPlanEditing(true))}
+                    />
+                  ) : null}
+                </Section>
+              ) : null}
 
               {/* Scene */}
               {!roomEditorActive ? (
@@ -437,16 +473,17 @@ export function MobileToolbar() {
                       style={{ width: '100%' }}
                     />
                   </div>
-                  {LIGHTING_SCENES.map((sc) => (
-                    <Item
-                      key={sc.id}
-                      icon="Lights"
-                      label={sc.label}
-                      sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
-                      on={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
-                      onClick={act(() => applyLightingScene(sc), { keep: true })}
-                    />
-                  ))}
+                  {fLightingMoods &&
+                    LIGHTING_SCENES.map((sc) => (
+                      <Item
+                        key={sc.id}
+                        icon="Lights"
+                        label={sc.label}
+                        sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
+                        on={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
+                        onClick={act(() => applyLightingScene(sc), { keep: true })}
+                      />
+                    ))}
                   <Item
                     icon="Sun"
                     label="Sun direction"
@@ -458,16 +495,23 @@ export function MobileToolbar() {
                     on={lightsMode !== 'auto'}
                     onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
                   />
-                  {BACKDROPS.map((b) => (
-                    <Item
-                      key={b.id}
-                      icon="Cube"
-                      label={`Backdrop: ${b.label}`}
-                      sub={b.sub}
-                      on={backdrop === b.id}
-                      onClick={act(() => s.getState().setBackdrop(b.id), { keep: true })}
-                    />
-                  ))}
+                  {fBackdrops ? (
+                    <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+                      <span>Backdrop</span>
+                      <select
+                        className="input scene-select"
+                        value={backdrop}
+                        aria-label="Backdrop"
+                        onChange={(e) => s.getState().setBackdrop(e.target.value as BackdropKind)}
+                      >
+                        {BACKDROPS.map((b) => (
+                          <option key={b.id} value={b.id}>
+                            {b.label} — {b.sub}
+                          </option>
+                        ))}
+                      </select>
+                    </label>
+                  ) : null}
                 </Section>
               ) : null}
 
@@ -530,12 +574,14 @@ export function MobileToolbar() {
                         s.getState().setCatalogOpen(true)
                       })}
                     />
-                    <Item
-                      icon="Presets"
-                      label="Smart Start…"
-                      sub="Furnish every room"
-                      onClick={act(() => s.getState().setSmartStartOpen(true))}
-                    />
+                    {fSmartStart ? (
+                      <Item
+                        icon="Presets"
+                        label="Smart Start…"
+                        sub="Furnish every room"
+                        onClick={act(() => s.getState().setSmartStartOpen(true))}
+                      />
+                    ) : null}
                     <Item
                       icon="Tidy"
                       label="Tidy home"
@@ -614,71 +660,79 @@ export function MobileToolbar() {
               {/* Tools (advanced — hidden in Simple mode) */}
               {proMode ? (
                 <Section id="tools" title="Tools" icon="Tools" {...sectionProps}>
-                  <Item
-                    icon="Budget"
-                    label="Budget / shopping"
-                    on={budgetOpen}
-                    onClick={act(openBudget)}
-                  />
-                  <Item
-                    icon="Checks"
-                    label="Clearance checks"
-                    on={clearancePanelOpen}
-                    onClick={act(toggleChecks)}
-                  />
-                  <Item
-                    icon="Measure"
-                    label="Measure distance"
-                    on={tapeMode}
-                    onClick={act(() => s.getState().toggleTapeMode())}
-                  />
-                  <Item icon="Undo" label="History" on={historyOpen} onClick={act(openHistory)} />
-                  <Item
-                    icon="Versions"
-                    label="Versions"
-                    on={versionsOpen}
-                    onClick={act(openVersions)}
-                  />
-                  <Item
-                    icon="Share"
-                    label="Share & export"
-                    onClick={act(() => s.getState().setShareOpen(true))}
-                  />
+                  {fBudget ? (
+                    <Item
+                      icon="Budget"
+                      label="Budget / shopping"
+                      on={budgetOpen}
+                      onClick={act(openBudget)}
+                    />
+                  ) : null}
+                  {fChecks ? (
+                    <Item
+                      icon="Checks"
+                      label="Clearance checks"
+                      on={clearancePanelOpen}
+                      onClick={act(toggleChecks)}
+                    />
+                  ) : null}
+                  {fMeasure ? (
+                    <Item
+                      icon="Measure"
+                      label="Measure distance"
+                      on={tapeMode}
+                      onClick={act(() => s.getState().toggleTapeMode())}
+                    />
+                  ) : null}
+                  {fHistory ? (
+                    <Item icon="Undo" label="History" on={historyOpen} onClick={act(openHistory)} />
+                  ) : null}
+                  {fVersions ? (
+                    <Item
+                      icon="Versions"
+                      label="Versions"
+                      on={versionsOpen}
+                      onClick={act(openVersions)}
+                    />
+                  ) : null}
+                  {fShare ? (
+                    <Item
+                      icon="Share"
+                      label="Share & export"
+                      onClick={act(() => s.getState().setShareOpen(true))}
+                    />
+                  ) : null}
                   {!roomEditorActive ? (
                     <>
-                      <Item
-                        icon="SunStudy"
-                        label="Sun study"
-                        sub="Time-lapse dawn → dusk"
-                        on={sunStudy}
-                        onClick={act(() => setSunStudy((v) => !v), { keep: true })}
-                      />
-                      <Item
-                        icon="Walkthrough"
-                        label={touring ? 'Stop tour' : 'Walkthrough'}
-                        on={touring}
-                        onClick={act(startWalkthrough)}
-                      />
-                      <Item
-                        icon="Report"
-                        label="Report"
-                        sub="Printable design report"
-                        onClick={act(openReport)}
-                      />
+                      {fSun ? (
+                        <Item
+                          icon="SunStudy"
+                          label="Sun study"
+                          sub="Time-lapse dawn → dusk"
+                          on={sunStudy}
+                          onClick={act(() => setSunStudy((v) => !v), { keep: true })}
+                        />
+                      ) : null}
+                      {fWalk ? (
+                        <Item
+                          icon="Walkthrough"
+                          label={touring ? 'Stop tour' : 'Walkthrough'}
+                          on={touring}
+                          onClick={act(startWalkthrough)}
+                        />
+                      ) : null}
+                      {fReport ? (
+                        <Item
+                          icon="Report"
+                          label="Report"
+                          sub="Printable design report"
+                          onClick={act(openReport)}
+                        />
+                      ) : null}
                     </>
                   ) : null}
                 </Section>
               ) : null}
-
-              {/* Graphics */}
-              <Section id="graphics" title="Graphics" icon="Quality" {...sectionProps}>
-                <Item
-                  icon="Quality"
-                  label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
-                  sub="Render & asset quality"
-                  onClick={act(() => setGraphicsOpen(true))}
-                />
-              </Section>
 
               {/* File */}
               <Section id="file" title="File" icon="Save" {...sectionProps}>
@@ -768,6 +822,12 @@ export function MobileToolbar() {
                   label="Theme & appearance"
                   sub="Colour theme, light / dark"
                   onClick={act(() => setAppearanceOpen(true))}
+                />
+                <Item
+                  icon="Quality"
+                  label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+                  sub="Render & asset quality"
+                  onClick={act(() => setGraphicsOpen(true))}
                 />
                 <Item icon="Book" label="User guide" onClick={act(openDocs)} />
                 <Item icon="Help" label="Help" onClick={act(() => setHelpOpen(true))} />

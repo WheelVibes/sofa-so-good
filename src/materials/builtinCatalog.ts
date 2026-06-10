@@ -56,6 +56,15 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'floor-carpet-grey': floor('floor-carpet-grey', 'Grey carpet', '#7a7c7e', 'carpet', [1.5, 1.5]),
   'floor-vinyl-light': floor('floor-vinyl-light', 'Light vinyl', '#c9b99c', 'wood', [1.4, 0.9]),
   'floor-terrazzo': floor('floor-terrazzo', 'Terrazzo', '#d7d2c6', 'terrazzo', [1.0, 1.0]),
+  // Honeycomb hex tile — a kitchen/bath staple (Coohom/Planner-5D parity).
+  'floor-tile-hex': floor('floor-tile-hex', 'Hexagon tiles', '#e4e0d6', 'hexagon', [0.5, 0.5]),
+  'floor-tile-hex-charcoal': floor(
+    'floor-tile-hex-charcoal',
+    'Charcoal hex tiles',
+    '#3c3e42',
+    'hexagon',
+    [0.5, 0.5],
+  ),
   // Large-format porcelain — ubiquitous in modern HDB renovations.
   'floor-tile-grey': floor('floor-tile-grey', 'Grey porcelain', '#b9b9b6', 'tile', [0.8, 0.8]),
   'floor-tile-charcoal': floor(
@@ -267,6 +276,54 @@ export const BUILTIN_MATERIALS: Record<MaterialId, MaterialDef> = {
   'wall-brick-red': wallpaper('wall-brick-red', 'Exposed brick', '#9c5a44', 'brick'),
   'wall-brick-white': wallpaper('wall-brick-white', 'White-washed brick', '#d9d3c8', 'brick'),
   'wall-brick-charcoal': wallpaper('wall-brick-charcoal', 'Charcoal brick', '#55504c', 'brick'),
+  // Glossy subway/metro tile — the classic kitchen-backsplash + bathroom finish.
+  // Smaller uvScale than wallpaper so the running-bond tiles read at metro size.
+  'wall-subway-white': {
+    id: 'wall-subway-white',
+    name: 'Subway tile (white)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'subway',
+    swatch: '#eceae4',
+    uvScale: [0.7, 0.7],
+  },
+  'wall-subway-sage': {
+    id: 'wall-subway-sage',
+    name: 'Subway tile (sage)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'subway',
+    swatch: '#b3bca9',
+    uvScale: [0.7, 0.7],
+  },
+  // Fluted / reeded feature-wall panels (close-packed rounded ribs).
+  'wall-fluted-oak': {
+    id: 'wall-fluted-oak',
+    name: 'Fluted oak panel',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'fluted',
+    swatch: '#b88f5d',
+    uvScale: [0.8, 0.8],
+  },
+  'wall-fluted-walnut': {
+    id: 'wall-fluted-walnut',
+    name: 'Fluted walnut panel',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'fluted',
+    swatch: '#6b4428',
+    uvScale: [0.8, 0.8],
+  },
+  'wall-fluted-white': {
+    id: 'wall-fluted-white',
+    name: 'Fluted plaster (white)',
+    category: 'wall',
+    kind: 'procedural',
+    pattern: 'fluted',
+    swatch: '#e8e4dc',
+    uvScale: [0.8, 0.8],
+  },
   // Microcement / concrete accent walls (smooth, large-scale tiling).
   'wall-concrete-light': {
     id: 'wall-concrete-light',

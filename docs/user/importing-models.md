@@ -55,3 +55,17 @@ glass model). On lower tiers it stays a normal surface.
 > 2. Leave Category on **Auto**.
 > 3. Import — the chair is converted to GLB, optimized, and appears in the
 >    catalog ready to place.
+
+## Design your own asset
+
+No model to import? Open the **3D asset designer** (⌘K → "Design a 3D asset") to
+build one in the browser:
+
+- **Compose from shapes** — add boxes, cylinders and spheres, then set each one's
+  size, position and colour. A live 3D preview updates as you go.
+- **Start from an uploaded model** — pick one of your uploaded GLBs as the base and
+  resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
+
+Give it a name and category and hit **Save asset** — it's exported to a GLB and
+added to your catalog like any upload, ready to place and reuse.
+

@@ -178,6 +178,66 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
   return m
 }
 
+// Polished / micro-cement concrete: a near-uniform grey ground carrying a faint
+// cloudy mottle and sparse darker aggregate specks, over a fine-pore normal — the
+// matte industrial look for worktops, table tops and cabinet carcasses.
+let concreteMaps: { albedo: CanvasTexture; normal: CanvasTexture } | null = null
+function getConcreteMaps(): { albedo: CanvasTexture; normal: CanvasTexture } {
+  if (concreteMaps) return concreteMaps
+  const cloud = makeFbm(0x3c0f, 5, 5)
+  const speck = makeFbm(0x71b3, 4, 80)
+  const pore = makeFbm(0x4d29, 4, 64)
+  const albedo = new Uint8ClampedArray(N * N * 4)
+  const height = new Float32Array(N * N)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const u = x / N
+      const v = y / N
+      const i = y * N + x
+      // Broad tonal clouds + faint fine grain → a luminance the colour tints.
+      const mottle = (cloud(u, v) - 0.5) * 0.12 + (pore(u, v) - 0.5) * 0.04
+      const sp = speck(u, v)
+      const spot = sp > 0.82 ? -(sp - 0.82) * 1.4 : 0 // sparse dark aggregate
+      const lum = clamp01(0.86 + mottle + spot)
+      const c = Math.round(lum * 255)
+      albedo[i * 4] = albedo[i * 4 + 1] = albedo[i * 4 + 2] = c
+      albedo[i * 4 + 3] = 255
+      // Shallow surface relief: fine pores + the odd deeper pit at a speck.
+      height[i] = clamp01(pore(u, v) * 0.5 + (sp > 0.86 ? 0.5 : 0))
+    }
+  }
+  const a = canvasFrom(albedo)
+  a.colorSpace = SRGBColorSpace
+  const n = canvasFrom(heightToNormalRGBA(height, N, 1.1))
+  concreteMaps = { albedo: a, normal: n }
+  return concreteMaps
+}
+
+/** Matte concrete / micro-cement tinted to `color` (defaults to a neutral grey
+ *  at the call site). High roughness, no sheen; `repeat` tiles to the piece. */
+export function getConcreteMaterial(color: string, repeat = 1, rough = 0.85): MeshStandardMaterial {
+  const key = `concrete:${color}:${repeat}:${rough.toFixed(2)}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const maps = getConcreteMaps()
+  const map = maps.albedo.clone()
+  const normal = maps.normal.clone()
+  map.repeat.set(repeat, repeat)
+  normal.repeat.set(repeat, repeat)
+  map.needsUpdate = normal.needsUpdate = true
+  const [r, g, b] = hexToRgb(color)
+  const m = new MeshStandardMaterial({
+    color: `rgb(${r},${g},${b})`,
+    roughness: rough,
+    metalness: 0,
+    map,
+    normalMap: normal,
+  })
+  m.normalScale.set(0.4, 0.4)
+  cache.set(key, m)
+  return m
+}
+
 let leatherNormal: Texture | null = null
 function getLeatherNormal(): Texture {
   if (leatherNormal) return leatherNormal
@@ -474,6 +534,9 @@ export function getSurfaceMaterial(
     return getPaintedMaterial(color, true, sheen > 0 ? sheenRough(0.16, sheen) : undefined)
   if (kind === 'marble' || kind === 'stone')
     return getStoneMaterial(color, repeat, sheen > 0 ? sheenRough(0.12, sheen) : 0.12)
+  if (kind === 'rattan') return getRattanMaterial(color, repeat * 3)
+  if (kind === 'concrete')
+    return getConcreteMaterial(color, repeat, sheen > 0 ? sheenRough(0.85, sheen) : 0.85)
   return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
 }
 
@@ -502,6 +565,56 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
     roughnessMap: roughMap,
   })
   m.normalScale.set(0.55, 0.55)
+  cache.set(key, m)
+  return m
+}
+
+// Woven rattan / wicker: a coarse plain over-under weave. At each strand crossing
+// the horizontal or vertical strand is "over" (raised) in a checker, giving the
+// basketweave relief; fine noise adds organic fibre variation. One shared normal.
+let rattanNormal: Texture | null = null
+function getRattanNormal(): Texture {
+  if (rattanNormal) return rattanNormal
+  const strands = 11 // strands across the tile
+  const period = N / strands
+  const fine = makeFbm(0x9a7e, 3, 70)
+  const height = new Float32Array(N * N)
+  for (let y = 0; y < N; y++) {
+    for (let x = 0; x < N; x++) {
+      const col = Math.floor(x / period)
+      const row = Math.floor(y / period)
+      // Rounded ridge profile across each strand's width (cos: 1 at centre → 0 at gap).
+      const hProf = Math.cos((((y % period) / period) * 2 - 1) * (Math.PI / 2))
+      const vProf = Math.cos((((x % period) / period) * 2 - 1) * (Math.PI / 2))
+      // Plain weave: alternate which strand sits over at each crossing.
+      const horizOver = (col + row) % 2 === 0
+      const over = horizOver ? hProf : vProf
+      const under = horizOver ? vProf * 0.45 : hProf * 0.45
+      const h = Math.max(over, under)
+      height[y * N + x] = clamp01(h * 0.82 + fine(x / N, y / N) * 0.18)
+    }
+  }
+  rattanNormal = canvasFrom(heightToNormalRGBA(height, N, 3.2))
+  return rattanNormal
+}
+
+/** Woven rattan / wicker — a tan basketweave for outdoor furniture, baskets and
+ *  light decor. Tinted by `color`; `repeat` tiles the weave to the piece size. */
+export function getRattanMaterial(color: string, repeat = 3): MeshStandardMaterial {
+  const key = `rattan:${color}:${repeat}`
+  const hit = cache.get(key)
+  if (hit) return hit
+  const normal = getRattanNormal().clone()
+  normal.repeat.set(repeat, repeat)
+  normal.needsUpdate = true
+  const [r, g, b] = hexToRgb(color)
+  const m = new MeshStandardMaterial({
+    color: `rgb(${r},${g},${b})`,
+    roughness: 0.78,
+    metalness: 0.02,
+    normalMap: normal,
+  })
+  m.normalScale.set(0.85, 0.85)
   cache.set(key, m)
   return m
 }

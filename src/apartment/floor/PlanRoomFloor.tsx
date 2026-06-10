@@ -15,6 +15,7 @@ import {
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry, worldUvShapeGeometry } from '../../materials/worldUv'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
+import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
 import { useStore } from '../../state/store'
 
 /** Click-to-edit + hover affordance for a custom-plan room floor in the
@@ -28,7 +29,7 @@ function useOverviewRoomEntry(roomId?: string) {
       const s = useStore.getState()
       if (s.cameraMode === 'orbit' && !s.roomEditor.active) {
         e.stopPropagation()
-        s.enterRoomEditor(roomId)
+        void confirmAndEnterRoom(roomId)
       }
     },
     [roomId],

@@ -4,8 +4,8 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../../collision/placement'
+import { placementWalls } from '../../collision/placementWalls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
-import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { useCatalog } from '../../furniture/catalog'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
@@ -165,10 +165,9 @@ export function RotateGizmo() {
       // Rigid rotation preserves intra-selection distances, so ignore in-group
       // pairs (any overlap pre-existed) and test against the rest + walls.
       const others = after.items.filter((i) => !sel.has(i.id))
-      const planWalls = isDefaultPlan(after.floorPlan)
-        ? undefined
-        : planCollisionWalls(after.floorPlan, after.doors)
-      const walls = planWalls ?? buildCollisionWalls(after.doors)
+      // Same walls a drag uses — the room's perimeter inside the editor — so a
+      // rotation can't swing a piece out past the room walls either.
+      const walls = placementWalls(after) ?? buildCollisionWalls(after.doors)
       for (const o of g.originals) {
         const it = after.items.find((i) => i.id === o.id)
         const def = it ? catalog[it.defId] : null

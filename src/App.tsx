@@ -1,5 +1,6 @@
 import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
 import { canPlace } from './collision/placement'
+import { placementWalls } from './collision/placementWalls'
 import {
   KEYBINDINGS,
   NUDGE_FINE_SPEED,
@@ -8,6 +9,7 @@ import {
   ROTATE_STEP,
 } from './controls/keybindings'
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
+import { isFeatureEnabled } from './features/featureFlags'
 import { useCatalog } from './furniture/catalog'
 import { planDuplicates } from './furniture/duplicatePlacement'
 import { tidyHome } from './layout/tidyHome'
@@ -23,6 +25,7 @@ import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
 import { LoginScreen } from './ui/auth/LoginScreen'
+import { BudgetHud } from './ui/BudgetHud'
 import { BudgetPanel } from './ui/BudgetPanel'
 import { ClearancePanel } from './ui/ClearancePanel'
 import { CommandPalette } from './ui/CommandPalette'
@@ -42,6 +45,11 @@ import { FpsCounter } from './ui/FpsCounter'
 // user opens it, so it stays out of the initial bundle.
 const FloorPlanEditor = lazy(() =>
   import('./ui/floorplan/FloorPlanEditor').then((m) => ({ default: m.FloorPlanEditor })),
+)
+// The GLB designer is a large, Pro-only, fullscreen tool that few sessions open —
+// lazy-load it so its editor + GLTF exporter stay out of the initial bundle.
+const GlbDesignerDialog = lazy(() =>
+  import('./ui/glbEditor/GlbDesignerDialog').then((m) => ({ default: m.GlbDesignerDialog })),
 )
 
 import { ConfirmModal } from './ui/ConfirmModal'
@@ -83,6 +91,7 @@ export default function App() {
   const setCameraMode = useStore((s) => s.setCameraMode)
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
+  const glbDesignerOpen = useStore((s) => s.glbDesignerOpen)
   const bootPhase = useStore((s) => s.bootPhase)
   const sceneReady = useStore((s) => s.sceneReady)
   const loading = useStore((s) => s.loading)
@@ -142,6 +151,22 @@ export default function App() {
         e.preventDefault()
         const s = useStore.getState()
         s.setHelpOpen(!s.helpOpen)
+        return
+      }
+      // `B` toggles the Budget / shopping panel (an orbit-view .aux panel) when
+      // the budget feature is enabled — quick access to spend tracking. Not while
+      // typing / for modifier combos / in walk.
+      if (
+        (e.key === 'b' || e.key === 'B') &&
+        !e.metaKey &&
+        !e.ctrlKey &&
+        !e.altKey &&
+        !isEditableTarget(e) &&
+        useStore.getState().cameraMode === 'orbit' &&
+        isFeatureEnabled('budget')
+      ) {
+        e.preventDefault()
+        useStore.getState().toggleBudget()
         return
       }
       // Ctrl/⌘+A selects every item in the room being edited (editing is
@@ -210,6 +235,9 @@ export default function App() {
         canEditScene(useStore.getState())
       ) {
         e.preventDefault()
+        // Force the Catalog tab (not Layers) so the search box is the catalog's,
+        // then ensure the drawer is open.
+        useStore.getState().setLeftMode('catalog')
         if (!useStore.getState().catalogOpen) useStore.getState().setCatalogOpen(true)
         // The drawer (and Layers filter) reuse `.cat-search input`; focus it once
         // the panel has mounted/painted.
@@ -330,6 +358,7 @@ export default function App() {
         others: state.items,
         defs: catalog,
         doors: state.doors,
+        walls: placementWalls(state),
       })
       if (ok) {
         state.addItem({
@@ -497,7 +526,9 @@ export default function App() {
         for (const id of ids) useStore.getState().flipItem(id, axis)
         return
       }
-      if (!mod && code === KEYBINDINGS.rotate && state.selectedItemId) {
+      // While a catalog placement is armed, R rotates the *ghost*
+      // (usePlacementController) — don't also spin the current selection.
+      if (!mod && code === KEYBINDINGS.rotate && state.selectedItemId && !state.activeDefId) {
         const step = e.shiftKey ? ROTATE_FINE_STEP : ROTATE_STEP
         const ids =
           state.selectedItemIds.length > 0 ? state.selectedItemIds : [state.selectedItemId]
@@ -513,6 +544,7 @@ export default function App() {
             others: state.items,
             defs: catalog,
             doors: state.doors,
+            walls: placementWalls(state),
           })
           if (ok) {
             state.pushHistory()
@@ -541,7 +573,15 @@ export default function App() {
         const merged = state.items.map((i) => byId.get(i.id) ?? i)
         const allFit = candidates.every((c) => {
           const def = catalog[c.defId]
-          return def && canPlace(c, def, { others: merged, defs: catalog, doors: state.doors })
+          return (
+            def &&
+            canPlace(c, def, {
+              others: merged,
+              defs: catalog,
+              doors: state.doors,
+              walls: placementWalls(state),
+            })
+          )
         })
         if (allFit) {
           // All selected members share one group when this path is reached via
@@ -648,6 +688,7 @@ export default function App() {
             others,
             defs: catalogRef.current,
             doors: state.doors,
+            walls: placementWalls(state),
           })
         ) {
           ok = false
@@ -714,6 +755,7 @@ export default function App() {
         <MarqueeSelector />
         <NavCluster />
         <DragHud />
+        <BudgetHud />
         <TapeModeToggle />
         <Crosshair />
         <WalkJoystick />
@@ -733,6 +775,11 @@ export default function App() {
         <VersionsPanel />
         <HistoryPanel />
         <SmartStartWizard />
+        {glbDesignerOpen ? (
+          <Suspense fallback={null}>
+            <GlbDesignerDialog />
+          </Suspense>
+        ) : null}
         <LoginScreen />
         <FlagsPanel />
         <Onboarding />

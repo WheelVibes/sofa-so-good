@@ -307,3 +307,67 @@
   --shadow-panel: 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 30px oklch(0 0 0 / 0.42);
   --shadow-pop: 0 6px 16px oklch(0 0 0 / 0.42), 0 20px 48px oklch(0 0 0 / 0.55);
 }
+/* Harbour — a cool Marina-blue palette (estate's structure, hue-shifted to a
+   slate/blue neutral + a teal-blue accent; same L/C so contrast is preserved). */
+[data-theme='harbour'][data-mode='light'] {
+  --scene-a: oklch(0.93 0.008 250);
+  --scene-b: oklch(0.88 0.01 248);
+  --scene-floor: oklch(0.85 0.012 248);
+  --grid: oklch(0.5 0.02 250 / 0.14);
+
+  --surface: oklch(0.98 0.004 250 / 0.86);
+  --surface-solid: oklch(0.98 0.004 250);
+  --surface-2: oklch(0.945 0.006 250);
+  --surface-3: oklch(0.915 0.008 248);
+  --elevated: oklch(0.98 0.004 250 / 0.97);
+
+  --border: oklch(0.45 0.012 250 / 0.16);
+  --border-2: oklch(0.45 0.012 250 / 0.3);
+
+  --text: oklch(0.25 0.012 255);
+  --text-2: oklch(0.44 0.012 255);
+  --text-3: oklch(0.6 0.01 255);
+
+  --accent: oklch(0.64 0.12 235);
+  --accent-2: oklch(0.57 0.125 238);
+  --on-accent: oklch(0.99 0.01 250);
+  --accent-soft: oklch(0.64 0.12 235 / 0.14);
+  --accent-soft-text: oklch(0.48 0.12 238);
+
+  --danger: oklch(0.57 0.18 22);
+  --danger-soft: oklch(0.57 0.18 22 / 0.12);
+
+  --shadow-panel: 0 1px 2px oklch(0.3 0.02 250 / 0.07), 0 8px 24px oklch(0.3 0.02 250 / 0.13);
+  --shadow-pop: 0 4px 12px oklch(0.3 0.02 250 / 0.15), 0 16px 40px oklch(0.3 0.02 250 / 0.22);
+}
+[data-theme='harbour'][data-mode='dark'] {
+  --scene-a: oklch(0.27 0.008 250);
+  --scene-b: oklch(0.2 0.006 248);
+  --scene-floor: oklch(0.24 0.007 248);
+  --grid: oklch(0.85 0.02 250 / 0.1);
+
+  --surface: oklch(0.22 0.006 250 / 0.84);
+  --surface-solid: oklch(0.22 0.006 250);
+  --surface-2: oklch(0.27 0.008 250);
+  --surface-3: oklch(0.32 0.01 250);
+  --elevated: oklch(0.24 0.006 250 / 0.97);
+
+  --border: oklch(0.9 0.012 250 / 0.1);
+  --border-2: oklch(0.9 0.012 250 / 0.2);
+
+  --text: oklch(0.92 0.006 255);
+  --text-2: oklch(0.75 0.008 255);
+  --text-3: oklch(0.59 0.008 255);
+
+  --accent: oklch(0.72 0.12 235);
+  --accent-2: oklch(0.78 0.12 233);
+  --on-accent: oklch(0.18 0.02 250);
+  --accent-soft: oklch(0.72 0.12 235 / 0.18);
+  --accent-soft-text: oklch(0.8 0.1 233);
+
+  --danger: oklch(0.68 0.16 24);
+  --danger-soft: oklch(0.68 0.16 24 / 0.16);
+
+  --shadow-panel: 0 1px 2px oklch(0 0 0 / 0.3), 0 10px 30px oklch(0 0 0 / 0.42);
+  --shadow-pop: 0 6px 16px oklch(0 0 0 / 0.42), 0 20px 48px oklch(0 0 0 / 0.55);
+}

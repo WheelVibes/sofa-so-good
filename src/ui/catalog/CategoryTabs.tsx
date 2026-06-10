@@ -47,22 +47,23 @@ export function CategoryTabs({
         type="button"
         onClick={() => onSelect('favourites')}
         className={`chip${active === 'favourites' ? ' on' : ''}`}
-        aria-label="Favourites"
+        aria-label={`Favourites (${favCount})`}
         title="Favourites"
       >
         <Icon.Star className="icn" width={14} height={14} />
-        {favCount > 0 ? favCount : null}
+        {favCount > 0 ? <span className="chip-count">{favCount}</span> : null}
       </button>
       {recentCount > 0 ? (
         <button
           type="button"
           onClick={() => onSelect('recent')}
           className={`chip${active === 'recent' ? ' on' : ''}`}
-          aria-label="Recently used"
+          aria-label={`Recently used (${recentCount})`}
           title="Recently used"
         >
           <Icon.Time className="icn" width={14} height={14} />
           Recent
+          <span className="chip-count">{recentCount}</span>
         </button>
       ) : null}
       {FURNITURE_CATEGORIES.map((c) => {
@@ -78,6 +79,7 @@ export function CategoryTabs({
           >
             <CategoryIcon category={c} className="icn" width={14} height={14} />
             {LABELS[c]}
+            <span className="chip-count">{count}</span>
           </button>
         )
       })}

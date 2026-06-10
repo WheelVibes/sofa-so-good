@@ -27,6 +27,14 @@ and totals an approximate cost in **SGD**, with a **Saved collections** tab for
 everything you've hearted. **Export CSV** downloads the list (category, item,
 quantity, unit price, line total) for a spreadsheet or to send to a supplier.
 
+Spend is shown wherever it helps: each catalog card and the inspector show a
+per‑item price (with a **selection total** when you multi‑select), the panel
+breaks spend down **by category and by room**, and the per‑room editor caption
+shows that room's running cost. Set a **budget target** and an always‑on pill
+(bottom‑centre, orbit views) tracks how far under/over you are — green under, red
+over — and opens the full list when tapped. The target + over/under also print in
+the design report.
+
 ## Clearance & fit checks
 
 **Checks** validates door‑swing clearance and flags any piece blocking a door,

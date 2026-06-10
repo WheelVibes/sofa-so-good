@@ -26,32 +26,61 @@ function writePose(pos: Vector3, tgt: Vector3): void {
   cameraPose.tz = tgt.z
 }
 
-// Stable initial target — passing a fresh array each render makes drei
-// re-apply it and clobber any user pan.
-const INITIAL_TARGET: [number, number, number] = [APARTMENT_EXT_W / 2, 1.3, APARTMENT_EXT_D / 2]
-
 type Pose = { pos: [number, number, number]; target: [number, number, number] }
 
-/** 3/4 dollhouse framing for the active plan. The built-in flat keeps its exact
- *  hand-tuned pose; a custom plan is framed from its own bounds so "reset view"
- *  and exiting the room editor land on the right place regardless of plan size. */
-function dollhouseFraming(plan: FloorPlan): Pose {
-  if (isDefaultPlan(plan)) return { pos: [12, 8, 12], target: INITIAL_TARGET }
-  const [pw, pd] = planBounds(plan)
-  const cx = pw / 2
-  const cz = pd / 2
-  const d = Math.max(pw, pd, 4)
-  return { pos: [cx + d * 0.7, d * 0.7, cz + d * 0.7], target: [cx, 1.0, cz] }
+const APPROX_WALL_H = 2.7 // include wall height when fitting the dollhouse view
+
+/** Plan footprint (width, depth) — the apartment extents for the default flat,
+ *  the plan's own bounds otherwise. */
+function planExtents(plan: FloorPlan): [number, number] {
+  return isDefaultPlan(plan) ? [APARTMENT_EXT_W, APARTMENT_EXT_D] : planBounds(plan)
 }
 
-/** Overhead top-down framing for the active plan (centre + a height sized to the
- *  plan). The tiny +Z keeps OrbitControls out of gimbal lock at the pole. */
-function topFraming(plan: FloorPlan): Pose {
-  const isDef = isDefaultPlan(plan)
-  const [pw, pd] = isDef ? [APARTMENT_EXT_W, APARTMENT_EXT_D] : planBounds(plan)
+/** Camera distance at which a sphere of `radius` exactly fills the smaller of the
+ *  vertical / horizontal field of view — so the framing fits any viewport aspect
+ *  ratio (portrait phones included). */
+function fitDistance(radius: number, camera: PerspectiveCamera): number {
+  const vFov = (camera.fov * Math.PI) / 180
+  const aspect = camera.aspect || 1
+  const hFov = 2 * Math.atan(Math.tan(vFov / 2) * aspect)
+  const fov = Math.min(vFov, hFov)
+  return radius / Math.max(0.1, Math.sin(fov / 2))
+}
+
+/** 3/4 dollhouse framing for the active plan, sized to the viewport so the whole
+ *  flat just fills the view — dynamic for both the default flat and custom plans
+ *  and any window aspect ratio. */
+function dollhouseFraming(plan: FloorPlan, camera: PerspectiveCamera): Pose {
+  const [pw, pd] = planExtents(plan)
   const cx = pw / 2
   const cz = pd / 2
-  const h = isDef ? 17 : Math.max(pw, pd) * 1.7
+  // Bounding-sphere radius of the footprint + a little wall height, with margin.
+  const radius = 0.5 * Math.hypot(pw, pd, APPROX_WALL_H) * 1.1
+  const dist = fitDistance(radius, camera)
+  // Unit 3/4 direction (equal X/Z, lower Y for a dollhouse look).
+  const inv = 1 / Math.hypot(0.82, 0.6, 0.82)
+  const dx = 0.82 * inv
+  const dy = 0.6 * inv
+  const dz = 0.82 * inv
+  return { pos: [cx + dx * dist, dy * dist, cz + dz * dist], target: [cx, 1.0, cz] }
+}
+
+/** Overhead top-down framing for the active plan: centred, at a height that makes
+ *  the whole footprint just fill the viewport (honours aspect ratio). The tiny +Z
+ *  keeps OrbitControls out of gimbal lock at the pole. */
+function topFraming(plan: FloorPlan, camera: PerspectiveCamera): Pose {
+  const [pw, pd] = planExtents(plan)
+  const cx = pw / 2
+  const cz = pd / 2
+  const vFov = (camera.fov * Math.PI) / 180
+  const aspect = camera.aspect || 1
+  const margin = 1.12
+  const half = Math.tan(vFov / 2)
+  // Looking straight down: screen-vertical maps to world depth, screen-horizontal
+  // to world width. Height must satisfy both.
+  const hForDepth = ((pd / 2) * margin) / half
+  const hForWidth = ((pw / 2) * margin) / (half * aspect)
+  const h = Math.max(hForDepth, hForWidth, 4)
   return { pos: [cx, h, cz + 0.01], target: [cx, 0, cz] }
 }
 
@@ -87,32 +116,34 @@ export function OrbitCamera() {
       c.update()
       return
     }
-    // Dollhouse overview framed to the active plan (default flat keeps its pose).
-    const { pos, target } = dollhouseFraming(plan)
-    camera.position.set(...pos)
-    controlsRef.current?.target.set(...target)
-    controlsRef.current?.update()
+    // Dollhouse overview framed to fit the active plan in the current viewport.
+    if (camera instanceof PerspectiveCamera) {
+      const { pos, target } = dollhouseFraming(plan, camera)
+      camera.position.set(...pos)
+      controlsRef.current?.target.set(...target)
+      controlsRef.current?.update()
+    }
   }, [camera, roomEditorId])
 
-  // Snap to a top-down plan view when requested from the toolbar.
+  // Snap to a top-down plan view when requested from the toolbar (fit to viewport).
   const topViewNonce = useStore((s) => s.topViewNonce)
   useEffect(() => {
     if (topViewNonce === 0) return
     const c = controlsRef.current
-    if (!c) return
-    const { pos, target } = topFraming(useStore.getState().floorPlan)
+    if (!c || !(camera instanceof PerspectiveCamera)) return
+    const { pos, target } = topFraming(useStore.getState().floorPlan, camera)
     c.target.set(...target)
     camera.position.set(...pos)
     c.update()
   }, [topViewNonce, camera])
 
-  // "Reset view" → snap back to the 3/4 dollhouse overview of the active plan.
+  // "Reset view" → snap back to a 3/4 dollhouse overview that fits the viewport.
   const homeViewNonce = useStore((s) => s.homeViewNonce)
   useEffect(() => {
     if (homeViewNonce === 0) return
     const c = controlsRef.current
-    if (!c) return
-    const { pos, target } = dollhouseFraming(useStore.getState().floorPlan)
+    if (!c || !(camera instanceof PerspectiveCamera)) return
+    const { pos, target } = dollhouseFraming(useStore.getState().floorPlan, camera)
     c.target.set(...target)
     camera.position.set(...pos)
     c.update()
@@ -300,7 +331,7 @@ export function OrbitCamera() {
       mouseButtons={{ LEFT: MOUSE.ROTATE, MIDDLE: MOUSE.DOLLY, RIGHT: MOUSE.PAN }}
       touches={{ ONE: TOUCH.ROTATE, TWO: TOUCH.DOLLY_PAN }}
       minDistance={3}
-      maxDistance={30}
+      maxDistance={60}
       // Allow a near-overhead angle for layout planning (just shy of straight
       // down to avoid gimbal lock).
       maxPolarAngle={Math.PI / 2 - 0.015}

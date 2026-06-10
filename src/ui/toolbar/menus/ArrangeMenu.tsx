@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
 import { dropBuiltinSet, dropIkeaSet } from '../../../furniture/arrangeActions'
 import { FURNITURE_SETS } from '../../../furniture/furnitureSets'
@@ -10,9 +11,9 @@ import { Icon, type IconName } from '../icons'
 import { shortcutLabel } from '../shortcuts'
 import { ToolbarMenu } from '../ToolbarMenu'
 
-/** Arrange cluster: furniture sets, full-flat presets, finish styles, the
- *  floor-plan editor, and one-click Tidy. Logic lifted unchanged from the
- *  previous Toolbar (SetsMenu / PresetPicker / StylePicker / FloorPlanButton). */
+/** Arrange cluster: quick actions (Smart Start / Tidy) plus three compact
+ *  "pick → Apply" pickers — Sets, Presets and finish Styles — that each collapse
+ *  a long list into one dropdown, keeping the menu short. */
 export function ArrangeMenu() {
   const applyLayoutPreset = useStore((s) => s.applyLayoutPreset)
   const setSmartStartOpen = useStore((s) => s.setSmartStartOpen)
@@ -22,14 +23,20 @@ export function ArrangeMenu() {
   const saveCurrentStyle = useStore((s) => s.saveCurrentStyle)
   const applyUserStyle = useStore((s) => s.applyUserStyle)
   const deleteUserStyle = useStore((s) => s.deleteUserStyle)
-  const floorPlanEditing = useStore((s) => s.floorPlanEditing)
-  const toggleFloorPlanEditing = useStore((s) => s.toggleFloorPlanEditing)
   const recipes = ikeaSetRecipes()
   const fSmartStart = useFeature('smartStart')
-  const fFloorPlan = useFeature('floorPlanEditor')
+
+  const setOptions = [
+    ...FURNITURE_SETS.map((s) => ({ id: `b:${s.id}`, name: s.name })),
+    ...recipes.map((r) => ({ id: `i:${r.setKey}`, name: `${r.setName} (IKEA)` })),
+  ]
+  const applySet = (val: string) => {
+    if (val.startsWith('b:')) dropBuiltinSet(val.slice(2))
+    else if (val.startsWith('i:')) dropIkeaSet(val.slice(2))
+  }
 
   return (
-    <ToolbarMenu icon="Sets" label="Arrange" active={floorPlanEditing} width={256}>
+    <ToolbarMenu icon="Sets" label="Arrange" width={264}>
       <div className="max-h-[70vh] overflow-y-auto">
         {fSmartStart && (
           <Action
@@ -45,50 +52,31 @@ export function ArrangeMenu() {
           sub="Auto-arrange every room"
           onClick={tidyHome}
         />
-        {fFloorPlan && (
-          <Action
-            icon="FloorPlan"
-            label="Floor plan"
-            sub="Edit walls, rooms, doors & windows"
-            active={floorPlanEditing}
-            onClick={toggleFloorPlanEditing}
-          />
-        )}
 
-        <Header>Sets</Header>
-        {FURNITURE_SETS.map((s) => (
-          <Action key={s.id} icon="Sets" label={s.name} onClick={() => dropBuiltinSet(s.id)} />
-        ))}
-        {recipes.map((r) => (
-          <Action
-            key={r.setKey}
-            icon="Sets"
-            label={r.setName}
-            sub="IKEA set"
-            onClick={() => dropIkeaSet(r.setKey)}
-          />
-        ))}
+        <Header>Drop a set</Header>
+        <PickApply
+          placeholder="Choose a furniture set…"
+          options={setOptions}
+          applyLabel="Drop"
+          onApply={applySet}
+        />
 
-        <Header>Presets</Header>
-        {LAYOUT_PRESETS.map((p) => (
-          <Action
-            key={p.id}
-            icon="Presets"
-            label={p.name}
-            sub={p.description}
-            onClick={() => applyLayoutPreset(p.id)}
-          />
-        ))}
+        <Header>Apply a preset</Header>
+        <PickApply
+          placeholder="Choose a layout preset…"
+          options={LAYOUT_PRESETS.map((p) => ({ id: p.id, name: p.name }))}
+          onApply={(id) => applyLayoutPreset(id)}
+        />
 
-        <Header>Style</Header>
-        {STYLE_PRESETS.map((p) => (
-          <Action
-            key={p.id}
-            icon="Style"
-            label={p.name}
-            onClick={() => applyStyle(p, setFloorFinish, setWallFinish)}
-          />
-        ))}
+        <Header>Apply a style</Header>
+        <PickApply
+          placeholder="Choose a finish style…"
+          options={STYLE_PRESETS.map((p) => ({ id: p.id, name: p.name }))}
+          onApply={(id) => {
+            const preset = STYLE_PRESETS.find((p) => p.id === id)
+            if (preset) applyStyle(preset, setFloorFinish, setWallFinish)
+          }}
+        />
 
         <Header>My styles</Header>
         <Action
@@ -140,6 +128,50 @@ export function ArrangeMenu() {
         )}
       </div>
     </ToolbarMenu>
+  )
+}
+
+/** A compact dropdown + Apply row. Stops click propagation so interacting with
+ *  the native select / Apply button doesn't close the surrounding toolbar menu;
+ *  the menu stays open so several picks can be applied in a row. */
+function PickApply({
+  placeholder,
+  options,
+  applyLabel = 'Apply',
+  onApply,
+}: {
+  placeholder: string
+  options: { id: string; name: string }[]
+  applyLabel?: string
+  onApply: (id: string) => void
+}) {
+  const [val, setVal] = useState('')
+  return (
+    <div className="arr-pick" onClick={(e) => e.stopPropagation()}>
+      <select
+        className="input arr-select"
+        value={val}
+        aria-label={placeholder}
+        onChange={(e) => setVal(e.target.value)}
+      >
+        <option value="" disabled>
+          {placeholder}
+        </option>
+        {options.map((o) => (
+          <option key={o.id} value={o.id}>
+            {o.name}
+          </option>
+        ))}
+      </select>
+      <button
+        type="button"
+        className="btn btn-soft sm arr-apply"
+        disabled={!val}
+        onClick={() => val && onApply(val)}
+      >
+        {applyLabel}
+      </button>
+    </div>
   )
 }
 

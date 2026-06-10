@@ -37,6 +37,7 @@ overview and walk mode are view‑only.
 | Cycle selection | <kbd>[</kbd> / <kbd>]</kbd> |
 | Previous / next room | <kbd>,</kbd> / <kbd>.</kbd> |
 | Search the catalog | <kbd>/</kbd> |
+| Budget / shopping panel | <kbd>B</kbd> |
 | Delete | <kbd>Del</kbd> |
 | Deselect / exit room | <kbd>Esc</kbd> |
 | Undo / redo | <kbd>⌘Z</kbd> / <kbd>⌘Y</kbd> (or <kbd>Shift</kbd>+<kbd>⌘Z</kbd>) |

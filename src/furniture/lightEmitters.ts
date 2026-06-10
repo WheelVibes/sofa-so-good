@@ -66,6 +66,14 @@ export const LIGHT_EMITTERS: Partial<Record<FurnitureType, EmitterSpec>> = {
     intensity: 2.6,
     distance: 3.2,
   },
+  aquarium: {
+    // The tank's own light glows from within the water — a cool aqua accent that
+    // reads beautifully at night. Low intensity (mood, not room lighting).
+    height: () => 0.95,
+    color: '#bfe8f2',
+    intensity: 2.4,
+    distance: 2.6,
+  },
 }
 
 export function isEmitter(defId: FurnitureType): boolean {

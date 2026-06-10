@@ -4,6 +4,7 @@ import type { RoomId } from '../../apartment/types'
 import { pointInRoom } from '../../floorplan/types'
 import { useCatalog } from '../../furniture/catalog'
 import type { FurnitureItem } from '../../furniture/types'
+import { decodeFinishDrag, FINISH_DND_MIME, resolveFinishDrop } from '../../materials/finishDrop'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
@@ -22,8 +23,19 @@ export function LayersPanel() {
   const hiddenIds = useStore((s) => s.hiddenItemIds)
   const toggleItemHidden = useStore((s) => s.toggleItemHidden)
   const setItemsHidden = useStore((s) => s.setItemsHidden)
+  const setItemsLocked = useStore((s) => s.setItemsLocked)
   const showAllItems = useStore((s) => s.showAllItems)
+  const updateItemProps = useStore((s) => s.updateItemProps)
   const hiddenSet = new Set<string>(hiddenIds)
+
+  /** Apply a finish dragged from the Finish picker onto a specific item. */
+  const applyFinishDrop = (itemId: string, dt: DataTransfer) => {
+    const payload = decodeFinishDrag(dt.getData(FINISH_DND_MIME))
+    const action = resolveFinishDrop({ kind: 'item', itemId }, payload)
+    if (action?.type !== 'item') return
+    updateItemProps(action.itemId, { finish: action.finishId })
+    useStore.getState().notify.start({ title: 'Finish applied', kind: 'success' })
+  }
   const catalog = useCatalog()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
   const [filter, setFilter] = useState('')
@@ -52,6 +64,7 @@ export function LayersPanel() {
   }, [items, plan])
 
   const roomCount = groups.filter((g) => g.key !== 'other').length
+  const allCollapsed = groups.length > 0 && groups.every((g) => collapsed[g.key])
   // Filter items by name; drop empty groups and force-expand while filtering so
   // matches are always visible regardless of a group's collapsed state.
   const visibleGroups = q
@@ -94,6 +107,7 @@ export function LayersPanel() {
           visibleGroups.map((g) => {
             const isCollapsed = !q && !!collapsed[g.key]
             const groupHidden = g.items.length > 0 && g.items.every((it) => hiddenSet.has(it.id))
+            const groupLocked = g.items.length > 0 && g.items.every((it) => it.locked)
             return (
               <div className="lyr-group" key={g.key}>
                 <div className="lyr-ghead-row">
@@ -124,6 +138,24 @@ export function LayersPanel() {
                       <Icon.Eye width={14} height={14} />
                     )}
                   </button>
+                  <button
+                    type="button"
+                    className={`lyr-geye${groupLocked ? ' on' : ''}`}
+                    title={groupLocked ? 'Unlock all in room' : 'Lock all in room'}
+                    aria-label={groupLocked ? 'Unlock all in room' : 'Lock all in room'}
+                    onClick={() =>
+                      setItemsLocked(
+                        g.items.map((it) => it.id),
+                        !groupLocked,
+                      )
+                    }
+                  >
+                    {groupLocked ? (
+                      <Icon.Lock width={14} height={14} />
+                    ) : (
+                      <Icon.Unlock width={14} height={14} />
+                    )}
+                  </button>
                 </div>
                 {!isCollapsed &&
                   g.items.map((it) => {
@@ -136,6 +168,19 @@ export function LayersPanel() {
                         onClick={(e) =>
                           e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
                         }
+                        onDragOver={(e) => {
+                          if (e.dataTransfer.types.includes(FINISH_DND_MIME)) {
+                            e.preventDefault()
+                            e.dataTransfer.dropEffect = 'copy'
+                            e.currentTarget.classList.add('drop-target')
+                          }
+                        }}
+                        onDragLeave={(e) => e.currentTarget.classList.remove('drop-target')}
+                        onDrop={(e) => {
+                          e.preventDefault()
+                          e.currentTarget.classList.remove('drop-target')
+                          applyFinishDrop(it.id, e.dataTransfer)
+                        }}
                       >
                         <span className="lyr-ic">
                           {def ? (
@@ -201,6 +246,20 @@ export function LayersPanel() {
           {hiddenIds.length > 0 ? (
             <button type="button" className="lyr-showall" onClick={() => showAllItems()}>
               Show all ({hiddenIds.length})
+            </button>
+          ) : null}
+          {!q && roomCount > 1 ? (
+            <button
+              type="button"
+              className="lyr-showall"
+              title={allCollapsed ? 'Expand all rooms' : 'Collapse all rooms'}
+              onClick={() =>
+                setCollapsed(
+                  allCollapsed ? {} : Object.fromEntries(groups.map((g) => [g.key, true])),
+                )
+              }
+            >
+              {allCollapsed ? 'Expand all' : 'Collapse all'}
             </button>
           ) : null}
           {items.length > 0 ? (

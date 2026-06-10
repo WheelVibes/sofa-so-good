@@ -6,12 +6,13 @@ toolbar to switch.
 
 ## Themes
 
-Four warm, Singapore‑rooted themes:
+Five Singapore‑rooted themes:
 
 - **Clay** — the default warm neutral.
 - **Kampong** — earthy greens and timber.
 - **Porcelain** — bright and cool.
 - **Estate** — moody and dark‑leaning.
+- **Harbour** — cool slate with a marina‑blue accent.
 
 ## Light, dark, and auto
 

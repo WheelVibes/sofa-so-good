@@ -1,25 +1,18 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3D } from 'three'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../../apartment/constants'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
 import { grade, SOFT_SHADOW } from '../look'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
+import { shadowFrustumForPlan } from './shadowFrustum'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
 
-/** Distance from the apartment centre where the directional light sits (m). */
+/** Distance from the plan centre where the directional light sits (m). */
 const SUN_DISTANCE = 25
 const TWEEN_DURATION = 0.6
-
-/** Apartment centre — the sun shadow frustum is aimed here so the limited
- *  shadow-map resolution is spent on the floor plan, not empty space. */
-const CENTER: [number, number, number] = [APARTMENT_EXT_W / 2, 0, APARTMENT_EXT_D / 2]
-/** Half-extent of the shadow frustum (m). Sized to wrap the apartment plus a
- *  margin for furniture and the swing of low-angle shadows. */
-const SHADOW_HALF = 9.5
 
 interface Vals {
   sun: number
@@ -40,7 +33,7 @@ function rotateY(pos: readonly [number, number, number], deg: number): [number, 
   return [x * c - z * s, y, x * s + z * c]
 }
 
-function targetVals(sun: SunPosition, orientation: number): Vals {
+function targetVals(sun: SunPosition, orientation: number, center: [number, number, number]): Vals {
   const lighting = lightingFromAltitude(sun.altitude)
   const dir = sunDirectionToScene(sun)
   const scaled: [number, number, number] = [
@@ -52,8 +45,8 @@ function targetVals(sun: SunPosition, orientation: number): Vals {
   return {
     sun: lighting.sun,
     ambient: lighting.ambient,
-    // Offset the light so its shadow frustum is centred on the apartment.
-    sunPos: [rotated[0] + CENTER[0], rotated[1] + CENTER[1], rotated[2] + CENTER[2]],
+    // Offset the light so its shadow frustum is centred on the active plan.
+    sunPos: [rotated[0] + center[0], rotated[1] + center[1], rotated[2] + center[2]],
     sunColor: lighting.sunColor,
     skyColor: lighting.skyColor,
     groundColor: lighting.groundColor,
@@ -68,14 +61,18 @@ export function Lighting() {
   const sunRef = useRef<DirectionalLight>(null!)
   const ambientRef = useRef<AmbientLight>(null!)
   const hemiRef = useRef<HemisphereLight>(null!)
-  // A persistent target so the directional light always points at the
-  // apartment centre regardless of where the sun sits.
-  const sunTarget = useMemo(() => {
-    const o = new Object3D()
-    o.position.set(...CENTER)
-    return o
-  }, [])
-  const initial = targetVals(sunPos, orientation)
+  // The shadow frustum wraps the *active* floor plan (B34): a fixed
+  // apartment-centred box misses shadows on a large or origin-offset custom plan.
+  const floorPlan = useStore((s) => s.floorPlan)
+  const { center, halfExtent } = useMemo(() => shadowFrustumForPlan(floorPlan), [floorPlan])
+  // A persistent target so the directional light always points at the plan
+  // centre regardless of where the sun sits; re-aim it when the centre moves.
+  const sunTarget = useMemo(() => new Object3D(), [])
+  useEffect(() => {
+    sunTarget.position.set(center[0], center[1], center[2])
+    sunTarget.updateMatrixWorld()
+  }, [sunTarget, center])
+  const initial = targetVals(sunPos, orientation, center)
   const current = useRef<Vals>({
     sun: initial.sun,
     ambient: initial.ambient,
@@ -92,7 +89,7 @@ export function Lighting() {
   useEffect(() => () => holdRef.current?.(), [])
 
   useFrame((_, dt) => {
-    const target = targetVals(sunPos, orientation)
+    const target = targetVals(sunPos, orientation, center)
     const cur = current.current
     const k = Math.min(1, dt / TWEEN_DURATION)
 
@@ -156,7 +153,10 @@ export function Lighting() {
       <hemisphereLight ref={hemiRef} />
       <primitive object={sunTarget} />
       <directionalLight
-        key={shadowMapSize}
+        // Remount the light (rebuilding its shadow camera) when the map size or
+        // the plan-fitted frustum extent changes, so the new ortho bounds + far
+        // plane take effect cleanly.
+        key={`${shadowMapSize}-${Math.round(halfExtent)}`}
         ref={sunRef}
         castShadow={shadowMapSize > 0}
         target={sunTarget}
@@ -166,11 +166,11 @@ export function Lighting() {
         shadow-normalBias={SOFT_SHADOW.normalBias}
         shadow-radius={SOFT_SHADOW.radius}
         shadow-camera-near={1}
-        shadow-camera-far={SUN_DISTANCE * 2}
-        shadow-camera-left={-SHADOW_HALF}
-        shadow-camera-right={SHADOW_HALF}
-        shadow-camera-top={SHADOW_HALF}
-        shadow-camera-bottom={-SHADOW_HALF}
+        shadow-camera-far={SUN_DISTANCE * 2 + halfExtent}
+        shadow-camera-left={-halfExtent}
+        shadow-camera-right={halfExtent}
+        shadow-camera-top={halfExtent}
+        shadow-camera-bottom={-halfExtent}
       />
     </>
   )

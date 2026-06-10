@@ -25,6 +25,9 @@ export interface ItemsSlice {
   toggleLock: (id: string) => void
   /** Lock or unlock every item at once (protect/unprotect a finished layout). */
   setAllLocked: (locked: boolean) => void
+  /** Lock/unlock a specific set of items in one history step (e.g. a whole room
+   *  from the Layers panel). */
+  setItemsLocked: (ids: string[], locked: boolean) => void
   /** Set (or clear, with an empty/blank string) an item's custom display name.
    *  Falls back to the catalog def name when absent. */
   renameItem: (id: string, label: string) => void
@@ -124,6 +127,11 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
   setAllLocked: (locked) => {
     get().pushHistory()
     set((s) => ({ items: s.items.map((it) => ({ ...it, locked })) }))
+  },
+  setItemsLocked: (ids, locked) => {
+    const set_ = new Set(ids)
+    get().pushHistory()
+    set((s) => ({ items: s.items.map((it) => (set_.has(it.id) ? { ...it, locked } : it)) }))
   },
   renameItem: (id, label) => {
     const trimmed = label.trim()

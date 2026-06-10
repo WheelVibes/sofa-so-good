@@ -181,6 +181,74 @@ function tileFields(base: [number, number, number], seed: number): Fields {
   return f
 }
 
+/**
+ * Honeycomb hexagon tile (a kitchen/bath staple). Voronoi cells over an offset
+ * triangular lattice give hexagons; grout lines fall where the nearest two cell
+ * centres are roughly equidistant. Seamless: the lattice is periodic over the
+ * tile (cols/rows divide it, rows even so the half-row offset wraps) and centre
+ * distances are measured toroidally, so cells crossing the edge match up.
+ */
+function hexagonFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 20
+  const cols = 5
+  const rows = 6 // even → the alternate-row x-offset wraps cleanly
+  const dx = S / cols
+  const dy = S / rows
+  const rand = mulberry32(seed)
+  const tint: number[] = []
+  for (let i = 0; i < cols * rows; i++) tint.push(0.92 + rand() * 0.14)
+  const speck = makeFbm(seed + 3, 3, 50)
+  const grout: [number, number, number] = [base[0] * 0.6, base[1] * 0.6, base[2] * 0.58]
+  const groutW = 3.5 // px threshold on the gap between the two nearest centres
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      let best = Infinity
+      let second = Infinity
+      let bestCol = 0
+      let bestRow = 0
+      const cyApprox = Math.round(y / dy)
+      for (let rr = -1; rr <= 1; rr++) {
+        const rowRaw = cyApprox + rr
+        const row = ((rowRaw % rows) + rows) % rows
+        const offX = row % 2 ? 0.5 : 0
+        const colApprox = Math.round(x / dx - offX)
+        for (let cc = -1; cc <= 1; cc++) {
+          const colRaw = colApprox + cc
+          const centerX = (colRaw + offX) * dx
+          const centerY = rowRaw * dy
+          let ddx = x - centerX
+          ddx -= S * Math.round(ddx / S)
+          let ddy = y - centerY
+          ddy -= S * Math.round(ddy / S)
+          const d = ddx * ddx + ddy * ddy
+          const colW = ((colRaw % cols) + cols) % cols
+          if (d < best) {
+            second = best
+            best = d
+            bestCol = colW
+            bestRow = row
+          } else if (d < second) {
+            second = d
+          }
+        }
+      }
+      const edge = Math.sqrt(second) - Math.sqrt(best)
+      const i = y * S + x
+      if (edge < groutW) {
+        const t = edge / groutW
+        setPx(f, i, grout[0], grout[1], grout[2], 0.05 + t * 0.1, 0.9)
+      } else {
+        const tt = tint[bestRow * cols + bestCol]
+        const sp = (speck(x / S, y / S) - 0.5) * 0.05
+        const [r, g, b] = shade(base, clamp01(tt + sp))
+        setPx(f, i, r, g, b, 0.82, 0.2 + Math.abs(sp) * 1.5)
+      }
+    }
+  }
+  return f
+}
+
 function carpetFields(base: [number, number, number], seed: number): Fields {
   const f = blank()
   f.normalStrength = 6
@@ -458,6 +526,53 @@ function parquetFields(base: [number, number, number], seed: number): Fields {
  * the column count divides the tile and the row count is even so the half-offset
  * alternation wraps. `base` is the brick colour; mortar is a fixed warm grey.
  */
+/**
+ * Glossy ceramic subway/metro tile — running-bond 2:1 rectangles with thin grout
+ * and a soft bevel at each tile edge (the classic kitchen-backsplash / bathroom
+ * wall finish). Distinct from `brick` (matte, earthy, thick mortar): high tint,
+ * low roughness, crisp thin joints. Seamless — cols divide the tile, rows even so
+ * the half-offset running bond wraps.
+ */
+function subwayFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 14
+  const cols = 4
+  const tw = S / cols // tile width
+  const rows = 8 // even → half-offset running bond wraps; 2:1 tiles (tw = 2·th)
+  const th = S / rows
+  const grout = Math.max(2, Math.round(S / 150)) // thin joint
+  const bevel = Math.max(3, Math.round(S / 90)) // soft edge bevel band
+  const groutRgb: [number, number, number] = [218, 214, 206]
+  const speck = makeFbm(seed + 7, 3, 60)
+  for (let y = 0; y < S; y++) {
+    const row = Math.floor(y / th)
+    const yIn = y - row * th
+    const offset = (row & 1) * (tw / 2)
+    for (let x = 0; x < S; x++) {
+      const xs = (((x + offset) % S) + S) % S
+      const col = Math.floor(xs / tw)
+      const xIn = xs - col * tw
+      const edge = Math.min(xIn, tw - xIn, yIn, th - yIn)
+      const i = y * S + x
+      if (edge < grout) {
+        // Recessed grout joint.
+        setPx(f, i, groutRgb[0], groutRgb[1], groutRgb[2], 0.05, 0.8)
+        continue
+      }
+      // Ceramic face — bright, low roughness; a bevel band near the joint catches
+      // light (raised height) so each tile reads as proud + glossy.
+      const onBevel = edge < grout + bevel
+      const bv = onBevel ? (edge - grout) / bevel : 1
+      const sp = (speck(x / S, y / S) - 0.5) * 0.04
+      const factor = clamp01(0.97 + sp + (onBevel ? (1 - bv) * 0.06 : 0))
+      const [r, g, b] = shade(base, factor)
+      const height = onBevel ? 0.5 + bv * 0.45 : 0.95
+      setPx(f, i, r, g, b, height, 0.12 + Math.abs(sp) * 1.2)
+    }
+  }
+  return f
+}
+
 function brickFields(base: [number, number, number], seed: number): Fields {
   const f = blank()
   f.normalStrength = 5
@@ -541,6 +656,34 @@ function battenFields(base: [number, number, number], seed: number): Fields {
         h,
         0.55, // matte paint
       )
+    }
+  }
+  return f
+}
+
+/**
+ * Fluted / reeded panel — close-packed rounded vertical ribs (no flat gaps,
+ * unlike `batten`'s spaced slats), the on-trend feature-wall finish. A half-sine
+ * height profile per rib gives the rounded relief (the normal map does the work);
+ * the albedo carries faint lengthwise wood grain + a touch of groove shading.
+ * Seamless — the rib count divides the tile.
+ */
+function flutedFields(base: [number, number, number], seed: number): Fields {
+  const f = blank()
+  f.normalStrength = 20
+  const ribs = 16 // divides S → seamless
+  const period = S / ribs
+  const grain = makeFbm(seed + 6, 3, 80)
+  for (let y = 0; y < S; y++) {
+    for (let x = 0; x < S; x++) {
+      const frac = (x % period) / period // 0..1 across one rib
+      // Half-sine bump: groove (0) at rib edges, peak (1) at rib centre.
+      const h = Math.sin(Math.PI * frac)
+      const g = grain(x / S, y / S) - 0.5
+      // Rib faces catch light (lighter toward the peak); grooves sit darker.
+      const factor = 0.88 + h * 0.14 + g * 0.04
+      const [r, gg, b] = shade(base, clamp01(factor))
+      setPx(f, y * S + x, r, gg, b, 0.15 + h * 0.85, 0.6 + g * 0.1)
     }
   }
   return f
@@ -639,6 +782,9 @@ const PATTERN_FN: Record<
   herringbone: herringboneFields,
   brick: brickFields,
   batten: battenFields,
+  hexagon: hexagonFields,
+  subway: subwayFields,
+  fluted: flutedFields,
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only

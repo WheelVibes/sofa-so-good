@@ -8,6 +8,7 @@
 import type { ComponentType } from 'react'
 import type { ParamProps, PrimitiveKind } from '../types'
 import { AirconUnit } from './AirconUnit'
+import { Aquarium } from './Aquarium'
 import { Armchair } from './Armchair'
 import { BarCart } from './BarCart'
 import { BarStool } from './BarStool'
@@ -17,6 +18,8 @@ import { Bed } from './Bed'
 import { Bench } from './Bench'
 import { Bookshelf } from './Bookshelf'
 import { BunkBed } from './BunkBed'
+import { CabinetCorner } from './CabinetCorner'
+import { CabinetBase, CabinetTall, CabinetWall } from './CabinetModule'
 import { CeilingFan } from './CeilingFan'
 import { CeilingLight } from './CeilingLight'
 import { ChaiseLounge } from './ChaiseLounge'
@@ -31,6 +34,7 @@ import { Curtain } from './Curtain'
 import { Desk } from './Desk'
 import { DiningChair } from './DiningChair'
 import { DiningTable } from './DiningTable'
+import { Dishwasher } from './Dishwasher'
 import { Dresser } from './Dresser'
 import { DryingRack } from './DryingRack'
 import { FeatureWall } from './FeatureWall'
@@ -38,18 +42,28 @@ import { Fireplace } from './Fireplace'
 import { FlatscreenTV } from './FlatscreenTV'
 import { FloorLamp } from './FloorLamp'
 import { FloorMirror } from './FloorMirror'
+import { FloorSpeaker } from './FloorSpeaker'
 import { FloorVase } from './FloorVase'
+import { GarmentRack } from './GarmentRack'
 import { HangingPlant } from './HangingPlant'
 import { HighChair } from './HighChair'
 import { KitchenCounter } from './KitchenCounter'
 import { KitchenIsland } from './KitchenIsland'
+import { LaundryHamper } from './LaundryHamper'
 import { Microwave } from './Microwave'
 import { Mirror } from './Mirror'
 import { Monitor } from './Monitor'
 import { Nightstand } from './Nightstand'
 import { OfficeChair } from './OfficeChair'
 import { Ottoman } from './Ottoman'
+import { OutdoorChair } from './OutdoorChair'
+import { OutdoorLounger } from './OutdoorLounger'
+import { OutdoorParasol } from './OutdoorParasol'
+import { OutdoorTable } from './OutdoorTable'
+import { Oven } from './Oven'
+import { PetBed } from './PetBed'
 import { Piano } from './Piano'
+import { PlanterTrough } from './PlanterTrough'
 import { PottedPlant } from './PottedPlant'
 import { RangeHood } from './RangeHood'
 import { Refrigerator } from './Refrigerator'
@@ -67,6 +81,7 @@ import { StandingFan } from './StandingFan'
 import { Stove } from './Stove'
 import { TableLamp } from './TableLamp'
 import { TabletopDecor } from './TabletopDecor'
+import { ToddlerBed } from './ToddlerBed'
 import { Toilet } from './Toilet'
 import { TowelLadder } from './TowelLadder'
 import { TowelRail } from './TowelRail'
@@ -79,8 +94,10 @@ import { WallClock } from './WallClock'
 import { WallMirror } from './WallMirror'
 import { WallSconce } from './WallSconce'
 import { WallShelf } from './WallShelf'
+import { WallTapestry } from './WallTapestry'
 import { Wardrobe } from './Wardrobe'
 import { WashingMachine } from './WashingMachine'
+import { WineCooler } from './WineCooler'
 
 export type PrimitiveComponent = ComponentType<{ props: ParamProps }>
 
@@ -131,10 +148,12 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   TableLamp,
   Microwave,
   DryingRack,
+  LaundryHamper,
   TabletopDecor,
   ShoeCabinet,
   WallShelf,
   WallSconce,
+  WallTapestry,
   CoveLight,
   FloorMirror,
   RollerBlind,
@@ -144,11 +163,14 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   TowelLadder,
   TowelRail,
   ToyStorage,
+  ToddlerBed,
   BunkBed,
   Crib,
   Soundbar,
+  FloorSpeaker,
   WallMirror,
   FloorVase,
+  GarmentRack,
   HighChair,
   ChangingTable,
   Bathtub,
@@ -156,7 +178,21 @@ export const PRIMITIVE_COMPONENTS: Record<PrimitiveKind, PrimitiveComponent> = {
   HangingPlant,
   ChaiseLounge,
   KitchenIsland,
+  PetBed,
+  Aquarium,
   Piano,
   Fireplace,
   Vanity,
+  CabinetBase,
+  CabinetWall,
+  CabinetTall,
+  CabinetCorner,
+  Dishwasher,
+  Oven,
+  WineCooler,
+  PlanterTrough,
+  OutdoorChair,
+  OutdoorTable,
+  OutdoorParasol,
+  OutdoorLounger,
 }

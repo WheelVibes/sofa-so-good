@@ -4,7 +4,7 @@ import type { SliceCreator } from './types'
 /** The four palettes of the design system. Each is authored in OKLCH so the
  *  same UI keeps identical contrast and hierarchy whichever palette is active.
  *  Driven by `[data-theme]` on <html>. */
-export type ThemeName = 'clay' | 'kampong' | 'porcelain' | 'estate'
+export type ThemeName = 'clay' | 'kampong' | 'porcelain' | 'estate' | 'harbour'
 
 /** Light / Dark / Auto (follows the OS). Resolved to a concrete `'light' |
  *  'dark'` mode that is written to `[data-mode]` on <html>. */
@@ -40,9 +40,15 @@ export const THEME_META: Record<
     chip: 'oklch(0.88 0.01 80)',
     desc: 'HDB concrete & amber',
   },
+  harbour: {
+    name: 'Harbour',
+    accent: 'oklch(0.64 0.12 235)',
+    chip: 'oklch(0.88 0.01 248)',
+    desc: 'Cool slate & marina blue',
+  },
 }
 
-export const THEME_NAMES: ThemeName[] = ['clay', 'kampong', 'porcelain', 'estate']
+export const THEME_NAMES: ThemeName[] = ['clay', 'kampong', 'porcelain', 'estate', 'harbour']
 
 export interface AppearanceSlice {
   /** Active palette. */

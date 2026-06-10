@@ -20,12 +20,15 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
   const sheen = readNum(props, 'sheen', 0)
   const frontStyle = readStr(props, 'frontStyle', 'slab')
   const worktopColor = readStr(props, 'worktopColor', '#34373d')
+  const worktopFinish = readStr(props, 'worktopFinish', 'solid')
 
   const depth = 0.6
   const cabinetH = 0.85
   const topThickness = 0.05
   const totalH = cabinetH + topThickness
   const cabMat = getSurfaceMaterial(finish, color, 1, sheen)
+  const worktopMat =
+    worktopFinish === 'solid' ? null : getSurfaceMaterial(worktopFinish, worktopColor, 2, 0.3)
   const handleMat = { color: '#8a8d92', roughness: 0.3, metalness: 0.7 } as const
 
   // Cabinet fronts along the base run.
@@ -115,9 +118,15 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
           <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
         )
         const topMesh = (key: string, x: number, z: number, w: number, d: number) => (
-          <mesh key={key} castShadow receiveShadow position={[x, topY, z]}>
+          <mesh
+            key={key}
+            castShadow
+            receiveShadow
+            position={[x, topY, z]}
+            material={worktopMat ?? undefined}
+          >
             <boxGeometry args={[w, topThickness, d]} />
-            {topMat}
+            {worktopMat ? null : topMat}
           </mesh>
         )
 
@@ -126,9 +135,9 @@ export function KitchenCounter({ props }: KitchenCounterProps) {
         const rightW = length / 2 - (sx + ow / 2)
         const railD = (depth - od) / 2
         const worktop = !hasSink ? (
-          <mesh castShadow receiveShadow position={[0, topY, 0]}>
+          <mesh castShadow receiveShadow position={[0, topY, 0]} material={worktopMat ?? undefined}>
             <boxGeometry args={[length, topThickness, depth]} />
-            {topMat}
+            {worktopMat ? null : topMat}
           </mesh>
         ) : (
           <group>

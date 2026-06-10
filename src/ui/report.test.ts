@@ -21,11 +21,29 @@ describe('buildReportHtml', () => {
     expect(html).toContain('data:image/png;base64,AAAA')
   })
 
+  it('escapes user-controlled strings (plan name + note) to prevent HTML injection', () => {
+    const evil = '"><script>alert(1)</script>'
+    const html = buildReportHtml(
+      { ...plan, name: evil },
+      items,
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      evil, // project note
+    )
+    expect(html).not.toContain('<script>alert(1)')
+    expect(html).toContain('&lt;script&gt;') // the angle brackets are escaped
+    expect(html).toContain('&quot;') // the breaking double-quote is escaped too
+  })
+
   it('shows W×D dimensions for rectangular rooms in the rooms table', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     // Default HDB rooms are plain rectangles → a "× … m" dimension appears.
     expect(html).toContain('class="dim"')
     expect(html).toMatch(/\d+\.\d+ × \d+\.\d+ m/)
+    // Room schedule has a header + a ceiling-height column.
+    expect(html).toContain('Ceiling')
   })
 
   it('includes a furnishing-per-area figure when there is area + budget', () => {
@@ -33,6 +51,36 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/Furnishing per m²/)
     const imperial = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'imperial')
     expect(imperial).toMatch(/Furnishing per ft²/)
+  })
+
+  it('shows the budget target + over/under when one is set', () => {
+    const under = buildReportHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      undefined,
+      [],
+      1_000_000,
+    )
+    expect(under).toMatch(/Budget target/)
+    expect(under).toMatch(/under/)
+    const over = buildReportHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      undefined,
+      [],
+      1,
+    )
+    expect(over).toMatch(/over/)
+    // Omitted target → no budget-target row.
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toMatch(/Budget target/)
   })
 
   it('renders a Finishes-by-room section when finishes are supplied', () => {
@@ -46,6 +94,8 @@ describe('buildReportHtml', () => {
     expect(html).toContain('class="msw"') // colour swatch chip next to the finish
     // Flooring schedule: total area per floor finish.
     expect(html).toContain('Flooring schedule')
+    // Wall finish schedule: gross wall area per wall finish (perimeter × height).
+    expect(html).toContain('Wall finish schedule')
   })
 
   it('omits the Finishes section when no finishes are supplied', () => {
@@ -119,5 +169,23 @@ describe('buildReportHtml', () => {
     const html = buildReportHtml({ ...plan, name: '<script>x</script>' }, [], BUILTIN_CATALOG, null)
     expect(html).not.toContain('<script>x</script>')
     expect(html).toContain('&lt;script&gt;')
+  })
+
+  it('escapes a malicious user-furniture name in the shopping list', () => {
+    // A user-uploaded/renamed piece carries an arbitrary `name`; it must be
+    // escaped where the report lists it (def.name → the furniture rows).
+    const evil = '<img src=x onerror=alert(1)>'
+    const base = BUILTIN_CATALOG['sofa-3seat']
+    const catalog = { ...BUILTIN_CATALOG, evil: { ...base, id: 'evil', name: evil } }
+    const evilItem = {
+      id: 'e1',
+      defId: 'evil',
+      position: [5, 5] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const html = buildReportHtml(plan, [evilItem], catalog, null)
+    expect(html).not.toContain('<img src=x onerror=alert(1)>')
+    expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
   })
 })

@@ -104,7 +104,10 @@ body.mobile {
   }
   /* Room-editor header: brand + room dropdown + exit X + menu — keep the bar. */
   .toolbar.mobilebar.editing-room { justify-content: flex-start; }
-  .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; height: 36px; font-size: var(--t-sm); font-weight: 600; }
+  /* Keep the square brand from being squeezed; cap the dropdown so the bar has
+     breathing room for the brand + exit + menu controls. */
+  .toolbar.mobilebar.editing-room .brand-dot { width: 36px; height: 36px; font-size: 14px; }
+  .toolbar.mobilebar .m-room-select { flex: 1 1 auto; min-width: 0; max-width: 56vw; height: 36px; font-size: var(--t-sm); font-weight: 600; }
 
   /* ---- Mobile menu sheet ----------------------------------- */
   .m-menu-overlay {
@@ -313,4 +316,9 @@ body.mobile {
   body.mobile .catalog, body.mobile .inspector, body.mobile .aux { max-height: 82vh; }
   body.mobile .er-finish { max-height: 62vh; }
   body.mobile .er-stage .er-roomview { max-height: 34vh !important; }
+}
+
+/* Budget HUD clears the iOS home indicator on mobile (full-bleed canvas). */
+body.mobile .budget-hud {
+  bottom: calc(var(--s-3) + env(safe-area-inset-bottom));
 }

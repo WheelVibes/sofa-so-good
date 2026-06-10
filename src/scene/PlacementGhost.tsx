@@ -3,7 +3,7 @@ import { useMemo, useRef } from 'react'
 import { Color, MeshBasicMaterial, Plane, Raycaster, Vector2, Vector3 } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../collision/placement'
-import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
+import { placementWalls } from '../collision/placementWalls'
 import { useCatalog } from '../furniture/catalog'
 import { Furniture } from '../furniture/Furniture'
 import {
@@ -36,6 +36,9 @@ export function PlacementGhost() {
   // (no ghost ⇒ the commit handler reads a null ghostWorld and swallows clicks).
   const editing = useStore(canEditScene)
   const cursor = useStore(useShallow((s) => s.cursor))
+  // R-dialed rotation before commit — re-renders the ghost (preview + footprint)
+  // so it previews the orientation it'll land in.
+  const ghostRotation = useStore((s) => s.ghostRotation)
   const items = useStore(useShallow((s) => s.items))
   const doors = useStore(useShallow((s) => s.doors))
   const catalog = useCatalog()
@@ -48,10 +51,10 @@ export function PlacementGhost() {
       id: '__ghost',
       defId: def.id,
       position: [0, 0],
-      rotation: def.defaultRotation ?? 0,
+      rotation: (def.defaultRotation ?? 0) + ghostRotation,
       props: defaultProps(def),
     }
-  }, [def])
+  }, [def, ghostRotation])
 
   const groupRef = useRef<import('three').Group>(null)
   const validRef = useRef(true)
@@ -94,7 +97,8 @@ export function PlacementGhost() {
       others: items,
       defs: catalog,
       doors,
-      walls: isDefaultPlan(st.floorPlan) ? undefined : planCollisionWalls(st.floorPlan, doors),
+      // Bound to the same walls as a drag — the room's perimeter in the editor.
+      walls: placementWalls(st),
     })
     if (valid !== validRef.current) {
       validRef.current = valid

@@ -167,6 +167,35 @@ describe('schema', () => {
     }
   })
 
+  it("round-trips a parametric item's rich props (cabinet engine etc.)", () => {
+    useStore.getState().__resetForTest()
+    const props = {
+      width: 0.8,
+      height: 0.72,
+      depth: 0.6,
+      columns: 2,
+      front: 'drawers',
+      worktop: 'sink',
+      handle: 'knob',
+      color: '#3f5d52',
+      finish: 'gloss',
+    }
+    useStore.getState().addItem({ defId: 'cabinet-base', position: [3, 3], rotation: 1, props })
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const item = round.data.items.find((i) => i.defId === 'cabinet-base')
+      // Every prop must survive the save format verbatim.
+      expect(item?.props).toEqual(props)
+      expect(item?.rotation).toBe(1)
+    }
+    // And it must rehydrate back into the live store via applySerialized.
+    const patch = applySerialized(saved, new Set(['cabinet-base']))
+    const restored = patch.items?.find((i) => i.defId === 'cabinet-base')
+    expect(restored?.props).toEqual(props)
+  })
+
   it('applySerialized resets the session selection + hidden set', () => {
     const saved = {
       version: 2,

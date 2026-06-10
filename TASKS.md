@@ -14,19 +14,16 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 ## Lighting / GPU-heavy realism (deferred under the "focus on non-GPU" constraint; need a focused real-GPU session)
 - [ ] L1/RE2/N6. **Lighting realism** — window-glass tint colouring the sun shaft + inter-room light bleed through open doors. Complex multi-file scene change; conflicts with the deliberate no-shadow fixture-light perf design, so needs a perf-aware approach.
 - [ ] R10. **Faster built-in PBR render path** — one-click high-quality still (local accumulation/denoise to match Coohom's "render in seconds"); investigate progressive path-trace via the existing AccumulativeShadows + a higher-sample pass.
-- [ ] B34. **Plan-aware lighting shadow frustum** — `Lighting.tsx` CENTER + fixed 9.5 m half-extent is default-apartment-centred; a far-offset/oversized custom plan could miss sun shadows (Medium+ tiers). Make it plan-aware; needs a real-GPU shadow-coverage check.
-- [ ] F12a. **3D plan-door leaf** — custom-plan doors render as a plain gap in `PlanShell`; add a swinging leaf (reuse `Door.tsx`/`doorSwingGeometry`) honouring hinge/swing. GPU-verified.
 
 ## Feature-flag retrofit (infra shipped: registry + resolver + admin + panel + desktop/⌘K gating)
-- [ ] FG3d. **Gate mobile-toolbar feature items** on their flags (parity with the desktop menus / ⌘K). Mechanical: wrap each MobileToolbar accordion Item in `useFeature`.
-- [ ] FG3e. **Route catalog packs / online materials / model upload through flags** (`packs`/`remoteMaterials`/`modelUpload`) — currently only dev-gated via `visiblePacks`/`activeProviderIds`.
 
 ## Features (larger)
-- [ ] K1. **Parametric kitchen/bath cabinet engine** — millimetre-customisable cabinets with smart countertop/toe-kick/cornice generation (Coohom parity). Builds on the parametric system + auto-arrange.
-- [ ] Q31. **Drag a material swatch onto a surface in 3D** to apply a finish (reuses `getSurfaceMaterial` / finish DLC); today it's picker-only.
-- [ ] T1. Curated **"furniture materials" one-tap finish shortlist** (oak/walnut/teak/marble).
+- [~] K1b. **Cabinet engine — next steps**: sink (C42), hob (C43), "Kitchen run" set + wall-mount fix (C44), handle styles (C46), corner unit (C59), worktop materials — marble/concrete/wood across cabinet-base + KitchenIsland + KitchenCounter (C94/C95), wall-aware "Arrange as run" — flush + butted along the nearest wall (C96) shipped.
+- [~] Q31. **Drag a material swatch onto a surface in 3D**. Part 1 shipped (C39): tested `finishDrop` resolver + draggable swatches + drop onto Objects-list rows. TODO part 2: the 3D-canvas raycast drop onto floor/wall/item (needs manual/GPU verify).
+- [ ] Export the design as a 3D model (.glb). Prototyped a `GlbExportController` (GLTFExporter over the live scene) but reverted: full-scene export with Draco geometry + dozens of embedded textures doesn't complete in the headless software-GL verify env, so it can't be screenshot-verified here. Needs a real-GPU verify pass + likely a furniture-only/worker-streamed export to bound cost.
 - [ ] T3. Per-LOD multi-tier generation for uploads.
 - [~] T2. Crown-molding revisit + kitchen/bath template polish (herringbone floor already shipped).
+- [~] GLB Asset Designer (C47/C48): compose-from-shapes, scale-a-source-GLB, per-mesh recolour/hide all shipped. TODO: transform/move parts via gizmo; save edits back over an existing asset (vs always new).
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

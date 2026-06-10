@@ -44,11 +44,22 @@ landmine someone already stepped on so you don't have to.
 
 ## Gotchas & fixes (the actual time-sinks)
 
-### The "Where are you?" location modal covers the scene
-First-run `LocationPrompt` is gated on **store state**, not localStorage, so the
-harness's localStorage seeding does NOT dismiss it. Fix: in your evalFile, call
-`window.__store.getState().dismissLocationPrompt()` before screenshotting.
-(`sofa.helpHint.dismissed` localStorage handles the *help* hint, not this.)
+### First-run overlays cover the scene (location modal, onboarding, tour)
+Three first-run overlays will obscure your screenshot, and they're gated on
+**store state**, not localStorage, so the harness's localStorage seeding does NOT
+dismiss them. Worse, they cascade: dismissing the tour *un-suppresses* the
+location prompt, so dismissing one at a time means re-shooting. **Always dismiss
+all three up front**, as the very first lines of every evalFile, before placing
+items or screenshotting:
+```js
+const st = window.__store.getState()
+st.endTour?.()                 // product tour spotlight
+st.setOnboardingOpen?.(false)  // first-run onboarding carousel
+st.dismissLocationPrompt?.()   // "Where are you?" sun-position modal
+```
+(`sofa.helpHint.dismissed` localStorage handles the *help* hint, not these.) Note
+the foreground "doors" you may see in the room editor are the apartment's door
+leaves, not your items — clear `s.items` first if you need an empty room.
 
 ### `focusOn([x,z])` doesn't frame the item well
 `focusOn` recenters but keeps a high/far orbit angle, often pointing past a
@@ -186,7 +197,7 @@ switcher was verified: selecting `kitchen` re-rendered the kitchen scene.)
 // /tmp/vf.mjs — run: node scripts/shot.mjs /tmp/out.png 13000 /tmp/vf.mjs '<actions>'
 (async () => {
   const S = () => window.__store.getState();
-  S().dismissLocationPrompt();
+  S().endTour?.(); S().setOnboardingOpen?.(false); S().dismissLocationPrompt?.();
   // ... import groups / set up items via __store + temp hooks ...
   S().setItems([item]);
   S().focusOn([x, z]);                 // mount + frame the item

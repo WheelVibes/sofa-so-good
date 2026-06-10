@@ -9,6 +9,7 @@ import { useMaterials } from '../../materials/useMaterial'
 import { useStore } from '../../state/store'
 import { ColorField, EnumField, IntegerField, NumberField } from './fields'
 import { InspectorSection } from './InspectorSection'
+import { QuickFinishes } from './QuickFinishes'
 
 interface ParametricBodyProps {
   item: FurnitureItem
@@ -63,13 +64,15 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
       }
     >
       {def.paramSchema.map((rawField) => {
-        // Surface "finish" enums (those offering a Wood option) gain extra
-        // entries for any catalog / downloaded CC0 PBR material.
-        const field: ParamField =
+        // A wood/surface "finish" enum (one offering a Wood option) gains extra
+        // entries for any catalog / downloaded CC0 PBR material, plus a curated
+        // one-tap quick-finish swatch row.
+        const isSurfaceFinish =
           rawField.kind === 'enum' &&
           rawField.key === 'finish' &&
-          rawField.options.some((o) => o.value === 'wood') &&
-          surfaceMaterials.length > 0
+          rawField.options.some((o) => o.value === 'wood')
+        const field: ParamField =
+          isSurfaceFinish && surfaceMaterials.length > 0
             ? { ...rawField, options: [...rawField.options, ...surfaceMaterials] }
             : rawField
         const v = item.props[field.key] ?? field.default
@@ -103,12 +106,19 @@ export function ParametricBody({ item, def }: ParametricBodyProps) {
             )
           case 'enum':
             return (
-              <EnumField
-                key={field.key}
-                field={field}
-                value={typeof v === 'string' ? v : field.default}
-                onChange={(s) => setProp(field.key, s)}
-              />
+              <div key={field.key}>
+                <EnumField
+                  field={field}
+                  value={typeof v === 'string' ? v : field.default}
+                  onChange={(s) => setProp(field.key, s)}
+                />
+                {isSurfaceFinish ? (
+                  <QuickFinishes
+                    value={typeof v === 'string' ? v : field.default}
+                    onPick={(val) => setProp(field.key, val)}
+                  />
+                ) : null}
+              </div>
             )
           default:
             return null
