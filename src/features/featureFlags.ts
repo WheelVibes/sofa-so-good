@@ -48,6 +48,7 @@ export type FeatureFlag =
   | 'suggestions'
   | 'electricalPlan'
   | 'mountHeights'
+  | 'copyAppearance'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -182,6 +183,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   mountHeights: {
     label: 'Mount-height presets',
     description: 'One-tap standard heights for wall/ceiling items',
+    default: true,
+  },
+  copyAppearance: {
+    label: 'Copy appearance',
+    description: 'Copy/paste finish between items + recolour a category',
     default: true,
   },
 }

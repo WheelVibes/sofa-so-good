@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
+import { useFeature } from '../../features/useFeature'
 import { pointInRoom } from '../../floorplan/types'
 import { arrayOffsets } from '../../furniture/arrayPlacement'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
@@ -68,6 +69,8 @@ function MultiSelectPanel() {
   const groupItems = useStore((s) => s.groupItems)
   const ungroup = useStore((s) => s.ungroup)
   const catalog = useCatalog()
+  const copyAppearanceOn = useFeature('copyAppearance')
+  const appearanceClipboard = useStore((s) => s.appearanceClipboard)
   const { minimized, toggle } = useInspectorMinimize()
   // Combined estimated price of the current selection (mirrors the single-item
   // price line + the Budget panel's `itemPrice`).
@@ -375,6 +378,25 @@ function MultiSelectPanel() {
                   </button>
                 )
               )}
+              {copyAppearanceOn && appearanceClipboard ? (
+                <button
+                  type="button"
+                  onClick={() => {
+                    const s = useStore.getState()
+                    const n = s.pasteAppearanceTo(s.selectedItemIds)
+                    s.notify.start({
+                      title: n > 0 ? `Pasted appearance to ${n}` : 'Nothing to change',
+                      kind: n > 0 ? 'success' : 'info',
+                    })
+                  }}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  title={`Apply the copied “${appearanceClipboard.name}” look to every selected item`}
+                >
+                  <Icon.Palette width={14} height={14} />
+                  Paste appearance
+                </button>
+              ) : null}
               <button
                 type="button"
                 onClick={duplicateAll}
@@ -467,6 +489,15 @@ export function InspectorPanel() {
   )
   const proMode = useStore((s) => s.uiMode === 'pro')
   const catalog = useCatalog()
+  // Copy/paste appearance (look-only transfer) + recolour-by-category.
+  const copyAppearanceOn = useFeature('copyAppearance')
+  const appearanceClipboard = useStore((s) => s.appearanceClipboard)
+  const sameCategoryCount = useStore((s) => {
+    if (!item) return 0
+    const cat = catalog[item.defId]?.category
+    if (!cat) return 0
+    return s.items.filter((i) => catalog[i.defId]?.category === cat).length
+  })
   const deleteItem = useStore((s) => s.deleteItem)
   const selectItem = useStore((s) => s.selectItem)
   const flipItem = useStore((s) => s.flipItem)
@@ -923,6 +954,66 @@ export function InspectorPanel() {
                   <Icon.Cube width={14} height={14} />
                   Select all of type ({sameTypeCount})
                 </button>
+              ) : null}
+              {copyAppearanceOn ? (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (useStore.getState().copyAppearance(item.id))
+                        useStore.getState().notify.start({
+                          title: 'Appearance copied',
+                          message: 'Select another item and Paste appearance.',
+                          kind: 'success',
+                        })
+                    }}
+                    className="btn btn-soft btn-block"
+                    style={{ marginTop: 'var(--s-2)' }}
+                    title="Copy this item's finish, colour & material (not its size) to reuse on others"
+                  >
+                    <Icon.Copy width={14} height={14} />
+                    Copy appearance
+                  </button>
+                  {appearanceClipboard ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const s = useStore.getState()
+                        const ids = s.selectedItemIds.length > 0 ? s.selectedItemIds : [item.id]
+                        const n = s.pasteAppearanceTo(ids)
+                        s.notify.start({
+                          title: n > 0 ? `Pasted appearance to ${n}` : 'Nothing to change',
+                          kind: n > 0 ? 'success' : 'info',
+                        })
+                      }}
+                      className="btn btn-soft btn-block"
+                      style={{ marginTop: 'var(--s-2)' }}
+                      title={`Apply the copied “${appearanceClipboard.name}” look to the selection`}
+                    >
+                      <Icon.Palette width={14} height={14} />
+                      Paste appearance
+                    </button>
+                  ) : null}
+                  {sameCategoryCount > 1 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        const n = useStore.getState().applyAppearanceToCategory(item.id)
+                        if (n > 0)
+                          useStore.getState().notify.start({
+                            title: `Recoloured ${n} in this category`,
+                            kind: 'success',
+                          })
+                      }}
+                      className="btn btn-soft btn-block"
+                      style={{ marginTop: 'var(--s-2)' }}
+                      title="Apply this item's finish/colour to every item in the same category"
+                    >
+                      <Icon.Palette width={14} height={14} />
+                      Recolour category ({sameCategoryCount - 1})
+                    </button>
+                  ) : null}
+                </>
               ) : null}
               {activeGroupId && item.groupId !== activeGroupId && (
                 <button
