@@ -84,5 +84,6 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   arcs** and window breaks, a category legend — plus **furniture by room**
   (itemized with quantities, prices, and each room's area), finishes per room, a
   material palette, a **clearance & fit** check (furniture blocking a doorway,
-  overlapping pieces, or anything embedded in a wall), areas, and your design
-  notes — a handoff-ready document.
+  overlapping pieces, or anything embedded in a wall), **wall elevations** (a
+  side-on drawing per wall with dimensions, for cabinet/fixture heights), areas,
+  and your design notes — a handoff-ready document.

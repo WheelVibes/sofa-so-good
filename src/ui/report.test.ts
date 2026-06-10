@@ -21,6 +21,21 @@ describe('buildReportHtml', () => {
     expect(html).toContain('data:image/png;base64,AAAA')
   })
 
+  it('includes a Wall elevations section with per-wall drawings for the furnished flat', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Wall elevations')
+    expect(html).toContain('class="elev-grid"')
+    // At least one elevation figure with an embedded SVG.
+    expect(html).toContain('class="elev-fig"')
+    expect(html).toMatch(/<figcaption>Wall \d+ ·/)
+    expect(html).toContain('wall elevation,') // svg aria-label
+  })
+
+  it('omits the elevations section when there is no furniture', () => {
+    const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(html).not.toContain('Wall elevations')
+  })
+
   it('escapes user-controlled strings (plan name + note) to prevent HTML injection', () => {
     const evil = '"><script>alert(1)</script>'
     const html = buildReportHtml(

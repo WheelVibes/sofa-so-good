@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C133] EL4 — wall elevations in the printable report
+The design report now has a **Wall elevations** section: every wall that carries furniture or
+openings is drawn (2-up grid, print palette, captioned + dimensioned) — so the PDF hand-off carries
+the vertical drawings alongside the floor plan, clearance checks and shopping list. Reuses the same
+`elevationSvg` renderer (already visually verified in the panel) with print inks; the section is
+omitted when the flat is empty. 2 new report tests (section present + omitted-when-empty). Docs updated.
+(The report opens in a popup the screenshot harness can't capture — verified via content tests +
+renderer reuse, per the repo's report-verification convention.)
+
 ## [C132] EL3 — dimensions on wall elevations
 `elevationSvg` now draws architectural dimension lines (overall width below, overall height at the
 left with a rotated label, and each window/raised opening's sill height) with tick marks + unit

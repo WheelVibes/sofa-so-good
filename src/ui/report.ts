@@ -7,6 +7,7 @@ import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
 import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
+import { projectAllElevations } from '../elevation/projectElevation'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea, planTotalArea } from '../floorplan/types'
@@ -18,6 +19,7 @@ import { blockedDoorItems } from '../layout/clearance'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
+import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import {
   designPalette,
   floorAreaByFinish,
@@ -25,6 +27,16 @@ import {
   wallAreaByFinish,
 } from './reportData'
 import { reportPlanSvg } from './reportPlanSvg'
+
+/** Print palette for elevations — fixed inks (the report window has its own CSS,
+ *  not the app's CSS tokens). */
+const ELEV_PRINT: ElevationPalette = {
+  bg: '#f9fafb',
+  stroke: '#374151',
+  opening: '#93c5fd',
+  item: '#d8c8b0',
+  text: '#4b5563',
+}
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds',
@@ -284,6 +296,25 @@ export function buildReportHtml(
             : ''
         }</div>`
 
+  // Wall elevations — the vertical drawings, only for walls that actually carry
+  // furniture or openings (skip the many bare structural segments).
+  const elevations = hasItems
+    ? projectAllElevations(plan, items, catalog).filter(
+        (e) => e.length > 0 && e.height > 0 && (e.items.length > 0 || e.openings.length > 0),
+      )
+    : []
+  const elevationsSection = elevations.length
+    ? `<div class="elev-section"><h2>Wall elevations</h2><div class="elev-grid">${elevations
+        .map(
+          (e, i) =>
+            `<figure class="elev-fig"><figcaption>${esc(elevationCaption(e, i, units))}</figcaption>${elevationSvg(
+              e,
+              { palette: ELEV_PRINT, units },
+            )}</figure>`,
+        )
+        .join('')}</div></div>`
+    : ''
+
   const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -327,6 +358,11 @@ export function buildReportHtml(
   .foot { margin-top: 24px; color: #9ca3af; font-size: 11px; }
   /* Keep sections + tables whole across PDF pages, and never strand a heading. */
   .room-cost, .palette, .plan-wrap, .note { break-inside: avoid; }
+  .elev-section { margin-top: 24px; }
+  .elev-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 12px; }
+  .elev-fig { margin: 0; border: 1px solid #e5e7eb; border-radius: 6px; padding: 8px; background: #fff; break-inside: avoid; }
+  .elev-fig figcaption { font-size: 11px; color: #6b7280; margin-bottom: 4px; }
+  .elev-fig svg { width: 100%; height: auto; display: block; max-height: 220px; }
   tr, .chip, .lg-item, .total { break-inside: avoid; }
   h2 { break-after: avoid; }
   @media print {
@@ -402,6 +438,7 @@ export function buildReportHtml(
       : ''
   }
   ${clearanceSection}
+  ${elevationsSection}
   ${
     paletteChips
       ? `<div class="palette">

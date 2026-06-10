@@ -2,6 +2,7 @@
  * Render a {@link WallElevation} to a standalone SVG string (world metres as SVG
  * units, floor at the bottom). Pure + palette-parameterised so the in-app panel
  * (CSS-token colours) and the printable report (print hexes) share one renderer.
+ * Used by both `ElevationPanel` and the report's "Wall elevations" section.
  */
 import type { WallElevation } from '../../elevation/projectElevation'
 import { formatLength, type UnitSystem } from '../../utils/measurement'
