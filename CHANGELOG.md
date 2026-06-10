@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C181] Lazy-load rarely-opened panels — trim the boot bundle (PERF5)
+ShareModal / VersionsPanel / ElevationPanel / HistoryPanel / ProductTour / SmartStartWizard are now
+`React.lazy` + gated on their open flag in App → their code loads only on open. Main entry chunk
+**932 KB → 719 KB** (gzip 250 → 202 KB, ~23% smaller). Panels render identically when opened.
+
 ## [C177–C180] Commercial-readiness program — mobile parity + perf + commerce
 - **C177** (B3): mobile Tools sheet gains Drawings / Daylight / Design score / Accessibility (desktop
   parity, shared closeAux).

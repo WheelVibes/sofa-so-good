@@ -112,7 +112,7 @@ standing themed backlog below + the existing sections further down hold the open
   when inputs unchanged; only the exposure write needs per-frame. `scene/lighting/Lighting.tsx:92`.
 - [ ] PERF4 (S–M). `FurnitureLights` rebuilds+sorts all emitters every rendered frame at night — gate on
   camera-move/item-change. `scene/lighting/FurnitureLights.tsx:46`.
-- [ ] PERF5 (M). Lazy-load rarely-opened modals/panels (ShareModal, VersionsPanel, HistoryPanel,
+- [x] PERF5 (C181) (M). Lazy-load rarely-opened modals/panels (ShareModal, VersionsPanel, HistoryPanel,
   ElevationPanel, DesignScorePanel, AccessibilityPanel, DaylightPanel, SwapModal, SmartStartWizard,
   ProductTour) — trims boot bundle. `App.tsx:27`.
 - [ ] PERF6 (M). `Scene` Canvas hardcodes `antialias:true` + `preserveDrawingBuffer:true` + DPR≤1.75;
