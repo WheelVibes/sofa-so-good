@@ -63,6 +63,13 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/turning circle/)
   })
 
+  it('includes a Renovation timeline with phases + an estimated duration', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('Renovation timeline')
+    expect(html).toMatch(/Estimated duration/)
+    expect(html).toMatch(/weeks \(\d+ working days\)/)
+  })
+
   it('includes HDB compliance hints (permit/caution advisories) for the default flat', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('HDB compliance hints')

@@ -7,6 +7,7 @@
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDesignScore } from '../analysis/designScore'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
+import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
 import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
@@ -423,6 +424,28 @@ export function buildReportHtml(
       <div class="foot" style="margin-top:6px">Indicative supply &amp; install only — excludes hacking/disposal, false ceilings, carpentry, M&amp;E and contractor margin.</div>
     </div>`
 
+  // Renovation timeline — an estimated phase schedule (hacking → … → handover)
+  // scaled by floor area + room count, the way SG IDs present a project plan.
+  const timeline = buildRenoTimeline(plan)
+  const timelineSection =
+    timeline.phases.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>Renovation timeline</h2>
+      <div class="subtotal"><span>Estimated duration</span><span>${timeline.totalWeeks} weeks (${timeline.totalDays} working days)</span></div>
+      <table>
+        <tr class="cat"><td>Phase</td><td class="num">Days</td><td style="width:45%">Schedule</td></tr>
+        ${timeline.phases
+          .map((p) => {
+            const left = (p.startDay / timeline.totalDays) * 100
+            const w = Math.max(2, (p.days / timeline.totalDays) * 100)
+            return `<tr><td>${esc(p.name)}</td><td class="num">${p.days}</td><td><div style="position:relative;height:10px;background:#eef2f7;border-radius:3px"><div style="position:absolute;left:${left}%;width:${w}%;top:0;bottom:0;background:#6b7f9e;border-radius:3px"></div></div></td></tr>`
+          })
+          .join('')}
+      </table>
+      <div class="foot" style="margin-top:6px">Indicative schedule (SG 6-day work week); phases shown sequential — actual trades may overlap.</div>
+    </div>`
+
   // HDB renovation compliance hints — rule-based advisories (permit / caution /
   // info) over the plan; a trust feature for the SG renovation workflow.
   const compliance = buildComplianceReport(plan)
@@ -631,6 +654,7 @@ export function buildReportHtml(
       : ''
   }
   ${renovationSection}
+  ${timelineSection}
   ${ffeSection}
   ${clearanceSection}
   ${designScoreSection}
