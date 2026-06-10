@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C109] Fix autosave dropping floor-plan / lights / annotation / orientation / note edits
+The autosave watcher (`pickPersistent`/`shallowEqual`) only tracked a subset of what `serialize()`
+persists, so editing *only* the floor plan, lights mode, a pinned dimension annotation, scene
+orientation, or the design note never triggered a save — the change was silently lost on reload
+unless an unrelated tracked field also changed. Added all five fields to the watcher (in lock-step
+with `serialize()`) + a parametric regression test asserting each one autosaves on its own.
+
 ## [C108] Code-split the GLB Designer out of the initial bundle
 Release-readiness checkpoint (tsc + 1102 tests + prod build + both doc guides — all green) flagged
 the main JS chunk >1 MB. Lazy-loaded the Pro-only, fullscreen **GLB Designer** (`React.lazy` +
