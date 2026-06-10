@@ -11,6 +11,9 @@ import { useSunPosition } from './useSunPosition'
 
 /** Below this darkness the room is daylit — render no fixture lights at all. */
 const MIN_DARKNESS = 0.04
+/** Camera-move (squared metres) below which the nearest-lights ranking can't have
+ *  meaningfully changed — skip the rebuild+sort entirely. */
+const CAM_RECOMPUTE_SQ = 0.2 * 0.2
 
 interface ActiveLight {
   id: string
@@ -34,6 +37,9 @@ export function FurnitureLights() {
   const levelRef = useRef(0)
   const [active, setActive] = useState<ActiveLight[]>([])
   const lastKeyRef = useRef('')
+  // Inputs that determine the nearest-emitter set — recompute only when one moves.
+  const lastCamRef = useRef({ x: Number.POSITIVE_INFINITY, z: Number.POSITIVE_INFINITY })
+  const lastItemsRef = useRef(items)
 
   // Darkness: 1 at night, 0 in full day. Ramps through dusk. The effective
   // fixture level then honours the user's lights mode: forced on/off override
@@ -53,11 +59,21 @@ export function FurnitureLights() {
       }
       return
     }
+    // Gate the rebuild+sort on a real input change: a stationary camera at night
+    // re-ran the full nearest-N scan every frame for no result change.
+    const cx = camera.position.x
+    const cz = camera.position.z
+    const movedSq = (cx - lastCamRef.current.x) ** 2 + (cz - lastCamRef.current.z) ** 2
+    const itemsChanged = lastItemsRef.current !== items
+    if (!itemsChanged && movedSq < CAM_RECOMPUTE_SQ && lastKeyRef.current !== '') return
+    lastCamRef.current.x = cx
+    lastCamRef.current.z = cz
+    lastItemsRef.current = items
     const emitters: { item: FurnitureItem; d2: number }[] = []
     for (const item of items) {
       if (!(item.defId in LIGHT_EMITTERS)) continue
-      const dx = item.position[0] - camera.position.x
-      const dz = item.position[1] - camera.position.z
+      const dx = item.position[0] - cx
+      const dz = item.position[1] - cz
       emitters.push({ item, d2: dx * dx + dz * dz })
     }
     emitters.sort((a, b) => a.d2 - b.d2)
