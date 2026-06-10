@@ -6,6 +6,7 @@
 
 import { buildAccessibilityReport } from '../analysis/accessibility'
 import { buildDesignScore } from '../analysis/designScore'
+import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { estimateRenovation } from '../analysis/renovationCost'
 import { ROOMS } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
@@ -422,6 +423,27 @@ export function buildReportHtml(
       <div class="foot" style="margin-top:6px">Indicative supply &amp; install only — excludes hacking/disposal, false ceilings, carpentry, M&amp;E and contractor margin.</div>
     </div>`
 
+  // HDB renovation compliance hints — rule-based advisories (permit / caution /
+  // info) over the plan; a trust feature for the SG renovation workflow.
+  const compliance = buildComplianceReport(plan)
+  const compBadge = (sev: string) =>
+    sev === 'permit' ? '#b91c1c' : sev === 'caution' ? '#b45309' : '#6b7280'
+  const complianceSection =
+    compliance.advisories.length === 0
+      ? ''
+      : `<div class="room-cost">
+      <h2>HDB compliance hints</h2>
+      <div class="${compliance.permitCount > 0 ? 'warn' : 'ok'}">
+        ${compliance.permitCount} permit-sensitive · ${compliance.cautionCount} caution — guidance only, confirm with HDB / your contractor.
+      </div>
+      ${compliance.advisories
+        .map(
+          (a) =>
+            `<div class="ci-detail" style="margin-top:6px"><span class="badge" style="background:${compBadge(a.severity)};color:#fff">${esc(a.severity)}</span> <strong>${esc(a.title)}</strong><br>${esc(a.detail)} <span style="color:#9ca3af">(${esc(a.cite)})</span></div>`,
+        )
+        .join('')}
+    </div>`
+
   // Wall elevations — the vertical drawings, only for walls that actually carry
   // furniture or openings (skip the many bare structural segments).
   const elevations = hasItems
@@ -511,6 +533,7 @@ export function buildReportHtml(
   .lg-sw { width: 10px; height: 10px; border-radius: 2px; display: inline-block; opacity: 0.7; }
   .ok { color: #047857; font-weight: 600; margin-top: 6px; }
   .warn { color: #b45309; font-weight: 600; margin-top: 6px; }
+  .badge { display: inline-block; padding: 1px 6px; border-radius: 4px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.02em; }
   .ds-head { display: flex; align-items: center; gap: 10px; margin: 6px 0 10px; }
   .ds-grade { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 34px; border-radius: 50%; color: #fff; font-weight: 700; flex: none; }
   .ds-num { font-size: 20px; font-weight: 700; }
@@ -612,6 +635,7 @@ export function buildReportHtml(
   ${clearanceSection}
   ${designScoreSection}
   ${accessibilitySection}
+  ${complianceSection}
   ${elevationsSection}
   ${lightingSection}
   ${

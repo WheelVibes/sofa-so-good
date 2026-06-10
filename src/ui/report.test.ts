@@ -63,6 +63,12 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/turning circle/)
   })
 
+  it('includes HDB compliance hints (permit/caution advisories) for the default flat', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('HDB compliance hints')
+    expect(html).toMatch(/permit-sensitive/)
+  })
+
   it('includes an FF&E schedule with per-item rooms, sizes and a grand total', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('FF&amp;E schedule')
