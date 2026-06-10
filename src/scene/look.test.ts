@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   AO,
+  clampExposure,
+  DEFAULT_EXPOSURE,
   DEFAULT_TONE_MAPPING,
+  EXPOSURE_MAX,
+  EXPOSURE_MIN,
   grade,
   SOFT_SHADOW,
   TONE_MAPPING_MODES,
@@ -55,5 +59,15 @@ describe('tone mapping look', () => {
     expect(toneExposureBias('agx')).toBeGreaterThan(1)
     expect(toneExposureBias('filmic')).toBeCloseTo(1)
     expect(toneExposureBias('neutral')).toBeCloseTo(1)
+  })
+
+  it('clampExposure keeps the user multiplier in range + neutral by default', () => {
+    expect(DEFAULT_EXPOSURE).toBe(1)
+    expect(clampExposure(1)).toBe(1)
+    expect(clampExposure(99)).toBe(EXPOSURE_MAX)
+    expect(clampExposure(-5)).toBe(EXPOSURE_MIN)
+    expect(clampExposure(Number.NaN)).toBe(DEFAULT_EXPOSURE)
+    expect(EXPOSURE_MIN).toBeLessThan(1)
+    expect(EXPOSURE_MAX).toBeGreaterThan(1)
   })
 })

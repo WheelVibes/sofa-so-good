@@ -123,7 +123,8 @@ same change that reshapes a system.
   (low/medium/high=Original LOD), follows render (`null`=Auto) but pinnable + FPS-immune.
   **Tone-mapping look** (`look.ts` `ToneMappingMode` Filmic/AgX/Neutral → three constant via
   `toneMappingThree.ts`; `Lighting` sets `gl.toneMapping`+exposure per-frame): user-selectable
-  view transform, all tiers, persisted in qualityPrefs. Filmic = default (historical ACES).
+  view transform, all tiers, persisted in qualityPrefs. Filmic = default (historical ACES). A user
+  **exposure** multiplier (`clampExposure`, Graphics slider) rides on top of the auto-exposure.
 - **GLB models + LOD** (`furniture/gltf/`): bundled CC0 + user + IKEA via one loader.
   `optimize:glb` writes `-low`/`-medium` (≤512/1024px WebP + ~50/75% tris, Draco);
   `lod.ts` picks per asset tier; `textureBudget.ts` = last-resort downscale. `--ktx2`

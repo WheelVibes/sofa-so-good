@@ -1,7 +1,7 @@
 import { type ReactNode, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
-import { TONE_MAPPING_LABEL, TONE_MAPPING_MODES } from '../scene/look'
+import { EXPOSURE_MAX, EXPOSURE_MIN, TONE_MAPPING_LABEL, TONE_MAPPING_MODES } from '../scene/look'
 import {
   type AssetTier,
   QUALITY_DESCRIPTION,
@@ -45,6 +45,8 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
   const setAssetTier = useStore((s) => s.setAssetTier)
   const toneMapping = useStore((s) => s.toneMapping)
   const setToneMapping = useStore((s) => s.setToneMapping)
+  const exposure = useStore((s) => s.exposure)
+  const setExposure = useStore((s) => s.setExposure)
   const showFps = useStore((s) => s.showFps)
   const toggleShowFps = useStore((s) => s.toggleShowFps)
   const unitSystem = useStore((s) => s.units)
@@ -170,6 +172,30 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
           >
             {TONE_MAPPING_HINT[toneMapping]}
           </p>
+
+          {/* Exposure (brightness) — applies on every tier alongside the Look. */}
+          <div className="row">
+            <div
+              className="rk"
+              style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
+            >
+              <div>Exposure</div>
+              <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
+                Overall brightness · {exposure.toFixed(2)}×
+              </div>
+            </div>
+            <input
+              type="range"
+              min={EXPOSURE_MIN}
+              max={EXPOSURE_MAX}
+              step={0.05}
+              value={exposure}
+              aria-label="Exposure"
+              onChange={(e) => setExposure(Number(e.target.value))}
+              className="slider"
+              style={{ width: 112 }}
+            />
+          </div>
 
           {/* Advanced graphics (asset detail + per-effect overrides + FPS) —
               Pro mode only; Simple keeps just render quality + units. */}

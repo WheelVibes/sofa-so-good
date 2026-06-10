@@ -44,6 +44,19 @@ export const TONE_MAPPING_LABEL: Record<ToneMappingMode, string> = {
   neutral: 'Neutral',
 }
 
+/** User exposure (brightness) multiplier applied on top of the altitude-driven
+ *  auto-exposure — like a camera's exposure-compensation dial. 1 = neutral. */
+export const DEFAULT_EXPOSURE = 1
+export const EXPOSURE_MIN = 0.6
+export const EXPOSURE_MAX = 1.6
+
+/** Clamp a user exposure multiplier to the supported range (defensive against a
+ *  hand-edited pref). */
+export function clampExposure(x: number): number {
+  if (!Number.isFinite(x)) return DEFAULT_EXPOSURE
+  return Math.min(EXPOSURE_MAX, Math.max(EXPOSURE_MIN, x))
+}
+
 /** Exposure compensation per operator so switching the look keeps the scene at
  *  roughly the same perceived brightness (AgX maps middle-grey lower than ACES,
  *  so it gets a small boost; Neutral tracks ACES closely). Multiplies the

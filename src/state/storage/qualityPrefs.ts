@@ -4,7 +4,13 @@
  * layout save format — quality is a per-device preference, not part of a
  * saved design.
  */
-import { DEFAULT_TONE_MAPPING, TONE_MAPPING_MODES, type ToneMappingMode } from '../../scene/look'
+import {
+  clampExposure,
+  DEFAULT_EXPOSURE,
+  DEFAULT_TONE_MAPPING,
+  TONE_MAPPING_MODES,
+  type ToneMappingMode,
+} from '../../scene/look'
 import { useStore } from '../store'
 
 const KEY = 'sofa.graphics.v1'
@@ -20,6 +26,7 @@ export function loadQualityPrefs(): void {
       userSet?: boolean
       assetTier?: 'low' | 'medium' | 'high' | null
       toneMapping?: string
+      exposure?: number
     }
     // Migrate the old flat tier name. Other names map 1:1 onto the new
     // RenderTier union (medium/high unchanged; maximum is new).
@@ -38,6 +45,7 @@ export function loadQualityPrefs(): void {
       // null = Auto (follow the render tier).
       assetTier: p.assetTier ?? null,
       toneMapping,
+      exposure: typeof p.exposure === 'number' ? clampExposure(p.exposure) : DEFAULT_EXPOSURE,
     })
   } catch {
     /* ignore corrupt prefs */
@@ -53,6 +61,7 @@ export function watchQualityPrefs(): void {
       userSet: s.qualityUserSet,
       assetTier: s.assetTier,
       toneMapping: s.toneMapping,
+      exposure: s.exposure,
     })
     if (snap === last) return
     last = snap

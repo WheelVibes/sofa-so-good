@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C123] PR1b — user Exposure (brightness) slider
+Added an **Exposure** control in Graphics (0.6–1.6×) that rides on top of the altitude-driven
+auto-exposure — like a camera's exposure-compensation dial — so users can brighten or darken the
+whole scene to taste. Pure `clampExposure` helper (tested), persisted per-device in qualityPrefs;
+`Lighting` folds it into `gl.toneMappingExposure`. Verified 0.6× vs 1.6× visibly darken/brighten
+the render with no artifacts. Docs updated.
+
 ## [C122] GE6 — duplicate a part in the GLB designer
 Added a per-row **duplicate** button (and `duplicatePart` in `editSpec.ts`) that clones a shape with
 its full transform + material, deep-copying the size/rotation tuples and offsetting the copy along X

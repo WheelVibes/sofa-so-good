@@ -34,7 +34,9 @@ Yes — **Graphics → Look (tone mapping)** picks the view transform applied to
 whole scene: **Filmic** (punchy contrast, the default), **AgX** (gentler
 highlights, more photographic — great for daylight), or **Neutral** (minimal
 shift, truest material colour — best for product/showroom shots). It applies on
-every quality tier and is remembered per device.
+every quality tier and is remembered per device. The **Exposure** slider just
+below it dials the overall brightness up or down (like a camera's exposure
+compensation), on top of the automatic day/night exposure.
 
 **Do mirrors actually reflect the room?**
 Yes, on the **High** and **Maximum** graphics tiers — wall, bathroom and floor

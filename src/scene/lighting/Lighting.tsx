@@ -104,9 +104,11 @@ export function Lighting() {
     // Drive tone-mapping operator + exposure from the user's "look" and the sun
     // altitude every frame — cheap (three only recompiles when the operator
     // actually changes), and it must keep tracking after the light tween settles.
-    const toneMode = useStore.getState().toneMapping
+    const st = useStore.getState()
+    const toneMode = st.toneMapping
     gl.toneMapping = TONE_MAPPING_THREE[toneMode]
-    gl.toneMappingExposure = grade(sunPos.altitude).exposure * toneExposureBias(toneMode)
+    gl.toneMappingExposure =
+      grade(sunPos.altitude).exposure * toneExposureBias(toneMode) * st.exposure
 
     // Cheap settle check on the dominant channels. When unsettled, ease the
     // current values toward the target; when settled we still fall through to

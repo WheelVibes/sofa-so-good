@@ -1,4 +1,9 @@
-import { DEFAULT_TONE_MAPPING, type ToneMappingMode } from '../../scene/look'
+import {
+  clampExposure,
+  DEFAULT_EXPOSURE,
+  DEFAULT_TONE_MAPPING,
+  type ToneMappingMode,
+} from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
 import type { RootState } from '../store'
@@ -40,6 +45,9 @@ export interface UiSlice {
   /** Tone-mapping "look" (view transform) applied by the renderer — a per-device
    *  graphics preference, persisted via qualityPrefs. */
   toneMapping: ToneMappingMode
+  /** User exposure (brightness) multiplier on top of auto-exposure. Per-device,
+   *  persisted via qualityPrefs. 1 = neutral. */
+  exposure: number
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode
   /** Snap dragged/placed furniture to the alignment grid, and show the grid
@@ -128,6 +136,8 @@ export interface UiSlice {
   setAssetTier: (t: AssetTier | null) => void
   /** Set the tone-mapping look. */
   setToneMapping: (m: ToneMappingMode) => void
+  /** Set the user exposure multiplier (clamped to the supported range). */
+  setExposure: (e: number) => void
   setLightsMode: (m: LightsMode) => void
   /** Cycle Auto → On → Off → Auto. */
   cycleLightsMode: () => void
@@ -155,6 +165,7 @@ export const UI_INITIAL: Pick<
   | 'qualityOverrides'
   | 'assetTier'
   | 'toneMapping'
+  | 'exposure'
   | 'lightsMode'
   | 'autoShadowsOff'
   | 'backdrop'
@@ -181,6 +192,7 @@ export const UI_INITIAL: Pick<
   qualityOverrides: {},
   assetTier: null,
   toneMapping: DEFAULT_TONE_MAPPING,
+  exposure: DEFAULT_EXPOSURE,
   lightsMode: 'auto',
   autoShadowsOff: false,
   snapEnabled: false,
@@ -270,6 +282,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   resetQualityOverrides: () => set({ qualityOverrides: {} }),
   setAssetTier: (t) => set({ assetTier: t }),
   setToneMapping: (toneMapping) => set({ toneMapping }),
+  setExposure: (e) => set({ exposure: clampExposure(e) }),
   setLightsMode: (m) => set({ lightsMode: m }),
   cycleLightsMode: () =>
     set((s) => ({

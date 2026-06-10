@@ -26,7 +26,7 @@ exposure/warmth (`look.ts grade`), IBL probe (`SceneEnvironment`), PCFSoft sun s
 (N8AO+Bloom+HueSat+Vignette+SMAA on high/maximum). Verification caveat: subtle GPU effects render
 weakly under the headless **software-GL** harness — tone curve / vignette / grain DO show; SSR / DoF
 / TAA do not. Tune-heavy steps need a real-GPU pass (consistent with existing R10/L1 notes).
-- [x] PR1. Selectable tone-mapping Look (Filmic/AgX/Neutral) — shipped C114.
+- [x] PR1. Selectable tone-mapping Look (Filmic/AgX/Neutral) — C114. PR1b: Exposure slider — C123.
 - [x] PR2. Cinematic post stack (Maximum: full-res AO + film grain + chromatic aberration) — C117.
   (User verifies subtle grading in prod; DoF/TiltShift deferred to PR4-adjacent.)
 - [~] PR3. **Material realism pass**. PR3a (C118): tier-driven IBL probe resolution (sharper
