@@ -82,7 +82,9 @@ describe('buildReportHtml', () => {
     expect(html).toContain('Hacking &amp; new walls')
     expect(html).toMatch(/wall(s)? hacked/)
     // No baseline → no section.
-    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toContain('Hacking &amp; new walls')
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toContain(
+      'Hacking &amp; new walls',
+    )
   })
 
   it('includes an auto-dimensioned plan drawing', () => {

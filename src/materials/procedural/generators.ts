@@ -833,6 +833,9 @@ export function getPlasterNormal(): Texture {
 }
 
 const thumbCache = new Map<string, string>()
+/** LRU cap — browsing the full remote/generated catalog can mint many thumbnail
+ *  data-URLs over a long session; bound the cache so it can't grow unbounded. */
+const THUMB_CACHE_MAX = 300
 
 /** Cheap albedo-only preview (default 64²) as a data URL, cached per id —
  *  used by the finish picker so procedural materials show a real texture
@@ -844,7 +847,12 @@ export function proceduralThumbnailDataUrl(
   size = 64,
 ): string {
   const cached = thumbCache.get(id)
-  if (cached) return cached
+  if (cached) {
+    // LRU touch: re-insert so frequently-used thumbnails survive eviction.
+    thumbCache.delete(id)
+    thumbCache.set(id, cached)
+    return cached
+  }
   const prev = S
   S = size
   try {
@@ -859,6 +867,10 @@ export function proceduralThumbnailDataUrl(
     ctx.putImageData(img, 0, 0)
     const url = canvas.toDataURL()
     thumbCache.set(id, url)
+    if (thumbCache.size > THUMB_CACHE_MAX) {
+      const oldest = thumbCache.keys().next().value
+      if (oldest !== undefined) thumbCache.delete(oldest)
+    }
     return url
   } finally {
     S = prev
