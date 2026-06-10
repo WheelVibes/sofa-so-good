@@ -25,6 +25,7 @@ import { LocalStorageAdapter } from '../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, saveThumb } from '../../state/storage/slotThumbs'
 import { useStore } from '../../state/store'
+import { closeAllAuxPanels } from '../auxPanels'
 import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
@@ -193,14 +194,9 @@ export function MobileToolbar() {
   // active plan (default apartment or a custom plan's own rooms).
   const defaultEditRoomId = firstEditableRoomId(floorPlanForRooms)
 
-  // Mutually-exclusive .aux panels (budget / checks / versions / history).
-  const closeAux = () => {
-    const st = s.getState()
-    if (st.budgetOpen) st.toggleBudget()
-    st.setClearancePanelOpen(false)
-    st.setVersionsOpen(false)
-    st.setHistoryOpen(false)
-  }
+  // Mutually-exclusive .aux panels — shared helper (covers budget / checks /
+  // elevations / daylight / design-score / accessibility / versions / history).
+  const closeAux = () => closeAllAuxPanels(s.getState())
   const openBudget = () => {
     const wasOpen = s.getState().budgetOpen
     closeAux()

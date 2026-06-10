@@ -4,6 +4,7 @@ import { useCatalog } from '../../../furniture/catalog'
 import { blockedDoorItems } from '../../../layout/clearance'
 import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
+import { closeAllAuxPanels } from '../../auxPanels'
 import { openDrawingSet } from '../../openDrawingSet'
 import { openDesignReport } from '../../openReport'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
@@ -23,20 +24,10 @@ export function ToolsMenu() {
   const touring = useStore((s) => s.touring)
   const recording = useStore((s) => s.recording)
 
-  // The budget / clearance / versions / history panels all dock to the same
-  // centred-top `.aux` slot, so they're mutually exclusive — opening one closes
-  // the others.
-  const closeAux = () => {
-    const s = useStore.getState()
-    if (s.budgetOpen) s.toggleBudget()
-    s.setClearancePanelOpen(false)
-    s.setElevationsOpen(false)
-    s.setDaylightOpen(false)
-    s.setDesignScoreOpen(false)
-    s.setAccessibilityOpen(false)
-    s.setVersionsOpen(false)
-    s.setHistoryOpen(false)
-  }
+  // The budget / clearance / versions / history / analysis panels all dock to the
+  // same centred-top `.aux` slot, so they're mutually exclusive — opening one
+  // closes the others (shared helper, also used by mobile + ⌘K).
+  const closeAux = () => closeAllAuxPanels(useStore.getState())
   const openBudget = () => {
     const wasOpen = useStore.getState().budgetOpen
     closeAux()

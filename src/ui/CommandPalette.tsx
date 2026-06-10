@@ -14,6 +14,7 @@ import { BACKDROPS } from '../scene/SceneBackdrop'
 import { canEditScene } from '../state/editing'
 import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
+import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
 import { openDesignReport } from './openReport'
 import { Icon, type IconName } from './toolbar/icons'
@@ -121,10 +122,8 @@ export function CommandPalette() {
         label: 'Budget / shopping list',
         icon: 'Budget',
         run: () => {
-          s().setClearancePanelOpen(false)
-          s().setVersionsOpen(false)
-          s().setHistoryOpen(false)
-          if (!s().budgetOpen) s().toggleBudget()
+          closeAllAuxPanels(s())
+          s().toggleBudget()
         },
       },
       {
@@ -133,9 +132,7 @@ export function CommandPalette() {
         label: 'Clearance & fit checks',
         icon: 'Checks',
         run: () => {
-          if (s().budgetOpen) s().toggleBudget()
-          s().setVersionsOpen(false)
-          s().setHistoryOpen(false)
+          closeAllAuxPanels(s())
           s().setClearancePanelOpen(true)
           if (!s().clearanceOn) s().toggleClearance()
         },
@@ -146,12 +143,7 @@ export function CommandPalette() {
         label: 'Design score — layout quality',
         icon: 'Star',
         run: () => {
-          if (s().budgetOpen) s().toggleBudget()
-          s().setClearancePanelOpen(false)
-          s().setDaylightOpen(false)
-          s().setElevationsOpen(false)
-          s().setVersionsOpen(false)
-          s().setHistoryOpen(false)
+          closeAllAuxPanels(s())
           s().setDesignScoreOpen(true)
         },
       },
@@ -161,13 +153,7 @@ export function CommandPalette() {
         label: 'Accessibility check',
         icon: 'Checks',
         run: () => {
-          if (s().budgetOpen) s().toggleBudget()
-          s().setClearancePanelOpen(false)
-          s().setDaylightOpen(false)
-          s().setElevationsOpen(false)
-          s().setDesignScoreOpen(false)
-          s().setVersionsOpen(false)
-          s().setHistoryOpen(false)
+          closeAllAuxPanels(s())
           s().setAccessibilityOpen(true)
         },
       },
@@ -177,9 +163,7 @@ export function CommandPalette() {
         label: 'Versions — save / restore',
         icon: 'Versions',
         run: () => {
-          if (s().budgetOpen) s().toggleBudget()
-          s().setClearancePanelOpen(false)
-          s().setHistoryOpen(false)
+          closeAllAuxPanels(s())
           s().setVersionsOpen(true)
         },
       },
@@ -189,9 +173,7 @@ export function CommandPalette() {
         label: 'Edit history — jump to any step',
         icon: 'Undo',
         run: () => {
-          if (s().budgetOpen) s().toggleBudget()
-          s().setClearancePanelOpen(false)
-          s().setVersionsOpen(false)
+          closeAllAuxPanels(s())
           s().setHistoryOpen(true)
         },
       },
