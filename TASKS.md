@@ -121,7 +121,7 @@ standing themed backlog below + the existing sections further down hold the open
   `findWallClips` (O(n²) today) for 100s-of-items scale; compute scans once + share between report + designScore.
 - [ ] PERF8 (M). `DragController.onMove` does repeated O(n) `.find`/scans per pointermove — id→item Map at
   drag start, reuse `others`. `scene/DragController.tsx:141`.
-- [ ] PERF9 (S). Procedural texture default 512² on main thread — drop to 256² where quality allows / OffscreenCanvas worker; bound `thumbCache` (LRU). `materials/procedural/generators.ts`.
+- [~] PERF9 (C185 thumbCache LRU done; 256² + worker still TODO) (S). Procedural texture default 512² on main thread — drop to 256² where quality allows / OffscreenCanvas worker; bound `thumbCache` (LRU). `materials/procedural/generators.ts`.
 - [x] PERF10 (C182) (S). Reuse a single mutable `PumpInputs` in `RenderPump` rAF instead of allocating per frame. `scene/RenderPump.tsx:60`.
 
 ### COMPETITOR-RESEARCH BACKLOG (2026-06-10) — "surpass the market" features
