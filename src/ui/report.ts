@@ -106,8 +106,11 @@ export function buildReportHtml(
   // palette chips do.
   const matSwatch = (id: string | undefined): string | null => {
     if (!id) return null
-    if (id.startsWith('#')) return id
-    return BUILTIN_MATERIALS[id]?.swatch ?? null
+    const raw = id.startsWith('#') ? id : (BUILTIN_MATERIALS[id]?.swatch ?? null)
+    // Only emit a validated colour into the `style="background:…"` — reject
+    // anything else so a custom finish id can't inject CSS (S3, defense-in-depth).
+    if (raw && /^#[0-9a-fA-F]{3,8}$|^(rgb|hsl)a?\([\d\s.,%/-]+\)$/.test(raw)) return raw
+    return null
   }
   const matCell = (id: string | undefined): string => {
     const sw = matSwatch(id)
