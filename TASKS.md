@@ -268,8 +268,14 @@ weakly under the headless **software-GL** harness — tone curve / vignette / gr
 - [ ] PR4. **Soft-shadow upgrade** (PCSS-ish / VSM, contact-shadow refinement).
 - [ ] PR5. **Local progressive render** (one-click high-quality still via AccumulativeShadows +
   higher samples) — supersedes/ą merges R10.
-- [ ] PR6. **Furniture-surface PBR overhaul** (user-flagged 2026-06-10: parametric surfaces look fake).
-  Planned (agent design). Root causes: (1) no env map on Performance → glossy/metal/stone collapse to flat;
+- [~] PR6. **Furniture-surface PBR overhaul** (user-flagged 2026-06-10: parametric surfaces look fake).
+  DONE (C209): plank wood (per-board tone/phase/seam), woven fabric (warped threads + slubs, shared by
+  velvet), painted micro-normal — all behind the `pbrSurfaces` flag, maps kept on every tier (deliberate
+  deviation: removing them on Performance would flatten the default). DEFERRED tail (real-GPU / loader work):
+  default common finishes to local CC0 `mat:<id>` (needs `FurnitureMaterialLoader` pre-build + per-furniture
+  UV scale so a floor texture doesn't tile wrong on a small piece), optional Performance env hint, and a
+  `furnitureFamily.ts` (skipped — overlaps the existing pure `materialRealism.ts`).
+  Original plan below. Root causes: (1) no env map on Performance → glossy/metal/stone collapse to flat;
   (2) `painted` finish is map-less (most common cabinet/bed finish → dead-flat); (3) furniture wood/marble
   albedo too uniform vs the richer floor `woodFields`; (4) furniture tiles 256² + many finishes carry no
   albedo map; (5) no AO/edge-wear; (6) ad-hoc UV repeat per primitive; (7) fabric weave normal too regular.

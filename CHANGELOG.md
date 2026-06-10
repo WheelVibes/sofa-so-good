@@ -4,6 +4,23 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C209] PR6 — realistic furniture surfaces
+Overhauls the procedural furniture textures that read flat/fake, behind the new `pbrSurfaces` flag (Simple
+tier, default on — surface quality applies in both modes):
+- **Wood** now lays out as discrete **planks** — each board gets its own value tone, a de-aligned grain phase,
+  and a darker seam groove — so a tiled top reads as real boards instead of one uniform sheet.
+- **Fabric** weave is no longer a perfect sin-grid: thread phases are warped by low-freq noise with occasional
+  **slubs** + surface fuzz, so cloth (and velvet, which shares the weave) looks woven, not synthetic.
+- **Painted/laminate** matte panels gain a faint shared **orange-peel + roller micro-normal** so the most
+  common cabinet/bed/wardrobe finish stops reading as dead-flat plastic.
+Maps stay 256² shared singletons + per-(kind,tint) cached — no extra GPU cost per piece — and are kept on
+**all tiers** (incl. the default Performance tier, where most users are) since removing them would make the
+default *flatter*, not better (a deliberate deviation from the plan's "Performance = no maps" step).
+Verified close-up in daylight (software-GL shows the normal-driven grain/weave + albedo variation). The
+remaining plan tail — defaulting common finishes to the local CC0 `mat:<id>` textures (needs
+`FurnitureMaterialLoader` plumbing + per-furniture UV scaling) and an optional Performance env hint — stays
+in `TASKS.md` PR6 for a real-GPU pass (reflections/clearcoat can't be judged under software-GL).
+
 ## [C208] Simple / Pro feature tiering
 Every `FEATURE_FLAGS` entry now declares `tier: 'simple' | 'pro'`, and `resolveFlags` forces **pro-tier
 features off in Simple mode** (the app default) — so the existing `useFeature`/`isFeatureEnabled`/`COMMAND_FLAGS`
