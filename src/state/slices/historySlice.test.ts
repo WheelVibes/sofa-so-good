@@ -18,6 +18,16 @@ describe('history slice', () => {
     expect(s().items).toBe(before)
   })
 
+  it('undo prunes a now-dangling selection (B7)', () => {
+    const id = s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
+    s().setSelectedItemIds([id])
+    expect(s().selectedItemIds).toContain(id)
+    s().undo() // back to before the item existed
+    expect(s().items.some((i) => i.id === id)).toBe(false)
+    expect(s().selectedItemIds).not.toContain(id)
+    expect(s().selectedItemId).toBeNull()
+  })
+
   it('redo replays an undone addItem', () => {
     s().addItem({ defId: 'bed-double', position: [0, 0], rotation: 0, props: {} })
     const afterAdd = s().items

@@ -48,6 +48,19 @@ function snapshot(s: RootState): HistorySnapshot {
   return { items: s.items, doors: s.doors, finishes: s.finishes, floorPlan: s.floorPlan }
 }
 
+/** Drop selection ids that no longer exist in the restored snapshot's items, so
+ *  undo/redo/jump can't leave a dangling selection pointing at a deleted item. */
+function prunedSelection(
+  snap: HistorySnapshot,
+  s: RootState,
+): { selectedItemId: string | null; selectedItemIds: string[] } {
+  const ids = new Set(snap.items.map((i) => i.id))
+  return {
+    selectedItemId: s.selectedItemId && ids.has(s.selectedItemId) ? s.selectedItemId : null,
+    selectedItemIds: s.selectedItemIds.filter((id) => ids.has(id)),
+  }
+}
+
 function appendCapped(stack: HistorySnapshot[], snap: HistorySnapshot): HistorySnapshot[] {
   if (stack.length >= HISTORY_LIMIT) {
     return [...stack.slice(stack.length - HISTORY_LIMIT + 1), snap]
@@ -94,6 +107,7 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
       const prev = s.past[s.past.length - 1]
       return {
         ...prev,
+        ...prunedSelection(prev, s),
         past: s.past.slice(0, -1),
         future: [...s.future, snapshot(s)],
         _lastPushKey: null,
@@ -105,6 +119,7 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
       const next = s.future[s.future.length - 1]
       return {
         ...next,
+        ...prunedSelection(next, s),
         past: [...s.past, snapshot(s)],
         future: s.future.slice(0, -1),
         _lastPushKey: null,
@@ -117,9 +132,10 @@ export const createHistorySlice: SliceCreator<HistorySlice, RootState> = (set, g
       const flat = [...s.past, snapshot(s), ...[...s.future].reverse()]
       if (targetIndex < 0 || targetIndex >= flat.length) return s
       if (targetIndex === s.past.length) return s // already current
-      const next = flat[targetIndex]
+      const next = flat[targetIndex]!
       return {
         ...next,
+        ...prunedSelection(next, s),
         past: flat.slice(0, targetIndex),
         // Re-stack everything after the target as the redo stack (nearest last).
         future: [...flat.slice(targetIndex + 1)].reverse(),
