@@ -13,6 +13,7 @@ import { arrangePlanRoom, arrangeRoom } from '../layout/autoArrange'
 import { cloneRoomItems } from '../layout/cloneRoom'
 import { mirrorRoomItems } from '../layout/mirrorRoom'
 import { swapRoomLayouts } from '../layout/swapRooms'
+import { resolveDesignerPicks } from '../materials/designerPicks'
 import { encodeFinishDrag, FINISH_DND_MIME } from '../materials/finishDrop'
 import { proceduralThumbnailDataUrl } from '../materials/procedural/generators'
 import type { MaterialCategory, MaterialDef } from '../materials/types'
@@ -246,6 +247,7 @@ export function FinishPicker() {
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   const fRemoteMaterials = useFeature('remoteMaterials')
+  const fDesignerPicks = useFeature('designerPicks')
   const materials = useMaterials()
   const [uploadOpen, setUploadOpen] = useState(false)
   const [finishQuery, setFinishQuery] = useState('')
@@ -358,6 +360,7 @@ export function FinishPicker() {
             onCustom={(hex) => handleSelect('floor', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
+            curated={fDesignerPicks ? resolveDesignerPicks('floor', materials) : undefined}
           />
           <button
             type="button"
@@ -381,6 +384,7 @@ export function FinishPicker() {
             onCustom={(hex) => handleSelect('wall', hex)}
             recent={recentColors}
             recentFinishIds={recentFinishes}
+            curated={fDesignerPicks ? resolveDesignerPicks('wall', materials) : undefined}
           />
           <button
             type="button"
@@ -541,6 +545,47 @@ interface SwatchGroupProps {
   recent?: string[]
   /** Recently-applied finish ids (any surface); filtered to this group's items. */
   recentFinishIds?: string[]
+  /** Curated "designer picks" for this surface (already resolved to real defs). */
+  curated?: MaterialDef[]
+}
+
+/** A compact one-tap row of curated "designer picks" for a surface, shown above
+ *  the full grid. Same swatch styling as RecentFinishes; parent owns the value. */
+function DesignerPicks({
+  mats,
+  active,
+  onSelect,
+}: {
+  mats: MaterialDef[]
+  active: string
+  onSelect: (id: string) => void
+}) {
+  if (mats.length === 0) return null
+  return (
+    <div style={{ marginBottom: 'var(--s-2)' }}>
+      <div className="sec-h" style={{ marginBottom: 'var(--s-2)' }}>
+        <span>Designer picks</span>
+      </div>
+      <div className="swatches" style={{ paddingBlock: 0 }}>
+        {mats.map((m) => (
+          <button
+            key={m.id}
+            type="button"
+            className={`swatch${m.id === active ? ' on' : ''}`}
+            title={m.name}
+            aria-label={`Designer pick: ${m.name}`}
+            onClick={() => onSelect(m.id)}
+            style={{
+              backgroundColor: m.swatch,
+              backgroundImage: swatchImage(m),
+              backgroundSize: 'cover',
+              backgroundPosition: 'center',
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  )
 }
 
 /** A compact row of recently-applied finish materials (filtered to one surface),
@@ -631,6 +676,7 @@ function SwatchGroup({
   onCustom,
   recent,
   recentFinishIds,
+  curated,
 }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#')
   const isMobile = useIsMobile()
@@ -660,6 +706,7 @@ function SwatchGroup({
         <div className="sec-h">
           <span>{label}</span>
         </div>
+        {curated ? <DesignerPicks mats={curated} active={active} onSelect={onSelect} /> : null}
         <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 'var(--s-2)' }}>
           <span
@@ -722,6 +769,7 @@ function SwatchGroup({
       <div className="sec-h">
         <span>{label}</span>
       </div>
+      {curated ? <DesignerPicks mats={curated} active={active} onSelect={onSelect} /> : null}
       <RecentFinishes mats={recentMats} active={active} onSelect={onSelect} />
       <div className="finish-grid">
         {items.map((m) => {

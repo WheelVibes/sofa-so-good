@@ -50,6 +50,7 @@ export type FeatureFlag =
   | 'mountHeights'
   | 'copyAppearance'
   | 'userSets'
+  | 'designerPicks'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -194,6 +195,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   userSets: {
     label: 'My sets',
     description: 'Save a selection as a reusable furniture set',
+    default: true,
+  },
+  designerPicks: {
+    label: 'Designer picks',
+    description: 'Curated one-tap floor/wall finishes in the picker',
     default: true,
   },
 }
