@@ -37,6 +37,14 @@ export type FeatureFlag =
   | 'aiWalls'
   | 'ikeaLive'
   | 'livePrices'
+  | 'drawings'
+  | 'daylight'
+  | 'designScore'
+  | 'accessibility'
+  | 'moodboard'
+  | 'paletteFromPhoto'
+  | 'dxfExport'
+  | 'boq'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -117,6 +125,46 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Live price lookup (needs a sidecar)',
     default: true,
     devOnly: true,
+  },
+  drawings: {
+    label: 'Drawings',
+    description: 'Wall elevations + lighting plan panel',
+    default: true,
+  },
+  daylight: {
+    label: 'Daylight check',
+    description: 'Window glazing & ventilation per room',
+    default: true,
+  },
+  designScore: {
+    label: 'Design score',
+    description: 'Aggregate layout-quality grade + fixes',
+    default: true,
+  },
+  accessibility: {
+    label: 'Accessibility check',
+    description: 'Door widths + wheelchair turning space',
+    default: true,
+  },
+  moodboard: {
+    label: 'Moodboard',
+    description: 'Shareable style-board export',
+    default: true,
+  },
+  paletteFromPhoto: {
+    label: 'Palette from photo',
+    description: 'Extract a palette from an image → finishes',
+    default: true,
+  },
+  dxfExport: {
+    label: 'DXF export',
+    description: '2D plan → DXF for CAD/contractor handoff',
+    default: true,
+  },
+  boq: {
+    label: 'Quote (BOQ)',
+    description: 'Bill-of-quantities quote export',
+    default: true,
   },
 }
 

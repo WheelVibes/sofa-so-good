@@ -32,6 +32,13 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
 - **Dev-gating.** Licensed/non-redistributable additions (IKEA scrape, Kenney zip, proxied
   providers) ship **dev-only** (`devOnly` flag / `visiblePacks(isDev)` / `PROD_PROVIDER_IDS`);
   CORS-friendly CC0/CC-BY additions ship in prod too.
+- **Every feature is behind a feature flag.** Any user-facing feature (panel, tool, export,
+  mode, AI/commerce surface) **must** have an entry in `FEATURE_FLAGS`
+  (`src/features/featureFlags.ts`) and be gated through it: `useFeature('<flag>')` in React,
+  `isFeatureEnabled('<flag>')` elsewhere, the `COMMAND_FLAGS` map for any ⌘K command, and a
+  `useFeature` guard on its toolbar/menu entries (desktop **and** mobile). Set `default` (prod
+  on/off); add `devOnly: true` for licensed/sidecar-dependent features (forced off in prod by
+  `resolveFlags`); prod-safe CC0/pure-code features default `true`. No feature ships ungated.
 - **No hardcoded colour.** Use the CSS token class vocabulary (`.panel`/`.btn`/`.toolbar`/…),
   never Tailwind colour utilities or literals; every surface works in light + dark + 5 themes.
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).

@@ -32,6 +32,9 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   share: 'shareExport',
   report: 'report',
   floorplan: 'floorPlanEditor',
+  'design-score': 'designScore',
+  accessibility: 'accessibility',
+  'palette-from-photo': 'paletteFromPhoto',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */

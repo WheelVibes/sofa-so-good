@@ -185,6 +185,10 @@ export function MobileToolbar() {
   const fSun = useFeature('sunStudy')
   const fWalk = useFeature('walkthrough')
   const fReport = useFeature('report')
+  const fDrawings = useFeature('drawings')
+  const fDaylight = useFeature('daylight')
+  const fDesignScore = useFeature('designScore')
+  const fAccessibility = useFeature('accessibility')
 
   const close = () => setMenuOpen(false)
   // Most actions dismiss the sheet; pass {keep:true} for in-place toggles.
@@ -697,30 +701,38 @@ export function MobileToolbar() {
                       onClick={act(toggleChecks)}
                     />
                   ) : null}
-                  <Item
-                    icon="FloorPlan"
-                    label="Drawings"
-                    on={elevationsOpen}
-                    onClick={act(toggleElevations)}
-                  />
-                  <Item
-                    icon="SunStudy"
-                    label="Daylight"
-                    on={daylightOpen}
-                    onClick={act(toggleDaylight)}
-                  />
-                  <Item
-                    icon="Star"
-                    label="Design score"
-                    on={designScoreOpen}
-                    onClick={act(toggleDesignScore)}
-                  />
-                  <Item
-                    icon="Checks"
-                    label="Accessibility"
-                    on={accessibilityOpen}
-                    onClick={act(toggleAccessibility)}
-                  />
+                  {fDrawings ? (
+                    <Item
+                      icon="FloorPlan"
+                      label="Drawings"
+                      on={elevationsOpen}
+                      onClick={act(toggleElevations)}
+                    />
+                  ) : null}
+                  {fDaylight ? (
+                    <Item
+                      icon="SunStudy"
+                      label="Daylight"
+                      on={daylightOpen}
+                      onClick={act(toggleDaylight)}
+                    />
+                  ) : null}
+                  {fDesignScore ? (
+                    <Item
+                      icon="Star"
+                      label="Design score"
+                      on={designScoreOpen}
+                      onClick={act(toggleDesignScore)}
+                    />
+                  ) : null}
+                  {fAccessibility ? (
+                    <Item
+                      icon="Checks"
+                      label="Accessibility"
+                      on={accessibilityOpen}
+                      onClick={act(toggleAccessibility)}
+                    />
+                  ) : null}
                   {fMeasure ? (
                     <Item
                       icon="Measure"

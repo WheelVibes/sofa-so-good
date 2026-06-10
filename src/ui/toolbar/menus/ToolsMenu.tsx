@@ -129,6 +129,13 @@ export function ToolsMenu() {
   const fSun = useFeature('sunStudy')
   const fWalk = useFeature('walkthrough')
   const fReport = useFeature('report')
+  const fDrawings = useFeature('drawings')
+  const fDaylight = useFeature('daylight')
+  const fDesignScore = useFeature('designScore')
+  const fAccessibility = useFeature('accessibility')
+  const fMoodboard = useFeature('moodboard')
+  const fDxf = useFeature('dxfExport')
+  const fBoq = useFeature('boq')
 
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={anyActive}>
@@ -150,34 +157,42 @@ export function ToolsMenu() {
           onClick={toggleChecks}
         />
       )}
-      <MenuItem
-        icon="FloorPlan"
-        label="Drawings"
-        sub="Wall elevations + lighting plan"
-        active={elevationsOpen}
-        onClick={toggleElevations}
-      />
-      <MenuItem
-        icon="SunStudy"
-        label="Daylight"
-        sub="Window glazing & ventilation per room"
-        active={daylightOpen}
-        onClick={toggleDaylight}
-      />
-      <MenuItem
-        icon="Star"
-        label="Design score"
-        sub="Overall layout quality + fixes"
-        active={designScoreOpen}
-        onClick={toggleDesignScore}
-      />
-      <MenuItem
-        icon="Checks"
-        label="Accessibility"
-        sub="Door widths + wheelchair turning space"
-        active={accessibilityOpen}
-        onClick={toggleAccessibility}
-      />
+      {fDrawings && (
+        <MenuItem
+          icon="FloorPlan"
+          label="Drawings"
+          sub="Wall elevations + lighting plan"
+          active={elevationsOpen}
+          onClick={toggleElevations}
+        />
+      )}
+      {fDaylight && (
+        <MenuItem
+          icon="SunStudy"
+          label="Daylight"
+          sub="Window glazing & ventilation per room"
+          active={daylightOpen}
+          onClick={toggleDaylight}
+        />
+      )}
+      {fDesignScore && (
+        <MenuItem
+          icon="Star"
+          label="Design score"
+          sub="Overall layout quality + fixes"
+          active={designScoreOpen}
+          onClick={toggleDesignScore}
+        />
+      )}
+      {fAccessibility && (
+        <MenuItem
+          icon="Checks"
+          label="Accessibility"
+          sub="Door widths + wheelchair turning space"
+          active={accessibilityOpen}
+          onClick={toggleAccessibility}
+        />
+      )}
       {fMeasure && (
         <MenuItem
           icon="Measure"
@@ -213,7 +228,7 @@ export function ToolsMenu() {
           onClick={() => setShareOpen(true)}
         />
       )}
-      {fReport && (
+      {fMoodboard && (
         <MenuItem
           icon="Palette"
           label="Moodboard"
@@ -242,7 +257,7 @@ export function ToolsMenu() {
       {fReport && (
         <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
       )}
-      {fReport && (
+      {fBoq && (
         <MenuItem
           icon="Budget"
           label="Quote (BOQ)"
@@ -250,7 +265,7 @@ export function ToolsMenu() {
           onClick={() => openBoq()}
         />
       )}
-      {fReport && (
+      {fDxf && (
         <MenuItem
           icon="Export"
           label="Export DXF (CAD)"
