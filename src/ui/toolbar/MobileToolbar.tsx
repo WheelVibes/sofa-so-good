@@ -142,6 +142,10 @@ export function MobileToolbar() {
   const versionsOpen = useStore((st) => st.versionsOpen)
   const historyOpen = useStore((st) => st.historyOpen)
   const clearancePanelOpen = useStore((st) => st.clearancePanelOpen)
+  const elevationsOpen = useStore((st) => st.elevationsOpen)
+  const daylightOpen = useStore((st) => st.daylightOpen)
+  const designScoreOpen = useStore((st) => st.designScoreOpen)
+  const accessibilityOpen = useStore((st) => st.accessibilityOpen)
   const snapEnabled = useStore((st) => st.snapEnabled)
   const gridSize = useStore((st) => st.gridSize)
   const autoRotate = useStore((st) => st.autoRotate)
@@ -213,6 +217,27 @@ export function MobileToolbar() {
     const wasOpen = s.getState().versionsOpen
     closeAux()
     s.getState().setVersionsOpen(!wasOpen)
+  }
+  // Analysis / drawing panels — same mutual-exclusion as desktop (B3 parity).
+  const toggleElevations = () => {
+    const wasOpen = s.getState().elevationsOpen
+    closeAux()
+    s.getState().setElevationsOpen(!wasOpen)
+  }
+  const toggleDaylight = () => {
+    const wasOpen = s.getState().daylightOpen
+    closeAux()
+    s.getState().setDaylightOpen(!wasOpen)
+  }
+  const toggleDesignScore = () => {
+    const wasOpen = s.getState().designScoreOpen
+    closeAux()
+    s.getState().setDesignScoreOpen(!wasOpen)
+  }
+  const toggleAccessibility = () => {
+    const wasOpen = s.getState().accessibilityOpen
+    closeAux()
+    s.getState().setAccessibilityOpen(!wasOpen)
   }
   const openHistory = () => {
     const wasOpen = s.getState().historyOpen
@@ -672,6 +697,30 @@ export function MobileToolbar() {
                       onClick={act(toggleChecks)}
                     />
                   ) : null}
+                  <Item
+                    icon="FloorPlan"
+                    label="Drawings"
+                    on={elevationsOpen}
+                    onClick={act(toggleElevations)}
+                  />
+                  <Item
+                    icon="SunStudy"
+                    label="Daylight"
+                    on={daylightOpen}
+                    onClick={act(toggleDaylight)}
+                  />
+                  <Item
+                    icon="Star"
+                    label="Design score"
+                    on={designScoreOpen}
+                    onClick={act(toggleDesignScore)}
+                  />
+                  <Item
+                    icon="Checks"
+                    label="Accessibility"
+                    on={accessibilityOpen}
+                    onClick={act(toggleAccessibility)}
+                  />
                   {fMeasure ? (
                     <Item
                       icon="Measure"
