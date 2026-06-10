@@ -122,6 +122,7 @@ export function GlbDesignerDialog() {
   const [placement, setPlacement] = useState<'floor' | 'wall' | 'floorCovering'>('floor')
   const [selId, setSelId] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
+  const [overwrite, setOverwrite] = useState(false)
   const [meshNames, setMeshNames] = useState<string[]>([])
   const sourceSceneRef = useRef<Object3D | null>(null)
 
@@ -153,6 +154,7 @@ export function GlbDesignerDialog() {
       setCategory('others')
       setPlacement('floor')
       setSelId(null)
+      setOverwrite(false)
       sourceSceneRef.current = null
     }
   }, [open])
@@ -166,11 +168,22 @@ export function GlbDesignerDialog() {
     setBusy(true)
     try {
       const obj = buildEditedObject(sourceSceneRef.current, spec)
-      const res = await exportAndSaveAsset(obj, name, category, placementFlags(placement))
+      const overwriteId = overwrite && spec.sourceAssetId ? spec.sourceAssetId : undefined
+      const res = await exportAndSaveAsset(
+        obj,
+        name,
+        category,
+        placementFlags(placement),
+        overwriteId,
+      )
       const notify = useStore.getState().notify
       if (res.ok) {
         notify.start({
-          title: res.duplicate ? 'That asset already exists' : `Saved "${name}" to your catalog`,
+          title: res.duplicate
+            ? 'That asset already exists'
+            : overwriteId
+              ? `Updated "${name}"`
+              : `Saved "${name}" to your catalog`,
           kind: res.duplicate ? 'info' : 'success',
         })
         close()
@@ -596,13 +609,44 @@ export function GlbDesignerDialog() {
                 <option value="wall">Mounts on a wall</option>
                 <option value="floorCovering">Floor covering (rug — never blocks)</option>
               </select>
+              {spec.sourceAssetId ? (
+                <label
+                  className="row"
+                  style={{ cursor: 'pointer', marginBottom: 'var(--s-2)' }}
+                  title="Replace the source asset in place — every piece already placed from it updates to this edit."
+                >
+                  <div
+                    className="rk"
+                    style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
+                  >
+                    <div>Update original</div>
+                    <div
+                      style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}
+                    >
+                      Overwrite the source asset (keeps placed copies)
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={overwrite}
+                    aria-label="Update original"
+                    onClick={() => setOverwrite((v) => !v)}
+                    className={`switch${overwrite ? ' on' : ''}`}
+                  />
+                </label>
+              ) : null}
               <button
                 type="button"
                 className="btn btn-accent btn-block"
                 disabled={!isBuildable(spec) || busy}
                 onClick={save}
               >
-                {busy ? 'Saving…' : 'Save asset'}
+                {busy
+                  ? 'Saving…'
+                  : overwrite && spec.sourceAssetId
+                    ? 'Update original'
+                    : 'Save asset'}
               </button>
             </div>
           </div>

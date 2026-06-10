@@ -70,5 +70,7 @@ build one in the browser:
   resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
 
 Give it a name and category and hit **Save asset** — it's exported to a GLB and
-added to your catalog like any upload, ready to place and reuse.
+added to your catalog like any upload, ready to place and reuse. When you started
+from one of your own models, flip **Update original** before saving to overwrite
+that asset in place — every copy you've already placed updates to the new edit.
 

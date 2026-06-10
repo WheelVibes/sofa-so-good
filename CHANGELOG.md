@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C126] GE4 — "Update original": save GLB-designer edits back over an existing asset
+When the designer is built from one of your own assets, a new **Update original** toggle overwrites
+that asset in place instead of adding a new catalog entry — built on the tested `replaceUserFurniture`
+(keeps every placed copy referencing it + frees the old blob). `exportAndSaveAsset` gained an
+`overwriteId`; the export is re-homed under the source id via the pure, unit-tested `buildOverwriteDef`.
+Logic + UI verified; the full export round-trip needs a real uploaded source asset (left for prod
+verification — the headless GLTFExporter/IDB path isn't set-up-able here). Docs updated.
+
 ## [C125] GE7 — mirror a part across the centre in the GLB designer
 Added `mirrorPart` + a "Mirror across centre" button (part Edit panel): clones the selected shape to
 the opposite X with its Y/Z rotations negated, so a symmetric pair (chair arms, table legs, sofa

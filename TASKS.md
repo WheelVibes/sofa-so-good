@@ -44,7 +44,8 @@ per-mesh recolour/hide. More verifiable in software-GL than PRx (deterministic g
 - [~] GE2. Per-part transform. GE2a (C121): numeric rotation inputs. TODO GE2b: a drag gizmo
   (drei TransformControls) for move/rotate/scale in the preview.
 - [x] GE3. Per-part PBR — roughness/metalness (C119) + glow/opacity (C120). TODO GE3c: texture pick.
-- [ ] GE4. **Save edits back over an existing asset** (vs always-new) — carried TODO.
+- [x] GE4. "Update original" — overwrite a source asset in place — shipped C126 (full export
+  round-trip pending real-env verification).
 - [x] GE6. Duplicate a part (clone transform + material) — shipped C122.
 - [x] GE7. Mirror a part across the centre — shipped C125.
 - [ ] GE5. **CSG boolean ops** (union/subtract/intersect) via three-bvh-csg or similar.

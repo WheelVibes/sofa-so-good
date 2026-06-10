@@ -108,7 +108,9 @@ same change that reshapes a system.
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
-  in the catalog like any upload. Launched from ⌘K. TODO: per-component recolour/
+  in the catalog like any upload — or, with **Update original** (when built from a user asset),
+  re-homes the export under the source's id via `replaceUserFurniture` so placed copies update
+  (`buildOverwriteDef`, pure-tested). Launched from ⌘K. TODO: per-component recolour/
   hide of a source GLB's meshes (v2).
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
   **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through
