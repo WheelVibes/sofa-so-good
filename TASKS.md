@@ -145,7 +145,8 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle + WebGL fallback. V:M E:L.
 
 **Content/catalog:**
-- [ ] F7 [PROD] Curtains/blinds window-treatment system (window-aware parametric). V:M E:M.
+- [x] F7 [PROD] Curtains + roller-blind parametric primitives exist (`Curtain.tsx`/`RollerBlind.tsx`,
+  catalog `curtains`/blinds). Verified rendering. Drapes-affecting-cast-light remains as R-CURTAIN (deferred).
 - [x] F8 (C171) [PROD] Staircase primitive (straight/L/U/spiral) — needed by maisonette/penthouse/landed. V:M E:M.
 - [ ] F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza) so designs look styled. V:M E:S.
 - [x] F10 [PROD] Wardrobe interior configurator — `interior` param (rail+shelves / all-hanging / all-shelves
