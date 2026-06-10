@@ -11,10 +11,9 @@ Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
 - [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders (needs profiling on real hardware to justify).
 - [ ] P3. More **instancing** for repeat-geometry primitives where profiling justifies.
 
-## Clearance / validation (panel now: door-swing + item overlaps + wall-clip, C111/C112)
-- [ ] CL2. **True walkway-width check** — the panel subtitle promises "HDB 90 cm walkways" but no
-  check measures circulation gaps between pieces yet. Needs careful design (corridor sampling) +
-  visual tuning to avoid false positives.
+## Clearance / validation (panel now: door-swing + overlaps + wall-clip + walkways, C111/C112/C145)
+- [x] CL2. Walkway-width check (`findNarrowGaps`, item↔item + item↔wall, band 0.4–0.9 m) — C145.
+- [x] Daylight & ventilation check (`buildDaylightReport`, glazing/openable vs floor area) — C144.
 
 ## Lighting / GPU-heavy realism (deferred under the "focus on non-GPU" constraint; need a focused real-GPU session)
 - [ ] L1/RE2/N6. **Lighting realism** — window-glass tint colouring the sun shaft + inter-room light bleed through open doors. Complex multi-file scene change; conflicts with the deliberate no-shadow fixture-light perf design, so needs a perf-aware approach.
