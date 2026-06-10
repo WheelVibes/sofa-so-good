@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C130] EL2a — wall-elevation SVG renderer
+Pure, palette-parameterised `elevationSvg(el, {palette})` (`src/ui/elevation/elevationSvg.ts`): draws a
+`WallElevation` to a standalone SVG string in world metres (floor at the bottom) — wall panel + floor
+line, furniture silhouettes (back-to-front, labelled), windows (translucent pane + mullion cross) and
+doors (dashed cut-out). Palette is injected so the in-app panel (CSS tokens) and the report (print
+hexes) share it; `elevationCaption` summarises dims/openings/items. User labels are HTML-escaped
+(XSS-safe). 6 tests incl. injection + degenerate-wall. EL2b wires the panel next.
+
 ## [C129] EL1 — interior wall elevations: pure projection core
 First step of a large, research-grounded feature (wall elevations are a standard pro deliverable —
 Chief Architect / Cedreo / NKBA — that we lacked; we only had a top-down plan). New pure module
