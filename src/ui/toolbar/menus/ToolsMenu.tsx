@@ -16,6 +16,7 @@ export function ToolsMenu() {
   const elevationsOpen = useStore((s) => s.elevationsOpen)
   const daylightOpen = useStore((s) => s.daylightOpen)
   const designScoreOpen = useStore((s) => s.designScoreOpen)
+  const accessibilityOpen = useStore((s) => s.accessibilityOpen)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
   const historyOpen = useStore((s) => s.historyOpen)
@@ -32,6 +33,7 @@ export function ToolsMenu() {
     s.setElevationsOpen(false)
     s.setDaylightOpen(false)
     s.setDesignScoreOpen(false)
+    s.setAccessibilityOpen(false)
     s.setVersionsOpen(false)
     s.setHistoryOpen(false)
   }
@@ -61,6 +63,11 @@ export function ToolsMenu() {
     const wasOpen = useStore.getState().designScoreOpen
     closeAux()
     useStore.getState().setDesignScoreOpen(!wasOpen)
+  }
+  const toggleAccessibility = () => {
+    const wasOpen = useStore.getState().accessibilityOpen
+    closeAux()
+    useStore.getState().setAccessibilityOpen(!wasOpen)
   }
   const openVersions = () => {
     const wasOpen = useStore.getState().versionsOpen
@@ -96,6 +103,7 @@ export function ToolsMenu() {
     elevationsOpen ||
     daylightOpen ||
     designScoreOpen ||
+    accessibilityOpen ||
     touring ||
     recording ||
     sunStudy ||
@@ -168,6 +176,13 @@ export function ToolsMenu() {
         sub="Overall layout quality + fixes"
         active={designScoreOpen}
         onClick={toggleDesignScore}
+      />
+      <MenuItem
+        icon="Checks"
+        label="Accessibility"
+        sub="Door widths + wheelchair turning space"
+        active={accessibilityOpen}
+        onClick={toggleAccessibility}
       />
       {fMeasure && (
         <MenuItem

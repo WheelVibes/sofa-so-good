@@ -156,6 +156,22 @@ export function CommandPalette() {
         },
       },
       {
+        id: 'accessibility',
+        group: 'Tools & panels',
+        label: 'Accessibility check',
+        icon: 'Checks',
+        run: () => {
+          if (s().budgetOpen) s().toggleBudget()
+          s().setClearancePanelOpen(false)
+          s().setDaylightOpen(false)
+          s().setElevationsOpen(false)
+          s().setDesignScoreOpen(false)
+          s().setVersionsOpen(false)
+          s().setHistoryOpen(false)
+          s().setAccessibilityOpen(true)
+        },
+      },
+      {
         id: 'versions',
         group: 'Tools & panels',
         label: 'Versions — save / restore',

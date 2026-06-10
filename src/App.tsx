@@ -24,6 +24,7 @@ import { editableRoomIds } from './state/rooms'
 import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
+import { AccessibilityPanel } from './ui/AccessibilityPanel'
 import { LoginScreen } from './ui/auth/LoginScreen'
 import { BudgetHud } from './ui/BudgetHud'
 import { BudgetPanel } from './ui/BudgetPanel'
@@ -777,6 +778,7 @@ export default function App() {
         <ClearancePanel />
         <DaylightPanel />
         <DesignScorePanel />
+        <AccessibilityPanel />
         <ElevationPanel />
         <VersionsPanel />
         <HistoryPanel />
