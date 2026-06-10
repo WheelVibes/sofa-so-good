@@ -1,5 +1,12 @@
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { AiPlanError, getVisionKey, recognizeFloorPlan, setVisionKey } from '../../ai/floorPlanAi'
+import {
+  AiPlanError,
+  classifyVisionEndpoint,
+  getVisionKey,
+  getVisionUrl,
+  recognizeFloorPlan,
+  setVisionKey,
+} from '../../ai/floorPlanAi'
 import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
@@ -187,6 +194,27 @@ export function FloorPlanEditor() {
         })) || ''
       if (!key) return
       setVisionKey(key)
+    }
+    // Security gate: warn (and require explicit confirmation) before the bearer
+    // key is sent to anything other than a recognised provider. A plaintext
+    // endpoint is refused outright downstream in recognizeFloorPlan.
+    const endpoint = classifyVisionEndpoint(getVisionUrl())
+    if (!endpoint.secure) {
+      useStore
+        .getState()
+        .notify.start({ title: 'Insecure AI endpoint', message: endpoint.reason, kind: 'error' })
+      return
+    }
+    if (!endpoint.trusted) {
+      const ok = await useStore.getState().promptText({
+        title: 'Send your API key to this server?',
+        label: `${endpoint.reason} Type the host name (${endpoint.host}) to confirm.`,
+        submitLabel: 'Send',
+      })
+      if ((ok || '').trim().toLowerCase() !== endpoint.host.toLowerCase()) {
+        useStore.getState().notify.start({ title: 'AI recognition cancelled', kind: 'info' })
+        return
+      }
     }
     setAiBusy(true)
     try {
