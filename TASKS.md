@@ -108,10 +108,10 @@ standing themed backlog below + the existing sections further down hold the open
   `selection/SelectionOutline.tsx`, `HoverHighlight.tsx`, `RotateGizmo.tsx`, `ClearanceOverlay.tsx`, `PlacementGhost.tsx`.
 - [x] PERF2 (C178) (S, big). `DesignScorePanel` (and check `ClearanceOverlay`) rerun O(n²) scans every
   pointermove while open — gate recompute on `!draggingItemId` / debounce 250–400ms. `ui/DesignScorePanel.tsx:44`.
-- [ ] PERF3 (S). `Lighting` `useFrame` allocates arrays+object every frame even when settled — early-out
-  when inputs unchanged; only the exposure write needs per-frame. `scene/lighting/Lighting.tsx:92`.
-- [ ] PERF4 (S–M). `FurnitureLights` rebuilds+sorts all emitters every rendered frame at night — gate on
-  camera-move/item-change. `scene/lighting/FurnitureLights.tsx:46`.
+- [x] PERF3 (C193) (S). `Lighting` tween target memoized — no per-frame object/array alloc when settled;
+  only the tone-mapping/exposure write stays per-frame. `scene/lighting/Lighting.tsx`.
+- [x] PERF4 (C194) (S–M). `FurnitureLights` rebuild+sort gated on camera-move (>0.2 m) / items-change.
+  `scene/lighting/FurnitureLights.tsx`.
 - [x] PERF5 (C181) (M). Lazy-load rarely-opened modals/panels (ShareModal, VersionsPanel, HistoryPanel,
   ElevationPanel, DesignScorePanel, AccessibilityPanel, DaylightPanel, SwapModal, SmartStartWizard,
   ProductTour) — trims boot bundle. `App.tsx:27`.
@@ -119,8 +119,8 @@ standing themed backlog below + the existing sections further down hold the open
   tier-gate (Performance → DPR1/AA off), arm `preserveDrawingBuffer` only for export/record. `scene/Scene.tsx:64`.
 - [x] PERF7 (C179) (M). Broadphase (spatial grid / sweep-prune) for `findItemOverlaps`/`findNarrowGaps`/
   `findWallClips` (O(n²) today) for 100s-of-items scale; compute scans once + share between report + designScore.
-- [ ] PERF8 (M). `DragController.onMove` does repeated O(n) `.find`/scans per pointermove — id→item Map at
-  drag start, reuse `others`. `scene/DragController.tsx:141`.
+- [x] PERF8 (C192) (M). `DragController.onMove` indexes items into id→item Maps once per move (was repeated
+  O(n) `.find` scans, incl. an O(n·m) collision loop). `scene/DragController.tsx`.
 - [~] PERF9 (C185 thumbCache LRU done; 256² + worker still TODO) (S). Procedural texture default 512² on main thread — drop to 256² where quality allows / OffscreenCanvas worker; bound `thumbCache` (LRU). `materials/procedural/generators.ts`.
 - [x] PERF10 (C182) (S). Reuse a single mutable `PumpInputs` in `RenderPump` rAF instead of allocating per frame. `scene/RenderPump.tsx:60`.
 

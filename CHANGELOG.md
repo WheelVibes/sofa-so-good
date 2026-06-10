@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C192–C194] Hot-path perf
+- **C192** (PERF8): `DragController.onMove` indexes the item list into id→item Maps once per pointermove,
+  replacing several full-list `.find` scans (including an O(n·m) per-moved-item collision loop) with O(1) lookups.
+- **C193** (PERF3): `Lighting` memoizes its tween target so `targetVals` (an object + 4 arrays) no longer
+  allocates every frame once the day/night tween has settled — only the tone-mapping/exposure write stays per-frame.
+- **C194** (PERF4): `FurnitureLights` gates its per-frame nearest-emitter rebuild+sort on a real input change
+  (camera moved >0.2 m or items changed) — a stationary night scene no longer re-scans every frame.
+
 ## [C190–C191] Suggestions + electrical plan
 - **C190** (F16): "magic" contextual suggestions in the Design Score panel — per-room "what to add" hints
   from `analysis/suggestions.ts` (pure, category-gap heuristics by room type + area), gated by the new
