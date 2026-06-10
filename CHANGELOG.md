@@ -4,6 +4,11 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C116] Fix report crash on a plan with no walls array (C113 regression)
+The C113 wall-clip check called `planCollisionWalls(plan, {})` for any non-default plan, which threw
+`plan.walls is not iterable` for a partial/hand-built plan (caught by `reportData.test.ts`). Guarded
+it to skip the wall-clip scan when the plan has no `walls` array.
+
 ## [C115] GE1 — GLB designer: cone, pyramid, capsule & torus primitives
 First step of the GLB-editor-pro program. Added four primitive shapes beyond box/cylinder/sphere —
 cone, pyramid (45°-rotated square cone), capsule, torus — driven by a single `SHAPE_KINDS`/

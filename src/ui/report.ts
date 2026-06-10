@@ -247,8 +247,15 @@ export function buildReportHtml(
   )
   const overlaps = hasItems ? findItemOverlaps(items, catalog) : []
   // Whole-plan collision walls; default door states are fine for a static report.
-  const clipWalls = isDefaultPlan(plan) ? buildCollisionWalls({}) : planCollisionWalls(plan, {})
-  const wallClipCounts = countByName(hasItems ? findWallClips(items, catalog, clipWalls) : [])
+  // Guard a partial/hand-built plan with no `walls` array (skips the wall-clip check).
+  const clipWalls = isDefaultPlan(plan)
+    ? buildCollisionWalls({})
+    : Array.isArray(plan.walls)
+      ? planCollisionWalls(plan, {})
+      : []
+  const wallClipCounts = countByName(
+    hasItems && clipWalls.length > 0 ? findWallClips(items, catalog, clipWalls) : [],
+  )
   const anyIssue = blockedCounts.size > 0 || overlaps.length > 0 || wallClipCounts.size > 0
   const countRows = (m: Map<string, number>) =>
     [...m.entries()]
