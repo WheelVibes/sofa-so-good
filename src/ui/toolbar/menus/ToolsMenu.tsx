@@ -7,6 +7,7 @@ import { useStore } from '../../../state/store'
 import { closeAllAuxPanels } from '../../auxPanels'
 import { openDrawingSet } from '../../openDrawingSet'
 import { downloadPlanDxf } from '../../openDxf'
+import { openMoodboard } from '../../openMoodboard'
 import { openDesignReport } from '../../openReport'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
@@ -209,6 +210,14 @@ export function ToolsMenu() {
           label="Share & export"
           sub="Link, PNG snapshot, shoppable PDF"
           onClick={() => setShareOpen(true)}
+        />
+      )}
+      {fReport && (
+        <MenuItem
+          icon="Palette"
+          label="Moodboard"
+          sub="Style board: palette + finishes + pieces"
+          onClick={() => openMoodboard()}
         />
       )}
       {fSun && (
