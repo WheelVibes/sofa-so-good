@@ -5,7 +5,7 @@
  * automatically in the drawer, inspector lookups, and serializer.
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { spanFromFootprint } from '../collision/gltfSpan'
 import { useStore } from '../state/store'
@@ -80,16 +80,23 @@ export function buildMergedCatalog(slices: {
   return merged
 }
 
-/** Reactive hook returning the complete catalog (built-ins + user uploads + resolved remote + installed packs). */
+/** Reactive hook returning the complete catalog (built-ins + user uploads + resolved remote + installed packs).
+ *  Memoised on the catalog input slices so the (non-trivial) merge runs only when
+ *  one of them actually changes — not on every consumer re-render (e.g. a
+ *  FurnitureLayer re-render on every drag pointermove rebuilt the whole catalog). */
 export function useCatalog(): Record<FurnitureType, FurnitureDef> {
   const userFurniture = useStore(useShallow((s) => s.userFurniture))
   const remote = useStore(useShallow((s) => s.resolvedRemoteFurniture))
   const packFurniture = useStore(useShallow((s) => s.packFurniture))
-  return buildMergedCatalog({
-    userFurniture,
-    resolvedRemoteFurniture: remote,
-    packFurniture,
-  })
+  return useMemo(
+    () =>
+      buildMergedCatalog({
+        userFurniture,
+        resolvedRemoteFurniture: remote,
+        packFurniture,
+      }),
+    [userFurniture, remote, packFurniture],
+  )
 }
 
 /** Reactive hook returning the catalog grouped by category. */

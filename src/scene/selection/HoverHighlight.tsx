@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { itemFootprint } from '../../collision/placement'
-import { useCatalog } from '../../furniture/catalog'
+import { useCatalogGetter } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
 import { boxEdges, useDisposeGeometry } from '../geometryUtil'
 
@@ -13,10 +13,11 @@ export function HoverHighlight() {
   const selectedIds = useStore((s) => s.selectedItemIds)
   const dragging = useStore((s) => s.draggingItemId)
   const items = useStore((s) => s.items)
-  const catalog = useCatalog()
+  // Non-reactive accessor — re-renders on hover/selection/items, not catalog churn.
+  const { ref: catalogRef } = useCatalogGetter()
 
   const item = hoveredId ? items.find((i) => i.id === hoveredId) : null
-  const def = item ? catalog[item.defId] : null
+  const def = item ? catalogRef.current[item.defId] : null
   const obb = useMemo(() => (item && def ? itemFootprint(item, def) : null), [item, def])
   const geom = useMemo(
     () => (obb ? boxEdges(obb.hx * 2 + 0.08, 0.001, obb.hz * 2 + 0.08) : null),

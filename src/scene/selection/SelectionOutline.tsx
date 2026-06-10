@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { itemFootprint } from '../../collision/placement'
-import { useCatalog } from '../../furniture/catalog'
+import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { boxEdges, useDisposeGeometry } from '../geometryUtil'
@@ -111,7 +111,8 @@ export function SelectionOutline() {
   const draggingItemId = useStore((s) => s.draggingItemId)
   const dragGroupIds = useStore(useShallow((s) => s.dragGroupOriginals.map((g) => g.id)))
   const dragValid = useStore((s) => s.dragValid)
-  const catalog = useCatalog()
+  // Non-reactive accessor — re-renders on selection/items/drag, not catalog churn.
+  const { ref: catalogRef } = useCatalogGetter()
 
   if (ids.length === 0) return null
 
@@ -124,7 +125,7 @@ export function SelectionOutline() {
   return (
     <>
       {items.map((item) => {
-        const def = catalog[item.defId]
+        const def = catalogRef.current[item.defId]
         if (!def) return null
         return (
           <ItemOutline

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { useCatalog } from '../furniture/catalog'
+import { useCatalogGetter } from '../furniture/catalog'
 import { blockedDoorItems, doorSwingRects, frontClearanceRect } from '../layout/clearance'
 import { useStore } from '../state/store'
 
@@ -13,21 +13,25 @@ export function ClearanceOverlay() {
   const on = useStore((s) => s.clearanceOn)
   const items = useStore(useShallow((s) => s.items))
   const plan = useStore((s) => s.floorPlan)
-  const catalog = useCatalog()
+  // Non-reactive catalog accessor — this overlay re-renders on its own inputs
+  // (on / items / plan); it must not re-render on catalog churn (bulk import).
+  const { ref: catalogRef } = useCatalogGetter()
 
   const rects = useMemo(() => doorSwingRects(plan), [plan])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: catalogRef is a stable ref read lazily; the overlay recomputes on items/on changes (when clearance can change).
   const frontRects = useMemo(
     () =>
       on
         ? items
-            .map((it) => frontClearanceRect(it, catalog[it.defId]))
+            .map((it) => frontClearanceRect(it, catalogRef.current[it.defId]))
             .filter((r): r is NonNullable<typeof r> => !!r)
         : [],
-    [on, items, catalog],
+    [on, items],
   )
+  // biome-ignore lint/correctness/useExhaustiveDependencies: catalogRef is a stable ref read lazily; recomputes on items/on/plan changes.
   const flagged = useMemo(
-    () => (on ? new Set(blockedDoorItems(items, catalog, plan)) : new Set<string>()),
-    [on, items, catalog, plan],
+    () => (on ? new Set(blockedDoorItems(items, catalogRef.current, plan)) : new Set<string>()),
+    [on, items, plan],
   )
 
   if (!on) return null

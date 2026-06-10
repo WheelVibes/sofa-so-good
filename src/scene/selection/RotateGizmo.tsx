@@ -6,7 +6,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
-import { useCatalog } from '../../furniture/catalog'
+import { useCatalogGetter } from '../../furniture/catalog'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { priorityRaycast } from '../raycastPriority'
@@ -66,7 +66,9 @@ interface Gesture {
  */
 export function RotateGizmo() {
   const { camera, gl } = useThree()
-  const catalog = useCatalog()
+  // Non-reactive accessor (window listeners read it lazily) — never re-render
+  // this in-canvas controller on catalog churn.
+  const { ref: catalogRef } = useCatalogGetter()
 
   const editing = useStore(canEditScene)
   const draggingItemId = useStore((s) => s.draggingItemId)
@@ -91,10 +93,11 @@ export function RotateGizmo() {
   const gesture = useRef<Gesture | null>(null)
 
   // Resolve the target set + ring geometry from the live selection.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: catalogRef is a stable ref read lazily; recomputes on selection change.
   const geom = useMemo(() => {
     const targets: GizmoTarget[] = []
     for (const it of selected) {
-      const def = catalog[it.defId]
+      const def = catalogRef.current[it.defId]
       if (!def) continue
       const obb = itemFootprint(it, def)
       targets.push({
@@ -130,11 +133,11 @@ export function RotateGizmo() {
       radius: enclosingRadius(pivot[0], pivot[1], targets),
       faceRot: 0,
     }
-  }, [selected, catalog])
+  }, [selected])
 
   const visible = editing && !draggingItemId && !activeDefId && !!geom
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: ndc/raycaster/hitPoint are stable refs; gesture is a mutable ref read lazily; re-binding per render would thrash listeners.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ndc/raycaster/hitPoint/catalogRef are stable refs; gesture is a mutable ref read lazily; re-binding per render would thrash listeners.
   useEffect(() => {
     if (!rotating) return
     const dom = gl.domElement
@@ -170,9 +173,10 @@ export function RotateGizmo() {
       const walls = placementWalls(after) ?? buildCollisionWalls(after.doors)
       for (const o of g.originals) {
         const it = after.items.find((i) => i.id === o.id)
-        const def = it ? catalog[it.defId] : null
+        const def = it ? catalogRef.current[it.defId] : null
         if (!it || !def) continue
-        if (!canPlace(it, def, { others, defs: catalog, doors: after.doors, walls })) return false
+        if (!canPlace(it, def, { others, defs: catalogRef.current, doors: after.doors, walls }))
+          return false
       }
       return true
     }
@@ -222,7 +226,7 @@ export function RotateGizmo() {
       window.removeEventListener('pointerup', onUp)
       window.removeEventListener('pointercancel', onUp)
     }
-  }, [rotating, valid, camera, gl, catalog])
+  }, [rotating, valid, camera, gl])
 
   if (!visible || !geom) return null
 

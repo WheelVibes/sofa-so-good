@@ -4,7 +4,7 @@ import { Color, MeshBasicMaterial, Plane, Raycaster, Vector2, Vector3 } from 'th
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
-import { useCatalog } from '../furniture/catalog'
+import { useCatalogGetter } from '../furniture/catalog'
 import { Furniture } from '../furniture/Furniture'
 import {
   defaultParamProps,
@@ -41,10 +41,12 @@ export function PlacementGhost() {
   const ghostRotation = useStore((s) => s.ghostRotation)
   const items = useStore(useShallow((s) => s.items))
   const doors = useStore(useShallow((s) => s.doors))
-  const catalog = useCatalog()
+  // Non-reactive accessor — the ghost re-renders on activeDefId/cursor/rotation,
+  // and the per-frame loop reads the catalog ref lazily (no catalog-churn renders).
+  const { ref: catalogRef } = useCatalogGetter()
   const { camera, gl } = useThree()
 
-  const def = activeDefId ? catalog[activeDefId] : null
+  const def = activeDefId ? catalogRef.current[activeDefId] : null
   const ghostItem = useMemo<FurnitureItem | null>(() => {
     if (!def) return null
     return {
@@ -95,7 +97,7 @@ export function PlacementGhost() {
     ghostItem.position = [px, pz]
     const valid = canPlace(ghostItem, def, {
       others: items,
-      defs: catalog,
+      defs: catalogRef.current,
       doors,
       // Bound to the same walls as a drag — the room's perimeter in the editor.
       walls: placementWalls(st),
