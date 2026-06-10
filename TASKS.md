@@ -45,6 +45,7 @@ per-mesh recolour/hide. More verifiable in software-GL than PRx (deterministic g
   (drei TransformControls) for move/rotate/scale in the preview.
 - [x] GE3. Per-part PBR — roughness/metalness (C119) + glow/opacity (C120). TODO GE3c: texture pick.
 - [ ] GE4. **Save edits back over an existing asset** (vs always-new) — carried TODO.
+- [x] GE6. Duplicate a part (clone transform + material) — shipped C122.
 - [ ] GE5. **CSG boolean ops** (union/subtract/intersect) via three-bvh-csg or similar.
 
 ## Feature-flag retrofit (infra shipped: registry + resolver + admin + panel + desktop/⌘K gating)

@@ -141,6 +141,22 @@ export function removePart(spec: AssetEditSpec, id: string): AssetEditSpec {
   return { ...spec, parts: spec.parts.filter((p) => p.id !== id) }
 }
 
+/** Clone a part (full transform + material), offset slightly along X so the copy
+ *  is visible, and append it. Returns the spec unchanged if the id is unknown.
+ *  Arrays are deep-copied so the clone never shares a mutable tuple. */
+export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
+  const src = spec.parts.find((p) => p.id === id)
+  if (!src) return spec
+  const copy: ShapePart = {
+    ...src,
+    id: shapeId(),
+    position: [src.position[0] + 0.2, src.position[1], src.position[2]],
+    size: [...src.size],
+    rotation: src.rotation ? [...src.rotation] : undefined,
+  }
+  return { ...spec, parts: [...spec.parts, copy] }
+}
+
 export function updatePart(
   spec: AssetEditSpec,
   id: string,

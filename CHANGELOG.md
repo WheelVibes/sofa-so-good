@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C122] GE6 — duplicate a part in the GLB designer
+Added a per-row **duplicate** button (and `duplicatePart` in `editSpec.ts`) that clones a shape with
+its full transform + material, deep-copying the size/rotation tuples and offsetting the copy along X
+so it's visible — fast symmetric/repeated builds (table legs, slats). Unit-tested (clone independence
++ unknown-id no-op); verified the button adds a selected copy in the designer.
+
 ## [C121] GE2a — per-part rotation in the GLB designer
 Each composed primitive now carries an optional Euler `rotation` (degrees), edited via a new
 Rotation (°) row, so cones/capsules/torus rings/pyramids can be laid on their side or angled

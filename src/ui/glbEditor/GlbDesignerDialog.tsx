@@ -10,6 +10,7 @@ import {
   createEmptySpec,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
+  duplicatePart,
   isBuildable,
   removePart,
   SHAPE_KINDS,
@@ -365,6 +366,23 @@ export function GlbDesignerDialog() {
                       <span className="lyr-nm">
                         {p.kind} {i + 1}
                       </span>
+                      <button
+                        type="button"
+                        className="icon-btn"
+                        aria-label={`Duplicate ${p.kind} ${i + 1}`}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setSpec((sp) => {
+                            const next = duplicatePart(sp, p.id)
+                            if (next.parts.length > sp.parts.length) {
+                              setSelId(next.parts[next.parts.length - 1]!.id)
+                            }
+                            return next
+                          })
+                        }}
+                      >
+                        <Icon.Copy width={13} height={13} />
+                      </button>
                       <button
                         type="button"
                         className="icon-btn"
