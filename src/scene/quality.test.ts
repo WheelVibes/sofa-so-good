@@ -42,4 +42,22 @@ describe('quality presets', () => {
   it('has a preset for every render tier', () => {
     for (const t of RENDER_TIERS) expect(QUALITY_PRESETS[t]).toBeDefined()
   })
+
+  it('only the top (maximum) tier enables the cinematic finish + full-res AO', () => {
+    expect(QUALITY_PRESETS.maximum.cinematic).toBe(true)
+    expect(QUALITY_PRESETS.maximum.aoFullRes).toBe(true)
+    for (const t of ['performance', 'medium', 'high'] as const) {
+      expect(QUALITY_PRESETS[t].cinematic).toBe(false)
+      expect(QUALITY_PRESETS[t].aoFullRes).toBe(false)
+    }
+  })
+
+  it('cinematic/full-res AO only ever apply where the post stack runs', () => {
+    // aoFullRes + cinematic are no-ops without `postprocessing`; the presets must
+    // never enable them on a tier that has the post stack off.
+    for (const t of RENDER_TIERS) {
+      const p = QUALITY_PRESETS[t]
+      if (p.cinematic || p.aoFullRes) expect(p.postprocessing).toBe(true)
+    }
+  })
 })

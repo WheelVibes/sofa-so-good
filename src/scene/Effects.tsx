@@ -11,11 +11,11 @@ const EffectsImpl = lazy(() => import('./EffectsImpl'))
  * nothing (and pulls in no postprocessing code) otherwise.
  */
 export function Effects() {
-  const { postprocessing } = useQuality()
+  const { postprocessing, aoFullRes, cinematic } = useQuality()
   if (!postprocessing) return null
   return (
     <Suspense fallback={null}>
-      <EffectsImpl />
+      <EffectsImpl aoFullRes={aoFullRes} cinematic={cinematic} />
     </Suspense>
   )
 }

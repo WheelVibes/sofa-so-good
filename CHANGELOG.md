@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C117] PR2 — cinematic post stack on the Maximum tier
+Made `EffectsImpl` tier-aware via two new `QualitySettings` flags (`aoFullRes`, `cinematic`, both
+on only at Maximum, both gated behind `postprocessing`): full-resolution + high-quality N8AO, plus
+a faint luminance-aware film grain (`Noise`) and a sub-pixel radial chromatic aberration so stills
+read "photographed, not rendered". Effects assembled as a keyed array (composer children reject
+conditional nulls). Smoke-verified the Maximum tier mounts + renders with no errors in the
+software-GL harness; the subtle grading is for production GPU verification. Tests + docs updated.
+
 ## [C116] Fix report crash on a plan with no walls array (C113 regression)
 The C113 wall-clip check called `planCollisionWalls(plan, {})` for any non-default plan, which threw
 `plan.walls is not iterable` for a partial/hand-built plan (caught by `reportData.test.ts`). Guarded

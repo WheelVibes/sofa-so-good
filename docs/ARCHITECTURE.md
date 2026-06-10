@@ -114,7 +114,9 @@ same change that reshapes a system.
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`).
 - **Quality tiers** (`quality.ts`): **render** `RenderTier` = Performance/Medium/High/
   Maximum. **Performance is the default for everyone** (flat: no shadows/IBL/post, DPR 1);
-  Medium=+sun shadows+IBL; High=+post; Maximum maxes all. `QualityController` only steps
+  Medium=+sun shadows+IBL; High=+post (N8AO+Bloom+HueSat+Vignette+SMAA); Maximum=+cinematic
+  (full-res AO + film grain + chromatic aberration, `EffectsImpl` props from `aoFullRes`/`cinematic`).
+  `QualityController` only steps
   **down** for 30fps, off once pinned. **Asset quality** = separate `AssetTier`
   (low/medium/high=Original LOD), follows render (`null`=Auto) but pinnable + FPS-immune.
   **Tone-mapping look** (`look.ts` `ToneMappingMode` Filmic/AgX/Neutral → three constant via

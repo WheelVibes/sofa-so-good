@@ -27,9 +27,8 @@ exposure/warmth (`look.ts grade`), IBL probe (`SceneEnvironment`), PCFSoft sun s
 weakly under the headless **software-GL** harness — tone curve / vignette / grain DO show; SSR / DoF
 / TAA do not. Tune-heavy steps need a real-GPU pass (consistent with existing R10/L1 notes).
 - [x] PR1. Selectable tone-mapping Look (Filmic/AgX/Neutral) — shipped C114.
-- [ ] PR2. **Cinematic post stack** (new top behaviour): full-res AO, refined Bloom, a `ToneMapping`
-  pass, faint film-grain `Noise` + `ChromaticAberration` for "shot not rendered", optional
-  TiltShift/DoF. Tier-gated; verify each effect individually. ← NEXT
+- [x] PR2. Cinematic post stack (Maximum: full-res AO + film grain + chromatic aberration) — C117.
+  (User verifies subtle grading in prod; DoF/TiltShift deferred to PR4-adjacent.)
 - [ ] PR3. **Material realism pass**: env-map intensity, clearcoat/sheen where apt, glass
   transmission, sharper normal/roughness. Touches `materials/`.
 - [ ] PR4. **Soft-shadow upgrade** (PCSS-ish / VSM, contact-shadow refinement).
