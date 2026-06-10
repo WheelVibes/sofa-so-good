@@ -129,17 +129,28 @@ interface Block {
  * slabs and a farther ring of taller towers for depth, with a wide gap left
  * clear so the skyline doesn't feel like a solid wall.
  */
+/** Keep every building's footprint at least this far (m) from the apartment
+ *  centre. The dollhouse camera fits the flat at ~23 m out; without a clearing a
+ *  wide near-ring block (inner edge ~9 m) sits between the camera and the flat
+ *  and occludes it as you orbit. This guarantees the apartment is always visible
+ *  — the city ringed around an open plaza. */
+const BUILD_CLEAR = 30
+
 function makeBlocks(): Block[] {
   const rnd = mulberry32(0xb10c)
   const blocks: Block[] = []
   const ring = (count: number, rMin: number, rSpan: number, hMin: number, hSpan: number) => {
     for (let i = 0; i < count; i++) {
       const ang = (i / count) * Math.PI * 2 + (rnd() - 0.5) * 0.18
-      const radius = rMin + rnd() * rSpan
-      const x = CX + Math.cos(ang) * radius
-      const z = CZ + Math.sin(ang) * radius
+      let radius = rMin + rnd() * rSpan
       const w = 16 + rnd() * 34
       const d = 14 + rnd() * 26
+      // Push the block out so its whole footprint clears the plaza radius (use a
+      // conservative half-diagonal so any rotation still clears).
+      const halfDiag = 0.5 * Math.hypot(w, d)
+      radius = Math.max(radius, BUILD_CLEAR + halfDiag)
+      const x = CX + Math.cos(ang) * radius
+      const z = CZ + Math.sin(ang) * radius
       const h = hMin + rnd() * hSpan
       const rot = -ang + (rnd() - 0.5) * 0.6
       // Most blocks carry a rooftop tank/lift-core; the odd one stays flat.
