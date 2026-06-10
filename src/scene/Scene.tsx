@@ -38,6 +38,7 @@ import { RotateGizmo } from './selection/RotateGizmo'
 import { SelectionOutline } from './selection/SelectionOutline'
 import { TapeMeasure } from './TapeMeasure'
 import { TONE_MAPPING_THREE } from './toneMappingThree'
+import { useQuality } from './useQuality'
 
 /** Flips `sceneReady` once the scene has painted a few solid frames (so
  *  shaders + procedural textures are warm) and nothing is still streaming
@@ -56,6 +57,10 @@ function SceneReadySignal() {
 
 export function Scene() {
   const customPlan = useStore((s) => !isDefaultPlan(s.floorPlan))
+  // Tier-gate the device-pixel-ratio ceiling: the default Performance tier caps
+  // at DPR 1 (big fill-rate saving on weak/mobile GPUs); higher tiers render
+  // sharper. R3F applies `dpr` changes live, so this tracks a tier switch.
+  const dprMax = useQuality().dprMax
   return (
     <Canvas
       // Demand mode: render only when RenderPump calls invalidate() — the scene
@@ -63,7 +68,7 @@ export function Scene() {
       // while something animates. See RenderPump / renderDecision.
       frameloop="demand"
       shadows={{ type: PCFSoftShadowMap }}
-      dpr={[1, 1.75]}
+      dpr={[1, dprMax]}
       camera={{ position: [12, 8, 12], fov: 45, near: 0.1, far: 400 }}
       gl={{
         antialias: true,
