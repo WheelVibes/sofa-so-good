@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react'
+import { useModalGuard } from '../../controls/modalGuard'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -29,6 +30,9 @@ export function ConfirmDialog({
   onCancel,
 }: ConfirmDialogProps) {
   const cancelRef = useRef<HTMLButtonElement>(null)
+
+  // Modal-style overlay: suppress global shortcuts while open.
+  useModalGuard(open)
 
   useEffect(() => {
     if (!open) return

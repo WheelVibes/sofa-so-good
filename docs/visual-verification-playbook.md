@@ -13,10 +13,11 @@ landmine someone already stepped on so you don't have to.
   `waitMs` ≥ 8000 for anything that loads a GLB.
 - Env: `SHOT_VIEWPORT="W,H"` (responsive breakpoints), `SHOT_TOUCH=1` (emulate a
   touch device — coarse pointer + `hasTouch`), `SHOT_INIT_LS='{…}'` (seed
-  localStorage, e.g. `hdb_onboarded`), `SHOT_URL` (target another port — e.g.
-  parallel worktree agents grab 5173/5174; start yours with
-  `npm run dev -- --port 5199 --strictPort`), `SHOT_NAV_TIMEOUT` ms (cold Vite
-  transforms under parallel jobs easily blow the default 60 s `goto`).
+  localStorage, e.g. `hdb_onboarded`), `SHOT_URL` (target another port — parallel
+  agents must run their **own** server on a free port, e.g.
+  `npm run dev -- --port 5199 --strictPort`, and never `pkill -f vite`),
+  `SHOT_NAV_TIMEOUT` ms (cold Vite transforms under parallel jobs easily blow
+  the default 60 s `goto`; nav timeouts also fall through to `waitMs` now).
 - `evalFile` is a JS file run **in the page** after `waitMs`. `actionsJson` is a
   JSON array of input actions, run **after** the evalFile.
 - Actions: `{type:'drag',from:[x,y],to:[x,y]}`, `wheel:{x,y,dy}`, `click:{x,y}`,
@@ -130,6 +131,23 @@ for i in $(seq 1 25); do sleep 1; curl -sf http://localhost:5173/ >/dev/null && 
 ```
 `pkill -f vite` exits non-zero (144) when it signals itself — that's harmless,
 not a failure.
+
+### `goto` times out on `networkidle2` in an offline sandbox
+Hung third-party fetches (Poly Haven/CDN requests that black-hole instead of
+failing) keep the network "busy" forever, so puppeteer's `networkidle2` never
+fires even though the app booted fine. The harness now catches that navigation
+timeout and continues (relying on `waitMs`) — if you see
+`[harness] goto networkidle2 timed out`, the shot is still valid.
+
+### Lazy panels mount seconds after their store flag flips
+Modals/panels are `lazy()`-loaded (PERF5): `setSmartStartOpen(true)` flips the
+store immediately, but the chunk can take several seconds to mount under the
+headless profile — a `document.querySelector('.modal-overlay')` probe right
+after is a false negative, and a keypress sent too early hits the un-mounted
+state. Poll for the DOM node (or the editor's `.plan-screen`) before acting,
+and put generous `wait` actions before synthetic keys. Also note `setInterval`
+ticks get throttled while the page is busy compiling shaders — log
+`performance.now()` deltas, not your tick count.
 
 ### Editing source mid-session triggers HMR
 Vite hot-reloads your edits into the running server, so you usually don't need to

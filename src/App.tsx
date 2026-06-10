@@ -8,6 +8,7 @@ import {
   ROTATE_FINE_STEP,
   ROTATE_STEP,
 } from './controls/keybindings'
+import { isAnyModalOpen } from './controls/modalGuard'
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
 import { isFeatureEnabled } from './features/featureFlags'
 import { useCatalog } from './furniture/catalog'
@@ -171,6 +172,22 @@ export default function App() {
   // the editor-scoped keyboard handler.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // `?` stays a true toggle: when the Help modal itself is the thing
+      // that's open, `?` closes it again (checked before the modal guard).
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
+        const s = useStore.getState()
+        if (s.helpOpen) {
+          e.preventDefault()
+          s.setHelpOpen(false)
+          return
+        }
+      }
+      // No global shortcuts while a modal dialog is open — including ⌘K (don't
+      // stack the palette over a dialog; the open palette itself is not a
+      // Modal, so its own keyboard handling is unaffected) and Cmd/Ctrl+Z
+      // (most apps suppress app-level undo behind a dialog; inputs keep native
+      // undo). Each modal owns its Escape-to-close. See controls/modalGuard.ts.
+      if (isAnyModalOpen()) return
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         useStore.getState().toggleCmdk()
@@ -739,6 +756,7 @@ export default function App() {
     }
 
     const onDown = (e: KeyboardEvent) => {
+      if (isAnyModalOpen()) return
       if (isEditableTarget(e)) return
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         shiftHeld = true

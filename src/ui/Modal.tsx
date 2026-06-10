@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useModalGuard } from '../controls/modalGuard'
 import { Icon } from './toolbar/icons'
 
 interface ModalProps {
@@ -22,6 +23,11 @@ interface ModalProps {
  *  body so it sits above every panel. */
 export function Modal({ open, onClose, title, sub, width, panelId, children, footer }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // While open, register in the global open-modal counter so app-wide
+  // shortcuts (useKeyboard + the direct App.tsx handlers) no-op. Escape
+  // still closes — this component owns its own Escape listener below.
+  useModalGuard(open)
 
   useEffect(() => {
     if (!open) return

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { useModalGuard } from '../../controls/modalGuard'
 import {
   type DetectedGroup,
   detectGroups,
@@ -97,6 +98,9 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
 
   // A scan, detection, or import is running — leaving now would abandon it.
   const inProgress = busy || scanCount !== null || detecting
+
+  // Modal-style overlay: suppress global shortcuts while open.
+  useModalGuard(open)
 
   const doClose = () => {
     reset()

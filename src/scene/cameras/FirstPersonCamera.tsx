@@ -13,6 +13,7 @@ import {
 import { type CollisionWall, isLineOfSightBlocked, resolveMovement } from '../../collision/walls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { KEYBINDINGS } from '../../controls/keybindings'
+import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { planRoomShell } from '../../floorplan/planRoomShell'
@@ -111,6 +112,9 @@ export function FirstPersonCamera() {
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
+      // No walking while a modal dialog is open (WASD must not move the
+      // camera behind it). keyup still clears, so no key gets stuck held.
+      if (isAnyModalOpen()) return
       if (isEditableTarget(e)) return
       pressed.current[e.code] = true
     }

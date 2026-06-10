@@ -74,7 +74,15 @@ page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`))
 // machine is busy (cold Vite transforms under parallel jobs easily pass 60 s).
 const url = process.env.SHOT_URL || 'http://localhost:5173/'
 const navTimeout = Number(process.env.SHOT_NAV_TIMEOUT || 60000)
-await page.goto(url, { waitUntil: 'networkidle2', timeout: navTimeout })
+try {
+  await page.goto(url, { waitUntil: 'networkidle2', timeout: navTimeout })
+} catch (err) {
+  // In an offline sandbox, hung third-party fetches keep the network busy so
+  // networkidle2 never fires even though the app booted fine — continue and
+  // rely on waitMs below. Anything else is a real failure.
+  if (!String(err).includes('Navigation timeout')) throw err
+  logs.push('[harness] goto networkidle2 timed out; continuing with waitMs')
+}
 await new Promise((r) => setTimeout(r, waitMs))
 
 if (evalFile && evalFile !== '-') {

@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { useCatalog } from '../../furniture/catalog'
 import { defaultParamProps, type FurnitureDef, type ParamProps } from '../../furniture/types'
@@ -60,6 +61,8 @@ export function usePlacementController() {
       useStore.getState().cancelPlacement()
     }
     const onKey = (ev: KeyboardEvent) => {
+      // A modal over an armed placement owns the keyboard (incl. Escape).
+      if (isAnyModalOpen()) return
       if (isEditableTarget(ev)) return
       if (ev.code === 'Escape') {
         useStore.getState().cancelPlacement()

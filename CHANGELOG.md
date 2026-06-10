@@ -82,6 +82,23 @@ ignores scroll events originating within its panel (they don't move the anchor) 
 toolbar/page/ancestor scrolls. Unit tests cover both directions; mobile is unaffected (the mobile sheet
 doesn't use `Popover`).
 
+## [MODAL-HOTKEYS] Suppress global hotkeys while a modal is open
+Typing into a mis-focused modal could trigger scene shortcuts behind it (e.g. `P` toggled the 2D plan
+behind the Smart Start modal). New `controls/modalGuard.ts`: a module-level open-modal counter — the
+shared `Modal` primitive registers automatically (`useModalGuard(open)`), as do the modal-style overlays
+that don't build on it (GraphicsSettings, CompassModal, Onboarding, UploadModelDialog + its
+ConfirmDialog). Every global keydown handler now early-returns via `isAnyModalOpen()`: `useKeyboard`
+(main key map incl. Ctrl/Cmd+Z undo — suppressed behind a dialog like most apps; inputs keep native
+undo), the direct App.tsx handler (⌘K/?/B/⌘A/`[`/`]`/`,`/`.`/`/` — ⌘K suppressed so the palette can't
+stack on a dialog; `?` still closes the Help modal it opened), arrow-key nudge, the FloorPlanEditor `P`
+toggle + its Enter/Esc/Delete keys, walk-mode WASD, and armed-placement R/Esc. Escape-to-close keeps
+working (each modal owns its own listener); the ⌘K palette is not a `Modal` and keeps its internal
+keyboard handling. Unit tests: counter semantics, hotkey no-op while open / resumes after close,
+input/textarea/contenteditable guard, Modal registers+releases on open/close/unmount. Harness:
+`scripts/shot.mjs` gains `SHOT_URL` + survives `networkidle2` timeouts (offline sandbox); verified
+end-to-end — P/V suppressed behind Smart Start over the 2D editor, P exits the editor again once
+closed, Escape still closes the wizard.
+
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
 - **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above

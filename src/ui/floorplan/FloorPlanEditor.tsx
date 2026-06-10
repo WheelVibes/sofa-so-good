@@ -10,6 +10,7 @@ import {
 import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
+import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
@@ -296,6 +297,9 @@ export function FloorPlanEditor() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.code !== 'KeyP' || e.metaKey || e.ctrlKey || e.altKey) return
+      // Not while a modal dialog is open (e.g. Smart Start) — typing into a
+      // mis-focused modal must not flip the 2D plan behind it.
+      if (isAnyModalOpen()) return
       if (isEditableTarget(e)) return
       const st = useStore.getState()
       if (st.cameraMode === 'firstPerson') return
@@ -376,6 +380,9 @@ export function FloorPlanEditor() {
   useEffect(() => {
     if (!editing) return
     const onKey = (e: KeyboardEvent) => {
+      // A modal on top of the 2D editor owns the keyboard (incl. its own
+      // Escape) — don't exit the editor / delete elements behind it.
+      if (isAnyModalOpen()) return
       if (e.key === 'Enter' && polyDraft.length >= 3) {
         commitPolyRoom(polyDraft)
         setPolyDraft([])

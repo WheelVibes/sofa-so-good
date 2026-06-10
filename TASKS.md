@@ -76,6 +76,10 @@ standing themed backlog below + the existing sections further down hold the open
 
 ### AGENT SWEEP FOLLOW-UPS (2026-06-10) — found but deferred (lower-impact)
 From the parallel bug/perf/UI agent sweep; the high-value items were fixed in the bug-fix batch. Remaining:
+- [x] MODAL-HOTKEYS. Global shortcuts fired while a modal was open (typing into a mis-focused modal toggled
+  the `P` 2D plan behind Smart Start). Fixed via `controls/modalGuard.ts` open-modal counter: `Modal` (+
+  non-`Modal` overlays) register while open; every global keydown handler early-returns. Escape stays
+  per-modal; ⌘K/undo suppressed behind dialogs. See CHANGELOG.
 - [x] THEME-COLORS. Done — all listed hexes mapped to `var(--…)` tokens (new `--plan-annot`/`--plan-cat-*`
   in `screens.css`, `--sun`/`--sun-edge` in `tokens.css`; upload `ConfirmDialog` now uses
   `.modal-overlay`/`.btn` classes). Exception: `PlanInspector.tsx` cove `#ffe6c0` stays a literal — it is a
@@ -90,9 +94,6 @@ From the parallel bug/perf/UI agent sweep; the high-value items were fixed in th
   ≥44 px. Fixed the 7 controls that weren't: hamburger 38→44, room-editor exit 34→44, room select 36→44,
   sheet close X 26→44 effective (padded `::after` hit area, visual unchanged), saved-layout delete 36→44,
   backdrop select 34→44, time slider 4→44 (thin track kept via track pseudos).)
-- [ ] MODAL-HOTKEYS. Global keyboard shortcuts still fire while a modal is open (typing into a
-  mis-focused modal triggered the `P` 2D-plan toggle behind Smart Start). Gate the keybinding
-  handler on "no modal open" (or document.activeElement) — audit all Modal consumers.
 - [ ] PERF-FOLLOWUPS. `historySlice` tail re-slice on every push past the cap; `placement.findItemOverlaps`
   rebuilds the broadphase grid per call (cache within a frame). Low-impact; revisit if profiling flags them.
 

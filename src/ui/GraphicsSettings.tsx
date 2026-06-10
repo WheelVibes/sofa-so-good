@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { useShallow } from 'zustand/react/shallow'
+import { useModalGuard } from '../controls/modalGuard'
 import { EXPOSURE_MAX, EXPOSURE_MIN, TONE_MAPPING_LABEL, TONE_MAPPING_MODES } from '../scene/look'
 import {
   type AssetTier,
@@ -52,6 +53,10 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
   const unitSystem = useStore((s) => s.units)
   const setUnits = useStore((s) => s.setUnits)
   const proMode = useStore((s) => s.uiMode === 'pro')
+
+  // Modal-style overlay (doesn't build on the shared Modal primitive):
+  // suppress global shortcuts while open.
+  useModalGuard(open)
 
   useEffect(() => {
     if (!open) return

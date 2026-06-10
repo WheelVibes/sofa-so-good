@@ -238,6 +238,11 @@ same change that reshapes a system.
   **Tools** (Budget/Checks/Sun study/Walkthrough/Report), **File**, **Graphics**. Three
   states: overview/room-editor/walk. Tooltips+menus via `Popover`; shortcut chips from
   `controls/keybindings.ts`. Mobile: minimal bar → bottom action-sheet accordion (`MobileToolbar.tsx`).
+- **Keyboard shortcuts** (`controls/`): `keybindings.ts` (the key map) + `useKeyboard.ts`
+  (global keydown hook; skips repeats + editable targets) + `modalGuard.ts` (module-level
+  open-modal counter — the shared `Modal` primitive and the modal-style overlays register
+  while open, and every global keydown handler early-returns via `isAnyModalOpen()`, so
+  hotkeys can't fire behind a dialog; Escape stays per-modal, ⌘K/undo are suppressed).
 - **Walk-mode** (`scene/cameras/FirstPersonCamera.tsx`, `walkInput.ts`, `ui/walk/`): fine
   = Pointer Lock (WASD+mouse, Esc; native banner unstyleable), coarse = `WalkJoystick` +
   drag-look; `WalkHud`, `Crosshair`. **Mobile viewport** (`index.html`, `responsive.css`,

@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useModalGuard } from '../../controls/modalGuard'
 import { useStore } from '../../state/store'
 
 const COMPASS_DIRS = [
@@ -19,6 +20,9 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
   const setOrientationDeg = useStore((s) => s.setOrientationDeg)
   const ref = useRef<SVGSVGElement>(null)
   const draggingRef = useRef(false)
+
+  // Modal-style overlay: suppress global shortcuts while open.
+  useModalGuard(open)
 
   useEffect(() => {
     if (!open) return
