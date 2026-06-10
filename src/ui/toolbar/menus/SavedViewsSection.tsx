@@ -1,3 +1,4 @@
+import { useFeature } from '../../../features/useFeature'
 import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { Icon } from '../icons'
@@ -14,6 +15,19 @@ export function SavedViewsSection() {
   const saveCurrentView = useStore((s) => s.saveCurrentView)
   const applyView = useStore((s) => s.applyView)
   const deleteView = useStore((s) => s.deleteView)
+  const setViewNote = useStore((s) => s.setViewNote)
+  const setPresenting = useStore((s) => s.setPresenting)
+  const presentationOn = useFeature('presentation')
+
+  const editNote = async (id: string, current: string) => {
+    const note = await useStore.getState().promptText({
+      title: 'Presenter note',
+      label: 'Caption shown for this view in presentation mode',
+      defaultValue: current,
+      submitLabel: 'Save',
+    })
+    if (note !== null) setViewNote(id, note)
+  }
 
   const onSave = async () => {
     // Capture the preview now, while the camera is at the angle being saved and
@@ -42,6 +56,14 @@ export function SavedViewsSection() {
           No saved views yet — frame an angle, then “Save current view”.
         </div>
       ) : null}
+      {presentationOn && savedViews.length > 0 ? (
+        <MenuItem
+          icon="Walkthrough"
+          label="Present…"
+          sub="Full-screen saved-views slideshow"
+          onClick={() => setPresenting(true)}
+        />
+      ) : null}
       {savedViews.map((v) => (
         <div key={v.id} className="saved-view-row">
           <button
@@ -60,6 +82,20 @@ export function SavedViewsSection() {
               <span className="mi-main">{v.name}</span>
             </span>
           </button>
+          {presentationOn ? (
+            <button
+              type="button"
+              className="saved-view-del"
+              aria-label={`${v.note ? 'Edit' : 'Add'} note for ${v.name}`}
+              title={v.note ? `Note: ${v.note}` : 'Add a presenter note'}
+              onClick={(e) => {
+                e.stopPropagation()
+                void editNote(v.id, v.note ?? '')
+              }}
+            >
+              <Icon.Book width={14} height={14} />
+            </button>
+          ) : null}
           <button
             type="button"
             className="saved-view-del"

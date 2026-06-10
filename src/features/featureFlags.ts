@@ -52,6 +52,7 @@ export type FeatureFlag =
   | 'userSets'
   | 'designerPicks'
   | 'ceilingDesign'
+  | 'presentation'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -206,6 +207,11 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   ceilingDesign: {
     label: 'Ceiling design',
     description: 'Per-room tray / coffered / dropped ceilings',
+    default: true,
+  },
+  presentation: {
+    label: 'Presentation mode',
+    description: 'Full-screen saved-views slideshow with notes',
     default: true,
   },
 }

@@ -81,6 +81,7 @@ import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
 import { hasOnboarded, markOnboarded, Onboarding } from './ui/Onboarding'
+import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
 import { SwapModal } from './ui/SwapModal'
@@ -801,6 +802,7 @@ export default function App() {
         <DaylightPanel />
         <DesignScorePanel />
         <AccessibilityPanel />
+        <PresentationMode />
         {/* Lazy + flag-gated: chunk loads only when the panel is opened (PERF5). */}
         {lazyPanels.shareOpen ? (
           <Suspense fallback={null}>

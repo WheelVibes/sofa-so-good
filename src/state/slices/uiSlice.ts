@@ -62,6 +62,9 @@ export interface UiSlice {
   /** Interface density (simple hides advanced clusters). Persisted via editorPrefs. */
   uiMode: UiMode
   setUiMode: (m: UiMode) => void
+  /** True while the full-screen client presentation (saved-views slideshow) runs. */
+  presenting: boolean
+  setPresenting: (v: boolean) => void
   /** Whether the budget / shopping-list panel is open. */
   budgetOpen: boolean
   /** Whether clearance checks (door-swing blocking) are shown. */
@@ -172,6 +175,7 @@ export const UI_INITIAL: Pick<
   | 'uiMode'
   | 'snapEnabled'
   | 'gridSize'
+  | 'presenting'
   | 'budgetOpen'
   | 'clearanceOn'
   | 'recording'
@@ -199,6 +203,7 @@ export const UI_INITIAL: Pick<
   gridSize: 0.5,
   backdrop: 'city' as BackdropKind,
   uiMode: 'simple' as UiMode,
+  presenting: false,
   budgetOpen: false,
   clearanceOn: false,
   recording: false,
@@ -284,6 +289,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setToneMapping: (toneMapping) => set({ toneMapping }),
   setExposure: (e) => set({ exposure: clampExposure(e) }),
   setLightsMode: (m) => set({ lightsMode: m }),
+  setPresenting: (presenting) => set({ presenting }),
   cycleLightsMode: () =>
     set((s) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],
