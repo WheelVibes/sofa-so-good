@@ -70,7 +70,7 @@ standing themed backlog below + the existing sections further down hold the open
 
 #### Commerce / collaboration
 - [ ] X-SHOP. Shoppable list polish: per-retailer grouping, live SG prices beyond IKEA (Courts/HipVan/Castlery).
-- [ ] X-PRESENT. Client presentation mode / shareable interactive 3D link (planShare exists — extend to full design).
+- [~] X-PRESENT. Client presentation mode shipped (C206, F23); shareable interactive 3D-link still TODO.
 
 (Competitor-research agent will expand/replace these with cited, prioritized items.)
 
@@ -169,7 +169,8 @@ BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
 - [ ] F20 [PROD] Shoppable design export (clickable buy-list, totals by retailer; brand links dev-gated). V:M E:S-M.
 - [ ] F21 [PROD] WebXR VR walkthrough (`@react-three/xr` over walk mode). V:M E:M.
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer). V:L E:M.
-- [ ] F23 [PROD] Client presentation mode (saved views + panoramas + notes slideshow). V:M E:M.
+- [x] F23 [PROD] Client presentation mode — full-screen saved-views slideshow with per-view notes +
+  auto-advance (C206, `ui/PresentationMode.tsx`, `presentation` flag). Panorama slides still TODO (needs F2).
 - [ ] F24 [PROD-partial] Pinned comments on a shared design (live presence = backend, defer). V:M E:L.
 
 **AI (BYO-key):**

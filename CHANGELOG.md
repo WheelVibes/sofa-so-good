@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C206] Client presentation mode (F23)
+A full-screen "Present" mode that turns the saved camera views into a client slideshow: each slide applies the
+view's angle + lighting and captions it with the view name and an optional presenter note (editable per view
+from the saved-views menu). Arrow keys / on-screen prev-next navigate, Esc exits, and an Auto toggle advances
+every 6 s; the overlay is pointer-through except its control bar so the camera can still be nudged mid-slide.
+Added `note` to `SavedView` (+ `setViewNote`) and a `presenting` UI flag. Behind the `presentation` flag.
+
 ## [C205] Configurable wardrobe interior (F10)
 The open-style wardrobe gained an `interior` param — **Rail + shelves** (default), **All hanging**, **All
 shelves**, or **Drawers + hanging** — reshaping the carcass fit-out (rails with garments, shelf stacks, and a
