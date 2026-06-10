@@ -13,7 +13,10 @@ landmine someone already stepped on so you don't have to.
   `waitMs` ≥ 8000 for anything that loads a GLB.
 - Env: `SHOT_VIEWPORT="W,H"` (responsive breakpoints), `SHOT_TOUCH=1` (emulate a
   touch device — coarse pointer + `hasTouch`), `SHOT_INIT_LS='{…}'` (seed
-  localStorage, e.g. `hdb_onboarded`).
+  localStorage, e.g. `hdb_onboarded`), `SHOT_URL` (target another port — e.g.
+  parallel worktree agents grab 5173/5174; start yours with
+  `npm run dev -- --port 5199 --strictPort`), `SHOT_NAV_TIMEOUT` ms (cold Vite
+  transforms under parallel jobs easily blow the default 60 s `goto`).
 - `evalFile` is a JS file run **in the page** after `waitMs`. `actionsJson` is a
   JSON array of input actions, run **after** the evalFile.
 - Actions: `{type:'drag',from:[x,y],to:[x,y]}`, `wheel:{x,y,dy}`, `click:{x,y}`,
@@ -108,6 +111,13 @@ it immediately after `setItems` returns null. Either (a) **poll** for it before
 acting (`setTimeout` loop checking the getter, then proceed), or (b) wait a fixed
 generous delay (≥ 3.5 s after the item is placed AND focused) before the action
 that depends on it. Polling is more robust; log only the final state.
+
+### Parallel worktree agents fight over the dev server
+Subagent worktrees live under `.claude/worktrees/` INSIDE the repo: their dev
+servers take 5173/5174 first, and their builds/file churn spam your Vite watcher
+(page reloads, dropped connections). Run your own server on a fixed port
+(`npm run dev -- --port 5199 --strictPort`) and point the harness at it with
+`SHOT_URL=http://localhost:5199/`.
 
 ### The dev server dies mid-session
 Long runs / multiple shots can leave the Vite server down (`ERR_CONNECTION_

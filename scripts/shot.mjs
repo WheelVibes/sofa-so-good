@@ -69,7 +69,12 @@ const logs = []
 page.on('console', (m) => logs.push(`[${m.type()}] ${m.text()}`))
 page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`))
 
-await page.goto('http://localhost:5173/', { waitUntil: 'networkidle2', timeout: 60000 })
+// SHOT_URL overrides the target (e.g. a parallel worktree's dev server on
+// another port); SHOT_NAV_TIMEOUT (ms) extends the load timeout when the
+// machine is busy (cold Vite transforms under parallel jobs easily pass 60 s).
+const url = process.env.SHOT_URL || 'http://localhost:5173/'
+const navTimeout = Number(process.env.SHOT_NAV_TIMEOUT || 60000)
+await page.goto(url, { waitUntil: 'networkidle2', timeout: navTimeout })
 await new Promise((r) => setTimeout(r, waitMs))
 
 if (evalFile && evalFile !== '-') {
