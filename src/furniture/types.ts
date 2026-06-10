@@ -421,6 +421,10 @@ export interface FurnitureItem {
   /** Optional user-given display name, overriding the catalog def name in the
    *  inspector + Layers panel. Optional + default undefined (uses def.name). */
   label?: string
+  /** Plan level (storey) this item sits on; absent = the ground floor. Heights
+   *  in `props` stay relative to the item's level floor — renderers add the
+   *  level's elevation. See docs/research/multi-level-design.md (F13). */
+  levelId?: string
   props: ParamProps
 }
 

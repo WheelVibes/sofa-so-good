@@ -566,3 +566,78 @@ describe('schema', () => {
     }
   })
 })
+
+describe('multi-level plans (F13 / ML1)', () => {
+  it('round-trips upperLevels and item levelId', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      items: [
+        {
+          id: 'it-up',
+          defId: 'bed-queen',
+          position: [1, 1],
+          rotation: 0,
+          levelId: 'lvl-2',
+          props: {},
+        },
+      ],
+      floorPlan: {
+        id: 'ml-plan',
+        name: 'Maisonette',
+        ceilingHeight: 2.6,
+        extent: [8, 6],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [7.9, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'g-liv', name: 'Living', origin: [0.2, 0.2], width: 7.6, depth: 5.6 }],
+        upperLevels: [
+          {
+            id: 'lvl-2',
+            name: 'Upper floor',
+            elevation: 2.9,
+            walls: [{ id: 'uw', start: [0.1, 0.1], end: [7.9, 0.1], thickness: 'external' }],
+            openings: [
+              {
+                id: 'uo',
+                kind: 'window',
+                wallId: 'uw',
+                offset: 1,
+                width: 1.2,
+                sill: 0.9,
+                head: 2.1,
+              },
+            ],
+            rooms: [
+              {
+                id: 'up-bed',
+                name: 'Bedroom',
+                origin: [0.2, 0.2],
+                width: 4,
+                depth: 4,
+                floor: 'floor-carpet-grey',
+              },
+            ],
+          },
+        ],
+      },
+    } as never)
+    // Finishes keyed by an upper-level room id must survive the load filter.
+    useStore.setState(
+      (s) =>
+        ({
+          finishes: {
+            ...s.finishes,
+            floor: { ...s.finishes.floor, 'up-bed': 'floor-carpet-grey' },
+          },
+        }) as never,
+    )
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>(['bed-queen']))
+    const lvl = patch.floorPlan?.upperLevels?.[0]
+    expect(lvl?.id).toBe('lvl-2')
+    expect(lvl?.elevation).toBe(2.9)
+    expect(lvl?.rooms[0]?.floor).toBe('floor-carpet-grey')
+    expect(lvl?.openings[0]?.kind).toBe('window')
+    expect(patch.items?.[0]?.levelId).toBe('lvl-2')
+    expect((patch.finishes?.floor as Record<string, string>)['up-bed']).toBe('floor-carpet-grey')
+  })
+})

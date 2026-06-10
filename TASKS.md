@@ -65,7 +65,7 @@ standing themed backlog below + the existing sections further down hold the open
 - [~] Q-MULTILEVEL / F13. Multi-storey plans — **design accepted**: see
   `docs/research/multi-level-design.md` (additive `upperLevels` + `FurnitureItem.levelId` +
   pure `floorplan/levels.ts` resolution layer). Build phases ML1–ML7 below, one commit each:
-  - [ ] ML1 types+schema round-trip + `levels.ts` helpers + tests
+  - [x] ML1 (C221) types+schema round-trip + `levels.ts` helpers + tests (incl. level-aware finish-key collectors)
   - [ ] ML2 PlanShell stacked rendering + level-visibility View control
   - [ ] ML3 furniture/drag/placement level-awareness
   - [ ] ML4 2D editor level tabs + add/remove level

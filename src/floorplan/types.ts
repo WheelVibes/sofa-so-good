@@ -84,6 +84,23 @@ export interface CeilingConfig {
   coveColor?: string
 }
 
+/** One storey above the ground floor. The plan's top-level walls/openings/
+ *  rooms ARE the ground floor (untouched for back-compat); upper storeys are
+ *  additive extras with their own geometry at an elevation offset. Room ids
+ *  must be unique across ALL levels so room-keyed consumers (finishes, score,
+ *  reports) keep working unchanged. See docs/research/multi-level-design.md. */
+export interface PlanUpperLevel {
+  id: string
+  name: string
+  /** Floor-slab top height above the ground floor's y=0 (m). */
+  elevation: number
+  /** Optional per-level ceiling height; the plan default when unset. */
+  ceilingHeight?: number
+  walls: PlanWall[]
+  openings: PlanOpening[]
+  rooms: PlanRoom[]
+}
+
 export interface FloorPlan {
   id: string
   name: string
@@ -97,6 +114,9 @@ export interface FloorPlan {
    *  off-white when unset. (Custom-plan walls are a solid colour; the built-in
    *  apartment uses per-room procedural finishes.) */
   wallColor?: string
+  /** Optional storeys above the ground floor (the top-level fields above ARE
+   *  the ground floor). Absent/empty = the single-storey plans of today. */
+  upperLevels?: PlanUpperLevel[]
 }
 
 /** Default wall colour for custom plans when `wallColor` is unset. */

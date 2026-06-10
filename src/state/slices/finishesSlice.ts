@@ -1,5 +1,6 @@
 import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
+import { allPlanRooms } from '../../floorplan/levels'
 import type { FloorPlan } from '../../floorplan/types'
 import {
   DEFAULT_FLOOR,
@@ -41,7 +42,7 @@ export function pruneFinishesForPlan(
   finishes: FinishesSlice['finishes'],
   plan: FloorPlan,
 ): FinishesSlice['finishes'] {
-  const valid = new Set<string>([...Object.keys(ROOMS), ...plan.rooms.map((r) => r.id)])
+  const valid = new Set<string>([...Object.keys(ROOMS), ...allPlanRooms(plan).map((r) => r.id)])
   const stale = (k: string) => !valid.has(k)
   const floorStale = Object.keys(finishes.floor).some(stale)
   const wallStale = Object.keys(finishes.walls).some(stale)

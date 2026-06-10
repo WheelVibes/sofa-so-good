@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C221 / ML1] Multi-storey foundations — types, schema, resolution layer
+F13 phase 1 (design: `docs/research/multi-level-design.md`): additive `FloorPlan.upperLevels`
+(`PlanUpperLevel` — own walls/openings/rooms at an elevation) + `FurnitureItem.levelId`, both
+optional + schema-round-tripped (no version bump); new pure `floorplan/levels.ts`
+(`planLevels`/`levelById`/`levelElevation`/`levelOfItem`/`levelOfRoom`/`allPlanRooms`); the two
+room-id collectors (`applySerialized` finish filter, `pruneFinishesForPlan`) now see upper-level
+rooms. 10 new tests. Rendering/editing land in ML2–ML7.
+
 ## [C217 / F2] 360° panorama — equirect capture + drag-to-look viewer + PNG export
 Six 90° renders through the normal screen pipeline (tone mapping/colour match the live view; the
 camera-facing wall-reveal is settled opaque first via a `wallReveal` override + `registerAnimatedSource`
