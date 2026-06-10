@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
 
+## [C201] Flag-gating consistency for the devOnly sidecar features
+Closed the last two gaps in feature-flag coverage: the Budget panel's "Live IKEA SG prices" toggle and the
+PacksTab IKEA live-scrape card now gate through `useFeature('livePrices')` / `useFeature('ikeaLive')` instead
+of a raw `import.meta.env.DEV` / `visiblePacks` check — so the flag registry is the single source of truth
+(both stay devOnly/off in prod, but an admin/QA session can toggle them). Every flag now routes through the
+flag system.
+
 ## [C200] Save selection as a custom set (F14)
 Users can capture the current selection as a reusable, named furniture set — the new `userSetsSlice` stores
 each piece as a centroid-relative offset (+ rotation + props) in localStorage, and `dropUserSet` drops it at
