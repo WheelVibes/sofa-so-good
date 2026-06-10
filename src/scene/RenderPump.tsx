@@ -57,23 +57,37 @@ export function RenderPump() {
     markDirty()
 
     let raf = 0
+    // Reused across frames — the rAF loop runs forever, so mutate one object
+    // instead of allocating a fresh PumpInputs 60×/s (PERF10).
+    const inputs: PumpInputs = {
+      hidden: false,
+      sceneReady: false,
+      assetsActive: false,
+      walk: false,
+      autoRotate: false,
+      touring: false,
+      recording: false,
+      showcaseAccumulating: false,
+      dragging: false,
+      animatedCount: 0,
+      now: 0,
+      dirtyUntil: 0,
+    }
     const loop = () => {
       raf = requestAnimationFrame(loop)
       const s = useStore.getState()
-      const inputs: PumpInputs = {
-        hidden: typeof document !== 'undefined' && document.hidden,
-        sceneReady: s.sceneReady,
-        assetsActive: assetsActiveRef.current,
-        walk: s.cameraMode === 'firstPerson',
-        autoRotate: s.autoRotate,
-        touring: s.touring,
-        recording: s.recording,
-        showcaseAccumulating: s.showcaseAccumulating,
-        dragging: s.draggingItemId != null,
-        animatedCount: animatedSourceCount(),
-        now: performance.now(),
-        dirtyUntil: dirtyUntil.current,
-      }
+      inputs.hidden = typeof document !== 'undefined' && document.hidden
+      inputs.sceneReady = s.sceneReady
+      inputs.assetsActive = assetsActiveRef.current
+      inputs.walk = s.cameraMode === 'firstPerson'
+      inputs.autoRotate = s.autoRotate
+      inputs.touring = s.touring
+      inputs.recording = s.recording
+      inputs.showcaseAccumulating = s.showcaseAccumulating
+      inputs.dragging = s.draggingItemId != null
+      inputs.animatedCount = animatedSourceCount()
+      inputs.now = performance.now()
+      inputs.dirtyUntil = dirtyUntil.current
       setRenderingContinuously(!inputs.hidden && isContinuous(inputs))
       if (shouldRender(inputs)) invalidate()
     }
