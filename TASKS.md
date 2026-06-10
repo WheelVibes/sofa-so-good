@@ -37,7 +37,10 @@ C152 cabinet glass · C153 Smart-Start furnish ANY plan · C154 Design Score in 
 click-to-select offenders · C156 instanced Park/Hills · C157 Smart-Start palette on custom plans · C158
 richer furnish kits (study/dining/powder/balcony) · C159 accessibility check + report · C160 in-app
 Accessibility panel · C161 Condo Studio + 4-Bedroom templates · C162 renovation cost estimate · C163
-Studio infinity-cove backdrop.
+Studio infinity-cove backdrop · C164–C212 (audit fixes, perf, PR6 surfaces — see CHANGELOG) ·
+C213 custom-plan live finishes · C214 text brief · C215 shoppable export · C216 vanity configurator ·
+C217 360° panorama · C221 multi-level foundations · THEME-COLORS/P-CHUNK/POPOVER-SCROLL/
+MOBILE-TAP-TARGETS/MODAL-HOTKEYS fix batch.
 
 ### Backlog — being deepened by a 4-front audit (perf, reliability/bugs, security, competitor research)
 Audit findings get appended here as discrete `[ ]` items with `file:line` + fix. Until they land, the
