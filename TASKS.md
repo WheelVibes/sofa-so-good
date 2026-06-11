@@ -89,6 +89,18 @@ standing themed backlog below + the existing sections further down hold the open
 
 (Competitor-research agent will expand/replace these with cited, prioritized items.)
 
+### INTERRUPTED AGENT WIP (2026-06-11) — re-run these as fresh agents
+Three round-3 agents hit the session usage cap mid-task. One commit was salvaged (P-OPENS-PLAN,
+cherry-picked); the rest left only UNVERIFIED uncommitted WIP in their worktrees — do NOT trust it
+without re-running gates; prefer restarting the task fresh:
+- [ ] EL5 tail (was: agent ac8b79…): door leaf/swing-arc symbol + dimension label de-overlap in
+  elevations. WIP existed in `src/elevation/dimensionLayout.ts` (new) + projectElevation/elevationSvg.
+- [ ] LP5 (was: agent ad7de0…): per-room lux estimate + recommended-level check in the lighting
+  plan schedule (in-app + report). WIP across lighting2d + docs.
+- [ ] X-PRESENT 3D link (was: agent a4297e…): compressed `#/design/<code>` URL share extending
+  `planShare.ts` (size budget, bomb guard, unknown-defId drop, ShareModal "Copy 3D link"). WIP
+  touched planShare.ts/App/bootstrap/main.tsx (main.tsx may hold temp debug hooks — discard).
+
 ### AGENT SWEEP FOLLOW-UPS (2026-06-10) — found but deferred (lower-impact)
 From the parallel bug/perf/UI agent sweep; the high-value items were fixed in the bug-fix batch. Remaining:
 - [x] P-OPENS-PLAN. `P` could close the 2D plan editor but not OPEN it from the 3D view — the
