@@ -1,6 +1,6 @@
 import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
-import { allPlanRooms } from '../../floorplan/levels'
+import { allPlanRooms, levelOfRoom, withLevelGeometry } from '../../floorplan/levels'
 import type { FloorPlan } from '../../floorplan/types'
 import {
   DEFAULT_FLOOR,
@@ -26,12 +26,14 @@ function planWithRoomFinish(
   surface: 'floor' | 'wall',
   id: MaterialId | undefined,
 ): FloorPlan {
-  const room = plan.rooms.find((r) => r.id === roomId)
-  if (!room || room[surface] === id) return plan
-  return {
-    ...plan,
-    rooms: plan.rooms.map((r) => (r.id === roomId ? { ...r, [surface]: id } : r)),
-  }
+  // The room can live on any storey (F13) — resolve its level first so an
+  // upper-level room's finish writes through too, not just ground rooms.
+  const level = levelOfRoom(plan, roomId)
+  const room = level?.rooms.find((r) => r.id === roomId)
+  if (!level || !room || room[surface] === id) return plan
+  return withLevelGeometry(plan, level.id, (g) => ({
+    rooms: g.rooms.map((r) => (r.id === roomId ? { ...r, [surface]: id } : r)),
+  }))
 }
 
 /** Drop finish entries for room ids that belong to neither the fixed flat nor

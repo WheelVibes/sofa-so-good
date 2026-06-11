@@ -44,6 +44,20 @@ Rooms don't have to be plain rectangles:
   inside any wall‑enclosed area; the room is created automatically from that
   loop (any shape, including L‑shapes), with the matching area.
 
+## Levels (storeys)
+
+Designing a maisonette, loft or landed home? The tab strip in the header —
+**Ground floor** plus a tab for each storey — picks which level you're editing:
+
+- **＋ Level** adds an empty storey above the highest one and switches to it.
+- Every tool (walls, rooms, doors/windows, Split, Auto room) and every inspector
+  edit applies to the **active tab's** level only; the area total and room count
+  in the header follow it too.
+- The **✕** on an upper tab removes that storey (you'll be asked to confirm —
+  its rooms, walls and furniture go with it, and undo brings it all back).
+- The 3D view stacks your storeys; use **View → Levels** to show all of them or
+  isolate one.
+
 ## Your furniture, top‑down
 
 The editor draws your **placed furniture as footprints**, coloured by category.

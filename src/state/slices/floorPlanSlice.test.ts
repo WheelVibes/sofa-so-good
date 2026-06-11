@@ -185,3 +185,83 @@ describe('multi-storey level editing (F13/ML4a)', () => {
     expect(useStore.getState().floorPlan).toBe(before)
   })
 })
+
+describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('updateRoom finds and patches a room on an upper level', () => {
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Loft room', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    const groundBefore = useStore.getState().floorPlan.rooms
+    useStore.getState().updateRoom(roomId, { name: 'Renamed', width: 4 })
+    const s = useStore.getState()
+    const up = s.floorPlan.upperLevels?.[0].rooms.find((r) => r.id === roomId)
+    expect(up?.name).toBe('Renamed')
+    expect(up?.width).toBe(4)
+    // Ground rooms untouched (same array reference — no realloc on upper edits).
+    expect(s.floorPlan.rooms).toBe(groundBefore)
+  })
+
+  it('setRoomCeiling patches and clears a ceiling on an upper-level room', () => {
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Up', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    useStore.getState().setRoomCeiling(roomId, { style: 'tray', drop: 0.2 })
+    const room = () => useStore.getState().floorPlan.upperLevels?.[0].rooms[0]
+    expect(room()?.ceiling).toEqual({ style: 'tray', drop: 0.2 })
+    useStore.getState().setRoomCeiling(roomId, null)
+    expect(room()?.ceiling).toBeUndefined()
+  })
+
+  it('splitWall with a levelId splits the upper wall and re-homes its openings', () => {
+    const lvl = useStore.getState().addLevel()
+    const wid = useStore
+      .getState()
+      .addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' }, lvl)
+    const oid = useStore
+      .getState()
+      .addOpening(
+        { kind: 'window', wallId: wid, offset: 2.5, width: 0.8, sill: 0.9, head: 2.1 },
+        lvl,
+      )
+    const groundWalls = useStore.getState().floorPlan.walls
+    useStore.getState().splitWall(wid, 0.5, lvl)
+    const s = useStore.getState()
+    const up = s.floorPlan.upperLevels?.[0]
+    expect(up?.walls.some((w) => w.id === wid)).toBe(false) // original gone
+    const a = up?.walls.find((w) => w.start[0] === 0 && w.end[0] === 2)
+    const b = up?.walls.find((w) => w.start[0] === 2 && w.end[0] === 4)
+    expect(a).toBeDefined()
+    expect(b).toBeDefined()
+    // The opening past the split moved to the second half, offset rebased.
+    const open = up?.openings.find((o) => o.id === oid)
+    expect(open?.wallId).toBe(b?.id)
+    expect(open?.offset).toBeCloseTo(0.5, 5)
+    // Selection moved to the first half; ground walls untouched.
+    expect(s.planSelection).toEqual({ type: 'wall', id: a?.id })
+    expect(s.floorPlan.walls).toBe(groundWalls)
+  })
+
+  it('moveWallVertex with a levelId drags shared corners on that level only', () => {
+    const lvl = useStore.getState().addLevel()
+    const w1 = useStore
+      .getState()
+      .addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' }, lvl)
+    const w2 = useStore
+      .getState()
+      .addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' }, lvl)
+    // A ground wall sharing the same corner coordinates must NOT move.
+    const gw = useStore.getState().addWall({ start: [2, 0], end: [5, 0], thickness: 'internal' })
+    useStore.getState().moveWallVertex(w1, 'end', [3, 1], lvl)
+    const s = useStore.getState()
+    const up = s.floorPlan.upperLevels?.[0]
+    expect(up?.walls.find((w) => w.id === w1)?.end).toEqual([3, 1])
+    expect(up?.walls.find((w) => w.id === w2)?.start).toEqual([3, 1])
+    expect(s.floorPlan.walls.find((w) => w.id === gw)?.start).toEqual([2, 0])
+  })
+})

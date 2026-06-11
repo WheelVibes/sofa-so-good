@@ -47,7 +47,9 @@ same change that reshapes a system.
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
   `isDefaultPlan`), `templates.ts` (18 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo,
   condo studio/1-bed/1+study/2/3/4-bed/penthouse, terrace — `docs/research/{hdb,condo}-floor-plans.md`),
-  `roomDetect.ts`. 2D editor = `ui/floorplan/`.
+  `roomDetect.ts`, `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
+  `upperLevels` adds storeys; `planLevels`/`levelById`/`levelAsPlan`/`allPlanRooms`/
+  `withLevelGeometry` — see `docs/research/multi-level-design.md`). 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (parametric defs),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
@@ -243,7 +245,12 @@ same change that reshapes a system.
   `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split** + draggable endpoint handles (`moveWallVertex`) for
-  non-orthogonal shapes. Live furniture as `canPlace`-checked footprints. **`P` toggles
+  non-orthogonal shapes. Live furniture as `canPlace`-checked footprints (active storey
+  only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
+  "＋ Level" (adds + switches) + ✕ on upper tabs (confirmed `removeLevel`); every tool,
+  overlay and `PlanInspector` edit routes through the active level (`levelAsPlan` reads,
+  `levelId` action args; `updateRoom`/`setRoomCeiling`/finish write-through search all
+  storeys by room id). **`P` toggles
   2D⇄3D** — the binding lives in `controls/planEditorHotkey.ts` (always mounted via App,
   modal-guarded), NOT in the lazy-mounted editor, so it opens from the 3D view too.
   **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).

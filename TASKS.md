@@ -34,11 +34,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 ---
 
 ## Multi-storey program (F13 / Q-MULTILEVEL — design: docs/research/multi-level-design.md)
-- [~] ML3 tail: level gates shipped (C228 agent, integrating); `levelId` on ADD shipped (C229).
-  Remaining: custom-plan per-level wall pinches in `findNarrowGaps` (all custom-plan wall pinches
-  are skipped today — pre-existing).
-- [~] ML4b: 2D editor level TAB STRIP driving all tools + the routed slice actions (agent running).
-  Includes splitWall/moveWallVertex level routing and a per-level furniture-footprint overlay.
+- [ ] ML3 remnant: custom-plan per-level wall pinches in `findNarrowGaps` (all custom-plan wall
+  pinches are skipped today — pre-existing limitation).
 - [~] ML5: editor entry (C229) + level-correct score/daylight/lux (C230) shipped. TAIL: the
   report/drawing-set 2D plan diagrams still draw the ground floor only — add per-storey sheets.
 - [ ] ML6: stair-connectivity advisory (HDB-hints style), walk-mode level teleport, and real upper

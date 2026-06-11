@@ -114,6 +114,20 @@ describe('finishes ↔ plan write-through (FP-next)', () => {
     expect(useStore.getState().floorPlan).toBe(plan)
   })
 
+  it('writes through to a room on an upper level (F13/ML4b)', () => {
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Loft', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    useStore.getState().setFloorFinish(roomId as RoomId, 'floor-parquet-oak')
+    useStore.getState().setWallFinish(roomId as RoomId, 'wall-brick-red')
+    const s = useStore.getState()
+    const room = s.floorPlan.upperLevels?.[0].rooms.find((r) => r.id === roomId)
+    expect(room?.floor).toBe('floor-parquet-oak')
+    expect(room?.wall).toBe('wall-brick-red')
+    expect((s.finishes.floor as Record<string, string>)[roomId]).toBe('floor-parquet-oak')
+  })
+
   it('activating a different plan prunes the previous plan’s custom-room finishes', () => {
     activateCustomPlan()
     useStore.getState().setFloorFinish('studio-main' as RoomId, 'floor-parquet-oak')

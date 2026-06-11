@@ -1,5 +1,5 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
-import { GROUND_LEVEL_ID, withLevelGeometry } from '../../floorplan/levels'
+import { GROUND_LEVEL_ID, levelOfRoom, withLevelGeometry } from '../../floorplan/levels'
 import type {
   CeilingConfig,
   FloorPlan,
@@ -70,15 +70,22 @@ export interface FloorPlanSlice {
   /** Split a wall into two segments at parameter `t` (0..1 along its length,
    *  default 0.5 = midpoint). Openings are re-homed onto whichever segment
    *  contains them. Used to build L-shapes by then dragging one half. */
-  splitWall: (id: string, t?: number) => void
+  splitWall: (id: string, t?: number, levelId?: string) => void
   /** Move a wall endpoint to a new position, dragging every other wall
    *  endpoint that shared the old position with it (so corners stay joined). */
-  moveWallVertex: (id: string, which: 'start' | 'end', to: [number, number]) => void
+  moveWallVertex: (
+    id: string,
+    which: 'start' | 'end',
+    to: [number, number],
+    levelId?: string,
+  ) => void
 
   addRoom: (room: Omit<PlanRoom, 'id'>, levelId?: string) => string
+  /** Patch a room by id — searches EVERY storey (rooms ids are plan-unique
+   *  across levels), so callers stay level-agnostic. */
   updateRoom: (id: string, patch: Partial<PlanRoom>) => void
   /** Patch a room's ceiling treatment (coalesced for slider drags). `null`
-   *  clears it back to a flat ceiling. */
+   *  clears it back to a flat ceiling. Searches every storey, like updateRoom. */
   setRoomCeiling: (id: string, patch: Partial<CeilingConfig> | null) => void
   removeRoom: (id: string, levelId?: string) => void
 
@@ -230,62 +237,61 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     }))
   },
 
-  splitWall: (id, t = 0.5) => {
+  splitWall: (id, t = 0.5, levelId) => {
     get().pushHistory()
     set((s) => {
-      const wall = s.floorPlan.walls.find((w) => w.id === id)
-      if (!wall) return {}
-      const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
-      const ct = Math.max(0.02, Math.min(0.98, t))
-      const so = len * ct // split offset (m) from start
-      const mid: [number, number] = [
-        wall.start[0] + (wall.end[0] - wall.start[0]) * ct,
-        wall.start[1] + (wall.end[1] - wall.start[1]) * ct,
-      ]
-      const idA = planId('w')
-      const idB = planId('w')
-      const wallA: PlanWall = { ...wall, id: idA, end: mid }
-      const wallB: PlanWall = { ...wall, id: idB, start: mid }
-      // Re-home openings onto whichever new segment contains them.
-      const openings = s.floorPlan.openings.map((o) => {
-        if (o.wallId !== id) return o
-        if (o.offset + o.width <= so) return { ...o, wallId: idA }
-        if (o.offset >= so) return { ...o, wallId: idB, offset: o.offset - so }
-        // Straddles the split — clamp it onto the first segment.
-        return { ...o, wallId: idA, width: Math.max(0.1, so - o.offset) }
+      let selection = s.planSelection
+      const floorPlan = withLevelGeometry(s.floorPlan, levelId, (g) => {
+        const wall = g.walls.find((w) => w.id === id)
+        if (!wall) return {}
+        const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+        const ct = Math.max(0.02, Math.min(0.98, t))
+        const so = len * ct // split offset (m) from start
+        const mid: [number, number] = [
+          wall.start[0] + (wall.end[0] - wall.start[0]) * ct,
+          wall.start[1] + (wall.end[1] - wall.start[1]) * ct,
+        ]
+        const idA = planId('w')
+        const idB = planId('w')
+        const wallA: PlanWall = { ...wall, id: idA, end: mid }
+        const wallB: PlanWall = { ...wall, id: idB, start: mid }
+        selection = { type: 'wall', id: idA }
+        return {
+          walls: g.walls.flatMap((w) => (w.id === id ? [wallA, wallB] : [w])),
+          // Re-home openings onto whichever new segment contains them.
+          openings: g.openings.map((o) => {
+            if (o.wallId !== id) return o
+            if (o.offset + o.width <= so) return { ...o, wallId: idA }
+            if (o.offset >= so) return { ...o, wallId: idB, offset: o.offset - so }
+            // Straddles the split — clamp it onto the first segment.
+            return { ...o, wallId: idA, width: Math.max(0.1, so - o.offset) }
+          }),
+        }
       })
-      return {
-        floorPlan: {
-          ...s.floorPlan,
-          walls: s.floorPlan.walls.flatMap((w) => (w.id === id ? [wallA, wallB] : [w])),
-          openings,
-        },
-        planSelection: { type: 'wall', id: idA } as PlanSelection,
-      }
+      return { floorPlan, planSelection: selection }
     })
   },
 
-  moveWallVertex: (id, which, to) => {
+  moveWallVertex: (id, which, to, levelId) => {
     get().pushHistoryCoalesced(`plan-vertex-${id}-${which}`)
-    set((s) => {
-      const target = s.floorPlan.walls.find((w) => w.id === id)
-      if (!target) return {}
-      const from = which === 'start' ? target.start : target.end
-      const EPS = 1e-3
-      const shared = (p: [number, number]) =>
-        Math.abs(p[0] - from[0]) < EPS && Math.abs(p[1] - from[1]) < EPS
-      return {
-        floorPlan: {
-          ...s.floorPlan,
-          walls: s.floorPlan.walls.map((w) => {
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => {
+        const target = g.walls.find((w) => w.id === id)
+        if (!target) return {}
+        const from = which === 'start' ? target.start : target.end
+        const EPS = 1e-3
+        const shared = (p: [number, number]) =>
+          Math.abs(p[0] - from[0]) < EPS && Math.abs(p[1] - from[1]) < EPS
+        return {
+          walls: g.walls.map((w) => {
             const next = { ...w }
             if (shared(w.start)) next.start = [...to] as [number, number]
             if (shared(w.end)) next.end = [...to] as [number, number]
             return next
           }),
-        },
-      }
-    })
+        }
+      }),
+    }))
   },
 
   addRoom: (room, levelId) => {
@@ -301,18 +307,18 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   updateRoom: (id, patch) => {
     get().pushHistoryCoalesced(`plan-room-${id}`)
     set((s) => ({
-      floorPlan: {
-        ...s.floorPlan,
-        rooms: s.floorPlan.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-      },
+      // The room can sit on any storey — resolve its level so an upper-level
+      // room patches in place (room ids are plan-unique across levels).
+      floorPlan: withLevelGeometry(s.floorPlan, levelOfRoom(s.floorPlan, id)?.id, (g) => ({
+        rooms: g.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)),
+      })),
     }))
   },
   setRoomCeiling: (id, patch) => {
     get().pushHistoryCoalesced(`plan-ceiling-${id}`)
     set((s) => ({
-      floorPlan: {
-        ...s.floorPlan,
-        rooms: s.floorPlan.rooms.map((r) => {
+      floorPlan: withLevelGeometry(s.floorPlan, levelOfRoom(s.floorPlan, id)?.id, (g) => ({
+        rooms: g.rooms.map((r) => {
           if (r.id !== id) return r
           if (patch === null) {
             const { ceiling: _drop, ...rest } = r
@@ -321,7 +327,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
           const base: CeilingConfig = r.ceiling ?? { style: 'flat' }
           return { ...r, ceiling: { ...base, ...patch } }
         }),
-      },
+      })),
     }))
   },
   removeRoom: (id, levelId) => {

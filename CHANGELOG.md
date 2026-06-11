@@ -4,6 +4,18 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C227 / ML4b] 2D editor level tabs — per-storey editing
+The Floor Plan Editor gets a storey tab strip (`LevelTabs.tsx`: **Ground floor** + each
+upper level + **＋ Level** add-and-switch + confirmed **✕** remove → back to ground). Every
+tool (wall/room/polygon/auto-room/split/door/window), snap, dimension labels, area totals,
+furniture-footprint overlay and `PlanInspector` edit now reads the ACTIVE level
+(`levelAsPlan`) and routes mutations with its `levelId`. Slice fixes: `splitWall` /
+`moveWallVertex` gain optional `levelId` (`withLevelGeometry` routing); `updateRoom` /
+`setRoomCeiling` and the finishes write-through (`planWithRoomFinish`) now search ALL
+storeys by room id instead of ground only. Item drags in the 2D plan validate against the
+item's own storey walls (`placementWalls`). 6 new tests; verified headless on both tabs
+(desktop + 390 px mobile, strip scrolls).
+
 ## [C230 / ML5b] Level-correct analyses — score, daylight, lux
 Design score counts every storey's rooms (`allPlanRooms`) and attributes furnishing coverage +
 room lighting per level (`itemInRoomOnLevel` — a ground lamp no longer "lights" the upstairs
