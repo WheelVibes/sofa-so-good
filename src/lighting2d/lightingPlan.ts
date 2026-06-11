@@ -24,6 +24,8 @@ export interface PlanLight {
   height: number
   /** Peak intensity (candela). */
   intensity: number
+  /** Storey the fixture sits on; absent = ground (F13/ML5). */
+  levelId?: string
   /** Coverage / falloff radius (m). */
   distance: number
   color: string
@@ -83,6 +85,7 @@ export function buildLightingPlan(
       z,
       height,
       intensity: spec.intensity,
+      ...(item.levelId ? { levelId: item.levelId } : {}),
       distance: spec.distance,
       color: spec.color,
     })

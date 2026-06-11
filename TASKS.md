@@ -39,8 +39,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   are skipped today — pre-existing).
 - [~] ML4b: 2D editor level TAB STRIP driving all tools + the routed slice actions (agent running).
   Includes splitWall/moveWallVertex level routing and a per-level furniture-footprint overlay.
-- [~] ML5: editor entry/furnishing/level stamping shipped (C229). TAIL: audit design score room
-  coverage, daylight and the report plan diagram per level via `allPlanRooms`/`levelOfRoom`.
+- [~] ML5: editor entry (C229) + level-correct score/daylight/lux (C230) shipped. TAIL: the
+  report/drawing-set 2D plan diagrams still draw the ground floor only — add per-storey sheets.
 - [ ] ML6: stair-connectivity advisory (HDB-hints style), walk-mode level teleport, and real upper
   floors for the maisonette/terrace/loft templates.
 - [ ] ML7: docs sweep (user + developer + ARCHITECTURE) for multi-storey.

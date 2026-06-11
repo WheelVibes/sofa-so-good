@@ -86,8 +86,12 @@ describe('levelAsPlan / visibleLevels', () => {
     expect(p.walls).toBe(upper.walls)
     expect(p.rooms).toBe(upper.rooms)
     expect(p.upperLevels).toBeUndefined()
-    // Ground returns the plan reference itself.
-    expect(levelAsPlan(multi, planLevels(multi)[0])).toBe(multi)
+    // Ground of a multi-level plan strips upperLevels (so recursion terminates);
+    // single-storey plans keep the same reference.
+    const g = levelAsPlan(multi, planLevels(multi)[0])
+    expect(g.upperLevels).toBeUndefined()
+    expect(g.rooms).toBe(multi.rooms)
+    expect(levelAsPlan(single, planLevels(single)[0])).toBe(single)
   })
   it('filters to the selected level, falling back to all for stale ids', () => {
     expect(visibleLevels(multi, 'all').map((l) => l.id)).toEqual(['ground', 'lvl-2'])

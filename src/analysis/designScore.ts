@@ -14,6 +14,7 @@
 import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { findItemOverlaps, itemFootprint } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
+import { allPlanRooms, levelOfRoom } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
@@ -101,7 +102,19 @@ function gradeFor(score: number): Grade {
 /** Habitable rooms = interior rooms with positive area, excluding balconies /
  *  ledges / other external annexes. */
 function habitableRooms(plan: FloorPlan): PlanRoom[] {
-  return plan.rooms.filter((r) => !isExternalRoom(r) && planRoomArea(r) > 0)
+  // Every storey's rooms (F13/ML5) — allPlanRooms === plan.rooms when single-level.
+  return allPlanRooms(plan).filter((r) => !isExternalRoom(r) && planRoomArea(r) > 0)
+}
+
+/** Level-aware item-in-room test: same storey AND footprint centre inside.
+ *  `levelOf` maps a room id to its level id ('ground' for single-level plans). */
+function itemInRoomOnLevel(
+  room: PlanRoom,
+  levelOf: (roomId: string) => string,
+  item: { position: readonly [number, number]; levelId?: string },
+): boolean {
+  if ((item.levelId ?? 'ground') !== levelOf(room.id)) return false
+  return pointInRoom(room, item.position[0], item.position[1])
 }
 
 /** Footprint plan-area (m²) of an item — width × depth, rotation-independent. */
@@ -250,6 +263,7 @@ function furnishingCategory(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
   rooms: PlanRoom[],
+  levelOf: (roomId: string) => string = () => 'ground',
 ): ScoreCategory {
   const issues: ScoreIssue[] = []
   // Coverage per room (only floor-standing footprints count toward fill).
@@ -263,7 +277,7 @@ function furnishingCategory(
     for (const it of items) {
       const def = defs[it.defId]
       if (!def || def.noClip || def.mounted) continue
-      if (!pointInRoom(room, it.position[0], it.position[1])) continue
+      if (!itemInRoomOnLevel(room, levelOf, it)) continue
       filled += footprintArea(it, def)
       count += 1
     }
@@ -308,6 +322,7 @@ function lightingCategory(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
   rooms: PlanRoom[],
+  levelOf: (roomId: string) => string = () => 'ground',
 ): ScoreCategory {
   const issues: ScoreIssue[] = []
   if (rooms.length === 0) {
@@ -322,13 +337,11 @@ function lightingCategory(
     }
   }
   // A room is "lit" if it contains at least one light-emitting fixture.
-  const emitterPts = items
-    .filter((it) => isItemEmitter(it.defId, it.props) && defs[it.defId])
-    .map((it) => it.position)
+  const emitters = items.filter((it) => isItemEmitter(it.defId, it.props) && defs[it.defId])
   let litRooms = 0
   const dark: string[] = []
   for (const room of rooms) {
-    const lit = emitterPts.some((p) => pointInRoom(room, p[0], p[1]))
+    const lit = emitters.some((e) => itemInRoomOnLevel(room, levelOf, e))
     if (lit) litRooms += 1
     else dark.push(room.name)
   }
@@ -366,16 +379,17 @@ export function buildDesignScore(
   opts: { doors?: Record<string, { open: boolean }>; walls?: CollisionWall[] } = {},
 ): DesignScore {
   const rooms = habitableRooms(plan)
+  const levelOf = (roomId: string) => levelOfRoom(plan, roomId)?.id ?? 'ground'
   // Guard a partial / hand-built plan with no `walls` array (mirrors the
   // report's wall-clip guard) so this stays safe for any caller.
   const walls =
     opts.walls ?? (Array.isArray(plan.walls) ? planCollisionWalls(plan, opts.doors ?? {}) : [])
   const categories: ScoreCategory[] = [
     clearanceCategory(items, defs, plan, walls, opts.doors ?? {}),
-    furnishingCategory(items, defs, rooms),
+    furnishingCategory(items, defs, rooms, levelOf),
     circulationCategory(items, defs, plan),
     daylightCategory(plan),
-    lightingCategory(items, defs, rooms),
+    lightingCategory(items, defs, rooms, levelOf),
   ]
   const totalWeight = categories.reduce((a, c) => a + c.weight, 0) || 1
   const overall = Math.round(categories.reduce((a, c) => a + c.score * c.weight, 0) / totalWeight)

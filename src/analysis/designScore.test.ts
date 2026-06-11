@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan } from '../floorplan/types'
+import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildDesignScore, furnishingCoverageScore } from './designScore'
 
@@ -144,5 +145,37 @@ describe('buildDesignScore', () => {
     const score = buildDesignScore(items, defs, makePlan())
     const furnishing = score.categories.find((c) => c.id === 'furnishing')!
     expect(furnishing.score).toBeGreaterThan(70)
+  })
+})
+
+describe('multi-storey scoring (F13/ML5b)', () => {
+  it('counts upper-storey rooms and attributes items/emitters per level', () => {
+    const plan: FloorPlan = {
+      id: 'ml',
+      name: 'ML',
+      ceilingHeight: 2.6,
+      extent: [8, 6],
+      walls: [],
+      openings: [],
+      rooms: [{ id: 'g-liv', name: 'Living', origin: [0, 0], width: 5, depth: 5 }],
+      upperLevels: [
+        {
+          id: 'lvl-2',
+          name: 'Upper',
+          elevation: 2.9,
+          walls: [],
+          openings: [],
+          rooms: [{ id: 'up-bed', name: 'Bedroom', origin: [0, 0], width: 5, depth: 5 }],
+        },
+      ],
+    }
+    // One lamp on the ground floor at an XZ inside BOTH rooms' rectangles.
+    const items: FurnitureItem[] = [
+      { id: 'lamp', defId: 'floor-lamp', position: [2, 2], rotation: 0, props: {} },
+    ]
+    const score = buildDesignScore(items, BUILTIN_CATALOG, plan)
+    const lighting = score.categories.find((c) => c.id === 'lighting')
+    // The ground room is lit; the upper bedroom (same XZ, other storey) is not.
+    expect(lighting?.issues.some((i) => i.message.includes('Bedroom'))).toBe(true)
   })
 })

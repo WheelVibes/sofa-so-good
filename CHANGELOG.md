@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C230 / ML5b] Level-correct analyses — score, daylight, lux
+Design score counts every storey's rooms (`allPlanRooms`) and attributes furnishing coverage +
+room lighting per level (`itemInRoomOnLevel` — a ground lamp no longer "lights" the upstairs
+bedroom at the same XZ); the daylight/ventilation report fans out per storey so each level's
+rooms are assessed against ITS OWN windows (`levelAsPlan` now strips `upperLevels` on the ground
+branch so recursive consumers terminate); `PlanLight` carries the fixture's `levelId` and the lux
+schedule matches lights to rooms on the same storey. 3 new tests.
+
 ## [C228 / ML3 tail] Level-gate walkway, wall-clip and walk-mode checks
 The remaining cross-item spatial analyses are storey-scoped: `findNarrowGaps` skips item
 pairs on different levels and tests only ground items against the default flat's (ground)

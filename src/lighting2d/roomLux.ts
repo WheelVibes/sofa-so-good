@@ -10,7 +10,9 @@
  * yield an ok / low / high status per room. Pure (no three, no React) →
  * unit-testable; consumed by the Drawings panel, the report and the drawing set.
  */
+
 import { type RoomKind, roomKindFromName } from '../analysis/suggestions'
+import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import { type FloorPlan, planRoomArea, pointInRoom } from '../floorplan/types'
 import type { PlanLight } from './lightingPlan'
 
@@ -92,25 +94,33 @@ export function planLightLumens(light: Pick<PlanLight, 'intensity'>): number {
  */
 export function estimateRoomLux(plan: FloorPlan, lights: PlanLight[]): RoomLuxEstimate[] {
   const rows: RoomLuxEstimate[] = []
-  for (const room of plan.rooms) {
-    const area = planRoomArea(room)
-    if (area <= 0) continue
-    let lumens = 0
-    for (const l of lights) if (pointInRoom(room, l.x, l.z)) lumens += planLightLumens(l)
-    const kind = roomKindFromName(room.name)
-    const recommended = RECOMMENDED_LUX[kind]
-    const lux = (lumens * UTILISATION_FACTOR) / area
-    const status: LuxStatus = lux < recommended.min ? 'low' : lux > recommended.max ? 'high' : 'ok'
-    rows.push({
-      roomId: room.id,
-      roomName: room.name,
-      kind,
-      area,
-      lumens,
-      lux,
-      recommended,
-      status,
-    })
+  // Every storey's rooms; a light only counts toward rooms on ITS storey
+  // (F13/ML5 — same-XZ rooms on different levels must not share fixtures).
+  for (const level of planLevels(plan)) {
+    for (const room of level.rooms) {
+      const area = planRoomArea(room)
+      if (area <= 0) continue
+      let lumens = 0
+      for (const l of lights) {
+        if ((l.levelId ?? GROUND_LEVEL_ID) !== level.id) continue
+        if (pointInRoom(room, l.x, l.z)) lumens += planLightLumens(l)
+      }
+      const kind = roomKindFromName(room.name)
+      const recommended = RECOMMENDED_LUX[kind]
+      const lux = (lumens * UTILISATION_FACTOR) / area
+      const status: LuxStatus =
+        lux < recommended.min ? 'low' : lux > recommended.max ? 'high' : 'ok'
+      rows.push({
+        roomId: room.id,
+        roomName: room.name,
+        kind,
+        area,
+        lumens,
+        lux,
+        recommended,
+        status,
+      })
+    }
   }
   return rows
 }
