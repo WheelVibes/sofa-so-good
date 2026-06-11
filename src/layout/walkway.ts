@@ -17,6 +17,12 @@
  * Heuristics / false-positive guards (deliberate):
  *   - Only non-mounted, non-noClip items participate (rugs, wall art and ceiling
  *     fixtures don't form floor pinch points).
+ *   - Items on different storeys never form a pair (F13/ML3): an upstairs bed
+ *     isn't a pinch against the sofa under it. Absent `levelId` = ground. The
+ *     wall pass only runs on the default flat, whose walls are the ground
+ *     floor's, so it is likewise restricted to ground-level items (per-level
+ *     wall pinches on custom multi-storey plans stay skipped, exactly like
+ *     every custom-plan wall pinch today).
  *   - Overlapping footprints are NOT reported — a gap of 0 is an overlap, which
  *     is `findItemOverlaps`'s job, a separate check. Only strictly-positive gaps
  *     below the ideal threshold are flagged.
@@ -36,6 +42,7 @@ import { type OBB, obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { buildCollisionWalls } from '../collision/wallsFromState'
+import { GROUND_LEVEL_ID } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -198,12 +205,12 @@ export function findNarrowGaps(
 ): NarrowGap[] {
   const out: NarrowGap[] = []
 
-  // Pre-resolve footprints for participating items once.
-  const parts: Array<{ id: string; obb: OBB }> = []
+  // Pre-resolve footprints (and the storey, for the level gates) once.
+  const parts: Array<{ id: string; obb: OBB; level: string }> = []
   for (const it of items) {
     const def = defs[it.defId]
     if (!participates(def)) continue
-    parts.push({ id: it.id, obb: itemFootprint(it, def) })
+    parts.push({ id: it.id, obb: itemFootprint(it, def), level: it.levelId ?? GROUND_LEVEL_ID })
   }
 
   // Item ↔ item — broadphase to near pairs (within PROXIMITY) instead of O(n²);
@@ -214,6 +221,8 @@ export function findNarrowGaps(
     const a = byId.get(ia)
     const b = byId.get(ib)
     if (!a || !b) continue
+    // Different storeys never pinch each other (F13/ML3).
+    if (a.level !== b.level) continue
     if (dist2(a.obb.cx, a.obb.cz, b.obb.cx, b.obb.cz) > PROXIMITY * PROXIMITY) continue
     const gap = obbGap(a.obb, b.obb)
     // Skip overlaps (gap ~0, handled elsewhere) and intentional close spacing.
@@ -223,10 +232,13 @@ export function findNarrowGaps(
   }
 
   // Item ↔ wall — default flat only (fixed door-aware walls); skip otherwise.
+  // Those walls are the GROUND floor's, so only ground-level items are tested
+  // against them (an upper-storey piece can't pinch against a wall below it).
   if (isDefaultPlan(plan)) {
     const walls = buildCollisionWalls({})
     if (walls.length > 0) {
       for (const p of parts) {
+        if (p.level !== GROUND_LEVEL_ID) continue
         let best: { gap: number; wall: number } | null = null
         for (let w = 0; w < walls.length; w++) {
           const gap = obbWallGap(p.obb, walls[w]!)

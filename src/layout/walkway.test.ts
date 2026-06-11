@@ -28,12 +28,13 @@ const defs: Record<string, FurnitureDef> = {
 }
 
 let seq = 0
-function mk(defId: string, x: number, z: number): FurnitureItem {
+function mk(defId: string, x: number, z: number, levelId?: string): FurnitureItem {
   return {
     id: `i-${defId}-${seq++}`,
     defId: defId as never,
     position: [x, z],
     rotation: 0,
+    levelId,
     props: { width: 1, depth: 1 },
   }
 }
@@ -142,5 +143,39 @@ describe('findNarrowGaps', () => {
 
   it('returns nothing for an empty design', () => {
     expect(findNarrowGaps([], defs, customPlan)).toHaveLength(0)
+  })
+
+  describe('multi-storey level gating (F13/ML3)', () => {
+    it('does NOT pair items on different storeys; same storey still pairs', () => {
+      const ground = mk('box', 0, 0)
+      const upper = mk('box', 1.5, 0, 'lvl-2') // would be a 0.5 m tight gap
+      expect(findNarrowGaps([ground, upper], defs, customPlan)).toHaveLength(0)
+      // Both on the same upper storey → the pinch is real again.
+      const upperA = mk('box', 0, 0, 'lvl-2')
+      const gaps = findNarrowGaps([upperA, upper], defs, customPlan)
+      expect(gaps).toHaveLength(1)
+      expect(gaps[0]!.severity).toBe('tight')
+    })
+
+    it('does NOT pinch an upper-storey item against the ground-floor walls', () => {
+      // Same geometry as the default-flat wall-pinch test above, but the box
+      // sits on an upper storey — the flat's walls are the ground floor's, so
+      // no wall pinch may be reported for either candidate position.
+      const plan = buildDefaultPlan()
+      const walls = buildCollisionWalls({})
+      const longest = walls.reduce((m, w) =>
+        Math.hypot(w.bx - w.ax, w.bz - w.az) > Math.hypot(m.bx - m.ax, m.bz - m.az) ? w : m,
+      )
+      const mx = (longest.ax + longest.bx) / 2
+      const mz = (longest.az + longest.bz) / 2
+      const len = Math.hypot(longest.bx - longest.ax, longest.bz - longest.az)
+      const nx = -(longest.bz - longest.az) / len
+      const nz = (longest.bx - longest.ax) / len
+      const off = longest.thickness / 2 + 0.5 + 0.7
+      for (const sgn of [1, -1]) {
+        const box = mk('box', mx + sgn * nx * off, mz + sgn * nz * off, 'lvl-2')
+        expect(findNarrowGaps([box], defs, plan).filter((g) => g.wall)).toHaveLength(0)
+      }
+    })
   })
 })

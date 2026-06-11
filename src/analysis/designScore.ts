@@ -11,7 +11,8 @@
  * Each category reports human-readable, actionable `issues` so the panel and the
  * report can tell the user *what to fix*, not just a number.
  */
-import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
+import { findWallClipsByLevel } from '../collision/levelWallClips'
+import { findItemOverlaps, itemFootprint } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
@@ -129,9 +130,12 @@ function clearanceCategory(
   defs: Record<string, FurnitureDef>,
   plan: FloorPlan,
   walls: CollisionWall[],
+  doors: Record<string, { open: boolean }>,
 ): ScoreCategory {
   const overlaps = findItemOverlaps(items, defs)
-  const clips = findWallClips(items, defs, walls)
+  // Per-storey wall clips (F13/ML3): `walls` is the ground set; upper-level
+  // items are tested against their own storey's walls, never the ground's.
+  const clips = findWallClipsByLevel(items, defs, plan, doors, walls)
   // `blockedDoorItems` walks `plan.openings`; guard a partial plan that omits it.
   const blocked = Array.isArray(plan.openings) ? blockedDoorItems(items, defs, plan) : []
   const penalty =
@@ -367,7 +371,7 @@ export function buildDesignScore(
   const walls =
     opts.walls ?? (Array.isArray(plan.walls) ? planCollisionWalls(plan, opts.doors ?? {}) : [])
   const categories: ScoreCategory[] = [
-    clearanceCategory(items, defs, plan, walls),
+    clearanceCategory(items, defs, plan, walls, opts.doors ?? {}),
     furnishingCategory(items, defs, rooms),
     circulationCategory(items, defs, plan),
     daylightCategory(plan),

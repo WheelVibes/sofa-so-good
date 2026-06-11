@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C228 / ML3 tail] Level-gate walkway, wall-clip and walk-mode checks
+The remaining cross-item spatial analyses are storey-scoped: `findNarrowGaps` skips item
+pairs on different levels and tests only ground items against the default flat's (ground)
+walls; new `collision/levelWallClips.ts findWallClipsByLevel` groups items by storey and
+resolves each level's own collision walls (`levelAsPlan` + `planCollisionWalls`) — adopted
+by the design score, the printable report and the Clearance panel (single-storey plans
+short-circuit to the old `findWallClips`, byte-identical); walk-mode `buildWalkBlockers`
+excludes upper-storey items (walker is ground-only until ML6 level teleport). 9 new tests;
+all existing single-storey tests untouched and passing.
+
 ## [C229 / ML5a] Upper-storey room editor — enter, furnish, level-stamped items
 `planRoomShell` resolves a room's storey (`levelOfRoom` + `levelAsPlan`) so the per-room editor,
 its placement walls and the walk camera clip against the right level's geometry; the shell carries

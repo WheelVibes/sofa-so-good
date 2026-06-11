@@ -11,8 +11,9 @@ import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { ROOMS } from '../apartment/constants'
+import { findWallClipsByLevel } from '../collision/levelWallClips'
 import { obbCorners } from '../collision/obb'
-import { findItemOverlaps, findWallClips, itemFootprint } from '../collision/placement'
+import { findItemOverlaps, itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { isFeatureEnabled } from '../features/featureFlags'
@@ -297,8 +298,10 @@ export function buildReportHtml(
     : Array.isArray(plan.walls)
       ? planCollisionWalls(plan, {})
       : []
+  // Per-storey wall clips (F13/ML3): each item tests against its own level's
+  // walls (`clipWalls` is the ground set; upper levels resolve their own).
   const wallClipCounts = countByName(
-    hasItems && clipWalls.length > 0 ? findWallClips(items, catalog, clipWalls) : [],
+    hasItems ? findWallClipsByLevel(items, catalog, plan, {}, clipWalls) : [],
   )
   const narrowGaps = hasItems ? findNarrowGaps(items, catalog, plan) : []
   const gapPartner = (b: string) => (b.startsWith('wall:') ? 'a wall' : itemName(b))

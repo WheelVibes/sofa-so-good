@@ -7,8 +7,10 @@
  * Blocking rule: skip wall/ceiling-mounted (`mounted`) and pass-through (`noClip`,
  * e.g. rugs) items, and skip anything whose top is at/under shin height
  * (`MIN_BLOCK_TOP`) so you can step over a rug or a very low platform but not
- * through a sofa, table, bed or wardrobe.
+ * through a sofa, table, bed or wardrobe. Upper-storey items (`levelId` set,
+ * F13) are skipped too: the walker is on the ground floor.
  */
+import { GROUND_LEVEL_ID } from '../floorplan/levels'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import type { OBB } from './obb'
 import { itemFootprint } from './placement'
@@ -24,6 +26,10 @@ export function buildWalkBlockers(
 ): OBB[] {
   const out: OBB[] = []
   for (const it of items) {
+    // Walk mode stays on the ground floor for now — an upstairs bed must not
+    // block the hallway under it. When walk-mode level teleport lands (F13/ML6)
+    // this becomes "items on the walker's current level".
+    if ((it.levelId ?? GROUND_LEVEL_ID) !== GROUND_LEVEL_ID) continue
     const def = getDef(it.defId)
     if (!def || def.mounted || def.noClip) continue
     const top = def.verticalSpan?.top ?? def.defaultFootprint.h

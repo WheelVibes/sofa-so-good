@@ -58,7 +58,9 @@ export function DesignScorePanel() {
     if (dragging) return lastScore.current
     const merged = buildMergedCatalog(catalogInputs)
     const walls = isDefaultPlan(plan) ? buildCollisionWalls(doors) : planCollisionWalls(plan, doors)
-    const result = buildDesignScore(items, merged, plan, { walls })
+    // `doors` rides along so upper-storey wall-clip checks resolve their own
+    // level's walls door-aware, matching the ground set above (F13/ML3).
+    const result = buildDesignScore(items, merged, plan, { walls, doors })
     lastScore.current = result
     return result
   }, [open, items, plan, doors, catalogInputs, dragging])

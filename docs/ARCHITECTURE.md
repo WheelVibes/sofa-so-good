@@ -224,7 +224,12 @@ same change that reshapes a system.
   rule across the whole design and `findWallClips(items,defs,walls)` flags pieces
   embedded in a wall (both power the Clearance panel's checks); items
   carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
-  centralizes wall selection (room editor → solid perimeter). **Wall reveal**
+  centralizes wall selection (room editor → solid perimeter; upper storeys → own
+  walls). All cross-item/wall scans are **storey-scoped** (F13/ML3): `itemsCollide`
+  + `findNarrowGaps` gate pairs on `levelId`, `levelWallClips.ts
+  findWallClipsByLevel` resolves each item's own level's walls (used by score /
+  report / Clearance panel), and walk-mode `buildWalkBlockers` keeps only
+  ground-floor items (walker can't climb yet — ML6). **Wall reveal**
   (`apartment/walls/`): exterior walls between camera and interior fade out.
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align

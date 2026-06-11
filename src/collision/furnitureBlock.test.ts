@@ -84,4 +84,11 @@ describe('buildWalkBlockers', () => {
   it('MIN_BLOCK_TOP is shin height', () => {
     expect(MIN_BLOCK_TOP).toBeCloseTo(0.3)
   })
+
+  it('excludes upper-storey items — the walker is on the ground floor (F13/ML3)', () => {
+    const upstairs = { ...item('wardrobe'), levelId: 'lvl-2' }
+    const ground = { ...item('sofa'), levelId: 'ground' } // explicit ground id still blocks
+    expect(buildWalkBlockers([upstairs], getDef)).toHaveLength(0)
+    expect(buildWalkBlockers([upstairs, ground, item('sofa')], getDef)).toHaveLength(2)
+  })
 })
