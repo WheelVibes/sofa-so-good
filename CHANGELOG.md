@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C232 / ML6b] Stair-connectivity advisory for multi-storey plans
+New pure `analysis/stairConnectivity.ts` (HDB-compliance-hints pattern): on multi-level plans,
+`buildStairAdvisories(plan, items, getDef)` emits a caution `Advisory` for every upper storey no
+staircase reaches — a staircase-family item (`staircase` def / `Staircase` primitive) standing on
+the storey directly below whose rotation-aware footprint (corners + centre + edge midpoints vs
+`pointInRoom`) lands in rooms of BOTH storeys. Surfaced where the other plan advisories live: the
+printable report's "HDB compliance hints" section (caution count included). Advisory only — never
+a hard constraint, matching Sweet Home 3D / Planner 5D. 7 new tests (reachable/unreachable, wrong
+storey, missed footprint, three-storey chains, single-level silence, report surfacing). Verified
+headless: maisonette report shows "No staircase reaches Upper storey".
+
 ## [C231 / ML6a] Maisonette + loft templates gain real upper storeys
 A new two-storey **HDB Executive Maisonette** template (`tpl-hdb-maisonette`, ~150 m²: living/
 dining + kitchen/yard/shelter/WC + stair hall below; 3 bedrooms, 2 baths, landing + family area

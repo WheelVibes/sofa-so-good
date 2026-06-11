@@ -38,8 +38,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   pinches are skipped today — pre-existing limitation).
 - [~] ML5: editor entry (C229) + level-correct score/daylight/lux (C230) shipped. TAIL: the
   report/drawing-set 2D plan diagrams still draw the ground floor only — add per-storey sheets.
-- [~] ML6: templates (C231) shipped. TAIL: stair-connectivity advisory (HDB-hints style) and
-  walk-mode level teleport.
+- [~] ML6: templates (C231) + stair advisory (C232) shipped. TAIL: walk-mode level teleport.
 - [ ] ML7: docs sweep (user + developer + ARCHITECTURE) for multi-storey.
 
 ## Realism & rendering

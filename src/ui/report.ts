@@ -9,6 +9,7 @@ import { buildDesignScore } from '../analysis/designScore'
 import { buildComplianceReport } from '../analysis/hdbCompliance'
 import { buildRenoTimeline } from '../analysis/renoTimeline'
 import { estimateRenovation } from '../analysis/renovationCost'
+import { buildStairAdvisories } from '../analysis/stairConnectivity'
 import { ceilingStyleLabel } from '../apartment/ceiling/ceilingModel'
 import { ROOMS } from '../apartment/constants'
 import { findWallClipsByLevel } from '../collision/levelWallClips'
@@ -497,19 +498,24 @@ export function buildReportHtml(
     </div>`
 
   // HDB renovation compliance hints — rule-based advisories (permit / caution /
-  // info) over the plan; a trust feature for the SG renovation workflow.
+  // info) over the plan; a trust feature for the SG renovation workflow. On
+  // multi-storey plans the stair-connectivity advisory (ML6b) joins the list:
+  // any upper storey no staircase reaches gets a caution.
   const compliance = buildComplianceReport(plan)
+  const stairAdvisories = buildStairAdvisories(plan, items, (id) => catalog[id])
+  const allAdvisories = [...compliance.advisories, ...stairAdvisories]
+  const cautionCount = compliance.cautionCount + stairAdvisories.length
   const compBadge = (sev: string) =>
     sev === 'permit' ? '#b91c1c' : sev === 'caution' ? '#b45309' : '#6b7280'
   const complianceSection =
-    compliance.advisories.length === 0
+    allAdvisories.length === 0
       ? ''
       : `<div class="room-cost">
       <h2>HDB compliance hints</h2>
       <div class="${compliance.permitCount > 0 ? 'warn' : 'ok'}">
-        ${compliance.permitCount} permit-sensitive · ${compliance.cautionCount} caution — guidance only, confirm with HDB / your contractor.
+        ${compliance.permitCount} permit-sensitive · ${cautionCount} caution — guidance only, confirm with HDB / your contractor.
       </div>
-      ${compliance.advisories
+      ${allAdvisories
         .map(
           (a) =>
             `<div class="ci-detail" style="margin-top:6px"><span class="badge" style="background:${compBadge(a.severity)};color:#fff">${esc(a.severity)}</span> <strong>${esc(a.title)}</strong><br>${esc(a.detail)} <span style="color:#9ca3af">(${esc(a.cite)})</span></div>`,

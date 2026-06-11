@@ -106,6 +106,34 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/permit-sensitive/)
   })
 
+  it('surfaces the stair-connectivity advisory for a stair-less multi-storey plan', () => {
+    const multi = {
+      ...plan,
+      upperLevels: [
+        {
+          id: 'up',
+          name: 'Upper storey',
+          elevation: 2.9,
+          walls: [],
+          openings: [],
+          rooms: [
+            {
+              id: 'u-bed',
+              name: 'Bedroom',
+              origin: [1, 1] as [number, number],
+              width: 3,
+              depth: 3,
+            },
+          ],
+        },
+      ],
+    }
+    const html = buildReportHtml(multi, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('No staircase reaches Upper storey')
+    // Single-storey plans never mention it.
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toContain('No staircase')
+  })
+
   it('includes an FF&E schedule with per-item rooms, sizes and a grand total', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('FF&amp;E schedule')

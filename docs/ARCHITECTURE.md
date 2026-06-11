@@ -222,6 +222,12 @@ same change that reshapes a system.
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
   Plan-only (reads for a bare shell).
+- **Plan advisories** (`analysis/hdbCompliance.ts` pure → `buildComplianceReport(plan)`: data-driven
+  `RULES` producing non-binding permit/caution/info `Advisory` hints — structural walls, wet areas,
+  facade windows, floor loading, ceiling heights). `analysis/stairConnectivity.ts` (ML6b) follows
+  the same pattern for multi-storey plans: `buildStairAdvisories(plan, items, getDef)` flags any
+  upper storey no staircase reaches (a `staircase`-family item on the storey below whose footprint
+  lands in rooms of BOTH storeys). Both surface in the report's "HDB compliance hints" section.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design and `findWallClips(items,defs,walls)` flags pieces

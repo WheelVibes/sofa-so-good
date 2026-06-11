@@ -139,7 +139,11 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   item-level procurement table — room, item, source, SKU, size W×D×H, quantity,
   unit + line price), a **renovation estimate** (indicative flooring + painting
   supply‑and‑install cost per finish, with a combined furniture + finishes
-  total), areas, and your design notes — a handoff-ready document.
+  total), **HDB compliance hints** (non‑binding renovation advisories — likely
+  structural walls, wet‑area waterproofing, facade windows; on a multi‑storey
+  plan this also flags any **upper storey no staircase reaches**, until you
+  place a Staircase whose run lands on that storey's landing), areas, and your
+  design notes — a handoff-ready document.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
   the lighting plan, and the FF&E schedule. Print or save as PDF for builders and
