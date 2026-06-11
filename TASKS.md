@@ -1,6 +1,6 @@
 # TASKS — autonomous improvement backlog (OPEN ITEMS ONLY)
 
-Working branch: `claude/codebase-analysis-optimization-f6yag0`.
+Working branch: `claude/codebase-analysis-optimization-ny3xm9` (previous batches merged via PR #24).
 Each task = its own commit; log every shipped task in `CHANGELOG.md`.
 Licensed/non-redistributable additions are dev-gated; unlicensed ship in prod too.
 
@@ -37,10 +37,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 
 ## Competitor research 2026-06 (sources: coohom.com/article Planner5D-alternative · capterra.com
 ## compare 164022-192882 · spacesbydee.com coohom-vs-planner-5d · plansnapper.com compare)
-- [x] V-TOUR (C250): cinematic saved-views tour (Coohom "video walkthrough" parity) — fly the
-  saved views in order w/ per-view captured lighting; record via the existing Record clip.
-- [ ] P-720: linked panorama tour (Coohom "720° tour") — multiple captured panoramas with
-  room-to-room hotspots in the shared viewer; builds on C217/C237. V:M E:M.
+- [~] P-720: linked panorama tour (Coohom "720° tour") — multiple captured panoramas with
+  room-to-room hotspots in the shared viewer; builds on C217/C237. (in flight, worktree agent)
 - [ ] COLLAB-STRUCT: structured collaboration (projects/teams) is Coohom's enterprise edge —
   backend-dependent; revisit if/when a backend exists.
 
@@ -50,7 +48,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] F3/R-HDRI [PROD] HDRI environment library (Poly Haven CC0 `.hdr`) for IBL + backdrop.
   Sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.
 - [ ] F4 tail: A/B compare between two render presets, and HDRI coupling once F3 lands.
-- [x] F5 (C240): DoF f-stops on the HQ render via PhysicalCamera + centre autofocus.
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
 - [ ] R-CURTAIN/L1 Window-glass tint colouring the sun shaft + curtains affecting cast light +
@@ -62,7 +59,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
   so designs look styled; ensure category coverage is exhaustive.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
-- [x] T3 Per-LOD multi-tier generation for uploads (offline `optimize:glb` parity in-browser) — C249.
 - [~] T2 Crown-molding revisit + kitchen/bath template polish.
 
 ## Productivity / QOL
@@ -71,21 +67,15 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
   depends on Q-3DEXPORT for the item GLB/USDZ.
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
-- [ ] Q31 part 2: drag a material swatch onto floor/wall/item in the 3D canvas (raycast drop);
-  part 1 (resolver + Objects-list drop) shipped.
-- [x] GE2b GLB designer: drag gizmo (drei TransformControls) for move/rotate/scale in the preview (C244).
+- [~] Q31 part 2: drag a material swatch onto floor/wall/item in the 3D canvas (raycast drop);
+  part 1 (resolver + Objects-list drop) shipped. (in flight, worktree agent)
 - [ ] GE3c GLB designer: per-part texture pick.
-- [x] GE5 GLB designer: CSG boolean ops (union/subtract/intersect) via three-bvh-csg (C239).
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 
 ## Commerce / collaboration
-- [ ] X-SHOP tail: live SG prices beyond IKEA (Courts/HipVan/Castlery as `RETAILERS` entries in
-  the dev `price-server.mjs`).
-- [x] F24 [PROD-partial] Pinned comments on a design shipped (C248): level-aware pins +
-  panel, persist through saves / `.sofa.json` / `#/design/` links. **Live presence /
-  multi-user sync needs a backend — still deferred.**
-- [x] X-PRESENT complete: presentation mode (C206) + 3D link (C224) + 360° slides (C237).
-- [x] F27 [PROD] "Redesign this render" style-variant explorer on the Share i2i path (C245).
+- [~] X-SHOP tail: live SG prices beyond IKEA (Courts/HipVan/Castlery as `RETAILERS` entries in
+  the dev `price-server.mjs`). (in flight, worktree agent)
+- [ ] F24 tail: live presence / multi-user sync on pinned comments — needs a backend; deferred.
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
 
 ## Performance / scalability
@@ -95,8 +85,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
 - [ ] PERF9 tail: drop procedural textures to 256² where quality allows / OffscreenCanvas worker.
-- [ ] PERF-FOLLOWUPS (low-impact; only if profiling flags them): `historySlice` tail re-slice past
-  the cap; cache `findItemOverlaps` broadphase within a frame.
+- [~] PERF-FOLLOWUPS: `historySlice` tail re-slice past the cap; cache `findItemOverlaps`
+  broadphase within a frame. (in flight, worktree agent)
 - [ ] LP5 tail (optional): 3D lux coverage overlay on the floor.
 
 ## Process
