@@ -34,8 +34,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 ---
 
 ## Multi-storey remnants (F13 core shipped C221–C235 — see CHANGELOG)
-- [ ] Custom-plan per-level wall pinches in `findNarrowGaps` (all custom-plan wall pinches are
-  skipped today — pre-existing limitation).
 
 ## Realism & rendering
 - [~] F1 (C238) shipped: progressive path-traced HQ render (offscreen session, sanitized snapshot,

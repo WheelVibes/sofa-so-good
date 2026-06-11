@@ -42,8 +42,8 @@ import { type OBB, obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import type { CollisionWall } from '../collision/walls'
 import { buildCollisionWalls } from '../collision/wallsFromState'
-import { GROUND_LEVEL_ID } from '../floorplan/levels'
-import { isDefaultPlan } from '../floorplan/planGeometry'
+import { GROUND_LEVEL_ID, levelAsPlan, levelById } from '../floorplan/levels'
+import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { CLEARANCE } from './designRules'
@@ -231,31 +231,47 @@ export function findNarrowGaps(
     if (severity) out.push({ a: a.id, b: b.id, gap, severity, wall: false })
   }
 
-  // Item ↔ wall — default flat only (fixed door-aware walls); skip otherwise.
-  // Those walls are the GROUND floor's, so only ground-level items are tested
-  // against them (an upper-storey piece can't pinch against a wall below it).
-  if (isDefaultPlan(plan)) {
-    const walls = buildCollisionWalls({})
-    if (walls.length > 0) {
-      for (const p of parts) {
-        if (p.level !== GROUND_LEVEL_ID) continue
-        let best: { gap: number; wall: number } | null = null
-        for (let w = 0; w < walls.length; w++) {
-          const gap = obbWallGap(p.obb, walls[w]!)
-          if (gap <= CLEARANCE.sofaToCoffee) continue
-          if (!best || gap < best.gap) best = { gap, wall: w }
-        }
-        if (best) {
-          const severity = classify(best.gap)
-          if (severity)
-            out.push({
-              a: p.id,
-              b: `wall:${best.wall}`,
-              gap: best.gap,
-              severity,
-              wall: true,
-            })
-        }
+  // Item ↔ wall — each item is tested against ITS OWN storey's walls: the
+  // default flat's fixed door-aware walls on ground, a custom plan's own
+  // walls per level via levelAsPlan (closed-door state, like the flat).
+  {
+    const wallCache = new Map<string, CollisionWall[]>()
+    const wallsForLevel = (levelId: string): CollisionWall[] => {
+      const hit = wallCache.get(levelId)
+      if (hit) return hit
+      let walls: CollisionWall[]
+      if (isDefaultPlan(plan)) {
+        walls = levelId === GROUND_LEVEL_ID ? buildCollisionWalls({}) : []
+      } else {
+        const level = levelById(plan, levelId)
+        // Unknown ids resolve to ground in levelById — only accept the match.
+        walls =
+          level.id === levelId || levelId === GROUND_LEVEL_ID
+            ? planCollisionWalls(levelAsPlan(plan, level), {})
+            : []
+      }
+      wallCache.set(levelId, walls)
+      return walls
+    }
+    for (const p of parts) {
+      const walls = wallsForLevel(p.level)
+      if (walls.length === 0) continue
+      let best: { gap: number; wall: number } | null = null
+      for (let w = 0; w < walls.length; w++) {
+        const gap = obbWallGap(p.obb, walls[w]!)
+        if (gap <= CLEARANCE.sofaToCoffee) continue
+        if (!best || gap < best.gap) best = { gap, wall: w }
+      }
+      if (best) {
+        const severity = classify(best.gap)
+        if (severity)
+          out.push({
+            a: p.id,
+            b: `wall:${best.wall}`,
+            gap: best.gap,
+            severity,
+            wall: true,
+          })
       }
     }
   }

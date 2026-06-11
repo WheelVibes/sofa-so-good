@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C241] Walkway wall pinches on custom plans, per storey
+`findNarrowGaps`' item↔wall pass no longer skips custom plans: each item is tested against ITS
+OWN storey's walls (`levelAsPlan` + `planCollisionWalls`, cached per level within a call; the
+default flat keeps its fixed door-aware walls on ground). Closes the last F13 level-gating
+remnant. Existing tests' isolation fixture updated (wall-less plan instead of relying on the old
+skip); 2 new per-level pinch tests.
+
 ## [C240 / F5] Photographic depth of field on the HQ render
 The HQ render gains a DoF select (off / f/8 / f/2.8 / f/1.4): with a stop chosen, the session
 renders through the path tracer's `PhysicalCamera` cloned from the live pose, auto-focused on the
