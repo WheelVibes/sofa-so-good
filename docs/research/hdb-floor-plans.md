@@ -176,6 +176,27 @@ Sources: [YangSID — 5-room floor plan](https://www.yangsid.com/blog/hdb-5-room
 
 ---
 
+## Executive Maisonette (~145–150 m², two storeys)
+
+The only two-storey HDB flat type (phased out 1995, resale only) — a flat that lives like a
+landed house. An internal staircase connects the floors; the split is consistently **public
+below, private above**:
+
+- **Lower storey:** living + dining (the full-depth public zone), kitchen, service yard,
+  household shelter/store, and a WC/powder room; the stair hall sits off the entry corridor.
+- **Upper storey:** **3 bedrooms** (master with ensuite bath) **+ 2 bathrooms**, off a landing
+  at the top of the stair; many units add a family area/landing lounge.
+- **Bounding rectangle (per storey):** ~**8.4 m (W) × 9.4 m (D)** ≈ 75 m² each → ~150 m² total.
+- **Ceiling height:** 2.6 m per storey; the upper floor slab adds ~0.3 m, so the upper finished
+  floor sits ≈ 2.9 m above the lower one.
+- **Stair:** a straight or dog-leg flight (~0.9–1.0 m wide, ~3.4–3.6 m run for 2.9 m of rise),
+  in a dedicated stair hall whose footprint repeats on both floors (landing/void above).
+
+Sources: [PropertyGuru — big flats compared](https://www.propertyguru.com.sg/property-guides/maisonette-jumbo-flat-executive-flat-3gen-flat-5-room-flat-which-to-pick-45471),
+[Teoalida — HDB flat types](https://www.teoalida.com/singapore/hdbflattypes/).
+
+---
+
 ## Executive / 3Gen (brief)
 
 Largest current/legacy types — provided briefly as data is sparser and less standardised.

@@ -219,9 +219,11 @@ export the result — all in the browser.
   furnishing balance, circulation, daylight and lighting, with actionable
   fixes), **Versions** (save / restore named layout snapshots with
   thumbnails), a **Shopping list + Saved collections** (heart any catalog card),
-  and **Share & export** (shareable link + a real PNG snapshot). The **2D
-  floor-plan editor** and **upload dialogs** are fully theme-aware in light and
-  dark.
+  **Comments** (pinned, resolvable notes anchored in the 3D scene — level-aware
+  on multi-storey plans — that travel with saves, `.sofa.json` exports and design
+  share links), and **Share & export** (shareable link + a real PNG snapshot).
+  The **2D floor-plan editor** and **upload dialogs** are fully theme-aware in
+  light and dark.
 - **Smart Start** — pick a style and the whole flat is furnished + the walls and
   floors finished in one click (from onboarding, the ⌘K palette, or the Arrange
   menu). Works on any floor plan too: load an HDB, condo or landed template (or
@@ -236,6 +238,10 @@ export the result — all in the browser.
 - **Share a plan link** — "Copy plan link" in the Share modal encodes the whole
   design into a `#/plans/<code>` URL that opens the exact design on any device
   (no account or server needed).
+- **Share a 3D link** — "Copy 3D link" is the chat-friendly variant: a compact
+  `#/design/<code>` URL (capped at ~16 KB; larger designs are pointed at the
+  `.sofa.json` export) that opens an editable copy of the design. Uploaded
+  models can't travel in a URL and are skipped with a note.
 - **Live SG prices** *(dev-only)* — toggle real IKEA Singapore prices + buy links
   in the Shopping list (`npm run price-server`); falls back to a built-in estimate.
 - **Feature flags + admin** *(dev/admin)* — a central registry decides what ships

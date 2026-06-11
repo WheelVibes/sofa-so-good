@@ -1,3 +1,4 @@
+import { GROUND_LEVEL_ID, levelOfRoom } from '../../floorplan/levels'
 import type { FurnitureItem, ParamProps } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
@@ -44,11 +45,20 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
   addItem: (i) => {
     const id = newId()
     get().pushHistory()
-    set((s) => ({
-      items: [...s.items, { ...i, id }],
-      selectedItemId: id,
-      selectedItemIds: [id],
-    }))
+    set((s) => {
+      // Items placed inside an upper-storey room editor belong to that storey
+      // (F13/ML5); explicit levelIds (duplicates/pastes of upper items) win.
+      let levelId = i.levelId
+      if (levelId === undefined && s.roomEditor.active && s.roomEditor.roomId) {
+        const level = levelOfRoom(s.floorPlan, s.roomEditor.roomId)
+        if (level && level.id !== GROUND_LEVEL_ID) levelId = level.id
+      }
+      return {
+        items: [...s.items, { ...i, id, ...(levelId ? { levelId } : {}) }],
+        selectedItemId: id,
+        selectedItemIds: [id],
+      }
+    })
     // Record for the catalog's "Recent" row. Only real user placements,
     // duplicates and pastes reach addItem (the boot seed + set drops use
     // setItems), so this list stays meaningfully "recently used".

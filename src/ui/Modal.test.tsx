@@ -1,6 +1,9 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
+import { isAnyModalOpen, resetModalGuardForTests } from '../controls/modalGuard'
 import { Modal } from './Modal'
+
+beforeEach(() => resetModalGuardForTests())
 
 describe('Modal accessibility', () => {
   it('exposes a labelled dialog role when open', () => {
@@ -47,6 +50,30 @@ describe('Modal accessibility', () => {
     window.dispatchEvent(evt)
     // Focus wraps to the first focusable (the Close button), not out of the modal.
     expect(screen.getByRole('dialog').contains(document.activeElement)).toBe(true)
+  })
+
+  it('registers in the open-modal guard while open, releases on close/unmount', () => {
+    const body = <p>body</p>
+    const { rerender, unmount } = render(
+      <Modal open onClose={() => {}} title="Guard">
+        {body}
+      </Modal>,
+    )
+    expect(isAnyModalOpen()).toBe(true)
+    rerender(
+      <Modal open={false} onClose={() => {}} title="Guard">
+        {body}
+      </Modal>,
+    )
+    expect(isAnyModalOpen()).toBe(false)
+    rerender(
+      <Modal open onClose={() => {}} title="Guard">
+        {body}
+      </Modal>,
+    )
+    expect(isAnyModalOpen()).toBe(true)
+    unmount()
+    expect(isAnyModalOpen()).toBe(false)
   })
 
   it('closes on Escape', () => {

@@ -1,3 +1,8 @@
+import {
+  buildDesignShareUrl,
+  DesignShareError,
+  encodeDesignShareCode,
+} from '../features/designShare'
 import { buildPlanShareUrl, encodeDesignToCode, PlanShareError } from '../features/planShare'
 import { useFeature } from '../features/useFeature'
 import { buildMergedCatalog } from '../furniture/catalog'
@@ -40,6 +45,26 @@ export function ShareModal() {
     }
   }
 
+  // The compact "3D link": same self-contained idea, but session noise +
+  // uploaded-model defs are stripped and the code is hard-capped (~16 KB) so it
+  // pastes cleanly into chats. Too-large designs are pointed at the file export.
+  const copy3dLink = () => {
+    try {
+      const url = buildDesignShareUrl(encodeDesignShareCode(useStore.getState()))
+      void navigator.clipboard?.writeText(url)
+      toast('3D link copied — opens an editable copy of this design')
+    } catch (e) {
+      useStore.getState().notify.start({
+        title: "Couldn't create a 3D link",
+        kind: 'error',
+        message:
+          e instanceof DesignShareError
+            ? e.message
+            : 'Something went wrong — try Export file (.sofa.json) instead.',
+      })
+    }
+  }
+
   // A one-line text summary (name · area · items · est. cost) for quick sharing
   // in a chat/email — distinct from the full report / portable file.
   const copySummary = () => {
@@ -75,10 +100,30 @@ export function ShareModal() {
           Copies a link that opens this exact design — furniture, finishes and floor plan — on any
           device. No account needed; the whole design travels in the link.
         </p>
-        <button type="button" className="btn btn-accent btn-block" onClick={copyPlanLink}>
+        <button type="button" className="btn btn-accent btn-block" onClick={copy3dLink}>
+          <Icon.Copy width={14} height={14} />
+          Copy 3D link
+        </button>
+        <button
+          type="button"
+          className="btn btn-soft btn-block"
+          onClick={copyPlanLink}
+          style={{ marginTop: 'var(--s-2)' }}
+        >
           <Icon.Copy width={14} height={14} />
           Copy plan link
         </button>
+        <p
+          style={{
+            fontSize: 'var(--t-2xs)',
+            color: 'var(--text-3)',
+            margin: 'var(--s-2) 0 0',
+            lineHeight: 1.4,
+          }}
+        >
+          Your uploaded models can't travel in a link — use Export file (.sofa.json) to share those.
+          The 3D link is capped at ~16 KB; the plan link has no cap.
+        </p>
       </div>
 
       <div className="sec">

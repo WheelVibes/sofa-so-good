@@ -18,7 +18,12 @@ import runs entirely **in your browser** — nothing is uploaded to a server.
 1. Non‑GLB models are **converted to GLB** in the browser.
 2. Every model runs through an **optimize pass** — weld / dedup / prune, Draco
    geometry compression, and WebP textures — so it loads fast in the scene.
-3. There's an opt‑in **Maximum compression (KTX2)** toggle for GPU‑compressed
+3. By default, low‑detail versions are also generated (the **Generate low‑detail
+   versions for slower devices** checkbox): simplified copies with smaller
+   textures that the **Performance** and **Medium** graphics tiers load instead
+   of the full model. Untick it to make big imports finish faster — the full
+   model is then used on every tier.
+4. There's an opt‑in **Maximum compression (KTX2)** toggle for GPU‑compressed
    textures; if KTX2 encoding isn't available it falls back to WebP.
 
 ## Importing
@@ -66,8 +71,24 @@ build one in the browser:
   (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
   wood, polished metal, a lit neon/lamp, or translucent glass). A live 3D preview
   updates as you go.
+- **Drag it in the preview** — selecting a shape shows a 3D gizmo on it, with a
+  **Move / Rotate / Scale** switch in the preview's corner (or press **G**, **R**, **S**).
+  Drag the arrows/rings/handles to place the shape; when you let go, the numbers in the
+  edit panel update (snapped to 5 mm and 1°), so you can still fine-tune by typing.
+  A **Combined** shape can be moved and rotated but not scaled — its geometry is baked,
+  so the Scale option is hidden for it.
 - **Start from an uploaded model** — pick one of your uploaded GLBs as the base and
   resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
+- **Combine (boolean)** — with a shape selected and at least one other shape in the
+  list, pick the second shape in the **with…** dropdown, then **Union** (merge both
+  into one solid), **Subtract** (carve the picked shape out of the selected one — a
+  notch, a hole) or **Intersect** (keep only the overlap). The result replaces both
+  shapes as a single **Combined** shape that keeps the selected shape's colour and
+  finish; you can keep moving/rotating it, recombining it, or carving it again. It
+  works on shapes only (not the source model), and there's no undo inside the
+  designer — re-add the shapes if you change your mind. If two shapes can't be
+  combined (for example intersecting shapes that don't overlap), you'll see
+  "Couldn't combine these shapes".
 
 Give it a name and category and hit **Save asset** — it's exported to a GLB and
 added to your catalog like any upload, ready to place and reuse. When you started

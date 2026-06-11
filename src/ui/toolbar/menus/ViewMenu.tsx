@@ -1,4 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
+import { isMultiLevel, planLevels } from '../../../floorplan/levels'
+import { detectVrSupport } from '../../../scene/xr/vrSupport'
+import { enterVr, getXrStore } from '../../../scene/xr/xrStore'
 import { useStore } from '../../../state/store'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
@@ -18,7 +22,26 @@ export function ViewMenu() {
   const autoRotate = useStore((s) => s.autoRotate)
   const toggleAutoRotate = useStore((s) => s.toggleAutoRotate)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  const plan = useStore((s) => s.floorPlan)
+  const viewLevelId = useStore((s) => s.viewLevelId)
+  const setViewLevel = useStore((s) => s.setViewLevel)
   const savedViews = useFeature('savedViews')
+  const fVr = useFeature('vrWalkthrough')
+  const [vrSupported, setVrSupported] = useState(false)
+  useEffect(() => {
+    if (!fVr) return
+    let on = true
+    void detectVrSupport().then((ok) => {
+      if (!on || !ok) return
+      setVrSupported(true)
+      // Pre-create the XR store so the Enter-VR click keeps its user
+      // activation (no chunk-load between gesture and requestSession).
+      void getXrStore()
+    })
+    return () => {
+      on = false
+    }
+  }, [fVr])
 
   const isOrbit = cameraMode === 'orbit'
   // The overview-only framing controls (top/reset/turntable/saved) only make
@@ -45,6 +68,49 @@ export function ViewMenu() {
         active={!isOrbit}
         onClick={() => setCameraMode('firstPerson')}
       />
+      {fVr && vrSupported ? (
+        <MenuItem
+          icon="Walk"
+          label="Enter VR"
+          sub="Immersive walkthrough on your headset"
+          onClick={() => {
+            useStore.getState().setVrActive(true)
+            void enterVr()
+          }}
+        />
+      ) : null}
+      {isMultiLevel(plan) ? (
+        <>
+          <div className="my-1 border-t border-[var(--border)]" />
+          <div className="px-2 pb-0.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
+            Levels
+          </div>
+          <MenuItem
+            icon="TopView"
+            label="All levels"
+            sub="Show every storey"
+            active={viewLevelId === 'all'}
+            onClick={() => setViewLevel('all')}
+          />
+          {planLevels(plan).map((l) => (
+            <MenuItem
+              key={l.id}
+              icon="TopView"
+              label={l.name}
+              // In walk mode picking a storey also teleports the walker onto it.
+              sub={
+                !isOrbit
+                  ? 'Walk this storey'
+                  : l.elevation > 0
+                    ? `Storey at ${l.elevation.toFixed(1)} m`
+                    : 'Street level'
+              }
+              active={viewLevelId === l.id}
+              onClick={() => setViewLevel(l.id)}
+            />
+          ))}
+        </>
+      ) : null}
       {overview ? (
         <>
           <div className="my-1 border-t border-[var(--border)]" />

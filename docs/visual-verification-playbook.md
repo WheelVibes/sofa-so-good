@@ -13,7 +13,14 @@ landmine someone already stepped on so you don't have to.
   `waitMs` ≥ 8000 for anything that loads a GLB.
 - Env: `SHOT_VIEWPORT="W,H"` (responsive breakpoints), `SHOT_TOUCH=1` (emulate a
   touch device — coarse pointer + `hasTouch`), `SHOT_INIT_LS='{…}'` (seed
-  localStorage, e.g. `hdb_onboarded`).
+  localStorage, e.g. `hdb_onboarded`), `SHOT_URL` (target another port — parallel
+  agents must run their **own** server on a free port, e.g.
+  `npm run dev -- --port 5199 --strictPort`, and never `pkill -f vite`),
+  `SHOT_NAV_TIMEOUT` ms (cold Vite transforms under parallel jobs easily blow
+  the default 60 s `goto`).
+- A dev server with a live HMR socket may never reach `networkidle2`; the harness
+  catches the goto timeout and continues (the page has committed — `waitMs` covers
+  boot), logging a `[harness] goto…` line. Treat that line as informational.
 - `evalFile` is a JS file run **in the page** after `waitMs`. `actionsJson` is a
   JSON array of input actions, run **after** the evalFile.
 - Actions: `{type:'drag',from:[x,y],to:[x,y]}`, `wheel:{x,y,dy}`, `click:{x,y}`,
@@ -23,6 +30,12 @@ landmine someone already stepped on so you don't have to.
   there — but only the last 30 lines, so if you log in a tight poll loop the
   early ones scroll off. Prefer one summary log at the end.
 - `window.__store` (the Zustand store) is exposed in dev. That's your main lever.
+- `SHOT_URL=http://localhost:<port>/?…` targets a non-default dev server (run your
+  own on a free port with `npm run dev -- --port <port> --strictPort` so you never
+  fight another session's server). Query params survive into the page, so an
+  evalFile can read variants from `location.search` and one evalFile serves many
+  shots. Navigation waits for `networkidle2` with a 120 s timeout — on a slow
+  (software-render) box the first cold load can take >60 s, so don't shorten it.
 
 ## Rules
 
@@ -61,6 +74,13 @@ st.dismissLocationPrompt?.()   // "Where are you?" sun-position modal
 the foreground "doors" you may see in the room editor are the apartment's door
 leaves, not your items — clear `s.items` first if you need an empty room.
 
+### Pro-tier features are OFF at boot (the app starts in Simple mode)
+The store boots with `uiMode: 'simple'`, which forces every `tier: 'pro'` flag
+off — so a pro-gated overlay/tool/panel you're verifying silently never mounts
+(no error, no DOM, clicks fall through to whatever is behind it). Call
+`st.setUiMode('pro')` in the evalFile right after dismissing the overlays
+(it re-resolves the flag map) before exercising any pro feature.
+
 ### `focusOn([x,z])` doesn't frame the item well
 `focusOn` recenters but keeps a high/far orbit angle, often pointing past a
 single placed item. To actually see the item: after focusing, drive the camera
@@ -68,7 +88,14 @@ with actions — `wheel` dy negative to zoom in, then a vertical `drag` from hig
 to low screen-Y to tilt down to a side view. Example that yields a usable
 profile:
 `[{"type":"drag","from":[700,160],"to":[700,520]},{"type":"wait","ms":400},{"type":"wheel","x":700,"y":400,"dy":-400},{"type":"wait","ms":1200}]`
-Tune the drag magnitude per scene; large vertical drags tilt more.
+Tune the drag magnitude per scene; large vertical drags tilt more. **Check which
+way your drag tilted**: from the default dollhouse pose a downward drag can pin
+the camera to straight top-down (polar → 0) instead of a profile — if your shot
+comes out plan-view, drag the *other* way (low→high screen-Y, e.g.
+`from:[700,520] to:[700,230]`) to tilt toward the horizon, then wheel-zoom in.
+Also set a daytime hour first (`setManualHour(12)`) or a night scene hides
+geometry faults; and place the item with `rotation: 0` facing the camera side
+you'll shoot from so drawer fronts/handles are visible.
 
 ### Items must be on-screen to mount (and to run their effects)
 GLB geometry effects (footprint, support-plane caches) run in `GltfModel`'s
@@ -109,6 +136,22 @@ acting (`setTimeout` loop checking the getter, then proceed), or (b) wait a fixe
 generous delay (≥ 3.5 s after the item is placed AND focused) before the action
 that depends on it. Polling is more robust; log only the final state.
 
+### Parallel worktree agents fight over the dev server
+Subagent worktrees live under `.claude/worktrees/` INSIDE the repo: their dev
+servers take 5173/5174 first, and their builds/file churn spam your Vite watcher
+(page reloads, dropped connections). Run your own server on a fixed port
+(`npm run dev -- --port 5199 --strictPort`) and point the harness at it with
+`SHOT_URL=http://localhost:5199/`.
+
+### IndexedDB does NOT persist across shot.mjs runs
+Each `shot.mjs` invocation launches a **fresh headless browser profile**, so
+anything written to IndexedDB in one run (uploaded assets, packs) is gone in the
+next — a "persist in run 1, verify hydration in run 2" plan silently probes an
+empty DB. Verify persistence/hydration round-trips **within a single run**:
+persist, then simulate the reboot in-page (clear the relevant store slice +
+session caches, call the hydrator, e.g. `hydrateUserAssets()` via a temp
+`main.tsx`/`bootstrap.ts` hook) and probe after that.
+
 ### The dev server dies mid-session
 Long runs / multiple shots can leave the Vite server down (`ERR_CONNECTION_
 REFUSED`). Before each shot batch, `curl -sf http://localhost:5173/` and restart
@@ -120,6 +163,23 @@ for i in $(seq 1 25); do sleep 1; curl -sf http://localhost:5173/ >/dev/null && 
 ```
 `pkill -f vite` exits non-zero (144) when it signals itself — that's harmless,
 not a failure.
+
+### `goto` times out on `networkidle2` in an offline sandbox
+Hung third-party fetches (Poly Haven/CDN requests that black-hole instead of
+failing) keep the network "busy" forever, so puppeteer's `networkidle2` never
+fires even though the app booted fine. The harness now catches that navigation
+timeout and continues (relying on `waitMs`) — if you see
+`[harness] goto networkidle2 timed out`, the shot is still valid.
+
+### Lazy panels mount seconds after their store flag flips
+Modals/panels are `lazy()`-loaded (PERF5): `setSmartStartOpen(true)` flips the
+store immediately, but the chunk can take several seconds to mount under the
+headless profile — a `document.querySelector('.modal-overlay')` probe right
+after is a false negative, and a keypress sent too early hits the un-mounted
+state. Poll for the DOM node (or the editor's `.plan-screen`) before acting,
+and put generous `wait` actions before synthetic keys. Also note `setInterval`
+ticks get throttled while the page is busy compiling shaders — log
+`performance.now()` deltas, not your tick count.
 
 ### Editing source mid-session triggers HMR
 Vite hot-reloads your edits into the running server, so you usually don't need to
@@ -178,6 +238,52 @@ move-cancel logic works (`store.contextMenu` / a one-shot `contextmenu` listener
 flag). The raycast→handler link is the same path a real right-click uses, so
 proving the synthesized event matches a real one is sufficient. (This is the same
 class of issue as the "orbit drag/zoom emulation is unreliable headless" note.)
+
+### drei TransformControls gizmos CAN be dragged headless (unlike R3F raycasts)
+The R3F-raycast limitation above does NOT apply to drei's `TransformControls`:
+it raycasts its own fat picker meshes from real pointer events on the canvas, so
+the harness `drag` action (real CDP mouse input) grips a gizmo handle fine under
+SwiftShader — dragging the GLB-designer translate arrow wrote the snapped value
+into the numeric field end-to-end. Two gotchas: (1) **compute drag coordinates
+in the PNG's REAL pixel space** — screenshots are 1600×1000 (`SHOT_VIEWPORT`
+default) but the Read tool may display them downscaled 2×, and coords picked off
+a *previous* shot are stale the moment the camera/Bounds refit moves (a missed
+drag silently orbits the camera instead, which is itself the tell); (2) take a
+fresh framing shot first, read the gizmo origin off `file <png>` dimensions,
+then aim for a point ~⅔ along the arrow shaft.
+
+### Verifying a new-window exporter (report / BOQ / shopping list)
+The harness screenshots only the original page, so a `window.open(…) → document.
+write(html)` exporter renders off-screen. Patch `window.open` in the evalFile to
+redirect the written HTML into the **main** document, then click the real menu
+item — this exercises the whole opener path (flag gate, dynamic import, data
+assembly, write) and leaves the export in the page for the screenshot:
+```js
+window.open = () => ({
+  document: { write: (h) => { document.open(); document.write(h); document.close(); },
+    close() {} }, focus() {}, close() {},
+});
+```
+Scroll the resulting plain-HTML page with `{type:'key',key:'End'}` for the footer.
+
+### Driving controlled React inputs from an evalFile
+Setting `el.value = …` directly does nothing — React's controlled input snaps
+back because no `input` event fired through its tracker. Use the **native value
+setter** then dispatch `input` (React listens for `input`, mapping it to
+`onChange`); for a `<select>` use `HTMLSelectElement.prototype`'s setter +
+a `change` event (or the harness `select` action when targeting by selector):
+```js
+const setVal = (el, v) => {
+  Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value').set.call(el, String(v))
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+}
+setVal(document.querySelector('input[aria-label="cylinder position X"]'), 0.15)
+```
+Target inputs by `aria-label` (stable, no test-ids needed). And **poll for the
+panel that renders the input** before setting it — after clicking a button that
+changes selection, a fixed 300 ms sleep is racy under the slow headless profile
+(this intermittently broke the GLB-designer CSG verification); poll for the
+specific `input[aria-label=…]`/`select[aria-label=…]` node instead.
 
 ### Driving a native `<select>` dropdown
 A click at the select's coordinates only *opens* the OS popup (which Chromium

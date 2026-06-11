@@ -100,3 +100,25 @@ describe('buildElectricalPlan', () => {
     expect(electricalKindLabel('tv-point')).toBe('TV point')
   })
 })
+
+describe('buildElectricalPlan — level tags (F13)', () => {
+  it('preserves a point levelId through validation (and drops non-strings)', () => {
+    const planFixture: FloorPlan = {
+      id: 'p',
+      name: 'P',
+      ceilingHeight: 2.6,
+      extent: [4, 4],
+      walls: [],
+      openings: [],
+      rooms: [],
+    }
+    const out = buildElectricalPlan(planFixture, [
+      { x: 1, z: 1, kind: 'socket', levelId: 'up' },
+      { x: 2, z: 2, kind: 'switch' },
+      { x: 3, z: 3, kind: 'data', levelId: 7 as unknown as string },
+    ])
+    expect(out.points[0].levelId).toBe('up')
+    expect(out.points[1].levelId).toBeUndefined()
+    expect(out.points[2].levelId).toBeUndefined()
+  })
+})

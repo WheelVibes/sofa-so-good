@@ -1,12 +1,13 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import { type Mesh, Vector2 } from 'three'
+import { type Group, Vector2 } from 'three'
 import type { PlanClippedWall, PlanRoomShell as Shell } from '../floorplan/planRoomShell'
+import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
+import { PlanWallFinishFace } from './walls/PlanWallFinishFace'
 
-const DEFAULT_PLAN_FLOOR = 'floor-wood-oak'
 const WALL_COLOR = '#ede9e2' // matches PlanShell's plaster walls
 const DOOR_COLOR = '#8a6d4f'
 const GLASS_COLOR = '#bcd6e6'
@@ -23,23 +24,26 @@ function WallBox({
   wall,
   center,
   height,
+  finishId,
 }: {
   wall: PlanClippedWall
   center: [number, number]
   height: number
+  /** Room wall finish; renders a room-facing finish plane over the plaster. */
+  finishId: MaterialId | null
 }) {
-  const ref = useRef<Mesh>(null)
+  const ref = useRef<Group>(null)
   const [sx, sz] = wall.start
   const [ex, ez] = wall.end
   const len = Math.hypot(ex - sx, ez - sz)
   const midX = (sx + ex) / 2
   const midZ = (sz + ez) / 2
 
+  // Outward (away-from-room-centre) normal — a general perpendicular so
+  // diagonal clipped walls resolve the same way as axis-aligned ones.
   const toMid = new Vector2(midX - center[0], midZ - center[1])
-  const horizontal = Math.abs(ez - sz) < 1e-3
-  const normal = horizontal
-    ? new Vector2(0, Math.sign(toMid.y) || 1)
-    : new Vector2(Math.sign(toMid.x) || 1, 0)
+  const normal = new Vector2(-(ez - sz), ex - sx).normalize()
+  if (toMid.dot(normal) < 0) normal.negate()
 
   useFrame((state) => {
     const m = ref.current
@@ -53,11 +57,27 @@ function WallBox({
   const t = clippedThickness(wall.thickness)
   const h = wall.topHeight ?? height
   const angle = Math.atan2(ez - sz, ex - sx)
+  // The group is rotated [0, -angle, 0], which maps local +Z to world
+  // (-sin angle, cos angle); the finish face goes on whichever local-Z side
+  // points back toward the room centre (opposite the outward normal).
+  const localZ = new Vector2(-Math.sin(angle), Math.cos(angle))
+  const interiorSign: 1 | -1 = localZ.dot(normal) >= 0 ? -1 : 1
   return (
-    <mesh ref={ref} position={[midX, h / 2, midZ]} rotation={[0, -angle, 0]} castShadow={false}>
-      <boxGeometry args={[len, h, t]} />
-      <meshStandardMaterial color={WALL_COLOR} roughness={0.9} />
-    </mesh>
+    <group ref={ref} position={[midX, h / 2, midZ]} rotation={[0, -angle, 0]}>
+      <mesh castShadow={false}>
+        <boxGeometry args={[len, h, t]} />
+        <meshStandardMaterial color={WALL_COLOR} roughness={0.9} />
+      </mesh>
+      {finishId ? (
+        <PlanWallFinishFace
+          materialId={finishId}
+          width={len}
+          height={h}
+          position={[0, 0, interiorSign * (t / 2 + 0.001)]}
+          yRot={interiorSign === 1 ? 0 : Math.PI}
+        />
+      ) : null}
+    </group>
   )
 }
 
@@ -70,9 +90,11 @@ function WallBox({
  */
 export function PlanRoomShell({ shell }: { shell: Shell }) {
   const planHeight = useStore((s) => s.floorPlan.ceilingHeight)
+  const finishes = useStore((s) => s.finishes)
   const room = shell.room
   const height = room.ceilingHeight ?? planHeight
-  const floorMat = (room.floor ?? DEFAULT_PLAN_FLOOR) as MaterialId
+  const floorMat = resolvePlanRoomFloor(finishes, room) as MaterialId
+  const wallMat = resolvePlanRoomWall(finishes, room) as MaterialId | null
 
   return (
     <group>
@@ -99,7 +121,13 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
       )}
 
       {shell.walls.map((w, i) => (
-        <WallBox key={`${w.wallId}-${i}`} wall={w} center={shell.center} height={height} />
+        <WallBox
+          key={`${w.wallId}-${i}`}
+          wall={w}
+          center={shell.center}
+          height={height}
+          finishId={wallMat}
+        />
       ))}
 
       {/* Openings: a glass pane (window) or a wood leaf (door), at the resolved

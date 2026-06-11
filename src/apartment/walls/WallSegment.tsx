@@ -60,7 +60,16 @@ function FacePlane({
   // Clone so this wall's face can fade for camera-reveal independently of the
   // shared, cached finish material (which other walls also use). Textures are
   // shared by reference, so disposing the clone frees only its own GPU program.
-  const faded = useMemo(() => material.clone(), [material])
+  // polygonOffset biases the depth test in rasterizer units so the face always
+  // wins over the wall body it sits 1 mm above — the world-space offset alone
+  // z-fights at zoomed-out orbit distances (depth precision shrinks with range).
+  const faded = useMemo(() => {
+    const m = material.clone()
+    m.polygonOffset = true
+    m.polygonOffsetFactor = -1
+    m.polygonOffsetUnits = -1
+    return m
+  }, [material])
   useEffect(() => () => faded.dispose(), [faded])
   return (
     <mesh

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useFeature } from '../../../features/useFeature'
 import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
 import { canRecord } from '../../../scene/RecordController'
 import { EXPORT_EVENT } from '../../../scene/ScreenshotController'
@@ -7,6 +8,7 @@ import { LocalStorageAdapter } from '../../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { openShoppingList } from '../../openShoplist'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** File cluster: save / load (with slot thumbnails + resets) / export PNG /
@@ -16,8 +18,11 @@ export function FileMenu() {
   const recording = useStore((s) => s.recording)
   const setRecording = useStore((s) => s.setRecording)
   const proMode = useStore((s) => s.uiMode === 'pro')
+  const fPanorama = useFeature('panorama')
+  const fHqRender = useFeature('hqRender')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
+  const fShopExport = useFeature('shopExport')
   const [slots, setSlots] = useState<SlotMeta[]>([])
 
   // Refresh the slot list whenever the menu mounts a panel render.
@@ -75,6 +80,30 @@ export function FileMenu() {
         sub="Save the current view as an image"
         onClick={() => window.dispatchEvent(new Event(EXPORT_EVENT))}
       />
+      {fPanorama ? (
+        <MenuItem
+          icon="Export"
+          label="360° panorama"
+          sub="Capture a look-around panorama"
+          onClick={() => useStore.getState().setPanoramaOpen(true)}
+        />
+      ) : null}
+      {fHqRender ? (
+        <MenuItem
+          icon="Export"
+          label="HQ render"
+          sub="Path-traced photoreal still"
+          onClick={() => useStore.getState().setHqRenderOpen(true)}
+        />
+      ) : null}
+      {fShopExport ? (
+        <MenuItem
+          icon="Budget"
+          label="Shopping list"
+          sub="Buy-list with prices, grouped by retailer"
+          onClick={() => openShoppingList()}
+        />
+      ) : null}
       {canRecord() && proMode ? (
         <MenuItem
           icon="Record"

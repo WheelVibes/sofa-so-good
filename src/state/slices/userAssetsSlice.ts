@@ -1,3 +1,4 @@
+import { LOD_TIERS, lodAssetId, unregisterLodVariants } from '../../furniture/gltf/lod'
 import type { IkeaGltfDef, UserGltfDef } from '../../furniture/types'
 import type { TexturedMaterialDef } from '../../materials/types'
 import { IdbAssetStore } from '../storage/IdbAssetStore'
@@ -49,6 +50,20 @@ function defResources(def: UserGltfDef | IkeaGltfDef): { url?: string; assetId?:
   return [{ url: def.runtimeUrl, assetId: def.assetId }]
 }
 
+/** Free one no-longer-referenced asset resource: revoke its blob URL (plus any
+ *  registered LOD-variant blob URLs) and delete its IDB record (plus the
+ *  derived `<id>:lod-*` tier siblings — harmless no-ops where none exist). */
+function freeResource(r: { url?: string; assetId?: string }): void {
+  if (r.url) {
+    for (const lodUrl of unregisterLodVariants(r.url)) URL.revokeObjectURL(lodUrl)
+    URL.revokeObjectURL(r.url)
+  }
+  if (r.assetId) {
+    void IdbAssetStore.delete(r.assetId)
+    for (const tier of LOD_TIERS) void IdbAssetStore.delete(lodAssetId(r.assetId, tier))
+  }
+}
+
 export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (set, get) => ({
   ...USER_ASSETS_INITIAL,
   addUserFurniture: (def) => set((s) => ({ userFurniture: [...s.userFurniture, def] })),
@@ -70,17 +85,7 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
         selectedItemIds: nextIds,
       }
     })
-    if (def) {
-      if (def.source === 'ikea') {
-        for (const variant of def.variants) {
-          if (variant.runtimeUrl) URL.revokeObjectURL(variant.runtimeUrl)
-          if (variant.assetId) void IdbAssetStore.delete(variant.assetId)
-        }
-      } else {
-        if (def.runtimeUrl) URL.revokeObjectURL(def.runtimeUrl)
-        void IdbAssetStore.delete(def.assetId)
-      }
-    }
+    if (def) for (const r of defResources(def)) freeResource(r)
   },
   replaceUserFurniture: (def) => {
     const existing = get().userFurniture.find((d) => d.id === def.id)
@@ -100,8 +105,10 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
       if (r.assetId) kept.add(`asset:${r.assetId}`)
     }
     for (const r of defResources(existing)) {
-      if (r.url && !kept.has(`url:${r.url}`)) URL.revokeObjectURL(r.url)
-      if (r.assetId && !kept.has(`asset:${r.assetId}`)) void IdbAssetStore.delete(r.assetId)
+      freeResource({
+        url: r.url && !kept.has(`url:${r.url}`) ? r.url : undefined,
+        assetId: r.assetId && !kept.has(`asset:${r.assetId}`) ? r.assetId : undefined,
+      })
     }
   },
   addManyUserFurniture: (defs) => {
@@ -124,8 +131,10 @@ export const createUserAssetsSlice: SliceCreator<UserAssetsSlice, RootState> = (
         if (r.assetId) kept.add(`asset:${r.assetId}`)
       }
       for (const r of defResources(old)) {
-        if (r.url && !kept.has(`url:${r.url}`)) URL.revokeObjectURL(r.url)
-        if (r.assetId && !kept.has(`asset:${r.assetId}`)) void IdbAssetStore.delete(r.assetId)
+        freeResource({
+          url: r.url && !kept.has(`url:${r.url}`) ? r.url : undefined,
+          assetId: r.assetId && !kept.has(`asset:${r.assetId}`) ? r.assetId : undefined,
+        })
       }
     }
   },

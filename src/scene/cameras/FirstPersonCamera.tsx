@@ -13,7 +13,16 @@ import {
 import { type CollisionWall, isLineOfSightBlocked, resolveMovement } from '../../collision/walls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
 import { KEYBINDINGS } from '../../controls/keybindings'
+import { isAnyModalOpen } from '../../controls/modalGuard'
 import { isEditableTarget } from '../../controls/useKeyboard'
+import {
+  GROUND_LEVEL_ID,
+  levelAsPlan,
+  levelElevation,
+  levelOfRoom,
+  levelSpawnPoint,
+  walkLevel,
+} from '../../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
 import { planRoomShell } from '../../floorplan/planRoomShell'
 import { planBounds, planRoomArea } from '../../floorplan/types'
@@ -82,19 +91,35 @@ export function FirstPersonCamera() {
   const doors = useStore((s) => s.doors)
   const floorPlan = useStore((s) => s.floorPlan)
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
+  const viewLevelId = useStore((s) => s.viewLevelId)
+  // The storey the walker stands on (F13/ML6c): outside the room editor it
+  // follows the View→Levels selection ('all' → ground); inside the editor it
+  // is the edited room's own storey — though the editor scene renders at y=0,
+  // so only item/wall scoping (not elevation) applies there.
+  const walkerLevelId = roomEditorId
+    ? (levelOfRoom(floorPlan, roomEditorId)?.id ?? GROUND_LEVEL_ID)
+    : walkLevel(floorPlan, viewLevelId).id
+  // Walker floor height = the level's elevation (0 in the room editor's
+  // unoffset scene). Ref'd so the frame loop reads the live value.
+  const floorElev = roomEditorId ? 0 : levelElevation(floorPlan, walkerLevelId)
+  const floorElevRef = useRef(floorElev)
+  floorElevRef.current = floorElev
   const collisionWalls = useRef<CollisionWall[]>([])
-  // Furniture footprints the walker can't pass through (rebuilt on item change).
+  // Furniture footprints the walker can't pass through (rebuilt on item change;
+  // scoped to the walker's storey — an upstairs bed doesn't block downstairs).
   const items = useStore(useShallow((s) => s.items))
   const { getDef } = useCatalogGetter()
   const blockers = useRef<OBB[]>([])
   useEffect(() => {
-    blockers.current = buildWalkBlockers(items, getDef)
-  }, [items, getDef])
+    blockers.current = buildWalkBlockers(items, getDef, walkerLevelId)
+  }, [items, getDef, walkerLevelId])
 
   useEffect(() => {
     // In the per-room editor, bound the player to the isolated room's clipped
     // walls (default apartment via roomShell; custom plan via planRoomShell).
-    // Otherwise walk-mode collision follows the active plan.
+    // Otherwise walk-mode collision follows the active plan — on multi-storey
+    // plans, the WALKER'S level's walls (levelAsPlan), so an upstairs walk
+    // collides with upstairs partitions, not the ground floor's (ML6c).
     if (roomEditorId) {
       if (isDefaultPlan(floorPlan)) {
         collisionWalls.current = buildRoomCollisionWalls(roomEditorId as RoomId, doors)
@@ -105,12 +130,15 @@ export function FirstPersonCamera() {
     } else {
       collisionWalls.current = isDefaultPlan(floorPlan)
         ? buildCollisionWalls(doors)
-        : planCollisionWalls(floorPlan, doors)
+        : planCollisionWalls(levelAsPlan(floorPlan, walkLevel(floorPlan, viewLevelId)), doors)
     }
-  }, [doors, floorPlan, roomEditorId])
+  }, [doors, floorPlan, roomEditorId, viewLevelId])
 
   useEffect(() => {
     const onDown = (e: KeyboardEvent) => {
+      // No walking while a modal dialog is open (WASD must not move the
+      // camera behind it). keyup still clears, so no key gets stuck held.
+      if (isAnyModalOpen()) return
       if (isEditableTarget(e)) return
       pressed.current[e.code] = true
     }
@@ -222,30 +250,44 @@ export function FirstPersonCamera() {
       // Face into the living/dining instead of inheriting the orbit angle.
       camera.lookAt(10.4, EYE_HEIGHT, 2.5)
     } else {
-      // Custom plan: spawn in the largest room (the default flat's hand-tuned
-      // living/dining spawn would land outside an arbitrary plan). Stand in the
-      // back third looking across the room so the first view shows the space, not
-      // a near wall.
       const plan = useStore.getState().floorPlan
-      const big = plan.rooms.reduce(
-        (a, b) => (a && planRoomArea(a) >= planRoomArea(b) ? a : b),
-        plan.rooms[0],
-      )
-      const [bw, bd] = planBounds(plan)
-      const cx = big ? big.origin[0] + big.width / 2 : bw / 2
-      const cz = big ? big.origin[1] + big.depth / 2 : bd / 2
-      const span = big ? big.depth : bd
-      camera.position.set(cx, EYE_HEIGHT, cz + span * 0.32)
-      camera.lookAt(cx, EYE_HEIGHT, cz - span * 0.32)
+      const level = walkLevel(plan, viewLevelId)
+      if (level.elevation > 0) {
+        // Walking an upper storey (View → Levels picked it, ML6c): teleport to
+        // that level's first room centre at eye height above ITS floor.
+        const sp = levelSpawnPoint(level)
+        const [bw, bd] = planBounds(plan)
+        const cx = sp?.x ?? bw / 2
+        const cz = sp?.z ?? bd / 2
+        const span = sp?.span ?? bd
+        const eye = level.elevation + EYE_HEIGHT
+        camera.position.set(cx, eye, cz + span * 0.32)
+        camera.lookAt(cx, eye, cz - span * 0.32)
+      } else {
+        // Custom plan ground floor: spawn in the largest room (the default
+        // flat's hand-tuned living/dining spawn would land outside an arbitrary
+        // plan). Stand in the back third looking across the room so the first
+        // view shows the space, not a near wall.
+        const big = plan.rooms.reduce(
+          (a, b) => (a && planRoomArea(a) >= planRoomArea(b) ? a : b),
+          plan.rooms[0],
+        )
+        const [bw, bd] = planBounds(plan)
+        const cx = big ? big.origin[0] + big.width / 2 : bw / 2
+        const cz = big ? big.origin[1] + big.depth / 2 : bd / 2
+        const span = big ? big.depth : bd
+        camera.position.set(cx, EYE_HEIGHT, cz + span * 0.32)
+        camera.lookAt(cx, EYE_HEIGHT, cz - span * 0.32)
+      }
     }
     // Seed drag-to-look yaw/pitch from the spawn orientation so the first drag
     // continues smoothly from where the camera is already pointing.
     const seed = new Euler().setFromQuaternion(camera.quaternion, 'YXZ')
     yaw.current = seed.y
     pitch.current = seed.x
-    yPos.current = EYE_HEIGHT
+    yPos.current = floorElevRef.current + EYE_HEIGHT
     yVel.current = 0
-    groundY.current = EYE_HEIGHT
+    groundY.current = floorElevRef.current + EYE_HEIGHT
     let prevFov: number | null = null
     if (camera instanceof PerspectiveCamera) {
       prevFov = camera.fov
@@ -260,7 +302,9 @@ export function FirstPersonCamera() {
         camera.updateProjectionMatrix()
       }
     }
-  }, [camera, roomEditorId])
+    // viewLevelId is a dep on purpose: picking a storey in View → Levels while
+    // walking teleports the walker onto that storey (ML6c).
+  }, [camera, roomEditorId, viewLevelId])
 
   const tmpForward = useRef(new Vector3())
   const tmpRight = useRef(new Vector3())
@@ -290,7 +334,8 @@ export function FirstPersonCamera() {
     const joystickMoving = Math.hypot(walkInput.move.x, walkInput.move.y) > 0.01
     const moving = !!(forward || back || left || rightKey) || joystickMoving
     const crouching = !!pressed.current['ShiftLeft'] || !!pressed.current['ShiftRight']
-    const targetGround = crouching ? CROUCH_HEIGHT : EYE_HEIGHT
+    // Stand on the walker's level's floor: eye/crouch height + its elevation.
+    const targetGround = floorElevRef.current + (crouching ? CROUCH_HEIGHT : EYE_HEIGHT)
     const dy = targetGround - groundY.current
     const maxStep = CROUCH_RATE * dt
     groundY.current += Math.abs(dy) <= maxStep ? dy : Math.sign(dy) * maxStep

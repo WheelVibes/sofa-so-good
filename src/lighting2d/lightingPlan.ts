@@ -9,7 +9,7 @@
  * "where are the lights, how high, how bright" deliverable (Chief Architect /
  * RoomSketcher reflected ceiling plans). Pure (no three, no React) → testable.
  */
-import { LIGHT_EMITTERS } from '../furniture/lightEmitters'
+import { isItemEmitter, LIGHT_EMITTERS } from '../furniture/lightEmitters'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 
 export interface PlanLight {
@@ -24,6 +24,8 @@ export interface PlanLight {
   height: number
   /** Peak intensity (candela). */
   intensity: number
+  /** Storey the fixture sits on; absent = ground (F13/ML5). */
+  levelId?: string
   /** Coverage / falloff radius (m). */
   distance: number
   color: string
@@ -49,7 +51,9 @@ export interface LightingPlan {
  * registered light emitter contribute; `defs` resolves friendly labels. The
  * emitter's optional local offset `[rightX, forwardZ]` is rotated by the item's
  * yaw into world space (matching the scene's fixture placement), so an arc-lamp
- * bulb sits out over the sofa on the plan just as it does in 3D.
+ * bulb sits out over the sofa on the plan just as it does in 3D. Items whose
+ * per-item `enabled` gate is off (a fixture whose light is switched off by its
+ * params) are excluded, matching the 3D scene.
  */
 export function buildLightingPlan(
   items: FurnitureItem[],
@@ -60,7 +64,7 @@ export function buildLightingPlan(
 
   for (const item of items) {
     const spec = LIGHT_EMITTERS[item.defId]
-    if (!spec) continue
+    if (!spec || !isItemEmitter(item.defId, item.props)) continue
     const def = defs[item.defId]
     const label = item.label ?? def?.name ?? item.defId
     const r = item.rotation
@@ -81,6 +85,7 @@ export function buildLightingPlan(
       z,
       height,
       intensity: spec.intensity,
+      ...(item.levelId ? { levelId: item.levelId } : {}),
       distance: spec.distance,
       color: spec.color,
     })

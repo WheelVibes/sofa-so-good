@@ -1,6 +1,8 @@
 import { useState } from 'react'
+import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
+import { levelById } from '../../floorplan/levels'
 import {
   type CeilingConfig,
   type CeilingStyle,
@@ -14,6 +16,7 @@ import { formatArea, formatLength } from '../../utils/measurement'
 import { useIsMobile } from '../useIsMobile'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
+const WALL_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.wall ?? []
 
 /** Numeric field with a label, editing one metre value. Holds the raw text while
  *  focused so the user can clear / type a partial value ("1.", "-") freely, and
@@ -158,14 +161,18 @@ function CeilingControls({
   )
 }
 
-/** Right-hand inspector for the selected floor-plan element. */
-export function PlanInspector() {
+/** Right-hand inspector for the selected floor-plan element. Elements are
+ *  looked up on (and edits routed to) the editor's active storey (F13/ML4b). */
+export function PlanInspector({ levelId }: { levelId?: string }) {
   const sel = useStore((s) => s.planSelection)
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
   const a = useStore.getState()
   const isMobile = useIsMobile()
   const ceilingDesignOn = useFeature('ceilingDesign')
+  // The active storey's geometry — selection ids come from the editor canvas,
+  // which only ever shows (so only ever selects) active-level elements.
+  const level = levelById(plan, levelId)
 
   let body: React.ReactNode = (
     <div className="flex flex-col gap-3">
@@ -226,7 +233,7 @@ export function PlanInspector() {
   )
 
   if (sel?.type === 'room') {
-    const r = plan.rooms.find((x) => x.id === sel.id)
+    const r = level.rooms.find((x) => x.id === sel.id)
     if (r)
       body = (
         <div className="space-y-2">
@@ -264,10 +271,32 @@ export function PlanInspector() {
             <span className="label">Floor finish</span>
             <select
               value={r.floor ?? 'floor-wood-oak'}
-              onChange={(e) => a.updateRoom(r.id, { floor: e.target.value })}
+              onChange={(e) =>
+                // Routed through the finishes slice (not a bare updateRoom) so
+                // the live finishes map stays in sync with the plan data.
+                a.setFloorFinish(r.id as RoomId, e.target.value)
+              }
               className="input"
             >
               {FLOOR_MATERIALS.map((m) => (
+                <option key={m.id} value={m.id}>
+                  {m.name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label className="flex flex-col gap-1 text-xs">
+            <span className="label">Wall finish</span>
+            <select
+              value={r.wall ?? ''}
+              onChange={(e) => {
+                if (e.target.value) a.setWallFinish(r.id as RoomId, e.target.value)
+                else a.clearWallFinish(r.id as RoomId)
+              }}
+              className="input"
+            >
+              <option value="">Plaster (default)</option>
+              {WALL_MATERIALS.map((m) => (
                 <option key={m.id} value={m.id}>
                   {m.name}
                 </option>
@@ -386,11 +415,11 @@ export function PlanInspector() {
           >
             Edit in 3D
           </button>
-          <DeleteBtn onClick={() => a.removeRoom(r.id)} label="Delete room" />
+          <DeleteBtn onClick={() => a.removeRoom(r.id, levelId)} label="Delete room" />
         </div>
       )
   } else if (sel?.type === 'wall') {
-    const w = plan.walls.find((x) => x.id === sel.id)
+    const w = level.walls.find((x) => x.id === sel.id)
     if (w)
       body = (
         <div className="space-y-2">
@@ -399,7 +428,7 @@ export function PlanInspector() {
               <button
                 key={t}
                 type="button"
-                onClick={() => a.updateWall(w.id, { thickness: t })}
+                onClick={() => a.updateWall(w.id, { thickness: t }, levelId)}
                 className={`capitalize${w.thickness === t ? ' on' : ''}`}
                 style={{ flex: 1 }}
               >
@@ -410,22 +439,22 @@ export function PlanInspector() {
           <Num
             label="Start X"
             value={w.start[0]}
-            onChange={(v) => a.updateWall(w.id, { start: [v, w.start[1]] })}
+            onChange={(v) => a.updateWall(w.id, { start: [v, w.start[1]] }, levelId)}
           />
           <Num
             label="Start Z"
             value={w.start[1]}
-            onChange={(v) => a.updateWall(w.id, { start: [w.start[0], v] })}
+            onChange={(v) => a.updateWall(w.id, { start: [w.start[0], v] }, levelId)}
           />
           <Num
             label="End X"
             value={w.end[0]}
-            onChange={(v) => a.updateWall(w.id, { end: [v, w.end[1]] })}
+            onChange={(v) => a.updateWall(w.id, { end: [v, w.end[1]] }, levelId)}
           />
           <Num
             label="End Z"
             value={w.end[1]}
-            onChange={(v) => a.updateWall(w.id, { end: [w.end[0], v] })}
+            onChange={(v) => a.updateWall(w.id, { end: [w.end[0], v] }, levelId)}
           />
           <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
             <span className="label">Length</span>
@@ -433,13 +462,13 @@ export function PlanInspector() {
               {formatLength(wallLength(w), units)}
             </span>
           </div>
-          <DeleteBtn onClick={() => a.removeWall(w.id)} label="Delete wall" />
+          <DeleteBtn onClick={() => a.removeWall(w.id, levelId)} label="Delete wall" />
         </div>
       )
   } else if (sel?.type === 'opening') {
-    const o = plan.openings.find((x) => x.id === sel.id)
+    const o = level.openings.find((x) => x.id === sel.id)
     if (o) {
-      const wall = plan.walls.find((x) => x.id === o.wallId)
+      const wall = level.walls.find((x) => x.id === o.wallId)
       const maxOff = wall ? Math.max(0, wallLength(wall) - o.width) : o.offset
       body = (
         <div className="space-y-2">
@@ -450,25 +479,27 @@ export function PlanInspector() {
             label="Offset (m)"
             value={o.offset}
             min={0}
-            onChange={(v) => a.updateOpening(o.id, { offset: Math.max(0, Math.min(maxOff, v)) })}
+            onChange={(v) =>
+              a.updateOpening(o.id, { offset: Math.max(0, Math.min(maxOff, v)) }, levelId)
+            }
           />
           <Num
             label="Width (m)"
             value={o.width}
             min={0.1}
-            onChange={(v) => a.updateOpening(o.id, { width: Math.max(0.1, v) })}
+            onChange={(v) => a.updateOpening(o.id, { width: Math.max(0.1, v) }, levelId)}
           />
           <Num
             label="Sill (m)"
             value={o.sill}
             min={0}
-            onChange={(v) => a.updateOpening(o.id, { sill: Math.max(0, v) })}
+            onChange={(v) => a.updateOpening(o.id, { sill: Math.max(0, v) }, levelId)}
           />
           <Num
             label="Head (m)"
             value={o.head}
             min={0.1}
-            onChange={(v) => a.updateOpening(o.id, { head: Math.max(0.1, v) })}
+            onChange={(v) => a.updateOpening(o.id, { head: Math.max(0.1, v) }, levelId)}
           />
           {o.kind === 'door' && (
             <>
@@ -480,7 +511,7 @@ export function PlanInspector() {
                       key={h}
                       type="button"
                       className={`capitalize${doorHinge(o) === h ? ' on' : ''}`}
-                      onClick={() => a.updateOpening(o.id, { hinge: h })}
+                      onClick={() => a.updateOpening(o.id, { hinge: h }, levelId)}
                       title={`Pivot the door on the ${h} jamb of the opening`}
                     >
                       {h}
@@ -496,7 +527,7 @@ export function PlanInspector() {
                       key={s}
                       type="button"
                       className={`capitalize${doorSwing(o) === s ? ' on' : ''}`}
-                      onClick={() => a.updateOpening(o.id, { swing: s })}
+                      onClick={() => a.updateOpening(o.id, { swing: s }, levelId)}
                       title={`Swing the leaf to the wall's ${s}-hand side`}
                     >
                       {s}
@@ -506,7 +537,7 @@ export function PlanInspector() {
               </div>
             </>
           )}
-          <DeleteBtn onClick={() => a.removeOpening(o.id)} label={`Delete ${o.kind}`} />
+          <DeleteBtn onClick={() => a.removeOpening(o.id, levelId)} label={`Delete ${o.kind}`} />
         </div>
       )
     }

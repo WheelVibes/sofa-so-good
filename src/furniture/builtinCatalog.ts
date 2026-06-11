@@ -4391,7 +4391,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         key: 'width',
         label: 'Width',
         min: 0.8,
-        max: 1.3,
+        max: 1.5,
         step: 0.05,
         default: 1.0,
         unit: 'm',
@@ -4406,6 +4406,17 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         default: 0.42,
         unit: 'm',
       },
+      {
+        kind: 'enum',
+        key: 'layout',
+        label: 'Base',
+        default: 'legs',
+        options: [
+          { value: 'legs', label: 'Open legs' },
+          { value: 'single-pedestal', label: 'Single pedestal' },
+          { value: 'double-pedestal', label: 'Double pedestal (kneehole)' },
+        ],
+      },
       { kind: 'color', key: 'color', label: 'Colour', default: '#e7ddca' },
       {
         kind: 'enum',
@@ -4415,6 +4426,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         options: [
           { value: 'round', label: 'Round' },
           { value: 'rect', label: 'Rectangle' },
+          { value: 'none', label: 'None (table only)' },
         ],
       },
       {

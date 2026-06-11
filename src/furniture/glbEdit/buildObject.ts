@@ -1,11 +1,12 @@
 import {
   BoxGeometry,
-  type BufferGeometry,
+  BufferGeometry,
   CapsuleGeometry,
   Color,
   ConeGeometry,
   CylinderGeometry,
   ExtrudeGeometry,
+  Float32BufferAttribute,
   Group,
   type Material,
   MathUtils,
@@ -104,6 +105,20 @@ export function partGeometry(part: ShapePart): BufferGeometry {
       const tube = Math.max(0.01, h / 2)
       const radius = Math.max(tube, w / 2 - tube)
       return new TorusGeometry(radius, tube, 16, 48)
+    }
+    case 'mesh': {
+      // A CSG combine result: triangles are baked (already sized + centred on
+      // the part origin), so rebuild verbatim from the stored arrays.
+      const data = part.geometry
+      if (!data) return new BoxGeometry(w, h, d) // defensive: malformed spec
+      const geo = new BufferGeometry()
+      geo.setAttribute('position', new Float32BufferAttribute(data.positions, 3))
+      if (data.normals.length === data.positions.length) {
+        geo.setAttribute('normal', new Float32BufferAttribute(data.normals, 3))
+      }
+      if (data.index) geo.setIndex(data.index)
+      if (!geo.getAttribute('normal')) geo.computeVertexNormals()
+      return geo
     }
     case 'wedge': {
       // Right-triangular prism (a ramp): triangle in the Z/Y plane rising toward

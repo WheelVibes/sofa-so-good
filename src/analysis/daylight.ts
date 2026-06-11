@@ -10,6 +10,7 @@
  * Pure logic only — no React, no three — so it stays fully unit-testable. The
  * panel (`ui/DaylightPanel.tsx`) is presentation over the rows this returns.
  */
+import { isMultiLevel, levelAsPlan, planLevels } from '../floorplan/levels'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from '../floorplan/types'
 import { planRoomArea, pointInRoom, wallLength } from '../floorplan/types'
 
@@ -124,6 +125,24 @@ function roomForWindow(
  * is not used by the glazing maths today.
  */
 export function buildDaylightReport(plan: FloorPlan, _items?: unknown): DaylightReport {
+  // Multi-storey (F13/ML5): assess each storey's rooms against ITS OWN
+  // walls/openings, then merge — a ground window must not light an upstairs
+  // bedroom at the same XZ. Single-level plans skip straight through.
+  if (isMultiLevel(plan)) {
+    const rows = planLevels(plan).flatMap(
+      (level) => buildDaylightReport(levelAsPlan(plan, level)).rooms,
+    )
+    const passCount = rows.filter((r) => r.daylightPass && r.ventPass).length
+    return {
+      rooms: rows,
+      passCount,
+      failCount: rows.length - passCount,
+      daylightPassCount: rows.filter((r) => r.daylightPass).length,
+      ventPassCount: rows.filter((r) => r.ventPass).length,
+      allPass: rows.length - passCount === 0,
+      thresholds: { daylight: DAYLIGHT_MIN_RATIO, vent: VENT_MIN_RATIO },
+    }
+  }
   // Guard a partial / hand-built plan whose arrays may be absent, so every caller
   // is safe without its own outer guard.
   const planRooms = Array.isArray(plan.rooms) ? plan.rooms : []

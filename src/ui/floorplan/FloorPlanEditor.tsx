@@ -9,11 +9,13 @@ import {
 } from '../../ai/floorPlanAi'
 import { obbCorners } from '../../collision/obb'
 import { canPlace, itemFootprint } from '../../collision/placement'
-import { buildCollisionWalls } from '../../collision/wallsFromState'
+import { placementWalls } from '../../collision/placementWalls'
+import { isAnyModalOpen } from '../../controls/modalGuard'
+import { exitPlanEditorToScene } from '../../controls/planEditorHotkey'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
-import { isDefaultPlan, planCollisionWalls } from '../../floorplan/planGeometry'
+import { GROUND_LEVEL_ID, levelAsPlan, levelById, levelOfItem } from '../../floorplan/levels'
 import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
@@ -31,25 +33,28 @@ import {
   updateBackdropMeta,
 } from './backdropPersist'
 import { exportPlanPng } from './exportPlanPng'
+import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
 
-/** Muted top-down fill per furniture category for the 2D plan layer. */
+/** Muted top-down fill per furniture category for the 2D plan layer.
+ *  Tokens live in `screens.css` (`--plan-cat-*`) so the plan themes correctly;
+ *  `exportPlanPng.ts` PLAN_VARS must list every var used here. */
 const CATEGORY_FILL: Record<FurnitureCategory, string> = {
-  beds: '#b08a6a',
-  seating: '#8a9a7a',
-  tables: '#c0a070',
-  storage: '#9a8470',
-  kitchen: '#9aa0a8',
-  bathroom: '#88a8b0',
-  appliances: '#8890a0',
-  lighting: '#d8c080',
-  decor: '#b89a8a',
-  textiles: '#b0907a',
-  outdoor: '#7a9a70',
-  electronics: '#7a8088',
-  kids: '#c89aa8',
-  laundry: '#90a0a8',
-  others: '#9a9488',
+  beds: 'var(--plan-cat-beds)',
+  seating: 'var(--plan-cat-seating)',
+  tables: 'var(--plan-cat-tables)',
+  storage: 'var(--plan-cat-storage)',
+  kitchen: 'var(--plan-cat-kitchen)',
+  bathroom: 'var(--plan-cat-bathroom)',
+  appliances: 'var(--plan-cat-appliances)',
+  lighting: 'var(--plan-cat-lighting)',
+  decor: 'var(--plan-cat-decor)',
+  textiles: 'var(--plan-cat-textiles)',
+  outdoor: 'var(--plan-cat-outdoor)',
+  electronics: 'var(--plan-cat-electronics)',
+  kids: 'var(--plan-cat-kids)',
+  laundry: 'var(--plan-cat-laundry)',
+  others: 'var(--plan-cat-others)',
 }
 
 type Tool =
@@ -108,6 +113,19 @@ export function FloorPlanEditor() {
 
   const [tool, setTool] = useState<Tool>('select')
   const [wallType, setWallType] = useState<'internal' | 'external'>('internal')
+  // Active storey (F13/ML4b): every tool, overlay and inspector edit operates
+  // on this level's walls/rooms/openings. Resets to ground when the editor
+  // opens or a different plan becomes active.
+  const [activeLevelId, setActiveLevelId] = useState<string>(GROUND_LEVEL_ID)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: editing/plan.id are reset triggers.
+  useEffect(() => {
+    setActiveLevelId(GROUND_LEVEL_ID)
+  }, [editing, plan.id])
+  // A stale id (level undone/removed) degrades to ground; use the EFFECTIVE id
+  // everywhere so the tab highlight and the routed actions always agree.
+  const activeLevel = levelById(plan, activeLevelId)
+  const levelPlan = levelAsPlan(plan, activeLevel)
+  const levelId = activeLevel.id
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null)
   // Active room drag (select tool): grab offset from the room origin.
   const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null)
@@ -278,31 +296,10 @@ export function FloorPlanEditor() {
     img.src = url
   }
 
-  // Frame the selected furniture in 3D when leaving the editor, so toggling
-  // 2D->3D lands on whatever you were working on (the seamless-toggle payoff).
-  const exitToScene = useCallback(() => {
-    const st = useStore.getState()
-    st.setFloorPlanEditing(false)
-    if (st.selectedItemId) {
-      const it = st.items.find((i) => i.id === st.selectedItemId)
-      if (it) st.focusOn(it.position)
-    }
-  }, [])
-
-  // `P` toggles the editor from anywhere (a persistent 2D<->3D switch), unless
-  // the user is typing or in walk mode. Always mounted so it works from 3D too.
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.code !== 'KeyP' || e.metaKey || e.ctrlKey || e.altKey) return
-      if (isEditableTarget(e)) return
-      const st = useStore.getState()
-      if (st.cameraMode === 'firstPerson') return
-      if (st.floorPlanEditing) exitToScene()
-      else st.setFloorPlanEditing(true)
-    }
-    window.addEventListener('keydown', onKey)
-    return () => window.removeEventListener('keydown', onKey)
-  }, [exitToScene])
+  // Exiting back to 3D (Done button / Escape) frames the selected furniture via
+  // the shared `exitPlanEditorToScene`. NOTE: the `P` open/close binding lives in
+  // `controls/planEditorHotkey.ts` (always mounted via App) — this component is
+  // lazy-mounted only while open, so a listener here could never OPEN it.
 
   const [ew, ed] = planBounds(plan)
   const basePX = useMemo(() => {
@@ -350,30 +347,39 @@ export function FloorPlanEditor() {
   }, [editing, centerPlan])
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
-   *  explicit polygon for area/render/containment). Stable (reads the store). */
-  const commitPolyRoom = useCallback((verts: [number, number][]) => {
-    if (verts.length < 3) return
-    const xs = verts.map((v) => v[0])
-    const zs = verts.map((v) => v[1])
-    const x0 = Math.min(...xs)
-    const z0 = Math.min(...zs)
-    const st = useStore.getState()
-    const n = st.floorPlan.rooms.length + 1
-    const id = st.addRoom({
-      name: `Room ${n}`,
-      origin: [x0, z0],
-      width: Math.max(0.1, Math.max(...xs) - x0),
-      depth: Math.max(0.1, Math.max(...zs) - z0),
-      polygon: verts,
-    })
-    st.setPlanSelection({ type: 'room', id })
-  }, [])
+   *  explicit polygon for area/render/containment) on the active storey. */
+  const commitPolyRoom = useCallback(
+    (verts: [number, number][]) => {
+      if (verts.length < 3) return
+      const xs = verts.map((v) => v[0])
+      const zs = verts.map((v) => v[1])
+      const x0 = Math.min(...xs)
+      const z0 = Math.min(...zs)
+      const st = useStore.getState()
+      const n = levelById(st.floorPlan, levelId).rooms.length + 1
+      const id = st.addRoom(
+        {
+          name: `Room ${n}`,
+          origin: [x0, z0],
+          width: Math.max(0.1, Math.max(...xs) - x0),
+          depth: Math.max(0.1, Math.max(...zs) - z0),
+          polygon: verts,
+        },
+        levelId,
+      )
+      st.setPlanSelection({ type: 'room', id })
+    },
+    [levelId],
+  )
 
   // Enter closes an in-progress polygon room; Esc cancels it (or exits the
   // editor when nothing is mid-draw); Delete removes the selected element.
   useEffect(() => {
     if (!editing) return
     const onKey = (e: KeyboardEvent) => {
+      // A modal on top of the 2D editor owns the keyboard (incl. its own
+      // Escape) — don't exit the editor / delete elements behind it.
+      if (isAnyModalOpen()) return
       if (e.key === 'Enter' && polyDraft.length >= 3) {
         commitPolyRoom(polyDraft)
         setPolyDraft([])
@@ -383,7 +389,7 @@ export function FloorPlanEditor() {
           return
         }
         setDraft(null)
-        exitToScene()
+        exitPlanEditorToScene()
       } else if (e.key === 'Delete' || e.key === 'Backspace') {
         // Don't hijack Backspace/Delete while editing a field (e.g. the room
         // name / dimension inputs in the inspector) — that would silently delete
@@ -391,9 +397,9 @@ export function FloorPlanEditor() {
         if (isEditableTarget(e)) return
         const st = useStore.getState()
         if (sel) {
-          if (sel.type === 'wall') st.removeWall(sel.id)
-          else if (sel.type === 'room') st.removeRoom(sel.id)
-          else st.removeOpening(sel.id)
+          if (sel.type === 'wall') st.removeWall(sel.id, levelId)
+          else if (sel.type === 'room') st.removeRoom(sel.id, levelId)
+          else st.removeOpening(sel.id, levelId)
         } else if (st.selectedItemId) {
           // A furniture footprint is selected — delete it (parity with 3D).
           st.deleteItem(st.selectedItemId)
@@ -402,7 +408,7 @@ export function FloorPlanEditor() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing, sel, exitToScene, polyDraft, commitPolyRoom])
+  }, [editing, sel, polyDraft, commitPolyRoom, levelId])
 
   if (!editing) return null
 
@@ -412,11 +418,11 @@ export function FloorPlanEditor() {
     const y = ((e.clientY - rect.top) / rect.height) * H
     let wx = snap(x / PX - GRID_MARGIN)
     let wz = snap(y / PX - GRID_MARGIN)
-    // Vertex snap: prefer an existing wall endpoint within ~0.3 m so walls
-    // connect cleanly at corners. Skip the wall being vertex-dragged so its own
-    // endpoints don't capture the cursor.
+    // Vertex snap: prefer an existing wall endpoint (on the active storey)
+    // within ~0.3 m so walls connect cleanly at corners. Skip the wall being
+    // vertex-dragged so its own endpoints don't capture the cursor.
     let best = 0.3
-    for (const w of plan.walls) {
+    for (const w of levelPlan.walls) {
       if (w.id === excludeWallId) continue
       for (const p of [w.start, w.end]) {
         const dd = Math.hypot(p[0] - wx, p[1] - wz)
@@ -430,13 +436,13 @@ export function FloorPlanEditor() {
     return [wx, wz]
   }
 
-  /** Find the nearest wall to a world point, with the projected offset along it. */
+  /** Nearest active-storey wall to a world point, with the projected offset. */
   const nearestWall = (
     wx: number,
     wz: number,
   ): { wall: PlanWall; offset: number; dist: number } | null => {
     let best: { wall: PlanWall; offset: number; dist: number } | null = null
-    for (const wall of plan.walls) {
+    for (const wall of levelPlan.walls) {
       const dx = wall.end[0] - wall.start[0]
       const dz = wall.end[1] - wall.start[1]
       const len = Math.hypot(dx, dz)
@@ -471,8 +477,8 @@ export function FloorPlanEditor() {
     if (tool === 'wall' || tool === 'room' || tool === 'scale') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
     } else if (tool === 'autoroom') {
-      // Make a room from the wall loop enclosing the click.
-      const poly = detectRoomPolygon(st.floorPlan.walls, [wx, wz])
+      // Make a room from the active storey's wall loop enclosing the click.
+      const poly = detectRoomPolygon(levelById(st.floorPlan, levelId).walls, [wx, wz])
       if (poly) commitPolyRoom(poly)
       else
         st.notify.start({
@@ -493,7 +499,7 @@ export function FloorPlanEditor() {
       const hit = nearestWall(wx, wz)
       if (hit) {
         const len = wallLength(hit.wall)
-        st.splitWall(hit.wall.id, len > 0 ? hit.offset / len : 0.5)
+        st.splitWall(hit.wall.id, len > 0 ? hit.offset / len : 0.5, levelId)
       }
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
@@ -501,18 +507,29 @@ export function FloorPlanEditor() {
         const width = tool === 'door' ? 0.9 : 1.2
         const offset = Math.max(0, Math.min(wallLength(hit.wall) - width, hit.offset - width / 2))
         const snapped = snap(offset)
-        const id = st.addOpening({
-          kind: tool,
-          wallId: hit.wall.id,
-          offset: snapped,
-          width,
-          sill: tool === 'door' ? 0 : 0.95,
-          head: tool === 'door' ? 2.1 : 2.1,
-          // Orient a new door to open into the room it serves (convention).
-          ...(tool === 'door'
-            ? { swing: defaultDoorSwing(st.floorPlan, hit.wall, snapped, width) }
-            : {}),
-        })
+        const id = st.addOpening(
+          {
+            kind: tool,
+            wallId: hit.wall.id,
+            offset: snapped,
+            width,
+            sill: tool === 'door' ? 0 : 0.95,
+            head: tool === 'door' ? 2.1 : 2.1,
+            // Orient a new door to open into the room it serves (convention) —
+            // judged against the active storey's rooms.
+            ...(tool === 'door'
+              ? {
+                  swing: defaultDoorSwing(
+                    levelAsPlan(st.floorPlan, levelById(st.floorPlan, levelId)),
+                    hit.wall,
+                    snapped,
+                    width,
+                  ),
+                }
+              : {}),
+          },
+          levelId,
+        )
         st.setPlanSelection({ type: 'opening', id })
       }
     } else {
@@ -528,7 +545,7 @@ export function FloorPlanEditor() {
     }
     if (movingVertex) {
       const [wx, wz] = pointerWorld(e, movingVertex.id)
-      useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz])
+      useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz], levelId)
       return
     }
     if (movingItem) {
@@ -538,9 +555,9 @@ export function FloorPlanEditor() {
       const def = it ? catalogRef.current[it.defId] : undefined
       if (!it || !def) return
       const pos: [number, number] = [snap(wx - movingItem.gx), snap(wz - movingItem.gz)]
-      const planWalls = isDefaultPlan(st.floorPlan)
-        ? buildCollisionWalls(st.doors)
-        : planCollisionWalls(st.floorPlan, st.doors)
+      // Validate against the ITEM's storey walls (shared placement-wall rule —
+      // ground items on the default flat get its door-aware walls via canPlace).
+      const planWalls = placementWalls(st, it.levelId)
       const others = st.items.filter((o) => o.id !== it.id)
       // Only commit a move that doesn't collide with walls or other items —
       // same rule the 3D DragController enforces.
@@ -610,11 +627,14 @@ export function FloorPlanEditor() {
     }
     if (tool === 'wall') {
       if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.2) {
-        const id = st.addWall({
-          start: [draft.x0, draft.z0],
-          end: [draft.x, draft.z],
-          thickness: wallType,
-        })
+        const id = st.addWall(
+          {
+            start: [draft.x0, draft.z0],
+            end: [draft.x, draft.z],
+            thickness: wallType,
+          },
+          levelId,
+        )
         st.setPlanSelection({ type: 'wall', id })
       }
     } else if (tool === 'room') {
@@ -623,15 +643,18 @@ export function FloorPlanEditor() {
       const w = Math.abs(draft.x - draft.x0)
       const d = Math.abs(draft.z - draft.z0)
       if (w > 0.3 && d > 0.3) {
-        const n = st.floorPlan.rooms.length + 1
-        const id = st.addRoom({ name: `Room ${n}`, origin: [x, z], width: w, depth: d })
+        const n = levelById(st.floorPlan, levelId).rooms.length + 1
+        const id = st.addRoom({ name: `Room ${n}`, origin: [x, z], width: w, depth: d }, levelId)
         st.setPlanSelection({ type: 'room', id })
       }
     }
     setDraft(null)
   }
 
-  const total = planTotalArea(plan)
+  // Area + room count for the ACTIVE storey (matches what's on the canvas).
+  const total = planTotalArea(levelPlan)
+  // Only the active storey's furniture footprints overlay the plan.
+  const levelItems = items.filter((it) => levelOfItem(plan, it).id === levelId)
 
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
@@ -651,6 +674,7 @@ export function FloorPlanEditor() {
           className="input"
           style={{ width: 192 }}
         />
+        <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
         <div className="seg accent" style={{ marginLeft: 4 }}>
           {(
             ['select', 'wall', 'room', 'polyroom', 'autoroom', 'split', 'door', 'window'] as Tool[]
@@ -866,9 +890,9 @@ export function FloorPlanEditor() {
             <b className="mono" style={{ color: 'var(--text)' }}>
               {formatArea(total, units)}
             </b>{' '}
-            · {plan.rooms.length} rooms
+            · {levelPlan.rooms.length} rooms
           </span>
-          <button type="button" onClick={exitToScene} className="btn btn-accent btn-sm">
+          <button type="button" onClick={exitPlanEditorToScene} className="btn btn-accent btn-sm">
             Done
           </button>
         </div>
@@ -953,8 +977,8 @@ export function FloorPlanEditor() {
               ed={ed}
             />
 
-            {/* Rooms */}
-            {plan.rooms.map((r) => {
+            {/* Rooms (active storey) */}
+            {levelPlan.rooms.map((r) => {
               const isSel = sel?.type === 'room' && sel.id === r.id
               return (
                 <g
@@ -1022,9 +1046,10 @@ export function FloorPlanEditor() {
               )
             })}
 
-            {/* Furniture footprints — the live 3D layout, top-down. Click to
-                select (shared with 3D); drag (select tool) to move. */}
-            {items.map((it) => {
+            {/* Furniture footprints — the live 3D layout, top-down, filtered to
+                the active storey. Click to select (shared with 3D); drag
+                (select tool) to move. */}
+            {levelItems.map((it) => {
               const def = getDef(it.defId)
               if (!def) return null
               const obb = itemFootprint(it, def)
@@ -1036,7 +1061,11 @@ export function FloorPlanEditor() {
                 <polygon
                   key={it.id}
                   points={pts}
-                  fill={isSel ? 'var(--accent-soft)' : (CATEGORY_FILL[def.category] ?? '#9a9488')}
+                  fill={
+                    isSel
+                      ? 'var(--accent-soft)'
+                      : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
+                  }
                   fillOpacity={isSel ? 0.95 : 0.55}
                   stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
                   strokeWidth={isSel ? 2 : 1}
@@ -1059,7 +1088,7 @@ export function FloorPlanEditor() {
             {/* Name of the selected furniture item — a single label so the user
                 can tell what they clicked among many same-coloured footprints. */}
             {(() => {
-              const it = items.find((i) => i.id === selectedItemId)
+              const it = levelItems.find((i) => i.id === selectedItemId)
               if (!it) return null
               const def = getDef(it.defId)
               const name = it.label ?? def?.name
@@ -1087,8 +1116,8 @@ export function FloorPlanEditor() {
               )
             })()}
 
-            {/* Walls */}
-            {plan.walls.map((w) => {
+            {/* Walls (active storey) */}
+            {levelPlan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
               return (
                 <line
@@ -1121,7 +1150,7 @@ export function FloorPlanEditor() {
                 placed at each wall midpoint, nudged to the wall's outward side.
                 Shown only for walls long enough to be legible. */}
             {showWallDims &&
-              plan.walls.map((w) => {
+              levelPlan.walls.map((w) => {
                 const len = wallLength(w)
                 if (len < 0.4) return null
                 const mx = (w.start[0] + w.end[0]) / 2
@@ -1150,8 +1179,8 @@ export function FloorPlanEditor() {
             {/* Opening (door/window) width labels — same "Dims" toggle. Placed on
                 the side opposite a door's swing so they clear the arc. */}
             {showWallDims &&
-              plan.openings.map((o) => {
-                const wall = plan.walls.find((w) => w.id === o.wallId)
+              levelPlan.openings.map((o) => {
+                const wall = levelPlan.walls.find((w) => w.id === o.wallId)
                 if (!wall) return null
                 const len = wallLength(wall)
                 if (len === 0) return null
@@ -1197,9 +1226,9 @@ export function FloorPlanEditor() {
                       y={toPx(z)}
                       width={w * PX}
                       height={h * PX}
-                      fill="#0d9488"
+                      fill="var(--plan-annot)"
                       fillOpacity={0.1}
-                      stroke="#0d9488"
+                      stroke="var(--plan-annot)"
                       strokeWidth={1.5}
                       strokeDasharray="5 3"
                     />
@@ -1208,7 +1237,7 @@ export function FloorPlanEditor() {
                       y={toPx(z + h / 2)}
                       textAnchor="middle"
                       dominantBaseline="middle"
-                      fill="#0d9488"
+                      fill="var(--plan-annot)"
                       style={{ fontSize: 11, fontWeight: 600 }}
                     >
                       {`${formatDims(w, h, units)} · ${formatArea(w * h, units)}`}
@@ -1225,7 +1254,7 @@ export function FloorPlanEditor() {
                     y1={toPx(az)}
                     x2={toPx(bx)}
                     y2={toPx(bz)}
-                    stroke="#0d9488"
+                    stroke="var(--plan-annot)"
                     strokeWidth={2}
                     strokeDasharray="5 3"
                   />
@@ -1234,7 +1263,7 @@ export function FloorPlanEditor() {
                     y={toPx((az + bz) / 2) - 6}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fill="#0d9488"
+                    fill="var(--plan-annot)"
                     style={{ fontSize: 11, fontWeight: 600 }}
                   >
                     {formatLength(len, units)}
@@ -1249,7 +1278,7 @@ export function FloorPlanEditor() {
             {tool === 'select' &&
               sel?.type === 'wall' &&
               (() => {
-                const w = plan.walls.find((x) => x.id === sel.id)
+                const w = levelPlan.walls.find((x) => x.id === sel.id)
                 if (!w) return null
                 return (['start', 'end'] as const).map((which) => {
                   const p = w[which]
@@ -1273,8 +1302,8 @@ export function FloorPlanEditor() {
               })()}
 
             {/* Openings — architectural symbols (door swing / window double-line) */}
-            {plan.openings.map((o) => {
-              const wall = plan.walls.find((w) => w.id === o.wallId)
+            {levelPlan.openings.map((o) => {
+              const wall = levelPlan.walls.find((w) => w.id === o.wallId)
               if (!wall) return null
               const len = wallLength(wall)
               if (len === 0) return null
@@ -1433,8 +1462,8 @@ export function FloorPlanEditor() {
           </svg>
         </div>
 
-        {/* Inspector */}
-        <PlanInspector />
+        {/* Inspector — edits hit the active storey's elements */}
+        <PlanInspector levelId={levelId} />
       </div>
     </div>
   )

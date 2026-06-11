@@ -50,6 +50,12 @@ export interface FeaturesSlice {
   swapItemId: string | null
   /** Share & export modal visibility. */
   shareOpen: boolean
+  /** 360° panorama capture/viewer modal visibility. */
+  panoramaOpen: boolean
+  /** Path-traced HQ render modal visibility. */
+  hqRenderOpen: boolean
+  /** An immersive-VR session is active/requested (mounts the XR provider). */
+  vrActive: boolean
   /** Clearance & fit checks panel visibility. */
   clearancePanelOpen: boolean
   /** Wall-elevations panel visibility. */
@@ -64,6 +70,8 @@ export interface FeaturesSlice {
   versionsOpen: boolean
   /** Undo/redo history (timeline + jump-to-step) panel visibility. */
   historyOpen: boolean
+  /** Pinned design comments (F24) panel visibility. */
+  commentsOpen: boolean
   /** Smart Start wizard (pick a style → furnished flat) visibility. */
   smartStartOpen: boolean
   /** GLB Asset Designer (compose/edit a custom asset → catalog) visibility. */
@@ -97,6 +105,9 @@ export interface FeaturesSlice {
   setHelpOpen: (open: boolean) => void
   setSwapItemId: (id: string | null) => void
   setShareOpen: (open: boolean) => void
+  setPanoramaOpen: (open: boolean) => void
+  setHqRenderOpen: (open: boolean) => void
+  setVrActive: (active: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
   setDaylightOpen: (open: boolean) => void
@@ -104,6 +115,7 @@ export interface FeaturesSlice {
   setAccessibilityOpen: (open: boolean) => void
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
+  setCommentsOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
   setGlbDesignerOpen: (open: boolean) => void
   setLoginOpen: (open: boolean) => void
@@ -124,6 +136,9 @@ export const FEATURES_INITIAL = {
   helpOpen: false,
   swapItemId: null as string | null,
   shareOpen: false,
+  panoramaOpen: false,
+  hqRenderOpen: false,
+  vrActive: false,
   clearancePanelOpen: false,
   elevationsOpen: false,
   daylightOpen: false,
@@ -131,6 +146,7 @@ export const FEATURES_INITIAL = {
   accessibilityOpen: false,
   versionsOpen: false,
   historyOpen: false,
+  commentsOpen: false,
   smartStartOpen: false,
   glbDesignerOpen: false,
   loginOpen: false,
@@ -167,6 +183,9 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setHelpOpen: (helpOpen) => set({ helpOpen }),
   setSwapItemId: (swapItemId) => set({ swapItemId }),
   setShareOpen: (shareOpen) => set({ shareOpen }),
+  setPanoramaOpen: (panoramaOpen) => set({ panoramaOpen }),
+  setHqRenderOpen: (hqRenderOpen) => set({ hqRenderOpen }),
+  setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),
   setDaylightOpen: (daylightOpen) => set({ daylightOpen }),
@@ -174,6 +193,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setAccessibilityOpen: (accessibilityOpen) => set({ accessibilityOpen }),
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
+  setCommentsOpen: (commentsOpen) => set({ commentsOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
   setLoginOpen: (loginOpen) => set({ loginOpen }),

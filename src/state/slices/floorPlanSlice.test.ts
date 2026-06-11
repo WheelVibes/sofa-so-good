@@ -122,3 +122,146 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().savedPlans.filter((p) => p.name === 'Dupe').length).toBe(1)
   })
 })
+
+describe('multi-storey level editing (F13/ML4a)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('addLevel appends an empty storey above the ceiling and is undoable', () => {
+    const id = useStore.getState().addLevel('Loft')
+    const plan = useStore.getState().floorPlan
+    const lvl = plan.upperLevels?.find((l) => l.id === id)
+    expect(lvl?.name).toBe('Loft')
+    expect(lvl?.elevation).toBeCloseTo(plan.ceilingHeight + 0.3, 5)
+    useStore.getState().undo()
+    expect(useStore.getState().floorPlan.upperLevels ?? []).toHaveLength(0)
+  })
+
+  it('geometry actions route to the targeted level', () => {
+    const lvl = useStore.getState().addLevel()
+    const wallId = useStore
+      .getState()
+      .addWall({ start: [0, 0], end: [3, 0], thickness: 'internal' }, lvl)
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Up', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    const s = useStore.getState()
+    const up = s.floorPlan.upperLevels?.[0]
+    expect(up?.walls.map((w) => w.id)).toEqual([wallId])
+    expect(up?.rooms.map((r) => r.id)).toEqual([roomId])
+    // Ground arrays untouched by the routed adds.
+    expect(s.floorPlan.walls.some((w) => w.id === wallId)).toBe(false)
+    // Update + remove route too.
+    s.updateWall(wallId, { thickness: 'external' }, lvl)
+    expect(useStore.getState().floorPlan.upperLevels?.[0].walls[0].thickness).toBe('external')
+    s.removeWall(wallId, lvl)
+    expect(useStore.getState().floorPlan.upperLevels?.[0].walls).toHaveLength(0)
+  })
+
+  it('removeLevel drops the storey, its items and its finish keys', () => {
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Up', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    useStore.getState().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+    const upId = useStore.getState().items.at(-1)?.id as string
+    useStore.setState((s) => ({
+      items: s.items.map((it) => (it.id === upId ? { ...it, levelId: lvl } : it)),
+    }))
+    useStore.getState().setFloorFinish(roomId as never, 'floor-carpet-grey')
+    useStore.getState().removeLevel(lvl)
+    const s = useStore.getState()
+    expect(s.floorPlan.upperLevels ?? []).toHaveLength(0)
+    expect(s.items.some((it) => it.id === upId)).toBe(false)
+    expect((s.finishes.floor as Record<string, string>)[roomId]).toBeUndefined()
+    expect(s.floorPlan.rooms.some((r) => r.id === roomId)).toBe(false)
+  })
+
+  it('removeLevel is a no-op for ground/unknown ids', () => {
+    const before = useStore.getState().floorPlan
+    useStore.getState().removeLevel('ground')
+    useStore.getState().removeLevel('nope')
+    expect(useStore.getState().floorPlan).toBe(before)
+  })
+})
+
+describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('updateRoom finds and patches a room on an upper level', () => {
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Loft room', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    const groundBefore = useStore.getState().floorPlan.rooms
+    useStore.getState().updateRoom(roomId, { name: 'Renamed', width: 4 })
+    const s = useStore.getState()
+    const up = s.floorPlan.upperLevels?.[0].rooms.find((r) => r.id === roomId)
+    expect(up?.name).toBe('Renamed')
+    expect(up?.width).toBe(4)
+    // Ground rooms untouched (same array reference — no realloc on upper edits).
+    expect(s.floorPlan.rooms).toBe(groundBefore)
+  })
+
+  it('setRoomCeiling patches and clears a ceiling on an upper-level room', () => {
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Up', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    useStore.getState().setRoomCeiling(roomId, { style: 'tray', drop: 0.2 })
+    const room = () => useStore.getState().floorPlan.upperLevels?.[0].rooms[0]
+    expect(room()?.ceiling).toEqual({ style: 'tray', drop: 0.2 })
+    useStore.getState().setRoomCeiling(roomId, null)
+    expect(room()?.ceiling).toBeUndefined()
+  })
+
+  it('splitWall with a levelId splits the upper wall and re-homes its openings', () => {
+    const lvl = useStore.getState().addLevel()
+    const wid = useStore
+      .getState()
+      .addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' }, lvl)
+    const oid = useStore
+      .getState()
+      .addOpening(
+        { kind: 'window', wallId: wid, offset: 2.5, width: 0.8, sill: 0.9, head: 2.1 },
+        lvl,
+      )
+    const groundWalls = useStore.getState().floorPlan.walls
+    useStore.getState().splitWall(wid, 0.5, lvl)
+    const s = useStore.getState()
+    const up = s.floorPlan.upperLevels?.[0]
+    expect(up?.walls.some((w) => w.id === wid)).toBe(false) // original gone
+    const a = up?.walls.find((w) => w.start[0] === 0 && w.end[0] === 2)
+    const b = up?.walls.find((w) => w.start[0] === 2 && w.end[0] === 4)
+    expect(a).toBeDefined()
+    expect(b).toBeDefined()
+    // The opening past the split moved to the second half, offset rebased.
+    const open = up?.openings.find((o) => o.id === oid)
+    expect(open?.wallId).toBe(b?.id)
+    expect(open?.offset).toBeCloseTo(0.5, 5)
+    // Selection moved to the first half; ground walls untouched.
+    expect(s.planSelection).toEqual({ type: 'wall', id: a?.id })
+    expect(s.floorPlan.walls).toBe(groundWalls)
+  })
+
+  it('moveWallVertex with a levelId drags shared corners on that level only', () => {
+    const lvl = useStore.getState().addLevel()
+    const w1 = useStore
+      .getState()
+      .addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' }, lvl)
+    const w2 = useStore
+      .getState()
+      .addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' }, lvl)
+    // A ground wall sharing the same corner coordinates must NOT move.
+    const gw = useStore.getState().addWall({ start: [2, 0], end: [5, 0], thickness: 'internal' })
+    useStore.getState().moveWallVertex(w1, 'end', [3, 1], lvl)
+    const s = useStore.getState()
+    const up = s.floorPlan.upperLevels?.[0]
+    expect(up?.walls.find((w) => w.id === w1)?.end).toEqual([3, 1])
+    expect(up?.walls.find((w) => w.id === w2)?.start).toEqual([3, 1])
+    expect(s.floorPlan.walls.find((w) => w.id === gw)?.start).toEqual([2, 0])
+  })
+})

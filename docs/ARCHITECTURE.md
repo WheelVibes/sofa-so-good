@@ -20,7 +20,8 @@ same change that reshapes a system.
   in-app via `src/ui/docsUrl.ts` (guide only in a built `dist/`, `docs:dev` port 5175).
   **Developer docs** = local-only `docs/developer/` (`docs:dev:developer` 5176).
 - `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — Puppeteer
-  screenshot harness (actions drag/rdrag/wheel/click/type/key/wait); `crop.mjs`/`perf.mjs`.
+  screenshot harness (actions drag/rdrag/wheel/click/type/key/wait; `SHOT_URL` env targets a
+  non-default dev port); `crop.mjs`/`perf.mjs`.
 - `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) IKEA price lookup.
@@ -44,9 +45,12 @@ same change that reshapes a system.
   when a room's `ceiling` config is set (`ceilingDesign` flag).
 - `src/floorplan/` — editable plan model: `types.ts` (FloorPlan + area/bounds/polygon
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
-  `isDefaultPlan`), `templates.ts` (18 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo,
-  condo studio/1-bed/1+study/2/3/4-bed/penthouse, terrace — `docs/research/{hdb,condo}-floor-plans.md`),
-  `roomDetect.ts`. 2D editor = `ui/floorplan/`.
+  `isDefaultPlan`), `templates.ts` (19 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo +
+  two-storey Executive Maisonette, condo studio/1-bed/1+study/2/3/4-bed/penthouse, two-storey
+  terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`),
+  `roomDetect.ts`, `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
+  `upperLevels` adds storeys; `planLevels`/`levelById`/`levelAsPlan`/`allPlanRooms`/
+  `withLevelGeometry` — see `docs/research/multi-level-design.md`). 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (parametric defs),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
@@ -54,7 +58,10 @@ same change that reshapes a system.
   `lightEmitters.ts`. Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
   `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`); `optimize/` (`optimizeGlb.ts`
-  pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`);
+  pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
+  `lodVariants.ts` in-browser `-low`/`-medium` tier generation for uploads — meshopt simplify
+  + tier texture caps from `gltf/lod.ts` `TIER_BUDGETS`, stored in IDB under
+  `<assetId>:lod-<tier>` keys, routed by the `lod.ts` variant registry);
   `ikea/` (`metadata`/`translate`/`importGroup`/`compatibility`/`detectGroups`/`stacking`/
   `supportPlane`/`thumbnail`/`ikeaSets`); `upload/` (`bulkImport.ts` `prepareModelFile`=
   convert+optimize+`persistUserGlb`, `hashFile.ts` dedupe, `readDrop.ts`, `runImport.ts`
@@ -65,7 +72,9 @@ same change that reshapes a system.
   `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR, `reencode.ts`→WebP; 16MB cap, KTX2/DDS deferred).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
-  `quality.ts`+`QualityController`, `ScreenshotController`, cameras, selection,
+  `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
+  (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in
+  `ui/PanoramaModal.tsx`, `panorama` flag), cameras, selection,
   `SceneBackdrop.tsx` dispatcher (City/Park/Hills/Studio); `CityBackdrop.tsx` (instanced two-ring HDB
   estate + rooftop tanks + night-lit windows), `ParkBackdrop.tsx`/`HillsBackdrop.tsx` (instanced trees /
   depth-banded hills), `StudioBackdrop.tsx` (seamless gradient-dome cyclorama) — all share `Ground.tsx`
@@ -121,8 +130,19 @@ same change that reshapes a system.
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
   in the catalog like any upload — or, with **Update original** (when built from a user asset),
   re-homes the export under the source's id via `replaceUserFurniture` so placed copies update
-  (`buildOverwriteDef`, pure-tested). Launched from ⌘K. TODO: per-component recolour/
-  hide of a source GLB's meshes (v2).
+  (`buildOverwriteDef`, pure-tested). **Combine (boolean)**: with a part selected, pick a
+  second part ("with…") and union/subtract/intersect — `csgCombine.ts` bakes each part's
+  transform into its geometry, runs `three-bvh-csg` (dynamic-imported at the call site so it
+  stays out of the boot bundle), and replaces both with one `mesh` part (baked triangles in
+  `ShapePart.geometry`, re-centred on the result bounds, first part's material; degenerate
+  results throw → toast). Pure helpers (`canCombineParts`/`bakedPartGeometry`/
+  `meshPartFromGeometry`/`replaceWithCombined`) are tested. **Drag gizmo**: the selected part
+  gets a drei `TransformControls` gizmo in the preview (Move/Rotate/Scale segmented control
+  overlay + G/R/S keys in-dialog; orbit auto-pauses while dragging via `makeDefault`). A
+  finished drag is written back through the SAME `updatePart` path as the numeric inputs —
+  `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps to 5 mm /
+  1°; `mesh` parts hide Scale (triangles are baked). Launched from ⌘K. TODO:
+  per-component recolour/hide of a source GLB's meshes (v2).
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
   **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through
   spotlight; only "Skip tour"/Esc ends it; location prompt suppressed while open),
@@ -142,7 +162,9 @@ same change that reshapes a system.
   **exposure** multiplier (`clampExposure`, Graphics slider) rides on top of the auto-exposure.
 - **GLB models + LOD** (`furniture/gltf/`): bundled CC0 + user + IKEA via one loader.
   `optimize:glb` writes `-low`/`-medium` (≤512/1024px WebP + ~50/75% tris, Draco);
-  `lod.ts` picks per asset tier; `textureBudget.ts` = last-resort downscale. `--ktx2`
+  `lod.ts` picks per asset tier (HEAD-probe for `-low.glb` siblings; a **variant registry**
+  for uploads, whose in-browser-generated tiers live in IDB as blob URLs — registered at
+  persist + rehydration); `textureBudget.ts` = last-resort downscale. `--ktx2`
   emits Basis-Universal (needs `toktx`, else WebP).
 - **Procedural materials**: `procedural/generators.ts` paints one tiling tile per finish
   from seeded noise; world-space UVs tile at fixed physical scale. `furnitureMaterials.ts`
@@ -191,9 +213,18 @@ same change that reshapes a system.
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + lighting + FF&E, title blocks, `@page` A4) reusing all the
   pure renderers — the formal counterpart to the one-page `report.ts`.
+- **Shoppable buy-list** (`ui/shoplist.ts` pure `buildShopList`+`buildShopListHtml` →
+  per-retailer-grouped buy-list HTML: qty/unit/line totals per (def,variant,room), grand + per-retailer
+  totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the
+  builder). Flag `shopExport` (simple, prod); File menu + mobile File + ⌘K. IKEA product links/SKUs only
+  with retailer defs; links dev-gated via `ikeaLive` (licensing) — generic export ships in prod.
 - **Lighting plan** (`lighting2d/lightingPlan.ts` pure → fixtures from the `LIGHT_EMITTERS` registry
-  with world pos/height/intensity/coverage + a schedule; `ui/lighting2d/lightingPlanSvg.ts` draws
-  walls + coverage circles + glyphs). Surfaced in the report (plan + schedule). Same pure-core →
+  with world pos/height/intensity/coverage + a schedule, honouring per-item `enabled()` gates;
+  `ui/lighting2d/lightingPlanSvg.ts` draws walls + coverage circles + glyphs).
+  `lighting2d/roomLux.ts` (pure) adds a per-room average-lux estimate (lumen method: candela → 4π
+  lumens × calibration, utilisation factor 0.45, ÷ floor area) statused ok/low/high against
+  recommended residential bands per room kind (`roomKindFromName`). Surfaced in the Drawings panel
+  (badge list), the report and the drawing set (`roomLuxTableHtml`). Same pure-core →
   palette-injected-SVG pattern as elevations.
 - **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
   clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the
@@ -207,12 +238,23 @@ same change that reshapes a system.
   door clear widths vs 0.85 m + 1.5 m wheelchair turning circle per habitable room; BCA-Code rule of
   thumb). `ui/AccessibilityPanel.tsx` (`.aux`, Tools + ⌘K) + the report's Accessibility section.
   Plan-only (reads for a bare shell).
+- **Plan advisories** (`analysis/hdbCompliance.ts` pure → `buildComplianceReport(plan)`: data-driven
+  `RULES` producing non-binding permit/caution/info `Advisory` hints — structural walls, wet areas,
+  facade windows, floor loading, ceiling heights). `analysis/stairConnectivity.ts` (ML6b) follows
+  the same pattern for multi-storey plans: `buildStairAdvisories(plan, items, getDef)` flags any
+  upper storey no staircase reaches (a `staircase`-family item on the storey below whose footprint
+  lands in rooms of BOTH storeys). Both surface in the report's "HDB compliance hints" section.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
   rule across the whole design and `findWallClips(items,defs,walls)` flags pieces
   embedded in a wall (both power the Clearance panel's checks); items
   carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
-  centralizes wall selection (room editor → solid perimeter). **Wall reveal**
+  centralizes wall selection (room editor → solid perimeter; upper storeys → own
+  walls). All cross-item/wall scans are **storey-scoped** (F13/ML3): `itemsCollide`
+  + `findNarrowGaps` gate pairs on `levelId`, `levelWallClips.ts
+  findWallClipsByLevel` resolves each item's own level's walls (used by score /
+  report / Clearance panel), and walk-mode `buildWalkBlockers` keeps the
+  walker's-storey items (level teleport, ML6c). **Wall reveal**
   (`apartment/walls/`): exterior walls between camera and interior fade out.
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
@@ -222,26 +264,50 @@ same change that reshapes a system.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): 2D editor of store `floorPlan`
   — walls, rectangular/L-shape (`extension`)/free-`polygon` rooms (Polygon + Auto-room),
   doors/windows, ceiling height (global + per-room), grid+corner snap, per-room floor
-  finishes, length labels. **Split** + draggable endpoint handles (`moveWallVertex`) for
-  non-orthogonal shapes. Live furniture as `canPlace`-checked footprints. **`P` toggles
-  2D⇄3D**. **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
+  finishes, length labels. Per-room **floor + wall finishes** resolve through
+  `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
+  the finish setters write through to the active plan and plan activation prunes stale
+  custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split** + draggable endpoint handles (`moveWallVertex`) for
+  non-orthogonal shapes. Live furniture as `canPlace`-checked footprints (active storey
+  only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
+  "＋ Level" (adds + switches) + ✕ on upper tabs (confirmed `removeLevel`); every tool,
+  overlay and `PlanInspector` edit routes through the active level (`levelAsPlan` reads,
+  `levelId` action args; `updateRoom`/`setRoomCeiling`/finish write-through search all
+  storeys by room id). **`P` toggles
+  2D⇄3D** — the binding lives in `controls/planEditorHotkey.ts` (always mounted via App,
+  modal-guarded), NOT in the lazy-mounted editor, so it opens from the 3D view too.
+  **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
   Undoable + persists (`floorPlanStore.ts`).
 - **Toolbar** (`ui/toolbar/`): scrollable icon island (`IconButton` + `ToolbarMenu`).
-  Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice`),
+  Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice` with
+  per-view note + 360°-slide toggles and Present…),
   **Scene** (time slider + Lighting + Backdrop + sun `CompassModal`), **Edit** (step into
   room / floor-plan), **Arrange** (Tidy + Sets/Presets/Styles pick→Apply `PickApply`),
   **Tools** (Budget/Checks/Sun study/Walkthrough/Report), **File**, **Graphics**. Three
   states: overview/room-editor/walk. Tooltips+menus via `Popover`; shortcut chips from
   `controls/keybindings.ts`. Mobile: minimal bar → bottom action-sheet accordion (`MobileToolbar.tsx`).
+- **Keyboard shortcuts** (`controls/`): `keybindings.ts` (the key map) + `useKeyboard.ts`
+  (global keydown hook; skips repeats + editable targets) + `modalGuard.ts` (module-level
+  open-modal counter — the shared `Modal` primitive and the modal-style overlays register
+  while open, and every global keydown handler early-returns via `isAnyModalOpen()`, so
+  hotkeys can't fire behind a dialog; Escape stays per-modal, ⌘K/undo are suppressed).
 - **Walk-mode** (`scene/cameras/FirstPersonCamera.tsx`, `walkInput.ts`, `ui/walk/`): fine
   = Pointer Lock (WASD+mouse, Esc; native banner unstyleable), coarse = `WalkJoystick` +
-  drag-look; `WalkHud`, `Crosshair`. **Mobile viewport** (`index.html`, `responsive.css`,
+  drag-look; `WalkHud`, `Crosshair`. Multi-storey (ML6c): the walker's storey follows
+  `viewLevelId` (`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`) — picking a level in
+  View→Levels while walking teleports to its first room centre at `elevation + eye`, and
+  collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Mobile viewport** (`index.html`, `responsive.css`,
   `MobileLongPress.tsx`): `viewport-fit=cover`+`100dvh` full-bleed canvas (controls in
   `env(safe-area-inset-*)`); `body.mobile` kills text-select/callout/double-tap-zoom;
   long-press → `contextmenu`. **FPS** (`FpsCounter.tsx`): DOM pill, rAF, `showFps`.
 - **Design tools** (Arrange/Tools): **Sets** (`furnitureSets.ts` + IKEA `ikeaSets.ts`),
   **Checks** (`layout/clearance.ts`), **Sun study**, **Walkthrough** (tour+record),
   **Measure** (`TapeMeasure.tsx`, Distance/Area, 📌 Pin → persistent `annotations`),
+  **Comments** (F24: `commentsSlice` `{position,[levelId],text,resolved}` + undoable CRUD;
+  `scene/CommentPins.tsx` level-elevated numbered pins + one-tap placement plane →
+  `promptText`; `ui/CommentsPanel.tsx` `.aux` list with resolve/edit/focus; persists in the
+  save schema (optional `comments[]`) so pins travel with `.sofa.json` + `#/design/` links;
+  `comments` flag, pro),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen
@@ -259,13 +325,24 @@ same change that reshapes a system.
   — `jumpHistory`, `historyTimeline.ts`), **Shopping + Collections** (`BudgetPanel` + heart
   `fav-btn`; budget target → over/under + Spend by room/category; `ui/BudgetHud`; pure
   `itemsCost`/`spendByRoom`/`shoppingGroups`/`shoppingCsv`), **Share** (`ShareModal` —
-  `sofa:export` PNG + photoreal/link).
+  `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
+  capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` + shared
+  drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
+  `panorama` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
+  pro — full-screen saved-views slideshow with per-view notes; views marked 360° (`SavedView.pano`)
+  capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses there,
+  pure `ui/presentation/slideLogic.ts`).
 - **Mirror reflections** (`primitives/MirrorMaterial.tsx`): real planar reflection on
   High/Maximum (`mirrorReflectorConfig(tier)`), fake-shiny pane below. Uploaded GLB
   mirrors via inspector "Reflective surface" (`props.reflective`, `gltf/mirrorPlane.ts`).
 - **Live pricing/AI/sharing**: dev-only "Live IKEA SG prices" (`livePrice.ts`/`price-server.mjs`,
-  fails soft to `furniturePrices.ts`); **AI photoreal** (`ui/ai/`, BYO-key i2i in Share);
-  **Plan sharing** (`planShare.ts`, backend-less `#/plans/<code>`).
+  fails soft to `furniturePrices.ts`); **AI photoreal** (`ui/ai/`, BYO-key i2i in Share; after a result, "Redesign this
+  render" style chips re-run the same call with a restyled prompt — pure `ai/styleVariants.ts`
+  + `ui/ai/variantGallery.ts` reducer — into a selectable/downloadable variant gallery);
+  **Plan sharing** (`planShare.ts`, backend-less `#/plans/<code>`); **3D design link**
+  (`designShare.ts`, `#/design/<code>` — same codec, session noise + non-portable
+  upload defs stripped, ~16 KB code budget with a `.sofa.json` fallback message,
+  tighter bomb guard; unknown-defId items dropped with a count on open).
 - **Feature flags** (`features/featureFlags.ts`, `featureFlagsSlice`, `ui/FlagsPanel.tsx`):
   `FEATURE_FLAGS` = single source of what ships; pure `resolveFlags(isDev, overrides,
   isAdmin)` — prod locked, dev/admin unlocks `devOnly`+overrides. **Auth** (`authSlice`,

@@ -16,14 +16,20 @@ export interface CameraSlice {
   /** World [x, z] the orbit camera should frame on the next focus request. */
   focusPoint: [number, number] | null
   /** True while an automated walkthrough tour is playing. */
-  touring: boolean
+  /** Auto-tour state: false, the room fly-over, or the saved-views cinematic
+   *  tour. Truthy checks keep working (RenderPump renders continuously). */
+  touring: false | 'rooms' | 'views'
   setCameraMode: (m: CameraMode) => void
   requestTopView: () => void
   requestHomeView: () => void
   toggleAutoRotate: () => void
+  /** Storey visibility for multi-level plans: 'all' or one level id (the
+   *  ground level's id is 'ground'). Stale ids degrade to 'all' in render. */
+  viewLevelId: string
+  setViewLevel: (id: string) => void
   /** Re-target the orbit camera onto a world point (double-click an item). */
   focusOn: (point: [number, number]) => void
-  setTouring: (v: boolean) => void
+  setTouring: (v: boolean | 'rooms' | 'views') => void
 }
 
 export const CAMERA_INITIAL: Pick<
@@ -32,6 +38,7 @@ export const CAMERA_INITIAL: Pick<
   | 'topViewNonce'
   | 'homeViewNonce'
   | 'autoRotate'
+  | 'viewLevelId'
   | 'focusNonce'
   | 'focusPoint'
   | 'touring'
@@ -40,6 +47,7 @@ export const CAMERA_INITIAL: Pick<
   topViewNonce: 0,
   homeViewNonce: 0,
   autoRotate: false,
+  viewLevelId: 'all',
   focusNonce: 0,
   focusPoint: null,
   touring: false,
@@ -59,6 +67,7 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get
   requestTopView: () => set((s) => ({ topViewNonce: s.topViewNonce + 1, cameraMode: 'orbit' })),
   requestHomeView: () => set((s) => ({ homeViewNonce: s.homeViewNonce + 1, cameraMode: 'orbit' })),
   toggleAutoRotate: () => set((s) => ({ autoRotate: !s.autoRotate })),
+  setViewLevel: (viewLevelId) => set({ viewLevelId }),
   focusOn: (point) => set((s) => ({ focusPoint: point, focusNonce: s.focusNonce + 1 })),
-  setTouring: (v) => set({ touring: v }),
+  setTouring: (v) => set({ touring: v === true ? 'rooms' : v }),
 })

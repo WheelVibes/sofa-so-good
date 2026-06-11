@@ -1,9 +1,16 @@
-import { Bounds, OrbitControls, useGLTF } from '@react-three/drei'
+import { Bounds, OrbitControls, TransformControls, useGLTF } from '@react-three/drei'
 import { Canvas } from '@react-three/fiber'
 import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MathUtils, Mesh, type Object3D } from 'three'
+import { useModalGuard } from '../../controls/modalGuard'
 import { buildEditedObject, partGeometry } from '../../furniture/glbEdit/buildObject'
+import {
+  CSG_OPS,
+  type CsgOp,
+  canCombineParts,
+  combineParts,
+} from '../../furniture/glbEdit/csgCombine'
 import {
   type AssetEditSpec,
   addPart,
@@ -20,6 +27,12 @@ import {
   setMeshOverride,
   updatePart,
 } from '../../furniture/glbEdit/editSpec'
+import {
+  GIZMO_MODES,
+  type GizmoMode,
+  gizmoModesFor,
+  gizmoPatch,
+} from '../../furniture/glbEdit/gizmoWriteBack'
 import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
 import type { UserGltfDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
@@ -48,7 +61,7 @@ function SourceModel({
 /** One primitive part, built from the SAME `partGeometry` the export uses (so
  *  the preview can never drift from the saved GLB). Geometry is memoised on the
  *  part's kind+size and disposed when it changes/unmounts. */
-function PartMesh({ part }: { part: ShapePart }) {
+function PartMesh({ part, meshRef }: { part: ShapePart; meshRef?: (m: Mesh | null) => void }) {
   // `part` is recreated immutably by updatePart on every edit, so depending on
   // it rebuilds the geometry exactly when kind/size change.
   const geom = useMemo(() => partGeometry(part), [part])
@@ -58,6 +71,7 @@ function PartMesh({ part }: { part: ShapePart }) {
   const rot = part.rotation
   return (
     <mesh
+      ref={meshRef}
       position={part.position}
       rotation={
         rot
@@ -82,11 +96,17 @@ function PartMesh({ part }: { part: ShapePart }) {
 }
 
 /** The composed primitive parts, rendered declaratively (export uses buildEditedObject). */
-function PartsPreview({ spec }: { spec: AssetEditSpec }) {
+function PartsPreview({
+  spec,
+  meshRefFor,
+}: {
+  spec: AssetEditSpec
+  meshRefFor: (id: string) => (m: Mesh | null) => void
+}) {
   return (
     <>
       {spec.parts.map((p) => (
-        <PartMesh key={p.id} part={p} />
+        <PartMesh key={p.id} part={p} meshRef={meshRefFor(p.id)} />
       ))}
     </>
   )
@@ -123,10 +143,76 @@ export function GlbDesignerDialog() {
   const [category, setCategory] = useState<FurnitureCategory>('others')
   const [placement, setPlacement] = useState<'floor' | 'wall' | 'floorCovering'>('floor')
   const [selId, setSelId] = useState<string | null>(null)
+  // Second pick for a CSG combine ("with…"); the selected part is the first operand.
+  const [combineId, setCombineId] = useState('')
+  const [combining, setCombining] = useState(false)
   const [busy, setBusy] = useState(false)
   const [overwrite, setOverwrite] = useState(false)
   const [meshNames, setMeshNames] = useState<string[]>([])
   const sourceSceneRef = useRef<Object3D | null>(null)
+
+  // ---- Drag gizmo (GE2b) -------------------------------------------------
+  // Mode for the TransformControls gizmo on the selected part. The gizmo is
+  // the FAST path; the numeric inputs stay the precision path — a finished
+  // drag is written back through the same `updatePart` (see commitGizmoDrag).
+  const [gizmoMode, setGizmoMode] = useState<GizmoMode>('translate')
+  // The selected part's live preview Mesh (what TransformControls attaches to).
+  const [selMesh, setSelMesh] = useState<Mesh | null>(null)
+  // Registry of part id → mounted preview mesh. Ref callbacks must be STABLE
+  // (cached per id) — a fresh closure each render would detach/attach every
+  // render and the setState inside would loop the dialog forever.
+  const meshRegistry = useRef(new Map<string, Mesh>())
+  const meshRefCallbacks = useRef(new Map<string, (m: Mesh | null) => void>())
+  const selIdRef = useRef(selId)
+  selIdRef.current = selId
+  const meshRefFor = (id: string) => {
+    let cb = meshRefCallbacks.current.get(id)
+    if (!cb) {
+      cb = (m: Mesh | null) => {
+        if (m) meshRegistry.current.set(id, m)
+        else meshRegistry.current.delete(id)
+        const want = selIdRef.current
+        setSelMesh(want ? (meshRegistry.current.get(want) ?? null) : null)
+      }
+      meshRefCallbacks.current.set(id, cb)
+    }
+    return cb
+  }
+  // Selection changes don't fire mount refs — re-derive the attached mesh.
+  useEffect(() => {
+    setSelMesh(selId ? (meshRegistry.current.get(selId) ?? null) : null)
+  }, [selId])
+
+  // This dialog is a modal-style overlay that doesn't build on `Modal`, so it
+  // registers with the modal guard itself: global scene hotkeys no-op while
+  // it's open, which also keeps the dialog-scoped G/R/S keys below conflict-free.
+  useModalGuard(open && isPro)
+
+  // Dialog-scoped Blender-style hotkeys: G = move, R = rotate, S = scale.
+  // Ignored while typing in the dialog's inputs/selects.
+  useEffect(() => {
+    if (!open || !isPro) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return
+      const t = e.target as HTMLElement | null
+      if (
+        t &&
+        (t.tagName === 'INPUT' ||
+          t.tagName === 'SELECT' ||
+          t.tagName === 'TEXTAREA' ||
+          t.isContentEditable)
+      ) {
+        return
+      }
+      const hit = GIZMO_MODES.find((m) => m.hotkey === e.key.toLowerCase())
+      if (!hit) return
+      e.preventDefault()
+      setGizmoMode(hit.mode)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [open, isPro])
+  // ------------------------------------------------------------------------
 
   // Capture the loaded source scene (for export) + its named meshes (for the
   // recolour/hide list). Clears both when the source is removed/changed.
@@ -156,7 +242,10 @@ export function GlbDesignerDialog() {
       setCategory('others')
       setPlacement('floor')
       setSelId(null)
+      setCombineId('')
       setOverwrite(false)
+      setGizmoMode('translate')
+      setSelMesh(null)
       sourceSceneRef.current = null
     }
   }, [open])
@@ -164,6 +253,54 @@ export function GlbDesignerDialog() {
   if (!open || !isPro) return null
 
   const sel = spec.parts.find((p) => p.id === selId) ?? null
+  // Stale picks (removed part / now the selected part) fall back to "with…".
+  const combineWithId = sel && canCombineParts(spec, sel.id, combineId) ? combineId : ''
+
+  // A mesh (CSG) part has no scale mode (its triangles are baked) — fall back
+  // to translate rather than showing a gizmo that can't write back.
+  const gizmoActive: GizmoMode =
+    sel && !gizmoModesFor(sel.kind).includes(gizmoMode) ? 'translate' : gizmoMode
+
+  // Write one finished gizmo drag back to the part's numeric fields (coalesced
+  // per drag-END, never per frame) through the same `updatePart` the inputs
+  // use; `gizmoPatch` snaps to the inputs' precision. The spec stays the source
+  // of truth: scale is reset to 1 (geometry rebuilds at the new size) and a
+  // no-op drag snaps the live object back to the part's stored transform.
+  const commitGizmoDrag = () => {
+    const m = selMesh
+    const part = sel
+    if (!m || !part) return
+    const patch = gizmoPatch(part, gizmoActive, {
+      position: [m.position.x, m.position.y, m.position.z],
+      rotation: [m.rotation.x, m.rotation.y, m.rotation.z],
+      scale: [m.scale.x, m.scale.y, m.scale.z],
+    })
+    m.scale.set(1, 1, 1)
+    if (patch) {
+      setSpec((sp) => updatePart(sp, part.id, patch))
+    } else {
+      const r = part.rotation ?? [0, 0, 0]
+      m.position.set(part.position[0], part.position[1], part.position[2])
+      m.rotation.set(MathUtils.degToRad(r[0]), MathUtils.degToRad(r[1]), MathUtils.degToRad(r[2]))
+    }
+  }
+
+  const combine = async (op: CsgOp) => {
+    if (!sel || !combineWithId || combining) return
+    setCombining(true)
+    try {
+      // `combineParts` dynamic-imports the CSG engine (three-bvh-csg) on first use.
+      const next = await combineParts(spec, sel.id, combineWithId, op)
+      setSpec(next.spec)
+      setSelId(next.partId)
+      setCombineId('')
+    } catch {
+      // Non-manifold/degenerate output (e.g. intersecting disjoint shapes).
+      useStore.getState().notify.start({ title: "Couldn't combine these shapes", kind: 'error' })
+    } finally {
+      setCombining(false)
+    }
+  }
 
   const save = async () => {
     if (!isBuildable(spec) || busy) return
@@ -239,6 +376,7 @@ export function GlbDesignerDialog() {
               borderRadius: 'var(--r-2)',
               overflow: 'hidden',
               background: 'var(--scene-b)',
+              position: 'relative',
             }}
           >
             <Canvas shadows camera={{ position: [1.6, 1.3, 1.8], fov: 40 }}>
@@ -251,11 +389,40 @@ export function GlbDesignerDialog() {
                   {sourceUrl && (
                     <SourceModel url={sourceUrl} scale={spec.sourceScale} onScene={onScene} />
                   )}
-                  <PartsPreview spec={spec} />
+                  <PartsPreview spec={spec} meshRefFor={meshRefFor} />
                 </Bounds>
               </Suspense>
+              {/* OrbitControls is makeDefault, so drei's TransformControls
+                  auto-disables it while a gizmo handle is being dragged
+                  (the standard `dragging-changed` wiring lives inside drei). */}
               <OrbitControls makeDefault />
+              {sel && selMesh ? (
+                <TransformControls
+                  object={selMesh}
+                  mode={gizmoActive}
+                  onMouseUp={commitGizmoDrag}
+                />
+              ) : null}
             </Canvas>
+            {/* Gizmo mode switch — overlays the preview's top-left corner. */}
+            {sel ? (
+              <div className="seg" style={{ position: 'absolute', top: 8, left: 8 }}>
+                {GIZMO_MODES.filter(({ mode }) => gizmoModesFor(sel.kind).includes(mode)).map(
+                  ({ mode, label, hotkey }) => (
+                    <button
+                      key={mode}
+                      type="button"
+                      className={gizmoActive === mode ? 'on' : ''}
+                      aria-label={`Gizmo: ${label}`}
+                      title={`${label} the selected shape (${hotkey.toUpperCase()})`}
+                      onClick={() => setGizmoMode(mode)}
+                    >
+                      {label}
+                    </button>
+                  ),
+                )}
+              </div>
+            ) : null}
           </div>
 
           {/* Controls */}
@@ -439,7 +606,26 @@ export function GlbDesignerDialog() {
                 <div className="sec-h">
                   <span>Edit {sel.kind}</span>
                 </div>
-                {(['size', 'position'] as const).map((field) => (
+                {/* A combined (mesh) part's triangles are baked — size is fixed;
+                    position/rotation still move the whole result. */}
+                {sel.kind === 'mesh' ? (
+                  <div
+                    style={{
+                      fontSize: 'var(--t-2xs)',
+                      color: 'var(--text-3)',
+                      marginBottom: 'var(--s-2)',
+                    }}
+                  >
+                    Combined shape: move and rotate it freely (gizmo or fields). Its size is baked
+                    by the combine, so there's no Scale gizmo or size fields.
+                  </div>
+                ) : null}
+                {(
+                  (sel.kind === 'mesh' ? ['position'] : ['size', 'position']) as (
+                    | 'size'
+                    | 'position'
+                  )[]
+                ).map((field) => (
                   <div key={field} style={{ marginBottom: 'var(--s-2)' }}>
                     <div
                       className="label"
@@ -589,6 +775,50 @@ export function GlbDesignerDialog() {
                   <Icon.Copy width={14} height={14} />
                   Mirror across centre
                 </button>
+              </div>
+            ) : null}
+
+            {sel && spec.parts.length > 1 ? (
+              <div className="sec">
+                <div className="sec-h">
+                  <span>Combine (boolean)</span>
+                </div>
+                <select
+                  className="input"
+                  aria-label="Combine with"
+                  value={combineWithId}
+                  onChange={(e) => setCombineId(e.target.value)}
+                  style={{ width: '100%', marginBottom: 'var(--s-2)' }}
+                >
+                  <option value="">with…</option>
+                  {spec.parts.map((p, i) =>
+                    p.id === sel.id ? null : (
+                      <option key={p.id} value={p.id}>
+                        {p.kind} {i + 1}
+                      </option>
+                    ),
+                  )}
+                </select>
+                <div className="action-grid two">
+                  {CSG_OPS.map(({ op, label }) => (
+                    <button
+                      key={op}
+                      type="button"
+                      className="act"
+                      disabled={!combineWithId || combining}
+                      aria-label={`${label} ${sel.kind} with selected part`}
+                      onClick={() => combine(op)}
+                    >
+                      {combining ? '…' : label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                  Merges both shapes into one ("{SHAPE_LABEL.mesh}"), keeping this shape's colour.
+                  Subtract carves the picked shape out of this one. Shapes only — the source model
+                  can't be combined. There's no undo here: re-add the shapes if you change your
+                  mind.
+                </div>
               </div>
             ) : null}
 

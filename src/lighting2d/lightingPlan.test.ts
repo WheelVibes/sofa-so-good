@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { LIGHT_EMITTERS } from '../furniture/lightEmitters'
+import type { FurnitureDef, FurnitureItem, FurnitureType } from '../furniture/types'
 import { buildLightingPlan } from './lightingPlan'
 
 const defs = {
@@ -68,6 +69,26 @@ describe('buildLightingPlan', () => {
       { type: 'ceiling-light', label: 'Ceiling light', count: 2, height: 2.05, intensity: 9 },
       expect.objectContaining({ type: 'floor-lamp', count: 1 }),
     ])
+  })
+
+  it('respects a per-item enabled() gate — a switched-off fixture is excluded', () => {
+    const key = 'test-gated-fixture' as FurnitureType
+    LIGHT_EMITTERS[key] = {
+      height: () => 1,
+      color: '#fff',
+      intensity: 5,
+      distance: 2,
+      enabled: (p) => p.lights === 'yes',
+    }
+    try {
+      const on = buildLightingPlan([item(key, 0, 0, { props: { lights: 'yes' } })], {})
+      const off = buildLightingPlan([item(key, 0, 0, { props: { lights: 'no' } })], {})
+      expect(on.lights).toHaveLength(1)
+      expect(off.lights).toHaveLength(0)
+      expect(off.schedule).toHaveLength(0)
+    } finally {
+      delete LIGHT_EMITTERS[key]
+    }
   })
 
   it('falls back to the def id for the label when no def is supplied', () => {

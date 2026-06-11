@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useModalGuard } from '../controls/modalGuard'
 import { Icon } from './toolbar/icons'
 
 interface ModalProps {
@@ -22,6 +23,11 @@ interface ModalProps {
  *  body so it sits above every panel. */
 export function Modal({ open, onClose, title, sub, width, panelId, children, footer }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
+
+  // While open, register in the global open-modal counter so app-wide
+  // shortcuts (useKeyboard + the direct App.tsx handlers) no-op. Escape
+  // still closes — this component owns its own Escape listener below.
+  useModalGuard(open)
 
   useEffect(() => {
     if (!open) return
@@ -81,7 +87,9 @@ export function Modal({ open, onClose, title, sub, width, panelId, children, foo
       <div
         className="panel"
         id={panelId}
-        style={width ? { width } : undefined}
+        // Clamp the inline width so it can't override the responsive CSS and
+        // overflow a narrow (mobile) viewport.
+        style={width ? { width, maxWidth: 'calc(100vw - 24px)' } : undefined}
         ref={panelRef}
         role="dialog"
         aria-modal="true"

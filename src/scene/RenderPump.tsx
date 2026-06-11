@@ -81,7 +81,7 @@ export function RenderPump() {
       inputs.assetsActive = assetsActiveRef.current
       inputs.walk = s.cameraMode === 'firstPerson'
       inputs.autoRotate = s.autoRotate
-      inputs.touring = s.touring
+      inputs.touring = Boolean(s.touring)
       inputs.recording = s.recording
       inputs.showcaseAccumulating = s.showcaseAccumulating
       inputs.dragging = s.draggingItemId != null

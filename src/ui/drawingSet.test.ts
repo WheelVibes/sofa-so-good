@@ -76,3 +76,83 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('&lt;script&gt;')
   })
 })
+
+describe('buildDrawingSetHtml — multi-storey fan-out (F13)', () => {
+  const plan = buildDefaultPlan()
+  const upper = {
+    id: 'up',
+    name: 'Upper storey',
+    elevation: 2.9,
+    walls: [
+      {
+        id: 'uw1',
+        start: [0.1, 0.1] as [number, number],
+        end: [6, 0.1] as [number, number],
+        thickness: 'external' as const,
+      },
+      {
+        id: 'uw2',
+        start: [0.1, 0.1] as [number, number],
+        end: [0.1, 6] as [number, number],
+        thickness: 'external' as const,
+      },
+    ],
+    openings: [],
+    rooms: [
+      {
+        id: 'up-bed',
+        name: 'Bedroom (up)',
+        origin: [0.2, 0.2] as [number, number],
+        width: 5,
+        depth: 5,
+      },
+    ],
+  }
+  const multi = { ...plan, upperLevels: [upper] }
+
+  it('renders one captioned floor-plan sheet per storey', () => {
+    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG)
+    expect(html).toContain('Floor plan — Ground floor')
+    expect(html).toContain('Floor plan — Upper storey')
+    expect(html).toContain('Dimensioned plan — Ground floor')
+    expect(html).toContain('Dimensioned plan — Upper storey')
+    // Cover room schedule groups by storey + includes the upper room.
+    expect(html).toContain('Bedroom (up)')
+    // Single-storey sets keep the plain sheet names.
+    const singleHtml = buildDrawingSetHtml(plan, [], BUILTIN_CATALOG)
+    expect(singleHtml).not.toContain('Floor plan —')
+    expect(singleHtml).not.toContain('Dimensioned plan —')
+  })
+
+  it('filters lighting fixtures to their storey (upstairs-only lamp → upper sheet only)', () => {
+    const lamp = {
+      id: 'l1',
+      defId: 'floor-lamp',
+      position: [2, 2] as [number, number],
+      rotation: 0,
+      props: {},
+      levelId: 'up',
+    }
+    const html = buildDrawingSetHtml(multi, [lamp], BUILTIN_CATALOG)
+    expect(html).toContain('Lighting plan — Upper storey')
+    expect(html).not.toContain('Lighting plan — Ground floor')
+  })
+
+  it('renders per-storey electrical sheets filtered by point levelId', () => {
+    const points = [
+      { x: 1, z: 1, kind: 'socket' as const },
+      { x: 2, z: 2, kind: 'aircon' as const, levelId: 'up' },
+    ]
+    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG, 'metric', undefined, points)
+    expect(html).toContain('Electrical plan — Ground floor')
+    expect(html).toContain('Electrical plan — Upper storey')
+  })
+
+  it('reports an added storey on the demolition sheet (whole-storey callout)', () => {
+    const html = buildDrawingSetHtml(multi, [], BUILTIN_CATALOG, 'metric', plan)
+    expect(html).toContain('Demolition &amp; new walls — Upper storey')
+    expect(html).toContain('Entire storey added')
+    // Ground floor is unchanged → no ground demolition sheet.
+    expect(html).not.toContain('Demolition &amp; new walls — Ground floor')
+  })
+})

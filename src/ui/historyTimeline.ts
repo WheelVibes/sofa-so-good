@@ -56,6 +56,12 @@ export function describeHistoryStep(
   if (JSON.stringify(prev.finishes) !== JSON.stringify(next.finishes)) return 'Changed finishes'
   if (JSON.stringify(prev.doors) !== JSON.stringify(next.doors)) return 'Toggled a door'
   if (JSON.stringify(prev.floorPlan) !== JSON.stringify(next.floorPlan)) return 'Edited floor plan'
+  // Pinned comments (F24). `?? []` tolerates snapshots from before the field.
+  const prevComments = prev.comments ?? []
+  const nextComments = next.comments ?? []
+  if (nextComments.length > prevComments.length) return 'Added a comment'
+  if (nextComments.length < prevComments.length) return 'Deleted a comment'
+  if (JSON.stringify(prevComments) !== JSON.stringify(nextComments)) return 'Updated a comment'
   return 'Edited'
 }
 

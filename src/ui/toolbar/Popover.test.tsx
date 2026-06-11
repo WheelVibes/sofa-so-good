@@ -6,10 +6,13 @@ import { Popover } from './Popover'
 function Harness({ open, onClose }: { open: boolean; onClose: () => void }) {
   const ref = useRef<HTMLButtonElement>(null)
   return (
-    <div>
+    <div data-testid="scroll-ancestor" style={{ overflowX: 'auto' }}>
       <button ref={ref}>trigger</button>
       <Popover open={open} anchorRef={ref} onClose={onClose}>
         <div>panel-body</div>
+        <div data-testid="inner-list" style={{ overflowY: 'auto' }}>
+          inner-list
+        </div>
       </Popover>
     </div>
   )
@@ -49,5 +52,53 @@ describe('Popover', () => {
     )
     fireEvent.pointerDown(document.body)
     expect(closed).toBe(true)
+  })
+
+  // The toolbar island scrolls horizontally on narrow desktops; the popover is
+  // fixed-positioned to its trigger, so any ancestor scroll must close it
+  // before it detaches from the button (POPOVER-SCROLL).
+  it('calls onClose when a scrollable ancestor scrolls (e.g. the toolbar island)', () => {
+    let closed = false
+    render(
+      <Harness
+        open
+        onClose={() => {
+          closed = true
+        }}
+      />,
+    )
+    fireEvent.scroll(screen.getByTestId('scroll-ancestor'))
+    expect(closed).toBe(true)
+  })
+
+  it('calls onClose on document scroll', () => {
+    let closed = false
+    render(
+      <Harness
+        open
+        onClose={() => {
+          closed = true
+        }}
+      />,
+    )
+    fireEvent.scroll(document)
+    expect(closed).toBe(true)
+  })
+
+  // Some menus (File's saved layouts, Arrange) have their own overflow list —
+  // scrolling *inside* the panel doesn't move the anchor and must not close it.
+  it('does NOT close when scrolling a list inside the panel', () => {
+    let closed = false
+    render(
+      <Harness
+        open
+        onClose={() => {
+          closed = true
+        }}
+      />,
+    )
+    fireEvent.scroll(screen.getByTestId('inner-list'))
+    expect(closed).toBe(false)
+    expect(screen.getByText('panel-body')).toBeTruthy()
   })
 })

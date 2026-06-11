@@ -8,7 +8,7 @@
  * decisions (bounds, validation, part maths) unit-testable without a GPU.
  */
 
-export type ShapeKind =
+export type PrimitiveShapeKind =
   | 'box'
   | 'cylinder'
   | 'sphere'
@@ -18,9 +18,14 @@ export type ShapeKind =
   | 'pyramid'
   | 'wedge'
 
+/** A part is either a parametric primitive or a baked `mesh` — the result of a
+ *  CSG combine (`csgCombine.ts`), whose triangles live in `ShapePart.geometry`. */
+export type ShapeKind = PrimitiveShapeKind | 'mesh'
+
 /** All primitive kinds, in palette order. Source of truth for the designer's
- *  "add shape" controls + the geometry switch in `buildObject.ts`. */
-export const SHAPE_KINDS: ShapeKind[] = [
+ *  "add shape" controls + the geometry switch in `buildObject.ts`. (`mesh` is
+ *  deliberately absent — a mesh part is only ever produced by combining.) */
+export const SHAPE_KINDS: PrimitiveShapeKind[] = [
   'box',
   'cylinder',
   'sphere',
@@ -40,6 +45,17 @@ export const SHAPE_LABEL: Record<ShapeKind, string> = {
   capsule: 'Capsule',
   torus: 'Torus',
   wedge: 'Wedge',
+  mesh: 'Combined',
+}
+
+/** Baked triangle data for a `mesh` part (a CSG combine result), centred on the
+ *  part's origin so `position`/`rotation` keep working like any primitive.
+ *  Plain number arrays keep the spec pure/serialisable; treat them as immutable
+ *  (duplicate/mirror share them by reference). */
+export interface MeshGeometryData {
+  positions: number[]
+  normals: number[]
+  index?: number[]
 }
 
 export interface ShapePart {
@@ -63,6 +79,9 @@ export interface ShapePart {
   /** Surface opacity 0…1. <1 makes the part translucent (glass, acrylic).
    *  Absent → 1 (opaque). */
   opacity?: number
+  /** Baked triangles — present iff `kind === 'mesh'`. For a mesh part `size` is
+   *  the result's bounding box (informational; the geometry is already sized). */
+  geometry?: MeshGeometryData
 }
 
 /** Fallback PBR finish for a part that hasn't set its own (keeps old specs +
@@ -110,7 +129,8 @@ export function setMeshOverride(
 }
 
 let seq = 0
-function shapeId(): string {
+/** Fresh unique part id (also used by `csgCombine.ts` for the combined part). */
+export function newPartId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
     return crypto.randomUUID()
   }
@@ -120,7 +140,7 @@ function shapeId(): string {
 
 /** Sensible starting dimensions per shape kind (metres). For `torus`, size is
  *  [outer diameter, tube diameter, _]; `capsule` is [diameter, total height, _]. */
-const DEFAULT_SIZE: Record<ShapeKind, [number, number, number]> = {
+const DEFAULT_SIZE: Record<PrimitiveShapeKind, [number, number, number]> = {
   box: [0.4, 0.4, 0.4],
   cylinder: [0.3, 0.5, 0.3],
   sphere: [0.3, 0.3, 0.3],
@@ -132,15 +152,15 @@ const DEFAULT_SIZE: Record<ShapeKind, [number, number, number]> = {
 }
 
 /** Sensible starting dimensions/colour + floor-resting Y per shape kind. */
-export function defaultPart(kind: ShapeKind): ShapePart {
+export function defaultPart(kind: PrimitiveShapeKind): ShapePart {
   const size = [...DEFAULT_SIZE[kind]] as [number, number, number]
   // Rest the shape on the floor: a standing torus spans its outer radius in Y
   // (it lies in the XY plane), everything else spans half its height.
   const y = kind === 'torus' ? size[0] / 2 : size[1] / 2
-  return { id: shapeId(), kind, position: [0, y, 0], size, color: '#b08d57' }
+  return { id: newPartId(), kind, position: [0, y, 0], size, color: '#b08d57' }
 }
 
-export function addPart(spec: AssetEditSpec, kind: ShapeKind): AssetEditSpec {
+export function addPart(spec: AssetEditSpec, kind: PrimitiveShapeKind): AssetEditSpec {
   const part = defaultPart(kind)
   // Stagger each new shape to the right of the previous ones so they don't pile
   // up invisibly at the origin (the user then drags/positions from there).
@@ -160,7 +180,7 @@ export function duplicatePart(spec: AssetEditSpec, id: string): AssetEditSpec {
   if (!src) return spec
   const copy: ShapePart = {
     ...src,
-    id: shapeId(),
+    id: newPartId(),
     position: [src.position[0] + 0.2, src.position[1], src.position[2]],
     size: [...src.size],
     rotation: src.rotation ? [...src.rotation] : undefined,
@@ -179,7 +199,7 @@ export function mirrorPart(spec: AssetEditSpec, id: string): AssetEditSpec {
   if (!src) return spec
   const copy: ShapePart = {
     ...src,
-    id: shapeId(),
+    id: newPartId(),
     position: [-src.position[0], src.position[1], src.position[2]],
     size: [...src.size],
     rotation: src.rotation ? [src.rotation[0], -src.rotation[1], -src.rotation[2]] : undefined,

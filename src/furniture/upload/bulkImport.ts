@@ -1,6 +1,7 @@
 import { useStore } from '../../state/store'
 import { convertModel, needsConversion } from '../convert/convertModel'
 import { detectModelFormat, isModelEntryFile } from '../convert/formats'
+import type { LodVariantSet } from '../optimize/lodVariants'
 import { runOptimize } from '../optimize/runOptimize'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashFile } from './hashFile'
@@ -25,6 +26,10 @@ export interface BulkImportOptions {
   allFiles?: File[]
   /** Opt-in KTX2/UASTC texture encode (falls back to WebP if unavailable). */
   ktx2?: boolean
+  /** Also generate -low/-medium LOD tier variants per model (stored alongside
+   *  the full asset in IDB; the renderer picks them on low/medium asset tiers).
+   *  Default-on in the upload dialog; opt-out for faster imports. */
+  lodTiers?: boolean
 }
 
 export interface SkippedFile {
@@ -59,18 +64,26 @@ function pathOfFile(f: File): string {
   return (f as File & { webkitRelativePath?: string }).webkitRelativePath || f.name
 }
 
+export interface PreparedModel {
+  file: File
+  /** Generated -low/-medium LOD variants (when requested + generation worked). */
+  lods?: LodVariantSet
+}
+
 /**
  * Convert (if needed) + optimize a single entry file into an optimized GLB File.
  * GLB/glTF entries skip conversion but still run the optimize pass; non-GLB
  * formats convert to GLB first (resolving .mtl/.bin/textures from `allFiles`
- * within the same folder). Quality-first: codec compression, no decimation.
+ * within the same folder). Quality-first for the main asset: codec compression,
+ * no decimation. With `lodTiers`, decimated/downscaled -low/-medium variants
+ * are additionally generated from the optimized output (best-effort).
  */
 async function prepareGlb(
   entry: File,
   dir: string,
   allFiles: File[],
-  ktx2: boolean,
-): Promise<File> {
+  opts: { ktx2?: boolean; lodTiers?: boolean },
+): Promise<PreparedModel> {
   const format = await detectModelFormat(entry)
   let glb = entry
   if (format && needsConversion(format)) {
@@ -78,18 +91,23 @@ async function prepareGlb(
     glb = (await convertModel(entry, siblings)).glb
   }
   const buf = new Uint8Array(await glb.arrayBuffer())
-  const { data } = await runOptimize(buf, { ktx2 })
+  const { data, lods } = await runOptimize(buf, { ktx2: opts.ktx2 }, { lodTiers: opts.lodTiers })
   const name = glb.name.replace(/\.[a-z0-9]+$/i, '.glb')
   const ab = data.buffer.slice(data.byteOffset, data.byteOffset + data.byteLength) as ArrayBuffer
-  return new File([ab], name, { type: 'model/gltf-binary' })
+  return { file: new File([ab], name, { type: 'model/gltf-binary' }), lods }
 }
 
-/** Convert (if needed) + optimize one entry file into an optimized GLB File.
- *  Public wrapper over the bulk pipeline's prepare step so the single-file
- *  upload path runs the same conversion/optimization. `allFiles` supplies the
- *  sibling pool (.mtl/.bin/textures) for multi-file model formats. */
-export function prepareModelFile(entry: File, allFiles: File[], ktx2 = false): Promise<File> {
-  return prepareGlb(entry, dirOfPath(pathOfFile(entry)), allFiles, ktx2)
+/** Convert (if needed) + optimize one entry file into an optimized GLB File
+ *  (+ optional LOD variants). Public wrapper over the bulk pipeline's prepare
+ *  step so the single-file upload path runs the same conversion/optimization.
+ *  `allFiles` supplies the sibling pool (.mtl/.bin/textures) for multi-file
+ *  model formats. */
+export function prepareModelFile(
+  entry: File,
+  allFiles: File[],
+  opts: { ktx2?: boolean; lodTiers?: boolean } = {},
+): Promise<PreparedModel> {
+  return prepareGlb(entry, dirOfPath(pathOfFile(entry)), allFiles, opts)
 }
 
 /** Imports a batch of user-selected files. Filters to .glb/.gltf, dedupes
@@ -135,7 +153,7 @@ export async function importGlbFiles(
     })
   }
   const allFiles = opts.allFiles ?? files
-  const ktx2 = opts.ktx2 ?? false
+  const prepOpts = { ktx2: opts.ktx2 ?? false, lodTiers: opts.lodTiers ?? false }
 
   let imported = 0
   let duplicates = 0
@@ -169,15 +187,16 @@ export async function importGlbFiles(
           continue
         }
         seenHashes.add(contentHash)
-        const prepared = await prepareGlb(job.file, job.dir, allFiles, ktx2)
+        const prepared = await prepareGlb(job.file, job.dir, allFiles, prepOpts)
         const auto = opts.autoFlags ? inferCollisionFlags(job.file.name) : null
-        const result = await persistUserGlb(prepared, {
+        const result = await persistUserGlb(prepared.file, {
           name: job.name,
           category: opts.category,
           mounted: opts.mounted || auto?.mounted || undefined,
           noClip: opts.noClip || auto?.noClip || undefined,
           contentHash,
           commit: false,
+          lods: prepared.lods,
         })
         if (result.ok && result.duplicate) duplicates++
         else if (result.ok) {

@@ -1,6 +1,5 @@
 import { buildMergedCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
-import { buildReportHtml } from './report'
 
 /**
  * Build the printable design report from the live store and open it in a new
@@ -8,9 +7,22 @@ import { buildReportHtml } from './report'
  * (skipped if tainted). Surfaces a notification when the pop-up is blocked.
  * Shared by the Tools menu, the mobile toolbar, and the Share modal so the
  * report logic lives in exactly one place.
+ *
+ * The window is opened synchronously (inside the click's user activation, so
+ * pop-up blockers allow it) and the heavy report builder is dynamic-imported
+ * afterwards — it stays out of the boot bundle (P-CHUNK).
  */
-export function openDesignReport(): void {
+export async function openDesignReport(): Promise<void> {
   const s = useStore.getState()
+  const win = window.open('', '_blank')
+  if (!win) {
+    s.notify.start({
+      title: 'Report blocked',
+      kind: 'error',
+      message: 'Allow pop-ups for this site, then open the report again.',
+    })
+    return
+  }
   const canvas = document.querySelector('canvas')
   let hero: string | null = null
   try {
@@ -18,24 +30,27 @@ export function openDesignReport(): void {
   } catch {
     hero = null // tainted canvas — skip the image
   }
-  const html = buildReportHtml(
-    s.floorPlan,
-    s.items,
-    buildMergedCatalog(s),
-    hero,
-    s.units,
-    s.finishes,
-    s.designNote,
-    s.annotations,
-    s.budgetTarget,
-    s.baselinePlan,
-  )
-  const win = window.open('', '_blank')
-  if (!win) {
+  let html: string
+  try {
+    const { buildReportHtml } = await import('./report')
+    html = buildReportHtml(
+      s.floorPlan,
+      s.items,
+      buildMergedCatalog(s),
+      hero,
+      s.units,
+      s.finishes,
+      s.designNote,
+      s.annotations,
+      s.budgetTarget,
+      s.baselinePlan,
+    )
+  } catch {
+    win.close()
     s.notify.start({
-      title: 'Report blocked',
+      title: 'Report failed',
       kind: 'error',
-      message: 'Allow pop-ups for this site, then open the report again.',
+      message: 'Could not load the report builder — check your connection and try again.',
     })
     return
   }

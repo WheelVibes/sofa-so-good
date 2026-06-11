@@ -810,7 +810,7 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       {
         id: 'wfh-sofa',
         defId: 'sofa-2seat',
-        position: [9.65, 2.5],
+        position: [9.65, 2.35],
         rotation: Math.PI / 2,
         props: {
           width: 1.6,
@@ -881,21 +881,21 @@ export const LAYOUT_PRESETS: LayoutPreset[] = [
       {
         id: 'wfh-desk',
         defId: 'desk',
-        position: [9.5, 4.4],
+        position: [9.5, 4.5],
         rotation: Math.PI / 2,
         props: { width: 1.4, depth: 0.6, legStyle: 'hairpin', color: '#caa46a', finish: 'wood' },
       },
       {
         id: 'wfh-chair',
         defId: 'office-chair',
-        position: [10.3, 4.4],
+        position: [10.3, 4.5],
         rotation: -Math.PI / 2,
         props: { style: 'mesh', color: '#3a3f45' },
       },
       {
         id: 'wfh-monitor',
         defId: 'monitor',
-        position: [9.35, 4.4],
+        position: [9.35, 4.5],
         rotation: Math.PI / 2,
         props: { screen: 'on', screenContent: 'abstract' },
       },

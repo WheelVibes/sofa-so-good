@@ -16,6 +16,7 @@ export function SavedViewsSection() {
   const applyView = useStore((s) => s.applyView)
   const deleteView = useStore((s) => s.deleteView)
   const setViewNote = useStore((s) => s.setViewNote)
+  const setViewPano = useStore((s) => s.setViewPano)
   const setPresenting = useStore((s) => s.setPresenting)
   const presentationOn = useFeature('presentation')
 
@@ -64,6 +65,14 @@ export function SavedViewsSection() {
           onClick={() => setPresenting(true)}
         />
       ) : null}
+      {savedViews.length > 1 ? (
+        <MenuItem
+          icon="Walkthrough"
+          label="Cinematic tour"
+          sub="Fly through your saved views (record via File → Record clip)"
+          onClick={() => useStore.getState().setTouring('views')}
+        />
+      ) : null}
       {savedViews.map((v) => (
         <div key={v.id} className="saved-view-row">
           <button
@@ -83,18 +92,38 @@ export function SavedViewsSection() {
             </span>
           </button>
           {presentationOn ? (
-            <button
-              type="button"
-              className="saved-view-del"
-              aria-label={`${v.note ? 'Edit' : 'Add'} note for ${v.name}`}
-              title={v.note ? `Note: ${v.note}` : 'Add a presenter note'}
-              onClick={(e) => {
-                e.stopPropagation()
-                void editNote(v.id, v.note ?? '')
-              }}
-            >
-              <Icon.Book width={14} height={14} />
-            </button>
+            <>
+              <button
+                type="button"
+                className="saved-view-del"
+                aria-label={`Present ${v.name} as a 360° slide`}
+                aria-pressed={!!v.pano}
+                title={
+                  v.pano
+                    ? '360° slide — presents as a look-around panorama (click to unset)'
+                    : 'Present as a 360° panorama slide'
+                }
+                style={v.pano ? { color: 'var(--accent)' } : undefined}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  setViewPano(v.id, !v.pano)
+                }}
+              >
+                <span style={{ fontSize: 9, fontWeight: 700 }}>360°</span>
+              </button>
+              <button
+                type="button"
+                className="saved-view-del"
+                aria-label={`${v.note ? 'Edit' : 'Add'} note for ${v.name}`}
+                title={v.note ? `Note: ${v.note}` : 'Add a presenter note'}
+                onClick={(e) => {
+                  e.stopPropagation()
+                  void editNote(v.id, v.note ?? '')
+                }}
+              >
+                <Icon.Book width={14} height={14} />
+              </button>
+            </>
           ) : null}
           <button
             type="button"

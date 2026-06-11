@@ -20,6 +20,10 @@ export interface SavedView {
   lights?: LightsMode
   /** Optional presenter note shown as a caption in presentation mode. */
   note?: string
+  /** Present this view as an interactive 360° panorama slide (captured live
+   *  from the view's pose when the slide is reached). Optional + additive —
+   *  older persisted views simply have no flag. */
+  pano?: boolean
 }
 
 const LS_KEY = 'hdb_camera_views'
@@ -47,6 +51,8 @@ export interface CameraViewsSlice {
   renameView: (id: string, name: string) => void
   /** Set (or clear, with an empty string) a view's presenter note. */
   setViewNote: (id: string, note: string) => void
+  /** Mark/unmark a view as a 360° panorama slide in presentation mode. */
+  setViewPano: (id: string, pano: boolean) => void
 }
 
 function loadViews(): SavedView[] {
@@ -140,6 +146,11 @@ export const createCameraViewsSlice: SliceCreator<CameraViewsSlice, RootState> =
     const next = get().savedViews.map((v) =>
       v.id === id ? { ...v, note: trimmed || undefined } : v,
     )
+    persistViews(next)
+    set({ savedViews: next })
+  },
+  setViewPano: (id, pano) => {
+    const next = get().savedViews.map((v) => (v.id === id ? { ...v, pano: pano || undefined } : v))
     persistViews(next)
     set({ savedViews: next })
   },

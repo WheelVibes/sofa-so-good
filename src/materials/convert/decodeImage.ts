@@ -1,7 +1,8 @@
 import { FloatType } from 'three'
-import { EXRLoader } from 'three/examples/jsm/loaders/EXRLoader.js'
-import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js'
-import { TGALoader } from 'three/examples/jsm/loaders/TGALoader.js'
+
+// The TGA/EXR/HDR three loaders are dynamic-imported per format below so they
+// stay out of the boot bundle — this module is reachable eagerly (texture
+// upload validation), but the decoders only load when one is actually decoded.
 
 /**
  * Decode any supported texture format to straight RGBA8 pixels. Formats the
@@ -62,6 +63,7 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
   const buf = await file.arrayBuffer()
 
   if (ext === '.tga') {
+    const { TGALoader } = await import('three/examples/jsm/loaders/TGALoader.js')
     // three 0.184 TGALoader extends DataTextureLoader; parse() returns the raw
     // texture data object { data: Uint8Array(RGBA), width, height } directly.
     const tex = new TGALoader().parse(buf) as unknown as {
@@ -82,6 +84,7 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
   }
 
   if (ext === '.exr') {
+    const { EXRLoader } = await import('three/examples/jsm/loaders/EXRLoader.js')
     const loader = new EXRLoader()
     loader.setDataType(FloatType)
     const tex = loader.parse(buf) as { data: ArrayLike<number>; width: number; height: number }
@@ -93,6 +96,7 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
   }
 
   if (ext === '.hdr') {
+    const { RGBELoader } = await import('three/examples/jsm/loaders/RGBELoader.js')
     const loader = new RGBELoader()
     loader.setDataType(FloatType)
     const tex = loader.parse(buf) as { data: ArrayLike<number>; width: number; height: number }

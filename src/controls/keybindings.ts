@@ -20,6 +20,7 @@ export const KEYBINDINGS = {
   toggleCatalog: 'KeyC',
   toggleBudget: 'KeyB', // B: budget / shopping panel (orbit views, feature-gated)
   topView: 'KeyO', // O: top-down plan view
+  togglePlanEditor: 'KeyP', // P: 2D floor-plan editor ⇄ 3D (always mounted — see planEditorHotkey)
   resetView: 'KeyH', // H: reset to the 3D overview (Home)
   tidyHome: 'KeyL', // L: auto-arrange every room (cLeanup)
   nudgeUp: 'ArrowUp',

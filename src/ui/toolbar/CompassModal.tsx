@@ -1,5 +1,6 @@
 import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useModalGuard } from '../../controls/modalGuard'
 import { useStore } from '../../state/store'
 
 const COMPASS_DIRS = [
@@ -19,6 +20,9 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
   const setOrientationDeg = useStore((s) => s.setOrientationDeg)
   const ref = useRef<SVGSVGElement>(null)
   const draggingRef = useRef(false)
+
+  // Modal-style overlay: suppress global shortcuts while open.
+  useModalGuard(open)
 
   useEffect(() => {
     if (!open) return
@@ -89,13 +93,20 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
           onPointerCancel={onPointerUp}
           className="cursor-pointer touch-none select-none"
         >
-          <circle cx={center} cy={center} r={r} fill="#fafafa" stroke="#d4d4d4" strokeWidth={1} />
+          <circle
+            cx={center}
+            cy={center}
+            r={r}
+            fill="var(--surface-2)"
+            stroke="var(--border-2)"
+            strokeWidth={1}
+          />
           <circle
             cx={center}
             cy={center}
             r={r - 18}
             fill="none"
-            stroke="#e5e5e5"
+            stroke="var(--border)"
             strokeWidth={1}
             strokeDasharray="2 3"
           />
@@ -114,7 +125,7 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
                 y1={y1}
                 x2={x2}
                 y2={y2}
-                stroke={major ? '#a3a3a3' : '#d4d4d4'}
+                stroke={major ? 'var(--text-3)' : 'var(--border-2)'}
                 strokeWidth={major ? 1 : 0.75}
               />
             )
@@ -124,12 +135,19 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
             y1={center}
             x2={sunX}
             y2={sunY}
-            stroke="#404040"
+            stroke="var(--text-2)"
             strokeWidth={2}
             strokeLinecap="round"
           />
-          <circle cx={center} cy={center} r={3} fill="#404040" />
-          <circle cx={sunX} cy={sunY} r={9} fill="#fbbf24" stroke="#92400e" strokeWidth={1.25} />
+          <circle cx={center} cy={center} r={3} fill="var(--text-2)" />
+          <circle
+            cx={sunX}
+            cy={sunY}
+            r={9}
+            fill="var(--sun)"
+            stroke="var(--sun-edge)"
+            strokeWidth={1.25}
+          />
           {COMPASS_DIRS.map(({ label, deg }) => {
             const a = (deg * Math.PI) / 180
             const lr = r - 18
@@ -151,7 +169,7 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
                   cx={lx}
                   cy={ly}
                   r={isCardinal ? 14 : 12}
-                  fill={active ? '#fef3c7' : 'transparent'}
+                  fill={active ? 'var(--accent-soft)' : 'transparent'}
                 />
                 <text
                   x={lx}
@@ -159,7 +177,7 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
                   textAnchor="middle"
                   dominantBaseline="central"
                   fontSize={isCardinal ? 16 : 12}
-                  fill={label === 'N' ? '#dc2626' : active ? '#171717' : '#525252'}
+                  fill={label === 'N' ? 'var(--danger)' : active ? 'var(--text)' : 'var(--text-2)'}
                   fontWeight={isCardinal ? 700 : 600}
                 >
                   {label}

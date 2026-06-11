@@ -29,6 +29,14 @@ and totals an approximate cost in **SGD**, with a **Saved collections** tab for
 everything you've hearted. **Export CSV** downloads the list (category, item,
 quantity, unit price, line total) for a spreadsheet or to send to a supplier.
 
+For a buy-list you can share, **File → Shopping list** (also on ⌘K and the
+mobile menu's **File** section — available in Simple mode too) opens a polished
+one-page document: every placed piece with its room, quantity, unit price and
+line total, **grouped by retailer** where known (anything without a retailer is
+listed under *Unpriced / generic* with the same indicative estimates as the
+Budget panel), with a subtotal per retailer, the grand total, and your budget
+target's under/over. Print it, save it as PDF, or send it with your design.
+
 Spend is shown wherever it helps: each catalog card and the inspector show a
 per‑item price (with a **selection total** when you multi‑select), the panel
 breaks spend down **by category and by room**, and the per‑room editor caption
@@ -80,7 +88,11 @@ at the top:
   kitchen/bath designers and installers use for cabinet, fixture and backsplash
   heights.
 - **Lighting** plots every light fixture over the walls with its coverage circle —
-  a reflected‑ceiling‑style plan showing where the light falls.
+  a reflected‑ceiling‑style plan showing where the light falls. Below the plan,
+  **Estimated light levels** lists each room's estimated average brightness in
+  lux next to the recommended range for that room type (e.g. living 100–200 lx,
+  kitchen 300–600 lx), with an **OK** / **Low** / **High** chip so you can spot
+  under‑ or over‑lit rooms at a glance.
 
 Both also appear in the printable **Report**. Works on desktop and as a mobile sheet.
 
@@ -90,6 +102,26 @@ Both also appear in the printable **Report**. Works on desktop and as a mobile s
 and the distance between them appears on an amber ruler line. Click again to
 start a fresh measurement; turn the tool off from the same menu. Works on touch
 (tap the two points) too.
+
+## Comments (Pro)
+
+**Comments** (Tools menu, or ⌘K → "Comments — pinned notes") opens a panel of
+notes pinned to spots in your design — handy for marking decisions ("swap this
+rug"), questions for family, or feedback on a design someone shared with you.
+Press **+ Add comment**, tap a spot on the floor, and type the note; a numbered
+pin appears in the 3D view. Click a pin to read the note and **Resolve** /
+**Reopen** or **Delete** it; resolved pins turn green with a ✓ and are struck
+through in the list. In the panel, click a comment to jump the camera to its
+pin, and use the ✓ / ✎ / bin buttons to resolve, reword or remove it.
+
+On a multi‑storey plan each pin belongs to the storey it was placed on (pins are
+placed on whichever level you're viewing) and hides with it when you filter
+levels from **View → Levels**; jumping to a comment on another storey switches
+the view to that level. Comments **travel with the design**: they're saved in
+your layout, included in **Export file** (`.sofa.json`) and carried by **Copy 3D
+link**, so whoever opens your design sees your pins. Press **Esc** to put the
+placement tool away. *(Live multi‑user presence is not part of this — comments
+sync by sharing the design.)*
 
 ## History
 
@@ -106,8 +138,14 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 - **Versions** — save, restore, and delete named snapshots of your layout, each
   with a thumbnail.
 - **Share & export** — copy a shareable link or export a real **PNG snapshot** of
-  the current view. *(Experimental: a "Make photoreal" option can restyle the
-  snapshot via your own AI key.)*
+  the current view. **Copy 3D link** makes a compact link (up to ~16 KB) that
+  opens an editable copy of your design on any device; **Copy plan link** is the
+  uncapped variant. Neither can carry your uploaded 3D models — use **Export
+  file** (`.sofa.json`) to share those. *(Experimental: a "Make photoreal"
+  option can restyle the snapshot via your own AI key — and once a result
+  exists, **Redesign this render** chips (Scandinavian, Japandi, Industrial,
+  Luxury, Tropical) regenerate the same view in another style, building a small
+  gallery of variants you can click through and download.)*
 - **Report** — a printable (save-as-PDF) summary: a hero render, a colour-keyed
   **furnished floor plan** drawn like a real architectural plan — door **swing
   arcs** and window breaks, a category legend — plus **furniture by room**
@@ -119,12 +157,29 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   **wall elevations** (a
   side-on drawing per wall with dimensions, for cabinet/fixture heights), a
   **lighting plan** (every fixture plotted over the walls with its coverage, plus
-  a schedule of type/quantity/height/intensity), an **FF&E schedule** (the
+  a schedule of type/quantity/height/intensity and a per-room **estimated light
+  level** table — lux vs the recommended range, statused OK/Low/High), an **FF&E schedule** (the
   item-level procurement table — room, item, source, SKU, size W×D×H, quantity,
   unit + line price), a **renovation estimate** (indicative flooring + painting
   supply‑and‑install cost per finish, with a combined furniture + finishes
-  total), areas, and your design notes — a handoff-ready document.
+  total), **HDB compliance hints** (non‑binding renovation advisories — likely
+  structural walls, wet‑area waterproofing, facade windows; on a multi‑storey
+  plan this also flags any **upper storey no staircase reaches**, until you
+  place a Staircase whose run lands on that storey's landing), areas, and your
+  design notes — a handoff-ready document.
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
   the lighting plan, and the FF&E schedule. Print or save as PDF for builders and
   permits — the multi-sheet counterpart to the one-page Report.
+
+## 360° panorama (Pro)
+
+**File → 360° panorama** captures a full look-around panorama from where you're
+standing (in walk mode, your exact position; in orbit, the point you're looking
+at, at standing height). Drag inside the preview to look around, scroll to
+zoom, and **Download PNG** saves the equirectangular image — ready for any
+360° viewer or a VR headset app.
+
+The same viewer powers **360° slides** in the saved-views presentation — mark a
+saved view *360°* and presenting it captures a panorama live from that spot
+(see [Saved views & presentation](/navigating#saved-views-presentation-pro)).

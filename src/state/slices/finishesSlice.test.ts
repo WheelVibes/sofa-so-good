@@ -54,3 +54,92 @@ describe('finishes — apply to all rooms', () => {
     })
   })
 })
+
+describe('finishes ↔ plan write-through (FP-next)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  const activateCustomPlan = () => {
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-write-through',
+        rooms: [
+          { id: 'studio-main', name: 'Studio', origin: [0, 0], width: 5, depth: 4 },
+          {
+            id: 'nook',
+            name: 'Nook',
+            origin: [5, 0],
+            width: 2,
+            depth: 2,
+            floor: 'floor-tile-grey',
+          },
+        ],
+      },
+    })
+  }
+
+  it('setFloorFinish writes through to the active plan room', () => {
+    activateCustomPlan()
+    useStore.getState().setFloorFinish('studio-main' as RoomId, 'floor-parquet-oak')
+    const room = useStore.getState().floorPlan.rooms.find((r) => r.id === 'studio-main')
+    expect(room?.floor).toBe('floor-parquet-oak')
+  })
+
+  it('setWallFinish + clearWallFinish write through to the plan room wall', () => {
+    activateCustomPlan()
+    useStore.getState().setWallFinish('nook' as RoomId, 'wall-brick-red')
+    expect(useStore.getState().floorPlan.rooms.find((r) => r.id === 'nook')?.wall).toBe(
+      'wall-brick-red',
+    )
+    useStore.getState().clearWallFinish('nook' as RoomId)
+    expect(useStore.getState().floorPlan.rooms.find((r) => r.id === 'nook')?.wall).toBeUndefined()
+    expect((useStore.getState().finishes.walls as Record<string, string>)['nook']).toBeUndefined()
+  })
+
+  it('setAllFloorFinish writes through to every plan room', () => {
+    activateCustomPlan()
+    useStore.getState().setAllFloorFinish('floor-parquet-oak')
+    for (const r of useStore.getState().floorPlan.rooms) {
+      expect(r.floor).toBe('floor-parquet-oak')
+    }
+  })
+
+  it('keeps the plan object identity on a no-op write-through', () => {
+    activateCustomPlan()
+    useStore.getState().setFloorFinish('studio-main' as RoomId, 'floor-parquet-oak')
+    const plan = useStore.getState().floorPlan
+    useStore.getState().setFloorFinish('studio-main' as RoomId, 'floor-parquet-oak')
+    expect(useStore.getState().floorPlan).toBe(plan)
+  })
+
+  it('writes through to a room on an upper level (F13/ML4b)', () => {
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Loft', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    useStore.getState().setFloorFinish(roomId as RoomId, 'floor-parquet-oak')
+    useStore.getState().setWallFinish(roomId as RoomId, 'wall-brick-red')
+    const s = useStore.getState()
+    const room = s.floorPlan.upperLevels?.[0].rooms.find((r) => r.id === roomId)
+    expect(room?.floor).toBe('floor-parquet-oak')
+    expect(room?.wall).toBe('wall-brick-red')
+    expect((s.finishes.floor as Record<string, string>)[roomId]).toBe('floor-parquet-oak')
+  })
+
+  it('activating a different plan prunes the previous plan’s custom-room finishes', () => {
+    activateCustomPlan()
+    useStore.getState().setFloorFinish('studio-main' as RoomId, 'floor-parquet-oak')
+    useStore.getState().setWallFinish('livingDining' as RoomId, 'wall-brick-red') // builtin room
+    useStore.getState().setFloorPlan({
+      ...useStore.getState().floorPlan,
+      id: 'another-plan',
+      rooms: [{ id: 'big-room', name: 'Big', origin: [0, 0], width: 6, depth: 5 }],
+    })
+    const f = useStore.getState().finishes
+    expect((f.floor as Record<string, string>)['studio-main']).toBeUndefined()
+    // Builtin-room finishes survive a plan switch.
+    expect(f.walls['livingDining']).toBe('wall-brick-red')
+  })
+})

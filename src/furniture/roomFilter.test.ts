@@ -11,3 +11,14 @@ describe('isItemInRoom', () => {
     expect(isItemInRoom({ position: [11, 7] }, b2)).toBe(false)
   })
 })
+
+describe('isItemInRoom level matching (F13/ML5)', () => {
+  it('requires the item and room to share a storey', () => {
+    const shell = { contains: () => true, levelId: 'lvl-2' }
+    expect(isItemInRoom({ position: [1, 1] as const }, shell)).toBe(false)
+    expect(isItemInRoom({ position: [1, 1] as const, levelId: 'lvl-2' }, shell)).toBe(true)
+    const groundShell = { contains: () => true }
+    expect(isItemInRoom({ position: [1, 1] as const, levelId: 'lvl-2' }, groundShell)).toBe(false)
+    expect(isItemInRoom({ position: [1, 1] as const }, groundShell)).toBe(true)
+  })
+})

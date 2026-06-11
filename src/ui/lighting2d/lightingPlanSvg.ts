@@ -9,6 +9,8 @@ import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import type { FloorPlan } from '../../floorplan/types'
 import { planBounds } from '../../floorplan/types'
 import type { PlanLight } from '../../lighting2d/lightingPlan'
+import type { LuxStatus, RoomLuxEstimate } from '../../lighting2d/roomLux'
+import { formatArea, type UnitSystem } from '../../utils/measurement'
 
 // Full escape (incl. quotes) — these SVGs render via dangerouslySetInnerHTML, so
 // keep it attribute-safe even if a user string is ever placed in an attribute.
@@ -92,4 +94,34 @@ export function lightingPlanSvg(
 
   const vb = `${f(-margin)} ${f(-margin)} ${f(mx + 2 * margin)} ${f(mz + 2 * margin)}`
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="lighting plan, ${lights.length} fixtures">${parts.join('')}</svg>`
+}
+
+/** Print inks for the per-room lux status (report + drawing set are fixed-ink
+ *  print documents, not themed app UI). */
+const LUX_STATUS_PRINT: Record<LuxStatus, { label: string; color: string }> = {
+  ok: { label: 'OK', color: '#15803d' },
+  low: { label: 'Low', color: '#b45309' },
+  high: { label: 'High', color: '#b45309' },
+}
+
+/**
+ * Per-room illuminance-estimate table for the print surfaces (report + drawing
+ * set share it so the two documents stay in lock-step): Room · Area · Est. avg
+ * (lx) · Recommended band · Status. Header/numeric cell classes are injected —
+ * the two documents use different table class vocabularies.
+ */
+export function roomLuxTableHtml(
+  rows: RoomLuxEstimate[],
+  units: UnitSystem,
+  cls: { header: string; num: string; table?: string },
+): string {
+  if (rows.length === 0) return ''
+  const body = rows
+    .map((r) => {
+      const s = LUX_STATUS_PRINT[r.status]
+      return `<tr><td>${esc(r.roomName)}</td><td class="${cls.num}">${esc(formatArea(r.area, units))}</td><td class="${cls.num}">${Math.round(r.lux)} lx</td><td class="${cls.num}">${r.recommended.min}–${r.recommended.max} lx</td><td style="padding-left:14px;color:${s.color};font-weight:600">${s.label}</td></tr>`
+    })
+    .join('')
+  const tableCls = cls.table ? ` class="${cls.table}"` : ''
+  return `<table${tableCls} style="margin-top:12px"><tr class="${cls.header}"><td>Room</td><td class="${cls.num}">Area</td><td class="${cls.num}">Est. avg</td><td class="${cls.num}">Recommended</td><td style="padding-left:14px">Status</td></tr>${body}</table>`
 }

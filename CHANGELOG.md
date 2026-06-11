@@ -2,7 +2,487 @@
 
 Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
-`claude/codebase-analysis-optimization-QKCK6`. See `TASKS.md` for the backlog.
+`claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
+
+## [C249 / T3] Per-LOD tiers for uploaded models — in-browser -low/-medium generation + tier-routed loading
+Uploads now get the same `-low`/`-medium` LOD siblings the offline `optimize:glb` pass bakes for
+bundled/IKEA GLBs, generated **in the browser** inside the existing optimize worker:
+`furniture/optimize/lodVariants.ts` takes the optimized GLB and, per tier, downscales textures to
+the shared `TIER_BUDGETS` caps (512/1024 px WebP) and decimates with meshopt `simplify`
+(ratio 0.5/0.75, error 0.01) before dedup/prune + Draco — mirroring `optimize_glb_lod.mjs`
+including its fallbacks (simplify failure → textures-only tier; tier failure or a variant that
+doesn't shrink → tier omitted; nothing ever blocks an upload). Tiers persist as sibling IDB
+records under derived `<assetId>:lod-<tier>` keys (`meta.role='lod'`), are re-resolved on boot by
+`hydrateAssets`, and are deleted with their base asset. Runtime selection reuses the builtin path:
+`gltf/lod.ts` gains a variant **registry** (blob URLs can't be suffix-probed) that
+`resolveLodUrlSync`/`prewarmLod`/`baseUrl` consult first, so `GltfModel`'s existing
+`effectiveAssetTier` routing serves the `-low` upload on the Performance render tier with zero new
+render code. The upload dialog gets a default-on "Generate low-detail versions for slower devices"
+opt-out (the tiers roughly triple per-model optimize time — measured headless/SwiftShader on an
+8.6 MB 131k-tri GLB: optimize 32 s, +71 s for both tiers; real GPUs are far faster but it's well
+past the 5 s silent threshold). meshoptimizer (already in the tree via @types/three) is now a
+declared dep, dynamic-imported so it stays in the lazy optimize chunk. 18 new unit tests (tier
+params, key derivation, registry selection, persist/hydrate/delete round-trip); verified headless
+end-to-end: upload → base 4.63 MB + low 1.09 MB + medium 1.70 MB in IDB, in-page reboot rehydrates
+the registry, and the Performance tier draws the low variant (67.6k tris rendered vs 133.0k on
+the original — 0.508, right on the 0.5 target) with the model rendering cleanly.
+
+## [C248 / F24] Pinned design comments — level-aware pins + panel, travels with saves/links
+Sticky-note feedback on a design (the PROD half of F24; live presence stays backend-deferred):
+`commentsSlice` holds `{id, position:[x,z], levelId?, text, author?, createdAt, resolved}` with
+add/edit/resolve/delete actions that each push ONE undo step (`comments` joined the history
+snapshot, and the History timeline labels the steps). Mirrors the annotations architecture:
+an optional + additive `comments[]` in the save schema (no version bump) rides `serialize`/
+`applySerialized`, so pins persist through autosave, `.sofa.json` export AND the `#/design/`
+share link (designShare reuses serialize — covered by a round-trip test). 3D: `CommentPins.tsx`
+renders a numbered teardrop bubble per pin at its storey's elevation (`levelElevation`, hidden
+with its level like furniture; resolved pins dim green ✓); click opens an in-scene popover with
+the note + resolve/delete. Placement mirrors the tape measure: `commentMode` arms a transparent
+priority-raycast floor plane at the in-view storey's elevation — one tap → `promptText` →
+pin (Esc disarms). `CommentsPanel` (`.aux` slot) lists open/resolved with click-to-focus (jumps
+storey filter when needed), edit, resolve, delete. Gated end-to-end by a new `comments` flag
+(pro tier, default on): Tools menu (with pin count), mobile Tools sheet, ⌘K (`COMMAND_FLAGS`),
+and the pins themselves. Tests: slice CRUD + undo/redo, schema + share-link round-trips incl.
+levelId/resolved, flag both-modes; two-storey placement + resolve verified visually.
+
+## [C250 / V-TOUR] Cinematic tour through saved views
+Competitor parity with Coohom's video walkthrough (2026 research pass — sources in TASKS):
+`setTouring('views')` flies the camera through the user's SAVED VIEWS in order (pure
+`viewTourFrames`, malformed poses skipped, ≥2 required; 3.5 s eased legs vs the room tour's 2.5 s)
+and applies each destination view's captured lighting as its leg begins — a dusk shot plays at
+dusk. "Cinematic tour" entries in the saved-views menu + mobile sheet (≥2 views); pairs with the
+existing Record clip for an exportable .webm. `touring` widened to `false|'rooms'|'views'`
+(boolean back-compat kept + tested). Verified mid-flight: camera interpolating with dusk
+transitioning in.
+
+## [C244 / GE2b] Drag gizmo for GLB-designer parts — translate/rotate/scale
+The selected part in the 3D asset designer now carries a drei `TransformControls` gizmo in the
+live preview: a **Move / Rotate / Scale** segmented control overlays the preview's top-left
+(plus Blender-style G/R/S keys scoped to the dialog — it now registers with `modalGuard`, so
+global scene hotkeys no-op while it's open). The gizmo is the fast path, the numeric fields stay
+the precision path: a finished drag (coalesced per drag-END, never per frame) is mapped by the
+pure `furniture/glbEdit/gizmoWriteBack.ts` `gizmoPatch` onto the part's existing fields and
+routed through the same `updatePart` the inputs use — positions snap to 5 mm (clamped ±3 m),
+rotations to 1° normalised to [-180, 180) (all-zero clears the field), scale multiplies `size`
+per axis (min 0.02 m) and the live object's scale resets to 1 (geometry rebuilds at the new
+size). Combined `mesh` parts (CSG results) move/rotate only — their triangles are baked, so the
+Scale mode is hidden and the Edit section says so. OrbitControls pauses while a handle is
+dragged (drei's `makeDefault` + `dragging-changed` wiring). Write-back mapping unit-tested
+(19 cases); gizmo render in all three modes verified headless.
+
+## [C247 / F21] WebXR VR walkthrough — gated entry + inert provider
+`@react-three/xr` wired behind a `vrWalkthrough` flag (pro): `scene/xr/` holds a pure
+`detectVrSupport` (3 tests), a lazily-created singleton XR store, and `MaybeXr` — an inert
+pass-through wrapper inside the Canvas that only mounts the XR provider (and loads its chunk)
+once a session is requested, unwinding when the headset session ends. "Enter VR" appears in the
+View menu + mobile View sheet only when the flag is on AND `immersive-vr` is supported; the store
+is pre-created on support detection so the click keeps its user activation. Verified headless
+with a mocked `navigator.xr` (item renders; scene unchanged through the inert wrapper); an
+actual headset session is real-device-deferred by nature.
+
+## [C245 / F27] "Redesign this render" style-variant explorer on the AI photoreal path
+Once a "Make photoreal" result exists in the Share modal, style chips (Scandinavian / Japandi /
+Industrial / Luxury / Tropical — descriptors reuse the `briefParser.ts` keyword vocabulary so the
+app speaks one style language) re-run the SAME BYO-key i2i call on the SAME captured snapshot
+with a style-modified prompt, building a small gallery: thumbnail row (original + one entry per
+style, replace-on-rerun), click to view full, per-variant download. Pure
+`ai/styleVariants.ts` (`buildVariantPrompt` strips known style/theme segments then leads with the
+new style — chips replace, never stack) + pure `ui/ai/variantGallery.ts` reducer (one in-flight
+at a time, stale-result guard after a re-seed), both unit-tested at the same boundary as the
+existing photoreal tests (the live round-trip still needs a real key). Stays inside the existing
+`aiPhotoreal` flag: it is the same feature surface (an extra control on the same Share-modal
+section, same provider/key/error path), not a new ship decision. Errors surface inline exactly
+like the original path; key handling unchanged (localStorage only, never bundled). Visually
+verified desktop + 390px mobile with a mocked provider (chips wrap, selected thumb outlined).
+
+## [C246] Preset circulation guard + WFH studio re-spacing
+New regression test: no shipped layout preset may have a tight pinch below 0.5 m between two
+large circulation pieces (≥0.5 m² each; coffee-table seating adjacency and small decor excluded —
+those are intentional and stay as in-app advisory hints). It caught one real defect: the WFH
+studio's desk sat 0.40 m behind the sofa — re-spaced (sofa north 0.15, desk cluster south 0.10)
+to a walkable 0.75 m, dining-side corner gap intact. TODO.md layout + quick-finishes follow-ups
+cleared (the curated one-tap furniture finishes had already shipped as QuickFinishes).
+
+## [C239 / GE5] CSG boolean ops in the GLB designer
+The 3D asset designer can union/subtract/intersect two shapes: select a part, pick a second in
+the new **Combine (boolean)** section's "with…" dropdown, choose the op — both parts are replaced
+by ONE new `mesh` part (baked triangles in `ShapePart.geometry`, a new `ShapeKind`) carrying the
+first part's colour/finish, positioned at the result's bounds centre with identity rotation (so
+position/rotation editing, duplicate/mirror and re-combining keep working; size is baked and
+hidden for mesh parts). `furniture/glbEdit/csgCombine.ts` bakes each part's transform into its
+geometry then runs `three-bvh-csg` (MIT, pinned 0.0.17 for the drei-pinned three-mesh-bvh 0.8.x)
+via Brush+Evaluator — DYNAMIC-imported at the call site so it stays out of the boot bundle.
+Degenerate/empty results (e.g. intersecting disjoint shapes, zero-volume slivers) throw → toast
+"Couldn't combine these shapes"; stored centre/size rounded to 1µm so the editable fields read
+clean. Shapes only (the source GLB is never a part); no in-dialog undo — stated in the UI copy.
+Pure helpers unit-tested + real-engine wiring tests (union/subtract/intersect bounds, disjoint
+rejection); visually verified headless (box−cylinder notch, union lump, intersect lens).
+
+## [C243 / F1 tail] Edge-preserving denoise on the HQ render
+The HQ render's canvas blit now runs through the lib's `DenoiseMaterial` (smart edge-preserving
+blur; σ=2.5, threshold 0.1) so low-sample previews and saved stills look clean while samples
+accumulate — with a safe fallback to the plain blit if construction fails. Verified headless:
+the denoised preview is visibly smoother than the raw accumulation at the same sample count.
+F1's remaining open point is the real-GPU convergence/quality pass.
+
+## [C242 / PERF9] Procedural finish textures size with the quality tier
+`generateProcedural` reads a configurable base size: 256² on the Performance tier (the app
+default — quarter the texels per map across albedo+normal+roughness, visually identical at
+room viewing distances) and 512² on Medium+. `QualityController` sets it on tier change;
+material cache keys carry the size so a tier switch regenerates instead of serving stale
+textures. Verified: Performance-tier boot renders the furnished flat identically.
+
+## [C241] Walkway wall pinches on custom plans, per storey
+`findNarrowGaps`' item↔wall pass no longer skips custom plans: each item is tested against ITS
+OWN storey's walls (`levelAsPlan` + `planCollisionWalls`, cached per level within a call; the
+default flat keeps its fixed door-aware walls on ground). Closes the last F13 level-gating
+remnant. Existing tests' isolation fixture updated (wall-less plan instead of relying on the old
+skip); 2 new per-level pinch tests.
+
+## [C240 / F5] Photographic depth of field on the HQ render
+The HQ render gains a DoF select (off / f/8 / f/2.8 / f/1.4): with a stop chosen, the session
+renders through the path tracer's `PhysicalCamera` cloned from the live pose, auto-focused on the
+first surface at screen centre (raycast into the snapshot; 3 m fallback). Verified headless: the
+f/1.4 session accumulates cleanly (4 samples in the harness window, scene clearly resolving) with
+no converter errors; bokeh quality assessment joins the F1 real-GPU pass.
+
+## [C237 / F23 tail] 360° panorama slides in Presentation mode
+A saved view can be marked 360° (`SavedView.pano`, optional + additive; toggle in the saved-views
+list, desktop + mobile): when the slideshow reaches it, a panorama is captured from that view's
+pose and shown in the shared drag-to-look sphere viewer — extracted from PanoramaModal into
+`ui/panorama/PanoramaViewer.tsx` (one implementation for modal + slides; pure look math in
+`viewerLook.ts`, tested). Auto-advance pauses on 360° slides (the viewer is interactive); the
+header shows "· 360°". Salvaged from an interrupted agent's WIP, verified end-to-end (slide 2/2
+renders the captured pano full-screen with caption + drag hint). F23 is now fully shipped.
+
+## [C236] Per-storey drawing sheets
+The 2D diagrams fan out per storey on multi-level plans: the report's plan figure + furniture
+footprints, lighting diagrams (report, Drawings panel, drawing set), electrical and demolition
+plans all render one captioned sheet per level via `planLevels`/`levelAsPlan`/`itemsOnLevel`
+(items filtered to their storey; demolition diffs each storey against the SAME storey of the
+baseline, with whole-storey added/removed callouts). Single-storey output unchanged (existing
+tests untouched). Salvaged from an interrupted agent's WIP (its tests included — 190 affected
+tests pass), verified in-app: maisonette Lighting tab shows both storeys' diagrams + a schedule
+spanning both levels' rooms.
+
+## [C238 / F1] HQ render — progressive path-traced photoreal still (marquee)
+`three-gpu-pathtracer` (MIT, dynamic-imported chunk) drives a dedicated offscreen renderer at the
+chosen resolution (HD→4K, 64–1024 samples) so the live raster pipeline is untouched: a sanitized
+snapshot scene (world-baked mesh clones with standard materials only; punctual lights copied;
+gradient sky instead of the unreadable PMREM probe) feeds the BVH; samples accumulate on rAF with
+adaptive tiling (2×2→6×6 by resolution, keeps the tab responsive), live preview, progress, Stop,
+and Save-PNG-any-time. `hqRender` flag (pro); File menu + mobile + ⌘K. Verified headless
+end-to-end at a dev-only tiny resolution (BVH build → accumulation → preview shows path-traced
+noise converging → stop/save); full-resolution convergence quality needs the usual real-GPU pass.
+Raster fallback = the existing File→Export PNG (linked in the modal's error copy).
+
+## [C235 / ML7] Multi-storey docs sweep — program complete
+New path-scoped `src/floorplan/CLAUDE.md` (the hard rules: `plan.rooms` is ground-only — use
+`allPlanRooms`/`levelOfRoom`/`levelAsPlan`; level-gate cross-item scans; room ids plan-unique
+across storeys); a "Multi-storey plans" section in `docs/developer/apartment-and-floorplan.md`;
+`docs/research/multi-level-design.md` marked shipped (C221–C233). F13/Q-MULTILEVEL is complete:
+schema → rendering → collision → editor tabs → analyses → templates → stairs advisory → walk
+teleport, all level-aware. Remaining (tracked): per-storey 2D drawing sheets.
+
+## [C233 / ML6c] Walk-mode level teleport
+On multi-storey plans the first-person walker now follows the View→Levels selection: picking a
+storey while walking teleports to that level's first room centre at eye height above ITS floor
+(`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`), the walk floor height = the level's
+elevation (gravity/crouch/jump land on it), collision walls resolve from that storey's own
+geometry (`levelAsPlan` → `planCollisionWalls`), and `buildWalkBlockers` gains a `levelId`
+param so only the walker's-storey furniture blocks (the room editor passes the edited room's
+storey, fixing upper-room editor walks ignoring their own furniture). 'All levels' walks the
+ground floor as before; stale level ids degrade to ground. Desktop + mobile Levels controls hint
+"Walk this storey" in walk mode. 6 new tests (walk-level resolution, spawn points, blocker level
+selection). Verified headless on the maisonette: walker spawns upstairs at y=4.55 (2.9 m slab +
+1.65 m eye) inside Bedroom 2 vs y=1.65 in the ground living room; interior renders correctly at
+both elevations. (WASD traversal itself isn't drivable headless — collision is unit-tested.)
+
+## [C232 / ML6b] Stair-connectivity advisory for multi-storey plans
+New pure `analysis/stairConnectivity.ts` (HDB-compliance-hints pattern): on multi-level plans,
+`buildStairAdvisories(plan, items, getDef)` emits a caution `Advisory` for every upper storey no
+staircase reaches — a staircase-family item (`staircase` def / `Staircase` primitive) standing on
+the storey directly below whose rotation-aware footprint (corners + centre + edge midpoints vs
+`pointInRoom`) lands in rooms of BOTH storeys. Surfaced where the other plan advisories live: the
+printable report's "HDB compliance hints" section (caution count included). Advisory only — never
+a hard constraint, matching Sweet Home 3D / Planner 5D. 7 new tests (reachable/unreachable, wrong
+storey, missed footprint, three-storey chains, single-level silence, report surfacing). Verified
+headless: maisonette report shows "No staircase reaches Upper storey".
+
+## [C231 / ML6a] Maisonette + loft templates gain real upper storeys
+A new two-storey **HDB Executive Maisonette** template (`tpl-hdb-maisonette`, ~150 m²: living/
+dining + kitchen/yard/shelter/WC + stair hall below; 3 bedrooms, 2 baths, landing + family area
+above at 2.6 + 0.3 m), and the existing **Terrace House** (3 bedrooms + 2 baths + family area
+upstairs at 3.3 m; renamed from "Terrace House (Ground)") and **Open Loft** (sleeping mezzanine +
+dressing behind a parapet guard rail) now carry real `upperLevels` instead of single-floor
+approximations. Every two-storey template stacks a 'Stair Landing' room exactly over its ground
+stair space so a catalog staircase connects the floors. Layouts per
+`docs/research/hdb-floor-plans.md` (new Executive Maisonette section). The generalised template
+tests now sweep EVERY storey (bounds, overlap, plan-unique ids, per-level opening↔wall fit) plus
+a stacked-stair-space assertion. Verified headless: maisonette stacked + upper-only views,
+terrace + loft stacked views.
+
+## [C234 / F4] Render presets — one-tap photo modes
+Pure `scene/renderPresets.ts` (4 curated combos of sun preset + tone-mapping look + exposure +
+fixture lights: Bright day / Soft morning / Golden hour / Cozy evening) + one `applyRenderPreset`
+applier shared by the Scene menu chip row and the mobile Scene sheet (`renderPresets` flag,
+simple-tier, both-modes tested). Verified: chips render in the menu; bright-day vs cozy-evening
+screenshots are dramatically distinct (noon neutral vs night filmic with fixtures on). A/B
+compare deferred until F3 HDRI lands.
+
+## [Bug fix] Wall z-fighting at zoomed-out orbit distances (user-reported)
+The wall finish face planes sit 1 mm off the wall body; at far orbit distances the depth buffer
+can't resolve that gap and the faces strobed against the plaster (horizontal banding). Both face
+renderers (`WallSegment` FacePlane and the custom-plan `PlanWallFinishFace`) now bias the depth
+test with `polygonOffset` (-1/-1) on their per-wall material clones — rasterizer-unit bias is
+distance-invariant, so the face always wins. Verified with 3× magnified before/after crops at max
+zoom-out: banding on the bath/bedroom walls fully gone, no bleed onto skirting or floors.
+
+## [C227 / ML4b] 2D editor level tabs — per-storey editing
+The Floor Plan Editor gets a storey tab strip (`LevelTabs.tsx`: **Ground floor** + each
+upper level + **＋ Level** add-and-switch + confirmed **✕** remove → back to ground). Every
+tool (wall/room/polygon/auto-room/split/door/window), snap, dimension labels, area totals,
+furniture-footprint overlay and `PlanInspector` edit now reads the ACTIVE level
+(`levelAsPlan`) and routes mutations with its `levelId`. Slice fixes: `splitWall` /
+`moveWallVertex` gain optional `levelId` (`withLevelGeometry` routing); `updateRoom` /
+`setRoomCeiling` and the finishes write-through (`planWithRoomFinish`) now search ALL
+storeys by room id instead of ground only. Item drags in the 2D plan validate against the
+item's own storey walls (`placementWalls`). 6 new tests; verified headless on both tabs
+(desktop + 390 px mobile, strip scrolls).
+
+## [C230 / ML5b] Level-correct analyses — score, daylight, lux
+Design score counts every storey's rooms (`allPlanRooms`) and attributes furnishing coverage +
+room lighting per level (`itemInRoomOnLevel` — a ground lamp no longer "lights" the upstairs
+bedroom at the same XZ); the daylight/ventilation report fans out per storey so each level's
+rooms are assessed against ITS OWN windows (`levelAsPlan` now strips `upperLevels` on the ground
+branch so recursive consumers terminate); `PlanLight` carries the fixture's `levelId` and the lux
+schedule matches lights to rooms on the same storey. 3 new tests.
+
+## [C228 / ML3 tail] Level-gate walkway, wall-clip and walk-mode checks
+The remaining cross-item spatial analyses are storey-scoped: `findNarrowGaps` skips item
+pairs on different levels and tests only ground items against the default flat's (ground)
+walls; new `collision/levelWallClips.ts findWallClipsByLevel` groups items by storey and
+resolves each level's own collision walls (`levelAsPlan` + `planCollisionWalls`) — adopted
+by the design score, the printable report and the Clearance panel (single-storey plans
+short-circuit to the old `findWallClips`, byte-identical); walk-mode `buildWalkBlockers`
+excludes upper-storey items (walker is ground-only until ML6 level teleport). 9 new tests;
+all existing single-storey tests untouched and passing.
+
+## [C229 / ML5a] Upper-storey room editor — enter, furnish, level-stamped items
+`planRoomShell` resolves a room's storey (`levelOfRoom` + `levelAsPlan`) so the per-room editor,
+its placement walls and the walk camera clip against the right level's geometry; the shell carries
+`levelId` and `isItemInRoom` requires a storey match (an upstairs room at the same XZ no longer
+shows ground furniture). `addItem` stamps `levelId` from an upper-room editor context (explicit
+ids from duplicates/pastes win); `FurnitureLayer` skips the elevation offset inside the isolated
+editor; PlanShell click-to-enter works on every storey. Verified end-to-end: entered the upper
+bedroom, placed a bed (probe: `levelId: 'lvl-2'`), exited — overview renders it on the upper
+storey over the ground sofa. 5 new tests.
+
+## [C226 / ML4a] Plan-edit actions route per storey + add/remove level
+New pure `withLevelGeometry` (levels.ts) maps a geometry update onto one storey; the eight
+wall/room/opening slice actions gain an optional `levelId` (ground default = behaviour
+unchanged), and new `addLevel` (empty storey auto-elevated above the highest, undoable) /
+`removeLevel` (drops the storey + its items + its stale finish keys, undoable; ground is a
+no-op). 6 new tests. The 2D editor's level tab strip lands next (ML4b).
+
+## [C225 / ML3b] Level-scoped placement collision
+Items on different storeys no longer collide: one level-equality gate in `itemsCollide`
+(covers `canPlace`, `findItemOverlaps`, design score, reports — zero caller changes), and
+`placementWalls(state, levelId?)` routes an upper-level item's wall validation to its own
+storey's walls via `levelAsPlan` (ground/unknown ids keep today's behaviour). Drag, ghost,
+rotate/flush/mirror/preset actions pass the item's `levelId`. 5 new collision tests.
+
+## [C219 / LP5] Lighting plan — per-room lux estimate + recommended-level check
+New pure `lighting2d/roomLux.ts`: lumen-method estimate per room (registry candela → lumens via
+4π × a documented scene-calibration constant; utilisation factor 0.45; CIBSE/IES/EN-12464-sourced
+recommended bands per room kind) → ok/low/high status. Schedule renders in the Drawings panel's
+Lighting tab, the printable report and the drawing set; respects the per-item emitter `enabled`
+gate. Salvaged from an interrupted agent's WIP, integrated (isItemEmitter resolution) and
+verified in-app (plausible per-room values + status chips). 17 lighting tests pass.
+
+## [C218 / EL5] Elevation polish — door swing symbol + dimension label de-overlap
+Doors in wall elevations now carry the standard drafting symbol: leaf line on the hinge jamb +
+dashed quarter swing arc (hinge side plumbed from `PlanOpening.hinge` through `projectElevation`;
+knob dot moves to the latch jamb). Per-item width dimensions de-overlap via new pure
+`elevation/dimensionLayout.ts` (greedy row stagger + text-width approximation, 5 tests); the
+overall-width line and viewBox grow with the stagger rows. Salvaged from an interrupted agent's
+WIP, completed (stagger integration + tests) and visually verified (mirrored arcs/knobs on two
+doors; the middle of three narrow adjacent labels staggers to row 1).
+
+## [C223 / ML3a] Furniture renders at its storey's elevation
+`FurnitureLayer` resolves each item's level (memoised id→elevation map; zero overhead on
+single-storey plans), offsets it by the level elevation, and unmounts items with a hidden level
+(View → Levels). Verified: bed on the upper floor renders elevated over the ground-floor sofa.
+ML3 tail (drag/placement collision scoped to the item's level) still open.
+
+## [C222 / ML2] Multi-storey rendering — stacked levels + level-visibility control
+`PlanShell` restructured into per-level `PlanLevelShell`s (floors/ceilings/walls/skirting/doors/
+windows run on a `levelAsPlan` pseudo-plan, so ground + upper storeys share one code path), each
+offset by its elevation with a slab under upper floors; new `visibleLevels` filter drives a
+"Levels" section in the View menu + mobile View sheet (All / per storey; only shown on multi-level
+plans; hidden storeys unmount so picking can't hit them). `viewLevelId` lives in cameraSlice
+(session-only). Upper-room click-to-enter deliberately disabled until ML5. Verified: two-storey
+plan renders stacked with reveal working; upper-only view floats the storey at 2.9 m.
+
+## [C221 / ML1] Multi-storey foundations — types, schema, resolution layer
+F13 phase 1 (design: `docs/research/multi-level-design.md`): additive `FloorPlan.upperLevels`
+(`PlanUpperLevel` — own walls/openings/rooms at an elevation) + `FurnitureItem.levelId`, both
+optional + schema-round-tripped (no version bump); new pure `floorplan/levels.ts`
+(`planLevels`/`levelById`/`levelElevation`/`levelOfItem`/`levelOfRoom`/`allPlanRooms`); the two
+room-id collectors (`applySerialized` finish filter, `pruneFinishesForPlan`) now see upper-level
+rooms. 10 new tests. Rendering/editing land in ML2–ML7.
+
+## [C217 / F2] 360° panorama — equirect capture + drag-to-look viewer + PNG export
+Six 90° renders through the normal screen pipeline (tone mapping/colour match the live view; the
+camera-facing wall-reveal is settled opaque first via a `wallReveal` override + `registerAnimatedSource`
+pump hold; composer render-state reset around the manual renders) cropped to exact 90°×90° squares and
+CPU-assembled by pure `scene/panorama/equirect.ts` (unit-tested face math + bilinear assembler). Eye =
+walk camera, or the orbit pivot at standing height. `PanoramaModal` (lazy, `panorama` flag, pro-tier)
+shows a self-contained three sphere viewer (drag look, wheel zoom, context-loss tolerant) + PNG download;
+entries in File menu, mobile File sheet, ⌘K. Also: custom-plan `FadeWall` now honours the `wallReveal`
+override like the default flat. Verified headless: capture correctness via pixel probes at six directions
++ modal/viewer screenshots; the *interactive* viewer rotation provably updates the camera but SwiftShader
+won't present a second WebGL context's redraws — real-GPU pass deferred (consistent with PR3c precedent).
+
+## [C214 / F25] Text-to-room brief — "describe it" box in Smart Start
+New pure `furniture/briefParser.ts`: deterministic keyword scoring (curated synonym table over all 15
+layout presets + name/description fallback, whole-word matching) maps a free-text brief to the closest
+preset, plus budget extraction ("$15k" / "S$ 12,500" / "budget of 18k" → `setBudgetTarget`). Wizard gains
+a flag-gated (`textBrief`, simple-tier) textarea + "Match my brief" with an honest matched-terms/budget
+line (and an explicit "couldn't match" state). 9 new tests incl. both-mode flag resolution. Verified
+end-to-end in the wizard (typed brief → Japandi matched + selected).
+
+## [C213 / FP-next] Custom-plan rooms: live 3D finish editing (floor + wall)
+The 3D finish picker silently didn't render on custom plans (the shells read only `PlanRoom.floor`; walls
+were fixed plaster). Now: new `floorplan/roomFinishes.ts` resolvers (live `finishes` slice → plan room →
+default) drive `PlanShell` + `PlanRoomShell`; `setFloorFinish`/`setWallFinish`/`setAll*` write through to
+the active plan's room (`floor` + new optional `wall`, schema round-tripped); new `clearWallFinish`;
+`PlanRoomShell` walls render the room's wall finish via `PlanWallFinishFace` (world-UV, any catalog
+material incl. textured + #hex); 2D `PlanInspector` gains a Wall-finish select and routes floor picks
+through the slice; plan activation prunes stale custom-room finish keys. Harness: `SHOT_URL` +
+`SHOT_NAV_TIMEOUT` env overrides in `scripts/shot.mjs` (parallel worktree dev servers / busy-CPU loads).
+Verified: room editor renders grey-tile floor + red-brick walls on `tpl-studio` (screenshot), 10 new tests.
+
+## [THEME-COLORS] Theme-token pass — replace hardcoded hex colours
+Hardcoded hexes that bypassed the CSS token vocabulary (mis-rendering in dark mode / the 5 themes) now use
+`var(--…)` tokens: `FloorPlanEditor` measurement annotations (new `--plan-annot`, light + dark) and the
+`CATEGORY_FILL` furniture fills (new `--plan-cat-*` tokens in `screens.css`; `exportPlanPng` PLAN_VARS kept
+in sync); `CompassModal` dial SVG (surface/border/text/danger tokens + new theme-independent `--sun`/
+`--sun-edge`); upload `ConfirmDialog` rebuilt on `.modal-overlay`/`.btn`/`.btn-accent`/`.btn-danger` + a
+surface-token gradient; `IkeaBody` swatch fallback (`--surface-3`) + active-variant ring (`--accent`, was
+Tailwind blue). Left as a literal by design: `PlanInspector` cove `#ffe6c0` — a persisted scene-data default
+(`coveColor`, consumed by the 3D cove light + `<input type="color">`), not UI chrome. Visually verified:
+plan editor + compass modal screenshotted in clay light, clay dark, and porcelain dark.
+
+## [P-CHUNK] Code-split heavy paths + manual vendor chunks
+Boot JS payload cut ~24% (3,027 → 2,290 KB minified; 837 → 632 KB gzip) with no behaviour change:
+- **Dynamic imports at call sites** for heavy, rarely-used graphs: the rare-format three loaders
+  (FBX/Collada/USDZ/3MF/OBJ/STL/PLY in `loadToObject`, ~198 KB) + `GLTFExporter` (`toGlb`), the
+  @gltf-transform optimize pass (`runOptimize` fallback, ~255 KB; now best-effort — a failed chunk load
+  keeps the original GLB), TGA/EXR/HDR/TIFF texture decoders (`decodeImage`), the pack `ThumbnailRenderer`
+  (`hydratePacks`), and the report/moodboard/BOQ/DXF/drawing-set builders. The popup-based exports open
+  their window synchronously inside the click (pop-up blockers still allow it) and build the document
+  after the chunk loads, closing the window + toasting if the chunk fails.
+- **Lazy components**: `PacksTab` and both upload dialogs (model + material) in the catalog drawer /
+  finish picker — both dialogs reset state on close, so mount-gating is behaviour-identical.
+- **Manual chunks** (`vite.config.ts`): react/react-dom/scheduler split into their own `react` chunk;
+  `three/examples/jsm`, `utif`, `@gltf-transform`/`draco3dgltf` excluded from the eager `three`/`vendor`
+  chunks so they follow their async importers. three 1,166→849 KB, vendor 870→387 (+190 react), index
+  990→863 KB. Verified: full test suite, prod-build boot screenshot, and the lazified report path
+  end-to-end in the harness.
+
+## [MOBILE-TAP-TARGETS] Mobile toolbar controls meet the 44px touch-target minimum
+In-browser audit of every interactive control in the mobile bar + hamburger sheet (360×780 and 430×932,
+touch-emulated): the accordion rows (`.m-item`, incl. `.m-item-s` sub-label rows), section headers,
+saved-view delete and slot-load were already ≥44px. Seven controls were under and are now ≥44px effective:
+hamburger (38→44), room-editor exit X (34→44), room select (36→44), sheet close X (26×26 visual kept,
+hit area padded to 44×44 via an invisible `::after`), saved-layout delete (36→44), Scene backdrop select
+(34→44), and the time-of-day slider (4px-tall input → 44px hit area, thin 4px track preserved on the
+track pseudo-elements). Verified with `getBoundingClientRect` + `elementFromPoint` probes and screenshots
+at both widths.
+
+## [POPOVER-SCROLL] Toolbar popovers vs. toolbar scroll
+Verified the reported "popover detaches when the toolbar scrolls" on a narrow desktop (660 px, room-editor
+toolbar): the shared `Popover` already closes on any capture-phase ancestor scroll, so no detach occurs. The
+actual defect was the inverse — that same global listener also fired for scrolls *inside* a menu's own
+overflow list (File → saved layouts, Arrange), instantly closing the menu you were scrolling. `Popover` now
+ignores scroll events originating within its panel (they don't move the anchor) while still closing on
+toolbar/page/ancestor scrolls. Unit tests cover both directions; mobile is unaffected (the mobile sheet
+doesn't use `Popover`).
+
+## [MODAL-HOTKEYS] Suppress global hotkeys while a modal is open
+Typing into a mis-focused modal could trigger scene shortcuts behind it (e.g. `P` toggled the 2D plan
+behind the Smart Start modal). New `controls/modalGuard.ts`: a module-level open-modal counter — the
+shared `Modal` primitive registers automatically (`useModalGuard(open)`), as do the modal-style overlays
+that don't build on it (GraphicsSettings, CompassModal, Onboarding, UploadModelDialog + its
+ConfirmDialog). Every global keydown handler now early-returns via `isAnyModalOpen()`: `useKeyboard`
+(main key map incl. Ctrl/Cmd+Z undo — suppressed behind a dialog like most apps; inputs keep native
+undo), the direct App.tsx handler (⌘K/?/B/⌘A/`[`/`]`/`,`/`.`/`/` — ⌘K suppressed so the palette can't
+stack on a dialog; `?` still closes the Help modal it opened), arrow-key nudge, the FloorPlanEditor `P`
+toggle + its Enter/Esc/Delete keys, walk-mode WASD, and armed-placement R/Esc. Escape-to-close keeps
+working (each modal owns its own listener); the ⌘K palette is not a `Modal` and keeps its internal
+keyboard handling. Unit tests: counter semantics, hotkey no-op while open / resumes after close,
+input/textarea/contenteditable guard, Modal registers+releases on open/close/unmount. Harness:
+`scripts/shot.mjs` gains `SHOT_URL` + survives `networkidle2` timeouts (offline sandbox); verified
+end-to-end — P/V suppressed behind Smart Start over the 2D editor, P exits the editor again once
+closed, Escape still closes the wizard.
+
+## [C215] Shoppable design export (F20)
+A polished, self-contained buy-list HTML export: every placed piece with name, room, quantity
+(identical defId+variant grouped per room), unit + line price, **grouped per retailer** (IKEA defs
+carry retailer info/SKUs; everything else under "Unpriced / generic" with the Budget panel's
+estimates via the shared `itemPrice`), per-retailer subtotals + grand total, and the design/budget
+context (name, note, budget target under/over). Pure tested builder `ui/shoplist.ts`
+(`buildShopList` + `buildShopListHtml`, 5-char escaping, http(s)-only hrefs);
+`ui/openShoplist.ts` opens the window synchronously then dynamic-imports the builder
+(popup-blocker-safe, out of the main chunk). New `shopExport` flag (simple tier, prod on) gating
+the desktop **File → Shopping list**, the mobile File section, and a ⌘K command; IKEA product
+links are dev-gated behind the dev-only `ikeaLive` flag per the licensing rule. 25 tests incl.
+both-modes flag resolution.
+
+## [C216] Vanity configurator — parametric dressing table with layout variants
+The dressing table gains a wardrobe-style (C205) configurator. New `layout` param reshapes the base —
+`Open legs` (four-leg + apron drawer band), `Single pedestal` (3-drawer pedestal left, legs right) and
+`Double pedestal (kneehole)` (mirrored pedestals + slim centre drawer over a ≥0.35 m knee space) — and the
+`mirror` enum gains `None (table only)`; width range widens to 0.8–1.5 m. Pure layout maths live in
+`primitives/vanityLayout.ts` (slatLayout pattern: supports reach floor→underside, every part inside the
+footprint, drawer fronts backed flush — 8 tests). The Hollywood-bulb option now emits real light at night:
+`LIGHT_EMITTERS` gains a per-item `enabled` gate (`isItemEmitter`) honoured by `FurnitureLights`, the 2D
+lighting plan and the design score, so a vanity only counts/glows with `lights=yes` on the rect mirror.
+Harness: `shot.mjs` honours `SHOT_URL` + 120 s nav timeout (playbook updated). Visually verified all three
+layouts, mirror none, and night bulbs on/off.
+
+## [P-OPENS-PLAN] `P` toggles the 2D plan editor open from the 3D view
+`FloorPlanEditor` is lazy-mounted only while `floorPlanEditing` is true (PERF5/C181), so its own
+"`P` toggles the editor" keydown listener only existed once the editor was already open — `P` could
+CLOSE the 2D plan but never OPEN it from the 3D view. The toggle now lives in an always-mounted
+binding: new `controls/planEditorHotkey.ts` (`togglePlanEditor: 'KeyP'` in `keybindings.ts`,
+`usePlanEditorHotkey()` mounted from App via the shared `useKeyboard` hook, so the repeat /
+editable-target / open-modal guards all apply; walk mode + modifier combos + a disabled
+`floorPlanEditor` flag are ignored). Closing via `P` keeps the frame-the-selected-item behaviour
+(shared `exitPlanEditorToScene`, also used by the editor's Escape/Done). The editor keeps only its
+editor-scoped keys (Enter/Esc/Delete). `controls/modalGuard.ts` (open-modal counter; `Modal`
+registers via `useModalGuard`) suppresses the binding behind dialogs. Shortcut surfaces updated:
+Edit-menu chip "(P)" from `shortcutLabel('togglePlanEditor')`, Help modal row "2D plan editor · P"
+(user docs already listed `P`). Unit tests: opens from the closed 3D state with only the hook
+mounted; closes + refocuses; suppressed while a modal is open and resumes after; editable-target /
+walk / modifier guards; works in BOTH Simple and Pro mode and no-ops when the flag is off.
+Visually verified: `P` from the 3D overview opens the 2D editor, `P` again returns to 3D, and `P`
+behind the open Help modal does nothing.
+
+## [C224] Shareable interactive 3D design link (X-PRESENT)
+"Copy 3D link" in the Share modal: a chat-friendly, backend-less `#/design/<code>` URL
+(`features/designShare.ts`) — same deflate+base64url codec as plan links, but the payload strips
+session noise (device location, camera mode) and non-portable user/IKEA defs (their blobs are
+IndexedDB-only; items referencing them are dropped with a count + toast on open), hard-capped at a
+16 KB code with a clear "use the .sofa.json export" error past it. Decode reuses `migrate` + the zod
+schema and the bounded-inflate zip-bomb guard with a tighter 4 MB cap (`planShare` gained
+`ShareTooLargeError` + per-route `DecodeLimits`). Boot handles the route after the seed
+(`loadSharedDesignFromUrl`) and toasts "Shared design loaded — it's yours to edit". A fully
+furnished default flat (66 items) encodes to a ~4.2 KB code (16 KB JSON). Also fixed: `Modal`'s
+inline `width` overrode the responsive CSS clamp, overflowing 390-px phones — now clamped to
+`calc(100vw - 24px)`. 13 new tests (round-trip, noise-stripping, budget, bomb, unknown-defId drop,
+route/boot).
 
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:

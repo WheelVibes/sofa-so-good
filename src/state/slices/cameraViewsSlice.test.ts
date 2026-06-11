@@ -57,6 +57,26 @@ describe('cameraViewsSlice', () => {
     expect(useStore.getState().savedViews.find((v) => v.id === id)?.name).toBe('New')
   })
 
+  it('setViewPano marks a view as a 360° slide, persists it, and unmarks cleanly', () => {
+    const id = useStore.getState().saveCurrentView('Living 360')
+    useStore.getState().setViewPano(id, true)
+    expect(useStore.getState().savedViews.find((v) => v.id === id)?.pano).toBe(true)
+    // Round-trips through the localStorage persistence (additive, optional).
+    const persisted = JSON.parse(localStorage.getItem('hdb_camera_views') ?? '[]')
+    expect(persisted.find((v: { id: string }) => v.id === id)?.pano).toBe(true)
+    useStore.getState().setViewPano(id, false)
+    const view = useStore.getState().savedViews.find((v) => v.id === id)
+    expect(view?.pano).toBeUndefined()
+    const after = JSON.parse(localStorage.getItem('hdb_camera_views') ?? '[]')
+    expect('pano' in after.find((v: { id: string }) => v.id === id)).toBe(false)
+  })
+
+  it('setViewPano on a missing id leaves the list untouched', () => {
+    const id = useStore.getState().saveCurrentView('Keep')
+    useStore.getState().setViewPano('nope', true)
+    expect(useStore.getState().savedViews.find((v) => v.id === id)?.pano).toBeUndefined()
+  })
+
   it('captures + restores the lighting state (a shot = angle + ambiance)', () => {
     useStore.getState().setManualHour(20.5)
     useStore.getState().setLightsMode('on')
@@ -68,5 +88,17 @@ describe('cameraViewsSlice', () => {
     useStore.getState().applyView(id)
     expect(useStore.getState().manualHour).toBe(20.5)
     expect(useStore.getState().lightsMode).toBe('on')
+  })
+})
+
+describe('saved-view cinematic tour state (V-TOUR)', () => {
+  it('setTouring accepts the views mode and true maps to rooms (back-compat)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setTouring('views')
+    expect(useStore.getState().touring).toBe('views')
+    useStore.getState().setTouring(true)
+    expect(useStore.getState().touring).toBe('rooms')
+    useStore.getState().setTouring(false)
+    expect(useStore.getState().touring).toBe(false)
   })
 })

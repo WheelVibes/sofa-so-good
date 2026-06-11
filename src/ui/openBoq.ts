@@ -1,12 +1,11 @@
 import { floorRateKind, RENO_RATES, wallRateKind } from '../analysis/renovationCost'
-import { type BoqInput, boqToHtml, buildBoq } from '../export/boq'
+import type { BoqInput } from '../export/boq'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { type FloorPlan, planRoomArea } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import { useStore } from '../state/store'
-import { floorAreaByFinish, wallAreaByFinish } from './reportData'
 
 /** Built-in carpentry rate (SGD per linear metre) for cabinet/wardrobe runs. */
 const CARPENTRY_RATE = 320
@@ -25,9 +24,37 @@ function floorMap(plan: FloorPlan): Record<string, string> {
 /** Assemble a quote-ready bill of quantities from the live design + open it as a
  *  printable HTML doc. FF&E from placed furniture, flooring/wall finishes from
  *  the finish-area schedules (priced at the renovation rate table), and
- *  carpentry (cabinets/wardrobes) by linear metre. */
-export function openBoq(): void {
+ *  carpentry (cabinets/wardrobes) by linear metre.
+ *
+ *  The window is opened synchronously (inside the click's user activation) and
+ *  the BOQ/area builders are dynamic-imported afterwards — they stay out of
+ *  the boot bundle (P-CHUNK). */
+export async function openBoq(): Promise<void> {
   const s = useStore.getState()
+  const win = window.open('', '_blank')
+  if (!win) {
+    s.notify.start({
+      title: 'Quote blocked',
+      kind: 'error',
+      message: 'Allow pop-ups for this site, then open the quote again.',
+    })
+    return
+  }
+  let boqMod: typeof import('../export/boq')
+  let reportDataMod: typeof import('./reportData')
+  try {
+    ;[boqMod, reportDataMod] = await Promise.all([import('../export/boq'), import('./reportData')])
+  } catch {
+    win.close()
+    s.notify.start({
+      title: 'Quote failed',
+      kind: 'error',
+      message: 'Could not load the quote builder — check your connection and try again.',
+    })
+    return
+  }
+  const { buildBoq, boqToHtml } = boqMod
+  const { floorAreaByFinish, wallAreaByFinish } = reportDataMod
   const plan = s.floorPlan
   const catalog = buildMergedCatalog(s)
 
@@ -92,15 +119,6 @@ export function openBoq(): void {
         : undefined,
   }
 
-  const win = window.open('', '_blank')
-  if (!win) {
-    s.notify.start({
-      title: 'Quote blocked',
-      kind: 'error',
-      message: 'Allow pop-ups for this site, then open the quote again.',
-    })
-    return
-  }
   const boq = buildBoq(input)
   const name = plan.name.replace(
     /[&<>"']/g,

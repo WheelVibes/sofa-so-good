@@ -12,7 +12,11 @@ interface PopoverProps {
 
 /** Portaled, fixed-position panel anchored under a trigger. Escapes the
  *  toolbar island's overflow clip; closes on Escape + outside pointerdown +
- *  scroll/resize; clamps to the viewport horizontally. */
+ *  resize + any ancestor scroll (e.g. the horizontally scrollable toolbar
+ *  island — the fixed panel would otherwise detach from its trigger). Scrolls
+ *  that originate *inside* the panel (a menu's own overflow list) don't move
+ *  the trigger, so they keep the panel open. Clamps to the viewport
+ *  horizontally. */
 export function Popover({ open, anchorRef, onClose, children, align = 'left' }: PopoverProps) {
   const panelRef = useRef<HTMLDivElement>(null)
   const [pos, setPos] = useState<{ left: number; top: number } | null>(null)
@@ -41,15 +45,24 @@ export function Popover({ open, anchorRef, onClose, children, align = 'left' }: 
       onClose()
     }
     const onReflow = () => onClose()
+    // Capture-phase listener so scrolls of any scrollable ancestor (the
+    // toolbar island, the page, a panel…) close the popover before it can
+    // detach from its fixed-positioned anchor. Scrolling a list *inside* the
+    // panel doesn't move the anchor — ignore it.
+    const onScroll = (e: Event) => {
+      const t = e.target as Node | null
+      if (t && panelRef.current?.contains(t)) return
+      onClose()
+    }
     window.addEventListener('keydown', onKey)
     window.addEventListener('pointerdown', onDown)
     window.addEventListener('resize', onReflow)
-    window.addEventListener('scroll', onReflow, true)
+    window.addEventListener('scroll', onScroll, true)
     return () => {
       window.removeEventListener('keydown', onKey)
       window.removeEventListener('pointerdown', onDown)
       window.removeEventListener('resize', onReflow)
-      window.removeEventListener('scroll', onReflow, true)
+      window.removeEventListener('scroll', onScroll, true)
     }
   }, [open, anchorRef, onClose])
 

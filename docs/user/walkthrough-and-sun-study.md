@@ -9,6 +9,10 @@ best way to judge real scale and sightlines.
   mouse.
 - Press <kbd>E</kbd> at a door to open or close it.
 - You're bounded by the walls; <kbd>V</kbd> returns you to orbit.
+- On a multi‑storey home (a maisonette, terrace or loft), pick a storey under
+  **View → Levels** while walking to **teleport upstairs or back down** — you
+  arrive in that storey's first room, and its own walls and furniture bound
+  your walk. **All levels** walks the ground floor.
 
 ![Walking through the flat at eye level](/screenshots/walk.png)
 

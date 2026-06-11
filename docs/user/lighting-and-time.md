@@ -15,6 +15,13 @@ ambient light.
 As you move through the day the directional sunlight, shadow length, sky colour,
 and overall exposure all shift — interiors go warm at dusk and dark at night.
 
+## Render presets
+
+The Scene menu's **Render presets** row sets the whole mood in one tap — **Bright
+day**, **Soft morning**, **Golden hour** or **Cozy evening** — each combining a
+time of day, a tone-mapping look, exposure and the light-fixture state. Tweak
+anything afterwards; the preset is just a starting point.
+
 ## Light fixtures
 
 Lamps, pendants, and ceiling lights **glow and cast light at night**, and fade

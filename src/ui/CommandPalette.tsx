@@ -17,6 +17,7 @@ import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
 import { openDesignReport } from './openReport'
+import { openShoppingList } from './openShoplist'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
 import { Icon, type IconName } from './toolbar/icons'
 
@@ -34,7 +35,11 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   floorplan: 'floorPlanEditor',
   'design-score': 'designScore',
   accessibility: 'accessibility',
+  comments: 'comments',
   'palette-from-photo': 'paletteFromPhoto',
+  panorama: 'panorama',
+  'hq-render': 'hqRender',
+  'shopping-list': 'shopExport',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -162,6 +167,16 @@ export function CommandPalette() {
         },
       },
       {
+        id: 'comments',
+        group: 'Tools & panels',
+        label: 'Comments — pinned notes',
+        icon: 'Pin',
+        run: () => {
+          closeAllAuxPanels(s())
+          s().setCommentsOpen(true)
+        },
+      },
+      {
         id: 'versions',
         group: 'Tools & panels',
         label: 'Versions — save / restore',
@@ -189,6 +204,20 @@ export function CommandPalette() {
         run: () => s().setShareOpen(true),
       },
       {
+        id: 'panorama',
+        group: 'Tools & panels',
+        label: '360° panorama',
+        icon: 'Export',
+        run: () => s().setPanoramaOpen(true),
+      },
+      {
+        id: 'hq-render',
+        group: 'Tools & panels',
+        label: 'HQ render (path-traced)',
+        icon: 'Export',
+        run: () => s().setHqRenderOpen(true),
+      },
+      {
         id: 'palette-from-photo',
         group: 'Tools & panels',
         label: 'Palette from photo',
@@ -201,6 +230,13 @@ export function CommandPalette() {
         label: 'Design report (printable)',
         icon: 'Report',
         run: () => openDesignReport(),
+      },
+      {
+        id: 'shopping-list',
+        group: 'Tools & panels',
+        label: 'Shopping list (buy-list export)',
+        icon: 'Budget',
+        run: () => openShoppingList(),
       },
       {
         id: 'floorplan',

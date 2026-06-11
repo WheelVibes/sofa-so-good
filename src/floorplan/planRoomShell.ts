@@ -1,3 +1,4 @@
+import { levelAsPlan, levelOfRoom } from './levels'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanWall } from './types'
 import { pointInRoom, wallLength } from './types'
 
@@ -44,6 +45,8 @@ export interface PlanRoomShell {
   center: [number, number]
   radius: number
   contains: (x: number, z: number) => boolean
+  /** The storey this room lives on ('ground' for the ground floor). */
+  levelId: string
 }
 
 // Edge collinearity tolerance: spans half an external wall thickness (~0.1) plus
@@ -138,12 +141,17 @@ function pointOnSpan(p: [number, number], a: [number, number], b: [number, numbe
  * in the plan. Pure — no rendering.
  */
 export function planRoomShell(plan: FloorPlan, roomId: string): PlanRoomShell | null {
-  const room = plan.rooms.find((r) => r.id === roomId)
+  // Multi-storey (F13/ML5): the room may live on an upper level — resolve its
+  // storey and clip against THAT level's walls/openings via the level adapter.
+  const level = levelOfRoom(plan, roomId)
+  if (!level) return null
+  const lp = levelAsPlan(plan, level)
+  const room = lp.rooms.find((r) => r.id === roomId)
   if (!room) return null
   const rects = planRoomRects(room)
 
   const walls: PlanClippedWall[] = []
-  for (const w of plan.walls) {
+  for (const w of lp.walls) {
     if (wallLength(w) < 1e-4) continue
     const clip = clipWallToRects(w, rects)
     if (clip) {
@@ -157,10 +165,10 @@ export function planRoomShell(plan: FloorPlan, roomId: string): PlanRoomShell | 
     }
   }
 
-  const wallById = new Map(plan.walls.map((w) => [w.id, w]))
+  const wallById = new Map(lp.walls.map((w) => [w.id, w]))
   const clippedById = new Map(walls.map((cw) => [cw.wallId, cw]))
   const openings: PlanRoomOpening[] = []
-  for (const op of plan.openings) {
+  for (const op of lp.openings) {
     const cw = clippedById.get(op.wallId)
     const src = wallById.get(op.wallId)
     if (!cw || !src) continue
@@ -188,5 +196,6 @@ export function planRoomShell(plan: FloorPlan, roomId: string): PlanRoomShell | 
     center,
     radius,
     contains: (x, z) => pointInRoom(room, x, z),
+    levelId: level.id,
   }
 }

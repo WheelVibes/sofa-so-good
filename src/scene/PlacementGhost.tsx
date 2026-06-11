@@ -102,7 +102,7 @@ export function PlacementGhost() {
       defs: catalogRef.current,
       doors,
       // Bound to the same walls as a drag — the room's perimeter in the editor.
-      walls: placementWalls(st),
+      walls: placementWalls(st, ghostItem.levelId),
     })
     if (valid !== validRef.current) {
       validRef.current = valid

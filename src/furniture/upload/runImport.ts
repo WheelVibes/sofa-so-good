@@ -16,6 +16,9 @@ export interface ImportPlan {
   autoFlags?: boolean
   /** Opt-in KTX2/UASTC texture encode for the optimize pass (falls back to WebP). */
   ktx2?: boolean
+  /** Generate -low/-medium LOD tier variants per loose model (default-on in
+   *  the dialog; opt-out to shorten big imports). */
+  lodTiers?: boolean
 }
 
 export interface ImportOutcome {
@@ -109,6 +112,7 @@ export async function runImport(
         autoFlags: plan.autoFlags,
         allFiles: plan.files,
         ktx2: plan.ktx2,
+        lodTiers: plan.lodTiers,
       },
       (d) => onProgress?.(base + d, total),
     )

@@ -1,4 +1,5 @@
 import { createPortal } from 'react-dom'
+import { useModalGuard } from '../controls/modalGuard'
 import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { BrandMark } from './Logo'
@@ -54,6 +55,9 @@ export function Onboarding() {
   const step = useStore((s) => s.onboardingStep)
   const setOpen = useStore((s) => s.setOnboardingOpen)
   const setStep = useStore((s) => s.setOnboardingStep)
+
+  // Modal-style overlay: suppress global shortcuts while open.
+  useModalGuard(open)
 
   if (!open) return null
 

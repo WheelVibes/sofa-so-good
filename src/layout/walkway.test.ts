@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { findNarrowGaps } from './walkway'
 
@@ -28,19 +29,21 @@ const defs: Record<string, FurnitureDef> = {
 }
 
 let seq = 0
-function mk(defId: string, x: number, z: number): FurnitureItem {
+function mk(defId: string, x: number, z: number, levelId?: string): FurnitureItem {
   return {
     id: `i-${defId}-${seq++}`,
     defId: defId as never,
     position: [x, z],
     rotation: 0,
+    levelId,
     props: { width: 1, depth: 1 },
   }
 }
 
-// A custom (non-default) plan so wall checks are skipped — keeps the item↔item
-// cases isolated from the default flat's wall geometry.
-const customPlan = { ...buildDefaultPlan(), id: 'custom-test-plan' }
+// A wall-less custom plan so wall-pinch checks contribute nothing — keeps the
+// item↔item cases isolated. (Custom plans now DO get per-level wall pinches,
+// so an empty wall set is the isolation mechanism, not the custom id.)
+const customPlan = { ...buildDefaultPlan(), id: 'custom-test-plan', walls: [], openings: [] }
 
 describe('findNarrowGaps', () => {
   // Two 1 m boxes centred on z=0: A spans x∈[-0.5,0.5]. A second box centred at
@@ -142,5 +145,95 @@ describe('findNarrowGaps', () => {
 
   it('returns nothing for an empty design', () => {
     expect(findNarrowGaps([], defs, customPlan)).toHaveLength(0)
+  })
+
+  describe('multi-storey level gating (F13/ML3)', () => {
+    it('does NOT pair items on different storeys; same storey still pairs', () => {
+      const ground = mk('box', 0, 0)
+      const upper = mk('box', 1.5, 0, 'lvl-2') // would be a 0.5 m tight gap
+      expect(findNarrowGaps([ground, upper], defs, customPlan)).toHaveLength(0)
+      // Both on the same upper storey → the pinch is real again.
+      const upperA = mk('box', 0, 0, 'lvl-2')
+      const gaps = findNarrowGaps([upperA, upper], defs, customPlan)
+      expect(gaps).toHaveLength(1)
+      expect(gaps[0]!.severity).toBe('tight')
+    })
+
+    it('does NOT pinch an upper-storey item against the ground-floor walls', () => {
+      // Same geometry as the default-flat wall-pinch test above, but the box
+      // sits on an upper storey — the flat's walls are the ground floor's, so
+      // no wall pinch may be reported for either candidate position.
+      const plan = buildDefaultPlan()
+      const walls = buildCollisionWalls({})
+      const longest = walls.reduce((m, w) =>
+        Math.hypot(w.bx - w.ax, w.bz - w.az) > Math.hypot(m.bx - m.ax, m.bz - m.az) ? w : m,
+      )
+      const mx = (longest.ax + longest.bx) / 2
+      const mz = (longest.az + longest.bz) / 2
+      const len = Math.hypot(longest.bx - longest.ax, longest.bz - longest.az)
+      const nx = -(longest.bz - longest.az) / len
+      const nz = (longest.bx - longest.ax) / len
+      const off = longest.thickness / 2 + 0.5 + 0.7
+      for (const sgn of [1, -1]) {
+        const box = mk('box', mx + sgn * nx * off, mz + sgn * nz * off, 'lvl-2')
+        expect(findNarrowGaps([box], defs, plan).filter((g) => g.wall)).toHaveLength(0)
+      }
+    })
+  })
+})
+
+describe('custom-plan + per-level wall pinches (F13 remnant)', () => {
+  const pinchPlan: FloorPlan = {
+    id: 'custom-pinch',
+    name: 'Pinch',
+    ceilingHeight: 2.6,
+    extent: [6, 5],
+    walls: [
+      { id: 'w1', start: [0.1, 0.1], end: [5.9, 0.1], thickness: 'external' },
+      { id: 'w2', start: [5.9, 0.1], end: [5.9, 4.9], thickness: 'external' },
+      { id: 'w3', start: [5.9, 4.9], end: [0.1, 4.9], thickness: 'external' },
+      { id: 'w4', start: [0.1, 4.9], end: [0.1, 0.1], thickness: 'external' },
+    ],
+    openings: [],
+    rooms: [{ id: 'r', name: 'Room', origin: [0.2, 0.2], width: 5.6, depth: 4.6 }],
+    upperLevels: [
+      {
+        id: 'lvl-2',
+        name: 'Upper',
+        elevation: 2.9,
+        // Narrower storey: its east wall sits at x=2.9 (vs 5.9 below).
+        walls: [
+          { id: 'uw1', start: [0.1, 0.1], end: [2.9, 0.1], thickness: 'external' },
+          { id: 'uw2', start: [2.9, 0.1], end: [2.9, 4.9], thickness: 'external' },
+          { id: 'uw3', start: [2.9, 4.9], end: [0.1, 4.9], thickness: 'external' },
+          { id: 'uw4', start: [0.1, 4.9], end: [0.1, 0.1], thickness: 'external' },
+        ],
+        openings: [],
+        rooms: [{ id: 'ur', name: 'Up', origin: [0.2, 0.2], width: 2.6, depth: 4.6 }],
+      },
+    ],
+  }
+
+  it('flags wall pinches on a custom plan (previously skipped entirely)', () => {
+    // 1×1 box at (3, 1.2): bottom edge z=0.7, north wall inner face z=0.2 →
+    // 0.5 m gap = a tight pinch; every other wall is comfortably far.
+    const gaps = findNarrowGaps([mk('box', 3, 1.2)], defs, pinchPlan)
+    const wallGaps = gaps.filter((g) => g.wall)
+    expect(wallGaps).toHaveLength(1)
+    // ~0.5–0.6 m depending on the wall-thickness convention — a real pinch
+    // either way (the exact band is the classifier's concern, not this test's).
+    expect(wallGaps[0]!.gap).toBeGreaterThan(0.4)
+    expect(wallGaps[0]!.gap).toBeLessThan(0.9)
+    expect(wallGaps[0]!.severity).toBeTruthy()
+  })
+
+  it("tests an upper-storey item against its OWN storey's walls", () => {
+    // Box at (4.7, 2.45): on the GROUND its east wall (x=5.9) is ~0.6–0.7 m
+    // away → pinch. On the UPPER storey the east wall sits at x=2.9 — over a
+    // metre away on the far side — so the same spot has NO pinch up there.
+    expect(findNarrowGaps([mk('box', 4.7, 2.45)], defs, pinchPlan).some((g) => g.wall)).toBe(true)
+    expect(
+      findNarrowGaps([mk('box', 4.7, 2.45, 'lvl-2')], defs, pinchPlan).some((g) => g.wall),
+    ).toBe(false)
   })
 })

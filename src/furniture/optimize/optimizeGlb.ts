@@ -34,8 +34,9 @@ let ioPromise: Promise<{ io: WebIO; draco: boolean }> | null = null
 /** A WebIO with Draco registered when its wasm could be loaded. Draco is
  *  optional: if registration fails (wasm can't be located), we still read +
  *  write uncompressed GLBs and apply the texture/geometry passes — only the
- *  Draco re-pack is skipped. */
-async function getIO(): Promise<{ io: WebIO; draco: boolean }> {
+ *  Draco re-pack is skipped. Shared with the LOD-variant generator
+ *  (`lodVariants.ts`), which lives in the same lazy chunk. */
+export async function getIO(): Promise<{ io: WebIO; draco: boolean }> {
   if (!ioPromise) {
     ioPromise = (async () => {
       const io = new WebIO()
@@ -87,8 +88,9 @@ async function decodeToCanvas(
 }
 
 /** Re-encode image bytes to WebP via OffscreenCanvas, resizing only if it
- *  exceeds `maxSize`. Returns null on any failure (caller keeps the original). */
-async function reencodeTexture(
+ *  exceeds `maxSize`. Returns null on any failure (caller keeps the original).
+ *  Exported for the LOD-variant generator (same lazy chunk). */
+export async function reencodeTexture(
   bytes: Uint8Array,
   mimeType: string,
   maxSize: number,

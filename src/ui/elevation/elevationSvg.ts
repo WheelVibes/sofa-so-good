@@ -4,6 +4,7 @@
  * (CSS-token colours) and the printable report (print hexes) share one renderer.
  * Used by both `ElevationPanel` and the report's "Wall elevations" section.
  */
+import { approxTextWidth, staggerDimensionRows } from '../../elevation/dimensionLayout'
 import type { WallElevation } from '../../elevation/projectElevation'
 import { formatLength, type UnitSystem } from '../../utils/measurement'
 
@@ -102,11 +103,28 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
       // Door: a leaf panel (frame + a thin inset reveal + a handle) so it reads
       // as a door in elevation rather than a blank cut-out.
       const inset = Math.min(w, oh) * 0.08
+      // Hinge side ('start' = the x0 / wall-start jamb, the projection default).
+      const hingeAtStart = (o.hinge ?? 'start') === 'start'
+      const xHinge = hingeAtStart ? o.x0 : o.x1
+      const xFree = hingeAtStart ? o.x1 : o.x0
+      // Handle sits on the free (latch) jamb — opposite the hinge.
+      const xHandle = hingeAtStart ? o.x1 - inset * 1.6 : o.x0 + inset * 1.6
       parts.push(
         `<rect x="${f(o.x0)}" y="${f(y(o.head))}" width="${f(w)}" height="${f(oh)}" fill="${p.bg}" stroke="${p.stroke}" stroke-width="${f(sw)}"/>`,
         `<rect x="${f(o.x0 + inset)}" y="${f(y(o.head) + inset)}" width="${f(Math.max(0, w - inset * 2))}" height="${f(Math.max(0, oh - inset * 2))}" fill="none" stroke="${p.stroke}" stroke-width="${f(sw * 0.6)}"/>`,
-        // Handle: a short bar on the leading edge at ~1 m above the floor.
-        `<circle cx="${f(o.x1 - inset * 1.6)}" cy="${f(y(Math.min(1.0, oh * 0.45)))}" r="${f(Math.max(0.015, sw * 1.5))}" fill="${p.stroke}"/>`,
+        // Handle: a knob dot on the latch edge at ~1 m above the floor.
+        `<circle cx="${f(xHandle)}" cy="${f(y(Math.min(1.0, oh * 0.45)))}" r="${f(Math.max(0.015, sw * 1.5))}" fill="${p.stroke}"/>`,
+      )
+      // Standard drafting door symbol: the leaf line on the hinge jamb plus a
+      // thin dashed quarter swing arc (radius = leaf width) from the free jamb
+      // to the open leaf tip — so the drawing shows which side the door hangs
+      // on and where it sweeps.
+      const r = Math.min(w, oh)
+      const yBottom = y(o.sill)
+      const yTip = yBottom - r
+      parts.push(
+        `<line x1="${f(xHinge)}" y1="${f(yBottom)}" x2="${f(xHinge)}" y2="${f(yTip)}" stroke="${p.stroke}" stroke-width="${f(sw)}"/>`,
+        `<path d="M ${f(xFree)} ${f(yBottom)} A ${f(r)} ${f(r)} 0 0 ${hingeAtStart ? 0 : 1} ${f(xHinge)} ${f(yTip)}" fill="none" stroke="${p.stroke}" stroke-width="${f(sw * 0.6)}" stroke-dasharray="${f(sw * 4)} ${f(sw * 3)}"/>`,
       )
     }
   }
@@ -115,6 +133,8 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
   // the left, and each opening's sill height — the key "how high" elevation info.
   // Extra room is reserved on the left + bottom for the dim lines + labels.
   const pad = dimensions ? 0.95 : margin
+  // Grows with however many extra label rows the stagger needed (set below).
+  let extraDimPad = 0
   if (dimensions) {
     const dfs = Math.max(0.13, Math.min(0.22, Math.min(L, H) * 0.06)) // dim font size
     const tick = sw * 4
@@ -146,13 +166,24 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     }
     // Per-item width dimensions, in a row just below the floor (the cabinet/
     // unit widths installers need). Skip narrow pieces to avoid clutter.
-    for (const it of el.items) {
-      const w = it.x1 - it.x0
-      if (w < 0.3) continue
-      dimLine(it.x0, H + 0.22, it.x1, H + 0.22, formatLength(w, units), false)
-    }
-    // Overall width (further below) + overall height (left of the wall).
-    dimLine(0, H + 0.6, L, H + 0.6, formatLength(L, units), false)
+    // Adjacent narrow items collide label-on-label, so labels stagger into
+    // extra rows (pure dimensionLayout.ts) — drafting-style de-overlap (EL5).
+    const dimItems = el.items.filter((it) => it.x1 - it.x0 >= 0.3)
+    const rows = staggerDimensionRows(
+      dimItems.map((it) => ({
+        center: (it.x0 + it.x1) / 2,
+        width: approxTextWidth(formatLength(it.x1 - it.x0, units), dfs),
+      })),
+    )
+    const maxRow = rows.reduce((m, r) => Math.max(m, r), 0)
+    extraDimPad = maxRow * (dfs + 0.12)
+    dimItems.forEach((it, i) => {
+      const yRow = H + 0.22 + rows[i] * (dfs + 0.12)
+      dimLine(it.x0, yRow, it.x1, yRow, formatLength(it.x1 - it.x0, units), false)
+    })
+    // Overall width clears however many label rows stacked above it.
+    const yOverall = Math.max(H + 0.6, H + 0.22 + (maxRow + 1) * (dfs + 0.12) + 0.16)
+    dimLine(0, yOverall, L, yOverall, formatLength(L, units), false)
     dimLine(-0.55, 0, -0.55, H, formatLength(H, units), true)
     // Opening sill heights (skip floor-level doors).
     for (const o of el.openings) {
@@ -162,7 +193,7 @@ export function elevationSvg(el: WallElevation, opts: ElevationSvgOptions): stri
     }
   }
 
-  const vb = `${f(-pad)} ${f(-margin)} ${f(L + pad + margin)} ${f(H + margin + pad)}`
+  const vb = `${f(-pad)} ${f(-margin)} ${f(L + pad + margin)} ${f(H + margin + pad + extraDimPad)}`
   return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="${vb}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="wall elevation, ${f(L)} by ${f(H)} metres">${parts.join('')}</svg>`
 }
 

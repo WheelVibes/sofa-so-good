@@ -45,6 +45,36 @@ describe('schema', () => {
     expect(room?.polygon).toEqual(polygon)
   })
 
+  it('round-trips per-room floor + wall finishes on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'finish-plan',
+        name: 'Finishes',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [
+          {
+            id: 'R',
+            name: 'Room',
+            origin: [0.2, 0.2],
+            width: 3.8,
+            depth: 3.8,
+            floor: 'floor-tile-grey',
+            wall: 'wall-paint-sage',
+          },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    const room = patch.floorPlan?.rooms.find((r) => r.id === 'R')
+    expect(room?.floor).toBe('floor-tile-grey')
+    expect(room?.wall).toBe('wall-paint-sage')
+  })
+
   it('round-trips imported-GLB metadata on user furniture defs', () => {
     useStore.getState().__resetForTest()
     useStore.getState().setUserFurniture([
@@ -368,6 +398,46 @@ describe('schema', () => {
     expect((patch as { annotations?: unknown[] }).annotations).toEqual([])
   })
 
+  it('round-trips pinned design comments (incl. levelId + resolved) and defaults absent → []', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().addComment({ position: [1.2, 3.4], text: 'move the sofa', author: 'Wei' })
+    const upId = useStore
+      .getState()
+      .addComment({ position: [5, 6], text: 'upstairs reading nook?', levelId: 'lvl-2' })!
+    useStore.getState().setCommentResolved(upId, true)
+    const out = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(JSON.parse(JSON.stringify(out)))
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.comments).toHaveLength(2)
+      expect(parsed.data.comments?.[0]).toMatchObject({
+        position: [1.2, 3.4],
+        text: 'move the sofa',
+        author: 'Wei',
+        resolved: false,
+      })
+      expect(parsed.data.comments?.[0]?.levelId).toBeUndefined() // ground pin
+      expect(parsed.data.comments?.[1]).toMatchObject({
+        levelId: 'lvl-2',
+        text: 'upstairs reading nook?',
+        resolved: true,
+      })
+      const patch = applySerialized(parsed.data, new Set())
+      expect(patch.comments).toHaveLength(2)
+      expect(patch.comments?.[1]?.levelId).toBe('lvl-2')
+      expect(patch.comments?.[1]?.resolved).toBe(true)
+    }
+    // Legacy save (no comments) → applySerialized defaults to [].
+    const patch = applySerialized(
+      { ...out, comments: undefined } as unknown as Parameters<typeof applySerialized>[0],
+      new Set(),
+    )
+    expect(patch.comments).toEqual([])
+    // A design with no comments omits the key entirely (stays additive).
+    useStore.getState().__resetForTest()
+    expect(serialize(useStore.getState()).comments).toBeUndefined()
+  })
+
   it('migrates legacy timeOfDay="day" to manual hour 12', () => {
     const legacy = {
       version: 1,
@@ -534,5 +604,80 @@ describe('schema', () => {
     if (parsed.success) {
       expect(parsed.data.items.find((i) => i.id === 'plain')?.groupId).toBeUndefined()
     }
+  })
+})
+
+describe('multi-level plans (F13 / ML1)', () => {
+  it('round-trips upperLevels and item levelId', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      items: [
+        {
+          id: 'it-up',
+          defId: 'bed-queen',
+          position: [1, 1],
+          rotation: 0,
+          levelId: 'lvl-2',
+          props: {},
+        },
+      ],
+      floorPlan: {
+        id: 'ml-plan',
+        name: 'Maisonette',
+        ceilingHeight: 2.6,
+        extent: [8, 6],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [7.9, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'g-liv', name: 'Living', origin: [0.2, 0.2], width: 7.6, depth: 5.6 }],
+        upperLevels: [
+          {
+            id: 'lvl-2',
+            name: 'Upper floor',
+            elevation: 2.9,
+            walls: [{ id: 'uw', start: [0.1, 0.1], end: [7.9, 0.1], thickness: 'external' }],
+            openings: [
+              {
+                id: 'uo',
+                kind: 'window',
+                wallId: 'uw',
+                offset: 1,
+                width: 1.2,
+                sill: 0.9,
+                head: 2.1,
+              },
+            ],
+            rooms: [
+              {
+                id: 'up-bed',
+                name: 'Bedroom',
+                origin: [0.2, 0.2],
+                width: 4,
+                depth: 4,
+                floor: 'floor-carpet-grey',
+              },
+            ],
+          },
+        ],
+      },
+    } as never)
+    // Finishes keyed by an upper-level room id must survive the load filter.
+    useStore.setState(
+      (s) =>
+        ({
+          finishes: {
+            ...s.finishes,
+            floor: { ...s.finishes.floor, 'up-bed': 'floor-carpet-grey' },
+          },
+        }) as never,
+    )
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>(['bed-queen']))
+    const lvl = patch.floorPlan?.upperLevels?.[0]
+    expect(lvl?.id).toBe('lvl-2')
+    expect(lvl?.elevation).toBe(2.9)
+    expect(lvl?.rooms[0]?.floor).toBe('floor-carpet-grey')
+    expect(lvl?.openings[0]?.kind).toBe('window')
+    expect(patch.items?.[0]?.levelId).toBe('lvl-2')
+    expect((patch.finishes?.floor as Record<string, string>)['up-bed']).toBe('floor-carpet-grey')
   })
 })

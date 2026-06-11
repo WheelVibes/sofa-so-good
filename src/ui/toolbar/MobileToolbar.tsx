@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
+import { isMultiLevel, planLevels } from '../../floorplan/levels'
 import { dropBuiltinSet, dropIkeaSet, dropUserSet } from '../../furniture/arrangeActions'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { FURNITURE_SETS } from '../../furniture/furnitureSets'
@@ -15,9 +16,12 @@ import {
 import { useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
+import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
 import { BACKDROPS, type BackdropKind } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
+import { detectVrSupport } from '../../scene/xr/vrSupport'
+import { enterVr, getXrStore } from '../../scene/xr/xrStore'
 import { firstEditableRoomId } from '../../state/rooms'
 import { applySerialized, serialize } from '../../state/schema'
 import { PRESET_HOURS, type TimePreset } from '../../state/slices/timeSlice'
@@ -31,6 +35,7 @@ import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
 import { openDesignReport } from '../openReport'
+import { openShoppingList } from '../openShoplist'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
@@ -134,6 +139,8 @@ export function MobileToolbar() {
 
   const s = useStore
   const cameraMode = useStore((st) => st.cameraMode)
+  const viewLevelId = useStore((st) => st.viewLevelId)
+  const mobilePlan = useStore((st) => st.floorPlan)
   const catalogOpen = useStore((st) => st.catalogOpen)
   const leftMode = useStore((st) => st.leftMode)
   const showMeasurements = useStore((st) => st.showMeasurements)
@@ -146,6 +153,7 @@ export function MobileToolbar() {
   const daylightOpen = useStore((st) => st.daylightOpen)
   const designScoreOpen = useStore((st) => st.designScoreOpen)
   const accessibilityOpen = useStore((st) => st.accessibilityOpen)
+  const commentsOpen = useStore((st) => st.commentsOpen)
   const snapEnabled = useStore((st) => st.snapEnabled)
   const gridSize = useStore((st) => st.gridSize)
   const autoRotate = useStore((st) => st.autoRotate)
@@ -172,10 +180,28 @@ export function MobileToolbar() {
   // Feature flags — keep the mobile sheet at parity with the desktop menus / ⌘K,
   // so a disabled feature can't be reached from any surface.
   const fSavedViews = useFeature('savedViews')
+  const fPresentation = useFeature('presentation')
   const fFloorPlan = useFeature('floorPlanEditor')
   const fLightingMoods = useFeature('lightingMoods')
   const fBackdrops = useFeature('backdrops')
   const fSmartStart = useFeature('smartStart')
+  const fPanorama = useFeature('panorama')
+  const fRenderPresets = useFeature('renderPresets')
+  const fHqRender = useFeature('hqRender')
+  const fVr = useFeature('vrWalkthrough')
+  const [vrSupported, setVrSupported] = useState(false)
+  useEffect(() => {
+    if (!fVr) return
+    let on = true
+    void detectVrSupport().then((ok) => {
+      if (!on || !ok) return
+      setVrSupported(true)
+      void getXrStore()
+    })
+    return () => {
+      on = false
+    }
+  }, [fVr])
   const fBudget = useFeature('budget')
   const fChecks = useFeature('clearanceChecks')
   const fMeasure = useFeature('measure')
@@ -189,7 +215,9 @@ export function MobileToolbar() {
   const fDaylight = useFeature('daylight')
   const fDesignScore = useFeature('designScore')
   const fAccessibility = useFeature('accessibility')
+  const fComments = useFeature('comments')
   const fUserSets = useFeature('userSets')
+  const fShopExport = useFeature('shopExport')
   const userSets = useStore((st) => st.userSets)
 
   const close = () => setMenuOpen(false)
@@ -249,6 +277,11 @@ export function MobileToolbar() {
     const wasOpen = s.getState().historyOpen
     closeAux()
     s.getState().setHistoryOpen(!wasOpen)
+  }
+  const toggleComments = () => {
+    const wasOpen = s.getState().commentsOpen
+    closeAux()
+    s.getState().setCommentsOpen(!wasOpen)
   }
 
   const startWalkthrough = () => {
@@ -373,6 +406,39 @@ export function MobileToolbar() {
                   on={cameraMode === 'firstPerson'}
                   onClick={act(() => s.getState().setCameraMode('firstPerson'))}
                 />
+                {fVr && vrSupported ? (
+                  <Item
+                    icon="Walk"
+                    label="Enter VR"
+                    sub="Immersive walkthrough on your headset"
+                    onClick={act(() => {
+                      s.getState().setVrActive(true)
+                      void enterVr()
+                    })}
+                  />
+                ) : null}
+                {isMultiLevel(mobilePlan) ? (
+                  <>
+                    <div className="m-sub-h">Levels</div>
+                    <Item
+                      icon="Orbit"
+                      label="All levels"
+                      on={viewLevelId === 'all'}
+                      onClick={act(() => s.getState().setViewLevel('all'), { keep: true })}
+                    />
+                    {planLevels(mobilePlan).map((l) => (
+                      <Item
+                        key={l.id}
+                        icon="Orbit"
+                        label={l.name}
+                        // Walk mode: picking a storey teleports the walker (ML6c).
+                        sub={cameraMode === 'firstPerson' ? 'Walk this storey' : undefined}
+                        on={viewLevelId === l.id}
+                        onClick={act(() => s.getState().setViewLevel(l.id), { keep: true })}
+                      />
+                    ))}
+                  </>
+                ) : null}
                 {!roomEditorActive ? (
                   <>
                     <div className="m-sub-h">Framing</div>
@@ -412,6 +478,22 @@ export function MobileToolbar() {
                         })}
                       />
                     ) : null}
+                    {fSavedViews && fPresentation && savedViews.length > 0 ? (
+                      <Item
+                        icon="Walkthrough"
+                        label="Present"
+                        sub="Full-screen saved-views slideshow"
+                        onClick={act(() => s.getState().setPresenting(true))}
+                      />
+                    ) : null}
+                    {fSavedViews && savedViews.length > 1 ? (
+                      <Item
+                        icon="Walkthrough"
+                        label="Cinematic tour"
+                        sub="Fly through your saved views"
+                        onClick={act(() => s.getState().setTouring('views'))}
+                      />
+                    ) : null}
                   </>
                 ) : null}
                 {!roomEditorActive &&
@@ -432,6 +514,18 @@ export function MobileToolbar() {
                           <span className="m-item-l">{v.name}</span>
                         </span>
                       </button>
+                      {fPresentation ? (
+                        <button
+                          type="button"
+                          className="m-saved-view-del"
+                          aria-label={`Present ${v.name} as a 360° slide`}
+                          aria-pressed={!!v.pano}
+                          style={v.pano ? { color: 'var(--accent)' } : undefined}
+                          onClick={() => s.getState().setViewPano(v.id, !v.pano)}
+                        >
+                          <span style={{ fontSize: 10, fontWeight: 700 }}>360°</span>
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="m-saved-view-del"
@@ -509,6 +603,17 @@ export function MobileToolbar() {
                         sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
                         on={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
                         onClick={act(() => applyLightingScene(sc), { keep: true })}
+                      />
+                    ))}
+                  {fRenderPresets && <div className="m-sub-h">Render presets</div>}
+                  {fRenderPresets &&
+                    RENDER_PRESETS.map((p) => (
+                      <Item
+                        key={p.id}
+                        icon="Sun"
+                        label={p.label}
+                        sub={p.sub}
+                        onClick={act(() => applyRenderPreset(s.getState(), p), { keep: true })}
                       />
                     ))}
                   <Item
@@ -777,6 +882,15 @@ export function MobileToolbar() {
                       onClick={act(() => s.getState().toggleTapeMode())}
                     />
                   ) : null}
+                  {fComments ? (
+                    <Item
+                      icon="Pin"
+                      label="Comments"
+                      sub="Pinned notes on the design"
+                      on={commentsOpen}
+                      onClick={act(toggleComments)}
+                    />
+                  ) : null}
                   {fHistory ? (
                     <Item icon="Undo" label="History" on={historyOpen} onClick={act(openHistory)} />
                   ) : null}
@@ -810,7 +924,7 @@ export function MobileToolbar() {
                         <Item
                           icon="Walkthrough"
                           label={touring ? 'Stop tour' : 'Walkthrough'}
-                          on={touring}
+                          on={Boolean(touring)}
                           onClick={act(startWalkthrough)}
                         />
                       ) : null}
@@ -840,6 +954,30 @@ export function MobileToolbar() {
                   label="Export PNG"
                   onClick={act(() => window.dispatchEvent(new Event(EXPORT_EVENT)))}
                 />
+                {fPanorama ? (
+                  <Item
+                    icon="Export"
+                    label="360° panorama"
+                    sub="Capture a look-around panorama"
+                    onClick={act(() => s.getState().setPanoramaOpen(true))}
+                  />
+                ) : null}
+                {fHqRender ? (
+                  <Item
+                    icon="Export"
+                    label="HQ render"
+                    sub="Path-traced photoreal still"
+                    onClick={act(() => s.getState().setHqRenderOpen(true))}
+                  />
+                ) : null}
+                {fShopExport ? (
+                  <Item
+                    icon="Budget"
+                    label="Shopping list"
+                    sub="Buy-list with prices, grouped by retailer"
+                    onClick={act(() => openShoppingList())}
+                  />
+                ) : null}
                 {canRecord() ? (
                   <Item
                     icon="Record"

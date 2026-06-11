@@ -21,6 +21,9 @@ export function ToolsMenu() {
   const daylightOpen = useStore((s) => s.daylightOpen)
   const designScoreOpen = useStore((s) => s.designScoreOpen)
   const accessibilityOpen = useStore((s) => s.accessibilityOpen)
+  const commentsOpen = useStore((s) => s.commentsOpen)
+  const commentMode = useStore((s) => s.commentMode)
+  const commentCount = useStore((s) => s.comments.length)
   const setShareOpen = useStore((s) => s.setShareOpen)
   const versionsOpen = useStore((s) => s.versionsOpen)
   const historyOpen = useStore((s) => s.historyOpen)
@@ -73,6 +76,11 @@ export function ToolsMenu() {
     closeAux()
     useStore.getState().setHistoryOpen(!wasOpen)
   }
+  const toggleComments = () => {
+    const wasOpen = useStore.getState().commentsOpen
+    closeAux()
+    useStore.getState().setCommentsOpen(!wasOpen)
+  }
 
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
@@ -103,7 +111,9 @@ export function ToolsMenu() {
     sunStudy ||
     versionsOpen ||
     historyOpen ||
-    tapeMode
+    tapeMode ||
+    commentsOpen ||
+    commentMode
 
   const startWalkthrough = () => {
     const s = useStore.getState()
@@ -133,12 +143,13 @@ export function ToolsMenu() {
   const fDaylight = useFeature('daylight')
   const fDesignScore = useFeature('designScore')
   const fAccessibility = useFeature('accessibility')
+  const fComments = useFeature('comments')
   const fMoodboard = useFeature('moodboard')
   const fDxf = useFeature('dxfExport')
   const fBoq = useFeature('boq')
 
   return (
-    <ToolbarMenu icon="Tools" label="Tools" active={anyActive}>
+    <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
       {fBudget && (
         <MenuItem
           icon="Budget"
@@ -202,6 +213,15 @@ export function ToolsMenu() {
           onClick={toggleTape}
         />
       )}
+      {fComments && (
+        <MenuItem
+          icon="Pin"
+          label={commentCount > 0 ? `Comments · ${commentCount}` : 'Comments'}
+          sub="Pinned notes — travel with saves & links"
+          active={commentsOpen || commentMode}
+          onClick={toggleComments}
+        />
+      )}
       {fHistory && (
         <MenuItem
           icon="Undo"
@@ -250,7 +270,7 @@ export function ToolsMenu() {
           icon="Walkthrough"
           label={touring ? 'Stop tour' : 'Walkthrough'}
           sub="Fly a tour through every room"
-          active={touring}
+          active={Boolean(touring)}
           onClick={startWalkthrough}
         />
       )}

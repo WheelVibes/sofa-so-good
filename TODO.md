@@ -31,20 +31,26 @@ plan:
   - **KTX2/DDS standalone-material decode** — needs a WebGL readback; the model
     importer handles embedded KTX2, but standalone KTX2/DDS material uploads are
     not yet decoded ([src/materials/convert/decodeImage.ts]).
-  - **Multi-tier `-low`/`-medium` LOD generation for uploads** — the single
-    in-browser optimize pass already exceeds the old user-upload baseline; full
-    tiered LOD (like the offline `optimize:glb`) is still upload-side TODO.
+  - ~~**Multi-tier `-low`/`-medium` LOD generation for uploads**~~ — **done**
+    (C249/T3): `optimize/lodVariants.ts` generates both tiers in the optimize
+    worker (meshopt simplify + tier texture caps), stored in IDB under
+    `<assetId>:lod-<tier>` keys and tier-routed at render via the
+    `gltf/lod.ts` variant registry; default-on opt-out checkbox in the upload
+    dialog. KTX2-encoded textures still pass through tier variants
+    un-downscaled (blocked on the decoder gap above).
 
 ## Layout / placement (2026-05-30)
-- Follow-up: run the arranger over the researched presets so their bedrooms are
-  auto-spaced.
+Done — preset circulation is now regression-tested (`layoutPresets.test.ts`:
+no tight pinch below 0.5 m between large circulation pieces; the WFH studio's
+sofa↔desk squeeze was re-spaced 0.40 → 0.75 m). The in-app checker still
+hints at snug 0.5–0.6 m adjacencies by design.
 
 ## Asset realism + structural audit (2026-05-30)
-- Follow-up: a curated "furniture materials" shortlist (oak/walnut/teak/marble
-  slugs) surfaced as one-tap finishes so users don't have to browse the full
-  remote catalog; verify the runtime download end-to-end behind the prod
-  reverse-proxy (the build sandbox's network allowlist blocks ambientCG/Poly
-  Haven, so this path is currently covered only by mocked unit tests).
+- The curated one-tap furniture finishes shipped (`ui/inspector/QuickFinishes.tsx`
+  — oak/walnut/teak/ash/ebony/marble swatch row under the finish dropdown).
+  Remaining: verify the runtime remote-material download end-to-end behind the
+  prod reverse-proxy (sandbox network allowlist blocks ambientCG/Poly Haven, so
+  that path is covered only by mocked unit tests) — needs a prod/staging session.
 
 ## Realism & content pass (2026-05-29)
 Shipped this iteration — recorded here for follow-up polish:
@@ -104,12 +110,11 @@ Out-of-scope items deferred from the spec:
 - Update this file every time a plan is designed or work is implemented (see `MEMORY.md` feedback rule).
 
 ## Floor plan editor (2026-05-30)
-Shipped — a data-driven, editable apartment shell + 2D editor:
-
-- Follow-ups: per-room finishes/floor materials for custom plans; a named
-  plan library (save/load multiple apartments) + persistence; route `roomOf`
-  / the auto-arranger / finishes through the active plan so custom plans are
-  fully furnish-aware.
+Shipped — a data-driven, editable apartment shell + 2D editor. All follow-ups
+done: per-room floor+wall finishes for custom plans render live in 3D (C213),
+the named plan library (`savedPlans`) persists, and Smart Start / the
+auto-arranger / finishes all route through the active plan (C153/C157/C213).
+Multi-storey plans are now in progress (F13 / ML phases — see TASKS.md).
 
 ## IKEA model import (2026-05-31)
 - **Scraper (done)** — `python/scripts/` scrapes IKEA SG products into

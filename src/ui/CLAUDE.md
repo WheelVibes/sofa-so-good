@@ -15,4 +15,9 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.
-- Modals portal to `document.body`; reuse the shared `Modal` primitive.
+- Modals portal to `document.body`; reuse the shared `Modal` primitive. While any modal is
+  open, global hotkeys are suppressed via `controls/modalGuard.ts` — `Modal` registers
+  automatically; any modal-style overlay that does **not** build on `Modal` (custom
+  `.modal-overlay`, upload dialogs, …) must call `useModalGuard(open)` itself. Escape is
+  each modal's own listener; ⌘K/undo are suppressed while a modal is open (the ⌘K palette
+  is not a `Modal` and keeps its own keyboard handling).

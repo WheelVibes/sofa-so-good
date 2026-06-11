@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { findItemOverlaps, findWallClips, type OverlapPair } from '../collision/placement'
+import { findWallClipsByLevel } from '../collision/levelWallClips'
+import { findItemOverlaps, type OverlapPair } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { buildMergedCatalog } from '../furniture/catalog'
@@ -12,7 +13,8 @@ import { Icon } from './toolbar/icons'
 
 /** Clearance & fit checks: surfaces HDB door-swing blocking (`blockedDoorItems`),
  *  furniture-vs-furniture overlaps (`findItemOverlaps`), and pieces embedded in a
- *  wall (`findWallClips`), with a summary and a fix-suggestion list. Clicking an
+ *  wall (`findWallClipsByLevel` — each item vs its own storey's walls), with a
+ *  summary and a fix-suggestion list. Clicking an
  *  issue selects + frames the offending piece(s). */
 export function ClearancePanel() {
   const open = useStore((s) => s.clearancePanelOpen)
@@ -48,7 +50,9 @@ export function ClearancePanel() {
     return {
       blocked: blockedDoorItems(items, merged, plan),
       overlaps: findItemOverlaps(items, merged),
-      wallClips: findWallClips(items, merged, walls),
+      // Per-storey (F13/ML3): `walls` is the ground set; upper-level items test
+      // against their own storey's walls.
+      wallClips: findWallClipsByLevel(items, merged, plan, doors, walls),
       narrowGaps: findNarrowGaps(items, merged, plan),
       catalog: merged,
     }

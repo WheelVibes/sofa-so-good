@@ -8,6 +8,8 @@ import {
   ROTATE_FINE_STEP,
   ROTATE_STEP,
 } from './controls/keybindings'
+import { isAnyModalOpen } from './controls/modalGuard'
+import { usePlanEditorHotkey } from './controls/planEditorHotkey'
 import { isEditableTarget, useKeyboard } from './controls/useKeyboard'
 import { isFeatureEnabled } from './features/featureFlags'
 import { useCatalog } from './furniture/catalog'
@@ -30,6 +32,7 @@ import { BudgetHud } from './ui/BudgetHud'
 import { BudgetPanel } from './ui/BudgetPanel'
 import { ClearancePanel } from './ui/ClearancePanel'
 import { CommandPalette } from './ui/CommandPalette'
+import { CommentsPanel } from './ui/CommentsPanel'
 import { ContextMenu } from './ui/ContextMenu'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
@@ -58,6 +61,12 @@ const GlbDesignerDialog = lazy(() =>
 // open flag so their code (AI client, GLTF/design-file IO, elevation projection,
 // SVG builders, tour) stays out of the initial bundle (PERF5).
 const ShareModal = lazy(() => import('./ui/ShareModal').then((m) => ({ default: m.ShareModal })))
+const PanoramaModal = lazy(() =>
+  import('./ui/PanoramaModal').then((m) => ({ default: m.PanoramaModal })),
+)
+const HqRenderModal = lazy(() =>
+  import('./ui/HqRenderModal').then((m) => ({ default: m.HqRenderModal })),
+)
 const VersionsPanel = lazy(() =>
   import('./ui/VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
 )
@@ -118,6 +127,8 @@ export default function App() {
   // chunk loads only when the panel is opened.
   const lazyPanels = {
     shareOpen: useStore((s) => s.shareOpen),
+    panoramaOpen: useStore((s) => s.panoramaOpen),
+    hqRenderOpen: useStore((s) => s.hqRenderOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -167,6 +178,22 @@ export default function App() {
   // the editor-scoped keyboard handler.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
+      // `?` stays a true toggle: when the Help modal itself is the thing
+      // that's open, `?` closes it again (checked before the modal guard).
+      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
+        const s = useStore.getState()
+        if (s.helpOpen) {
+          e.preventDefault()
+          s.setHelpOpen(false)
+          return
+        }
+      }
+      // No global shortcuts while a modal dialog is open — including ⌘K (don't
+      // stack the palette over a dialog; the open palette itself is not a
+      // Modal, so its own keyboard handling is unaffected) and Cmd/Ctrl+Z
+      // (most apps suppress app-level undo behind a dialog; inputs keep native
+      // undo). Each modal owns its Escape-to-close. See controls/modalGuard.ts.
+      if (isAnyModalOpen()) return
       if ((e.metaKey || e.ctrlKey) && (e.key === 'k' || e.key === 'K')) {
         e.preventDefault()
         useStore.getState().toggleCmdk()
@@ -471,12 +498,16 @@ export default function App() {
       }
       if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
 
-      // Escape: cancel the tape tool, then clear any selection, then leave the
-      // per-room editor — so one key walks all the way back out to the overview.
+      // Escape: cancel the tape/comment tools, then clear any selection, then
+      // leave the per-room editor — one key walks all the way back out.
       if (code === KEYBINDINGS.deselect) {
         const st = useStore.getState()
         if (st.tapeMode) {
           st.toggleTapeMode()
+          return
+        }
+        if (st.commentMode) {
+          st.toggleCommentMode()
           return
         }
         if (
@@ -641,6 +672,9 @@ export default function App() {
     [toggleMeasurements, cameraMode, setCameraMode, catalog, pasteClipboard, duplicateSelection],
   )
   useKeyboard(onKey)
+  // `P` ⇄ 2D plan editor lives in its own always-mounted hook: the editor is
+  // lazy-mounted only while open, so an editor-scoped listener couldn't OPEN it.
+  usePlanEditorHotkey()
 
   // Press-and-hold nudge: arrow keys move the selected item continuously
   // along world-XZ at NUDGE_SPEED m/s (Shift = fine). preventDefault on
@@ -735,6 +769,7 @@ export default function App() {
     }
 
     const onDown = (e: KeyboardEvent) => {
+      if (isAnyModalOpen()) return
       if (isEditableTarget(e)) return
       if (e.code === 'ShiftLeft' || e.code === 'ShiftRight') {
         shiftHeld = true
@@ -808,12 +843,23 @@ export default function App() {
         <ClearancePanel />
         <DaylightPanel />
         <DesignScorePanel />
+        <CommentsPanel />
         <AccessibilityPanel />
         <PresentationMode />
         {/* Lazy + flag-gated: chunk loads only when the panel is opened (PERF5). */}
         {lazyPanels.shareOpen ? (
           <Suspense fallback={null}>
             <ShareModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.panoramaOpen ? (
+          <Suspense fallback={null}>
+            <PanoramaModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.hqRenderOpen ? (
+          <Suspense fallback={null}>
+            <HqRenderModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

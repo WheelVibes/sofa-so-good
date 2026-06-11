@@ -75,6 +75,14 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').smartStart).toBe(true)
   })
 
+  it('shopExport (simple tier, prod default on) is available in BOTH Simple and Pro modes', () => {
+    // Production build, no overrides — the shoppable buy-list ships in prod…
+    expect(resolveFlags(false, {}, false, 'simple').shopExport).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').shopExport).toBe(true)
+    // …while the brand-link gate (ikeaLive, devOnly) stays off in prod.
+    expect(resolveFlags(false, {}, false, 'pro').ikeaLive).toBe(false)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { measure: true }, false, 'simple')
     expect(simple.measure).toBe(false)
@@ -106,5 +114,57 @@ describe('parseStoredOverrides (localStorage JSON)', () => {
   it('tolerates bad JSON / empty', () => {
     expect(parseStoredOverrides('not json')).toEqual({})
     expect(parseStoredOverrides(null)).toEqual({})
+  })
+})
+
+describe('textBrief flag (Smart Start describe-it box)', () => {
+  it('is enabled in BOTH Simple and Pro modes by default (simple-tier)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').textBrief).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').textBrief).toBe(true)
+  })
+  it('can still be turned off by a privileged (dev/admin) override', () => {
+    expect(resolveFlags(true, { textBrief: false }, false, 'pro').textBrief).toBe(false)
+  })
+})
+
+describe('panorama flag (360° capture)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').panorama).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').panorama).toBe(true)
+  })
+})
+
+describe('presentation flag (slideshow + 360° slides)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').presentation).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').presentation).toBe(true)
+  })
+})
+
+describe('renderPresets flag (F4)', () => {
+  it('is simple-tier: enabled in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').renderPresets).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').renderPresets).toBe(true)
+  })
+})
+
+describe('hqRender flag (F1)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').hqRender).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').hqRender).toBe(true)
+  })
+})
+
+describe('comments flag (F24)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro (prod default on)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').comments).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').comments).toBe(true)
+  })
+})
+
+describe('vrWalkthrough flag (F21)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').vrWalkthrough).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').vrWalkthrough).toBe(true)
   })
 })

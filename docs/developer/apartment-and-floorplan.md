@@ -13,6 +13,19 @@ the interior fade out (windows/doors fade with them).
 `PlanShell.tsx` renders a user-authored plan instead (walls extruded with
 openings + per-room floor finishes) when a non-default plan is active.
 
+## Multi-storey plans (F13)
+
+The plan's top-level `walls/openings/rooms` are the **ground floor**; optional
+`upperLevels` adds storeys (own geometry at an `elevation`). `levels.ts` is the
+single resolution layer — `planLevels` / `levelAsPlan` (run any single-level
+helper on one storey) / `allPlanRooms` (every storey's rooms) / `levelOfRoom` /
+`levelOfItem` (`FurnitureItem.levelId`, absent = ground). Rendering stacks one
+`PlanLevelShell` per visible level (`viewLevelId`, View → Levels); the 2D editor
+edits one storey at a time (`LevelTabs` + `withLevelGeometry` routing); collision,
+walkways, wall clips, score, daylight and lux are all level-gated. See
+`src/floorplan/CLAUDE.md` for the hard rules and
+`docs/research/multi-level-design.md` for the design.
+
 ## The floor-plan model (`src/floorplan/`)
 
 `types.ts` (`FloorPlan` = walls/openings/rooms + area/bounds helpers),

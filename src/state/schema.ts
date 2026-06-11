@@ -12,6 +12,7 @@ import { z } from 'zod'
 import { ROOMS } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
+import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import type { RootState } from './store'
 
@@ -29,6 +30,8 @@ const FurnitureItemZ = z.object({
   groupId: z.string().optional(),
   // Optional user-given display name (absent = use the catalog def name).
   label: z.string().optional(),
+  // Optional plan level (storey); absent = ground floor (F13, additive).
+  levelId: z.string().optional(),
   props: z.record(z.string(), z.union([z.number(), z.string()])),
 })
 
@@ -155,6 +158,8 @@ const PlanRoomZ = z.object({
   polygon: z.array(Vec2Z).optional(),
   ceilingHeight: z.number().optional(),
   floor: z.string().optional(),
+  // Per-room wall finish (optional + additive → no schema-version bump).
+  wall: z.string().optional(),
   // Per-room ceiling treatment (tray/coffered/dropped). Optional + additive →
   // no schema-version bump; absent → flat (the prior behaviour).
   ceiling: z
@@ -168,6 +173,17 @@ const PlanRoomZ = z.object({
     })
     .optional(),
 })
+// One storey above the ground floor (F13). Optional + additive — no
+// schema-version bump; absent = single-storey (the prior behaviour).
+const PlanUpperLevelZ = z.object({
+  id: z.string(),
+  name: z.string(),
+  elevation: z.number(),
+  ceilingHeight: z.number().optional(),
+  walls: z.array(PlanWallZ),
+  openings: z.array(PlanOpeningZ),
+  rooms: z.array(PlanRoomZ),
+})
 const FloorPlanZ = z.object({
   id: z.string(),
   name: z.string(),
@@ -177,6 +193,7 @@ const FloorPlanZ = z.object({
   openings: z.array(PlanOpeningZ),
   rooms: z.array(PlanRoomZ),
   wallColor: z.string().optional(),
+  upperLevels: z.array(PlanUpperLevelZ).optional(),
 })
 
 const RawSerializedStateZ = z.object({
@@ -207,6 +224,22 @@ const RawSerializedStateZ = z.object({
         a: z.tuple([z.number(), z.number()]),
         b: z.tuple([z.number(), z.number()]),
         shape: z.enum(['line', 'rect']),
+      }),
+    )
+    .optional(),
+  // Optional pinned design comments (F24) — optional + additive like
+  // annotations, so they travel with .sofa.json exports AND `#/design/<code>`
+  // share links (designShare reuses serialize). Absent → [].
+  comments: z
+    .array(
+      z.object({
+        id: z.string(),
+        position: z.tuple([z.number(), z.number()]),
+        levelId: z.string().optional(),
+        text: z.string(),
+        author: z.string().optional(),
+        createdAt: z.string(),
+        resolved: z.boolean(),
       }),
     )
     .optional(),
@@ -337,6 +370,7 @@ export function serialize(state: RootState): SerializedState {
     manualHour: state.manualHour,
     lightsMode: state.lightsMode,
     ...(state.annotations.length ? { annotations: state.annotations } : {}),
+    ...(state.comments.length ? { comments: state.comments } : {}),
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
     location: state.location,
@@ -358,7 +392,9 @@ export function applySerialized(
   // ids (not in the fixed `ROOMS` table), so filtering on `ROOMS` alone would
   // silently drop every custom-room floor/wall finish on load.
   const plan = state.floorPlan ?? buildDefaultPlan()
-  const planRoomIds = new Set<string>(plan.rooms.map((r) => r.id))
+  // All storeys' rooms — a multi-level plan keys finishes by upper-level room
+  // ids too (allPlanRooms === plan.rooms for single-storey plans).
+  const planRoomIds = new Set<string>(allPlanRooms(plan).map((r) => r.id))
   const validRoom = (k: string): k is RoomId => k in ROOMS || planRoomIds.has(k)
   const floor: Partial<Record<RoomId, string>> = {}
   for (const [k, v] of Object.entries(state.finishes.floor)) {
@@ -395,6 +431,7 @@ export function applySerialized(
     manualHour: state.manualHour,
     lightsMode: state.lightsMode ?? 'auto',
     annotations: state.annotations ?? [],
+    comments: state.comments ?? [],
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,

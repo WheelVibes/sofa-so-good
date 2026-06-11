@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { projectAllElevations, type WallElevation } from '../elevation/projectElevation'
+import { isMultiLevel, itemsOnLevel, levelAsPlan, planLevels } from '../floorplan/levels'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
+import { estimateRoomLux, type LuxStatus } from '../lighting2d/roomLux'
 import { useStore } from '../state/store'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
@@ -25,6 +27,13 @@ const LIGHTING_PALETTE: LightingPalette = {
 }
 
 type DrawingMode = 'elevations' | 'lighting'
+
+/** Status → `.badge` variant + label for the per-room lux check. */
+const LUX_BADGE: Record<LuxStatus, { cls: string; label: string }> = {
+  ok: { cls: 'ok', label: 'OK' },
+  low: { cls: 'warn', label: 'Low' },
+  high: { cls: 'warn', label: 'High' },
+}
 
 /** Wall elevations: a flat "side-on" drawing per wall (openings + furniture
  *  silhouettes) — the vertical counterpart to the floor plan, for cabinet/
@@ -60,6 +69,8 @@ export function ElevationPanel() {
     () => (merged ? buildLightingPlan(items, merged) : { lights: [], schedule: [] }),
     [merged, items],
   )
+  // Per-room lumen-method estimate vs the recommended residential bands.
+  const roomLux = useMemo(() => estimateRoomLux(plan, lighting.lights), [plan, lighting])
 
   if (!open) return null
 
@@ -67,12 +78,19 @@ export function ElevationPanel() {
   const svg = current
     ? elevationSvg(current, { palette: PALETTE, units }).replace('<svg ', '<svg width="100%" ')
     : ''
-  const lightSvg = lighting.lights.length
-    ? lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PALETTE }).replace(
-        '<svg ',
-        '<svg width="100%" ',
-      )
-    : ''
+  // Lighting diagrams: one per storey on multi-level plans (fixtures filtered
+  // to their storey — F13), a single whole-plan diagram otherwise.
+  const lightFigures: { key: string; caption: string | null; svg: string }[] =
+    lighting.lights.length === 0
+      ? []
+      : (isMultiLevel(plan) ? planLevels(plan) : [null]).flatMap((level) => {
+          const lights = level ? itemsOnLevel(lighting.lights, level.id) : lighting.lights
+          if (lights.length === 0) return []
+          const figSvg = lightingPlanSvg(level ? levelAsPlan(plan, level) : plan, lights, {
+            palette: LIGHTING_PALETTE,
+          }).replace('<svg ', '<svg width="100%" ')
+          return [{ key: level?.id ?? 'plan', caption: level ? level.name : null, svg: figSvg }]
+        })
 
   return (
     <aside className="panel mini aux" id="elevationPanel" style={{ width: 380 }}>
@@ -179,17 +197,90 @@ export function ElevationPanel() {
               {lighting.lights.length} fixture{lighting.lights.length > 1 ? 's' : ''} ·{' '}
               {lighting.schedule.length} type{lighting.schedule.length > 1 ? 's' : ''}
             </div>
-            <div
-              style={{
-                width: '100%',
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--r-2)',
-                padding: 'var(--s-2)',
-              }}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is built by lightingPlanSvg from numeric data + fixed palette (no user HTML).
-              dangerouslySetInnerHTML={{ __html: lightSvg }}
-            />
+            {lightFigures.map((fig) => (
+              <div key={fig.key} style={{ marginBottom: 'var(--s-2)' }}>
+                {fig.caption ? (
+                  <div
+                    style={{
+                      fontSize: 'var(--t-xs)',
+                      color: 'var(--text-2)',
+                      marginBottom: 'var(--s-1)',
+                    }}
+                  >
+                    {fig.caption}
+                  </div>
+                ) : null}
+                <div
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--r-2)',
+                    padding: 'var(--s-2)',
+                  }}
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is built by lightingPlanSvg from numeric data + fixed palette (no user HTML).
+                  dangerouslySetInnerHTML={{ __html: fig.svg }}
+                />
+              </div>
+            ))}
+            {/* Per-room lux estimate vs recommended residential levels (LP5). */}
+            {roomLux.length > 0 && (
+              <div style={{ marginTop: 'var(--s-3)' }}>
+                <div
+                  style={{
+                    fontSize: 'var(--t-xs)',
+                    fontWeight: 600,
+                    color: 'var(--text-2)',
+                    marginBottom: 'var(--s-1)',
+                  }}
+                >
+                  Estimated light levels
+                </div>
+                {roomLux.map((r) => (
+                  <div
+                    key={r.roomId}
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: 'var(--s-2)',
+                      fontSize: 'var(--t-xs)',
+                      padding: '3px 0',
+                      borderTop: '1px solid var(--border)',
+                    }}
+                  >
+                    <span
+                      style={{
+                        flex: 1,
+                        minWidth: 0,
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {r.roomName}
+                    </span>
+                    <span style={{ fontVariantNumeric: 'tabular-nums' }}>
+                      {Math.round(r.lux)} lx
+                    </span>
+                    <span style={{ color: 'var(--text-3)', fontVariantNumeric: 'tabular-nums' }}>
+                      rec {r.recommended.min}–{r.recommended.max}
+                    </span>
+                    <span className={`badge ${LUX_BADGE[r.status].cls}`}>
+                      {LUX_BADGE[r.status].label}
+                    </span>
+                  </div>
+                ))}
+                <div
+                  style={{
+                    fontSize: 'var(--t-2xs)',
+                    color: 'var(--text-3)',
+                    marginTop: 'var(--s-1)',
+                  }}
+                >
+                  Lumen-method estimate (utilisation 0.45) vs residential guidance.
+                </div>
+              </div>
+            )}
           </>
         )}
       </div>

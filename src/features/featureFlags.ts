@@ -27,6 +27,11 @@ export type FeatureFlag =
   | 'shareExport'
   | 'floorPlanEditor'
   | 'smartStart'
+  | 'textBrief'
+  | 'panorama'
+  | 'renderPresets'
+  | 'hqRender'
+  | 'vrWalkthrough'
   | 'savedViews'
   | 'backdrops'
   | 'lightingMoods'
@@ -45,6 +50,7 @@ export type FeatureFlag =
   | 'paletteFromPhoto'
   | 'dxfExport'
   | 'boq'
+  | 'shopExport'
   | 'suggestions'
   | 'electricalPlan'
   | 'mountHeights'
@@ -54,6 +60,7 @@ export type FeatureFlag =
   | 'ceilingDesign'
   | 'presentation'
   | 'pbrSurfaces'
+  | 'comments'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -138,6 +145,36 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'One-click furnish wizard',
     default: true,
     tier: 'simple',
+  },
+  textBrief: {
+    label: 'Describe-it brief',
+    description: 'Free-text brief matched to a Smart Start style + budget',
+    default: true,
+    tier: 'simple',
+  },
+  panorama: {
+    label: '360° panorama',
+    description: 'Equirect 360° capture with drag-to-look viewer + PNG export',
+    default: true,
+    tier: 'pro',
+  },
+  renderPresets: {
+    label: 'Render presets',
+    description: 'One-tap sun + tone + exposure photo modes in the Scene menu',
+    default: true,
+    tier: 'simple',
+  },
+  hqRender: {
+    label: 'HQ render',
+    description: 'Progressive path-traced photoreal still (three-gpu-pathtracer)',
+    default: true,
+    tier: 'pro',
+  },
+  vrWalkthrough: {
+    label: 'VR walkthrough',
+    description: 'WebXR immersive walkthrough on supported headsets',
+    default: true,
+    tier: 'pro',
   },
   savedViews: {
     label: 'Saved views',
@@ -249,6 +286,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  shopExport: {
+    label: 'Shopping list export',
+    description: 'Shoppable buy-list HTML — items, prices, per-retailer totals',
+    default: true,
+    tier: 'simple',
+  },
   suggestions: {
     label: 'Design suggestions',
     description: 'Contextual "what to add" hints in Design score',
@@ -302,6 +345,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Higher-fidelity procedural furniture textures (wood/painted/fabric)',
     default: true,
     tier: 'simple',
+  },
+  comments: {
+    label: 'Comments',
+    description: 'Pinned design comments — notes anchored in the 3D scene',
+    default: true,
+    tier: 'pro',
   },
 }
 

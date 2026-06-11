@@ -106,6 +106,34 @@ describe('buildReportHtml', () => {
     expect(html).toMatch(/permit-sensitive/)
   })
 
+  it('surfaces the stair-connectivity advisory for a stair-less multi-storey plan', () => {
+    const multi = {
+      ...plan,
+      upperLevels: [
+        {
+          id: 'up',
+          name: 'Upper storey',
+          elevation: 2.9,
+          walls: [],
+          openings: [],
+          rooms: [
+            {
+              id: 'u-bed',
+              name: 'Bedroom',
+              origin: [1, 1] as [number, number],
+              width: 3,
+              depth: 3,
+            },
+          ],
+        },
+      ],
+    }
+    const html = buildReportHtml(multi, items, BUILTIN_CATALOG, null)
+    expect(html).toContain('No staircase reaches Upper storey')
+    // Single-storey plans never mention it.
+    expect(buildReportHtml(plan, items, BUILTIN_CATALOG, null)).not.toContain('No staircase')
+  })
+
   it('includes an FF&E schedule with per-item rooms, sizes and a grand total', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('FF&amp;E schedule')
@@ -335,5 +363,83 @@ describe('buildReportHtml', () => {
     const html = buildReportHtml(plan, [evilItem], catalog, null)
     expect(html).not.toContain('<img src=x onerror=alert(1)>')
     expect(html).toContain('&lt;img src=x onerror=alert(1)&gt;')
+  })
+})
+
+describe('buildReportHtml — multi-storey fan-out (F13)', () => {
+  const plan = buildDefaultPlan()
+  const upper = {
+    id: 'up',
+    name: 'Upper storey',
+    elevation: 2.9,
+    walls: [
+      {
+        id: 'uw1',
+        start: [0.1, 0.1] as [number, number],
+        end: [6, 0.1] as [number, number],
+        thickness: 'external' as const,
+      },
+      {
+        id: 'uw2',
+        start: [0.1, 0.1] as [number, number],
+        end: [0.1, 6] as [number, number],
+        thickness: 'external' as const,
+      },
+    ],
+    openings: [],
+    rooms: [
+      {
+        id: 'up-bed',
+        name: 'Bedroom (up)',
+        origin: [0.2, 0.2] as [number, number],
+        width: 5,
+        depth: 5,
+      },
+    ],
+  }
+  const multi = { ...plan, upperLevels: [upper] }
+
+  it('renders one captioned plan + dimensioned diagram per storey', () => {
+    const html = buildReportHtml(multi, [], BUILTIN_CATALOG, null)
+    // Storey captions above the per-level diagrams.
+    expect(html).toContain('>Ground floor</div>')
+    expect(html).toContain('>Upper storey</div>')
+    // Upper rooms join the rooms table + total.
+    expect(html).toContain('Bedroom (up)')
+    // Single-storey reports carry no storey captions.
+    const singleHtml = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(singleHtml).not.toContain('>Ground floor</div>')
+  })
+
+  it('filters lighting fixtures to their storey', () => {
+    const lampUp = {
+      id: 'l1',
+      defId: 'floor-lamp',
+      position: [2, 2] as [number, number],
+      rotation: 0,
+      props: {},
+      levelId: 'up',
+    }
+    const html = buildReportHtml(multi, [lampUp], BUILTIN_CATALOG, null)
+    expect(html).toContain('Lighting plan')
+    // Only the lit storey gets a diagram: one lighting-plan svg, captioned Upper.
+    expect(html.match(/aria-label="lighting plan/g)).toHaveLength(1)
+  })
+
+  it('diffs demolition per storey and calls out an added storey', () => {
+    const html = buildReportHtml(
+      multi,
+      [],
+      BUILTIN_CATALOG,
+      null,
+      'metric',
+      undefined,
+      undefined,
+      [],
+      undefined,
+      plan, // baseline without the upper storey
+    )
+    expect(html).toContain('Hacking &amp; new walls')
+    expect(html).toContain('Entire storey added')
   })
 })

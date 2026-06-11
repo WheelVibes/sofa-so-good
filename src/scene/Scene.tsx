@@ -13,6 +13,7 @@ import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
 import { AnnotationsOverlay } from './AnnotationsOverlay'
 import { ClearanceOverlay } from './ClearanceOverlay'
+import { CommentPins } from './CommentPins'
 import { ContextLossGuard } from './ContextLossGuard'
 import { CameraRig } from './cameras/CameraRig'
 import { CameraForwardTracker } from './cameras/cameraForward'
@@ -20,11 +21,13 @@ import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { Effects } from './Effects'
 import { GridOverlay } from './GridOverlay'
+import { HqRenderController } from './HqRenderController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
 import { Sky } from './lighting/Sky'
 import { DEFAULT_TONE_MAPPING } from './look'
+import { PanoramaController } from './PanoramaController'
 import { PlacementGhost } from './PlacementGhost'
 import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
@@ -39,6 +42,7 @@ import { SelectionOutline } from './selection/SelectionOutline'
 import { TapeMeasure } from './TapeMeasure'
 import { TONE_MAPPING_THREE } from './toneMappingThree'
 import { useQuality } from './useQuality'
+import { MaybeXr } from './xr/MaybeXr'
 
 /** Flips `sceneReady` once the scene has painted a few solid frames (so
  *  shaders + procedural textures are warm) and nothing is still streaming
@@ -83,39 +87,45 @@ export function Scene() {
         toneMappingExposure: 1.05,
       }}
     >
-      <ContextLossGuard />
-      <RenderPump />
-      <Sky />
-      <SceneBackdrop />
-      <SceneEnvironment />
-      <Lighting />
-      <FurnitureLights />
-      {customPlan ? <PlanShell /> : <Apartment />}
-      {/* "Click a room to edit" hover highlight — works for both plans now. */}
-      <RoomHoverHighlight />
-      <GridOverlay />
-      <AlignmentGuides />
-      <ClearanceOverlay />
-      <FurnitureLayer />
-      <FurnitureMaterialLoader />
-      <SelectionOutline />
-      <RotateGizmo />
-      <HoverHighlight />
-      <PlacementGhost />
-      <DragController />
-      <MarqueeCameraTracker />
-      <CameraRig />
-      <CameraForwardTracker />
-      <MeasurementOverlay />
-      <TapeMeasure />
-      <AnnotationsOverlay />
-      <Effects />
-      <ShowcaseController />
-      <QualityController />
-      <ScreenshotController />
-      <RecordController />
-      <SceneReadySignal />
-      {import.meta.env.DEV ? <DevCameraExpose /> : null}
+      {/* Inert pass-through until a VR session is requested (F21). */}
+      <MaybeXr>
+        <ContextLossGuard />
+        <RenderPump />
+        <Sky />
+        <SceneBackdrop />
+        <SceneEnvironment />
+        <Lighting />
+        <FurnitureLights />
+        {customPlan ? <PlanShell /> : <Apartment />}
+        {/* "Click a room to edit" hover highlight — works for both plans now. */}
+        <RoomHoverHighlight />
+        <GridOverlay />
+        <AlignmentGuides />
+        <ClearanceOverlay />
+        <FurnitureLayer />
+        <FurnitureMaterialLoader />
+        <SelectionOutline />
+        <RotateGizmo />
+        <HoverHighlight />
+        <PlacementGhost />
+        <DragController />
+        <MarqueeCameraTracker />
+        <CameraRig />
+        <CameraForwardTracker />
+        <MeasurementOverlay />
+        <TapeMeasure />
+        <AnnotationsOverlay />
+        <CommentPins />
+        <Effects />
+        <ShowcaseController />
+        <QualityController />
+        <ScreenshotController />
+        <PanoramaController />
+        <HqRenderController />
+        <RecordController />
+        <SceneReadySignal />
+        {import.meta.env.DEV ? <DevCameraExpose /> : null}
+      </MaybeXr>
     </Canvas>
   )
 }

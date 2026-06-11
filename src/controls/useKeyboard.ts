@@ -1,4 +1,5 @@
 import { useEffect } from 'react'
+import { isAnyModalOpen } from './modalGuard'
 
 /**
  * True when the event target is a text input, textarea, select, or any
@@ -17,12 +18,15 @@ export function isEditableTarget(e: KeyboardEvent): boolean {
  * Subscribes to keydown events globally. The handler is fired with the
  * raw KeyboardEvent.code (e.g. 'KeyW', 'Escape'). Listeners are removed
  * on unmount. Events targeting editable elements (search box, etc.) are
- * suppressed so typing doesn't trigger app shortcuts.
+ * suppressed so typing doesn't trigger app shortcuts, and ALL shortcuts
+ * (incl. undo — see modalGuard.ts for the rationale) are suppressed while
+ * a modal dialog is open (modals own their own Escape handling).
  */
 export function useKeyboard(handler: (code: string, e: KeyboardEvent) => void) {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.repeat) return
+      if (isAnyModalOpen()) return
       if (isEditableTarget(e)) return
       handler(e.code, e)
     }

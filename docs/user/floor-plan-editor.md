@@ -1,7 +1,7 @@
 # Floor‑plan editor
 
 The 2D top‑down editor lets you reshape the flat itself — walls, rooms, doors,
-and windows. Open it from **Arrange → Floor plan**, or press <kbd>P</kbd> to flip
+and windows. Open it from **Edit → Floor plan editor**, or press <kbd>P</kbd> to flip
 between the 2D plan and the 3D scene at any time.
 
 ![The 2D floor-plan editor showing furniture footprints](/screenshots/floor-plan-editor.png)
@@ -44,6 +44,22 @@ Rooms don't have to be plain rectangles:
   inside any wall‑enclosed area; the room is created automatically from that
   loop (any shape, including L‑shapes), with the matching area.
 
+## Levels (storeys)
+
+Designing a maisonette, loft or landed home? The tab strip in the header —
+**Ground floor** plus a tab for each storey — picks which level you're editing:
+
+- **＋ Level** adds an empty storey above the highest one and switches to it.
+- Every tool (walls, rooms, doors/windows, Split, Auto room) and every inspector
+  edit applies to the **active tab's** level only; the area total and room count
+  in the header follow it too.
+- The **✕** on an upper tab removes that storey (you'll be asked to confirm —
+  its rooms, walls and furniture go with it, and undo brings it all back).
+- The 3D view stacks your storeys; use **View → Levels** to show all of them or
+  isolate one. In [walk mode](/walkthrough-and-sun-study) picking a storey also
+  **teleports you onto it**, walking against that storey's own walls and
+  furniture.
+
 ## Your furniture, top‑down
 
 The editor draws your **placed furniture as footprints**, coloured by category.
@@ -65,6 +81,13 @@ Have a real floor‑plan image or a room scan? Trace over it:
 Your reference photo and its calibration are **saved on your device** — close
 the editor or reload the app and it's still there when you come back. Remove it
 any time with the **✕** next to the photo controls.
+
+## Room finishes
+
+Select a room and the inspector shows **Floor finish** and **Wall finish**
+dropdowns — the pick renders immediately in 3D and stays in sync with the
+finish picker inside the per‑room editor. **Wall finish** offers **Plaster
+(default)** to return a room's walls to the plain shell.
 
 ## Ceiling height & wall colour
 
@@ -95,6 +118,11 @@ Start from a **template** apartment, **Reset to HDB** for the default flat, or
 **New** for an empty shell. The template picker covers the common Singapore home
 types — HDB 2‑Room Flexi, 3/4/5‑Room, Executive Apartment, 3Gen and Jumbo, plus
 condominium layouts (Studio, 1‑Bedroom, 1+Study, 2‑, 3‑ and 4‑Bedroom, Penthouse)
-and a landed terrace — alongside the Studio / One‑bed / Loft starters. Saved plans
-persist in your browser. A non‑default plan re‑renders the 3D flat, and furniture
-placement and walk collisions follow the new walls.
+— alongside the Studio / One‑bed starters. Three templates are genuinely
+**two‑storey** (see [Levels](#levels-storeys)): the **HDB Executive Maisonette**
+(living/kitchen down, three bedrooms + two baths up), the **Terrace House**
+(landed, bedrooms upstairs) and the **Open Loft** (sleeping mezzanine) — each
+keeps a stair hall below and a matching landing above, ready for a staircase
+from the catalog. Saved plans persist in your browser. A non‑default plan
+re‑renders the 3D flat, and furniture placement and walk collisions follow the
+new walls.
