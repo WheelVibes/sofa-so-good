@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest'
+import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../store'
+import { HISTORY_LIMIT, HISTORY_TRIM_HEADROOM } from './historySlice'
 
 function s() {
   return useStore.getState()
@@ -71,6 +73,45 @@ describe('history slice', () => {
     expect(s().doors['door-bedroom1']?.open).toBe(true)
     s().undo()
     expect(s().doors['door-bedroom1']?.open ?? false).toBe(false)
+  })
+
+  describe('cap (amortised trim)', () => {
+    const marker = (i: number): FurnitureItem[] => [
+      { id: `m${i}`, defId: 'bed-double', position: [0, 0], rotation: 0, props: {} },
+    ]
+    const pushN = (n: number) => {
+      for (let i = 0; i < n; i++) {
+        useStore.setState({ items: marker(i) })
+        s().pushHistory()
+      }
+    }
+
+    it('grows to LIMIT+HEADROOM, then one slice trims back to LIMIT', () => {
+      s().clearHistory()
+      const max = HISTORY_LIMIT + HISTORY_TRIM_HEADROOM
+      pushN(max)
+      // No trim yet — headroom means pushes past the cap stay single copies.
+      expect(s().past.length).toBe(max)
+      // The next push crosses the threshold: one amortised trim to LIMIT.
+      useStore.setState({ items: marker(max) })
+      s().pushHistory()
+      expect(s().past.length).toBe(HISTORY_LIMIT)
+      // Oldest entries dropped in order: the bottom of the stack is now the
+      // snapshot from push #HEADROOM+1 (0-based index HEADROOM+1... = max-LIMIT+1).
+      expect(s().past[0]?.items[0]?.id).toBe(`m${max - HISTORY_LIMIT + 1}`)
+    })
+
+    it('preserves undo semantics across a trim (drains to the oldest kept state)', () => {
+      s().clearHistory()
+      const total = HISTORY_LIMIT + HISTORY_TRIM_HEADROOM + 1
+      pushN(total)
+      expect(s().past.length).toBe(HISTORY_LIMIT)
+      while (s().past.length > 0) s().undo()
+      // The oldest retained snapshot is push #(total - LIMIT)'s captured state.
+      expect(s().items[0]?.id).toBe(`m${total - HISTORY_LIMIT}`)
+      // And the drained steps are all redoable.
+      expect(s().future.length).toBe(HISTORY_LIMIT)
+    })
   })
 
   it('clearHistory drops both stacks', () => {

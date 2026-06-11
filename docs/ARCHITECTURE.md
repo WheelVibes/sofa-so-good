@@ -247,7 +247,8 @@ same change that reshapes a system.
   lands in rooms of BOTH storeys). Both surface in the report's "HDB compliance hints" section.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
-  rule across the whole design and `findWallClips(items,defs,walls)` flags pieces
+  rule across the whole design (frame-scoped memo: same items/defs identities within
+  one task reuse the result) and `findWallClips(items,defs,walls)` flags pieces
   embedded in a wall (both power the Clearance panel's checks); items
   carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter; upper storeys → own

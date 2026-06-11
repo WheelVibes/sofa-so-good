@@ -192,6 +192,41 @@ describe('placement', () => {
       const items = [placedSofa(2, 2), { ...placedBed(7, 7), id: 'b1' }]
       expect(findItemOverlaps(items, BUILTIN_CATALOG)).toEqual([])
     })
+
+    describe('frame-scoped memo (PERF-FOLLOWUPS)', () => {
+      const items = () => [placedSofa(5, 5), { ...placedBed(5.2, 5), id: 'b1' }]
+
+      it('repeated same-tick calls with unchanged identities reuse the result', () => {
+        const arr = items()
+        const r1 = findItemOverlaps(arr, BUILTIN_CATALOG)
+        const r2 = findItemOverlaps(arr, BUILTIN_CATALOG)
+        expect(r2).toBe(r1) // same array instance = cache hit, zero recompute
+      })
+
+      it('invalidates on item-set identity change (new array, same content)', () => {
+        const r1 = findItemOverlaps(items(), BUILTIN_CATALOG)
+        const r2 = findItemOverlaps(items(), BUILTIN_CATALOG)
+        expect(r2).not.toBe(r1)
+        expect(r2).toEqual(r1) // identical content, freshly computed
+      })
+
+      it('invalidates on defs identity change', () => {
+        const arr = items()
+        const r1 = findItemOverlaps(arr, BUILTIN_CATALOG)
+        const r2 = findItemOverlaps(arr, { ...BUILTIN_CATALOG })
+        expect(r2).not.toBe(r1)
+        expect(r2).toEqual(r1)
+      })
+
+      it('expires after the current task even with unchanged identities', async () => {
+        const arr = items()
+        const r1 = findItemOverlaps(arr, BUILTIN_CATALOG)
+        await Promise.resolve() // flush microtasks — the memo self-invalidates
+        const r2 = findItemOverlaps(arr, BUILTIN_CATALOG)
+        expect(r2).not.toBe(r1) // recomputed (GLB footprints may have changed)
+        expect(r2).toEqual(r1)
+      })
+    })
   })
 
   describe('findWallClips', () => {

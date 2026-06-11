@@ -170,6 +170,26 @@ export interface OverlapPair {
   b: string
 }
 
+// Frame-scoped broadphase memo (PERF-FOLLOWUPS): several panels (Clearance,
+// Design score, report) can each run the design-wide scan in the same render
+// pass, so repeated calls with the *same* items/defs identities reuse the
+// computed result. The memo deliberately expires at the end of the current
+// task (microtask flush ≤ one frame) rather than living unboundedly: the OBBs
+// read the mutable GLB-footprint cache, which can populate *after* a result is
+// computed without the items array identity changing. Single slot + module
+// fields keeps it allocation-free on the hit path.
+let overlapMemoItems: FurnitureItem[] | null = null
+let overlapMemoDefs: Record<string, FurnitureDef> | null = null
+let overlapMemoResult: OverlapPair[] | null = null
+let overlapMemoFlushQueued = false
+
+function invalidateOverlapMemo(): void {
+  overlapMemoItems = null
+  overlapMemoDefs = null
+  overlapMemoResult = null
+  overlapMemoFlushQueued = false
+}
+
 /**
  * Every pair of placed items that overlap — the same furniture-vs-furniture
  * test {@link canPlace} runs, evaluated across the whole design instead of for
@@ -178,8 +198,30 @@ export interface OverlapPair {
  * rug under a sofa, or grouped pieces. Each colliding pair is reported once
  * (`a` before `b` in iteration order). O(n²) over placed items, which is fine
  * for design-scale counts; callers should debounce/gate behind an open panel.
+ *
+ * Repeated same-frame calls with unchanged `items`/`defs` *identities* return
+ * the cached result array (see the memo note above); a new array/record —
+ * which is how the store publishes any item-set change — recomputes.
  */
 export function findItemOverlaps(
+  items: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+): OverlapPair[] {
+  if (overlapMemoResult !== null && overlapMemoItems === items && overlapMemoDefs === defs) {
+    return overlapMemoResult
+  }
+  const result = computeItemOverlaps(items, defs)
+  overlapMemoItems = items
+  overlapMemoDefs = defs
+  overlapMemoResult = result
+  if (!overlapMemoFlushQueued) {
+    overlapMemoFlushQueued = true
+    queueMicrotask(invalidateOverlapMemo)
+  }
+  return result
+}
+
+function computeItemOverlaps(
   items: FurnitureItem[],
   defs: Record<string, FurnitureDef>,
 ): OverlapPair[] {
