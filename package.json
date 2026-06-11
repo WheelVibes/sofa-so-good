@@ -34,6 +34,7 @@
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@react-three/postprocessing": "^3.0.4",
+    "@react-three/xr": "^6.6.30",
     "fflate": "^0.8.3",
     "idb-keyval": "^6.2.4",
     "react": "^19.2.0",

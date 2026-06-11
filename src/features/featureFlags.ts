@@ -31,6 +31,7 @@ export type FeatureFlag =
   | 'panorama'
   | 'renderPresets'
   | 'hqRender'
+  | 'vrWalkthrough'
   | 'savedViews'
   | 'backdrops'
   | 'lightingMoods'
@@ -165,6 +166,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   hqRender: {
     label: 'HQ render',
     description: 'Progressive path-traced photoreal still (three-gpu-pathtracer)',
+    default: true,
+    tier: 'pro',
+  },
+  vrWalkthrough: {
+    label: 'VR walkthrough',
+    description: 'WebXR immersive walkthrough on supported headsets',
     default: true,
     tier: 'pro',
   },

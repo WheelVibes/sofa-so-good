@@ -61,7 +61,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   verify (a previous GLTFExporter prototype was reverted as unverifiable headless).
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
   depends on Q-3DEXPORT for the item GLB/USDZ.
-- [ ] F21 [PROD] WebXR VR walkthrough (`@react-three/xr` over walk mode); real-headset verify.
+- [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
 - [ ] Q31 part 2: drag a material swatch onto floor/wall/item in the 3D canvas (raycast drop);
   part 1 (resolver + Objects-list drop) shipped.
 - [ ] GE2b GLB designer: drag gizmo (drei TransformControls) for move/rotate/scale in the preview.

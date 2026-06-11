@@ -154,3 +154,10 @@ describe('hqRender flag (F1)', () => {
     expect(resolveFlags(false, {}, false, 'pro').hqRender).toBe(true)
   })
 })
+
+describe('vrWalkthrough flag (F21)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').vrWalkthrough).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').vrWalkthrough).toBe(true)
+  })
+})

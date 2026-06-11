@@ -1,5 +1,8 @@
+import { useEffect, useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
 import { isMultiLevel, planLevels } from '../../../floorplan/levels'
+import { detectVrSupport } from '../../../scene/xr/vrSupport'
+import { enterVr, getXrStore } from '../../../scene/xr/xrStore'
 import { useStore } from '../../../state/store'
 import { shortcutLabel } from '../shortcuts'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
@@ -23,6 +26,22 @@ export function ViewMenu() {
   const viewLevelId = useStore((s) => s.viewLevelId)
   const setViewLevel = useStore((s) => s.setViewLevel)
   const savedViews = useFeature('savedViews')
+  const fVr = useFeature('vrWalkthrough')
+  const [vrSupported, setVrSupported] = useState(false)
+  useEffect(() => {
+    if (!fVr) return
+    let on = true
+    void detectVrSupport().then((ok) => {
+      if (!on || !ok) return
+      setVrSupported(true)
+      // Pre-create the XR store so the Enter-VR click keeps its user
+      // activation (no chunk-load between gesture and requestSession).
+      void getXrStore()
+    })
+    return () => {
+      on = false
+    }
+  }, [fVr])
 
   const isOrbit = cameraMode === 'orbit'
   // The overview-only framing controls (top/reset/turntable/saved) only make
@@ -49,6 +68,17 @@ export function ViewMenu() {
         active={!isOrbit}
         onClick={() => setCameraMode('firstPerson')}
       />
+      {fVr && vrSupported ? (
+        <MenuItem
+          icon="Walk"
+          label="Enter VR"
+          sub="Immersive walkthrough on your headset"
+          onClick={() => {
+            useStore.getState().setVrActive(true)
+            void enterVr()
+          }}
+        />
+      ) : null}
       {isMultiLevel(plan) ? (
         <>
           <div className="my-1 border-t border-[var(--border)]" />

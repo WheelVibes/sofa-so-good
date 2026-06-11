@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C247 / F21] WebXR VR walkthrough — gated entry + inert provider
+`@react-three/xr` wired behind a `vrWalkthrough` flag (pro): `scene/xr/` holds a pure
+`detectVrSupport` (3 tests), a lazily-created singleton XR store, and `MaybeXr` — an inert
+pass-through wrapper inside the Canvas that only mounts the XR provider (and loads its chunk)
+once a session is requested, unwinding when the headset session ends. "Enter VR" appears in the
+View menu + mobile View sheet only when the flag is on AND `immersive-vr` is supported; the store
+is pre-created on support detection so the click keeps its user activation. Verified headless
+with a mocked `navigator.xr` (item renders; scene unchanged through the inert wrapper); an
+actual headset session is real-device-deferred by nature.
+
 ## [C245 / F27] "Redesign this render" style-variant explorer on the AI photoreal path
 Once a "Make photoreal" result exists in the Share modal, style chips (Scandinavian / Japandi /
 Industrial / Luxury / Tropical — descriptors reuse the `briefParser.ts` keyword vocabulary so the

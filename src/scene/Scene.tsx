@@ -41,6 +41,7 @@ import { SelectionOutline } from './selection/SelectionOutline'
 import { TapeMeasure } from './TapeMeasure'
 import { TONE_MAPPING_THREE } from './toneMappingThree'
 import { useQuality } from './useQuality'
+import { MaybeXr } from './xr/MaybeXr'
 
 /** Flips `sceneReady` once the scene has painted a few solid frames (so
  *  shaders + procedural textures are warm) and nothing is still streaming
@@ -85,41 +86,44 @@ export function Scene() {
         toneMappingExposure: 1.05,
       }}
     >
-      <ContextLossGuard />
-      <RenderPump />
-      <Sky />
-      <SceneBackdrop />
-      <SceneEnvironment />
-      <Lighting />
-      <FurnitureLights />
-      {customPlan ? <PlanShell /> : <Apartment />}
-      {/* "Click a room to edit" hover highlight — works for both plans now. */}
-      <RoomHoverHighlight />
-      <GridOverlay />
-      <AlignmentGuides />
-      <ClearanceOverlay />
-      <FurnitureLayer />
-      <FurnitureMaterialLoader />
-      <SelectionOutline />
-      <RotateGizmo />
-      <HoverHighlight />
-      <PlacementGhost />
-      <DragController />
-      <MarqueeCameraTracker />
-      <CameraRig />
-      <CameraForwardTracker />
-      <MeasurementOverlay />
-      <TapeMeasure />
-      <AnnotationsOverlay />
-      <Effects />
-      <ShowcaseController />
-      <QualityController />
-      <ScreenshotController />
-      <PanoramaController />
-      <HqRenderController />
-      <RecordController />
-      <SceneReadySignal />
-      {import.meta.env.DEV ? <DevCameraExpose /> : null}
+      {/* Inert pass-through until a VR session is requested (F21). */}
+      <MaybeXr>
+        <ContextLossGuard />
+        <RenderPump />
+        <Sky />
+        <SceneBackdrop />
+        <SceneEnvironment />
+        <Lighting />
+        <FurnitureLights />
+        {customPlan ? <PlanShell /> : <Apartment />}
+        {/* "Click a room to edit" hover highlight — works for both plans now. */}
+        <RoomHoverHighlight />
+        <GridOverlay />
+        <AlignmentGuides />
+        <ClearanceOverlay />
+        <FurnitureLayer />
+        <FurnitureMaterialLoader />
+        <SelectionOutline />
+        <RotateGizmo />
+        <HoverHighlight />
+        <PlacementGhost />
+        <DragController />
+        <MarqueeCameraTracker />
+        <CameraRig />
+        <CameraForwardTracker />
+        <MeasurementOverlay />
+        <TapeMeasure />
+        <AnnotationsOverlay />
+        <Effects />
+        <ShowcaseController />
+        <QualityController />
+        <ScreenshotController />
+        <PanoramaController />
+        <HqRenderController />
+        <RecordController />
+        <SceneReadySignal />
+        {import.meta.env.DEV ? <DevCameraExpose /> : null}
+      </MaybeXr>
     </Canvas>
   )
 }

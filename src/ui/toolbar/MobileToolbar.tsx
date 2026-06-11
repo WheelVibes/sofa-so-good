@@ -20,6 +20,8 @@ import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
 import { BACKDROPS, type BackdropKind } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
+import { detectVrSupport } from '../../scene/xr/vrSupport'
+import { enterVr, getXrStore } from '../../scene/xr/xrStore'
 import { firstEditableRoomId } from '../../state/rooms'
 import { applySerialized, serialize } from '../../state/schema'
 import { PRESET_HOURS, type TimePreset } from '../../state/slices/timeSlice'
@@ -185,6 +187,20 @@ export function MobileToolbar() {
   const fPanorama = useFeature('panorama')
   const fRenderPresets = useFeature('renderPresets')
   const fHqRender = useFeature('hqRender')
+  const fVr = useFeature('vrWalkthrough')
+  const [vrSupported, setVrSupported] = useState(false)
+  useEffect(() => {
+    if (!fVr) return
+    let on = true
+    void detectVrSupport().then((ok) => {
+      if (!on || !ok) return
+      setVrSupported(true)
+      void getXrStore()
+    })
+    return () => {
+      on = false
+    }
+  }, [fVr])
   const fBudget = useFeature('budget')
   const fChecks = useFeature('clearanceChecks')
   const fMeasure = useFeature('measure')
@@ -383,6 +399,17 @@ export function MobileToolbar() {
                   on={cameraMode === 'firstPerson'}
                   onClick={act(() => s.getState().setCameraMode('firstPerson'))}
                 />
+                {fVr && vrSupported ? (
+                  <Item
+                    icon="Walk"
+                    label="Enter VR"
+                    sub="Immersive walkthrough on your headset"
+                    onClick={act(() => {
+                      s.getState().setVrActive(true)
+                      void enterVr()
+                    })}
+                  />
+                ) : null}
                 {isMultiLevel(mobilePlan) ? (
                   <>
                     <div className="m-sub-h">Levels</div>
