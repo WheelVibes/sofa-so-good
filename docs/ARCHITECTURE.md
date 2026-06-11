@@ -24,7 +24,8 @@ same change that reshapes a system.
   non-default dev port); `crop.mjs`/`perf.mjs`.
 - `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
-  (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) IKEA price lookup.
+  (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
+  (IKEA/Courts/HipVan/Castlery).
 - `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build).
 
 ## Layout of the code
@@ -335,7 +336,8 @@ same change that reshapes a system.
 - **Mirror reflections** (`primitives/MirrorMaterial.tsx`): real planar reflection on
   High/Maximum (`mirrorReflectorConfig(tier)`), fake-shiny pane below. Uploaded GLB
   mirrors via inspector "Reflective surface" (`props.reflective`, `gltf/mirrorPlane.ts`).
-- **Live pricing/AI/sharing**: dev-only "Live IKEA SG prices" (`livePrice.ts`/`price-server.mjs`,
+- **Live pricing/AI/sharing**: dev-only "Live SG retailer prices" (`livePrice.ts`/
+  `price-server.mjs` — IKEA SG/Courts/HipVan/Castlery, per-line offers cheapest-first,
   fails soft to `furniturePrices.ts`); **AI photoreal** (`ui/ai/`, BYO-key i2i in Share; after a result, "Redesign this
   render" style chips re-run the same call with a restyled prompt — pure `ai/styleVariants.ts`
   + `ui/ai/variantGallery.ts` reducer — into a selectable/downloadable variant gallery);

@@ -2,10 +2,10 @@ import { useEffect, useState } from 'react'
 
 /**
  * Client for the local price sidecar (`npm run price-server`). Dev-only: it
- * resolves a furniture name to a real Singapore retailer price + buy link for
- * the Shopping panel's "live prices" toggle. Everything degrades gracefully —
- * if the sidecar isn't running or a lookup fails, callers fall back to the
- * bundled estimate.
+ * resolves a furniture name to real Singapore retailer prices + buy links
+ * (IKEA SG / Courts / HipVan / Castlery) for the Shopping panel's "live
+ * prices" toggle. Everything degrades gracefully — if the sidecar isn't
+ * running or a lookup fails, callers fall back to the bundled estimate.
  */
 
 export interface LivePrice {
@@ -14,12 +14,16 @@ export interface LivePrice {
   url: string | null
   title: string
   retailer: string
+  /** Human label for the retailer (e.g. 'Courts'), sent by the sidecar. */
+  retailerLabel?: string
   image: string | null
   source: 'live' | 'cache'
 }
 
 const PORT = 5175
 const BASE = `http://localhost:${PORT}`
+/** Fallback retailer set when the sidecar's /health doesn't list any. */
+const DEFAULT_RETAILERS = ['ikea-sg']
 
 /** Module cache (query -> resolved/failed) so the panel doesn't re-fetch a name
  *  every render. Promise dedupes concurrent lookups of the same query. */
@@ -27,14 +31,27 @@ const cache = new Map<string, LivePrice | null>()
 const inflight = new Map<string, Promise<LivePrice | null>>()
 
 let sidecarUp: boolean | null = null
+let sidecarRetailers: string[] = DEFAULT_RETAILERS
 
 export function resetLivePriceCache(): void {
   cache.clear()
   inflight.clear()
   sidecarUp = null
+  sidecarRetailers = DEFAULT_RETAILERS
 }
 
-/** Is the sidecar reachable? Cached after the first probe. */
+/** Retailer ids advertised by the sidecar's /health (after a successful ping). */
+export function sidecarRetailerIds(): string[] {
+  return sidecarRetailers
+}
+
+/** Sort offers cheapest-first (stable for equal prices). Pure. */
+export function cheapestFirst(offers: LivePrice[]): LivePrice[] {
+  return [...offers].sort((a, b) => a.price - b.price)
+}
+
+/** Is the sidecar reachable? Cached after the first probe; also captures the
+ *  retailer list it advertises so the client never hardcodes the set. */
 export async function pingPriceSidecar(): Promise<boolean> {
   if (sidecarUp !== null) return sidecarUp
   try {
@@ -43,6 +60,11 @@ export async function pingPriceSidecar(): Promise<boolean> {
     const r = await fetch(`${BASE}/health`, { signal: ctrl.signal })
     clearTimeout(t)
     sidecarUp = r.ok
+    if (r.ok) {
+      const body = (await r.json()) as { retailers?: string[] }
+      if (Array.isArray(body.retailers) && body.retailers.length > 0)
+        sidecarRetailers = body.retailers
+    }
   } catch {
     sidecarUp = false
   }
@@ -84,16 +106,24 @@ export async function fetchLivePrice(
   return p
 }
 
+/** Resolve one query against every sidecar retailer (in parallel; per-retailer
+ *  failures just drop out). Returns the found offers cheapest-first. */
+export async function fetchLivePrices(query: string): Promise<LivePrice[]> {
+  const offers = await Promise.all(sidecarRetailers.map((r) => fetchLivePrice(query, r)))
+  return cheapestFirst(offers.filter((o): o is LivePrice => o !== null))
+}
+
 /**
  * Resolve live prices for a set of queries (keyed by an id). Returns a map of
- * id -> LivePrice (only the resolved ones). Re-runs when `enabled` flips or the
- * query set changes. Fully cancellable-safe (state set guarded by a mounted ref).
+ * id -> offers (cheapest-first; only ids with at least one offer). Re-runs when
+ * `enabled` flips or the query set changes. Fully cancellable-safe (state set
+ * guarded by a mounted ref).
  */
 export function useLivePrices(
   entries: Array<{ id: string; query: string }>,
   enabled: boolean,
-): Record<string, LivePrice> {
-  const [prices, setPrices] = useState<Record<string, LivePrice>>({})
+): Record<string, LivePrice[]> {
+  const [prices, setPrices] = useState<Record<string, LivePrice[]>>({})
   // Stable signature of the query set so the effect only re-runs on real change
   // (a caller may rebuild the array each render).
   const sig = entries.map((e) => `${e.id}=${e.query}`).join('|')
@@ -108,9 +138,9 @@ export function useLivePrices(
     ;(async () => {
       if (!(await pingPriceSidecar())) return
       for (const [id, query] of queries) {
-        const v = await fetchLivePrice(query)
+        const offers = await fetchLivePrices(query)
         if (!alive) return
-        if (v) setPrices((prev) => (prev[id] === v ? prev : { ...prev, [id]: v }))
+        if (offers.length > 0) setPrices((prev) => ({ ...prev, [id]: offers }))
       }
     })()
     return () => {

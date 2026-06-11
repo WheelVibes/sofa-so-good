@@ -232,8 +232,8 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'pro',
   },
   livePrices: {
-    label: 'Live IKEA prices',
-    description: 'Live price lookup (needs a sidecar)',
+    label: 'Live SG retailer prices',
+    description: 'Live price lookup — IKEA/Courts/HipVan/Castlery (needs a sidecar)',
     default: true,
     devOnly: true,
     tier: 'pro',

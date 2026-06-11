@@ -242,8 +242,9 @@ export the result — all in the browser.
   `#/design/<code>` URL (capped at ~16 KB; larger designs are pointed at the
   `.sofa.json` export) that opens an editable copy of the design. Uploaded
   models can't travel in a URL and are skipped with a note.
-- **Live SG prices** *(dev-only)* — toggle real IKEA Singapore prices + buy links
-  in the Shopping list (`npm run price-server`); falls back to a built-in estimate.
+- **Live SG prices** *(dev-only)* — toggle real Singapore retailer prices + buy links
+  (IKEA SG, Courts, HipVan, Castlery — cheapest-first per item) in the Shopping list
+  (`npm run price-server`); falls back to a built-in estimate.
 - **Feature flags + admin** *(dev/admin)* — a central registry decides what ships
   to production; sign in as admin (`#/login`) to unlock dev-only features and a
   flags panel that toggles features for the session (overrides via localStorage
@@ -275,7 +276,7 @@ npm run lint         # Biome: lint only
 npm run optimize:glb          # generate low/medium LOD variants (WebP textures)
 npm run optimize:glb -- --ktx2 # …with KTX2/Basis GPU-compressed textures (needs `toktx` on PATH)
 npm run scraper-server # local sidecar for the IKEA live-scrape pack (dev-only)
-npm run price-server   # local sidecar for live IKEA SG budget prices (dev-only)
+npm run price-server   # local sidecar for live SG retailer budget prices (dev-only)
 npm run docs:dev       # VitePress user guide (dev server)
 npm run docs:build     # build the user guide into dist/docs
 npm run build:all      # app + user guide together (used by the Pages deploy)
