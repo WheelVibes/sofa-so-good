@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C246] Preset circulation guard + WFH studio re-spacing
+New regression test: no shipped layout preset may have a tight pinch below 0.5 m between two
+large circulation pieces (≥0.5 m² each; coffee-table seating adjacency and small decor excluded —
+those are intentional and stay as in-app advisory hints). It caught one real defect: the WFH
+studio's desk sat 0.40 m behind the sofa — re-spaced (sofa north 0.15, desk cluster south 0.10)
+to a walkable 0.75 m, dining-side corner gap intact. TODO.md layout + quick-finishes follow-ups
+cleared (the curated one-tap furniture finishes had already shipped as QuickFinishes).
+
 ## [C239 / GE5] CSG boolean ops in the GLB designer
 The 3D asset designer can union/subtract/intersect two shapes: select a part, pick a second in
 the new **Combine (boolean)** section's "with…" dropdown, choose the op — both parts are replaced

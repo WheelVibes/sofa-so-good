@@ -36,15 +36,17 @@ plan:
     tiered LOD (like the offline `optimize:glb`) is still upload-side TODO.
 
 ## Layout / placement (2026-05-30)
-- Follow-up: run the arranger over the researched presets so their bedrooms are
-  auto-spaced.
+Done — preset circulation is now regression-tested (`layoutPresets.test.ts`:
+no tight pinch below 0.5 m between large circulation pieces; the WFH studio's
+sofa↔desk squeeze was re-spaced 0.40 → 0.75 m). The in-app checker still
+hints at snug 0.5–0.6 m adjacencies by design.
 
 ## Asset realism + structural audit (2026-05-30)
-- Follow-up: a curated "furniture materials" shortlist (oak/walnut/teak/marble
-  slugs) surfaced as one-tap finishes so users don't have to browse the full
-  remote catalog; verify the runtime download end-to-end behind the prod
-  reverse-proxy (the build sandbox's network allowlist blocks ambientCG/Poly
-  Haven, so this path is currently covered only by mocked unit tests).
+- The curated one-tap furniture finishes shipped (`ui/inspector/QuickFinishes.tsx`
+  — oak/walnut/teak/ash/ebony/marble swatch row under the finish dropdown).
+  Remaining: verify the runtime remote-material download end-to-end behind the
+  prod reverse-proxy (sandbox network allowlist blocks ambientCG/Poly Haven, so
+  that path is covered only by mocked unit tests) — needs a prod/staging session.
 
 ## Realism & content pass (2026-05-29)
 Shipped this iteration — recorded here for follow-up polish:
