@@ -4,6 +4,21 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C239 / GE5] CSG boolean ops in the GLB designer
+The 3D asset designer can union/subtract/intersect two shapes: select a part, pick a second in
+the new **Combine (boolean)** section's "with…" dropdown, choose the op — both parts are replaced
+by ONE new `mesh` part (baked triangles in `ShapePart.geometry`, a new `ShapeKind`) carrying the
+first part's colour/finish, positioned at the result's bounds centre with identity rotation (so
+position/rotation editing, duplicate/mirror and re-combining keep working; size is baked and
+hidden for mesh parts). `furniture/glbEdit/csgCombine.ts` bakes each part's transform into its
+geometry then runs `three-bvh-csg` (MIT, pinned 0.0.17 for the drei-pinned three-mesh-bvh 0.8.x)
+via Brush+Evaluator — DYNAMIC-imported at the call site so it stays out of the boot bundle.
+Degenerate/empty results (e.g. intersecting disjoint shapes, zero-volume slivers) throw → toast
+"Couldn't combine these shapes"; stored centre/size rounded to 1µm so the editable fields read
+clean. Shapes only (the source GLB is never a part); no in-dialog undo — stated in the UI copy.
+Pure helpers unit-tested + real-engine wiring tests (union/subtract/intersect bounds, disjoint
+rejection); visually verified headless (box−cylinder notch, union lump, intersect lens).
+
 ## [C243 / F1 tail] Edge-preserving denoise on the HQ render
 The HQ render's canvas blit now runs through the lib's `DenoiseMaterial` (smart edge-preserving
 blur; σ=2.5, threshold 0.1) so low-sample previews and saved stills look clean while samples

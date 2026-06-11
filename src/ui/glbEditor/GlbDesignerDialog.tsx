@@ -5,6 +5,12 @@ import { createPortal } from 'react-dom'
 import { MathUtils, Mesh, type Object3D } from 'three'
 import { buildEditedObject, partGeometry } from '../../furniture/glbEdit/buildObject'
 import {
+  CSG_OPS,
+  type CsgOp,
+  canCombineParts,
+  combineParts,
+} from '../../furniture/glbEdit/csgCombine'
+import {
   type AssetEditSpec,
   addPart,
   createEmptySpec,
@@ -123,6 +129,9 @@ export function GlbDesignerDialog() {
   const [category, setCategory] = useState<FurnitureCategory>('others')
   const [placement, setPlacement] = useState<'floor' | 'wall' | 'floorCovering'>('floor')
   const [selId, setSelId] = useState<string | null>(null)
+  // Second pick for a CSG combine ("with…"); the selected part is the first operand.
+  const [combineId, setCombineId] = useState('')
+  const [combining, setCombining] = useState(false)
   const [busy, setBusy] = useState(false)
   const [overwrite, setOverwrite] = useState(false)
   const [meshNames, setMeshNames] = useState<string[]>([])
@@ -156,6 +165,7 @@ export function GlbDesignerDialog() {
       setCategory('others')
       setPlacement('floor')
       setSelId(null)
+      setCombineId('')
       setOverwrite(false)
       sourceSceneRef.current = null
     }
@@ -164,6 +174,25 @@ export function GlbDesignerDialog() {
   if (!open || !isPro) return null
 
   const sel = spec.parts.find((p) => p.id === selId) ?? null
+  // Stale picks (removed part / now the selected part) fall back to "with…".
+  const combineWithId = sel && canCombineParts(spec, sel.id, combineId) ? combineId : ''
+
+  const combine = async (op: CsgOp) => {
+    if (!sel || !combineWithId || combining) return
+    setCombining(true)
+    try {
+      // `combineParts` dynamic-imports the CSG engine (three-bvh-csg) on first use.
+      const next = await combineParts(spec, sel.id, combineWithId, op)
+      setSpec(next.spec)
+      setSelId(next.partId)
+      setCombineId('')
+    } catch {
+      // Non-manifold/degenerate output (e.g. intersecting disjoint shapes).
+      useStore.getState().notify.start({ title: "Couldn't combine these shapes", kind: 'error' })
+    } finally {
+      setCombining(false)
+    }
+  }
 
   const save = async () => {
     if (!isBuildable(spec) || busy) return
@@ -439,7 +468,14 @@ export function GlbDesignerDialog() {
                 <div className="sec-h">
                   <span>Edit {sel.kind}</span>
                 </div>
-                {(['size', 'position'] as const).map((field) => (
+                {/* A combined (mesh) part's triangles are baked — size is fixed;
+                    position/rotation still move the whole result. */}
+                {(
+                  (sel.kind === 'mesh' ? ['position'] : ['size', 'position']) as (
+                    | 'size'
+                    | 'position'
+                  )[]
+                ).map((field) => (
                   <div key={field} style={{ marginBottom: 'var(--s-2)' }}>
                     <div
                       className="label"
@@ -589,6 +625,50 @@ export function GlbDesignerDialog() {
                   <Icon.Copy width={14} height={14} />
                   Mirror across centre
                 </button>
+              </div>
+            ) : null}
+
+            {sel && spec.parts.length > 1 ? (
+              <div className="sec">
+                <div className="sec-h">
+                  <span>Combine (boolean)</span>
+                </div>
+                <select
+                  className="input"
+                  aria-label="Combine with"
+                  value={combineWithId}
+                  onChange={(e) => setCombineId(e.target.value)}
+                  style={{ width: '100%', marginBottom: 'var(--s-2)' }}
+                >
+                  <option value="">with…</option>
+                  {spec.parts.map((p, i) =>
+                    p.id === sel.id ? null : (
+                      <option key={p.id} value={p.id}>
+                        {p.kind} {i + 1}
+                      </option>
+                    ),
+                  )}
+                </select>
+                <div className="action-grid two">
+                  {CSG_OPS.map(({ op, label }) => (
+                    <button
+                      key={op}
+                      type="button"
+                      className="act"
+                      disabled={!combineWithId || combining}
+                      aria-label={`${label} ${sel.kind} with selected part`}
+                      onClick={() => combine(op)}
+                    >
+                      {combining ? '…' : label}
+                    </button>
+                  ))}
+                </div>
+                <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
+                  Merges both shapes into one ("{SHAPE_LABEL.mesh}"), keeping this shape's colour.
+                  Subtract carves the picked shape out of this one. Shapes only — the source model
+                  can't be combined. There's no undo here: re-add the shapes if you change your
+                  mind.
+                </div>
               </div>
             ) : null}
 

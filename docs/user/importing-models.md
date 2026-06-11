@@ -68,6 +68,16 @@ build one in the browser:
   updates as you go.
 - **Start from an uploaded model** — pick one of your uploaded GLBs as the base and
   resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
+- **Combine (boolean)** — with a shape selected and at least one other shape in the
+  list, pick the second shape in the **with…** dropdown, then **Union** (merge both
+  into one solid), **Subtract** (carve the picked shape out of the selected one — a
+  notch, a hole) or **Intersect** (keep only the overlap). The result replaces both
+  shapes as a single **Combined** shape that keeps the selected shape's colour and
+  finish; you can keep moving/rotating it, recombining it, or carving it again. It
+  works on shapes only (not the source model), and there's no undo inside the
+  designer — re-add the shapes if you change your mind. If two shapes can't be
+  combined (for example intersecting shapes that don't overlap), you'll see
+  "Couldn't combine these shapes".
 
 Give it a name and category and hit **Save asset** — it's exported to a GLB and
 added to your catalog like any upload, ready to place and reuse. When you started

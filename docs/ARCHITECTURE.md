@@ -127,8 +127,14 @@ same change that reshapes a system.
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
   in the catalog like any upload — or, with **Update original** (when built from a user asset),
   re-homes the export under the source's id via `replaceUserFurniture` so placed copies update
-  (`buildOverwriteDef`, pure-tested). Launched from ⌘K. TODO: per-component recolour/
-  hide of a source GLB's meshes (v2).
+  (`buildOverwriteDef`, pure-tested). **Combine (boolean)**: with a part selected, pick a
+  second part ("with…") and union/subtract/intersect — `csgCombine.ts` bakes each part's
+  transform into its geometry, runs `three-bvh-csg` (dynamic-imported at the call site so it
+  stays out of the boot bundle), and replaces both with one `mesh` part (baked triangles in
+  `ShapePart.geometry`, re-centred on the result bounds, first part's material; degenerate
+  results throw → toast). Pure helpers (`canCombineParts`/`bakedPartGeometry`/
+  `meshPartFromGeometry`/`replaceWithCombined`) are tested. Launched from ⌘K. TODO:
+  per-component recolour/hide of a source GLB's meshes (v2).
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
   **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through
   spotlight; only "Skip tour"/Esc ends it; location prompt suppressed while open),

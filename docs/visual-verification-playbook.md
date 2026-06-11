@@ -237,6 +237,25 @@ window.open = () => ({
 ```
 Scroll the resulting plain-HTML page with `{type:'key',key:'End'}` for the footer.
 
+### Driving controlled React inputs from an evalFile
+Setting `el.value = …` directly does nothing — React's controlled input snaps
+back because no `input` event fired through its tracker. Use the **native value
+setter** then dispatch `input` (React listens for `input`, mapping it to
+`onChange`); for a `<select>` use `HTMLSelectElement.prototype`'s setter +
+a `change` event (or the harness `select` action when targeting by selector):
+```js
+const setVal = (el, v) => {
+  Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el), 'value').set.call(el, String(v))
+  el.dispatchEvent(new Event('input', { bubbles: true }))
+}
+setVal(document.querySelector('input[aria-label="cylinder position X"]'), 0.15)
+```
+Target inputs by `aria-label` (stable, no test-ids needed). And **poll for the
+panel that renders the input** before setting it — after clicking a button that
+changes selection, a fixed 300 ms sleep is racy under the slow headless profile
+(this intermittently broke the GLB-designer CSG verification); poll for the
+specific `input[aria-label=…]`/`select[aria-label=…]` node instead.
+
 ### Driving a native `<select>` dropdown
 A click at the select's coordinates only *opens* the OS popup (which Chromium
 renders outside the page, so you can't click an option by pixel). Use the
