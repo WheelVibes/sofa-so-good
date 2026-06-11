@@ -15,6 +15,20 @@ the picks are saved with the plan.
 
 ![The finish picker open on a room](/screenshots/finish-picker.png)
 
+## Drag a swatch to apply (desktop)
+
+On desktop you can also **drag a swatch out of the finish picker and drop it**:
+
+- **Onto the 3D room itself** — drop on the **floor** to refinish the floor, on a
+  **wall** to repaint that room's walls, or on a **piece of furniture** to restyle
+  that piece. Whatever is under your cursor when you release gets the finish.
+- **Onto a row in the Objects list** (the Layers tab of the catalog drawer) to
+  restyle that piece without aiming in 3D.
+
+A drop is a single undo step — <kbd>Ctrl/⌘&nbsp;Z</kbd> reverts it. Dropping on
+empty sky does nothing. On touch devices drag‑and‑drop isn't available; tap a
+swatch to apply it instead.
+
 ## Built‑in finishes
 
 Finishes are generated procedurally, so they tile at a fixed real‑world scale no

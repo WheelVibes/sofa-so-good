@@ -4,6 +4,7 @@ import { type Group, Vector2 } from 'three'
 import type { PlanClippedWall, PlanRoomShell as Shell } from '../floorplan/planRoomShell'
 import { resolvePlanRoomFloor, resolvePlanRoomWall } from '../floorplan/roomFinishes'
 import type { MaterialId } from '../materials/types'
+import { finishSurfaceUserData } from '../scene/finishDropTarget'
 import { useStore } from '../state/store'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanWallFinishFace } from './walls/PlanWallFinishFace'
@@ -25,12 +26,15 @@ function WallBox({
   center,
   height,
   finishId,
+  roomId,
 }: {
   wall: PlanClippedWall
   center: [number, number]
   height: number
   /** Room wall finish; renders a room-facing finish plane over the plaster. */
   finishId: MaterialId | null
+  /** The isolated room this clipped wall belongs to (finish-drop target tag). */
+  roomId: string
 }) {
   const ref = useRef<Group>(null)
   const [sx, sz] = wall.start
@@ -63,7 +67,14 @@ function WallBox({
   const localZ = new Vector2(-Math.sin(angle), Math.cos(angle))
   const interiorSign: 1 | -1 = localZ.dot(normal) >= 0 ? -1 : 1
   return (
-    <group ref={ref} position={[midX, h / 2, midZ]} rotation={[0, -angle, 0]}>
+    <group
+      ref={ref}
+      position={[midX, h / 2, midZ]}
+      rotation={[0, -angle, 0]}
+      // In the isolated room editor every clipped wall belongs to this room, so
+      // tag the whole group as a wall drop target (scene/finishDropTarget.ts).
+      userData={finishSurfaceUserData('wall', roomId)}
+    >
       <mesh castShadow={false}>
         <boxGeometry args={[len, h, t]} />
         <meshStandardMaterial color={WALL_COLOR} roughness={0.9} />
@@ -102,6 +113,7 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
           footprint rects (main + optional L-extension). */}
       {room.polygon && room.polygon.length >= 3 ? (
         <PlanRoomFloor
+          roomId={room.id}
           origin={room.origin}
           width={room.width}
           depth={room.depth}
@@ -112,6 +124,7 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
         shell.rects.map((r, i) => (
           <PlanRoomFloor
             key={`floor-${i}`}
+            roomId={room.id}
             origin={[r.x0, r.z0]}
             width={r.x1 - r.x0}
             depth={r.z1 - r.z0}
@@ -127,6 +140,7 @@ export function PlanRoomShell({ shell }: { shell: Shell }) {
           center={shell.center}
           height={height}
           finishId={wallMat}
+          roomId={room.id}
         />
       ))}
 

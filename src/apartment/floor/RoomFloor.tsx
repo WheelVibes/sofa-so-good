@@ -14,6 +14,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
@@ -87,6 +88,8 @@ function FloorMesh({ roomId, origin, width, depth, material }: FloorMeshProps) {
       onClick={onClick}
       onPointerOver={onPointerOver}
       onPointerOut={onPointerOut}
+      // Drop-target tag for the canvas finish drag (scene/finishDropTarget.ts).
+      userData={finishSurfaceUserData('floor', roomId)}
       material={material}
       geometry={geometry}
     />

@@ -14,6 +14,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry, worldUvShapeGeometry } from '../../materials/worldUv'
+import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
 import { useStore } from '../../state/store'
@@ -81,8 +82,12 @@ function FloorMesh({
   material,
 }: Rect & { material: MeshStandardMaterial }) {
   const handlers = useOverviewRoomEntry(roomId)
+  // Drop-target tag for the canvas finish drag (scene/finishDropTarget.ts).
+  const userData = roomId ? finishSurfaceUserData('floor', roomId) : undefined
   if (polygon && polygon.length >= 3) {
-    return <PolygonFloor polygon={polygon} material={material} handlers={handlers} />
+    return (
+      <PolygonFloor polygon={polygon} material={material} handlers={handlers} userData={userData} />
+    )
   }
   const geometry = worldUvPlaneGeometry(width, depth)
   return (
@@ -92,6 +97,7 @@ function FloorMesh({
       receiveShadow
       material={material}
       geometry={geometry}
+      userData={userData}
       {...handlers}
     />
   )
@@ -103,10 +109,12 @@ function PolygonFloor({
   polygon,
   material,
   handlers,
+  userData,
 }: {
   polygon: [number, number][]
   material: MeshStandardMaterial
   handlers?: Record<string, unknown>
+  userData?: Record<string, unknown>
 }) {
   const geometry = useMemo(() => worldUvShapeGeometry(polygon), [polygon])
   return (
@@ -116,6 +124,7 @@ function PolygonFloor({
       receiveShadow
       material={material}
       geometry={geometry}
+      userData={userData}
       {...handlers}
     />
   )

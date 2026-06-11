@@ -83,6 +83,13 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(false, {}, false, 'pro').ikeaLive).toBe(false)
   })
 
+  it('finishDnd (simple tier, prod default on) is available in BOTH Simple and Pro modes', () => {
+    // Drag-to-apply finishes is part of the core "finish" loop, so a production
+    // build keeps it on in the default Simple mode as well as in Pro.
+    expect(resolveFlags(false, {}, false, 'simple').finishDnd).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').finishDnd).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { measure: true }, false, 'simple')
     expect(simple.measure).toBe(false)

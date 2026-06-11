@@ -126,6 +126,9 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
     <group
       position={[item.position[0], def.kind === 'parametric' ? 0 : liftY, item.position[1]]}
       rotation={[0, item.rotation, 0]}
+      // Tag the root group with the item id so manual raycasts (canvas finish
+      // drop — scene/finishDropTarget.ts) can map a hit back to the item.
+      userData={{ itemId: item.id }}
       onClick={onClick}
       onPointerOver={(e) => {
         if (passive) return

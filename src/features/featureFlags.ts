@@ -61,6 +61,7 @@ export type FeatureFlag =
   | 'presentation'
   | 'pbrSurfaces'
   | 'comments'
+  | 'finishDnd'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -351,6 +352,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Pinned design comments — notes anchored in the 3D scene',
     default: true,
     tier: 'pro',
+  },
+  finishDnd: {
+    label: 'Drag-to-apply finishes',
+    description: 'Drag a finish swatch onto the 3D scene or the Objects list to apply it',
+    default: true,
+    tier: 'simple',
   },
 }
 

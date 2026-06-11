@@ -18,4 +18,7 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   WebP, full res; `decodeImage.ts` handles TGA/TIFF/EXR/HDR). KTX2/DDS standalone decode is
   deferred (needs a WebGL readback).
 - `finishDrop.ts` is the pure drag-to-apply core (payload + `resolveFinishDrop`) — reuse it
-  for any new drop surface rather than re-implementing the routing.
+  for any new drop surface rather than re-implementing the routing, and commit through
+  `state/finishDropApply.ts` (shared store dispatch: one undo step + recents + toast).
+  Existing surfaces (Layers rows, 3D canvas via `scene/FinishDropSurface.tsx` +
+  `scene/finishDropTarget.ts`) gate on the `finishDnd` flag — gate new ones the same way.

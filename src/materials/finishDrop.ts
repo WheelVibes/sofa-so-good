@@ -7,9 +7,11 @@
  *    application action the caller dispatches to the store.
  *
  * Consumers: `ui/FinishPicker.tsx` swatches set the payload on dragstart; DOM
- * drop zones (Layers-panel item rows today, the 3D canvas surface raycast next)
- * decode it + resolve the action. Keeping the routing here means every drop
- * surface shares one tested decision table.
+ * drop zones (Layers-panel item rows + the 3D canvas raycast surface,
+ * `scene/FinishDropSurface.tsx`) decode it + resolve the action, then commit
+ * via `state/finishDropApply.ts`. Keeping the routing here means every drop
+ * surface shares one tested decision table. All surfaces gate on the
+ * `finishDnd` feature flag.
  */
 
 /** Custom MIME for the drag payload so we never clash with text/uri drags. */

@@ -70,7 +70,8 @@ same change that reshapes a system.
 - `src/materials/` — `builtinCatalog.ts` (floors/walls), `procedural/generators.ts`
   (wood/parquet/tile/marble/carpet/concrete/terrazzo/plaster/wallpaper/checker/brick…),
   `furnitureMaterials.ts` (tintable grain + `getSolidMaterial` + `mat:<id>` DLC +
-  `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply), `convert/`
+  `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply core; canvas drop =
+  `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR, `reencode.ts`→WebP; 16MB cap, KTX2/DDS deferred).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
@@ -177,8 +178,15 @@ same change that reshapes a system.
   boosts IBL on glossy finishes (free on Performance — no IBL there).
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
-  `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`materials/finishDrop.ts`):
-  draggable swatches → drop on Objects-list rows.
+  `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`finishDnd` flag,
+  simple tier; desktop-only — touch keeps tap-to-apply): `materials/finishDrop.ts` =
+  payload + decision table; picker swatches drag onto Objects-list rows **or the 3D
+  canvas** — `scene/FinishDropSurface.tsx` (mounted in both Canvases) handles native
+  `dragover`/`drop` on the canvas element, raycasts manually from the drop coords, and
+  `scene/finishDropTarget.ts` classifies the hit via `userData` tags (`itemId` on item
+  root groups; `finishTarget {kind,roomId}` on floor meshes + interior wall faces,
+  skipping invisible/untagged hits). Both surfaces commit through
+  `state/finishDropApply.ts` (one undo step, floor/wall recents, toast).
 - **Lighting / time of day**: SunCalc → `altitudeCurve.ts` → directional sun +
   hemisphere + IBL + sky. Fixtures emit capped day-gated night point lights; shades glow
   via `fixtureGlow`.

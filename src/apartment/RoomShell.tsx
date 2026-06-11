@@ -14,6 +14,7 @@ import {
   useSolidMaterial,
   useTexturedMaterial,
 } from '../materials/useMaterial'
+import { finishSurfaceUserData } from '../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../scene/SilentErrorBoundary'
 import { useStore } from '../state/store'
 import { DOORS, WINDOWS } from './constants'
@@ -30,10 +31,13 @@ function WallBox({
   wall,
   center,
   material,
+  roomId,
 }: {
   wall: ClippedWall
   center: [number, number]
   material: MeshStandardMaterial
+  /** The isolated room this clipped wall belongs to (finish-drop target tag). */
+  roomId: string
 }) {
   const ref = useRef<Mesh>(null)
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
@@ -70,6 +74,9 @@ function WallBox({
       rotation={[0, -angle, 0]}
       castShadow={false}
       material={material}
+      // In the isolated room editor every clipped wall belongs to this room, so
+      // tag it as a wall drop target (scene/finishDropTarget.ts).
+      userData={finishSurfaceUserData('wall', roomId)}
     >
       <boxGeometry args={[len, h, t]} />
     </mesh>
@@ -78,21 +85,18 @@ function WallBox({
 
 // Resolve a wall finish materialId to a MeshStandardMaterial, branching by
 // kind exactly like the floor path so procedural/textured/solid all work.
-function SolidWall(p: { def: SolidMaterialDef; wall: ClippedWall; center: [number, number] }) {
+interface WallDispatchProps {
+  wall: ClippedWall
+  center: [number, number]
+  roomId: string
+}
+function SolidWall(p: WallDispatchProps & { def: SolidMaterialDef }) {
   return <WallBox {...p} material={useSolidMaterial(p.def)} />
 }
-function TexturedWall(p: {
-  def: TexturedMaterialDef
-  wall: ClippedWall
-  center: [number, number]
-}) {
+function TexturedWall(p: WallDispatchProps & { def: TexturedMaterialDef }) {
   return <WallBox {...p} material={useTexturedMaterial(p.def)} />
 }
-function ProceduralWall(p: {
-  def: ProceduralMaterialDef
-  wall: ClippedWall
-  center: [number, number]
-}) {
+function ProceduralWall(p: WallDispatchProps & { def: ProceduralMaterialDef }) {
   return <WallBox {...p} material={useProceduralMaterial(p.def)} />
 }
 
@@ -100,19 +104,16 @@ function RoomWall({
   materialId,
   wall,
   center,
-}: {
-  materialId: MaterialId
-  wall: ClippedWall
-  center: [number, number]
-}) {
+  roomId,
+}: WallDispatchProps & { materialId: MaterialId }) {
   const def = useMaterialDef(materialId)
   const inner =
     def.kind === 'textured' ? (
-      <TexturedWall def={def} wall={wall} center={center} />
+      <TexturedWall def={def} wall={wall} center={center} roomId={roomId} />
     ) : def.kind === 'procedural' ? (
-      <ProceduralWall def={def} wall={wall} center={center} />
+      <ProceduralWall def={def} wall={wall} center={center} roomId={roomId} />
     ) : (
-      <SolidWall def={def} wall={wall} center={center} />
+      <SolidWall def={def} wall={wall} center={center} roomId={roomId} />
     )
   return (
     <SilentErrorBoundary resetKey={def.id}>
@@ -152,6 +153,7 @@ export function RoomShell({ shell }: { shell: RoomShellData }) {
           materialId={wallAccents[`${w.wallId}:${roomId}`] ?? wallFinish}
           wall={w}
           center={shell.center}
+          roomId={roomId}
         />
       ))}
       {WINDOWS.filter((w) => windowSet.has(w.id)).map((w) => (

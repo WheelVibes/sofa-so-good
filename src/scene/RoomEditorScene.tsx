@@ -13,6 +13,7 @@ import { CameraRig } from './cameras/CameraRig'
 import { CameraForwardTracker } from './cameras/cameraForward'
 import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
+import { FinishDropSurface } from './FinishDropSurface'
 import { GridOverlay } from './GridOverlay'
 import { PlacementGhost } from './PlacementGhost'
 import { getRoomEditorShell } from './roomEditorShell'
@@ -69,6 +70,7 @@ export function RoomEditorScene() {
       <HoverHighlight />
       <PlacementGhost />
       <DragController />
+      <FinishDropSurface />
       <MarqueeCameraTracker />
       <CameraRig />
       <CameraForwardTracker />
