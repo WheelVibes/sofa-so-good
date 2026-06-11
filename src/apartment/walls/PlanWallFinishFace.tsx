@@ -32,11 +32,22 @@ function FaceMesh({ material, ...rest }: FaceProps & { material: MeshStandardMat
     [rest.width, rest.height],
   )
   useEffect(() => () => geometry.dispose(), [geometry])
+  // Clone the shared cached finish material so the depth-bias below never
+  // leaks onto floors using the same material; polygonOffset keeps the face
+  // from z-fighting the plaster box at zoomed-out distances (see WallSegment).
+  const biased = useMemo(() => {
+    const m = material.clone()
+    m.polygonOffset = true
+    m.polygonOffsetFactor = -1
+    m.polygonOffsetUnits = -1
+    return m
+  }, [material])
+  useEffect(() => () => biased.dispose(), [biased])
   return (
     <mesh
       position={rest.position}
       rotation={[0, rest.yRot, 0]}
-      material={material}
+      material={biased}
       geometry={geometry}
       receiveShadow
     />

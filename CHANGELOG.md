@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [Bug fix] Wall z-fighting at zoomed-out orbit distances (user-reported)
+The wall finish face planes sit 1 mm off the wall body; at far orbit distances the depth buffer
+can't resolve that gap and the faces strobed against the plaster (horizontal banding). Both face
+renderers (`WallSegment` FacePlane and the custom-plan `PlanWallFinishFace`) now bias the depth
+test with `polygonOffset` (-1/-1) on their per-wall material clones — rasterizer-unit bias is
+distance-invariant, so the face always wins. Verified with 3× magnified before/after crops at max
+zoom-out: banding on the bath/bedroom walls fully gone, no bleed onto skirting or floors.
+
 ## [C227 / ML4b] 2D editor level tabs — per-storey editing
 The Floor Plan Editor gets a storey tab strip (`LevelTabs.tsx`: **Ground floor** + each
 upper level + **＋ Level** add-and-switch + confirmed **✕** remove → back to ground). Every
