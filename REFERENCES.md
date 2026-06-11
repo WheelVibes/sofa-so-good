@@ -29,3 +29,6 @@ docs are public. Proprietary ones are studied via their live apps + help docs.
 | **Enscape (for SketchUp)** | Proprietary | Real-time GI/SSGI live photoreal preview — the real-time-render ceiling. | [app](https://www.chaos.com/enscape) · [docs](https://blog.enscape3d.com) |
 | **Spoak** | Proprietary | Consumer moodboard + room-design community; styling-board UX. | [app](https://www.spoak.com) · [docs](https://www.spoak.com) |
 | **Qanvast (SG)** | Proprietary | Singapore reno discovery + get-quotes + firm trust — the design→quote handoff we can bridge. | [app](https://qanvast.com) · [docs](https://renovate.qanvast.com/get-quotes/) |
+
+- **Maket.ai** — generative architecture/floor-plan AI; near-zero-learning-curve generative flows (2026 research pass).
+- **ReRoom AI / Spacely AI / Decor8 AI** — photo-restyle AI tools; commercial-rights-on-paid-tier packaging worth studying for our BYO-key AI surfaces (2026 research pass).

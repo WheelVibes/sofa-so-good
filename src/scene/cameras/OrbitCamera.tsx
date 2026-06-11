@@ -9,6 +9,7 @@ import { type FloorPlan, planBounds, planRoomArea } from '../../floorplan/types'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { cameraPose } from './cameraForward'
+import { VIEW_TOUR_LEG_SECONDS, type ViewTourFrame, viewTourFrames } from './viewTour'
 
 interface Framing {
   pos: Vector3
@@ -193,7 +194,12 @@ export function OrbitCamera() {
   // Automated walkthrough tour: fly the camera through a sequence of per-room
   // dollhouse framings (one loop), then stop + end any recording. Controls are
   // disabled while touring so it doesn't fight the animation.
-  const tour = useRef<{ frames: Framing[]; t: number } | null>(null)
+  const tour = useRef<{
+    frames: (Framing & { lighting?: ViewTourFrame })[]
+    t: number
+    rate?: number
+    lastLeg?: number
+  } | null>(null)
   useFrame((_, dt) => {
     const c = controlsRef.current
     if (!c) return
@@ -213,6 +219,27 @@ export function OrbitCamera() {
 
     const touring = useStore.getState().touring
     if (touring) {
+      if (!tour.current && touring === 'views') {
+        // Cinematic tour through the user's SAVED VIEWS (V-TOUR): authored
+        // shots in saved order; each leg applies its destination's captured
+        // lighting so a dusk view plays at dusk.
+        const vf = viewTourFrames(useStore.getState().savedViews)
+        if (!vf) {
+          useStore.getState().setTouring(false)
+          return
+        }
+        c.enabled = false
+        tour.current = {
+          frames: vf.map((f) => ({
+            pos: new Vector3(...f.pos),
+            tgt: new Vector3(...f.target),
+            lighting: f,
+          })),
+          t: 0,
+          rate: 1 / VIEW_TOUR_LEG_SECONDS,
+          lastLeg: -1,
+        }
+      }
       if (!tour.current) {
         const plan = useStore.getState().floorPlan
         const [bw, bd] = planBounds(plan)
@@ -238,7 +265,7 @@ export function OrbitCamera() {
       }
       const { frames } = tour.current
       const n = frames.length
-      tour.current.t += dt * 0.4 // ~2.5 s per room leg
+      tour.current.t += dt * (tour.current.rate ?? 0.4) // room legs ~2.5 s; view legs slower
       if (tour.current.t >= n) {
         c.enabled = true
         tour.current = null
@@ -249,6 +276,19 @@ export function OrbitCamera() {
       const t = tour.current.t
       const i = Math.floor(t) % n
       const j = (i + 1) % n
+      // Saved-view legs: apply the destination view's captured lighting as the
+      // leg begins, so the scene transitions while the camera flies.
+      if (tour.current.lastLeg !== undefined && tour.current.lastLeg !== i) {
+        tour.current.lastLeg = i
+        const lighting = frames[j].lighting
+        if (lighting) {
+          const st = useStore.getState()
+          if (lighting.lights) st.setLightsMode(lighting.lights)
+          if (lighting.mode === 'manual' && typeof lighting.hour === 'number')
+            st.setManualHour(lighting.hour)
+          else if (lighting.mode === 'system') st.setTimeMode('system')
+        }
+      }
       const f = smooth(t - Math.floor(t))
       camera.position.lerpVectors(frames[i].pos, frames[j].pos, f)
       c.target.lerpVectors(frames[i].tgt, frames[j].tgt, f)

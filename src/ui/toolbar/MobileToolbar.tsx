@@ -479,6 +479,14 @@ export function MobileToolbar() {
                         onClick={act(() => s.getState().setPresenting(true))}
                       />
                     ) : null}
+                    {fSavedViews && savedViews.length > 1 ? (
+                      <Item
+                        icon="Walkthrough"
+                        label="Cinematic tour"
+                        sub="Fly through your saved views"
+                        onClick={act(() => s.getState().setTouring('views'))}
+                      />
+                    ) : null}
                   </>
                 ) : null}
                 {!roomEditorActive &&
@@ -900,7 +908,7 @@ export function MobileToolbar() {
                         <Item
                           icon="Walkthrough"
                           label={touring ? 'Stop tour' : 'Walkthrough'}
-                          on={touring}
+                          on={Boolean(touring)}
                           onClick={act(startWalkthrough)}
                         />
                       ) : null}

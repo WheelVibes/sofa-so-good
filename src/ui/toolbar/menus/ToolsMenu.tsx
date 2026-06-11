@@ -138,7 +138,7 @@ export function ToolsMenu() {
   const fBoq = useFeature('boq')
 
   return (
-    <ToolbarMenu icon="Tools" label="Tools" active={anyActive}>
+    <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
       {fBudget && (
         <MenuItem
           icon="Budget"
@@ -250,7 +250,7 @@ export function ToolsMenu() {
           icon="Walkthrough"
           label={touring ? 'Stop tour' : 'Walkthrough'}
           sub="Fly a tour through every room"
-          active={touring}
+          active={Boolean(touring)}
           onClick={startWalkthrough}
         />
       )}

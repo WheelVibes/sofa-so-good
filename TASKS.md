@@ -35,6 +35,15 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 
 ## Multi-storey remnants (F13 core shipped C221–C235 — see CHANGELOG)
 
+## Competitor research 2026-06 (sources: coohom.com/article Planner5D-alternative · capterra.com
+## compare 164022-192882 · spacesbydee.com coohom-vs-planner-5d · plansnapper.com compare)
+- [x] V-TOUR (C250): cinematic saved-views tour (Coohom "video walkthrough" parity) — fly the
+  saved views in order w/ per-view captured lighting; record via the existing Record clip.
+- [ ] P-720: linked panorama tour (Coohom "720° tour") — multiple captured panoramas with
+  room-to-room hotspots in the shared viewer; builds on C217/C237. V:M E:M.
+- [ ] COLLAB-STRUCT: structured collaboration (projects/teams) is Coohom's enterprise edge —
+  backend-dependent; revisit if/when a backend exists.
+
 ## Realism & rendering
 - [~] F1 (C238/C240/C243): HQ render + DoF + denoise shipped. TAIL: real-GPU convergence/quality
   pass + decide quality-tier gating of the menu entry.

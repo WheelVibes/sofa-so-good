@@ -65,6 +65,14 @@ export function SavedViewsSection() {
           onClick={() => setPresenting(true)}
         />
       ) : null}
+      {savedViews.length > 1 ? (
+        <MenuItem
+          icon="Walkthrough"
+          label="Cinematic tour"
+          sub="Fly through your saved views (record via File → Record clip)"
+          onClick={() => useStore.getState().setTouring('views')}
+        />
+      ) : null}
       {savedViews.map((v) => (
         <div key={v.id} className="saved-view-row">
           <button

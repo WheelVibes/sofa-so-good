@@ -90,3 +90,15 @@ describe('cameraViewsSlice', () => {
     expect(useStore.getState().lightsMode).toBe('on')
   })
 })
+
+describe('saved-view cinematic tour state (V-TOUR)', () => {
+  it('setTouring accepts the views mode and true maps to rooms (back-compat)', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().setTouring('views')
+    expect(useStore.getState().touring).toBe('views')
+    useStore.getState().setTouring(true)
+    expect(useStore.getState().touring).toBe('rooms')
+    useStore.getState().setTouring(false)
+    expect(useStore.getState().touring).toBe(false)
+  })
+})

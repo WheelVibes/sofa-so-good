@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C250 / V-TOUR] Cinematic tour through saved views
+Competitor parity with Coohom's video walkthrough (2026 research pass — sources in TASKS):
+`setTouring('views')` flies the camera through the user's SAVED VIEWS in order (pure
+`viewTourFrames`, malformed poses skipped, ≥2 required; 3.5 s eased legs vs the room tour's 2.5 s)
+and applies each destination view's captured lighting as its leg begins — a dusk shot plays at
+dusk. "Cinematic tour" entries in the saved-views menu + mobile sheet (≥2 views); pairs with the
+existing Record clip for an exportable .webm. `touring` widened to `false|'rooms'|'views'`
+(boolean back-compat kept + tested). Verified mid-flight: camera interpolating with dusk
+transitioning in.
+
 ## [C244 / GE2b] Drag gizmo for GLB-designer parts — translate/rotate/scale
 The selected part in the 3D asset designer now carries a drei `TransformControls` gizmo in the
 live preview: a **Move / Rotate / Scale** segmented control overlays the preview's top-left
