@@ -196,6 +196,20 @@ walk / modifier guards; works in BOTH Simple and Pro mode and no-ops when the fl
 Visually verified: `P` from the 3D overview opens the 2D editor, `P` again returns to 3D, and `P`
 behind the open Help modal does nothing.
 
+## [C224] Shareable interactive 3D design link (X-PRESENT)
+"Copy 3D link" in the Share modal: a chat-friendly, backend-less `#/design/<code>` URL
+(`features/designShare.ts`) — same deflate+base64url codec as plan links, but the payload strips
+session noise (device location, camera mode) and non-portable user/IKEA defs (their blobs are
+IndexedDB-only; items referencing them are dropped with a count + toast on open), hard-capped at a
+16 KB code with a clear "use the .sofa.json export" error past it. Decode reuses `migrate` + the zod
+schema and the bounded-inflate zip-bomb guard with a tighter 4 MB cap (`planShare` gained
+`ShareTooLargeError` + per-route `DecodeLimits`). Boot handles the route after the seed
+(`loadSharedDesignFromUrl`) and toasts "Shared design loaded — it's yours to edit". A fully
+furnished default flat (66 items) encodes to a ~4.2 KB code (16 KB JSON). Also fixed: `Modal`'s
+inline `width` overrode the responsive CSS clamp, overflowing 390-px phones — now clamped to
+`calc(100vw - 24px)`. 13 new tests (round-trip, noise-stripping, budget, bomb, unknown-defId drop,
+route/boot).
+
 ## [Bug-fix batch] Reported bugs + agent-found defects
 Five user-reported bugs + high-value findings from a parallel bug/perf/UI agent sweep:
 - **Mobile onboarding**: the desktop spotlight tour (targets desktop toolbar controls; its overlay sits above

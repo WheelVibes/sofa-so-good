@@ -17,6 +17,11 @@ import type { RootState } from '../state/store'
 
 export class PlanShareError extends Error {}
 
+/** Thrown when a code (or its decompressed payload) exceeds the size limits —
+ *  distinguishable from "corrupt" so callers can offer a fallback (e.g. the
+ *  `.sofa.json` export) instead of "invalid link". */
+export class ShareTooLargeError extends PlanShareError {}
+
 /** Hash-route that carries a shared plan: `#/plans/<code>` (also tolerates
  *  `#plans/<code>`). Hash routing works on static hosting with no SPA fallback. */
 const PLAN_ROUTE_RE = /#\/?plans\/([A-Za-z0-9_-]+)/
@@ -101,16 +106,28 @@ export function encodePlan(payload: unknown): string {
   return toBase64Url(deflateSync(strToU8(json), { level: 6 }))
 }
 
+/** Optional overrides for {@link decodePlan}'s size guards — a stricter route
+ *  (e.g. the `#/design/<code>` link with its hard URL budget) reuses the same
+ *  codec + bounded inflate with tighter caps. */
+export interface DecodeLimits {
+  maxCodeLength?: number
+  maxDecompressedBytes?: number
+}
+
 /** Decode a code produced by {@link encodePlan} back to its value. Throws
- *  {@link PlanShareError} on a malformed/oversized code. */
-export function decodePlan(code: string): unknown {
+ *  {@link ShareTooLargeError} on an oversized code/payload and
+ *  {@link PlanShareError} on a malformed one. */
+export function decodePlan(code: string, limits?: DecodeLimits): unknown {
   const trimmed = code.trim()
   if (!trimmed) throw new PlanShareError('Empty plan link.')
-  if (trimmed.length > MAX_CODE_LENGTH) throw new PlanShareError('Plan link is too large.')
+  const maxCode = limits?.maxCodeLength ?? MAX_CODE_LENGTH
+  const maxBytes = limits?.maxDecompressedBytes ?? MAX_DECOMPRESSED_BYTES
+  if (trimmed.length > maxCode) throw new ShareTooLargeError('Plan link is too large.')
   try {
-    return JSON.parse(strFromU8(inflateBounded(fromBase64Url(trimmed), MAX_DECOMPRESSED_BYTES)))
+    return JSON.parse(strFromU8(inflateBounded(fromBase64Url(trimmed), maxBytes)))
   } catch (e) {
-    if (e instanceof DecompressionLimitError) throw new PlanShareError('Plan link is too large.')
+    if (e instanceof DecompressionLimitError)
+      throw new ShareTooLargeError('Plan link is too large.')
     throw new PlanShareError('That plan link is invalid or corrupted.')
   }
 }
@@ -125,8 +142,8 @@ export function encodeDesignToCode(state: RootState): string {
  * for `applySerialized`. Throws {@link PlanShareError} with a user-facing
  * message on a bad code, an unsupported version, or a schema mismatch.
  */
-export function decodeCodeToDesign(code: string): SerializedState {
-  const raw = decodePlan(code) // throws PlanShareError on a bad code
+export function decodeCodeToDesign(code: string, limits?: DecodeLimits): SerializedState {
+  const raw = decodePlan(code, limits) // throws PlanShareError on a bad code
   let migrated: unknown
   try {
     migrated = migrate(raw)

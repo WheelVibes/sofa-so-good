@@ -87,7 +87,9 @@ export function Modal({ open, onClose, title, sub, width, panelId, children, foo
       <div
         className="panel"
         id={panelId}
-        style={width ? { width } : undefined}
+        // Clamp the inline width so it can't override the responsive CSS and
+        // overflow a narrow (mobile) viewport.
+        style={width ? { width, maxWidth: 'calc(100vw - 24px)' } : undefined}
         ref={panelRef}
         role="dialog"
         aria-modal="true"

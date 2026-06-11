@@ -118,8 +118,11 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 - **Versions** — save, restore, and delete named snapshots of your layout, each
   with a thumbnail.
 - **Share & export** — copy a shareable link or export a real **PNG snapshot** of
-  the current view. *(Experimental: a "Make photoreal" option can restyle the
-  snapshot via your own AI key.)*
+  the current view. **Copy 3D link** makes a compact link (up to ~16 KB) that
+  opens an editable copy of your design on any device; **Copy plan link** is the
+  uncapped variant. Neither can carry your uploaded 3D models — use **Export
+  file** (`.sofa.json`) to share those. *(Experimental: a "Make photoreal"
+  option can restyle the snapshot via your own AI key.)*
 - **Report** — a printable (save-as-PDF) summary: a hero render, a colour-keyed
   **furnished floor plan** drawn like a real architectural plan — door **swing
   arcs** and window breaks, a category legend — plus **furniture by room**

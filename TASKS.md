@@ -86,7 +86,8 @@ standing themed backlog below + the existing sections further down hold the open
 
 #### Commerce / collaboration
 - [ ] X-SHOP. Shoppable list polish: per-retailer grouping, live SG prices beyond IKEA (Courts/HipVan/Castlery).
-- [~] X-PRESENT. Client presentation mode shipped (C206, F23); shareable interactive 3D-link still TODO.
+- [x] X-PRESENT. Client presentation mode shipped (C206, F23); shareable interactive 3D design
+  link shipped (C224, `designShare.ts`, `#/design/<code>`).
 
 (Competitor-research agent will expand/replace these with cited, prioritized items.)
 

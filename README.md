@@ -236,6 +236,10 @@ export the result — all in the browser.
 - **Share a plan link** — "Copy plan link" in the Share modal encodes the whole
   design into a `#/plans/<code>` URL that opens the exact design on any device
   (no account or server needed).
+- **Share a 3D link** — "Copy 3D link" is the chat-friendly variant: a compact
+  `#/design/<code>` URL (capped at ~16 KB; larger designs are pointed at the
+  `.sofa.json` export) that opens an editable copy of the design. Uploaded
+  models can't travel in a URL and are skipped with a note.
 - **Live SG prices** *(dev-only)* — toggle real IKEA Singapore prices + buy links
   in the Shopping list (`npm run price-server`); falls back to a built-in estimate.
 - **Feature flags + admin** *(dev/admin)* — a central registry decides what ships

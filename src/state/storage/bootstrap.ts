@@ -11,6 +11,12 @@
  * seed (so defaults never clobber a layout the autosave is about to restore).
  */
 
+import {
+  applySharedDesign,
+  DesignShareError,
+  decodeDesignShareCode,
+  parseDesignRoute,
+} from '../../features/designShare'
 import { decodeCodeToDesign, PlanShareError, parsePlanRoute } from '../../features/planShare'
 import { BUILTIN_CATALOG } from '../../furniture/builtinCatalog'
 import { applySerialized } from '../schema'
@@ -82,9 +88,11 @@ export async function runBootstrap(): Promise<void> {
       useStore.getState().clearHistory()
     })
 
-    // A `#/plans/<code>` share link overrides the seeded/restored design with
-    // the shared plan (runs after the seed so it wins). No-op without a link.
+    // A `#/plans/<code>` or `#/design/<code>` share link overrides the seeded/
+    // restored design with the shared one (runs after the seed so it wins).
+    // No-op without a link; the routes are disjoint so at most one fires.
     await runStep('planShareLink', loadSharedPlanFromUrl)
+    await runStep('designShareLink', loadSharedDesignFromUrl)
 
     // Surface autosave failures (the common one is localStorage quota) so the
     // user knows their work isn't being persisted, instead of silently losing
@@ -139,6 +147,47 @@ export async function loadSharedPlanFromUrl(): Promise<void> {
       title: "Couldn't open that shared plan",
       kind: 'error',
       message: e instanceof PlanShareError ? e.message : undefined,
+    })
+  } finally {
+    try {
+      const url = new URL(globalThis.location.href)
+      url.hash = ''
+      globalThis.history?.replaceState(null, '', url.toString())
+    } catch {
+      /* no history/URL (non-browser) */
+    }
+  }
+}
+
+/**
+ * If the URL hash is a `#/design/<code>` 3D-link, decode + load that design
+ * (overriding the seeded/restored one) and toast that it's now the viewer's
+ * editable copy. Items referencing defs that can't travel in a URL (the
+ * sender's uploads/imports) are dropped with a count. Exported for testing.
+ */
+export async function loadSharedDesignFromUrl(): Promise<void> {
+  const code = parseDesignRoute(globalThis.location?.hash)
+  if (!code) return
+  const s = useStore.getState()
+  try {
+    const design = decodeDesignShareCode(code)
+    const known = new Set([...Object.keys(BUILTIN_CATALOG), ...s.userFurniture.map((d) => d.id)])
+    const { patch, droppedCount } = applySharedDesign(design, known)
+    useStore.setState(patch)
+    useStore.getState().clearHistory?.()
+    useStore.getState().requestHomeView?.()
+    useStore.getState().notify.start({
+      title: "Shared design loaded — it's yours to edit",
+      kind: 'success',
+      message: droppedCount
+        ? `${droppedCount} item${droppedCount === 1 ? '' : 's'} skipped — uploaded models can't travel in a link.`
+        : undefined,
+    })
+  } catch (e) {
+    useStore.getState().notify.start({
+      title: "Couldn't open that design link",
+      kind: 'error',
+      message: e instanceof DesignShareError ? e.message : undefined,
     })
   } finally {
     try {
