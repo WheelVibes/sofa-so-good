@@ -10,24 +10,41 @@ import {
   SRGBColorSpace,
   WebGLRenderer,
 } from 'three'
-import { dragLook, INITIAL_LOOK, SPHERE_YAW, zoomLook } from './viewerLook'
+import { dragLook, INITIAL_LOOK, type LookState, SPHERE_YAW, zoomLook } from './viewerLook'
 
 /**
  * Drag-to-look sphere viewer over a captured equirect panorama — a small
  * self-contained three renderer (own WebGL context, fully disposed on
  * unmount) so the main canvas stays untouched. Fills its parent; drag to
- * look around, wheel to zoom. Shared by `PanoramaModal` and the 360° slides
- * in `PresentationMode` — keep it presentation-free (no chrome, no store).
+ * look around, wheel to zoom. Shared by `PanoramaModal`, the 360° slides
+ * in `PresentationMode` and the linked 360° tour — keep it
+ * presentation-free (no chrome, no store; overlays such as the tour's
+ * hotspot markers project themselves via the generic `onLook` callback).
  */
 export function PanoramaViewer({
   pano,
   ariaLabel = '360 degree panorama viewer',
+  initialLook,
+  onLook,
 }: {
   /** The equirectangular image to view (width = 2 × height). */
   pano: HTMLCanvasElement
   ariaLabel?: string
+  /** Starting orientation (read whenever `pano` changes); defaults to
+   *  `INITIAL_LOOK`. The tour uses it to keep facing the travel direction
+   *  after a hotspot jump. */
+  initialLook?: LookState
+  /** Notified with the look state + canvas CSS size on every change (drag /
+   *  zoom / resize) — lets a parent project overlays into the view. */
+  onLook?: (look: LookState, size: { width: number; height: number }) => void
 }) {
   const hostRef = useRef<HTMLCanvasElement>(null)
+  // Refs so the render effect (keyed on `pano` only) reads the latest values
+  // without tearing down the renderer when the callbacks change identity.
+  const onLookRef = useRef(onLook)
+  onLookRef.current = onLook
+  const initialLookRef = useRef(initialLook)
+  initialLookRef.current = initialLook
 
   useEffect(() => {
     const host = hostRef.current
@@ -44,7 +61,15 @@ export function PanoramaViewer({
     }
     resize()
     // Track host size (the presentation slide is full-screen and can resize).
-    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(resize) : null
+    // A resize also re-notifies `onLook` (the overlay projection needs the
+    // fresh aspect) — flagged via `notified` and picked up by the rAF loop.
+    const ro =
+      typeof ResizeObserver !== 'undefined'
+        ? new ResizeObserver(() => {
+            resize()
+            notified = null
+          })
+        : null
     ro?.observe(host)
 
     const tex = new CanvasTexture(pano)
@@ -59,7 +84,15 @@ export function PanoramaViewer({
     mesh.rotation.y = SPHERE_YAW
     scene.add(mesh)
 
-    let look = INITIAL_LOOK
+    let look = initialLookRef.current ?? INITIAL_LOOK
+    let notified: LookState | null = null
+    const notify = () => {
+      notified = look
+      onLookRef.current?.(look, {
+        width: host.clientWidth || 640,
+        height: host.clientHeight || 360,
+      })
+    }
     let dragging = false
     let lastX = 0
     let lastY = 0
@@ -104,6 +137,8 @@ export function PanoramaViewer({
     const loop = () => {
       try {
         apply()
+        // Push look/size changes to the overlay projection (tour hotspots).
+        if (look !== notified) notify()
         renderer.render(scene, camera)
       } catch {
         // A transient context loss must not kill the loop — keep ticking so

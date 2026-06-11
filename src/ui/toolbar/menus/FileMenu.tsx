@@ -19,6 +19,7 @@ export function FileMenu() {
   const setRecording = useStore((s) => s.setRecording)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const fPanorama = useFeature('panorama')
+  const fPanoTour = useFeature('panoTour')
   const fHqRender = useFeature('hqRender')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
@@ -86,6 +87,14 @@ export function FileMenu() {
           label="360° panorama"
           sub="Capture a look-around panorama"
           onClick={() => useStore.getState().setPanoramaOpen(true)}
+        />
+      ) : null}
+      {fPanoTour ? (
+        <MenuItem
+          icon="Walkthrough"
+          label="360° tour"
+          sub="Linked panoramas — jump room to room"
+          onClick={() => useStore.getState().setPanoTourOpen(true)}
         />
       ) : null}
       {fHqRender ? (

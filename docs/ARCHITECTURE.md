@@ -338,7 +338,13 @@ same change that reshapes a system.
   `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
   capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` + shared
   drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
-  `panorama` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
+  `panorama` flag, pro), **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
+  persisted per-device like saved views; pure `ui/panorama/panoTour.ts` DERIVES room-to-room
+  hotspots — yaw/pitch via atan2 toward each nearby same-storey stop, screen projection,
+  room-name labels — rendered by `ui/panorama/PanoTourModal.tsx` over the shared viewer
+  (`onLook` overlay callback); per-stop panoramas captured live via `capturePanorama({eye})`,
+  cached per session; add stops via ⌘K / PanoramaModal "Add to tour" / in-modal;
+  `panoTour` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
   pro — full-screen saved-views slideshow with per-view notes; views marked 360° (`SavedView.pano`)
   capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses there,
   pure `ui/presentation/slideLogic.ts`).

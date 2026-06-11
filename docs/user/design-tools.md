@@ -183,3 +183,18 @@ zoom, and **Download PNG** saves the equirectangular image — ready for any
 The same viewer powers **360° slides** in the saved-views presentation — mark a
 saved view *360°* and presenting it captures a panorama live from that spot
 (see [Saved views & presentation](/navigating#saved-views-presentation-pro)).
+
+## 360° tour (Pro)
+
+**File → 360° tour** links several panoramas into a walkable tour — capture a
+stop in each room and the viewer overlays **clickable hotspots** pointing at
+every nearby stop on the same storey; click (or tap) one to jump room to room,
+arriving facing the direction you travelled. A stop strip below the viewer
+jumps anywhere directly and removes stops.
+
+Add stops three ways: **Add stop here** inside the tour, **Add to tour** in the
+360° panorama window, or the ⌘K command *Add 360° tour stop here* — each stop
+is taken at the current viewpoint (your position in walk mode; the point you're
+looking at in orbit) and is named after the room it's in. Stops are remembered
+on this device; the panoramas themselves are captured live when you open the
+tour, so they always show the current design.

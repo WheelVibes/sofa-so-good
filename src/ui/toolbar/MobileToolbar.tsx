@@ -186,6 +186,7 @@ export function MobileToolbar() {
   const fBackdrops = useFeature('backdrops')
   const fSmartStart = useFeature('smartStart')
   const fPanorama = useFeature('panorama')
+  const fPanoTour = useFeature('panoTour')
   const fRenderPresets = useFeature('renderPresets')
   const fHqRender = useFeature('hqRender')
   const fVr = useFeature('vrWalkthrough')
@@ -960,6 +961,14 @@ export function MobileToolbar() {
                     label="360° panorama"
                     sub="Capture a look-around panorama"
                     onClick={act(() => s.getState().setPanoramaOpen(true))}
+                  />
+                ) : null}
+                {fPanoTour ? (
+                  <Item
+                    icon="Walkthrough"
+                    label="360° tour"
+                    sub="Linked panoramas — jump room to room"
+                    onClick={act(() => s.getState().setPanoTourOpen(true))}
                   />
                 ) : null}
                 {fHqRender ? (

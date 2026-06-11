@@ -29,6 +29,7 @@ export type FeatureFlag =
   | 'smartStart'
   | 'textBrief'
   | 'panorama'
+  | 'panoTour'
   | 'renderPresets'
   | 'hqRender'
   | 'vrWalkthrough'
@@ -156,6 +157,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   panorama: {
     label: '360° panorama',
     description: 'Equirect 360° capture with drag-to-look viewer + PNG export',
+    default: true,
+    tier: 'pro',
+  },
+  panoTour: {
+    label: '360° tour',
+    description: 'Linked multi-room panorama tour with clickable room-to-room hotspots',
     default: true,
     tier: 'pro',
   },

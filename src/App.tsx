@@ -64,6 +64,9 @@ const ShareModal = lazy(() => import('./ui/ShareModal').then((m) => ({ default: 
 const PanoramaModal = lazy(() =>
   import('./ui/PanoramaModal').then((m) => ({ default: m.PanoramaModal })),
 )
+const PanoTourModal = lazy(() =>
+  import('./ui/panorama/PanoTourModal').then((m) => ({ default: m.PanoTourModal })),
+)
 const HqRenderModal = lazy(() =>
   import('./ui/HqRenderModal').then((m) => ({ default: m.HqRenderModal })),
 )
@@ -128,6 +131,7 @@ export default function App() {
   const lazyPanels = {
     shareOpen: useStore((s) => s.shareOpen),
     panoramaOpen: useStore((s) => s.panoramaOpen),
+    panoTourOpen: useStore((s) => s.panoTourOpen),
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
@@ -855,6 +859,11 @@ export default function App() {
         {lazyPanels.panoramaOpen ? (
           <Suspense fallback={null}>
             <PanoramaModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.panoTourOpen ? (
+          <Suspense fallback={null}>
+            <PanoTourModal />
           </Suspense>
         ) : null}
         {lazyPanels.hqRenderOpen ? (

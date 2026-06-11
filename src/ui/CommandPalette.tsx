@@ -38,6 +38,8 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   comments: 'comments',
   'palette-from-photo': 'paletteFromPhoto',
   panorama: 'panorama',
+  'pano-tour': 'panoTour',
+  'pano-tour-add': 'panoTour',
   'hq-render': 'hqRender',
   'shopping-list': 'shopExport',
 }
@@ -209,6 +211,29 @@ export function CommandPalette() {
         label: '360° panorama',
         icon: 'Export',
         run: () => s().setPanoramaOpen(true),
+      },
+      {
+        id: 'pano-tour',
+        group: 'Tools & panels',
+        label: '360° tour — linked panoramas',
+        icon: 'Walkthrough',
+        run: () => s().setPanoTourOpen(true),
+      },
+      {
+        id: 'pano-tour-add',
+        group: 'Tools & panels',
+        label: 'Add 360° tour stop here',
+        icon: 'Plus',
+        run: () => {
+          const id = s().addPanoTourStopHere()
+          // Re-read: the add mutated the store after the snapshot above.
+          const label = s().panoTourStops.find((t) => t.id === id)?.label
+          s().notify.start(
+            id
+              ? { title: `Added tour stop “${label}”`, kind: 'success' }
+              : { title: 'Tour is full — remove a stop first', kind: 'error' },
+          )
+        },
       },
       {
         id: 'hq-render',
