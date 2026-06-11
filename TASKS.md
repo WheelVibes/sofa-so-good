@@ -69,7 +69,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
 - [~] Q31 part 2: drag a material swatch onto floor/wall/item in the 3D canvas (raycast drop);
   part 1 (resolver + Objects-list drop) shipped. (in flight, worktree agent)
-- [ ] GE3c GLB designer: per-part texture pick.
+- [~] GE3c GLB designer: per-part texture pick. (in flight, worktree agent)
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 
 ## Commerce / collaboration
