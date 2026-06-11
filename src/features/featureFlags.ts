@@ -60,6 +60,7 @@ export type FeatureFlag =
   | 'ceilingDesign'
   | 'presentation'
   | 'pbrSurfaces'
+  | 'comments'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -344,6 +345,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Higher-fidelity procedural furniture textures (wood/painted/fabric)',
     default: true,
     tier: 'simple',
+  },
+  comments: {
+    label: 'Comments',
+    description: 'Pinned design comments — notes anchored in the 3D scene',
+    default: true,
+    tier: 'pro',
   },
 }
 

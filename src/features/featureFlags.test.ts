@@ -155,6 +155,13 @@ describe('hqRender flag (F1)', () => {
   })
 })
 
+describe('comments flag (F24)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro (prod default on)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').comments).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').comments).toBe(true)
+  })
+})
+
 describe('vrWalkthrough flag (F21)', () => {
   it('is pro-tier: hidden in Simple, present in Pro', () => {
     expect(resolveFlags(false, {}, false, 'simple').vrWalkthrough).toBe(false)

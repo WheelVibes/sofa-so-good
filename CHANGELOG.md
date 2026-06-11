@@ -4,6 +4,24 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C248 / F24] Pinned design comments — level-aware pins + panel, travels with saves/links
+Sticky-note feedback on a design (the PROD half of F24; live presence stays backend-deferred):
+`commentsSlice` holds `{id, position:[x,z], levelId?, text, author?, createdAt, resolved}` with
+add/edit/resolve/delete actions that each push ONE undo step (`comments` joined the history
+snapshot, and the History timeline labels the steps). Mirrors the annotations architecture:
+an optional + additive `comments[]` in the save schema (no version bump) rides `serialize`/
+`applySerialized`, so pins persist through autosave, `.sofa.json` export AND the `#/design/`
+share link (designShare reuses serialize — covered by a round-trip test). 3D: `CommentPins.tsx`
+renders a numbered teardrop bubble per pin at its storey's elevation (`levelElevation`, hidden
+with its level like furniture; resolved pins dim green ✓); click opens an in-scene popover with
+the note + resolve/delete. Placement mirrors the tape measure: `commentMode` arms a transparent
+priority-raycast floor plane at the in-view storey's elevation — one tap → `promptText` →
+pin (Esc disarms). `CommentsPanel` (`.aux` slot) lists open/resolved with click-to-focus (jumps
+storey filter when needed), edit, resolve, delete. Gated end-to-end by a new `comments` flag
+(pro tier, default on): Tools menu (with pin count), mobile Tools sheet, ⌘K (`COMMAND_FLAGS`),
+and the pins themselves. Tests: slice CRUD + undo/redo, schema + share-link round-trips incl.
+levelId/resolved, flag both-modes; two-storey placement + resolve verified visually.
+
 ## [C250 / V-TOUR] Cinematic tour through saved views
 Competitor parity with Coohom's video walkthrough (2026 research pass — sources in TASKS):
 `setTouring('views')` flies the camera through the user's SAVED VIEWS in order (pure

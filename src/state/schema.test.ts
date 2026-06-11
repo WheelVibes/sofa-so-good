@@ -398,6 +398,46 @@ describe('schema', () => {
     expect((patch as { annotations?: unknown[] }).annotations).toEqual([])
   })
 
+  it('round-trips pinned design comments (incl. levelId + resolved) and defaults absent → []', () => {
+    useStore.getState().__resetForTest()
+    useStore.getState().addComment({ position: [1.2, 3.4], text: 'move the sofa', author: 'Wei' })
+    const upId = useStore
+      .getState()
+      .addComment({ position: [5, 6], text: 'upstairs reading nook?', levelId: 'lvl-2' })!
+    useStore.getState().setCommentResolved(upId, true)
+    const out = serialize(useStore.getState())
+    const parsed = SerializedStateZ.safeParse(JSON.parse(JSON.stringify(out)))
+    expect(parsed.success).toBe(true)
+    if (parsed.success) {
+      expect(parsed.data.comments).toHaveLength(2)
+      expect(parsed.data.comments?.[0]).toMatchObject({
+        position: [1.2, 3.4],
+        text: 'move the sofa',
+        author: 'Wei',
+        resolved: false,
+      })
+      expect(parsed.data.comments?.[0]?.levelId).toBeUndefined() // ground pin
+      expect(parsed.data.comments?.[1]).toMatchObject({
+        levelId: 'lvl-2',
+        text: 'upstairs reading nook?',
+        resolved: true,
+      })
+      const patch = applySerialized(parsed.data, new Set())
+      expect(patch.comments).toHaveLength(2)
+      expect(patch.comments?.[1]?.levelId).toBe('lvl-2')
+      expect(patch.comments?.[1]?.resolved).toBe(true)
+    }
+    // Legacy save (no comments) → applySerialized defaults to [].
+    const patch = applySerialized(
+      { ...out, comments: undefined } as unknown as Parameters<typeof applySerialized>[0],
+      new Set(),
+    )
+    expect(patch.comments).toEqual([])
+    // A design with no comments omits the key entirely (stays additive).
+    useStore.getState().__resetForTest()
+    expect(serialize(useStore.getState()).comments).toBeUndefined()
+  })
+
   it('migrates legacy timeOfDay="day" to manual hour 12', () => {
     const legacy = {
       version: 1,

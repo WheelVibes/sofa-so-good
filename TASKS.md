@@ -81,7 +81,9 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 ## Commerce / collaboration
 - [ ] X-SHOP tail: live SG prices beyond IKEA (Courts/HipVan/Castlery as `RETAILERS` entries in
   the dev `price-server.mjs`).
-- [ ] F24 [PROD-partial] Pinned comments on a shared design (live presence = backend, defer).
+- [x] F24 [PROD-partial] Pinned comments on a design shipped (C248): level-aware pins +
+  panel, persist through saves / `.sofa.json` / `#/design/` links. **Live presence /
+  multi-user sync needs a backend — still deferred.**
 - [x] X-PRESENT complete: presentation mode (C206) + 3D link (C224) + 360° slides (C237).
 - [x] F27 [PROD] "Redesign this render" style-variant explorer on the Share i2i path (C245).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).

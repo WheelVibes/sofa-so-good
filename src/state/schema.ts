@@ -227,6 +227,22 @@ const RawSerializedStateZ = z.object({
       }),
     )
     .optional(),
+  // Optional pinned design comments (F24) — optional + additive like
+  // annotations, so they travel with .sofa.json exports AND `#/design/<code>`
+  // share links (designShare reuses serialize). Absent → [].
+  comments: z
+    .array(
+      z.object({
+        id: z.string(),
+        position: z.tuple([z.number(), z.number()]),
+        levelId: z.string().optional(),
+        text: z.string(),
+        author: z.string().optional(),
+        createdAt: z.string(),
+        resolved: z.boolean(),
+      }),
+    )
+    .optional(),
   cameraMode: z.enum(['orbit', 'firstPerson']),
   orientationDeg: z.number().optional(),
   location: z
@@ -354,6 +370,7 @@ export function serialize(state: RootState): SerializedState {
     manualHour: state.manualHour,
     lightsMode: state.lightsMode,
     ...(state.annotations.length ? { annotations: state.annotations } : {}),
+    ...(state.comments.length ? { comments: state.comments } : {}),
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg,
     location: state.location,
@@ -414,6 +431,7 @@ export function applySerialized(
     manualHour: state.manualHour,
     lightsMode: state.lightsMode ?? 'auto',
     annotations: state.annotations ?? [],
+    comments: state.comments ?? [],
     cameraMode: state.cameraMode,
     orientationDeg: state.orientationDeg ?? 0,
     location: state.location ?? null,

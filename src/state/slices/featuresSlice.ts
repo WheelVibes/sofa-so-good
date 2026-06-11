@@ -70,6 +70,8 @@ export interface FeaturesSlice {
   versionsOpen: boolean
   /** Undo/redo history (timeline + jump-to-step) panel visibility. */
   historyOpen: boolean
+  /** Pinned design comments (F24) panel visibility. */
+  commentsOpen: boolean
   /** Smart Start wizard (pick a style → furnished flat) visibility. */
   smartStartOpen: boolean
   /** GLB Asset Designer (compose/edit a custom asset → catalog) visibility. */
@@ -113,6 +115,7 @@ export interface FeaturesSlice {
   setAccessibilityOpen: (open: boolean) => void
   setVersionsOpen: (open: boolean) => void
   setHistoryOpen: (open: boolean) => void
+  setCommentsOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
   setGlbDesignerOpen: (open: boolean) => void
   setLoginOpen: (open: boolean) => void
@@ -143,6 +146,7 @@ export const FEATURES_INITIAL = {
   accessibilityOpen: false,
   versionsOpen: false,
   historyOpen: false,
+  commentsOpen: false,
   smartStartOpen: false,
   glbDesignerOpen: false,
   loginOpen: false,
@@ -189,6 +193,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setAccessibilityOpen: (accessibilityOpen) => set({ accessibilityOpen }),
   setVersionsOpen: (versionsOpen) => set({ versionsOpen }),
   setHistoryOpen: (historyOpen) => set({ historyOpen }),
+  setCommentsOpen: (commentsOpen) => set({ commentsOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
   setLoginOpen: (loginOpen) => set({ loginOpen }),

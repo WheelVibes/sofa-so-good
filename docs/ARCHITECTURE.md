@@ -298,6 +298,11 @@ same change that reshapes a system.
 - **Design tools** (Arrange/Tools): **Sets** (`furnitureSets.ts` + IKEA `ikeaSets.ts`),
   **Checks** (`layout/clearance.ts`), **Sun study**, **Walkthrough** (tour+record),
   **Measure** (`TapeMeasure.tsx`, Distance/Area, 📌 Pin → persistent `annotations`),
+  **Comments** (F24: `commentsSlice` `{position,[levelId],text,resolved}` + undoable CRUD;
+  `scene/CommentPins.tsx` level-elevated numbered pins + one-tap placement plane →
+  `promptText`; `ui/CommentsPanel.tsx` `.aux` list with resolve/edit/focus; persists in the
+  save schema (optional `comments[]`) so pins travel with `.sofa.json` + `#/design/` links;
+  `comments` flag, pro),
   **Report** (`ui/report.ts`). Multi-select align (centre + footprint-aware edge) /
   even-gap distribute (`layout/alignDistribute.ts`) / bulk rotate ±90° / face-into-room /
   snap-to-wall (`layout/faceWall.ts`) / arrange-as-run (`layout/arrangeRun.ts`, butt a kitchen

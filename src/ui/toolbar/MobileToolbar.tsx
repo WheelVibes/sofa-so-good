@@ -153,6 +153,7 @@ export function MobileToolbar() {
   const daylightOpen = useStore((st) => st.daylightOpen)
   const designScoreOpen = useStore((st) => st.designScoreOpen)
   const accessibilityOpen = useStore((st) => st.accessibilityOpen)
+  const commentsOpen = useStore((st) => st.commentsOpen)
   const snapEnabled = useStore((st) => st.snapEnabled)
   const gridSize = useStore((st) => st.gridSize)
   const autoRotate = useStore((st) => st.autoRotate)
@@ -214,6 +215,7 @@ export function MobileToolbar() {
   const fDaylight = useFeature('daylight')
   const fDesignScore = useFeature('designScore')
   const fAccessibility = useFeature('accessibility')
+  const fComments = useFeature('comments')
   const fUserSets = useFeature('userSets')
   const fShopExport = useFeature('shopExport')
   const userSets = useStore((st) => st.userSets)
@@ -275,6 +277,11 @@ export function MobileToolbar() {
     const wasOpen = s.getState().historyOpen
     closeAux()
     s.getState().setHistoryOpen(!wasOpen)
+  }
+  const toggleComments = () => {
+    const wasOpen = s.getState().commentsOpen
+    closeAux()
+    s.getState().setCommentsOpen(!wasOpen)
   }
 
   const startWalkthrough = () => {
@@ -873,6 +880,15 @@ export function MobileToolbar() {
                       label="Measure distance"
                       on={tapeMode}
                       onClick={act(() => s.getState().toggleTapeMode())}
+                    />
+                  ) : null}
+                  {fComments ? (
+                    <Item
+                      icon="Pin"
+                      label="Comments"
+                      sub="Pinned notes on the design"
+                      on={commentsOpen}
+                      onClick={act(toggleComments)}
                     />
                   ) : null}
                   {fHistory ? (

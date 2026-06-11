@@ -1,6 +1,7 @@
 import type { FloorPlan } from '../../floorplan/types'
 import type { FurnitureItem } from '../../furniture/types'
 import type { RootState } from '../store'
+import type { DesignComment } from './commentsSlice'
 import type { DoorState } from './doorsSlice'
 import type { FinishesSlice } from './finishesSlice'
 import type { SliceCreator } from './types'
@@ -19,6 +20,8 @@ export interface HistorySnapshot {
   finishes: FinishesSlice['finishes']
   /** The apartment shell, so drawing/editing the plan is undoable too. */
   floorPlan: FloorPlan
+  /** Pinned design comments (F24) — add/edit/resolve/delete are undoable. */
+  comments: DesignComment[]
 }
 
 export interface HistorySlice {
@@ -45,7 +48,13 @@ export interface HistorySlice {
 }
 
 function snapshot(s: RootState): HistorySnapshot {
-  return { items: s.items, doors: s.doors, finishes: s.finishes, floorPlan: s.floorPlan }
+  return {
+    items: s.items,
+    doors: s.doors,
+    finishes: s.finishes,
+    floorPlan: s.floorPlan,
+    comments: s.comments,
+  }
 }
 
 /** Drop selection ids that no longer exist in the restored snapshot's items, so

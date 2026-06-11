@@ -8,7 +8,14 @@ function item(defId: string, x = 0): FurnitureItem {
 }
 
 function snap(over: Partial<HistorySnapshot> = {}): HistorySnapshot {
-  return { items: [], doors: {}, finishes: {} as never, floorPlan: {} as never, ...over }
+  return {
+    items: [],
+    doors: {},
+    finishes: {} as never,
+    floorPlan: {} as never,
+    comments: [],
+    ...over,
+  }
 }
 
 const catalog: Record<string, FurnitureDef> = {

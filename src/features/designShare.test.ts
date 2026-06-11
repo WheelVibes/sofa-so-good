@@ -58,6 +58,26 @@ describe('encodeDesignShareCode / decodeDesignShareCode', () => {
     expect(design.finishes.walls[roomId]).toBe('mat:test-lime')
   })
 
+  it('carries pinned design comments through the share code (F24)', () => {
+    seedDesign()
+    useStore.getState().addComment({ position: [1.5, 2.5], text: 'love this corner' })
+    const upId = useStore
+      .getState()
+      .addComment({ position: [3, 4], text: 'too dark up here', levelId: 'lvl-2' })!
+    useStore.getState().setCommentResolved(upId, true)
+    // The payload reuses serialize, so comments ride along…
+    const payload = buildDesignSharePayload(useStore.getState())
+    expect(payload.comments).toHaveLength(2)
+    // …and survive the encode → decode round-trip with level + resolved state.
+    const design = decodeDesignShareCode(encodeDesignShareCode(useStore.getState()))
+    expect(design.comments?.[0]).toMatchObject({
+      position: [1.5, 2.5],
+      text: 'love this corner',
+      resolved: false,
+    })
+    expect(design.comments?.[1]).toMatchObject({ levelId: 'lvl-2', resolved: true })
+  })
+
   it('strips session noise + non-portable defs from the payload', () => {
     seedDesign()
     useStore.setState({

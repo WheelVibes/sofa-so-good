@@ -74,6 +74,13 @@ st.dismissLocationPrompt?.()   // "Where are you?" sun-position modal
 the foreground "doors" you may see in the room editor are the apartment's door
 leaves, not your items — clear `s.items` first if you need an empty room.
 
+### Pro-tier features are OFF at boot (the app starts in Simple mode)
+The store boots with `uiMode: 'simple'`, which forces every `tier: 'pro'` flag
+off — so a pro-gated overlay/tool/panel you're verifying silently never mounts
+(no error, no DOM, clicks fall through to whatever is behind it). Call
+`st.setUiMode('pro')` in the evalFile right after dismissing the overlays
+(it re-resolves the flag map) before exercising any pro feature.
+
 ### `focusOn([x,z])` doesn't frame the item well
 `focusOn` recenters but keeps a high/far orbit angle, often pointing past a
 single placed item. To actually see the item: after focusing, drive the camera

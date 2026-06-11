@@ -35,6 +35,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   floorplan: 'floorPlanEditor',
   'design-score': 'designScore',
   accessibility: 'accessibility',
+  comments: 'comments',
   'palette-from-photo': 'paletteFromPhoto',
   panorama: 'panorama',
   'hq-render': 'hqRender',
@@ -163,6 +164,16 @@ export function CommandPalette() {
         run: () => {
           closeAllAuxPanels(s())
           s().setAccessibilityOpen(true)
+        },
+      },
+      {
+        id: 'comments',
+        group: 'Tools & panels',
+        label: 'Comments — pinned notes',
+        icon: 'Pin',
+        run: () => {
+          closeAllAuxPanels(s())
+          s().setCommentsOpen(true)
         },
       },
       {

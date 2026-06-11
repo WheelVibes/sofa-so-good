@@ -13,6 +13,7 @@ import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
 import { AnnotationsOverlay } from './AnnotationsOverlay'
 import { ClearanceOverlay } from './ClearanceOverlay'
+import { CommentPins } from './CommentPins'
 import { ContextLossGuard } from './ContextLossGuard'
 import { CameraRig } from './cameras/CameraRig'
 import { CameraForwardTracker } from './cameras/cameraForward'
@@ -114,6 +115,7 @@ export function Scene() {
         <MeasurementOverlay />
         <TapeMeasure />
         <AnnotationsOverlay />
+        <CommentPins />
         <Effects />
         <ShowcaseController />
         <QualityController />

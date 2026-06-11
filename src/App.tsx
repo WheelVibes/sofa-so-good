@@ -32,6 +32,7 @@ import { BudgetHud } from './ui/BudgetHud'
 import { BudgetPanel } from './ui/BudgetPanel'
 import { ClearancePanel } from './ui/ClearancePanel'
 import { CommandPalette } from './ui/CommandPalette'
+import { CommentsPanel } from './ui/CommentsPanel'
 import { ContextMenu } from './ui/ContextMenu'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
@@ -497,12 +498,16 @@ export default function App() {
       }
       if (!mod && code === KEYBINDINGS.toggleMeasurements) toggleMeasurements()
 
-      // Escape: cancel the tape tool, then clear any selection, then leave the
-      // per-room editor — so one key walks all the way back out to the overview.
+      // Escape: cancel the tape/comment tools, then clear any selection, then
+      // leave the per-room editor — one key walks all the way back out.
       if (code === KEYBINDINGS.deselect) {
         const st = useStore.getState()
         if (st.tapeMode) {
           st.toggleTapeMode()
+          return
+        }
+        if (st.commentMode) {
+          st.toggleCommentMode()
           return
         }
         if (
@@ -838,6 +843,7 @@ export default function App() {
         <ClearancePanel />
         <DaylightPanel />
         <DesignScorePanel />
+        <CommentsPanel />
         <AccessibilityPanel />
         <PresentationMode />
         {/* Lazy + flag-gated: chunk loads only when the panel is opened (PERF5). */}

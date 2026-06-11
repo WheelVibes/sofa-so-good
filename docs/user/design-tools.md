@@ -103,6 +103,26 @@ and the distance between them appears on an amber ruler line. Click again to
 start a fresh measurement; turn the tool off from the same menu. Works on touch
 (tap the two points) too.
 
+## Comments (Pro)
+
+**Comments** (Tools menu, or ⌘K → "Comments — pinned notes") opens a panel of
+notes pinned to spots in your design — handy for marking decisions ("swap this
+rug"), questions for family, or feedback on a design someone shared with you.
+Press **+ Add comment**, tap a spot on the floor, and type the note; a numbered
+pin appears in the 3D view. Click a pin to read the note and **Resolve** /
+**Reopen** or **Delete** it; resolved pins turn green with a ✓ and are struck
+through in the list. In the panel, click a comment to jump the camera to its
+pin, and use the ✓ / ✎ / bin buttons to resolve, reword or remove it.
+
+On a multi‑storey plan each pin belongs to the storey it was placed on (pins are
+placed on whichever level you're viewing) and hides with it when you filter
+levels from **View → Levels**; jumping to a comment on another storey switches
+the view to that level. Comments **travel with the design**: they're saved in
+your layout, included in **Export file** (`.sofa.json`) and carried by **Copy 3D
+link**, so whoever opens your design sees your pins. Press **Esc** to put the
+placement tool away. *(Live multi‑user presence is not part of this — comments
+sync by sharing the design.)*
+
 ## History
 
 **History** (Tools menu, or ⌘K → "Edit history") shows a timeline of every edit

@@ -219,9 +219,11 @@ export the result — all in the browser.
   furnishing balance, circulation, daylight and lighting, with actionable
   fixes), **Versions** (save / restore named layout snapshots with
   thumbnails), a **Shopping list + Saved collections** (heart any catalog card),
-  and **Share & export** (shareable link + a real PNG snapshot). The **2D
-  floor-plan editor** and **upload dialogs** are fully theme-aware in light and
-  dark.
+  **Comments** (pinned, resolvable notes anchored in the 3D scene — level-aware
+  on multi-storey plans — that travel with saves, `.sofa.json` exports and design
+  share links), and **Share & export** (shareable link + a real PNG snapshot).
+  The **2D floor-plan editor** and **upload dialogs** are fully theme-aware in
+  light and dark.
 - **Smart Start** — pick a style and the whole flat is furnished + the walls and
   floors finished in one click (from onboarding, the ⌘K palette, or the Arrange
   menu). Works on any floor plan too: load an HDB, condo or landed template (or
