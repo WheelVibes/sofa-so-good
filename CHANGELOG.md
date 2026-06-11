@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C235 / ML7] Multi-storey docs sweep — program complete
+New path-scoped `src/floorplan/CLAUDE.md` (the hard rules: `plan.rooms` is ground-only — use
+`allPlanRooms`/`levelOfRoom`/`levelAsPlan`; level-gate cross-item scans; room ids plan-unique
+across storeys); a "Multi-storey plans" section in `docs/developer/apartment-and-floorplan.md`;
+`docs/research/multi-level-design.md` marked shipped (C221–C233). F13/Q-MULTILEVEL is complete:
+schema → rendering → collision → editor tabs → analyses → templates → stairs advisory → walk
+teleport, all level-aware. Remaining (tracked): per-storey 2D drawing sheets.
+
 ## [C233 / ML6c] Walk-mode level teleport
 On multi-storey plans the first-person walker now follows the View→Levels selection: picking a
 storey while walking teleports to that level's first room centre at eye height above ITS floor

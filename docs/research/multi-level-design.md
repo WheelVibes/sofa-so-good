@@ -1,6 +1,9 @@
 # Multi-storey floor plans (F13 / Q-MULTILEVEL) — design
 
-Status: **design accepted, phased build pending** (phases tracked in `TASKS.md`).
+Status: **shipped** (C221–C233: schema+resolution, stacked rendering + level
+visibility, level-aware furniture/collision/analyses, editor level tabs, real
+maisonette/terrace/loft upper storeys, stair advisory, walk teleport). This doc
+remains the design rationale; the hard rules live in `src/floorplan/CLAUDE.md`.
 Unblocks: HDB Maisonette upper floor, terrace/landed 2nd storey, condo loft —
 templates that today ship single-floor approximations.
 
