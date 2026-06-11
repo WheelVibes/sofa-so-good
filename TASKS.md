@@ -33,12 +33,11 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 
 ---
 
-## Multi-storey program (F13 / Q-MULTILEVEL — design: docs/research/multi-level-design.md)
-- [ ] ML3 remnant: custom-plan per-level wall pinches in `findNarrowGaps` (all custom-plan wall
-  pinches are skipped today — pre-existing limitation).
-- [~] ML5: editor entry (C229) + level-correct score/daylight/lux (C230) shipped. TAIL: the
-  report/drawing-set 2D plan diagrams still draw the ground floor only — add per-storey sheets.
-- [ ] ML7: docs sweep (user + developer + ARCHITECTURE) for multi-storey.
+## Multi-storey remnants (F13 core shipped C221–C235 — see CHANGELOG)
+- [ ] Per-storey 2D drawing sheets: the report/drawing-set plan diagrams (plan SVG, electrical,
+  demolition, auto-dimension) still draw the ground floor only.
+- [ ] Custom-plan per-level wall pinches in `findNarrowGaps` (all custom-plan wall pinches are
+  skipped today — pre-existing limitation).
 
 ## Realism & rendering
 - [ ] F1/PR5/R10 [PROD] GPU path-traced "HQ render" still (`three-gpu-pathtracer`, progressive →
