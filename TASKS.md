@@ -76,7 +76,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] X-SHOP tail: live SG prices beyond IKEA (Courts/HipVan/Castlery as `RETAILERS` entries in
   the dev `price-server.mjs`).
 - [ ] F24 [PROD-partial] Pinned comments on a shared design (live presence = backend, defer).
-- [ ] F23 tail: panorama slides in Presentation mode (C217 capture exists; wire as a slide type).
+- [x] X-PRESENT complete: presentation mode (C206) + 3D link (C224) + 360° slides (C237).
 - [ ] F27 [PROD] "Redesign this render" style-variant explorer (extend the Share i2i path).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
 

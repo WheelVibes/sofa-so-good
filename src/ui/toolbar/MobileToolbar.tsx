@@ -177,6 +177,7 @@ export function MobileToolbar() {
   // Feature flags — keep the mobile sheet at parity with the desktop menus / ⌘K,
   // so a disabled feature can't be reached from any surface.
   const fSavedViews = useFeature('savedViews')
+  const fPresentation = useFeature('presentation')
   const fFloorPlan = useFeature('floorPlanEditor')
   const fLightingMoods = useFeature('lightingMoods')
   const fBackdrops = useFeature('backdrops')
@@ -443,6 +444,14 @@ export function MobileToolbar() {
                         })}
                       />
                     ) : null}
+                    {fSavedViews && fPresentation && savedViews.length > 0 ? (
+                      <Item
+                        icon="Walkthrough"
+                        label="Present"
+                        sub="Full-screen saved-views slideshow"
+                        onClick={act(() => s.getState().setPresenting(true))}
+                      />
+                    ) : null}
                   </>
                 ) : null}
                 {!roomEditorActive &&
@@ -463,6 +472,18 @@ export function MobileToolbar() {
                           <span className="m-item-l">{v.name}</span>
                         </span>
                       </button>
+                      {fPresentation ? (
+                        <button
+                          type="button"
+                          className="m-saved-view-del"
+                          aria-label={`Present ${v.name} as a 360° slide`}
+                          aria-pressed={!!v.pano}
+                          style={v.pano ? { color: 'var(--accent)' } : undefined}
+                          onClick={() => s.getState().setViewPano(v.id, !v.pano)}
+                        >
+                          <span style={{ fontSize: 10, fontWeight: 700 }}>360°</span>
+                        </button>
+                      ) : null}
                       <button
                         type="button"
                         className="m-saved-view-del"

@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C237 / F23 tail] 360° panorama slides in Presentation mode
+A saved view can be marked 360° (`SavedView.pano`, optional + additive; toggle in the saved-views
+list, desktop + mobile): when the slideshow reaches it, a panorama is captured from that view's
+pose and shown in the shared drag-to-look sphere viewer — extracted from PanoramaModal into
+`ui/panorama/PanoramaViewer.tsx` (one implementation for modal + slides; pure look math in
+`viewerLook.ts`, tested). Auto-advance pauses on 360° slides (the viewer is interactive); the
+header shows "· 360°". Salvaged from an interrupted agent's WIP, verified end-to-end (slide 2/2
+renders the captured pano full-screen with caption + drag hint). F23 is now fully shipped.
+
 ## [C236] Per-storey drawing sheets
 The 2D diagrams fan out per storey on multi-level plans: the report's plan figure + furniture
 footprints, lighting diagrams (report, Drawings panel, drawing set), electrical and demolition

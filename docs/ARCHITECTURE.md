@@ -263,7 +263,8 @@ same change that reshapes a system.
   **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
   Undoable + persists (`floorPlanStore.ts`).
 - **Toolbar** (`ui/toolbar/`): scrollable icon island (`IconButton` + `ToolbarMenu`).
-  Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice`),
+  Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice` with
+  per-view note + 360°-slide toggles and Present…),
   **Scene** (time slider + Lighting + Backdrop + sun `CompassModal`), **Edit** (step into
   room / floor-plan), **Arrange** (Tidy + Sets/Presets/Styles pick→Apply `PickApply`),
   **Tools** (Budget/Checks/Sun study/Walkthrough/Report), **File**, **Graphics**. Three
@@ -304,8 +305,12 @@ same change that reshapes a system.
   `fav-btn`; budget target → over/under + Spend by room/category; `ui/BudgetHud`; pure
   `itemsCost`/`spendByRoom`/`shoppingGroups`/`shoppingCsv`), **Share** (`ShareModal` —
   `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
-  capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` drag-to-look
-  viewer + PNG, `panorama` flag, pro).
+  capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` + shared
+  drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
+  `panorama` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
+  pro — full-screen saved-views slideshow with per-view notes; views marked 360° (`SavedView.pano`)
+  capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses there,
+  pure `ui/presentation/slideLogic.ts`).
 - **Mirror reflections** (`primitives/MirrorMaterial.tsx`): real planar reflection on
   High/Maximum (`mirrorReflectorConfig(tier)`), fake-shiny pane below. Uploaded GLB
   mirrors via inspector "Reflective surface" (`props.reflective`, `gltf/mirrorPlane.ts`).

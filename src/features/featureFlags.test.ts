@@ -134,6 +134,13 @@ describe('panorama flag (360° capture)', () => {
   })
 })
 
+describe('presentation flag (slideshow + 360° slides)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').presentation).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').presentation).toBe(true)
+  })
+})
+
 describe('renderPresets flag (F4)', () => {
   it('is simple-tier: enabled in both Simple and Pro by default', () => {
     expect(resolveFlags(false, {}, false, 'simple').renderPresets).toBe(true)

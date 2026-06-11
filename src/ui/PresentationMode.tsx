@@ -1,9 +1,15 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { capturePanorama } from '../scene/panorama/capturePanorama'
 import { useStore } from '../state/store'
+import { PanoramaViewer } from './panorama/PanoramaViewer'
+import {
+  AUTO_ADVANCE_MS,
+  PANO_FLY_SETTLE_MS,
+  shouldAutoAdvance,
+  wrapIndex,
+} from './presentation/slideLogic'
 import { Icon } from './toolbar/icons'
-
-const AUTO_ADVANCE_MS = 6000
 
 /**
  * Full-screen client presentation: steps through the saved camera views as a
@@ -11,6 +17,12 @@ const AUTO_ADVANCE_MS = 6000
  * optional presenter note as a caption. Arrow keys / on-screen controls navigate;
  * Esc exits; an Auto toggle advances on a timer. The overlay is pointer-through
  * except for its control bar, so the user can still nudge the camera mid-slide.
+ *
+ * Views marked **360°** (`SavedView.pano`) present as interactive panorama
+ * slides: when the slide is reached the camera flies to the view's pose, a
+ * panorama is captured live from there (brief "Capturing…" state; cached per
+ * view for the session), and the shared drag-to-look sphere viewer fills the
+ * slide. Auto-advance pauses on these slides (see `slideLogic.ts`).
  *
  * Gated by the `presentation` feature flag at the mount site (App).
  */
@@ -21,29 +33,67 @@ export function PresentationMode() {
   const applyView = useStore((s) => s.applyView)
   const [index, setIndex] = useState(0)
   const [auto, setAuto] = useState(false)
+  const [pano, setPano] = useState<HTMLCanvasElement | null>(null)
+  const [capturing, setCapturing] = useState(false)
+  /** Session cache of captured panoramas, keyed by view id (cleared on exit). */
+  const panoCache = useRef(new Map<string, HTMLCanvasElement>())
 
   const count = views.length
-  const go = useCallback(
-    (next: number) => {
-      if (count === 0) return
-      const wrapped = ((next % count) + count) % count
-      setIndex(wrapped)
-    },
-    [count],
-  )
+  const goTo = useCallback((next: number) => setIndex(wrapIndex(next, count)), [count])
+
+  const view = presenting && count > 0 ? views[Math.min(index, count - 1)] : undefined
+  const viewId = view?.id
+  const isPano = !!view?.pano
 
   // Apply the active view whenever the slide changes while presenting.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: applyView is a stable store action; re-applying on index/presenting change is the intent.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: applyView is a stable store action; re-applying on slide change is the intent.
   useEffect(() => {
-    if (!presenting || count === 0) return
-    const v = views[Math.min(index, count - 1)]
-    if (v) applyView(v.id)
-  }, [presenting, index, count, views])
+    if (presenting && viewId) applyView(viewId)
+  }, [presenting, viewId])
 
-  // Reset to the first slide each time presentation starts.
+  // Capture the panorama for a 360° slide, lazily, when the slide is reached.
+  // Lazy (vs pre-capturing on entry) because applying a view restores the
+  // camera via an animated fly — pre-capturing every pano view would mean
+  // flying through all of them before the show starts. Cached per view id for
+  // the session so revisiting a slide is instant.
+  useEffect(() => {
+    if (!presenting || !viewId || !isPano) {
+      setPano(null)
+      setCapturing(false)
+      return
+    }
+    const cached = panoCache.current.get(viewId)
+    if (cached) {
+      setPano(cached)
+      return
+    }
+    setPano(null)
+    setCapturing(true)
+    let alive = true
+    // Wait for the saved-view camera fly to land before capturing.
+    const t = setTimeout(() => {
+      void capturePanorama().then((res) => {
+        if (!alive) return
+        if (res) panoCache.current.set(viewId, res.canvas)
+        // On failure fall back silently to the regular slide — the camera is
+        // already at the view's pose, so the live render stands in.
+        setPano(res?.canvas ?? null)
+        setCapturing(false)
+      })
+    }, PANO_FLY_SETTLE_MS)
+    return () => {
+      alive = false
+      clearTimeout(t)
+    }
+  }, [presenting, viewId, isPano])
+
+  // Reset to the first slide each time presentation starts; drop captures on exit.
   useEffect(() => {
     if (presenting) setIndex(0)
-    else setAuto(false)
+    else {
+      setAuto(false)
+      panoCache.current.clear()
+    }
   }, [presenting])
 
   // Keyboard navigation while presenting.
@@ -51,22 +101,21 @@ export function PresentationMode() {
     if (!presenting) return
     const onKey = (e: KeyboardEvent) => {
       if (e.key === 'Escape') setPresenting(false)
-      else if (e.key === 'ArrowRight' || e.key === ' ') go(index + 1)
-      else if (e.key === 'ArrowLeft') go(index - 1)
+      else if (e.key === 'ArrowRight' || e.key === ' ') goTo(index + 1)
+      else if (e.key === 'ArrowLeft') goTo(index - 1)
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [presenting, index, go, setPresenting])
+  }, [presenting, index, goTo, setPresenting])
 
-  // Auto-advance timer.
+  // Auto-advance timer — paused on 360° slides (the user is exploring).
   useEffect(() => {
-    if (!presenting || !auto || count === 0) return
-    const t = setTimeout(() => go(index + 1), AUTO_ADVANCE_MS)
+    if (!shouldAutoAdvance({ presenting, auto, count, isPanoSlide: isPano })) return
+    const t = setTimeout(() => goTo(index + 1), AUTO_ADVANCE_MS)
     return () => clearTimeout(t)
-  }, [presenting, auto, index, count, go])
+  }, [presenting, auto, index, count, goTo, isPano])
 
-  if (!presenting || count === 0) return null
-  const view = views[Math.min(index, count - 1)]
+  if (!presenting || count === 0 || !view) return null
 
   return (
     <div
@@ -80,9 +129,35 @@ export function PresentationMode() {
         justifyContent: 'space-between',
       }}
     >
+      {/* 360° slide: the interactive sphere viewer fills the screen under the bars. */}
+      {isPano && pano ? (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'auto' }}>
+          <PanoramaViewer pano={pano} ariaLabel={`360 degree slide: ${view.name}`} />
+        </div>
+      ) : null}
+      {isPano && capturing ? (
+        <div
+          style={{
+            position: 'absolute',
+            inset: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+        >
+          <span
+            className="panel"
+            style={{ padding: '8px 14px', borderRadius: 8, fontSize: 'var(--t-sm)' }}
+          >
+            Capturing 360°…
+          </span>
+        </div>
+      ) : null}
+
       {/* Top bar: title + exit */}
       <div
         style={{
+          position: 'relative',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
@@ -93,6 +168,7 @@ export function PresentationMode() {
       >
         <span style={{ color: 'var(--on-scrim, #fff)', fontWeight: 600, fontSize: 'var(--t-sm)' }}>
           Presentation · {index + 1} / {count}
+          {isPano ? ' · 360°' : ''}
         </span>
         <button
           type="button"
@@ -108,6 +184,7 @@ export function PresentationMode() {
       {/* Bottom caption + controls */}
       <div
         style={{
+          position: 'relative',
           pointerEvents: 'auto',
           padding: 'var(--s-4)',
           background: 'linear-gradient(to top, var(--scrim, rgba(0,0,0,0.55)), transparent)',
@@ -124,20 +201,25 @@ export function PresentationMode() {
               {view.note}
             </div>
           ) : null}
+          {isPano && pano ? (
+            <div style={{ fontSize: 'var(--t-xs)', opacity: 0.75, marginTop: 4 }}>
+              Drag to look around · scroll to zoom{auto ? ' · auto-advance paused' : ''}
+            </div>
+          ) : null}
         </div>
         <div style={{ display: 'flex', gap: 'var(--s-2)', flex: '0 0 auto' }}>
           <button
             type="button"
             className={`btn btn-soft${auto ? ' on' : ''}`}
             onClick={() => setAuto((a) => !a)}
-            title="Auto-advance slides"
+            title="Auto-advance slides (pauses on 360° slides)"
           >
             {auto ? 'Auto ⏸' : 'Auto ▶'}
           </button>
           <button
             type="button"
             className="btn btn-soft"
-            onClick={() => go(index - 1)}
+            onClick={() => goTo(index - 1)}
             aria-label="Previous view"
           >
             <Icon.ArrowLeft width={16} height={16} />
@@ -145,7 +227,7 @@ export function PresentationMode() {
           <button
             type="button"
             className="btn btn-accent"
-            onClick={() => go(index + 1)}
+            onClick={() => goTo(index + 1)}
             aria-label="Next view"
           >
             <Icon.ChevronRight width={16} height={16} />

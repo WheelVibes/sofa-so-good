@@ -69,3 +69,29 @@ There's no mouse to capture, so walk mode switches to touch controls:
 
 You're bounded by the walls — an open door is a gap you can walk through, a
 closed one isn't.
+
+## Saved views & presentation (Pro)
+
+**View → Save current view** bookmarks the camera angle you're at (with the
+lighting at that moment), so you can jump back to it from the same menu. Each
+saved view row has three small buttons:
+
+- **360°** — present this view as an interactive panorama slide (see below).
+- The **note** button — add a presenter note, shown as the slide's caption.
+- The **trash** button — delete the view.
+
+**View → Present…** turns your saved views into a full-screen client slideshow:
+each slide flies the camera to its view (restoring that view's lighting) and
+captions it with the view's name and note. Navigate with the on-screen arrows,
+<kbd>←</kbd>/<kbd>→</kbd> or <kbd>Space</kbd>; **Auto ▶** advances every few
+seconds; <kbd>Esc</kbd> exits.
+
+### 360° slides
+
+Mark a saved view **360°** and presenting it becomes a look-around moment: when
+the slide is reached, the app captures a full panorama from that spot (a brief
+*Capturing 360°…* notice) and you — or the client — can **drag to look around
+and scroll to zoom**, exactly like the [360° panorama](/design-tools#360-panorama-pro)
+viewer. Auto-advance **pauses on 360° slides** so nobody is yanked away
+mid-look — move on with Next, an arrow key, or <kbd>Space</kbd>, and the timer
+resumes on the next regular slide.

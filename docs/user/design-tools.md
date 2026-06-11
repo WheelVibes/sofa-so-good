@@ -156,3 +156,7 @@ standing (in walk mode, your exact position; in orbit, the point you're looking
 at, at standing height). Drag inside the preview to look around, scroll to
 zoom, and **Download PNG** saves the equirectangular image — ready for any
 360° viewer or a VR headset app.
+
+The same viewer powers **360° slides** in the saved-views presentation — mark a
+saved view *360°* and presenting it captures a panorama live from that spot
+(see [Saved views & presentation](/navigating#saved-views-presentation-pro)).
