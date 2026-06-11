@@ -37,6 +37,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   accessibility: 'accessibility',
   'palette-from-photo': 'paletteFromPhoto',
   panorama: 'panorama',
+  'hq-render': 'hqRender',
   'shopping-list': 'shopExport',
 }
 
@@ -197,6 +198,13 @@ export function CommandPalette() {
         label: '360° panorama',
         icon: 'Export',
         run: () => s().setPanoramaOpen(true),
+      },
+      {
+        id: 'hq-render',
+        group: 'Tools & panels',
+        label: 'HQ render (path-traced)',
+        icon: 'Export',
+        run: () => s().setHqRenderOpen(true),
       },
       {
         id: 'palette-from-photo',

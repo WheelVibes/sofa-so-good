@@ -19,6 +19,7 @@ export function FileMenu() {
   const setRecording = useStore((s) => s.setRecording)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const fPanorama = useFeature('panorama')
+  const fHqRender = useFeature('hqRender')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
   const fShopExport = useFeature('shopExport')
@@ -85,6 +86,14 @@ export function FileMenu() {
           label="360° panorama"
           sub="Capture a look-around panorama"
           onClick={() => useStore.getState().setPanoramaOpen(true)}
+        />
+      ) : null}
+      {fHqRender ? (
+        <MenuItem
+          icon="Export"
+          label="HQ render"
+          sub="Path-traced photoreal still"
+          onClick={() => useStore.getState().setHqRenderOpen(true)}
         />
       ) : null}
       {fShopExport ? (

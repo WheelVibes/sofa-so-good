@@ -30,6 +30,7 @@ export type FeatureFlag =
   | 'textBrief'
   | 'panorama'
   | 'renderPresets'
+  | 'hqRender'
   | 'savedViews'
   | 'backdrops'
   | 'lightingMoods'
@@ -160,6 +161,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'One-tap sun + tone + exposure photo modes in the Scene menu',
     default: true,
     tier: 'simple',
+  },
+  hqRender: {
+    label: 'HQ render',
+    description: 'Progressive path-traced photoreal still (three-gpu-pathtracer)',
+    default: true,
+    tier: 'pro',
   },
   savedViews: {
     label: 'Saved views',

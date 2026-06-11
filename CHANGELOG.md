@@ -4,6 +4,17 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C238 / F1] HQ render — progressive path-traced photoreal still (marquee)
+`three-gpu-pathtracer` (MIT, dynamic-imported chunk) drives a dedicated offscreen renderer at the
+chosen resolution (HD→4K, 64–1024 samples) so the live raster pipeline is untouched: a sanitized
+snapshot scene (world-baked mesh clones with standard materials only; punctual lights copied;
+gradient sky instead of the unreadable PMREM probe) feeds the BVH; samples accumulate on rAF with
+adaptive tiling (2×2→6×6 by resolution, keeps the tab responsive), live preview, progress, Stop,
+and Save-PNG-any-time. `hqRender` flag (pro); File menu + mobile + ⌘K. Verified headless
+end-to-end at a dev-only tiny resolution (BVH build → accumulation → preview shows path-traced
+noise converging → stop/save); full-resolution convergence quality needs the usual real-GPU pass.
+Raster fallback = the existing File→Export PNG (linked in the modal's error copy).
+
 ## [C235 / ML7] Multi-storey docs sweep — program complete
 New path-scoped `src/floorplan/CLAUDE.md` (the hard rules: `plan.rooms` is ground-only — use
 `allPlanRooms`/`levelOfRoom`/`levelAsPlan`; level-gate cross-item scans; room ids plan-unique

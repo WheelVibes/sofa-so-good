@@ -183,6 +183,7 @@ export function MobileToolbar() {
   const fSmartStart = useFeature('smartStart')
   const fPanorama = useFeature('panorama')
   const fRenderPresets = useFeature('renderPresets')
+  const fHqRender = useFeature('hqRender')
   const fBudget = useFeature('budget')
   const fChecks = useFeature('clearanceChecks')
   const fMeasure = useFeature('measure')
@@ -887,6 +888,14 @@ export function MobileToolbar() {
                     label="360° panorama"
                     sub="Capture a look-around panorama"
                     onClick={act(() => s.getState().setPanoramaOpen(true))}
+                  />
+                ) : null}
+                {fHqRender ? (
+                  <Item
+                    icon="Export"
+                    label="HQ render"
+                    sub="Path-traced photoreal still"
+                    onClick={act(() => s.getState().setHqRenderOpen(true))}
                   />
                 ) : null}
                 {fShopExport ? (

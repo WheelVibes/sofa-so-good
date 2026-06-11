@@ -20,6 +20,7 @@ import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { Effects } from './Effects'
 import { GridOverlay } from './GridOverlay'
+import { HqRenderController } from './HqRenderController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
@@ -115,6 +116,7 @@ export function Scene() {
       <QualityController />
       <ScreenshotController />
       <PanoramaController />
+      <HqRenderController />
       <RecordController />
       <SceneReadySignal />
       {import.meta.env.DEV ? <DevCameraExpose /> : null}

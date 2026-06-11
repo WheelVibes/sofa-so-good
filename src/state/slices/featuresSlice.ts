@@ -52,6 +52,8 @@ export interface FeaturesSlice {
   shareOpen: boolean
   /** 360° panorama capture/viewer modal visibility. */
   panoramaOpen: boolean
+  /** Path-traced HQ render modal visibility. */
+  hqRenderOpen: boolean
   /** Clearance & fit checks panel visibility. */
   clearancePanelOpen: boolean
   /** Wall-elevations panel visibility. */
@@ -100,6 +102,7 @@ export interface FeaturesSlice {
   setSwapItemId: (id: string | null) => void
   setShareOpen: (open: boolean) => void
   setPanoramaOpen: (open: boolean) => void
+  setHqRenderOpen: (open: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
   setDaylightOpen: (open: boolean) => void
@@ -128,6 +131,7 @@ export const FEATURES_INITIAL = {
   swapItemId: null as string | null,
   shareOpen: false,
   panoramaOpen: false,
+  hqRenderOpen: false,
   clearancePanelOpen: false,
   elevationsOpen: false,
   daylightOpen: false,
@@ -172,6 +176,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setSwapItemId: (swapItemId) => set({ swapItemId }),
   setShareOpen: (shareOpen) => set({ shareOpen }),
   setPanoramaOpen: (panoramaOpen) => set({ panoramaOpen }),
+  setHqRenderOpen: (hqRenderOpen) => set({ hqRenderOpen }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),
   setDaylightOpen: (daylightOpen) => set({ daylightOpen }),

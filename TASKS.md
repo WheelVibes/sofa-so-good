@@ -40,8 +40,9 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   skipped today — pre-existing limitation).
 
 ## Realism & rendering
-- [ ] F1/PR5/R10 [PROD] GPU path-traced "HQ render" still (`three-gpu-pathtracer`, progressive →
-  2–4K, denoise, download), High/Max only with raster fallback. Marquee feature; real-GPU verify deferred.
+- [~] F1 (C238) shipped: progressive path-traced HQ render (offscreen session, sanitized snapshot,
+  adaptive tiles, HD→4K). TAIL: denoise pass (DenoiseMaterial exists in the lib) + real-GPU
+  convergence/quality verify + decide quality-tier gating of the menu entry.
 - [ ] F3/R-HDRI [PROD] HDRI environment library (Poly Haven CC0 `.hdr`) for IBL + backdrop.
   Sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.
 - [ ] F4 tail: A/B compare between two render presets, and HDRI coupling once F3 lands.
