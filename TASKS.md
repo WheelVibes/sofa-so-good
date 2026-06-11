@@ -37,8 +37,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 
 ## Competitor research 2026-06 (sources: coohom.com/article Planner5D-alternative · capterra.com
 ## compare 164022-192882 · spacesbydee.com coohom-vs-planner-5d · plansnapper.com compare)
-- [~] P-720: linked panorama tour (Coohom "720° tour") — multiple captured panoramas with
-  room-to-room hotspots in the shared viewer; builds on C217/C237. (in flight, worktree agent)
+- [ ] P-720 tail (optional): embed tours in share links/presentation; plan-based stop placement
+  UI; persist captured images in IDB to skip re-capture; per-stop initial yaw facing room centre.
 - [ ] COLLAB-STRUCT: structured collaboration (projects/teams) is Coohom's enterprise edge —
   backend-dependent; revisit if/when a backend exists.
 

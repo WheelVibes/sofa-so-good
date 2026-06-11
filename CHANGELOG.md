@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit (C1–C250 on
 `claude/codebase-analysis-optimization-f6yag0`, C251+ on
 `claude/codebase-analysis-optimization-ny3xm9`). See `TASKS.md` for the backlog.
 
+## [C252 / P-720] Linked 720° panorama tour — multi-pano capture with room hotspots
+Coohom "720° tour" parity. A tour is an ordered list of stops `{id, label, position:[x,z],
+levelId?}` in the new `panoTourSlice`, persisted per-device to localStorage like saved camera
+views (images are NOT stored — each stop is captured live + session-cached when viewed, so the
+tour always reflects the current design, same model as the C237 presentation slides). Hotspots
+are derived, never authored: pure `ui/panorama/panoTour.ts` computes yaw (`atan2(−dx,−dz)`,
+matching the viewer's −Z-forward convention) + pitch toward every other stop, culling
+coincident (guards the degenerate atan2), distant (>14 m) and cross-storey stops, with
+room-derived labels + duplicate numbering and screen projection for the overlay pills. Capture
+reuses the C217 pipeline with one additive extension — `capturePanorama({eye})` honours an
+explicit eye at the stop position + level elevation. The viewer overlays clickable/tappable
+hotspot pills (fade → fresh capture → arrive) plus a numbered stop strip; `PanoramaViewer`
+gained generic optional `initialLook`/`onLook` props (stays chrome/store-free). New `panoTour`
+flag (tier pro, default on, consistent with `panorama` — asserted by a test), gated in the File
+menu (desktop AND mobile), two ⌘K commands, and an "Add to tour" button in the panorama modal.
++31 tests (pure math, slice, both-modes flag). Verified headless with real SwiftShader
+captures: kitchen stop shows a geometrically-correct "Living / Dining" hotspot dead ahead,
+clicking it lands in the living-room pano; mobile 390×844 modal clamps + strip scrolls.
+Deferred: share-link/presentation embedding, plan-based stop placement UI, IDB image
+persistence, per-stop initial yaw.
+
 ## [C251 / Q31 part 2] Drag finish swatches onto the 3D canvas — raycast drop
 Dragging a swatch from the finish picker and releasing it over the 3D view now applies the
 finish to whatever is under the cursor — room floor, wall, or furniture item — completing the
