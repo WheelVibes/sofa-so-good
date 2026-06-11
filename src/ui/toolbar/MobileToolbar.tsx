@@ -395,6 +395,8 @@ export function MobileToolbar() {
                         key={l.id}
                         icon="Orbit"
                         label={l.name}
+                        // Walk mode: picking a storey teleports the walker (ML6c).
+                        sub={cameraMode === 'firstPerson' ? 'Walk this storey' : undefined}
                         on={viewLevelId === l.id}
                         onClick={act(() => s.getState().setViewLevel(l.id), { keep: true })}
                       />

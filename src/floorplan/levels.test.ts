@@ -8,8 +8,10 @@ import {
   levelElevation,
   levelOfItem,
   levelOfRoom,
+  levelSpawnPoint,
   planLevels,
   visibleLevels,
+  walkLevel,
   withLevelGeometry,
 } from './levels'
 import type { FloorPlan, PlanUpperLevel } from './types'
@@ -97,6 +99,30 @@ describe('levelAsPlan / visibleLevels', () => {
     expect(visibleLevels(multi, 'all').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
     expect(visibleLevels(multi, 'lvl-2').map((l) => l.id)).toEqual(['lvl-2'])
     expect(visibleLevels(multi, 'stale').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
+  })
+})
+
+describe('walkLevel / levelSpawnPoint (ML6c)', () => {
+  it("walks the ground floor for 'all' and for stale ids", () => {
+    expect(walkLevel(multi, 'all').id).toBe(GROUND_LEVEL_ID)
+    expect(walkLevel(multi, 'stale').id).toBe(GROUND_LEVEL_ID)
+    expect(walkLevel(single, 'all').id).toBe(GROUND_LEVEL_ID)
+  })
+  it('walks the selected storey when a level id is picked', () => {
+    const lvl = walkLevel(multi, 'lvl-2')
+    expect(lvl.id).toBe('lvl-2')
+    expect(lvl.elevation).toBe(2.9)
+  })
+  it('spawns at the centre of the first room of the storey', () => {
+    const sp = levelSpawnPoint(walkLevel(multi, 'lvl-2'))
+    expect(sp).not.toBeNull()
+    expect(sp?.x).toBeCloseTo(0.2 + 3.8 / 2)
+    expect(sp?.z).toBeCloseTo(0.2 + 3.8 / 2)
+    expect(sp?.span).toBeCloseTo(3.8)
+  })
+  it('returns null for a storey with no rooms', () => {
+    const empty = { ...multi, upperLevels: [{ ...upper, rooms: [] }] }
+    expect(levelSpawnPoint(walkLevel(empty, 'lvl-2'))).toBeNull()
   })
 })
 

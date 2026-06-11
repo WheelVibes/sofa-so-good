@@ -4,6 +4,20 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C233 / ML6c] Walk-mode level teleport
+On multi-storey plans the first-person walker now follows the View→Levels selection: picking a
+storey while walking teleports to that level's first room centre at eye height above ITS floor
+(`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`), the walk floor height = the level's
+elevation (gravity/crouch/jump land on it), collision walls resolve from that storey's own
+geometry (`levelAsPlan` → `planCollisionWalls`), and `buildWalkBlockers` gains a `levelId`
+param so only the walker's-storey furniture blocks (the room editor passes the edited room's
+storey, fixing upper-room editor walks ignoring their own furniture). 'All levels' walks the
+ground floor as before; stale level ids degrade to ground. Desktop + mobile Levels controls hint
+"Walk this storey" in walk mode. 6 new tests (walk-level resolution, spawn points, blocker level
+selection). Verified headless on the maisonette: walker spawns upstairs at y=4.55 (2.9 m slab +
+1.65 m eye) inside Bedroom 2 vs y=1.65 in the ground living room; interior renders correctly at
+both elevations. (WASD traversal itself isn't drivable headless — collision is unit-tested.)
+
 ## [C232 / ML6b] Stair-connectivity advisory for multi-storey plans
 New pure `analysis/stairConnectivity.ts` (HDB-compliance-hints pattern): on multi-level plans,
 `buildStairAdvisories(plan, items, getDef)` emits a caution `Advisory` for every upper storey no

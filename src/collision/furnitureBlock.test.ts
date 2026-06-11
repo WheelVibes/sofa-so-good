@@ -85,10 +85,20 @@ describe('buildWalkBlockers', () => {
     expect(MIN_BLOCK_TOP).toBeCloseTo(0.3)
   })
 
-  it('excludes upper-storey items — the walker is on the ground floor (F13/ML3)', () => {
+  it('blocks only the walker-level items — ground by default (F13/ML6c)', () => {
     const upstairs = { ...item('wardrobe'), levelId: 'lvl-2' }
     const ground = { ...item('sofa'), levelId: 'ground' } // explicit ground id still blocks
     expect(buildWalkBlockers([upstairs], getDef)).toHaveLength(0)
     expect(buildWalkBlockers([upstairs, ground, item('sofa')], getDef)).toHaveLength(2)
+  })
+
+  it('selects the requested storey when the walker teleports upstairs (ML6c)', () => {
+    const upstairs = { ...item('wardrobe'), levelId: 'lvl-2' }
+    const ground = { ...item('sofa'), levelId: 'ground' }
+    const implicitGround = item('sofa')
+    // Walking lvl-2: only its items block; both ground forms are skipped.
+    expect(buildWalkBlockers([upstairs, ground, implicitGround], getDef, 'lvl-2')).toHaveLength(1)
+    // Explicit ground level id matches both explicit + implicit ground items.
+    expect(buildWalkBlockers([upstairs, ground, implicitGround], getDef, 'ground')).toHaveLength(2)
   })
 })

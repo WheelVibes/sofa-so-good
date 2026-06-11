@@ -67,7 +67,14 @@ export function ViewMenu() {
               key={l.id}
               icon="TopView"
               label={l.name}
-              sub={l.elevation > 0 ? `Storey at ${l.elevation.toFixed(1)} m` : 'Street level'}
+              // In walk mode picking a storey also teleports the walker onto it.
+              sub={
+                !isOrbit
+                  ? 'Walk this storey'
+                  : l.elevation > 0
+                    ? `Storey at ${l.elevation.toFixed(1)} m`
+                    : 'Street level'
+              }
               active={viewLevelId === l.id}
               onClick={() => setViewLevel(l.id)}
             />

@@ -106,6 +106,24 @@ export function visibleLevels(plan: FloorPlan, viewLevelId: string): PlanLevel[]
   return match.length > 0 ? match : levels
 }
 
+/** The storey a first-person walker stands on for a View→Levels selection
+ *  (ML6c): 'all' (or an unknown/stale id) walks the ground floor; a level id
+ *  walks that storey — the walker teleports there and collides with ITS
+ *  walls/items, at ITS floor elevation. */
+export function walkLevel(plan: FloorPlan, viewLevelId: string): PlanLevel {
+  if (viewLevelId === 'all') return planLevels(plan)[0]!
+  return levelById(plan, viewLevelId)
+}
+
+/** Spawn point for walking a storey: the centre of its first room (templates
+ *  list a sensible arrival room first), with the room's depth as a framing
+ *  span. Null when the storey has no rooms (nowhere sensible to stand). */
+export function levelSpawnPoint(level: PlanLevel): { x: number; z: number; span: number } | null {
+  const r = level.rooms[0]
+  if (!r) return null
+  return { x: r.origin[0] + r.width / 2, z: r.origin[1] + r.depth / 2, span: r.depth }
+}
+
 /** Fields of a storey the 2D editor mutates. */
 export interface LevelGeometry {
   walls: PlanWall[]

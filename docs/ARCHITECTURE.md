@@ -237,8 +237,8 @@ same change that reshapes a system.
   walls). All cross-item/wall scans are **storey-scoped** (F13/ML3): `itemsCollide`
   + `findNarrowGaps` gate pairs on `levelId`, `levelWallClips.ts
   findWallClipsByLevel` resolves each item's own level's walls (used by score /
-  report / Clearance panel), and walk-mode `buildWalkBlockers` keeps only
-  ground-floor items (walker can't climb yet — ML6). **Wall reveal**
+  report / Clearance panel), and walk-mode `buildWalkBlockers` keeps the
+  walker's-storey items (level teleport, ML6c). **Wall reveal**
   (`apartment/walls/`): exterior walls between camera and interior fade out.
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
@@ -276,7 +276,10 @@ same change that reshapes a system.
   hotkeys can't fire behind a dialog; Escape stays per-modal, ⌘K/undo are suppressed).
 - **Walk-mode** (`scene/cameras/FirstPersonCamera.tsx`, `walkInput.ts`, `ui/walk/`): fine
   = Pointer Lock (WASD+mouse, Esc; native banner unstyleable), coarse = `WalkJoystick` +
-  drag-look; `WalkHud`, `Crosshair`. **Mobile viewport** (`index.html`, `responsive.css`,
+  drag-look; `WalkHud`, `Crosshair`. Multi-storey (ML6c): the walker's storey follows
+  `viewLevelId` (`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`) — picking a level in
+  View→Levels while walking teleports to its first room centre at `elevation + eye`, and
+  collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Mobile viewport** (`index.html`, `responsive.css`,
   `MobileLongPress.tsx`): `viewport-fit=cover`+`100dvh` full-bleed canvas (controls in
   `env(safe-area-inset-*)`); `body.mobile` kills text-select/callout/double-tap-zoom;
   long-press → `contextmenu`. **FPS** (`FpsCounter.tsx`): DOM pill, rAF, `showFps`.

@@ -56,7 +56,9 @@ Designing a maisonette, loft or landed home? The tab strip in the header —
 - The **✕** on an upper tab removes that storey (you'll be asked to confirm —
   its rooms, walls and furniture go with it, and undo brings it all back).
 - The 3D view stacks your storeys; use **View → Levels** to show all of them or
-  isolate one.
+  isolate one. In [walk mode](/walkthrough-and-sun-study) picking a storey also
+  **teleports you onto it**, walking against that storey's own walls and
+  furniture.
 
 ## Your furniture, top‑down
 
