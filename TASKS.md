@@ -67,8 +67,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
   depends on Q-3DEXPORT for the item GLB/USDZ.
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
-- [~] Q31 part 2: drag a material swatch onto floor/wall/item in the 3D canvas (raycast drop);
-  part 1 (resolver + Objects-list drop) shipped. (in flight, worktree agent)
+- [ ] Q31 tail (optional): transient drop-target highlight during dragover (skipped in C251 —
+  needs an artifact-free approach under frameloop=demand); custom-plan overview wall drops no-op.
 - [~] GE3c GLB designer: per-part texture pick. (in flight, worktree agent)
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 

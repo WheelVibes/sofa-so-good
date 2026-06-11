@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit (C1–C250 on
 `claude/codebase-analysis-optimization-f6yag0`, C251+ on
 `claude/codebase-analysis-optimization-ny3xm9`). See `TASKS.md` for the backlog.
 
+## [C251 / Q31 part 2] Drag finish swatches onto the 3D canvas — raycast drop
+Dragging a swatch from the finish picker and releasing it over the 3D view now applies the
+finish to whatever is under the cursor — room floor, wall, or furniture item — completing the
+Q31 drag-to-apply program (part 1 shipped the pure payload/`resolveFinishDrop` core + Layers-row
+drops). New pure classifier `scene/finishDropTarget.ts` walks the raycast hit list, skipping
+invisible hits (the camera-facing wall reveal toggles `visible`, which three's Raycaster does
+NOT skip) and untagged meshes (grid/gizmos/sky), and classifies via `userData` tags
+(`itemId` on `Furniture` roots; `finishTarget {kind, roomId}` on floor meshes, wall interior
+faces, and room-editor shells). `scene/FinishDropSurface.tsx` does the thin DOM wiring in BOTH
+Canvases (main + room editor): native `dragover`/`drop` on the GL canvas (R3F's pointer system
+never sees HTML5 drag events), `dropEffect='copy'` feedback, manual `Raycaster.setFromCamera`,
+and it only claims events carrying the finish MIME — catalog-card placement and upload drops
+untouched. Commits flow through the new shared `state/finishDropApply.ts` (now also used by the
+Layers rows): exactly one undo step per drop, floor/wall recents, success toast — and it fixes a
+latent part-1 bug by normalising raw catalog ids to `mat:<id>` on item drops (previously fell
+back to generic wood). Part 1 had shipped ungated, so this adds the `finishDnd` flag
+(`tier: 'simple'`, default on) gating picker dragstart + both drop surfaces. Touch keeps the
+existing tap-to-apply flow (HTML5 DnD doesn't exist there). +18 tests (classifier, apply path,
+both-modes flag). Visually verified headless: floor → checker, wall → navy, table → ebony in
+one session with `past` 1→4, foreign-payload and sky drops no-ops; docs updated. Deferred:
+custom-plan overview wall drops no-op (overview walls are unassociated fade boxes); transient
+target highlight skipped under frameloop=demand.
+
 ## [C254 / PERF-FOLLOWUPS] History cap amortisation + frame-scoped overlap memo
 Two backlog micro-optimisations. `historySlice.appendCapped` no longer slice-and-spreads the
 whole past stack on every push once the 50-entry cap is hit: the stack grows into a 16-entry
