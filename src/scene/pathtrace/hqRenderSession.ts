@@ -22,6 +22,9 @@ export interface HqRenderOptions {
   /** Photographic depth of field (F5): aperture f-stop; undefined/0 = off
    *  (pinhole). Focus distance is auto — the first surface at screen centre. */
   fStop?: number
+  /** Edge-preserving denoise blit on the preview/output (default true) —
+   *  smooths Monte-Carlo noise at low sample counts. */
+  denoise?: boolean
   /** Called after every sample with (done, max). */
   onProgress?: (samples: number, maxSamples: number) => void
   /** Called once accumulation reaches maxSamples. */
@@ -173,6 +176,29 @@ export async function createHqRenderSession(
   renderer.toneMapping = ACESFilmicToneMapping
 
   const tracer = new WebGLPathTracer(renderer)
+  // Edge-preserving denoise on the canvas blit (the lib's DenoiseMaterial —
+  // a smart blur that respects geometry edges). Falls back to the plain blit
+  // if construction fails so a lib upgrade can't break rendering.
+  if (opts.denoise !== false) {
+    try {
+      const { DenoiseMaterial } = await import('three-gpu-pathtracer')
+      const { FullScreenQuad } = await import('three/examples/jsm/postprocessing/Pass.js')
+      const mat = new DenoiseMaterial({ blending: three.NoBlending })
+      mat.sigma = 2.5
+      mat.threshold = 0.1
+      mat.kSigma = 1.0
+      const quad = new FullScreenQuad(mat)
+      tracer.renderToCanvasCallback = (target, rend) => {
+        mat.map = target.texture
+        const prevAutoClear = rend.autoClear
+        rend.autoClear = false
+        quad.render(rend)
+        rend.autoClear = prevAutoClear
+      }
+    } catch {
+      // keep the default blit
+    }
+  }
   // Tiled rendering keeps each rAF tick short so the tab stays responsive
   // during big renders (one tile per tick instead of a whole sample) —
   // scale tiles with resolution, min 2×2, max 6×6.

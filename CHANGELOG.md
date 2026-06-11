@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C243 / F1 tail] Edge-preserving denoise on the HQ render
+The HQ render's canvas blit now runs through the lib's `DenoiseMaterial` (smart edge-preserving
+blur; σ=2.5, threshold 0.1) so low-sample previews and saved stills look clean while samples
+accumulate — with a safe fallback to the plain blit if construction fails. Verified headless:
+the denoised preview is visibly smoother than the raw accumulation at the same sample count.
+F1's remaining open point is the real-GPU convergence/quality pass.
+
 ## [C242 / PERF9] Procedural finish textures size with the quality tier
 `generateProcedural` reads a configurable base size: 256² on the Performance tier (the app
 default — quarter the texels per map across albedo+normal+roughness, visually identical at
