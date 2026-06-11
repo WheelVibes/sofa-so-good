@@ -22,6 +22,21 @@ export interface ProceduralResult {
 
 let S = 512
 
+/** Base texture edge (px) for full material generation. The Performance tier
+ *  (the app default) drops to 256² — quarter the pixels per map, visually
+ *  near-identical at typical floor/wall viewing distances — while Medium+
+ *  keeps 512². Set by QualityController; applies to NEW generations (existing
+ *  textures keep their size until regenerated — cache keys carry the size). */
+let BASE_SIZE = 512
+
+export function setProceduralBaseSize(px: 256 | 512): void {
+  BASE_SIZE = px
+}
+
+export function getProceduralBaseSize(): number {
+  return BASE_SIZE
+}
+
 function makeCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas')
   c.width = S
@@ -794,6 +809,7 @@ export function generateProcedural(
   pattern: ProceduralPattern,
   swatch: string,
 ): ProceduralResult {
+  S = BASE_SIZE
   const seed = hashSeed(`${id}:${pattern}`)
   const base = hexToRgb(swatch)
   const f = PATTERN_FN[pattern](base, seed)

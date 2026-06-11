@@ -1,5 +1,9 @@
 import { MeshStandardMaterial, type Texture } from 'three'
-import { generateProcedural, getPlasterNormal } from './procedural/generators'
+import {
+  generateProcedural,
+  getPlasterNormal,
+  getProceduralBaseSize,
+} from './procedural/generators'
 import type { MaterialDef } from './types'
 
 /** Module-level material cache keyed by MaterialId. Each cached
@@ -19,7 +23,13 @@ export function buildMaterial(
   def: MaterialDef,
   textures?: { albedo?: Texture; normal?: Texture; roughness?: Texture; ao?: Texture },
 ): MeshStandardMaterial {
-  const existing = CACHE.get(def.id)
+  // Procedural materials carry the generation size in the key so a quality-
+  // tier change regenerates at the new size instead of serving a stale one.
+  const cacheKey =
+    def.kind === 'procedural' && def.pattern !== 'plaster'
+      ? `${def.id}@${getProceduralBaseSize()}`
+      : def.id
+  const existing = CACHE.get(cacheKey)
   if (existing) return existing
 
   const m = new MeshStandardMaterial({
@@ -34,7 +44,7 @@ export function buildMaterial(
     m.roughness = 0.92
     m.normalMap = normal
     m.normalScale.set(0.4, 0.4)
-    CACHE.set(def.id, m)
+    CACHE.set(cacheKey, m)
     return m
   }
   if (def.kind === 'procedural') {
@@ -47,7 +57,7 @@ export function buildMaterial(
     for (const t of [maps.albedo, maps.normal, maps.roughness]) {
       t.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])
     }
-    CACHE.set(def.id, m)
+    CACHE.set(cacheKey, m)
     return m
   }
   if (def.kind === 'textured' && textures) {
@@ -63,7 +73,7 @@ export function buildMaterial(
       t.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])
     }
   }
-  CACHE.set(def.id, m)
+  CACHE.set(cacheKey, m)
   return m
 }
 

@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C242 / PERF9] Procedural finish textures size with the quality tier
+`generateProcedural` reads a configurable base size: 256² on the Performance tier (the app
+default — quarter the texels per map across albedo+normal+roughness, visually identical at
+room viewing distances) and 512² on Medium+. `QualityController` sets it on tier change;
+material cache keys carry the size so a tier switch regenerates instead of serving stale
+textures. Verified: Performance-tier boot renders the furnished flat identically.
+
 ## [C241] Walkway wall pinches on custom plans, per storey
 `findNarrowGaps`' item↔wall pass no longer skips custom plans: each item is tested against ITS
 OWN storey's walls (`levelAsPlan` + `planCollisionWalls`, cached per level within a call; the

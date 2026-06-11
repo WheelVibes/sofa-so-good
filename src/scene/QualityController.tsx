@@ -1,5 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
+import { setProceduralBaseSize } from '../materials/procedural/generators'
 import { useStore } from '../state/store'
 import { detectDefaultTier, RENDER_TIERS } from './quality'
 import { isRenderingContinuously } from './renderPumpSignal'
@@ -34,6 +35,14 @@ export function QualityController() {
   useEffect(() => {
     gl.setPixelRatio(Math.min(window.devicePixelRatio || 1, dprMax))
   }, [dprMax, gl])
+
+  // Procedural finish textures generate at 256² on Performance (the default
+  // tier — quarter the texels, near-identical at room scale) and 512² above.
+  // Applies to new generations; cache keys carry the size (PERF9).
+  const tier = useStore((s) => s.qualityTier)
+  useEffect(() => {
+    setProceduralBaseSize(tier === 'performance' ? 256 : 512)
+  }, [tier])
 
   // Adaptive frame-rate guard (down-only).
   const acc = useRef({ t: 0, frames: 0, lowWindows: 0 })
