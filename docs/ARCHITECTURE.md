@@ -133,7 +133,12 @@ same change that reshapes a system.
   stays out of the boot bundle), and replaces both with one `mesh` part (baked triangles in
   `ShapePart.geometry`, re-centred on the result bounds, first part's material; degenerate
   results throw → toast). Pure helpers (`canCombineParts`/`bakedPartGeometry`/
-  `meshPartFromGeometry`/`replaceWithCombined`) are tested. Launched from ⌘K. TODO:
+  `meshPartFromGeometry`/`replaceWithCombined`) are tested. **Drag gizmo**: the selected part
+  gets a drei `TransformControls` gizmo in the preview (Move/Rotate/Scale segmented control
+  overlay + G/R/S keys in-dialog; orbit auto-pauses while dragging via `makeDefault`). A
+  finished drag is written back through the SAME `updatePart` path as the numeric inputs —
+  `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps to 5 mm /
+  1°; `mesh` parts hide Scale (triangles are baked). Launched from ⌘K. TODO:
   per-component recolour/hide of a source GLB's meshes (v2).
 - **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
   **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through

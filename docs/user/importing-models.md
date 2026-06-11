@@ -66,6 +66,12 @@ build one in the browser:
   (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
   wood, polished metal, a lit neon/lamp, or translucent glass). A live 3D preview
   updates as you go.
+- **Drag it in the preview** — selecting a shape shows a 3D gizmo on it, with a
+  **Move / Rotate / Scale** switch in the preview's corner (or press **G**, **R**, **S**).
+  Drag the arrows/rings/handles to place the shape; when you let go, the numbers in the
+  edit panel update (snapped to 5 mm and 1°), so you can still fine-tune by typing.
+  A **Combined** shape can be moved and rotated but not scaled — its geometry is baked,
+  so the Scale option is hidden for it.
 - **Start from an uploaded model** — pick one of your uploaded GLBs as the base and
   resize it to make a custom variant (optionally kit‑bashing extra shapes on top).
 - **Combine (boolean)** — with a shape selected and at least one other shape in the

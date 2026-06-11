@@ -64,7 +64,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
 - [ ] Q31 part 2: drag a material swatch onto floor/wall/item in the 3D canvas (raycast drop);
   part 1 (resolver + Objects-list drop) shipped.
-- [ ] GE2b GLB designer: drag gizmo (drei TransformControls) for move/rotate/scale in the preview.
+- [x] GE2b GLB designer: drag gizmo (drei TransformControls) for move/rotate/scale in the preview (C244).
 - [ ] GE3c GLB designer: per-part texture pick.
 - [x] GE5 GLB designer: CSG boolean ops (union/subtract/intersect) via three-bvh-csg (C239).
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.

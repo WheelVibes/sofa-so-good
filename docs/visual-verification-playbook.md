@@ -223,6 +223,19 @@ flag). The raycast→handler link is the same path a real right-click uses, so
 proving the synthesized event matches a real one is sufficient. (This is the same
 class of issue as the "orbit drag/zoom emulation is unreliable headless" note.)
 
+### drei TransformControls gizmos CAN be dragged headless (unlike R3F raycasts)
+The R3F-raycast limitation above does NOT apply to drei's `TransformControls`:
+it raycasts its own fat picker meshes from real pointer events on the canvas, so
+the harness `drag` action (real CDP mouse input) grips a gizmo handle fine under
+SwiftShader — dragging the GLB-designer translate arrow wrote the snapped value
+into the numeric field end-to-end. Two gotchas: (1) **compute drag coordinates
+in the PNG's REAL pixel space** — screenshots are 1600×1000 (`SHOT_VIEWPORT`
+default) but the Read tool may display them downscaled 2×, and coords picked off
+a *previous* shot are stale the moment the camera/Bounds refit moves (a missed
+drag silently orbits the camera instead, which is itself the tell); (2) take a
+fresh framing shot first, read the gizmo origin off `file <png>` dimensions,
+then aim for a point ~⅔ along the arrow shaft.
+
 ### Verifying a new-window exporter (report / BOQ / shopping list)
 The harness screenshots only the original page, so a `window.open(…) → document.
 write(html)` exporter renders off-screen. Patch `window.open` in the evalFile to

@@ -4,6 +4,21 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C244 / GE2b] Drag gizmo for GLB-designer parts — translate/rotate/scale
+The selected part in the 3D asset designer now carries a drei `TransformControls` gizmo in the
+live preview: a **Move / Rotate / Scale** segmented control overlays the preview's top-left
+(plus Blender-style G/R/S keys scoped to the dialog — it now registers with `modalGuard`, so
+global scene hotkeys no-op while it's open). The gizmo is the fast path, the numeric fields stay
+the precision path: a finished drag (coalesced per drag-END, never per frame) is mapped by the
+pure `furniture/glbEdit/gizmoWriteBack.ts` `gizmoPatch` onto the part's existing fields and
+routed through the same `updatePart` the inputs use — positions snap to 5 mm (clamped ±3 m),
+rotations to 1° normalised to [-180, 180) (all-zero clears the field), scale multiplies `size`
+per axis (min 0.02 m) and the live object's scale resets to 1 (geometry rebuilds at the new
+size). Combined `mesh` parts (CSG results) move/rotate only — their triangles are baked, so the
+Scale mode is hidden and the Edit section says so. OrbitControls pauses while a handle is
+dragged (drei's `makeDefault` + `dragging-changed` wiring). Write-back mapping unit-tested
+(19 cases); gizmo render in all three modes verified headless.
+
 ## [C247 / F21] WebXR VR walkthrough — gated entry + inert provider
 `@react-three/xr` wired behind a `vrWalkthrough` flag (pro): `scene/xr/` holds a pure
 `detectVrSupport` (3 tests), a lazily-created singleton XR store, and `MaybeXr` — an inert
