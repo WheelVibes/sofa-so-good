@@ -321,7 +321,9 @@ same change that reshapes a system.
   High/Maximum (`mirrorReflectorConfig(tier)`), fake-shiny pane below. Uploaded GLB
   mirrors via inspector "Reflective surface" (`props.reflective`, `gltf/mirrorPlane.ts`).
 - **Live pricing/AI/sharing**: dev-only "Live IKEA SG prices" (`livePrice.ts`/`price-server.mjs`,
-  fails soft to `furniturePrices.ts`); **AI photoreal** (`ui/ai/`, BYO-key i2i in Share);
+  fails soft to `furniturePrices.ts`); **AI photoreal** (`ui/ai/`, BYO-key i2i in Share; after a result, "Redesign this
+  render" style chips re-run the same call with a restyled prompt — pure `ai/styleVariants.ts`
+  + `ui/ai/variantGallery.ts` reducer — into a selectable/downloadable variant gallery);
   **Plan sharing** (`planShare.ts`, backend-less `#/plans/<code>`); **3D design link**
   (`designShare.ts`, `#/design/<code>` — same codec, session noise + non-portable
   upload defs stripped, ~16 KB code budget with a `.sofa.json` fallback message,

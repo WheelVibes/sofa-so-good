@@ -122,7 +122,10 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   opens an editable copy of your design on any device; **Copy plan link** is the
   uncapped variant. Neither can carry your uploaded 3D models — use **Export
   file** (`.sofa.json`) to share those. *(Experimental: a "Make photoreal"
-  option can restyle the snapshot via your own AI key.)*
+  option can restyle the snapshot via your own AI key — and once a result
+  exists, **Redesign this render** chips (Scandinavian, Japandi, Industrial,
+  Luxury, Tropical) regenerate the same view in another style, building a small
+  gallery of variants you can click through and download.)*
 - **Report** — a printable (save-as-PDF) summary: a hero render, a colour-keyed
   **furnished floor plan** drawn like a real architectural plan — door **swing
   arcs** and window breaks, a category legend — plus **furniture by room**

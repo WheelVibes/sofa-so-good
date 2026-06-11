@@ -4,6 +4,21 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C245 / F27] "Redesign this render" style-variant explorer on the AI photoreal path
+Once a "Make photoreal" result exists in the Share modal, style chips (Scandinavian / Japandi /
+Industrial / Luxury / Tropical — descriptors reuse the `briefParser.ts` keyword vocabulary so the
+app speaks one style language) re-run the SAME BYO-key i2i call on the SAME captured snapshot
+with a style-modified prompt, building a small gallery: thumbnail row (original + one entry per
+style, replace-on-rerun), click to view full, per-variant download. Pure
+`ai/styleVariants.ts` (`buildVariantPrompt` strips known style/theme segments then leads with the
+new style — chips replace, never stack) + pure `ui/ai/variantGallery.ts` reducer (one in-flight
+at a time, stale-result guard after a re-seed), both unit-tested at the same boundary as the
+existing photoreal tests (the live round-trip still needs a real key). Stays inside the existing
+`aiPhotoreal` flag: it is the same feature surface (an extra control on the same Share-modal
+section, same provider/key/error path), not a new ship decision. Errors surface inline exactly
+like the original path; key handling unchanged (localStorage only, never bundled). Visually
+verified desktop + 390px mobile with a mocked provider (chips wrap, selected thumb outlined).
+
 ## [C246] Preset circulation guard + WFH studio re-spacing
 New regression test: no shipped layout preset may have a tight pinch below 0.5 m between two
 large circulation pieces (≥0.5 m² each; coffee-table seating adjacency and small decor excluded —

@@ -74,7 +74,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   the dev `price-server.mjs`).
 - [ ] F24 [PROD-partial] Pinned comments on a shared design (live presence = backend, defer).
 - [x] X-PRESENT complete: presentation mode (C206) + 3D link (C224) + 360° slides (C237).
-- [ ] F27 [PROD] "Redesign this render" style-variant explorer (extend the Share i2i path).
+- [x] F27 [PROD] "Redesign this render" style-variant explorer on the Share i2i path (C245).
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
 
 ## Performance / scalability
