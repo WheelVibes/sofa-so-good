@@ -50,7 +50,7 @@ export function faceSelectionIntoRoom(catalog: Catalog): void {
         others: s.items.filter((o) => o.id !== it.id),
         defs: catalog,
         doors: s.doors,
-        walls: placementWalls(s),
+        walls: placementWalls(s, it.levelId),
       })
     )
       s.rotateItem(it.id, rot)
@@ -78,7 +78,7 @@ export function snapSelectionToWall(catalog: Catalog): void {
         others: s.items.filter((o) => o.id !== it.id),
         defs: catalog,
         doors: s.doors,
-        walls: placementWalls(s),
+        walls: placementWalls(s, it.levelId),
       })
     ) {
       s.rotateItem(it.id, rot)
@@ -106,7 +106,13 @@ export function mirrorSelectionX(catalog: Catalog): void {
   const planned = sel.map((it) => ({ it, m: mirrorItemX(it, cx), def: catalog[it.defId] }))
   const allFit = planned.every(
     ({ m, def }) =>
-      def && canPlace(m, def, { others, defs: catalog, doors: s.doors, walls: placementWalls(s) }),
+      def &&
+      canPlace(m, def, {
+        others,
+        defs: catalog,
+        doors: s.doors,
+        walls: placementWalls(s, m.levelId),
+      }),
   )
   if (!allFit) return
   s.pushHistory()
@@ -151,7 +157,7 @@ export function arrangeSelectionAsRun(catalog: Catalog): void {
         others: s.items.filter((o) => !selIds.has(o.id)),
         defs: catalog,
         doors: s.doors,
-        walls: placementWalls(s),
+        walls: placementWalls(s, it.levelId),
       })
     ) {
       s.rotateItem(it.id, p.rotation)

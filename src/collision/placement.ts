@@ -154,6 +154,9 @@ function itemsCollide(
 ): boolean {
   if (!bDef) return false
   if (bDef.noClip) return false
+  // Different storeys never collide (F13/ML3) — an upstairs bed isn't in the
+  // way of the sofa under it. Absent levelId = ground.
+  if ((a.levelId ?? 'ground') !== (b.levelId ?? 'ground')) return false
   // Group-mates never collide with each other — a stacked mattress sits inside
   // its frame's OBB by design, and grouped pieces move as a unit.
   if (a.groupId && b.groupId === a.groupId) return false

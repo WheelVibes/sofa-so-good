@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C225 / ML3b] Level-scoped placement collision
+Items on different storeys no longer collide: one level-equality gate in `itemsCollide`
+(covers `canPlace`, `findItemOverlaps`, design score, reports — zero caller changes), and
+`placementWalls(state, levelId?)` routes an upper-level item's wall validation to its own
+storey's walls via `levelAsPlan` (ground/unknown ids keep today's behaviour). Drag, ghost,
+rotate/flush/mirror/preset actions pass the item's `levelId`. 5 new collision tests.
+
 ## [C219 / LP5] Lighting plan — per-room lux estimate + recommended-level check
 New pure `lighting2d/roomLux.ts`: lumen-method estimate per room (registry candela → lumens via
 4π × a documented scene-calibration constant; utilisation factor 0.45; CIBSE/IES/EN-12464-sourced

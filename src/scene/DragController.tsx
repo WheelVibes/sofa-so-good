@@ -254,7 +254,7 @@ export function DragController() {
       // Inside the per-room editor this is the room's solid perimeter (so a
       // piece can't be dragged past the walls into adjacent rooms); elsewhere a
       // custom plan's own walls / the fixed flat's door-aware walls.
-      const planWalls = placementWalls(after)
+      const planWalls = placementWalls(after, afterById.get(id)?.levelId)
       let valid = true
       for (const mid of movedIds) {
         const item = afterById.get(mid)

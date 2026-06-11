@@ -215,3 +215,27 @@ describe('placement', () => {
     })
   })
 })
+
+describe('multi-storey collision (F13/ML3)', () => {
+  it('items on different levels never collide; same level still does', () => {
+    const a: FurnitureItem = {
+      id: 'a',
+      defId: 'bed-double',
+      position: [2, 2],
+      rotation: 0,
+      props: {},
+    }
+    const b: FurnitureItem = { ...a, id: 'b', levelId: 'lvl-2' }
+    // Identical footprints: cross-level → no overlap, same level → overlap.
+    expect(findItemOverlaps([a, b], BUILTIN_CATALOG)).toEqual([])
+    expect(findItemOverlaps([a, { ...b, levelId: undefined }], BUILTIN_CATALOG)).toHaveLength(1)
+    expect(
+      canPlace(b, BUILTIN_CATALOG['bed-double'], {
+        others: [a],
+        defs: BUILTIN_CATALOG,
+        doors: {},
+        walls: [],
+      }),
+    ).toBe(true)
+  })
+})

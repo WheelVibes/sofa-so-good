@@ -70,9 +70,10 @@ standing themed backlog below + the existing sections further down hold the open
   pure `floorplan/levels.ts` resolution layer). Build phases ML1–ML7 below, one commit each:
   - [x] ML1 (C221) types+schema round-trip + `levels.ts` helpers + tests (incl. level-aware finish-key collectors)
   - [x] ML2 (C222) PlanShell stacked rendering + level-visibility View control (desktop+mobile)
-  - [~] ML3 furniture level-awareness — ML3a (C223) rendering done (elevation offset + level
-    filter in FurnitureLayer); TAIL: drag/placement/collision scoped to the item's level
-    (levelCollisionWalls + DragController/placementWalls routing + setting levelId on add).
+  - [~] ML3 furniture level-awareness — ML3a (C223) rendering + ML3b (C225) collision (level
+    gate in itemsCollide, placementWalls(levelId) routing, callers plumbed). TAIL: setting
+    levelId on ADD (needs ML4 level tabs / ML5 room-editor context); walkway/narrow-gap +
+    walk-mode blockers level gating.
   - [ ] ML4 2D editor level tabs + add/remove level
   - [ ] ML5 room editor/finishes/score/report per level
   - [ ] ML6 stair-connectivity advisory + walk teleport + real maisonette/loft templates
