@@ -29,6 +29,8 @@ export interface ElectricalPoint {
   kind: ElectricalKind
   /** Optional free-text annotation (e.g. "fridge", "study desk"). */
   label?: string
+  /** Storey the point sits on; absent = ground (F13). */
+  levelId?: string
 }
 
 /** One schedule row: how many of a given kind, with a friendly label. */
@@ -92,6 +94,7 @@ export function buildElectricalPlan(plan: FloorPlan, points: ElectricalPoint[]):
     if (!VALID_KINDS.has(kind)) continue
     const out: ElectricalPoint = { x: num(p.x), z: num(p.z), kind }
     if (typeof p.label === 'string' && p.label.length > 0) out.label = p.label
+    if (typeof p.levelId === 'string' && p.levelId.length > 0) out.levelId = p.levelId
     clean.push(out)
   }
 

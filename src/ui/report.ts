@@ -20,11 +20,18 @@ import { projectAllElevations } from '../elevation/projectElevation'
 import { isFeatureEnabled } from '../features/featureFlags'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
-import { diffWalls } from '../floorplan/demolitionPlan'
+import { diffWalls, diffWallsByLevel, type LevelWallDiff } from '../floorplan/demolitionPlan'
 import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
+import {
+  allPlanRooms,
+  isMultiLevel,
+  itemsOnLevel,
+  levelAsPlan,
+  planLevels,
+} from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import type { FloorPlan } from '../floorplan/types'
-import { planRoomArea, planTotalArea } from '../floorplan/types'
+import { planRoomArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureCategory, FurnitureDef, FurnitureItem } from '../furniture/types'
@@ -108,6 +115,15 @@ export function buildReportHtml(
   budgetTarget?: number | null,
   baselinePlan?: FloorPlan,
 ): string {
+  // Multi-storey fan-out (F13): on a multi-level plan every plan-derived
+  // diagram (floor plan, dimensioned plan, hacking plan, lighting plan) renders
+  // once per storey, captioned with the storey name; tables/schedules stay
+  // unified. Single-storey plans keep the exact whole-plan output.
+  const levels = planLevels(plan)
+  const multi = isMultiLevel(plan)
+  const storeyCap = (name: string) =>
+    `<div style="font-size:11px;color:#6b7280;margin-bottom:4px">${esc(name)}</div>`
+
   // Finishes-by-room section: floor + wall material names per non-external room.
   // Material ids resolve to friendly names via the builtin catalog (DLC/custom
   // ids fall back to the raw id). Only rendered when finishes are supplied.
@@ -168,23 +184,32 @@ export function buildReportHtml(
   // / polygon rooms omit them (a bounding box would mislead) — area only.
   // Show a ceiling-treatment column only when the feature is on and at least one
   // room actually has a non-flat ceiling (avoids an all-"Flat" column).
+  const roomsAll = allPlanRooms(plan)
   const showCeiling =
     isFeatureEnabled('ceilingDesign') &&
-    plan.rooms.some((r) => r.ceiling && r.ceiling.style !== 'flat')
+    roomsAll.some((r) => r.ceiling && r.ceiling.style !== 'flat')
   const roomHeader = `<tr class="cat"><td>Room</td><td class="dim">Size</td><td class="num">Ceiling</td>${
     showCeiling ? '<td>Ceiling style</td>' : ''
   }<td class="num">Area</td></tr>`
+  const roomRow = (r: (typeof plan.rooms)[number], ceilingDefault: number) => {
+    const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
+    const height = formatLength(r.ceilingHeight ?? ceilingDefault, units)
+    const ceilCell = showCeiling ? `<td>${esc(ceilingStyleLabel(r.ceiling))}</td>` : ''
+    return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${esc(height)}</td>${ceilCell}<td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
+  }
+  // Multi-storey: group the room schedule by storey (a subhead row per level).
   const roomRows =
     roomHeader +
-    plan.rooms
-      .map((r) => {
-        const dims = !r.polygon && !r.extension ? formatDims(r.width, r.depth, units) : ''
-        const height = formatLength(r.ceilingHeight ?? plan.ceilingHeight, units)
-        const ceilCell = showCeiling ? `<td>${esc(ceilingStyleLabel(r.ceiling))}</td>` : ''
-        return `<tr><td>${esc(r.name)}</td><td class="dim">${dims}</td><td class="num">${esc(height)}</td>${ceilCell}<td class="num">${formatArea(planRoomArea(r), units)}</td></tr>`
-      })
-      .join('')
-  const totalArea = planTotalArea(plan)
+    (multi
+      ? levels
+          .map(
+            (l) =>
+              `<tr class="cat"><td colspan="${showCeiling ? 5 : 4}">${esc(l.name)}</td></tr>` +
+              l.rooms.map((r) => roomRow(r, l.ceilingHeight ?? plan.ceilingHeight)).join(''),
+          )
+          .join('')
+      : plan.rooms.map((r) => roomRow(r, plan.ceilingHeight)).join(''))
+  const totalArea = roomsAll.reduce((s, r) => s + planRoomArea(r), 0)
 
   // Furniture grouped by category.
   const byCat = new Map<
@@ -250,21 +275,39 @@ export function buildReportHtml(
 
   // Furniture footprints (top-down OBB corners) for the plan diagram, so the
   // report's floor plan shows a furnished layout — "where everything goes".
-  const planFootprints = items
-    .map((it) => {
-      const def = catalog[it.defId]
-      // Guard defaultFootprint: a malformed def shouldn't crash the whole report.
-      if (!def?.defaultFootprint) return null
-      return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
-    })
-    .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
-  const planSvg = reportPlanSvg(plan, annotations, units, planFootprints)
+  const footprintsOf = (list: FurnitureItem[]) =>
+    list
+      .map((it) => {
+        const def = catalog[it.defId]
+        // Guard defaultFootprint: a malformed def shouldn't crash the whole report.
+        if (!def?.defaultFootprint) return null
+        return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
+      })
+      .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
+  // One captioned diagram per storey on multi-level plans (items filtered to
+  // their storey; pinned annotations are ground-floor world coords).
+  const planFigures = multi
+    ? levels
+        .map((level, i) => {
+          const svg = reportPlanSvg(
+            levelAsPlan(plan, level),
+            i === 0 ? annotations : [],
+            units,
+            footprintsOf(itemsOnLevel(items, level.id)),
+          )
+          return svg ? `<div class="plan-wrap">${storeyCap(level.name)}${svg}</div>` : ''
+        })
+        .join('')
+    : (() => {
+        const svg = reportPlanSvg(plan, annotations, units, footprintsOf(items))
+        return svg ? `<div class="plan-wrap">${svg}</div>` : ''
+      })()
   // Legend: the furniture categories actually present, colour-keyed to the plan.
   const presentCats = FURNITURE_CATEGORIES.filter((c) =>
     items.some((it) => catalog[it.defId]?.category === c),
   )
   const planLegend =
-    planSvg && presentCats.length > 0
+    planFigures && presentCats.length > 0
       ? `<div class="plan-legend">${presentCats
           .map(
             (c) =>
@@ -454,23 +497,76 @@ export function buildReportHtml(
 
   // Dimensioned plan — an auto-generated running-dimension drawing (overall wall
   // lengths + per-room sizes), a pro 2D deliverable competitors auto-produce.
-  const dimSvg =
-    Array.isArray(plan.walls) && plan.walls.length > 0
-      ? dimensionSvg(plan, { palette: { ink: '#374151', faint: '#cbd5e1' }, widthPx: 700 })
+  // Multi-storey: one captioned drawing per storey with walls.
+  const dimFigures = multi
+    ? levels
+        .filter((l) => Array.isArray(l.walls) && l.walls.length > 0)
+        .map(
+          (level) =>
+            `<div class="plan-wrap">${storeyCap(level.name)}${dimensionSvg(
+              levelAsPlan(plan, level),
+              {
+                palette: { ink: '#374151', faint: '#cbd5e1' },
+                widthPx: 700,
+              },
+            )}</div>`,
+        )
+        .join('')
+    : Array.isArray(plan.walls) && plan.walls.length > 0
+      ? `<div class="plan-wrap">${dimensionSvg(plan, { palette: { ink: '#374151', faint: '#cbd5e1' }, widthPx: 700 })}</div>`
       : ''
-  const dimensionedPlanSection = dimSvg
-    ? `<div class="elev-section"><h2>Dimensioned plan</h2><div class="plan-wrap">${dimSvg}</div></div>`
+  const dimensionedPlanSection = dimFigures
+    ? `<div class="elev-section"><h2>Dimensioned plan</h2>${dimFigures}</div>`
     : ''
 
   // Demolition / hacking plan — walls added or removed vs the as-loaded baseline
   // (template / saved plan). Only shown when the user actually changed walls.
-  const wallDiff = baselinePlan ? diffWalls(baselinePlan, plan) : null
-  const hackingSection =
-    wallDiff && (wallDiff.demolished.length > 0 || wallDiff.added.length > 0)
+  // Multi-storey (either side): each storey diffs against the SAME storey of
+  // the baseline; storeys existing on only one side get a whole-storey callout.
+  const DEMO_PALETTE = {
+    kept: '#9ca3af',
+    demolished: '#dc2626',
+    added: '#16a34a',
+    ink: '#374151',
+  }
+  const hackingMulti = baselinePlan != null && (multi || isMultiLevel(baselinePlan))
+  const levelDiffs: LevelWallDiff[] = hackingMulti
+    ? diffWallsByLevel(baselinePlan, plan).filter(
+        (r) => r.diff.demolished.length > 0 || r.diff.added.length > 0,
+      )
+    : []
+  const wallDiff = baselinePlan && !hackingMulti ? diffWalls(baselinePlan, plan) : null
+  const hackingSummary = (demo: number, hackedM: number, added: number, addedM: number) =>
+    `<div class="warn">${demo} wall${demo === 1 ? '' : 's'} hacked (${hackedM.toFixed(1)} m) · ${added} new (${addedM.toFixed(1)} m) vs the original layout — hacking needs HDB approval.</div>`
+  const hackingSection = hackingMulti
+    ? levelDiffs.length > 0
       ? `<div class="elev-section"><h2>Hacking &amp; new walls</h2>
-      <div class="warn">${wallDiff.demolished.length} wall${wallDiff.demolished.length === 1 ? '' : 's'} hacked (${wallDiff.hackedLengthM.toFixed(1)} m) · ${wallDiff.added.length} new (${wallDiff.addedLengthM.toFixed(1)} m) vs the original layout — hacking needs HDB approval.</div>
+      ${hackingSummary(
+        levelDiffs.reduce((s, r) => s + r.diff.demolished.length, 0),
+        levelDiffs.reduce((s, r) => s + r.diff.hackedLengthM, 0),
+        levelDiffs.reduce((s, r) => s + r.diff.added.length, 0),
+        levelDiffs.reduce((s, r) => s + r.diff.addedLengthM, 0),
+      )}
+      ${levelDiffs
+        .map(
+          (r) =>
+            `<div class="plan-wrap">${storeyCap(r.levelName)}${
+              r.wholeStorey
+                ? `<div class="warn">${
+                    r.wholeStorey === 'added'
+                      ? 'Entire storey added — it does not exist in the original layout.'
+                      : 'Entire storey removed — it existed only in the original layout.'
+                  }</div>`
+                : ''
+            }${demolitionSvg(r.diff, { palette: DEMO_PALETTE, widthPx: 700 })}</div>`,
+        )
+        .join('')}</div>`
+      : ''
+    : wallDiff && (wallDiff.demolished.length > 0 || wallDiff.added.length > 0)
+      ? `<div class="elev-section"><h2>Hacking &amp; new walls</h2>
+      ${hackingSummary(wallDiff.demolished.length, wallDiff.hackedLengthM, wallDiff.added.length, wallDiff.addedLengthM)}
       <div class="plan-wrap">${demolitionSvg(wallDiff, {
-        palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
+        palette: DEMO_PALETTE,
         widthPx: 700,
       })}</div></div>`
       : ''
@@ -547,9 +643,26 @@ export function buildReportHtml(
   // recommended residential bands. Only when the design actually has lights.
   const lighting = hasItems ? buildLightingPlan(items, catalog) : { lights: [], schedule: [] }
   const roomLux = lighting.lights.length ? estimateRoomLux(plan, lighting.lights) : []
+  // Multi-storey: one captioned diagram per lit storey (fixtures filtered to
+  // their storey); the fixture schedule + lux table stay unified below.
+  const lightingFigures = !lighting.lights.length
+    ? ''
+    : multi
+      ? levels
+          .filter((l) => itemsOnLevel(lighting.lights, l.id).length > 0)
+          .map(
+            (level) =>
+              `<div class="plan-wrap">${storeyCap(level.name)}${lightingPlanSvg(
+                levelAsPlan(plan, level),
+                itemsOnLevel(lighting.lights, level.id),
+                { palette: LIGHTING_PRINT },
+              )}</div>`,
+          )
+          .join('')
+      : `<div class="plan-wrap">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>`
   const lightingSection = lighting.lights.length
     ? `<div class="elev-section"><h2>Lighting plan</h2>
-        <div class="plan-wrap">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>
+        ${lightingFigures}
         <table style="margin-top:12px"><tr class="cat"><td>Fixture</td><td class="num">Qty</td><td class="num">Height</td><td class="num">Intensity</td></tr>${lighting.schedule
           .map(
             (r) =>
@@ -649,7 +762,7 @@ export function buildReportHtml(
 </style></head>
 <body>
   <h1>${esc(plan.name)}</h1>
-  <div class="sub">Interior design report · ${date} · ${plan.rooms.length} ${plan.rooms.length === 1 ? 'room' : 'rooms'} · ${formatArea(totalArea, units)} · ${items.length} furniture pieces</div>
+  <div class="sub">Interior design report · ${date} · ${roomsAll.length} ${roomsAll.length === 1 ? 'room' : 'rooms'} · ${formatArea(totalArea, units)} · ${items.length} furniture pieces</div>
   ${note?.trim() ? `<div class="note">${esc(note.trim())}</div>` : ''}
   ${hero}
   <div class="cols">
@@ -657,7 +770,7 @@ export function buildReportHtml(
       <h2>Rooms &amp; areas</h2>
       <table>${roomRows}</table>
       <div class="total"><span>Total interior</span><span>${formatArea(totalArea, units)}</span></div>
-      ${planSvg ? `<div class="plan-wrap">${planSvg}</div>${planLegend}` : ''}
+      ${planFigures ? `${planFigures}${planLegend}` : ''}
     </div>
     <div class="col">
       <h2>Furniture &amp; budget</h2>

@@ -10,9 +10,10 @@
  * from `current` is demolished (hacked); present in `current` but absent from
  * `original` is added (new); present in both is kept.
  *
- * Self-contained: imports only `./types`.
+ * Self-contained: imports only `./levels` and `./types`.
  */
 
+import { type PlanLevel, planLevels } from './levels'
 import { type FloorPlan, type PlanWall, wallLength } from './types'
 
 export interface WallDiff {
@@ -97,4 +98,50 @@ export function diffWalls(original: FloorPlan, current: FloorPlan): WallDiff {
     hackedLengthM: sumLen(demolished),
     addedLengthM: sumLen(added),
   }
+}
+
+/** One storey's wall diff (F13 — per-storey demolition sheets). */
+export interface LevelWallDiff {
+  levelId: string
+  levelName: string
+  diff: WallDiff
+  /** Set when the storey exists in only one plan: `'added'` = the whole storey
+   *  is new in `current`, `'removed'` = the whole storey was demolished. */
+  wholeStorey?: 'added' | 'removed'
+}
+
+/** A FloorPlan-shaped view of one level's walls for {@link diffWalls}. */
+function levelWalls(level: PlanLevel | undefined): FloorPlan {
+  return { walls: level ? level.walls : [] } as FloorPlan
+}
+
+/**
+ * Diff `current` against `original` storey by storey: each level diffs against
+ * the SAME level id of the baseline (level ids are stable across edits). A
+ * storey present in only one side is reported whole — every wall added (only in
+ * `current`) or demolished (only in `original`). Level order: `current`'s
+ * storeys first (ground first), then any baseline-only storeys.
+ */
+export function diffWallsByLevel(original: FloorPlan, current: FloorPlan): LevelWallDiff[] {
+  const origLevels = new Map(planLevels(original).map((l) => [l.id, l] as const))
+  const rows: LevelWallDiff[] = []
+  for (const level of planLevels(current)) {
+    const base = origLevels.get(level.id)
+    origLevels.delete(level.id)
+    rows.push({
+      levelId: level.id,
+      levelName: level.name,
+      diff: diffWalls(levelWalls(base), levelWalls(level)),
+      ...(base ? {} : { wholeStorey: 'added' as const }),
+    })
+  }
+  for (const level of origLevels.values()) {
+    rows.push({
+      levelId: level.id,
+      levelName: level.name,
+      diff: diffWalls(levelWalls(level), levelWalls(undefined)),
+      wholeStorey: 'removed',
+    })
+  }
+  return rows
 }

@@ -34,8 +34,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 ---
 
 ## Multi-storey remnants (F13 core shipped C221–C235 — see CHANGELOG)
-- [ ] Per-storey 2D drawing sheets: the report/drawing-set plan diagrams (plan SVG, electrical,
-  demolition, auto-dimension) still draw the ground floor only.
 - [ ] Custom-plan per-level wall pinches in `findNarrowGaps` (all custom-plan wall pinches are
   skipped today — pre-existing limitation).
 

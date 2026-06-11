@@ -60,6 +60,16 @@ export function levelOfItem(plan: FloorPlan, item: Pick<FurnitureItem, 'levelId'
   return levelById(plan, item.levelId)
 }
 
+/** The entries sitting on one storey (`levelId` absent = ground). Works for any
+ *  level-tagged record (furniture items, plan lights, electrical points) — the
+ *  per-storey filter every fanned-out 2D diagram uses. */
+export function itemsOnLevel<T extends Pick<FurnitureItem, 'levelId'>>(
+  items: T[],
+  levelId: string,
+): T[] {
+  return items.filter((it) => (it.levelId ?? GROUND_LEVEL_ID) === levelId)
+}
+
 /** The level containing a room id, or null when no level has it. */
 export function levelOfRoom(plan: FloorPlan, roomId: string): PlanLevel | null {
   for (const level of planLevels(plan)) {

@@ -1,5 +1,6 @@
 import { isFeatureEnabled } from '../features/featureFlags'
 import type { ElectricalPoint } from '../floorplan/electricalPlan'
+import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
 import type { FloorPlan } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
@@ -25,31 +26,36 @@ function deriveElectricalPoints(
     if (!def) continue
     const [x, z] = it.position
     const id = it.defId
-    if (/aircon/.test(id)) pts.push({ x, z, kind: 'aircon' })
-    else if (/tv-wall|flatscreen-tv/.test(id)) pts.push({ x, z, kind: 'tv-point' })
-    else if (/shower|bathtub/.test(id)) pts.push({ x, z, kind: 'water-heater' })
+    // Carry the item's storey so per-storey sheets can filter (F13).
+    const lvl = it.levelId ? { levelId: it.levelId } : {}
+    if (/aircon/.test(id)) pts.push({ x, z, kind: 'aircon', ...lvl })
+    else if (/tv-wall|flatscreen-tv/.test(id)) pts.push({ x, z, kind: 'tv-point', ...lvl })
+    else if (/shower|bathtub/.test(id)) pts.push({ x, z, kind: 'water-heater', ...lvl })
     else if (/desk/.test(id)) {
-      pts.push({ x, z, kind: 'socket-double' })
-      pts.push({ x: x + 0.25, z, kind: 'data' })
+      pts.push({ x, z, kind: 'socket-double', ...lvl })
+      pts.push({ x: x + 0.25, z, kind: 'data', ...lvl })
     } else if (
       SOCKET_RE.test(id) ||
       def.category === 'appliances' ||
       def.category === 'electronics'
     )
-      pts.push({ x, z, kind: 'socket' })
+      pts.push({ x, z, kind: 'socket', ...lvl })
   }
-  // A light switch just inside each door (on the wall, nudged off the centreline).
-  if (Array.isArray(plan.openings) && Array.isArray(plan.walls)) {
-    for (const o of plan.openings) {
+  // A light switch just inside each door (on the wall, nudged off the
+  // centreline) — on every storey, tagged with its level.
+  for (const level of planLevels(plan)) {
+    if (!Array.isArray(level.openings) || !Array.isArray(level.walls)) continue
+    const lvl = level.id !== GROUND_LEVEL_ID ? { levelId: level.id } : {}
+    for (const o of level.openings) {
       if (o.kind !== 'door') continue
-      const wall = plan.walls.find((w) => w.id === o.wallId)
+      const wall = level.walls.find((w) => w.id === o.wallId)
       if (!wall) continue
       const len = wallLength(wall)
       if (len === 0) continue
       const ux = (wall.end[0] - wall.start[0]) / len
       const uz = (wall.end[1] - wall.start[1]) / len
       const at = o.offset + o.width + 0.15 // just past the leaf
-      pts.push({ x: wall.start[0] + ux * at, z: wall.start[1] + uz * at, kind: 'switch' })
+      pts.push({ x: wall.start[0] + ux * at, z: wall.start[1] + uz * at, kind: 'switch', ...lvl })
     }
   }
   return pts

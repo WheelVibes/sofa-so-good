@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { projectAllElevations, type WallElevation } from '../elevation/projectElevation'
+import { isMultiLevel, itemsOnLevel, levelAsPlan, planLevels } from '../floorplan/levels'
 import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
@@ -77,12 +78,19 @@ export function ElevationPanel() {
   const svg = current
     ? elevationSvg(current, { palette: PALETTE, units }).replace('<svg ', '<svg width="100%" ')
     : ''
-  const lightSvg = lighting.lights.length
-    ? lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PALETTE }).replace(
-        '<svg ',
-        '<svg width="100%" ',
-      )
-    : ''
+  // Lighting diagrams: one per storey on multi-level plans (fixtures filtered
+  // to their storey — F13), a single whole-plan diagram otherwise.
+  const lightFigures: { key: string; caption: string | null; svg: string }[] =
+    lighting.lights.length === 0
+      ? []
+      : (isMultiLevel(plan) ? planLevels(plan) : [null]).flatMap((level) => {
+          const lights = level ? itemsOnLevel(lighting.lights, level.id) : lighting.lights
+          if (lights.length === 0) return []
+          const figSvg = lightingPlanSvg(level ? levelAsPlan(plan, level) : plan, lights, {
+            palette: LIGHTING_PALETTE,
+          }).replace('<svg ', '<svg width="100%" ')
+          return [{ key: level?.id ?? 'plan', caption: level ? level.name : null, svg: figSvg }]
+        })
 
   return (
     <aside className="panel mini aux" id="elevationPanel" style={{ width: 380 }}>
@@ -189,17 +197,32 @@ export function ElevationPanel() {
               {lighting.lights.length} fixture{lighting.lights.length > 1 ? 's' : ''} ·{' '}
               {lighting.schedule.length} type{lighting.schedule.length > 1 ? 's' : ''}
             </div>
-            <div
-              style={{
-                width: '100%',
-                background: 'var(--surface-2)',
-                border: '1px solid var(--border)',
-                borderRadius: 'var(--r-2)',
-                padding: 'var(--s-2)',
-              }}
-              // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is built by lightingPlanSvg from numeric data + fixed palette (no user HTML).
-              dangerouslySetInnerHTML={{ __html: lightSvg }}
-            />
+            {lightFigures.map((fig) => (
+              <div key={fig.key} style={{ marginBottom: 'var(--s-2)' }}>
+                {fig.caption ? (
+                  <div
+                    style={{
+                      fontSize: 'var(--t-xs)',
+                      color: 'var(--text-2)',
+                      marginBottom: 'var(--s-1)',
+                    }}
+                  >
+                    {fig.caption}
+                  </div>
+                ) : null}
+                <div
+                  style={{
+                    width: '100%',
+                    background: 'var(--surface-2)',
+                    border: '1px solid var(--border)',
+                    borderRadius: 'var(--r-2)',
+                    padding: 'var(--s-2)',
+                  }}
+                  // biome-ignore lint/security/noDangerouslySetInnerHtml: SVG is built by lightingPlanSvg from numeric data + fixed palette (no user HTML).
+                  dangerouslySetInnerHTML={{ __html: fig.svg }}
+                />
+              </div>
+            ))}
             {/* Per-room lux estimate vs recommended residential levels (LP5). */}
             {roomLux.length > 0 && (
               <div style={{ marginTop: 'var(--s-3)' }}>

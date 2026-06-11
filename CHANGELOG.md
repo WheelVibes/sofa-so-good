@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C236] Per-storey drawing sheets
+The 2D diagrams fan out per storey on multi-level plans: the report's plan figure + furniture
+footprints, lighting diagrams (report, Drawings panel, drawing set), electrical and demolition
+plans all render one captioned sheet per level via `planLevels`/`levelAsPlan`/`itemsOnLevel`
+(items filtered to their storey; demolition diffs each storey against the SAME storey of the
+baseline, with whole-storey added/removed callouts). Single-storey output unchanged (existing
+tests untouched). Salvaged from an interrupted agent's WIP (its tests included — 190 affected
+tests pass), verified in-app: maisonette Lighting tab shows both storeys' diagrams + a schedule
+spanning both levels' rooms.
+
 ## [C238 / F1] HQ render — progressive path-traced photoreal still (marquee)
 `three-gpu-pathtracer` (MIT, dynamic-imported chunk) drives a dedicated offscreen renderer at the
 chosen resolution (HD→4K, 64–1024 samples) so the live raster pipeline is untouched: a sanitized

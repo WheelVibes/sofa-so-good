@@ -3,6 +3,7 @@ import {
   allPlanRooms,
   GROUND_LEVEL_ID,
   isMultiLevel,
+  itemsOnLevel,
   levelAsPlan,
   levelById,
   levelElevation,
@@ -78,6 +79,19 @@ describe('levelOfRoom / allPlanRooms', () => {
     expect(allPlanRooms(multi).map((r) => r.id)).toEqual(['g-living', 'up-bed'])
     // Single-storey plans return the same array (no realloc).
     expect(allPlanRooms(single)).toBe(single.rooms)
+  })
+})
+
+describe('itemsOnLevel', () => {
+  it('filters level-tagged records to one storey, untagged = ground', () => {
+    const items = [
+      { id: 'a' },
+      { id: 'b', levelId: GROUND_LEVEL_ID },
+      { id: 'c', levelId: 'lvl-2' },
+    ]
+    expect(itemsOnLevel(items, GROUND_LEVEL_ID).map((i) => i.id)).toEqual(['a', 'b'])
+    expect(itemsOnLevel(items, 'lvl-2').map((i) => i.id)).toEqual(['c'])
+    expect(itemsOnLevel(items, 'other')).toEqual([])
   })
 })
 

@@ -12,14 +12,22 @@ import { itemFootprint } from '../collision/placement'
 import { projectAllElevations } from '../elevation/projectElevation'
 import { buildFfeSchedule } from '../ffe/ffeSchedule'
 import { dimensionSvg } from '../floorplan/autoDimensionSvg'
-import { diffWalls } from '../floorplan/demolitionPlan'
+import { diffWalls, diffWallsByLevel } from '../floorplan/demolitionPlan'
 import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
 import { buildElectricalPlan, type ElectricalPoint } from '../floorplan/electricalPlan'
 import { electricalSvg } from '../floorplan/electricalPlanSvg'
+import {
+  allPlanRooms,
+  isMultiLevel,
+  itemsOnLevel,
+  levelAsPlan,
+  type PlanLevel,
+  planLevels,
+} from '../floorplan/levels'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
-import { planRoomArea, planTotalArea } from '../floorplan/types'
+import { planRoomArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
@@ -49,12 +57,16 @@ const esc = (s: string) =>
   )
 
 interface Sheet {
-  /** Sheet number, e.g. "A-1". */
-  num: string
+  /** Sheet number, e.g. "A-1" — assigned sequentially once all sheets exist. */
+  num?: string
   name: string
   /** Inner HTML for the sheet's drawing area. */
   body: string
 }
+
+/** Small storey note rendered above a sheet's drawing (print inks). */
+const storeyNote = (text: string) =>
+  `<div style="color:#b45309;font-weight:600;font-size:12px">${esc(text)}</div>`
 
 /** Build the full drawing-set HTML document. */
 export function buildDrawingSetHtml(
@@ -72,66 +84,89 @@ export function buildDrawingSetHtml(
   })
   const sheets: Sheet[] = []
 
-  // A-1 · Floor plan (furnished footprints under the walls, like the report).
-  const planFootprints = items
-    .map((it) => {
-      const def = catalog[it.defId]
-      if (!def?.defaultFootprint) return null
-      return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
-    })
-    .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
-  const planSvg = reportPlanSvg(plan, [], units, planFootprints)
-  sheets.push({ num: 'A-1', name: 'Floor plan', body: `<div class="draw">${planSvg}</div>` })
+  // Per-storey fan-out (F13): on a multi-level plan every plan-derived sheet
+  // renders once per storey ("… — Ground floor", "… — Upper storey"), with the
+  // items/points filtered to that storey. Single-storey plans keep the plain
+  // sheet names + whole-plan path so their output is unchanged.
+  const levels = planLevels(plan)
+  const multi = isMultiLevel(plan)
+  const cap = (base: string, level: PlanLevel) => (multi ? `${base} — ${level.name}` : base)
 
-  // A-2… · One elevation per wall that carries furniture or openings.
+  // A-1 · Floor plan (furnished footprints under the walls, like the report).
+  const footprintsOf = (list: FurnitureItem[]) =>
+    list
+      .map((it) => {
+        const def = catalog[it.defId]
+        if (!def?.defaultFootprint) return null
+        return { corners: obbCorners(itemFootprint(it, def)), fill: CATEGORY_COLORS[def.category] }
+      })
+      .filter((f): f is { corners: [number, number][]; fill: string } => f != null)
+  for (const level of levels) {
+    const planSvg = reportPlanSvg(
+      levelAsPlan(plan, level),
+      [],
+      units,
+      footprintsOf(itemsOnLevel(items, level.id)),
+    )
+    sheets.push({ name: cap('Floor plan', level), body: `<div class="draw">${planSvg}</div>` })
+  }
+
+  // One elevation per wall that carries furniture or openings.
   const elevations = projectAllElevations(plan, items, catalog).filter(
     (e) => e.length > 0 && e.height > 0 && (e.items.length > 0 || e.openings.length > 0),
   )
   elevations.forEach((e, i) => {
     sheets.push({
-      num: `A-${2 + i}`,
       name: elevationCaption(e, i, units),
       body: `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units })}</div>`,
     })
   })
 
-  // Lighting plan (+ per-room lux estimate vs recommended residential bands).
+  // Lighting plan (+ per-room lux estimate vs recommended residential bands) —
+  // one diagram sheet per lit storey; the fixture schedule + lux table stay
+  // unified (whole home) and ride on the last lighting sheet.
   const lighting = buildLightingPlan(items, catalog)
-  let next = 2 + elevations.length
   if (lighting.lights.length) {
-    sheets.push({
-      num: `A-${next}`,
-      name: 'Lighting plan',
-      body: `<div class="draw">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>
-        <table class="sched"><tr class="h"><td>Fixture</td><td class="n">Qty</td><td class="n">Height</td><td class="n">Intensity</td></tr>${lighting.schedule
-          .map(
-            (r) =>
-              `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td><td class="n">${esc(formatLength(r.height, units))}</td><td class="n">${r.intensity} cd</td></tr>`,
-          )
-          .join('')}</table>
-        ${roomLuxTableHtml(estimateRoomLux(plan, lighting.lights), units, { header: 'h', num: 'n', table: 'sched' })}`,
+    const lightSched = `<table class="sched"><tr class="h"><td>Fixture</td><td class="n">Qty</td><td class="n">Height</td><td class="n">Intensity</td></tr>${lighting.schedule
+      .map(
+        (r) =>
+          `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td><td class="n">${esc(formatLength(r.height, units))}</td><td class="n">${r.intensity} cd</td></tr>`,
+      )
+      .join('')}</table>
+        ${roomLuxTableHtml(estimateRoomLux(plan, lighting.lights), units, { header: 'h', num: 'n', table: 'sched' })}`
+    const lit = levels.filter((l) => itemsOnLevel(lighting.lights, l.id).length > 0)
+    lit.forEach((level, i) => {
+      const svg = lightingPlanSvg(
+        levelAsPlan(plan, level),
+        itemsOnLevel(lighting.lights, level.id),
+        {
+          palette: LIGHTING_PRINT,
+        },
+      )
+      sheets.push({
+        name: cap('Lighting plan', level),
+        body: `<div class="draw">${svg}</div>
+        ${i === lit.length - 1 ? lightSched : ''}`,
+      })
     })
-    next += 1
   }
 
-  // Dimensioned plan — overall + per-room running dimensions.
-  if (Array.isArray(plan.walls) && plan.walls.length > 0) {
+  // Dimensioned plan — overall + per-room running dimensions, per storey.
+  for (const level of levels) {
+    if (!Array.isArray(level.walls) || level.walls.length === 0) continue
     sheets.push({
-      num: `A-${next}`,
-      name: 'Dimensioned plan',
-      body: `<div class="draw">${dimensionSvg(plan, {
+      name: cap('Dimensioned plan', level),
+      body: `<div class="draw">${dimensionSvg(levelAsPlan(plan, level), {
         palette: { ink: '#374151', faint: '#cbd5e1' },
         widthPx: 900,
       })}</div>`,
     })
-    next += 1
   }
 
   // Cross-section — a vertical cut through the middle of the plan (along Z).
   const section = buildSection(plan, { axis: 'z', at: plan.extent[1] / 2 })
   if (section.walls.length > 0) {
     sheets.push({
-      num: `A-${next}`,
       name: 'Section A–A',
       body: `<div class="draw">${sectionSvg(section, {
         palette: {
@@ -144,39 +179,64 @@ export function buildDrawingSetHtml(
         widthPx: 900,
       })}</div>`,
     })
-    next += 1
   }
 
-  // Electrical / power & data plan (points derived from appliances + doors).
+  // Electrical / power & data plan (points derived from appliances + doors) —
+  // one diagram sheet per wired storey; the unified point schedule rides on the
+  // last electrical sheet.
   if (electricalPoints && electricalPoints.length > 0) {
     const elec = buildElectricalPlan(plan, electricalPoints)
-    sheets.push({
-      num: `A-${next}`,
-      name: 'Electrical plan',
-      body: `<div class="draw">${electricalSvg(plan, elec, {
-        palette: { wall: '#9ca3af', ink: '#374151', symbol: '#2563eb' },
-        widthPx: 900,
-      })}</div>
-        <table class="sched"><tr class="h"><td>Point</td><td class="n">Qty</td></tr>${elec.schedule
-          .map((r) => `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td></tr>`)
-          .join('')}</table>`,
+    const elecSched = `<table class="sched"><tr class="h"><td>Point</td><td class="n">Qty</td></tr>${elec.schedule
+      .map((r) => `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td></tr>`)
+      .join('')}</table>`
+    const wired = levels.filter((l) => itemsOnLevel(elec.points, l.id).length > 0)
+    wired.forEach((level, i) => {
+      const levelPlan = levelAsPlan(plan, level)
+      const levelElec = buildElectricalPlan(levelPlan, itemsOnLevel(elec.points, level.id))
+      sheets.push({
+        name: cap('Electrical plan', level),
+        body: `<div class="draw">${electricalSvg(levelPlan, levelElec, {
+          palette: { wall: '#9ca3af', ink: '#374151', symbol: '#2563eb' },
+          widthPx: 900,
+        })}</div>
+        ${i === wired.length - 1 ? elecSched : ''}`,
+      })
     })
-    next += 1
   }
 
-  // Demolition / hacking plan — only when walls changed vs the as-loaded baseline.
+  // Demolition / hacking plan — only when walls changed vs the as-loaded
+  // baseline. Multi-storey: each storey diffs against the SAME storey of the
+  // baseline; a storey existing on only one side gets a whole-storey callout.
   if (baselinePlan) {
-    const wallDiff = diffWalls(baselinePlan, plan)
-    if (wallDiff.demolished.length > 0 || wallDiff.added.length > 0) {
-      sheets.push({
-        num: `A-${next}`,
-        name: 'Demolition & new walls',
-        body: `<div class="draw">${demolitionSvg(wallDiff, {
-          palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
-          widthPx: 900,
-        })}</div>`,
-      })
-      next += 1
+    if (multi || isMultiLevel(baselinePlan)) {
+      for (const row of diffWallsByLevel(baselinePlan, plan)) {
+        if (row.diff.demolished.length === 0 && row.diff.added.length === 0) continue
+        const note = row.wholeStorey
+          ? storeyNote(
+              row.wholeStorey === 'added'
+                ? `Entire storey added — ${row.levelName} does not exist in the original layout.`
+                : `Entire storey removed — ${row.levelName} existed only in the original layout.`,
+            )
+          : ''
+        sheets.push({
+          name: `Demolition & new walls — ${row.levelName}`,
+          body: `${note}<div class="draw">${demolitionSvg(row.diff, {
+            palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
+            widthPx: 900,
+          })}</div>`,
+        })
+      }
+    } else {
+      const wallDiff = diffWalls(baselinePlan, plan)
+      if (wallDiff.demolished.length > 0 || wallDiff.added.length > 0) {
+        sheets.push({
+          name: 'Demolition & new walls',
+          body: `<div class="draw">${demolitionSvg(wallDiff, {
+            palette: { kept: '#9ca3af', demolished: '#dc2626', added: '#16a34a', ink: '#374151' },
+            widthPx: 900,
+          })}</div>`,
+        })
+      }
     }
   }
 
@@ -185,7 +245,6 @@ export function buildDrawingSetHtml(
   if (ffe.length) {
     const dim = (n: number) => esc(formatLength(n, units))
     sheets.push({
-      num: `A-${next}`,
       name: 'FF&E schedule',
       body: `<table class="sched"><tr class="h"><td>Room</td><td>Item</td><td>Source</td><td>SKU</td><td>Size (W×D×H)</td><td class="n">Qty</td></tr>${ffe
         .map(
@@ -194,16 +253,26 @@ export function buildDrawingSetHtml(
         )
         .join('')}</table>`,
     })
-    next += 1
   }
 
-  // Cover sheet (A-0) — built last so it can index the rest.
-  const roomRows = plan.rooms
-    .map(
-      (r) =>
-        `<tr><td>${esc(r.name)}</td><td class="n">${esc(formatArea(planRoomArea(r), units))}</td></tr>`,
-    )
-    .join('')
+  // Sheet numbers are sequential over the final sheet list (A-1, A-2, …).
+  sheets.forEach((s, i) => {
+    s.num = `A-${i + 1}`
+  })
+
+  // Cover sheet (A-0) — built last so it can index the rest. Multi-storey
+  // plans group the room schedule by storey.
+  const roomRow = (r: (typeof plan.rooms)[number]) =>
+    `<tr><td>${esc(r.name)}</td><td class="n">${esc(formatArea(planRoomArea(r), units))}</td></tr>`
+  const roomRows = multi
+    ? levels
+        .map(
+          (l) =>
+            `<tr class="h"><td colspan="2">${esc(l.name)}</td></tr>${l.rooms.map(roomRow).join('')}`,
+        )
+        .join('')
+    : plan.rooms.map(roomRow).join('')
+  const totalArea = allPlanRooms(plan).reduce((s, r) => s + planRoomArea(r), 0)
   const indexRows = sheets.map((s) => `<tr><td>${s.num}</td><td>${esc(s.name)}</td></tr>`).join('')
   const cover: Sheet = {
     num: 'A-0',
@@ -212,7 +281,7 @@ export function buildDrawingSetHtml(
       <h1>${esc(plan.name)}</h1>
       <div class="cover-sub">Interior design drawing set · ${date}</div>
       <div class="cover-cols">
-        <div><h3>Rooms &amp; areas</h3><table class="sched"><tr class="h"><td>Room</td><td class="n">Area</td></tr>${roomRows}<tr class="h"><td>Total</td><td class="n">${esc(formatArea(planTotalArea(plan), units))}</td></tr></table></div>
+        <div><h3>Rooms &amp; areas</h3><table class="sched"><tr class="h"><td>Room</td><td class="n">Area</td></tr>${roomRows}<tr class="h"><td>Total</td><td class="n">${esc(formatArea(totalArea, units))}</td></tr></table></div>
         <div><h3>Sheet index</h3><table class="sched"><tr class="h"><td>No.</td><td>Sheet</td></tr><tr><td>A-0</td><td>Cover</td></tr>${indexRows}</table></div>
       </div>
     </div>`,
