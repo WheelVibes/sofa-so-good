@@ -47,7 +47,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   2–4K, denoise, download), High/Max only with raster fallback. Marquee feature; real-GPU verify deferred.
 - [ ] F3/R-HDRI [PROD] HDRI environment library (Poly Haven CC0 `.hdr`) for IBL + backdrop.
   Sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.
-- [ ] F4 [PROD] Environment-coupled render presets (sun + HDRI + exposure) with A/B compare.
+- [ ] F4 tail: A/B compare between two render presets, and HDRI coupling once F3 lands.
 - [ ] F5 [PROD] DoF + photographic camera (focal length / f-stop) on the render path; real-GPU verify.
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.

@@ -29,6 +29,7 @@ export type FeatureFlag =
   | 'smartStart'
   | 'textBrief'
   | 'panorama'
+  | 'renderPresets'
   | 'savedViews'
   | 'backdrops'
   | 'lightingMoods'
@@ -153,6 +154,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Equirect 360° capture with drag-to-look viewer + PNG export',
     default: true,
     tier: 'pro',
+  },
+  renderPresets: {
+    label: 'Render presets',
+    description: 'One-tap sun + tone + exposure photo modes in the Scene menu',
+    default: true,
+    tier: 'simple',
   },
   savedViews: {
     label: 'Saved views',

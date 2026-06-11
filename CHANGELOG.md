@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C234 / F4] Render presets — one-tap photo modes
+Pure `scene/renderPresets.ts` (4 curated combos of sun preset + tone-mapping look + exposure +
+fixture lights: Bright day / Soft morning / Golden hour / Cozy evening) + one `applyRenderPreset`
+applier shared by the Scene menu chip row and the mobile Scene sheet (`renderPresets` flag,
+simple-tier, both-modes tested). Verified: chips render in the menu; bright-day vs cozy-evening
+screenshots are dramatically distinct (noon neutral vs night filmic with fixtures on). A/B
+compare deferred until F3 HDRI lands.
+
 ## [Bug fix] Wall z-fighting at zoomed-out orbit distances (user-reported)
 The wall finish face planes sit 1 mm off the wall body; at far orbit distances the depth buffer
 can't resolve that gap and the faces strobed against the plaster (horizontal banding). Both face

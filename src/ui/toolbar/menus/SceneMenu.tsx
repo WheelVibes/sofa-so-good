@@ -6,6 +6,7 @@ import {
   LIGHTING_SCENES,
 } from '../../../scene/lighting/lightingScenes'
 import { useEffectiveHour } from '../../../scene/lighting/useEffectiveHour'
+import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import type { BackdropKind } from '../../../scene/SceneBackdrop'
 import { BACKDROPS } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS, type TimePreset } from '../../../state/slices/timeSlice'
@@ -43,6 +44,7 @@ export function SceneMenu() {
   const proMode = useStore((s) => s.uiMode === 'pro')
   const fLightingMoods = useFeature('lightingMoods')
   const fBackdrops = useFeature('backdrops')
+  const fRenderPresets = useFeature('renderPresets')
   const effectiveHour = useEffectiveHour()
   const [compassOpen, setCompassOpen] = useState(false)
 
@@ -154,6 +156,29 @@ export function SceneMenu() {
               </button>
             ))}
           </div>
+        )}
+
+        {/* ---- Render presets (F4): one-tap sun + tone + exposure modes ---- */}
+        {fRenderPresets && (
+          <>
+            <div className="scene-sep" />
+            <div className="scene-row-head">
+              <span>Render presets</span>
+            </div>
+            <div className="scene-presets moods" onClick={(e) => e.stopPropagation()}>
+              {RENDER_PRESETS.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className="scene-chip"
+                  onClick={() => applyRenderPreset(useStore.getState(), p)}
+                  title={p.sub}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </>
         )}
 
         {/* ---- Backdrop ---- */}

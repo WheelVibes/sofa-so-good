@@ -133,3 +133,10 @@ describe('panorama flag (360° capture)', () => {
     expect(resolveFlags(false, {}, false, 'pro').panorama).toBe(true)
   })
 })
+
+describe('renderPresets flag (F4)', () => {
+  it('is simple-tier: enabled in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').renderPresets).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').renderPresets).toBe(true)
+  })
+})

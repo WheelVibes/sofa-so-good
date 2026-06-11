@@ -16,6 +16,7 @@ import {
 import { useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
+import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
 import { BACKDROPS, type BackdropKind } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
@@ -181,6 +182,7 @@ export function MobileToolbar() {
   const fBackdrops = useFeature('backdrops')
   const fSmartStart = useFeature('smartStart')
   const fPanorama = useFeature('panorama')
+  const fRenderPresets = useFeature('renderPresets')
   const fBudget = useFeature('budget')
   const fChecks = useFeature('clearanceChecks')
   const fMeasure = useFeature('measure')
@@ -535,6 +537,17 @@ export function MobileToolbar() {
                         sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
                         on={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
                         onClick={act(() => applyLightingScene(sc), { keep: true })}
+                      />
+                    ))}
+                  {fRenderPresets && <div className="m-sub-h">Render presets</div>}
+                  {fRenderPresets &&
+                    RENDER_PRESETS.map((p) => (
+                      <Item
+                        key={p.id}
+                        icon="Sun"
+                        label={p.label}
+                        sub={p.sub}
+                        onClick={act(() => applyRenderPreset(s.getState(), p), { keep: true })}
                       />
                     ))}
                   <Item
