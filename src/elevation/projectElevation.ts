@@ -26,6 +26,10 @@ export interface ElevationOpening {
   x1: number
   sill: number
   head: number
+  /** Doors only: which jamb the leaf pivots on — `'start'` = the `x0` side
+   *  (the wall-start side), matching `PlanOpening.hinge` (defaulted). Drives
+   *  the leaf + swing-arc symbol in the renderer. */
+  hinge?: 'start' | 'end'
 }
 
 /** A furniture piece projected onto the wall plane, in metres: `x0..x1` along
@@ -94,6 +98,8 @@ export function projectWallElevation(
       x1: o.offset + o.width,
       sill: o.sill,
       head: o.head,
+      // Carry the hinge side for the door leaf/swing symbol ('start' = x0 side).
+      ...(o.kind === 'door' ? { hinge: o.hinge ?? ('start' as const) } : {}),
     }))
 
   const result: WallElevation = { wallId: wall.id, length: len, height, openings, items: [] }

@@ -93,8 +93,8 @@ standing themed backlog below + the existing sections further down hold the open
 Three round-3 agents hit the session usage cap mid-task. One commit was salvaged (P-OPENS-PLAN,
 cherry-picked); the rest left only UNVERIFIED uncommitted WIP in their worktrees — do NOT trust it
 without re-running gates; prefer restarting the task fresh:
-- [ ] EL5 tail (was: agent ac8b79…): door leaf/swing-arc symbol + dimension label de-overlap in
-  elevations. WIP existed in `src/elevation/dimensionLayout.ts` (new) + projectElevation/elevationSvg.
+- [x] EL5 tail (C218): salvaged + completed in the main tree — door swing symbol, label stagger,
+  tests. See CHANGELOG.
 - [ ] LP5 (was: agent ad7de0…): per-room lux estimate + recommended-level check in the lighting
   plan schedule (in-app + report). WIP across lighting2d + docs.
 - [ ] X-PRESENT 3D link (was: agent a4297e…): compressed `#/design/<code>` URL share extending
@@ -309,8 +309,7 @@ Plan-wall-based so default + custom plans work uniformly. Phases (each its own c
 - [x] EL2. SVG renderer (C130) + Elevations panel in Tools (C131) — verified desktop + mobile. ← EL3 NEXT
 - [x] EL3. Dimensions — overall width/height + opening sill heights — shipped C132. ← EL4 NEXT
 - [x] EL4. Report integration — "Wall elevations" section in the printable report — shipped C133.
-- [~] EL5. Per-item width dims shipped C140. Remaining polish: door leaf/arc symbol, label
-  de-overlap on very narrow adjacent items.
+- [x] EL5 (C218). Per-item width dims (C140) + door leaf/swing-arc symbol + label de-overlap.
 
 ## ⭐ MAJOR: Ultra photo-realism (user-requested 2026-06-10) — phased, each its own commit
 Goal: showroom-grade fidelity. Stack today: ACESFilmic tone-map (Scene.tsx gl), per-frame

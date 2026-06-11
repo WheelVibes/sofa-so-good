@@ -27,7 +27,12 @@ describe('elevationSvg', () => {
     }
     const svg = elevationSvg(withDoor, { palette, dimensions: false })
     // No legacy dashed cut-out; has a handle dot (a small filled circle).
-    expect(svg).not.toContain('stroke-dasharray')
+    // The only dashed stroke is the door swing ARC (drafting symbol) — the
+    // legacy dashed cut-out <rect> must not return.
+    expect(svg).not.toMatch(/<rect[^>]*stroke-dasharray/)
+    // Leaf line on the hinge jamb + dashed quarter swing arc (EL5).
+    expect(svg).toMatch(/<path[^>]*stroke-dasharray/)
+    expect(svg).toContain(' A ') // quarter-arc command
     expect(svg).toContain('<circle')
     // The door panel rect spans the opening (0.9 wide).
     expect(svg).toContain('width="0.900"')

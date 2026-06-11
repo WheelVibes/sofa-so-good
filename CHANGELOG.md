@@ -4,6 +4,15 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C218 / EL5] Elevation polish — door swing symbol + dimension label de-overlap
+Doors in wall elevations now carry the standard drafting symbol: leaf line on the hinge jamb +
+dashed quarter swing arc (hinge side plumbed from `PlanOpening.hinge` through `projectElevation`;
+knob dot moves to the latch jamb). Per-item width dimensions de-overlap via new pure
+`elevation/dimensionLayout.ts` (greedy row stagger + text-width approximation, 5 tests); the
+overall-width line and viewBox grow with the stagger rows. Salvaged from an interrupted agent's
+WIP, completed (stagger integration + tests) and visually verified (mirrored arcs/knobs on two
+doors; the middle of three narrow adjacent labels staggers to row 1).
+
 ## [C223 / ML3a] Furniture renders at its storey's elevation
 `FurnitureLayer` resolves each item's level (memoised id→elevation map; zero overhead on
 single-storey plans), offsets it by the level elevation, and unmounts items with a hidden level
