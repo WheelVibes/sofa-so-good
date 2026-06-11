@@ -45,8 +45,9 @@ same change that reshapes a system.
   when a room's `ceiling` config is set (`ceilingDesign` flag).
 - `src/floorplan/` — editable plan model: `types.ts` (FloorPlan + area/bounds/polygon
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
-  `isDefaultPlan`), `templates.ts` (18 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo,
-  condo studio/1-bed/1+study/2/3/4-bed/penthouse, terrace — `docs/research/{hdb,condo}-floor-plans.md`),
+  `isDefaultPlan`), `templates.ts` (19 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo +
+  two-storey Executive Maisonette, condo studio/1-bed/1+study/2/3/4-bed/penthouse, two-storey
+  terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`),
   `roomDetect.ts`, `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
   `upperLevels` adds storeys; `planLevels`/`levelById`/`levelAsPlan`/`allPlanRooms`/
   `withLevelGeometry` — see `docs/research/multi-level-design.md`). 2D editor = `ui/floorplan/`.

@@ -4,7 +4,7 @@
  * complete, self-consistent FloorPlan (perimeter + partitions + rooms +
  * openings) with clean orthogonal walls.
  */
-import type { FloorPlan, PlanOpening, PlanWall } from './types'
+import type { FloorPlan, PlanOpening, PlanUpperLevel, PlanWall } from './types'
 
 const T = 0.1 // inset of walls from the nominal footprint edge
 
@@ -150,9 +150,36 @@ function oneBed(): FloorPlan {
   }
 }
 
+/** Open Loft: double-height living with a real sleeping mezzanine upstairs
+ *  (F13 multi-storey). The ground keeps a lounge + bath + an open stair run;
+ *  the loft level stacks a sleeping deck + landing over the rear band, with a
+ *  parapet guard rail along the open mezzanine edge. */
 function loft(): FloorPlan {
   const W = 8.2
   const D = 6.0
+  // Mezzanine floor sits above the ground volume (ceiling 3.0 m + 0.3 m slab).
+  const loftLevel: PlanUpperLevel = {
+    id: 'lf-up',
+    name: 'Loft',
+    elevation: 3.3,
+    ceilingHeight: 2.2,
+    walls: [
+      // Open mezzanine edge gets a guard-rail parapet, not a full wall.
+      parapet('lfu-rail', [T, 3.4], [W - T, 3.4]),
+      { id: 'lfu-e', start: [W - T, 3.4], end: [W - T, D - T], thickness: 'external' },
+      { id: 'lfu-s', start: [W - T, D - T], end: [T, D - T], thickness: 'external' },
+      { id: 'lfu-w', start: [T, D - T], end: [T, 3.4], thickness: 'external' },
+      iwall('lfu-land-w', [4.8, 3.4], [4.8, D - T]),
+      iwall('lfu-ward-w', [6.2, 3.4], [6.2, D - T]),
+    ],
+    openings: [window('lfu-win', 'lfu-s', 3.6, 1.8), window('lfu-e-win', 'lfu-e', 0.6, 1.2)],
+    rooms: [
+      room('lfu-sleep', 'Sleeping Loft', 0.2, 3.6, 4.5, 2.2, 'floor-wood-ebony'),
+      // Stacked over the ground 'Stairs' room — the stair void / arrival point.
+      room('lfu-landing', 'Stair Landing', 4.9, 3.6, 1.2, 2.2, 'floor-wood-ebony'),
+      room('lfu-ward', 'Dressing', 6.3, 3.6, 1.8, 2.2, 'floor-wood-ebony'),
+    ],
+  }
   return {
     id: 'tpl-loft',
     name: 'Open Loft',
@@ -162,6 +189,8 @@ function loft(): FloorPlan {
       ...perimeter('lf', W, D),
       iwall('lf-bath-w', [6.2, 3.6], [6.2, D - T]),
       iwall('lf-bath-n', [6.2, 3.6], [W - T, 3.6]),
+      // Stair run edge (open to the living side — no wall on its north).
+      iwall('lf-stair-w', [4.8, 3.6], [4.8, D - T]),
     ],
     openings: [
       door('lf-main', 'lf-s', 1.2, 1.0),
@@ -181,11 +210,19 @@ function loft(): FloorPlan {
       },
       {
         id: 'lf-sleep',
-        name: 'Sleeping',
+        name: 'Lounge / Study',
         origin: [0.2, 3.6],
-        width: 5.9,
+        width: 4.5,
         depth: 2.2,
         floor: 'floor-wood-ebony',
+      },
+      {
+        id: 'lf-stair',
+        name: 'Stairs',
+        origin: [4.9, 3.6],
+        width: 1.2,
+        depth: 2.2,
+        floor: 'floor-concrete',
       },
       {
         id: 'lf-bath',
@@ -196,6 +233,7 @@ function loft(): FloorPlan {
         floor: 'floor-terrazzo',
       },
     ],
+    upperLevels: [loftLevel],
   }
 }
 
@@ -523,6 +561,100 @@ function hdbJumbo(): FloorPlan {
   }
 }
 
+/** HDB Executive Maisonette (~150 m² over two storeys): the classic two-floor
+ *  HDB type (phased out 1995, resale only). Lower storey = living/dining,
+ *  kitchen + service yard + shelter, WC and a stair hall; upper storey =
+ *  3 bedrooms (master ensuite) + 2 baths off a landing. Representative layout
+ *  per docs/research/hdb-floor-plans.md (Executive Maisonette section); the
+ *  upper storey sits at ceiling (2.6 m) + 0.3 m slab. The 'Stair Hall' room
+ *  and the upper 'Stair Landing' are stacked at the same footprint so a
+ *  staircase item placed in the hall arrives on the landing. */
+function hdbMaisonette(): FloorPlan {
+  const W = 8.4
+  const D = 9.4
+  const upper: PlanUpperLevel = {
+    id: 'em-up',
+    name: 'Upper storey',
+    elevation: 2.9, // 2.6 m ground ceiling + 0.3 m floor slab
+    ceilingHeight: 2.6,
+    walls: [
+      ...perimeter('emu', W, D),
+      // North bedroom band (bedrooms 2/3 + common bath).
+      iwall('emu-bed-s', [T, 2.8], [6.6, 2.8]),
+      iwall('emu-b23', [3.5, T], [3.5, 2.8]),
+      iwall('emu-cbath-w', [6.7, T], [6.7, 2.4]),
+      iwall('emu-cbath-s', [6.7, 2.4], [W - T, 2.4]),
+      // Master suite on the south-east; ensuite bath north of the bedroom.
+      iwall('emu-m-w', [4.5, 3.6], [4.5, D - T]),
+      iwall('emu-mb-s', [4.5, 5.7], [W - T, 5.7]),
+      // Stair void east edge (landing stacked over the ground stair hall).
+      iwall('emu-land-e', [1.9, 3.0], [1.9, 6.6]),
+    ],
+    openings: [
+      door('emu-bed2-door', 'emu-bed-s', 2.2),
+      door('emu-bed3-door', 'emu-bed-s', 4.4),
+      door('emu-cbath-door', 'emu-cbath-s', 0.4, 0.7),
+      door('emu-master-door', 'emu-m-w', 2.6),
+      door('emu-mbath-door', 'emu-mb-s', 1.2, 0.8),
+      window('emu-b2-win', 'emu-n', 1.0, 1.6),
+      window('emu-b3-win', 'emu-n', 4.2, 1.6),
+      window('emu-m-win', 'emu-e', 6.4, 1.8),
+      window('emu-fam-win', 'emu-w', 0.8, 1.4),
+    ],
+    rooms: [
+      room('emu-bed2', 'Bedroom 2', 0.2, 0.2, 3.2, 2.6, 'floor-wood-walnut'),
+      room('emu-bed3', 'Bedroom 3', 3.6, 0.2, 3.0, 2.6, 'floor-wood-walnut'),
+      room('emu-cbath', 'Common Bath', 6.8, 0.2, 1.4, 2.2, 'floor-tile-white'),
+      // Stacked over the ground-floor 'Stair Hall' (the stair arrival void).
+      room('emu-landing', 'Stair Landing', 0.2, 3.0, 1.6, 3.6, 'floor-wood-oak'),
+      room('emu-hall', 'Hall', 2.0, 3.0, 2.4, 3.6, 'floor-wood-oak'),
+      room('emu-mbath', 'Master Bath', 4.6, 3.6, 2.0, 2.0, 'floor-tile-marble'),
+      room('emu-master', 'Master Bedroom', 4.6, 5.8, 3.6, 3.4, 'floor-wood-oak'),
+      room('emu-fam', 'Family Area', 0.2, 6.8, 4.2, 2.4, 'floor-wood-oak'),
+    ],
+  }
+  return {
+    id: 'tpl-hdb-maisonette',
+    name: 'HDB Executive Maisonette',
+    ceilingHeight: 2.6,
+    extent: [W, D],
+    walls: [
+      ...perimeter('em', W, D),
+      // North service band: kitchen / yard / shelter / WC.
+      iwall('em-svc-s', [T, 2.8], [6.6, 2.8]),
+      iwall('em-kit-e', [3.3, T], [3.3, 2.8]),
+      iwall('em-yard-e', [5.0, T], [5.0, 2.8]),
+      iwall('em-wc-w', [6.7, T], [6.7, 2.2]),
+      iwall('em-wc-s', [6.7, 2.2], [W - T, 2.2]),
+      // Stair hall on the west wall, off the entry corridor.
+      iwall('em-stair-n', [T, 3.0], [1.9, 3.0]),
+      iwall('em-stair-e', [1.9, 3.0], [1.9, 6.6]),
+      // Living/dining occupies the east; family area opens off it (SW).
+      iwall('em-liv-w', [3.3, 2.8], [3.3, 6.8]),
+      iwall('em-study-n', [T, 6.8], [3.3, 6.8]),
+    ],
+    openings: [
+      door('em-main', 'em-s', 0.6, 1.0),
+      door('em-wc', 'em-wc-s', 0.4, 0.7),
+      door('em-study', 'em-study-n', 2.0),
+      window('em-kit-win', 'em-n', 1.0, 1.6),
+      window('em-yard-win', 'em-n', 3.6, 1.0),
+      window('em-liv-win', 'em-e', 5.2, 2.2),
+      window('em-fam-win', 'em-w', 0.8, 1.4),
+    ],
+    rooms: [
+      room('em-kit', 'Kitchen', 0.2, 0.2, 3.0, 2.6, 'floor-tile-grey'),
+      room('em-yard', 'Service Yard', 3.4, 0.2, 1.5, 1.8, 'floor-tile-grey'),
+      room('em-shelter', 'Household Shelter', 5.1, 0.2, 1.5, 2.0, 'floor-tile-grey'),
+      room('em-wc', 'WC', 6.8, 0.2, 1.4, 1.8, 'floor-tile-white'),
+      room('em-stair', 'Stair Hall', 0.2, 3.0, 1.6, 3.6, 'floor-wood-oak'),
+      room('em-living', 'Living / Dining', 3.4, 3.0, 4.8, 6.2, 'floor-wood-oak'),
+      room('em-study', 'Family Area', 0.2, 6.8, 3.0, 2.4, 'floor-wood-oak'),
+    ],
+    upperLevels: [upper],
+  }
+}
+
 // ── Singapore condominium (private) layouts ─────────────────────────────────
 // Authored from docs/research/condo-floor-plans.md. Condos differ from HDB:
 // open kitchens on small units, a balcony on nearly every unit (modelled as a
@@ -765,14 +897,56 @@ function condoPenthouse(): FloorPlan {
   }
 }
 
-/** Terrace house (landed) ground floor (~90 m² footprint): car porch, open
- *  living + dining, kitchen + yard, powder room, stair hall — bedrooms upstairs. */
+/** Terrace house (landed, two storeys, ~90 m² footprint): ground = car porch,
+ *  open living + dining, kitchen + yard, powder room, stair hall; upper =
+ *  3 bedrooms (master ensuite) + 2 baths + family area off the stair landing.
+ *  The upper storey sits at the 3.0 m ground ceiling + 0.3 m slab; its 'Stair
+ *  Landing' is stacked over the ground 'Stair Hall'. */
 function condoTerrace(): FloorPlan {
   const W = 6.4
   const D = 14.0
+  const upper: PlanUpperLevel = {
+    id: 'ct-up',
+    name: 'Upper storey',
+    elevation: 3.3, // 3.0 m ground ceiling + 0.3 m floor slab
+    ceilingHeight: 2.6,
+    walls: [
+      ...perimeter('ctu', W, D),
+      // East column: master bath / corridor / stair landing / common bath.
+      iwall('ctu-col', [4.5, T], [4.5, 11.8]),
+      iwall('ctu-mb-s', [4.5, 2.6], [W - T, 2.6]),
+      iwall('ctu-cb-n', [4.5, 9.5], [W - T, 9.5]),
+      iwall('ctu-cb-s', [4.5, 11.8], [W - T, 11.8]),
+      // Bedroom stack dividers on the west.
+      iwall('ctu-m-s', [T, 4.0], [4.5, 4.0]),
+      iwall('ctu-b2-s', [T, 7.7], [4.5, 7.7]),
+      iwall('ctu-b3-s', [T, 11.0], [4.5, 11.0]),
+    ],
+    openings: [
+      door('ctu-m-door', 'ctu-col', 3.0),
+      door('ctu-b2-door', 'ctu-col', 5.4),
+      door('ctu-b3-door', 'ctu-col', 8.2),
+      door('ctu-mb-door', 'ctu-mb-s', 0.5, 0.8),
+      door('ctu-cb-door', 'ctu-cb-n', 0.5, 0.8),
+      window('ctu-m-win', 'ctu-n', 1.2, 1.8),
+      window('ctu-b2-win', 'ctu-w', 6.6, 1.5),
+      window('ctu-b3-win', 'ctu-w', 3.2, 1.5),
+      window('ctu-fam-win', 'ctu-s', 2.0, 2.0),
+    ],
+    rooms: [
+      room('ctu-master', 'Master Bedroom', 0.2, 0.2, 4.3, 3.8, 'floor-wood-oak'),
+      room('ctu-mbath', 'Master Bath', 4.7, 0.2, 1.5, 2.4, 'floor-tile-marble'),
+      room('ctu-bed2', 'Bedroom 2', 0.2, 4.2, 4.3, 3.4, 'floor-wood-walnut'),
+      // Stacked over the ground-floor 'Stair Hall' (stair void + arrival).
+      room('ctu-landing', 'Stair Landing', 4.7, 4.5, 1.5, 4.9, 'floor-wood-oak'),
+      room('ctu-bed3', 'Bedroom 3', 0.2, 7.8, 4.3, 3.2, 'floor-wood-walnut'),
+      room('ctu-cbath', 'Common Bath', 4.7, 9.6, 1.5, 2.2, 'floor-tile-white'),
+      room('ctu-family', 'Family Area', 0.2, 11.2, 4.3, 2.6, 'floor-wood-oak'),
+    ],
+  }
   return {
     id: 'tpl-terrace-ground',
-    name: 'Terrace House (Ground)',
+    name: 'Terrace House',
     ceilingHeight: 3.0,
     extent: [W, D],
     walls: [
@@ -803,6 +977,7 @@ function condoTerrace(): FloorPlan {
       room('ct-kit', 'Kitchen', 3.3, 9.5, 2.9, 2.5, 'floor-tile-grey'),
       room('ct-yard', 'Service Yard', 0.2, 12.1, 6.0, 1.7, 'floor-tile-grey'),
     ],
+    upperLevels: [upper],
   }
 }
 
@@ -898,6 +1073,7 @@ export const PLAN_TEMPLATES: FloorPlan[] = [
   hdbExecutive(),
   hdb3Gen(),
   hdbJumbo(),
+  hdbMaisonette(),
   condo1Bed(),
   condo1Study(),
   condo2Bed(),

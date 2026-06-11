@@ -4,6 +4,19 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C231 / ML6a] Maisonette + loft templates gain real upper storeys
+A new two-storey **HDB Executive Maisonette** template (`tpl-hdb-maisonette`, ~150 m²: living/
+dining + kitchen/yard/shelter/WC + stair hall below; 3 bedrooms, 2 baths, landing + family area
+above at 2.6 + 0.3 m), and the existing **Terrace House** (3 bedrooms + 2 baths + family area
+upstairs at 3.3 m; renamed from "Terrace House (Ground)") and **Open Loft** (sleeping mezzanine +
+dressing behind a parapet guard rail) now carry real `upperLevels` instead of single-floor
+approximations. Every two-storey template stacks a 'Stair Landing' room exactly over its ground
+stair space so a catalog staircase connects the floors. Layouts per
+`docs/research/hdb-floor-plans.md` (new Executive Maisonette section). The generalised template
+tests now sweep EVERY storey (bounds, overlap, plan-unique ids, per-level opening↔wall fit) plus
+a stacked-stair-space assertion. Verified headless: maisonette stacked + upper-only views,
+terrace + loft stacked views.
+
 ## [C234 / F4] Render presets — one-tap photo modes
 Pure `scene/renderPresets.ts` (4 curated combos of sun preset + tone-mapping look + exposure +
 fixture lights: Bright day / Soft morning / Golden hour / Cozy evening) + one `applyRenderPreset`
