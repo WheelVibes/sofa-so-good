@@ -104,12 +104,11 @@ Out-of-scope items deferred from the spec:
 - Update this file every time a plan is designed or work is implemented (see `MEMORY.md` feedback rule).
 
 ## Floor plan editor (2026-05-30)
-Shipped — a data-driven, editable apartment shell + 2D editor:
-
-- Follow-ups: per-room finishes/floor materials for custom plans; a named
-  plan library (save/load multiple apartments) + persistence; route `roomOf`
-  / the auto-arranger / finishes through the active plan so custom plans are
-  fully furnish-aware.
+Shipped — a data-driven, editable apartment shell + 2D editor. All follow-ups
+done: per-room floor+wall finishes for custom plans render live in 3D (C213),
+the named plan library (`savedPlans`) persists, and Smart Start / the
+auto-arranger / finishes all route through the active plan (C153/C157/C213).
+Multi-storey plans are now in progress (F13 / ML phases — see TASKS.md).
 
 ## IKEA model import (2026-05-31)
 - **Scraper (done)** — `python/scripts/` scrapes IKEA SG products into
