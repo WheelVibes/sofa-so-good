@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { isMultiLevel, planLevels } from '../floorplan/levels'
 import { useQuality } from '../scene/useQuality'
 import { useStore } from '../state/store'
 import { useCatalog } from './catalog'
@@ -30,6 +31,14 @@ export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
   // Memoised so a drag (which re-renders this layer every pointermove via the
   // items change) doesn't reallocate the Set when the hidden set is unchanged.
   const hiddenSet = useMemo(() => (hidden.length > 0 ? new Set(hidden) : null), [hidden])
+  // Multi-storey plans (F13/ML3): items render at their level's elevation and
+  // unmount with a hidden level. Single-level plans skip all of this (null map).
+  const plan = useStore((s) => s.floorPlan)
+  const viewLevelId = useStore((s) => s.viewLevelId)
+  const levelElevations = useMemo(() => {
+    if (!isMultiLevel(plan)) return null
+    return new Map(planLevels(plan).map((l) => [l.id, l.elevation] as const))
+  }, [plan])
   return (
     <group>
       {items.map((item) => {
@@ -37,7 +46,10 @@ export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
         if (!def) return null
         if (hiddenSet?.has(item.id)) return null
         if (room && !isItemInRoom(item, room)) return null
-        return (
+        const levelId = item.levelId && levelElevations?.has(item.levelId) ? item.levelId : 'ground'
+        if (levelElevations && viewLevelId !== 'all' && levelId !== viewLevelId) return null
+        const elevation = levelElevations?.get(levelId) ?? 0
+        const node = (
           <Furniture
             key={item.id}
             item={item}
@@ -45,6 +57,13 @@ export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
             contactShadow={contactShadow}
             materialEpoch={materialEpoch}
           />
+        )
+        return elevation > 0 ? (
+          <group key={item.id} position={[0, elevation, 0]}>
+            {node}
+          </group>
+        ) : (
+          node
         )
       })}
     </group>

@@ -4,6 +4,12 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C223 / ML3a] Furniture renders at its storey's elevation
+`FurnitureLayer` resolves each item's level (memoised id→elevation map; zero overhead on
+single-storey plans), offsets it by the level elevation, and unmounts items with a hidden level
+(View → Levels). Verified: bed on the upper floor renders elevated over the ground-floor sofa.
+ML3 tail (drag/placement collision scoped to the item's level) still open.
+
 ## [C222 / ML2] Multi-storey rendering — stacked levels + level-visibility control
 `PlanShell` restructured into per-level `PlanLevelShell`s (floors/ceilings/walls/skirting/doors/
 windows run on a `levelAsPlan` pseudo-plan, so ground + upper storeys share one code path), each
