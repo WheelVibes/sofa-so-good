@@ -19,6 +19,9 @@ export interface HqRenderOptions {
   height: number
   /** Stop after this many accumulated samples (quality ↔ time). */
   maxSamples: number
+  /** Photographic depth of field (F5): aperture f-stop; undefined/0 = off
+   *  (pinhole). Focus distance is auto — the first surface at screen centre. */
+  fStop?: number
   /** Called after every sample with (done, max). */
   onProgress?: (samples: number, maxSamples: number) => void
   /** Called once accumulation reaches maxSamples. */
@@ -58,8 +61,13 @@ export function clampHqOptions(o: { width: number; height: number; maxSamples: n
 /** Material kinds the path tracer's converter understands. Anything else
  *  (custom shaders, line/sprite materials) is skipped from the snapshot. */
 function isTraceableMaterial(m: unknown): boolean {
-  const mat = m as { isMeshStandardMaterial?: boolean; isMeshPhysicalMaterial?: boolean
-    isMeshBasicMaterial?: boolean; isMeshLambertMaterial?: boolean; isMeshPhongMaterial?: boolean }
+  const mat = m as {
+    isMeshStandardMaterial?: boolean
+    isMeshPhysicalMaterial?: boolean
+    isMeshBasicMaterial?: boolean
+    isMeshLambertMaterial?: boolean
+    isMeshPhongMaterial?: boolean
+  }
   return Boolean(
     mat &&
       (mat.isMeshStandardMaterial ||
@@ -92,7 +100,12 @@ async function buildTracerScene(live: Scene): Promise<Scene> {
       if (!p.visible) return
       p = p.parent
     }
-    const mesh = obj as { isMesh?: boolean; isInstancedMesh?: boolean; geometry?: unknown; material?: unknown }
+    const mesh = obj as {
+      isMesh?: boolean
+      isInstancedMesh?: boolean
+      geometry?: unknown
+      material?: unknown
+    }
     if (mesh.isMesh && !mesh.isInstancedMesh && mesh.geometry && mesh.material) {
       const mats = Array.isArray(mesh.material) ? mesh.material : [mesh.material]
       if (!mats.every(isTraceableMaterial)) return
@@ -103,7 +116,11 @@ async function buildTracerScene(live: Scene): Promise<Scene> {
       root.add(clone)
       return
     }
-    const light = obj as { isDirectionalLight?: boolean; isPointLight?: boolean; isSpotLight?: boolean }
+    const light = obj as {
+      isDirectionalLight?: boolean
+      isPointLight?: boolean
+      isSpotLight?: boolean
+    }
     if (light.isDirectionalLight || light.isPointLight || light.isSpotLight) {
       const src = obj as InstanceType<typeof three.Light> & { target?: Object3D }
       const copy = src.clone(false) as typeof src
@@ -142,10 +159,11 @@ export async function createHqRenderSession(
   optsIn: HqRenderOptions,
 ): Promise<HqRenderSession> {
   const opts = { ...optsIn, ...clampHqOptions(optsIn) }
-  const [{ WebGLPathTracer }, { WebGLRenderer, ACESFilmicToneMapping }] = await Promise.all([
+  const [{ WebGLPathTracer, PhysicalCamera }, three] = await Promise.all([
     import('three-gpu-pathtracer'),
     import('three'),
   ])
+  const { WebGLRenderer, ACESFilmicToneMapping } = three
 
   const canvas = document.createElement('canvas')
   canvas.width = opts.width
@@ -165,7 +183,24 @@ export async function createHqRenderSession(
   try {
     // Snapshot the live scene + camera pose into the tracer's BVH.
     const snapshot = await buildTracerScene(scene)
-    tracer.setScene(snapshot, camera)
+    let renderCamera: Camera = camera
+    if (opts.fStop && opts.fStop > 0) {
+      // Photographic camera (F5): clone the live pose/fov into the tracer's
+      // PhysicalCamera; focus on the first surface at screen centre (3 m when
+      // looking at sky/nothing) so the subject stays sharp.
+      const live = camera as InstanceType<typeof three.PerspectiveCamera>
+      const phys = new PhysicalCamera(live.fov ?? 50, opts.width / opts.height, 0.05, 300)
+      phys.position.copy(live.position)
+      phys.quaternion.copy(live.quaternion)
+      phys.updateMatrixWorld(true)
+      phys.fStop = opts.fStop
+      const ray = new three.Raycaster()
+      ray.setFromCamera(new three.Vector2(0, 0), live)
+      const hit = ray.intersectObjects(snapshot.children, true)[0]
+      phys.focusDistance = hit ? hit.distance : 3
+      renderCamera = phys
+    }
+    tracer.setScene(snapshot, renderCamera)
   } catch (err) {
     renderer.dispose()
     opts.onError?.(err)

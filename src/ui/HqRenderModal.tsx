@@ -7,7 +7,9 @@ import { Modal } from './Modal'
 const RESOLUTIONS = [
   // Dev-only tiny size so the headless software-GL harness can exercise the
   // full pipeline in seconds (a real GPU renders 720p+ in the same time).
-  ...(import.meta.env.DEV ? [{ id: 'dev-tiny', label: 'Tiny (dev) · 192×108', w: 192, h: 108 }] : []),
+  ...(import.meta.env.DEV
+    ? [{ id: 'dev-tiny', label: 'Tiny (dev) · 192×108', w: 192, h: 108 }]
+    : []),
   { id: '720', label: 'HD · 1280×720', w: 1280, h: 720 },
   { id: '1080', label: 'Full HD · 1920×1080', w: 1920, h: 1080 },
   { id: '1440', label: 'QHD · 2560×1440', w: 2560, h: 1440 },
@@ -15,6 +17,14 @@ const RESOLUTIONS = [
 ]
 
 const SAMPLE_STEPS = [64, 128, 256, 512, 1024] as const
+
+/** Photographic depth-of-field stops (F5); 0 = off (pinhole). */
+const DOF_STOPS = [
+  { v: 0, label: 'DoF off' },
+  { v: 8, label: 'f/8 · subtle' },
+  { v: 2.8, label: 'f/2.8 · portrait' },
+  { v: 1.4, label: 'f/1.4 · dramatic' },
+] as const
 
 /**
  * HQ Render (F1) — progressive path-traced still of the current view.
@@ -28,6 +38,7 @@ export function HqRenderModal() {
   const setOpen = useStore((s) => s.setHqRenderOpen)
   const [resId, setResId] = useState<string>('1080')
   const [maxSamples, setMaxSamples] = useState<number>(256)
+  const [fStop, setFStop] = useState<number>(0)
   const [samples, setSamples] = useState(0)
   const [phase, setPhase] = useState<'idle' | 'building' | 'rendering' | 'done' | 'error'>('idle')
   const sessionRef = useRef<HqRenderSession | null>(null)
@@ -63,6 +74,7 @@ export function HqRenderModal() {
         width: res.w,
         height: res.h,
         maxSamples,
+        fStop: fStop || undefined,
         onProgress: (n) => setSamples(n),
         onDone: () => setPhase('done'),
         onError: (err) => {
@@ -83,7 +95,7 @@ export function HqRenderModal() {
       if (import.meta.env.DEV) console.warn('HQ render failed to start:', err)
       setPhase('error')
     }
-  }, [resId, maxSamples, teardown])
+  }, [resId, maxSamples, fStop, teardown])
 
   const download = () => {
     const session = sessionRef.current
@@ -134,6 +146,20 @@ export function HqRenderModal() {
               {SAMPLE_STEPS.map((n) => (
                 <option key={n} value={n}>
                   {n} samples
+                </option>
+              ))}
+            </select>
+            <select
+              className="input"
+              aria-label="Depth of field"
+              value={fStop}
+              onChange={(e) => setFStop(Number(e.target.value))}
+              disabled={busy}
+              title="Focus locks on whatever is at the centre of the view"
+            >
+              {DOF_STOPS.map((d) => (
+                <option key={d.v} value={d.v}>
+                  {d.label}
                 </option>
               ))}
             </select>

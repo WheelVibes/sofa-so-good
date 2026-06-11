@@ -44,7 +44,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] F3/R-HDRI [PROD] HDRI environment library (Poly Haven CC0 `.hdr`) for IBL + backdrop.
   Sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.
 - [ ] F4 tail: A/B compare between two render presets, and HDRI coupling once F3 lands.
-- [ ] F5 [PROD] DoF + photographic camera (focal length / f-stop) on the render path; real-GPU verify.
+- [x] F5 (C240): DoF f-stops on the HQ render via PhysicalCamera + centre autofocus.
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
 - [ ] R-CURTAIN/L1 Window-glass tint colouring the sun shaft + curtains affecting cast light +

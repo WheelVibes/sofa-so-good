@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C240 / F5] Photographic depth of field on the HQ render
+The HQ render gains a DoF select (off / f/8 / f/2.8 / f/1.4): with a stop chosen, the session
+renders through the path tracer's `PhysicalCamera` cloned from the live pose, auto-focused on the
+first surface at screen centre (raycast into the snapshot; 3 m fallback). Verified headless: the
+f/1.4 session accumulates cleanly (4 samples in the harness window, scene clearly resolving) with
+no converter errors; bokeh quality assessment joins the F1 real-GPU pass.
+
 ## [C237 / F23 tail] 360° panorama slides in Presentation mode
 A saved view can be marked 360° (`SavedView.pano`, optional + additive; toggle in the saved-views
 list, desktop + mobile): when the slideshow reaches it, a panorama is captured from that view's
