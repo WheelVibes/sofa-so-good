@@ -1,13 +1,12 @@
-# TASKS — autonomous improvement backlog
+# TASKS — autonomous improvement backlog (OPEN ITEMS ONLY)
 
 Working branch: `claude/codebase-analysis-optimization-f6yag0`.
 Each task = its own commit; log every shipped task in `CHANGELOG.md`.
 Licensed/non-redistributable additions are dev-gated; unlicensed ship in prod too.
 
-Legend: `[ ]` todo · `[~]` in progress. Completed work lives in `CHANGELOG.md`
-(not here — this file is the open backlog only).
-
----
+**File policy (user rule, 2026-06-11):** when a task / feature / bug-fix is COMPLETED it is
+**removed from this file** (its record lives in `CHANGELOG.md`) — only pending (`[ ]`) and
+in-progress (`[~]`) work stays here, and every entry is **max 2 sentences**.
 
 ## ⭐⭐⭐ COMMERCIAL-READINESS PROGRAM (2026-06-10, ongoing — primary directive)
 
@@ -24,365 +23,84 @@ viewport-responsive with desktop **and** mobile/touch parity; licensed/non-redis
 **dev-gated**, CC0/unlicensed ship in prod too; run `npm test` + `tsc` + `biome` before each commit;
 visually verify any app (non-docs/test) change via `scripts/shot.mjs` and review the pixels.
 
-**How to resume after a context clear:** read this section + `CHANGELOG.md` (newest first) to see what
-shipped, then pick the next unchecked item below (highest priority first). Working branch:
-`claude/codebase-analysis-optimization-f6yag0`. Use parallel read-only subagents for audits/research and
-worktree subagents for independent build slices (note: worktree agents branch from an older base — prefer
-having them produce self-contained new files you integrate, or 3-way merge carefully).
+**How to resume after a context clear:** read this file + `CHANGELOG.md` (newest first — everything
+shipped is recorded there), then pick the next item (highest priority first). Use parallel worktree
+subagents for independent slices (each runs its OWN dev server on a unique port ≥5208, never
+`pkill -f vite`); cherry-pick their commits, re-run gates, push.
 
-### Shipped in this program so far (see CHANGELOG for detail)
-C147 Design Score panel · C148 exhaustive HDB+condo templates (→18 w/ C161) · C149 PR3c material realism
-(sheen/clearcoat/tier-gated glass) · C150 instancing (4 primitives) · C151 instanced City backdrop ·
-C152 cabinet glass · C153 Smart-Start furnish ANY plan · C154 Design Score in report · C155 score
-click-to-select offenders · C156 instanced Park/Hills · C157 Smart-Start palette on custom plans · C158
-richer furnish kits (study/dining/powder/balcony) · C159 accessibility check + report · C160 in-app
-Accessibility panel · C161 Condo Studio + 4-Bedroom templates · C162 renovation cost estimate · C163
-Studio infinity-cove backdrop · C164–C212 (audit fixes, perf, PR6 surfaces — see CHANGELOG) ·
-C213 custom-plan live finishes · C214 text brief · C215 shoppable export · C216 vanity configurator ·
-C217 360° panorama · C221 multi-level foundations · THEME-COLORS/P-CHUNK/POPOVER-SCROLL/
-MOBILE-TAP-TARGETS/MODAL-HOTKEYS fix batch.
+**Prioritization:** (1) correctness/security → (2) reliability/edge-cases + mobile parity →
+(3) performance/memory → (4) realism + high-value features → (5) QOL/aesthetic polish.
 
-### Backlog — being deepened by a 4-front audit (perf, reliability/bugs, security, competitor research)
-Audit findings get appended here as discrete `[ ]` items with `file:line` + fix. Until they land, the
-standing themed backlog below + the existing sections further down hold the open work. **Prioritization:**
-(1) correctness/security bugs → (2) reliability/edge-cases + mobile parity → (3) performance/memory →
-(4) realism + high-value features → (5) QOL/aesthetic polish.
+---
 
-#### Realism & rendering (photorealism — surpass-the-market)
-- [ ] R-HDRI. Real HDRI environment lighting option (CC0 Poly Haven .hdr) for High/Maximum — image-based
-  lighting + reflections beyond the procedural probe; dev-gate only if the asset isn't CC0 (Poly Haven is CC0 → prod-ok).
-- [x] R-PANO (C217). 360° panorama export — shipped with F2.
-- [ ] R-SSAO/PR4. Soft-shadow (PCSS/VSM) + contact-shadow refinement + grounding AO on all tiers (needs real-GPU verify).
-- [ ] R-CURTAIN. Window glass tint colouring the sun shaft + curtains/blinds affecting cast light (TODO.md L1/N6).
-- [x] R-DAYNIGHT. Already shipped: morning/noon/dusk(golden)/night one-click presets in the Scene menu +
-  T-key cycle (`timeSlice` `setPresetTime`/`cyclePresetTime`, `SceneMenu`).
+## Multi-storey program (F13 / Q-MULTILEVEL — design: docs/research/multi-level-design.md)
+- [~] ML3 tail: level-gate `findNarrowGaps`/`findWallClips`/walk blockers (agent running) and set
+  `levelId` on item ADD once the editor/room context provides one.
+- [~] ML4b: 2D editor level TAB STRIP driving all tools + the routed slice actions (agent running).
+  Includes splitWall/moveWallVertex level routing and a per-level furniture-footprint overlay.
+- [ ] ML5: room editor, finishes drag-apply, design score, daylight and report scoped per level.
+  Most consumers are room-keyed already — audit each via `allPlanRooms`/`levelOfRoom`.
+- [ ] ML6: stair-connectivity advisory (HDB-hints style), walk-mode level teleport, and real upper
+  floors for the maisonette/terrace/loft templates.
+- [ ] ML7: docs sweep (user + developer + ARCHITECTURE) for multi-storey.
 
-#### Content & catalog (variety — surpass-the-market)
-- [x] C-MAT. Curated "Designer picks" one-tap floor/wall finishes row in the finish picker (C202,
-  `materials/designerPicks.ts`, `designerPicks` flag).
-- [ ] C-PLANTS/DECOR. More CC0 decor/plants/art variety; ensure category coverage is exhaustive.
-- [x] C-WARDROBE. Wardrobe interior configurator done (C205, F10); vanity configurator done (C216:
-  `layout` legs / single-pedestal / double-pedestal kneehole + mirror none + emitting Hollywood bulbs).
+## Realism & rendering
+- [ ] F1/PR5/R10 [PROD] GPU path-traced "HQ render" still (`three-gpu-pathtracer`, progressive →
+  2–4K, denoise, download), High/Max only with raster fallback. Marquee feature; real-GPU verify deferred.
+- [ ] F3/R-HDRI [PROD] HDRI environment library (Poly Haven CC0 `.hdr`) for IBL + backdrop.
+  Sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.
+- [ ] F4 [PROD] Environment-coupled render presets (sun + HDRI + exposure) with A/B compare.
+- [ ] F5 [PROD] DoF + photographic camera (focal length / f-stop) on the render path; real-GPU verify.
+- [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
+- [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
+- [ ] R-CURTAIN/L1 Window-glass tint colouring the sun shaft + curtains affecting cast light +
+  inter-room light bleed. Perf-sensitive multi-file scene change.
+- [~] PR6 tail: default common furniture finishes to local CC0 `mat:<id>` (needs
+  `FurnitureMaterialLoader` pre-build + per-furniture UV scale) + optional Performance env hint.
 
-#### Productivity / QOL (match + surpass)
-- [~] Q-MULTILEVEL / F13. Multi-storey plans — **design accepted**: see
-  `docs/research/multi-level-design.md` (additive `upperLevels` + `FurnitureItem.levelId` +
-  pure `floorplan/levels.ts` resolution layer). Build phases ML1–ML7 below, one commit each:
-  - [x] ML1 (C221) types+schema round-trip + `levels.ts` helpers + tests (incl. level-aware finish-key collectors)
-  - [x] ML2 (C222) PlanShell stacked rendering + level-visibility View control (desktop+mobile)
-  - [~] ML3 furniture level-awareness — ML3a (C223) rendering + ML3b (C225) collision (level
-    gate in itemsCollide, placementWalls(levelId) routing, callers plumbed). TAIL: setting
-    levelId on ADD (needs ML4 level tabs / ML5 room-editor context); walkway/narrow-gap +
-    walk-mode blockers level gating.
-  - [ ] ML4 2D editor level tabs + add/remove level
-  - [ ] ML5 room editor/finishes/score/report per level
-  - [ ] ML6 stair-connectivity advisory + walk teleport + real maisonette/loft templates
-  - [ ] ML7 docs sweep
-- [x] Q-CEILING / F12. Ceiling design — per-room tray/coffered/dropped + cove glow (C203/C204,
-  `apartment/ceiling/`, `ceilingDesign` flag). Real-GPU walk-mode appearance pass still TODO.
-- [x] Q-COPYSTYLE. Copy-style / paste-appearance between items + bulk recolour by category (C198, F17).
-- [x] Q-MOODBOARD (C175). Moodboard / style board export from the design (decor + palette).
-- [ ] Q-3DEXPORT. Whole-scene glTF/GLB + USDZ (AR) export (deferred — needs worker-streamed export; verify on real GPU).
+## Content & catalog
+- [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
+  so designs look styled; ensure category coverage is exhaustive.
+- [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
+- [ ] T3 Per-LOD multi-tier generation for uploads (offline `optimize:glb` parity in-browser).
+- [~] T2 Crown-molding revisit + kitchen/bath template polish.
 
-#### Commerce / collaboration
-- [ ] X-SHOP. Shoppable list polish: per-retailer grouping, live SG prices beyond IKEA (Courts/HipVan/Castlery).
-- [x] X-PRESENT. Client presentation mode shipped (C206, F23); shareable interactive 3D design
-  link shipped (C224, `designShare.ts`, `#/design/<code>`).
+## Productivity / QOL
+- [ ] Q-3DEXPORT Whole-scene glTF/GLB + USDZ (AR) export — needs worker-streamed export + real-GPU
+  verify (a previous GLTFExporter prototype was reverted as unverifiable headless).
+- [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
+  depends on Q-3DEXPORT for the item GLB/USDZ.
+- [ ] F21 [PROD] WebXR VR walkthrough (`@react-three/xr` over walk mode); real-headset verify.
+- [ ] Q31 part 2: drag a material swatch onto floor/wall/item in the 3D canvas (raycast drop);
+  part 1 (resolver + Objects-list drop) shipped.
+- [ ] GE2b GLB designer: drag gizmo (drei TransformControls) for move/rotate/scale in the preview.
+- [ ] GE3c GLB designer: per-part texture pick.
+- [ ] GE5 GLB designer: CSG boolean ops (union/subtract/intersect) via three-bvh-csg.
+- [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 
-(Competitor-research agent will expand/replace these with cited, prioritized items.)
-
-### INTERRUPTED AGENT WIP (2026-06-11) — re-run these as fresh agents
-Three round-3 agents hit the session usage cap mid-task. One commit was salvaged (P-OPENS-PLAN,
-cherry-picked); the rest left only UNVERIFIED uncommitted WIP in their worktrees — do NOT trust it
-without re-running gates; prefer restarting the task fresh:
-- [x] EL5 tail (C218): salvaged + completed in the main tree — door swing symbol, label stagger,
-  tests. See CHANGELOG.
-- [x] LP5 (C219): salvaged + completed — per-room lux estimate (`roomLux.ts`) + status chips in
-  panel/report/drawing set. See CHANGELOG.
-- [ ] X-PRESENT 3D link (was: agent a4297e…): compressed `#/design/<code>` URL share extending
-  `planShare.ts` (size budget, bomb guard, unknown-defId drop, ShareModal "Copy 3D link"). WIP
-  touched planShare.ts/App/bootstrap/main.tsx (main.tsx may hold temp debug hooks — discard).
-
-### AGENT SWEEP FOLLOW-UPS (2026-06-10) — found but deferred (lower-impact)
-From the parallel bug/perf/UI agent sweep; the high-value items were fixed in the bug-fix batch. Remaining:
-- [x] P-OPENS-PLAN. `P` could close the 2D plan editor but not OPEN it from the 3D view — the
-  keydown listener lived inside the lazy-mounted `FloorPlanEditor` (PERF5/C181), which only exists
-  while the editor is open. Fixed: the toggle moved to the always-mounted
-  `controls/planEditorHotkey.ts` (`usePlanEditorHotkey` in App; modal-guarded via
-  `controls/modalGuard.ts` + editable-target guard); the editor keeps Enter/Esc/Delete. See CHANGELOG.
-- [x] MODAL-HOTKEYS. Global shortcuts fired while a modal was open (typing into a mis-focused modal toggled
-  the `P` 2D plan behind Smart Start). Fixed via `controls/modalGuard.ts` open-modal counter: `Modal` (+
-  non-`Modal` overlays) register while open; every global keydown handler early-returns. Escape stays
-  per-modal; ⌘K/undo suppressed behind dialogs. See CHANGELOG.
-- [x] THEME-COLORS. Done — all listed hexes mapped to `var(--…)` tokens (new `--plan-annot`/`--plan-cat-*`
-  in `screens.css`, `--sun`/`--sun-edge` in `tokens.css`; upload `ConfirmDialog` now uses
-  `.modal-overlay`/`.btn` classes). Exception: `PlanInspector.tsx` cove `#ffe6c0` stays a literal — it is a
-  persisted scene-data default (`coveColor`, consumed by the 3D cove light + `<input type="color">`), not UI chrome.
-- [x] POPOVER-SCROLL. Toolbar popovers/menus are fixed-positioned to their button; when the toolbar scrolls
-  horizontally (narrow desktop) the popover detaches. Close or reposition popovers on toolbar scroll.
-  (Verified: the shared `Popover` already closed on capture-phase ancestor scroll — the real defect was the
-  inverse: scrolling a menu's *own* overflow list (File's saved layouts, Arrange) also closed it. Internal
-  panel scrolls are now ignored; ancestor-scroll close kept + unit-tested.)
-- [x] MOBILE-TAP-TARGETS. Audit mobile accordion sub-items (`.m-item-s`) for the 44 px min touch target.
-  (Audited in-browser at 360×780 + 430×932: `.m-item` rows incl. their `.m-item-s` sub-labels were already
-  ≥44 px. Fixed the 7 controls that weren't: hamburger 38→44, room-editor exit 34→44, room select 36→44,
-  sheet close X 26→44 effective (padded `::after` hit area, visual unchanged), saved-layout delete 36→44,
-  backdrop select 34→44, time slider 4→44 (thin track kept via track pseudos).)
-- [ ] PERF-FOLLOWUPS. `historySlice` tail re-slice on every push past the cap; `placement.findItemOverlaps`
-  rebuilds the broadphase grid per call (cache within a frame). Low-impact; revisit if profiling flags them.
-
-### AUDIT FINDINGS (2026-06-10) — execute these first, one commit each
-**Reliability/bugs (high→low):**
-- [x] B1 (C164). `schema.ts` `PlanRoomZ` omits `polygon` → polygon/Auto-room rooms revert to
-  their bounding rect on save/load. Add `polygon` to the schema (optional) + round-trip test. `state/schema.ts:145`.
-- [x] B2 (C166). ⌘K command palette + MobileToolbar don't fully close the newer `.aux` panels
-  (daylight/elevations/designScore/accessibility) → stacked overlapping panels. Extract one shared
-  `closeAllAuxPanels(state)` and use it in ToolsMenu, MobileToolbar, CommandPalette. `ui/CommandPalette.tsx:118`, `ui/toolbar/MobileToolbar.tsx:197`.
-- [x] B3 (C177). MobileToolbar Tools section is missing Daylight, Design score,
-  Accessibility, Drawings — desktop-only. Add them (same feature gates) via the shared closeAux. `ui/toolbar/MobileToolbar.tsx:661`.
-- [x] B4 (C172). Guard `Array.isArray` for plan members inside the pure cores so every caller is safe +
-  drop duplicated outer guards: `daylight.ts` (walls/openings/rooms), `accessibility.ts` (rooms),
-  `planGeometry.ts` (walls/openings).
-- [x] B5 (C173). Report's `buildDesignScore` call omits `{walls}` → recomputes with doors-closed, can
-  disagree with the panel. Pass `{ walls: clipWalls }`. `ui/report.ts:326`.
-- [x] B6 (C174). `roomPolygon` L-shape outline only correct for a south-edge extension; wrong/
-  self-intersecting for other offsets → wrong floor render + containment. `floorplan/types.ts:111`.
-- [x] B7 (C187). After undo/redo/jump, prune `selectedItemId`/`selectedItemIds` to ids still present. `historySlice.ts`.
-- [x] B8 (C188). `.aux` panels use inline `width:360` (mobile override via `!important`) — move to a class.
-
-**Security (no high-sev; defense-in-depth):**
-- [x] S1 (C165). SVG builders `elevationSvg.ts`/`reportPlanSvg.ts`/`lightingPlanSvg.ts` `esc` only escapes
-  `&<>` not quotes, yet render via `dangerouslySetInnerHTML` — latent XSS if a string ever lands in an
-  attribute. Make them the full 5-char esc.
-- [x] S2 (C199). `classifyVisionEndpoint` refuses to POST the bearer key over plaintext HTTP to a remote
-  host and flags non-allowlisted HTTPS hosts; the editor warns + requires typed confirmation before sending.
-- [x] S3 (C183). Validate report finish swatch against a hex/rgb pattern before emitting into `style=`.
-
-**Perf (from prod build):**
-- [x] P-CHUNK. Prod build chunks were large (three 1.16 MB, index 990 KB, vendor 870 KB). Boot payload cut
-  ~24% (3,027→2,290 KB min; 837→632 KB gzip): rare-format three loaders + GLTFExporter, the
-  @gltf-transform optimize pass, utif, the report/moodboard/BOQ/DXF/drawing-set builders, PacksTab and
-  both upload dialogs now dynamic-import at their call sites; react split out of vendor; three/examples +
-  utif + @gltf-transform excluded from the eager manual chunks so they follow their async importers.
-
-**Perf/scalability/memory (audit, impact-first):**
-- [x] PERF1 (C195) (M, big). `useCatalog` now memoised on its input slices (was rebuilding the whole merged
-  catalog on every consumer render — incl. FurnitureLayer on every drag pointermove). In-canvas overlays
-  (SelectionOutline / HoverHighlight / RotateGizmo / ClearanceOverlay / PlacementGhost) switched to the
-  non-reactive `useCatalogGetter` so catalog churn (bulk import) never re-renders the R3F tree.
-- [x] PERF2 (C178) (S, big). `DesignScorePanel` (and check `ClearanceOverlay`) rerun O(n²) scans every
-  pointermove while open — gate recompute on `!draggingItemId` / debounce 250–400ms. `ui/DesignScorePanel.tsx:44`.
-- [x] PERF3 (C193) (S). `Lighting` tween target memoized — no per-frame object/array alloc when settled;
-  only the tone-mapping/exposure write stays per-frame. `scene/lighting/Lighting.tsx`.
-- [x] PERF4 (C194) (S–M). `FurnitureLights` rebuild+sort gated on camera-move (>0.2 m) / items-change.
-  `scene/lighting/FurnitureLights.tsx`.
-- [x] PERF5 (C181) (M). Lazy-load rarely-opened modals/panels (ShareModal, VersionsPanel, HistoryPanel,
-  ElevationPanel, DesignScorePanel, AccessibilityPanel, DaylightPanel, SwapModal, SmartStartWizard,
-  ProductTour) — trims boot bundle. `App.tsx:27`.
-- [~] PERF6 (C196 DPR done) (M). Canvas DPR ceiling now driven by `useQuality().dprMax` (Performance → 1).
-  Remaining: `antialias` + `preserveDrawingBuffer` are WebGL context-creation attributes — can't toggle
-  reactively without recreating the context (flash + real-GPU verify); deferred. `scene/Scene.tsx`.
-- [x] PERF7 (C179) (M). Broadphase (spatial grid / sweep-prune) for `findItemOverlaps`/`findNarrowGaps`/
-  `findWallClips` (O(n²) today) for 100s-of-items scale; compute scans once + share between report + designScore.
-- [x] PERF8 (C192) (M). `DragController.onMove` indexes items into id→item Maps once per move (was repeated
-  O(n) `.find` scans, incl. an O(n·m) collision loop). `scene/DragController.tsx`.
-- [~] PERF9 (C185 thumbCache LRU done; 256² + worker still TODO) (S). Procedural texture default 512² on main thread — drop to 256² where quality allows / OffscreenCanvas worker; bound `thumbCache` (LRU). `materials/procedural/generators.ts`.
-- [x] PERF10 (C182) (S). Reuse a single mutable `PumpInputs` in `RenderPump` rAF instead of allocating per frame. `scene/RenderPump.tsx:60`.
-
-### COMPETITOR-RESEARCH BACKLOG (2026-06-10) — "surpass the market" features
-Researched vs Coohom/Planner5D/IKEA Kreativ/Homestyler/RoomSketcher/Cedreo/Live Home 3D/Foyr/Spacejoy/
-Modsy/Roomle/Enscape + SG (Qanvast/HomeRenoGuru/Hometrust). [PROD] = CC0/MIT/pure-code; [DEV] = licensed/
-BYO-key. Value/Effort S/M/L. (Add Roomstyler + Spoak to REFERENCES.md.)
-
-**Photoreal/render (biggest gap):**
-- [ ] F1 [PROD] GPU path-traced "HQ render" still — `three-gpu-pathtracer`, progressive→2-4K, denoise,
-  download; High/Max only + raster fallback. Marquee feature. V:L E:M-L. (real-GPU verify deferred)
-- [x] F2 (C217) [PROD] 360° panorama — six-face screen-path capture → pure equirect assembly, sphere
-  viewer + PNG export, `panorama` flag (pro). Real-GPU viewer-drag pass deferred (SwiftShader limit).
-- [ ] F3 [PROD] HDRI environment library (Poly Haven CC0 .hdr) for IBL+backdrop (clear/overcast/golden/
-  studio). V:M E:S-M. (sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.)
-- [ ] F4 [PROD] Environment-coupled render presets (sun+HDRI+exposure) + A/B compare. V:M E:S.
-- [ ] F5 [PROD] DoF + photographic camera (focal length/f-stop) on render path. V:M E:S-M.
-- [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle + WebGL fallback. V:M E:L.
-
-**Content/catalog:**
-- [x] F7 [PROD] Curtains + roller-blind parametric primitives exist (`Curtain.tsx`/`RollerBlind.tsx`,
-  catalog `curtains`/blinds). Verified rendering. Drapes-affecting-cast-light remains as R-CURTAIN (deferred).
-- [x] F8 (C171) [PROD] Staircase primitive (straight/L/U/spiral) — needed by maisonette/penthouse/landed. V:M E:M.
-- [ ] F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza) so designs look styled. V:M E:S.
-- [x] F10 [PROD] Wardrobe interior configurator — `interior` param (rail+shelves / all-hanging / all-shelves
-  / drawers+hanging) reshapes the open wardrobe (C205).
-- [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate). V:L E:L.
-- [x] F12 [PROD] Ceiling design — tray/coffered/dropped + cove glow per room (C203/C204, see Q-CEILING).
-
-**Productivity/QOL:**
-- [~] F13 [PROD] Multi-floor levels — designed; phased as ML1–ML7 under Q-MULTILEVEL above. V:L E:L.
-- [x] F14 [PROD] Save selection as a custom Set — `userSetsSlice` (centroid-relative capture, localStorage)
-  + `dropUserSet`; "My sets" in Arrange menu (desktop + mobile), `userSets` flag (C200).
-- [x] F15 (C169) [PROD] Auto-dimension whole plan (continuous running dimension strings, SVG). V:M E:M.
-- [x] F16 [PROD] Magic suggestions — per-room "what to add" hints in Design Score (C190, `suggestions` flag).
-- [x] F17 [PROD] Copy/paste appearance (look-only transfer) + recolour-by-category (C198,
-  `furniture/appearanceProps.ts` + `state/slices/styleClipboardSlice.ts`, inspector buttons, `copyAppearance` flag).
-- [x] F18 [PROD] Standard mount-height presets — one-tap chips under the `mountHeight` slider (C197,
-  `furniture/mountHeightPresets.ts` + inspector `MountHeightPresets`, `mountHeights` flag).
-
-**Collaboration/commerce/presentation:**
-- [x] F19 (C175) [PROD] Moodboard / style-board builder (images+product tiles+palette, export). V:M E:M.
-- [x] F20 (C215) [PROD] Shoppable design export — buy-list HTML grouped per retailer with totals +
-  budget context (`ui/shoplist.ts` + `openShoplist.ts`, `shopExport` flag simple-tier; IKEA product
-  links dev-gated via `ikeaLive`). V:M E:S-M.
-- [ ] F21 [PROD] WebXR VR walkthrough (`@react-three/xr` over walk mode). V:M E:M.
-- [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer). V:L E:M.
-- [x] F23 [PROD] Client presentation mode — full-screen saved-views slideshow with per-view notes +
-  auto-advance (C206, `ui/PresentationMode.tsx`, `presentation` flag). Panorama slides still TODO (needs F2).
-- [ ] F24 [PROD-partial] Pinned comments on a shared design (live presence = backend, defer). V:M E:L.
-
-**AI (BYO-key):**
-- [x] F25 (C214) [PROD] Text-to-room brief — `briefParser.ts` keyword matcher + budget extraction,
-  `textBrief` flag, wizard "describe it" box. (Custom-plan `furnishPlanItems` routing already covered by Smart Start.)
-- [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud). V:L E:L.
-- [ ] F27 [PROD] "Redesign this render" style-variant explorer (extend Share i2i). V:M E:S.
-- [x] F28 (C176) [PROD] AI palette/finish recommender from an inspiration image (client-side color extract). V:M E:S-M.
-
-**2D/CAD outputs:**
-- [x] F29 [PROD] Electrical/power+data plan + schedule in the drawing set (C191, `electricalPlan` flag).
-- [x] F30 (C184) [PROD] Demolition/hacking + new-wall plan (diff vs template) → feeds reno estimate. V:M E:M.
-- [x] F31 (C170) [PROD] DXF plan export (client-side DXF writer from plan polygons). V:M E:M.
-- [x] F32 (C186) [PROD] Cross-section drawing (reuse elevation core along a cut line). V:M E:M.
-
-**SG renovation workflow (differentiator):**
-- [x] F33 (C180) [PROD] Quote-ready BOQ handoff export (FF&E+reno+drawings; carpentry in linear-feet). V:M E:M.
-- [x] F34 (C167) [PROD] HDB compliance hints (structural/wet-area/permit advisories on edits). V:M E:S-M.
-- [x] F35 (C168) [PROD] Renovation timeline/phase planner (Gantt-ish, pure data/SVG). V:S-M E:S.
+## Commerce / collaboration
+- [ ] X-SHOP tail: live SG prices beyond IKEA (Courts/HipVan/Castlery as `RETAILERS` entries in
+  the dev `price-server.mjs`).
+- [ ] F24 [PROD-partial] Pinned comments on a shared design (live presence = backend, defer).
+- [ ] F23 tail: panorama slides in Presentation mode (C217 capture exists; wire as a slide type).
+- [ ] F27 [PROD] "Redesign this render" style-variant explorer (extend the Share i2i path).
+- [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
 
 ## Performance / scalability
-- [ ] P2. **Memoization audit** of hot R3F components / selectors to avoid re-renders (needs profiling on real hardware to justify).
-- [~] P3. More **instancing** for repeat-geometry primitives. Done: bookshelf + crib (earlier) and
-  RoomDivider / CubeShelf / FeatureWall / ToyStorage (C150, via shared `slatLayout.ts`). Remaining:
-  rotation-capable instancing for venetian blinds / drying-rack slats (needs a rotation-aware
-  `InstancedBoxes` sibling — deferred until a consumer justifies it).
-
-## Clearance / validation (panel now: door-swing + overlaps + wall-clip + walkways, C111/C112/C145)
-- [x] CL2. Walkway-width check (`findNarrowGaps`, item↔item + item↔wall, band 0.4–0.9 m) — C145.
-- [x] Daylight & ventilation check (`buildDaylightReport`, glazing/openable vs floor area) — C144.
-
-## Lighting / GPU-heavy realism (deferred under the "focus on non-GPU" constraint; need a focused real-GPU session)
-- [ ] L1/RE2/N6. **Lighting realism** — window-glass tint colouring the sun shaft + inter-room light bleed through open doors. Complex multi-file scene change; conflicts with the deliberate no-shadow fixture-light perf design, so needs a perf-aware approach.
-- [ ] R10. **Faster built-in PBR render path** — one-click high-quality still (local accumulation/denoise to match Coohom's "render in seconds"); investigate progressive path-trace via the existing AccumulativeShadows + a higher-sample pass.
-
-## ⭐⭐ MAJOR (user-prioritised 2026-06-10): LARGE verifiable features via research→plan→build
-Prioritise large, verifiable features over small/QOL. Research-grounded (REFERENCES.md + web).
-
-### DESIGN SCORE — shipped C147 (Coohom/Planner-5D-style live feedback)
-Pure `analysis/designScore.ts` → weighted 0–100 + A–F grade over clearance/furnishing/circulation/
-daylight/lighting, each with actionable fixes; `DesignScorePanel` (`.aux` dial + bars). Reuses every
-existing pure check + 2 new heuristics (furnishing coverage, per-room emitter coverage). 9 tests.
-- [x] DS2: report-section integration — design score + grade + per-category bars in the printable
-  report (C154). Remaining (optional): in-panel per-category drill-down that click-selects the offenders.
-
-### EXHAUSTIVE FLOOR PLANS — shipped C148 (HDB + condominium + landed, 16 templates)
-`floorplan/templates.ts` now ships HDB 2/3/4/5-room + Exec/3Gen/Jumbo, condo 1-bed/1+study/2/3-bed/
-penthouse, terrace (`docs/research/{hdb,condo}-floor-plans.md`); generalised overlap/bounds/opening
-test over all templates.
-- [x] FP-furnish: auto-arranger (`arrangeAllRoomsForPlan`) + **Smart Start** now work on custom plans
-  — C153 `furnishPlanItems` seeds a per-room kit + arranges it, so every template furnishes in one click.
-- [x] FP-palette: Smart Start now applies the preset floor/wall palette to a custom plan too (C157).
-- [x] FP-next (C213): interactive per-room finish editing routed through the active plan —
-  `roomFinishes.ts` resolvers, finish-setter write-through to `PlanRoom.floor`/`wall`, plan-wall finish
-  rendering in the room editor, 2D inspector wall-finish select, prune-on-plan-switch.
-
-### LIGHTING PLAN (reflected-ceiling-style) — next large feature (research: Chief Architect/RoomSketcher RCP + lighting schedules)
-Derive from the existing `LIGHT_EMITTERS` registry (every placed light's height/intensity/distance/
-offset) — no new placement UI. Pure-core + 2D SVG + report, fully verifiable like elevations.
-- [x] LP1. Pure `src/lighting2d/lightingPlan.ts` + 5 tests — shipped C135. ← LP2 NEXT
-- [x] LP2. Lighting-plan SVG renderer (walls + coverage + glyphs) — shipped C136.
-- [x] LP3. Report integration: lighting plan SVG + schedule table — shipped C137.
-- [x] LP4. In-app lighting view — unified "Drawings" panel (Elevations | Lighting) — shipped C138.
-- [x] LP5 (C219). Per-room lux estimate + recommended bands shipped; 3D floor coverage overlay still optional/open.
-
-### DRAWING SET (paginated plan set) — shipped C141 (cover + plan + elevations + lighting + FF&E sheets).
-
-### Interior WALL ELEVATIONS (a pro deliverable competitors have; we only have a top-down plan)
-Why: Chief Architect / Cedreo / RoomSketcher / NKBA — vertical "side-on" drawings per wall showing
-cabinet/fixture/backsplash heights + openings; used for permits, installers, client sign-off.
-**Fully verifiable here** (pure 2D geometry → SVG; unit-testable + screenshottable; no GPU).
-Plan-wall-based so default + custom plans work uniformly. Phases (each its own commit):
-- [x] EL1. Pure `src/elevation/projectElevation.ts` + 9 tests — shipped C129. ← EL2 NEXT
-- [x] EL2. SVG renderer (C130) + Elevations panel in Tools (C131) — verified desktop + mobile. ← EL3 NEXT
-- [x] EL3. Dimensions — overall width/height + opening sill heights — shipped C132. ← EL4 NEXT
-- [x] EL4. Report integration — "Wall elevations" section in the printable report — shipped C133.
-- [x] EL5 (C218). Per-item width dims (C140) + door leaf/swing-arc symbol + label de-overlap.
-
-## ⭐ MAJOR: Ultra photo-realism (user-requested 2026-06-10) — phased, each its own commit
-Goal: showroom-grade fidelity. Stack today: ACESFilmic tone-map (Scene.tsx gl), per-frame
-exposure/warmth (`look.ts grade`), IBL probe (`SceneEnvironment`), PCFSoft sun shadows, post stack
-(N8AO+Bloom+HueSat+Vignette+SMAA on high/maximum). Verification caveat: subtle GPU effects render
-weakly under the headless **software-GL** harness — tone curve / vignette / grain DO show; SSR / DoF
-/ TAA do not. Tune-heavy steps need a real-GPU pass (consistent with existing R10/L1 notes).
-- [x] PR1. Selectable tone-mapping Look (Filmic/AgX/Neutral) — C114. PR1b: Exposure slider — C123.
-- [x] PR2. Cinematic post stack (Maximum: full-res AO + film grain + chromatic aberration) — C117.
-  (User verifies subtle grading in prod; DoF/TiltShift deferred to PR4-adjacent.)
-- [x] PR3. **Material realism pass**. PR3a (C118): tier-driven IBL probe resolution. PR3b (C127):
-  envMapIntensity boost on glossy finishes (stone/leather/velvet). PR3c (C149): sheen (velvet/satin/
-  leather) + clearcoat (gloss/stone) via `MeshPhysicalMaterial` + tier-gated glass transmission
-  (`materialRealism.ts` + `getGlassMaterial`/`GlassMaterial.tsx`) + sharper normals. Real-GPU visual
-  verify of transmission/clearcoat/sheen still deferred (software-GL harness can't show them).
-- [ ] PR4. **Soft-shadow upgrade** (PCSS-ish / VSM, contact-shadow refinement).
-- [ ] PR5. **Local progressive render** (one-click high-quality still via AccumulativeShadows +
-  higher samples) — supersedes/ą merges R10.
-- [~] PR6. **Furniture-surface PBR overhaul** (user-flagged 2026-06-10: parametric surfaces look fake).
-  DONE (C209): plank wood (per-board tone/phase/seam), woven fabric (warped threads + slubs, shared by
-  velvet), painted micro-normal — all behind the `pbrSurfaces` flag, maps kept on every tier (deliberate
-  deviation: removing them on Performance would flatten the default). DEFERRED tail (real-GPU / loader work):
-  default common finishes to local CC0 `mat:<id>` (needs `FurnitureMaterialLoader` pre-build + per-furniture
-  UV scale so a floor texture doesn't tile wrong on a small piece), optional Performance env hint, and a
-  `furnitureFamily.ts` (skipped — overlaps the existing pure `materialRealism.ts`).
-  Original plan below. Root causes: (1) no env map on Performance → glossy/metal/stone collapse to flat;
-  (2) `painted` finish is map-less (most common cabinet/bed finish → dead-flat); (3) furniture wood/marble
-  albedo too uniform vs the richer floor `woodFields`; (4) furniture tiles 256² + many finishes carry no
-  albedo map; (5) no AO/edge-wear; (6) ad-hoc UV repeat per primitive; (7) fabric weave normal too regular.
-  Plan = route furniture finishes through the richer `procedural/generators.ts` engine (add fabric/leather/
-  velvet/brushed-metal `*Fields`), make material helpers **tier-aware** (new `furnitureFamily.ts` `familyPbr`
-  + thread `RenderTier` into `getSurfaceMaterial`/`getUpholsteryMaterial`), gate maps Medium+ (Performance =
-  improved flat albedo only, stays cheap), default common finishes (oak/walnut/marble) to existing CC0
-  `mat:<id>` via a new `furnitureDefaultMaterials.ts`, give matte `painted` a faint shared micro-normal.
-  Behind a new `pbrSurfaces` flag (`tier: pro` for the heavy path; the improved-albedo base is prod-safe).
-  One commit per step: (1) plumb tier → material helpers; (2) `furnitureFamily.ts`+tests; (3) tier-gate maps
-  + `pbrSurfaces` flag; (4) richer wood/marble albedo @256²; (5) new fabric/leather/velvet/metal `*Fields`
-  + `generateProceduralAt(size)`; (6) painted micro-normal; (7) default-DLC mapping; (8) optional Performance
-  env hint; (9) docs (`src/materials/CLAUDE.md`, ARCHITECTURE, developer docs, CHANGELOG). Perf: 256² cap,
-  singleton neutral maps + per-(kind,tint) cache reuse, zero new textures/layers on Performance. Verify caveat:
-  software-GL harness can't judge reflections/clearcoat/anisotropy — validate albedo/normal presence + that
-  Performance stays flat; reflection quality needs a real-GPU pass.
-
-## ⭐ MAJOR: GLB editor pro tooling (user-requested 2026-06-10) — phased, each its own commit
-Today (`GlbDesignerDialog` + `furniture/glbEdit/`): compose-from-shapes, scale-a-source-GLB,
-per-mesh recolour/hide. More verifiable in software-GL than PRx (deterministic geometry/UI).
-- [x] GE1. More primitives — cone/pyramid/capsule/torus shipped C115 (wedge/plane deferred).
-- [x] GE1b. Wedge primitive — shipped C124. (Plane = a thin box; tube = a torus — both already covered.)
-- [~] GE2. Per-part transform. GE2a (C121): numeric rotation inputs. TODO GE2b: a drag gizmo
-  (drei TransformControls) for move/rotate/scale in the preview.
-- [x] GE3. Per-part PBR — roughness/metalness (C119) + glow/opacity (C120). TODO GE3c: texture pick.
-- [x] GE4. "Update original" — overwrite a source asset in place — shipped C126 (full export
-  round-trip pending real-env verification).
-- [x] GE6. Duplicate a part (clone transform + material) — shipped C122.
-- [x] GE7. Mirror a part across the centre — shipped C125.
-- [ ] GE5. **CSG boolean ops** (union/subtract/intersect) via three-bvh-csg or similar.
-
-## Feature-flag retrofit (infra shipped: registry + resolver + admin + panel + desktop/⌘K gating)
-
-## Features (larger)
-- [~] K1b. **Cabinet engine — next steps**: sink (C42), hob (C43), "Kitchen run" set + wall-mount fix (C44), handle styles (C46), corner unit (C59), worktop materials — marble/concrete/wood across cabinet-base + KitchenIsland + KitchenCounter (C94/C95), wall-aware "Arrange as run" — flush + butted along the nearest wall (C96) shipped.
-- [~] Q31. **Drag a material swatch onto a surface in 3D**. Part 1 shipped (C39): tested `finishDrop` resolver + draggable swatches + drop onto Objects-list rows. TODO part 2: the 3D-canvas raycast drop onto floor/wall/item (needs manual/GPU verify).
-- [ ] Export the design as a 3D model (.glb). Prototyped a `GlbExportController` (GLTFExporter over the live scene) but reverted: full-scene export with Draco geometry + dozens of embedded textures doesn't complete in the headless software-GL verify env, so it can't be screenshot-verified here. Needs a real-GPU verify pass + likely a furniture-only/worker-streamed export to bound cost.
-- [ ] T3. Per-LOD multi-tier generation for uploads.
-- [~] T2. Crown-molding revisit + kitchen/bath template polish (herringbone floor already shipped).
-- [~] GLB Asset Designer (C47/C48): compose-from-shapes, scale-a-source-GLB, per-mesh recolour/hide all shipped. TODO: transform/move parts via gizmo; save edits back over an existing asset (vs always new).
+- [ ] P2 Memoization audit of hot R3F components/selectors — needs real-hardware profiling to justify.
+- [ ] P3 tail: rotation-capable instancing for venetian-blind / drying-rack slats (needs a
+  rotation-aware `InstancedBoxes` sibling; deferred until a consumer justifies it).
+- [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
+  needs a context recreate (flash) + real-GPU verify.
+- [ ] PERF9 tail: drop procedural textures to 256² where quality allows / OffscreenCanvas worker.
+- [ ] PERF-FOLLOWUPS (low-impact; only if profiling flags them): `historySlice` tail re-slice past
+  the cap; cache `findItemOverlaps` broadphase within a frame.
+- [ ] LP5 tail (optional): 3D lux coverage overlay on the floor.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
-- Run `npm test` + `tsc` before each commit; visual-verify app-facing changes.
-- Keep CHANGELOG/TASKS entries to a 2-line max.
+- Run `npm test` + `tsc` + `biome` before each commit; visual-verify app-facing changes.
+- Keep this file pending-only (see policy above); keep `TODO.md` (legacy deferred-work log) current.
 
 Competitor-research sources: capterra.com/compare Planner-5D-vs-Coohom;
 coohom.com/article best-online-room-planner-2026; saasworthy.com Planner-5D.
