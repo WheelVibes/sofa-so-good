@@ -1,8 +1,39 @@
 # Changelog
 
 Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
-Each entry corresponds to one focused commit on
-`claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
+Each entry corresponds to one focused commit (C1–C250 on
+`claude/codebase-analysis-optimization-f6yag0`, C251+ on
+`claude/codebase-analysis-optimization-ny3xm9`). See `TASKS.md` for the backlog.
+
+## [C254 / PERF-FOLLOWUPS] History cap amortisation + frame-scoped overlap memo
+Two backlog micro-optimisations. `historySlice.appendCapped` no longer slice-and-spreads the
+whole past stack on every push once the 50-entry cap is hit: the stack grows into a 16-entry
+headroom band and is trimmed back to the cap with ONE amortised slice, so steady-state pushes
+stay a single spread copy; undo depth is always ≥ the cap and undo/redo/jump semantics are
+unchanged (new tests pin the trim point, dropped-oldest order, and a full undo drain across a
+trim). `collision/findItemOverlaps` gains a frame-scoped single-slot memo: same-task calls with
+unchanged `items`/`defs` identities (several panels can scan in one render pass) return the
+cached array allocation-free; it invalidates on identity change and self-expires on microtask
+flush because OBBs read the mutable GLB-footprint cache. +6 tests; behaviour-preserving (full
+suite green).
+
+## [C253 / X-SHOP tail] SG retailer expansion in the dev price sidecar — Courts/HipVan/Castlery
+The dev-only live-pricing sidecar (`scripts/price-server.mjs`) now has three retailer adapters
+alongside IKEA SG: Courts (Magento GraphQL search), HipVan (Algolia-style hits), Castlery
+(JSON-LD products in the search page HTML), each following the existing convention — pure
+exported parser + URL builder, candidates re-ranked by fuzzy name match
+(`scoreNameMatch`/`pickBestMatch` with the retailer's own top hit as fallback), all upstream
+fetches timeboxed at 8 s, shape drift degrading to a 404 `no match` and network errors to a 502
+`{error, retailer}` (never a crash). `/price` responses carry `retailerLabel`. Client:
+`livePrice.ts` adopts the retailer list from `/health` (never hardcoded), fetches all retailers
+per item in parallel with per-retailer failures dropping out, and returns offers
+**cheapest-first**; the Budget panel prices each line/total by the cheapest offer and renders a
+wrappable cheapest-first row of retailer buy links. Gating unchanged: the same devOnly pro-tier
+`livePrices` flag, with a new test asserting it stays off in prod (Simple AND Pro). Verified
+desktop 1600×1000 + mobile 390×844 with a stubbed sidecar: offers render cheapest-first, a 404
+retailer drops silently, 4-offer rows wrap cleanly. The retailer URL/response shapes are
+best-effort offline reconstructions — a real-network verification pass is tracked in TODO.md.
++15 tests.
 
 ## [C249 / T3] Per-LOD tiers for uploaded models — in-browser -low/-medium generation + tier-routed loading
 Uploads now get the same `-low`/`-medium` LOD siblings the offline `optimize:glb` pass bakes for

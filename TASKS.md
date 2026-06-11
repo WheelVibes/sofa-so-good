@@ -73,8 +73,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 
 ## Commerce / collaboration
-- [~] X-SHOP tail: live SG prices beyond IKEA (Courts/HipVan/Castlery as `RETAILERS` entries in
-  the dev `price-server.mjs`). (in flight, worktree agent)
+- [ ] X-SHOP real-network pass: Courts/HipVan/Castlery adapters (C253) were built offline —
+  verify/fix response shapes against the live sites on a connected machine (see TODO.md).
 - [ ] F24 tail: live presence / multi-user sync on pinned comments — needs a backend; deferred.
 - [ ] F26 [DEV] Photo-to-3D room replica (vision/photogrammetry, BYO-key cloud).
 
@@ -85,8 +85,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
 - [ ] PERF9 tail: drop procedural textures to 256² where quality allows / OffscreenCanvas worker.
-- [~] PERF-FOLLOWUPS: `historySlice` tail re-slice past the cap; cache `findItemOverlaps`
-  broadphase within a frame. (in flight, worktree agent)
 - [ ] LP5 tail (optional): 3D lux coverage overlay on the floor.
 
 ## Process
