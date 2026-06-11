@@ -30,11 +30,16 @@ import { FURNITURE_CATEGORIES } from '../furniture/types'
 import { blockedDoorItems } from '../layout/clearance'
 import { findNarrowGaps } from '../layout/walkway'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
+import { estimateRoomLux } from '../lighting2d/roomLux'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
-import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
+import {
+  type LightingPalette,
+  lightingPlanSvg,
+  roomLuxTableHtml,
+} from './lighting2d/lightingPlanSvg'
 import {
   designPalette,
   floorAreaByFinish,
@@ -529,8 +534,10 @@ export function buildReportHtml(
     : ''
 
   // Lighting plan — fixtures (from the light-emitter registry) plotted over the
-  // walls + a schedule. Only when the design actually has lights.
+  // walls + a schedule, plus a per-room lumen-method lux estimate vs the
+  // recommended residential bands. Only when the design actually has lights.
   const lighting = hasItems ? buildLightingPlan(items, catalog) : { lights: [], schedule: [] }
+  const roomLux = lighting.lights.length ? estimateRoomLux(plan, lighting.lights) : []
   const lightingSection = lighting.lights.length
     ? `<div class="elev-section"><h2>Lighting plan</h2>
         <div class="plan-wrap">${lightingPlanSvg(plan, lighting.lights, { palette: LIGHTING_PRINT })}</div>
@@ -539,7 +546,9 @@ export function buildReportHtml(
             (r) =>
               `<tr><td>${esc(r.label)}</td><td class="num">×${r.count}</td><td class="num">${esc(formatLength(r.height, units))}</td><td class="num">${r.intensity} cd</td></tr>`,
           )
-          .join('')}</table></div>`
+          .join('')}</table>
+        ${roomLuxTableHtml(roomLux, units, { header: 'cat', num: 'num' })}
+        ${roomLux.length ? `<div class="foot" style="margin-top:6px">Estimated average illuminance per room (lumen method, utilisation factor 0.45) vs recommended residential levels.</div>` : ''}</div>`
     : ''
 
   // FF&E schedule — the item-level procurement table (room · item · source · SKU

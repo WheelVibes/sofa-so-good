@@ -23,9 +23,14 @@ import { planRoomArea, planTotalArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
+import { estimateRoomLux } from '../lighting2d/roomLux'
 import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
-import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
+import {
+  type LightingPalette,
+  lightingPlanSvg,
+  roomLuxTableHtml,
+} from './lighting2d/lightingPlanSvg'
 import { reportPlanSvg } from './reportPlanSvg'
 
 const ELEV_PRINT: ElevationPalette = {
@@ -90,7 +95,7 @@ export function buildDrawingSetHtml(
     })
   })
 
-  // Lighting plan.
+  // Lighting plan (+ per-room lux estimate vs recommended residential bands).
   const lighting = buildLightingPlan(items, catalog)
   let next = 2 + elevations.length
   if (lighting.lights.length) {
@@ -103,7 +108,8 @@ export function buildDrawingSetHtml(
             (r) =>
               `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td><td class="n">${esc(formatLength(r.height, units))}</td><td class="n">${r.intensity} cd</td></tr>`,
           )
-          .join('')}</table>`,
+          .join('')}</table>
+        ${roomLuxTableHtml(estimateRoomLux(plan, lighting.lights), units, { header: 'h', num: 'n', table: 'sched' })}`,
     })
     next += 1
   }

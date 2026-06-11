@@ -4,6 +4,14 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C219 / LP5] Lighting plan — per-room lux estimate + recommended-level check
+New pure `lighting2d/roomLux.ts`: lumen-method estimate per room (registry candela → lumens via
+4π × a documented scene-calibration constant; utilisation factor 0.45; CIBSE/IES/EN-12464-sourced
+recommended bands per room kind) → ok/low/high status. Schedule renders in the Drawings panel's
+Lighting tab, the printable report and the drawing set; respects the per-item emitter `enabled`
+gate. Salvaged from an interrupted agent's WIP, integrated (isItemEmitter resolution) and
+verified in-app (plausible per-room values + status chips). 17 lighting tests pass.
+
 ## [C218 / EL5] Elevation polish — door swing symbol + dimension label de-overlap
 Doors in wall elevations now carry the standard drafting symbol: leaf line on the hinge jamb +
 dashed quarter swing arc (hinge side plumbed from `PlanOpening.hinge` through `projectElevation`;

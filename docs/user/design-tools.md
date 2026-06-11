@@ -88,7 +88,11 @@ at the top:
   kitchen/bath designers and installers use for cabinet, fixture and backsplash
   heights.
 - **Lighting** plots every light fixture over the walls with its coverage circle —
-  a reflected‑ceiling‑style plan showing where the light falls.
+  a reflected‑ceiling‑style plan showing where the light falls. Below the plan,
+  **Estimated light levels** lists each room's estimated average brightness in
+  lux next to the recommended range for that room type (e.g. living 100–200 lx,
+  kitchen 300–600 lx), with an **OK** / **Low** / **High** chip so you can spot
+  under‑ or over‑lit rooms at a glance.
 
 Both also appear in the printable **Report**. Works on desktop and as a mobile sheet.
 
@@ -127,7 +131,8 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
   **wall elevations** (a
   side-on drawing per wall with dimensions, for cabinet/fixture heights), a
   **lighting plan** (every fixture plotted over the walls with its coverage, plus
-  a schedule of type/quantity/height/intensity), an **FF&E schedule** (the
+  a schedule of type/quantity/height/intensity and a per-room **estimated light
+  level** table — lux vs the recommended range, statused OK/Low/High), an **FF&E schedule** (the
   item-level procurement table — room, item, source, SKU, size W×D×H, quantity,
   unit + line price), a **renovation estimate** (indicative flooring + painting
   supply‑and‑install cost per finish, with a combined furniture + finishes

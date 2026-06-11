@@ -200,8 +200,12 @@ same change that reshapes a system.
   builder). Flag `shopExport` (simple, prod); File menu + mobile File + ⌘K. IKEA product links/SKUs only
   with retailer defs; links dev-gated via `ikeaLive` (licensing) — generic export ships in prod.
 - **Lighting plan** (`lighting2d/lightingPlan.ts` pure → fixtures from the `LIGHT_EMITTERS` registry
-  with world pos/height/intensity/coverage + a schedule; `ui/lighting2d/lightingPlanSvg.ts` draws
-  walls + coverage circles + glyphs). Surfaced in the report (plan + schedule). Same pure-core →
+  with world pos/height/intensity/coverage + a schedule, honouring per-item `enabled()` gates;
+  `ui/lighting2d/lightingPlanSvg.ts` draws walls + coverage circles + glyphs).
+  `lighting2d/roomLux.ts` (pure) adds a per-room average-lux estimate (lumen method: candela → 4π
+  lumens × calibration, utilisation factor 0.45, ÷ floor area) statused ok/low/high against
+  recommended residential bands per room kind (`roomKindFromName`). Surfaced in the Drawings panel
+  (badge list), the report and the drawing set (`roomLuxTableHtml`). Same pure-core →
   palette-injected-SVG pattern as elevations.
 - **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
   clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the

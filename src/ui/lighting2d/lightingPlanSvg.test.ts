@@ -1,7 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan } from '../../floorplan/types'
 import type { PlanLight } from '../../lighting2d/lightingPlan'
-import { type LightingPalette, lightingPlanSvg } from './lightingPlanSvg'
+import type { RoomLuxEstimate } from '../../lighting2d/roomLux'
+import { type LightingPalette, lightingPlanSvg, roomLuxTableHtml } from './lightingPlanSvg'
 
 const palette: LightingPalette = { wall: '#333', ink: '#222', coverage: '#fb0' }
 
@@ -63,5 +64,39 @@ describe('lightingPlanSvg', () => {
     expect(lightingPlanSvg({ ...plan, extent: [0, 0], walls: [] }, [], { palette })).toContain(
       'empty lighting plan',
     )
+  })
+})
+
+describe('roomLuxTableHtml', () => {
+  const row: RoomLuxEstimate = {
+    roomId: 'lv',
+    roomName: '<Living>',
+    kind: 'living',
+    area: 20,
+    lumens: 4000,
+    lux: 123.4,
+    recommended: { min: 100, max: 200 },
+    status: 'ok',
+  }
+
+  it('renders rounded lux, the recommended band, the status and escapes names', () => {
+    const html = roomLuxTableHtml([row], 'metric', { header: 'cat', num: 'num', table: 'sched' })
+    expect(html).toContain('<table class="sched"')
+    expect(html).toContain('&lt;Living&gt;')
+    expect(html).not.toContain('<Living>')
+    expect(html).toContain('123 lx')
+    expect(html).toContain('100–200 lx')
+    expect(html).toContain('OK')
+    // Low rooms get the amber Low chip.
+    expect(
+      roomLuxTableHtml([{ ...row, lux: 12, status: 'low' }], 'metric', {
+        header: 'cat',
+        num: 'num',
+      }),
+    ).toContain('Low')
+  })
+
+  it('is empty for no rows', () => {
+    expect(roomLuxTableHtml([], 'metric', { header: 'cat', num: 'num' })).toBe('')
   })
 })

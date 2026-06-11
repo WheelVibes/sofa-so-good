@@ -49,7 +49,9 @@ export interface LightingPlan {
  * registered light emitter contribute; `defs` resolves friendly labels. The
  * emitter's optional local offset `[rightX, forwardZ]` is rotated by the item's
  * yaw into world space (matching the scene's fixture placement), so an arc-lamp
- * bulb sits out over the sofa on the plan just as it does in 3D.
+ * bulb sits out over the sofa on the plan just as it does in 3D. Items whose
+ * per-item `enabled` gate is off (a fixture whose light is switched off by its
+ * params) are excluded, matching the 3D scene.
  */
 export function buildLightingPlan(
   items: FurnitureItem[],

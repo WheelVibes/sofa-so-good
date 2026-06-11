@@ -95,8 +95,8 @@ cherry-picked); the rest left only UNVERIFIED uncommitted WIP in their worktrees
 without re-running gates; prefer restarting the task fresh:
 - [x] EL5 tail (C218): salvaged + completed in the main tree — door swing symbol, label stagger,
   tests. See CHANGELOG.
-- [ ] LP5 (was: agent ad7de0…): per-room lux estimate + recommended-level check in the lighting
-  plan schedule (in-app + report). WIP across lighting2d + docs.
+- [x] LP5 (C219): salvaged + completed — per-room lux estimate (`roomLux.ts`) + status chips in
+  panel/report/drawing set. See CHANGELOG.
 - [ ] X-PRESENT 3D link (was: agent a4297e…): compressed `#/design/<code>` URL share extending
   `planShare.ts` (size budget, bomb guard, unknown-defId drop, ShareModal "Copy 3D link"). WIP
   touched planShare.ts/App/bootstrap/main.tsx (main.tsx may hold temp debug hooks — discard).
@@ -296,7 +296,7 @@ offset) — no new placement UI. Pure-core + 2D SVG + report, fully verifiable l
 - [x] LP2. Lighting-plan SVG renderer (walls + coverage + glyphs) — shipped C136.
 - [x] LP3. Report integration: lighting plan SVG + schedule table — shipped C137.
 - [x] LP4. In-app lighting view — unified "Drawings" panel (Elevations | Lighting) — shipped C138.
-- [ ] LP5. (optional) 3D coverage overlay on the floor; per-room lux estimate.
+- [x] LP5 (C219). Per-room lux estimate + recommended bands shipped; 3D floor coverage overlay still optional/open.
 
 ### DRAWING SET (paginated plan set) — shipped C141 (cover + plan + elevations + lighting + FF&E sheets).
 
