@@ -100,3 +100,35 @@ export function visibleLevels(plan: FloorPlan, viewLevelId: string): PlanLevel[]
   const match = levels.filter((l) => l.id === viewLevelId)
   return match.length > 0 ? match : levels
 }
+
+/** Fields of a storey the 2D editor mutates. */
+export interface LevelGeometry {
+  walls: PlanWall[]
+  openings: PlanOpening[]
+  rooms: PlanRoom[]
+}
+
+/**
+ * Apply a geometry update to ONE storey of the plan (the 2D editor's level
+ * routing — ML4). Ground (or absent/unknown ids) edits the plan's own arrays;
+ * an upper level id maps the update over that entry in `upperLevels`. The
+ * updater gets the level's current geometry and returns the changed fields.
+ */
+export function withLevelGeometry(
+  plan: FloorPlan,
+  levelId: string | undefined,
+  update: (g: LevelGeometry) => Partial<LevelGeometry>,
+): FloorPlan {
+  const level = levelById(plan, levelId)
+  if (level.id === GROUND_LEVEL_ID) {
+    return { ...plan, ...update({ walls: plan.walls, openings: plan.openings, rooms: plan.rooms }) }
+  }
+  return {
+    ...plan,
+    upperLevels: (plan.upperLevels ?? []).map((l) =>
+      l.id === level.id
+        ? { ...l, ...update({ walls: l.walls, openings: l.openings, rooms: l.rooms }) }
+        : l,
+    ),
+  }
+}

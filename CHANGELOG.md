@@ -4,6 +4,13 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C226 / ML4a] Plan-edit actions route per storey + add/remove level
+New pure `withLevelGeometry` (levels.ts) maps a geometry update onto one storey; the eight
+wall/room/opening slice actions gain an optional `levelId` (ground default = behaviour
+unchanged), and new `addLevel` (empty storey auto-elevated above the highest, undoable) /
+`removeLevel` (drops the storey + its items + its stale finish keys, undoable; ground is a
+no-op). 6 new tests. The 2D editor's level tab strip lands next (ML4b).
+
 ## [C225 / ML3b] Level-scoped placement collision
 Items on different storeys no longer collide: one level-equality gate in `itemsCollide`
 (covers `canPlace`, `findItemOverlaps`, design score, reports — zero caller changes), and

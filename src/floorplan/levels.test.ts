@@ -10,6 +10,7 @@ import {
   levelOfRoom,
   planLevels,
   visibleLevels,
+  withLevelGeometry,
 } from './levels'
 import type { FloorPlan, PlanUpperLevel } from './types'
 
@@ -92,5 +93,24 @@ describe('levelAsPlan / visibleLevels', () => {
     expect(visibleLevels(multi, 'all').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
     expect(visibleLevels(multi, 'lvl-2').map((l) => l.id)).toEqual(['lvl-2'])
     expect(visibleLevels(multi, 'stale').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
+  })
+})
+
+describe('withLevelGeometry', () => {
+  it('edits the ground arrays for ground/absent ids', () => {
+    const next = withLevelGeometry(multi, undefined, (g) => ({
+      rooms: [...g.rooms, { id: 'g-new', name: 'New', origin: [0, 0], width: 1, depth: 1 }],
+    }))
+    expect(next.rooms.map((r) => r.id)).toEqual(['g-living', 'g-new'])
+    expect(next.upperLevels?.[0].rooms.map((r) => r.id)).toEqual(['up-bed'])
+  })
+  it('edits only the targeted upper level', () => {
+    const next = withLevelGeometry(multi, 'lvl-2', (g) => ({
+      walls: g.walls.filter((w) => w.id !== 'uw1'),
+      rooms: [...g.rooms, { id: 'up-new', name: 'New', origin: [0, 0], width: 1, depth: 1 }],
+    }))
+    expect(next.walls).toBe(multi.walls) // ground untouched
+    expect(next.upperLevels?.[0].walls).toEqual([])
+    expect(next.upperLevels?.[0].rooms.map((r) => r.id)).toEqual(['up-bed', 'up-new'])
   })
 })

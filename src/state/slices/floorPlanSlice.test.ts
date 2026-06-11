@@ -122,3 +122,66 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().savedPlans.filter((p) => p.name === 'Dupe').length).toBe(1)
   })
 })
+
+describe('multi-storey level editing (F13/ML4a)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('addLevel appends an empty storey above the ceiling and is undoable', () => {
+    const id = useStore.getState().addLevel('Loft')
+    const plan = useStore.getState().floorPlan
+    const lvl = plan.upperLevels?.find((l) => l.id === id)
+    expect(lvl?.name).toBe('Loft')
+    expect(lvl?.elevation).toBeCloseTo(plan.ceilingHeight + 0.3, 5)
+    useStore.getState().undo()
+    expect(useStore.getState().floorPlan.upperLevels ?? []).toHaveLength(0)
+  })
+
+  it('geometry actions route to the targeted level', () => {
+    const lvl = useStore.getState().addLevel()
+    const wallId = useStore
+      .getState()
+      .addWall({ start: [0, 0], end: [3, 0], thickness: 'internal' }, lvl)
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Up', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    const s = useStore.getState()
+    const up = s.floorPlan.upperLevels?.[0]
+    expect(up?.walls.map((w) => w.id)).toEqual([wallId])
+    expect(up?.rooms.map((r) => r.id)).toEqual([roomId])
+    // Ground arrays untouched by the routed adds.
+    expect(s.floorPlan.walls.some((w) => w.id === wallId)).toBe(false)
+    // Update + remove route too.
+    s.updateWall(wallId, { thickness: 'external' }, lvl)
+    expect(useStore.getState().floorPlan.upperLevels?.[0].walls[0].thickness).toBe('external')
+    s.removeWall(wallId, lvl)
+    expect(useStore.getState().floorPlan.upperLevels?.[0].walls).toHaveLength(0)
+  })
+
+  it('removeLevel drops the storey, its items and its finish keys', () => {
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Up', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    useStore.getState().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+    const upId = useStore.getState().items.at(-1)?.id as string
+    useStore.setState((s) => ({
+      items: s.items.map((it) => (it.id === upId ? { ...it, levelId: lvl } : it)),
+    }))
+    useStore.getState().setFloorFinish(roomId as never, 'floor-carpet-grey')
+    useStore.getState().removeLevel(lvl)
+    const s = useStore.getState()
+    expect(s.floorPlan.upperLevels ?? []).toHaveLength(0)
+    expect(s.items.some((it) => it.id === upId)).toBe(false)
+    expect((s.finishes.floor as Record<string, string>)[roomId]).toBeUndefined()
+    expect(s.floorPlan.rooms.some((r) => r.id === roomId)).toBe(false)
+  })
+
+  it('removeLevel is a no-op for ground/unknown ids', () => {
+    const before = useStore.getState().floorPlan
+    useStore.getState().removeLevel('ground')
+    useStore.getState().removeLevel('nope')
+    expect(useStore.getState().floorPlan).toBe(before)
+  })
+})
