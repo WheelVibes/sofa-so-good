@@ -1,5 +1,7 @@
 import { IdbAssetStore } from '../../state/storage/IdbAssetStore'
 import { useStore } from '../../state/store'
+import { LOD_TIERS, type LodTier, lodAssetId, registerLodVariants } from '../gltf/lod'
+import type { LodVariantSet } from '../optimize/lodVariants'
 import type { FurnitureCategory, UserGltfDef } from '../types'
 import { hashBuffer } from './hashFile'
 import { validateGlbFile } from './validate'
@@ -23,6 +25,10 @@ export interface PersistOptions {
    *  the catalog card + first-placement collision are right before the GLB
    *  loads. Defaults to a 1 m cube (refined from the GLB bbox at render). */
   footprint?: { w: number; d: number; h: number }
+  /** Generated -low/-medium LOD variants (from `optimize/lodVariants.ts`).
+   *  Persisted as sibling IDB records under derived keys (`lodAssetId`) and
+   *  registered so the renderer serves them on low/medium asset tiers. */
+  lods?: LodVariantSet
 }
 
 export type PersistResult =
@@ -83,6 +89,35 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
     },
   })
 
+  // LOD tier siblings: one IDB record per generated variant, under the derived
+  // `<assetId>:lod-<tier>` key, then registered so resolveLodUrlSync routes
+  // low/medium asset tiers to these blob URLs (uploads have no `-low.glb`
+  // sibling files to HEAD-probe). Best-effort: a failed tier write only costs
+  // that tier, never the upload.
+  const runtimeUrl = URL.createObjectURL(blob)
+  const lodUrls: Partial<Record<LodTier, string>> = {}
+  for (const tier of LOD_TIERS) {
+    const bytes = opts.lods?.[tier]
+    if (!bytes) continue
+    const ab = bytes.buffer.slice(bytes.byteOffset, bytes.byteOffset + bytes.byteLength)
+    const lodBlob = new Blob([ab as ArrayBuffer], { type: v.mime })
+    try {
+      await IdbAssetStore.put({
+        assetId: lodAssetId(assetId, tier),
+        kind: 'gltf',
+        mime: v.mime,
+        name: `${opts.name} (${tier} LOD)`,
+        uploadedAt: new Date().toISOString(),
+        blob: lodBlob,
+        meta: { role: 'lod', tier, baseAssetId: assetId },
+      })
+      lodUrls[tier] = URL.createObjectURL(lodBlob)
+    } catch {
+      // tier dropped; the original serves that tier instead
+    }
+  }
+  if (lodUrls.low || lodUrls.medium) registerLodVariants(runtimeUrl, lodUrls)
+
   const def: UserGltfDef = {
     id: `user-${assetId}`,
     name: opts.name,
@@ -93,7 +128,7 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
     contentHash,
     uploadedAt: new Date().toISOString(),
     defaultFootprint: opts.footprint ?? { w: 1.0, d: 1.0, h: 1.0 },
-    runtimeUrl: URL.createObjectURL(blob),
+    runtimeUrl,
     mounted: opts.mounted,
     noClip: opts.noClip,
     finishTargets: opts.finishTargets,

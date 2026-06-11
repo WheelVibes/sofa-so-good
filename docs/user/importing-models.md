@@ -18,7 +18,12 @@ import runs entirely **in your browser** — nothing is uploaded to a server.
 1. Non‑GLB models are **converted to GLB** in the browser.
 2. Every model runs through an **optimize pass** — weld / dedup / prune, Draco
    geometry compression, and WebP textures — so it loads fast in the scene.
-3. There's an opt‑in **Maximum compression (KTX2)** toggle for GPU‑compressed
+3. By default, low‑detail versions are also generated (the **Generate low‑detail
+   versions for slower devices** checkbox): simplified copies with smaller
+   textures that the **Performance** and **Medium** graphics tiers load instead
+   of the full model. Untick it to make big imports finish faster — the full
+   model is then used on every tier.
+4. There's an opt‑in **Maximum compression (KTX2)** toggle for GPU‑compressed
    textures; if KTX2 encoding isn't available it falls back to WebP.
 
 ## Importing

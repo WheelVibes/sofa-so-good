@@ -12,7 +12,9 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   type-checker flags, and `ui/catalog/CategoryTabs`/`CategoryIcon`. Category is auto-detected
   for imports, **never** typed by hand.
 - **All GLB items** (bundled CC0 / user uploads / IKEA) render through `GltfModel`/`gltfRender.ts`
-  — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants.
+  — set the same collision flags; run `npm run optimize:glb` for `-low`/`-medium` LOD variants
+  (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
+  variant registry).
 - **Pure geometry stays render-agnostic + unit-tested** (e.g. `cabinet/cabinetModel.ts`
   `buildCabinet`); the primitive only maps parts → meshes/materials.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering

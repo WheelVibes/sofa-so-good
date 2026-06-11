@@ -4,6 +4,29 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C249 / T3] Per-LOD tiers for uploaded models — in-browser -low/-medium generation + tier-routed loading
+Uploads now get the same `-low`/`-medium` LOD siblings the offline `optimize:glb` pass bakes for
+bundled/IKEA GLBs, generated **in the browser** inside the existing optimize worker:
+`furniture/optimize/lodVariants.ts` takes the optimized GLB and, per tier, downscales textures to
+the shared `TIER_BUDGETS` caps (512/1024 px WebP) and decimates with meshopt `simplify`
+(ratio 0.5/0.75, error 0.01) before dedup/prune + Draco — mirroring `optimize_glb_lod.mjs`
+including its fallbacks (simplify failure → textures-only tier; tier failure or a variant that
+doesn't shrink → tier omitted; nothing ever blocks an upload). Tiers persist as sibling IDB
+records under derived `<assetId>:lod-<tier>` keys (`meta.role='lod'`), are re-resolved on boot by
+`hydrateAssets`, and are deleted with their base asset. Runtime selection reuses the builtin path:
+`gltf/lod.ts` gains a variant **registry** (blob URLs can't be suffix-probed) that
+`resolveLodUrlSync`/`prewarmLod`/`baseUrl` consult first, so `GltfModel`'s existing
+`effectiveAssetTier` routing serves the `-low` upload on the Performance render tier with zero new
+render code. The upload dialog gets a default-on "Generate low-detail versions for slower devices"
+opt-out (the tiers roughly triple per-model optimize time — measured headless/SwiftShader on an
+8.6 MB 131k-tri GLB: optimize 32 s, +71 s for both tiers; real GPUs are far faster but it's well
+past the 5 s silent threshold). meshoptimizer (already in the tree via @types/three) is now a
+declared dep, dynamic-imported so it stays in the lazy optimize chunk. 18 new unit tests (tier
+params, key derivation, registry selection, persist/hydrate/delete round-trip); verified headless
+end-to-end: upload → base 4.63 MB + low 1.09 MB + medium 1.70 MB in IDB, in-page reboot rehydrates
+the registry, and the Performance tier draws the low variant (67.6k tris rendered vs 133.0k on
+the original — 0.508, right on the 0.5 target) with the model rendering cleanly.
+
 ## [C248 / F24] Pinned design comments — level-aware pins + panel, travels with saves/links
 Sticky-note feedback on a design (the PROD half of F24; live presence stays backend-deferred):
 `commentsSlice` holds `{id, position:[x,z], levelId?, text, author?, createdAt, resolved}` with

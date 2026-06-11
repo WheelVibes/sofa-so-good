@@ -31,9 +31,13 @@ plan:
   - **KTX2/DDS standalone-material decode** — needs a WebGL readback; the model
     importer handles embedded KTX2, but standalone KTX2/DDS material uploads are
     not yet decoded ([src/materials/convert/decodeImage.ts]).
-  - **Multi-tier `-low`/`-medium` LOD generation for uploads** — the single
-    in-browser optimize pass already exceeds the old user-upload baseline; full
-    tiered LOD (like the offline `optimize:glb`) is still upload-side TODO.
+  - ~~**Multi-tier `-low`/`-medium` LOD generation for uploads**~~ — **done**
+    (C249/T3): `optimize/lodVariants.ts` generates both tiers in the optimize
+    worker (meshopt simplify + tier texture caps), stored in IDB under
+    `<assetId>:lod-<tier>` keys and tier-routed at render via the
+    `gltf/lod.ts` variant registry; default-on opt-out checkbox in the upload
+    dialog. KTX2-encoded textures still pass through tier variants
+    un-downscaled (blocked on the decoder gap above).
 
 ## Layout / placement (2026-05-30)
 Done — preset circulation is now regression-tested (`layoutPresets.test.ts`:

@@ -2,11 +2,15 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   __resetLodCacheForTest,
   baseUrl,
+  lodAssetId,
   lodSuffix,
   lodUrl,
+  parseLodAssetId,
   prewarmLod,
+  registerLodVariants,
   resolveLodUrlSync,
   TIER_BUDGETS,
+  unregisterLodVariants,
 } from './lod'
 
 describe('lod url helpers', () => {
@@ -68,5 +72,70 @@ describe('lod resolution', () => {
     await prewarmLod('/m/foo.glb', 'low') // second call cached
     expect(fetchMock).toHaveBeenCalledTimes(1)
     vi.unstubAllGlobals()
+  })
+})
+
+describe('lod asset-id derivation (upload IDB siblings)', () => {
+  it('derives deterministic tier keys from a base asset id', () => {
+    expect(lodAssetId('abc-123', 'low')).toBe('abc-123:lod-low')
+    expect(lodAssetId('abc-123', 'medium')).toBe('abc-123:lod-medium')
+  })
+
+  it('parses derived keys back to base + tier, and rejects regular ids', () => {
+    expect(parseLodAssetId('abc-123:lod-low')).toEqual({ baseAssetId: 'abc-123', tier: 'low' })
+    expect(parseLodAssetId('abc-123:lod-medium')).toEqual({
+      baseAssetId: 'abc-123',
+      tier: 'medium',
+    })
+    expect(parseLodAssetId('abc-123')).toBeNull()
+    expect(parseLodAssetId('abc-123:lod-high')).toBeNull()
+  })
+
+  it('round-trips for both tiers', () => {
+    for (const tier of ['low', 'medium'] as const) {
+      expect(parseLodAssetId(lodAssetId('id', tier))).toEqual({ baseAssetId: 'id', tier })
+    }
+  })
+})
+
+describe('registered (upload blob-url) variants', () => {
+  beforeEach(() => __resetLodCacheForTest())
+
+  it('resolves registered variants without probing', async () => {
+    const fetchMock = vi.fn()
+    vi.stubGlobal('fetch', fetchMock)
+    registerLodVariants('blob:base', { low: 'blob:low', medium: 'blob:med' })
+    expect(resolveLodUrlSync('blob:base', 'low')).toBe('blob:low')
+    expect(resolveLodUrlSync('blob:base', 'medium')).toBe('blob:med')
+    expect(resolveLodUrlSync('blob:base', 'high')).toBe('blob:base')
+    await prewarmLod('blob:base', 'low') // registered ⇒ no HEAD probe
+    expect(fetchMock).not.toHaveBeenCalled()
+    vi.unstubAllGlobals()
+  })
+
+  it('falls back to the base url for a tier that was not generated', () => {
+    registerLodVariants('blob:base', { medium: 'blob:med' })
+    expect(resolveLodUrlSync('blob:base', 'low')).toBe('blob:base')
+    expect(resolveLodUrlSync('blob:base', 'medium')).toBe('blob:med')
+  })
+
+  it('maps a registered variant url back to its base (footprint cache key)', () => {
+    registerLodVariants('blob:base', { low: 'blob:low' })
+    expect(baseUrl('blob:low')).toBe('blob:base')
+    expect(baseUrl('blob:base')).toBe('blob:base')
+  })
+
+  it('unregister returns the variant urls and stops resolution', () => {
+    registerLodVariants('blob:base', { low: 'blob:low', medium: 'blob:med' })
+    const removed = unregisterLodVariants('blob:base')
+    expect(removed.sort()).toEqual(['blob:low', 'blob:med'])
+    expect(resolveLodUrlSync('blob:base', 'low')).toBe('blob:base')
+    expect(baseUrl('blob:low')).toBe('blob:low')
+    expect(unregisterLodVariants('blob:base')).toEqual([])
+  })
+
+  it('registered variants take priority over suffix probing for .glb urls', () => {
+    registerLodVariants('/m/foo.glb', { low: 'blob:override' })
+    expect(resolveLodUrlSync('/m/foo.glb', 'low')).toBe('blob:override')
   })
 })

@@ -58,7 +58,10 @@ same change that reshapes a system.
   `lightEmitters.ts`. Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
   `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`); `optimize/` (`optimizeGlb.ts`
-  pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`);
+  pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
+  `lodVariants.ts` in-browser `-low`/`-medium` tier generation for uploads — meshopt simplify
+  + tier texture caps from `gltf/lod.ts` `TIER_BUDGETS`, stored in IDB under
+  `<assetId>:lod-<tier>` keys, routed by the `lod.ts` variant registry);
   `ikea/` (`metadata`/`translate`/`importGroup`/`compatibility`/`detectGroups`/`stacking`/
   `supportPlane`/`thumbnail`/`ikeaSets`); `upload/` (`bulkImport.ts` `prepareModelFile`=
   convert+optimize+`persistUserGlb`, `hashFile.ts` dedupe, `readDrop.ts`, `runImport.ts`
@@ -159,7 +162,9 @@ same change that reshapes a system.
   **exposure** multiplier (`clampExposure`, Graphics slider) rides on top of the auto-exposure.
 - **GLB models + LOD** (`furniture/gltf/`): bundled CC0 + user + IKEA via one loader.
   `optimize:glb` writes `-low`/`-medium` (≤512/1024px WebP + ~50/75% tris, Draco);
-  `lod.ts` picks per asset tier; `textureBudget.ts` = last-resort downscale. `--ktx2`
+  `lod.ts` picks per asset tier (HEAD-probe for `-low.glb` siblings; a **variant registry**
+  for uploads, whose in-browser-generated tiers live in IDB as blob URLs — registered at
+  persist + rehydration); `textureBudget.ts` = last-resort downscale. `--ktx2`
   emits Basis-Universal (needs `toktx`, else WebP).
 - **Procedural materials**: `procedural/generators.ts` paints one tiling tile per finish
   from seeded noise; world-space UVs tile at fixed physical scale. `furnitureMaterials.ts`

@@ -143,6 +143,15 @@ servers take 5173/5174 first, and their builds/file churn spam your Vite watcher
 (`npm run dev -- --port 5199 --strictPort`) and point the harness at it with
 `SHOT_URL=http://localhost:5199/`.
 
+### IndexedDB does NOT persist across shot.mjs runs
+Each `shot.mjs` invocation launches a **fresh headless browser profile**, so
+anything written to IndexedDB in one run (uploaded assets, packs) is gone in the
+next — a "persist in run 1, verify hydration in run 2" plan silently probes an
+empty DB. Verify persistence/hydration round-trips **within a single run**:
+persist, then simulate the reboot in-page (clear the relevant store slice +
+session caches, call the hydrator, e.g. `hydrateUserAssets()` via a temp
+`main.tsx`/`bootstrap.ts` hook) and probe after that.
+
 ### The dev server dies mid-session
 Long runs / multiple shots can leave the Vite server down (`ERR_CONNECTION_
 REFUSED`). Before each shot batch, `curl -sf http://localhost:5173/` and restart

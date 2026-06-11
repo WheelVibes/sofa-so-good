@@ -23,11 +23,11 @@ export default defineConfig(({ command }) => ({
           // Dependencies only reachable through a dynamic import() stay
           // unchunked so Rollup keeps them in their async chunk instead of the
           // always-loaded vendor/three bundles: the post-processing stack
-          // (high tier only, lazy via Effects.tsx), the GLB optimize pass
-          // (@gltf-transform/draco, bulk-import only), TIFF decode (utif,
-          // texture upload only).
+          // (high tier only, lazy via Effects.tsx), the GLB optimize + LOD
+          // pass (@gltf-transform/draco/meshoptimizer, bulk-import only),
+          // TIFF decode (utif, texture upload only).
           if (
-            /[\\/]node_modules[\\/](postprocessing|n8ao|@react-three[\\/]postprocessing|@gltf-transform|draco3dgltf|utif)[\\/]/.test(
+            /[\\/]node_modules[\\/](postprocessing|n8ao|@react-three[\\/]postprocessing|@gltf-transform|draco3dgltf|meshoptimizer|utif)[\\/]/.test(
               id,
             )
           )

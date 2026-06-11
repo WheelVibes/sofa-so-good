@@ -78,6 +78,10 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
   // Opt-in: route the optimize pass through the KTX2/UASTC encoder (falls back
   // to WebP when the encoder is unavailable, so it's safe to leave on).
   const [ktx2, setKtx2] = useState(false)
+  // Default-on: also generate -low/-medium LOD variants per model so
+  // Performance-tier devices load a decimated copy. Opt-out because the extra
+  // tiers roughly double the per-model optimize time on large GLBs.
+  const [lodTiers, setLodTiers] = useState(true)
   const [error, setError] = useState<string | null>(null)
   // The brief inline save of a single named loose file (groups + bulk run in
   // the background instead — see startBackgroundImport).
@@ -146,6 +150,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
     setMounted(false)
     setNoClip(false)
     setKtx2(false)
+    setLodTiers(true)
     setError(null)
     setBusy(false)
     setIkeaGroups([])
@@ -204,14 +209,15 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
         // Dedupe on the SOURCE bytes (matches the bulk path) so re-importing the
         // same file is recognised regardless of optimizer non-determinism.
         const contentHash = await hashFile(files[0])
-        const prepared = await prepareModelFile(files[0], files, ktx2)
+        const prepared = await prepareModelFile(files[0], files, { ktx2, lodTiers })
         const auto = autoFlags ? inferCollisionFlags(files[0].name) : null
-        const r = await persistUserGlb(prepared, {
+        const r = await persistUserGlb(prepared.file, {
           name: name.trim(),
           category: looseCategory,
           mounted: mounted || auto?.mounted || undefined,
           noClip: noClip || auto?.noClip || undefined,
           contentHash,
+          lods: prepared.lods,
         })
         setBusy(false)
         if (!r.ok) {
@@ -241,6 +247,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
       noClip,
       autoFlags,
       ktx2,
+      lodTiers,
     })
     doClose()
   }
@@ -430,15 +437,26 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
                 (IKEA groups arrive pre-optimized), so it's shown whenever loose
                 models will be imported. */}
             {looseModels.length > 0 ? (
-              <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
-                <input
-                  type="checkbox"
-                  checked={ktx2}
-                  onChange={(e) => setKtx2(e.target.checked)}
-                  disabled={busy}
-                />
-                Maximum compression (KTX2/UASTC textures — falls back to WebP if unavailable)
-              </label>
+              <>
+                <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
+                  <input
+                    type="checkbox"
+                    checked={lodTiers}
+                    onChange={(e) => setLodTiers(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Generate low-detail versions for slower devices (takes longer per model)
+                </label>
+                <label className="flex items-center gap-2 text-xs text-[var(--text-2)]">
+                  <input
+                    type="checkbox"
+                    checked={ktx2}
+                    onChange={(e) => setKtx2(e.target.checked)}
+                    disabled={busy}
+                  />
+                  Maximum compression (KTX2/UASTC textures — falls back to WebP if unavailable)
+                </label>
+              </>
             ) : null}
 
             {error ? (

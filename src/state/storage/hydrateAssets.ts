@@ -1,4 +1,5 @@
 import { seedGltfFootprint } from '../../furniture/GltfModel'
+import { LOD_TIERS, type LodTier, lodAssetId, registerLodVariants } from '../../furniture/gltf/lod'
 import {
   FURNITURE_CATEGORIES,
   type FurnitureCategory,
@@ -86,6 +87,9 @@ export async function hydrateUserAssets(): Promise<void> {
     // don't surface as user uploads. hydratePacks() reconstructs them.
     if (m.meta?.['source'] === 'pack') continue
     if (m.kind === 'gltf') {
+      // Generated LOD tier siblings (`<id>:lod-low/-medium`) are owned by
+      // their base asset — resolved below, never surfaced as their own def.
+      if (m.meta?.['role'] === 'lod') continue
       const rec = await IdbAssetStore.get(m.assetId)
       if (!rec) continue
       const cat = m.meta?.['category']
@@ -93,6 +97,7 @@ export async function hydrateUserAssets(): Promise<void> {
         typeof cat === 'string' && (FURNITURE_CATEGORIES as readonly string[]).includes(cat)
           ? (cat as FurnitureCategory)
           : 'decor'
+      const runtimeUrl = URL.createObjectURL(rec.blob)
       furniture.push({
         id: `user-${m.assetId}`,
         name: m.name,
@@ -103,12 +108,21 @@ export async function hydrateUserAssets(): Promise<void> {
         contentHash: m.meta?.['contentHash'] as string | undefined,
         uploadedAt: m.uploadedAt,
         defaultFootprint: { w: 1.0, d: 1.0, h: 1.0 },
-        runtimeUrl: URL.createObjectURL(rec.blob),
+        runtimeUrl,
         mounted: m.meta?.['mounted'] as boolean | undefined,
         noClip: m.meta?.['noClip'] as boolean | undefined,
         finishTargets: safeParse<{ key: string; label: string }[]>(m.meta?.['finishTargets']),
         finishOverrides: safeParse<Record<string, string>>(m.meta?.['finishOverrides']),
       })
+      // Re-resolve the asset's generated LOD tier siblings (derived keys) and
+      // re-register them — blob URLs are session-scoped, so the registry must
+      // be rebuilt every boot for tier-routed loading to keep working.
+      const lodUrls: Partial<Record<LodTier, string>> = {}
+      for (const tier of LOD_TIERS) {
+        const lodRec = await IdbAssetStore.get(lodAssetId(m.assetId, tier)).catch(() => null)
+        if (lodRec) lodUrls[tier] = URL.createObjectURL(lodRec.blob)
+      }
+      if (lodUrls.low || lodUrls.medium) registerLodVariants(runtimeUrl, lodUrls)
     } else if (m.kind === 'texture') {
       // IKEA catalog thumbnails share the texture kind but are owned by the
       // IKEA def (resolved via resolveIkeaRuntimeUrls), not a user material.
