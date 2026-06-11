@@ -72,3 +72,42 @@ describe('setAllLocked', () => {
     expect(useStore.getState().items.some((i) => i.locked)).toBe(false)
   })
 })
+
+describe('addItem level stamping (F13/ML5)', () => {
+  it('stamps levelId from an upper-storey room editor; ground editor leaves it unset', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'ml5-plan',
+        rooms: [{ id: 'g-liv', name: 'Living', origin: [0.2, 0.2], width: 4, depth: 4 }],
+        upperLevels: [
+          {
+            id: 'lvl-2',
+            name: 'Upper',
+            elevation: 2.9,
+            walls: [],
+            openings: [],
+            rooms: [{ id: 'up-bed', name: 'Bedroom', origin: [0.2, 0.2], width: 4, depth: 4 }],
+          },
+        ],
+      },
+    } as never)
+    useStore.getState().enterRoomEditor('up-bed')
+    const upId = useStore
+      .getState()
+      .addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+    expect(useStore.getState().items.find((i) => i.id === upId)?.levelId).toBe('lvl-2')
+    useStore.getState().enterRoomEditor('g-liv')
+    const gId = useStore
+      .getState()
+      .addItem({ defId: 'sofa-3seat', position: [2, 2], rotation: 0, props: {} })
+    expect(useStore.getState().items.find((i) => i.id === gId)?.levelId).toBeUndefined()
+    // An explicit levelId (duplicate/paste of an upper item) always wins.
+    useStore.getState().exitRoomEditor?.()
+    const dupId = useStore
+      .getState()
+      .addItem({ defId: 'bed-double', position: [1, 2], rotation: 0, levelId: 'lvl-2', props: {} })
+    expect(useStore.getState().items.find((i) => i.id === dupId)?.levelId).toBe('lvl-2')
+  })
+})

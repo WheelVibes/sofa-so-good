@@ -1,3 +1,4 @@
+import { allPlanRooms } from '../floorplan/levels'
 import { useStore } from './store'
 
 /**
@@ -9,7 +10,7 @@ import { useStore } from './store'
  */
 export async function confirmAndEnterRoom(roomId: string): Promise<void> {
   const s = useStore.getState()
-  const room = s.floorPlan.rooms.find((r) => r.id === roomId)
+  const room = allPlanRooms(s.floorPlan).find((r) => r.id === roomId)
   const name = room?.name ?? 'this room'
   const ok = await s.confirmAction({
     title: `Enter ${name}?`,

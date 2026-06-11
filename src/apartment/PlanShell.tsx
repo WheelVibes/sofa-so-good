@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import type { Mesh, MeshStandardMaterial } from 'three'
-import { GROUND_LEVEL_ID, levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
+import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { DEFAULT_PLAN_WALL_COLOR, type FloorPlan, planBounds, wallLength } from '../floorplan/types'
@@ -122,7 +122,6 @@ function PlanLevelShell({
 }) {
   const finishes = useStore((s) => s.finishes)
   const lp = useMemo(() => levelAsPlan(plan, level), [plan, level])
-  const isGround = level.id === GROUND_LEVEL_ID
 
   const boxes = useMemo(() => lp.walls.flatMap((w) => wallBoxes(lp, w)), [lp])
 
@@ -154,11 +153,11 @@ function PlanLevelShell({
 
   return (
     <group>
-      {/* Per-room floors (catalog finish, defaulting to oak). Click-to-enter
-          is ground-only until the room editor is level-aware (ML5). */}
+      {/* Per-room floors (catalog finish, defaulting to oak); click-to-enter
+          works on every storey (the room editor is level-aware, ML5). */}
       {lp.rooms.map((r) => {
         const mat = resolvePlanRoomFloor(finishes, r) as MaterialId
-        const roomId = isGround ? r.id : undefined
+        const roomId = r.id
         if (r.polygon && r.polygon.length >= 3) {
           return (
             <PlanRoomFloor

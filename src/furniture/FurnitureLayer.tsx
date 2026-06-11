@@ -36,9 +36,11 @@ export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
   const levelElevations = useMemo(() => {
-    if (!isMultiLevel(plan)) return null
+    // The isolated room editor renders its room at y=0 whatever the storey —
+    // items there stay unoffset; level membership is the room filter's job.
+    if (room || !isMultiLevel(plan)) return null
     return new Map(planLevels(plan).map((l) => [l.id, l.elevation] as const))
-  }, [plan])
+  }, [plan, room])
   return (
     <group>
       {items.map((item) => {

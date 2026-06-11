@@ -4,6 +4,16 @@ Autonomous improvement log for the HDB 3D interior-design sandbox. Newest first.
 Each entry corresponds to one focused commit on
 `claude/codebase-analysis-optimization-f6yag0`. See `TASKS.md` for the backlog.
 
+## [C229 / ML5a] Upper-storey room editor — enter, furnish, level-stamped items
+`planRoomShell` resolves a room's storey (`levelOfRoom` + `levelAsPlan`) so the per-room editor,
+its placement walls and the walk camera clip against the right level's geometry; the shell carries
+`levelId` and `isItemInRoom` requires a storey match (an upstairs room at the same XZ no longer
+shows ground furniture). `addItem` stamps `levelId` from an upper-room editor context (explicit
+ids from duplicates/pastes win); `FurnitureLayer` skips the elevation offset inside the isolated
+editor; PlanShell click-to-enter works on every storey. Verified end-to-end: entered the upper
+bedroom, placed a bed (probe: `levelId: 'lvl-2'`), exited — overview renders it on the upper
+storey over the ground sofa. 5 new tests.
+
 ## [C226 / ML4a] Plan-edit actions route per storey + add/remove level
 New pure `withLevelGeometry` (levels.ts) maps a geometry update onto one storey; the eight
 wall/room/opening slice actions gain an optional `levelId` (ground default = behaviour

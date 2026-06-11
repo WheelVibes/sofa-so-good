@@ -114,3 +114,17 @@ describe('withLevelGeometry', () => {
     expect(next.upperLevels?.[0].rooms.map((r) => r.id)).toEqual(['up-bed', 'up-new'])
   })
 })
+
+describe('planRoomShell across levels (ML5)', () => {
+  it('resolves an upper room against its own storey geometry', async () => {
+    const { planRoomShell } = await import('./planRoomShell')
+    const shell = planRoomShell(multi, 'up-bed')
+    expect(shell).not.toBeNull()
+    expect(shell?.levelId).toBe('lvl-2')
+    // Clipped walls come from the UPPER level's wall set (uw1 spans the room).
+    expect(shell?.walls.some((w) => w.wallId === 'uw1')).toBe(true)
+    expect(shell?.walls.some((w) => w.wallId === 'w1')).toBe(false)
+    // Ground rooms still resolve as before.
+    expect(planRoomShell(multi, 'g-living')?.levelId).toBe('ground')
+  })
+})
