@@ -1,5 +1,8 @@
 import type { ParametricModel } from '../../furniture/parametric/buildParts'
 import {
+  type CompartmentConfig,
+  type CompartmentStyle,
+  MAX_PEDESTAL_DRAWERS,
   MAX_SHELVES,
   PARAMETRIC_LIMITS,
   type ParametricSpec,
@@ -17,7 +20,63 @@ const FINISH_PRESETS: { label: string; finish: string; color: string }[] = [
   { label: 'Gloss white', finish: 'gloss', color: '#f0ede7' },
 ]
 
-/** Dimension sliders + per-type options for the parametric dialog (PF1).
+/** Labels for the three bay-style choices. */
+const BAY_STYLE_LABELS: Record<CompartmentStyle, string> = {
+  open: 'Open',
+  door: 'Door',
+  drawer: 'Drawer',
+}
+
+/** Per-bay style row — compact segmented control inside the compartment grid. */
+function BayStylePicker({
+  bayIndex,
+  bays,
+  spec,
+  onChange,
+}: {
+  bayIndex: number
+  bays: number
+  spec: ParametricSpec
+  onChange: (patch: Partial<ParametricSpec>) => void
+}) {
+  const current: CompartmentStyle =
+    spec.compartments?.[bayIndex]?.style ?? (spec.doors ? 'door' : 'open')
+  const setStyle = (style: CompartmentStyle) => {
+    const next: CompartmentConfig[] = Array.from({ length: bays }, (_, i) => ({
+      style:
+        i === bayIndex ? style : (spec.compartments?.[i]?.style ?? (spec.doors ? 'door' : 'open')),
+    }))
+    onChange({ compartments: next })
+  }
+  return (
+    <div style={{ marginBottom: 'var(--s-1)' }}>
+      <div
+        style={{
+          fontSize: 'var(--t-2xs)',
+          color: 'var(--text-3)',
+          marginBottom: 2,
+        }}
+      >
+        Bay {bayIndex + 1}
+      </div>
+      <div className="seg" style={{ fontSize: 'var(--t-2xs)' }}>
+        {(['open', 'door', 'drawer'] as CompartmentStyle[]).map((s) => (
+          <button
+            key={s}
+            type="button"
+            className={current === s ? 'on' : ''}
+            aria-label={`Bay ${bayIndex + 1}: ${BAY_STYLE_LABELS[s]}`}
+            onClick={() => setStyle(s)}
+          >
+            {BAY_STYLE_LABELS[s]}
+          </button>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+/** Dimension sliders + per-type options for the parametric dialog (PF2).
  *  Pure controlled component — all state lives in the dialog's spec. */
 export function ParametricControls({
   spec,
@@ -30,9 +89,13 @@ export function ParametricControls({
 }) {
   const lim = PARAMETRIC_LIMITS[spec.type]
   const autoShelves = spec.shelves === 'auto'
-  const showShelves = spec.type !== 'wardrobe'
-  const showDoors = spec.type !== 'bookshelf'
+  const isDesk = spec.type === 'desk'
+  const showShelves = spec.type !== 'wardrobe' && !isDesk
+  const showDoors = spec.type !== 'bookshelf' && !isDesk
   const showBase = spec.type === 'sideboard'
+  // Per-compartment config: available for wardrobe + sideboard when there are bays.
+  const showCompartments = (spec.type === 'wardrobe' || spec.type === 'sideboard') && model.bays > 0
+  const showDeskLegs = isDesk
 
   return (
     <>
@@ -64,6 +127,64 @@ export function ParametricControls({
         <div className="sec-h">
           <span>Options</span>
         </div>
+
+        {/* Desk: leg style + pedestal drawers */}
+        {showDeskLegs ? (
+          <>
+            <div style={{ marginBottom: 'var(--s-2)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Leg style
+              </div>
+              <div className="seg">
+                {(
+                  [
+                    ['legs', 'Four legs'],
+                    ['pedestal', 'Pedestal'],
+                  ] as const
+                ).map(([v, label]) => (
+                  <button
+                    key={v}
+                    type="button"
+                    className={spec.deskLegs === v ? 'on' : ''}
+                    aria-label={`Leg style: ${label}`}
+                    onClick={() => onChange({ deskLegs: v })}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {spec.deskLegs === 'pedestal' ? (
+              <div className="fld" style={{ display: 'block', marginBottom: 'var(--s-2)' }}>
+                <div
+                  className="label"
+                  style={{
+                    fontSize: 'var(--t-2xs)',
+                    color: 'var(--text-3)',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                  }}
+                >
+                  <span>Pedestal drawers</span>
+                  <span>{spec.pedestalDrawers}</span>
+                </div>
+                <input
+                  type="range"
+                  className="slider"
+                  aria-label="Pedestal drawer count"
+                  min={1}
+                  max={MAX_PEDESTAL_DRAWERS}
+                  step={1}
+                  value={spec.pedestalDrawers}
+                  onChange={(e) => onChange({ pedestalDrawers: Number(e.target.value) })}
+                  style={{ width: '100%' }}
+                />
+              </div>
+            ) : null}
+          </>
+        ) : null}
+
+        {/* Shelves (bookshelf + sideboard) */}
         {showShelves ? (
           <>
             <label className="row" style={{ cursor: 'pointer' }}>
@@ -110,16 +231,22 @@ export function ParametricControls({
             )}
           </>
         ) : null}
+
+        {/* Doors global default (for wardrobe/sideboard when no compartment config) */}
         {showDoors ? (
-          <label className="row" style={{ cursor: 'pointer' }}>
+          <label className="row" style={{ cursor: 'pointer', marginTop: 'var(--s-2)' }}>
             <div
               className="rk"
               style={{ flexDirection: 'column', alignItems: 'flex-start', gap: 1 }}
             >
               <div>{spec.type === 'wardrobe' ? 'Hinged doors' : 'Doors'}</div>
-              {spec.doors ? (
+              {model.doorCount > 0 ? (
                 <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
                   {model.doorCount} leaves (each ≤ 60 cm)
+                </div>
+              ) : model.drawerCount > 0 ? (
+                <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', fontWeight: 500 }}>
+                  {model.drawerCount} drawer{model.drawerCount !== 1 ? 's' : ''}
                 </div>
               ) : null}
             </div>
@@ -128,11 +255,19 @@ export function ParametricControls({
               role="switch"
               aria-checked={spec.doors}
               aria-label="Doors"
-              onClick={() => onChange({ doors: !spec.doors })}
+              onClick={() =>
+                onChange({
+                  doors: !spec.doors,
+                  // Clear per-bay overrides so the new global applies cleanly.
+                  compartments: [],
+                })
+              }
               className={`switch${spec.doors ? ' on' : ''}`}
             />
           </label>
         ) : null}
+
+        {/* Sideboard base style */}
         {showBase ? (
           <div style={{ marginTop: 'var(--s-2)' }}>
             <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
@@ -158,7 +293,8 @@ export function ParametricControls({
             </div>
           </div>
         ) : null}
-        {model.bays > 1 ? (
+
+        {model.bays > 1 && !showCompartments ? (
           <div
             style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 'var(--s-2)' }}
           >
@@ -166,6 +302,44 @@ export function ParametricControls({
           </div>
         ) : null}
       </div>
+
+      {/* Per-compartment config (wardrobe + sideboard only) */}
+      {showCompartments ? (
+        <div className="sec">
+          <div className="sec-h">
+            <span>Compartments</span>
+            <span
+              style={{
+                fontSize: 'var(--t-2xs)',
+                color: 'var(--text-3)',
+                fontWeight: 400,
+                marginLeft: 'var(--s-2)',
+              }}
+            >
+              {model.bays} bay{model.bays !== 1 ? 's' : ''}
+            </span>
+          </div>
+          <div
+            style={{
+              fontSize: 'var(--t-2xs)',
+              color: 'var(--text-3)',
+              marginBottom: 'var(--s-2)',
+            }}
+          >
+            Set each bay to open shelf, hinged door, or stacked drawers. Default follows the Doors
+            toggle above.
+          </div>
+          {Array.from({ length: model.bays }, (_, b) => (
+            <BayStylePicker
+              key={b}
+              bayIndex={b}
+              bays={model.bays}
+              spec={spec}
+              onChange={onChange}
+            />
+          ))}
+        </div>
+      ) : null}
 
       <div className="sec">
         <div className="sec-h">

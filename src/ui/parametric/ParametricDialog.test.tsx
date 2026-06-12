@@ -29,6 +29,7 @@ describe('ParametricDialog (PF1) — Simple/Pro gating', () => {
     expect(screen.getByText('Bookshelf')).toBeTruthy()
     expect(screen.getByText('Wardrobe')).toBeTruthy()
     expect(screen.getByText('Sideboard / TV console')).toBeTruthy()
+    expect(screen.getByText('Desk')).toBeTruthy()
     expect(screen.getByLabelText('Width (cm)')).toBeTruthy()
   })
 

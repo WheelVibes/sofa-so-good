@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C258 / PF2] Parametric furniture v2 — drawers, per-compartment config, desk type
+Extends the PF1 generator with three new capabilities. (1) **Drawers**: a new
+`CompartmentStyle = 'open' | 'door' | 'drawer'` drives `addDrawerFronts()` which emits stacked
+`drawer-front` + `drawer-handle` parts at ~0.18 m per drawer, inset within the bay opening —
+drawer handles are brushed metal via the furnitureMaterials cache. `price.ts` adds a DRAWER_ADDER
+per front (drawer box + slides + handle). (2) **Per-compartment configuration**: each bay of a
+wardrobe or sideboard can independently be set to open / door / drawer; `bayStyle(spec, b)` resolves
+from the per-bay `compartments[]` override then falls back to the global `doors` toggle. A compact
+`BayStylePicker` segmented control (Open / Door / Drawer per bay) appears in the dialog below the
+Doors toggle for wardrobe and sideboard types. Changing the global toggle clears per-bay overrides
+for a clean reset. (3) **Desk**: new `desk` type with real-metre HDB-sized limits (60–200 cm wide,
+68–82 cm tall, 50–85 cm deep); two leg options — four-leg (square corner legs, floor-anchored) and
+pedestal (right-side carcass with stacked drawers + two left legs). Desk saves to the `tables`
+category. `saveParametric.ts` maps each type to its catalog category via `TYPE_CATEGORY`. 54 unit
+tests across spec/buildParts/price/dialog — all passing; `tsc` and `biome` clean. Headless visual
+verification: bookshelf 3D preview shows floor-anchored shelves; desk preview shows four-leg worktop
+with correct proportions (120 × 75 cm default); mobile layout stacks preview above controls with
+full-width dialog. No floating parts, z-fighting, or clipping observed.
+
 ## [C257 / PF1] Parametric furniture — dimension-driven shelving/wardrobe/sideboard generator
 First milestone of the procedural-furniture subsystem (IKEA PAX/BILLY · Tylko configurator
 parity). New pure `furniture/parametric/` module: a typed spec `{type, w, h, d, options}` is

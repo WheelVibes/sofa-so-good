@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  bayStyle,
   clampSpec,
   DEFAULT_SPECS,
   defaultSpec,
+  MAX_PEDESTAL_DRAWERS,
   MAX_SHELVES,
   PARAMETRIC_LIMITS,
   PARAMETRIC_TYPES,
@@ -72,5 +74,57 @@ describe('specLabel', () => {
   it('names the piece with its cm dimensions', () => {
     expect(specLabel(defaultSpec('bookshelf'))).toBe('Custom bookshelf 80 × 200 cm')
     expect(specLabel(defaultSpec('sideboard'))).toBe('Custom sideboard 160 × 65 cm')
+    expect(specLabel(defaultSpec('desk'))).toBe('Custom desk 120 × 75 cm')
+  })
+})
+
+describe('desk-specific fields', () => {
+  it('defaults to four legs and 2 pedestal drawers', () => {
+    const s = defaultSpec('desk')
+    expect(s.deskLegs).toBe('legs')
+    expect(s.pedestalDrawers).toBe(2)
+  })
+
+  it('clamps pedestalDrawers to 1..MAX_PEDESTAL_DRAWERS', () => {
+    expect(clampSpec({ type: 'desk', pedestalDrawers: 0 }).pedestalDrawers).toBe(1)
+    expect(clampSpec({ type: 'desk', pedestalDrawers: 99 }).pedestalDrawers).toBe(
+      MAX_PEDESTAL_DRAWERS,
+    )
+    expect(clampSpec({ type: 'desk', pedestalDrawers: 2 }).pedestalDrawers).toBe(2)
+  })
+
+  it('deskLegs: unknown values fall back to default', () => {
+    // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed input
+    const s = clampSpec({ type: 'desk', deskLegs: 'wheels' as any })
+    expect(s.deskLegs).toBe(DEFAULT_SPECS.desk.deskLegs)
+  })
+})
+
+describe('compartments + bayStyle', () => {
+  it('bayStyle returns per-bay override when set', () => {
+    const spec = {
+      ...defaultSpec('sideboard'),
+      doors: true,
+      compartments: [{ style: 'drawer' as const }, { style: 'open' as const }],
+    }
+    expect(bayStyle(spec, 0)).toBe('drawer')
+    expect(bayStyle(spec, 1)).toBe('open')
+  })
+
+  it('bayStyle falls back to global doors flag for bays without an override', () => {
+    const spec = { ...defaultSpec('sideboard'), doors: true, compartments: [] }
+    expect(bayStyle(spec, 0)).toBe('door')
+    const specOpen = { ...spec, doors: false }
+    expect(bayStyle(specOpen, 0)).toBe('open')
+  })
+
+  it('clampSpec validates compartment styles and rejects unknown ones', () => {
+    const s = clampSpec({
+      type: 'sideboard',
+      // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed input
+      compartments: [{ style: 'slides' as any }, { style: 'drawer' }],
+    })
+    expect(s.compartments?.[0].style).toBe('open') // clamped to default
+    expect(s.compartments?.[1].style).toBe('drawer')
   })
 })

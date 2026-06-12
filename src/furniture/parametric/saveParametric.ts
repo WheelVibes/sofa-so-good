@@ -1,5 +1,5 @@
 /**
- * Parametric furniture (PF1) — save a generated piece into the catalog.
+ * Parametric furniture (PF2) — save a generated piece into the catalog.
  *
  * Reuses the GLB-designer pipeline end-to-end: build the part meshes →
  * `exportGlb` (GLTFExporter) → `persistUserGlb` (validate, content-hash
@@ -13,11 +13,20 @@
  */
 
 import { exportGlb } from '../convert/toGlb'
+import type { FurnitureCategory } from '../types'
 import type { PersistResult } from '../upload/persist'
 import { persistUserGlb } from '../upload/persist'
 import { buildParametricObject, disposeParametricObject } from './buildObject'
 import { estimatePrice } from './price'
 import { clampSpec, type ParametricSpec, specLabel } from './spec'
+
+/** Map each parametric type to its catalog category. */
+const TYPE_CATEGORY: Record<ParametricSpec['type'], FurnitureCategory> = {
+  bookshelf: 'storage',
+  wardrobe: 'storage',
+  sideboard: 'storage',
+  desk: 'tables',
+}
 
 /** Build, export and persist a parametric piece as a user catalog asset.
  *  `name` defaults to the spec label ("Custom bookshelf 80 × 200 cm"). */
@@ -38,7 +47,7 @@ export async function saveParametricAsset(
   const file = new File([buffer], `${safe}.glb`, { type: 'model/gltf-binary' })
   return persistUserGlb(file, {
     name: display,
-    category: 'storage',
+    category: TYPE_CATEGORY[spec.type],
     footprint: model.bounds,
     price: estimatePrice(model),
   })

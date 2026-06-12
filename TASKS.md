@@ -56,8 +56,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   `FurnitureMaterialLoader` pre-build + per-furniture UV scale) + optional Performance env hint.
 
 ## Content & catalog
-- [ ] PF tail: parametric furniture v2 (C257 shipped v1 — bookshelf/wardrobe/sideboard) — add
-  drawers, per-compartment config, more types (desk, kitchen-cabinet runs).
+- [ ] PF tail: kitchen-cabinet run type deferred (different dimension envelope + toe-kick + upper
+  cabinet pairing; scope warrants its own commit once the HDB kitchen template is finalised).
 - [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
   so designs look styled; ensure category coverage is exhaustive.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
