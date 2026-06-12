@@ -25,6 +25,7 @@ import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
+import { evictPanoStop } from '../panorama/panoImageIdb'
 import {
   type BackdropMeta,
   persistBackdrop,
@@ -110,6 +111,11 @@ export function FloorPlanEditor() {
   const selectedItemId = useStore((s) => s.selectedItemId)
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
+  const fPanoTour = useFeature('panoTour')
+  // Tour stops are only shown/editable on the ground level (stops have a
+  // levelId field but the plan editor operates per-level; ground is the
+  // common case and keeps the UI simple).
+  const panoTourStops = useStore((s) => s.panoTourStops)
 
   const [tool, setTool] = useState<Tool>('select')
   const [wallType, setWallType] = useState<'internal' | 'external'>('internal')
@@ -135,6 +141,8 @@ export function FloorPlanEditor() {
   const [movingVertex, setMovingVertex] = useState<{ id: string; which: 'start' | 'end' } | null>(
     null,
   )
+  // Active tour-stop drag: grab offset from the stop's world position.
+  const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // In-progress polygon-room vertices (polyroom tool): click to add a vertex,
   // click near the first vertex (or Enter) to close into a room.
   const [polyDraft, setPolyDraft] = useState<[number, number][]>([])
@@ -543,6 +551,15 @@ export function FloorPlanEditor() {
       canvasRef.current.scrollTop = panRef.current.st - (e.clientY - panRef.current.y)
       return
     }
+    if (movingStop) {
+      const [wx, wz] = pointerWorld(e)
+      const newPos: [number, number] = [
+        Math.round((wx - movingStop.gx) * 100) / 100,
+        Math.round((wz - movingStop.gz) * 100) / 100,
+      ]
+      useStore.getState().updatePanoTourStop(movingStop.id, { position: newPos })
+      return
+    }
     if (movingVertex) {
       const [wx, wz] = pointerWorld(e, movingVertex.id)
       useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz], levelId)
@@ -587,6 +604,13 @@ export function FloorPlanEditor() {
   const onUp = () => {
     if (panRef.current) {
       panRef.current = null
+      return
+    }
+    if (movingStop) {
+      // Evict the IDB cache entry for this stop so the next tour view recaptures
+      // from the new position.
+      void evictPanoStop(movingStop.id)
+      setMovingStop(null)
       return
     }
     if (movingVertex) {
@@ -1271,6 +1295,62 @@ export function FloorPlanEditor() {
                 </g>
               )
             })}
+
+            {/* 360° tour stop markers (panoTour feature, plan-based placement).
+                Shown as numbered eye-shaped pins on the ground level only.
+                Drag to reposition; on drag-end the IDB cache for the stop is
+                evicted so the next tour view recaptures from the new spot.
+                Stops on other storeys are shown without a drag handle (greyed). */}
+            {fPanoTour &&
+              panoTourStops.map((s, i) => {
+                const [sx, sz] = s.position
+                const isGround = !s.levelId
+                return (
+                  <g
+                    key={s.id}
+                    style={{ cursor: isGround ? 'grab' : 'default' }}
+                    onPointerDown={
+                      isGround
+                        ? (e) => {
+                            if (e.button !== 0) return
+                            e.stopPropagation()
+                            const [wx, wz] = pointerWorld(e)
+                            setMovingStop({ id: s.id, gx: wx - sx, gz: wz - sz })
+                            svgRef.current?.setPointerCapture(e.pointerId)
+                          }
+                        : undefined
+                    }
+                  >
+                    {/* Outer ring */}
+                    <circle
+                      cx={toPx(sx)}
+                      cy={toPx(sz)}
+                      r={10}
+                      fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
+                      fillOpacity={0.18}
+                      stroke={isGround ? 'var(--accent)' : 'var(--text-3)'}
+                      strokeWidth={1.5}
+                    />
+                    {/* Inner filled dot */}
+                    <circle
+                      cx={toPx(sx)}
+                      cy={toPx(sz)}
+                      r={4}
+                      fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
+                    />
+                    {/* Stop number */}
+                    <text
+                      x={toPx(sx) + 13}
+                      y={toPx(sz)}
+                      dominantBaseline="middle"
+                      fill={isGround ? 'var(--accent)' : 'var(--text-3)'}
+                      style={{ fontSize: 10, fontWeight: 700, pointerEvents: 'none' }}
+                    >
+                      {i + 1}
+                    </text>
+                  </g>
+                )
+              })}
 
             {/* Endpoint handles for the selected wall (drag to reshape; shared
                 corners move together). Lets the user pull a rectangle into an

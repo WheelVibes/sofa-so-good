@@ -19,6 +19,7 @@
  * - Pitch is positive looking up (`LookState.pitch`).
  */
 
+import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { type PlanRoom, pointInRoom } from '../../floorplan/types'
 import type { LookState } from './viewerLook'
 
@@ -62,6 +63,24 @@ export const MAX_TOUR_STOPS = 12
 /** Viewer yaw (radians) that faces from `from` toward `to` (world [x, z]). */
 export function yawToward(from: [number, number], to: [number, number]): number {
   return Math.atan2(-(to[0] - from[0]), -(to[1] - from[1]))
+}
+
+/**
+ * Compute the initial viewer yaw for a stop so it faces the centre of the
+ * room the stop is in. Falls back to `INITIAL_LOOK.yaw` (0) when the stop
+ * isn't inside any room or the centre is too close to call.
+ *
+ * Uses `roomLabelPoint` (shape-aware centroid) so L-shaped and polygon rooms
+ * produce a sensible centre — matching what the plan editor labels use.
+ */
+export function stopInitialYaw(stop: PanoTourStop, rooms: PlanRoom[]): number {
+  const room = rooms.find((r) => pointInRoom(r, stop.position[0], stop.position[1]))
+  if (!room) return 0
+  const centre = roomLabelPoint(room)
+  const dx = centre[0] - stop.position[0]
+  const dz = centre[1] - stop.position[1]
+  if (dx * dx + dz * dz < 0.01) return 0 // stop is effectively at centre
+  return yawToward(stop.position, centre)
 }
 
 /**

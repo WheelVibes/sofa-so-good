@@ -37,8 +37,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 
 ## Competitor research 2026-06 (sources: coohom.com/article Planner5D-alternative · capterra.com
 ## compare 164022-192882 · spacesbydee.com coohom-vs-planner-5d · plansnapper.com compare)
-- [ ] P-720 tail (optional): embed tours in share links/presentation; plan-based stop placement
-  UI; persist captured images in IDB to skip re-capture; per-stop initial yaw facing room centre.
+- [ ] P-720 tail (C261 shipped IDB cache, room-centre yaw, plan placement, share-link embedding):
+  presentation-mode tour inclusion remains open (C237 slides gaining an optional "play tour" step).
 - [ ] COLLAB-STRUCT: structured collaboration (projects/teams) is Coohom's enterprise edge —
   backend-dependent; revisit if/when a backend exists.
 

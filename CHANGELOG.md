@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C261 / P-720 tail] 360° tour follow-ups: IDB image cache, room-centre yaw, plan stop placement, share-link embedding
+Four P-720 follow-ups shipped in one focused commit. **(1) IDB image cache**: new pure
+`ui/panorama/panoImageIdb.ts` (`sofa-pano-cache` database, separate from the asset store to
+avoid version-bump conflicts) stores captured panorama Blobs keyed `<stopId>:<designKey>` where
+`designKey` is a djb2 hash of `{items, finishes, floorPlan, doors, userFurniture}` — revisiting
+a stop skips the expensive re-render unless the room or furnishings changed; stale entries are
+evicted on access; LRU cap of 30 entries; `evictPanoStop` called on stop removal / drag-end to
+force a fresh capture from the new position. `PanoTourModal` now tries the IDB cache before
+capturing live; Re-capture evicts then recaptures. **(2) Per-stop room-centre yaw**: new pure
+`stopInitialYaw(stop, rooms)` in `panoTour.ts` uses the shape-aware `roomLabelPoint` centroid
+(matching the plan-editor labels) and `yawToward` to compute the viewer yaw that faces the room
+centre on arrival; the tour modal uses it for direct stop selections (hotspot jumps still face
+the travel direction). **(3) Plan-based stop placement**: `FloorPlanEditor` now renders numbered
+tour stop markers (ringed dot + number) on the 2D plan SVG when the `panoTour` flag is on; stops
+are draggable in the select tool via a new `movingStop` state that mirrors the existing
+`movingItem`/`movingVertex` pattern — drag-end evicts the IDB cache for the moved stop; upper-
+storey stops render greyed and non-draggable (ground-level only for simplicity). **(4) Share-link
+embedding**: `panoTourStops` added as an optional additive field in `schema.ts`
+(`RawSerializedStateZ` + `serialize` + `applySerialized`) — old links without the field decode
+to `[]` (backward-compatible); the design-share and plan-share codecs carry stops automatically
+since both call `serialize`; images are NOT embedded (receivers capture live). +19 new unit tests:
+`computeDesignKey` mutation coverage, IDB miss/hit/evict/clear, `stopInitialYaw` round-trip
+(including outside-room and at-centre fallbacks), share-link round-trip with/without stops, old-
+link compat, `applySerialized` restoration. Verified headless: tour-stop markers visible on the
+2D plan as numbered circles with the stop labels offset; opening the tour with a stop places the
+viewer facing the room centre; mobile 390×844 plan + tour modal both render correctly.
 ## [C262 / Q31 tail] Drop-target highlight + custom-plan overview wall-drop cue
 Two polish items deferred from C251. (1) **Transient drop-target highlight**: while
 a finish swatch is dragged over the 3D canvas a visible ring/tint overlay appears,
