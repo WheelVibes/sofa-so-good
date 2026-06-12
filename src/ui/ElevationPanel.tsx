@@ -8,6 +8,7 @@ import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux, type LuxStatus } from '../lighting2d/roomLux'
 import { useStore } from '../state/store'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
+import { LuxLegend } from './lighting2d/LuxLegend'
 import { type LightingPalette, lightingPlanSvg } from './lighting2d/lightingPlanSvg'
 import { Icon } from './toolbar/icons'
 
@@ -42,6 +43,8 @@ const LUX_BADGE: Record<LuxStatus, { cls: string; label: string }> = {
 export function ElevationPanel() {
   const open = useStore((s) => s.elevationsOpen)
   const setOpen = useStore((s) => s.setElevationsOpen)
+  const luxOverlayOn = useStore((s) => s.luxOverlayOn)
+  const setLuxOverlayOn = useStore((s) => s.setLuxOverlayOn)
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
@@ -181,22 +184,52 @@ export function ElevationPanel() {
               ) : null}
             </>
           )
-        ) : lighting.lights.length === 0 ? (
-          <div style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', padding: 'var(--s-3) 0' }}>
-            No light fixtures placed yet.
-          </div>
         ) : (
           <>
-            <div
-              style={{
-                fontSize: 'var(--t-xs)',
-                color: 'var(--text-2)',
-                margin: '0 0 var(--s-2)',
-              }}
-            >
-              {lighting.lights.length} fixture{lighting.lights.length > 1 ? 's' : ''} ·{' '}
-              {lighting.schedule.length} type{lighting.schedule.length > 1 ? 's' : ''}
+            {/* 3D lux heatmap on the floor (LP5 tail): toggle + colour legend.
+                Available with zero fixtures too — the overlay then shows the
+                daylight wash by day and a uniformly dark floor at night. */}
+            <div style={{ margin: '0 0 var(--s-2)' }}>
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 'var(--s-2)',
+                  fontSize: 'var(--t-xs)',
+                  cursor: 'pointer',
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={luxOverlayOn}
+                  onChange={(e) => setLuxOverlayOn(e.target.checked)}
+                />
+                <span style={{ flex: 1 }}>Show light levels on the floor (3D)</span>
+              </label>
+              {luxOverlayOn && (
+                <div style={{ marginTop: 'var(--s-1)' }}>
+                  <LuxLegend />
+                </div>
+              )}
             </div>
+            {lighting.lights.length === 0 ? (
+              <div
+                style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', padding: 'var(--s-3) 0' }}
+              >
+                No light fixtures placed yet.
+              </div>
+            ) : (
+              <div
+                style={{
+                  fontSize: 'var(--t-xs)',
+                  color: 'var(--text-2)',
+                  margin: '0 0 var(--s-2)',
+                }}
+              >
+                {lighting.lights.length} fixture{lighting.lights.length > 1 ? 's' : ''} ·{' '}
+                {lighting.schedule.length} type{lighting.schedule.length > 1 ? 's' : ''}
+              </div>
+            )}
             {lightFigures.map((fig) => (
               <div key={fig.key} style={{ marginBottom: 'var(--s-2)' }}>
                 {fig.caption ? (

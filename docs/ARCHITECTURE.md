@@ -242,7 +242,13 @@ same change that reshapes a system.
   lumens × calibration, utilisation factor 0.45, ÷ floor area) statused ok/low/high against
   recommended residential bands per room kind (`roomKindFromName`). Surfaced in the Drawings panel
   (badge list), the report and the drawing set (`roomLuxTableHtml`). Same pure-core →
-  palette-injected-SVG pattern as elevations.
+  palette-injected-SVG pattern as elevations. **3D lux overlay** (LP5 tail): pure
+  `lighting2d/luxGrid.ts` samples a per-room point-illuminance grid (calibrated inverse-square
+  fixtures, scoped to the bulb's room/storey, + a simple near-window daylight wash; masked
+  outside polygon rooms, never NaN) + `luxGrid`→RGBA via `lighting2d/luxColor.ts` (residential-band
+  blue→red stops, shared with `ui/lighting2d/LuxLegend.tsx`); `scene/LuxOverlay.tsx` renders one
+  DataTexture plane per room at `levelElevation`+5 mm (depthWrite off, visible levels only),
+  toggled by `luxOverlayOn` from the Drawings panel's Lighting tab — rides the `drawings` flag.
 - **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
   clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room

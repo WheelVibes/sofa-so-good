@@ -60,6 +60,9 @@ export interface FeaturesSlice {
   clearancePanelOpen: boolean
   /** Wall-elevations panel visibility. */
   elevationsOpen: boolean
+  /** 3D lux-coverage heatmap on the floor (LP5 tail) — toggled from the
+   *  Drawings panel's Lighting tab; rides the same `drawings` flag. */
+  luxOverlayOn: boolean
   /** Daylight & ventilation check panel visibility. */
   daylightOpen: boolean
   /** Design Score (aggregate layout-quality feedback) panel visibility. */
@@ -110,6 +113,7 @@ export interface FeaturesSlice {
   setVrActive: (active: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
+  setLuxOverlayOn: (on: boolean) => void
   setDaylightOpen: (open: boolean) => void
   setDesignScoreOpen: (open: boolean) => void
   setAccessibilityOpen: (open: boolean) => void
@@ -141,6 +145,7 @@ export const FEATURES_INITIAL = {
   vrActive: false,
   clearancePanelOpen: false,
   elevationsOpen: false,
+  luxOverlayOn: false,
   daylightOpen: false,
   designScoreOpen: false,
   accessibilityOpen: false,
@@ -188,6 +193,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),
+  setLuxOverlayOn: (luxOverlayOn) => set({ luxOverlayOn }),
   setDaylightOpen: (daylightOpen) => set({ daylightOpen }),
   setDesignScoreOpen: (designScoreOpen) => set({ designScoreOpen }),
   setAccessibilityOpen: (accessibilityOpen) => set({ accessibilityOpen }),

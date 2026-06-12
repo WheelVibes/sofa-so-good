@@ -92,7 +92,12 @@ at the top:
   **Estimated light levels** lists each room's estimated average brightness in
   lux next to the recommended range for that room type (e.g. living 100–200 lx,
   kitchen 300–600 lx), with an **OK** / **Low** / **High** chip so you can spot
-  under‑ or over‑lit rooms at a glance.
+  under‑ or over‑lit rooms at a glance. Tick **Show light levels on the floor (3D)**
+  to paint the estimate straight onto the floor in the 3D view as a colour heatmap
+  (blue = dim → green/yellow = comfortable → red = very bright, per the legend).
+  It follows the time of day — lamps pool light at night, windows glow by day —
+  and updates live as you move lights or change the time. On a multi‑storey plan
+  it colours the storeys you're viewing.
 
 Both also appear in the printable **Report**. Works on desktop and as a mobile sheet.
 

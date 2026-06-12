@@ -172,6 +172,16 @@ describe('hqRender flag (F1)', () => {
   })
 })
 
+describe('drawings flag (LP — also gates the 3D lux floor overlay, LP5 tail)', () => {
+  it('is pro-tier: the Drawings panel AND the lux overlay are hidden in Simple, present in Pro', () => {
+    // The overlay rides the same flag as the lighting plan it visualises
+    // (LP1–LP5 all shipped under `drawings`): off in Simple → the scene
+    // overlay + its panel toggle never mount; on in Pro by default.
+    expect(resolveFlags(false, {}, false, 'simple').drawings).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').drawings).toBe(true)
+  })
+})
+
 describe('comments flag (F24)', () => {
   it('is pro-tier: hidden in Simple, present in Pro (prod default on)', () => {
     expect(resolveFlags(false, {}, false, 'simple').comments).toBe(false)
