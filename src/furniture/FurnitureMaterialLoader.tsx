@@ -24,6 +24,21 @@ function furnitureDefOf(def: MaterialDef): MaterialDef {
 }
 
 /**
+ * Catalog material ids that are defaulted onto common wood-surface furniture
+ * (dining tables, bookshelves, wardrobes, sideboards, bed frames, desks, …).
+ * Pre-warming these on scene mount ensures first render shows the CC0 grain
+ * immediately — no procedural fallback flicker when an item is placed.
+ * All are procedural (offline-safe): no remote fetch needed.
+ */
+export const CATALOG_WOOD_DEFAULTS: readonly string[] = [
+  'floor-wood-oak',
+  'floor-wood-walnut',
+  'floor-wood-teak',
+  'floor-wood-ash',
+  'floor-wood-ebony',
+] as const
+
+/**
  * Watches the furniture items for finishes encoded as `mat:<materialId>` and
  * makes sure the referenced catalog/DLC material is built into the shared
  * material cache. Procedural/solid finishes build synchronously; downloaded
@@ -31,14 +46,18 @@ function furnitureDefOf(def: MaterialDef): MaterialDef {
  * Each build bumps `materialEpoch` so memoised furniture re-renders and the
  * primitives' synchronous `getSurfaceMaterial` lookup finds the new material.
  *
+ * Pre-warms the catalog wood defaults on mount so new-item placements render
+ * the CC0 grain on the first frame (no visible pop for the common cases).
+ *
  * Mounted once inside the scene graph (it renders only loader helpers).
  */
 export function FurnitureMaterialLoader() {
   const items = useStore(useShallow((s) => s.items))
 
-  // Distinct material ids referenced by any furniture finish param.
+  // Distinct material ids: items' explicit finishes UNION the catalog defaults
+  // so default-finish furniture is warm before the user even places a piece.
   const ids = useMemo(() => {
-    const set = new Set<string>()
+    const set = new Set<string>(CATALOG_WOOD_DEFAULTS)
     for (const it of items) {
       for (const v of Object.values(it.props)) {
         if (typeof v !== 'string') continue

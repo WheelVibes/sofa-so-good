@@ -5,6 +5,38 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C264 / PR6-tail] Default common furniture finishes to local CC0 `mat:` materials
+
+**Categories updated (17 catalog entries):** `bed-single`, `bed-double`, `bed-queen`, `bed-king`,
+`bunk-bed`, `crib`, `dining-table-4`, `desk`, `coffee-table`, `console-table`, `wardrobe-3door`,
+`dresser`, `shoe-cabinet`, `bookshelf`, `sideboard`, `nightstand`, `floor-mirror` — all had
+`default: 'wood'` on their primary wood finish field (`finish` or `frameFinish`); changed to
+`default: 'mat:floor-wood-oak'`.
+
+**Decision: NEW items only.** `mat:floor-wood-oak` applies to newly placed items (the catalog
+schema default). Existing saved designs carry their stored props (`'wood'` or any explicit value)
+untouched — `defaultParamProps` is only called on first placement, and the store merges on top,
+so the user's explicit choice always wins. No migration of existing stored data.
+
+**Per-furniture UV-scale / repeat support** (`furnitureMaterials.ts`): `getSurfaceMaterial` now
+honours the `repeat` parameter for `mat:` finishes (previously ignored). Added
+`getFurnitureMatWithRepeat` (private): clones the base material, individually clones+reassigns
+`map`/`normalMap`/`roughnessMap` with the new repeat, caches per `(id, repeat)`. Repeat ≈ 1 returns
+the base unchanged (no clone). Same pattern as `getWoodMaterial(color, repeat)` for procedural wood.
+
+**Pre-warm on scene mount** (`FurnitureMaterialLoader.tsx`): `CATALOG_WOOD_DEFAULTS` (the five wood
+variants: oak, walnut, teak, ash, ebony) are seeded into the `ids` set before items are scanned,
+so the five most common finishes are built synchronously on the first render — no first-frame pop.
+All are procedural (offline-safe); no remote fetch needed.
+
+**Tests:** 6 new unit tests in `furnitureMaterialFinish.test.ts`: user override wins, key categories
+default to `mat:floor-wood-oak`, fallback to procedural when mat: not in cache, repeat=1 identity,
+repeat≠1 distinct clone (cached, stable), UV-scale clone preserves map repeat. Updated
+`builtinCatalog.test.ts` enum-default validation to exempt `mat:` defaults.
+
+**Scenario:** `scripts/scenarios/furniture-finishes-simple.json` — simple ladder verifying default
+finish, sofa-level angle, bookshelf closeup, performance-tier regression.
+
 ## [C265 / T2] Crown-molding revisit + kitchen/bath template polish
 
 **Crown molding (T2):** Adds decorative crown-molding strips at every wall–ceiling junction

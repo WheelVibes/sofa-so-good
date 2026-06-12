@@ -730,9 +730,53 @@ export function getPaintedMaterial(
   return m
 }
 
+/** Per-repeat variant cache: `furn:<id>:x<repeat>` → a clone of the base
+ *  furniture material with `texture.repeat` overridden to `(repeat, repeat)`.
+ *  Allows individual primitives to control tiling density at their natural
+ *  scale (same as how `getWoodMaterial(color, repeat)` works for procedural
+ *  wood).  Only allocated when `repeat` differs from 1 (the base). */
+const furnitureRepeatCache = new Map<string, MeshStandardMaterial>()
+
+/** Return (or build) a variant of a furniture `mat:` material with `repeat`
+ *  applied to all texture channels.  The base is cloned and each texture
+ *  (`map`, `normalMap`, `roughnessMap`) is individually cloned + re-set so
+ *  the shared base material is not mutated.  Cached per `(id, repeat)`. */
+function getFurnitureMatWithRepeat(
+  matId: string,
+  base: MeshStandardMaterial,
+  repeat: number,
+): MeshStandardMaterial {
+  const key = `${furnitureMaterialCacheId(matId)}:x${repeat.toFixed(2)}`
+  const hit = furnitureRepeatCache.get(key)
+  if (hit) return hit
+  const m = base.clone()
+  if (m.map) {
+    m.map = m.map.clone()
+    m.map.needsUpdate = true
+    m.map.repeat.set(repeat, repeat)
+  }
+  if (m.normalMap) {
+    m.normalMap = m.normalMap.clone()
+    m.normalMap.needsUpdate = true
+    m.normalMap.repeat.set(repeat, repeat)
+  }
+  if (m.roughnessMap) {
+    m.roughnessMap = m.roughnessMap.clone()
+    m.roughnessMap.needsUpdate = true
+    m.roughnessMap.repeat.set(repeat, repeat)
+  }
+  furnitureRepeatCache.set(key, m)
+  return m
+}
+
 /** Dispatch a hard-surface material by finish kind ('wood' | 'painted' |
  *  'gloss'), tinted to `color`. `sheen` (0..1) tunes matte → glossy across all
- *  three. Wood keeps its grain; painted/gloss are flat. */
+ *  three. Wood keeps its grain; painted/gloss are flat.
+ *
+ *  When `kind` is a `mat:<id>` finish (a catalog/DLC material pre-built by
+ *  `FurnitureMaterialLoader`), `repeat` is honoured the same way as for
+ *  procedural wood: a per-`(id, repeat)` variant is cloned and cached so
+ *  tiling density is consistent across different-sized furniture pieces. */
 export function getSurfaceMaterial(
   kind: string,
   color: string,
@@ -747,7 +791,15 @@ export function getSurfaceMaterial(
     // getBuiltMaterial, not getCachedMaterial: procedural materials cache under
     // a size-suffixed key, which a plain-id lookup would permanently miss.
     const built = getBuiltMaterial(furnitureMaterialCacheId(matId))
-    if (built) return built
+    if (built) {
+      // Apply the primitive's repeat factor so tiling density is consistent
+      // with procedural wood (`getWoodMaterial(color, repeat)`). The base
+      // furniture material's texture already tiles at FURNITURE_UV (2×); when
+      // a primitive requests a different repeat we serve a cached clone.
+      const r = Math.round(repeat * 100) / 100
+      if (Math.abs(r - 1) < 0.005) return built
+      return getFurnitureMatWithRepeat(matId, built, r)
+    }
     return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
   }
   if (kind === 'painted')

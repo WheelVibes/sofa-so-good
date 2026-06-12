@@ -37,7 +37,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -101,7 +101,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -164,7 +164,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -227,7 +227,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -289,7 +289,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Frame finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -436,7 +436,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -781,7 +781,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Top finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -838,7 +838,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -933,7 +933,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -990,7 +990,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -1046,7 +1046,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -1154,7 +1154,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -1583,7 +1583,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -1640,7 +1640,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -1721,7 +1721,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -2034,7 +2034,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'finish',
         label: 'Finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },
@@ -4102,7 +4102,7 @@ export const BUILTIN_CATALOG: Record<FurnitureType, FurnitureDef> = {
         kind: 'enum',
         key: 'frameFinish',
         label: 'Frame finish',
-        default: 'wood',
+        default: 'mat:floor-wood-oak',
         options: [
           { value: 'wood', label: 'Wood' },
           { value: 'painted', label: 'Painted' },

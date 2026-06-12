@@ -28,7 +28,14 @@ describe('BUILTIN_CATALOG', () => {
           expect(v).toBeLessThanOrEqual(f.max)
         }
         if (f.kind === 'enum') {
-          expect(f.options.some((o) => o.value === f.default)).toBe(true)
+          // `mat:<id>` defaults are valid catalog/DLC material references resolved
+          // at runtime (useSurfaceMaterialOptions) — they don't need to appear in
+          // the static `options` list, which only holds the procedural presets.
+          const isMatDefault =
+            typeof f.default === 'string' && (f.default as string).startsWith('mat:')
+          if (!isMatDefault) {
+            expect(f.options.some((o) => o.value === f.default)).toBe(true)
+          }
         }
       }
     }

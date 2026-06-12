@@ -51,8 +51,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
 - [ ] R-CURTAIN/L1 Window-glass tint colouring the sun shaft + curtains affecting cast light +
   inter-room light bleed. Perf-sensitive multi-file scene change.
-- [~] PR6 tail: default common furniture finishes to local CC0 `mat:<id>` (needs
-  `FurnitureMaterialLoader` pre-build + per-furniture UV scale) + optional Performance env hint.
 
 ## Content & catalog
 - [ ] PF tail: kitchen-cabinet run type deferred (different dimension envelope + toe-kick + upper
