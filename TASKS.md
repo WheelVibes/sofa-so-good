@@ -63,6 +63,9 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [~] T2 Crown-molding revisit + kitchen/bath template polish.
 
 ## Productivity / QOL
+- [ ] IXT-SUITES (user rule, 2026-06-12): build interaction-test scenarios (simple → complex per
+  feature, incl. cross-feature journeys like onboarding→tour→location) for every EXISTING feature
+  using the C267 harness; work down the `FEATURE_FLAGS` list in priority order.
 - [ ] Q-3DEXPORT Whole-scene glTF/GLB + USDZ (AR) export — needs worker-streamed export + real-GPU
   verify (a previous GLTFExporter prototype was reverted as unverifiable headless).
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
