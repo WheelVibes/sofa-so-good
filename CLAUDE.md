@@ -53,6 +53,9 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
 - **No hardcoded colour.** Use the CSS token class vocabulary (`.panel`/`.btn`/`.toolbar`/…),
   never Tailwind colour utilities or literals; every surface works in light + dark + 5 themes.
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).
+  While **iterating**, run targeted tests only (`npx vitest --run <paths near your change>`);
+  run the **full suite exactly once, right before the commit** — full-suite runs are ~2 min
+  and dominate iteration time, especially under parallel-agent load.
   Commit/push only when asked; one focused change per commit; log shipped work in `CHANGELOG.md`.
 - **Research against references.** When designing a new feature or judging what good UI/UX
   should look like, consult **[REFERENCES.md](REFERENCES.md)** (competitor/reference apps —
