@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C263 / F4] Render preset A/B compare modal
+Adds an industry-standard before/after comparison view for render presets (F4 tail), gated by a
+new `renderCompare` pro-tier feature flag. The modal (`src/ui/RenderCompareModal.tsx`) renders
+both presets sequentially using the existing HQ path-traced pipeline (`hqRenderSession.ts` via
+`capturePreset`), temporarily applying each preset's four levers (time/tone/exposure/lights) and
+restoring the store state after capture. A Lightroom-style draggable vertical divider with a
+circular drag handle clips the A image over the full B image using CSS `clipPath` — the two halves
+are pixel-aligned at the divider with no offset or stretch at any position. Labels float in the
+corners (A · left, B · right). Controls: two preset selectors, a swap button (⇄ exchanges images +
+sample counts), a quality selector (32–256 samples), and a Render/Re-render button. In-progress
+states show per-side sample progress. Touch drag is fully supported (`onTouchStart`/`onTouchMove`)
+for mobile parity. Pure state logic lives in `src/ui/renderCompare/compareState.ts` (no React) —
+`clampDivider`, `swapAB`, `setPresetA/B`, `isValidPresetId`. The `renderCompare` flag (pro, default
+on, prod-safe) is wired into `FEATURE_FLAGS`, `COMMAND_FLAGS` (`render-compare` → ⌘K), File menu,
+and MobileToolbar accordion. 10 unit tests cover all pure-state functions + flag visibility in both
+Simple and Pro modes. HDRI coupling (F3) remains deferred.
 ## [C261 / P-720 tail] 360° tour follow-ups: IDB image cache, room-centre yaw, plan stop placement, share-link embedding
 Four P-720 follow-ups shipped in one focused commit. **(1) IDB image cache**: new pure
 `ui/panorama/panoImageIdb.ts` (`sofa-pano-cache` database, separate from the asset store to

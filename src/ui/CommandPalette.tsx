@@ -41,6 +41,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'pano-tour': 'panoTour',
   'pano-tour-add': 'panoTour',
   'hq-render': 'hqRender',
+  'render-compare': 'renderCompare',
   'shopping-list': 'shopExport',
   parametric: 'parametricFurniture',
 }
@@ -249,6 +250,13 @@ export function CommandPalette() {
         label: 'HQ render (path-traced)',
         icon: 'Export',
         run: () => s().setHqRenderOpen(true),
+      },
+      {
+        id: 'render-compare',
+        group: 'Tools & panels',
+        label: 'Render compare — A/B preset comparison',
+        icon: 'Export',
+        run: () => s().setRenderCompareOpen(true),
       },
       {
         id: 'palette-from-photo',

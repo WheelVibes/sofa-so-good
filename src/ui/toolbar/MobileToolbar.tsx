@@ -190,6 +190,7 @@ export function MobileToolbar() {
   const fPanoTour = useFeature('panoTour')
   const fRenderPresets = useFeature('renderPresets')
   const fHqRender = useFeature('hqRender')
+  const fRenderCompare = useFeature('renderCompare')
   const fVr = useFeature('vrWalkthrough')
   const [vrSupported, setVrSupported] = useState(false)
   useEffect(() => {
@@ -986,6 +987,14 @@ export function MobileToolbar() {
                     label="HQ render"
                     sub="Path-traced photoreal still"
                     onClick={act(() => s.getState().setHqRenderOpen(true))}
+                  />
+                ) : null}
+                {fRenderCompare ? (
+                  <Item
+                    icon="Export"
+                    label="Render compare"
+                    sub="A/B compare two render presets"
+                    onClick={act(() => s.getState().setRenderCompareOpen(true))}
                   />
                 ) : null}
                 {fShopExport ? (

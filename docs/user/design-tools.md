@@ -203,3 +203,21 @@ is taken at the current viewpoint (your position in walk mode; the point you're
 looking at in orbit) and is named after the room it's in. Stops are remembered
 on this device; the panoramas themselves are captured live when you open the
 tour, so they always show the current design.
+
+## Render compare (Pro)
+
+**File → Render compare** (or the ⌘K command *Render compare*) renders the same
+camera view with two different **render presets** side-by-side so you can
+judge which lighting mood works best for your design.
+
+1. Pick **Preset A** (left) and **Preset B** (right) from the drop-downs at the
+   bottom of the modal.
+2. Choose the **sample quality** (32–256; more samples = cleaner image, longer wait).
+3. Click **Render both** — the app renders A first, then B, restoring your lighting
+   settings once both are done.
+4. **Drag the divider** left and right to reveal more of A or B. Both halves are
+   pixel-aligned — you're comparing the exact same camera angle.
+5. Use the **⇄ swap** button to flip A and B (their images swap too).
+6. Click **Re-render** any time you change the presets or settings.
+
+On mobile, touch-drag the divider to compare. The feature requires Pro mode.

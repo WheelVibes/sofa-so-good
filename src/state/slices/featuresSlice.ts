@@ -54,6 +54,8 @@ export interface FeaturesSlice {
   panoramaOpen: boolean
   /** Path-traced HQ render modal visibility. */
   hqRenderOpen: boolean
+  /** Render preset A/B compare modal visibility (F4 tail). */
+  renderCompareOpen: boolean
   /** An immersive-VR session is active/requested (mounts the XR provider). */
   vrActive: boolean
   /** Clearance & fit checks panel visibility. */
@@ -119,6 +121,7 @@ export interface FeaturesSlice {
   setShareOpen: (open: boolean) => void
   setPanoramaOpen: (open: boolean) => void
   setHqRenderOpen: (open: boolean) => void
+  setRenderCompareOpen: (open: boolean) => void
   setVrActive: (active: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
@@ -158,6 +161,7 @@ export const FEATURES_INITIAL = {
   shareOpen: false,
   panoramaOpen: false,
   hqRenderOpen: false,
+  renderCompareOpen: false,
   vrActive: false,
   clearancePanelOpen: false,
   elevationsOpen: false,
@@ -209,6 +213,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setShareOpen: (shareOpen) => set({ shareOpen }),
   setPanoramaOpen: (panoramaOpen) => set({ panoramaOpen }),
   setHqRenderOpen: (hqRenderOpen) => set({ hqRenderOpen }),
+  setRenderCompareOpen: (renderCompareOpen) => set({ renderCompareOpen }),
   setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),

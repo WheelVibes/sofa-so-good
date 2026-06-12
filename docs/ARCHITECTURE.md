@@ -375,7 +375,13 @@ same change that reshapes a system.
   `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
   capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` + shared
   drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
-  `panorama` flag, pro), **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
+  `panorama` flag, pro), **HQ render** (`scene/pathtrace/hqRenderSession.ts` progressive
+  path-traced still via `three-gpu-pathtracer`; `hqRenderSource.ts` module singleton exposes
+  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, pro),
+  **Render preset A/B compare** (`ui/renderCompare/compareState.ts` pure logic — preset
+  selection, swap, divider clamping; `ui/RenderCompareModal.tsx` two sequential captures +
+  Lightroom-style before/after slider with touch parity; `renderCompare` flag, pro),
+  **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
   persisted per-device to localStorage + encoded in share/save links (C261, optional field →
   back-compat); pure `ui/panorama/panoTour.ts` DERIVES room-to-room hotspots (yaw/pitch via
   atan2, screen projection, room-name labels) and `stopInitialYaw` (room-centre facing on

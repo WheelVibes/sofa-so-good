@@ -21,6 +21,7 @@ export function FileMenu() {
   const fPanorama = useFeature('panorama')
   const fPanoTour = useFeature('panoTour')
   const fHqRender = useFeature('hqRender')
+  const fRenderCompare = useFeature('renderCompare')
   const resetToDefault = useStore((s) => s.resetToDefault)
   const resetToEmpty = useStore((s) => s.resetToEmpty)
   const fShopExport = useFeature('shopExport')
@@ -103,6 +104,14 @@ export function FileMenu() {
           label="HQ render"
           sub="Path-traced photoreal still"
           onClick={() => useStore.getState().setHqRenderOpen(true)}
+        />
+      ) : null}
+      {fRenderCompare ? (
+        <MenuItem
+          icon="Export"
+          label="Render compare"
+          sub="A/B compare two render presets"
+          onClick={() => useStore.getState().setRenderCompareOpen(true)}
         />
       ) : null}
       {fShopExport ? (

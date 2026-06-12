@@ -75,6 +75,9 @@ const PanoTourModal = lazy(() =>
 const HqRenderModal = lazy(() =>
   import('./ui/HqRenderModal').then((m) => ({ default: m.HqRenderModal })),
 )
+const RenderCompareModal = lazy(() =>
+  import('./ui/RenderCompareModal').then((m) => ({ default: m.RenderCompareModal })),
+)
 const VersionsPanel = lazy(() =>
   import('./ui/VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
 )
@@ -140,6 +143,7 @@ export default function App() {
     panoramaOpen: useStore((s) => s.panoramaOpen),
     panoTourOpen: useStore((s) => s.panoTourOpen),
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
+    renderCompareOpen: useStore((s) => s.renderCompareOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -879,6 +883,11 @@ export default function App() {
         {lazyPanels.hqRenderOpen ? (
           <Suspense fallback={null}>
             <HqRenderModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.renderCompareOpen ? (
+          <Suspense fallback={null}>
+            <RenderCompareModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

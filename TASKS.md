@@ -47,7 +47,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   pass + decide quality-tier gating of the menu entry.
 - [ ] F3/R-HDRI [PROD] HDRI environment library (Poly Haven CC0 `.hdr`) for IBL + backdrop.
   Sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.
-- [ ] F4 tail: A/B compare between two render presets, and HDRI coupling once F3 lands.
+- [ ] F4 tail (HDRI only): A/B compare shipped (C263); HDRI coupling deferred until F3 (R-HDRI) lands.
+  Once F3 is available, wire the HDRI selector into `capturePreset` and expose it in the compare modal.
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
 - [ ] R-CURTAIN/L1 Window-glass tint colouring the sun shaft + curtains affecting cast light +

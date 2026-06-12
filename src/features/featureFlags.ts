@@ -64,6 +64,7 @@ export type FeatureFlag =
   | 'comments'
   | 'finishDnd'
   | 'parametricFurniture'
+  | 'renderCompare'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -372,6 +373,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   parametricFurniture: {
     label: 'Custom-size furniture',
     description: 'Generate shelving / wardrobes / sideboards to exact dimensions',
+    default: true,
+    tier: 'pro',
+  },
+  // Analytical/professional feature (comparing render presets → pro tier, F4 tail).
+  // Prod-safe pure code → default on.
+  renderCompare: {
+    label: 'Render preset compare',
+    description: 'A/B compare two render presets with a draggable before/after divider',
     default: true,
     tier: 'pro',
   },
