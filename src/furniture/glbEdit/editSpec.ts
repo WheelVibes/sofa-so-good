@@ -69,7 +69,15 @@ export interface ShapePart {
    *  Lets a cone/capsule/torus/pyramid be laid on its side or angled. */
   rotation?: [number, number, number]
   color: string
-  /** PBR surface roughness 0 (mirror-smooth) … 1 (fully matte). Absent → 0.6. */
+  /** Optional textured finish applied instead of the flat colour — a furniture
+   *  finish id, today always `mat:<materialId>` (a procedural or CC0 DLC catalog
+   *  material, the same vocabulary placed furniture uses). Absent → the plain
+   *  solid-colour material, so every pre-GE3c spec keeps building unchanged.
+   *  While the material isn't built yet (or the id is unknown) the part falls
+   *  back to its solid colour — never a crash. */
+  finish?: string
+  /** PBR surface roughness 0 (mirror-smooth) … 1 (fully matte). Absent → 0.6.
+   *  Ignored while `finish` is set (the finish's own maps win). */
   roughness?: number
   /** PBR metalness 0 (dielectric: wood/plastic/fabric) … 1 (metal). Absent → 0.05. */
   metalness?: number

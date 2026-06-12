@@ -21,8 +21,9 @@ interface ParametricBodyProps {
 /** Builds the extra "apply a catalog / downloaded CC0 material" options for a
  *  wood/surface `finish` dropdown. Offers surface-like procedural finishes
  *  (wood, marble, tile, …) and any downloaded PBR materials, encoded as
- *  `mat:<materialId>` so the furniture material loader picks them up. */
-function useSurfaceMaterialOptions(): { value: string; label: string }[] {
+ *  `mat:<materialId>` so the furniture material loader picks them up.
+ *  Shared with the GLB designer's per-part texture picker (`PartInspector`). */
+export function useSurfaceMaterialOptions(): { value: string; label: string }[] {
   const materials = useMaterials()
   return Object.values(materials)
     .filter((m) => m.kind === 'textured' || m.category === 'floor')

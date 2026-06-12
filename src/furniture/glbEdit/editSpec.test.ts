@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  type AssetEditSpec,
   addPart,
   createEmptySpec,
   duplicatePart,
@@ -113,5 +114,55 @@ describe('setMeshOverride', () => {
   it('mirrorPart is a no-op for an unknown id', () => {
     const s = addPart(createEmptySpec(), 'box')
     expect(mirrorPart(s, 'nope')).toBe(s)
+  })
+})
+
+describe('per-part texture finish (GE3c) — schema + back-compat', () => {
+  it('updatePart sets and clears a finish', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    const id = s.parts[0]!.id
+    s = updatePart(s, id, { finish: 'mat:floor-wood-oak' })
+    expect(s.parts[0]!.finish).toBe('mat:floor-wood-oak')
+    s = updatePart(s, id, { finish: undefined })
+    expect(s.parts[0]!.finish).toBeUndefined()
+  })
+
+  it('a new part has no finish (solid colour default unchanged)', () => {
+    const s = addPart(createEmptySpec(), 'cylinder')
+    expect(s.parts[0]!.finish).toBeUndefined()
+  })
+
+  it('duplicate and mirror carry the finish onto the copy', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    const id = s.parts[0]!.id
+    s = updatePart(s, id, { finish: 'mat:floor-tile-marble' })
+    s = duplicatePart(s, id)
+    expect(s.parts[1]!.finish).toBe('mat:floor-tile-marble')
+    s = mirrorPart(s, id)
+    expect(s.parts[2]!.finish).toBe('mat:floor-tile-marble')
+  })
+
+  it('a finish survives a JSON round trip (save → reload)', () => {
+    let s = addPart(createEmptySpec(), 'box')
+    s = updatePart(s, s.parts[0]!.id, { finish: 'mat:ambientcg:Wood048:1k' })
+    const revived = JSON.parse(JSON.stringify(s)) as AssetEditSpec
+    expect(revived.parts[0]!.finish).toBe('mat:ambientcg:Wood048:1k')
+  })
+
+  it('a pre-GE3c spec (no finish anywhere) round-trips unchanged and stays buildable', () => {
+    const legacy: AssetEditSpec = {
+      sourceScale: 1,
+      parts: [
+        { id: 'a', kind: 'box', position: [0, 0.2, 0], size: [0.4, 0.4, 0.4], color: '#b08d57' },
+      ],
+      meshOverrides: {},
+    }
+    const revived = JSON.parse(JSON.stringify(legacy)) as AssetEditSpec
+    expect(revived).toEqual(legacy)
+    expect(revived.parts[0]!.finish).toBeUndefined()
+    expect(isBuildable(revived)).toBe(true)
+    // Editing a legacy part never invents a finish.
+    const next = updatePart(revived, 'a', { color: '#112233' })
+    expect(next.parts[0]!.finish).toBeUndefined()
   })
 })

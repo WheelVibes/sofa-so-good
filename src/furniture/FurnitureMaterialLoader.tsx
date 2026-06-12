@@ -1,7 +1,7 @@
 import { useTexture } from '@react-three/drei'
 import { Suspense, useEffect, useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { buildMaterial, getCachedMaterial } from '../materials/cache'
+import { buildMaterial, getBuiltMaterial } from '../materials/cache'
 import {
   furnitureMaterialCacheId,
   parseFurnitureMaterialFinish,
@@ -35,8 +35,6 @@ function furnitureDefOf(def: MaterialDef): MaterialDef {
  */
 export function FurnitureMaterialLoader() {
   const items = useStore(useShallow((s) => s.items))
-  const materials = useMaterials()
-  const bump = useStore((s) => s.bumpMaterialEpoch)
 
   // Distinct material ids referenced by any furniture finish param.
   const ids = useMemo(() => {
@@ -51,6 +49,19 @@ export function FurnitureMaterialLoader() {
     return [...set]
   }, [items])
 
+  return <EnsureFurnitureMaterials ids={ids} />
+}
+
+/**
+ * Builds the given catalog/DLC material ids into the furniture-scoped material
+ * cache (the body of `FurnitureMaterialLoader`, reusable wherever a furniture
+ * `mat:<id>` finish can appear outside placed items — e.g. the GLB designer's
+ * per-part finishes). Mount inside a Canvas.
+ */
+export function EnsureFurnitureMaterials({ ids }: { ids: string[] }) {
+  const materials = useMaterials()
+  const bump = useStore((s) => s.bumpMaterialEpoch)
+
   // Split into already-cached, procedural (sync-buildable), and textured
   // (need async image loads). Unknown ids (remote not yet downloaded) are
   // skipped — the piece keeps its procedural fallback until resolved.
@@ -58,7 +69,7 @@ export function FurnitureMaterialLoader() {
     const procedural: MaterialDef[] = []
     const textured: TexturedMaterialDef[] = []
     for (const id of ids) {
-      if (getCachedMaterial(furnitureMaterialCacheId(id))) continue
+      if (getBuiltMaterial(furnitureMaterialCacheId(id))) continue
       const def = materials[id]
       if (!def) continue
       if (def.kind === 'textured') textured.push(def)

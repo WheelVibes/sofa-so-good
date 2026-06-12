@@ -126,7 +126,15 @@ same change that reshapes a system.
   (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;
   geometry via `buildObject.ts` `partGeometry` + per-part PBR via `partMaterial` — both shared by
   the live preview so it can't drift; each part carries colour + roughness + metalness +
-  emissive glow + opacity)
+  emissive glow + opacity, plus an optional **texture finish** — GE3c: `ShapePart.finish` =
+  `mat:<id>`, the same furniture finish vocabulary placed items use. The picker lives in
+  `ui/glbEditor/PartInspector.tsx` (the extracted per-part edit panel), reusing the inspector's
+  `useSurfaceMaterialOptions` dropdown + `QuickFinishes` swatch row; `EnsureFurnitureMaterials`
+  (the reusable body of `FurnitureMaterialLoader`) builds picked ids into the shared cache, and
+  `partMaterial` resolves the finish to a clone of the cached material — solid-colour fallback
+  while unbuilt/unknown, never a crash. The texture is **baked into the exported GLB** (like
+  the solid colours), so the saved asset needs no `mat:` re-resolution; CSG results gain
+  box-projected UVs (`boxProjectUvs`) so a finish tiles on them too)
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands

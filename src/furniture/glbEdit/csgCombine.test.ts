@@ -70,6 +70,23 @@ describe('partTransformMatrix / bakedPartGeometry', () => {
 })
 
 describe('meshPartFromGeometry', () => {
+  it('carries the first part’s texture finish (GE3c) onto the combined part', () => {
+    const geo = new BoxGeometry(0.4, 0.6, 0.8)
+    const part = meshPartFromGeometry(
+      geo,
+      box('a', [0, 0, 0], [1, 1, 1], { finish: 'mat:floor-wood-oak' }),
+    )
+    expect(part.finish).toBe('mat:floor-wood-oak')
+    geo.dispose()
+  })
+
+  it('leaves the combined part finish-less when the first part had none', () => {
+    const geo = new BoxGeometry(0.4, 0.6, 0.8)
+    const part = meshPartFromGeometry(geo, box('a', [0, 0, 0]))
+    expect(part.finish).toBeUndefined()
+    geo.dispose()
+  })
+
   it('centres the triangles and places the part at the old bounds centre', () => {
     const geo = new BoxGeometry(0.4, 0.6, 0.8)
     geo.translate(1, 2, 3)

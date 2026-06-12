@@ -1,6 +1,15 @@
-import { BufferGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
+import { BoxGeometry, BufferGeometry, Group, Mesh, MeshStandardMaterial } from 'three'
 import { describe, expect, it } from 'vitest'
-import { applyMeshOverrides, buildEditedObject, partGeometry, partMaterial } from './buildObject'
+import { buildMaterial } from '../../materials/cache'
+import { furnitureMaterialCacheId } from '../../materials/furnitureMaterials'
+import type { SolidMaterialDef } from '../../materials/types'
+import {
+  applyMeshOverrides,
+  boxProjectUvs,
+  buildEditedObject,
+  partGeometry,
+  partMaterial,
+} from './buildObject'
 import {
   addPart,
   createEmptySpec,
@@ -8,7 +17,22 @@ import {
   DEFAULT_PART_ROUGHNESS,
   defaultPart,
   SHAPE_KINDS,
+  type ShapePart,
 } from './editSpec'
+
+/** Simulate the furniture material loader having built `mat:<id>` into the
+ *  shared cache (the same pattern as `furnitureMaterialFinish.test.ts` — a
+ *  solid def avoids the canvas-dependent procedural path). */
+function buildFinishIntoCache(id: string, swatch = '#8a5a2b'): MeshStandardMaterial {
+  const def: SolidMaterialDef = {
+    id: furnitureMaterialCacheId(id),
+    name: 'Test finish',
+    category: 'floor',
+    swatch,
+    kind: 'solid',
+  }
+  return buildMaterial(def)
+}
 
 function graph() {
   const g = new Group()
@@ -150,5 +174,128 @@ describe('partMaterial — per-part PBR', () => {
     const mesh = obj.children.find((c) => c instanceof Mesh) as Mesh
     expect(mesh.rotation.x).toBeCloseTo(Math.PI / 2)
     expect(mesh.rotation.y).toBeCloseTo(0)
+  })
+})
+
+describe('partMaterial — per-part texture finish (GE3c)', () => {
+  it('resolves a built `mat:<id>` finish to an owned CLONE of the cached material', () => {
+    const built = buildFinishIntoCache('test:ge3c-oak')
+    const m = partMaterial({ ...defaultPart('box'), finish: 'mat:test:ge3c-oak' })
+    expect(m).not.toBe(built) // owned clone — the dialog/export can dispose it
+    expect(m.color.getHexString()).toBe(built.color.getHexString())
+    expect(m.roughness).toBe(built.roughness) // finish's surface wins
+  })
+
+  it('applies per-part glow/opacity over the finish without mutating the cached base', () => {
+    const built = buildFinishIntoCache('test:ge3c-marble', '#ffffff')
+    const m = partMaterial({
+      ...defaultPart('box'),
+      color: '#ff0000',
+      finish: 'mat:test:ge3c-marble',
+      emissiveIntensity: 2,
+      opacity: 0.5,
+    })
+    expect(m.emissiveIntensity).toBe(2)
+    expect(m.emissive.getHexString()).toBe('ff0000')
+    expect(m.transparent).toBe(true)
+    expect(m.opacity).toBeCloseTo(0.5)
+    // The shared cache instance stays pristine.
+    expect(built.transparent).toBe(false)
+    expect(built.opacity).toBe(1)
+    expect(built.emissive.getHexString()).toBe('000000')
+  })
+
+  it('ignores the part’s flat roughness/metalness while a finish is set', () => {
+    const built = buildFinishIntoCache('test:ge3c-rough')
+    const m = partMaterial({
+      ...defaultPart('box'),
+      finish: 'mat:test:ge3c-rough',
+      roughness: 0.1,
+      metalness: 0.9,
+    })
+    expect(m.roughness).toBe(built.roughness)
+    expect(m.metalness).toBe(built.metalness)
+  })
+
+  it('falls back to the solid colour for an unbuilt/unknown finish id (no crash)', () => {
+    const m = partMaterial({ ...defaultPart('box'), finish: 'mat:nope:not-downloaded' })
+    expect(m.color.getHexString()).toBe('b08d57')
+    expect(m.roughness).toBeCloseTo(DEFAULT_PART_ROUGHNESS)
+  })
+
+  it('treats a non-`mat:` finish string as no finish (solid path)', () => {
+    const m = partMaterial({ ...defaultPart('box'), finish: 'wood' })
+    expect(m.color.getHexString()).toBe('b08d57')
+  })
+
+  it('the built (exported) object carries the finish material on the part mesh', () => {
+    buildFinishIntoCache('test:ge3c-export', '#123456')
+    let spec = createEmptySpec()
+    spec = addPart(spec, 'box')
+    spec.parts[0]!.finish = 'mat:test:ge3c-export'
+    const obj = buildEditedObject(null, spec)
+    const mesh = obj.children.find((c) => c instanceof Mesh) as Mesh
+    expect((mesh.material as MeshStandardMaterial).color.getHexString()).toBe('123456')
+  })
+})
+
+describe('boxProjectUvs — UVs for CSG mesh parts', () => {
+  function meshPart(): ShapePart {
+    const src = new BoxGeometry(0.4, 0.2, 0.6)
+    const part: ShapePart = {
+      id: 'm1',
+      kind: 'mesh',
+      position: [0, 0.1, 0],
+      size: [0.4, 0.2, 0.6],
+      color: '#ffffff',
+      geometry: {
+        positions: Array.from(src.getAttribute('position').array),
+        normals: Array.from(src.getAttribute('normal').array),
+        index: Array.from(src.getIndex()!.array),
+      },
+    }
+    src.dispose()
+    return part
+  }
+
+  it('a rebuilt mesh part gains finite plane-projected UVs (so a texture tiles)', () => {
+    const geo = partGeometry(meshPart())
+    const uv = geo.getAttribute('uv')
+    expect(uv).toBeTruthy()
+    expect(uv.count).toBe(geo.getAttribute('position').count)
+    for (let i = 0; i < uv.array.length; i++) expect(Number.isFinite(uv.array[i])).toBe(true)
+    // The projection spans the part’s extent (not a single smeared texel).
+    let min = Number.POSITIVE_INFINITY
+    let max = Number.NEGATIVE_INFINITY
+    for (let i = 0; i < uv.count; i++) {
+      min = Math.min(min, uv.getX(i))
+      max = Math.max(max, uv.getX(i))
+    }
+    expect(max - min).toBeGreaterThan(0.1)
+  })
+
+  it('projects onto the plane facing each vertex normal (top face → XZ)', () => {
+    const geo = new BoxGeometry(1, 1, 1)
+    geo.deleteAttribute('uv')
+    boxProjectUvs(geo)
+    const pos = geo.getAttribute('position')
+    const nor = geo.getAttribute('normal')
+    const uv = geo.getAttribute('uv')
+    for (let i = 0; i < pos.count; i++) {
+      if (nor.getY(i) > 0.9) {
+        expect(uv.getX(i)).toBeCloseTo(pos.getX(i), 5)
+        expect(uv.getY(i)).toBeCloseTo(pos.getZ(i), 5)
+      }
+    }
+    geo.dispose()
+  })
+
+  it('never clobbers existing UVs (primitive parts keep their own)', () => {
+    const geo = partGeometry(defaultPart('box'))
+    const orig = geo.getAttribute('uv')
+    expect(orig).toBeTruthy()
+    boxProjectUvs(geo)
+    expect(geo.getAttribute('uv')).toBe(orig)
+    geo.dispose()
   })
 })

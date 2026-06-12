@@ -17,6 +17,11 @@ import {
   SphereGeometry,
   TorusGeometry,
 } from 'three'
+import { getBuiltMaterial } from '../../materials/cache'
+import {
+  furnitureMaterialCacheId,
+  parseFurnitureMaterialFinish,
+} from '../../materials/furnitureMaterials'
 import {
   type AssetEditSpec,
   DEFAULT_PART_METALNESS,
@@ -25,12 +30,37 @@ import {
   type ShapePart,
 } from './editSpec'
 
-/** The shared PBR material for a primitive part — honours its per-part
- *  roughness/metalness (falling back to the matte-ish defaults). Used by both
- *  the export (`buildEditedObject`) and the live preview so they never diverge. */
+/** The shared cache-built material for a part's `mat:<id>` finish, or null
+ *  while it isn't built yet / the id is unknown (→ solid-colour fallback).
+ *  Same furniture-scoped cache the placed-furniture loader fills. */
+function cachedFinishMaterial(finish: string): MeshStandardMaterial | null {
+  const matId = parseFurnitureMaterialFinish(finish)
+  if (!matId) return null
+  return getBuiltMaterial(furnitureMaterialCacheId(matId)) ?? null
+}
+
+/** The PBR material for a primitive part. Used by both the export
+ *  (`buildEditedObject`) and the live preview so they never diverge.
+ *
+ *  With a `finish` set (GE3c) and its catalog material built, the part gets a
+ *  CLONE of that textured material (textures stay shared; the clone keeps the
+ *  shared cache instance unmutated and lets per-part glow/opacity apply on
+ *  top — the finish's own colour/roughness/metalness maps win over the part's
+ *  flat values). Otherwise: the flat solid-colour material honouring the
+ *  per-part roughness/metalness (matte-ish defaults). Every call returns a
+ *  material the caller OWNS (safe to dispose — textures are never disposed). */
 export function partMaterial(part: ShapePart): MeshStandardMaterial {
   const glow = part.emissiveIntensity ?? 0
   const opacity = part.opacity ?? 1
+  const base = part.finish ? cachedFinishMaterial(part.finish) : null
+  if (base) {
+    const m = base.clone()
+    m.emissive = new Color(glow > 0 ? part.color : 0x000000)
+    m.emissiveIntensity = glow
+    m.transparent = opacity < 1
+    m.opacity = opacity
+    return m
+  }
   return new MeshStandardMaterial({
     color: part.color,
     roughness: part.roughness ?? DEFAULT_PART_ROUGHNESS,
@@ -72,6 +102,38 @@ export function applyMeshOverrides(
       o.material = Array.isArray(src) ? src.map(recolour) : recolour(src)
     }
   })
+}
+
+/** Give UV-less geometry simple box-projected UVs in metres: each vertex is
+ *  projected onto the axis plane its normal faces most, so a tiling furniture
+ *  finish (~0.5 m per tile) reads at the right physical scale on a CSG result.
+ *  No-op when the geometry already has UVs. Exported for tests. */
+export function boxProjectUvs(geo: BufferGeometry): void {
+  if (geo.getAttribute('uv')) return
+  const pos = geo.getAttribute('position')
+  const nor = geo.getAttribute('normal')
+  if (!pos || !nor) return
+  const uv = new Float32Array(pos.count * 2)
+  for (let i = 0; i < pos.count; i++) {
+    const x = pos.getX(i)
+    const y = pos.getY(i)
+    const z = pos.getZ(i)
+    const ax = Math.abs(nor.getX(i))
+    const ay = Math.abs(nor.getY(i))
+    const az = Math.abs(nor.getZ(i))
+    // Dominant normal axis picks the projection plane (the other two axes).
+    if (ax >= ay && ax >= az) {
+      uv[i * 2] = z
+      uv[i * 2 + 1] = y
+    } else if (ay >= az) {
+      uv[i * 2] = x
+      uv[i * 2 + 1] = z
+    } else {
+      uv[i * 2] = x
+      uv[i * 2 + 1] = y
+    }
+  }
+  geo.setAttribute('uv', new Float32BufferAttribute(uv, 2))
 }
 
 /** Geometry for one primitive part, sized in metres (footprint-centred).
@@ -118,6 +180,9 @@ export function partGeometry(part: ShapePart): BufferGeometry {
       }
       if (data.index) geo.setIndex(data.index)
       if (!geo.getAttribute('normal')) geo.computeVertexNormals()
+      // The CSG evaluator only keeps position+normal — box-project UVs so a
+      // textured `finish` tiles over the result instead of smearing one texel.
+      boxProjectUvs(geo)
       return geo
     }
     case 'wedge': {

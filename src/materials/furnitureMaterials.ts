@@ -17,7 +17,7 @@ import {
 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
 import type { RenderTier } from '../scene/quality'
-import { getCachedMaterial } from './cache'
+import { getBuiltMaterial } from './cache'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
 
@@ -744,7 +744,9 @@ export function getSurfaceMaterial(
   // then fall back to a procedural wood so the piece always renders.
   const matId = parseFurnitureMaterialFinish(kind)
   if (matId) {
-    const built = getCachedMaterial(furnitureMaterialCacheId(matId))
+    // getBuiltMaterial, not getCachedMaterial: procedural materials cache under
+    // a size-suffixed key, which a plain-id lookup would permanently miss.
+    const built = getBuiltMaterial(furnitureMaterialCacheId(matId))
     if (built) return built
     return getWoodMaterial(color, repeat, sheen > 0 ? sheenRough(0.5, sheen) : 0.5)
   }
