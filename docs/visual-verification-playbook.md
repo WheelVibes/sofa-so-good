@@ -6,9 +6,144 @@ visual verification, and update it whenever you find a new solution to an
 interaction problem** (see the rule in CLAUDE.md). Treat every entry below as a
 landmine someone already stepped on so you don't have to.
 
-## The harness
+---
+
+## Scenario mode (recommended — use this for anything multi-step)
+
+**Scenario mode** is the primary way to drive complex, multi-step user journeys
+headlessly. It runs an ordered list of named steps in a single browser session
+and produces numbered screenshots. It replaces the legacy blind-timeout + eval
+pattern for everything more than a one-liner.
+
+```
+node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]
+```
+
+Example:
+```
+node scripts/shot.mjs --scenario scripts/scenarios/first-run.json --out-dir /tmp/first-run
+```
+
+Each step prints `STEP n/N <name> … OK (1.2s)`. A failing step prints the reason,
+dumps `<out-dir>/failed-<name>.png`, prints recent page console lines, and exits
+non-zero — instant post-mortem, no silence.
+
+The scenario `url` field sets the target URL; it takes precedence over `SHOT_URL`.
+Default localStorage is **empty** in scenario mode (so first-run flows trigger
+naturally). Override with `SHOT_INIT_LS`.
+
+### Timing contract — why scenarios beat blind waits
+
+**Known pitfall (fixed in scenario mode):** the legacy harness fires `page.evaluate`
+and then waits a fixed `waitMs` offset. Any `setTimeout` / async work kicked off
+*inside* the eval fires *after* the screenshot — this burned a previous session
+where an animation callback ran too late. In scenario mode, steps are strictly
+sequential and awaited. Use `waitFor` steps to synchronise with async work instead
+of guessing a delay.
+
+**Rule:** prefer `waitFor` over `wait` wherever possible. `wait` is only for
+unavoidable render-settle delays after a confirmed state change.
+
+### Step types reference
+
+All steps accept optional `name` (default `<type>-<index>`) and `timeout` (default 15 000 ms).
+
+Two equivalent input formats are supported — **keyed** (recommended in JSON files)
+and **typed** (useful for programmatic generation):
+
+| Step type | Keyed form (JSON) | Description |
+|---|---|---|
+| `eval` | `{"eval": "window.x=1"}` or `{"eval": {"file": "path.mjs"}}` | Run JS in page. Returns when expression returns — use `waitFor` to sync async side-effects. |
+| `waitFor` | `{"waitFor": {"css": ".selector"}}` | Wait until condition. See variants below. |
+| `click` | `{"click": {"text": "Get started"}}` or `{"click": ".btn"}` | Click element by text (deepest match) or CSS selector. |
+| `drag` | `{"drag": {"from": [x,y], "to": [x,y]}}` | Canvas left-button drag. |
+| `rdrag` | `{"rdrag": {"from": [x,y], "to": [x,y]}}` | Canvas right-button drag. |
+| `wheel` | `{"wheel": {"x": 800, "y": 500, "dy": -400}}` | Mouse wheel. |
+| `key` | `{"key": "Escape"}` | Keyboard key press. |
+| `type` | `{"type": "type", "text": "hello", "x": 0, "y": 0}` | Type text (click first if x/y given). |
+| `select` | `{"select": {"selector": "select", "value": "kitchen"}}` | Native `<select>` value + change event. |
+| `wait` | `{"wait": 1000}` | Fixed delay (ms). Only when waitFor cannot help. |
+| `screenshot` | `{"screenshot": "step-name"}` | Save `<NN>-<name>.png` to `--out-dir`. |
+| `store` | `{"store": {"action": "setUiMode", "args": ["pro"]}}` | Call a store action. |
+| `viewport` | `{"viewport": {"width": 390, "height": 844}}` | Resize viewport (e.g. mobile). |
+
+**`waitFor` condition variants:**
+```json
+{"waitFor": {"css": ".modal-overlay"}}            // element appears (default)
+{"waitFor": {"css": ".spinner", "visible": false}} // element disappears
+{"waitFor": {"text": "Get started"}}               // page text contains string
+{"waitFor": {"store": "state.tourOpen === true"}}  // store predicate (JS expression)
+{"waitFor": {"storeExists": true}}                 // window.__store is defined
+```
+Each `waitFor` accepts `timeout` (ms) and `failMessage` overrides.
+
+### Known headless limitations for scenario steps
+
+- **R3F raycasts don't fire for synthetic DOM events** — `click` by text/selector
+  clicks a real DOM element fine, but clicking the Three.js canvas does NOT trigger
+  `onPointerDown`/`onClick` on 3D objects (meshes). Use store actions (`store` step)
+  to manipulate scene state programmatically.
+- **Scroll + keyboard navigation inside canvas** — works via `key` steps (keyboard
+  events reach the canvas). Orbit/zoom via `drag`/`rdrag`/`wheel` also work (real
+  CDP pointer input, not synthetic).
+- **Geolocation is unavailable headless** — `navigator.geolocation.getCurrentPosition`
+  calls the error callback silently. Use `store: dismissLocationPrompt` or
+  `click: "Skip — use default location"` instead.
+
+### Scenario template
+
+Copy this skeleton, fill in the steps:
+
+```json
+{
+  "name": "my-flow",
+  "url": "http://localhost:5211/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss-overlays", "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "shot-start", "screenshot": "start" },
+    { "name": "click-something", "click": { "text": "Button label" } },
+    { "name": "result-visible", "waitFor": { "css": ".result-class" } },
+    { "name": "shot-result", "screenshot": "result" }
+  ]
+}
+```
+
+### Worked example — first-run scenario
+
+`scripts/scenarios/first-run.json` walks the complete first-user experience on a
+clean profile. Running it:
+
+```bash
+npm run dev -- --port 5211 --strictPort &
+for i in $(seq 1 30); do sleep 1; curl -sf http://localhost:5211/ >/dev/null && break; done
+node scripts/shot.mjs --scenario scripts/scenarios/first-run.json --out-dir /tmp/first-run
+```
+
+Steps (32 total, 9 screenshots):
+1. Clears localStorage and reloads → clean session
+2. Waits for `window.__store` to exist and `tourOpen` to become true
+3. Screenshots tour steps 1–3 (welcome card, "Look around" with View spotlight, "Enter room" with Edit spotlight)
+4. Clicks "Skip tour" → waits for tour to close → location prompt appears
+5. Screenshots location prompt → clicks "Skip — use default location"
+6. Screenshots furnished flat scene (no overlays)
+7. Programmatically opens onboarding (`store: setOnboardingOpen`) and walks all 3 pages ("Get started" → "Next" → "Enter sandbox")
+8. Screenshots each onboarding screen and the final scene
+
+**Key insight from running this:** fresh storage triggers the **product tour first**
+(not the onboarding carousel). The onboarding carousel (`hasOnboarded` check) only
+appears if the tour has already been seen (`hdb_tour_done='1'`) but the user hasn't
+gone through the carousel. The scenario handles both.
+
+---
+
+## Legacy mode (one-shot, backward-compatible)
 
 `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]`
+
+Use this for quick single-frame checks where you only need one screenshot. For
+anything that requires multiple screenshots or interaction steps, use scenario mode.
+
 - Software WebGL (SwiftShader) headless Chromium. Slow to first frame — give
   `waitMs` ≥ 8000 for anything that loads a GLB.
 - Env: `SHOT_VIEWPORT="W,H"` (responsive breakpoints), `SHOT_TOUCH=1` (emulate a
@@ -37,6 +172,33 @@ landmine someone already stepped on so you don't have to.
   shots. Navigation waits for `networkidle2` with a 120 s timeout — on a slow
   (software-render) box the first cold load can take >60 s, so don't shorten it.
 
+**Legacy timing pitfall:** in legacy mode, `page.evaluate(evalFile)` returns when
+the JS expression returns — any `setTimeout` / async work triggered inside fires
+*after* the screenshot. If you need to sync on async side-effects, move to scenario
+mode with `waitFor` steps.
+
+### A known-good legacy template
+
+```js
+// /tmp/vf.mjs — run: node scripts/shot.mjs /tmp/out.png 13000 /tmp/vf.mjs '<actions>'
+(async () => {
+  const S = () => window.__store.getState();
+  S().endTour?.(); S().setOnboardingOpen?.(false); S().dismissLocationPrompt?.();
+  // ... import groups / set up items via __store + temp hooks ...
+  S().setItems([item]);
+  S().focusOn([x, z]);                 // mount + frame the item
+  setTimeout(() => {
+    // ... act on caches that are now populated ...
+    S().focusOn([x, z]);               // re-frame after mutating items
+    console.log('PROBE done', JSON.stringify(/* the few values that prove it */));
+  }, 3500);
+})();
+```
+Then pass an `actions` array to tilt/zoom to a profile angle, and **look at the
+PNG**.
+
+---
+
 ## Rules
 
 1. **Review the pixels yourself.** CLAUDE.md requires it — a passing `__vfLog`
@@ -54,6 +216,8 @@ landmine someone already stepped on so you don't have to.
 4. **Never commit debug hooks or `PROBE` logs.** Strip them before the feature
    commit. (Easiest: keep all temp exposure inside one block in `main.tsx` you
    revert wholesale.)
+
+---
 
 ## Gotchas & fixes (the actual time-sinks)
 
@@ -74,12 +238,23 @@ st.dismissLocationPrompt?.()   // "Where are you?" sun-position modal
 the foreground "doors" you may see in the room editor are the apartment's door
 leaves, not your items — clear `s.items` first if you need an empty room.
 
+In **scenario mode**, you can do this in an `eval` step right after `waitFor storeExists`.
+
+### First-run flow: tour comes BEFORE the onboarding carousel
+On a clean profile (no localStorage), the app starts the **product tour** first
+(`startTour()`), not the onboarding carousel. The carousel only appears if
+`hdb_tour_done='1'` is set (tour seen) but `hdb_onboarded` is NOT. If you clear
+localStorage and reload, you'll see the tour — not the carousel. The
+`first-run.json` scenario demonstrates both flows correctly.
+
 ### Pro-tier features are OFF at boot (the app starts in Simple mode)
 The store boots with `uiMode: 'simple'`, which forces every `tier: 'pro'` flag
 off — so a pro-gated overlay/tool/panel you're verifying silently never mounts
 (no error, no DOM, clicks fall through to whatever is behind it). Call
 `st.setUiMode('pro')` in the evalFile right after dismissing the overlays
 (it re-resolves the flag map) before exercising any pro feature.
+
+In **scenario mode**: `{"store": {"action": "setUiMode", "args": ["pro"]}}`.
 
 ### `focusOn([x,z])` doesn't frame the item well
 `focusOn` recenters but keeps a high/far orbit angle, often pointing past a
@@ -96,6 +271,8 @@ comes out plan-view, drag the *other* way (low→high screen-Y, e.g.
 Also set a daytime hour first (`setManualHour(12)`) or a night scene hides
 geometry faults; and place the item with `rotation: 0` facing the camera side
 you'll shoot from so drawer fronts/handles are visible.
+
+In **scenario mode**: use `drag`/`wheel`/`store` steps.
 
 ### Items must be on-screen to mount (and to run their effects)
 GLB geometry effects (footprint, support-plane caches) run in `GltfModel`'s
@@ -136,12 +313,17 @@ acting (`setTimeout` loop checking the getter, then proceed), or (b) wait a fixe
 generous delay (≥ 3.5 s after the item is placed AND focused) before the action
 that depends on it. Polling is more robust; log only the final state.
 
+In **scenario mode**: use `{"waitFor": {"store": "!!window.__myCache"}}` or a
+`wait` step with a generous delay.
+
 ### Parallel worktree agents fight over the dev server
 Subagent worktrees live under `.claude/worktrees/` INSIDE the repo: their dev
 servers take 5173/5174 first, and their builds/file churn spam your Vite watcher
 (page reloads, dropped connections). Run your own server on a fixed port
 (`npm run dev -- --port 5199 --strictPort`) and point the harness at it with
 `SHOT_URL=http://localhost:5199/`.
+
+In **scenario mode**: set `"url": "http://localhost:5199/"` in the scenario JSON.
 
 ### IndexedDB does NOT persist across shot.mjs runs
 Each `shot.mjs` invocation launches a **fresh headless browser profile**, so
@@ -180,6 +362,9 @@ state. Poll for the DOM node (or the editor's `.plan-screen`) before acting,
 and put generous `wait` actions before synthetic keys. Also note `setInterval`
 ticks get throttled while the page is busy compiling shaders — log
 `performance.now()` deltas, not your tick count.
+
+In **scenario mode**: use `{"waitFor": {"css": ".modal-overlay"}}` instead of
+a fixed `wait`.
 
 ### Editing source mid-session triggers HMR
 Vite hot-reloads your edits into the running server, so you usually don't need to
@@ -227,6 +412,9 @@ handlers attach. Synthesize gestures from the evalFile with real `Touch` /
 clientY})`). Project a world position to screen px via the exposed camera
 (`window.__three.camera`, dev-only): `p = new cam.position.constructor(x,y,z);
 p.project(cam)` → `cx = (p.x+1)/2*w`, `cy = (1-p.y)/2*h`.
+
+In **scenario mode**: use `{"viewport": {"width": 390, "height": 844}}` to
+switch to a mobile viewport mid-scenario.
 
 **Limitation — R3F won't raycast a *synthetic* mouse/contextmenu event headless.**
 A dispatched `contextmenu`/click reaches the canvas and your DOM handlers fire,
@@ -285,6 +473,9 @@ changes selection, a fixed 300 ms sleep is racy under the slow headless profile
 (this intermittently broke the GLB-designer CSG verification); poll for the
 specific `input[aria-label=…]`/`select[aria-label=…]` node instead.
 
+In **scenario mode**: use `waitFor: {css: "input[aria-label=...]"}` before the
+`eval` step that sets the value.
+
 ### three.js `Color` cannot parse `oklch()` theme tokens
 The CSS token vocabulary resolves to `oklch(…)` values, and `new THREE.Color(cssValue)`
 throws `Unknown color model oklch(...)` — so an **in-scene** (mesh/material) use of a theme
@@ -306,22 +497,4 @@ controlled select snaps back unless `onChange` actually committed, so a screensh
 showing the new label is end-to-end proof. (That's how the room-editor room
 switcher was verified: selecting `kitchen` re-rendered the kitchen scene.)
 
-## A known-good template
-
-```js
-// /tmp/vf.mjs — run: node scripts/shot.mjs /tmp/out.png 13000 /tmp/vf.mjs '<actions>'
-(async () => {
-  const S = () => window.__store.getState();
-  S().endTour?.(); S().setOnboardingOpen?.(false); S().dismissLocationPrompt?.();
-  // ... import groups / set up items via __store + temp hooks ...
-  S().setItems([item]);
-  S().focusOn([x, z]);                 // mount + frame the item
-  setTimeout(() => {
-    // ... act on caches that are now populated ...
-    S().focusOn([x, z]);               // re-frame after mutating items
-    console.log('PROBE done', JSON.stringify(/* the few values that prove it */));
-  }, 3500);
-})();
-```
-Then pass an `actions` array to tilt/zoom to a profile angle, and **look at the
-PNG**.
+In **scenario mode**: `{"select": {"selector": ".toolbar-room-select", "value": "kitchen"}}`.

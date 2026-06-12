@@ -5,6 +5,48 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C267 / INTERACTION-HARNESS] Upgrade shot.mjs to a full interaction harness with scenario mode
+
+`scripts/shot.mjs` gains a scenario mode (`--scenario <file.json|file.mjs> [--out-dir <dir>]`)
+that drives complex multi-step user journeys headlessly in a single browser session.
+
+**New files:** `scripts/lib/interact.mjs` (step engine), `scripts/lib/validate.mjs` (expanded
+scenario schema, pure/node-testable), `scripts/lib/validate.test.mjs` (47 unit tests covering
+all step types in both keyed and typed formats), `scripts/scenarios/first-run.json` (32-step
+first-run scenario producing 9 named screenshots).
+
+**Step types shipped:** `eval` (inline string or `{file}` ref), `waitFor` (css/text/store/
+storeExists conditions with per-step timeout + failure message), `click` (by CSS selector or
+visible text — finds deepest clickable match), `screenshot` (named, auto-numbered `NN-name.png`),
+`store` (call any store action with args), `viewport` (resize for responsive testing), and all
+legacy canvas actions reused as-is: `drag`/`rdrag`/`wheel`/`key`/`type`/`select`/`wait`.
+
+**Structured step logging:** `STEP n/N <name> … OK (1.2s)` per step; failures dump
+`failed-<name>.png` + recent console lines + exit non-zero.
+
+**Timing fix documented:** legacy mode fires eval and waits a fixed offset — any async work
+inside misses the screenshot. Scenario mode is strictly sequential; use `waitFor` to sync.
+Both the gotcha and the fix are documented in the playbook.
+
+**Backward-compatible:** legacy CLI (`node scripts/shot.mjs <out.png> [waitMs] …`) is unchanged.
+Legacy mode seeds `sofa.helpHint.dismissed` by default (old behaviour preserved); scenario mode
+starts with empty localStorage so first-run flows trigger naturally.
+
+**first-run scenario results:** all 32 steps passed in ~150 s. 9 screenshots captured and
+visually reviewed: product tour step 1 (welcome card + furnished flat), tour step 2 (View button
+spotlighted, "Look around"), tour step 3 (Edit button spotlighted, "Enter room"), location prompt
+dialog, post-tour furnished scene, and all 3 onboarding carousel screens. UI correct at every step
+— no clipping, no missing buttons, correct dimmer/spotlight effect, correct choices on step 3.
+
+**Key discovery:** on a clean profile the tour fires FIRST (not the onboarding carousel). The
+carousel only appears if `hdb_tour_done='1'` but `hdb_onboarded` not set. Documented in the
+playbook under "First-run flow: tour comes BEFORE the onboarding carousel".
+
+**Docs:** `docs/visual-verification-playbook.md` rewritten — scenario mode is now the recommended
+approach at the top; legacy mode documented separately; full step-type reference table; worked
+example; timing pitfall section. `CLAUDE.md` and `docs/ARCHITECTURE.md` updated with new commands.
++47 unit tests (all passing).
+
 ## [C266 / P-720 tail] Presentation-mode tour inclusion
 Optional "Include 360° tour" toggle in the presentation setup (View menu, saved-views section)
 appends the 360° tour stops as panorama slides after the saved views when both `presentation`

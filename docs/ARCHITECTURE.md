@@ -19,9 +19,17 @@ same change that reshapes a system.
   `docs:build`/`build:all` (= `build` then `docs:build` — order matters; `deploy.yml`);
   in-app via `src/ui/docsUrl.ts` (guide only in a built `dist/`, `docs:dev` port 5175).
   **Developer docs** = local-only `docs/developer/` (`docs:dev:developer` 5176).
-- `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — Puppeteer
-  screenshot harness (actions drag/rdrag/wheel/click/type/key/wait; `SHOT_URL` env targets a
-  non-default dev port); `crop.mjs`/`perf.mjs`.
+- `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — Puppeteer legacy
+  one-shot screenshot harness (actions drag/rdrag/wheel/click/type/key/wait; `SHOT_URL`
+  env targets a non-default dev port).
+- `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario
+  mode** (recommended for multi-step journeys): ordered named steps run in one browser
+  session with structured `STEP n/N name … OK (1.2s)` logging; failure dumps a
+  `failed-<name>.png`; step types: eval/waitFor/click/drag/rdrag/wheel/key/type/select/
+  wait/screenshot/store/viewport. Scenario schema in `scripts/lib/validate.mjs` (pure,
+  unit-tested). Worked example: `scripts/scenarios/first-run.json`. Playbook:
+  `docs/visual-verification-playbook.md`.
+- `crop.mjs`/`perf.mjs`.
 - `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup

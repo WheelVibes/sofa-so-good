@@ -65,7 +65,8 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
 ## Commands (essentials — full list in ARCHITECTURE.md)
 - `npm run dev` (5173; `window.__store`) · `npm test` · `npm run build` (`tsc` + Vite).
 - `npm run check`/`check:fix` — Biome (2-space/100-col/single-quote/no-semicolons).
-- `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — screenshot harness.
+- `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — legacy one-shot screenshot harness.
+- `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario mode** (recommended): runs ordered named steps (eval/waitFor/click/screenshot/store/viewport/drag/wait…) in one browser session with structured per-step logging; see `docs/visual-verification-playbook.md`.
 - `npm run optimize:glb` · `compress:glb-textures` · `scraper-server`/`price-server` (dev).
 - `npm run docs:build`/`build:all` (user guide) · `docs:dev:developer` (dev docs).
 

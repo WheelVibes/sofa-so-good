@@ -1,0 +1,146 @@
+{
+  "name": "first-run",
+  "description": "Walk the full first-user experience on a clean profile: boot → product tour (steps 1–3, then skip) → location prompt → furnished scene. Also exercises the onboarding carousel (triggered programmatically to demonstrate all three screens).",
+  "url": "http://localhost:5211/",
+  "steps": [
+    {
+      "name": "clear-storage",
+      "eval": "try { localStorage.clear() } catch {}"
+    },
+    {
+      "name": "reload-clean",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "tour-open",
+      "waitFor": { "store": "state.tourOpen === true" },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-tour-step1",
+      "screenshot": "tour-step1-welcome"
+    },
+    {
+      "name": "tour-next-1",
+      "click": { "text": "Next" }
+    },
+    {
+      "name": "tour-step2-wait",
+      "waitFor": { "store": "state.tourStep === 1" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-tour-step2",
+      "screenshot": "tour-step2-look-around"
+    },
+    {
+      "name": "tour-next-2",
+      "click": { "text": "Next" }
+    },
+    {
+      "name": "tour-step3-wait",
+      "waitFor": { "store": "state.tourStep === 2" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-tour-step3",
+      "screenshot": "tour-step3-enter-room"
+    },
+    {
+      "name": "skip-tour",
+      "click": { "text": "Skip tour" }
+    },
+    {
+      "name": "tour-closed",
+      "waitFor": { "store": "state.tourOpen === false" },
+      "timeout": 5000
+    },
+    {
+      "name": "location-prompt-visible",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 8000
+    },
+    {
+      "name": "shot-location-prompt",
+      "screenshot": "location-prompt"
+    },
+    {
+      "name": "dismiss-location",
+      "click": { "text": "Skip — use default location" }
+    },
+    {
+      "name": "location-dismissed",
+      "waitFor": { "css": ".modal-overlay", "visible": false },
+      "timeout": 5000
+    },
+    {
+      "name": "settle",
+      "wait": 2000
+    },
+    {
+      "name": "shot-post-tour-scene",
+      "screenshot": "post-tour-scene"
+    },
+    {
+      "name": "trigger-onboarding",
+      "eval": "window.__store.getState().setOnboardingOpen(true)"
+    },
+    {
+      "name": "onboarding-open",
+      "waitFor": { "css": ".onb-overlay" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-onboarding-welcome",
+      "screenshot": "onboarding-step1-welcome"
+    },
+    {
+      "name": "click-get-started",
+      "click": { "text": "Get started" }
+    },
+    {
+      "name": "onboarding-step2-visible",
+      "waitFor": { "css": ".onb-body2" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-onboarding-step2",
+      "screenshot": "onboarding-step2-tour-overview"
+    },
+    {
+      "name": "click-next",
+      "click": { "text": "Next" }
+    },
+    {
+      "name": "onboarding-step3-visible",
+      "waitFor": { "css": ".onb-body3" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-onboarding-choices",
+      "screenshot": "onboarding-step3-choices"
+    },
+    {
+      "name": "enter-sandbox",
+      "click": { "text": "Enter sandbox" }
+    },
+    {
+      "name": "onboarding-closed",
+      "waitFor": { "css": ".onb-overlay", "visible": false },
+      "timeout": 5000
+    },
+    {
+      "name": "settle-final",
+      "wait": 2000
+    },
+    {
+      "name": "shot-final-scene",
+      "screenshot": "final-scene"
+    }
+  ]
+}
