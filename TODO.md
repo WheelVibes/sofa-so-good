@@ -144,10 +144,10 @@ Multi-storey plans are now in progress (F13 / ML phases — see TASKS.md).
   Basis-Universal WASM encoder (e.g. the KTX-Software `libktx` wasm build or a
   basis_encoder wasm) and have `encodeKtx2` produce UASTC/ETC1S payloads;
   `KHRTextureBasisu` is already added when an encode succeeds.
-- **Standalone KTX2/DDS texture upload** — `materials/convert/decodeImage.ts`
-  decodes TGA/TIFF/EXR/HDR but not GPU-compressed `.ktx2`/`.dds` (those need a
-  WebGL transcode/readback to get RGBA pixels). Add via the drei KTX2 transcoder
-  → render-to-canvas readback if users ask for it.
+- **Standalone KTX2/DDS texture upload** ✓ SHIPPED (C274) — `decodeGpuTexture.ts`
+  handles both formats: uncompressed KTX2 via pure-JS `ktx-parse`, Basis-compressed
+  KTX2 via `KTX2Loader` + GPU readback, DDS via `DDSLoader` + GPU readback for
+  compressed formats. Pipeline: `decodeImage` → `normalizeTextureFile` → WebP.
 
 ## Competitive-parity upgrade (2026-06-04)
 Spec: [docs/superpowers/specs/2026-06-04-competitive-parity-upgrade-design.md](docs/superpowers/specs/2026-06-04-competitive-parity-upgrade-design.md).

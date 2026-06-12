@@ -80,7 +80,7 @@ same change that reshapes a system.
   `furnitureMaterials.ts` (tintable grain + `getSolidMaterial` + `mat:<id>` DLC +
   `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply core; canvas drop =
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
-  (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR, `reencode.ts`→WebP; 16MB cap, KTX2/DDS deferred).
+  (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
   (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in

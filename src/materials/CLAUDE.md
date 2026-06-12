@@ -16,8 +16,11 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `pbrSurfaces` flag (default on, Simple tier); keep normal maps on **all** tiers (they're cheap
   and the default Performance tier still needs them to not read flat).
 - **Uploaded textures** normalize through `convert/` (`normalizeTextureFile` → near-lossless
-  WebP, full res; `decodeImage.ts` handles TGA/TIFF/EXR/HDR). KTX2/DDS standalone decode is
-  deferred (needs a WebGL readback).
+  WebP, full res; `decodeImage.ts` handles TGA/TIFF/EXR/HDR/KTX2/DDS).
+  KTX2 and DDS are handled by `decodeGpuTexture.ts`: uncompressed formats via pure-JS paths
+  (no WebGL), Basis-compressed KTX2 via `KTX2Loader` + GPU readback (same Basis transcoder
+  singleton at `/basis/` as the GLB path), compressed DDS via `DDSLoader` + GPU readback.
+  Graceful error on missing `OffscreenCanvas`/WebGL → error toast, never a crash.
 - `finishDrop.ts` is the pure drag-to-apply core (payload + `resolveFinishDrop`) — reuse it
   for any new drop surface rather than re-implementing the routing, and commit through
   `state/finishDropApply.ts` (shared store dispatch: one undo step + recents + toast).

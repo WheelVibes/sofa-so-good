@@ -9,6 +9,10 @@ import { FloatType } from 'three'
  * browser handles natively (PNG/JPEG/WebP/BMP/GIF) go through createImageBitmap;
  * the rest are parsed by a three loader / UTIF and (for HDR/EXR) tonemapped to
  * 8-bit, since the material PBR slots (albedo/normal/rough/AO) are 8-bit.
+ *
+ * KTX2 and DDS are GPU-compressed formats handled via a WebGL readback path
+ * in `decodeGpuTexture.ts`.  They are listed in EXTRA_TEXTURE_EXTENSIONS so
+ * the extension gate accepts them; the actual decode is delegated there.
  */
 export interface DecodedImage {
   data: Uint8ClampedArray
@@ -20,8 +24,14 @@ const extOf = (n: string): string => n.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] 
 
 /** Formats the browser decodes natively via createImageBitmap. */
 const NATIVE = new Set(['.png', '.jpg', '.jpeg', '.webp', '.bmp', '.gif'])
-/** Extra formats we additionally decode via three/UTIF. */
-export const EXTRA_TEXTURE_EXTENSIONS = ['.tga', '.tif', '.tiff', '.exr', '.hdr']
+/**
+ * Extra formats we decode via three loaders / UTIF / ktx-parse.
+ *
+ * KTX2 and DDS are listed here so the extension gate in {@link isSupportedTexture}
+ * accepts them; their decode is handled by `decodeGpuTexture.ts` which uses a
+ * WebGL render-to-canvas readback (or a pure-JS path for uncompressed KTX2).
+ */
+export const EXTRA_TEXTURE_EXTENSIONS = ['.tga', '.tif', '.tiff', '.exr', '.hdr', '.ktx2', '.dds']
 
 /** True when {@link decodeImage} can handle the file by name. */
 export function isSupportedTexture(name: string): boolean {
@@ -105,6 +115,16 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
       width: tex.width,
       height: tex.height,
     }
+  }
+
+  if (ext === '.ktx2') {
+    const { decodeKtx2 } = await import('./decodeGpuTexture')
+    return decodeKtx2(buf)
+  }
+
+  if (ext === '.dds') {
+    const { decodeDds } = await import('./decodeGpuTexture')
+    return decodeDds(buf)
   }
 
   throw new Error(`Unsupported texture format: ${file.name}`)
