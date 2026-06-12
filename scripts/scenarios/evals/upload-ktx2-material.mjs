@@ -22,6 +22,6 @@
     { name: 'Teal KTX2 Test', category: 'floor', uvScale: [1, 1], swatch: '#00ffaa' },
   )
   window.__uploadedMatResult = result
-  if (!result.ok) throw new Error('persistUserMaterial failed: ' + result.reason)
+  if (!result.ok) throw new Error(`persistUserMaterial failed: ${result.reason}`)
   window.__uploadedMatId = result.def.id
 })()
