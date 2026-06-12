@@ -57,12 +57,20 @@ const FloorPlanEditor = lazy(() =>
 const GlbDesignerDialog = lazy(() =>
   import('./ui/glbEditor/GlbDesignerDialog').then((m) => ({ default: m.GlbDesignerDialog })),
 )
+// Parametric furniture generator (PF1) — rarely-open dialog with its own R3F
+// preview + GLTF exporter; lazy so it stays out of the boot bundle.
+const ParametricDialog = lazy(() =>
+  import('./ui/parametric/ParametricDialog').then((m) => ({ default: m.ParametricDialog })),
+)
 // Rarely-opened, dependency-heavy panels/modals — lazy-loaded + gated on their
 // open flag so their code (AI client, GLTF/design-file IO, elevation projection,
 // SVG builders, tour) stays out of the initial bundle (PERF5).
 const ShareModal = lazy(() => import('./ui/ShareModal').then((m) => ({ default: m.ShareModal })))
 const PanoramaModal = lazy(() =>
   import('./ui/PanoramaModal').then((m) => ({ default: m.PanoramaModal })),
+)
+const PanoTourModal = lazy(() =>
+  import('./ui/panorama/PanoTourModal').then((m) => ({ default: m.PanoTourModal })),
 )
 const HqRenderModal = lazy(() =>
   import('./ui/HqRenderModal').then((m) => ({ default: m.HqRenderModal })),
@@ -119,6 +127,7 @@ export default function App() {
   const roomEditorActive = useStore((s) => s.roomEditor.active)
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   const glbDesignerOpen = useStore((s) => s.glbDesignerOpen)
+  const parametricOpen = useStore((s) => s.parametricOpen)
   const bootPhase = useStore((s) => s.bootPhase)
   const sceneReady = useStore((s) => s.sceneReady)
   const loading = useStore((s) => s.loading)
@@ -128,6 +137,7 @@ export default function App() {
   const lazyPanels = {
     shareOpen: useStore((s) => s.shareOpen),
     panoramaOpen: useStore((s) => s.panoramaOpen),
+    panoTourOpen: useStore((s) => s.panoTourOpen),
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
@@ -857,6 +867,11 @@ export default function App() {
             <PanoramaModal />
           </Suspense>
         ) : null}
+        {lazyPanels.panoTourOpen ? (
+          <Suspense fallback={null}>
+            <PanoTourModal />
+          </Suspense>
+        ) : null}
         {lazyPanels.hqRenderOpen ? (
           <Suspense fallback={null}>
             <HqRenderModal />
@@ -885,6 +900,11 @@ export default function App() {
         {glbDesignerOpen ? (
           <Suspense fallback={null}>
             <GlbDesignerDialog />
+          </Suspense>
+        ) : null}
+        {parametricOpen ? (
+          <Suspense fallback={null}>
+            <ParametricDialog />
           </Suspense>
         ) : null}
         <LoginScreen />

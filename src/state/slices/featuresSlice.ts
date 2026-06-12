@@ -60,6 +60,9 @@ export interface FeaturesSlice {
   clearancePanelOpen: boolean
   /** Wall-elevations panel visibility. */
   elevationsOpen: boolean
+  /** 3D lux-coverage heatmap on the floor (LP5 tail) — toggled from the
+   *  Drawings panel's Lighting tab; rides the same `drawings` flag. */
+  luxOverlayOn: boolean
   /** Daylight & ventilation check panel visibility. */
   daylightOpen: boolean
   /** Design Score (aggregate layout-quality feedback) panel visibility. */
@@ -76,6 +79,9 @@ export interface FeaturesSlice {
   smartStartOpen: boolean
   /** GLB Asset Designer (compose/edit a custom asset → catalog) visibility. */
   glbDesignerOpen: boolean
+  /** Parametric furniture generator (custom-size shelving/wardrobe/sideboard,
+   *  PF1) dialog visibility. */
+  parametricOpen: boolean
   /** Login screen (admin sign-in) visibility. */
   loginOpen: boolean
   /** Feature-flags panel (dev/admin) visibility. */
@@ -110,6 +116,7 @@ export interface FeaturesSlice {
   setVrActive: (active: boolean) => void
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
+  setLuxOverlayOn: (on: boolean) => void
   setDaylightOpen: (open: boolean) => void
   setDesignScoreOpen: (open: boolean) => void
   setAccessibilityOpen: (open: boolean) => void
@@ -118,6 +125,7 @@ export interface FeaturesSlice {
   setCommentsOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
   setGlbDesignerOpen: (open: boolean) => void
+  setParametricOpen: (open: boolean) => void
   setLoginOpen: (open: boolean) => void
   setFlagsPanelOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
@@ -141,6 +149,7 @@ export const FEATURES_INITIAL = {
   vrActive: false,
   clearancePanelOpen: false,
   elevationsOpen: false,
+  luxOverlayOn: false,
   daylightOpen: false,
   designScoreOpen: false,
   accessibilityOpen: false,
@@ -149,6 +158,7 @@ export const FEATURES_INITIAL = {
   commentsOpen: false,
   smartStartOpen: false,
   glbDesignerOpen: false,
+  parametricOpen: false,
   loginOpen: false,
   flagsPanelOpen: false,
   shopTab: 'list' as 'list' | 'saved',
@@ -188,6 +198,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),
+  setLuxOverlayOn: (luxOverlayOn) => set({ luxOverlayOn }),
   setDaylightOpen: (daylightOpen) => set({ daylightOpen }),
   setDesignScoreOpen: (designScoreOpen) => set({ designScoreOpen }),
   setAccessibilityOpen: (accessibilityOpen) => set({ accessibilityOpen }),
@@ -196,6 +207,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setCommentsOpen: (commentsOpen) => set({ commentsOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
+  setParametricOpen: (parametricOpen) => set({ parametricOpen }),
   setLoginOpen: (loginOpen) => set({ loginOpen }),
   setFlagsPanelOpen: (flagsPanelOpen) => set({ flagsPanelOpen }),
   setShopTab: (shopTab) => set({ shopTab }),

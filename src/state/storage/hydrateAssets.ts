@@ -98,6 +98,16 @@ export async function hydrateUserAssets(): Promise<void> {
           ? (cat as FurnitureCategory)
           : 'decor'
       const runtimeUrl = URL.createObjectURL(rec.blob)
+      // Persisted footprint (set when measured at save time, e.g. the GLB
+      // designer / parametric generator) — exact dims before the GLB loads.
+      const storedFootprint = safeParse<{ w: number; d: number; h: number }>(m.meta?.['footprint'])
+      const footprint =
+        storedFootprint &&
+        [storedFootprint.w, storedFootprint.d, storedFootprint.h].every(
+          (v) => typeof v === 'number' && Number.isFinite(v) && v > 0,
+        )
+          ? storedFootprint
+          : { w: 1.0, d: 1.0, h: 1.0 }
       furniture.push({
         id: `user-${m.assetId}`,
         name: m.name,
@@ -107,12 +117,13 @@ export async function hydrateUserAssets(): Promise<void> {
         assetId: m.assetId,
         contentHash: m.meta?.['contentHash'] as string | undefined,
         uploadedAt: m.uploadedAt,
-        defaultFootprint: { w: 1.0, d: 1.0, h: 1.0 },
+        defaultFootprint: footprint,
         runtimeUrl,
         mounted: m.meta?.['mounted'] as boolean | undefined,
         noClip: m.meta?.['noClip'] as boolean | undefined,
         finishTargets: safeParse<{ key: string; label: string }[]>(m.meta?.['finishTargets']),
         finishOverrides: safeParse<Record<string, string>>(m.meta?.['finishOverrides']),
+        ...(typeof m.meta?.['price'] === 'number' ? { price: m.meta['price'] } : {}),
       })
       // Re-resolve the asset's generated LOD tier siblings (derived keys) and
       // re-register them — blob URLs are session-scoped, so the registry must

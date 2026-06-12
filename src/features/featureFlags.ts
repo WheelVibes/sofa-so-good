@@ -29,6 +29,7 @@ export type FeatureFlag =
   | 'smartStart'
   | 'textBrief'
   | 'panorama'
+  | 'panoTour'
   | 'renderPresets'
   | 'hqRender'
   | 'vrWalkthrough'
@@ -61,6 +62,8 @@ export type FeatureFlag =
   | 'presentation'
   | 'pbrSurfaces'
   | 'comments'
+  | 'finishDnd'
+  | 'parametricFurniture'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -158,6 +161,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  panoTour: {
+    label: '360° tour',
+    description: 'Linked multi-room panorama tour with clickable room-to-room hotspots',
+    default: true,
+    tier: 'pro',
+  },
   renderPresets: {
     label: 'Render presets',
     description: 'One-tap sun + tone + exposure photo modes in the Scene menu',
@@ -232,8 +241,8 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'pro',
   },
   livePrices: {
-    label: 'Live IKEA prices',
-    description: 'Live price lookup (needs a sidecar)',
+    label: 'Live SG retailer prices',
+    description: 'Live price lookup — IKEA/Courts/HipVan/Castlery (needs a sidecar)',
     default: true,
     devOnly: true,
     tier: 'pro',
@@ -349,6 +358,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   comments: {
     label: 'Comments',
     description: 'Pinned design comments — notes anchored in the 3D scene',
+    default: true,
+    tier: 'pro',
+  },
+  finishDnd: {
+    label: 'Drag-to-apply finishes',
+    description: 'Drag a finish swatch onto the 3D scene or the Objects list to apply it',
+    default: true,
+    tier: 'simple',
+  },
+  // An authoring tool (CLAUDE.md: authoring tools are pro-tier), prod-safe
+  // pure code → ships on by default.
+  parametricFurniture: {
+    label: 'Custom-size furniture',
+    description: 'Generate shelving / wardrobes / sideboards to exact dimensions',
     default: true,
     tier: 'pro',
   },

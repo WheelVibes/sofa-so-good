@@ -101,6 +101,9 @@ export function meshPartFromGeometry(geometry: BufferGeometry, material: ShapePa
     position: [centre.x, centre.y, centre.z],
     size: [size.x, size.y, size.z],
     color: material.color,
+    // The combine keeps the FIRST part's whole surface look — including its
+    // textured `finish` (GE3c); the result's box-projected UVs keep it tiling.
+    finish: material.finish,
     roughness: material.roughness,
     metalness: material.metalness,
     emissiveIntensity: material.emissiveIntensity,

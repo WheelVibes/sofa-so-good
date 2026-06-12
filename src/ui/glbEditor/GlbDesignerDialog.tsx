@@ -4,7 +4,8 @@ import { Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import { MathUtils, Mesh, type Object3D } from 'three'
 import { useModalGuard } from '../../controls/modalGuard'
-import { buildEditedObject, partGeometry } from '../../furniture/glbEdit/buildObject'
+import { EnsureFurnitureMaterials } from '../../furniture/FurnitureMaterialLoader'
+import { buildEditedObject, partGeometry, partMaterial } from '../../furniture/glbEdit/buildObject'
 import {
   CSG_OPS,
   type CsgOp,
@@ -15,8 +16,6 @@ import {
   type AssetEditSpec,
   addPart,
   createEmptySpec,
-  DEFAULT_PART_METALNESS,
-  DEFAULT_PART_ROUGHNESS,
   duplicatePart,
   isBuildable,
   mirrorPart,
@@ -36,9 +35,11 @@ import {
 import { exportAndSaveAsset, placementFlags } from '../../furniture/glbEdit/saveAsset'
 import type { UserGltfDef } from '../../furniture/types'
 import { FURNITURE_CATEGORIES, type FurnitureCategory } from '../../furniture/types'
+import { parseFurnitureMaterialFinish } from '../../materials/furnitureMaterials'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
+import { PartInspector } from './PartInspector'
 
 /** Loaded source GLB, uniformly scaled; reports its scene up for export. */
 function SourceModel({
@@ -58,16 +59,24 @@ function SourceModel({
   return <primitive object={gltf.scene} scale={scale} />
 }
 
-/** One primitive part, built from the SAME `partGeometry` the export uses (so
- *  the preview can never drift from the saved GLB). Geometry is memoised on the
- *  part's kind+size and disposed when it changes/unmounts. */
+/** One primitive part, built from the SAME `partGeometry` + `partMaterial` the
+ *  export uses (so the preview can never drift from the saved GLB). Geometry
+ *  and material are memoised on the part and disposed when they change/unmount
+ *  (`partMaterial` always returns an owned instance — a cached finish material
+ *  is cloned, its textures shared — so disposing is safe). */
 function PartMesh({ part, meshRef }: { part: ShapePart; meshRef?: (m: Mesh | null) => void }) {
+  // A picked `mat:<id>` texture builds into the cache asynchronously — the
+  // epoch bump re-resolves the material once it's ready (GE3c).
+  const epoch = useStore((s) => s.materialEpoch)
   // `part` is recreated immutably by updatePart on every edit, so depending on
   // it rebuilds the geometry exactly when kind/size change.
   const geom = useMemo(() => partGeometry(part), [part])
   useEffect(() => () => geom.dispose(), [geom])
-  const glow = part.emissiveIntensity ?? 0
-  const opacity = part.opacity ?? 1
+  const mat = useMemo(() => {
+    void epoch // a finish may have just been built into the material cache
+    return partMaterial(part)
+  }, [part, epoch])
+  useEffect(() => () => mat.dispose(), [mat])
   const rot = part.rotation
   return (
     <mesh
@@ -81,17 +90,8 @@ function PartMesh({ part, meshRef }: { part: ShapePart; meshRef?: (m: Mesh | nul
       castShadow
       receiveShadow
       geometry={geom}
-    >
-      <meshStandardMaterial
-        color={part.color}
-        roughness={part.roughness ?? DEFAULT_PART_ROUGHNESS}
-        metalness={part.metalness ?? DEFAULT_PART_METALNESS}
-        emissive={glow > 0 ? part.color : '#000000'}
-        emissiveIntensity={glow}
-        transparent={opacity < 1}
-        opacity={opacity}
-      />
-    </mesh>
+      material={mat}
+    />
   )
 }
 
@@ -233,6 +233,17 @@ export function GlbDesignerDialog() {
     const def = userGlbs.find((d) => d.id === spec.sourceAssetId)
     return def?.runtimeUrl ?? null
   }, [userGlbs, spec.sourceAssetId])
+
+  // Distinct catalog material ids picked as part textures (GE3c) — fed to the
+  // same loader placed furniture uses so they build into the shared cache.
+  const finishIds = useMemo(() => {
+    const set = new Set<string>()
+    for (const p of spec.parts) {
+      const id = p.finish ? parseFurnitureMaterialFinish(p.finish) : null
+      if (id) set.add(id)
+    }
+    return [...set]
+  }, [spec.parts])
 
   // Reset when reopened.
   useEffect(() => {
@@ -385,6 +396,9 @@ export function GlbDesignerDialog() {
               <directionalLight position={[3, 5, 2]} intensity={1.1} castShadow />
               <gridHelper args={[6, 12, '#999', '#ccc']} />
               <Suspense fallback={null}>
+                {/* Builds picked part textures (`mat:<id>`) into the material
+                    cache; parts fall back to their solid colour until built. */}
+                <EnsureFurnitureMaterials ids={finishIds} />
                 <Bounds fit clip observe margin={1.2}>
                   {sourceUrl && (
                     <SourceModel url={sourceUrl} scale={spec.sourceScale} onScene={onScene} />
@@ -539,13 +553,15 @@ export function GlbDesignerDialog() {
                     key={s.kind}
                     type="button"
                     className="act"
-                    onClick={() =>
-                      setSpec((sp) => {
-                        const next = addPart(sp, s.kind)
-                        setSelId(next.parts[next.parts.length - 1].id)
-                        return next
-                      })
-                    }
+                    // Compute OUTSIDE the setState updater: `addPart` mints a
+                    // fresh part id (impure), so inside an updater StrictMode's
+                    // double-invocation could leave `selId` pointing at the
+                    // discarded invocation's id (the inspector then vanishes).
+                    onClick={() => {
+                      const next = addPart(spec, s.kind)
+                      setSpec(next)
+                      setSelId(next.parts[next.parts.length - 1].id)
+                    }}
                   >
                     {s.label}
                   </button>
@@ -572,13 +588,12 @@ export function GlbDesignerDialog() {
                         aria-label={`Duplicate ${p.kind} ${i + 1}`}
                         onClick={(e) => {
                           e.stopPropagation()
-                          setSpec((sp) => {
-                            const next = duplicatePart(sp, p.id)
-                            if (next.parts.length > sp.parts.length) {
-                              setSelId(next.parts[next.parts.length - 1]!.id)
-                            }
-                            return next
-                          })
+                          // Outside the updater — duplicatePart mints an id (see Add shape).
+                          const next = duplicatePart(spec, p.id)
+                          setSpec(next)
+                          if (next.parts.length > spec.parts.length) {
+                            setSelId(next.parts[next.parts.length - 1]!.id)
+                          }
                         }}
                       >
                         <Icon.Copy width={13} height={13} />
@@ -602,180 +617,18 @@ export function GlbDesignerDialog() {
             </div>
 
             {sel ? (
-              <div className="sec">
-                <div className="sec-h">
-                  <span>Edit {sel.kind}</span>
-                </div>
-                {/* A combined (mesh) part's triangles are baked — size is fixed;
-                    position/rotation still move the whole result. */}
-                {sel.kind === 'mesh' ? (
-                  <div
-                    style={{
-                      fontSize: 'var(--t-2xs)',
-                      color: 'var(--text-3)',
-                      marginBottom: 'var(--s-2)',
-                    }}
-                  >
-                    Combined shape: move and rotate it freely (gizmo or fields). Its size is baked
-                    by the combine, so there's no Scale gizmo or size fields.
-                  </div>
-                ) : null}
-                {(
-                  (sel.kind === 'mesh' ? ['position'] : ['size', 'position']) as (
-                    | 'size'
-                    | 'position'
-                  )[]
-                ).map((field) => (
-                  <div key={field} style={{ marginBottom: 'var(--s-2)' }}>
-                    <div
-                      className="label"
-                      style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
-                    >
-                      {field === 'size' ? 'Size (m)' : 'Position (m)'}
-                    </div>
-                    <div style={{ display: 'flex', gap: 4 }}>
-                      {[0, 1, 2].map((axis) => (
-                        <input
-                          key={axis}
-                          type="number"
-                          className="input"
-                          step={0.05}
-                          min={field === 'size' ? 0.02 : -3}
-                          value={sel[field][axis]}
-                          aria-label={`${sel.kind} ${field} ${'XYZ'[axis]}`}
-                          onChange={(e) => {
-                            const v = Number(e.target.value)
-                            setSpec((sp) =>
-                              updatePart(sp, sel.id, {
-                                [field]: sel[field].map((o, k) => (k === axis ? v : o)) as [
-                                  number,
-                                  number,
-                                  number,
-                                ],
-                              }),
-                            )
-                          }}
-                          style={{ width: '33%' }}
-                        />
-                      ))}
-                    </div>
-                  </div>
-                ))}
-                <div style={{ marginBottom: 'var(--s-2)' }}>
-                  <div
-                    className="label"
-                    style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
-                  >
-                    Rotation (°)
-                  </div>
-                  <div style={{ display: 'flex', gap: 4 }}>
-                    {[0, 1, 2].map((axis) => (
-                      <input
-                        key={axis}
-                        type="number"
-                        className="input"
-                        step={15}
-                        min={-180}
-                        max={180}
-                        value={(sel.rotation ?? [0, 0, 0])[axis]}
-                        aria-label={`${sel.kind} rotation ${'XYZ'[axis]}`}
-                        onChange={(e) => {
-                          const v = Number(e.target.value)
-                          setSpec((sp) =>
-                            updatePart(sp, sel.id, {
-                              rotation: (sel.rotation ?? [0, 0, 0]).map((o, k) =>
-                                k === axis ? v : o,
-                              ) as [number, number, number],
-                            }),
-                          )
-                        }}
-                        style={{ width: '33%' }}
-                      />
-                    ))}
-                  </div>
-                </div>
-                <label className="fld">
-                  <span>Colour</span>
-                  <input
-                    type="color"
-                    value={sel.color}
-                    aria-label="Shape colour"
-                    onChange={(e) =>
-                      setSpec((sp) => updatePart(sp, sel.id, { color: e.target.value }))
-                    }
-                  />
-                </label>
-                {(
-                  [
-                    {
-                      prop: 'roughness',
-                      value: sel.roughness ?? DEFAULT_PART_ROUGHNESS,
-                      min: 0,
-                      max: 1,
-                    },
-                    {
-                      prop: 'metalness',
-                      value: sel.metalness ?? DEFAULT_PART_METALNESS,
-                      min: 0,
-                      max: 1,
-                    },
-                    {
-                      prop: 'emissiveIntensity',
-                      value: sel.emissiveIntensity ?? 0,
-                      min: 0,
-                      max: 3,
-                    },
-                    { prop: 'opacity', value: sel.opacity ?? 1, min: 0.1, max: 1 },
-                  ] as const
-                ).map(({ prop, value, min, max }) => (
-                  <div key={prop} style={{ marginTop: 'var(--s-2)' }}>
-                    <div
-                      className="label"
-                      style={{
-                        fontSize: 'var(--t-2xs)',
-                        color: 'var(--text-3)',
-                        display: 'flex',
-                        justifyContent: 'space-between',
-                      }}
-                    >
-                      <span style={{ textTransform: 'capitalize' }}>
-                        {prop === 'emissiveIntensity' ? 'glow' : prop}
-                      </span>
-                      <span>{value.toFixed(2)}</span>
-                    </div>
-                    <input
-                      type="range"
-                      className="slider"
-                      min={min}
-                      max={max}
-                      step={0.05}
-                      value={value}
-                      aria-label={`${sel.kind} ${prop}`}
-                      onChange={(e) =>
-                        setSpec((sp) => updatePart(sp, sel.id, { [prop]: Number(e.target.value) }))
-                      }
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                ))}
-                <button
-                  type="button"
-                  className="btn btn-soft btn-block"
-                  style={{ marginTop: 'var(--s-3)' }}
-                  onClick={() =>
-                    setSpec((sp) => {
-                      const next = mirrorPart(sp, sel.id)
-                      if (next.parts.length > sp.parts.length) {
-                        setSelId(next.parts[next.parts.length - 1]!.id)
-                      }
-                      return next
-                    })
+              <PartInspector
+                part={sel}
+                onPatch={(patch) => setSpec((sp) => updatePart(sp, sel.id, patch))}
+                onMirror={() => {
+                  // Outside the updater — mirrorPart mints an id (see Add shape).
+                  const next = mirrorPart(spec, sel.id)
+                  setSpec(next)
+                  if (next.parts.length > spec.parts.length) {
+                    setSelId(next.parts[next.parts.length - 1]!.id)
                   }
-                >
-                  <Icon.Copy width={14} height={14} />
-                  Mirror across centre
-                </button>
-              </div>
+                }}
+              />
             ) : null}
 
             {sel && spec.parts.length > 1 ? (
@@ -814,10 +667,10 @@ export function GlbDesignerDialog() {
                   ))}
                 </div>
                 <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
-                  Merges both shapes into one ("{SHAPE_LABEL.mesh}"), keeping this shape's colour.
-                  Subtract carves the picked shape out of this one. Shapes only — the source model
-                  can't be combined. There's no undo here: re-add the shapes if you change your
-                  mind.
+                  Merges both shapes into one ("{SHAPE_LABEL.mesh}"), keeping this shape's colour
+                  and texture. Subtract carves the picked shape out of this one. Shapes only — the
+                  source model can't be combined. There's no undo here: re-add the shapes if you
+                  change your mind.
                 </div>
               </div>
             ) : null}

@@ -16,6 +16,16 @@ export function getCachedMaterial(id: string): MeshStandardMaterial | undefined 
   return CACHE.get(id)
 }
 
+/** Returns the BUILT material for a MaterialId regardless of its kind:
+ *  procedural materials cache under `id@<generation size>` (so a quality-tier
+ *  change regenerates them — see `buildMaterial`), everything else under the
+ *  plain id. Callers that only have the id (e.g. a furniture `mat:<id>`
+ *  finish) must use this — a plain `getCachedMaterial(id)` permanently misses
+ *  procedural builds and the finish silently stays on its fallback. */
+export function getBuiltMaterial(id: string): MeshStandardMaterial | undefined {
+  return CACHE.get(id) ?? CACHE.get(`${id}@${getProceduralBaseSize()}`)
+}
+
 /** Constructs and caches a new material for the given def. The caller
  *  is responsible for passing already-loaded textures (or none for a
  *  solid material). */

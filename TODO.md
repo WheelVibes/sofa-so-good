@@ -164,6 +164,10 @@ Deferred / follow-ups:
   a clear error). D defaults to Replicate img2img; E to an OpenAI-compatible
   vision endpoint. No key is ever bundled. Consider a dev proxy sidecar if CORS
   blocks common providers.
-- **Live pricing (C) is dev-only + IKEA-only** — add more SG retailers
-  (Courts/HipVan/Castlery) as `RETAILERS` entries in `price-server.mjs`; the
-  name→SKU match is fuzzy (top search hit).
+- **Live pricing (C) is dev-only** — Courts/HipVan/Castlery now join IKEA SG as
+  `RETAILERS` entries in `price-server.mjs` (fuzzy top-hit name match, offers
+  shown cheapest-first in the Shopping panel). **Deferred:** the Courts/HipVan/
+  Castlery adapters were written offline against best-effort fixtures of each
+  site's plausible search-response shape — they need a real-network verification
+  pass (run `npm run price-server` on a connected machine, confirm/fix the URL +
+  response shapes, refresh the fixtures in `price-server.test.mjs`).

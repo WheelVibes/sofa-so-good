@@ -15,6 +15,7 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
@@ -42,6 +43,8 @@ interface FacePlaneProps {
   material: MeshStandardMaterial
   /** Click handler for accent-wall selection. */
   onSelect?: () => void
+  /** Room this face backs onto — tags the mesh as a wall finish-drop target. */
+  roomId?: string
 }
 
 function FacePlane({
@@ -53,6 +56,7 @@ function FacePlane({
   sign,
   material,
   onSelect,
+  roomId,
 }: FacePlaneProps) {
   const z = sign * (thickness / 2 + FACE_OFFSET)
   const yRot = sign === 1 ? 0 : Math.PI
@@ -77,6 +81,8 @@ function FacePlane({
       rotation={[0, yRot, 0]}
       material={faded}
       geometry={geometry}
+      // Drop-target tag for the canvas finish drag (scene/finishDropTarget.ts).
+      userData={roomId ? finishSurfaceUserData('wall', roomId) : undefined}
       onClick={
         onSelect
           ? (e) => {
@@ -364,6 +370,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                       thickness={thickness}
                       sign={1}
                       materialId={positiveMat}
+                      roomId={span.positive ?? undefined}
                       onSelect={
                         span.positive
                           ? () => selectWallIfEditing(wall.id, span.positive!)
@@ -399,6 +406,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                       thickness={thickness}
                       sign={-1}
                       materialId={negativeMat}
+                      roomId={span.negative ?? undefined}
                       onSelect={
                         span.negative
                           ? () => selectWallIfEditing(wall.id, span.negative!)

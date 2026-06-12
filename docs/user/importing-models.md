@@ -71,6 +71,14 @@ build one in the browser:
   (roughness, metalness, **glow** and **opacity** sliders — so a part can read as matte
   wood, polished metal, a lit neon/lamp, or translucent glass). A live 3D preview
   updates as you go.
+- **Texture a shape** — each shape also has a **Texture** picker: choose **None — solid
+  colour** (the default), tap a curated **Quick finishes** swatch (Oak, Walnut, Teak, Ash,
+  Ebony, Marble), or pick any catalog / downloaded CC0 material from the dropdown — the
+  same finishes you can apply to placed furniture. The texture defines the surface
+  (its own roughness/metalness; those two sliders hide while one is set), while glow and
+  opacity still apply on top; tap the active swatch (or pick None) to go back to the solid
+  colour. Textures are baked into the saved asset, and a **Combined** shape keeps the first
+  shape's texture.
 - **Drag it in the preview** — selecting a shape shows a 3D gizmo on it, with a
   **Move / Rotate / Scale** switch in the preview's corner (or press **G**, **R**, **S**).
   Drag the arrows/rings/handles to place the shape; when you let go, the numbers in the
@@ -83,7 +91,7 @@ build one in the browser:
   list, pick the second shape in the **with…** dropdown, then **Union** (merge both
   into one solid), **Subtract** (carve the picked shape out of the selected one — a
   notch, a hole) or **Intersect** (keep only the overlap). The result replaces both
-  shapes as a single **Combined** shape that keeps the selected shape's colour and
+  shapes as a single **Combined** shape that keeps the selected shape's colour, texture and
   finish; you can keep moving/rotating it, recombining it, or carving it again. It
   works on shapes only (not the source model), and there's no undo inside the
   designer — re-add the shapes if you change your mind. If two shapes can't be

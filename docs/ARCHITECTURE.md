@@ -24,7 +24,8 @@ same change that reshapes a system.
   non-default dev port); `crop.mjs`/`perf.mjs`.
 - `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
-  (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) IKEA price lookup.
+  (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
+  (IKEA/Courts/HipVan/Castlery).
 - `python/scripts/` — offline IKEA scraper + asset tooling (not in the app build).
 
 ## Layout of the code
@@ -69,7 +70,8 @@ same change that reshapes a system.
 - `src/materials/` — `builtinCatalog.ts` (floors/walls), `procedural/generators.ts`
   (wood/parquet/tile/marble/carpet/concrete/terrazzo/plaster/wallpaper/checker/brick…),
   `furnitureMaterials.ts` (tintable grain + `getSolidMaterial` + `mat:<id>` DLC +
-  `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply), `convert/`
+  `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply core; canvas drop =
+  `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR, `reencode.ts`→WebP; 16MB cap, KTX2/DDS deferred).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
@@ -124,7 +126,15 @@ same change that reshapes a system.
   (box/cylinder/sphere/cone/pyramid/capsule/torus/wedge — pure tested `editSpec.ts` `SHAPE_KINDS`;
   geometry via `buildObject.ts` `partGeometry` + per-part PBR via `partMaterial` — both shared by
   the live preview so it can't drift; each part carries colour + roughness + metalness +
-  emissive glow + opacity)
+  emissive glow + opacity, plus an optional **texture finish** — GE3c: `ShapePart.finish` =
+  `mat:<id>`, the same furniture finish vocabulary placed items use. The picker lives in
+  `ui/glbEditor/PartInspector.tsx` (the extracted per-part edit panel), reusing the inspector's
+  `useSurfaceMaterialOptions` dropdown + `QuickFinishes` swatch row; `EnsureFurnitureMaterials`
+  (the reusable body of `FurnitureMaterialLoader`) builds picked ids into the shared cache, and
+  `partMaterial` resolves the finish to a clone of the cached material — solid-colour fallback
+  while unbuilt/unknown, never a crash. The texture is **baked into the exported GLB** (like
+  the solid colours), so the saved asset needs no `mat:` re-resolution; CSG results gain
+  box-projected UVs (`boxProjectUvs`) so a finish tiles on them too)
   and/or start from an uploaded GLB
   (uniformly scaled) to make a variant; live R3F preview (`buildEditedObject`), then
   `saveAsset.ts` exports via `exportGlb` (GLTFExporter) → `persistUserGlb` so it lands
@@ -176,11 +186,28 @@ same change that reshapes a system.
   boosts IBL on glossy finishes (free on Performance — no IBL there).
 - **DLC materials on furniture**: finish value `mat:<id>` applies any catalog finish
   (incl. CC0 PBR). `FurnitureMaterialLoader` builds into the shared cache + bumps
-  `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`materials/finishDrop.ts`):
-  draggable swatches → drop on Objects-list rows.
+  `materialEpoch`; `getSurfaceMaterial` returns it. **Drag-apply** (`finishDnd` flag,
+  simple tier; desktop-only — touch keeps tap-to-apply): `materials/finishDrop.ts` =
+  payload + decision table; picker swatches drag onto Objects-list rows **or the 3D
+  canvas** — `scene/FinishDropSurface.tsx` (mounted in both Canvases) handles native
+  `dragover`/`drop` on the canvas element, raycasts manually from the drop coords, and
+  `scene/finishDropTarget.ts` classifies the hit via `userData` tags (`itemId` on item
+  root groups; `finishTarget {kind,roomId}` on floor meshes + interior wall faces,
+  skipping invisible/untagged hits). Both surfaces commit through
+  `state/finishDropApply.ts` (one undo step, floor/wall recents, toast).
 - **Lighting / time of day**: SunCalc → `altitudeCurve.ts` → directional sun +
   hemisphere + IBL + sky. Fixtures emit capped day-gated night point lights; shades glow
   via `fixtureGlow`.
+- **Parametric furniture generator** (`furniture/parametric/`, PF1): dimension-driven
+  bookshelf/wardrobe/sideboard. Pure tested core — `spec.ts` (`clampSpec` envelopes, never
+  throws), `buildParts.ts` `buildParametric(spec)` → box parts (floor-anchored/centred/+Z;
+  auto centre divider >1.2 m bays, ≤0.6 m door leaves, rail; bounds = footprint),
+  `price.ts` board-area estimate → def-level `price` (wins in `itemPrice`). `buildObject.ts`
+  maps parts → meshes (furnitureMaterials) shared by the dialog preview AND
+  `saveParametric.ts` (exportGlb → `persistUserGlb`, hash-dedupe → new `UserGltfDef` per
+  spec; price+footprint persist via IDB meta + schema). UI `ui/parametric/ParametricDialog`
+  (type tabs + DimField sliders + live preview; Add to room arms placement); entries:
+  catalog-foot **Custom size**, ⌘K, mobile Design menu — `parametricFurniture` flag (pro).
 - **Parametric cabinet engine** (`furniture/cabinet/`): mm-customisable modular cabinets.
   `cabinetModel.ts` = pure tested `buildCabinet(spec)` → flat `CabinetPart[]` (toe-kick/
   carcass/countertop/cornice + slab·shaker·drawers·glass·open fronts; structurally sound).
@@ -225,7 +252,13 @@ same change that reshapes a system.
   lumens × calibration, utilisation factor 0.45, ÷ floor area) statused ok/low/high against
   recommended residential bands per room kind (`roomKindFromName`). Surfaced in the Drawings panel
   (badge list), the report and the drawing set (`roomLuxTableHtml`). Same pure-core →
-  palette-injected-SVG pattern as elevations.
+  palette-injected-SVG pattern as elevations. **3D lux overlay** (LP5 tail): pure
+  `lighting2d/luxGrid.ts` samples a per-room point-illuminance grid (calibrated inverse-square
+  fixtures, scoped to the bulb's room/storey, + a simple near-window daylight wash; masked
+  outside polygon rooms, never NaN) + `luxGrid`→RGBA via `lighting2d/luxColor.ts` (residential-band
+  blue→red stops, shared with `ui/lighting2d/LuxLegend.tsx`); `scene/LuxOverlay.tsx` renders one
+  DataTexture plane per room at `levelElevation`+5 mm (depthWrite off, visible levels only),
+  toggled by `luxOverlayOn` from the Drawings panel's Lighting tab — rides the `drawings` flag.
 - **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
   clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
@@ -246,7 +279,8 @@ same change that reshapes a system.
   lands in rooms of BOTH storeys). Both surface in the report's "HDB compliance hints" section.
 - **Collision** (`collision/placement.ts`): `canPlace(item,def,{others,defs,doors,
   walls?})`; `findItemOverlaps(items,defs)` runs the same furniture-vs-furniture
-  rule across the whole design and `findWallClips(items,defs,walls)` flags pieces
+  rule across the whole design (frame-scoped memo: same items/defs identities within
+  one task reuse the result) and `findWallClips(items,defs,walls)` flags pieces
   embedded in a wall (both power the Clearance panel's checks); items
   carry a vertical span + `mounted`/`noClip`. `placementWalls.ts`
   centralizes wall selection (room editor → solid perimeter; upper storeys → own
@@ -328,14 +362,21 @@ same change that reshapes a system.
   `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
   capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` + shared
   drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
-  `panorama` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
+  `panorama` flag, pro), **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
+  persisted per-device like saved views; pure `ui/panorama/panoTour.ts` DERIVES room-to-room
+  hotspots — yaw/pitch via atan2 toward each nearby same-storey stop, screen projection,
+  room-name labels — rendered by `ui/panorama/PanoTourModal.tsx` over the shared viewer
+  (`onLook` overlay callback); per-stop panoramas captured live via `capturePanorama({eye})`,
+  cached per session; add stops via ⌘K / PanoramaModal "Add to tour" / in-modal;
+  `panoTour` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
   pro — full-screen saved-views slideshow with per-view notes; views marked 360° (`SavedView.pano`)
   capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses there,
   pure `ui/presentation/slideLogic.ts`).
 - **Mirror reflections** (`primitives/MirrorMaterial.tsx`): real planar reflection on
   High/Maximum (`mirrorReflectorConfig(tier)`), fake-shiny pane below. Uploaded GLB
   mirrors via inspector "Reflective surface" (`props.reflective`, `gltf/mirrorPlane.ts`).
-- **Live pricing/AI/sharing**: dev-only "Live IKEA SG prices" (`livePrice.ts`/`price-server.mjs`,
+- **Live pricing/AI/sharing**: dev-only "Live SG retailer prices" (`livePrice.ts`/
+  `price-server.mjs` — IKEA SG/Courts/HipVan/Castlery, per-line offers cheapest-first,
   fails soft to `furniturePrices.ts`); **AI photoreal** (`ui/ai/`, BYO-key i2i in Share; after a result, "Redesign this
   render" style chips re-run the same call with a restyled prompt — pure `ai/styleVariants.ts`
   + `ui/ai/variantGallery.ts` reducer — into a selectable/downloadable variant gallery);

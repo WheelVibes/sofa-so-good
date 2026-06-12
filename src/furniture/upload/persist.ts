@@ -29,6 +29,8 @@ export interface PersistOptions {
    *  Persisted as sibling IDB records under derived keys (`lodAssetId`) and
    *  registered so the renderer serves them on low/medium asset tiers. */
   lods?: LodVariantSet
+  /** Estimated price (SGD) to carry on the def (parametric generator). */
+  price?: number
 }
 
 export type PersistResult =
@@ -82,6 +84,10 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       mounted: opts.mounted,
       noClip: opts.noClip,
       contentHash,
+      ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
+      // Footprint (when measured up front) JSON-encodes into the primitive
+      // meta store so hydration restores exact dims before the GLB loads.
+      ...(opts.footprint ? { footprint: JSON.stringify(opts.footprint) } : {}),
       // finishTargets/finishOverrides are arrays/objects → JSON-encode into the
       // primitive meta store; hydrateAssets decodes them back.
       ...(opts.finishTargets ? { finishTargets: JSON.stringify(opts.finishTargets) } : {}),
@@ -133,6 +139,7 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
     noClip: opts.noClip,
     finishTargets: opts.finishTargets,
     finishOverrides: opts.finishOverrides,
+    ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
   }
   if (opts.commit ?? true) useStore.getState().addUserFurniture(def)
   return { ok: true, def }

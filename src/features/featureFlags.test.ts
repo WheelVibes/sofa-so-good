@@ -83,6 +83,23 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(false, {}, false, 'pro').ikeaLive).toBe(false)
   })
 
+  it('finishDnd (simple tier, prod default on) is available in BOTH Simple and Pro modes', () => {
+    // Drag-to-apply finishes is part of the core "finish" loop, so a production
+    // build keeps it on in the default Simple mode as well as in Pro.
+    expect(resolveFlags(false, {}, false, 'simple').finishDnd).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').finishDnd).toBe(true)
+  })
+
+  it('panoTour (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Both modes, both build kinds — the linked 360° tour is a pro feature.
+    expect(resolveFlags(false, {}, false, 'simple').panoTour).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').panoTour).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').panoTour).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').panoTour).toBe(true)
+    // Tiered consistently with the single-shot panorama it builds on.
+    expect(FEATURE_FLAGS.panoTour.tier).toBe(FEATURE_FLAGS.panorama.tier)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { measure: true }, false, 'simple')
     expect(simple.measure).toBe(false)
@@ -155,10 +172,31 @@ describe('hqRender flag (F1)', () => {
   })
 })
 
+describe('drawings flag (LP — also gates the 3D lux floor overlay, LP5 tail)', () => {
+  it('is pro-tier: the Drawings panel AND the lux overlay are hidden in Simple, present in Pro', () => {
+    // The overlay rides the same flag as the lighting plan it visualises
+    // (LP1–LP5 all shipped under `drawings`): off in Simple → the scene
+    // overlay + its panel toggle never mount; on in Pro by default.
+    expect(resolveFlags(false, {}, false, 'simple').drawings).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').drawings).toBe(true)
+  })
+})
+
 describe('comments flag (F24)', () => {
   it('is pro-tier: hidden in Simple, present in Pro (prod default on)', () => {
     expect(resolveFlags(false, {}, false, 'simple').comments).toBe(false)
     expect(resolveFlags(false, {}, false, 'pro').comments).toBe(true)
+  })
+})
+
+describe('parametricFurniture flag (PF1)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro (prod default on)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').parametricFurniture).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').parametricFurniture).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.parametricFurniture.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.parametricFurniture.default).toBe(true)
   })
 })
 

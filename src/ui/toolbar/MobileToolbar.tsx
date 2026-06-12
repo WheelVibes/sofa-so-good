@@ -185,7 +185,9 @@ export function MobileToolbar() {
   const fLightingMoods = useFeature('lightingMoods')
   const fBackdrops = useFeature('backdrops')
   const fSmartStart = useFeature('smartStart')
+  const fParametric = useFeature('parametricFurniture')
   const fPanorama = useFeature('panorama')
+  const fPanoTour = useFeature('panoTour')
   const fRenderPresets = useFeature('renderPresets')
   const fHqRender = useFeature('hqRender')
   const fVr = useFeature('vrWalkthrough')
@@ -714,6 +716,14 @@ export function MobileToolbar() {
                         onClick={act(() => s.getState().setSmartStartOpen(true))}
                       />
                     ) : null}
+                    {fParametric ? (
+                      <Item
+                        icon="Measure"
+                        label="Custom-size furniture…"
+                        sub="Shelf / wardrobe / sideboard to size"
+                        onClick={act(() => s.getState().setParametricOpen(true))}
+                      />
+                    ) : null}
                     <Item
                       icon="Tidy"
                       label="Tidy home"
@@ -960,6 +970,14 @@ export function MobileToolbar() {
                     label="360° panorama"
                     sub="Capture a look-around panorama"
                     onClick={act(() => s.getState().setPanoramaOpen(true))}
+                  />
+                ) : null}
+                {fPanoTour ? (
+                  <Item
+                    icon="Walkthrough"
+                    label="360° tour"
+                    sub="Linked panoramas — jump room to room"
+                    onClick={act(() => s.getState().setPanoTourOpen(true))}
                   />
                 ) : null}
                 {fHqRender ? (

@@ -56,9 +56,11 @@ export function BudgetPanel() {
   // Complements "by category": which *room* is the budget going into.
   const byRoom = useMemo(() => spendByRoom(items, catalog, plan.rooms), [items, catalog, plan])
 
-  // Live SG retailer prices (dev-only, via the `npm run price-server` sidecar).
-  // Off by default; when on, each line shows the real top-match price + a buy
-  // link, falling back to the estimate for anything the sidecar can't resolve.
+  // Live SG retailer prices (dev-only, via the `npm run price-server` sidecar:
+  // IKEA SG / Courts / HipVan / Castlery). Off by default; when on, each line
+  // shows every retailer's top-match price + buy link cheapest-first, totals
+  // use the cheapest offer, and anything the sidecar can't resolve falls back
+  // to the bundled estimate.
   const [liveOn, setLiveOn] = useState(false)
   // Gated through the (devOnly) feature flag, not the raw build env, so the
   // flag registry is the single source of truth (admins/QA can toggle it).
@@ -71,7 +73,8 @@ export function BudgetPanel() {
 
   if (!open) return null
   const fmt = (n: number) => `$${n.toLocaleString('en-SG')}`
-  const eachOf = (l: Line) => livePrices[l.name]?.price ?? l.each
+  // Offers arrive cheapest-first; the cheapest one drives line/total pricing.
+  const eachOf = (l: Line) => livePrices[l.name]?.[0]?.price ?? l.each
   const liveTotal = groups.reduce(
     (s, g) => s + g.lines.reduce((t, l) => t + eachOf(l) * l.count, 0),
     0,
@@ -300,14 +303,14 @@ export function BudgetPanel() {
                 cursor: 'pointer',
                 marginTop: 4,
               }}
-              title="Fetch real IKEA SG prices via the local price-server sidecar"
+              title="Fetch real SG retailer prices (IKEA, Courts, HipVan, Castlery) via the local price-server sidecar"
             >
               <input
                 type="checkbox"
                 checked={liveOn}
                 onChange={(e) => setLiveOn(e.target.checked)}
               />
-              Live IKEA SG prices
+              Live SG retailer prices
             </label>
           )}
           <div className="bud-list" style={{ marginTop: 'var(--s-2)' }}>
@@ -325,37 +328,58 @@ export function BudgetPanel() {
                     </span>
                   </div>
                   {g.lines.map((l) => {
-                    const lp = liveOn ? livePrices[l.name] : undefined
+                    const offers = (liveOn ? livePrices[l.name] : undefined) ?? []
                     return (
-                      <div className="row" key={l.defId} style={{ padding: '5px 0' }}>
-                        <span
-                          className="rk"
-                          style={{
-                            minWidth: 0,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {l.name}
-                          {l.count > 1 ? ` ×${l.count}` : ''}
-                          {lp?.url && (
-                            <a
-                              href={lp.url}
-                              target="_blank"
-                              rel="noreferrer"
-                              title={`${lp.title} · ${lp.retailer}`}
-                              style={{
-                                marginLeft: 6,
-                                fontSize: 'var(--t-xs)',
-                                color: 'var(--accent)',
-                              }}
-                            >
-                              {lp.retailer}↗
-                            </a>
-                          )}
-                        </span>
-                        <span className="amt">{fmt(eachOf(l) * l.count)}</span>
+                      <div key={l.defId} style={{ padding: '5px 0' }}>
+                        <div className="row">
+                          <span
+                            className="rk"
+                            style={{
+                              minWidth: 0,
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              whiteSpace: 'nowrap',
+                            }}
+                          >
+                            {l.name}
+                            {l.count > 1 ? ` ×${l.count}` : ''}
+                          </span>
+                          <span className="amt">{fmt(eachOf(l) * l.count)}</span>
+                        </div>
+                        {offers.length > 0 && (
+                          // Cheapest-first retailer offers; wraps on narrow widths.
+                          <div
+                            style={{
+                              display: 'flex',
+                              flexWrap: 'wrap',
+                              gap: '2px 8px',
+                              fontSize: 'var(--t-2xs)',
+                            }}
+                          >
+                            {offers.map((o) =>
+                              o.url ? (
+                                <a
+                                  key={o.retailer}
+                                  href={o.url}
+                                  target="_blank"
+                                  rel="noreferrer"
+                                  title={`${o.title} · ${o.retailerLabel ?? o.retailer}`}
+                                  style={{ color: 'var(--accent)', whiteSpace: 'nowrap' }}
+                                >
+                                  {o.retailerLabel ?? o.retailer} {fmt(o.price)}↗
+                                </a>
+                              ) : (
+                                <span
+                                  key={o.retailer}
+                                  title={o.title}
+                                  style={{ color: 'var(--text-3)', whiteSpace: 'nowrap' }}
+                                >
+                                  {o.retailerLabel ?? o.retailer} {fmt(o.price)}
+                                </span>
+                              ),
+                            )}
+                          </div>
+                        )}
                       </div>
                     )
                   })}
@@ -393,7 +417,7 @@ export function BudgetPanel() {
             }}
           >
             {liveOn
-              ? 'Live IKEA SG top-match prices where found, else estimate. Finishes & reno excluded.'
+              ? 'Live SG retailer top-match prices (cheapest used) where found, else estimate. Finishes & reno excluded.'
               : 'Approx. mid-market retail (SGD). Finishes & reno excluded.'}
           </p>
         </div>

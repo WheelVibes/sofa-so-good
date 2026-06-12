@@ -701,6 +701,10 @@ function SwatchGroup({
 }: SwatchGroupProps) {
   const customActive = typeof active === 'string' && active.startsWith('#')
   const isMobile = useIsMobile()
+  // Drag-to-apply (Q31): swatches are drag sources for the Objects-list rows
+  // and the 3D canvas drop surfaces. Desktop-only (HTML5 DnD has no touch
+  // equivalent — mobile keeps the tap-to-apply flow).
+  const fFinishDnd = useFeature('finishDnd')
   // Recent finishes that belong to THIS surface (intersect with the group's
   // items so a recent floor finish doesn't surface in the Walls group).
   const recentMats = (recentFinishIds ?? [])
@@ -803,21 +807,29 @@ function SwatchGroup({
               key={m.id}
               role="button"
               tabIndex={0}
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData(
-                  FINISH_DND_MIME,
-                  encodeFinishDrag({ finishId: m.id, label: m.name }),
-                )
-                e.dataTransfer.effectAllowed = 'copy'
-              }}
+              draggable={fFinishDnd}
+              onDragStart={
+                fFinishDnd
+                  ? (e) => {
+                      e.dataTransfer.setData(
+                        FINISH_DND_MIME,
+                        encodeFinishDrag({ finishId: m.id, label: m.name }),
+                      )
+                      e.dataTransfer.effectAllowed = 'copy'
+                    }
+                  : undefined
+              }
               onClick={() => onSelect(m.id)}
               onKeyDown={(e) => {
                 if (e.key === 'Enter' || e.key === ' ') onSelect(m.id)
               }}
               className={`finish-cell group${isActive ? ' on' : ''}`}
               style={{ position: 'relative', cursor: 'pointer' }}
-              title={`${m.name} — drag onto a piece in the Objects list to apply`}
+              title={
+                fFinishDnd
+                  ? `${m.name} — drag onto a floor, wall or piece in the scene (or an Objects-list row) to apply`
+                  : m.name
+              }
             >
               <span
                 className="swatch-lg"

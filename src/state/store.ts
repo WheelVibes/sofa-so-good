@@ -54,6 +54,7 @@ import {
   ORIENTATION_INITIAL,
   type OrientationSlice,
 } from './slices/orientationSlice'
+import { createPanoTourSlice, PANO_TOUR_INITIAL, type PanoTourSlice } from './slices/panoTourSlice'
 import {
   createPlacementSlice,
   PLACEMENT_INITIAL,
@@ -126,6 +127,7 @@ export interface RootState
     UserStylesSlice,
     RecentSlice,
     CameraViewsSlice,
+    PanoTourSlice,
     PromptSlice,
     ProjectSlice,
     FeatureFlagsSlice,
@@ -160,6 +162,7 @@ const INITIAL = {
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
   ...CAMERA_VIEWS_INITIAL,
+  ...PANO_TOUR_INITIAL,
   ...PROMPT_INITIAL,
   ...PROJECT_INITIAL,
   ...STYLE_CLIPBOARD_INITIAL,
@@ -195,6 +198,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createAuthSlice(set, get, api),
   ...createRecentSlice(set, get, api),
   ...createCameraViewsSlice(set, get, api),
+  ...createPanoTourSlice(set, get, api),
   ...createPromptSlice(set, get, api),
   ...createProjectSlice(set, get, api),
   ...createStyleClipboardSlice(set, get, api),

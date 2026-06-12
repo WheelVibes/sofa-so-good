@@ -10,6 +10,9 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
   bottom-sheets at ≤640px (`useIsMobile`), controls inside `env(safe-area-inset-*)`, and
   mobile-toolbar/accordion parity for any new desktop action. Drag-and-drop drop zones must
   be a `<div>` (a `<button>` mishandles native drops).
+- **Polished + pixel-perfect.** Use the standard spacing scale for margins/padding (no
+  ad-hoc one-off gaps); align to existing components so layouts stay cohesive with the
+  theme. Verify any new surface in light + dark across all 5 themes before shipping.
 - **Editing UI** (Catalog/Inspector/FinishPicker) only mounts in the per-room editor —
   gate on `canEditScene`; leaving the editor clears the selection.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never

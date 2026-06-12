@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react'
+import { useFeature } from '../features/useFeature'
 import { capturePanorama } from '../scene/panorama/capturePanorama'
 import { useStore } from '../state/store'
 import { Modal } from './Modal'
@@ -13,6 +14,7 @@ import { PanoramaViewer } from './panorama/PanoramaViewer'
 export function PanoramaModal() {
   const open = useStore((s) => s.panoramaOpen)
   const setOpen = useStore((s) => s.setPanoramaOpen)
+  const fPanoTour = useFeature('panoTour')
   const [pano, setPano] = useState<HTMLCanvasElement | null>(null)
   const [busy, setBusy] = useState(false)
   const [failed, setFailed] = useState(false)
@@ -60,9 +62,30 @@ export function PanoramaModal() {
       panelId="panorama"
       footer={
         <div className="flex items-center justify-between gap-2">
-          <button type="button" className="btn" onClick={capture} disabled={busy}>
-            Re-capture
-          </button>
+          <div className="flex items-center gap-2">
+            <button type="button" className="btn" onClick={capture} disabled={busy}>
+              Re-capture
+            </button>
+            {fPanoTour ? (
+              <button
+                type="button"
+                className="btn"
+                title="Save this viewpoint as a 360° tour stop (File → 360° tour)"
+                onClick={() => {
+                  const st = useStore.getState()
+                  const id = st.addPanoTourStopHere()
+                  const label = useStore.getState().panoTourStops.find((t) => t.id === id)?.label
+                  st.notify.start(
+                    id
+                      ? { title: `Added tour stop “${label}”`, kind: 'success' }
+                      : { title: 'Tour is full — remove a stop first', kind: 'error' },
+                  )
+                }}
+              >
+                Add to tour
+              </button>
+            ) : null}
+          </div>
           <button type="button" className="btn btn-accent" onClick={download} disabled={!pano}>
             Download PNG
           </button>

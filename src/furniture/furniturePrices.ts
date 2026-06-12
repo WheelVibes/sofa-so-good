@@ -157,5 +157,10 @@ export function itemPrice(
       def.variants.find((v) => typeof v.price === 'number')
     if (typeof chosen?.price === 'number') return chosen.price
   }
+  // A def-level price estimate (parametric-generated user assets) wins over
+  // the static tables — it's derived from the piece's actual dimensions.
+  if (def.kind === 'gltf' && def.source === 'user' && typeof def.price === 'number') {
+    return def.price
+  }
   return ITEM_PRICE[def.id] ?? CATEGORY_BASE[category] ?? 100
 }

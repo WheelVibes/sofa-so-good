@@ -25,8 +25,12 @@ Python is 3.10+; use `python3`.
 - `scraper-server.mjs` (`npm run scraper-server`) — local sidecar driving the
   IKEA live-scrape pack (SSE progress; default port 5174, `SCRAPER_PORT`).
 - `price-server.mjs` (`npm run price-server`) — local sidecar for the Shopping
-  panel's dev-only live-pricing toggle (IKEA SIK search JSON API, disk-cached;
-  default port 5175, `PRICE_PORT`). Pure parser `parseSikResponse` is unit-tested
+  panel's dev-only live-pricing toggle. Retailers: IKEA SG (SIK search JSON API),
+  Courts, HipVan and Castlery (best-effort search adapters with fuzzy top-hit
+  matching — their fixtures still need a real-network verification pass, see
+  TODO.md). Disk-cached; default port 5175, `PRICE_PORT`. All parsers
+  (`parseSikResponse`/`parseCourtsResponse`/`parseHipvanResponse`/
+  `parseCastleryResponse` + `pickBestMatch`) are pure + unit-tested
   (`price-server.test.mjs`).
 - `asset-pipeline/` — the bundled-GLB pipeline (drop a `<name>.glb` + optional
   sidecar JSON into `public/assets/furniture/`, then `npm run index-assets`).

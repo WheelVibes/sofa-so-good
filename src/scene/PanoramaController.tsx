@@ -6,7 +6,11 @@ import { getWallOpacity } from '../apartment/walls/wallReveal'
 import { isDefaultPlan } from '../floorplan/planGeometry'
 import { useStore } from '../state/store'
 import { registerAnimatedSource } from './animatedSources'
-import { type PanoramaResult, setPanoramaCapture } from './panorama/capturePanorama'
+import {
+  type PanoramaCaptureOptions,
+  type PanoramaResult,
+  setPanoramaCapture,
+} from './panorama/capturePanorama'
 import { assembleEquirect, FACES, type FaceName, type PixelGrid } from './panorama/equirect'
 
 /** Standing eye height (m) for orbit-mode captures. */
@@ -37,7 +41,9 @@ const sleep = (ms: number) => new Promise<void>((r) => setTimeout(r, ms))
 export function PanoramaController() {
   const { gl, scene, camera, controls } = useThree()
   useEffect(() => {
-    const captureEquirect = async (): Promise<PanoramaResult | null> => {
+    const captureEquirect = async (
+      opts?: PanoramaCaptureOptions,
+    ): Promise<PanoramaResult | null> => {
       const store = useStore.getState()
       const prev = {
         qualityTier: store.qualityTier,
@@ -72,10 +78,14 @@ export function PanoramaController() {
         const S = Math.min(canvas.width, canvas.height)
         if (S < 8) return null
 
-        // Eye: walk camera as-is; orbit → the pivot at standing eye height.
+        // Eye: an explicit override (360° tour stops capture at their own
+        // recorded position) → else walk camera as-is, else the orbit pivot
+        // at standing eye height.
         const eye = new Vector3()
         const target = (controls as { target?: Vector3 } | null)?.target
-        if (useStore.getState().cameraMode === 'orbit' && target) {
+        if (opts?.eye) {
+          eye.set(...opts.eye)
+        } else if (useStore.getState().cameraMode === 'orbit' && target) {
           eye.set(target.x, EYE_HEIGHT, target.z)
         } else {
           eye.copy(camera.position)

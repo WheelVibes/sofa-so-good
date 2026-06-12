@@ -1,10 +1,16 @@
 import { useMemo, useState } from 'react'
 import { ROOMS } from '../../apartment/constants'
 import type { RoomId } from '../../apartment/types'
+import { useFeature } from '../../features/useFeature'
 import { pointInRoom } from '../../floorplan/types'
 import { useCatalog } from '../../furniture/catalog'
 import type { FurnitureItem } from '../../furniture/types'
-import { decodeFinishDrag, FINISH_DND_MIME, resolveFinishDrop } from '../../materials/finishDrop'
+import { resolveFinishDrop } from '../../materials/finishDrop'
+import {
+  applyFinishDropAction,
+  isFinishDrag,
+  readFinishDragPayload,
+} from '../../state/finishDropApply'
 import { useStore } from '../../state/store'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
@@ -25,16 +31,14 @@ export function LayersPanel() {
   const setItemsHidden = useStore((s) => s.setItemsHidden)
   const setItemsLocked = useStore((s) => s.setItemsLocked)
   const showAllItems = useStore((s) => s.showAllItems)
-  const updateItemProps = useStore((s) => s.updateItemProps)
   const hiddenSet = new Set<string>(hiddenIds)
 
-  /** Apply a finish dragged from the Finish picker onto a specific item. */
+  const fFinishDnd = useFeature('finishDnd')
+  /** Apply a finish dragged from the Finish picker onto a specific item —
+   *  same commit path as the 3D-canvas drop (state/finishDropApply.ts). */
   const applyFinishDrop = (itemId: string, dt: DataTransfer) => {
-    const payload = decodeFinishDrag(dt.getData(FINISH_DND_MIME))
-    const action = resolveFinishDrop({ kind: 'item', itemId }, payload)
-    if (action?.type !== 'item') return
-    updateItemProps(action.itemId, { finish: action.finishId })
-    useStore.getState().notify.start({ title: 'Finish applied', kind: 'success' })
+    if (!fFinishDnd) return
+    applyFinishDropAction(resolveFinishDrop({ kind: 'item', itemId }, readFinishDragPayload(dt)))
   }
   const catalog = useCatalog()
   const [collapsed, setCollapsed] = useState<Record<string, boolean>>({})
@@ -169,7 +173,7 @@ export function LayersPanel() {
                           e.metaKey || e.ctrlKey ? toggleSelectedItem(it.id) : selectItem(it.id)
                         }
                         onDragOver={(e) => {
-                          if (e.dataTransfer.types.includes(FINISH_DND_MIME)) {
+                          if (fFinishDnd && isFinishDrag(e.dataTransfer)) {
                             e.preventDefault()
                             e.dataTransfer.dropEffect = 'copy'
                             e.currentTarget.classList.add('drop-target')

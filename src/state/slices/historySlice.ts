@@ -6,7 +6,12 @@ import type { DoorState } from './doorsSlice'
 import type { FinishesSlice } from './finishesSlice'
 import type { SliceCreator } from './types'
 
-const HISTORY_LIMIT = 50
+export const HISTORY_LIMIT = 50
+/** Trim slack above the cap (PERF-FOLLOWUPS): the stack may grow to
+ *  LIMIT+HEADROOM before one amortised re-slice back to LIMIT, instead of
+ *  re-slicing the whole array on every push past the cap. Undo depth is thus
+ *  always ≥ LIMIT and bounded by LIMIT+HEADROOM. */
+export const HISTORY_TRIM_HEADROOM = 16
 /** Max gap between same-key coalesced pushes — newer pushes within this
  *  window collapse into the existing entry instead of creating a new one. */
 const COALESCE_MS = 500
@@ -70,9 +75,15 @@ function prunedSelection(
   }
 }
 
+/** Append with an amortised cap: normal pushes are a single spread copy; only
+ *  once the stack hits LIMIT+HEADROOM does one slice drop the oldest entries
+ *  back down to LIMIT (keeping the newest), so pushing past the cap doesn't
+ *  slice-and-copy the whole array twice on every single push. */
 function appendCapped(stack: HistorySnapshot[], snap: HistorySnapshot): HistorySnapshot[] {
-  if (stack.length >= HISTORY_LIMIT) {
-    return [...stack.slice(stack.length - HISTORY_LIMIT + 1), snap]
+  if (stack.length >= HISTORY_LIMIT + HISTORY_TRIM_HEADROOM) {
+    const next = stack.slice(stack.length - (HISTORY_LIMIT - 1))
+    next.push(snap)
+    return next
   }
   return [...stack, snap]
 }

@@ -20,8 +20,10 @@ import { CameraForwardTracker } from './cameras/cameraForward'
 import { DevCameraExpose } from './DevCameraExpose'
 import { DragController } from './DragController'
 import { Effects } from './Effects'
+import { FinishDropSurface } from './FinishDropSurface'
 import { GridOverlay } from './GridOverlay'
 import { HqRenderController } from './HqRenderController'
+import { LuxOverlay } from './LuxOverlay'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
@@ -102,6 +104,7 @@ export function Scene() {
         <GridOverlay />
         <AlignmentGuides />
         <ClearanceOverlay />
+        <LuxOverlay />
         <FurnitureLayer />
         <FurnitureMaterialLoader />
         <SelectionOutline />
@@ -109,6 +112,7 @@ export function Scene() {
         <HoverHighlight />
         <PlacementGhost />
         <DragController />
+        <FinishDropSurface />
         <MarqueeCameraTracker />
         <CameraRig />
         <CameraForwardTracker />
