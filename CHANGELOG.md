@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C259 / PERF9] Per-pattern procedural texture size registry — GPU memory reduction
+Added `PATTERN_SIZE_CAP` registry in `procedural/generators.ts` that declares the maximum useful
+resolution for each of the 17 procedural patterns, and `effectivePatternSize(pattern)` which clamps
+the global `BASE_SIZE` (256 on Performance, 512 on Medium+) to that cap. Smooth/noise-based patterns
+(`carpet`, `concrete`, `marble`, `terrazzo`, `batten`, `fluted`, `plaster`) cap at 256² regardless
+of tier — saving 75 % of their GPU texture memory on Medium/High/Maximum with no visible quality
+difference at typical room-viewing distances. High-frequency geometric patterns (`wood`, `tile`,
+`hexagon`, `checker`, `parquet`, `herringbone`, `subway`, `brick`, `grasscloth`, `stripe`) cap at
+512² so their grain lines, grout, and mortar joints stay sharp on Medium+ tiers but still drop to
+256 on Performance. Cache keys in `cache.ts` now use `effectivePatternSize` so tier changes correctly
+invalidate only the patterns that actually resized; `getBuiltMaterial` probes both `@512` and `@256`
+suffixes for backward-compatible furniture `mat:<id>` lookups. 5 new unit tests verify the registry
+and clamping logic across both tiers. OffscreenCanvas worker generation remains deferred (PERF9 tail).
+Visually verified at Performance/256 tier: smooth textures (plaster, carpet, concrete) look identical
+to 512²; high-frequency textures (wood grain, tile grout) correctly receive 256 on Performance where
+quality tradeoff is acceptable. `QualityController` already set `BASE_SIZE` per tier (unchanged).
+
 ## [C258 / PF2] Parametric furniture v2 — drawers, per-compartment config, desk type
 Extends the PF1 generator with three new capabilities. (1) **Drawers**: a new
 `CompartmentStyle = 'open' | 'door' | 'drawer'` drives `addDrawerFronts()` which emits stacked

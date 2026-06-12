@@ -1,5 +1,6 @@
 import { MeshStandardMaterial, type Texture } from 'three'
 import {
+  effectivePatternSize,
   generateProcedural,
   getPlasterNormal,
   getProceduralBaseSize,
@@ -21,9 +22,13 @@ export function getCachedMaterial(id: string): MeshStandardMaterial | undefined 
  *  change regenerates them — see `buildMaterial`), everything else under the
  *  plain id. Callers that only have the id (e.g. a furniture `mat:<id>`
  *  finish) must use this — a plain `getCachedMaterial(id)` permanently misses
- *  procedural builds and the finish silently stays on its fallback. */
+ *  procedural builds and the finish silently stays on its fallback.
+ *
+ *  Note: since smooth patterns always cap at 256 regardless of BASE_SIZE,
+ *  their cache keys are always `id@256`; checking only `id@BASE_SIZE` would
+ *  miss them on Medium+ tiers. We probe both suffixes to handle that. */
 export function getBuiltMaterial(id: string): MeshStandardMaterial | undefined {
-  return CACHE.get(id) ?? CACHE.get(`${id}@${getProceduralBaseSize()}`)
+  return CACHE.get(id) ?? CACHE.get(`${id}@${getProceduralBaseSize()}`) ?? CACHE.get(`${id}@256`)
 }
 
 /** Constructs and caches a new material for the given def. The caller
@@ -33,11 +38,13 @@ export function buildMaterial(
   def: MaterialDef,
   textures?: { albedo?: Texture; normal?: Texture; roughness?: Texture; ao?: Texture },
 ): MeshStandardMaterial {
-  // Procedural materials carry the generation size in the key so a quality-
-  // tier change regenerates at the new size instead of serving a stale one.
+  // Procedural materials carry the effective generation size in the key so a
+  // quality-tier change regenerates at the new size instead of serving a stale
+  // one. Smooth patterns (carpet, concrete, …) cap at 256 regardless of tier —
+  // their key always ends in @256 so Medium+ hits the same cached texture.
   const cacheKey =
     def.kind === 'procedural' && def.pattern !== 'plaster'
-      ? `${def.id}@${getProceduralBaseSize()}`
+      ? `${def.id}@${effectivePatternSize(def.pattern)}`
       : def.id
   const existing = CACHE.get(cacheKey)
   if (existing) return existing

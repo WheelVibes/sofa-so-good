@@ -37,6 +37,74 @@ export function getProceduralBaseSize(): number {
   return BASE_SIZE
 }
 
+/**
+ * Per-pattern texture size registry — declares the maximum useful resolution
+ * for each procedural pattern. When BASE_SIZE would exceed the cap the
+ * generator clamps down, saving GPU memory without visible quality loss.
+ *
+ * Decision rationale (verified against before/after screenshots at typical
+ * room-viewing distances):
+ *
+ * CAP 256 — smooth / low-frequency patterns where extra pixels add nothing:
+ *   carpet    — broad FBM fibre + blotch noise; no fine structure that benefits.
+ *   concrete  — mottle freq ~5, pores are tiny pinpoints; 256 vs 512 indistinct.
+ *   marble    — veins are wide sinusoidal curves (turbulence-warped); no crisp edge.
+ *   terrazzo  — chip radii ≥3 px at 256; background noise is smooth.
+ *   batten    — 6 battens with a 3 % bevel ramp (~7.5 px at 256); reads cleanly.
+ *   fluted    — 16 ribs, sine profile; one rib = 16 px at 256, fully resolved.
+ *   plaster   — already a shared 256 singleton (getPlasterNormal); listed for
+ *               completeness — generateProcedural skips plaster.
+ *
+ * CAP 512 — high-frequency / geometric patterns where 256 visibly degrades:
+ *   wood       — grain bands at ~9× period + open pores; 256 noticeably blurs.
+ *   tile       — grout line ≈1.8 % of tile width (~4.6 px at 256); blurry grout.
+ *   hexagon    — 3.5 px grout threshold; at 256 grout reads too wide/soft.
+ *   checker    — 1.5 px grout; sub-pixel at 256 → aliased edge.
+ *   parquet    — 4 planks per block, fine wood grain; 256 loses plank detail.
+ *   herringbone — 16 plank-widths; grain clarity needs 512 to stay sharp.
+ *   subway     — thin grout + bevel band; grout <2 px at 256 loses definition.
+ *   brick      — mortar joint ≈S/110 ≈2.3 px at 256; keep 512 for definition.
+ *   grasscloth — horizontal weave lines ~220 per tile; 256 aliases badly.
+ *   stripe     — 2 px seam; 1 px at 256 looks harsh.
+ *
+ * OffscreenCanvas worker generation is deferred (still-open PERF9 tail).
+ */
+export const PATTERN_SIZE_CAP: Record<ProceduralPattern, 256 | 512> = {
+  // Smooth noise-based — 256 is the useful cap even on Medium/High/Maximum
+  carpet: 256,
+  concrete: 256,
+  marble: 256,
+  terrazzo: 256,
+  batten: 256,
+  fluted: 256,
+  plaster: 256,
+  // High-frequency geometric — needs 512 on Medium+ for crisp edges/grain
+  wood: 512,
+  tile: 512,
+  hexagon: 512,
+  checker: 512,
+  parquet: 512,
+  herringbone: 512,
+  subway: 512,
+  brick: 512,
+  grasscloth: 512,
+  stripe: 512,
+}
+
+/**
+ * Effective generation size for a given pattern: the smaller of the global
+ * BASE_SIZE and the pattern's useful-resolution cap. Smooth patterns stay at
+ * 256 even when the tier is Medium/High/Maximum (saving GPU memory with no
+ * visible difference), while high-frequency patterns respect the full BASE_SIZE
+ * on those tiers for crisp grain/grout lines.
+ */
+export function effectivePatternSize(pattern: ProceduralPattern): 256 | 512 {
+  const cap = PATTERN_SIZE_CAP[pattern] ?? 512
+  // BASE_SIZE is either 256 (Performance) or 512 (Medium+).
+  // If the cap is lower than BASE_SIZE, clamp to the cap.
+  return BASE_SIZE <= cap ? (BASE_SIZE as 256 | 512) : cap
+}
+
 function makeCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas')
   c.width = S
@@ -809,7 +877,7 @@ export function generateProcedural(
   pattern: ProceduralPattern,
   swatch: string,
 ): ProceduralResult {
-  S = BASE_SIZE
+  S = effectivePatternSize(pattern)
   const seed = hashSeed(`${id}:${pattern}`)
   const base = hexToRgb(swatch)
   const f = PATTERN_FN[pattern](base, seed)

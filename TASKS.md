@@ -87,7 +87,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   rotation-aware `InstancedBoxes` sibling; deferred until a consumer justifies it).
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
-- [ ] PERF9 tail: drop procedural textures to 256² where quality allows / OffscreenCanvas worker.
+- [ ] PERF9 tail: OffscreenCanvas worker generation — per-pattern size registry shipped (C258); worker generation deferred.
 - [ ] LP6 (optional): animate/scrub the lux overlay across the day; per-fixture contribution
   toggle (C256 shipped the static 3D lux floor heatmap).
 

@@ -4,7 +4,8 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
 
 - **New finish** = an entry in `builtinCatalog.ts` (`procedural` with a pattern, or
   `solid`); new patterns go in `procedural/generators.ts` (paint one tiling tile:
-  albedo+normal+roughness from seeded noise).
+  albedo+normal+roughness from seeded noise) AND add an entry to `PATTERN_SIZE_CAP`
+  (256 for smooth/noise-based, 512 for high-frequency geometric patterns with fine detail).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
