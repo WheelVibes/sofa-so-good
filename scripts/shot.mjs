@@ -171,7 +171,10 @@ page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`))
 // SHOT_URL overrides the target (e.g. a parallel worktree's dev server on
 // another port); SHOT_NAV_TIMEOUT (ms) extends the load timeout when the
 // machine is busy (cold Vite transforms under parallel jobs easily pass 60 s).
-const url = scenario?.url ?? process.env.SHOT_URL ?? 'http://localhost:5173/'
+// Precedence: SHOT_URL env > scenario url > default — scenarios written in one
+// worktree hardcode that worktree's port, so the runner's env must win or the
+// scenario is not portable across servers.
+const url = process.env.SHOT_URL ?? scenario?.url ?? 'http://localhost:5173/'
 const navTimeout = Number(process.env.SHOT_NAV_TIMEOUT || 60000)
 try {
   await page.goto(url, { waitUntil: 'networkidle2', timeout: navTimeout })

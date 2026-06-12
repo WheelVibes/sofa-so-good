@@ -49,7 +49,9 @@ Each step prints `STEP n/N <name> … OK (1.2s)`. A failing step prints the reas
 dumps `<out-dir>/failed-<name>.png`, prints recent page console lines, and exits
 non-zero — instant post-mortem, no silence.
 
-The scenario `url` field sets the target URL; it takes precedence over `SHOT_URL`.
+The scenario `url` field sets the default target URL, but the `SHOT_URL` env var
+takes precedence when set — always pass `SHOT_URL` when running someone else's
+scenario, since scenarios hardcode their author's dev-server port.
 Default localStorage is **empty** in scenario mode (so first-run flows trigger
 naturally). Override with `SHOT_INIT_LS`.
 
