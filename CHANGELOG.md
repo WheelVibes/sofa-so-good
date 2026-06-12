@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: mobile guided tour no longer falls through to the location prompt
+
+On a mobile viewport, picking "Take the guided tour" in the onboarding carousel set
+`tourOpen = true`, but `ProductTour` immediately called `end()` (it was desktop-only and
+bailed on mobile). That flipped `tourOpen` back to `false`, so `LocationPrompt` — suppressed
+only while `onboardingOpen || tourOpen` — popped up instead of the tour.
+
+**What changed (`src/ui/tour/ProductTour.tsx`):**
+- Removed the mobile self-`end()` effect and the `isMobile` early-return. The tour now stays
+  open on mobile.
+- On mobile, `findTarget()` returns `null` for every step, so the tour drops the spotlight
+  (whose overlay would otherwise cover the hamburger sheet that holds the real controls) and
+  renders each step as a centred card with Next/Back. `action` steps fall back to a Next
+  button (no control to click through), so the user is never trapped.
+- The location prompt is gated on `tourOpen`, so it now correctly appears **last** — after the
+  tour is finished or skipped.
+
+**Tests/verification:**
+- `src/ui/tour/ProductTour.test.tsx` — new: tour renders + stays open on both desktop and a
+  mobile (`matchMedia`) viewport; mobile shows a Next button (regression guard).
+- `scripts/scenarios/first-run-mobile-tour.json` — new IXT-SUITES rung: full mobile journey
+  (onboarding → guided tour → steps → skip → location prompt last). Verified with screenshots.
+
 ## [C274] Standalone KTX2/DDS texture upload decode
 
 Extends the material-upload pipeline (`materials/convert/`) to decode `.ktx2` and `.dds` texture files

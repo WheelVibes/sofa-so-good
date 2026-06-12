@@ -25,6 +25,12 @@ const GAP = 14 // gap between spotlight and card
  * disturb the app, and **only the explicit Skip button (or Esc) ends the tour**.
  * Steps whose target is missing (e.g. behind the mobile hamburger) fall back to
  * spotlighting the hamburger; no-target steps centre with a flat scrim.
+ *
+ * On mobile the toolbar controls live behind the hamburger sheet, so the
+ * spotlight can't track them (and its overlay would block the sheet). There we
+ * skip targeting entirely and present every step as a centred card walkthrough
+ * with Next/Back — so picking "Take the guided tour" still shows the tour
+ * (rather than falling straight through to the location prompt).
  */
 export function ProductTour() {
   const open = useStore((s) => s.tourOpen)
@@ -37,13 +43,6 @@ export function ProductTour() {
   const [rect, setRect] = useState<Rect | null>(null)
   const current = TOUR_STEPS[step]
 
-  // The spotlight tour targets desktop toolbar controls and its overlay sits
-  // above the mobile hamburger sheet — so it can't work on mobile and would
-  // block the hamburger. End it if it somehow opens on a mobile viewport
-  // (App shows the centred onboarding carousel there instead).
-  useEffect(() => {
-    if (open && isMobile) end()
-  }, [open, isMobile, end])
   // The live resolved target element for the current step (real target or the
   // mobile hamburger fallback). Used by the click-to-advance listener.
   const targetRef = useRef<HTMLElement | null>(null)
@@ -54,11 +53,12 @@ export function ProductTour() {
   useLayoutEffect(() => {
     if (!open || !current) return
     let raf = 0
-    // Resolve the step's target; on mobile the desktop toolbar targets live in
-    // the hamburger sheet, so fall back to spotlighting the hamburger (where the
-    // menus are). No-target steps stay centred (findTarget returns null).
+    // Resolve the step's target. On mobile the desktop toolbar targets live in
+    // the hamburger sheet (which the overlay would cover), so we don't spotlight
+    // anything — every step centres as a plain card. No-target steps also stay
+    // centred (findTarget returns null).
     const findTarget = (): HTMLElement | null => {
-      if (!current.target) return null
+      if (isMobile || !current.target) return null
       return (
         document.querySelector<HTMLElement>(current.target) ??
         document.querySelector<HTMLElement>('[aria-label="Menu"]')
@@ -93,7 +93,7 @@ export function ProductTour() {
       window.clearInterval(poll)
       window.clearTimeout(stopPoll)
     }
-  }, [open, current])
+  }, [open, current, isMobile])
 
   // Click-to-advance: when the user clicks the spotlighted control itself, the
   // tour moves on (after a short beat so the control's own click handler runs and
@@ -127,7 +127,7 @@ export function ProductTour() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, next, prev, end])
 
-  if (!open || !current || isMobile) return null
+  if (!open || !current) return null
 
   const isLast = step === TOUR_STEPS.length - 1
   // An action step forces interaction (no Next) — but only when we actually have
