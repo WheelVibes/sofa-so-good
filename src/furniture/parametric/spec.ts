@@ -10,13 +10,14 @@
  * Pure + dependency-free so every consumer is unit-testable.
  */
 
-export type ParametricType = 'bookshelf' | 'wardrobe' | 'sideboard' | 'desk'
+export type ParametricType = 'bookshelf' | 'wardrobe' | 'sideboard' | 'desk' | 'kitchen-run'
 
 export const PARAMETRIC_TYPES: readonly ParametricType[] = [
   'bookshelf',
   'wardrobe',
   'sideboard',
   'desk',
+  'kitchen-run',
 ]
 
 export const PARAMETRIC_TYPE_LABEL: Record<ParametricType, string> = {
@@ -24,6 +25,7 @@ export const PARAMETRIC_TYPE_LABEL: Record<ParametricType, string> = {
   wardrobe: 'Wardrobe',
   sideboard: 'Sideboard / TV console',
   desk: 'Desk',
+  'kitchen-run': 'Kitchen run',
 }
 
 /** Hard-surface finish kinds the generator offers (subset of
@@ -68,12 +70,17 @@ export interface ParametricSpec {
    *  - sideboard + wardrobe: open / door / drawer
    *  - bookshelf: open only (doors/drawers silently ignored)
    *  - desk: no compartment config (field is ignored)
+   *  - kitchen-run: door / drawers / open per bay
    */
   compartments?: CompartmentConfig[]
   /** Desk only: leg style. */
   deskLegs: 'legs' | 'pedestal'
   /** Desk only: number of pedestal drawers (1–3; only when deskLegs='pedestal'). */
   pedestalDrawers: number
+  /** Kitchen-run only: number of carcass bays (1–6). */
+  bays: number
+  /** Kitchen-run only: include upper cabinet row above worktop. */
+  hasUppers: boolean
 }
 
 export interface DimRange {
@@ -111,7 +118,15 @@ export const PARAMETRIC_LIMITS: Record<ParametricType, ParametricLimits> = {
     height: { min: 0.68, max: 0.82 }, // standard desk height band for HDB
     depth: { min: 0.5, max: 0.85 },
   },
+  'kitchen-run': {
+    width: { min: 0.6, max: 3.6 }, // single-bay minimum → full HDB kitchen wall
+    height: { min: 0.85, max: 0.92 }, // worktop surface height (BS/IKEA standard)
+    depth: { min: 0.55, max: 0.65 }, // standard kitchen-base depth
+  },
 }
+
+/** Max bays for a kitchen-run (each bay ≥ 0.4 m internal = realistic cabinet width). */
+export const MAX_KITCHEN_BAYS = 6
 
 /** Max manual shelf count per bay (more than this won't fit books anyway). */
 export const MAX_SHELVES = 12
@@ -143,6 +158,8 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     compartments: [],
     deskLegs: 'legs',
     pedestalDrawers: 2,
+    bays: 1,
+    hasUppers: false,
   },
   wardrobe: {
     type: 'wardrobe',
@@ -157,6 +174,8 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     compartments: [],
     deskLegs: 'legs',
     pedestalDrawers: 2,
+    bays: 1,
+    hasUppers: false,
   },
   sideboard: {
     type: 'sideboard',
@@ -171,6 +190,8 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     compartments: [],
     deskLegs: 'legs',
     pedestalDrawers: 2,
+    bays: 1,
+    hasUppers: false,
   },
   desk: {
     type: 'desk',
@@ -185,6 +206,24 @@ export const DEFAULT_SPECS: Record<ParametricType, ParametricSpec> = {
     compartments: [],
     deskLegs: 'legs',
     pedestalDrawers: 2,
+    bays: 3,
+    hasUppers: false,
+  },
+  'kitchen-run': {
+    type: 'kitchen-run',
+    width: 1.8,
+    height: 0.87,
+    depth: 0.6,
+    shelves: 0,
+    doors: true,
+    base: 'plinth',
+    finish: 'painted',
+    color: '#e8e4dc',
+    compartments: [],
+    deskLegs: 'legs',
+    pedestalDrawers: 2,
+    bays: 3,
+    hasUppers: false,
   },
 }
 
@@ -245,6 +284,12 @@ export function clampSpec(raw: Partial<ParametricSpec> | null | undefined): Para
     MAX_PEDESTAL_DRAWERS,
   )
 
+  // Kitchen-run: clamp bays to 1..MAX_KITCHEN_BAYS; default from the type default.
+  const rawBays = raw?.bays
+  const bays = clamp(Math.round(num(rawBays, d.bays ?? 3)), 1, MAX_KITCHEN_BAYS)
+
+  const hasUppers = typeof raw?.hasUppers === 'boolean' ? raw.hasUppers : (d.hasUppers ?? false)
+
   return {
     type,
     width: clamp(num(raw?.width, d.width), lim.width.min, lim.width.max),
@@ -259,12 +304,15 @@ export function clampSpec(raw: Partial<ParametricSpec> | null | undefined): Para
     compartments: clampCompartments(raw?.compartments),
     deskLegs,
     pedestalDrawers,
+    bays,
+    hasUppers,
   }
 }
 
 /** Display name for a generated def, e.g. "Custom bookshelf 80 × 200 cm". */
 export function specLabel(spec: ParametricSpec): string {
   const cm = (m: number) => Math.round(m * 100)
+  if (spec.type === 'kitchen-run') return `Custom kitchen run ${cm(spec.width)} cm wide`
   const noun =
     spec.type === 'sideboard'
       ? 'sideboard'

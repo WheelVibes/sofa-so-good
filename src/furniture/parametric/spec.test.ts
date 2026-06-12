@@ -100,6 +100,38 @@ describe('desk-specific fields', () => {
   })
 })
 
+describe('kitchen-run spec', () => {
+  it('specLabel returns a run-width label for kitchen-run', () => {
+    const s = defaultSpec('kitchen-run')
+    expect(specLabel(s)).toBe('Custom kitchen run 180 cm wide')
+  })
+
+  it('clampSpec clamps kitchen-run dimensions to HDB envelope', () => {
+    const hi = clampSpec({ type: 'kitchen-run', width: 99, height: 99, depth: 99 })
+    expect(hi.width).toBe(3.6)
+    expect(hi.height).toBe(0.92)
+    expect(hi.depth).toBe(0.65)
+    const lo = clampSpec({ type: 'kitchen-run', width: 0, height: 0, depth: 0 })
+    expect(lo.width).toBe(0.6)
+    expect(lo.height).toBe(0.85)
+    expect(lo.depth).toBe(0.55)
+  })
+
+  it('clampSpec clamps bays to 1..MAX_KITCHEN_BAYS', () => {
+    expect(clampSpec({ type: 'kitchen-run', bays: 0 }).bays).toBe(1)
+    expect(clampSpec({ type: 'kitchen-run', bays: 99 }).bays).toBe(6) // MAX_KITCHEN_BAYS=6
+  })
+
+  it('hasUppers default is false; boolean toggle is preserved', () => {
+    expect(defaultSpec('kitchen-run').hasUppers).toBe(false)
+    expect(clampSpec({ type: 'kitchen-run', hasUppers: true }).hasUppers).toBe(true)
+    expect(clampSpec({ type: 'kitchen-run', hasUppers: false }).hasUppers).toBe(false)
+    // Non-boolean falls back to default false.
+    // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed input
+    expect(clampSpec({ type: 'kitchen-run', hasUppers: 'yes' as any }).hasUppers).toBe(false)
+  })
+})
+
 describe('compartments + bayStyle', () => {
   it('bayStyle returns per-bay override when set', () => {
     const spec = {

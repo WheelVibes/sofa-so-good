@@ -32,6 +32,7 @@ import { ParametricPreview } from './ParametricPreview'
 export function ParametricDialog() {
   const open = useStore((s) => s.parametricOpen)
   const enabled = useFeature('parametricFurniture')
+  const kitchenEnabled = useFeature('kitchenCabinets')
   const isMobile = useIsMobile()
   const close = () => useStore.getState().setParametricOpen(false)
 
@@ -128,7 +129,7 @@ export function ParametricDialog() {
           </button>
         </div>
         <div className="tabs">
-          {PARAMETRIC_TYPES.map((t) => (
+          {PARAMETRIC_TYPES.filter((t) => t !== 'kitchen-run' || kitchenEnabled).map((t) => (
             <button
               key={t}
               type="button"

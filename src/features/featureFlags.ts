@@ -64,6 +64,7 @@ export type FeatureFlag =
   | 'comments'
   | 'finishDnd'
   | 'parametricFurniture'
+  | 'kitchenCabinets'
   | 'renderCompare'
   | 'crownMolding'
 
@@ -374,6 +375,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   parametricFurniture: {
     label: 'Custom-size furniture',
     description: 'Generate shelving / wardrobes / sideboards to exact dimensions',
+    default: true,
+    tier: 'pro',
+  },
+  // Parametric kitchen cabinet run (C270). Authoring tool → pro tier.
+  // Pure procedural geometry → prod-safe, default on.
+  kitchenCabinets: {
+    label: 'Custom kitchen cabinets',
+    description: 'Generate a parametric kitchen base-cabinet run with optional upper cabinets',
     default: true,
     tier: 'pro',
   },

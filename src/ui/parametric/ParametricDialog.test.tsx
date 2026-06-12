@@ -72,3 +72,72 @@ describe('ParametricDialog (PF1) — Simple/Pro gating', () => {
     expect(screen.getByText('2 leaves (each ≤ 60 cm)')).toBeTruthy()
   })
 })
+
+describe('ParametricDialog — Kitchen tab (C270)', () => {
+  beforeEach(() => useStore.getState().__resetForTest())
+
+  it('Kitchen tab hidden in Simple mode (kitchenCabinets is pro-tier)', () => {
+    act(() => {
+      // Simple mode (default) → kitchenCabinets forced off.
+      useStore.getState().setParametricOpen(true)
+    })
+    render(<ParametricDialog />)
+    // parametricFurniture itself is pro-only → whole dialog hidden.
+    expect(screen.queryByText('Kitchen run')).toBeNull()
+  })
+
+  it('Kitchen tab visible in Pro mode', () => {
+    act(() => {
+      useStore.getState().setUiMode('pro')
+      useStore.getState().setParametricOpen(true)
+    })
+    render(<ParametricDialog />)
+    expect(screen.getByText('Kitchen run')).toBeTruthy()
+  })
+
+  it('switching to Kitchen tab shows bay-count slider and upper-cabinets toggle', () => {
+    act(() => {
+      useStore.getState().setUiMode('pro')
+      useStore.getState().setParametricOpen(true)
+    })
+    render(<ParametricDialog />)
+    fireEvent.click(screen.getByText('Kitchen run'))
+    expect(screen.getByLabelText('Bay count')).toBeTruthy()
+    expect(screen.getByLabelText('Upper cabinets')).toBeTruthy()
+  })
+
+  it('Kitchen tab shows Worktop height label (not generic Height)', () => {
+    act(() => {
+      useStore.getState().setUiMode('pro')
+      useStore.getState().setParametricOpen(true)
+    })
+    render(<ParametricDialog />)
+    fireEvent.click(screen.getByText('Kitchen run'))
+    expect(screen.getByLabelText('Worktop height (cm)')).toBeTruthy()
+  })
+
+  it('toggling upper cabinets toggles the switch aria-checked', () => {
+    act(() => {
+      useStore.getState().setUiMode('pro')
+      useStore.getState().setParametricOpen(true)
+    })
+    render(<ParametricDialog />)
+    fireEvent.click(screen.getByText('Kitchen run'))
+    const toggle = screen.getByLabelText('Upper cabinets') as HTMLElement
+    expect(toggle.getAttribute('aria-checked')).toBe('false')
+    fireEvent.click(toggle)
+    expect(
+      (screen.getByLabelText('Upper cabinets') as HTMLElement).getAttribute('aria-checked'),
+    ).toBe('true')
+  })
+
+  it('kitchenCabinets flag off → Kitchen tab hidden in Pro mode', () => {
+    act(() => {
+      useStore.getState().setUiMode('pro')
+      useStore.getState().setFeatureFlag('kitchenCabinets', false)
+      useStore.getState().setParametricOpen(true)
+    })
+    render(<ParametricDialog />)
+    expect(screen.queryByText('Kitchen run')).toBeNull()
+  })
+})

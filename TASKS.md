@@ -53,8 +53,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   inter-room light bleed. Perf-sensitive multi-file scene change.
 
 ## Content & catalog
-- [ ] PF tail: kitchen-cabinet run type deferred (different dimension envelope + toe-kick + upper
-  cabinet pairing; scope warrants its own commit once the HDB kitchen template is finalised).
 - [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
   so designs look styled; ensure category coverage is exhaustive.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).

@@ -88,6 +88,15 @@ const DESK_WORKTOP_T = 0.025 // worktop thickness
 const DESK_PEDESTAL_W = 0.38 // pedestal column width
 const DESK_PEDESTAL_INSET = 0.02 // pedestal inset from the outer face
 
+// Kitchen-run constants
+const KT_TOE_H = 0.1 // toe-kick (plinth) height — HDB/IKEA standard
+const KT_TOE_INSET = 0.05 // how far the toe-kick recesses from the front face
+const KT_WORKTOP_T = 0.04 // worktop slab thickness (stone/laminate)
+const KT_WORKTOP_OVERHANG = 0.02 // worktop overhang proud of carcass front
+const KT_UPPER_DEPTH = 0.35 // upper cabinet depth (shallower than base)
+const KT_UPPER_H = 0.72 // upper cabinet height
+const KT_UPPER_GAP = 0.18 // gap between worktop top and upper cabinet underside
+
 /** Evenly-spaced bay boundaries: ≥1 divider whenever a single span would
  *  exceed MAX_BAY_SPAN. Returns the number of bays (dividers = bays - 1). */
 export function bayCount(innerW: number): number {
@@ -239,6 +248,231 @@ function buildDesk(spec: ParametricSpec): ParametricModel {
 }
 
 // ============================================================================
+// Kitchen-run builder
+// ============================================================================
+
+/**
+ * Build a kitchen base-cabinet run (+ optional uppers).
+ *
+ * Origin: footprint centred on X/Z, floor at y=0, front face toward +Z.
+ *
+ * Structure (bottom → top):
+ *  - Toe-kick plinth: KT_TOE_H tall, recessed KT_TOE_INSET from the front.
+ *  - Carcass sides (run floor→top), back panel, bottom + top panels.
+ *  - Per-bay dividers, each bay gets: door | stacked drawers | open.
+ *  - Worktop slab: KT_WORKTOP_T thick, KT_WORKTOP_OVERHANG proud of front, 0.01 m side overhang.
+ *  - Optional uppers: shallower cabinet box above worktop with KT_UPPER_GAP clearance.
+ */
+function buildKitchenRun(spec: ParametricSpec): ParametricModel {
+  const { width: w, height: h, depth: d } = spec
+  const numBays = Math.max(1, Math.min(spec.bays, 6))
+  const parts: ParametricPart[] = []
+
+  // ---- Toe-kick plinth -------------------------------------------------------
+  // Full-width, KT_TOE_H tall, inset from front by KT_TOE_INSET.
+  const toeW = w - PANEL_T * 2
+  const toeZ = -KT_TOE_INSET / 2 // centre on Z, tucked back
+  parts.push({
+    role: 'plinth',
+    position: [0, KT_TOE_H / 2, toeZ],
+    size: [toeW, KT_TOE_H, d - KT_TOE_INSET],
+  })
+
+  // ---- Worktop slab ----------------------------------------------------------
+  // Sits at height h; overhangs the front by KT_WORKTOP_OVERHANG and sides by 0.01 m.
+  const SIDE_OVERHANG = 0.01
+  const worktopY = h - KT_WORKTOP_T / 2
+  const worktopW = w + SIDE_OVERHANG * 2
+  const worktopD = d + KT_WORKTOP_OVERHANG
+  // Centre of the worktop slab on Z: it extends from -d/2-SIDE_OVERHANG to d/2+KT_WORKTOP_OVERHANG,
+  // but Z is front-facing so front overhang goes in +Z direction.
+  const worktopZ = KT_WORKTOP_OVERHANG / 2
+  parts.push({
+    role: 'worktop',
+    position: [0, worktopY, worktopZ],
+    size: [worktopW, KT_WORKTOP_T, worktopD],
+  })
+
+  // ---- Carcass shell ---------------------------------------------------------
+  // Height of the carcass is from floor to underside of the worktop.
+  const carcassTop = h - KT_WORKTOP_T // underside of worktop
+  const sideH = carcassTop // sides run floor → worktop underside
+  for (const sx of [-1, 1]) {
+    parts.push({
+      role: 'side',
+      position: [sx * (w / 2 - PANEL_T / 2), sideH / 2, 0],
+      size: [PANEL_T, sideH, d],
+    })
+  }
+  const innerW = w - PANEL_T * 2
+
+  // Top + bottom span between the sides (at carcass extents).
+  parts.push({
+    role: 'top',
+    position: [0, carcassTop - PANEL_T / 2, 0],
+    size: [innerW, PANEL_T, d],
+  })
+  parts.push({
+    role: 'bottom',
+    position: [0, KT_TOE_H + PANEL_T / 2, 0],
+    size: [innerW, PANEL_T, d],
+  })
+
+  // Back panel inset between the sides, spanning bottom panel top → carcass top.
+  const backBottom = KT_TOE_H
+  const backH = carcassTop - backBottom
+  parts.push({
+    role: 'back',
+    position: [0, backBottom + backH / 2, -d / 2 + BACK_T / 2],
+    size: [innerW, backH, BACK_T],
+  })
+
+  // ---- Bay dividers ----------------------------------------------------------
+  // Use the spec.bays count (not bayCount auto-sizing) since the user controls this.
+  const bayW = (innerW - PANEL_T * (numBays - 1)) / numBays
+  const innerBottom = KT_TOE_H + PANEL_T // top of the bottom panel
+  const innerTop = carcassTop - PANEL_T // underside of the top panel
+  const innerH = innerTop - innerBottom
+  const shelfD = d - BACK_T - 0.02
+
+  for (let b = 1; b < numBays; b++) {
+    const x = -innerW / 2 + b * bayW + (b - 0.5) * PANEL_T
+    parts.push({
+      role: 'divider',
+      position: [x, innerBottom + innerH / 2, BACK_T / 2],
+      size: [PANEL_T, innerH, d - BACK_T],
+    })
+  }
+
+  /** Centre X of bay `b` (0-based). */
+  const bayX = (b: number) => -innerW / 2 + bayW / 2 + b * (bayW + PANEL_T)
+
+  // ---- Per-bay fronts --------------------------------------------------------
+  const frontZ = d / 2 // carcass front face
+  const doorH = innerH - 2 * REVEAL
+  const doorY = innerBottom + REVEAL + doorH / 2
+  let doorCount = 0
+  let drawerCount = 0
+  let hasFront = false
+
+  for (let b = 0; b < numBays; b++) {
+    const style = bayStyle(spec, b)
+    const cx = bayX(b)
+
+    if (style === 'door') {
+      hasFront = true
+      const leaves = doorLeafCount(bayW)
+      const leafW = (bayW - REVEAL * (leaves - 1)) / leaves
+      doorCount += leaves
+      for (let i = 0; i < leaves; i++) {
+        const lx = cx - bayW / 2 + leafW / 2 + i * (leafW + REVEAL)
+        const doorZ = frontZ + DOOR_T / 2
+        parts.push({
+          role: 'door',
+          position: [lx, doorY, doorZ],
+          size: [leafW, doorH, DOOR_T],
+        })
+        const hingeSign = i < leaves / 2 ? 1 : -1
+        const handleH = Math.min(0.15, doorH * 0.35)
+        parts.push({
+          role: 'handle',
+          position: [lx + hingeSign * (leafW / 2 - 0.04), doorY, doorZ + DOOR_T / 2 + 0.012],
+          size: [HANDLE_W, handleH, HANDLE_D],
+        })
+      }
+    } else if (style === 'drawer') {
+      hasFront = true
+      drawerCount += addDrawerFronts(parts, cx, bayW, innerBottom, innerTop, frontZ)
+    }
+    // 'open' bays: mid-height shelf
+    if (style === 'open') {
+      parts.push({
+        role: 'shelf',
+        position: [cx, innerBottom + innerH / 2, BACK_T / 2],
+        size: [bayW, PANEL_T, shelfD],
+      })
+    }
+  }
+
+  // ---- Upper cabinets (optional) ---------------------------------------------
+  // Mount a shallower carcass KT_UPPER_GAP above the worktop top face.
+  let boundsH = h
+  if (spec.hasUppers) {
+    const upperBottom = h + KT_UPPER_GAP // base of the upper box
+    const upperTop = upperBottom + KT_UPPER_H
+    const upperD = KT_UPPER_DEPTH
+    boundsH = upperTop
+
+    // Upper cabinets are wall-mounted, flush to the back wall (z = -d/2).
+    // Centre Z of the upper box body: -d/2 + upperD/2.
+    const upperBodyZ = -d / 2 + upperD / 2
+    for (const sx of [-1, 1]) {
+      parts.push({
+        role: 'side',
+        position: [sx * (w / 2 - PANEL_T / 2), upperBottom + KT_UPPER_H / 2, upperBodyZ],
+        size: [PANEL_T, KT_UPPER_H, upperD],
+      })
+    }
+    // Top + bottom of the upper carcass.
+    parts.push({
+      role: 'top',
+      position: [0, upperTop - PANEL_T / 2, upperBodyZ],
+      size: [innerW, PANEL_T, upperD],
+    })
+    parts.push({
+      role: 'bottom',
+      position: [0, upperBottom + PANEL_T / 2, upperBodyZ],
+      size: [innerW, PANEL_T, upperD],
+    })
+    // Back panel flush to the rear wall.
+    parts.push({
+      role: 'back',
+      position: [0, upperBottom + KT_UPPER_H / 2, -d / 2 + BACK_T / 2],
+      size: [innerW, KT_UPPER_H, BACK_T],
+    })
+    // Upper doors: full-height, per bay. Front face at z = -d/2 + upperD.
+    const upperFrontZ = -d / 2 + upperD
+    const upperDoorH = KT_UPPER_H - PANEL_T * 2 - 2 * REVEAL
+    const upperDoorY = upperBottom + PANEL_T + REVEAL + upperDoorH / 2
+    for (let b = 0; b < numBays; b++) {
+      const cx = bayX(b)
+      const leaves = doorLeafCount(bayW)
+      const leafW = (bayW - REVEAL * (leaves - 1)) / leaves
+      doorCount += leaves
+      for (let i = 0; i < leaves; i++) {
+        const lx = cx - bayW / 2 + leafW / 2 + i * (leafW + REVEAL)
+        const upperDoorZ = upperFrontZ + DOOR_T / 2
+        parts.push({
+          role: 'door',
+          position: [lx, upperDoorY, upperDoorZ],
+          size: [leafW, upperDoorH, DOOR_T],
+        })
+        const hingeSign = i < leaves / 2 ? 1 : -1
+        parts.push({
+          role: 'handle',
+          position: [
+            lx + hingeSign * (leafW / 2 - 0.04),
+            upperDoorY,
+            upperDoorZ + DOOR_T / 2 + 0.012,
+          ],
+          size: [HANDLE_W, Math.min(0.12, upperDoorH * 0.3), HANDLE_D],
+        })
+      }
+    }
+  }
+
+  const boundsD = d + (hasFront ? Math.max(DOOR_T, DRAWER_FRONT_T) : 0)
+  return {
+    parts,
+    bounds: { w, d: boundsD, h: boundsH },
+    bays: numBays,
+    doorCount,
+    shelvesPerBay: 0,
+    drawerCount,
+  }
+}
+
+// ============================================================================
 // Storage carcass builder (bookshelf / wardrobe / sideboard)
 // ============================================================================
 
@@ -246,8 +480,9 @@ export function buildParametric(input: ParametricSpec): ParametricModel {
   const spec = clampSpec(input)
   const { width: w, height: h, depth: d, type } = spec
 
-  // Desk is a fundamentally different shape — delegate to its own builder.
+  // Delegate to the appropriate specialist builder.
   if (type === 'desk') return buildDesk(spec)
+  if (type === 'kitchen-run') return buildKitchenRun(spec)
 
   const parts: ParametricPart[] = []
   const onLegs = type === 'sideboard' && spec.base === 'legs'

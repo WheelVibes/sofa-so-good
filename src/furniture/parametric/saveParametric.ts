@@ -26,6 +26,7 @@ const TYPE_CATEGORY: Record<ParametricSpec['type'], FurnitureCategory> = {
   wardrobe: 'storage',
   sideboard: 'storage',
   desk: 'tables',
+  'kitchen-run': 'kitchen',
 }
 
 /** Build, export and persist a parametric piece as a user catalog asset.

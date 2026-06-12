@@ -73,3 +73,64 @@ describe('estimatePrice', () => {
     expect(price % 5).toBe(0)
   })
 })
+
+describe('estimatePrice — kitchen-run', () => {
+  it('is positive and $5-rounded for the default kitchen-run', () => {
+    const price = estimatePrice(buildParametric(defaultSpec('kitchen-run')))
+    expect(price).toBeGreaterThan(0)
+    expect(price % 5).toBe(0)
+  })
+
+  it('includes all types now (including kitchen-run) and all positive + $5-rounded', () => {
+    for (const type of ['bookshelf', 'wardrobe', 'sideboard', 'desk', 'kitchen-run'] as const) {
+      const price = estimatePrice(buildParametric(defaultSpec(type)))
+      expect(price).toBeGreaterThan(0)
+      expect(price % 5).toBe(0)
+    }
+  })
+
+  it('worktop slab pricing: kitchen-run with large worktop area costs more than a narrow one', () => {
+    const narrow = estimatePrice(buildParametric({ ...defaultSpec('kitchen-run'), width: 0.6 }))
+    const wide = estimatePrice(buildParametric({ ...defaultSpec('kitchen-run'), width: 3.6 }))
+    expect(wide).toBeGreaterThan(narrow)
+  })
+
+  it('adding uppers increases price', () => {
+    const base = estimatePrice(buildParametric({ ...defaultSpec('kitchen-run'), hasUppers: false }))
+    const withUppers = estimatePrice(
+      buildParametric({ ...defaultSpec('kitchen-run'), hasUppers: true }),
+    )
+    expect(withUppers).toBeGreaterThan(base)
+  })
+
+  it('lands in a plausible Singapore kitchen cabinet range for a 1.8 m run', () => {
+    // A 3-bay 1.8 m base run + worktop should be $500–$8000 (budget–mid-market SG joinery).
+    const price = estimatePrice(buildParametric(defaultSpec('kitchen-run')))
+    expect(price).toBeGreaterThan(500)
+    expect(price).toBeLessThan(8000)
+  })
+
+  it('drawer bays cost more than door bays (drawer slides add ~$35 per unit)', () => {
+    const doorSpec = {
+      ...defaultSpec('kitchen-run'),
+      bays: 3,
+      compartments: [
+        { style: 'door' as const },
+        { style: 'door' as const },
+        { style: 'door' as const },
+      ],
+    }
+    const drawerSpec = {
+      ...defaultSpec('kitchen-run'),
+      bays: 3,
+      compartments: [
+        { style: 'drawer' as const },
+        { style: 'drawer' as const },
+        { style: 'drawer' as const },
+      ],
+    }
+    const pDoor = estimatePrice(buildParametric(doorSpec))
+    const pDrawer = estimatePrice(buildParametric(drawerSpec))
+    expect(pDrawer).toBeGreaterThan(pDoor)
+  })
+})

@@ -1,0 +1,97 @@
+{
+  "name": "parametric-kitchen-simple",
+  "description": "Interaction ladder for C270 — parametric kitchen-run. Verifies: (1) Kitchen run tab appears in pro mode with kitchenCabinets flag, (2) kitchen controls render (bay slider, upper-cabinets toggle, bay-style pickers), (3) toggling bay 1 to drawers updates the preview, (4) add-to-room saves item into the scene.",
+  "url": "http://localhost:5209/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "pro-mode",
+      "eval": "window.__store.getState().setUiMode?.('pro')"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "wait-scene",
+      "wait": 3000
+    },
+    {
+      "name": "shot-overview",
+      "screenshot": "01-overview"
+    },
+    {
+      "name": "verify-kitchen-flag",
+      "eval": "const flags = window.__store.getState().featureFlags; if (!flags.kitchenCabinets) throw new Error('kitchenCabinets flag is OFF — expected ON in pro mode')"
+    },
+    {
+      "name": "open-parametric-dialog",
+      "eval": "window.__store.getState().setParametricOpen?.(true)"
+    },
+    {
+      "name": "wait-dialog",
+      "waitFor": { "css": ".parametric-dialog" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-dialog-open",
+      "screenshot": "02-dialog-open-bookshelf"
+    },
+    {
+      "name": "click-kitchen-tab",
+      "click": { "text": "Kitchen run" }
+    },
+    {
+      "name": "wait-kitchen-tab",
+      "wait": 800
+    },
+    {
+      "name": "shot-kitchen-tab",
+      "screenshot": "03-kitchen-tab-default"
+    },
+    {
+      "name": "click-bay-1-drawer",
+      "eval": "(function() { const btns = Array.from(document.querySelectorAll('button[aria-label^=\"Bay 1:\"]')); const drawerBtn = btns.find(b => b.getAttribute('aria-label') === 'Bay 1: Drawer'); if (drawerBtn) drawerBtn.click(); })()"
+    },
+    {
+      "name": "wait-drawer-update",
+      "wait": 800
+    },
+    {
+      "name": "shot-bay1-drawer",
+      "screenshot": "04-bay1-drawers"
+    },
+    {
+      "name": "add-to-room",
+      "eval": "(function() { const btns = Array.from(document.querySelectorAll('button')); const addBtn = btns.find(b => b.textContent && b.textContent.trim() === 'Add to room'); if (!addBtn) throw new Error('Add to room button not found'); addBtn.click(); })()"
+    },
+    {
+      "name": "wait-save",
+      "wait": 4000
+    },
+    {
+      "name": "shot-after-add",
+      "screenshot": "05-after-add-to-room"
+    },
+    {
+      "name": "verify-item-in-scene",
+      "eval": "(function() { const items = window.__store.getState().items; if (!items || items.length === 0) throw new Error('No items in scene after add-to-room'); })()"
+    },
+    {
+      "name": "wait-scene-settle",
+      "wait": 1200
+    },
+    {
+      "name": "shot-kitchen-in-scene",
+      "screenshot": "06-kitchen-run-in-scene"
+    }
+  ]
+}
