@@ -63,6 +63,7 @@ export type FeatureFlag =
   | 'pbrSurfaces'
   | 'comments'
   | 'finishDnd'
+  | 'parametricFurniture'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -365,6 +366,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Drag a finish swatch onto the 3D scene or the Objects list to apply it',
     default: true,
     tier: 'simple',
+  },
+  // An authoring tool (CLAUDE.md: authoring tools are pro-tier), prod-safe
+  // pure code → ships on by default.
+  parametricFurniture: {
+    label: 'Custom-size furniture',
+    description: 'Generate shelving / wardrobes / sideboards to exact dimensions',
+    default: true,
+    tier: 'pro',
   },
 }
 

@@ -189,6 +189,17 @@ describe('comments flag (F24)', () => {
   })
 })
 
+describe('parametricFurniture flag (PF1)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro (prod default on)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').parametricFurniture).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').parametricFurniture).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.parametricFurniture.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.parametricFurniture.default).toBe(true)
+  })
+})
+
 describe('vrWalkthrough flag (F21)', () => {
   it('is pro-tier: hidden in Simple, present in Pro', () => {
     expect(resolveFlags(false, {}, false, 'simple').vrWalkthrough).toBe(false)

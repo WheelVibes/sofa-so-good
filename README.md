@@ -135,6 +135,14 @@ export the result — all in the browser.
   per m²/ft²**, a **finishes-by-room** spec, a **material palette** style board,
   and a **scale-barred, dimensioned floor plan**). Switch all dimension read-outs
   between **metric and imperial** (feet-and-inches) from the Graphics panel.
+- **Custom-size furniture** (Pro) — generate a **bookshelf, wardrobe, or
+  sideboard/TV console to exact dimensions** (Tylko/PAX-planner style): pick the
+  type, dial in width/height/depth with sliders, toggle doors / shelf count /
+  legs-vs-plinth, watch a live 3D preview, and add it to the catalog + room as a
+  regular item with a real footprint and an indicative price. Wide pieces
+  auto-gain a centre divider and doors split into ≤60 cm leaves so every result
+  is structurally plausible. Catalog → **Custom size**, or ⌘K → "Custom-size
+  furniture".
 - **Bring your own models** — import your own furniture as
   `.glb`/`.gltf` **or** `.obj` / `.fbx` / `.stl` / `.ply` / `.dae` / `.3mf` /
   `.usdz`: non-GLB formats are **converted to GLB in your browser** (no upload,

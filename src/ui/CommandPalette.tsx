@@ -42,6 +42,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'pano-tour-add': 'panoTour',
   'hq-render': 'hqRender',
   'shopping-list': 'shopExport',
+  parametric: 'parametricFurniture',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -118,6 +119,13 @@ export function CommandPalette() {
         label: 'Design a 3D asset (edit / create)',
         icon: 'Cube',
         run: () => s().setGlbDesignerOpen(true),
+      },
+      {
+        id: 'parametric',
+        group: 'Actions',
+        label: 'Custom-size furniture (shelf / wardrobe / sideboard)',
+        icon: 'Cube',
+        run: () => s().setParametricOpen(true),
       },
       {
         id: 'tidy',

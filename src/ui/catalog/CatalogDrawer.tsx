@@ -68,6 +68,7 @@ export function CatalogDrawer() {
   const setActiveDefId = useStore((s) => s.setActiveDefId)
   const isPro = useStore((s) => s.uiMode === 'pro')
   const setGlbDesignerOpen = useStore((s) => s.setGlbDesignerOpen)
+  const setParametricOpen = useStore((s) => s.setParametricOpen)
   const bootstrapRemote = useStore((s) => s.bootstrapRemoteCatalog)
   const phStatus = useStore((s) => s.remoteIndexes.polyhaven.status)
   // Packs (downloadable-content installs) is advanced — hidden in Simple mode.
@@ -77,6 +78,7 @@ export function CatalogDrawer() {
   // (parity with the dev/prod gating already applied inside each surface).
   const fPacks = useFeature('packs')
   const fUpload = useFeature('modelUpload')
+  const fParametric = useFeature('parametricFurniture')
   const unified = useUnifiedCatalog()
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
@@ -363,6 +365,17 @@ export function CatalogDrawer() {
               Drag onto the floor · <kbd>R</kbd> rotates
             </span>
             <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
+              {fParametric ? (
+                <button
+                  type="button"
+                  onClick={() => setParametricOpen(true)}
+                  className="btn btn-soft btn-sm"
+                  title="Generate a shelf / wardrobe / sideboard to exact dimensions"
+                >
+                  <Icon.Measure width={14} height={14} />
+                  Custom size
+                </button>
+              ) : null}
               {isPro ? (
                 <button
                   type="button"

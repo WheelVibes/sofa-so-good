@@ -79,6 +79,9 @@ export interface FeaturesSlice {
   smartStartOpen: boolean
   /** GLB Asset Designer (compose/edit a custom asset → catalog) visibility. */
   glbDesignerOpen: boolean
+  /** Parametric furniture generator (custom-size shelving/wardrobe/sideboard,
+   *  PF1) dialog visibility. */
+  parametricOpen: boolean
   /** Login screen (admin sign-in) visibility. */
   loginOpen: boolean
   /** Feature-flags panel (dev/admin) visibility. */
@@ -122,6 +125,7 @@ export interface FeaturesSlice {
   setCommentsOpen: (open: boolean) => void
   setSmartStartOpen: (open: boolean) => void
   setGlbDesignerOpen: (open: boolean) => void
+  setParametricOpen: (open: boolean) => void
   setLoginOpen: (open: boolean) => void
   setFlagsPanelOpen: (open: boolean) => void
   setShopTab: (tab: 'list' | 'saved') => void
@@ -154,6 +158,7 @@ export const FEATURES_INITIAL = {
   commentsOpen: false,
   smartStartOpen: false,
   glbDesignerOpen: false,
+  parametricOpen: false,
   loginOpen: false,
   flagsPanelOpen: false,
   shopTab: 'list' as 'list' | 'saved',
@@ -202,6 +207,7 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setCommentsOpen: (commentsOpen) => set({ commentsOpen }),
   setSmartStartOpen: (smartStartOpen) => set({ smartStartOpen }),
   setGlbDesignerOpen: (glbDesignerOpen) => set({ glbDesignerOpen }),
+  setParametricOpen: (parametricOpen) => set({ parametricOpen }),
   setLoginOpen: (loginOpen) => set({ loginOpen }),
   setFlagsPanelOpen: (flagsPanelOpen) => set({ flagsPanelOpen }),
   setShopTab: (shopTab) => set({ shopTab }),

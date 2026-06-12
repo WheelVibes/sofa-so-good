@@ -267,6 +267,10 @@ export interface UserGltfDef extends FurnitureDefBase {
    *  configurator milestone extends this to `mat:<id>` DLC + procedural ids.
    *  Applied by GltfModel. */
   finishOverrides?: Record<string, string>
+  /** Estimated price (SGD) carried on the def itself — set by the parametric
+   *  generator (material-volume estimate). Wins over the category fallback in
+   *  `itemPrice`; absent for plain uploads. Persisted (IDB meta + save schema). */
+  price?: number
 }
 
 export interface RemoteGltfDef extends FurnitureDefBase {

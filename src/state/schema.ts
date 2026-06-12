@@ -54,6 +54,8 @@ const UserGltfDefZ = z.object({
   verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
   finishTargets: z.array(z.object({ key: z.string(), label: z.string() })).optional(),
   finishOverrides: z.record(z.string(), z.string()).optional(),
+  // Optional def-level price estimate (parametric generator) — additive.
+  price: z.number().optional(),
 })
 
 const IkeaVariantZ = z.object({
@@ -354,6 +356,7 @@ export function serialize(state: RootState): SerializedState {
               verticalSpan: d.verticalSpan,
               finishTargets: d.finishTargets,
               finishOverrides: d.finishOverrides,
+              price: d.price,
             },
       ),
     userMaterials: state.userMaterials.map((d) => ({

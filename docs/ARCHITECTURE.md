@@ -198,6 +198,16 @@ same change that reshapes a system.
 - **Lighting / time of day**: SunCalc → `altitudeCurve.ts` → directional sun +
   hemisphere + IBL + sky. Fixtures emit capped day-gated night point lights; shades glow
   via `fixtureGlow`.
+- **Parametric furniture generator** (`furniture/parametric/`, PF1): dimension-driven
+  bookshelf/wardrobe/sideboard. Pure tested core — `spec.ts` (`clampSpec` envelopes, never
+  throws), `buildParts.ts` `buildParametric(spec)` → box parts (floor-anchored/centred/+Z;
+  auto centre divider >1.2 m bays, ≤0.6 m door leaves, rail; bounds = footprint),
+  `price.ts` board-area estimate → def-level `price` (wins in `itemPrice`). `buildObject.ts`
+  maps parts → meshes (furnitureMaterials) shared by the dialog preview AND
+  `saveParametric.ts` (exportGlb → `persistUserGlb`, hash-dedupe → new `UserGltfDef` per
+  spec; price+footprint persist via IDB meta + schema). UI `ui/parametric/ParametricDialog`
+  (type tabs + DimField sliders + live preview; Add to room arms placement); entries:
+  catalog-foot **Custom size**, ⌘K, mobile Design menu — `parametricFurniture` flag (pro).
 - **Parametric cabinet engine** (`furniture/cabinet/`): mm-customisable modular cabinets.
   `cabinetModel.ts` = pure tested `buildCabinet(spec)` → flat `CabinetPart[]` (toe-kick/
   carcass/countertop/cornice + slab·shaker·drawers·glass·open fronts; structurally sound).

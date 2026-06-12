@@ -16,7 +16,10 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   (uploads generate theirs in-browser via `optimize/lodVariants.ts`, routed by the `gltf/lod.ts`
   variant registry).
 - **Pure geometry stays render-agnostic + unit-tested** (e.g. `cabinet/cabinetModel.ts`
-  `buildCabinet`); the primitive only maps parts → meshes/materials.
+  `buildCabinet`, `parametric/buildParts.ts` `buildParametric`); the primitive/renderer only
+  maps parts → meshes/materials. The parametric generator (`parametric/`) saves through the
+  GLB-designer path (`exportGlb` → `persistUserGlb`) so its output is a regular user def —
+  don't invent a parallel persistence channel for generated geometry.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).

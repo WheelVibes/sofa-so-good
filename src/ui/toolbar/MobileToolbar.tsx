@@ -185,6 +185,7 @@ export function MobileToolbar() {
   const fLightingMoods = useFeature('lightingMoods')
   const fBackdrops = useFeature('backdrops')
   const fSmartStart = useFeature('smartStart')
+  const fParametric = useFeature('parametricFurniture')
   const fPanorama = useFeature('panorama')
   const fPanoTour = useFeature('panoTour')
   const fRenderPresets = useFeature('renderPresets')
@@ -713,6 +714,14 @@ export function MobileToolbar() {
                         label="Smart Start…"
                         sub="Furnish every room"
                         onClick={act(() => s.getState().setSmartStartOpen(true))}
+                      />
+                    ) : null}
+                    {fParametric ? (
+                      <Item
+                        icon="Measure"
+                        label="Custom-size furniture…"
+                        sub="Shelf / wardrobe / sideboard to size"
+                        onClick={act(() => s.getState().setParametricOpen(true))}
                       />
                     ) : null}
                     <Item
