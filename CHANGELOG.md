@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Tour: reorder so Scene precedes entering a room (spotlights on desktop + mobile)
+
+The "Set the mood" (Scene) step ran after "Edit a room" entered the room editor — but the Scene
+menu is `!roomEditorActive` on **both** desktop (`Toolbar.tsx`) and the mobile sheet, so the step
+had no live target and fell back to a centred card on every platform. Moved Scene to right after
+View (both are overview/environment controls), before the room-editor steps, and renumbered the
+step titles. Scene now spotlights its real control everywhere. `first-run-mobile-tour.json` walks
+the new order; `first-run.json`'s step-3 screenshot renamed to match.
+
 ## Fix: interactive guided tour on mobile (was falling through to the location prompt)
 
 On a mobile viewport, picking "Take the guided tour" in the onboarding carousel set

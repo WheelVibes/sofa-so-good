@@ -46,8 +46,15 @@ export const TOUR_STEPS: TourStep[] = [
     mobile: { target: '[data-tour-section="view"]' },
   },
   {
+    id: 'scene',
+    title: '2 · Set the mood',
+    body: 'The Scene menu changes the time of day (drag the slider from morning to night), tries a lighting mood, and picks a backdrop — city, park, hills or studio.',
+    target: '[aria-label="Scene"]',
+    mobile: { target: '[data-tour-section="scene"]' },
+  },
+  {
     id: 'edit',
-    title: '2 · Step into a room',
+    title: '3 · Step into a room',
     body: 'Open the Edit menu — this is where you step into a room to furnish it, or open the floor-plan editor to reshape walls. Go ahead and tap Edit.',
     target: '[aria-label="Edit"]',
     action: true,
@@ -55,7 +62,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'edit-room',
-    title: '3 · Edit a room',
+    title: '4 · Edit a room',
     body: 'Choose “Edit a room” to dive in. Furnishing, customising and finishes all happen inside the room editor — the overview is just for looking around.',
     target: '[aria-label="Edit a room"]',
     action: true,
@@ -63,7 +70,7 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'furniture',
-    title: '4 · Add furniture',
+    title: '5 · Add furniture',
     body: 'Open the Catalog to browse beds, sofas, tables and more, then drag a piece onto the floor — or tap a card, then tap where it should go. Tap Catalog to open it.',
     target: '[aria-label="Catalog"]',
     action: true,
@@ -71,20 +78,13 @@ export const TOUR_STEPS: TourStep[] = [
   },
   {
     id: 'customize',
-    title: '5 · Move & customise',
+    title: '6 · Move & customise',
     body: 'Tap any item to select it: drag to move, use the on-floor ring (or R) to rotate, and recolour or resize it in the inspector.',
   },
   {
     id: 'finishes',
-    title: '6 · Paint walls & floors',
+    title: '7 · Paint walls & floors',
     body: 'Tap a wall or the floor to open the finish picker — choose paints, wallpapers, wood, tile and more, per room or for the whole home.',
-  },
-  {
-    id: 'scene',
-    title: '7 · Set the mood',
-    body: 'The Scene menu changes the time of day (drag the slider from morning to night), tries a lighting mood, and picks a backdrop — city, park, hills or studio.',
-    target: '[aria-label="Scene"]',
-    mobile: { target: '[data-tour-section="scene"]' },
   },
   {
     id: 'finish',

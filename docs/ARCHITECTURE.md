@@ -168,8 +168,11 @@ same change that reshapes a system.
   click-through spotlight; only "Skip tour"/Esc ends it). On **mobile** the toolbar targets live
   in the hamburger sheet, so each step carries a `mobile` config (`tourSteps.ts`): the tour opens
   the sheet and expands the right accordion section (via `data-tour-section`/`data-tour` hooks in
-  `MobileToolbar`) to spotlight the real control, falling back to a centred card when a control
-  has no mobile equivalent (e.g. Scene inside the room editor); it closes the sheet on unmount.
+  `MobileToolbar`) to spotlight the real control, falling back to a centred card for conceptual
+  steps with no control (move/customise, finishes); it closes the sheet on unmount. Step order
+  keeps the overview-only controls (View, Scene, Edit) *before* the "Edit a room" step that
+  enters the editor — Scene + Edit are hidden in the room editor (desktop `Toolbar` and the
+  mobile sheet both gate them on `!roomEditorActive`), so they'd otherwise have no live target.
   **Location prompt suppressed while `onboardingOpen || tourOpen`** (no stacking) — so it always
   surfaces last, after the tour. Replay via Help (?) or ⌘K.
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
