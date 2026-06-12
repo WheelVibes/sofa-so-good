@@ -100,6 +100,17 @@ and **typed** (useful for programmatic generation):
 ```
 Each `waitFor` accepts `timeout` (ms) and `failMessage` overrides.
 
+### Store-injected fixtures must match the real types
+
+`eval` strings bypass TypeScript — `setItems([...])` with the wrong shape
+(e.g. `pos`/`rot` instead of `position: [x, z]`/`rotation`) doesn't error at
+injection; it crashes far away at render/derive time (a `position[0]` read in
+`spendByRoom` took down `BudgetPanel` and looked like an app bug). Check the
+real type (`FurnitureItem` in `src/furniture/types.ts`) before hand-writing
+fixtures, place items at coordinates inside an actual room (origin `[0,0]` is
+a plan corner), and set a daylight hour (`setManualHour(13)`) or screenshots
+come out near-black.
+
 ### Known headless limitations for scenario steps
 
 - **R3F raycasts don't fire for synthetic DOM events** — `click` by text/selector

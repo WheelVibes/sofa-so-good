@@ -1,16 +1,18 @@
 {
   "name": "furniture-finishes-simple",
-  "description": "Simple ladder for C264 — default CC0 wood finishes on common furniture. Verifies: (1) mat:floor-wood-oak grain renders on a dining table and bookshelf at the Performance (default) tier, (2) the same items look reasonable from a sofa-level angle, (3) close-up of a bookshelf showing tiling at physical scale.",
+  "description": "Simple ladder for C264 \u2014 default CC0 wood finishes on common furniture. Verifies: (1) mat:floor-wood-oak grain renders on a dining table and bookshelf at the Performance (default) tier, (2) the same items look reasonable from a sofa-level angle, (3) close-up of a bookshelf showing tiling at physical scale.",
   "url": "http://localhost:5208/",
   "steps": [
     {
       "name": "store-ready",
-      "waitFor": { "storeExists": true },
+      "waitFor": {
+        "storeExists": true
+      },
       "timeout": 60000
     },
     {
       "name": "dismiss-overlays",
-      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); if (s.budgetOpen) s.toggleBudget?.()"
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); if (s.budgetOpen) s.toggleBudget?.(); window.__store.getState().setManualHour?.(13)"
     },
     {
       "name": "wait-settle",
@@ -18,11 +20,11 @@
     },
     {
       "name": "place-items",
-      "eval": "window.__store.getState().setItems([{id:'item-dt',defId:'dining-table-4',pos:[0,0,0],rot:0,props:{finish:'mat:floor-wood-oak',topColor:'#9e7b53',legColor:'#5b4126',seats:'4',shape:'rect',sheen:0}},{id:'item-bs',defId:'bookshelf',pos:[-2,0,0],rot:0,props:{finish:'mat:floor-wood-oak',color:'#7a5e3a',width:0.9,height:1.8,shelfCount:4,style:'open',sheen:0}}])"
+      "eval": "window.__store.getState().setItems([{id:'item-dt',defId:'dining-table-4',position:[9,3],rotation:0,props:{finish:'mat:floor-wood-oak',topColor:'#9e7b53',legColor:'#5b4126',seats:'4',shape:'rect',sheen:0}},{id:'item-bs',defId:'bookshelf',position:[7.5,3],rotation:0,props:{finish:'mat:floor-wood-oak',color:'#7a5e3a',width:0.9,height:1.8,shelfCount:4,style:'open',sheen:0}}])"
     },
     {
       "name": "focus-dining-table",
-      "eval": "window.__store.getState().focusOn?.([0,0])"
+      "eval": "window.__store.getState().focusOn?.([9,3])"
     },
     {
       "name": "wait-mount",
@@ -34,11 +36,24 @@
     },
     {
       "name": "tilt-to-sofa-level",
-      "drag": { "from": [800, 200], "to": [800, 480] }
+      "drag": {
+        "from": [
+          800,
+          200
+        ],
+        "to": [
+          800,
+          480
+        ]
+      }
     },
     {
       "name": "zoom-in",
-      "wheel": { "x": 800, "y": 500, "dy": -500 }
+      "wheel": {
+        "x": 800,
+        "y": 500,
+        "dy": -500
+      }
     },
     {
       "name": "wait-settle-2",
@@ -50,7 +65,7 @@
     },
     {
       "name": "focus-bookshelf",
-      "eval": "window.__store.getState().focusOn?.([-2,0])"
+      "eval": "window.__store.getState().focusOn?.([7.5,3])"
     },
     {
       "name": "wait-focus",
@@ -58,7 +73,11 @@
     },
     {
       "name": "zoom-closeup",
-      "wheel": { "x": 800, "y": 500, "dy": -600 }
+      "wheel": {
+        "x": 800,
+        "y": 500,
+        "dy": -600
+      }
     },
     {
       "name": "wait-settle-3",
@@ -78,7 +97,7 @@
     },
     {
       "name": "focus-overview-perf",
-      "eval": "window.__store.getState().focusOn?.([0,0])"
+      "eval": "window.__store.getState().focusOn?.([9,3])"
     },
     {
       "name": "wait-settle-perf",
