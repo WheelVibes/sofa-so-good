@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Mobile menu → master-detail; tour spotlight genuinely click-through (desktop + mobile)
+
+Two related fixes for the mobile menu + product tour:
+
+**Spotlight wasn't clickable (the "can't click the Edit menu" bug).** The tour overlay root
+(`.tour-root`, `position:fixed; inset:0`) had the default `pointer-events:auto`, so it swallowed
+taps/clicks landing in the spotlight hole — the highlighted control never received them. Diagnosed
+via `elementFromPoint` at the target centre returning `.tour-root`. Fixed by making the root
+`pointer-events:none` and re-enabling it on the blocker panes and the card, so the hole truly
+passes input to the real control. This was a latent bug on **desktop** too (action steps were never
+exercised by a real click there); verified fixed on both with new real-click scenarios.
+
+**Mobile menu redesigned to master-detail.** The accordion sheet got unwieldy with many items per
+section. Replaced it with an icon-only left rail (each section shows its icon + a right chevron)
+that opens the selected section's items in a right-hand detail pane under a sticky title
+(`MobileToolbar.tsx`). The tour's mobile reveal now *selects* the target's section in the rail
+(checked via `aria-current`) instead of expanding an accordion.
+
+**Verification:** `scripts/scenarios/first-run-mobile-tour.json` now advances the action steps with
+**real hit-tested clicks** on the spotlighted rail/detail controls; new
+`scripts/scenarios/first-run-desktop-tour.json` does the same on desktop (Edit menu → Edit a room →
+Catalog). Both pass end-to-end; docs updated.
+
 ## Tour: reorder so Scene precedes entering a room (spotlights on desktop + mobile)
 
 The "Set the mood" (Scene) step ran after "Edit a room" entered the room editor — but the Scene

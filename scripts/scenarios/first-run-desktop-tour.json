@@ -1,0 +1,53 @@
+{
+  "name": "first-run-desktop-tour",
+  "description": "Desktop interactive guided tour: clean profile → onboarding → 'Take the guided tour' → walk the spotlight steps and advance the ACTION steps by REAL clicks on the spotlighted toolbar controls (Edit menu → Edit a room → Catalog), proving the spotlight hole is genuinely click-through (regression for the tour-root pointer-events bug). Ends by skipping → location prompt.",
+  "url": "http://localhost:5212/",
+  "steps": [
+    { "name": "clear-storage", "eval": "try { localStorage.clear() } catch {}" },
+    { "name": "reload-clean", "eval": "location.reload()" },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "onboarding-open", "waitFor": { "store": "state.onboardingOpen === true" }, "timeout": 60000 },
+    { "name": "click-get-started", "click": { "text": "Get started" } },
+    { "name": "onboarding-step2", "waitFor": { "css": ".onb-body2" }, "timeout": 5000 },
+    { "name": "click-next", "click": { "text": "Next" } },
+    { "name": "onboarding-step3", "waitFor": { "css": ".onb-body3" }, "timeout": 5000 },
+    { "name": "click-guided-tour", "click": { "text": "Take the guided tour" } },
+    { "name": "tour-open", "waitFor": { "store": "state.tourOpen === true" }, "timeout": 8000 },
+
+    { "name": "next-to-view", "click": { "text": "Next" } },
+    { "name": "view-step", "waitFor": { "store": "state.tourStep === 1" }, "timeout": 5000 },
+    { "name": "view-spotlit", "waitFor": { "css": "[aria-label=\"View\"]" }, "timeout": 5000 },
+
+    { "name": "next-to-scene", "click": { "text": "Next" } },
+    { "name": "scene-step", "waitFor": { "store": "state.tourStep === 2" }, "timeout": 5000 },
+    { "name": "scene-spotlit", "waitFor": { "css": "[aria-label=\"Scene\"]" }, "timeout": 5000 },
+    { "name": "shot-scene", "screenshot": "desktop-tour-scene-spotlight" },
+
+    { "name": "next-to-edit", "click": { "text": "Next" } },
+    { "name": "edit-step", "waitFor": { "store": "state.tourStep === 3" }, "timeout": 5000 },
+    { "name": "edit-spotlit", "waitFor": { "css": "[aria-label=\"Edit\"]" }, "timeout": 5000 },
+    { "name": "settle-edit", "wait": 400 },
+    { "name": "shot-edit", "screenshot": "desktop-tour-edit-spotlight" },
+
+    { "name": "click-edit-control", "click": { "selector": "[aria-label=\"Edit\"]" } },
+    { "name": "edit-room-step", "waitFor": { "store": "state.tourStep === 4" }, "timeout": 5000 },
+    { "name": "edit-room-spotlit", "waitFor": { "css": "[aria-label=\"Edit a room\"]" }, "timeout": 5000 },
+    { "name": "shot-edit-room", "screenshot": "desktop-tour-edit-room-spotlight" },
+
+    { "name": "click-edit-room", "click": { "selector": "[aria-label=\"Edit a room\"]" } },
+    { "name": "furniture-step", "waitFor": { "store": "state.tourStep === 5" }, "timeout": 8000 },
+    { "name": "in-room-editor", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 8000 },
+    { "name": "catalog-spotlit", "waitFor": { "css": "[aria-label=\"Catalog\"]" }, "timeout": 8000 },
+    { "name": "shot-catalog", "screenshot": "desktop-tour-catalog-spotlight" },
+
+    { "name": "click-catalog", "click": { "selector": "[aria-label=\"Catalog\"]" } },
+    { "name": "customize-step", "waitFor": { "store": "state.tourStep === 6" }, "timeout": 8000 },
+    { "name": "catalog-opened", "waitFor": { "store": "state.catalogOpen === true" }, "timeout": 5000 },
+    { "name": "shot-customize", "screenshot": "desktop-tour-customize" },
+
+    { "name": "skip-tour", "click": { "text": "Skip tour" } },
+    { "name": "tour-closed", "waitFor": { "store": "state.tourOpen === false" }, "timeout": 5000 },
+    { "name": "location-prompt", "waitFor": { "css": ".modal-overlay" }, "timeout": 8000 },
+    { "name": "shot-location", "screenshot": "desktop-location-prompt" }
+  ]
+}

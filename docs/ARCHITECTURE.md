@@ -165,14 +165,17 @@ same change that reshapes a system.
   **first** first-run surface — fires on clean profile, bot decision extracted to
   `ui/bootDecision.ts` (pure, tested). Carousel step 3 offers "Take the guided tour" as the
   ONLY automatic entry into the **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive
-  click-through spotlight; only "Skip tour"/Esc ends it). On **mobile** the toolbar targets live
-  in the hamburger sheet, so each step carries a `mobile` config (`tourSteps.ts`): the tour opens
-  the sheet and expands the right accordion section (via `data-tour-section`/`data-tour` hooks in
-  `MobileToolbar`) to spotlight the real control, falling back to a centred card for conceptual
-  steps with no control (move/customise, finishes); it closes the sheet on unmount. Step order
-  keeps the overview-only controls (View, Scene, Edit) *before* the "Edit a room" step that
-  enters the editor — Scene + Edit are hidden in the room editor (desktop `Toolbar` and the
-  mobile sheet both gate them on `!roomEditorActive`), so they'd otherwise have no live target.
+  click-through spotlight; only "Skip tour"/Esc ends it). The overlay root is
+  `pointer-events:none` (blockers + card re-enable) so the spotlight hole genuinely passes
+  taps/clicks to the real control on **both** desktop and mobile. On **mobile** the toolbar
+  targets live in the hamburger sheet, so each step carries a `mobile` config (`tourSteps.ts`):
+  the tour opens the sheet and selects the target's section in the icon rail (via
+  `data-tour-section`/`data-tour` hooks + `aria-current` in `MobileToolbar`) to spotlight the
+  real control, falling back to a centred card for conceptual steps with no control
+  (move/customise, finishes); it closes the sheet on unmount. Step order keeps the overview-only
+  controls (View, Scene, Edit) *before* the "Edit a room" step that enters the editor — Scene +
+  Edit are hidden in the room editor (desktop `Toolbar` and the mobile sheet both gate them on
+  `!roomEditorActive`), so they'd otherwise have no live target.
   **Location prompt suppressed while `onboardingOpen || tourOpen`** (no stacking) — so it always
   surfaces last, after the tour. Replay via Help (?) or ⌘K.
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
@@ -357,7 +360,9 @@ same change that reshapes a system.
   room / floor-plan), **Arrange** (Tidy + Sets/Presets/Styles pick→Apply `PickApply`),
   **Tools** (Budget/Checks/Sun study/Walkthrough/Report), **File**, **Graphics**. Three
   states: overview/room-editor/walk. Tooltips+menus via `Popover`; shortcut chips from
-  `controls/keybindings.ts`. Mobile: minimal bar → bottom action-sheet accordion (`MobileToolbar.tsx`).
+  `controls/keybindings.ts`. Mobile: minimal bar → bottom action-sheet with a master-detail
+  layout — an icon-only left rail of sections (`data-tour-section`) opens each section's items in
+  the right detail pane (`MobileToolbar.tsx`).
 - **Keyboard shortcuts** (`controls/`): `keybindings.ts` (the key map) + `useKeyboard.ts`
   (global keydown hook; skips repeats + editable targets) + `modalGuard.ts` (module-level
   open-modal counter — the shared `Modal` primitive and the modal-style overlays register

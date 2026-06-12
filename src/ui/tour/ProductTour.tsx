@@ -74,12 +74,14 @@ export function ProductTour() {
         return
       }
       if (!sheetEl()) {
-        menuBtn()?.click() // open the sheet; next poll tick expands the section
+        menuBtn()?.click() // open the sheet; next poll tick selects the section
         return
       }
       if (m.section) {
-        const header = document.querySelector<HTMLElement>(`[data-tour-section="${m.section}"]`)
-        if (header && header.getAttribute('aria-expanded') !== 'true') header.click()
+        // Select the section in the master rail so its row target shows in the
+        // detail pane (idempotent — only clicks when it isn't already current).
+        const tab = document.querySelector<HTMLElement>(`[data-tour-section="${m.section}"]`)
+        if (tab && tab.getAttribute('aria-current') !== 'true') tab.click()
       }
     }
     // Resolve the step's target. On mobile we use the mobile selector (resolved
@@ -205,8 +207,15 @@ export function ProductTour() {
 
   // Transparent click-blockers around the spotlight hole. They absorb clicks on
   // the dimmed area (so the app underneath isn't disturbed) WITHOUT ending the
-  // tour, while leaving the hole itself click-through to the real control.
-  const blocker: React.CSSProperties = { position: 'fixed', background: 'transparent' }
+  // tour, while leaving the hole itself click-through to the real control. They
+  // opt back into pointer events because the root is pointer-events:none (so the
+  // hole — which has no blocker — passes taps straight to the spotlighted control
+  // instead of being swallowed by the full-screen root container).
+  const blocker: React.CSSProperties = {
+    position: 'fixed',
+    background: 'transparent',
+    pointerEvents: 'auto',
+  }
   const holeTop = rect ? rect.top - PAD : 0
   const holeLeft = rect ? rect.left - PAD : 0
   const holeW = rect ? rect.width + PAD * 2 : 0
@@ -215,7 +224,15 @@ export function ProductTour() {
   return createPortal(
     <div
       className="tour-root"
-      style={{ position: 'fixed', inset: 0, zIndex: 'var(--z-modal, 9000)' as never }}
+      // pointer-events:none so the spotlight hole (which has no blocker pane over
+      // it) lets taps reach the real control underneath; the blockers and card
+      // re-enable pointer events for their own regions.
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 'var(--z-modal, 9000)' as never,
+        pointerEvents: 'none',
+      }}
     >
       {/* Dimmer: a spotlight hole (box-shadow) over the target, else a flat scrim. */}
       {rect ? (
@@ -271,6 +288,7 @@ export function ProductTour() {
           padding: 16,
           borderRadius: 'var(--r-3, 12px)',
           boxShadow: 'var(--shadow-panel)',
+          pointerEvents: 'auto',
           ...cardStyle,
         }}
       >
