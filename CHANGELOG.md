@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C266 / P-720 tail] Presentation-mode tour inclusion
+Optional "Include 360° tour" toggle in the presentation setup (View menu, saved-views section)
+appends the 360° tour stops as panorama slides after the saved views when both `presentation`
+and `panoTour` flags are on (both pro-tier). New `composeTourSlides()` in `slideLogic.ts` builds
+the unified `Slide[]` deck (`ViewSlide | TourStopSlide`) — pure, no React, fully tested. Tour-stop
+slides use the identical `capturePanorama({eye})` + `panoImageIdb` cache path as `PanoTourModal`
+(IDB cache hit = instant; miss = live capture + IDB persist), and set `stopInitialYaw` on arrival
+so the viewer faces the room centre. Auto-advance pauses on tour-stop slides (same as existing
+`SavedView.pano` slides). Stops on hidden/other storeys are skipped via the `currentLevelId`
+filter in `composeTourSlides`. The toggle is disabled (with hint) when the tour is empty. New
+`PresentationSetup` component renders the toggle + "Present…" start button inline in
+`SavedViewsSection` when both flags are on; falls back to the plain "Present…" menu item when
+only the `presentation` flag is on. State: `presentationIncludeTour` / `setPresentationIncludeTour`
+in `uiSlice`. Feature flag: uses existing `presentation` (pro) + `panoTour` (pro) — no new flag
+needed. 36 unit tests in two new/extended test files cover slide-deck composition, storey filtering,
+empty-tour no-op, auto-advance pause on tour slides, and both Simple and Pro mode flag gating.
+
 ## [C263 / F4] Render preset A/B compare modal
 Adds an industry-standard before/after comparison view for render presets (F4 tail), gated by a
 new `renderCompare` pro-tier feature flag. The modal (`src/ui/RenderCompareModal.tsx`) renders
@@ -21,6 +38,7 @@ for mobile parity. Pure state logic lives in `src/ui/renderCompare/compareState.
 on, prod-safe) is wired into `FEATURE_FLAGS`, `COMMAND_FLAGS` (`render-compare` → ⌘K), File menu,
 and MobileToolbar accordion. 10 unit tests cover all pure-state functions + flag visibility in both
 Simple and Pro modes. HDRI coupling (F3) remains deferred.
+
 ## [C261 / P-720 tail] 360° tour follow-ups: IDB image cache, room-centre yaw, plan stop placement, share-link embedding
 Four P-720 follow-ups shipped in one focused commit. **(1) IDB image cache**: new pure
 `ui/panorama/panoImageIdb.ts` (`sofa-pano-cache` database, separate from the asset store to
@@ -47,6 +65,7 @@ since both call `serialize`; images are NOT embedded (receivers capture live). +
 link compat, `applySerialized` restoration. Verified headless: tour-stop markers visible on the
 2D plan as numbered circles with the stop labels offset; opening the tour with a stop places the
 viewer facing the room centre; mobile 390×844 plan + tour modal both render correctly.
+
 ## [C262 / Q31 tail] Drop-target highlight + custom-plan overview wall-drop cue
 Two polish items deferred from C251. (1) **Transient drop-target highlight**: while
 a finish swatch is dragged over the 3D canvas a visible ring/tint overlay appears,
@@ -71,6 +90,7 @@ the room editor), a 3 s info toast guides the user: "Open a room to finish its
 walls". +18 tests (signal state machine: enter/over/leave/drop/dragend/cancel all
 clear; idempotency; subscribe/unsubscribe; hasUntaggedHits: tagged/untagged/invisible
 hits, ancestor-walk). `tsc` + full suite green.
+
 ## [C260 / LP6] Lux overlay — time-of-day scrub, auto-play, and per-fixture exclusion
 Extends the static 3D lux floor heatmap (C256/LP5) with live time-of-day scrubbing and
 per-fixture contribution isolation. `LuxOverlay.tsx` now reads `luxExcludedIds` from the
@@ -92,6 +112,7 @@ with higher daylight component), 20:00 night (deep blue/teal pools, no daylight)
 3 fixtures excluded (reduced pool area); no z-fighting, no loading-screen artifacts on any shot.
 Mobile panel (390 px) shows fixture list and slider cleanly. `drawings` flag off in Simple,
 on in Pro.
+
 ## [C259 / PERF9] Per-pattern procedural texture size registry — GPU memory reduction
 Added `PATTERN_SIZE_CAP` registry in `procedural/generators.ts` that declares the maximum useful
 resolution for each of the 17 procedural patterns, and `effectivePatternSize(pattern)` which clamps

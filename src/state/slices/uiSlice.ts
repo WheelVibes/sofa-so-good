@@ -65,6 +65,13 @@ export interface UiSlice {
   /** True while the full-screen client presentation (saved-views slideshow) runs. */
   presenting: boolean
   setPresenting: (v: boolean) => void
+  /**
+   * When true, the presentation appends the 360° tour stops as panorama slides
+   * after the saved views (requires both `presentation` + `panoTour` flags; the
+   * toggle is only visible when both are enabled). Ephemeral session preference.
+   */
+  presentationIncludeTour: boolean
+  setPresentationIncludeTour: (v: boolean) => void
   /** Whether the budget / shopping-list panel is open. */
   budgetOpen: boolean
   /** Whether clearance checks (door-swing blocking) are shown. */
@@ -176,6 +183,7 @@ export const UI_INITIAL: Pick<
   | 'snapEnabled'
   | 'gridSize'
   | 'presenting'
+  | 'presentationIncludeTour'
   | 'budgetOpen'
   | 'clearanceOn'
   | 'recording'
@@ -204,6 +212,7 @@ export const UI_INITIAL: Pick<
   backdrop: 'city' as BackdropKind,
   uiMode: 'simple' as UiMode,
   presenting: false,
+  presentationIncludeTour: false,
   budgetOpen: false,
   clearanceOn: false,
   recording: false,
@@ -294,6 +303,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setExposure: (e) => set({ exposure: clampExposure(e) }),
   setLightsMode: (m) => set({ lightsMode: m }),
   setPresenting: (presenting) => set({ presenting }),
+  setPresentationIncludeTour: (presentationIncludeTour) => set({ presentationIncludeTour }),
   cycleLightsMode: () =>
     set((s) => ({
       lightsMode: LIGHTS_CYCLE[(LIGHTS_CYCLE.indexOf(s.lightsMode) + 1) % LIGHTS_CYCLE.length],

@@ -390,8 +390,13 @@ same change that reshapes a system.
   auto-invalidated on design change); stop drag in the 2D plan editor SVG (`FloorPlanEditor`
   `movingStop` state); `panoTour` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
   pro — full-screen saved-views slideshow with per-view notes; views marked 360° (`SavedView.pano`)
-  capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses there,
-  pure `ui/presentation/slideLogic.ts`).
+  capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses on
+  panorama slides; **tour inclusion** — when both `presentation` + `panoTour` flags are on, the
+  View-menu "Present…" item becomes `ui/presentation/PresentationSetup.tsx` (inline toggle +
+  Start button); `presentationIncludeTour` state in `uiSlice`; `composeTourSlides()` in pure
+  `ui/presentation/slideLogic.ts` builds a `Slide[]` deck (`ViewSlide | TourStopSlide`) — tour
+  stops use the same `capturePanorama({eye})` + `panoImageIdb` cache as `PanoTourModal`; storey
+  filter via `viewLevelId`; toggle disabled when tour is empty).
 - **Mirror reflections** (`primitives/MirrorMaterial.tsx`): real planar reflection on
   High/Maximum (`mirrorReflectorConfig(tier)`), fake-shiny pane below. Uploaded GLB
   mirrors via inspector "Reflective surface" (`props.reflective`, `gltf/mirrorPlane.ts`).

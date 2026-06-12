@@ -36,6 +36,7 @@ import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
 import { openDesignReport } from '../openReport'
 import { openShoppingList } from '../openShoplist'
+import { PresentationSetup } from '../presentation/PresentationSetup'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
@@ -481,13 +482,17 @@ export function MobileToolbar() {
                         })}
                       />
                     ) : null}
-                    {fSavedViews && fPresentation && savedViews.length > 0 ? (
-                      <Item
-                        icon="Walkthrough"
-                        label="Present"
-                        sub="Full-screen saved-views slideshow"
-                        onClick={act(() => s.getState().setPresenting(true))}
-                      />
+                    {fSavedViews && savedViews.length > 0 ? (
+                      fPresentation && fPanoTour ? (
+                        <PresentationSetup />
+                      ) : fPresentation ? (
+                        <Item
+                          icon="Walkthrough"
+                          label="Present"
+                          sub="Full-screen saved-views slideshow"
+                          onClick={act(() => s.getState().setPresenting(true))}
+                        />
+                      ) : null
                     ) : null}
                     {fSavedViews && savedViews.length > 1 ? (
                       <Item
