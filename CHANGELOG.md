@@ -5,6 +5,52 @@ Each entry corresponds to one focused commit (C1–C250 on
 `claude/codebase-analysis-optimization-f6yag0`, C251+ on
 `claude/codebase-analysis-optimization-ny3xm9`). See `TASKS.md` for the backlog.
 
+## [C257 / PF1] Parametric furniture — dimension-driven shelving/wardrobe/sideboard generator
+First milestone of the procedural-furniture subsystem (IKEA PAX/BILLY · Tylko configurator
+parity). New pure `furniture/parametric/` module: a typed spec `{type, w, h, d, options}` is
+clamped to sensible per-type min/max and emitted as a structurally-sound part list — sides reach
+the floor, shelves span between sides with auto-spacing, a centre divider is auto-added past
+~1.2 m so shelves never span unsupported, back panel inset, wardrobe doors split into ≤0.6 m
+leaves, sideboard legs-vs-plinth — all built from real three materials (tintable wood +
+`mat:<id>`). A responsive `ParametricDialog` offers type tabs (bookshelf / wardrobe / sideboard),
+dimension sliders + option toggles, a live R3F preview, a material-volume price estimate, and an
+"Add to room" action; each generate saves a NEW user catalog def (identical specs de-dupe by
+content hash), so placement/collision/budget treat it like any other item and it survives
+save/reload (additive schema field carries the def-level price). New `parametricFurniture` flag
+(tier pro, default on, prod-safe pure code), gated in the catalog drawer, ⌘K (`COMMAND_FLAGS`),
+and the mobile toolbar; both-modes tests. Verified headless: the bookshelf preview shows
+evenly-spaced shelves with sides on the floor and the wardrobe splits into two handled doors —
+both structurally clean, no floating parts or z-fighting. Deferred: drawers, per-compartment
+config, more types.
+
+## [C256 / LP5] 3D lux-coverage heatmap overlay on the floor
+The lighting plan's illuminance can now be read in the actual scene, not just as 2D numbers.
+New pure `lighting2d/luxGrid.ts` (per-room sample grids from fixtures + daylight) +
+`luxColor.ts` (a perceptual blue→green→yellow→red ramp with residential lux breakpoints) feed
+`scene/LuxOverlay.tsx`, which renders one translucent `DataTexture` plane per visible level's
+rooms 5 mm above the floor (`depthWrite` off, transparent — no z-fighting) at the storey's
+elevation. Toggled from the Drawings panel's Lighting tab (`luxOverlayOn`) with a colour→lux
+legend, and gated by the same pro-tier `drawings` flag as the rest of the lighting plan
+(LP1–LP4). Recompute rides the existing render-time memos on items/plan/level/daylight —
+nothing per-frame; textures dispose on toggle-off. Edge cases handled: rooms with no samples
+never emit NaN, polygon rooms supported. Verified headless at midday: per-room heatmaps hug the
+floor with a smooth gradient that varies sensibly by room (brighter near windows), no shimmer.
++both-modes flag test. Deferred follow-up only.
+
+## [C255 / GE3c] GLB designer per-part texture pick
+Parts in the GLB designer can now take a real material/texture, not just a solid colour. The
+part spec gains an optional `finish` (`mat:<id>`); `partMaterial` resolves it through the
+existing furniture-material cache and returns a CLONE of the shared textured material (textures
+stay shared, per-part glow/opacity still apply on top, roughness/metalness sliders hide because
+the finish's own maps win). CSG-combined results get box-projected metre-scale UVs
+(`boxProjectUvs`) so a tiling finish reads at the right physical scale instead of smearing one
+texel. The ~900-line dialog's part inspector is extracted into a new `PartInspector.tsx` reusing
+the inspector's finish dropdown + `QuickFinishes` swatch row (Oak/Walnut/Teak/Ash/Ebony/Marble).
+The finish persists through the save-asset round trip (re-resolved at render, like solid colours).
+Rides the existing GLB-designer flag — no new flag. Verified headless: clicking "Oak" sets the
+part finish to `mat:floor-wood-oak` and the box renders with tiling wood grain (not flat/black),
+no artifacts. Deferred: per-part texture on combined-mesh parts takes the first part's material.
+
 ## [C252 / P-720] Linked 720° panorama tour — multi-pano capture with room hotspots
 Coohom "720° tour" parity. A tour is an ordered list of stops `{id, label, position:[x,z],
 levelId?}` in the new `panoTourSlice`, persisted per-device to localStorage like saved camera

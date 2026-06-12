@@ -56,8 +56,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   `FurnitureMaterialLoader` pre-build + per-furniture UV scale) + optional Performance env hint.
 
 ## Content & catalog
-- [~] PF1 (TODO.md subsystem 4 v1): parametric furniture generator — dimension-driven
-  bookshelf/wardrobe/sideboard with live preview + catalog persistence. (in flight, worktree agent)
+- [ ] PF tail: parametric furniture v2 (C257 shipped v1 — bookshelf/wardrobe/sideboard) — add
+  drawers, per-compartment config, more types (desk, kitchen-cabinet runs).
 - [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
   so designs look styled; ensure category coverage is exhaustive.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
@@ -71,7 +71,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
 - [ ] Q31 tail (optional): transient drop-target highlight during dragover (skipped in C251 —
   needs an artifact-free approach under frameloop=demand); custom-plan overview wall drops no-op.
-- [~] GE3c GLB designer: per-part texture pick. (in flight, worktree agent)
+- [ ] GE3c tail: per-part texture on combined-mesh (CSG) parts currently takes the first part's
+  material (C257 shipped per-primitive-part texture pick) — per-face texture on a union is open.
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 
 ## Commerce / collaboration
@@ -87,7 +88,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
 - [ ] PERF9 tail: drop procedural textures to 256² where quality allows / OffscreenCanvas worker.
-- [~] LP5 tail: 3D lux coverage overlay on the floor. (in flight, worktree agent)
+- [ ] LP6 (optional): animate/scrub the lux overlay across the day; per-fixture contribution
+  toggle (C256 shipped the static 3D lux floor heatmap).
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
