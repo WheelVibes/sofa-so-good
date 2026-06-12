@@ -56,6 +56,12 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
   While **iterating**, run targeted tests only (`npx vitest --run <paths near your change>`);
   run the **full suite exactly once, right before the commit** — full-suite runs are ~2 min
   and dominate iteration time, especially under parallel-agent load.
+  **When running as one of several parallel agents** (sandbox has 4 cores): cap test workers
+  (`npm test -- --run --maxWorkers=2`), never run the full suite and a screenshot/scenario
+  harness at the same time (sequence heavy phases), and seed a fresh worktree's deps with a
+  hardlink copy instead of a reinstall:
+  `cp -al /home/user/sofa-so-good/node_modules <worktree>/node_modules && rm -rf <worktree>/node_modules/.vite`
+  (seconds vs minutes; the `.vite` removal keeps dep-optimizer caches per-worktree).
   Commit/push only when asked; one focused change per commit; log shipped work in `CHANGELOG.md`.
 - **Research against references.** When designing a new feature or judging what good UI/UX
   should look like, consult **[REFERENCES.md](REFERENCES.md)** (competitor/reference apps —
