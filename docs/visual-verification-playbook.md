@@ -242,6 +242,26 @@ viewport 390×844 leg.
 - `eval` steps sharing the page scope across steps: wrap all `const` declarations
   in IIFEs to avoid "Identifier already declared" errors.
 
+### Worked examples — pro-tier analytical feature scenarios (C272)
+
+All 7 scenarios below run against `SHOT_URL=http://localhost:5213/` (any dev server port works via env override).
+Each starts in Simple mode (app default), asserts the feature is hidden, switches to Pro, exercises the feature,
+then optionally switches back to Simple and asserts it is hidden again.
+
+- **`drawings-lighting-simple.json`** (30 steps, 7 shots) — `drawings` flag Simple/Pro gate; opens `#elevationPanel`; switches to Lighting tab via segmented control; toggles `luxOverlayOn` via store; scrubs `manualHour` to 19 and asserts overlay state persists.
+- **`versions-simple.json`** (14 steps, 3 shots) — `versions` flag Simple/Pro gate; opens `#versionsPanel`; asserts it mounts; closes and switches back.
+- **`versions-journey.json`** (31 steps, 6 shots) — seeds a schema-valid save into `localStorage` (`sofa-so-good:save:test-v1`); opens versions panel; adds a dining table (2 items); clicks Compare → asserts `.ver-diff`; clicks Restore → asserts item count round-trips to 1 sofa.
+- **`history-simple.json`** (30 steps, 5 shots) — `history` flag Simple/Pro gate; clears items+history; places sofa then armchair; pushes history twice; opens `#historyPanel`; `jumpHistory(0)` → asserts 1 sofa (first past snapshot = state after sofa was placed); jumps to latest.
+- **`pano-tour-simple.json`** (27 steps, 5 shots) — `panoTour` flag Simple/Pro gate; seeds 2 stops via `window.__store.setState({panoTourStops:[...], panoTourActiveId:'...'})` (NOT `addPanoTourStopHere` which reads live camera); opens `.modal-overlay`; asserts Living Room + Kitchen tab buttons; opens 2D plan editor via `setFloorPlanEditing(true)`; asserts `.plan-screen circle` count ≥ 2.
+- **`pano-tour-journey.json`** (37 steps, 8 shots) — multi-step pano tour: add 2 stops, plan editor markers, tour modal with stop switching; then `{"viewport": {"width": 390, "height": 844}}` mobile leg — asserts stop tabs visible at 390×844.
+- **`render-compare-simple.json`** (19 steps, 4 shots) — `renderCompare` flag Simple/Pro gate; opens modal via `setRenderCompareOpen(true)`; asserts `.modal-overlay select` count ≥ 1 (preset selectors: "Bright day" + "Soft morning" dropdowns and "64 samples" selector visible).
+
+**Key gotcha: `jumpHistory(0)` goes to `past[0]`, not an empty state.** After `pushHistory()`, `past[0]` holds the state at the time of the first push (sofa placed), so the assertion after jumping to index 0 is 1 item (`sofa-3seat`), not 0. See `history-simple.json` step `assert-jumped-to-first`.
+
+**Key gotcha: `addPanoTourStopHere()` reads live camera position** — in headless the camera is at the default orbit origin, so all stops land at [0,0] and overlap. Inject stops directly via `window.__store.setState({panoTourStops:[{id,label,position:[x,z]},...]})` instead.
+
+**Key gotcha: versions panel save flow requires interactive `promptText()`.** Seeding a version directly into `localStorage` with a schema-valid payload (requires `version:2`, `apartmentId:'serangoon-north-vista-4r'`, `userFurniture:[]`, `userMaterials:[]`, `timeMode`, `manualHour`, `cameraMode`, `savedAt`, `items`, `doors`, `finishes`) bypasses the modal entirely and exercises the load/compare/restore path. See `versions-journey.json` step `seed-saved-version-in-localstorage`.
+
 ---
 
 ## Legacy mode (one-shot, backward-compatible)

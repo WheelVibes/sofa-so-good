@@ -1,0 +1,64 @@
+{
+  "name": "versions-simple",
+  "url": "http://localhost:5213/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "window.__store.getState().endTour?.(); window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().dismissLocationPrompt?.()"
+    },
+    {
+      "name": "assert-versions-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.versions !== false) throw new Error('versions flag should be OFF in Simple mode but got: ' + window.__store.getState().featureFlags.versions)"
+    },
+    {
+      "name": "shot-simple-mode",
+      "screenshot": "01-simple-mode-no-versions"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "assert-versions-enabled-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.versions) throw new Error('versions flag should be ON in Pro mode')"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "open-versions-panel",
+      "store": { "action": "setVersionsOpen", "args": [true] }
+    },
+    {
+      "name": "wait-versions-panel",
+      "waitFor": { "css": "#versionsPanel" },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-versions-panel-open",
+      "screenshot": "02-versions-panel-open"
+    },
+    {
+      "name": "close-versions-panel",
+      "store": { "action": "setVersionsOpen", "args": [false] }
+    },
+    {
+      "name": "switch-back-to-simple",
+      "store": { "action": "setUiMode", "args": ["simple"] }
+    },
+    {
+      "name": "assert-versions-off-again",
+      "eval": "if (window.__store.getState().featureFlags.versions !== false) throw new Error('versions should be OFF again in Simple mode')"
+    },
+    {
+      "name": "shot-simple-final",
+      "screenshot": "03-simple-mode-restored"
+    }
+  ]
+}

@@ -1,0 +1,84 @@
+{
+  "name": "render-compare-simple",
+  "url": "http://localhost:5213/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "window.__store.getState().endTour?.(); window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().dismissLocationPrompt?.()"
+    },
+    {
+      "name": "assert-render-compare-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.renderCompare !== false) throw new Error('renderCompare flag should be OFF in Simple mode but got: ' + window.__store.getState().featureFlags.renderCompare)"
+    },
+    {
+      "name": "assert-modal-closed-in-simple",
+      "eval": "if (window.__store.getState().renderCompareOpen) throw new Error('renderCompareOpen should be false in Simple mode')"
+    },
+    {
+      "name": "shot-simple-mode",
+      "screenshot": "01-simple-mode-no-render-compare"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "assert-render-compare-enabled-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.renderCompare) throw new Error('renderCompare flag should be ON in Pro mode')"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "open-render-compare-modal",
+      "store": { "action": "setRenderCompareOpen", "args": [true] }
+    },
+    {
+      "name": "wait-render-compare-modal",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-modal-open",
+      "screenshot": "02-render-compare-modal-open"
+    },
+    {
+      "name": "assert-modal-open-in-store",
+      "eval": "if (!window.__store.getState().renderCompareOpen) throw new Error('renderCompareOpen should be true after opening')"
+    },
+    {
+      "name": "assert-preset-selectors-exist",
+      "eval": "(() => { const selects = document.querySelectorAll('.modal-overlay select'); if (selects.length < 1) throw new Error('Expected at least 1 preset selector in render compare modal, found: ' + selects.length); })()"
+    },
+    {
+      "name": "shot-preset-selectors",
+      "screenshot": "03-preset-selectors-visible"
+    },
+    {
+      "name": "close-modal",
+      "store": { "action": "setRenderCompareOpen", "args": [false] }
+    },
+    {
+      "name": "wait-modal-closed",
+      "waitFor": { "css": ".modal-overlay", "visible": false }
+    },
+    {
+      "name": "switch-back-to-simple",
+      "store": { "action": "setUiMode", "args": ["simple"] }
+    },
+    {
+      "name": "assert-render-compare-hidden-again",
+      "eval": "if (window.__store.getState().featureFlags.renderCompare !== false) throw new Error('renderCompare should be OFF again in Simple mode')"
+    },
+    {
+      "name": "shot-simple-final",
+      "screenshot": "04-simple-mode-restored"
+    }
+  ]
+}

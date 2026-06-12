@@ -1,0 +1,128 @@
+{
+  "name": "history-simple",
+  "url": "http://localhost:5213/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "window.__store.getState().endTour?.(); window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().dismissLocationPrompt?.()"
+    },
+    {
+      "name": "assert-history-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.history !== false) throw new Error('history flag should be OFF in Simple mode but got: ' + window.__store.getState().featureFlags.history)"
+    },
+    {
+      "name": "shot-simple-mode",
+      "screenshot": "01-simple-mode-no-history"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "assert-history-enabled-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.history) throw new Error('history flag should be ON in Pro mode')"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "clear-items",
+      "eval": "window.__store.getState().setItems([])"
+    },
+    {
+      "name": "clear-history",
+      "eval": "window.__store.getState().clearHistory()"
+    },
+    {
+      "name": "place-item-step1",
+      "eval": "window.__store.getState().setItems([{ id: 'h-sofa-1', defId: 'sofa-3seat', position: [9, 3], rotation: 0, props: {} }])"
+    },
+    {
+      "name": "push-history-step1",
+      "eval": "window.__store.getState().pushHistory()"
+    },
+    {
+      "name": "wait-history-step1",
+      "waitFor": { "store": "window.__store.getState().past.length >= 1" }
+    },
+    {
+      "name": "place-item-step2",
+      "eval": "window.__store.getState().setItems([...window.__store.getState().items, { id: 'h-chair-1', defId: 'armchair', position: [7, 3], rotation: 0, props: {} }])"
+    },
+    {
+      "name": "push-history-step2",
+      "eval": "window.__store.getState().pushHistory()"
+    },
+    {
+      "name": "wait-history-step2",
+      "waitFor": { "store": "window.__store.getState().past.length >= 2" }
+    },
+    {
+      "name": "open-history-panel",
+      "store": { "action": "setHistoryOpen", "args": [true] }
+    },
+    {
+      "name": "wait-history-panel",
+      "waitFor": { "css": "#historyPanel" },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-history-panel-open",
+      "screenshot": "02-history-panel-two-steps"
+    },
+    {
+      "name": "assert-history-has-steps",
+      "eval": "if (window.__store.getState().past.length < 2) throw new Error('Expected at least 2 history steps, got ' + window.__store.getState().past.length)"
+    },
+    {
+      "name": "jump-to-step0",
+      "eval": "window.__store.getState().jumpHistory(0)"
+    },
+    {
+      "name": "wait-jump",
+      "wait": 500
+    },
+    {
+      "name": "assert-jumped-to-first",
+      "eval": "(() => { const items = window.__store.getState().items; if (items.length !== 1) throw new Error('After jumping to step 0 (first push = sofa only): expected 1 item, got ' + items.length); if (items[0].defId !== 'sofa-3seat') throw new Error('Expected sofa-3seat at step 0, got ' + items[0].defId); })()"
+    },
+    {
+      "name": "shot-jumped-to-first",
+      "screenshot": "03-history-jump-step0"
+    },
+    {
+      "name": "jump-to-latest",
+      "eval": "(() => { const st = window.__store.getState(); const totalSteps = st.past.length + 1 + st.future.length; st.jumpHistory(totalSteps - 1); })()"
+    },
+    {
+      "name": "wait-jump2",
+      "wait": 500
+    },
+    {
+      "name": "shot-jumped-to-latest",
+      "screenshot": "04-history-jump-latest"
+    },
+    {
+      "name": "close-history-panel",
+      "store": { "action": "setHistoryOpen", "args": [false] }
+    },
+    {
+      "name": "switch-back-to-simple",
+      "store": { "action": "setUiMode", "args": ["simple"] }
+    },
+    {
+      "name": "assert-history-hidden-again",
+      "eval": "if (window.__store.getState().featureFlags.history !== false) throw new Error('history should be OFF again in Simple mode')"
+    },
+    {
+      "name": "shot-simple-final",
+      "screenshot": "05-simple-mode-restored"
+    }
+  ]
+}

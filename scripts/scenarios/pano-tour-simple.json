@@ -1,0 +1,117 @@
+{
+  "name": "pano-tour-simple",
+  "url": "http://localhost:5213/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "window.__store.getState().endTour?.(); window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().dismissLocationPrompt?.()"
+    },
+    {
+      "name": "assert-pano-tour-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.panoTour !== false) throw new Error('panoTour flag should be OFF in Simple mode but got: ' + window.__store.getState().featureFlags.panoTour)"
+    },
+    {
+      "name": "shot-simple-mode",
+      "screenshot": "01-simple-mode-no-panotour"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "assert-pano-tour-enabled-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.panoTour) throw new Error('panoTour flag should be ON in Pro mode')"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "clear-tour-stops",
+      "eval": "window.__store.getState().clearPanoTour()"
+    },
+    {
+      "name": "add-two-stops-via-store",
+      "eval": "window.__store.setState({ panoTourStops: [{ id: 'demo-stop-1', label: 'Living Room', position: [9, 3] }, { id: 'demo-stop-2', label: 'Kitchen', position: [4, 3] }], panoTourActiveId: 'demo-stop-1' })"
+    },
+    {
+      "name": "wait-stops-set",
+      "waitFor": { "store": "window.__store.getState().panoTourStops.length === 2" }
+    },
+    {
+      "name": "assert-two-stops",
+      "eval": "if (window.__store.getState().panoTourStops.length !== 2) throw new Error('Expected 2 tour stops, got ' + window.__store.getState().panoTourStops.length)"
+    },
+    {
+      "name": "open-tour-modal",
+      "store": { "action": "setPanoTourOpen", "args": [true] }
+    },
+    {
+      "name": "wait-tour-modal",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-tour-modal-open",
+      "screenshot": "02-pano-tour-modal-open"
+    },
+    {
+      "name": "assert-stop-tabs-render",
+      "eval": "(() => { const btns = Array.from(document.querySelectorAll('.modal-overlay button')).filter(b => b.textContent?.includes('Living Room') || b.textContent?.includes('Kitchen')); if (btns.length < 2) throw new Error('Expected at least 2 stop tab buttons (Living Room + Kitchen), found: ' + btns.length); })()"
+    },
+    {
+      "name": "shot-stop-tabs",
+      "screenshot": "03-stop-tabs-visible"
+    },
+    {
+      "name": "close-tour-modal",
+      "store": { "action": "setPanoTourOpen", "args": [false] }
+    },
+    {
+      "name": "wait-modal-closed",
+      "waitFor": { "css": ".modal-overlay", "visible": false }
+    },
+    {
+      "name": "open-floor-plan-editor",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    {
+      "name": "wait-plan-screen",
+      "waitFor": { "css": ".plan-screen" },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-plan-editor-with-stops",
+      "screenshot": "04-plan-editor-stop-markers"
+    },
+    {
+      "name": "assert-plan-has-stop-markers",
+      "eval": "(() => { const circles = document.querySelectorAll('.plan-screen circle'); if (circles.length < 2) throw new Error('Expected at least 2 circles (stop markers) in plan editor, found: ' + circles.length); })()"
+    },
+    {
+      "name": "exit-plan-editor",
+      "eval": "window.__store.getState().setFloorPlanEditing(false)"
+    },
+    {
+      "name": "clear-demo-stops",
+      "eval": "window.__store.getState().clearPanoTour()"
+    },
+    {
+      "name": "switch-back-to-simple",
+      "store": { "action": "setUiMode", "args": ["simple"] }
+    },
+    {
+      "name": "assert-pano-tour-hidden-again",
+      "eval": "if (window.__store.getState().featureFlags.panoTour !== false) throw new Error('panoTour should be OFF again in Simple mode')"
+    },
+    {
+      "name": "shot-simple-final",
+      "screenshot": "05-simple-mode-restored"
+    }
+  ]
+}
