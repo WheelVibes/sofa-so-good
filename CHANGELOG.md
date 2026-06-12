@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Help slimmed to a launcher; sign-in moved to the main menu; admin password → "admin"
+
+- **Help modal** no longer embeds how-to tips (the user guide covers them). It's now a launcher:
+  **Replay the guided tour** + **Open the user guide ↗**, plus a desktop-only **Keyboard
+  shortcuts** button that opens the shortcut reference in its own modal (mobile has no hardware
+  keyboard, so it's omitted there). New `Keyboard` icon.
+- **Sign in / account** moved out of Help into the main menu: a persistent footer at the bottom of
+  the mobile hamburger sheet, and the bottom of the desktop Appearance popover.
+- **Admin dev-gate password** dev fallback is now `admin` (was `sofa-admin`).
+- Mobile menu rail is icon-only (dropped the per-row chevron).
+
 ## Mobile menu → master-detail; tour spotlight genuinely click-through (desktop + mobile)
 
 Two related fixes for the mobile menu + product tour:

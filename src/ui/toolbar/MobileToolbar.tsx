@@ -173,6 +173,7 @@ export function MobileToolbar() {
   const setHelpOpen = useStore((st) => st.setHelpOpen)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
   const setAppearanceOpen = useStore((st) => st.setAppearanceOpen)
+  const currentUser = useStore((st) => st.currentUser)
   const effectiveHour = useEffectiveHour()
   const recipes = ikeaSetRecipes()
 
@@ -419,7 +420,7 @@ export function MobileToolbar() {
             </div>
             <div className="m-sheet-panes">
               {/* Icon-only master rail: pick a section; its items show in the
-                  detail pane on the right. Each shows a right chevron (submenu). */}
+                  detail pane on the right. */}
               <div className="m-rail" role="tablist" aria-label="Menu sections">
                 {railItems.map((r) => {
                   const Glyph = Icon[r.icon]
@@ -437,7 +438,6 @@ export function MobileToolbar() {
                       onClick={() => setActiveId(r.id)}
                     >
                       <Glyph className="icn" width={22} height={22} />
-                      <Icon.ChevronRight className="m-rail-chev" width={13} height={13} />
                     </button>
                   )
                 })}
@@ -1156,6 +1156,20 @@ export function MobileToolbar() {
                   <Item icon="Help" label="Help" onClick={act(() => setHelpOpen(true))} />
                 </Section>
               </div>
+            </div>
+            {/* Persistent footer: sign in / account, always at the bottom of the
+                main menu regardless of the selected section. */}
+            <div className="m-sheet-foot">
+              <button
+                type="button"
+                className="m-foot-btn"
+                onClick={act(() => s.getState().setLoginOpen(true))}
+              >
+                <Icon.Eye className="icn" width={18} height={18} />
+                <span className="m-foot-tx">
+                  {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
+                </span>
+              </button>
             </div>
           </div>
         </div>

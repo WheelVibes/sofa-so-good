@@ -15,7 +15,7 @@ import type { AuthProvider, AuthUser, SignInResult } from './types'
 export const ADMIN_USER: AuthUser = { id: 'admin', name: 'Admin', role: 'admin' }
 
 const EXPECTED_PASSWORD =
-  ((import.meta.env?.VITE_ADMIN_PASSWORD as string | undefined) ?? '').trim() || 'sofa-admin'
+  ((import.meta.env?.VITE_ADMIN_PASSWORD as string | undefined) ?? '').trim() || 'admin'
 
 /** Pure password check (injectable expected value for testing). */
 export function verifyAdminPassword(input: string, expected: string = EXPECTED_PASSWORD): boolean {

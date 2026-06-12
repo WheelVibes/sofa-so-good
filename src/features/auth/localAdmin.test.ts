@@ -13,7 +13,7 @@ describe('verifyAdminPassword', () => {
 
 describe('localAdminProvider', () => {
   it('signs in with the dev fallback password and returns an admin user', async () => {
-    const res = await localAdminProvider.signIn({ password: 'sofa-admin' })
+    const res = await localAdminProvider.signIn({ password: 'admin' })
     expect(res.ok).toBe(true)
     if (res.ok) {
       expect(res.user.role).toBe('admin')
