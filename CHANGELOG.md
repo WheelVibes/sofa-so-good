@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C260 / LP6] Lux overlay — time-of-day scrub, auto-play, and per-fixture exclusion
+Extends the static 3D lux floor heatmap (C256/LP5) with live time-of-day scrubbing and
+per-fixture contribution isolation. `LuxOverlay.tsx` now reads `luxExcludedIds` from the
+store and filters out excluded fixtures before recomputing grids; the memo already reacts
+to `manualHour` via `useSunPosition` / `lightingFromAltitude`, so scrubbing the time-of-day
+slider in either the Scene menu or the new inline slider updates the heatmap live (debounced
+implicitly by the quantised fixture/daylight levels — sub-percent changes don't churn the memo).
+A `luxPlaying` rAF loop auto-advances `manualHour` at 1 hr/s for a full-day preview. New
+store state (`luxExcludedIds: string[]`, `luxPlaying: boolean`) + actions in `featuresSlice.ts`
+— clearing on overlay-off; per-fixture toggle (`toggleLuxExcluded`), bulk set, play toggle.
+`ElevationPanel.tsx` gains two new sections in the Lighting tab: (1) a compact time slider (reusing
+`setManualHour` / `effectiveHour`) with a ▶/⏹ play button showing the current clock; (2) a
+scrollable per-fixture checkbox list labelled "Fixture contributions — uncheck to isolate" with
+struck-through dimmed text for excluded items — responsive on both desktop and mobile
+bottom-sheet. Gated behind the same pro-tier `drawings` flag. 16 new unit tests: store slice
+actions, per-fixture exclusion changes lux computation, time-input sensitivity, flag/mode gating.
+Verified headless: 09:00 (warm orange/red pools, high fixture contribution), 13:00 (similar but
+with higher daylight component), 20:00 night (deep blue/teal pools, no daylight), and with
+3 fixtures excluded (reduced pool area); no z-fighting, no loading-screen artifacts on any shot.
+Mobile panel (390 px) shows fixture list and slider cleanly. `drawings` flag off in Simple,
+on in Pro.
 ## [C259 / PERF9] Per-pattern procedural texture size registry — GPU memory reduction
 Added `PATTERN_SIZE_CAP` registry in `procedural/generators.ts` that declares the maximum useful
 resolution for each of the 17 procedural patterns, and `effectivePatternSize(pattern)` which clamps

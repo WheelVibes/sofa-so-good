@@ -6,6 +6,7 @@ import { buildMergedCatalog } from '../furniture/catalog'
 import type { FurnitureDef, FurnitureType } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux, type LuxStatus } from '../lighting2d/roomLux'
+import { useEffectiveHour } from '../scene/lighting/useEffectiveHour'
 import { useStore } from '../state/store'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { LuxLegend } from './lighting2d/LuxLegend'
@@ -36,15 +37,40 @@ const LUX_BADGE: Record<LuxStatus, { cls: string; label: string }> = {
   high: { cls: 'warn', label: 'High' },
 }
 
-/** Wall elevations: a flat "side-on" drawing per wall (openings + furniture
- *  silhouettes) — the vertical counterpart to the floor plan, for cabinet/
- *  fixture heights + client/installer hand-off. Built on the pure
- *  `projectAllElevations` + `elevationSvg`. */
+/** Format fractional hour → "10:30 AM" for the time display. */
+function formatClock(hour: number): string {
+  const h = ((hour % 24) + 24) % 24
+  const totalMinutes = Math.round(h * 60) % (24 * 60)
+  const hh = Math.floor(totalMinutes / 60)
+  const mm = totalMinutes % 60
+  const period = hh < 12 ? 'AM' : 'PM'
+  const display = hh % 12 === 0 ? 12 : hh % 12
+  return `${display}:${String(mm).padStart(2, '0')} ${period}`
+}
+
+/** Wall elevations + lighting plan drawings panel (Drawings tab in the toolbar).
+ *
+ *  LP6 enhancements on the Lighting tab:
+ *  - **Time-of-day scrub**: compact range slider that drives the existing
+ *    `manualHour` store state (same slider as SceneMenu), so the 3D heatmap
+ *    updates live as the user scrubs. A "▶ Play" button auto-advances the
+ *    overlay across the day at 1 hr/s. Works on desktop and mobile.
+ *  - **Per-fixture exclusion**: checkbox list of placed light fixtures; unchecking
+ *    one hides it from the heatmap computation so the user can see each
+ *    fixture's contribution in isolation. Cleared when the overlay is toggled off.
+ */
 export function ElevationPanel() {
   const open = useStore((s) => s.elevationsOpen)
   const setOpen = useStore((s) => s.setElevationsOpen)
   const luxOverlayOn = useStore((s) => s.luxOverlayOn)
   const setLuxOverlayOn = useStore((s) => s.setLuxOverlayOn)
+  const luxExcludedIds = useStore(useShallow((s) => s.luxExcludedIds))
+  const toggleLuxExcluded = useStore((s) => s.toggleLuxExcluded)
+  const luxPlaying = useStore((s) => s.luxPlaying)
+  const setLuxPlaying = useStore((s) => s.setLuxPlaying)
+  const setManualHour = useStore((s) => s.setManualHour)
+  const effectiveHour = useEffectiveHour()
+
   const items = useStore((s) => s.items)
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
@@ -186,9 +212,7 @@ export function ElevationPanel() {
           )
         ) : (
           <>
-            {/* 3D lux heatmap on the floor (LP5 tail): toggle + colour legend.
-                Available with zero fixtures too — the overlay then shows the
-                daylight wash by day and a uniformly dark floor at night. */}
+            {/* ── 3D lux heatmap toggle (LP5 tail / LP6) ──────────────────── */}
             <div style={{ margin: '0 0 var(--s-2)' }}>
               <label
                 style={{
@@ -206,12 +230,146 @@ export function ElevationPanel() {
                 />
                 <span style={{ flex: 1 }}>Show light levels on the floor (3D)</span>
               </label>
+
               {luxOverlayOn && (
-                <div style={{ marginTop: 'var(--s-1)' }}>
-                  <LuxLegend />
-                </div>
+                <>
+                  {/* LP6 — time-of-day scrub + play button.
+                      Reuses the existing manualHour / setManualHour store state
+                      (same source as the Scene → Time-of-day slider), so this
+                      control and the Scene slider are in sync. */}
+                  <div
+                    style={{
+                      marginTop: 'var(--s-2)',
+                      padding: 'var(--s-2)',
+                      background: 'var(--surface-2)',
+                      borderRadius: 'var(--r-2)',
+                      border: '1px solid var(--border)',
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 'var(--s-2)',
+                        marginBottom: 'var(--s-1)',
+                      }}
+                    >
+                      <span
+                        style={{
+                          fontSize: 'var(--t-2xs)',
+                          color: 'var(--text-3)',
+                          flex: 1,
+                        }}
+                      >
+                        Time of day
+                      </span>
+                      <span
+                        className="mono"
+                        style={{
+                          fontSize: 'var(--t-2xs)',
+                          color: 'var(--text-2)',
+                          fontVariantNumeric: 'tabular-nums',
+                        }}
+                      >
+                        {formatClock(effectiveHour)}
+                      </span>
+                      {/* Play/stop button — auto-advances manualHour at 1 hr/s. */}
+                      <button
+                        type="button"
+                        className={`icon-btn${luxPlaying ? ' active' : ''}`}
+                        aria-label={luxPlaying ? 'Stop playback' : 'Play across the day'}
+                        title={luxPlaying ? 'Stop' : 'Play across the day'}
+                        onClick={() => setLuxPlaying(!luxPlaying)}
+                        style={{ padding: '2px 6px', fontSize: 'var(--t-2xs)' }}
+                      >
+                        {luxPlaying ? '⏹' : '▶'}
+                      </button>
+                    </div>
+                    <input
+                      type="range"
+                      min={0}
+                      max={24}
+                      step={0.25}
+                      value={effectiveHour}
+                      aria-label="Time of day for lux overlay"
+                      onChange={(e) => {
+                        if (luxPlaying) setLuxPlaying(false)
+                        setManualHour(Number(e.target.value))
+                      }}
+                      className="slider"
+                      style={{ width: '100%' }}
+                    />
+                  </div>
+
+                  {/* LP6 — per-fixture exclusion.
+                      Shown only when fixtures are present. Each row toggles the
+                      fixture's contribution out of the heatmap so the user can
+                      isolate what each light adds. */}
+                  {lighting.lights.length > 0 && (
+                    <div
+                      style={{
+                        marginTop: 'var(--s-2)',
+                        padding: 'var(--s-2)',
+                        background: 'var(--surface-2)',
+                        borderRadius: 'var(--r-2)',
+                        border: '1px solid var(--border)',
+                      }}
+                    >
+                      <div
+                        style={{
+                          fontSize: 'var(--t-2xs)',
+                          color: 'var(--text-3)',
+                          marginBottom: 'var(--s-1)',
+                        }}
+                      >
+                        Fixture contributions — uncheck to isolate
+                      </div>
+                      {lighting.lights.map((light) => {
+                        const excluded = luxExcludedIds.includes(light.id)
+                        return (
+                          <label
+                            key={light.id}
+                            style={{
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 'var(--s-2)',
+                              fontSize: 'var(--t-2xs)',
+                              cursor: 'pointer',
+                              padding: '2px 0',
+                              color: excluded ? 'var(--text-3)' : 'var(--text)',
+                              textDecoration: excluded ? 'line-through' : 'none',
+                            }}
+                          >
+                            <input
+                              type="checkbox"
+                              checked={!excluded}
+                              onChange={() => toggleLuxExcluded(light.id)}
+                            />
+                            <span
+                              style={{
+                                flex: 1,
+                                minWidth: 0,
+                                overflow: 'hidden',
+                                textOverflow: 'ellipsis',
+                                whiteSpace: 'nowrap',
+                              }}
+                            >
+                              {light.label}
+                            </span>
+                          </label>
+                        )
+                      })}
+                    </div>
+                  )}
+
+                  <div style={{ marginTop: 'var(--s-1)' }}>
+                    <LuxLegend />
+                  </div>
+                </>
               )}
             </div>
+
+            {/* Fixture count summary */}
             {lighting.lights.length === 0 ? (
               <div
                 style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)', padding: 'var(--s-3) 0' }}

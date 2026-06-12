@@ -87,9 +87,7 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   rotation-aware `InstancedBoxes` sibling; deferred until a consumer justifies it).
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
-- [ ] PERF9 tail: OffscreenCanvas worker generation — per-pattern size registry shipped (C258); worker generation deferred.
-- [ ] LP6 (optional): animate/scrub the lux overlay across the day; per-fixture contribution
-  toggle (C256 shipped the static 3D lux floor heatmap).
+- [ ] PERF9 tail: OffscreenCanvas worker generation — per-pattern size registry shipped (C259); worker generation deferred.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

@@ -63,6 +63,12 @@ export interface FeaturesSlice {
   /** 3D lux-coverage heatmap on the floor (LP5 tail) — toggled from the
    *  Drawings panel's Lighting tab; rides the same `drawings` flag. */
   luxOverlayOn: boolean
+  /** Per-fixture exclusion for the lux overlay (LP6): item IDs of fixtures
+   *  whose contribution is suppressed in the heatmap computation, so the user
+   *  can isolate each fixture's contribution. Cleared on overlay off. */
+  luxExcludedIds: string[]
+  /** Whether the lux overlay time-of-day auto-play is active (LP6). */
+  luxPlaying: boolean
   /** Daylight & ventilation check panel visibility. */
   daylightOpen: boolean
   /** Design Score (aggregate layout-quality feedback) panel visibility. */
@@ -117,6 +123,12 @@ export interface FeaturesSlice {
   setClearancePanelOpen: (open: boolean) => void
   setElevationsOpen: (open: boolean) => void
   setLuxOverlayOn: (on: boolean) => void
+  /** Toggle one fixture's exclusion from the lux overlay computation. */
+  toggleLuxExcluded: (id: string) => void
+  /** Replace the full exclusion set. */
+  setLuxExcludedIds: (ids: string[]) => void
+  /** Start/stop the lux overlay time auto-play. */
+  setLuxPlaying: (playing: boolean) => void
   setDaylightOpen: (open: boolean) => void
   setDesignScoreOpen: (open: boolean) => void
   setAccessibilityOpen: (open: boolean) => void
@@ -150,6 +162,8 @@ export const FEATURES_INITIAL = {
   clearancePanelOpen: false,
   elevationsOpen: false,
   luxOverlayOn: false,
+  luxExcludedIds: [] as string[],
+  luxPlaying: false,
   daylightOpen: false,
   designScoreOpen: false,
   accessibilityOpen: false,
@@ -198,7 +212,16 @@ export const createFeaturesSlice: SliceCreator<FeaturesSlice, RootState> = (set)
   setVrActive: (vrActive) => set({ vrActive }),
   setClearancePanelOpen: (clearancePanelOpen) => set({ clearancePanelOpen }),
   setElevationsOpen: (elevationsOpen) => set({ elevationsOpen }),
-  setLuxOverlayOn: (luxOverlayOn) => set({ luxOverlayOn }),
+  setLuxOverlayOn: (luxOverlayOn) =>
+    set({ luxOverlayOn, ...(luxOverlayOn ? {} : { luxExcludedIds: [], luxPlaying: false }) }),
+  toggleLuxExcluded: (id) =>
+    set((s) => ({
+      luxExcludedIds: s.luxExcludedIds.includes(id)
+        ? s.luxExcludedIds.filter((x) => x !== id)
+        : [...s.luxExcludedIds, id],
+    })),
+  setLuxExcludedIds: (luxExcludedIds) => set({ luxExcludedIds }),
+  setLuxPlaying: (luxPlaying) => set({ luxPlaying }),
   setDaylightOpen: (daylightOpen) => set({ daylightOpen }),
   setDesignScoreOpen: (designScoreOpen) => set({ designScoreOpen }),
   setAccessibilityOpen: (accessibilityOpen) => set({ accessibilityOpen }),
