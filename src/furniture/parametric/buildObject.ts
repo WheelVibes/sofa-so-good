@@ -1,5 +1,5 @@
 /**
- * Parametric furniture (PF1) — part list → three.js object.
+ * Parametric furniture (PF2) — part list → three.js object.
  *
  * Maps the pure `buildParametric` model to a `Group` of box meshes with real
  * three `Material`s from `furnitureMaterials.ts` (tintable wood / painted /
@@ -14,10 +14,15 @@ import { buildParametric, type ParametricModel, type ParametricPartRole } from '
 import type { ParametricSpec } from './spec'
 
 /** Material for one part role. Panels carry the chosen finish; the plinth is
- *  a dark recessed kick; handles + rail read as brushed metal. */
+ *  a dark recessed kick; handles + rail read as brushed metal; drawer-fronts
+ *  carry the same finish as the carcass; drawer-handles are brushed metal.
+ *  Kitchen worktops get a slightly lighter, more matte stone-like appearance. */
 export function partMaterial(role: ParametricPartRole, spec: ParametricSpec): Material {
-  if (role === 'handle' || role === 'rail') return getSolidMaterial('#9b9b9b', 0.35, 0.85)
+  if (role === 'handle' || role === 'rail' || role === 'drawer-handle')
+    return getSolidMaterial('#9b9b9b', 0.35, 0.85)
   if (role === 'plinth') return getSolidMaterial('#3a3733', 0.8, 0.05)
+  // Kitchen worktop: slightly lighter neutral with a matte stone surface finish.
+  if (role === 'worktop') return getSolidMaterial('#c8c4bc', 0.6, 0.1)
   // Back panels are typically a thinner, flatter board — keep the tint but
   // drop the gloss so an open shelf's interior doesn't mirror-shine.
   if (role === 'back')

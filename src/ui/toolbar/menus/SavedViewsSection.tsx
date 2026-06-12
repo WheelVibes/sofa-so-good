@@ -1,6 +1,7 @@
 import { useFeature } from '../../../features/useFeature'
 import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { PresentationSetup } from '../../presentation/PresentationSetup'
 import { Icon } from '../icons'
 import { MenuItem } from '../ToolbarMenu'
 
@@ -9,6 +10,10 @@ import { MenuItem } from '../ToolbarMenu'
  * snapshot the current angle under a name and jump back to any saved one. Used
  * by both the desktop ViewMenu and the mobile toolbar's View accordion, so the
  * apply/save/delete logic lives in one place.
+ *
+ * When both `presentation` AND `panoTour` flags are enabled (Pro mode), the
+ * plain "Present…" MenuItem is replaced by `PresentationSetup` which adds the
+ * "Include 360° tour" toggle before starting the show.
  */
 export function SavedViewsSection() {
   const savedViews = useStore((s) => s.savedViews)
@@ -19,6 +24,7 @@ export function SavedViewsSection() {
   const setViewPano = useStore((s) => s.setViewPano)
   const setPresenting = useStore((s) => s.setPresenting)
   const presentationOn = useFeature('presentation')
+  const panoTourOn = useFeature('panoTour')
 
   const editNote = async (id: string, current: string) => {
     const note = await useStore.getState().promptText({
@@ -43,6 +49,10 @@ export function SavedViewsSection() {
     if (name) saveCurrentView(name, thumb)
   }
 
+  // When both presentation + panoTour are on, show the setup widget (with the
+  // tour toggle) instead of the bare "Present…" menu item.
+  const showSetup = presentationOn && panoTourOn
+
   return (
     <>
       <div className="my-1 border-t border-[var(--border)]" />
@@ -54,16 +64,20 @@ export function SavedViewsSection() {
       />
       {savedViews.length === 0 ? (
         <div className="px-2 py-1.5 text-[11px] leading-snug" style={{ color: 'var(--text-3)' }}>
-          No saved views yet — frame an angle, then “Save current view”.
+          No saved views yet — frame an angle, then "Save current view".
         </div>
       ) : null}
-      {presentationOn && savedViews.length > 0 ? (
-        <MenuItem
-          icon="Walkthrough"
-          label="Present…"
-          sub="Full-screen saved-views slideshow"
-          onClick={() => setPresenting(true)}
-        />
+      {savedViews.length > 0 ? (
+        showSetup ? (
+          <PresentationSetup />
+        ) : presentationOn ? (
+          <MenuItem
+            icon="Walkthrough"
+            label="Present…"
+            sub="Full-screen saved-views slideshow"
+            onClick={() => setPresenting(true)}
+          />
+        ) : null
       ) : null}
       {savedViews.length > 1 ? (
         <MenuItem
@@ -80,7 +94,7 @@ export function SavedViewsSection() {
             role="menuitem"
             className="menu-item saved-view-apply"
             onClick={() => applyView(v.id)}
-            title={`Go to “${v.name}”`}
+            title={`Go to "${v.name}"`}
           >
             {v.thumb ? (
               <img src={v.thumb} alt="" className="saved-view-thumb" />

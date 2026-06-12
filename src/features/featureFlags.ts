@@ -64,6 +64,11 @@ export type FeatureFlag =
   | 'comments'
   | 'finishDnd'
   | 'parametricFurniture'
+  | 'kitchenCabinets'
+  | 'renderCompare'
+  | 'crownMolding'
+  | 'windowGlassTint'
+  | 'curtainLightEffect'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -374,6 +379,48 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Generate shelving / wardrobes / sideboards to exact dimensions',
     default: true,
     tier: 'pro',
+  },
+  // Parametric kitchen cabinet run (C270). Authoring tool → pro tier.
+  // Pure procedural geometry → prod-safe, default on.
+  kitchenCabinets: {
+    label: 'Custom kitchen cabinets',
+    description: 'Generate a parametric kitchen base-cabinet run with optional upper cabinets',
+    default: true,
+    tier: 'pro',
+  },
+  // Analytical/professional feature (comparing render presets → pro tier, F4 tail).
+  // Prod-safe pure code → default on.
+  renderCompare: {
+    label: 'Render preset compare',
+    description: 'A/B compare two render presets with a draggable before/after divider',
+    default: true,
+    tier: 'pro',
+  },
+  // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
+  // assets → prod-safe. Crown molding is a core finish detail visible in casual
+  // use, so it belongs in Simple tier.
+  crownMolding: {
+    label: 'Crown molding',
+    description: 'Decorative trim strip at the wall–ceiling junction with miter-cut corners',
+    default: true,
+    tier: 'simple',
+  },
+  // Window-glass tint: colours the sun light (C275). Pure code, no external
+  // assets → prod-safe, default on. Simple tier — a subtle realism layer visible
+  // in casual use.
+  windowGlassTint: {
+    label: 'Window glass tint',
+    description: 'Optionally tint the sun colour as it enters through window glass',
+    default: true,
+    tier: 'simple',
+  },
+  // Curtain light attenuation: drawn curtains dim sunlight (C275). Pure code →
+  // prod-safe, default on. Simple tier — affects the core furnish experience.
+  curtainLightEffect: {
+    label: 'Curtain light attenuation',
+    description: 'Drawn curtains dim the sun entering through windows',
+    default: true,
+    tier: 'simple',
   },
 }
 

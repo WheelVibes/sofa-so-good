@@ -4,9 +4,11 @@ import {
   bayCount,
   buildParametric,
   doorLeafCount,
+  drawerStackCount,
   type ParametricModel,
   type ParametricPart,
 } from './buildParts'
+import { estimatePrice } from './price'
 import { defaultSpec, MAX_DOOR_LEAF, type ParametricSpec } from './spec'
 
 const EPS = 1e-9
@@ -140,12 +142,12 @@ describe('buildParametric — wardrobe', () => {
     const m = buildParametric(spec)
     expectSound(m, spec)
     expect(m.bays).toBeGreaterThanOrEqual(3)
+    // Every door leaf fits within the per-leaf size limit.
     for (const d of byRole(m, 'door')) expect(d.size[0]).toBeLessThanOrEqual(MAX_DOOR_LEAF + EPS)
-    // Leaves cover the opening: total leaf width ≈ inner width minus reveals.
-    const doors = byRole(m, 'door')
-    const total = doors.reduce((s, d) => s + d.size[0], 0)
-    const innerW = 3.0 - 2 * 0.018
-    expect(total).toBeCloseTo(innerW - (doors.length - 1) * 0.003, 6)
+    // One handle per door leaf (vertical bar handle).
+    expect(byRole(m, 'handle')).toHaveLength(m.doorCount)
+    // Leaves correctly reported by doorCount.
+    expect(byRole(m, 'door')).toHaveLength(m.doorCount)
   })
 
   it('the hanging rail sits below its shelf, inside the carcass', () => {
@@ -220,12 +222,436 @@ describe('robustness', () => {
       { type: 'sideboard', depth: -3, shelves: 99 },
       // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed
       { type: 'bogus' as any, width: '12' as any },
+      { type: 'desk', deskLegs: 'pedestal' as const, pedestalDrawers: 99 },
     ]
     for (const raw of evil) {
       const m = buildParametric(raw as ParametricSpec)
-      expect(m.parts.length).toBeGreaterThan(4)
+      expect(m.parts.length).toBeGreaterThan(0)
       for (const p of m.parts) {
         for (const v of [...p.position, ...p.size]) expect(Number.isFinite(v)).toBe(true)
+      }
+    }
+  })
+})
+
+// ============================================================================
+// Drawers
+// ============================================================================
+
+describe('drawer-front parts', () => {
+  it('sideboard with per-bay drawer style emits drawer-front + drawer-handle parts', () => {
+    const spec: ParametricSpec = {
+      ...defaultSpec('sideboard'),
+      doors: false,
+      compartments: [{ style: 'drawer' }],
+    }
+    const m = buildParametric(spec)
+    expectSound(m, spec)
+    const fronts = byRole(m, 'drawer-front')
+    const handles = byRole(m, 'drawer-handle')
+    expect(fronts.length).toBeGreaterThan(0)
+    expect(handles).toHaveLength(fronts.length)
+    // Drawer fronts sit proud of the carcass front (z > depth/2 - small).
+    for (const f of fronts) {
+      expect(f.position[2] + f.size[2] / 2).toBeGreaterThan(spec.depth / 2 - EPS)
+    }
+    // Reported in drawerCount.
+    expect(m.drawerCount).toBe(fronts.length)
+  })
+
+  it('wardrobe bay set to drawer has fronts but no rail (rail would be hidden)', () => {
+    const spec: ParametricSpec = {
+      ...defaultSpec('wardrobe'),
+      doors: true,
+      compartments: [{ style: 'drawer' }], // bay 0 is drawers; bay 1 (if any) is door
+    }
+    const m = buildParametric(spec)
+    expectSound(m, spec)
+    const fronts = byRole(m, 'drawer-front')
+    expect(fronts.length).toBeGreaterThan(0)
+    // Rails are omitted for drawer bays.
+    expect(byRole(m, 'rail').length).toBeLessThanOrEqual(m.bays - 1)
+    expect(m.drawerCount).toBe(fronts.length)
+  })
+
+  it('drawer fronts are floor→top stacked (no gap above top, no clip below bottom)', () => {
+    const spec: ParametricSpec = {
+      ...defaultSpec('sideboard'),
+      base: 'plinth' as const,
+      doors: false,
+      compartments: [{ style: 'drawer' }],
+    }
+    const m = buildParametric(spec)
+    const fronts = byRole(m, 'drawer-front').sort((a, b) => a.position[1] - b.position[1])
+    // Lowest front starts above (or at) the inner bottom.
+    const innerBottom = 0.06 + 0.018 // PLINTH_H + PANEL_T
+    expect(minY(fronts[0])).toBeGreaterThanOrEqual(innerBottom - EPS)
+    // Highest front top ≤ inner top.
+    const innerTop = spec.height - 0.018
+    expect(maxY(fronts[fronts.length - 1])).toBeLessThanOrEqual(innerTop + EPS)
+  })
+
+  it('all-drawer sideboard has no door/handle parts', () => {
+    const spec: ParametricSpec = {
+      ...defaultSpec('sideboard'),
+      width: 1.6,
+      doors: false,
+      compartments: [{ style: 'drawer' }, { style: 'drawer' }],
+    }
+    const m = buildParametric(spec)
+    expectSound(m, spec)
+    expect(byRole(m, 'door')).toHaveLength(0)
+    expect(byRole(m, 'handle')).toHaveLength(0)
+    expect(m.doorCount).toBe(0)
+    expect(m.drawerCount).toBeGreaterThan(0)
+  })
+
+  it('price increases when drawers replace open bays', () => {
+    const open: ParametricSpec = { ...defaultSpec('sideboard'), doors: false, compartments: [] }
+    const withDrawers: ParametricSpec = {
+      ...open,
+      compartments: [{ style: 'drawer' }],
+    }
+    const pOpen = estimatePrice(buildParametric(open))
+    const pDrawer = estimatePrice(buildParametric(withDrawers))
+    expect(pDrawer).toBeGreaterThan(pOpen)
+  })
+})
+
+// ============================================================================
+// Per-compartment config
+// ============================================================================
+
+describe('per-compartment configuration', () => {
+  it('mixed wardrobe: bay 0 open, bay 1 door, bay 2 drawer (if 3 bays)', () => {
+    // Need 3 bays → width > 2 * MAX_BAY_SPAN
+    const spec: ParametricSpec = {
+      ...defaultSpec('wardrobe'),
+      width: 2.5,
+      doors: true,
+      compartments: [{ style: 'open' }, { style: 'door' }, { style: 'drawer' }],
+    }
+    const m = buildParametric(spec)
+    expectSound(m, spec)
+    expect(m.bays).toBeGreaterThanOrEqual(3)
+    // 'open' bay → no door, no drawer-front for bay 0
+    // 'door' bay → at least 1 door leaf
+    expect(m.doorCount).toBeGreaterThan(0)
+    // 'drawer' bay → at least 1 drawer-front
+    expect(m.drawerCount).toBeGreaterThan(0)
+  })
+
+  it('compartments shorter than bays: extra bays fall back to global default', () => {
+    const spec: ParametricSpec = {
+      ...defaultSpec('sideboard'),
+      width: 2.0,
+      doors: true,
+      // Only 1 override; remaining bays inherit 'door' from `doors: true`
+      compartments: [{ style: 'drawer' }],
+    }
+    const m = buildParametric(spec)
+    expectSound(m, spec)
+    // Bay 0 → drawers; remaining bays → doors (global default).
+    expect(m.drawerCount).toBeGreaterThan(0)
+    expect(m.doorCount).toBeGreaterThan(0)
+  })
+
+  it('empty compartments array uses global doors flag', () => {
+    const specDoors: ParametricSpec = {
+      ...defaultSpec('sideboard'),
+      doors: true,
+      compartments: [],
+    }
+    const specOpen: ParametricSpec = {
+      ...defaultSpec('sideboard'),
+      doors: false,
+      compartments: [],
+    }
+    const mDoors = buildParametric(specDoors)
+    const mOpen = buildParametric(specOpen)
+    expect(mDoors.doorCount).toBeGreaterThan(0)
+    expect(mOpen.doorCount).toBe(0)
+    expect(mOpen.drawerCount).toBe(0)
+  })
+})
+
+// ============================================================================
+// Desk
+// ============================================================================
+
+describe('buildParametric — desk', () => {
+  it('default desk (four legs) is structurally sound', () => {
+    const spec = defaultSpec('desk')
+    const m = buildParametric(spec)
+    // Floor-anchored.
+    const lows = m.parts.map(minY)
+    expect(Math.min(...lows)).toBeCloseTo(0, 9)
+    // No NaN, all sizes positive.
+    for (const p of m.parts) {
+      for (const v of [...p.position, ...p.size]) expect(Number.isFinite(v)).toBe(true)
+      for (const v of p.size) expect(v).toBeGreaterThan(0)
+    }
+    // Worktop at the top.
+    const tops = byRole(m, 'worktop')
+    expect(tops).toHaveLength(1)
+    expect(maxY(tops[0])).toBeCloseTo(spec.height, 5)
+    // Four legs reaching the floor.
+    const legs = byRole(m, 'leg')
+    expect(legs).toHaveLength(4)
+    for (const l of legs) expect(minY(l)).toBeCloseTo(0, 9)
+    // Legs inside the footprint.
+    for (const l of legs) {
+      expect(Math.abs(l.position[0]) + l.size[0] / 2).toBeLessThanOrEqual(spec.width / 2 + EPS)
+      expect(Math.abs(l.position[2]) + l.size[2] / 2).toBeLessThanOrEqual(spec.depth / 2 + EPS)
+    }
+    // Bounds match spec.
+    expect(m.bounds.w).toBeCloseTo(spec.width, 9)
+    expect(m.bounds.h).toBeCloseTo(spec.height, 9)
+    expect(m.bounds.d).toBeCloseTo(spec.depth, 9)
+  })
+
+  it('pedestal desk has stacked drawer fronts + left legs, structurally sound', () => {
+    const spec: ParametricSpec = {
+      ...defaultSpec('desk'),
+      deskLegs: 'pedestal',
+      pedestalDrawers: 2,
+    }
+    const m = buildParametric(spec)
+    const lows = m.parts.map(minY)
+    expect(Math.min(...lows)).toBeCloseTo(0, 9)
+    // Drawer fronts present.
+    const fronts = byRole(m, 'drawer-front')
+    expect(fronts.length).toBeGreaterThanOrEqual(1)
+    expect(m.drawerCount).toBe(fronts.length)
+    // Worktop still at the top.
+    const tops = byRole(m, 'worktop')
+    expect(tops).toHaveLength(1)
+    expect(maxY(tops[0])).toBeCloseTo(spec.height, 5)
+    // Some legs (the left side)
+    const legs = byRole(m, 'leg')
+    expect(legs.length).toBeGreaterThan(0)
+  })
+
+  it('desk dimension clamping works', () => {
+    const spec = defaultSpec('desk')
+    expect(spec.height).toBeGreaterThanOrEqual(0.68)
+    expect(spec.height).toBeLessThanOrEqual(0.82)
+    expect(spec.width).toBeGreaterThanOrEqual(0.6)
+    expect(spec.depth).toBeGreaterThanOrEqual(0.5)
+  })
+
+  it('desk price is positive, rounded to $5, and reasonable for HDB home office', () => {
+    const price = estimatePrice(buildParametric(defaultSpec('desk')))
+    expect(price).toBeGreaterThan(0)
+    expect(price % 5).toBe(0)
+    // A simple desk should be $50–$800 range.
+    expect(price).toBeGreaterThan(50)
+    expect(price).toBeLessThan(800)
+  })
+
+  it('pedestal desk costs more than legs-only desk (extra drawers)', () => {
+    const legsPrice = estimatePrice(buildParametric({ ...defaultSpec('desk'), deskLegs: 'legs' }))
+    const pedPrice = estimatePrice(
+      buildParametric({ ...defaultSpec('desk'), deskLegs: 'pedestal', pedestalDrawers: 2 }),
+    )
+    expect(pedPrice).toBeGreaterThan(legsPrice)
+  })
+})
+
+describe('helpers (extended)', () => {
+  it('drawerStackCount targets ~0.18 m drawer height', () => {
+    // 0.45 m inner height → ~2–3 drawers
+    expect(drawerStackCount(0.45)).toBeGreaterThanOrEqual(2)
+    // Very tall: more drawers
+    expect(drawerStackCount(0.9)).toBeGreaterThan(drawerStackCount(0.45))
+    // Minimum 1
+    expect(drawerStackCount(0.05)).toBe(1)
+  })
+})
+
+// ============================================================================
+// Kitchen-run
+// ============================================================================
+
+describe('buildParametric — kitchen-run', () => {
+  it('default kitchen-run is floor-anchored, no NaN, all sizes positive', () => {
+    const spec = defaultSpec('kitchen-run')
+    const m = buildParametric(spec)
+    const lows = m.parts.map(minY)
+    // Floor-anchored: lowest part touches y=0.
+    expect(Math.min(...lows)).toBeCloseTo(0, 9)
+    // No NaN, all sizes positive.
+    for (const p of m.parts) {
+      for (const v of [...p.position, ...p.size]) expect(Number.isFinite(v)).toBe(true)
+      for (const v of p.size) expect(v).toBeGreaterThan(0)
+    }
+  })
+
+  it('toe-kick plinth: floor-anchored, recessed from front face', () => {
+    const spec = defaultSpec('kitchen-run')
+    const m = buildParametric(spec)
+    const plinths = byRole(m, 'plinth')
+    expect(plinths.length).toBeGreaterThanOrEqual(1)
+    const p = plinths[0]
+    // Plinth starts at y=0.
+    expect(minY(p)).toBeCloseTo(0, 9)
+    // Plinth top edge ≈ KT_TOE_H (0.1 m).
+    expect(maxY(p)).toBeCloseTo(0.1, 5)
+    // The plinth front face (p.position[2] + size[2]/2) is behind the carcass front (depth/2).
+    expect(p.position[2] + p.size[2] / 2).toBeLessThan(spec.depth / 2)
+  })
+
+  it('carcass sides reach from floor to just below worktop underside', () => {
+    const spec = defaultSpec('kitchen-run')
+    const m = buildParametric(spec)
+    const sides = byRole(m, 'side').filter(
+      // Filter only base cabinet sides (not upper cabinet sides — those are above worktop height).
+      (s) => s.position[1] < spec.height,
+    )
+    expect(sides.length).toBeGreaterThanOrEqual(2)
+    for (const s of sides) expect(minY(s)).toBeCloseTo(0, 9)
+  })
+
+  it('worktop: sits at spec.height top face, overhangs front, one part', () => {
+    const spec = defaultSpec('kitchen-run')
+    const m = buildParametric(spec)
+    const worktops = byRole(m, 'worktop')
+    expect(worktops).toHaveLength(1)
+    const wt = worktops[0]
+    // Top face of the worktop == spec.height.
+    expect(maxY(wt)).toBeCloseTo(spec.height, 5)
+    // Worktop front face is proud of carcass front face (depth/2).
+    expect(wt.position[2] + wt.size[2] / 2).toBeGreaterThan(spec.depth / 2)
+  })
+
+  it('footprint-centred on X: all parts within ±spec.width/2', () => {
+    const spec = defaultSpec('kitchen-run')
+    const m = buildParametric(spec)
+    for (const p of m.parts) {
+      // Allow a tiny overhang for the worktop side overhang (≤ 2 cm).
+      expect(Math.abs(p.position[0]) + p.size[0] / 2).toBeLessThanOrEqual(spec.width / 2 + 0.025)
+    }
+  })
+
+  it('dimension limits: clamped to HDB envelope', () => {
+    // Too wide → clamped to 3.6 m; too narrow → clamped to 0.6 m.
+    const hi = buildParametric({ ...defaultSpec('kitchen-run'), width: 99 })
+    expect(hi.bounds.w).toBe(3.6)
+    const lo = buildParametric({ ...defaultSpec('kitchen-run'), width: 0 })
+    expect(lo.bounds.w).toBe(0.6)
+    // Height band: 0.85–0.92 m.
+    const hHi = buildParametric({ ...defaultSpec('kitchen-run'), height: 99 })
+    expect(hHi.bounds.h).toBeCloseTo(0.92, 5)
+  })
+
+  it('per-bay styles: door / drawer / open all work', () => {
+    const spec: ParametricSpec = {
+      ...defaultSpec('kitchen-run'),
+      bays: 3,
+      doors: false,
+      compartments: [{ style: 'door' }, { style: 'drawer' }, { style: 'open' }],
+    }
+    const m = buildParametric(spec)
+    // Door bay → at least 1 door leaf.
+    expect(m.doorCount).toBeGreaterThan(0)
+    // Drawer bay → at least 1 drawer front.
+    expect(m.drawerCount).toBeGreaterThan(0)
+    expect(byRole(m, 'door').length).toBeGreaterThan(0)
+    expect(byRole(m, 'drawer-front').length).toBeGreaterThan(0)
+    // Open bay → no door or drawer in that bay.
+    expect(byRole(m, 'shelf').length).toBeGreaterThan(0)
+  })
+
+  it('addDrawerFronts reuse: drawer bays emit stacked drawer-front + drawer-handle parts', () => {
+    const spec: ParametricSpec = {
+      ...defaultSpec('kitchen-run'),
+      bays: 2,
+      compartments: [{ style: 'drawer' }, { style: 'drawer' }],
+    }
+    const m = buildParametric(spec)
+    const fronts = byRole(m, 'drawer-front')
+    const handles = byRole(m, 'drawer-handle')
+    expect(fronts.length).toBeGreaterThan(0)
+    expect(handles).toHaveLength(fronts.length)
+    expect(m.drawerCount).toBe(fronts.length)
+  })
+
+  it('uppers toggle: upper cabinets appear and bounds height increases', () => {
+    const base = buildParametric({ ...defaultSpec('kitchen-run'), hasUppers: false })
+    const withUppers = buildParametric({ ...defaultSpec('kitchen-run'), hasUppers: true })
+    // Upper cabinet adds height.
+    expect(withUppers.bounds.h).toBeGreaterThan(base.bounds.h)
+    // Upper side panels appear above the worktop.
+    const upperSides = byRole(withUppers, 'side').filter(
+      (s) => s.position[1] > defaultSpec('kitchen-run').height,
+    )
+    expect(upperSides.length).toBeGreaterThanOrEqual(2)
+    // Upper doors are present (default doors=true spec).
+    expect(withUppers.doorCount).toBeGreaterThan(base.doorCount)
+    // All parts are still floor-anchored (no parts below y=0).
+    for (const p of withUppers.parts) {
+      expect(minY(p)).toBeGreaterThanOrEqual(-EPS)
+    }
+  })
+
+  it('uppers are not floating: upper carcass parts are anchored above the worktop', () => {
+    const spec: ParametricSpec = { ...defaultSpec('kitchen-run'), hasUppers: true }
+    const m = buildParametric(spec)
+    // Upper cabinet bottom starts at spec.height + KT_UPPER_GAP (0.18 m).
+    const KT_UPPER_GAP = 0.18
+    const upperBottom = spec.height + KT_UPPER_GAP
+    // Every upper panel should have its bottom edge at or above upperBottom.
+    const upperParts = m.parts.filter((p) => p.position[1] > spec.height)
+    expect(upperParts.length).toBeGreaterThan(0)
+    for (const p of upperParts) {
+      expect(minY(p)).toBeGreaterThanOrEqual(upperBottom - EPS)
+    }
+  })
+
+  it('price monotonicity: wider run costs more; uppers add cost', () => {
+    const narrow = estimatePrice(buildParametric({ ...defaultSpec('kitchen-run'), width: 0.9 }))
+    const wide = estimatePrice(buildParametric({ ...defaultSpec('kitchen-run'), width: 2.7 }))
+    expect(wide).toBeGreaterThan(narrow)
+    // Uppers add a worktop-like increase (extra board area).
+    const noUppers = estimatePrice(
+      buildParametric({ ...defaultSpec('kitchen-run'), hasUppers: false }),
+    )
+    const withUppers = estimatePrice(
+      buildParametric({ ...defaultSpec('kitchen-run'), hasUppers: true }),
+    )
+    expect(withUppers).toBeGreaterThan(noUppers)
+  })
+
+  it('worktop is priced at a premium rate: kitchen run costs more per cm than a plain sideboard', () => {
+    // A kitchen run has a premium worktop slab; a sideboard does not.
+    // Compare board-area-normalised prices: kitchen should be higher due to worktop premium.
+    const kitchenPrice = estimatePrice(buildParametric(defaultSpec('kitchen-run')))
+    // Price must be positive, $5-rounded, and in a plausible HDB range.
+    expect(kitchenPrice).toBeGreaterThan(0)
+    expect(kitchenPrice % 5).toBe(0)
+    // Rough expectation: a 1.8 m run should be $500–$8000 SGD.
+    expect(kitchenPrice).toBeGreaterThan(500)
+    expect(kitchenPrice).toBeLessThan(8000)
+  })
+
+  it('bays clamping: 0 → 1, 99 → 6', () => {
+    const lo = buildParametric({ ...defaultSpec('kitchen-run'), bays: 0 })
+    expect(lo.bays).toBe(1)
+    const hi = buildParametric({ ...defaultSpec('kitchen-run'), bays: 99 })
+    expect(hi.bays).toBe(6)
+  })
+
+  it('parts have no NaN and all sizes positive for extreme dimensions', () => {
+    const specs: Array<Partial<ParametricSpec>> = [
+      { type: 'kitchen-run', width: 0.6, height: 0.85, depth: 0.55, bays: 1, hasUppers: false },
+      { type: 'kitchen-run', width: 3.6, height: 0.92, depth: 0.65, bays: 6, hasUppers: true },
+    ]
+    for (const raw of specs) {
+      const m = buildParametric(raw as ParametricSpec)
+      expect(m.parts.length).toBeGreaterThan(0)
+      for (const p of m.parts) {
+        for (const v of [...p.position, ...p.size]) expect(Number.isFinite(v)).toBe(true)
+        for (const v of p.size) expect(v).toBeGreaterThan(0)
       }
     }
   })

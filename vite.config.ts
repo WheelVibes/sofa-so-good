@@ -11,7 +11,9 @@ export default defineConfig(({ command }) => ({
   plugins: [react()],
   // Force a single three.js instance — stats-gl (via drei) otherwise pulls a
   // second, older three, bloating the bundle and breaking instanceof checks.
-  resolve: { dedupe: ['three'] },
+  // Also dedupe react/react-dom to avoid "Invalid hook call" from duplicate React
+  // instances that can arise when running from a worktree with nested node_modules.
+  resolve: { dedupe: ['three', 'react', 'react-dom', 'react/jsx-runtime', 'scheduler'] },
   build: {
     // Split heavy, rarely-changing dependencies into their own long-lived
     // cache chunks so app-code edits don't bust the whole bundle and the

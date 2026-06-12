@@ -29,6 +29,18 @@ describe('LocationPrompt', () => {
     expect(container.firstChild).toBeNull()
   })
 
+  it('does not render while the onboarding carousel is open (C268: no stacking)', () => {
+    useStore.getState().setOnboardingOpen(true)
+    const { container } = render(<LocationPrompt />)
+    expect(container.firstChild).toBeNull()
+  })
+
+  it('does not render while the product tour is open (no stacking)', () => {
+    useStore.getState().startTour()
+    const { container } = render(<LocationPrompt />)
+    expect(container.firstChild).toBeNull()
+  })
+
   it('does not render once the prompt is dismissed', () => {
     useStore.getState().dismissLocationPrompt()
     const { container } = render(<LocationPrompt />)

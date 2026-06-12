@@ -1,0 +1,111 @@
+{
+  "name": "window-light-simple",
+  "url": "http://localhost:5216/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); try { localStorage.setItem('hdb_onboarded','1') } catch(e) {} })()"
+    },
+    {
+      "name": "pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "verify-flags",
+      "eval": "(() => { const flags = window.__store.getState().featureFlags; if (!flags.windowGlassTint) throw new Error('windowGlassTint flag OFF'); if (!flags.curtainLightEffect) throw new Error('curtainLightEffect flag OFF') })()"
+    },
+    {
+      "name": "set-daytime-noon",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "set-medium-quality",
+      "eval": "window.__store.getState().setQualityTier?.('medium')"
+    },
+    {
+      "name": "clear-items",
+      "eval": "window.__store.getState().setItems?.([])"
+    },
+    {
+      "name": "clear-tint",
+      "eval": "window.__store.getState().setGlassTint?.('')"
+    },
+    {
+      "name": "wait-scene",
+      "wait": 4000
+    },
+    {
+      "name": "shot-sunlit-room",
+      "screenshot": "01-sunlit-room-no-curtain"
+    },
+    {
+      "name": "probe-state-1",
+      "eval": "(() => { const s = window.__store.getState(); console.log('PROBE 1: items=' + s.items.length + ' glassTint=' + JSON.stringify(s.glassTint)) })()"
+    },
+    {
+      "name": "add-curtains-over-bedroom-windows",
+      "eval": "(() => { const store = window.__store.getState(); store.setItems([ { id: 'c1', defId: 'curtains', position: [1.7, 0.2], rotation: 0, props: { width: 2.0, height: 2.3, style: 'drawn', color: '#8a7060', pattern: 'plain' } }, { id: 'c2', defId: 'curtains', position: [4.65, 0.2], rotation: 0, props: { width: 2.0, height: 2.3, style: 'drawn', color: '#8a7060', pattern: 'plain' } }, { id: 'c3', defId: 'curtains', position: [7.5, 0.2], rotation: 0, props: { width: 2.0, height: 2.3, style: 'drawn', color: '#8a7060', pattern: 'plain' } } ]) })()"
+    },
+    {
+      "name": "wait-curtain-computed",
+      "wait": 1500
+    },
+    {
+      "name": "probe-state-2",
+      "eval": "(() => { const s = window.__store.getState(); console.log('PROBE 2: items=' + s.items.length + ' styles=' + s.items.map(i => i.props?.style).join(',') + ' glassTint=' + JSON.stringify(s.glassTint)) })()"
+    },
+    {
+      "name": "shot-with-drawn-curtain",
+      "screenshot": "02-room-with-drawn-curtain"
+    },
+    {
+      "name": "apply-amber-glass-tint",
+      "eval": "window.__store.getState().setGlassTint?.('#e8b860')"
+    },
+    {
+      "name": "wait-tint",
+      "wait": 1000
+    },
+    {
+      "name": "probe-state-3",
+      "eval": "(() => { const s = window.__store.getState(); console.log('PROBE 3: items=' + s.items.length + ' glassTint=' + JSON.stringify(s.glassTint)) })()"
+    },
+    {
+      "name": "shot-with-glass-tint",
+      "screenshot": "03-room-glass-tint-amber"
+    },
+    {
+      "name": "open-all-curtains",
+      "eval": "(() => { const s = window.__store.getState(); const open = { width: 2.0, height: 2.3, style: 'open', color: '#8a7060', pattern: 'plain' }; s.updateItemProps?.('c1', open); s.updateItemProps?.('c2', open); s.updateItemProps?.('c3', open) })()"
+    },
+    {
+      "name": "wait-open",
+      "wait": 1000
+    },
+    {
+      "name": "probe-state-4",
+      "eval": "(() => { const s = window.__store.getState(); console.log('PROBE 4: items=' + s.items.length + ' styles=' + s.items.map(i => i.props?.style).join(',') + ' glassTint=' + JSON.stringify(s.glassTint)) })()"
+    },
+    {
+      "name": "shot-curtain-open-tint",
+      "screenshot": "04-curtain-open-with-tint"
+    },
+    {
+      "name": "clear-tint-and-close-curtains",
+      "eval": "(() => { const s = window.__store.getState(); s.setGlassTint?.(''); const drawn = { width: 2.0, height: 2.3, style: 'drawn', color: '#8a7060', pattern: 'plain' }; s.updateItemProps?.('c1', drawn); s.updateItemProps?.('c2', drawn); s.updateItemProps?.('c3', drawn) })()"
+    },
+    {
+      "name": "wait-clear",
+      "wait": 800
+    },
+    {
+      "name": "shot-final-closed-no-tint",
+      "screenshot": "05-curtain-closed-no-tint"
+    }
+  ]
+}

@@ -33,6 +33,12 @@ export interface PanoTourSlice {
   clearPanoTour: () => void
   setPanoTourOpen: (open: boolean) => void
   setPanoTourActive: (id: string) => void
+  /**
+   * Update mutable fields on an existing stop (used by the plan-view drag
+   * to reposition a stop; the caller is responsible for evicting the IDB
+   * cache entry so the next view re-captures from the new location).
+   */
+  updatePanoTourStop: (id: string, patch: Partial<Pick<PanoTourStop, 'position' | 'label'>>) => void
 }
 
 const LS_KEY = 'hdb_pano_tour'
@@ -123,4 +129,9 @@ export const createPanoTourSlice: SliceCreator<PanoTourSlice, RootState> = (set,
   setPanoTourOpen: (panoTourOpen) => set({ panoTourOpen }),
   setPanoTourActive: (id) =>
     set((s) => (s.panoTourStops.some((x) => x.id === id) ? { panoTourActiveId: id } : {})),
+  updatePanoTourStop: (id, patch) => {
+    const next = get().panoTourStops.map((s) => (s.id === id ? { ...s, ...patch } : s))
+    persistStops(next)
+    set({ panoTourStops: next })
+  },
 })

@@ -23,14 +23,16 @@ import { ParametricControls } from './ParametricControls'
 import { ParametricPreview } from './ParametricPreview'
 
 /**
- * Parametric furniture generator (PF1) — pick a type (bookshelf / wardrobe /
- * sideboard), set exact dimensions + options, preview live, then save it into
- * the catalog as a regular user item (and optionally arm placement). Each
- * generate creates a NEW catalog def; identical specs de-dupe by content hash.
+ * Parametric furniture generator (PF2) — pick a type (bookshelf / wardrobe /
+ * sideboard / desk), set exact dimensions + options (incl. per-bay compartment
+ * style: open / door / drawer), preview live, then save into the catalog as a
+ * regular user item (and optionally arm placement). Each generate creates a NEW
+ * catalog def; identical specs de-dupe by content hash.
  */
 export function ParametricDialog() {
   const open = useStore((s) => s.parametricOpen)
   const enabled = useFeature('parametricFurniture')
+  const kitchenEnabled = useFeature('kitchenCabinets')
   const isMobile = useIsMobile()
   const close = () => useStore.getState().setParametricOpen(false)
 
@@ -127,7 +129,7 @@ export function ParametricDialog() {
           </button>
         </div>
         <div className="tabs">
-          {PARAMETRIC_TYPES.map((t) => (
+          {PARAMETRIC_TYPES.filter((t) => t !== 'kitchen-run' || kitchenEnabled).map((t) => (
             <button
               key={t}
               type="button"

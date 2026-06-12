@@ -1,0 +1,90 @@
+{
+  "name": "first-run-no-tour",
+  "description": "Clean profile boot → onboarding carousel → choose 'Enter sandbox' (no tour) → assert tour does NOT appear → location prompt → furnished scene.",
+  "url": "http://localhost:5212/",
+  "steps": [
+    {
+      "name": "clear-storage",
+      "eval": "try { localStorage.clear() } catch {}"
+    },
+    {
+      "name": "reload-clean",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "onboarding-open",
+      "waitFor": { "store": "state.onboardingOpen === true" },
+      "timeout": 60000
+    },
+    {
+      "name": "shot-onboarding-welcome",
+      "screenshot": "onboarding-step1-welcome"
+    },
+    {
+      "name": "click-get-started",
+      "click": { "text": "Get started" }
+    },
+    {
+      "name": "onboarding-step2-visible",
+      "waitFor": { "css": ".onb-body2" },
+      "timeout": 5000
+    },
+    {
+      "name": "click-next",
+      "click": { "text": "Next" }
+    },
+    {
+      "name": "onboarding-step3-visible",
+      "waitFor": { "css": ".onb-body3" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-onboarding-choices",
+      "screenshot": "onboarding-step3-choices"
+    },
+    {
+      "name": "enter-sandbox",
+      "click": { "text": "Enter sandbox" }
+    },
+    {
+      "name": "onboarding-closed",
+      "waitFor": { "store": "state.onboardingOpen === false" },
+      "timeout": 5000
+    },
+    {
+      "name": "assert-tour-not-open",
+      "waitFor": { "store": "state.tourOpen === false" }
+    },
+    {
+      "name": "location-prompt-visible",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 8000
+    },
+    {
+      "name": "shot-location-prompt",
+      "screenshot": "location-prompt"
+    },
+    {
+      "name": "dismiss-location",
+      "click": { "text": "Skip — use default location" }
+    },
+    {
+      "name": "location-dismissed",
+      "waitFor": { "css": ".modal-overlay", "visible": false },
+      "timeout": 5000
+    },
+    {
+      "name": "settle",
+      "wait": 2000
+    },
+    {
+      "name": "shot-final-scene",
+      "screenshot": "final-scene"
+    }
+  ]
+}

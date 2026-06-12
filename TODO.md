@@ -66,7 +66,9 @@ Decomposed into four subsystems, each shipped independently. Brainstormed 2026-0
 - **DLC pack URL drift** — Kenney's pack URL contains a content-hash directory; HEAD-validation on `Content-Length` ± 5% catches breakage. Bump the registry entry when the upstream rotates.
 - **DLC pack scale curation** — Kenney's furniture-kit is unevenly scaled (most seating/storage/kitchen/lighting/bath items render at ~½ real size at scale=1; beds and the cross dining table are already correct). [src/catalog/packs/scaleHeuristic.ts](src/catalog/packs/scaleHeuristic.ts) ships a curated per-id multiplier table; install + hydrate apply it and existing installs auto-migrate on next boot. New packs need their own measured table or items will render at the wrong size.
 - **Subsystem 3: Sketchfab** — REST + OAuth token + runtime fetch. Largest variety gain; auth+ToS friction. Pending.
-- **Subsystem 4: Procedural furniture** — runtime mesh generation (parametric shelving, sofas, wardrobes). Largest design surface. Pending.
+- **Subsystem 4: Procedural furniture** — **shipped v1+v2** (C257/C258: dimension-driven
+  bookshelf/wardrobe/sideboard/desk generator with drawers + per-compartment config,
+  `src/furniture/parametric/`). Remaining: kitchen-cabinet run type (see TASKS.md PF tail).
 
 ## Runtime CC0 Catalog
 Plan: [docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md](docs/superpowers/plans/2026-05-01-runtime-cc0-catalog.md). Spec: [docs/superpowers/specs/2026-05-01-runtime-cc0-catalog-design.md](docs/superpowers/specs/2026-05-01-runtime-cc0-catalog-design.md). Active implementation in progress on this branch.
@@ -142,10 +144,10 @@ Multi-storey plans are now in progress (F13 / ML phases — see TASKS.md).
   Basis-Universal WASM encoder (e.g. the KTX-Software `libktx` wasm build or a
   basis_encoder wasm) and have `encodeKtx2` produce UASTC/ETC1S payloads;
   `KHRTextureBasisu` is already added when an encode succeeds.
-- **Standalone KTX2/DDS texture upload** — `materials/convert/decodeImage.ts`
-  decodes TGA/TIFF/EXR/HDR but not GPU-compressed `.ktx2`/`.dds` (those need a
-  WebGL transcode/readback to get RGBA pixels). Add via the drei KTX2 transcoder
-  → render-to-canvas readback if users ask for it.
+- **Standalone KTX2/DDS texture upload** ✓ SHIPPED (C274) — `decodeGpuTexture.ts`
+  handles both formats: uncompressed KTX2 via pure-JS `ktx-parse`, Basis-compressed
+  KTX2 via `KTX2Loader` + GPU readback, DDS via `DDSLoader` + GPU readback for
+  compressed formats. Pipeline: `decodeImage` → `normalizeTextureFile` → WebP.
 
 ## Competitive-parity upgrade (2026-06-04)
 Spec: [docs/superpowers/specs/2026-06-04-competitive-parity-upgrade-design.md](docs/superpowers/specs/2026-06-04-competitive-parity-upgrade-design.md).

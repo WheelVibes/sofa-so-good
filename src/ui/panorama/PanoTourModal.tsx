@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { levelElevation } from '../../floorplan/levels'
+import { allPlanRooms, levelElevation } from '../../floorplan/levels'
 import { capturePanorama } from '../../scene/panorama/capturePanorama'
 import { useStore } from '../../state/store'
 import { Modal } from '../Modal'
 import { Icon } from '../toolbar/icons'
 import { PanoramaViewer } from './PanoramaViewer'
+import { computeDesignKey, evictPanoStop, getPanoCached, putPanoCached } from './panoImageIdb'
 import {
   hotspotScreenPosition,
   MAX_TOUR_STOPS,
   PANO_EYE_HEIGHT,
   type PanoTourStop,
   stopHotspots,
+  stopInitialYaw,
   type TourHotspot,
 } from './panoTour'
 import { INITIAL_LOOK, type LookState } from './viewerLook'
@@ -28,8 +30,13 @@ const FADE_MS = 220
  * view. A stop strip below allows direct jumps + management (add / delete).
  *
  * Panoramas are captured live per stop (eye = the stop's recorded position at
- * standing height) and cached per stop id for the session, so the tour always
- * reflects the current design.
+ * standing height) and cached in **IndexedDB** (keyed by stop id + a design
+ * hash), so re-visiting a stop skips the expensive re-render until the design
+ * changes. Stale cache entries (wrong design hash) are evicted on access.
+ *
+ * Per-stop **initial yaw**: on first arrival at a stop (not a hotspot jump)
+ * the viewer faces the room-centre using `stopInitialYaw`, so the user
+ * immediately sees the room they're standing in.
  */
 export function PanoTourModal() {
   const open = useStore((s) => s.panoTourOpen)
@@ -47,72 +54,103 @@ export function PanoTourModal() {
   const [fading, setFading] = useState(false)
   const [look, setLook] = useState<LookState>(INITIAL_LOOK)
   const [aspect, setAspect] = useState(16 / 9)
-  /** Orientation for the next pano mount (faces the travel direction after a jump). */
+  /** Orientation for the next pano mount (faces the travel direction after a jump
+   *  — or the room centre on plain stop selection). */
   const nextLook = useRef<LookState>(INITIAL_LOOK)
-  /** Session cache of captured panoramas, keyed by stop id (dropped on close). */
-  const cache = useRef(new Map<string, HTMLCanvasElement>())
   /** Bumped by Re-capture to force a fresh render of the active stop. */
   const [captureNonce, setCaptureNonce] = useState(0)
 
   const activeStopId = active?.id ?? null
 
-  // Capture (or pull from the session cache) the active stop's panorama.
+  /**
+   * Compute the design key that qualifies the IDB cache entry. This runs
+   * synchronously against the current store so it's always fresh.
+   */
+  function currentDesignKey(): string {
+    const s = useStore.getState()
+    return computeDesignKey({
+      items: s.items,
+      finishes: s.finishes,
+      floorPlan: s.floorPlan,
+      doors: s.doors,
+      userFurniture: s.userFurniture,
+    })
+  }
+
+  // Capture (or pull from the IDB cache) the active stop's panorama.
   // Keyed on the stop id (not the `active` object, whose identity churns with
   // the stops array) — the stop data is re-read fresh from the store.
   // biome-ignore lint/correctness/useExhaustiveDependencies: captureNonce is a deliberate re-trigger (Re-capture button).
   useEffect(() => {
-    const stop = activeStopId
-      ? useStore.getState().panoTourStops.find((s) => s.id === activeStopId)
-      : undefined
+    const stopId = activeStopId
+    const stop = stopId ? useStore.getState().panoTourStops.find((s) => s.id === stopId) : undefined
     if (!open || !stop) {
       setPano(null)
       setFailed(false)
       setBusy(false)
       return
     }
-    const cached = cache.current.get(stop.id)
-    if (cached) {
-      setPano(cached)
-      setFading(false)
-      return
-    }
-    setBusy(true)
-    setFailed(false)
+
     let alive = true
-    // Let the modal paint its "capturing" state before the blocking renders.
-    const t = setTimeout(() => {
-      const plan = useStore.getState().floorPlan
-      const eyeY = levelElevation(plan, stop.levelId) + PANO_EYE_HEIGHT
-      void capturePanorama({ eye: [stop.position[0], eyeY, stop.position[1]] }).then((res) => {
-        if (!alive) return
-        if (res) cache.current.set(stop.id, res.canvas)
-        setPano(res?.canvas ?? null)
-        setFailed(!res)
-        setBusy(false)
+    const designKey = currentDesignKey()
+
+    // Try the IDB cache first (skip capture if cache hit with matching design key).
+    void getPanoCached(stop.id, designKey).then((cached) => {
+      if (!alive) return
+      if (cached) {
+        setPano(cached)
         setFading(false)
-      })
-    }, 30)
+        setBusy(false)
+        return
+      }
+      // Cache miss — capture live.
+      setBusy(true)
+      setFailed(false)
+      // Let the modal paint its "capturing" state before the blocking renders.
+      const t = setTimeout(() => {
+        if (!alive) return
+        const plan = useStore.getState().floorPlan
+        const eyeY = levelElevation(plan, stop.levelId) + PANO_EYE_HEIGHT
+        void capturePanorama({ eye: [stop.position[0], eyeY, stop.position[1]] }).then((res) => {
+          if (!alive) return
+          if (res) {
+            // Persist to IDB for future visits.
+            void putPanoCached(stop.id, designKey, res.canvas)
+          }
+          setPano(res?.canvas ?? null)
+          setFailed(!res)
+          setBusy(false)
+          setFading(false)
+        })
+      }, 30)
+      return () => clearTimeout(t)
+    })
+
     return () => {
       alive = false
-      clearTimeout(t)
     }
   }, [open, activeStopId, captureNonce])
 
-  // Drop the session captures when the tour closes (design may change after).
-  useEffect(() => {
-    if (!open) {
-      cache.current.clear()
-      nextLook.current = INITIAL_LOOK
-    }
-  }, [open])
-
   const jumpTo = useCallback(
     (stopId: string, hotspot?: TourHotspot) => {
-      // Face the direction of travel on arrival (viewer yaw is world-aligned),
-      // keeping the user's zoom level.
-      nextLook.current = hotspot
-        ? { yaw: hotspot.yaw, pitch: 0, fov: look.fov }
-        : { ...INITIAL_LOOK, fov: look.fov }
+      if (hotspot) {
+        // Facing the direction of travel on arrival (hotspot click).
+        nextLook.current = { yaw: hotspot.yaw, pitch: 0, fov: look.fov }
+      } else {
+        // Direct stop selection: face the room centre.
+        const stop = useStore.getState().panoTourStops.find((s) => s.id === stopId)
+        if (stop) {
+          const plan = useStore.getState().floorPlan
+          const rooms = allPlanRooms(plan)
+          nextLook.current = {
+            yaw: stopInitialYaw(stop, rooms),
+            pitch: 0,
+            fov: look.fov,
+          }
+        } else {
+          nextLook.current = { ...INITIAL_LOOK, fov: look.fov }
+        }
+      }
       setFading(true)
       setTimeout(() => setActive(stopId), FADE_MS)
     },
@@ -131,7 +169,8 @@ export function PanoTourModal() {
 
   const recapture = () => {
     if (!active) return
-    cache.current.delete(active.id)
+    // Force a fresh capture by evicting the IDB entry for this stop.
+    void evictPanoStop(active.id)
     setCaptureNonce((n) => n + 1)
   }
 
@@ -264,7 +303,7 @@ export function PanoTourModal() {
               : failed
                 ? 'Could not capture — try Re-capture.'
                 : stops.length === 0
-                  ? 'No stops yet — frame a room, then “Add stop here”. Add stops in several rooms to link them with hotspots.'
+                  ? 'No stops yet — frame a room, then "Add stop here". Add stops in several rooms to link them with hotspots.'
                   : ''}
           </div>
         ) : null}
@@ -298,7 +337,7 @@ export function PanoTourModal() {
                 aria-label={`Remove stop ${s.label}`}
                 title="Remove this stop"
                 onClick={() => {
-                  cache.current.delete(s.id)
+                  void evictPanoStop(s.id)
                   removeStop(s.id)
                 }}
               >

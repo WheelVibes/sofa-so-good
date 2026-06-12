@@ -1,0 +1,39 @@
+{
+  "name": "procedural-worker-simple",
+  "url": "http://localhost:5210/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daylight",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "wait-scene",
+      "wait": 4000
+    },
+    {
+      "name": "shot-baseline",
+      "screenshot": "baseline-default-flat"
+    },
+    {
+      "name": "switch-floor-finish",
+      "eval": "window.__store.getState().setFloorFinish('livingDining', 'floor-tile-hex')"
+    },
+    {
+      "name": "wait-texture",
+      "wait": 3000
+    },
+    {
+      "name": "shot-after-finish",
+      "screenshot": "after-floor-finish-switch"
+    }
+  ]
+}

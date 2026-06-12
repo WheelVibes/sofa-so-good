@@ -259,6 +259,19 @@ const RawSerializedStateZ = z.object({
   locationPromptDismissed: z.boolean().optional().default(false),
   // Free-text project note that travels with the design (optional, back-compat).
   note: z.string().optional(),
+  // Optional tour stops (C261, P-720 tail) — optional + additive, no version bump.
+  // Images are NOT shared — receivers capture live from the current design.
+  // Absent → [] on load (backward-compatible with older saves / links).
+  panoTourStops: z
+    .array(
+      z.object({
+        id: z.string(),
+        label: z.string(),
+        position: z.tuple([z.number(), z.number()]),
+        levelId: z.string().optional(),
+      }),
+    )
+    .optional(),
   savedAt: z.string(),
 })
 
@@ -379,6 +392,9 @@ export function serialize(state: RootState): SerializedState {
     location: state.location,
     locationPromptDismissed: state.locationPromptDismissed,
     ...(state.designNote ? { note: state.designNote } : {}),
+    // Persist tour stops so shared designs arrive with stops in place.
+    // Images are NOT embedded — receivers capture live, same as C252 model.
+    ...(state.panoTourStops.length ? { panoTourStops: state.panoTourStops } : {}),
     savedAt: new Date().toISOString(),
   }
 }
@@ -440,5 +456,7 @@ export function applySerialized(
     location: state.location ?? null,
     locationPromptDismissed: state.locationPromptDismissed ?? false,
     designNote: state.note ?? '',
+    // Restore tour stops from the shared design (absent in older saves → []).
+    panoTourStops: state.panoTourStops ?? [],
   }
 }

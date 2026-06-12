@@ -1,0 +1,158 @@
+{
+  "name": "pano-tour-journey",
+  "url": "http://localhost:5213/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "window.__store.getState().endTour?.(); window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().dismissLocationPrompt?.()"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "clear-tour-stops",
+      "eval": "window.__store.getState().clearPanoTour()"
+    },
+    {
+      "name": "assert-no-stops",
+      "eval": "if (window.__store.getState().panoTourStops.length !== 0) throw new Error('Expected 0 stops after clear, got ' + window.__store.getState().panoTourStops.length)"
+    },
+    {
+      "name": "shot-clean-scene",
+      "screenshot": "01-clean-scene-no-stops"
+    },
+    {
+      "name": "add-two-stops",
+      "eval": "window.__store.setState({ panoTourStops: [{ id: 'journey-stop-1', label: 'Living Room', position: [9, 3] }, { id: 'journey-stop-2', label: 'Kitchen', position: [4, 3] }], panoTourActiveId: 'journey-stop-1' })"
+    },
+    {
+      "name": "wait-two-stops",
+      "waitFor": { "store": "window.__store.getState().panoTourStops.length === 2" }
+    },
+    {
+      "name": "assert-two-stops-added",
+      "eval": "(() => { const stops = window.__store.getState().panoTourStops; if (stops.length !== 2) throw new Error('Expected 2 stops, got ' + stops.length); if (stops[0].label !== 'Living Room') throw new Error('Stop 1 label mismatch: ' + stops[0].label); })()"
+    },
+    {
+      "name": "shot-two-stops-added",
+      "screenshot": "02-two-stops-added"
+    },
+    {
+      "name": "open-floor-plan-editor",
+      "eval": "window.__store.getState().setFloorPlanEditing(true)"
+    },
+    {
+      "name": "wait-plan-screen",
+      "waitFor": { "css": ".plan-screen" },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-plan-editor-stops",
+      "screenshot": "03-plan-editor-with-stop-markers"
+    },
+    {
+      "name": "assert-stop-markers-in-plan",
+      "eval": "(() => { const circles = document.querySelectorAll('.plan-screen svg circle'); if (circles.length < 2) throw new Error('Expected at least 2 circles in plan SVG (stop markers), found: ' + circles.length); })()"
+    },
+    {
+      "name": "exit-plan-editor",
+      "eval": "window.__store.getState().setFloorPlanEditing(false)"
+    },
+    {
+      "name": "wait-exit-plan",
+      "waitFor": { "store": "window.__store.getState().floorPlanEditing === false" }
+    },
+    {
+      "name": "open-tour-modal",
+      "store": { "action": "setPanoTourOpen", "args": [true] }
+    },
+    {
+      "name": "wait-tour-modal",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-tour-modal",
+      "screenshot": "04-tour-modal-with-stops"
+    },
+    {
+      "name": "assert-tour-modal-shows-stops",
+      "eval": "(() => { const btns = Array.from(document.querySelectorAll('.modal-overlay button')).filter(b => b.textContent?.includes('Living Room') || b.textContent?.includes('Kitchen')); if (btns.length < 2) throw new Error('Expected Living Room + Kitchen buttons in tour modal, got: ' + btns.length); })()"
+    },
+    {
+      "name": "assert-active-stop",
+      "eval": "if (!window.__store.getState().panoTourActiveId) throw new Error('panoTourActiveId should be set when tour is open')"
+    },
+    {
+      "name": "switch-to-second-stop",
+      "store": { "action": "setPanoTourActive", "args": ["journey-stop-2"] }
+    },
+    {
+      "name": "wait-active-updated",
+      "waitFor": { "store": "window.__store.getState().panoTourActiveId === 'journey-stop-2'" }
+    },
+    {
+      "name": "shot-second-stop-active",
+      "screenshot": "05-second-stop-active"
+    },
+    {
+      "name": "close-tour-modal",
+      "store": { "action": "setPanoTourOpen", "args": [false] }
+    },
+    {
+      "name": "wait-modal-closed",
+      "waitFor": { "css": ".modal-overlay", "visible": false }
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": { "width": 390, "height": 844 }
+    },
+    {
+      "name": "wait-mobile-settle",
+      "wait": 800
+    },
+    {
+      "name": "shot-mobile-scene",
+      "screenshot": "06-mobile-view-390x844"
+    },
+    {
+      "name": "open-tour-modal-mobile",
+      "store": { "action": "setPanoTourOpen", "args": [true] }
+    },
+    {
+      "name": "wait-tour-modal-mobile",
+      "waitFor": { "css": ".modal-overlay" },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-tour-modal-mobile",
+      "screenshot": "07-tour-modal-mobile"
+    },
+    {
+      "name": "assert-stop-tabs-visible-mobile",
+      "eval": "(() => { const btns = Array.from(document.querySelectorAll('.modal-overlay button')).filter(b => b.textContent?.includes('Living Room') || b.textContent?.includes('Kitchen')); if (btns.length < 2) throw new Error('Stop tabs not visible on mobile, found: ' + btns.length); })()"
+    },
+    {
+      "name": "close-tour-modal-mobile",
+      "store": { "action": "setPanoTourOpen", "args": [false] }
+    },
+    {
+      "name": "cleanup-stops",
+      "eval": "window.__store.getState().clearPanoTour()"
+    },
+    {
+      "name": "shot-final",
+      "screenshot": "08-final-clean"
+    }
+  ]
+}

@@ -10,6 +10,7 @@ import {
   PANO_EYE_HEIGHT,
   type PanoTourStop,
   stopHotspots,
+  stopInitialYaw,
   yawToward,
 } from './panoTour'
 import { INITIAL_LOOK } from './viewerLook'
@@ -132,6 +133,49 @@ describe('hotspotScreenPosition', () => {
     expect(wide).not.toBeNull()
     expect(tele).not.toBeNull()
     expect(tele!.left - 50).toBeGreaterThan(wide!.left - 50)
+  })
+})
+
+describe('stopInitialYaw (per-stop room-centre yaw, C261)', () => {
+  const rooms: PlanRoom[] = [
+    { id: 'living', name: 'Living', origin: [0, 0], width: 6, depth: 4 },
+    { id: 'bed', name: 'Bedroom', origin: [6, 0], width: 3, depth: 3 },
+  ]
+
+  it('faces the room centre when the stop is inside a room', () => {
+    // Living room centre: [3, 2]. Stop at [1, 2] (left side of room).
+    // yawToward([1,2], [3,2]) = atan2(-(3-1), -(2-2)) = atan2(-2, 0) = -PI/2.
+    const stop: PanoTourStop = { id: 's', label: 'Living', position: [1, 2] }
+    expect(stopInitialYaw(stop, rooms)).toBeCloseTo(-Math.PI / 2)
+  })
+
+  it('returns 0 for a stop outside any room', () => {
+    const stop: PanoTourStop = { id: 's', label: 'Stop', position: [20, 20] }
+    expect(stopInitialYaw(stop, rooms)).toBe(0)
+  })
+
+  it('returns 0 when the stop is effectively at the room centre', () => {
+    // Centre of living room is [3, 2]; stop at [3, 2].
+    const stop: PanoTourStop = { id: 's', label: 'Living', position: [3, 2] }
+    expect(stopInitialYaw(stop, rooms)).toBe(0)
+  })
+
+  it('handles an empty rooms array gracefully', () => {
+    const stop: PanoTourStop = { id: 's', label: 'Stop', position: [1, 1] }
+    expect(stopInitialYaw(stop, [])).toBe(0)
+  })
+
+  it('round-trips: the yaw lookDirection points from stop toward the room centre', () => {
+    // Stop at bottom-left corner of the living room.
+    const stop: PanoTourStop = { id: 's', label: 'Living', position: [0.5, 3.5] }
+    const yaw = stopInitialYaw(stop, rooms)
+    const [dx, , dz] = lookDirection(yaw, 0)
+    // Centre is [3, 2]; offset from stop is (2.5, -1.5).
+    // lookDirection should point in the same direction.
+    const ox = 3 - 0.5 // 2.5
+    const oz = 2 - 3.5 // -1.5
+    // Ratio dx/dz ≈ ox/oz (allow for sign flip from atan2).
+    expect(dx / dz).toBeCloseTo(ox / oz, 1)
   })
 })
 

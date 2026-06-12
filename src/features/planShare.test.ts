@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import { applySerialized } from '../state/schema'
 import { loadSharedPlanFromUrl } from '../state/storage/bootstrap'
 import { useStore } from '../state/store'
+import type { PanoTourStop } from '../ui/panorama/panoTour'
 import {
   buildPlanShareUrl,
   decodeCodeToDesign,
@@ -82,6 +83,59 @@ describe('plan route helpers', () => {
   })
   it('builds a full share URL ending in the plan hash', () => {
     expect(buildPlanShareUrl('abc')).toMatch(/#\/plans\/abc$/)
+  })
+})
+
+describe('share-link round-trip with panoTourStops (C261)', () => {
+  it('encodes panoTourStops and decodes them back', () => {
+    useStore.getState().__resetForTest()
+    const stops: PanoTourStop[] = [
+      { id: 'p1', label: 'Living/Dining', position: [9, 3] },
+      { id: 'p2', label: 'Bedroom 1', position: [3, 3], levelId: 'level-2' },
+    ]
+    useStore.setState({ panoTourStops: stops } as never)
+    const code = encodeDesignToCode(useStore.getState())
+    const design = decodeCodeToDesign(code)
+    expect(design.panoTourStops).toHaveLength(2)
+    expect(design.panoTourStops?.[0].id).toBe('p1')
+    expect(design.panoTourStops?.[0].position).toEqual([9, 3])
+    expect(design.panoTourStops?.[1].levelId).toBe('level-2')
+  })
+
+  it('decodes old links without panoTourStops as empty array (backward compat)', () => {
+    useStore.getState().__resetForTest()
+    // Encode a design that has NO panoTourStops field.
+    useStore.setState({ panoTourStops: [] } as never)
+    const code = encodeDesignToCode(useStore.getState())
+    const design = decodeCodeToDesign(code)
+    // Should be undefined OR empty array — applySerialized coerces to [].
+    const patch = applySerialized(design, new Set())
+    expect(patch.panoTourStops).toEqual([])
+  })
+
+  it('applySerialized restores tour stops into the store', () => {
+    useStore.getState().__resetForTest()
+    const stops: PanoTourStop[] = [{ id: 'q1', label: 'Kitchen', position: [5, 1] }]
+    useStore.setState({ panoTourStops: stops } as never)
+    const code = encodeDesignToCode(useStore.getState())
+    const design = decodeCodeToDesign(code)
+    const patch = applySerialized(design, new Set())
+    expect(patch.panoTourStops).toEqual(stops)
+  })
+
+  it('share-link without stops still produces a valid design (old-link compat)', () => {
+    // Directly encode a raw payload without the panoTourStops field to simulate
+    // a pre-C261 share link.
+    useStore.getState().__resetForTest()
+    // Encode an arbitrary valid payload and strip panoTourStops before encoding.
+    const code = encodeDesignToCode(useStore.getState())
+    const decoded = decodePlan(code) as Record<string, unknown>
+    delete decoded.panoTourStops
+    const codeWithoutStops = encodePlan(decoded)
+    const design = decodeCodeToDesign(codeWithoutStops)
+    // panoTourStops absent in old payload → applySerialized fills with [].
+    const patch = applySerialized(design, new Set())
+    expect(patch.panoTourStops).toEqual([])
   })
 })
 

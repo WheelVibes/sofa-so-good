@@ -212,8 +212,9 @@ export the result — all in the browser.
   → add furniture → move & customise → paint walls/floors → set the time of day &
   backdrop). The highlighted control stays clickable and **performing the real
   action advances the tour** — clicks elsewhere are harmless, and only the
-  explicit **Skip tour** button (or Esc) ends it. Launch it from onboarding, the
-  Help modal, or ⌘K.
+  explicit **Skip tour** button (or Esc) ends it. Launched by choosing **"Take the
+  guided tour"** in the first-run onboarding carousel (step 3), or from the Help
+  modal or ⌘K — never auto-starts without user intent.
 - **Pro-tool interactions** — a **⌘K command palette** (fuzzy search across
   actions, panels, views, and "add furniture"), a **right-click context menu**
   on any placed piece, an **Objects / Layers** view (items grouped by room with

@@ -10,11 +10,12 @@ export function LocationPrompt() {
   const dismissed = useStore((s) => s.locationPromptDismissed)
   const setLocation = useStore((s) => s.setLocation)
   const dismiss = useStore((s) => s.dismissLocationPrompt)
-  // The guided product tour auto-starts on first run; don't stack the location
-  // modal on top of it. It surfaces once the tour is done or skipped.
+  // Don't stack the location modal on top of the first-run onboarding carousel or
+  // the product tour. It surfaces after both overlays are dismissed.
+  const onboardingOpen = useStore((s) => s.onboardingOpen)
   const tourOpen = useStore((s) => s.tourOpen)
 
-  if (location !== null || dismissed || tourOpen) return null
+  if (location !== null || dismissed || onboardingOpen || tourOpen) return null
 
   return <LocationPromptContent onSetLocation={setLocation} onDismiss={dismiss} />
 }

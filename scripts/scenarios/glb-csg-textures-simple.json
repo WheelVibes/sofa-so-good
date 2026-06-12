@@ -1,0 +1,142 @@
+{
+  "name": "glb-csg-textures-simple",
+  "url": "http://localhost:5214/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 120000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "set-daylight",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "open-glb-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-designer-open",
+      "screenshot": "01-designer-open"
+    },
+    {
+      "name": "add-first-box",
+      "click": { "text": "Box" }
+    },
+    {
+      "name": "wait-first-box",
+      "waitFor": { "css": "input[aria-label='box position X']" },
+      "timeout": 5000
+    },
+    {
+      "name": "set-first-box-finish-oak",
+      "eval": "(function() { const btn = document.querySelector('button[aria-label=\"Finish: Oak\"]'); if (btn) btn.click(); })()"
+    },
+    {
+      "name": "wait-finish-set",
+      "wait": 1000
+    },
+    {
+      "name": "shot-first-box-oak",
+      "screenshot": "02-first-box-oak"
+    },
+    {
+      "name": "add-second-box",
+      "click": { "text": "Box" }
+    },
+    {
+      "name": "wait-second-box",
+      "waitFor": { "text": "box 2" },
+      "timeout": 5000
+    },
+    {
+      "name": "set-second-box-finish-walnut",
+      "eval": "(function() { const btn = document.querySelector('button[aria-label=\"Finish: Walnut\"]'); if (btn) btn.click(); })()"
+    },
+    {
+      "name": "wait-finish-set-2",
+      "wait": 1000
+    },
+    {
+      "name": "shot-two-boxes",
+      "screenshot": "03-two-boxes-different-finishes"
+    },
+    {
+      "name": "select-first-box",
+      "eval": "(function() { const rows = document.querySelectorAll('.lyr-row'); if (rows[0]) rows[0].click(); })()"
+    },
+    {
+      "name": "wait-first-selected",
+      "waitFor": { "css": "input[aria-label='box size X']" },
+      "timeout": 5000
+    },
+    {
+      "name": "pick-second-box-in-combine",
+      "eval": "(function() { const sel = document.querySelector('select[aria-label=\"Combine with\"]'); if (!sel) return; const opt = [...sel.options].find(o => o.text.includes('box 2')); if (opt) { Object.getOwnPropertyDescriptor(Object.getPrototypeOf(sel), 'value').set.call(sel, opt.value); sel.dispatchEvent(new Event('change', { bubbles: true })); } })()"
+    },
+    {
+      "name": "wait-combine-ready",
+      "wait": 500
+    },
+    {
+      "name": "click-union",
+      "click": { "text": "Union" }
+    },
+    {
+      "name": "wait-combined",
+      "waitFor": { "text": "Combined" },
+      "timeout": 30000
+    },
+    {
+      "name": "wait-render-settle",
+      "wait": 4000
+    },
+    {
+      "name": "shot-combined-mesh",
+      "screenshot": "04-combined-mesh-both-textures"
+    },
+    {
+      "name": "set-asset-name",
+      "eval": "(function() { const inp = document.querySelector('input[aria-label=\"Asset name\"]'); if (!inp) return; Object.getOwnPropertyDescriptor(Object.getPrototypeOf(inp), 'value').set.call(inp, 'CSG Texture Test'); inp.dispatchEvent(new Event('input', { bubbles: true })); })()"
+    },
+    {
+      "name": "click-save",
+      "click": { "text": "Save asset" }
+    },
+    {
+      "name": "wait-saved",
+      "waitFor": { "text": "Saved" },
+      "timeout": 15000
+    },
+    {
+      "name": "shot-after-save",
+      "screenshot": "05-after-save"
+    },
+    {
+      "name": "reopen-designer",
+      "store": { "action": "setGlbDesignerOpen", "args": [true] }
+    },
+    {
+      "name": "wait-designer-reopen",
+      "waitFor": { "text": "3D asset designer" },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-designer-reopened",
+      "screenshot": "06-designer-reopened"
+    }
+  ]
+}

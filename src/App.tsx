@@ -23,7 +23,6 @@ import { Scene } from './scene/Scene'
 import { MarqueeSelector } from './scene/selection/MarqueeSelector'
 import { canEditScene } from './state/editing'
 import { editableRoomIds } from './state/rooms'
-import { hasSeenTour } from './state/slices/featuresSlice'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
 import { AccessibilityPanel } from './ui/AccessibilityPanel'
@@ -75,6 +74,9 @@ const PanoTourModal = lazy(() =>
 const HqRenderModal = lazy(() =>
   import('./ui/HqRenderModal').then((m) => ({ default: m.HqRenderModal })),
 )
+const RenderCompareModal = lazy(() =>
+  import('./ui/RenderCompareModal').then((m) => ({ default: m.RenderCompareModal })),
+)
 const VersionsPanel = lazy(() =>
   import('./ui/VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
 )
@@ -91,13 +93,15 @@ const SmartStartWizard = lazy(() =>
   import('./ui/wizard/SmartStartWizard').then((m) => ({ default: m.SmartStartWizard })),
 )
 
+import { FinishDragOverlay } from './scene/FinishDragOverlay'
+import { resolveBootDecision } from './ui/bootDecision'
 import { ConfirmModal } from './ui/ConfirmModal'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
 import { NavCluster } from './ui/NavCluster'
 import { NotificationContainer } from './ui/notifications/NotificationContainer'
-import { hasOnboarded, markOnboarded, Onboarding } from './ui/Onboarding'
+import { Onboarding } from './ui/Onboarding'
 import { PresentationMode } from './ui/PresentationMode'
 import { PromptModal } from './ui/PromptModal'
 import { RoomEditorCaption } from './ui/RoomEditorCaption'
@@ -139,6 +143,7 @@ export default function App() {
     panoramaOpen: useStore((s) => s.panoramaOpen),
     panoTourOpen: useStore((s) => s.panoTourOpen),
     hqRenderOpen: useStore((s) => s.hqRenderOpen),
+    renderCompareOpen: useStore((s) => s.renderCompareOpen),
     elevationsOpen: useStore((s) => s.elevationsOpen),
     versionsOpen: useStore((s) => s.versionsOpen),
     historyOpen: useStore((s) => s.historyOpen),
@@ -351,25 +356,22 @@ export default function App() {
     }
   }, [booting])
 
-  // First run: once boot is ready, auto-start the guided product tour over the
-  // already-furnished default flat. The tour supersedes the old onboarding
-  // carousel, so we also mark onboarded; replay is available from Help + ⌘K.
-  // Returning users (tour already seen) get nothing.
+  // First run: once boot is ready, show the onboarding carousel. The carousel's
+  // "Take the guided tour" choice is the ONLY automatic entry point for the product
+  // tour — the tour never auto-fires on a clean profile. Replay is available from
+  // Help (?) + ⌘K for all users at any time.
+  //
+  // Migration edges:
+  //   hdb_onboarded='1'           → skip entirely (already onboarded, regardless
+  //                                  of tour state)
+  //   hdb_tour_done='1', no onboarded → show carousel once (old users who saw the
+  //                                  pre-C268 auto-starting tour before this change)
+  //   clean profile               → show carousel (new users)
   useEffect(() => {
     if (booting) return
-    const s = useStore.getState()
-    // The spotlight tour highlights desktop toolbar controls that live inside the
-    // hamburger sheet on mobile — and its overlay would sit above that sheet — so
-    // on mobile we show the centred onboarding carousel instead (ProductTour also
-    // self-disables on mobile as a safety net).
-    const isMobile =
-      typeof window !== 'undefined' && window.matchMedia('(max-width: 640px)').matches
-    if (!hasSeenTour()) {
-      markOnboarded()
-      if (isMobile) s.setOnboardingOpen(true)
-      else s.startTour()
-    } else if (!hasOnboarded()) {
-      s.setOnboardingOpen(true)
+    const decision = resolveBootDecision()
+    if (decision === 'carousel') {
+      useStore.getState().setOnboardingOpen(true)
     }
   }, [booting])
 
@@ -828,6 +830,9 @@ export default function App() {
         <ErrorBoundary scope="3D scene">
           {roomEditorActive ? <RoomEditorScene /> : <Scene />}
         </ErrorBoundary>
+        {/* Drop-target ring: shown while a finish drag is over the canvas
+            (DOM overlay, outside R3F — works under frameloop="demand"). */}
+        <FinishDragOverlay />
         <FpsCounter />
         <RoomEditorCaption />
         <EmptyRoomHint />
@@ -875,6 +880,11 @@ export default function App() {
         {lazyPanels.hqRenderOpen ? (
           <Suspense fallback={null}>
             <HqRenderModal />
+          </Suspense>
+        ) : null}
+        {lazyPanels.renderCompareOpen ? (
+          <Suspense fallback={null}>
+            <RenderCompareModal />
           </Suspense>
         ) : null}
         {lazyPanels.elevationsOpen ? (

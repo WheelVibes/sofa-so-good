@@ -1,0 +1,252 @@
+{
+  "name": "view-modes-journey",
+  "description": "Journey ladder for view modes: orbit \u21c4 walk \u21c4 2D plan with items in the scene. Verifies the full mode-toggle journey: orbit (catalog open) \u2192 walk (catalog hides since it gates on orbit+roomEditor) \u2192 back to orbit \u2192 P-key 2D plan \u2192 exit plan back to orbit. Includes a mobile viewport leg (orbit). Ensures item selected in orbit is correctly cleared on walk entry.",
+  "url": "http://localhost:5220/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "place-items-for-walkthrough",
+      "eval": "window.__store.getState().setItems([{id:'vm-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}},{id:'vm-tv',defId:'tv-console',position:[12.1,2.45],rotation:-1.5708,props:{width:1.6}},{id:'vm-dining',defId:'dining-table-4',position:[10.55,5.2],rotation:0,props:{seats:'4'}}])"
+    },
+    {
+      "name": "wait-items",
+      "wait": 2000
+    },
+    {
+      "name": "open-catalog-in-orbit",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "catalog-open",
+      "waitFor": {
+        "css": ".panel.catalog"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "select-item-in-orbit",
+      "store": {
+        "action": "selectItem",
+        "args": [
+          "vm-sofa"
+        ]
+      }
+    },
+    {
+      "name": "item-selected",
+      "waitFor": {
+        "store": "state.selectedItemId === 'vm-sofa'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "focus-orbit",
+      "store": {
+        "action": "focusOn",
+        "args": [
+          [
+            10.5,
+            3.0
+          ]
+        ]
+      }
+    },
+    {
+      "name": "wait-focus",
+      "wait": 1200
+    },
+    {
+      "name": "shot-orbit-with-catalog-and-selection",
+      "screenshot": "01-orbit-catalog-selection"
+    },
+    {
+      "name": "exit-room-editor",
+      "store": {
+        "action": "exitRoomEditor"
+      }
+    },
+    {
+      "name": "room-editor-inactive",
+      "waitFor": {
+        "store": "state.roomEditor.active === false"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-exit",
+      "wait": 1000
+    },
+    {
+      "name": "catalog-hidden-outside-editor",
+      "waitFor": {
+        "css": ".panel.catalog",
+        "visible": false
+      },
+      "timeout": 5000,
+      "failMessage": "Catalog drawer should be hidden when not in room editor (it gates on roomEditor.active=true)"
+    },
+    {
+      "name": "shot-orbit-no-catalog",
+      "screenshot": "02-orbit-outside-editor"
+    },
+    {
+      "name": "switch-to-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "walk-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-walk-render",
+      "wait": 1200
+    },
+    {
+      "name": "shot-walk-mode-items",
+      "screenshot": "03-walk-mode-scene"
+    },
+    {
+      "name": "verify-walk-hud-shows",
+      "waitFor": {
+        "css": ".walk-hud"
+      },
+      "timeout": 5000,
+      "failMessage": "WalkHud should be visible in firstPerson mode"
+    },
+    {
+      "name": "back-to-orbit",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "orbit"
+        ]
+      }
+    },
+    {
+      "name": "orbit-restored",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-orbit",
+      "wait": 800
+    },
+    {
+      "name": "open-2d-plan",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "plan-screen-appears",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 8000,
+      "failMessage": "2D plan editor should mount after setFloorPlanEditing(true)"
+    },
+    {
+      "name": "shot-2d-plan-with-items",
+      "screenshot": "04-2d-plan-items-visible"
+    },
+    {
+      "name": "close-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          false
+        ]
+      }
+    },
+    {
+      "name": "plan-closed",
+      "waitFor": {
+        "css": ".plan-screen",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-after-plan",
+      "wait": 800
+    },
+    {
+      "name": "shot-orbit-after-plan",
+      "screenshot": "05-orbit-after-plan"
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "wait-mobile",
+      "wait": 1000
+    },
+    {
+      "name": "shot-mobile-orbit",
+      "screenshot": "06-mobile-orbit"
+    },
+    {
+      "name": "restore-viewport",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      }
+    }
+  ]
+}

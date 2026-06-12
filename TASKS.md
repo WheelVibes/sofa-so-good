@@ -37,8 +37,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 
 ## Competitor research 2026-06 (sources: coohom.com/article Planner5D-alternative · capterra.com
 ## compare 164022-192882 · spacesbydee.com coohom-vs-planner-5d · plansnapper.com compare)
-- [ ] P-720 tail (optional): embed tours in share links/presentation; plan-based stop placement
-  UI; persist captured images in IDB to skip re-capture; per-stop initial yaw facing room centre.
 - [ ] COLLAB-STRUCT: structured collaboration (projects/teams) is Coohom's enterprise edge —
   backend-dependent; revisit if/when a backend exists.
 
@@ -47,32 +45,33 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   pass + decide quality-tier gating of the menu entry.
 - [ ] F3/R-HDRI [PROD] HDRI environment library (Poly Haven CC0 `.hdr`) for IBL + backdrop.
   Sandbox can't fetch — wire + dev-verify; CC0 so prod-ok.
-- [ ] F4 tail: A/B compare between two render presets, and HDRI coupling once F3 lands.
+- [ ] F4 tail (HDRI only): A/B compare shipped (C263); HDRI coupling deferred until F3 (R-HDRI) lands.
+  Once F3 is available, wire the HDRI selector into `capturePreset` and expose it in the compare modal.
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
-- [ ] R-CURTAIN/L1 Window-glass tint colouring the sun shaft + curtains affecting cast light +
-  inter-room light bleed. Perf-sensitive multi-file scene change.
-- [~] PR6 tail: default common furniture finishes to local CC0 `mat:<id>` (needs
-  `FurnitureMaterialLoader` pre-build + per-furniture UV scale) + optional Performance env hint.
+- [ ] R-BLEED: inter-room light bleed directional weighting (deferred from C275 — needs geometry
+  raycasting; revisit with PR4).
+- [ ] C275 tail: real-GPU check that curtain-dim frames present immediately (headless presents one
+  render-burst late; scene-graph light intensity provably updates instantly — see playbook).
 
 ## Content & catalog
-- [ ] PF tail: parametric furniture v2 (C257 shipped v1 — bookshelf/wardrobe/sideboard) — add
-  drawers, per-compartment config, more types (desk, kitchen-cabinet runs).
 - [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
   so designs look styled; ensure category coverage is exhaustive.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
-- [~] T2 Crown-molding revisit + kitchen/bath template polish.
 
 ## Productivity / QOL
+- [~] IXT-SUITES (user rule, 2026-06-12): build interaction-test scenarios (simple → complex per
+  feature, incl. cross-feature journeys like onboarding→tour→location) for every EXISTING feature
+  using the C267 harness; work down the `FEATURE_FLAGS` list in priority order.
+  Covered: batch 1 (C269) Simple core loop — catalog/furnish, finishes, budget, share,
+  view-modes; batch 2 (C272) pro analytical — drawings/lighting, versions, history, panoTour,
+  renderCompare. Remaining: measure, clearanceChecks, smartStart, AI surfaces, roomEditor,
+  multiStorey, GLB designer/parametric re-rungs, crown-molding, livePrices, first-run re-rungs.
 - [ ] Q-3DEXPORT Whole-scene glTF/GLB + USDZ (AR) export — needs worker-streamed export + real-GPU
   verify (a previous GLTFExporter prototype was reverted as unverifiable headless).
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
   depends on Q-3DEXPORT for the item GLB/USDZ.
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
-- [ ] Q31 tail (optional): transient drop-target highlight during dragover (skipped in C251 —
-  needs an artifact-free approach under frameloop=demand); custom-plan overview wall drops no-op.
-- [ ] GE3c tail: per-part texture on combined-mesh (CSG) parts currently takes the first part's
-  material (C257 shipped per-primitive-part texture pick) — per-face texture on a union is open.
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 
 ## Commerce / collaboration
@@ -87,9 +86,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   rotation-aware `InstancedBoxes` sibling; deferred until a consumer justifies it).
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
-- [ ] PERF9 tail: drop procedural textures to 256² where quality allows / OffscreenCanvas worker.
-- [ ] LP6 (optional): animate/scrub the lux overlay across the day; per-fixture contribution
-  toggle (C256 shipped the static 3D lux floor heatmap).
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

@@ -36,6 +36,7 @@ import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
 import { openDesignReport } from '../openReport'
 import { openShoppingList } from '../openShoplist'
+import { PresentationSetup } from '../presentation/PresentationSetup'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
@@ -190,6 +191,7 @@ export function MobileToolbar() {
   const fPanoTour = useFeature('panoTour')
   const fRenderPresets = useFeature('renderPresets')
   const fHqRender = useFeature('hqRender')
+  const fRenderCompare = useFeature('renderCompare')
   const fVr = useFeature('vrWalkthrough')
   const [vrSupported, setVrSupported] = useState(false)
   useEffect(() => {
@@ -480,13 +482,17 @@ export function MobileToolbar() {
                         })}
                       />
                     ) : null}
-                    {fSavedViews && fPresentation && savedViews.length > 0 ? (
-                      <Item
-                        icon="Walkthrough"
-                        label="Present"
-                        sub="Full-screen saved-views slideshow"
-                        onClick={act(() => s.getState().setPresenting(true))}
-                      />
+                    {fSavedViews && savedViews.length > 0 ? (
+                      fPresentation && fPanoTour ? (
+                        <PresentationSetup />
+                      ) : fPresentation ? (
+                        <Item
+                          icon="Walkthrough"
+                          label="Present"
+                          sub="Full-screen saved-views slideshow"
+                          onClick={act(() => s.getState().setPresenting(true))}
+                        />
+                      ) : null
                     ) : null}
                     {fSavedViews && savedViews.length > 1 ? (
                       <Item
@@ -986,6 +992,14 @@ export function MobileToolbar() {
                     label="HQ render"
                     sub="Path-traced photoreal still"
                     onClick={act(() => s.getState().setHqRenderOpen(true))}
+                  />
+                ) : null}
+                {fRenderCompare ? (
+                  <Item
+                    icon="Export"
+                    label="Render compare"
+                    sub="A/B compare two render presets"
+                    onClick={act(() => s.getState().setRenderCompareOpen(true))}
                   />
                 ) : null}
                 {fShopExport ? (

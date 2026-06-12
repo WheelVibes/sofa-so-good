@@ -1,0 +1,129 @@
+{
+  "name": "drawings-lighting-simple",
+  "url": "http://localhost:5213/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "window.__store.getState().endTour?.(); window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().dismissLocationPrompt?.()"
+    },
+    {
+      "name": "assert-drawings-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.drawings !== false) throw new Error('drawings flag should be OFF in Simple mode but got: ' + window.__store.getState().featureFlags.drawings)"
+    },
+    {
+      "name": "assert-elevations-panel-closed-in-simple",
+      "eval": "if (window.__store.getState().elevationsOpen) throw new Error('elevationsOpen should be false in Simple mode')"
+    },
+    {
+      "name": "shot-simple-mode",
+      "screenshot": "01-simple-mode-no-drawings"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "assert-drawings-enabled-in-pro",
+      "eval": "if (!window.__store.getState().featureFlags.drawings) throw new Error('drawings flag should be ON in Pro mode but got: ' + window.__store.getState().featureFlags.drawings)"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "open-drawings-panel",
+      "store": { "action": "setElevationsOpen", "args": [true] }
+    },
+    {
+      "name": "wait-drawings-panel",
+      "waitFor": { "css": "#elevationPanel" },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-drawings-panel-open",
+      "screenshot": "02-drawings-panel-open"
+    },
+    {
+      "name": "switch-to-lighting-tab",
+      "eval": "document.querySelectorAll('#elevationPanel .seg button')[1]?.click()"
+    },
+    {
+      "name": "wait-lighting-tab",
+      "wait": 500
+    },
+    {
+      "name": "shot-lighting-tab",
+      "screenshot": "03-lighting-tab"
+    },
+    {
+      "name": "enable-lux-overlay",
+      "store": { "action": "setLuxOverlayOn", "args": [true] }
+    },
+    {
+      "name": "wait-lux-overlay",
+      "waitFor": { "store": "window.__store.getState().luxOverlayOn === true" }
+    },
+    {
+      "name": "shot-lux-overlay-on",
+      "screenshot": "04-lux-overlay-on"
+    },
+    {
+      "name": "assert-lux-overlay-on",
+      "eval": "if (!window.__store.getState().luxOverlayOn) throw new Error('luxOverlayOn should be true after toggle')"
+    },
+    {
+      "name": "scrub-time-to-evening",
+      "eval": "window.__store.getState().setManualHour(19)"
+    },
+    {
+      "name": "wait-time-update",
+      "waitFor": { "store": "window.__store.getState().manualHour === 19" }
+    },
+    {
+      "name": "assert-overlay-reflects-new-hour",
+      "eval": "if (window.__store.getState().manualHour !== 19) throw new Error('manualHour should be 19 after scrub, got: ' + window.__store.getState().manualHour); if (!window.__store.getState().luxOverlayOn) throw new Error('luxOverlayOn should still be on')"
+    },
+    {
+      "name": "shot-lux-evening",
+      "screenshot": "05-lux-overlay-evening-hour-19"
+    },
+    {
+      "name": "disable-lux-overlay",
+      "store": { "action": "setLuxOverlayOn", "args": [false] }
+    },
+    {
+      "name": "assert-lux-off",
+      "eval": "if (window.__store.getState().luxOverlayOn) throw new Error('luxOverlayOn should be false after disable')"
+    },
+    {
+      "name": "shot-lux-off",
+      "screenshot": "06-lux-overlay-off"
+    },
+    {
+      "name": "close-drawings-panel",
+      "store": { "action": "setElevationsOpen", "args": [false] }
+    },
+    {
+      "name": "switch-back-to-simple",
+      "store": { "action": "setUiMode", "args": ["simple"] }
+    },
+    {
+      "name": "assert-drawings-hidden-again",
+      "eval": "if (window.__store.getState().featureFlags.drawings !== false) throw new Error('drawings should be OFF again in Simple mode')"
+    },
+    {
+      "name": "wait-settle-final",
+      "wait": 800
+    },
+    {
+      "name": "shot-simple-final",
+      "screenshot": "07-simple-mode-restored",
+      "timeout": 60000
+    }
+  ]
+}

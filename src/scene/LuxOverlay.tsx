@@ -1,4 +1,4 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import { DataTexture, LinearFilter, RGBAFormat, SRGBColorSpace } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../features/useFeature'
@@ -14,6 +14,9 @@ import { useSunPosition } from './lighting/useSunPosition'
 const FLOOR_OFFSET = 0.005
 /** Overlay opacity — strong enough to read, light enough to see the floor. */
 const OPACITY = 0.62
+
+/** How fast the auto-play advances, in fractional hours per second. */
+const PLAY_SPEED_HRS_PER_SEC = 1
 
 interface OverlayLayer {
   key: string
@@ -37,14 +40,21 @@ function gridTexture(grid: RoomLuxGrid): DataTexture {
 }
 
 /**
- * 3D lux-coverage heatmap on the floor (LP5 tail): renders each visible
- * level's per-room illuminance grids (`lighting2d/luxGrid.ts`) as translucent
- * colour-mapped planes just above the floor, so bright/dark zones show in the
- * actual scene. Toggled from the Drawings panel's Lighting tab
- * (`luxOverlayOn`) and gated by the same `drawings` flag as the rest of the
- * lighting plan (pro tier). Recomputes via render-time memos on the same
- * inputs that drive the 2D lux numbers (items / plan / level view) plus the
- * scene's fixture/daylight balance — nothing runs per-frame.
+ * 3D lux-coverage heatmap on the floor (LP5 tail / LP6 enhancements):
+ * renders each visible level's per-room illuminance grids as translucent
+ * colour-mapped planes just above the floor. Toggled from the Drawings panel's
+ * Lighting tab (`luxOverlayOn`) and gated by the same `drawings` flag (pro tier).
+ *
+ * LP6 extensions:
+ * - Reacts to `manualHour` (time-scrub) — the existing time-of-day state drives
+ *   `useSunPosition`, so scrubbing the Scene slider updates the heatmap live.
+ *   Debouncing is implicit: the memo only recomputes when the quantised
+ *   fixture/daylight levels change (per-% steps), keeping scrubbing smooth.
+ * - Per-fixture exclusion: item IDs in `luxExcludedIds` are filtered out before
+ *   computing grids, so the user can isolate each fixture's contribution.
+ * - Optional auto-play: `luxPlaying` advances `manualHour` at 1 hr/s via a
+ *   rAF loop, so the heatmap animates across the day. The RenderPump already
+ *   reacts to store changes, so no extra invalidate call is needed.
  */
 export function LuxOverlay() {
   const enabled = useFeature('drawings')
@@ -53,10 +63,40 @@ export function LuxOverlay() {
   const plan = useStore((s) => s.floorPlan)
   const viewLevelId = useStore((s) => s.viewLevelId)
   const lightsMode = useStore((s) => s.lightsMode)
+  const luxExcludedIds = useStore(useShallow((s) => s.luxExcludedIds))
+  const luxPlaying = useStore((s) => s.luxPlaying)
   // Non-reactive catalog accessor (scene rule): recompute on items/plan, never
   // on catalog churn.
   const { ref: catalogRef } = useCatalogGetter()
   const sun = useSunPosition()
+
+  // Auto-play rAF loop — advances manualHour when luxPlaying is on.
+  // Runs as a plain side-effect (not a useFrame) so it works in any Canvas.
+  const lastTsRef = useRef<number | null>(null)
+  const playingRef = useRef(luxPlaying)
+  playingRef.current = luxPlaying
+
+  useEffect(() => {
+    if (!luxPlaying) {
+      lastTsRef.current = null
+      return
+    }
+    let raf = 0
+    const loop = (ts: number) => {
+      if (lastTsRef.current !== null) {
+        const dt = (ts - lastTsRef.current) / 1000
+        const { setManualHour, manualHour } = useStore.getState()
+        setManualHour(manualHour + dt * PLAY_SPEED_HRS_PER_SEC)
+      }
+      lastTsRef.current = ts
+      if (playingRef.current) raf = requestAnimationFrame(loop)
+    }
+    raf = requestAnimationFrame(loop)
+    return () => {
+      cancelAnimationFrame(raf)
+      lastTsRef.current = null
+    }
+  }, [luxPlaying])
 
   const show = enabled && on
   // Same day/night balance FurnitureLights drives the real point lights with:
@@ -69,17 +109,20 @@ export function LuxOverlay() {
   const fq = Math.round(fixtureLevel * 100) / 100
   const dq = Math.round(daylightLevel * 100) / 100
 
-  // biome-ignore lint/correctness/useExhaustiveDependencies: catalogRef is a stable ref read lazily; the grids recompute on items/plan/level/light-balance changes.
-  const levels = useMemo(
-    () =>
-      show
-        ? buildLuxGrids(plan, buildLightingPlan(items, catalogRef.current).lights, viewLevelId, {
-            fixtureLevel: fq,
-            daylightLevel: dq,
-          })
-        : [],
-    [show, plan, items, viewLevelId, fq, dq],
-  )
+  // Build the visible lights list, filtering out excluded fixtures.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: catalogRef is a stable ref read lazily; the grids recompute on items/plan/level/light-balance/exclusion changes.
+  const levels = useMemo(() => {
+    if (!show) return []
+    const allLights = buildLightingPlan(items, catalogRef.current).lights
+    const lights =
+      luxExcludedIds.length === 0
+        ? allLights
+        : allLights.filter((l) => !luxExcludedIds.includes(l.id))
+    return buildLuxGrids(plan, lights, viewLevelId, {
+      fixtureLevel: fq,
+      daylightLevel: dq,
+    })
+  }, [show, plan, items, viewLevelId, fq, dq, luxExcludedIds])
 
   const layers = useMemo<OverlayLayer[]>(
     () =>

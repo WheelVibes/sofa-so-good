@@ -19,9 +19,17 @@ same change that reshapes a system.
   `docs:build`/`build:all` (= `build` then `docs:build` — order matters; `deploy.yml`);
   in-app via `src/ui/docsUrl.ts` (guide only in a built `dist/`, `docs:dev` port 5175).
   **Developer docs** = local-only `docs/developer/` (`docs:dev:developer` 5176).
-- `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — Puppeteer
-  screenshot harness (actions drag/rdrag/wheel/click/type/key/wait; `SHOT_URL` env targets a
-  non-default dev port); `crop.mjs`/`perf.mjs`.
+- `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — Puppeteer legacy
+  one-shot screenshot harness (actions drag/rdrag/wheel/click/type/key/wait; `SHOT_URL`
+  env targets a non-default dev port).
+- `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario
+  mode** (recommended for multi-step journeys): ordered named steps run in one browser
+  session with structured `STEP n/N name … OK (1.2s)` logging; failure dumps a
+  `failed-<name>.png`; step types: eval/waitFor/click/drag/rdrag/wheel/key/type/select/
+  wait/screenshot/store/viewport. Scenario schema in `scripts/lib/validate.mjs` (pure,
+  unit-tested). Worked example: `scripts/scenarios/first-run.json`. Playbook:
+  `docs/visual-verification-playbook.md`.
+- `crop.mjs`/`perf.mjs`.
 - `npm run optimize:glb` (offline LOD pass); `compress:glb-textures <dir> [--etc1s]`
   (offline KTX2/UASTC re-encode; needs `toktx`+`@gltf-transform/cli`); `scraper-server`
   (5174, dev) IKEA scrape SSE; `price-server` (5175, dev) SG retailer price lookup
@@ -72,7 +80,7 @@ same change that reshapes a system.
   `furnitureMaterials.ts` (tintable grain + `getSolidMaterial` + `mat:<id>` DLC +
   `getSurfaceMaterial`), `worldUv.ts`, `finishDrop.ts` (drag-to-apply core; canvas drop =
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
-  (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR, `reencode.ts`→WebP; 16MB cap, KTX2/DDS deferred).
+  (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
   (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in
@@ -153,9 +161,12 @@ same change that reshapes a system.
   `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps to 5 mm /
   1°; `mesh` parts hide Scale (triangles are baked). Launched from ⌘K. TODO:
   per-component recolour/hide of a source GLB's meshes (v2).
-- **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
-  **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through
-  spotlight; only "Skip tour"/Esc ends it; location prompt suppressed while open),
+- **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`) is the
+  **first** first-run surface — fires on clean profile, bot decision extracted to
+  `ui/bootDecision.ts` (pure, tested). Carousel step 3 offers "Take the guided tour" as the
+  ONLY automatic entry into the **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive
+  click-through spotlight; only "Skip tour"/Esc ends it). **Location prompt suppressed while
+  `onboardingOpen || tourOpen`** (no stacking). Replay via Help (?) or ⌘K.
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
   **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
   `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).
@@ -177,8 +188,18 @@ same change that reshapes a system.
   persist + rehydration); `textureBudget.ts` = last-resort downscale. `--ktx2`
   emits Basis-Universal (needs `toktx`, else WebP).
 - **Procedural materials**: `procedural/generators.ts` paints one tiling tile per finish
-  from seeded noise; world-space UVs tile at fixed physical scale. `furnitureMaterials.ts`
-  = tintable wood/stone/fabric/concrete/rattan + `getSolidMaterial`.
+  from seeded noise; world-space UVs tile at fixed physical scale. `PATTERN_SIZE_CAP` declares
+  the max useful resolution per pattern (smooth patterns cap at 256²; high-frequency geometric
+  patterns cap at 512²); `effectivePatternSize(pattern)` clamps to `min(BASE_SIZE, cap)` so
+  smooth patterns stay at 256 even on Medium+ tiers — saving GPU memory with no visible loss.
+  `QualityController` sets `BASE_SIZE` to 256 on Performance, 512 on Medium+.
+  **C271 worker**: `buildMaterial` immediately generates a sync texture (no first-paint delay),
+  then `runProceduralWorker.ts` fires a single shared `Worker`
+  (`procedural.worker.ts`) that re-renders via `OffscreenCanvas` and returns three
+  `ImageBitmap`s; the main thread hot-swaps the maps in-place and calls
+  `notifyProceduralSwap()` → `RenderPump` renders one settle frame. Graceful degradation:
+  if `OffscreenCanvas`/`Worker` absent or worker errors, the sync textures stay permanently.
+  `furnitureMaterials.ts` = tintable wood/stone/fabric/concrete/rattan + `getSolidMaterial`.
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real
@@ -194,7 +215,14 @@ same change that reshapes a system.
   `scene/finishDropTarget.ts` classifies the hit via `userData` tags (`itemId` on item
   root groups; `finishTarget {kind,roomId}` on floor meshes + interior wall faces,
   skipping invisible/untagged hits). Both surfaces commit through
-  `state/finishDropApply.ts` (one undo step, floor/wall recents, toast).
+  `state/finishDropApply.ts` (one undo step, floor/wall recents, toast). **Drop-target
+  highlight** (Q31 tail, C262): `scene/finishDragSignal.ts` is a tiny module singleton
+  (`setFinishDragActive` / `subscribeFinishDrag`) driven by `FinishDropSurface`'s
+  `dragenter`/`dragleave`/`drop`/`window.dragend` events; `scene/FinishDragOverlay.tsx`
+  subscribes via `useSyncExternalStore` and renders a CSS ring (`box-shadow + accent`
+  tokens) over the canvas — entirely DOM-side so `frameloop="demand"` is unaffected.
+  Custom-plan overview wall drops show an info toast (`hasUntaggedHits` in
+  `finishDropTarget.ts`) rather than silently no-oping.
 - **Lighting / time of day**: SunCalc → `altitudeCurve.ts` → directional sun +
   hemisphere + IBL + sky. Fixtures emit capped day-gated night point lights; shades glow
   via `fixtureGlow`.
@@ -252,13 +280,15 @@ same change that reshapes a system.
   lumens × calibration, utilisation factor 0.45, ÷ floor area) statused ok/low/high against
   recommended residential bands per room kind (`roomKindFromName`). Surfaced in the Drawings panel
   (badge list), the report and the drawing set (`roomLuxTableHtml`). Same pure-core →
-  palette-injected-SVG pattern as elevations. **3D lux overlay** (LP5 tail): pure
+  palette-injected-SVG pattern as elevations. **3D lux overlay** (LP5+LP6): pure
   `lighting2d/luxGrid.ts` samples a per-room point-illuminance grid (calibrated inverse-square
   fixtures, scoped to the bulb's room/storey, + a simple near-window daylight wash; masked
   outside polygon rooms, never NaN) + `luxGrid`→RGBA via `lighting2d/luxColor.ts` (residential-band
   blue→red stops, shared with `ui/lighting2d/LuxLegend.tsx`); `scene/LuxOverlay.tsx` renders one
   DataTexture plane per room at `levelElevation`+5 mm (depthWrite off, visible levels only),
   toggled by `luxOverlayOn` from the Drawings panel's Lighting tab — rides the `drawings` flag.
+  LP6: `luxExcludedIds` filters fixtures before grid build; `luxPlaying` rAF auto-advances `manualHour`
+  at 1 hr/s; Drawings panel Lighting tab gains inline time slider + play button + per-fixture checkboxes.
 - **Design score** (`analysis/designScore.ts` pure → weighted 0–100 + A–F grade over 5 categories:
   clearance/furnishing/circulation/daylight/lighting, each with actionable issues). Reuses the
   overlap/wall-clip/door/walkway/daylight checks + 2 new heuristics (furnishing coverage, per-room
@@ -362,16 +392,28 @@ same change that reshapes a system.
   `sofa:export` PNG + photoreal/link), **360° panorama** (`scene/PanoramaController` six-face
   capture → pure `scene/panorama/equirect.ts` CPU assembly → `ui/PanoramaModal` + shared
   drag-to-look viewer `ui/panorama/PanoramaViewer.tsx` (pure `viewerLook.ts` clamp math) + PNG,
-  `panorama` flag, pro), **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
-  persisted per-device like saved views; pure `ui/panorama/panoTour.ts` DERIVES room-to-room
-  hotspots — yaw/pitch via atan2 toward each nearby same-storey stop, screen projection,
-  room-name labels — rendered by `ui/panorama/PanoTourModal.tsx` over the shared viewer
-  (`onLook` overlay callback); per-stop panoramas captured live via `capturePanorama({eye})`,
-  cached per session; add stops via ⌘K / PanoramaModal "Add to tour" / in-modal;
-  `panoTour` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
+  `panorama` flag, pro), **HQ render** (`scene/pathtrace/hqRenderSession.ts` progressive
+  path-traced still via `three-gpu-pathtracer`; `hqRenderSource.ts` module singleton exposes
+  live scene+camera; `ui/HqRenderModal.tsx` — resolution/samples/DoF; `hqRender` flag, pro),
+  **Render preset A/B compare** (`ui/renderCompare/compareState.ts` pure logic — preset
+  selection, swap, divider clamping; `ui/RenderCompareModal.tsx` two sequential captures +
+  Lightroom-style before/after slider with touch parity; `renderCompare` flag, pro),
+  **360° tour** (P-720: `panoTourSlice` stop list `{label,position,[levelId]}`
+  persisted per-device to localStorage + encoded in share/save links (C261, optional field →
+  back-compat); pure `ui/panorama/panoTour.ts` DERIVES room-to-room hotspots (yaw/pitch via
+  atan2, screen projection, room-name labels) and `stopInitialYaw` (room-centre facing on
+  stop open); per-stop panoramas captured live via `capturePanorama({eye})` then cached in
+  `ui/panorama/panoImageIdb.ts` (`sofa-pano-cache` IDB, keyed `<stopId>:<designKey>` —
+  auto-invalidated on design change); stop drag in the 2D plan editor SVG (`FloorPlanEditor`
+  `movingStop` state); `panoTour` flag, pro), **Presentation mode** (`ui/PresentationMode.tsx`, `presentation` flag,
   pro — full-screen saved-views slideshow with per-view notes; views marked 360° (`SavedView.pano`)
-  capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses there,
-  pure `ui/presentation/slideLogic.ts`).
+  capture a panorama live at the slide and show it in `PanoramaViewer`; auto-advance pauses on
+  panorama slides; **tour inclusion** — when both `presentation` + `panoTour` flags are on, the
+  View-menu "Present…" item becomes `ui/presentation/PresentationSetup.tsx` (inline toggle +
+  Start button); `presentationIncludeTour` state in `uiSlice`; `composeTourSlides()` in pure
+  `ui/presentation/slideLogic.ts` builds a `Slide[]` deck (`ViewSlide | TourStopSlide`) — tour
+  stops use the same `capturePanorama({eye})` + `panoImageIdb` cache as `PanoTourModal`; storey
+  filter via `viewLevelId`; toggle disabled when tour is empty).
 - **Mirror reflections** (`primitives/MirrorMaterial.tsx`): real planar reflection on
   High/Maximum (`mirrorReflectorConfig(tier)`), fake-shiny pane below. Uploaded GLB
   mirrors via inspector "Reflective surface" (`props.reflective`, `gltf/mirrorPlane.ts`).

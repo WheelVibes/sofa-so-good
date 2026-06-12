@@ -1,0 +1,231 @@
+{
+  "name": "catalog-furnish-journey",
+  "description": "Journey ladder for catalog/furnish: place multiple items, switch catalog category, verify catalog + inspector + budget HUD coexist without overlap, navigate items, and confirm spend-by-room sums. Mobile viewport leg included.",
+  "url": "http://localhost:5220/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "place-living-room-items",
+      "eval": "window.__store.getState().setItems([{id:'jrn-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}},{id:'jrn-tv-console',defId:'tv-console',position:[12.1,2.45],rotation:-1.5708,props:{width:1.6}},{id:'jrn-coffee',defId:'coffee-table',position:[10.3,2.9],rotation:1.5708,props:{}},{id:'jrn-dining-table',defId:'dining-table-4',position:[10.55,5.2],rotation:0,props:{seats:'4'}},{id:'jrn-chair-1',defId:'dining-chair',position:[10.2,4.45],rotation:0,props:{}},{id:'jrn-chair-2',defId:'dining-chair',position:[10.9,4.45],rotation:0,props:{}}])"
+    },
+    {
+      "name": "wait-items-mount",
+      "wait": 2500
+    },
+    {
+      "name": "verify-items-in-store",
+      "waitFor": {
+        "store": "state.items.length >= 6"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected at least 6 items in store after placement"
+    },
+    {
+      "name": "set-budget-target",
+      "store": {
+        "action": "setBudgetTarget",
+        "args": [
+          5000
+        ]
+      }
+    },
+    {
+      "name": "open-catalog",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "catalog-visible",
+      "waitFor": {
+        "css": ".panel.catalog"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "open-budget-panel",
+      "store": {
+        "action": "toggleBudget"
+      }
+    },
+    {
+      "name": "budget-visible",
+      "waitFor": {
+        "css": ".panel.mini.aux"
+      },
+      "timeout": 5000,
+      "failMessage": "Budget panel did not appear alongside catalog"
+    },
+    {
+      "name": "focus-scene",
+      "store": {
+        "action": "focusOn",
+        "args": [
+          [
+            10.5,
+            3.5
+          ]
+        ]
+      }
+    },
+    {
+      "name": "wait-focus",
+      "wait": 1500
+    },
+    {
+      "name": "shot-catalog-and-budget-coexist",
+      "screenshot": "01-catalog-budget-coexist"
+    },
+    {
+      "name": "verify-budget-total-nonzero",
+      "waitFor": {
+        "store": "state.items.length >= 6"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected at least 6 items in store"
+    },
+    {
+      "name": "tilt-down",
+      "drag": {
+        "from": [
+          800,
+          200
+        ],
+        "to": [
+          800,
+          430
+        ]
+      }
+    },
+    {
+      "name": "zoom-in",
+      "wheel": {
+        "x": 800,
+        "y": 400,
+        "dy": -500
+      }
+    },
+    {
+      "name": "wait-settle",
+      "wait": 800
+    },
+    {
+      "name": "shot-scene-angle",
+      "screenshot": "02-scene-with-furniture"
+    },
+    {
+      "name": "close-catalog",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          false
+        ]
+      }
+    },
+    {
+      "name": "catalog-closed",
+      "waitFor": {
+        "css": ".panel.catalog",
+        "visible": false
+      },
+      "timeout": 3000
+    },
+    {
+      "name": "shot-budget-only",
+      "screenshot": "03-budget-panel-only"
+    },
+    {
+      "name": "verify-spending-categories-render",
+      "waitFor": {
+        "text": "$"
+      },
+      "timeout": 5000,
+      "failMessage": "Budget panel should show a dollar amount for placed items"
+    },
+    {
+      "name": "mobile-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "wait-mobile-render",
+      "wait": 1000
+    },
+    {
+      "name": "shot-mobile-budget",
+      "screenshot": "04-mobile-budget-panel"
+    },
+    {
+      "name": "restore-viewport",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      }
+    },
+    {
+      "name": "close-budget",
+      "store": {
+        "action": "toggleBudget"
+      }
+    },
+    {
+      "name": "reopen-catalog-categories",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "catalog-open-again",
+      "waitFor": {
+        "css": ".panel.catalog"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "shot-catalog-final",
+      "screenshot": "05-catalog-category-browsing"
+    }
+  ]
+}

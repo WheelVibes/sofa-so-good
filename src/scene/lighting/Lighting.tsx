@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
 import { type AmbientLight, type DirectionalLight, type HemisphereLight, Object3D } from 'three'
+import { isFeatureEnabled } from '../../features/featureFlags'
 import { useStore } from '../../state/store'
 import { registerAnimatedSource } from '../animatedSources'
 import { grade, SOFT_SHADOW, toneExposureBias } from '../look'
@@ -10,6 +11,7 @@ import { lightingFromAltitude } from './altitudeCurve'
 import { shadowFrustumForPlan } from './shadowFrustum'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
+import { getWindowAttenuation, getWindowGlassTint } from './windowLightSignal'
 
 /** Distance from the plan centre where the directional light sits (m). */
 const SUN_DISTANCE = 25
@@ -143,9 +145,20 @@ export function Lighting() {
     }
 
     if (sunRef.current) {
-      sunRef.current.intensity = cur.sun
+      // --- C275: window-glass tint + curtain attenuation ---
+      // All tier levels: colour modulation is free (scalar mults only).
+      // No per-frame allocation: reads from module-level signals written on store change.
+      const attenuation = isFeatureEnabled('curtainLightEffect') ? getWindowAttenuation() : 1.0
+      const tint = isFeatureEnabled('windowGlassTint') ? getWindowGlassTint() : ([1, 1, 1] as const)
+
+      sunRef.current.intensity = cur.sun * attenuation
       sunRef.current.position.set(cur.sunPos[0], cur.sunPos[1], cur.sunPos[2])
-      sunRef.current.color.setRGB(cur.sunColor[0], cur.sunColor[1], cur.sunColor[2])
+      // Apply glass tint as a component-wise multiply of the sun colour.
+      sunRef.current.color.setRGB(
+        cur.sunColor[0] * tint[0],
+        cur.sunColor[1] * tint[1],
+        cur.sunColor[2] * tint[2],
+      )
     }
     // Split the fill budget: a directional hemisphere (sky/ground) reads as
     // soft GI and gives objects form, while a small flat ambient lifts the

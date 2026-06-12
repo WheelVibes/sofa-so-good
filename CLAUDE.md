@@ -53,6 +53,15 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
 - **No hardcoded colour.** Use the CSS token class vocabulary (`.panel`/`.btn`/`.toolbar`/…),
   never Tailwind colour utilities or literals; every surface works in light + dark + 5 themes.
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).
+  While **iterating**, run targeted tests only (`npx vitest --run <paths near your change>`);
+  run the **full suite exactly once, right before the commit** — full-suite runs are ~2 min
+  and dominate iteration time, especially under parallel-agent load.
+  **When running as one of several parallel agents** (sandbox has 4 cores): cap test workers
+  (`npm test -- --run --maxWorkers=2`), never run the full suite and a screenshot/scenario
+  harness at the same time (sequence heavy phases), and seed a fresh worktree's deps with a
+  hardlink copy instead of a reinstall:
+  `cp -al /home/user/sofa-so-good/node_modules <worktree>/node_modules && rm -rf <worktree>/node_modules/.vite`
+  (seconds vs minutes; the `.vite` removal keeps dep-optimizer caches per-worktree).
   Commit/push only when asked; one focused change per commit; log shipped work in `CHANGELOG.md`.
 - **Research against references.** When designing a new feature or judging what good UI/UX
   should look like, consult **[REFERENCES.md](REFERENCES.md)** (competitor/reference apps —
@@ -62,7 +71,8 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
 ## Commands (essentials — full list in ARCHITECTURE.md)
 - `npm run dev` (5173; `window.__store`) · `npm test` · `npm run build` (`tsc` + Vite).
 - `npm run check`/`check:fix` — Biome (2-space/100-col/single-quote/no-semicolons).
-- `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — screenshot harness.
+- `node scripts/shot.mjs <out.png> [waitMs] [evalFile] [actionsJson]` — legacy one-shot screenshot harness.
+- `node scripts/shot.mjs --scenario <file.json|file.mjs> [--out-dir <dir>]` — **scenario mode** (recommended): runs ordered named steps (eval/waitFor/click/screenshot/store/viewport/drag/wait…) in one browser session with structured per-step logging; see `docs/visual-verification-playbook.md`.
 - `npm run optimize:glb` · `compress:glb-textures` · `scraper-server`/`price-server` (dev).
 - `npm run docs:build`/`build:all` (user guide) · `docs:dev:developer` (dev docs).
 

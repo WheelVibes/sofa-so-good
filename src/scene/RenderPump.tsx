@@ -1,6 +1,7 @@
 import { useProgress } from '@react-three/drei'
 import { useThree } from '@react-three/fiber'
 import { useEffect, useRef } from 'react'
+import { subscribeProceduralSwap } from '../materials/proceduralSwapSignal'
 import { useStore } from '../state/store'
 import { animatedSourceCount } from './animatedSources'
 import { isContinuous, type PumpInputs, settleTailMs, shouldRender } from './renderDecision'
@@ -46,6 +47,11 @@ export function RenderPump() {
       invalidate()
     }
     const unsub = useStore.subscribe(markDirty)
+
+    // Procedural texture worker swap: when an OffscreenCanvas worker finishes
+    // and hot-swaps a material's textures, kick one extra frame so the upgrade
+    // is visible (demand mode won't render on its own without a signal).
+    const unsubSwap = subscribeProceduralSwap(markDirty)
 
     const onVisibility = () => {
       if (!document.hidden) markDirty()
@@ -96,6 +102,7 @@ export function RenderPump() {
     return () => {
       cancelAnimationFrame(raf)
       unsub()
+      unsubSwap()
       document.removeEventListener('visibilitychange', onVisibility)
       window.removeEventListener('focus', onVisibility)
     }

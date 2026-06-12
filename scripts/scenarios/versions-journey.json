@@ -1,0 +1,134 @@
+{
+  "name": "versions-journey",
+  "url": "http://localhost:5213/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "window.__store.getState().endTour?.(); window.__store.getState().setOnboardingOpen?.(false); window.__store.getState().dismissLocationPrompt?.()"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour(13)"
+    },
+    {
+      "name": "clear-items-for-clean-start",
+      "eval": "window.__store.getState().setItems([])"
+    },
+    {
+      "name": "place-initial-sofa",
+      "eval": "window.__store.getState().setItems([{ id: 'v-sofa-1', defId: 'sofa-3seat', position: [9, 3], rotation: 0, props: {} }])"
+    },
+    {
+      "name": "wait-item-placed",
+      "waitFor": { "store": "window.__store.getState().items.length === 1" }
+    },
+    {
+      "name": "wait-settle",
+      "wait": 1000
+    },
+    {
+      "name": "shot-initial-state",
+      "screenshot": "01-initial-one-sofa"
+    },
+    {
+      "name": "seed-saved-version-in-localstorage",
+      "eval": "(() => { const st = window.__store.getState(); const savedAt = new Date().toISOString(); const state = { version: 2, apartmentId: 'serangoon-north-vista-4r', items: st.items, doors: st.doors, finishes: st.finishes, userFurniture: [], userMaterials: [], timeMode: st.timeMode || 'manual', manualHour: st.manualHour || 13, cameraMode: st.cameraMode || 'orbit', savedAt }; localStorage.setItem('sofa-so-good:save:test-v1', JSON.stringify(state)); const idx = JSON.parse(localStorage.getItem('sofa-so-good:save-index') || '[]'); idx.push({ slot: 'test-v1', savedAt }); localStorage.setItem('sofa-so-good:save-index', JSON.stringify(idx)); })()"
+    },
+    {
+      "name": "open-versions-panel",
+      "store": { "action": "setVersionsOpen", "args": [true] }
+    },
+    {
+      "name": "wait-versions-panel",
+      "waitFor": { "css": "#versionsPanel" },
+      "timeout": 10000
+    },
+    {
+      "name": "wait-for-version-row",
+      "waitFor": { "text": "test-v1" },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-versions-panel-with-saved",
+      "screenshot": "02-versions-panel-with-saved-version"
+    },
+    {
+      "name": "mutate-design-add-table",
+      "eval": "window.__store.getState().setItems([...window.__store.getState().items, { id: 'v-table-1', defId: 'dining-table-4seat', position: [9, 6], rotation: 0, props: {} }])"
+    },
+    {
+      "name": "wait-mutation",
+      "waitFor": { "store": "window.__store.getState().items.length === 2" }
+    },
+    {
+      "name": "wait-settle-2",
+      "wait": 800
+    },
+    {
+      "name": "shot-mutated",
+      "screenshot": "03-mutated-two-items"
+    },
+    {
+      "name": "assert-item-count-before-restore",
+      "eval": "if (window.__store.getState().items.length !== 2) throw new Error('Expected 2 items before restore, got ' + window.__store.getState().items.length)"
+    },
+    {
+      "name": "click-compare-button",
+      "eval": "(() => { const btns = Array.from(document.querySelectorAll('#versionsPanel button')); const compareBtn = btns.find(b => b.textContent?.includes('Compare') && !b.className.includes('del')); if (!compareBtn) throw new Error('Compare button not found in versions panel'); compareBtn.click(); })()"
+    },
+    {
+      "name": "wait-diff-appears",
+      "wait": 1000
+    },
+    {
+      "name": "shot-compare-diff",
+      "screenshot": "04-compare-diff-shown"
+    },
+    {
+      "name": "assert-diff-visible",
+      "eval": "if (!document.querySelector('#versionsPanel .ver-diff')) throw new Error('ver-diff element not found after clicking Compare')"
+    },
+    {
+      "name": "click-restore-button",
+      "eval": "(() => { const btns = Array.from(document.querySelectorAll('#versionsPanel button')); const restoreBtn = btns.find(b => b.textContent?.includes('Restore')); if (!restoreBtn) throw new Error('Restore button not found in versions panel'); restoreBtn.click(); })()"
+    },
+    {
+      "name": "wait-restore",
+      "wait": 1500
+    },
+    {
+      "name": "wait-restore-items",
+      "waitFor": { "store": "window.__store.getState().items.length === 1" },
+      "timeout": 8000
+    },
+    {
+      "name": "assert-restore-round-trip",
+      "eval": "(() => { const items = window.__store.getState().items; if (items.length !== 1) throw new Error('After restore: expected 1 item, got ' + items.length); if (items[0].defId !== 'sofa-3seat') throw new Error('After restore: expected sofa-3seat, got ' + items[0].defId); })()"
+    },
+    {
+      "name": "shot-restored",
+      "screenshot": "05-restored-one-sofa"
+    },
+    {
+      "name": "cleanup-test-version",
+      "eval": "(() => { localStorage.removeItem('sofa-so-good:save:test-v1'); const idx = JSON.parse(localStorage.getItem('sofa-so-good:save-index') || '[]').filter(e => e.slot !== 'test-v1'); localStorage.setItem('sofa-so-good:save-index', JSON.stringify(idx)); })()"
+    },
+    {
+      "name": "close-versions-panel",
+      "store": { "action": "setVersionsOpen", "args": [false] }
+    },
+    {
+      "name": "shot-final",
+      "screenshot": "06-panel-closed"
+    }
+  ]
+}

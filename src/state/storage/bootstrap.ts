@@ -224,4 +224,8 @@ async function exposeDevHelpers(): Promise<void> {
     const tpl = PLAN_TEMPLATES.find((t) => t.id === id)
     if (tpl) useStore.getState().setFloorPlan(JSON.parse(JSON.stringify(tpl)))
   }
+  // Expose material upload helper for the screenshot / scenario harness.
+  const { persistUserMaterial } = await import('../../materials/upload/persist')
+  ;(window as unknown as { __persistUserMaterial?: unknown }).__persistUserMaterial =
+    persistUserMaterial
 }

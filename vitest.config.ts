@@ -7,6 +7,9 @@ process.env.TZ = 'Asia/Singapore'
 
 export default defineConfig({
   plugins: [react()],
+  // Prevent duplicate React/three when running in a git worktree where
+  // node_modules may contain a nested node_modules/ sub-tree.
+  resolve: { dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'scheduler', 'three'] },
   test: {
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.ts'],

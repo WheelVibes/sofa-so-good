@@ -57,16 +57,27 @@ export interface AppearanceSlice {
   modePref: ModePref
   /** Whether the Appearance popover is open in the toolbar. */
   appearanceOpen: boolean
+  /**
+   * Glass tint hex colour applied to sunlight entering through windows.
+   * '#ffffff' or '' = neutral/clear glass (no tint). Optional — defaults to ''.
+   * Examples: '#f5d8a0' (warm amber), '#b8d8e8' (cool blue), '#d4ead0' (tinted green).
+   * Applied as a component-wise multiply of the sun colour — a subtle but visible
+   * effect at midday, especially for strong tints.
+   */
+  glassTint: string
   setTheme: (theme: ThemeName) => void
   setModePref: (mode: ModePref) => void
   toggleAppearance: () => void
   setAppearanceOpen: (open: boolean) => void
+  /** Set the window glass tint colour (hex). Pass '' or '#ffffff' to clear. */
+  setGlassTint: (hex: string) => void
 }
 
 export const APPEARANCE_INITIAL = {
   theme: 'clay' as ThemeName,
   modePref: 'light' as ModePref,
   appearanceOpen: false,
+  glassTint: '',
 }
 
 export const createAppearanceSlice: SliceCreator<AppearanceSlice, RootState> = (set) => ({
@@ -75,6 +86,7 @@ export const createAppearanceSlice: SliceCreator<AppearanceSlice, RootState> = (
   setModePref: (modePref) => set({ modePref }),
   toggleAppearance: () => set((s) => ({ appearanceOpen: !s.appearanceOpen })),
   setAppearanceOpen: (appearanceOpen) => set({ appearanceOpen }),
+  setGlassTint: (glassTint) => set({ glassTint }),
 })
 
 /** Resolve a `ModePref` to a concrete light/dark mode, consulting the OS only

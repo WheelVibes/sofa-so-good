@@ -1,10 +1,19 @@
-import { MeshStandardMaterial, type Texture } from 'three'
 import {
+  CanvasTexture,
+  MeshStandardMaterial,
+  RepeatWrapping,
+  SRGBColorSpace,
+  type Texture,
+} from 'three'
+import {
+  effectivePatternSize,
   generateProcedural,
   getPlasterNormal,
   getProceduralBaseSize,
 } from './procedural/generators'
-import type { MaterialDef } from './types'
+import { proceduralWorkerKey, requestProceduralWorker } from './procedural/runProceduralWorker'
+import { notifyProceduralSwap } from './proceduralSwapSignal'
+import type { MaterialDef, ProceduralPattern } from './types'
 
 /** Module-level material cache keyed by MaterialId. Each cached
  *  MeshStandardMaterial is reused across every mesh that applies the
@@ -21,9 +30,83 @@ export function getCachedMaterial(id: string): MeshStandardMaterial | undefined 
  *  change regenerates them — see `buildMaterial`), everything else under the
  *  plain id. Callers that only have the id (e.g. a furniture `mat:<id>`
  *  finish) must use this — a plain `getCachedMaterial(id)` permanently misses
- *  procedural builds and the finish silently stays on its fallback. */
+ *  procedural builds and the finish silently stays on its fallback.
+ *
+ *  Note: since smooth patterns always cap at 256 regardless of BASE_SIZE,
+ *  their cache keys are always `id@256`; checking only `id@BASE_SIZE` would
+ *  miss them on Medium+ tiers. We probe both suffixes to handle that. */
 export function getBuiltMaterial(id: string): MeshStandardMaterial | undefined {
-  return CACHE.get(id) ?? CACHE.get(`${id}@${getProceduralBaseSize()}`)
+  return CACHE.get(id) ?? CACHE.get(`${id}@${getProceduralBaseSize()}`) ?? CACHE.get(`${id}@256`)
+}
+
+/**
+ * Build a Three.js CanvasTexture from an ImageBitmap received from the worker.
+ * Frees the bitmap after drawing it to the canvas.
+ */
+function imageBitmapToTexture(
+  bmp: ImageBitmap,
+  srgb: boolean,
+  uvScale: [number, number],
+): CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = bmp.width
+  canvas.height = bmp.height
+  const ctx = canvas.getContext('2d')!
+  ctx.drawImage(bmp, 0, 0)
+  bmp.close()
+  const tex = new CanvasTexture(canvas)
+  tex.wrapS = tex.wrapT = RepeatWrapping
+  if (srgb) tex.colorSpace = SRGBColorSpace
+  tex.anisotropy = 8
+  tex.repeat.set(1 / uvScale[0], 1 / uvScale[1])
+  tex.needsUpdate = true
+  return tex
+}
+
+/**
+ * Request off-thread generation of a procedural texture set and hot-swap the
+ * material's maps when the worker resolves. If the worker is unavailable or
+ * errors, the sync fallback textures already in place are kept.
+ *
+ * After swapping, `notifyProceduralSwap()` fires the global signal so the
+ * scene (demand-mode canvas) renders a fresh frame to show the new textures.
+ * `needsUpdate` is set on each swapped texture so Three.js re-uploads to GPU.
+ */
+async function scheduleWorkerUpgrade(
+  mat: MeshStandardMaterial,
+  matId: string,
+  pattern: ProceduralPattern,
+  swatch: string,
+  size: number,
+  uvScale: [number, number],
+  _key: string,
+): Promise<void> {
+  const result = await requestProceduralWorker(matId, pattern, swatch, size)
+  if (!result) return // worker unavailable / errored — keep sync fallback
+
+  // Materialise all three textures. If anything throws the existing sync
+  // textures are untouched.
+  try {
+    const albedo = imageBitmapToTexture(result.albedo, true, uvScale)
+    const normal = imageBitmapToTexture(result.normal, false, uvScale)
+    const roughness = imageBitmapToTexture(result.roughness, false, uvScale)
+
+    // Dispose the old sync-generated textures to free GPU memory.
+    mat.map?.dispose()
+    mat.normalMap?.dispose()
+    mat.roughnessMap?.dispose()
+
+    mat.map = albedo
+    mat.normalMap = normal
+    mat.roughnessMap = roughness
+    mat.metalness = result.metalness
+    mat.needsUpdate = true
+
+    // Signal demand-mode canvas to render the freshly upgraded frame.
+    notifyProceduralSwap()
+  } catch {
+    // Upgrade failed — sync fallback textures remain. No-op.
+  }
 }
 
 /** Constructs and caches a new material for the given def. The caller
@@ -33,11 +116,13 @@ export function buildMaterial(
   def: MaterialDef,
   textures?: { albedo?: Texture; normal?: Texture; roughness?: Texture; ao?: Texture },
 ): MeshStandardMaterial {
-  // Procedural materials carry the generation size in the key so a quality-
-  // tier change regenerates at the new size instead of serving a stale one.
+  // Procedural materials carry the effective generation size in the key so a
+  // quality-tier change regenerates at the new size instead of serving a stale
+  // one. Smooth patterns (carpet, concrete, …) cap at 256 regardless of tier —
+  // their key always ends in @256 so Medium+ hits the same cached texture.
   const cacheKey =
     def.kind === 'procedural' && def.pattern !== 'plaster'
-      ? `${def.id}@${getProceduralBaseSize()}`
+      ? `${def.id}@${effectivePatternSize(def.pattern)}`
       : def.id
   const existing = CACHE.get(cacheKey)
   if (existing) return existing
@@ -58,6 +143,7 @@ export function buildMaterial(
     return m
   }
   if (def.kind === 'procedural') {
+    const size = effectivePatternSize(def.pattern)
     const maps = generateProcedural(def.id, def.pattern, def.swatch)
     m.color.set('#ffffff') // tint baked into albedo
     m.map = maps.albedo
@@ -68,6 +154,14 @@ export function buildMaterial(
       t.repeat.set(1 / def.uvScale[0], 1 / def.uvScale[1])
     }
     CACHE.set(cacheKey, m)
+
+    // Request higher-quality generation off the main thread. The sync
+    // textures above provide an immediate fallback; when the worker
+    // finishes we hot-swap the maps and kick a frame via the swap signal.
+    // Key matches `proceduralWorkerKey` so in-flight requests coalesce.
+    const workerKey = proceduralWorkerKey(def.id, def.pattern, def.swatch, size)
+    void scheduleWorkerUpgrade(m, def.id, def.pattern, def.swatch, size, def.uvScale, workerKey)
+
     return m
   }
   if (def.kind === 'textured' && textures) {

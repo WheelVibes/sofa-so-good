@@ -48,14 +48,36 @@ export const SHAPE_LABEL: Record<ShapeKind, string> = {
   mesh: 'Combined',
 }
 
+/** Per-group material configuration baked at CSG combine time. Mirrors the
+ *  surface-look fields of `ShapePart` but without id/kind/transform — pure data
+ *  so the spec stays serialisable. Absent fields fall back to the same defaults
+ *  as `partMaterial` (roughness 0.6, metalness 0.05, opaque, no glow). */
+export interface GroupMaterialData {
+  color: string
+  finish?: string
+  roughness?: number
+  metalness?: number
+  emissiveIntensity?: number
+  opacity?: number
+}
+
 /** Baked triangle data for a `mesh` part (a CSG combine result), centred on the
  *  part's origin so `position`/`rotation` keep working like any primitive.
  *  Plain number arrays keep the spec pure/serialisable; treat them as immutable
- *  (duplicate/mirror share them by reference). */
+ *  (duplicate/mirror share them by reference).
+ *
+ *  When `groups` and `materials` are present (GE3c tail), each group covers a
+ *  range of triangles from one of the original source parts, and `materials[g.materialIndex]`
+ *  carries that source part's surface look. A spec without these fields (pre-C273)
+ *  keeps building unchanged — the single `finish`/`color` on the ShapePart is used. */
 export interface MeshGeometryData {
   positions: number[]
   normals: number[]
   index?: number[]
+  /** Geometry draw groups, present when the CSG combine preserved per-part materials. */
+  groups?: Array<{ start: number; count: number; materialIndex: number }>
+  /** Per-group source material configs — index-matched to `groups[i].materialIndex`. */
+  materials?: GroupMaterialData[]
 }
 
 export interface ShapePart {

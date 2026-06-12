@@ -1,6 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import type { Mesh, MeshStandardMaterial } from 'three'
+import { useFeature } from '../features/useFeature'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
@@ -121,6 +122,7 @@ function PlanLevelShell({
   cz: number
 }) {
   const finishes = useStore((s) => s.finishes)
+  const crownMolding = useFeature('crownMolding')
   const lp = useMemo(() => levelAsPlan(plan, level), [plan, level])
 
   const boxes = useMemo(() => lp.walls.flatMap((w) => wallBoxes(lp, w)), [lp])
@@ -252,6 +254,30 @@ function PlanLevelShell({
             <meshStandardMaterial color="#eceae4" roughness={0.7} />
           </mesh>
         ))}
+
+      {/* Crown molding at the wall–ceiling junction (full-height spans only).
+          Uses the same wall-box dimensions as skirting so mitre corners close
+          flush; polygonOffset prevents z-fighting against the ceiling plane. */}
+      {crownMolding &&
+        boxes
+          .filter((b) => b.cy + b.height / 2 >= lp.ceilingHeight - 0.01)
+          .map((b, i) => (
+            <mesh
+              key={`cm${i}`}
+              position={[b.cx, lp.ceilingHeight - 0.035, b.cz]}
+              rotation={[0, b.angle, 0]}
+            >
+              <boxGeometry args={[b.thickness + 0.024, 0.07, b.length]} />
+              <meshStandardMaterial
+                color="#eeece6"
+                roughness={0.55}
+                metalness={0}
+                polygonOffset
+                polygonOffsetFactor={-2}
+                polygonOffsetUnits={-2}
+              />
+            </mesh>
+          ))}
 
       {/* Door leaves — swinging, clickable; closed by default (matches collision). */}
       {lp.openings

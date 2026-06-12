@@ -37,6 +37,74 @@ export function getProceduralBaseSize(): number {
   return BASE_SIZE
 }
 
+/**
+ * Per-pattern texture size registry — declares the maximum useful resolution
+ * for each procedural pattern. When BASE_SIZE would exceed the cap the
+ * generator clamps down, saving GPU memory without visible quality loss.
+ *
+ * Decision rationale (verified against before/after screenshots at typical
+ * room-viewing distances):
+ *
+ * CAP 256 — smooth / low-frequency patterns where extra pixels add nothing:
+ *   carpet    — broad FBM fibre + blotch noise; no fine structure that benefits.
+ *   concrete  — mottle freq ~5, pores are tiny pinpoints; 256 vs 512 indistinct.
+ *   marble    — veins are wide sinusoidal curves (turbulence-warped); no crisp edge.
+ *   terrazzo  — chip radii ≥3 px at 256; background noise is smooth.
+ *   batten    — 6 battens with a 3 % bevel ramp (~7.5 px at 256); reads cleanly.
+ *   fluted    — 16 ribs, sine profile; one rib = 16 px at 256, fully resolved.
+ *   plaster   — already a shared 256 singleton (getPlasterNormal); listed for
+ *               completeness — generateProcedural skips plaster.
+ *
+ * CAP 512 — high-frequency / geometric patterns where 256 visibly degrades:
+ *   wood       — grain bands at ~9× period + open pores; 256 noticeably blurs.
+ *   tile       — grout line ≈1.8 % of tile width (~4.6 px at 256); blurry grout.
+ *   hexagon    — 3.5 px grout threshold; at 256 grout reads too wide/soft.
+ *   checker    — 1.5 px grout; sub-pixel at 256 → aliased edge.
+ *   parquet    — 4 planks per block, fine wood grain; 256 loses plank detail.
+ *   herringbone — 16 plank-widths; grain clarity needs 512 to stay sharp.
+ *   subway     — thin grout + bevel band; grout <2 px at 256 loses definition.
+ *   brick      — mortar joint ≈S/110 ≈2.3 px at 256; keep 512 for definition.
+ *   grasscloth — horizontal weave lines ~220 per tile; 256 aliases badly.
+ *   stripe     — 2 px seam; 1 px at 256 looks harsh.
+ *
+ * OffscreenCanvas worker generation: see `runProceduralWorker.ts` (C271).
+ */
+export const PATTERN_SIZE_CAP: Record<ProceduralPattern, 256 | 512> = {
+  // Smooth noise-based — 256 is the useful cap even on Medium/High/Maximum
+  carpet: 256,
+  concrete: 256,
+  marble: 256,
+  terrazzo: 256,
+  batten: 256,
+  fluted: 256,
+  plaster: 256,
+  // High-frequency geometric — needs 512 on Medium+ for crisp edges/grain
+  wood: 512,
+  tile: 512,
+  hexagon: 512,
+  checker: 512,
+  parquet: 512,
+  herringbone: 512,
+  subway: 512,
+  brick: 512,
+  grasscloth: 512,
+  stripe: 512,
+}
+
+/**
+ * Effective generation size for a given pattern: the smaller of the global
+ * BASE_SIZE and the pattern's useful-resolution cap. Smooth patterns stay at
+ * 256 even when the tier is Medium/High/Maximum (saving GPU memory with no
+ * visible difference), while high-frequency patterns respect the full BASE_SIZE
+ * on those tiers for crisp grain/grout lines.
+ */
+export function effectivePatternSize(pattern: ProceduralPattern): 256 | 512 {
+  const cap = PATTERN_SIZE_CAP[pattern] ?? 512
+  // BASE_SIZE is either 256 (Performance) or 512 (Medium+).
+  // If the cap is lower than BASE_SIZE, clamp to the cap.
+  return BASE_SIZE <= cap ? (BASE_SIZE as 256 | 512) : cap
+}
+
 function makeCanvas(): HTMLCanvasElement {
   const c = document.createElement('canvas')
   c.width = S
@@ -48,6 +116,23 @@ function toTexture(data: Uint8ClampedArray, srgb: boolean): CanvasTexture {
   const canvas = makeCanvas()
   const ctx = canvas.getContext('2d')!
   const img = ctx.createImageData(S, S)
+  img.data.set(data)
+  ctx.putImageData(img, 0, 0)
+  const tex = new CanvasTexture(canvas)
+  tex.wrapS = tex.wrapT = RepeatWrapping
+  if (srgb) tex.colorSpace = SRGBColorSpace
+  tex.anisotropy = 8
+  return tex
+}
+
+/** Build a THREE CanvasTexture from a raw RGBA pixel array and a size.
+ *  Used by the main thread to materialise worker-returned pixel buffers. */
+export function rawToTexture(data: Uint8ClampedArray, size: number, srgb: boolean): CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  const img = ctx.createImageData(size, size)
   img.data.set(data)
   ctx.putImageData(img, 0, 0)
   const tex = new CanvasTexture(canvas)
@@ -802,6 +887,60 @@ const PATTERN_FN: Record<
   fluted: flutedFields,
 }
 
+/** Raw PBR pixel data returned by {@link generateProceduralRaw} — no DOM
+ *  objects, fully transferable so it can cross a Worker message boundary. */
+export interface ProceduralRawResult {
+  albedo: Uint8ClampedArray
+  normal: Uint8ClampedArray
+  roughness: Uint8ClampedArray
+  metalness: number
+  size: number
+}
+
+/**
+ * Pure computation: generate the three PBR map pixel buffers for a procedural
+ * material WITHOUT touching the DOM or creating any Three.js objects. The
+ * returned arrays are regular typed arrays that can be transferred across a
+ * Worker message boundary or turned into `CanvasTexture`s on the main thread.
+ *
+ * The `size` parameter overrides the module-level BASE_SIZE/cap logic so the
+ * call is fully deterministic given `{id, pattern, swatch, size}`. Pass
+ * `effectivePatternSize(pattern)` for the standard quality-aware size.
+ */
+export function generateProceduralRaw(
+  id: string,
+  pattern: ProceduralPattern,
+  swatch: string,
+  size: number,
+): ProceduralRawResult {
+  const prev = S
+  S = size
+  try {
+    const seed = hashSeed(`${id}:${pattern}`)
+    const base = hexToRgb(swatch)
+    const f = PATTERN_FN[pattern](base, seed)
+
+    const normalData = heightToNormalRGBA(f.height, S, f.normalStrength)
+    const roughData = new Uint8ClampedArray(S * S * 4)
+    for (let i = 0; i < S * S; i++) {
+      const r = Math.round(clamp01(f.rough[i]) * 255)
+      roughData[i * 4] = r
+      roughData[i * 4 + 1] = r
+      roughData[i * 4 + 2] = r
+      roughData[i * 4 + 3] = 255
+    }
+    return {
+      albedo: f.albedo,
+      normal: normalData,
+      roughness: roughData,
+      metalness: f.metalness,
+      size: S,
+    }
+  } finally {
+    S = prev
+  }
+}
+
 /** Generate the three PBR maps for a procedural material. Browser-only
  *  (uses canvas / ImageData). */
 export function generateProcedural(
@@ -809,7 +948,7 @@ export function generateProcedural(
   pattern: ProceduralPattern,
   swatch: string,
 ): ProceduralResult {
-  S = BASE_SIZE
+  S = effectivePatternSize(pattern)
   const seed = hashSeed(`${id}:${pattern}`)
   const base = hexToRgb(swatch)
   const f = PATTERN_FN[pattern](base, seed)

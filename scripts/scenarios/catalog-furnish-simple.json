@@ -1,0 +1,163 @@
+{
+  "name": "catalog-furnish-simple",
+  "description": "Simple ladder for catalog/furnish: verify the catalog drawer opens in Simple mode, search works, a furniture item can be placed via store action, and the item appears in the scene + budget. Includes a Simple-vs-Pro flag visibility check for Packs tab.",
+  "url": "http://localhost:5220/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode \u2014 expected uiMode=simple"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "open-catalog",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "catalog-visible",
+      "waitFor": {
+        "css": ".panel.catalog"
+      },
+      "timeout": 20000,
+      "failMessage": "Catalog drawer did not appear after setCatalogOpen(true)"
+    },
+    {
+      "name": "shot-catalog-open",
+      "screenshot": "01-catalog-open-simple"
+    },
+    {
+      "name": "verify-packs-hidden-simple",
+      "eval": "(function(){ const tabs = [...document.querySelectorAll('.tab')].map(t => t.textContent?.trim()); if (tabs.includes('Packs')) throw new Error('Packs tab should be hidden in Simple mode but is visible: ' + JSON.stringify(tabs)); })()"
+    },
+    {
+      "name": "shot-catalog-tabs",
+      "screenshot": "02-catalog-tabs-no-packs"
+    },
+    {
+      "name": "switch-to-pro-mode",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "pro"
+        ]
+      }
+    },
+    {
+      "name": "wait-mode-switch",
+      "wait": 500
+    },
+    {
+      "name": "verify-packs-visible-pro",
+      "eval": "(function(){ const tabs = [...document.querySelectorAll('.tab')].map(t => t.textContent?.trim()); if (!tabs.includes('Packs')) throw new Error('Packs tab should be visible in Pro mode but is not: ' + JSON.stringify(tabs)); })()"
+    },
+    {
+      "name": "shot-catalog-pro-with-packs",
+      "screenshot": "03-catalog-pro-packs-visible"
+    },
+    {
+      "name": "back-to-simple",
+      "store": {
+        "action": "setUiMode",
+        "args": [
+          "simple"
+        ]
+      }
+    },
+    {
+      "name": "wait-mode-switch-back",
+      "wait": 300
+    },
+    {
+      "name": "place-sofa-via-store",
+      "eval": "window.__store.getState().setItems([{id:'test-sofa-1',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}}])"
+    },
+    {
+      "name": "wait-item-mount",
+      "wait": 2000
+    },
+    {
+      "name": "verify-item-in-store",
+      "waitFor": {
+        "store": "state.items.some(it => it.id === 'test-sofa-1')"
+      },
+      "timeout": 5000,
+      "failMessage": "test-sofa-1 not found in store items after placement"
+    },
+    {
+      "name": "focus-item",
+      "eval": "window.__store.getState().focusOn?.([9.6, 2.55])"
+    },
+    {
+      "name": "wait-focus",
+      "wait": 1500
+    },
+    {
+      "name": "shot-item-in-scene",
+      "screenshot": "04-sofa-in-scene"
+    },
+    {
+      "name": "open-budget",
+      "store": {
+        "action": "toggleBudget"
+      }
+    },
+    {
+      "name": "budget-visible",
+      "waitFor": {
+        "css": ".panel.mini.aux"
+      },
+      "timeout": 5000,
+      "failMessage": "Budget panel did not appear"
+    },
+    {
+      "name": "verify-budget-count",
+      "eval": "(function(){ const s = window.__store.getState(); const items = s.items; if (items.length === 0) throw new Error('No items in store for budget to display'); console.log('Budget item count:', items.length); })()"
+    },
+    {
+      "name": "shot-budget-with-item",
+      "screenshot": "05-budget-shows-item"
+    }
+  ]
+}

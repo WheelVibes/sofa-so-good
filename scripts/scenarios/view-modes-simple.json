@@ -1,0 +1,160 @@
+{
+  "name": "view-modes-simple",
+  "description": "Simple ladder for view modes: orbit \u21c4 walk \u21c4 2D plan. Verify cameraMode toggles between orbit and firstPerson, 2D plan editor opens via setFloorPlanEditing, and mode-dependent UI (WalkHud for walk, catalog only in orbit) appears/disappears correctly. Simple-vs-Pro: walkthrough is simple-tier and must be ON.",
+  "url": "http://localhost:5220/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-walkthrough-on-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.walkthrough === true"
+      },
+      "timeout": 10000,
+      "failMessage": "walkthrough flag is OFF in Simple mode \u2014 expected ON (simple-tier)"
+    },
+    {
+      "name": "verify-default-orbit",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected initial cameraMode=orbit"
+    },
+    {
+      "name": "shot-orbit-mode",
+      "screenshot": "01-orbit-mode"
+    },
+    {
+      "name": "switch-to-walk",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "firstPerson"
+        ]
+      }
+    },
+    {
+      "name": "walk-mode-active",
+      "waitFor": {
+        "store": "state.cameraMode === 'firstPerson'"
+      },
+      "timeout": 5000,
+      "failMessage": "cameraMode did not switch to firstPerson"
+    },
+    {
+      "name": "wait-walk-render",
+      "wait": 1000
+    },
+    {
+      "name": "shot-walk-mode",
+      "screenshot": "02-walk-mode"
+    },
+    {
+      "name": "verify-walk-hud-visible",
+      "waitFor": {
+        "css": ".walk-hud"
+      },
+      "timeout": 5000,
+      "failMessage": "WalkHud (.walk-hud) should appear in firstPerson mode"
+    },
+    {
+      "name": "shot-walk-hud",
+      "screenshot": "03-walk-hud-visible"
+    },
+    {
+      "name": "back-to-orbit",
+      "store": {
+        "action": "setCameraMode",
+        "args": [
+          "orbit"
+        ]
+      }
+    },
+    {
+      "name": "orbit-mode-restored",
+      "waitFor": {
+        "store": "state.cameraMode === 'orbit'"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-orbit-render",
+      "wait": 800
+    },
+    {
+      "name": "shot-orbit-restored",
+      "screenshot": "04-orbit-restored"
+    },
+    {
+      "name": "open-2d-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "plan-editor-open",
+      "waitFor": {
+        "store": "state.floorPlanEditing === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "plan-screen-visible",
+      "waitFor": {
+        "css": ".plan-screen"
+      },
+      "timeout": 15000,
+      "failMessage": "2D plan editor (.plan-screen) did not mount after setFloorPlanEditing(true)"
+    },
+    {
+      "name": "shot-2d-plan",
+      "screenshot": "05-2d-plan-editor"
+    },
+    {
+      "name": "close-plan-editor",
+      "store": {
+        "action": "setFloorPlanEditing",
+        "args": [
+          false
+        ]
+      }
+    },
+    {
+      "name": "plan-editor-closed",
+      "waitFor": {
+        "css": ".plan-screen",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-plan-closed",
+      "screenshot": "06-plan-editor-closed"
+    }
+  ]
+}

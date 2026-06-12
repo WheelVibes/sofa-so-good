@@ -229,7 +229,7 @@ When the bleed setting is off, only `f₀` is used — corridor stays dark even 
 
 ### 3.5 Limitations (deliberate)
 
-- Shadow casting through windows is correct geometrically but doesn't account for window glass refraction, tinting, or curtains.
+- Shadow casting through windows is correct geometrically but doesn't account for window glass refraction. Glass tint (component-wise sun-colour multiply) and curtain attenuation (sun intensity dimming when curtains overlap windows) now apply to sun intensity/colour (C275); geometric shadow colour itself remains unaffected.
 - IBL is a single global environment; it doesn't truly localize bounce per-room. For most indoor architecture views this is acceptable.
 - Door light bleed is uniform attenuation per traversal — no directional weighting based on door orientation.
 
@@ -426,7 +426,7 @@ Each section shows current FPS reading inline (re-using the existing FPS counter
 ## Out of scope
 
 - Auto-advancing in-world clock.
-- Window glass tinting / curtains affecting shadow color.
+- ~~Window glass tinting / curtains affecting shadow color.~~ **Shipped C275** as sun intensity/colour modulation (not shadow-map colour — geometric shadows are unaffected).
 - Localized per-room IBL probes (single global environment is used).
 - Directional weighting of door bleed based on door orientation (uniform attenuation).
 - Animated dusk/dawn that's faster than the existing 0.6 s tween.

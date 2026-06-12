@@ -26,7 +26,7 @@ function ChannelSlot({ label, required, file, onPick }: ChannelSlotProps) {
       </span>
       <input
         type="file"
-        accept="image/png,image/jpeg,image/webp,image/bmp,.tga,.tif,.tiff,.exr,.hdr"
+        accept="image/png,image/jpeg,image/webp,image/bmp,.tga,.tif,.tiff,.exr,.hdr,.ktx2,.dds"
         onChange={(e) => onPick(e.target.files?.[0] ?? null)}
         className="text-[10px]"
       />
@@ -98,9 +98,9 @@ export function UploadMaterialDialog({ open, onClose }: UploadMaterialDialogProp
       <div className="panel" style={{ width: 448, padding: 'var(--s-6)' }}>
         <h2 className="mb-3 text-base font-semibold text-[var(--text)]">Upload material</h2>
         <p className="mb-4 text-xs text-[var(--text-3)]">
-          Drop in PBR texture maps (PNG / JPG / WebP / BMP / TGA / TIFF / EXR / HDR, max 4096² and
-          16 MB each). Exotic formats are decoded and re-encoded to WebP in your browser. Albedo is
-          required; normal, roughness, and AO are optional.
+          Drop in PBR texture maps (PNG / JPG / WebP / BMP / TGA / TIFF / EXR / HDR / KTX2 / DDS,
+          max 4096² and 16 MB each). Exotic formats are decoded and re-encoded to WebP in your
+          browser. Albedo is required; normal, roughness, and AO are optional.
         </p>
         <div className="space-y-2">
           <ChannelSlot label="Albedo" required file={albedo} onPick={setAlbedo} />
