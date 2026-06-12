@@ -26,11 +26,14 @@ const GAP = 14 // gap between spotlight and card
  * Steps whose target is missing (e.g. behind the mobile hamburger) fall back to
  * spotlighting the hamburger; no-target steps centre with a flat scrim.
  *
- * On mobile the toolbar controls live behind the hamburger sheet, so the
- * spotlight can't track them (and its overlay would block the sheet). There we
- * skip targeting entirely and present every step as a centred card walkthrough
- * with Next/Back — so picking "Take the guided tour" still shows the tour
- * (rather than falling straight through to the location prompt).
+ * On mobile the toolbar controls live behind the hamburger sheet, so before
+ * spotlighting a step the tour opens the sheet and expands the right accordion
+ * section (`step.mobile`) to bring the real control on screen — the spotlight
+ * then highlights it just like on desktop and the user taps it to advance. The
+ * tour overlay (z-modal) sits above the sheet (z-overlay), so the four blocker
+ * panes dim the rest of the sheet while the hole keeps the control tappable.
+ * Steps with no mobile-reachable control (and any no-target step) centre as a
+ * plain card with the sheet closed.
  */
 export function ProductTour() {
   const open = useStore((s) => s.tourOpen)
@@ -53,31 +56,65 @@ export function ProductTour() {
   useLayoutEffect(() => {
     if (!open || !current) return
     let raf = 0
-    // Resolve the step's target. On mobile the desktop toolbar targets live in
-    // the hamburger sheet (which the overlay would cover), so we don't spotlight
-    // anything — every step centres as a plain card. No-target steps also stay
-    // centred (findTarget returns null).
+    // On mobile, bring the step's control on screen before measuring: open the
+    // hamburger sheet and expand the accordion section that holds it. Each call
+    // is idempotent (only clicks when the sheet/section isn't already open) so
+    // the re-measure poll below can keep it open without toggling it shut. When
+    // a step has no mobile target, close the sheet so the centred card is clean.
+    const sheetEl = () => document.querySelector<HTMLElement>('.m-sheet')
+    const menuBtn = () => document.querySelector<HTMLElement>('[aria-label="Menu"]')
+    // Closing uses the sheet's dedicated Close button (only ever closes), not the
+    // hamburger toggle — safe to call from a repeating poll without re-opening.
+    const closeSheet = () =>
+      document.querySelector<HTMLElement>('.m-sheet [aria-label="Close"]')?.click()
+    const revealMobile = () => {
+      const m = current.mobile
+      if (!m) {
+        if (sheetEl()) closeSheet() // centred steps want no sheet
+        return
+      }
+      if (!sheetEl()) {
+        menuBtn()?.click() // open the sheet; next poll tick expands the section
+        return
+      }
+      if (m.section) {
+        const header = document.querySelector<HTMLElement>(`[data-tour-section="${m.section}"]`)
+        if (header && header.getAttribute('aria-expanded') !== 'true') header.click()
+      }
+    }
+    // Resolve the step's target. On mobile we use the mobile selector (resolved
+    // once the sheet/section is revealed); on desktop the toolbar target, falling
+    // back to the hamburger if it's tucked away. No-target steps stay centred.
     const findTarget = (): HTMLElement | null => {
-      if (isMobile || !current.target) return null
+      if (isMobile) {
+        return current.mobile ? document.querySelector<HTMLElement>(current.mobile.target) : null
+      }
+      if (!current.target) return null
       return (
         document.querySelector<HTMLElement>(current.target) ??
         document.querySelector<HTMLElement>('[aria-label="Menu"]')
       )
     }
+    // Scroll the target into view the first time it's found this step — guarded
+    // so the scroll it triggers (which fires the scroll→measure listener) can't
+    // loop. On desktop the toolbar scrolls horizontally; on mobile the revealed
+    // row may sit below the sheet fold.
+    let scrolled = false
     const measure = () => {
+      if (isMobile) revealMobile()
       const el = findTarget()
       targetRef.current = el
       if (el) {
+        if (!scrolled) {
+          scrolled = true
+          el.scrollIntoView({ block: 'nearest', inline: 'center' })
+        }
         const r = el.getBoundingClientRect()
         setRect(r.width > 0 ? { top: r.top, left: r.left, width: r.width, height: r.height } : null)
       } else {
         setRect(null)
       }
     }
-    // Bring the target into view once per step (the toolbar scrolls horizontally
-    // on narrow desktops, so a target like Scene/View could be off-screen). Done
-    // here, NOT in `measure`, so the scroll it triggers can't loop the listener.
-    findTarget()?.scrollIntoView({ block: 'nearest', inline: 'center' })
     measure()
     raf = requestAnimationFrame(measure)
     window.addEventListener('resize', measure)
@@ -126,6 +163,16 @@ export function ProductTour() {
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [open, next, prev, end])
+
+  // Tidy up on unmount. The tour is only mounted while `tourOpen` (App gates it),
+  // so it unmounts the moment the tour ends (Done/Skip/Esc) — close any mobile
+  // hamburger sheet the tour opened so it doesn't linger behind the location
+  // prompt. The Close button only exists when a sheet is open, so this is a no-op
+  // on desktop or when nothing is open.
+  useEffect(
+    () => () => document.querySelector<HTMLElement>('.m-sheet [aria-label="Close"]')?.click(),
+    [],
+  )
 
   if (!open || !current) return null
 

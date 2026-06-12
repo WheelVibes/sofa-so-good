@@ -5,28 +5,35 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## Fix: mobile guided tour no longer falls through to the location prompt
+## Fix: interactive guided tour on mobile (was falling through to the location prompt)
 
 On a mobile viewport, picking "Take the guided tour" in the onboarding carousel set
 `tourOpen = true`, but `ProductTour` immediately called `end()` (it was desktop-only and
 bailed on mobile). That flipped `tourOpen` back to `false`, so `LocationPrompt` — suppressed
 only while `onboardingOpen || tourOpen` — popped up instead of the tour.
 
-**What changed (`src/ui/tour/ProductTour.tsx`):**
-- Removed the mobile self-`end()` effect and the `isMobile` early-return. The tour now stays
-  open on mobile.
-- On mobile, `findTarget()` returns `null` for every step, so the tour drops the spotlight
-  (whose overlay would otherwise cover the hamburger sheet that holds the real controls) and
-  renders each step as a centred card with Next/Back. `action` steps fall back to a Next
-  button (no control to click through), so the user is never trapped.
-- The location prompt is gated on `tourOpen`, so it now correctly appears **last** — after the
-  tour is finished or skipped.
+The tour now runs **interactively on mobile**, mirroring desktop: it opens the hamburger sheet,
+expands the right accordion section, and spotlights the real control for the user to tap.
+
+**What changed:**
+- `src/ui/tour/ProductTour.tsx` — removed the mobile self-`end()` effect and `isMobile`
+  early-return. Before measuring each step on mobile, `revealMobile()` opens the sheet (the
+  tour overlay's `--z-modal` sits above the sheet's `--z-overlay`, and the spotlight hole stays
+  click-through) and expands the step's `mobile.section`; `findTarget()` then resolves the
+  mobile selector. Steps with no mobile-reachable control centre as before. On unmount the tour
+  closes any sheet it opened, so it doesn't linger behind the location prompt.
+- `src/ui/tour/tourSteps.ts` — added `TourStepMobile` (`{ target, section? }`) and a `mobile`
+  entry per step (View / Edit / Edit-a-room / Catalog / Appearance map to sheet headers + rows;
+  Scene/customise/finishes centre).
+- `src/ui/toolbar/MobileToolbar.tsx` — added `data-tour-section` to accordion headers and an
+  optional `tourId` (`data-tour`) on rows; tagged the "Edit a room" and "Catalog" rows.
 
 **Tests/verification:**
 - `src/ui/tour/ProductTour.test.tsx` — new: tour renders + stays open on both desktop and a
-  mobile (`matchMedia`) viewport; mobile shows a Next button (regression guard).
-- `scripts/scenarios/first-run-mobile-tour.json` — new IXT-SUITES rung: full mobile journey
-  (onboarding → guided tour → steps → skip → location prompt last). Verified with screenshots.
+  mobile (`matchMedia`) viewport (regression guard for the self-terminate bug).
+- `scripts/scenarios/first-run-mobile-tour.json` — new IXT-SUITES rung: full interactive mobile
+  journey (onboarding → guided tour → spotlight View → Edit → Edit a room → Catalog → centred
+  steps → Appearance → Done → location prompt last). Verified with screenshots.
 
 ## [C274] Standalone KTX2/DDS texture upload decode
 

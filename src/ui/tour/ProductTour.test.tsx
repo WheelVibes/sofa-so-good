@@ -42,15 +42,17 @@ describe('ProductTour', () => {
 
   // Regression: picking "Take the guided tour" on mobile used to flash the tour
   // open and immediately end it (so the location prompt surfaced instead). The
-  // tour must stay open and show its centred-card walkthrough on mobile too.
-  it('renders on mobile as a centred card and stays open', () => {
+  // tour must stay open and render on mobile too. (The mobile spotlight
+  // orchestration — opening the hamburger sheet and expanding the right section —
+  // is exercised in-browser by scripts/scenarios/first-run-mobile-tour.json,
+  // which needs the real toolbar mounted.)
+  it('renders on mobile and stays open (no self-terminate)', () => {
     setViewport(true)
     useStore.getState().startTour()
     render(<ProductTour />)
     expect(screen.getByText(TOUR_STEPS[0].title)).toBeInTheDocument()
     expect(useStore.getState().tourOpen).toBe(true)
-    // No spotlight on mobile: even an `action` step offers a Next button rather
-    // than forcing a click on a control hidden in the hamburger sheet.
+    // The welcome step has no target, so it centres with a Next button on mobile.
     expect(screen.getByRole('button', { name: /next/i })).toBeInTheDocument()
   })
 })

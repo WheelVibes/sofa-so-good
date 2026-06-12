@@ -55,13 +55,15 @@ function formatClock(hour: number): string {
   return `${display}:${String(mm).padStart(2, '0')} ${period}`
 }
 
-/** A tappable row inside an accordion section: icon + label (+ sub) + On badge. */
+/** A tappable row inside an accordion section: icon + label (+ sub) + On badge.
+ *  `tourId` tags the row with `data-tour` so the product tour can spotlight it. */
 function Item({
   icon,
   label,
   sub,
   on,
   disabled,
+  tourId,
   onClick,
 }: {
   icon: IconName
@@ -69,11 +71,18 @@ function Item({
   sub?: string
   on?: boolean
   disabled?: boolean
+  tourId?: string
   onClick: () => void
 }) {
   const Glyph = Icon[icon]
   return (
-    <button type="button" className="m-item" disabled={disabled} onClick={onClick}>
+    <button
+      type="button"
+      className="m-item"
+      data-tour={tourId}
+      disabled={disabled}
+      onClick={onClick}
+    >
       <Glyph className="icn" width={18} height={18} />
       <span className="m-item-tx">
         <span className="m-item-l">{label}</span>
@@ -108,6 +117,7 @@ function Section({
       <button
         type="button"
         className="m-acc-h"
+        data-tour-section={id}
         aria-expanded={open}
         onClick={() => setOpenId(open ? null : id)}
       >
@@ -554,6 +564,7 @@ export function MobileToolbar() {
                       icon="Cube"
                       label="Edit a room"
                       sub="Furnish + finish a room — pick which from the header"
+                      tourId="edit-room"
                       onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
                     />
                   ) : null}
@@ -699,6 +710,7 @@ export function MobileToolbar() {
                     <Item
                       icon="Catalog"
                       label="Catalog"
+                      tourId="catalog"
                       on={catalogOpen && leftMode === 'catalog'}
                       onClick={act(() => {
                         s.getState().setLeftMode('catalog')

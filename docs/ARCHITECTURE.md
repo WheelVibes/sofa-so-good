@@ -166,10 +166,12 @@ same change that reshapes a system.
   `ui/bootDecision.ts` (pure, tested). Carousel step 3 offers "Take the guided tour" as the
   ONLY automatic entry into the **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive
   click-through spotlight; only "Skip tour"/Esc ends it). On **mobile** the toolbar targets live
-  behind the hamburger sheet, so the tour drops the spotlight and runs as a centred-card
-  walkthrough (Next/Back) instead of bailing out. **Location prompt suppressed while
-  `onboardingOpen || tourOpen`** (no stacking) — so it always surfaces last, after the tour.
-  Replay via Help (?) or ⌘K.
+  in the hamburger sheet, so each step carries a `mobile` config (`tourSteps.ts`): the tour opens
+  the sheet and expands the right accordion section (via `data-tour-section`/`data-tour` hooks in
+  `MobileToolbar`) to spotlight the real control, falling back to a centred card when a control
+  has no mobile equivalent (e.g. Scene inside the room editor); it closes the sheet on unmount.
+  **Location prompt suppressed while `onboardingOpen || tourOpen`** (no stacking) — so it always
+  surfaces last, after the tour. Replay via Help (?) or ⌘K.
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
   **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
   `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).
