@@ -9,7 +9,6 @@ import {
   snapSelectionToWall,
 } from '../layout/selectionActions'
 import { tidyHome } from '../layout/tidyHome'
-import { applyLightingScene, LIGHTING_SCENES } from '../scene/lighting/lightingScenes'
 import { BACKDROPS } from '../scene/SceneBackdrop'
 import { canEditScene } from '../state/editing'
 import { firstEditableRoomId } from '../state/rooms'
@@ -362,21 +361,11 @@ export function CommandPalette() {
       ...(['morning', 'noon', 'dusk', 'night'] as const).map(
         (p): Command => ({
           id: `time:${p}`,
-          group: 'Lighting moods',
+          group: 'Time of day',
           label: `Time — ${p[0].toUpperCase()}${p.slice(1)}`,
           hint: 'Sun',
           icon: 'Sun',
           run: () => s().setPresetTime(p),
-        }),
-      ),
-      ...LIGHTING_SCENES.map(
-        (sc): Command => ({
-          id: `mood:${sc.id}`,
-          group: 'Lighting moods',
-          label: sc.label,
-          hint: 'Mood',
-          icon: 'Lights',
-          run: () => applyLightingScene(sc),
         }),
       ),
       ...BACKDROPS.map(

@@ -1,5 +1,5 @@
 import { useStore } from '../../state/store'
-import { computeSun, hoursToDate, type SunPosition } from './sunPosition'
+import { computeSun, localSolarDate, type SunPosition } from './sunPosition'
 import { useEffectiveHour } from './useEffectiveHour'
 
 /** Used when the user hasn't set a location and the prompt was skipped. */
@@ -8,10 +8,15 @@ export const FALLBACK_LOCATION = { lat: 1.35, lon: 103.82 } as const
 /** Resolve the "effective" sun position from the current effective
  *  hour and the user's location (or the Singapore fallback). Re-runs
  *  every render of its caller — the underlying `useEffectiveHour`
- *  controls cadence (60s in system mode; on demand in manual). */
+ *  controls cadence (60s in system mode; on demand in manual).
+ *
+ *  System mode uses the real current instant (real astronomy for the viewer's
+ *  location). Manual mode anchors the slider hour to the location's longitude
+ *  (`localSolarDate`) so "18:00" is dusk regardless of the browser's timezone. */
 export function useSunPosition(): SunPosition {
   const hour = useEffectiveHour()
+  const timeMode = useStore((s) => s.timeMode)
   const location = useStore((s) => s.location) ?? FALLBACK_LOCATION
-  const date = hoursToDate(hour)
+  const date = timeMode === 'manual' ? localSolarDate(hour, location.lon) : new Date()
   return computeSun(date, location.lat, location.lon)
 }

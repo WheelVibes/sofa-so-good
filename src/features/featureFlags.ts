@@ -35,7 +35,6 @@ export type FeatureFlag =
   | 'vrWalkthrough'
   | 'savedViews'
   | 'backdrops'
-  | 'lightingMoods'
   | 'packs'
   | 'remoteMaterials'
   | 'modelUpload'
@@ -199,12 +198,6 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   backdrops: {
     label: 'Backdrops',
     description: 'Selectable surroundings (city/park/…)',
-    default: true,
-    tier: 'simple',
-  },
-  lightingMoods: {
-    label: 'Lighting moods',
-    description: 'Golden hour / night presets',
     default: true,
     tier: 'simple',
   },

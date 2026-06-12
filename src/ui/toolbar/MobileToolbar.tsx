@@ -8,12 +8,6 @@ import { ikeaSetRecipes } from '../../furniture/ikeaSets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
 import { tidyHome } from '../../layout/tidyHome'
 import { applyStyle, STYLE_PRESETS } from '../../materials/stylePresets'
-import {
-  applyLightingScene,
-  isLightingSceneActive,
-  LIGHTING_SCENES,
-} from '../../scene/lighting/lightingScenes'
-import { useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
 import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
@@ -24,7 +18,6 @@ import { detectVrSupport } from '../../scene/xr/vrSupport'
 import { enterVr, getXrStore } from '../../scene/xr/xrStore'
 import { firstEditableRoomId } from '../../state/rooms'
 import { applySerialized, serialize } from '../../state/schema'
-import { PRESET_HOURS, type TimePreset } from '../../state/slices/timeSlice'
 import { LocalStorageAdapter } from '../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, saveThumb } from '../../state/storage/slotThumbs'
@@ -37,23 +30,13 @@ import { Modal } from '../Modal'
 import { openDesignReport } from '../openReport'
 import { openShoppingList } from '../openShoplist'
 import { PresentationSetup } from '../presentation/PresentationSetup'
+import { TimeOfDaySlider } from '../scene/TimeOfDaySlider'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
 import { RoomSwitcher } from './RoomSwitcher'
 
-const TIME_PRESETS: TimePreset[] = ['morning', 'noon', 'dusk', 'night']
 const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 'On', off: 'Off' }
-
-function formatClock(hour: number): string {
-  const h = ((hour % 24) + 24) % 24
-  const totalMinutes = Math.round(h * 60) % (24 * 60)
-  const hh = Math.floor(totalMinutes / 60)
-  const mm = totalMinutes % 60
-  const period = hh < 12 ? 'AM' : 'PM'
-  const display = hh % 12 === 0 ? 12 : hh % 12
-  return `${display}:${String(mm).padStart(2, '0')} ${period}`
-}
 
 /** A tappable row inside an accordion section: icon + label (+ sub) + On badge.
  *  `tourId` tags the row with `data-tour` so the product tour can spotlight it. */
@@ -156,8 +139,6 @@ export function MobileToolbar() {
   const snapEnabled = useStore((st) => st.snapEnabled)
   const gridSize = useStore((st) => st.gridSize)
   const autoRotate = useStore((st) => st.autoRotate)
-  const timeMode = useStore((st) => st.timeMode)
-  const manualHour = useStore((st) => st.manualHour)
   const lightsMode = useStore((st) => st.lightsMode)
   const backdrop = useStore((st) => st.backdrop)
   const proMode = useStore((st) => st.uiMode === 'pro')
@@ -174,7 +155,6 @@ export function MobileToolbar() {
   const appearanceOpen = useStore((st) => st.appearanceOpen)
   const setAppearanceOpen = useStore((st) => st.setAppearanceOpen)
   const currentUser = useStore((st) => st.currentUser)
-  const effectiveHour = useEffectiveHour()
   const recipes = ikeaSetRecipes()
 
   // Feature flags — keep the mobile sheet at parity with the desktop menus / ⌘K,
@@ -182,7 +162,6 @@ export function MobileToolbar() {
   const fSavedViews = useFeature('savedViews')
   const fPresentation = useFeature('presentation')
   const fFloorPlan = useFeature('floorPlanEditor')
-  const fLightingMoods = useFeature('lightingMoods')
   const fBackdrops = useFeature('backdrops')
   const fSmartStart = useFeature('smartStart')
   const fParametric = useFeature('parametricFurniture')
@@ -624,48 +603,16 @@ export function MobileToolbar() {
                 {/* Scene */}
                 {!roomEditorActive ? (
                   <Section id="scene" title="Scene" icon="Time" {...sectionProps}>
+                    {/* Time of day: slider + snap-to icon checkpoints (shared with
+                        desktop). The System toggle inside shows the real clock. */}
+                    <TimeOfDaySlider />
                     <Item
-                      icon="Time"
-                      label="System time"
-                      sub={formatClock(effectiveHour)}
-                      on={timeMode === 'system'}
-                      onClick={act(() => s.getState().setTimeMode('system'), { keep: true })}
+                      icon="Lights"
+                      label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
+                      sub="Independent of the time of day"
+                      on={lightsMode !== 'auto'}
+                      onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
                     />
-                    {TIME_PRESETS.map((p) => (
-                      <Item
-                        key={p}
-                        icon="Sun"
-                        label={p[0].toUpperCase() + p.slice(1)}
-                        sub={formatClock(PRESET_HOURS[p])}
-                        on={timeMode === 'manual' && manualHour === PRESET_HOURS[p]}
-                        onClick={act(() => s.getState().setPresetTime(p), { keep: true })}
-                      />
-                    ))}
-                    {/* Continuous time-of-day scrub (parity with desktop Scene menu). */}
-                    <div className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                      <input
-                        type="range"
-                        min={0}
-                        max={24}
-                        step={0.25}
-                        value={effectiveHour}
-                        aria-label="Time of day"
-                        onChange={(e) => s.getState().setManualHour(Number(e.target.value))}
-                        className="slider"
-                        style={{ width: '100%' }}
-                      />
-                    </div>
-                    {fLightingMoods &&
-                      LIGHTING_SCENES.map((sc) => (
-                        <Item
-                          key={sc.id}
-                          icon="Lights"
-                          label={sc.label}
-                          sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
-                          on={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
-                          onClick={act(() => applyLightingScene(sc), { keep: true })}
-                        />
-                      ))}
                     {fRenderPresets && <div className="m-sub-h">Render presets</div>}
                     {fRenderPresets &&
                       RENDER_PRESETS.map((p) => (
@@ -681,12 +628,6 @@ export function MobileToolbar() {
                       icon="Sun"
                       label="Sun direction"
                       onClick={act(() => setCompassOpen(true))}
-                    />
-                    <Item
-                      icon="Lights"
-                      label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
-                      on={lightsMode !== 'auto'}
-                      onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
                     />
                     {fBackdrops ? (
                       <label className="scene-field" onClick={(e) => e.stopPropagation()}>

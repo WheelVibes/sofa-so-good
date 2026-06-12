@@ -35,3 +35,20 @@ export function hoursToDate(hour: number, today: Date = new Date()): Date {
   result.setHours(0, minutes, 0, 0)
   return result
 }
+
+/** Build the absolute instant whose **local solar time at `lonDeg`** is `hour`.
+ *
+ *  The manual time slider means "show me the flat at 6pm *there*", but `computeSun`
+ *  works on an absolute instant evaluated for the location's longitude. If we built
+ *  the Date in the browser's timezone (`hoursToDate`), a browser whose zone doesn't
+ *  match the location's longitude would map e.g. 18:00 to a night-time solar instant
+ *  → a pitch-dark "6pm". Anchoring to the longitude (mean solar time: UTC = local −
+ *  lon/15) makes the slider's hours intuitive everywhere — 18:00 is dusk, noon is
+ *  overhead — independent of the viewer's clock. */
+export function localSolarDate(hour: number, lonDeg: number, today: Date = new Date()): Date {
+  const h = ((hour % 24) + 24) % 24
+  const utcMinutes = Math.round((h - lonDeg / 15) * 60)
+  const result = new Date(today)
+  result.setUTCHours(0, utcMinutes, 0, 0)
+  return result
+}

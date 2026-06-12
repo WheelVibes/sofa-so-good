@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Scene time/lighting overhaul: longitude-anchored sun, snap checkpoints, independent lights
+
+- **6pm is no longer pitch dark.** `hoursToDate` built the manual-time Date in the *browser's*
+  timezone while `computeSun` evaluated it for the location's lat/lon — so a viewer whose zone
+  didn't match the location's longitude mapped 18:00 to a night-time solar instant. New
+  `localSolarDate(hour, lon)` anchors the manual hour to the location's mean solar time, so the
+  slider reads intuitively everywhere (noon overhead, 18:00 dusk) and the lighting follows a
+  smooth gradient based on the real sun altitude for the location + current date. System mode
+  still uses the real current instant.
+- **Time slider snap checkpoints.** New shared `ui/scene/TimeOfDaySlider` (desktop Scene menu +
+  mobile sheet) puts morning 🌅 / noon ☀️ / sunset 🌇 / night 🌙 snap icons along the track;
+  tapping one jumps there, the slider still scrubs freely. Replaces the separate
+  morning/noon/dusk/night preset buttons.
+- **System time fix.** The "System time" control now always shows the real wall-clock time, not
+  whatever manual time is currently selected.
+- **Lights is now a single off/on/auto toggle**, independent of the time of day (lights can be on
+  in daytime). Removed the "lighting moods" (Daylight / Golden hour / …) bundle — the
+  `lightingScenes` module + `lightingMoods` feature flag + ⌘K mood commands are gone.
+
 ## Help slimmed to a launcher; sign-in moved to the main menu; admin password → "admin"
 
 - **Help modal** no longer embeds how-to tips (the user guide covers them). It's now a launcher:
