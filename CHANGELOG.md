@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C265 / T2] Crown-molding revisit + kitchen/bath template polish
+
+**Crown molding (T2):** Adds decorative crown-molding strips at every wall–ceiling junction
+in both the curated default flat (`WallSegment.tsx`) and user-authored plan shells
+(`PlanShell.tsx`). The `crownMolding` feature flag (`tier: 'simple'`, default `true`) was
+wired in the previous partial attempt; this commit completes the geometry with the same
+abutment-extended span lengths used by skirting boards, so mitre corners close flush at
+every wall junction with no gaps or overlaps. `polygonOffset` prevents z-fighting against
+the ceiling plane. Applies to rectangular and polygon rooms; correct in the room editor and
+multi-storey plans (PlanShell uses the same wall-box abutment logic as Baseboard).
+
+**Kitchen template polish:** Counter back face moved flush to north wall (z≈6.85 = wall
+inner + `CLEARANCE.wallGap`); fridge SW corner flush to west + south walls; stove + range
+hood flush to south wall; washing machine in service yard flush to west + south walls;
+microwave repositioned above the counter near the west end (away from the stove).
+
+**Bathroom template polish:** Shower in Bath 1 flush to west + north walls; WC in both baths
+repositioned flush to east + south walls with correct wall-gap clearances; basin repositioned
+flush to east wall; all fixtures verified within room bounds.
+
+**Tests:** `src/apartment/crownMolding.test.ts` — 18 tests covering the `atCeiling` predicate,
+`wallEndAbutmentThickness` corner-extension regression, and template fixture bounds for kitchen,
+bathrooms, and service yard (all pass).
+
+**Scenario:** `scripts/scenarios/crown-molding-simple.json` — simple interaction-test ladder
+(crown flag gated, renders, toggleable on/off, daytime lighting).
+
 ## [C268 / FIRST-RUN] Onboarding carousel fires first; product tour is opt-in from carousel choice
 
 **Behaviour change:** on a clean profile the onboarding carousel now fires FIRST (welcome →

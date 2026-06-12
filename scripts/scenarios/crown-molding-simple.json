@@ -1,0 +1,91 @@
+{
+  "name": "crown-molding-simple",
+  "url": "http://localhost:5209/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 30000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(12)"
+    },
+    {
+      "name": "set-quality-medium",
+      "eval": "window.__store.getState().setRenderTier?.('Medium')"
+    },
+    {
+      "name": "wait-scene",
+      "wait": 3000
+    },
+    {
+      "name": "shot-overview",
+      "screenshot": "01-overview"
+    },
+    {
+      "name": "verify-crown-molding-flag",
+      "eval": "const flags = window.__store.getState().featureFlags; if (!flags.crownMolding) throw new Error('crownMolding flag is OFF — expected ON')"
+    },
+    {
+      "name": "tilt-to-profile",
+      "drag": { "from": [800, 200], "to": [800, 450] }
+    },
+    {
+      "name": "zoom-to-wall",
+      "wheel": { "x": 800, "y": 400, "dy": -600 }
+    },
+    {
+      "name": "wait-settle",
+      "wait": 800
+    },
+    {
+      "name": "shot-profile-with-crown",
+      "screenshot": "02-profile-crown-visible"
+    },
+    {
+      "name": "orbit-to-corner",
+      "drag": { "from": [600, 400], "to": [800, 400] }
+    },
+    {
+      "name": "wait-settle-2",
+      "wait": 600
+    },
+    {
+      "name": "shot-corner",
+      "screenshot": "03-corner-miter"
+    },
+    {
+      "name": "disable-crown",
+      "eval": "window.__store.getState().setFeatureFlag?.('crownMolding', false)"
+    },
+    {
+      "name": "wait-rerender",
+      "wait": 600
+    },
+    {
+      "name": "shot-no-crown",
+      "screenshot": "04-no-crown-control"
+    },
+    {
+      "name": "re-enable-crown",
+      "eval": "window.__store.getState().setFeatureFlag?.('crownMolding', true)"
+    },
+    {
+      "name": "wait-rerender-2",
+      "wait": 600
+    },
+    {
+      "name": "shot-crown-restored",
+      "screenshot": "05-crown-restored"
+    }
+  ]
+}

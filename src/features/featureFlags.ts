@@ -65,6 +65,7 @@ export type FeatureFlag =
   | 'finishDnd'
   | 'parametricFurniture'
   | 'renderCompare'
+  | 'crownMolding'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -383,6 +384,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'A/B compare two render presets with a draggable before/after divider',
     default: true,
     tier: 'pro',
+  },
+  // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
+  // assets → prod-safe. Crown molding is a core finish detail visible in casual
+  // use, so it belongs in Simple tier.
+  crownMolding: {
+    label: 'Crown molding',
+    description: 'Decorative trim strip at the wall–ceiling junction with miter-cut corners',
+    default: true,
+    tier: 'simple',
   },
 }
 

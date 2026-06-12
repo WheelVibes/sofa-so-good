@@ -2,6 +2,7 @@ import { useFrame, useThree } from '@react-three/fiber'
 import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
 import { type Group, Mesh, type MeshStandardMaterial } from 'three'
 import { useShallow } from 'zustand/react/shallow'
+import { useFeature } from '../../features/useFeature'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -116,6 +117,8 @@ function FaceHighlight({
 }
 
 const BASEBOARD_H = 0.09
+const CROWN_H = 0.07 // crown molding height (matches skirting board proportions)
+const CROWN_T = 0.016 // crown molding thickness (proud of wall face)
 
 /** A painted skirting board strip along the floor edge of a wall face. */
 function Baseboard({
@@ -134,6 +137,41 @@ function Baseboard({
     <mesh position={[segMid, BASEBOARD_H / 2, z]} castShadow receiveShadow>
       <boxGeometry args={[segLen, BASEBOARD_H, 0.018]} />
       <meshStandardMaterial color="#eeece6" roughness={0.55} metalness={0} />
+    </mesh>
+  )
+}
+
+/**
+ * Decorative crown molding strip at the wall–ceiling junction.
+ * Shares the same abutment-extended span length as the skirting board so
+ * mitre corners close flush at every wall junction — no gaps or overlaps.
+ * polygonOffset prevents z-fighting against the ceiling plane above.
+ */
+function CrownMolding({
+  segLen,
+  segMid,
+  segTop,
+  thickness,
+  sign,
+}: {
+  segLen: number
+  segMid: number
+  segTop: number
+  thickness: number
+  sign: 1 | -1
+}) {
+  const z = sign * (thickness / 2 + 0.004)
+  return (
+    <mesh position={[segMid, segTop - CROWN_H / 2, z]}>
+      <boxGeometry args={[segLen, CROWN_H, CROWN_T]} />
+      <meshStandardMaterial
+        color="#eeece6"
+        roughness={0.55}
+        metalness={0}
+        polygonOffset
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
+      />
     </mesh>
   )
 }
@@ -310,6 +348,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   )
   const selectWall = useStore((s) => s.selectWall)
   const selectedWall = useStore((s) => s.selectedWall)
+  const crownMolding = useFeature('crownMolding')
   // Accent-wall finishing is editing, so it's only reachable inside the room
   // editor (orbit). Outside it, wall-face clicks do nothing (view-only).
   const selectWallIfEditing = (wallId: string, roomId: RoomId) => {
@@ -356,6 +395,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         const negativeMat = span.negative ? wallFinishes[span.negative] : null
         // Skirting boards only on spans that reach the floor.
         const onFloor = span.bottom < 0.01
+        // Crown molding only on full-height spans (span top at or near ceiling).
+        // The 0.01 m tolerance absorbs floating-point differences. The same
+        // abutment-extended segLen already closes mitre corners correctly.
+        const atCeiling = crownMolding && span.top >= ceilingHeight - 0.01
         return (
           <group key={i}>
             {positiveMat ? (
@@ -381,6 +424,15 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 </SilentErrorBoundary>
                 {onFloor && (
                   <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />
+                )}
+                {atCeiling && (
+                  <CrownMolding
+                    segLen={segLen}
+                    segMid={segMid}
+                    segTop={span.top}
+                    thickness={thickness}
+                    sign={1}
+                  />
                 )}
                 {selectedWall?.wallId === wall.id && selectedWall.roomId === span.positive && (
                   <FaceHighlight
@@ -417,6 +469,15 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
                 </SilentErrorBoundary>
                 {onFloor && (
                   <Baseboard segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />
+                )}
+                {atCeiling && (
+                  <CrownMolding
+                    segLen={segLen}
+                    segMid={segMid}
+                    segTop={span.top}
+                    thickness={thickness}
+                    sign={-1}
+                  />
                 )}
                 {selectedWall?.wallId === wall.id && selectedWall.roomId === span.negative && (
                   <FaceHighlight

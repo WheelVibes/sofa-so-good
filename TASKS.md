@@ -60,7 +60,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
   so designs look styled; ensure category coverage is exhaustive.
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
-- [~] T2 Crown-molding revisit + kitchen/bath template polish.
 
 ## Productivity / QOL
 - [ ] IXT-SUITES (user rule, 2026-06-12): build interaction-test scenarios (simple → complex per
