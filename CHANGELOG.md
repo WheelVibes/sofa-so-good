@@ -5,6 +5,65 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C271 / PERF9 tail] OffscreenCanvas worker generation for procedural textures
+
+Moves procedural PBR texture generation off the main thread to eliminate jank at boot
+and finish-switch time. Three-file addition, two modified, all existing APIs and material
+IDs unchanged.
+
+**New files:**
+- `src/materials/procedural/procedural.worker.ts` — Vite `?worker`-pattern module
+  worker; receives `{id, pattern, swatch, size}`, generates fields via the pure
+  `generateProceduralRaw()` function, renders each PBR map to an `OffscreenCanvas`,
+  and returns three `ImageBitmap`s (zero-copy transferables) to the main thread.
+- `src/materials/procedural/runProceduralWorker.ts` — main-thread façade with lazy
+  worker init, request coalescing (same `{id,pattern,swatch,size}` key → one message),
+  graceful degradation (`offscreenAvailable` feature-detect; `workerBroken` flag;
+  `null` return → caller falls back), and test escape-hatches
+  (`_setOffscreenAvailableForTest`, `_setWorkerFactoryForTest`, `_resetProceduralWorker`).
+- `src/materials/proceduralSwapSignal.ts` — lightweight module-level signal
+  (mirrors `finishDragSignal.ts` pattern) that fires when a worker result hot-swaps a
+  material's textures, so the demand-mode canvas renders one extra frame.
+- `src/materials/procedural/proceduralWorker.test.ts` — 12 unit tests covering:
+  seed determinism (`generateProceduralRaw` is pixel-identical for same inputs, different
+  for different ids), worker-key stability, fallback when unavailable, request coalescing
+  (two concurrent same-key calls → one worker message), and ok:false fallback.
+
+**Modified files:**
+- `src/materials/procedural/generators.ts` — adds `generateProceduralRaw()` (pure,
+  DOM-free pixel-array generation, deterministic given `{id,pattern,swatch,size}`) and
+  `rawToTexture()` (main-thread helper to materialise worker-returned buffers).
+- `src/materials/cache.ts` — `buildMaterial()` for procedural kinds now: (1) immediately
+  builds a sync texture via the existing path (no first-paint delay), (2) fires
+  `scheduleWorkerUpgrade()` off-thread, (3) on worker resolution hot-swaps the material's
+  maps in-place, disposes the old GPU textures, and calls `notifyProceduralSwap()` to kick
+  a demand-mode render frame. Fallback: if OffscreenCanvas is unavailable or the worker
+  errors, the sync textures stay in place — identical behaviour to today.
+- `src/scene/RenderPump.tsx` — subscribes to `subscribeProceduralSwap` so worker texture
+  upgrades trigger `markDirty()` (a settle-tail render) without routing through the store.
+
+**Sync-fallback + swap strategy:** `buildMaterial` immediately calls the existing
+`generateProcedural()` (sync, DOM) for a fast first paint, caches the material, then
+`scheduleWorkerUpgrade()` sends a worker request with the same key. The worker encodes
+pixels into `ImageBitmap`s (OffscreenCanvas, zero-copy transfer). On resolution, the main
+thread draws each bitmap to a `<canvas>`, wraps it in a `CanvasTexture`, and swaps the
+material's `map`/`normalMap`/`roughnessMap` in-place, setting `needsUpdate`. The
+`proceduralSwapSignal` then fires to kick a render frame.
+
+**Determinism guarantee:** `generateProceduralRaw` uses `hashSeed(id+':'+pattern)` →
+`mulberry32` PRNG, all seeded deterministically. Same inputs → pixel-identical output
+across calls and threads.
+
+**Scenario:** `scripts/scenarios/procedural-worker-simple.json` — boots to daylight,
+screenshots the default flat (wood floors), switches living-room floor to hexagon tile,
+waits for worker swap, screenshots result.
+
+**Caveats:** OffscreenCanvas is unavailable in Node.js / headless Vitest (all unit tests
+exercise the sync fallback path, which is correct and sufficient). Worker pixel-identity
+with sync output is guaranteed by the shared `generateProceduralRaw` function (same
+seeded RNG, same math). The upgrade is best-effort and invisible if the worker fails —
+the sync texture stays.
+
 ## [C270] Parametric kitchen-run type — toe-kick, per-bay doors/drawers, worktop slab, optional uppers
 
 **New parametric type `kitchen-run`** in the custom-size furniture dialog (PF2). Ships behind the `kitchenCabinets` feature flag (tier: `pro`, default on). Tab "Kitchen run" appears in the dialog when in Pro mode.

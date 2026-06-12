@@ -23,3 +23,13 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `state/finishDropApply.ts` (shared store dispatch: one undo step + recents + toast).
   Existing surfaces (Layers rows, 3D canvas via `scene/FinishDropSurface.tsx` +
   `scene/finishDropTarget.ts`) gate on the `finishDnd` flag — gate new ones the same way.
+- **OffscreenCanvas worker generation** (`procedural/procedural.worker.ts` +
+  `procedural/runProceduralWorker.ts` + `proceduralSwapSignal.ts`): `buildMaterial` for
+  procedural kinds generates a sync fallback texture immediately (no first-paint block),
+  then fires a worker request off-thread that hot-swaps the maps and calls
+  `notifyProceduralSwap()` to kick a render frame. Graceful degradation: if
+  `OffscreenCanvas`/`Worker` are unavailable or the worker errors, the sync texture stays.
+  When adding a new pattern, add its `generateProceduralRaw` path to the shared
+  `PATTERN_FN` dispatch inside `generators.ts` (not a separate worker-only file).
+  The `RenderPump` subscribes to `subscribeProceduralSwap` — do not add more subscribers
+  elsewhere; the signal is intentionally not a store slice (avoids re-render overhead).

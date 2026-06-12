@@ -192,8 +192,14 @@ same change that reshapes a system.
   the max useful resolution per pattern (smooth patterns cap at 256²; high-frequency geometric
   patterns cap at 512²); `effectivePatternSize(pattern)` clamps to `min(BASE_SIZE, cap)` so
   smooth patterns stay at 256 even on Medium+ tiers — saving GPU memory with no visible loss.
-  `QualityController` sets `BASE_SIZE` to 256 on Performance, 512 on Medium+. `furnitureMaterials.ts`
-  = tintable wood/stone/fabric/concrete/rattan + `getSolidMaterial`.
+  `QualityController` sets `BASE_SIZE` to 256 on Performance, 512 on Medium+.
+  **C271 worker**: `buildMaterial` immediately generates a sync texture (no first-paint delay),
+  then `runProceduralWorker.ts` fires a single shared `Worker`
+  (`procedural.worker.ts`) that re-renders via `OffscreenCanvas` and returns three
+  `ImageBitmap`s; the main thread hot-swaps the maps in-place and calls
+  `notifyProceduralSwap()` → `RenderPump` renders one settle frame. Graceful degradation:
+  if `OffscreenCanvas`/`Worker` absent or worker errors, the sync textures stay permanently.
+  `furnitureMaterials.ts` = tintable wood/stone/fabric/concrete/rattan + `getSolidMaterial`.
 - **Material realism** (`materials/materialRealism.ts`, pure): `sheenLayer`(velvet/satin/leather)
   + `clearcoatLayer`(gloss/ceramic/stone) drive `MeshPhysicalMaterial` upgrades in
   `furnitureMaterials.ts`; `getGlassMaterial(tier,…)`/`GlassMaterial.tsx` = **tier-gated** real

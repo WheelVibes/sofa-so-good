@@ -82,7 +82,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   rotation-aware `InstancedBoxes` sibling; deferred until a consumer justifies it).
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
-- [ ] PERF9 tail: OffscreenCanvas worker generation — per-pattern size registry shipped (C259); worker generation deferred.
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.

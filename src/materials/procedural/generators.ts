@@ -67,7 +67,7 @@ export function getProceduralBaseSize(): number {
  *   grasscloth — horizontal weave lines ~220 per tile; 256 aliases badly.
  *   stripe     — 2 px seam; 1 px at 256 looks harsh.
  *
- * OffscreenCanvas worker generation is deferred (still-open PERF9 tail).
+ * OffscreenCanvas worker generation: see `runProceduralWorker.ts` (C271).
  */
 export const PATTERN_SIZE_CAP: Record<ProceduralPattern, 256 | 512> = {
   // Smooth noise-based — 256 is the useful cap even on Medium/High/Maximum
@@ -116,6 +116,23 @@ function toTexture(data: Uint8ClampedArray, srgb: boolean): CanvasTexture {
   const canvas = makeCanvas()
   const ctx = canvas.getContext('2d')!
   const img = ctx.createImageData(S, S)
+  img.data.set(data)
+  ctx.putImageData(img, 0, 0)
+  const tex = new CanvasTexture(canvas)
+  tex.wrapS = tex.wrapT = RepeatWrapping
+  if (srgb) tex.colorSpace = SRGBColorSpace
+  tex.anisotropy = 8
+  return tex
+}
+
+/** Build a THREE CanvasTexture from a raw RGBA pixel array and a size.
+ *  Used by the main thread to materialise worker-returned pixel buffers. */
+export function rawToTexture(data: Uint8ClampedArray, size: number, srgb: boolean): CanvasTexture {
+  const canvas = document.createElement('canvas')
+  canvas.width = size
+  canvas.height = size
+  const ctx = canvas.getContext('2d')!
+  const img = ctx.createImageData(size, size)
   img.data.set(data)
   ctx.putImageData(img, 0, 0)
   const tex = new CanvasTexture(canvas)
@@ -868,6 +885,60 @@ const PATTERN_FN: Record<
   hexagon: hexagonFields,
   subway: subwayFields,
   fluted: flutedFields,
+}
+
+/** Raw PBR pixel data returned by {@link generateProceduralRaw} — no DOM
+ *  objects, fully transferable so it can cross a Worker message boundary. */
+export interface ProceduralRawResult {
+  albedo: Uint8ClampedArray
+  normal: Uint8ClampedArray
+  roughness: Uint8ClampedArray
+  metalness: number
+  size: number
+}
+
+/**
+ * Pure computation: generate the three PBR map pixel buffers for a procedural
+ * material WITHOUT touching the DOM or creating any Three.js objects. The
+ * returned arrays are regular typed arrays that can be transferred across a
+ * Worker message boundary or turned into `CanvasTexture`s on the main thread.
+ *
+ * The `size` parameter overrides the module-level BASE_SIZE/cap logic so the
+ * call is fully deterministic given `{id, pattern, swatch, size}`. Pass
+ * `effectivePatternSize(pattern)` for the standard quality-aware size.
+ */
+export function generateProceduralRaw(
+  id: string,
+  pattern: ProceduralPattern,
+  swatch: string,
+  size: number,
+): ProceduralRawResult {
+  const prev = S
+  S = size
+  try {
+    const seed = hashSeed(`${id}:${pattern}`)
+    const base = hexToRgb(swatch)
+    const f = PATTERN_FN[pattern](base, seed)
+
+    const normalData = heightToNormalRGBA(f.height, S, f.normalStrength)
+    const roughData = new Uint8ClampedArray(S * S * 4)
+    for (let i = 0; i < S * S; i++) {
+      const r = Math.round(clamp01(f.rough[i]) * 255)
+      roughData[i * 4] = r
+      roughData[i * 4 + 1] = r
+      roughData[i * 4 + 2] = r
+      roughData[i * 4 + 3] = 255
+    }
+    return {
+      albedo: f.albedo,
+      normal: normalData,
+      roughness: roughData,
+      metalness: f.metalness,
+      size: S,
+    }
+  } finally {
+    S = prev
+  }
 }
 
 /** Generate the three PBR maps for a procedural material. Browser-only
