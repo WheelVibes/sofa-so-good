@@ -12,11 +12,16 @@ The flat opens **already furnished** with a move‑in‑ready layout, so you can
 start rearranging immediately. On the very first visit you'll see:
 
 - A short **onboarding** carousel introducing the three things you can do —
-  furnish, refinish, and walk through. Its last step lets you jump straight into
-  **Smart Start** (pick a style and the whole flat is furnished + finished for
-  you), browse the catalog, keep the demo layout, or start from an empty flat.
+  furnish, refinish, and walk through. Its last step asks where you'd like to
+  start and offers five options:
+  - **Take the guided tour** — a step-by-step walkthrough of the key controls
+  - **Smart Start** — pick a style and the whole flat is furnished + finished
+  - **Browse the catalog** — jump straight into a room with the catalog open
+  - **Move-in demo** — keep the pre-furnished layout and start remixing
+  - **Start empty** — a blank flat to furnish from scratch
 - A **"Where are you?"** prompt — set your location so the daylight simulation
-  matches the real sun for your city. You can skip it and tune the time of day
+  matches the real sun for your city. It appears after the carousel (and after
+  the guided tour if you chose it). You can skip it and tune the time of day
   by hand later.
 
 ## What you see

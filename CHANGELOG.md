@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C268 / FIRST-RUN] Onboarding carousel fires first; product tour is opt-in from carousel choice
+
+**Behaviour change:** on a clean profile the onboarding carousel now fires FIRST (welcome →
+overview → "Where would you like to start?"). The product tour is no longer auto-started — it
+only fires when the user explicitly selects **"Take the guided tour"** from the carousel's choice
+step. Choosing any other option (Smart Start, Browse the catalog, Move-in demo, Start empty, or
+"Enter sandbox") or clicking Skip closes the carousel without ever starting the tour.
+
+**Location-prompt ordering:** the "Where are you?" sun-position modal is now suppressed while
+EITHER the onboarding carousel OR the product tour is open (`onboardingOpen || tourOpen`), so
+overlays never stack. It surfaces after both are fully dismissed.
+
+**Migration behaviour:**
+- `hdb_onboarded='1'` (already onboarded) + `hdb_tour_done` unset → **no re-onboarding**.
+  The boot decision reads only `hdb_onboarded`; if set, nothing fires.
+- `hdb_tour_done='1'` (old tour-first path) + `hdb_onboarded` unset → **carousel fires once**.
+  These users saw the old auto-starting tour but never completed the new carousel, so the
+  carousel shows once. After they dismiss it `markOnboarded()` sets `hdb_onboarded='1'` and
+  future visits are silent.
+
+**Code:** boot-decision logic extracted to pure `src/ui/bootDecision.ts` (injectable for unit
+tests). `App.tsx` calls `resolveBootDecision()` instead of the old `hasSeenTour()`/`startTour()`
+chain. `LocationPrompt.tsx` adds `onboardingOpen` to its suppression guard.
+
+**Scenarios:** `scripts/scenarios/first-run.json` rewritten for the new flow (carousel first →
+choose tour → tour steps → location prompt → final scene; port 5212). New scenario
+`scripts/scenarios/first-run-no-tour.json` (carousel → "Enter sandbox" → assert tour === false →
+location prompt → final scene).
+
+**Tests:** `src/ui/bootDecision.test.ts` (7 tests: clean profile, returning user, tour not
+auto-fired, and both migration edge cases). `src/ui/LocationPrompt.test.tsx` gains 2 new tests
+(no-render while onboarding open; no-render while tour open).
+
+**Docs:** `docs/visual-verification-playbook.md` — corrected the "tour comes BEFORE the onboarding
+carousel" note to describe the new flow. `docs/user/getting-started.md` — updated first-run
+description to reflect carousel-first + optional guided tour.
+
 ## [C267 / INTERACTION-HARNESS] Upgrade shot.mjs to a full interaction harness with scenario mode
 
 `scripts/shot.mjs` gains a scenario mode (`--scenario <file.json|file.mjs> [--out-dir <dir>]`)

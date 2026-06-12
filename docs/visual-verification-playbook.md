@@ -130,31 +130,30 @@ Copy this skeleton, fill in the steps:
 }
 ```
 
-### Worked example — first-run scenario
+### Worked example — first-run scenarios
 
-`scripts/scenarios/first-run.json` walks the complete first-user experience on a
-clean profile. Running it:
+Two scenarios cover the first-user experience (port 5212):
 
+**`first-run.json`** — carousel → choose the guided tour → tour → location prompt → scene:
 ```bash
-npm run dev -- --port 5211 --strictPort &
-for i in $(seq 1 30); do sleep 1; curl -sf http://localhost:5211/ >/dev/null && break; done
+npm run dev -- --port 5212 --strictPort &
+for i in $(seq 1 30); do sleep 1; curl -sf http://localhost:5212/ >/dev/null && break; done
 node scripts/shot.mjs --scenario scripts/scenarios/first-run.json --out-dir /tmp/first-run
+node scripts/shot.mjs --scenario scripts/scenarios/first-run-no-tour.json --out-dir /tmp/first-run-no-tour
 ```
 
-Steps (32 total, 9 screenshots):
+Steps of `first-run.json` (30 total, 8 screenshots):
 1. Clears localStorage and reloads → clean session
-2. Waits for `window.__store` to exist and `tourOpen` to become true
-3. Screenshots tour steps 1–3 (welcome card, "Look around" with View spotlight, "Enter room" with Edit spotlight)
-4. Clicks "Skip tour" → waits for tour to close → location prompt appears
-5. Screenshots location prompt → clicks "Skip — use default location"
-6. Screenshots furnished flat scene (no overlays)
-7. Programmatically opens onboarding (`store: setOnboardingOpen`) and walks all 3 pages ("Get started" → "Next" → "Enter sandbox")
-8. Screenshots each onboarding screen and the final scene
+2. Waits for `window.__store` to exist and `onboardingOpen === true`
+3. Screenshots onboarding carousel step 1 (welcome) → "Get started" → step 2 (quick tour) → "Next"
+4. Screenshots choices screen → clicks "Take the guided tour"
+5. Waits for `onboardingOpen === false`, then `tourOpen === true`
+6. Screenshots tour steps 1–3 → "Skip tour" → waits for tour to close
+7. Waits for location prompt (`.modal-overlay`) → screenshots → clicks "Skip — use default location"
+8. Screenshots final furnished scene (no overlays)
 
-**Key insight from running this:** fresh storage triggers the **product tour first**
-(not the onboarding carousel). The onboarding carousel (`hasOnboarded` check) only
-appears if the tour has already been seen (`hdb_tour_done='1'`) but the user hasn't
-gone through the carousel. The scenario handles both.
+**`first-run-no-tour.json`** — carousel → "Enter sandbox" → assert tour never opens → location prompt → scene.
+Asserts `tourOpen === false` immediately after the carousel closes.
 
 ---
 
@@ -261,12 +260,21 @@ leaves, not your items — clear `s.items` first if you need an empty room.
 
 In **scenario mode**, you can do this in an `eval` step right after `waitFor storeExists`.
 
-### First-run flow: tour comes BEFORE the onboarding carousel
-On a clean profile (no localStorage), the app starts the **product tour** first
-(`startTour()`), not the onboarding carousel. The carousel only appears if
-`hdb_tour_done='1'` is set (tour seen) but `hdb_onboarded` is NOT. If you clear
-localStorage and reload, you'll see the tour — not the carousel. The
-`first-run.json` scenario demonstrates both flows correctly.
+### First-run flow: onboarding carousel comes FIRST; tour is opt-in from the carousel
+On a clean profile (no localStorage), the app opens the **onboarding carousel**
+first — not the product tour. The carousel's third step ("Where would you like to
+start?") has a **"Take the guided tour"** choice. Selecting it closes the carousel
+and starts the tour; any other choice leaves the tour alone. The tour is then
+available only via Help (?) or ⌘K.
+
+Migration: users with `hdb_tour_done='1'` but no `hdb_onboarded` (who went
+through the pre-C268 auto-starting tour) see the carousel once on their next
+visit; after dismissal `markOnboarded()` sets `hdb_onboarded='1'` and future
+visits are silent.
+
+`first-run.json` walks carousel → "Take the guided tour" → tour steps → location
+prompt → final scene. `first-run-no-tour.json` walks carousel → "Enter sandbox"
+→ asserts `tourOpen === false` → location prompt → final scene.
 
 ### Pro-tier features are OFF at boot (the app starts in Simple mode)
 The store boots with `uiMode: 'simple'`, which forces every `tier: 'pro'` flag

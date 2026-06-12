@@ -161,9 +161,12 @@ same change that reshapes a system.
   `gizmoWriteBack.ts` `gizmoPatch` (pure, tested) coalesces per drag-END and snaps to 5 mm /
   1°; `mesh` parts hide Scale (triangles are baked). Launched from ⌘K. TODO:
   per-component recolour/hide of a source GLB's meshes (v2).
-- **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`),
-  **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive click-through
-  spotlight; only "Skip tour"/Esc ends it; location prompt suppressed while open),
+- **Onboarding/tour/wizard**: **Onboarding** (`Onboarding.tsx`, `hdb_onboarded`) is the
+  **first** first-run surface — fires on clean profile, bot decision extracted to
+  `ui/bootDecision.ts` (pure, tested). Carousel step 3 offers "Take the guided tour" as the
+  ONLY automatic entry into the **Product tour** (`ui/tour/`, `tourOpen`/`tourStep` — interactive
+  click-through spotlight; only "Skip tour"/Esc ends it). **Location prompt suppressed while
+  `onboardingOpen || tourOpen`** (no stacking). Replay via Help (?) or ⌘K.
   **Smart Start** (`ui/wizard/`, one-click furnish+finish over presets `applyLayoutPreset`; on a
   **custom plan/template** it instead seeds a per-room kit + runs the plan arranger via pure
   `furniture/furnishPlan.ts` `furnishPlanItems`, so any template furnishes in one click).
