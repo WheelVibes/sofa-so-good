@@ -119,6 +119,13 @@ come out near-black.
 
 ### Known headless limitations for scenario steps
 
+- **Demand-frameloop presentation can lag one render burst behind** (SwiftShader):
+  a store change that only alters light parameters (e.g. C275 curtain attenuation —
+  sun intensity provably updates to 0.62 instantly when probed via the scene graph)
+  may not appear in the captured pixels until the NEXT store change triggers another
+  burst. When verifying lighting-only changes, follow them with a no-op store nudge
+  or assert via a scene-graph probe (`import('/src/scene/pathtrace/hqRenderSource.ts')`
+  → traverse for the light) instead of pixels alone.
 - **R3F raycasts don't fire for synthetic DOM events** — `click` by text/selector
   clicks a real DOM element fine, but clicking the Three.js canvas does NOT trigger
   `onPointerDown`/`onClick` on 3D objects (meshes). Use store actions (`store` step)

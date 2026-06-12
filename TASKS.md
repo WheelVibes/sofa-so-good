@@ -51,6 +51,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
 - [ ] R-BLEED: inter-room light bleed directional weighting (deferred from C275 — needs geometry
   raycasting; revisit with PR4).
+- [ ] C275 tail: real-GPU check that curtain-dim frames present immediately (headless presents one
+  render-burst late; scene-graph light intensity provably updates instantly — see playbook).
 
 ## Content & catalog
 - [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
