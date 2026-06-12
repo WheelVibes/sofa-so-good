@@ -31,6 +31,12 @@ kept in `scripts/scenarios/`.
 
 ## Scenario mode (recommended — use this for anything multi-step)
 
+**Harness runs are serialized machine-wide.** `shot.mjs` re-execs itself under
+`flock` (`/tmp/sofa-shot-harness.lock`) because concurrent SwiftShader Chromiums
+(1–2 GB each) have coincided with container restarts that silently kill every
+running agent. A second invocation queues (up to 15 min) until the first
+finishes — expect that delay under parallel-agent load; it is not a hang.
+
 **Scenario mode** is the primary way to drive complex, multi-step user journeys
 headlessly. It runs an ordered list of named steps in a single browser session
 and produces numbered screenshots. It replaces the legacy blind-timeout + eval

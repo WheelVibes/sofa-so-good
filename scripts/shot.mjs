@@ -103,6 +103,26 @@ if (!legacyMode) {
 // Launch browser (shared by both modes)
 // ──────────────────────────────────────────────────────────────────────────────
 
+// Machine-wide harness mutex: SwiftShader Chromium instances are the heaviest
+// processes in this sandbox (1–2 GB each); concurrent runs from parallel agents
+// have coincided with container-level restarts that silently kill every running
+// agent. Serialize ALL shot.mjs invocations by re-exec'ing under `flock` — the
+// kernel releases the lock when the holder dies, so no stale-lock handling is
+// needed. Waits up to 15 min for the lock, then fails loudly.
+if (!process.env.SHOT_HARNESS_LOCKED) {
+  const { spawnSync } = await import('node:child_process')
+  const t0 = Date.now()
+  const res = spawnSync(
+    'flock',
+    ['-w', '900', '/tmp/sofa-shot-harness.lock', process.execPath, ...process.argv.slice(1)],
+    { stdio: 'inherit', env: { ...process.env, SHOT_HARNESS_LOCKED: '1' } },
+  )
+  if (res.status === 1 && Date.now() - t0 > 890_000) {
+    console.error('shot.mjs: harness lock not acquired within 15 min — another run is stuck')
+  }
+  process.exit(res.status ?? 1)
+}
+
 const browser = await puppeteer.launch({
   headless: 'shell',
   args: [
