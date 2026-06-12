@@ -13,7 +13,7 @@ describe('authSlice', () => {
   })
 
   it('signs in with the correct admin password and persists', async () => {
-    const ok = await useStore.getState().signIn({ password: 'sofa-admin' })
+    const ok = await useStore.getState().signIn({ password: 'admin' })
     expect(ok).toBe(true)
     expect(isAdminUser(useStore.getState().currentUser)).toBe(true)
     expect(useStore.getState().authError).toBeNull()
@@ -28,7 +28,7 @@ describe('authSlice', () => {
   })
 
   it('signs out and clears the persisted session', async () => {
-    await useStore.getState().signIn({ password: 'sofa-admin' })
+    await useStore.getState().signIn({ password: 'admin' })
     useStore.getState().signOut()
     expect(useStore.getState().currentUser).toBeNull()
     expect(localStorage.getItem('hdb_auth')).toBeNull()

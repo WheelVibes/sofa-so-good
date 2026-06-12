@@ -160,8 +160,12 @@
 .onb-choice-ic { width: 40px; height: 40px; flex: none; border-radius: var(--r-2); display: grid; place-items: center; background: var(--accent-soft); color: var(--accent-soft-text); }
 .onb-choice b { font-size: var(--t-base); font-weight: 700; color: var(--text); }
 .onb-choice em { font-size: var(--t-xs); font-style: normal; color: var(--text-3); display: block; margin-top: 1px; }
-.onb-choice > .icn { margin-left: auto; color: var(--text-3); }
-.onb-choice:hover > .icn { color: var(--accent-soft-text); }
+/* The title/subtitle column grows so the trailing chevron is pinned to the same
+   right edge on every choice, regardless of how the description wraps (the
+   chevron is a bare <svg>, not an .icn, so it needs an explicit selector). */
+.onb-choice > div { flex: 1; min-width: 0; }
+.onb-choice > svg { flex: none; margin-left: auto; color: var(--text-3); }
+.onb-choice:hover > svg { color: var(--accent-soft-text); }
 
 /* ============================================================
    EMPTY STATE

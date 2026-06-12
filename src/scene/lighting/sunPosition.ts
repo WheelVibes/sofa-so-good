@@ -26,8 +26,10 @@ export function sunDirectionToScene(s: SunPosition): [number, number, number] {
 }
 
 /** Build a Date for the same calendar day as `today` but with the given
- *  fractional hour (local time). Used to translate the user's effective
- *  hour into a Date that SunCalc can consume. */
+ *  fractional hour in the **viewer's local clock**. The manual time slider runs
+ *  on the local clock (so sunrise/sunset checkpoints from `daylightTimes` — which
+ *  read the same clock — line up), and `computeSun` evaluates the resulting
+ *  instant for the location's lat/lon. */
 export function hoursToDate(hour: number, today: Date = new Date()): Date {
   const h = ((hour % 24) + 24) % 24
   const minutes = Math.round(h * 60)

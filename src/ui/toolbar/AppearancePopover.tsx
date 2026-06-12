@@ -27,6 +27,8 @@ export function AppearanceControls() {
   const setModePref = useStore((s) => s.setModePref)
   const uiMode = useStore((s) => s.uiMode)
   const setUiMode = useStore((s) => s.setUiMode)
+  const currentUser = useStore((s) => s.currentUser)
+  const isMobile = useIsMobile()
 
   return (
     <>
@@ -110,6 +112,24 @@ export function AppearanceControls() {
           ? 'Essentials only — design tools, analysis & the floor-plan editor are hidden.'
           : 'Every feature, including analysis tools and the floor-plan editor.'}
       </p>
+
+      {/* Sign in / account. Desktop only — the mobile main-menu sheet has its own
+          footer for this, so it isn't duplicated in the mobile Appearance modal. */}
+      {!isMobile ? (
+        <button
+          type="button"
+          className="btn btn-soft btn-block"
+          style={{ marginTop: 10 }}
+          onClick={() => {
+            const s = useStore.getState()
+            s.setAppearanceOpen(false)
+            s.setLoginOpen(true)
+          }}
+        >
+          <Icon.Eye width={14} height={14} />
+          {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
+        </button>
+      ) : null}
     </>
   )
 }

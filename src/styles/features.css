@@ -374,6 +374,15 @@ body.mobile .swap-grid { grid-template-columns: 1fr 1fr; }
   border: 1px solid var(--border); border-radius: var(--r-2);
   background: var(--surface-solid); color: var(--text); font-size: var(--t-xs);
 }
+/* Time-of-day "System time" toggle (shared TimeOfDaySlider). */
+.tod-system {
+  display: block; width: calc(100% - 12px); margin: 6px 6px 4px;
+  min-height: 30px; padding: 4px 8px; border-radius: var(--r-2);
+  border: 1px solid var(--border); background: var(--surface-2);
+  font-size: var(--t-xs); font-weight: 600; color: var(--text-2); text-align: center;
+}
+.tod-system:hover { background: var(--surface-3); color: var(--text); }
+.tod-system.on { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
 .scene-sep { height: 1px; background: var(--border); margin: 6px 0; }
 .scene-seg {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; margin: 0 6px 4px;

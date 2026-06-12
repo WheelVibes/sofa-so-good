@@ -59,7 +59,7 @@
     { "name": "shot-edit-spotlight", "screenshot": "mobile-tour-step3-edit-spotlight" },
     {
       "name": "tap-edit-header",
-      "eval": "document.querySelector('[data-tour-section=\"edit-home\"]').click()"
+      "click": { "selector": ".m-sheet [data-tour-section=\"edit-home\"]" }
     },
     { "name": "edit-room-step", "waitFor": { "store": "state.tourStep === 4" }, "timeout": 5000 },
     {
@@ -70,7 +70,7 @@
     { "name": "shot-edit-room-spotlight", "screenshot": "mobile-tour-step4-edit-room-spotlight" },
     {
       "name": "tap-edit-room",
-      "eval": "document.querySelector('[data-tour=\"edit-room\"]').click()"
+      "click": { "selector": ".m-sheet [data-tour=\"edit-room\"]" }
     },
     { "name": "furniture-step", "waitFor": { "store": "state.tourStep === 5" }, "timeout": 8000 },
     { "name": "in-room-editor", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 8000 },
@@ -82,7 +82,7 @@
     { "name": "shot-catalog-spotlight", "screenshot": "mobile-tour-step5-catalog-spotlight" },
     {
       "name": "tap-catalog",
-      "eval": "document.querySelector('[data-tour=\"catalog\"]').click()"
+      "click": { "selector": ".m-sheet [data-tour=\"catalog\"]" }
     },
     { "name": "customize-step", "waitFor": { "store": "state.tourStep === 6" }, "timeout": 8000 },
     {

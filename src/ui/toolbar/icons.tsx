@@ -253,6 +253,12 @@ export const Icon = {
       <path d="M9 7h7M9 10h7" />
     </Svg>
   ),
+  Keyboard: (p: SVGProps<SVGSVGElement>) => (
+    <Svg {...p}>
+      <rect x="2.5" y="6" width="19" height="12" rx="2" />
+      <path d="M6 10h.01M10 10h.01M14 10h.01M18 10h.01M8 13.5h8" />
+    </Svg>
+  ),
   Search: (p: SVGProps<SVGSVGElement>) => (
     <Svg {...p}>
       <circle cx="11" cy="11" r="7" />

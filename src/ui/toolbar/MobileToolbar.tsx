@@ -8,12 +8,6 @@ import { ikeaSetRecipes } from '../../furniture/ikeaSets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
 import { tidyHome } from '../../layout/tidyHome'
 import { applyStyle, STYLE_PRESETS } from '../../materials/stylePresets'
-import {
-  applyLightingScene,
-  isLightingSceneActive,
-  LIGHTING_SCENES,
-} from '../../scene/lighting/lightingScenes'
-import { useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
 import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
@@ -24,7 +18,6 @@ import { detectVrSupport } from '../../scene/xr/vrSupport'
 import { enterVr, getXrStore } from '../../scene/xr/xrStore'
 import { firstEditableRoomId } from '../../state/rooms'
 import { applySerialized, serialize } from '../../state/schema'
-import { PRESET_HOURS, type TimePreset } from '../../state/slices/timeSlice'
 import { LocalStorageAdapter } from '../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, saveThumb } from '../../state/storage/slotThumbs'
@@ -37,23 +30,13 @@ import { Modal } from '../Modal'
 import { openDesignReport } from '../openReport'
 import { openShoppingList } from '../openShoplist'
 import { PresentationSetup } from '../presentation/PresentationSetup'
+import { TimeOfDaySlider } from '../scene/TimeOfDaySlider'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
 import { Icon, type IconName } from './icons'
 import { RoomSwitcher } from './RoomSwitcher'
 
-const TIME_PRESETS: TimePreset[] = ['morning', 'noon', 'dusk', 'night']
 const LIGHTS_LABEL: Record<'auto' | 'on' | 'off', string> = { auto: 'Auto', on: 'On', off: 'Off' }
-
-function formatClock(hour: number): string {
-  const h = ((hour % 24) + 24) % 24
-  const totalMinutes = Math.round(h * 60) % (24 * 60)
-  const hh = Math.floor(totalMinutes / 60)
-  const mm = totalMinutes % 60
-  const period = hh < 12 ? 'AM' : 'PM'
-  const display = hh % 12 === 0 ? 12 : hh % 12
-  return `${display}:${String(mm).padStart(2, '0')} ${period}`
-}
 
 /** A tappable row inside an accordion section: icon + label (+ sub) + On badge.
  *  `tourId` tags the row with `data-tour` so the product tour can spotlight it. */
@@ -93,39 +76,27 @@ function Item({
   )
 }
 
-/** A collapsible accordion section. Only the open section shows its body, so the
- *  sheet stays short — tap a header to expand, tap again (or another) to swap. */
+/** One section of the mobile menu, rendered in the detail pane. The icon-only
+ *  left rail picks the active section (master-detail); the body shows here under
+ *  a sticky title only when its section is selected. `icon` is consumed by the
+ *  rail, not here. */
 function Section({
   id,
   title,
-  icon,
-  openId,
-  setOpenId,
+  activeId,
   children,
 }: {
   id: string
   title: string
   icon: IconName
-  openId: string | null
-  setOpenId: (id: string | null) => void
+  activeId: string
   children: ReactNode
 }) {
-  const open = openId === id
-  const Glyph = Icon[icon]
+  if (activeId !== id) return null
   return (
-    <div className={`m-acc${open ? ' open' : ''}`}>
-      <button
-        type="button"
-        className="m-acc-h"
-        data-tour-section={id}
-        aria-expanded={open}
-        onClick={() => setOpenId(open ? null : id)}
-      >
-        <Glyph className="icn" width={18} height={18} />
-        <span className="m-acc-t">{title}</span>
-        <Icon.Chevron className="m-acc-chev" width={14} height={14} />
-      </button>
-      {open ? <div className="m-acc-body">{children}</div> : null}
+    <div className="m-detail-sec">
+      <div className="m-detail-h">{title}</div>
+      {children}
     </div>
   )
 }
@@ -136,7 +107,7 @@ function Section({
  *  action (incl. appearance, graphics, file), so the two are at feature parity. */
 export function MobileToolbar() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [openId, setOpenId] = useState<string | null>(null)
+  const [activeId, setActiveId] = useState<string>('view')
   const [graphicsOpen, setGraphicsOpen] = useState(false)
   const [compassOpen, setCompassOpen] = useState(false)
   const [sunStudy, setSunStudy] = useState(false)
@@ -168,8 +139,6 @@ export function MobileToolbar() {
   const snapEnabled = useStore((st) => st.snapEnabled)
   const gridSize = useStore((st) => st.gridSize)
   const autoRotate = useStore((st) => st.autoRotate)
-  const timeMode = useStore((st) => st.timeMode)
-  const manualHour = useStore((st) => st.manualHour)
   const lightsMode = useStore((st) => st.lightsMode)
   const backdrop = useStore((st) => st.backdrop)
   const proMode = useStore((st) => st.uiMode === 'pro')
@@ -185,7 +154,7 @@ export function MobileToolbar() {
   const setHelpOpen = useStore((st) => st.setHelpOpen)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
   const setAppearanceOpen = useStore((st) => st.setAppearanceOpen)
-  const effectiveHour = useEffectiveHour()
+  const currentUser = useStore((st) => st.currentUser)
   const recipes = ikeaSetRecipes()
 
   // Feature flags — keep the mobile sheet at parity with the desktop menus / ⌘K,
@@ -193,7 +162,6 @@ export function MobileToolbar() {
   const fSavedViews = useFeature('savedViews')
   const fPresentation = useFeature('presentation')
   const fFloorPlan = useFeature('floorPlanEditor')
-  const fLightingMoods = useFeature('lightingMoods')
   const fBackdrops = useFeature('backdrops')
   const fSmartStart = useFeature('smartStart')
   const fParametric = useFeature('parametricFurniture')
@@ -353,7 +321,36 @@ export function MobileToolbar() {
     refreshSlots()
   }
 
-  const sectionProps = { openId, setOpenId }
+  // Left-rail sections for the current mode (icon-only master rail; the matching
+  // <Section> renders its body in the detail pane). The ids/icons/titles must
+  // stay in lockstep with the <Section> blocks below.
+  const railItems: { id: string; icon: IconName; title: string }[] = [
+    { id: 'view', icon: 'Orbit', title: 'View' },
+    ...(roomEditorActive
+      ? ([
+          { id: 'edit', icon: 'Select', title: 'Edit' },
+          { id: 'design', icon: 'Catalog', title: 'Design' },
+          { id: 'arrange', icon: 'Sets', title: 'Arrange' },
+        ] as { id: string; icon: IconName; title: string }[])
+      : ([
+          { id: 'edit-home', icon: 'Cube', title: 'Edit' },
+          { id: 'scene', icon: 'Time', title: 'Scene' },
+        ] as { id: string; icon: IconName; title: string }[])),
+    ...(proMode
+      ? ([{ id: 'tools', icon: 'Tools', title: 'Tools' }] as {
+          id: string
+          icon: IconName
+          title: string
+        }[])
+      : []),
+    { id: 'file', icon: 'Save', title: 'File' },
+    { id: 'appearance', icon: 'Palette', title: 'Appearance & help' },
+  ]
+  // Resolve the shown section: keep the user's pick if it still exists in this
+  // mode, else fall back to the first (View) — so switching mode never blanks the
+  // detail pane.
+  const shownId = railItems.some((r) => r.id === activeId) ? activeId : railItems[0].id
+  const sectionProps = { activeId: shownId }
 
   return (
     <>
@@ -400,713 +397,720 @@ export function MobileToolbar() {
                 <Icon.Close width={16} height={16} />
               </button>
             </div>
-            <div className="m-sheet-body">
-              {/* View — combined camera + framing (mirrors the desktop View menu).
+            <div className="m-sheet-panes">
+              {/* Icon-only master rail: pick a section; its items show in the
+                  detail pane on the right. */}
+              <div className="m-rail" role="tablist" aria-label="Menu sections">
+                {railItems.map((r) => {
+                  const Glyph = Icon[r.icon]
+                  const on = shownId === r.id
+                  return (
+                    <button
+                      type="button"
+                      key={r.id}
+                      className={`m-rail-btn${on ? ' on' : ''}`}
+                      data-tour-section={r.id}
+                      role="tab"
+                      aria-selected={on}
+                      aria-current={on ? 'true' : undefined}
+                      aria-label={r.title}
+                      onClick={() => setActiveId(r.id)}
+                    >
+                      <Glyph className="icn" width={22} height={22} />
+                    </button>
+                  )
+                })}
+              </div>
+              <div className="m-detail">
+                {/* View — combined camera + framing (mirrors the desktop View menu).
                   Orbit/Walk always; top/reset/turntable/saved only in the
                   overview (the room editor frames its own room). */}
-              <Section id="view" title="View" icon="Orbit" {...sectionProps}>
-                <div className="m-sub-h">Camera</div>
-                <Item
-                  icon="Orbit"
-                  label="Orbit"
-                  sub="Look around the model"
-                  on={cameraMode === 'orbit'}
-                  onClick={act(() => s.getState().setCameraMode('orbit'))}
-                />
-                <Item
-                  icon="Walk"
-                  label="Walk through"
-                  sub="First-person walkthrough"
-                  on={cameraMode === 'firstPerson'}
-                  onClick={act(() => s.getState().setCameraMode('firstPerson'))}
-                />
-                {fVr && vrSupported ? (
+                <Section id="view" title="View" icon="Orbit" {...sectionProps}>
+                  <div className="m-sub-h">Camera</div>
+                  <Item
+                    icon="Orbit"
+                    label="Orbit"
+                    sub="Look around the model"
+                    on={cameraMode === 'orbit'}
+                    onClick={act(() => s.getState().setCameraMode('orbit'))}
+                  />
                   <Item
                     icon="Walk"
-                    label="Enter VR"
-                    sub="Immersive walkthrough on your headset"
-                    onClick={act(() => {
-                      s.getState().setVrActive(true)
-                      void enterVr()
-                    })}
+                    label="Walk through"
+                    sub="First-person walkthrough"
+                    on={cameraMode === 'firstPerson'}
+                    onClick={act(() => s.getState().setCameraMode('firstPerson'))}
                   />
-                ) : null}
-                {isMultiLevel(mobilePlan) ? (
-                  <>
-                    <div className="m-sub-h">Levels</div>
+                  {fVr && vrSupported ? (
                     <Item
-                      icon="Orbit"
-                      label="All levels"
-                      on={viewLevelId === 'all'}
-                      onClick={act(() => s.getState().setViewLevel('all'), { keep: true })}
+                      icon="Walk"
+                      label="Enter VR"
+                      sub="Immersive walkthrough on your headset"
+                      onClick={act(() => {
+                        s.getState().setVrActive(true)
+                        void enterVr()
+                      })}
                     />
-                    {planLevels(mobilePlan).map((l) => (
+                  ) : null}
+                  {isMultiLevel(mobilePlan) ? (
+                    <>
+                      <div className="m-sub-h">Levels</div>
                       <Item
-                        key={l.id}
                         icon="Orbit"
-                        label={l.name}
-                        // Walk mode: picking a storey teleports the walker (ML6c).
-                        sub={cameraMode === 'firstPerson' ? 'Walk this storey' : undefined}
-                        on={viewLevelId === l.id}
-                        onClick={act(() => s.getState().setViewLevel(l.id), { keep: true })}
+                        label="All levels"
+                        on={viewLevelId === 'all'}
+                        onClick={act(() => s.getState().setViewLevel('all'), { keep: true })}
                       />
-                    ))}
-                  </>
-                ) : null}
-                {!roomEditorActive ? (
-                  <>
-                    <div className="m-sub-h">Framing</div>
-                    <Item
-                      icon="TopView"
-                      label="Top view"
-                      sub="Fit the whole flat, top-down"
-                      onClick={act(() => s.getState().requestTopView())}
-                    />
-                    <Item
-                      icon="Home"
-                      label="Reset view"
-                      sub="Fit the 3D overview"
-                      onClick={act(() => s.getState().requestHomeView())}
-                    />
-                    <Item
-                      icon="Turntable"
-                      label="Turntable"
-                      sub="Slowly auto-orbit"
-                      on={autoRotate}
-                      onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
-                    />
-                    {fSavedViews ? (
-                      <Item
-                        icon="Plus"
-                        label="Save current view"
-                        sub="Bookmark this camera angle"
-                        onClick={act(async () => {
-                          const thumb = captureThumb()
-                          const name = await s.getState().promptText({
-                            title: 'Save camera view',
-                            label: 'Name this view',
-                            defaultValue: `View ${savedViews.length + 1}`,
-                            submitLabel: 'Save',
-                          })
-                          if (name) s.getState().saveCurrentView(name, thumb)
-                        })}
-                      />
-                    ) : null}
-                    {fSavedViews && savedViews.length > 0 ? (
-                      fPresentation && fPanoTour ? (
-                        <PresentationSetup />
-                      ) : fPresentation ? (
+                      {planLevels(mobilePlan).map((l) => (
                         <Item
-                          icon="Walkthrough"
-                          label="Present"
-                          sub="Full-screen saved-views slideshow"
-                          onClick={act(() => s.getState().setPresenting(true))}
+                          key={l.id}
+                          icon="Orbit"
+                          label={l.name}
+                          // Walk mode: picking a storey teleports the walker (ML6c).
+                          sub={cameraMode === 'firstPerson' ? 'Walk this storey' : undefined}
+                          on={viewLevelId === l.id}
+                          onClick={act(() => s.getState().setViewLevel(l.id), { keep: true })}
                         />
-                      ) : null
-                    ) : null}
-                    {fSavedViews && savedViews.length > 1 ? (
-                      <Item
-                        icon="Walkthrough"
-                        label="Cinematic tour"
-                        sub="Fly through your saved views"
-                        onClick={act(() => s.getState().setTouring('views'))}
-                      />
-                    ) : null}
-                  </>
-                ) : null}
-                {!roomEditorActive &&
-                  fSavedViews &&
-                  savedViews.map((v) => (
-                    <div key={v.id} className="m-saved-view">
-                      <button
-                        type="button"
-                        className="m-item m-saved-view-go"
-                        onClick={act(() => s.getState().applyView(v.id))}
-                      >
-                        {v.thumb ? (
-                          <img src={v.thumb} alt="" className="saved-view-thumb" />
-                        ) : (
-                          <Icon.Eye className="icn" width={18} height={18} />
-                        )}
-                        <span className="m-item-tx">
-                          <span className="m-item-l">{v.name}</span>
-                        </span>
-                      </button>
-                      {fPresentation ? (
-                        <button
-                          type="button"
-                          className="m-saved-view-del"
-                          aria-label={`Present ${v.name} as a 360° slide`}
-                          aria-pressed={!!v.pano}
-                          style={v.pano ? { color: 'var(--accent)' } : undefined}
-                          onClick={() => s.getState().setViewPano(v.id, !v.pano)}
-                        >
-                          <span style={{ fontSize: 10, fontWeight: 700 }}>360°</span>
-                        </button>
-                      ) : null}
-                      <button
-                        type="button"
-                        className="m-saved-view-del"
-                        aria-label={`Delete view ${v.name}`}
-                        onClick={() => s.getState().deleteView(v.id)}
-                      >
-                        <Icon.Trash width={16} height={16} />
-                      </button>
-                    </div>
-                  ))}
-              </Section>
-
-              {/* Edit — step into a room / reshape the floor plan (overview only). */}
-              {!roomEditorActive ? (
-                <Section id="edit-home" title="Edit" icon="Cube" {...sectionProps}>
-                  {defaultEditRoomId ? (
-                    <Item
-                      icon="Cube"
-                      label="Edit a room"
-                      sub="Furnish + finish a room — pick which from the header"
-                      tourId="edit-room"
-                      onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
-                    />
-                  ) : null}
-                  {fFloorPlan ? (
-                    <Item
-                      icon="FloorPlan"
-                      label="Floor plan editor"
-                      sub="Edit walls, rooms, doors & windows"
-                      onClick={act(() => s.getState().setFloorPlanEditing(true))}
-                    />
-                  ) : null}
-                </Section>
-              ) : null}
-
-              {/* Scene */}
-              {!roomEditorActive ? (
-                <Section id="scene" title="Scene" icon="Time" {...sectionProps}>
-                  <Item
-                    icon="Time"
-                    label="System time"
-                    sub={formatClock(effectiveHour)}
-                    on={timeMode === 'system'}
-                    onClick={act(() => s.getState().setTimeMode('system'), { keep: true })}
-                  />
-                  {TIME_PRESETS.map((p) => (
-                    <Item
-                      key={p}
-                      icon="Sun"
-                      label={p[0].toUpperCase() + p.slice(1)}
-                      sub={formatClock(PRESET_HOURS[p])}
-                      on={timeMode === 'manual' && manualHour === PRESET_HOURS[p]}
-                      onClick={act(() => s.getState().setPresetTime(p), { keep: true })}
-                    />
-                  ))}
-                  {/* Continuous time-of-day scrub (parity with desktop Scene menu). */}
-                  <div className="px-3 py-2" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="range"
-                      min={0}
-                      max={24}
-                      step={0.25}
-                      value={effectiveHour}
-                      aria-label="Time of day"
-                      onChange={(e) => s.getState().setManualHour(Number(e.target.value))}
-                      className="slider"
-                      style={{ width: '100%' }}
-                    />
-                  </div>
-                  {fLightingMoods &&
-                    LIGHTING_SCENES.map((sc) => (
-                      <Item
-                        key={sc.id}
-                        icon="Lights"
-                        label={sc.label}
-                        sub={`${formatClock(sc.hour)} · lights ${sc.lights}`}
-                        on={isLightingSceneActive(sc, { timeMode, manualHour, lightsMode })}
-                        onClick={act(() => applyLightingScene(sc), { keep: true })}
-                      />
-                    ))}
-                  {fRenderPresets && <div className="m-sub-h">Render presets</div>}
-                  {fRenderPresets &&
-                    RENDER_PRESETS.map((p) => (
-                      <Item
-                        key={p.id}
-                        icon="Sun"
-                        label={p.label}
-                        sub={p.sub}
-                        onClick={act(() => applyRenderPreset(s.getState(), p), { keep: true })}
-                      />
-                    ))}
-                  <Item
-                    icon="Sun"
-                    label="Sun direction"
-                    onClick={act(() => setCompassOpen(true))}
-                  />
-                  <Item
-                    icon="Lights"
-                    label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
-                    on={lightsMode !== 'auto'}
-                    onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
-                  />
-                  {fBackdrops ? (
-                    <label className="scene-field" onClick={(e) => e.stopPropagation()}>
-                      <span>Backdrop</span>
-                      <select
-                        className="input scene-select"
-                        value={backdrop}
-                        aria-label="Backdrop"
-                        onChange={(e) => s.getState().setBackdrop(e.target.value as BackdropKind)}
-                      >
-                        {BACKDROPS.map((b) => (
-                          <option key={b.id} value={b.id}>
-                            {b.label} — {b.sub}
-                          </option>
-                        ))}
-                      </select>
-                    </label>
-                  ) : null}
-                </Section>
-              ) : null}
-
-              {/* Edit / Design / Arrange — manual + bulk editing, only inside the
-                  per-room editor (the overview is view-only). */}
-              {roomEditorActive ? (
-                <>
-                  <Section id="edit" title="Edit" icon="Select" {...sectionProps}>
-                    <Item
-                      icon="Undo"
-                      label="Undo"
-                      disabled={!canUndo}
-                      onClick={act(() => s.getState().undo(), { keep: true })}
-                    />
-                    <Item
-                      icon="Redo"
-                      label="Redo"
-                      disabled={!canRedo}
-                      onClick={act(() => s.getState().redo(), { keep: true })}
-                    />
-                    <Item
-                      icon="Snap"
-                      label={`Snap to grid · ${gridLabel}`}
-                      on={snapEnabled}
-                      onClick={act(() => s.getState().toggleSnap(), { keep: true })}
-                    />
-                    {snapEnabled ? (
-                      <Item
-                        icon="Snap"
-                        label={`Grid size · ${gridLabel}`}
-                        sub="Tap to cycle"
-                        onClick={act(() => s.getState().cycleGridSize(), { keep: true })}
-                      />
-                    ) : null}
-                    <Item
-                      icon="Measure"
-                      label="Measurements"
-                      on={showMeasurements}
-                      onClick={act(() => s.getState().toggleMeasurements(), { keep: true })}
-                    />
-                  </Section>
-
-                  {/* Design */}
-                  <Section id="design" title="Design" icon="Catalog" {...sectionProps}>
-                    <Item
-                      icon="Catalog"
-                      label="Catalog"
-                      tourId="catalog"
-                      on={catalogOpen && leftMode === 'catalog'}
-                      onClick={act(() => {
-                        s.getState().setLeftMode('catalog')
-                        s.getState().setCatalogOpen(true)
-                      })}
-                    />
-                    <Item
-                      icon="Layers"
-                      label="Objects / Layers"
-                      on={catalogOpen && leftMode === 'layers'}
-                      onClick={act(() => {
-                        s.getState().setLeftMode('layers')
-                        s.getState().setCatalogOpen(true)
-                      })}
-                    />
-                    {fSmartStart ? (
-                      <Item
-                        icon="Presets"
-                        label="Smart Start…"
-                        sub="Furnish every room"
-                        onClick={act(() => s.getState().setSmartStartOpen(true))}
-                      />
-                    ) : null}
-                    {fParametric ? (
-                      <Item
-                        icon="Measure"
-                        label="Custom-size furniture…"
-                        sub="Shelf / wardrobe / sideboard to size"
-                        onClick={act(() => s.getState().setParametricOpen(true))}
-                      />
-                    ) : null}
-                    <Item
-                      icon="Tidy"
-                      label="Tidy home"
-                      sub="Auto-arrange every room"
-                      onClick={act(tidyHome)}
-                    />
-                  </Section>
-
-                  {/* Arrange — sets / presets / styles */}
-                  <Section id="arrange" title="Arrange" icon="Sets" {...sectionProps}>
-                    <div className="m-sub-h">Sets</div>
-                    {FURNITURE_SETS.map((set) => (
-                      <Item
-                        key={set.id}
-                        icon="Sets"
-                        label={set.name}
-                        onClick={act(() => dropBuiltinSet(set.id))}
-                      />
-                    ))}
-                    {recipes.map((r) => (
-                      <Item
-                        key={r.setKey}
-                        icon="Sets"
-                        label={r.setName}
-                        sub="IKEA set"
-                        onClick={act(() => dropIkeaSet(r.setKey))}
-                      />
-                    ))}
-                    {fUserSets ? (
-                      <>
-                        <div className="m-sub-h">My sets</div>
-                        <Item
-                          icon="Sets"
-                          label="Save selection as set…"
-                          onClick={act(async () => {
-                            if (s.getState().selectedItemIds.length === 0) {
-                              s.getState().notify.start({
-                                title: 'Select items to save as a set',
-                                kind: 'info',
-                              })
-                              return
-                            }
-                            const name = await s.getState().promptText({
-                              title: 'Save set',
-                              label: 'Name this set',
-                              defaultValue: `My set ${userSets.length + 1}`,
-                              submitLabel: 'Save',
-                            })
-                            if (name) s.getState().saveSelectionAsSet(name)
-                          })}
-                        />
-                        {userSets.map((u) => (
-                          <Item
-                            key={u.id}
-                            icon="Sets"
-                            label={u.name}
-                            sub={`${u.items.length} items`}
-                            onClick={act(() => dropUserSet(u.id))}
-                          />
-                        ))}
-                      </>
-                    ) : null}
-                    <div className="m-sub-h">Presets</div>
-                    {LAYOUT_PRESETS.map((p) => (
-                      <Item
-                        key={p.id}
-                        icon="Presets"
-                        label={p.name}
-                        sub={p.description}
-                        onClick={act(() => s.getState().applyLayoutPreset(p.id))}
-                      />
-                    ))}
-                    <div className="m-sub-h">Style</div>
-                    {STYLE_PRESETS.map((p) => (
-                      <Item
-                        key={p.id}
-                        icon="Style"
-                        label={p.name}
-                        onClick={act(() =>
-                          applyStyle(p, s.getState().setFloorFinish, s.getState().setWallFinish),
-                        )}
-                      />
-                    ))}
-                    <div className="m-sub-h">My styles</div>
-                    <Item
-                      icon="Style"
-                      label="Save current style…"
-                      onClick={act(async () => {
-                        const name = await s.getState().promptText({
-                          title: 'Save style',
-                          label: "Name this style (captures every room's finishes)",
-                          defaultValue: `My style ${userStyles.length + 1}`,
-                          submitLabel: 'Save',
-                        })
-                        if (name) s.getState().saveCurrentStyle(name)
-                      })}
-                    />
-                    {userStyles.map((st) => (
-                      <Item
-                        key={st.id}
-                        icon="Style"
-                        label={st.name}
-                        onClick={act(() => s.getState().applyUserStyle(st.id))}
-                      />
-                    ))}
-                  </Section>
-                </>
-              ) : null}
-
-              {/* Tools (advanced — hidden in Simple mode) */}
-              {proMode ? (
-                <Section id="tools" title="Tools" icon="Tools" {...sectionProps}>
-                  {fBudget ? (
-                    <Item
-                      icon="Budget"
-                      label="Budget / shopping"
-                      on={budgetOpen}
-                      onClick={act(openBudget)}
-                    />
-                  ) : null}
-                  {fChecks ? (
-                    <Item
-                      icon="Checks"
-                      label="Clearance checks"
-                      on={clearancePanelOpen}
-                      onClick={act(toggleChecks)}
-                    />
-                  ) : null}
-                  {fDrawings ? (
-                    <Item
-                      icon="FloorPlan"
-                      label="Drawings"
-                      on={elevationsOpen}
-                      onClick={act(toggleElevations)}
-                    />
-                  ) : null}
-                  {fDaylight ? (
-                    <Item
-                      icon="SunStudy"
-                      label="Daylight"
-                      on={daylightOpen}
-                      onClick={act(toggleDaylight)}
-                    />
-                  ) : null}
-                  {fDesignScore ? (
-                    <Item
-                      icon="Star"
-                      label="Design score"
-                      on={designScoreOpen}
-                      onClick={act(toggleDesignScore)}
-                    />
-                  ) : null}
-                  {fAccessibility ? (
-                    <Item
-                      icon="Checks"
-                      label="Accessibility"
-                      on={accessibilityOpen}
-                      onClick={act(toggleAccessibility)}
-                    />
-                  ) : null}
-                  {fMeasure ? (
-                    <Item
-                      icon="Measure"
-                      label="Measure distance"
-                      on={tapeMode}
-                      onClick={act(() => s.getState().toggleTapeMode())}
-                    />
-                  ) : null}
-                  {fComments ? (
-                    <Item
-                      icon="Pin"
-                      label="Comments"
-                      sub="Pinned notes on the design"
-                      on={commentsOpen}
-                      onClick={act(toggleComments)}
-                    />
-                  ) : null}
-                  {fHistory ? (
-                    <Item icon="Undo" label="History" on={historyOpen} onClick={act(openHistory)} />
-                  ) : null}
-                  {fVersions ? (
-                    <Item
-                      icon="Versions"
-                      label="Versions"
-                      on={versionsOpen}
-                      onClick={act(openVersions)}
-                    />
-                  ) : null}
-                  {fShare ? (
-                    <Item
-                      icon="Share"
-                      label="Share & export"
-                      onClick={act(() => s.getState().setShareOpen(true))}
-                    />
+                      ))}
+                    </>
                   ) : null}
                   {!roomEditorActive ? (
                     <>
-                      {fSun ? (
+                      <div className="m-sub-h">Framing</div>
+                      <Item
+                        icon="TopView"
+                        label="Top view"
+                        sub="Fit the whole flat, top-down"
+                        onClick={act(() => s.getState().requestTopView())}
+                      />
+                      <Item
+                        icon="Home"
+                        label="Reset view"
+                        sub="Fit the 3D overview"
+                        onClick={act(() => s.getState().requestHomeView())}
+                      />
+                      <Item
+                        icon="Turntable"
+                        label="Turntable"
+                        sub="Slowly auto-orbit"
+                        on={autoRotate}
+                        onClick={act(() => s.getState().toggleAutoRotate(), { keep: true })}
+                      />
+                      {fSavedViews ? (
                         <Item
-                          icon="SunStudy"
-                          label="Sun study"
-                          sub="Time-lapse dawn → dusk"
-                          on={sunStudy}
-                          onClick={act(() => setSunStudy((v) => !v), { keep: true })}
+                          icon="Plus"
+                          label="Save current view"
+                          sub="Bookmark this camera angle"
+                          onClick={act(async () => {
+                            const thumb = captureThumb()
+                            const name = await s.getState().promptText({
+                              title: 'Save camera view',
+                              label: 'Name this view',
+                              defaultValue: `View ${savedViews.length + 1}`,
+                              submitLabel: 'Save',
+                            })
+                            if (name) s.getState().saveCurrentView(name, thumb)
+                          })}
                         />
                       ) : null}
-                      {fWalk ? (
+                      {fSavedViews && savedViews.length > 0 ? (
+                        fPresentation && fPanoTour ? (
+                          <PresentationSetup />
+                        ) : fPresentation ? (
+                          <Item
+                            icon="Walkthrough"
+                            label="Present"
+                            sub="Full-screen saved-views slideshow"
+                            onClick={act(() => s.getState().setPresenting(true))}
+                          />
+                        ) : null
+                      ) : null}
+                      {fSavedViews && savedViews.length > 1 ? (
                         <Item
                           icon="Walkthrough"
-                          label={touring ? 'Stop tour' : 'Walkthrough'}
-                          on={Boolean(touring)}
-                          onClick={act(startWalkthrough)}
-                        />
-                      ) : null}
-                      {fReport ? (
-                        <Item
-                          icon="Report"
-                          label="Report"
-                          sub="Printable design report"
-                          onClick={act(openReport)}
+                          label="Cinematic tour"
+                          sub="Fly through your saved views"
+                          onClick={act(() => s.getState().setTouring('views'))}
                         />
                       ) : null}
                     </>
                   ) : null}
-                </Section>
-              ) : null}
-
-              {/* File */}
-              <Section id="file" title="File" icon="Save" {...sectionProps}>
-                <Item
-                  icon="Save"
-                  label="Save…"
-                  sub="Store the current layout"
-                  onClick={act(saveLayout)}
-                />
-                <Item
-                  icon="Export"
-                  label="Export PNG"
-                  onClick={act(() => window.dispatchEvent(new Event(EXPORT_EVENT)))}
-                />
-                {fPanorama ? (
-                  <Item
-                    icon="Export"
-                    label="360° panorama"
-                    sub="Capture a look-around panorama"
-                    onClick={act(() => s.getState().setPanoramaOpen(true))}
-                  />
-                ) : null}
-                {fPanoTour ? (
-                  <Item
-                    icon="Walkthrough"
-                    label="360° tour"
-                    sub="Linked panoramas — jump room to room"
-                    onClick={act(() => s.getState().setPanoTourOpen(true))}
-                  />
-                ) : null}
-                {fHqRender ? (
-                  <Item
-                    icon="Export"
-                    label="HQ render"
-                    sub="Path-traced photoreal still"
-                    onClick={act(() => s.getState().setHqRenderOpen(true))}
-                  />
-                ) : null}
-                {fRenderCompare ? (
-                  <Item
-                    icon="Export"
-                    label="Render compare"
-                    sub="A/B compare two render presets"
-                    onClick={act(() => s.getState().setRenderCompareOpen(true))}
-                  />
-                ) : null}
-                {fShopExport ? (
-                  <Item
-                    icon="Budget"
-                    label="Shopping list"
-                    sub="Buy-list with prices, grouped by retailer"
-                    onClick={act(() => openShoppingList())}
-                  />
-                ) : null}
-                {canRecord() ? (
-                  <Item
-                    icon="Record"
-                    label={recording ? 'Stop recording' : 'Record clip'}
-                    on={recording}
-                    onClick={act(() => s.getState().setRecording(!recording), { keep: true })}
-                  />
-                ) : null}
-                <Item
-                  icon="Reset"
-                  label="Reset to default"
-                  onClick={act(async () => {
-                    const ok = await s.getState().confirmAction({
-                      title: 'Reset to default',
-                      message: 'Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.',
-                      confirmLabel: 'Reset',
-                    })
-                    if (ok) s.getState().resetToDefault()
-                  })}
-                />
-                <Item
-                  icon="Reset"
-                  label="Clear all furniture"
-                  onClick={act(async () => {
-                    const ok = await s.getState().confirmAction({
-                      title: 'Clear all furniture',
-                      message: 'Remove every placed item? You can undo this with Ctrl/⌘+Z.',
-                      confirmLabel: 'Clear all',
-                      danger: true,
-                    })
-                    if (ok) s.getState().resetToEmpty()
-                  })}
-                />
-                <div className="m-sub-h">Saved layouts</div>
-                {slots.length === 0 ? (
-                  <div className="m-empty">No saved layouts.</div>
-                ) : (
-                  slots
-                    .slice()
-                    .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
-                    .map((slot) => (
-                      <div className="m-slot" key={slot.slot}>
+                  {!roomEditorActive &&
+                    fSavedViews &&
+                    savedViews.map((v) => (
+                      <div key={v.id} className="m-saved-view">
                         <button
                           type="button"
-                          className="m-slot-load"
-                          onClick={act(() => void loadLayout(slot.slot))}
+                          className="m-item m-saved-view-go"
+                          onClick={act(() => s.getState().applyView(v.id))}
                         >
-                          <Icon.Load className="icn" width={18} height={18} />
+                          {v.thumb ? (
+                            <img src={v.thumb} alt="" className="saved-view-thumb" />
+                          ) : (
+                            <Icon.Eye className="icn" width={18} height={18} />
+                          )}
                           <span className="m-item-tx">
-                            <span className="m-item-l">{slot.slot}</span>
-                            <span className="m-item-s">
-                              {new Date(slot.savedAt).toLocaleString()}
-                            </span>
+                            <span className="m-item-l">{v.name}</span>
                           </span>
                         </button>
+                        {fPresentation ? (
+                          <button
+                            type="button"
+                            className="m-saved-view-del"
+                            aria-label={`Present ${v.name} as a 360° slide`}
+                            aria-pressed={!!v.pano}
+                            style={v.pano ? { color: 'var(--accent)' } : undefined}
+                            onClick={() => s.getState().setViewPano(v.id, !v.pano)}
+                          >
+                            <span style={{ fontSize: 10, fontWeight: 700 }}>360°</span>
+                          </button>
+                        ) : null}
                         <button
                           type="button"
-                          className="m-slot-del"
-                          aria-label={`Delete ${slot.slot}`}
-                          onClick={() => void deleteLayout(slot.slot)}
+                          className="m-saved-view-del"
+                          aria-label={`Delete view ${v.name}`}
+                          onClick={() => s.getState().deleteView(v.id)}
                         >
-                          <Icon.Trash width={15} height={15} />
+                          <Icon.Trash width={16} height={16} />
                         </button>
                       </div>
-                    ))
-                )}
-              </Section>
+                    ))}
+                </Section>
 
-              {/* Appearance & help */}
-              <Section id="appearance" title="Appearance & help" icon="Palette" {...sectionProps}>
-                <Item
-                  icon="Palette"
-                  label="Theme & appearance"
-                  sub="Colour theme, light / dark"
-                  onClick={act(() => setAppearanceOpen(true))}
-                />
-                <Item
-                  icon="Quality"
-                  label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
-                  sub="Render & asset quality"
-                  onClick={act(() => setGraphicsOpen(true))}
-                />
-                <Item icon="Book" label="User guide" onClick={act(openDocs)} />
-                <Item icon="Help" label="Help" onClick={act(() => setHelpOpen(true))} />
-              </Section>
+                {/* Edit — step into a room / reshape the floor plan (overview only). */}
+                {!roomEditorActive ? (
+                  <Section id="edit-home" title="Edit" icon="Cube" {...sectionProps}>
+                    {defaultEditRoomId ? (
+                      <Item
+                        icon="Cube"
+                        label="Edit a room"
+                        sub="Furnish + finish a room — pick which from the header"
+                        tourId="edit-room"
+                        onClick={act(() => s.getState().enterRoomEditor(defaultEditRoomId))}
+                      />
+                    ) : null}
+                    {fFloorPlan ? (
+                      <Item
+                        icon="FloorPlan"
+                        label="Floor plan editor"
+                        sub="Edit walls, rooms, doors & windows"
+                        onClick={act(() => s.getState().setFloorPlanEditing(true))}
+                      />
+                    ) : null}
+                  </Section>
+                ) : null}
+
+                {/* Scene */}
+                {!roomEditorActive ? (
+                  <Section id="scene" title="Scene" icon="Time" {...sectionProps}>
+                    {/* Time of day: slider + snap-to icon checkpoints (shared with
+                        desktop). The System toggle inside shows the real clock. */}
+                    <TimeOfDaySlider />
+                    <Item
+                      icon="Lights"
+                      label={`Lights: ${LIGHTS_LABEL[lightsMode]}`}
+                      sub="Independent of the time of day"
+                      on={lightsMode !== 'auto'}
+                      onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
+                    />
+                    {fRenderPresets && <div className="m-sub-h">Render presets</div>}
+                    {fRenderPresets &&
+                      RENDER_PRESETS.map((p) => (
+                        <Item
+                          key={p.id}
+                          icon="Sun"
+                          label={p.label}
+                          sub={p.sub}
+                          onClick={act(() => applyRenderPreset(s.getState(), p), { keep: true })}
+                        />
+                      ))}
+                    <Item
+                      icon="Sun"
+                      label="Sun direction"
+                      onClick={act(() => setCompassOpen(true))}
+                    />
+                    {fBackdrops ? (
+                      <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+                        <span>Backdrop</span>
+                        <select
+                          className="input scene-select"
+                          value={backdrop}
+                          aria-label="Backdrop"
+                          onChange={(e) => s.getState().setBackdrop(e.target.value as BackdropKind)}
+                        >
+                          {BACKDROPS.map((b) => (
+                            <option key={b.id} value={b.id}>
+                              {b.label} — {b.sub}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    ) : null}
+                  </Section>
+                ) : null}
+
+                {/* Edit / Design / Arrange — manual + bulk editing, only inside the
+                  per-room editor (the overview is view-only). */}
+                {roomEditorActive ? (
+                  <>
+                    <Section id="edit" title="Edit" icon="Select" {...sectionProps}>
+                      <Item
+                        icon="Undo"
+                        label="Undo"
+                        disabled={!canUndo}
+                        onClick={act(() => s.getState().undo(), { keep: true })}
+                      />
+                      <Item
+                        icon="Redo"
+                        label="Redo"
+                        disabled={!canRedo}
+                        onClick={act(() => s.getState().redo(), { keep: true })}
+                      />
+                      <Item
+                        icon="Snap"
+                        label={`Snap to grid · ${gridLabel}`}
+                        on={snapEnabled}
+                        onClick={act(() => s.getState().toggleSnap(), { keep: true })}
+                      />
+                      {snapEnabled ? (
+                        <Item
+                          icon="Snap"
+                          label={`Grid size · ${gridLabel}`}
+                          sub="Tap to cycle"
+                          onClick={act(() => s.getState().cycleGridSize(), { keep: true })}
+                        />
+                      ) : null}
+                      <Item
+                        icon="Measure"
+                        label="Measurements"
+                        on={showMeasurements}
+                        onClick={act(() => s.getState().toggleMeasurements(), { keep: true })}
+                      />
+                    </Section>
+
+                    {/* Design */}
+                    <Section id="design" title="Design" icon="Catalog" {...sectionProps}>
+                      <Item
+                        icon="Catalog"
+                        label="Catalog"
+                        tourId="catalog"
+                        on={catalogOpen && leftMode === 'catalog'}
+                        onClick={act(() => {
+                          s.getState().setLeftMode('catalog')
+                          s.getState().setCatalogOpen(true)
+                        })}
+                      />
+                      <Item
+                        icon="Layers"
+                        label="Objects / Layers"
+                        on={catalogOpen && leftMode === 'layers'}
+                        onClick={act(() => {
+                          s.getState().setLeftMode('layers')
+                          s.getState().setCatalogOpen(true)
+                        })}
+                      />
+                      {fSmartStart ? (
+                        <Item
+                          icon="Presets"
+                          label="Smart Start…"
+                          sub="Furnish every room"
+                          onClick={act(() => s.getState().setSmartStartOpen(true))}
+                        />
+                      ) : null}
+                      {fParametric ? (
+                        <Item
+                          icon="Measure"
+                          label="Custom-size furniture…"
+                          sub="Shelf / wardrobe / sideboard to size"
+                          onClick={act(() => s.getState().setParametricOpen(true))}
+                        />
+                      ) : null}
+                      <Item
+                        icon="Tidy"
+                        label="Tidy home"
+                        sub="Auto-arrange every room"
+                        onClick={act(tidyHome)}
+                      />
+                    </Section>
+
+                    {/* Arrange — sets / presets / styles */}
+                    <Section id="arrange" title="Arrange" icon="Sets" {...sectionProps}>
+                      <div className="m-sub-h">Sets</div>
+                      {FURNITURE_SETS.map((set) => (
+                        <Item
+                          key={set.id}
+                          icon="Sets"
+                          label={set.name}
+                          onClick={act(() => dropBuiltinSet(set.id))}
+                        />
+                      ))}
+                      {recipes.map((r) => (
+                        <Item
+                          key={r.setKey}
+                          icon="Sets"
+                          label={r.setName}
+                          sub="IKEA set"
+                          onClick={act(() => dropIkeaSet(r.setKey))}
+                        />
+                      ))}
+                      {fUserSets ? (
+                        <>
+                          <div className="m-sub-h">My sets</div>
+                          <Item
+                            icon="Sets"
+                            label="Save selection as set…"
+                            onClick={act(async () => {
+                              if (s.getState().selectedItemIds.length === 0) {
+                                s.getState().notify.start({
+                                  title: 'Select items to save as a set',
+                                  kind: 'info',
+                                })
+                                return
+                              }
+                              const name = await s.getState().promptText({
+                                title: 'Save set',
+                                label: 'Name this set',
+                                defaultValue: `My set ${userSets.length + 1}`,
+                                submitLabel: 'Save',
+                              })
+                              if (name) s.getState().saveSelectionAsSet(name)
+                            })}
+                          />
+                          {userSets.map((u) => (
+                            <Item
+                              key={u.id}
+                              icon="Sets"
+                              label={u.name}
+                              sub={`${u.items.length} items`}
+                              onClick={act(() => dropUserSet(u.id))}
+                            />
+                          ))}
+                        </>
+                      ) : null}
+                      <div className="m-sub-h">Presets</div>
+                      {LAYOUT_PRESETS.map((p) => (
+                        <Item
+                          key={p.id}
+                          icon="Presets"
+                          label={p.name}
+                          sub={p.description}
+                          onClick={act(() => s.getState().applyLayoutPreset(p.id))}
+                        />
+                      ))}
+                      <div className="m-sub-h">Style</div>
+                      {STYLE_PRESETS.map((p) => (
+                        <Item
+                          key={p.id}
+                          icon="Style"
+                          label={p.name}
+                          onClick={act(() =>
+                            applyStyle(p, s.getState().setFloorFinish, s.getState().setWallFinish),
+                          )}
+                        />
+                      ))}
+                      <div className="m-sub-h">My styles</div>
+                      <Item
+                        icon="Style"
+                        label="Save current style…"
+                        onClick={act(async () => {
+                          const name = await s.getState().promptText({
+                            title: 'Save style',
+                            label: "Name this style (captures every room's finishes)",
+                            defaultValue: `My style ${userStyles.length + 1}`,
+                            submitLabel: 'Save',
+                          })
+                          if (name) s.getState().saveCurrentStyle(name)
+                        })}
+                      />
+                      {userStyles.map((st) => (
+                        <Item
+                          key={st.id}
+                          icon="Style"
+                          label={st.name}
+                          onClick={act(() => s.getState().applyUserStyle(st.id))}
+                        />
+                      ))}
+                    </Section>
+                  </>
+                ) : null}
+
+                {/* Tools (advanced — hidden in Simple mode) */}
+                {proMode ? (
+                  <Section id="tools" title="Tools" icon="Tools" {...sectionProps}>
+                    {fBudget ? (
+                      <Item
+                        icon="Budget"
+                        label="Budget / shopping"
+                        on={budgetOpen}
+                        onClick={act(openBudget)}
+                      />
+                    ) : null}
+                    {fChecks ? (
+                      <Item
+                        icon="Checks"
+                        label="Clearance checks"
+                        on={clearancePanelOpen}
+                        onClick={act(toggleChecks)}
+                      />
+                    ) : null}
+                    {fDrawings ? (
+                      <Item
+                        icon="FloorPlan"
+                        label="Drawings"
+                        on={elevationsOpen}
+                        onClick={act(toggleElevations)}
+                      />
+                    ) : null}
+                    {fDaylight ? (
+                      <Item
+                        icon="SunStudy"
+                        label="Daylight"
+                        on={daylightOpen}
+                        onClick={act(toggleDaylight)}
+                      />
+                    ) : null}
+                    {fDesignScore ? (
+                      <Item
+                        icon="Star"
+                        label="Design score"
+                        on={designScoreOpen}
+                        onClick={act(toggleDesignScore)}
+                      />
+                    ) : null}
+                    {fAccessibility ? (
+                      <Item
+                        icon="Checks"
+                        label="Accessibility"
+                        on={accessibilityOpen}
+                        onClick={act(toggleAccessibility)}
+                      />
+                    ) : null}
+                    {fMeasure ? (
+                      <Item
+                        icon="Measure"
+                        label="Measure distance"
+                        on={tapeMode}
+                        onClick={act(() => s.getState().toggleTapeMode())}
+                      />
+                    ) : null}
+                    {fComments ? (
+                      <Item
+                        icon="Pin"
+                        label="Comments"
+                        sub="Pinned notes on the design"
+                        on={commentsOpen}
+                        onClick={act(toggleComments)}
+                      />
+                    ) : null}
+                    {fHistory ? (
+                      <Item
+                        icon="Undo"
+                        label="History"
+                        on={historyOpen}
+                        onClick={act(openHistory)}
+                      />
+                    ) : null}
+                    {fVersions ? (
+                      <Item
+                        icon="Versions"
+                        label="Versions"
+                        on={versionsOpen}
+                        onClick={act(openVersions)}
+                      />
+                    ) : null}
+                    {fShare ? (
+                      <Item
+                        icon="Share"
+                        label="Share & export"
+                        onClick={act(() => s.getState().setShareOpen(true))}
+                      />
+                    ) : null}
+                    {!roomEditorActive ? (
+                      <>
+                        {fSun ? (
+                          <Item
+                            icon="SunStudy"
+                            label="Sun study"
+                            sub="Time-lapse dawn → dusk"
+                            on={sunStudy}
+                            onClick={act(() => setSunStudy((v) => !v), { keep: true })}
+                          />
+                        ) : null}
+                        {fWalk ? (
+                          <Item
+                            icon="Walkthrough"
+                            label={touring ? 'Stop tour' : 'Walkthrough'}
+                            on={Boolean(touring)}
+                            onClick={act(startWalkthrough)}
+                          />
+                        ) : null}
+                        {fReport ? (
+                          <Item
+                            icon="Report"
+                            label="Report"
+                            sub="Printable design report"
+                            onClick={act(openReport)}
+                          />
+                        ) : null}
+                      </>
+                    ) : null}
+                  </Section>
+                ) : null}
+
+                {/* File */}
+                <Section id="file" title="File" icon="Save" {...sectionProps}>
+                  <Item
+                    icon="Save"
+                    label="Save…"
+                    sub="Store the current layout"
+                    onClick={act(saveLayout)}
+                  />
+                  <Item
+                    icon="Export"
+                    label="Export PNG"
+                    onClick={act(() => window.dispatchEvent(new Event(EXPORT_EVENT)))}
+                  />
+                  {fPanorama ? (
+                    <Item
+                      icon="Export"
+                      label="360° panorama"
+                      sub="Capture a look-around panorama"
+                      onClick={act(() => s.getState().setPanoramaOpen(true))}
+                    />
+                  ) : null}
+                  {fPanoTour ? (
+                    <Item
+                      icon="Walkthrough"
+                      label="360° tour"
+                      sub="Linked panoramas — jump room to room"
+                      onClick={act(() => s.getState().setPanoTourOpen(true))}
+                    />
+                  ) : null}
+                  {fHqRender ? (
+                    <Item
+                      icon="Export"
+                      label="HQ render"
+                      sub="Path-traced photoreal still"
+                      onClick={act(() => s.getState().setHqRenderOpen(true))}
+                    />
+                  ) : null}
+                  {fRenderCompare ? (
+                    <Item
+                      icon="Export"
+                      label="Render compare"
+                      sub="A/B compare two render presets"
+                      onClick={act(() => s.getState().setRenderCompareOpen(true))}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Budget"
+                      label="Shopping list"
+                      sub="Buy-list with prices, grouped by retailer"
+                      onClick={act(() => openShoppingList())}
+                    />
+                  ) : null}
+                  {canRecord() ? (
+                    <Item
+                      icon="Record"
+                      label={recording ? 'Stop recording' : 'Record clip'}
+                      on={recording}
+                      onClick={act(() => s.getState().setRecording(!recording), { keep: true })}
+                    />
+                  ) : null}
+                  <Item
+                    icon="Reset"
+                    label="Reset to default"
+                    onClick={act(async () => {
+                      const ok = await s.getState().confirmAction({
+                        title: 'Reset to default',
+                        message:
+                          'Reset to the floor-plan default? You can undo this with Ctrl/⌘+Z.',
+                        confirmLabel: 'Reset',
+                      })
+                      if (ok) s.getState().resetToDefault()
+                    })}
+                  />
+                  <Item
+                    icon="Reset"
+                    label="Clear all furniture"
+                    onClick={act(async () => {
+                      const ok = await s.getState().confirmAction({
+                        title: 'Clear all furniture',
+                        message: 'Remove every placed item? You can undo this with Ctrl/⌘+Z.',
+                        confirmLabel: 'Clear all',
+                        danger: true,
+                      })
+                      if (ok) s.getState().resetToEmpty()
+                    })}
+                  />
+                  <div className="m-sub-h">Saved layouts</div>
+                  {slots.length === 0 ? (
+                    <div className="m-empty">No saved layouts.</div>
+                  ) : (
+                    slots
+                      .slice()
+                      .sort((a, b) => b.savedAt.localeCompare(a.savedAt))
+                      .map((slot) => (
+                        <div className="m-slot" key={slot.slot}>
+                          <button
+                            type="button"
+                            className="m-slot-load"
+                            onClick={act(() => void loadLayout(slot.slot))}
+                          >
+                            <Icon.Load className="icn" width={18} height={18} />
+                            <span className="m-item-tx">
+                              <span className="m-item-l">{slot.slot}</span>
+                              <span className="m-item-s">
+                                {new Date(slot.savedAt).toLocaleString()}
+                              </span>
+                            </span>
+                          </button>
+                          <button
+                            type="button"
+                            className="m-slot-del"
+                            aria-label={`Delete ${slot.slot}`}
+                            onClick={() => void deleteLayout(slot.slot)}
+                          >
+                            <Icon.Trash width={15} height={15} />
+                          </button>
+                        </div>
+                      ))
+                  )}
+                </Section>
+
+                {/* Appearance & help */}
+                <Section id="appearance" title="Appearance & help" icon="Palette" {...sectionProps}>
+                  <Item
+                    icon="Palette"
+                    label="Theme & appearance"
+                    sub="Colour theme, light / dark"
+                    onClick={act(() => setAppearanceOpen(true))}
+                  />
+                  <Item
+                    icon="Quality"
+                    label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
+                    sub="Render & asset quality"
+                    onClick={act(() => setGraphicsOpen(true))}
+                  />
+                  <Item icon="Book" label="User guide" onClick={act(openDocs)} />
+                  <Item icon="Help" label="Help" onClick={act(() => setHelpOpen(true))} />
+                </Section>
+              </div>
+            </div>
+            {/* Persistent footer: sign in / account, always at the bottom of the
+                main menu regardless of the selected section. */}
+            <div className="m-sheet-foot">
+              <button
+                type="button"
+                className="m-foot-btn"
+                onClick={act(() => s.getState().setLoginOpen(true))}
+              >
+                <Icon.Eye className="icn" width={18} height={18} />
+                <span className="m-foot-tx">
+                  {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
+                </span>
+              </button>
             </div>
           </div>
         </div>

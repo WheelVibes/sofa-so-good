@@ -5,6 +5,53 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Scene time/lighting overhaul: real location/date sun, slider-only time, independent lights
+
+- **Time of day is now a single free-scrub slider** (no preset chips/checkpoints) shared by the
+  desktop Scene menu + mobile sheet (`ui/scene/TimeOfDaySlider`). The sun position — and hence the
+  light level — follows the real sun for the user's location (lat/lon) + today's date at the
+  selected local hour, on a smooth gradient, so sunrise/midday/sunset land at the place's real
+  times (e.g. a Singapore evening stays lit until ~19:10 rather than going dark at 18:00).
+- **System time fix.** The "System time" control always shows the real wall-clock time now, not
+  whatever manual time is currently selected.
+- **Lights is a single off/on/auto toggle**, independent of the time of day (lights can be on in
+  daytime). Removed the "lighting moods" (Daylight / Golden hour / …) bundle — the
+  `lightingScenes` module + `lightingMoods` feature flag + ⌘K mood commands are gone.
+
+## Help slimmed to a launcher; sign-in moved to the main menu; admin password → "admin"
+
+- **Help modal** no longer embeds how-to tips (the user guide covers them). It's now a launcher:
+  **Replay the guided tour** + **Open the user guide ↗**, plus a desktop-only **Keyboard
+  shortcuts** button that opens the shortcut reference in its own modal (mobile has no hardware
+  keyboard, so it's omitted there). New `Keyboard` icon.
+- **Sign in / account** moved out of Help into the main menu: a persistent footer at the bottom of
+  the mobile hamburger sheet, and the bottom of the desktop Appearance popover.
+- **Admin dev-gate password** dev fallback is now `admin` (was `sofa-admin`).
+- Mobile menu rail is icon-only (dropped the per-row chevron).
+
+## Mobile menu → master-detail; tour spotlight genuinely click-through (desktop + mobile)
+
+Two related fixes for the mobile menu + product tour:
+
+**Spotlight wasn't clickable (the "can't click the Edit menu" bug).** The tour overlay root
+(`.tour-root`, `position:fixed; inset:0`) had the default `pointer-events:auto`, so it swallowed
+taps/clicks landing in the spotlight hole — the highlighted control never received them. Diagnosed
+via `elementFromPoint` at the target centre returning `.tour-root`. Fixed by making the root
+`pointer-events:none` and re-enabling it on the blocker panes and the card, so the hole truly
+passes input to the real control. This was a latent bug on **desktop** too (action steps were never
+exercised by a real click there); verified fixed on both with new real-click scenarios.
+
+**Mobile menu redesigned to master-detail.** The accordion sheet got unwieldy with many items per
+section. Replaced it with an icon-only left rail (each section shows its icon + a right chevron)
+that opens the selected section's items in a right-hand detail pane under a sticky title
+(`MobileToolbar.tsx`). The tour's mobile reveal now *selects* the target's section in the rail
+(checked via `aria-current`) instead of expanding an accordion.
+
+**Verification:** `scripts/scenarios/first-run-mobile-tour.json` now advances the action steps with
+**real hit-tested clicks** on the spotlighted rail/detail controls; new
+`scripts/scenarios/first-run-desktop-tour.json` does the same on desktop (Edit menu → Edit a room →
+Catalog). Both pass end-to-end; docs updated.
+
 ## Tour: reorder so Scene precedes entering a room (spotlights on desktop + mobile)
 
 The "Set the mood" (Scene) step ran after "Edit a room" entered the room editor — but the Scene
