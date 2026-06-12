@@ -285,6 +285,15 @@ changes selection, a fixed 300 ms sleep is racy under the slow headless profile
 (this intermittently broke the GLB-designer CSG verification); poll for the
 specific `input[aria-label=…]`/`select[aria-label=…]` node instead.
 
+### three.js `Color` cannot parse `oklch()` theme tokens
+The CSS token vocabulary resolves to `oklch(…)` values, and `new THREE.Color(cssValue)`
+throws `Unknown color model oklch(...)` — so an **in-scene** (mesh/material) use of a theme
+colour like `--accent` must convert it to `rgb()` first. `getComputedStyle().color` does NOT
+help (browsers preserve `oklch` in computed style); the working conversion is a 1×1 canvas
+readback: set `ctx.fillStyle = cssValue`, `fillRect`, then `getImageData` for the rgb bytes.
+DOM overlays (e.g. `FinishDragOverlay`) can use the tokens directly — only three.js parsing
+is affected.
+
 ### Driving a native `<select>` dropdown
 A click at the select's coordinates only *opens* the OS popup (which Chromium
 renders outside the page, so you can't click an option by pixel). Use the
