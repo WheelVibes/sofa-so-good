@@ -15,3 +15,8 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `ContextLossGuard` must stay mounted in **both** Canvases (main + room editor).
 - The room editor uses a **separate lightweight Canvas** with none of the sun/Effects
   systems — keep that boundary; don't leak heavy systems into it.
+- **Zero artifacts.** Realism work must introduce **no z-fighting or clipping**: offset
+  coplanar overlays off the surface (e.g. floor decals at +~0.005 m, `depthWrite` off,
+  `transparent`), keep parts from intersecting, and orbit to a side/profile angle to confirm
+  contact (top-down hides float/sink). Visually verify per the playbook — green tests are
+  not proof the render is right.
