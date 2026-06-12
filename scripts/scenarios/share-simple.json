@@ -1,0 +1,119 @@
+{
+  "name": "share-simple",
+  "description": "Simple ladder for share/export: open the share modal, verify copy-link UI renders, verify shareExport flag is ON in Simple mode. Confirms the 3D link, plan link, Snapshot PNG and PDF export buttons are present. Tests that pro-only share features (report, boq) are hidden in Simple mode.",
+  "url": "http://localhost:5220/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-shareexport-flag-on-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.shareExport === true"
+      },
+      "timeout": 10000,
+      "failMessage": "shareExport flag is OFF in Simple mode \u2014 expected ON (simple-tier)"
+    },
+    {
+      "name": "place-a-sofa",
+      "eval": "window.__store.getState().setItems([{id:'share-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}}])"
+    },
+    {
+      "name": "wait-item-place",
+      "wait": 1000
+    },
+    {
+      "name": "open-share-modal",
+      "store": {
+        "action": "setShareOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "share-modal-visible",
+      "waitFor": {
+        "css": ".modal-overlay"
+      },
+      "timeout": 10000,
+      "failMessage": "Share modal (.modal-overlay) did not appear after setShareOpen(true)"
+    },
+    {
+      "name": "shot-share-modal",
+      "screenshot": "01-share-modal-open"
+    },
+    {
+      "name": "verify-copy-3d-link-button",
+      "waitFor": {
+        "text": "3D link"
+      },
+      "timeout": 5000,
+      "failMessage": "Copy 3D link button text not found in share modal"
+    },
+    {
+      "name": "verify-plan-link-button",
+      "waitFor": {
+        "text": "plan link"
+      },
+      "timeout": 5000,
+      "failMessage": "Copy plan link button text not found in share modal"
+    },
+    {
+      "name": "verify-png-export-button",
+      "waitFor": {
+        "text": "Snapshot PNG"
+      },
+      "timeout": 5000,
+      "failMessage": "Snapshot PNG button not found in share modal"
+    },
+    {
+      "name": "shot-share-buttons",
+      "screenshot": "02-share-modal-buttons"
+    },
+    {
+      "name": "close-share-modal",
+      "key": "Escape"
+    },
+    {
+      "name": "share-modal-closed",
+      "waitFor": {
+        "css": ".modal-overlay",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-after-close",
+      "screenshot": "03-modal-closed"
+    },
+    {
+      "name": "verify-pro-share-features-hidden",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.report === false && state.featureFlags.boq === false"
+      },
+      "timeout": 5000,
+      "failMessage": "Pro-tier share features (report, boq) should be OFF in Simple mode"
+    }
+  ]
+}

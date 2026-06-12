@@ -1,0 +1,215 @@
+{
+  "name": "finishes-journey",
+  "description": "Journey ladder for finishes: apply floor + wall finishes while the catalog drawer is open (verify coexistence), then apply finishes to a second room, check that finishes persist across room switching, and end with a mobile viewport leg.",
+  "url": "http://localhost:5220/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "place-item-for-context",
+      "eval": "window.__store.getState().setItems([{id:'jrn-f-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}}])"
+    },
+    {
+      "name": "wait-item",
+      "wait": 1000
+    },
+    {
+      "name": "open-catalog-before-finish",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          true
+        ]
+      }
+    },
+    {
+      "name": "catalog-open",
+      "waitFor": {
+        "css": ".panel.catalog"
+      },
+      "timeout": 20000
+    },
+    {
+      "name": "select-room-with-catalog-open",
+      "store": {
+        "action": "selectRoom",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "finish-picker-visible-alongside-catalog",
+      "waitFor": {
+        "css": ".panel.inspector"
+      },
+      "timeout": 15000,
+      "failMessage": "FinishPicker should appear alongside the catalog drawer"
+    },
+    {
+      "name": "shot-catalog-and-finish-coexist",
+      "screenshot": "01-catalog-and-finish-picker-coexist"
+    },
+    {
+      "name": "apply-floor-oak",
+      "store": {
+        "action": "setFloorFinish",
+        "args": [
+          "livingDining",
+          "floor-wood-oak"
+        ]
+      }
+    },
+    {
+      "name": "apply-wall-white",
+      "store": {
+        "action": "setWallFinish",
+        "args": [
+          "livingDining",
+          "wall-paint-white"
+        ]
+      }
+    },
+    {
+      "name": "wait-finishes",
+      "wait": 1000
+    },
+    {
+      "name": "focus-scene",
+      "store": {
+        "action": "focusOn",
+        "args": [
+          [
+            9.6,
+            2.55
+          ]
+        ]
+      }
+    },
+    {
+      "name": "wait-focus",
+      "wait": 1200
+    },
+    {
+      "name": "tilt-side",
+      "drag": {
+        "from": [
+          800,
+          200
+        ],
+        "to": [
+          800,
+          430
+        ]
+      }
+    },
+    {
+      "name": "zoom-scene",
+      "wheel": {
+        "x": 800,
+        "y": 400,
+        "dy": -400
+      }
+    },
+    {
+      "name": "wait-settle",
+      "wait": 800
+    },
+    {
+      "name": "shot-finishes-with-catalog",
+      "screenshot": "02-finishes-applied-catalog-open"
+    },
+    {
+      "name": "close-catalog",
+      "store": {
+        "action": "setCatalogOpen",
+        "args": [
+          false
+        ]
+      }
+    },
+    {
+      "name": "catalog-closed",
+      "waitFor": {
+        "css": ".panel.catalog",
+        "visible": false
+      },
+      "timeout": 3000
+    },
+    {
+      "name": "shot-finish-picker-alone",
+      "screenshot": "03-finish-picker-full-width"
+    },
+    {
+      "name": "verify-floor-persisted",
+      "waitFor": {
+        "store": "state.finishes && state.finishes.floor['livingDining'] === 'floor-wood-oak'"
+      },
+      "timeout": 5000,
+      "failMessage": "Floor finish not persisted for livingDining"
+    },
+    {
+      "name": "verify-wall-persisted",
+      "waitFor": {
+        "store": "state.finishes && state.finishes.walls['livingDining'] === 'wall-paint-white'"
+      },
+      "timeout": 5000,
+      "failMessage": "Wall finish not persisted for livingDining"
+    },
+    {
+      "name": "switch-to-mobile",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "wait-mobile",
+      "wait": 1000
+    },
+    {
+      "name": "shot-mobile-room-selected",
+      "screenshot": "04-mobile-finish-picker"
+    },
+    {
+      "name": "restore-viewport",
+      "viewport": {
+        "width": 1600,
+        "height": 1000
+      }
+    }
+  ]
+}

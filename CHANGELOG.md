@@ -5,6 +5,40 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C269 / IXT-SUITES batch 1] Interaction-test ladders for the Simple-mode core design loop
+
+Eight scenario JSON files covering the five Simple-mode features — catalog/furnish,
+finishes, budget/shopping, share, and view modes (orbit ↔ walk ↔ 2D plan):
+
+| File | Rungs | Steps | Shots | Mobile leg |
+|---|---|---|---|---|
+| `catalog-furnish-simple.json` | simple | 28 | 5 | — |
+| `catalog-furnish-journey.json` | journey | 34 | 5 | 390×844 |
+| `finishes-simple.json` | simple | 25 | 5 | — |
+| `finishes-journey.json` | journey | 31 | 4 | 390×844 |
+| `budget-simple.json` | simple | 23 | 4 | — |
+| `share-simple.json` | simple | 18 | 3 | — |
+| `view-modes-simple.json` | simple | 24 | 6 | — |
+| `view-modes-journey.json` | journey | 39 | 6 | 390×844 |
+
+All scenarios: `waitFor` over blind `wait`, `store` steps for all store actions,
+`setManualHour(13)` for reviewable frames, real `FurnitureItem` shapes
+(`position:[x,z]`, `rotation`), in-room livingDining coordinates, `SHOT_URL`
+env-overrideable URL. All 8 passed against the dev server at port 5220.
+
+Bugs/oddities caught during authoring and verified correct in app:
+- Builtin finish IDs have no `mat:` prefix: `floor-wood-oak`, `wall-paint-white`.
+- `shopTab` valid values: `'list'` | `'saved'` (no `'rooms'` value).
+- CatalogDrawer only mounts when `open && cameraMode==='orbit' && roomEditor.active`.
+- `BudgetHud` only mounts when `budgetTarget` is non-null.
+- `localStorage.setItem('hdb_onboarded','1')` in `dismiss-overlays` prevents the
+  onboarding carousel from mounting after the eval step returns (store call alone is
+  insufficient because the boot decision runs before React mounts).
+- Multiple `eval` steps sharing page scope must use IIFEs to avoid `const` redeclarations.
+
+Docs: playbook `worked-examples` section updated with all 8 scenarios, key gotchas,
+and a run-all command block. `TASKS.md` IXT-SUITES entry updated.
+
 ## [C271 / PERF9 tail] OffscreenCanvas worker generation for procedural textures
 
 Moves procedural PBR texture generation off the main thread to eliminate jank at boot

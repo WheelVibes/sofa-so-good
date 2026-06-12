@@ -168,6 +168,80 @@ Steps of `first-run.json` (30 total, 8 screenshots):
 **`first-run-no-tour.json`** — carousel → "Enter sandbox" → assert tour never opens → location prompt → scene.
 Asserts `tourOpen === false` immediately after the carousel closes.
 
+### Worked example — Simple-mode core design loop (IXT-SUITES batch 1, C269)
+
+Eight scenarios covering the five Simple-mode features. All use `SHOT_URL` (do not
+rely on the hardcoded `url`); run them sequentially since SwiftShader can't handle
+parallel sessions. Suppress onboarding with `localStorage.setItem('hdb_onboarded','1')`
+inside the `dismiss-overlays` eval — the store call `setOnboardingOpen(false)` is a
+no-op if the decision hasn't fired yet.
+
+```bash
+SHOT_URL=http://localhost:5220/ SHOT_NAV_TIMEOUT=120000 \
+  node scripts/shot.mjs --scenario scripts/scenarios/catalog-furnish-simple.json --out-dir /tmp/cfs
+SHOT_URL=http://localhost:5220/ SHOT_NAV_TIMEOUT=120000 \
+  node scripts/shot.mjs --scenario scripts/scenarios/catalog-furnish-journey.json --out-dir /tmp/cfj
+SHOT_URL=http://localhost:5220/ SHOT_NAV_TIMEOUT=120000 \
+  node scripts/shot.mjs --scenario scripts/scenarios/finishes-simple.json --out-dir /tmp/fins
+SHOT_URL=http://localhost:5220/ SHOT_NAV_TIMEOUT=120000 \
+  node scripts/shot.mjs --scenario scripts/scenarios/finishes-journey.json --out-dir /tmp/finj
+SHOT_URL=http://localhost:5220/ SHOT_NAV_TIMEOUT=120000 \
+  node scripts/shot.mjs --scenario scripts/scenarios/budget-simple.json --out-dir /tmp/bgt
+SHOT_URL=http://localhost:5220/ SHOT_NAV_TIMEOUT=120000 \
+  node scripts/shot.mjs --scenario scripts/scenarios/share-simple.json --out-dir /tmp/shr
+SHOT_URL=http://localhost:5220/ SHOT_NAV_TIMEOUT=120000 \
+  node scripts/shot.mjs --scenario scripts/scenarios/view-modes-simple.json --out-dir /tmp/vms
+SHOT_URL=http://localhost:5220/ SHOT_NAV_TIMEOUT=120000 \
+  node scripts/shot.mjs --scenario scripts/scenarios/view-modes-journey.json --out-dir /tmp/vmj
+```
+
+**`catalog-furnish-simple.json`** (28 steps, 5 screenshots) — enters room editor,
+verifies catalog drawer opens (`.panel.catalog`), Packs tab hidden in Simple / visible
+in Pro, places a sofa via `setItems`, confirms item in scene and budget panel.
+
+**`catalog-furnish-journey.json`** (34 steps, 5 screenshots) — places 6 items (sofa,
+TV console, coffee table, dining table, 2 chairs), verifies catalog + budget panel
+coexist, drag/zoom camera, mobile viewport 390×844 leg.
+
+**`finishes-simple.json`** (25 steps, 5 screenshots) — `selectRoom` opens finish
+picker (`.panel.inspector`), applies `floor-wood-oak` + `wall-paint-white`, verifies
+`state.finishes.floor['livingDining']` and `state.finishes.walls['livingDining']`
+in the store, drag/tilt camera shows applied finishes.
+
+**`finishes-journey.json`** (31 steps, 4 screenshots) — applies finishes while the
+catalog drawer is open (coexistence check), mobile viewport 390×844 leg, store
+predicates confirm persistence.
+
+**`budget-simple.json`** (23 steps, 4 screenshots) — 5 priced items placed,
+`setBudgetTarget(5000)` → `BudgetHud` pill appears (`.budget-hud`), budget panel
+(`.panel.mini.aux`) shows `$` totals, pro flags (report, measure, boq) confirmed
+OFF in Simple.
+
+**`share-simple.json`** (18 steps, 3 screenshots) — `setShareOpen(true)` → share
+modal (`.modal-overlay`) shows "3D link", "plan link", "Snapshot PNG" text; Escape
+closes it; report + boq flags confirmed OFF in Simple.
+
+**`view-modes-simple.json`** (24 steps, 6 screenshots) — boot in orbit, walk
+(`firstPerson`) mode active → WalkHud (`.walk-hud`) visible, back to orbit, open
+2D plan editor (`.plan-screen`), close.
+
+**`view-modes-journey.json`** (39 steps, 6 screenshots) — enters room editor with
+3 items, catalog open in orbit + item selected, exits editor (catalog auto-hides),
+walk mode → WalkHud, back to orbit, 2D plan opens with items visible, mobile
+viewport 390×844 leg.
+
+**Key gotchas from this batch:**
+- Use `localStorage.setItem('hdb_onboarded','1')` (not just `setOnboardingOpen(false)`)
+  in `dismiss-overlays` to prevent the carousel mounting after the step returns.
+- Builtin finish IDs have NO `mat:` prefix: `floor-wood-oak`, `wall-paint-white`.
+- Valid `shopTab` values are `'list'` and `'saved'` (not `'rooms'`).
+- `.panel.catalog` only mounts when `open && cameraMode === 'orbit' && roomEditor.active`;
+  must `enterRoomEditor` before opening the catalog.
+- `.budget-hud` only appears after `setBudgetTarget(n)` (non-null target).
+- Increase `store-ready` timeout to 60 000 ms under SwiftShader headless.
+- `eval` steps sharing the page scope across steps: wrap all `const` declarations
+  in IIFEs to avoid "Identifier already declared" errors.
+
 ---
 
 ## Legacy mode (one-shot, backward-compatible)

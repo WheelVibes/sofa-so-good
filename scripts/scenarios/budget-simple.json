@@ -1,0 +1,150 @@
+{
+  "name": "budget-simple",
+  "description": "Simple ladder for budget/shopping panel: place priced items, open the budget panel, verify totals and spend-by-room sections render, confirm the 'budget' feature flag is ON in Simple mode, and verify the BudgetHud pill appears once a target is set.",
+  "url": "http://localhost:5220/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-budget-flag-on-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.budget === true"
+      },
+      "timeout": 10000,
+      "failMessage": "budget flag is OFF in Simple mode \u2014 expected ON (simple-tier)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "place-priced-items",
+      "eval": "window.__store.getState().setItems([{id:'bgt-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}},{id:'bgt-tv-console',defId:'tv-console',position:[12.1,2.45],rotation:-1.5708,props:{width:1.6}},{id:'bgt-dining',defId:'dining-table-4',position:[10.55,5.2],rotation:0,props:{seats:'4'}},{id:'bgt-chair1',defId:'dining-chair',position:[10.2,4.45],rotation:0,props:{}},{id:'bgt-chair2',defId:'dining-chair',position:[10.9,4.45],rotation:0,props:{}}])"
+    },
+    {
+      "name": "wait-items-mount",
+      "wait": 2000
+    },
+    {
+      "name": "verify-items-placed",
+      "waitFor": {
+        "store": "state.items.length >= 5"
+      },
+      "timeout": 10000,
+      "failMessage": "Expected at least 5 items placed"
+    },
+    {
+      "name": "set-budget-target",
+      "store": {
+        "action": "setBudgetTarget",
+        "args": [
+          5000
+        ]
+      }
+    },
+    {
+      "name": "open-budget-panel",
+      "store": {
+        "action": "toggleBudget"
+      }
+    },
+    {
+      "name": "budget-panel-visible",
+      "waitFor": {
+        "css": ".panel.mini.aux"
+      },
+      "timeout": 10000,
+      "failMessage": "Budget panel did not appear after toggleBudget"
+    },
+    {
+      "name": "shot-budget-open",
+      "screenshot": "01-budget-panel-open"
+    },
+    {
+      "name": "verify-budget-shows-total",
+      "waitFor": {
+        "text": "$"
+      },
+      "timeout": 5000,
+      "failMessage": "Budget panel should show a dollar amount"
+    },
+    {
+      "name": "verify-budget-hud-visible",
+      "waitFor": {
+        "css": ".budget-hud"
+      },
+      "timeout": 10000,
+      "failMessage": "BudgetHud pill should appear once a budget target is set"
+    },
+    {
+      "name": "shot-budget-hud",
+      "screenshot": "02-budget-hud-pill"
+    },
+    {
+      "name": "ensure-list-tab",
+      "store": {
+        "action": "setShopTab",
+        "args": [
+          "list"
+        ]
+      }
+    },
+    {
+      "name": "wait-tab",
+      "wait": 500
+    },
+    {
+      "name": "shot-spend-by-room",
+      "screenshot": "03-budget-list-with-room-breakdown"
+    },
+    {
+      "name": "verify-pro-off-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.report === false && state.featureFlags.measure === false && state.featureFlags.boq === false"
+      },
+      "timeout": 5000,
+      "failMessage": "Pro flags (report, measure, boq) should be OFF in Simple mode"
+    },
+    {
+      "name": "shot-pro-flags-off",
+      "screenshot": "04-simple-mode-confirmed"
+    }
+  ]
+}

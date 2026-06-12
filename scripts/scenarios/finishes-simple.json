@@ -1,0 +1,172 @@
+{
+  "name": "finishes-simple",
+  "description": "Simple ladder for finishes: verify the finish picker (FinishPicker) opens when a room is selected in the room editor, apply a floor finish and a wall finish, and assert the store records the change. Simple-vs-Pro tier check: finishDnd is simple-tier and must be ON in Simple mode.",
+  "url": "http://localhost:5220/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": {
+        "store": "state.uiMode === 'simple'"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected uiMode=simple at boot"
+    },
+    {
+      "name": "verify-finishdnd-on-in-simple",
+      "waitFor": {
+        "store": "state.featureFlags && state.featureFlags.finishDnd === true"
+      },
+      "timeout": 10000,
+      "failMessage": "finishDnd should be ON in Simple mode (it is simple-tier)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": {
+        "action": "enterRoomEditor",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "select-room",
+      "store": {
+        "action": "selectRoom",
+        "args": [
+          "livingDining"
+        ]
+      }
+    },
+    {
+      "name": "finish-picker-visible",
+      "waitFor": {
+        "css": ".panel.inspector"
+      },
+      "timeout": 15000,
+      "failMessage": "FinishPicker (.panel.inspector) did not appear after room selection"
+    },
+    {
+      "name": "shot-finish-picker-open",
+      "screenshot": "01-finish-picker-open"
+    },
+    {
+      "name": "apply-floor-finish",
+      "store": {
+        "action": "setFloorFinish",
+        "args": [
+          "livingDining",
+          "floor-wood-oak"
+        ]
+      }
+    },
+    {
+      "name": "wait-floor-apply",
+      "wait": 800
+    },
+    {
+      "name": "verify-floor-finish-stored",
+      "waitFor": {
+        "store": "state.finishes && state.finishes.floor['livingDining'] === 'floor-wood-oak'"
+      },
+      "timeout": 10000,
+      "failMessage": "Floor finish 'floor-wood-oak' was not persisted to state.finishes.floor"
+    },
+    {
+      "name": "shot-floor-finish-applied",
+      "screenshot": "02-floor-finish-applied"
+    },
+    {
+      "name": "apply-wall-finish",
+      "store": {
+        "action": "setWallFinish",
+        "args": [
+          "livingDining",
+          "wall-paint-white"
+        ]
+      }
+    },
+    {
+      "name": "wait-wall-apply",
+      "wait": 800
+    },
+    {
+      "name": "verify-wall-finish-stored",
+      "waitFor": {
+        "store": "state.finishes && state.finishes.walls['livingDining'] === 'wall-paint-white'"
+      },
+      "timeout": 10000,
+      "failMessage": "Wall finish 'wall-paint-white' was not persisted to state.finishes.walls"
+    },
+    {
+      "name": "shot-wall-finish-applied",
+      "screenshot": "03-wall-finish-applied"
+    },
+    {
+      "name": "tilt-to-side",
+      "drag": {
+        "from": [
+          800,
+          200
+        ],
+        "to": [
+          800,
+          430
+        ]
+      }
+    },
+    {
+      "name": "zoom-in",
+      "wheel": {
+        "x": 800,
+        "y": 400,
+        "dy": -400
+      }
+    },
+    {
+      "name": "wait-settle",
+      "wait": 800
+    },
+    {
+      "name": "shot-side-view-finishes",
+      "screenshot": "04-side-view-finishes-visible"
+    },
+    {
+      "name": "verify-picker-still-visible",
+      "waitFor": {
+        "css": ".panel.inspector"
+      },
+      "timeout": 3000,
+      "failMessage": "Finish picker should still be visible while room is selected"
+    },
+    {
+      "name": "shot-picker-still-open",
+      "screenshot": "05-picker-visible-after-camera-move"
+    }
+  ]
+}

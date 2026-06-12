@@ -58,9 +58,14 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] F11 [DEV] Pluggable brand-catalog importer beyond IKEA (licensing → dev-gate).
 
 ## Productivity / QOL
-- [ ] IXT-SUITES (user rule, 2026-06-12): build interaction-test scenarios (simple → complex per
+- [~] IXT-SUITES (user rule, 2026-06-12): build interaction-test scenarios (simple → complex per
   feature, incl. cross-feature journeys like onboarding→tour→location) for every EXISTING feature
   using the C267 harness; work down the `FEATURE_FLAGS` list in priority order.
+  Batch 1 (C269) — Simple-mode core loop DONE: catalog/furnish (simple+journey), finishes
+  (simple+journey), budget (simple), share (simple), view-modes (simple+journey). 8 scenarios,
+  all green, mobile legs on 3 journeys.
+  Remaining: pro-tier features (measure, clearanceChecks, versions, boq, report, packs, AI
+  surfaces), first-run/onboarding re-rungs once C268 flow settles, crown-molding, livePrices.
 - [ ] Q-3DEXPORT Whole-scene glTF/GLB + USDZ (AR) export — needs worker-streamed export + real-GPU
   verify (a previous GLTFExporter prototype was reverted as unverifiable headless).
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
