@@ -5,7 +5,7 @@ import { createPortal } from 'react-dom'
 import { MathUtils, Mesh, type Object3D } from 'three'
 import { useModalGuard } from '../../controls/modalGuard'
 import { EnsureFurnitureMaterials } from '../../furniture/FurnitureMaterialLoader'
-import { buildEditedObject, partGeometry, partMaterial } from '../../furniture/glbEdit/buildObject'
+import { buildEditedObject, partGeometry, partMaterials } from '../../furniture/glbEdit/buildObject'
 import {
   CSG_OPS,
   type CsgOp,
@@ -59,11 +59,11 @@ function SourceModel({
   return <primitive object={gltf.scene} scale={scale} />
 }
 
-/** One primitive part, built from the SAME `partGeometry` + `partMaterial` the
+/** One primitive part, built from the SAME `partGeometry` + `partMaterials` the
  *  export uses (so the preview can never drift from the saved GLB). Geometry
- *  and material are memoised on the part and disposed when they change/unmount
- *  (`partMaterial` always returns an owned instance — a cached finish material
- *  is cloned, its textures shared — so disposing is safe). */
+ *  and material(s) are memoised on the part and disposed when they change/unmount
+ *  (`partMaterials` always returns owned instances — cached finish materials are
+ *  cloned with shared textures — so disposing is safe). */
 function PartMesh({ part, meshRef }: { part: ShapePart; meshRef?: (m: Mesh | null) => void }) {
   // A picked `mat:<id>` texture builds into the cache asynchronously — the
   // epoch bump re-resolves the material once it's ready (GE3c).
@@ -72,11 +72,22 @@ function PartMesh({ part, meshRef }: { part: ShapePart; meshRef?: (m: Mesh | nul
   // it rebuilds the geometry exactly when kind/size change.
   const geom = useMemo(() => partGeometry(part), [part])
   useEffect(() => () => geom.dispose(), [geom])
+  // For a combined mesh part with per-source materials, partMaterials returns an
+  // array; for all other parts it returns a single material (GE3c tail).
   const mat = useMemo(() => {
     void epoch // a finish may have just been built into the material cache
-    return partMaterial(part)
+    return partMaterials(part)
   }, [part, epoch])
-  useEffect(() => () => mat.dispose(), [mat])
+  useEffect(
+    () => () => {
+      if (Array.isArray(mat))
+        mat.forEach((m) => {
+          m.dispose()
+        })
+      else mat.dispose()
+    },
+    [mat],
+  )
   const rot = part.rotation
   return (
     <mesh
@@ -236,11 +247,19 @@ export function GlbDesignerDialog() {
 
   // Distinct catalog material ids picked as part textures (GE3c) — fed to the
   // same loader placed furniture uses so they build into the shared cache.
+  // For combined (mesh) parts, the finish ids live in geometry.materials (GE3c tail).
   const finishIds = useMemo(() => {
     const set = new Set<string>()
     for (const p of spec.parts) {
       const id = p.finish ? parseFurnitureMaterialFinish(p.finish) : null
       if (id) set.add(id)
+      // Collect finish ids from per-group materials on combined mesh parts.
+      if (p.geometry?.materials) {
+        for (const gm of p.geometry.materials) {
+          const gmId = gm.finish ? parseFurnitureMaterialFinish(gm.finish) : null
+          if (gmId) set.add(gmId)
+        }
+      }
     }
     return [...set]
   }, [spec.parts])
@@ -667,10 +686,10 @@ export function GlbDesignerDialog() {
                   ))}
                 </div>
                 <div style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)', marginTop: 4 }}>
-                  Merges both shapes into one ("{SHAPE_LABEL.mesh}"), keeping this shape's colour
-                  and texture. Subtract carves the picked shape out of this one. Shapes only — the
-                  source model can't be combined. There's no undo here: re-add the shapes if you
-                  change your mind.
+                  Merges both shapes into one ("{SHAPE_LABEL.mesh}"), preserving each part's own
+                  finish on its faces. Subtract carves the picked shape out of this one. Shapes only
+                  — the source model can't be combined. There's no undo here: re-add the shapes if
+                  you change your mind.
                 </div>
               </div>
             ) : null}

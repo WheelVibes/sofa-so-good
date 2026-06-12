@@ -9,19 +9,33 @@
  *   - each part's local transform (position + degree rotation) is baked into
  *     its geometry first (`bakedPartGeometry`), so the CSG runs in plain
  *     asset-local space with identity brushes;
- *   - the result is re-centred on its bounding-box centre and stored as a new
- *     part at that centre with identity rotation (`meshPartFromGeometry`),
- *     carrying the FIRST part's material;
+ *   - the result geometry carries one group per source part (via `useGroups=true`),
+ *     and the result brush's material array maps group→source part material config
+ *     (`meshPartFromGeometry` serialises both into `geometry.groups`/`geometry.materials`);
  *   - the new part replaces part A in place and drops part B
  *     (`replaceWithCombined`).
+ *
+ * Inspector behaviour (GE3c tail): a combined mesh part's per-source materials are
+ * frozen at combine time — they are not editable per-group after the fact (no face
+ * picker). The PartInspector hides colour/finish/PBR sliders for mesh-kind parts,
+ * showing only position and rotation fields (size is baked). This keeps the UI
+ * simple and consistent; re-add the source parts if you need different finishes.
  *
  * Degenerate output (empty result, e.g. intersecting disjoint shapes, or a
  * zero-volume sliver) throws — callers catch and toast.
  */
 
-import { type BufferGeometry, Euler, MathUtils, Matrix4, Quaternion, Vector3 } from 'three'
+import {
+  type BufferGeometry,
+  Euler,
+  MathUtils,
+  Matrix4,
+  MeshStandardMaterial,
+  Quaternion,
+  Vector3,
+} from 'three'
 import { partGeometry } from './buildObject'
-import { type AssetEditSpec, newPartId, type ShapePart } from './editSpec'
+import { type AssetEditSpec, type GroupMaterialData, newPartId, type ShapePart } from './editSpec'
 
 export type CsgOp = 'union' | 'subtract' | 'intersect'
 
@@ -66,14 +80,44 @@ export function bakedPartGeometry(part: ShapePart): BufferGeometry {
   return geo
 }
 
+/** Extract the surface-look config from a ShapePart as a `GroupMaterialData` record
+ *  (used to snapshot the per-part material at combine time). */
+function partAsGroupMaterial(part: ShapePart): GroupMaterialData {
+  return {
+    color: part.color,
+    finish: part.finish,
+    roughness: part.roughness,
+    metalness: part.metalness,
+    emissiveIntensity: part.emissiveIntensity,
+    opacity: part.opacity,
+  }
+}
+
 /**
  * Turn a CSG result geometry (asset-local space) into a new `mesh` part:
  * re-centres the triangles on the bounding-box centre, places the part there
- * with identity rotation, and carries `material`'s colour/PBR finish.
+ * with identity rotation, and stores per-group material configs (GE3c tail).
+ *
+ * `groupMaterials` is the array of `MeshStandardMaterial` that the Evaluator
+ * placed on the result brush (`result.material`) when `useGroups = true`. The
+ * geometry's `groups` array maps each triangle range to a material index. Both
+ * are serialised into `geometry.groups` / `geometry.materials` so the round-trip
+ * (save → rehydrate → render) restores each source part's finish on its faces.
+ *
+ * When `groupMaterials` is empty/absent (legacy or single-material path), the
+ * function falls back to `fallbackMaterial`'s colour/finish as before (back-compat).
+ *
  * Throws on a degenerate result (no triangles / non-finite or sliver bounds).
  * Mutates (translates) the given geometry; caller owns disposal.
  */
-export function meshPartFromGeometry(geometry: BufferGeometry, material: ShapePart): ShapePart {
+export function meshPartFromGeometry(
+  geometry: BufferGeometry,
+  fallbackMaterial: ShapePart,
+  /** Per-group `GroupMaterialData` list (index-matched to geometry.groups).
+   *  When non-empty the `groups`/`materials` fields are stored in the serialised
+   *  geometry so each source part's finish is preserved. */
+  groupMaterials: GroupMaterialData[] = [],
+): ShapePart {
   const pos = geometry.getAttribute('position')
   if (!pos || pos.count < 3) throw new Error('CSG result has no triangles')
   geometry.computeBoundingBox()
@@ -95,23 +139,37 @@ export function meshPartFromGeometry(geometry: BufferGeometry, material: ShapePa
   geometry.translate(-centre.x, -centre.y, -centre.z)
   if (!geometry.getAttribute('normal')) geometry.computeVertexNormals()
   const index = geometry.getIndex()
+
+  // Snapshot geometry groups for the multi-material round-trip.
+  const geoGroups = geometry.groups.length > 0 ? geometry.groups : []
+  const hasGroups = geoGroups.length > 0 && groupMaterials.length > 0
+
   return {
     id: newPartId(),
     kind: 'mesh',
     position: [centre.x, centre.y, centre.z],
     size: [size.x, size.y, size.z],
-    color: material.color,
-    // The combine keeps the FIRST part's whole surface look — including its
-    // textured `finish` (GE3c); the result's box-projected UVs keep it tiling.
-    finish: material.finish,
-    roughness: material.roughness,
-    metalness: material.metalness,
-    emissiveIntensity: material.emissiveIntensity,
-    opacity: material.opacity,
+    // Fall back to first-part material for the ShapePart-level fields so
+    // pre-C273 rendering paths that don't read geometry.materials still work.
+    color: fallbackMaterial.color,
+    finish: hasGroups ? undefined : fallbackMaterial.finish,
+    roughness: hasGroups ? undefined : fallbackMaterial.roughness,
+    metalness: hasGroups ? undefined : fallbackMaterial.metalness,
+    emissiveIntensity: hasGroups ? undefined : fallbackMaterial.emissiveIntensity,
+    opacity: hasGroups ? undefined : fallbackMaterial.opacity,
     geometry: {
       positions: Array.from(geometry.getAttribute('position').array),
       normals: Array.from(geometry.getAttribute('normal').array),
       index: index ? Array.from(index.array) : undefined,
+      // Per-source-part group ranges + material configs (GE3c tail).
+      groups: hasGroups
+        ? geoGroups.map((g) => ({
+            start: g.start,
+            count: g.count,
+            materialIndex: g.materialIndex ?? 0,
+          }))
+        : undefined,
+      materials: hasGroups ? groupMaterials : undefined,
     },
   }
 }
@@ -135,6 +193,19 @@ export function replaceWithCombined(
  * CSG engine (`three-bvh-csg`) is dynamic-imported on first use. Returns the
  * next spec plus the new part's id (for reselection). Throws if the ids are
  * invalid or the result is degenerate — catch and toast.
+ *
+ * GE3c tail: uses `useGroups = true` so the result geometry carries one draw
+ * group per source part, preserving each part's finish on its own faces.
+ * Brush materials are throwaway `MeshStandardMaterial` instances whose colour is
+ * set to the part's `color` — they are only used by the Evaluator's group-
+ * deduplication logic (two groups sharing the same material object are merged);
+ * the actual per-group surface look is captured as `GroupMaterialData` snapshots
+ * from the source `ShapePart` specs, independent of three.js materials.
+ *
+ * Parts that share the same `finish` + `color` combination are assigned the same
+ * brush material instance so the Evaluator's `consolidateGroups` logic naturally
+ * merges their triangles into one group — visually correct and more efficient than
+ * redundant separate groups.
  */
 export async function combineParts(
   spec: AssetEditSpec,
@@ -148,23 +219,63 @@ export async function combineParts(
   const { ADDITION, Brush, Evaluator, INTERSECTION, SUBTRACTION } = await import('three-bvh-csg')
   const geoA = bakedPartGeometry(a)
   const geoB = bakedPartGeometry(b)
+
+  // Build lightweight proxy materials for the Evaluator's group-deduplication:
+  // parts with identical finish+colour share an instance so their groups merge.
+  const matCache = new Map<string, MeshStandardMaterial>()
+  const brushMat = (part: ShapePart): MeshStandardMaterial => {
+    const key = `${part.color}|${part.finish ?? ''}`
+    let m = matCache.get(key)
+    if (!m) {
+      m = new MeshStandardMaterial({ color: part.color })
+      matCache.set(key, m)
+    }
+    return m
+  }
+
   try {
     const brushA = new Brush(geoA)
     const brushB = new Brush(geoB)
+    brushA.material = brushMat(a)
+    brushB.material = brushMat(b)
     brushA.updateMatrixWorld()
     brushB.updateMatrixWorld()
     const evaluator = new Evaluator()
-    // Single-material output in plain position/normal terms (primitive parts
-    // have one material; UVs would be meaningless across a boolean anyway).
-    evaluator.attributes = ['position', 'normal']
-    evaluator.useGroups = false
+    // useGroups = true: result geometry carries one group per source material,
+    // and result.material is the array of MeshStandardMaterial proxy instances.
+    // Include 'uv' so existing UV data survives (boxProjectUvs is a no-op when
+    // UVs are present, but the CSG attributes list must include 'uv' to carry them).
+    evaluator.attributes = ['position', 'normal', 'uv']
+    evaluator.useGroups = true
     const csgOp = op === 'union' ? ADDITION : op === 'subtract' ? SUBTRACTION : INTERSECTION
     const result = evaluator.evaluate(brushA, brushB, csgOp)
-    const combined = meshPartFromGeometry(result.geometry, a)
+
+    // Map each proxy material back to the source part's GroupMaterialData.
+    // The Evaluator's `result.material` is the deduplicated array of proxy mats.
+    const resultMats: MeshStandardMaterial[] = Array.isArray(result.material)
+      ? (result.material as MeshStandardMaterial[])
+      : [result.material as MeshStandardMaterial]
+
+    const matA = brushMat(a)
+    const matB = brushMat(b)
+    const gmA = partAsGroupMaterial(a)
+    const gmB = partAsGroupMaterial(b)
+
+    // Build the GroupMaterialData array index-matched to resultMats.
+    const groupMaterials: GroupMaterialData[] = resultMats.map((m) => {
+      // Proxy mats are identity-compared to the brush mats.
+      if (m === matA) return gmA
+      if (m === matB) return gmB
+      // Shared proxy (same finish+colour) → use part A's config (first operand).
+      return gmA
+    })
+
+    const combined = meshPartFromGeometry(result.geometry, a, groupMaterials)
     result.geometry.dispose()
     return { spec: replaceWithCombined(spec, idA, idB, combined), partId: combined.id }
   } finally {
     geoA.dispose()
     geoB.dispose()
+    for (const m of matCache.values()) m.dispose()
   }
 }

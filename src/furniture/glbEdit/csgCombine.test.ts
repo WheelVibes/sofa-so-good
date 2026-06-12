@@ -1,6 +1,9 @@
-import { BoxGeometry, BufferGeometry, PlaneGeometry, Vector3 } from 'three'
+import { BoxGeometry, BufferGeometry, Float32BufferAttribute, PlaneGeometry, Vector3 } from 'three'
 import { describe, expect, it } from 'vitest'
-import { partGeometry } from './buildObject'
+import { buildMaterial } from '../../materials/cache'
+import { furnitureMaterialCacheId } from '../../materials/furnitureMaterials'
+import type { SolidMaterialDef } from '../../materials/types'
+import { partGeometry, partMaterials } from './buildObject'
 import {
   bakedPartGeometry,
   canCombineParts,
@@ -9,7 +12,23 @@ import {
   partTransformMatrix,
   replaceWithCombined,
 } from './csgCombine'
-import { type AssetEditSpec, createEmptySpec, type ShapePart } from './editSpec'
+import {
+  type AssetEditSpec,
+  createEmptySpec,
+  type GroupMaterialData,
+  type ShapePart,
+} from './editSpec'
+
+function buildFinishIntoCache(id: string, swatch = '#8a5a2b'): void {
+  const def: SolidMaterialDef = {
+    id: furnitureMaterialCacheId(id),
+    name: 'Test finish',
+    category: 'floor',
+    swatch,
+    kind: 'solid',
+  }
+  buildMaterial(def)
+}
 
 function box(
   id: string,
@@ -134,6 +153,106 @@ describe('meshPartFromGeometry', () => {
   it('throws on a zero-volume (sliver) result', () => {
     expect(() => meshPartFromGeometry(new PlaneGeometry(1, 1), box('a', [0, 0, 0]))).toThrow()
   })
+
+  // GE3c tail — per-group material preservation
+  describe('with groupMaterials (GE3c tail)', () => {
+    function geoWithGroups(): BufferGeometry {
+      // Build a non-degenerate box geometry without existing groups, then split
+      // into 2 groups manually. Using non-indexed geometry (each triangle = 3 verts).
+      // 4 triangles × 2 groups = 8 triangles total = 24 verts.
+      const N = 24 // verts
+      const pos = new Float32Array(N * 3)
+      const nor = new Float32Array(N * 3)
+      // Fill with simple non-degenerate positions spanning a real bbox
+      for (let i = 0; i < N; i++) {
+        const side = i < 12 ? 0 : 1
+        pos[i * 3] = (i % 4) * 0.1 + side * 0.5
+        pos[i * 3 + 1] = ((i % 3) + 1) * 0.1
+        pos[i * 3 + 2] = (i % 5) * 0.08
+        nor[i * 3] = 0
+        nor[i * 3 + 1] = 1
+        nor[i * 3 + 2] = 0
+      }
+      const geo = new BufferGeometry()
+      geo.setAttribute('position', new Float32BufferAttribute(pos, 3))
+      geo.setAttribute('normal', new Float32BufferAttribute(nor, 3))
+      // No index = non-indexed geometry; groups cover triangle vertex ranges.
+      geo.addGroup(0, 36, 0) // first 12 triangles (36 verts) → material 0
+      geo.addGroup(36, 36, 1) // next 12 triangles → material 1
+      return geo
+    }
+
+    const gmA: GroupMaterialData = { color: '#aabbcc', finish: 'mat:floor-wood-oak' }
+    const gmB: GroupMaterialData = { color: '#ff0000', roughness: 0.1 }
+
+    it('stores geometry.groups when groupMaterials are provided', () => {
+      const geo = geoWithGroups()
+      const part = meshPartFromGeometry(geo, box('a', [0, 0, 0]), [gmA, gmB])
+      expect(part.geometry!.groups).toHaveLength(2)
+      expect(part.geometry!.groups![0].materialIndex).toBe(0)
+      expect(part.geometry!.groups![1].materialIndex).toBe(1)
+      geo.dispose()
+    })
+
+    it('stores geometry.materials index-matched to groups', () => {
+      const geo = geoWithGroups()
+      const part = meshPartFromGeometry(geo, box('a', [0, 0, 0]), [gmA, gmB])
+      expect(part.geometry!.materials).toHaveLength(2)
+      expect(part.geometry!.materials![0].finish).toBe('mat:floor-wood-oak')
+      expect(part.geometry!.materials![0].color).toBe('#aabbcc')
+      expect(part.geometry!.materials![1].color).toBe('#ff0000')
+      expect(part.geometry!.materials![1].roughness).toBe(0.1)
+      geo.dispose()
+    })
+
+    it('omits part-level finish/roughness/metalness when groups are stored', () => {
+      const geo = geoWithGroups()
+      const part = meshPartFromGeometry(
+        geo,
+        box('a', [0, 0, 0], [1, 1, 1], { finish: 'mat:fallback', roughness: 0.9 }),
+        [gmA, gmB],
+      )
+      // Part-level finish/roughness should be undefined (group data wins)
+      expect(part.finish).toBeUndefined()
+      expect(part.roughness).toBeUndefined()
+      // But color is still kept for fallback display
+      expect(part.color).toBe('#112233')
+      geo.dispose()
+    })
+
+    it('round-trips groups through partGeometry — geometry has matching groups', () => {
+      const geo = geoWithGroups()
+      const part = meshPartFromGeometry(geo, box('a', [0, 0, 0]), [gmA, gmB])
+      const rebuilt = partGeometry(part)
+      expect(rebuilt.groups).toHaveLength(2)
+      expect(rebuilt.groups[0].materialIndex).toBe(0)
+      expect(rebuilt.groups[1].materialIndex).toBe(1)
+      rebuilt.dispose()
+      geo.dispose()
+    })
+
+    it('partMaterials returns an array for a mesh part with geometry.materials', () => {
+      buildFinishIntoCache('csg-test:oak', '#8a5a2b')
+      const geo = geoWithGroups()
+      const gmWithFinish: GroupMaterialData = { color: '#8a5a2b', finish: 'mat:csg-test:oak' }
+      const part = meshPartFromGeometry(geo, box('a', [0, 0, 0]), [gmWithFinish, gmB])
+      const mats = partMaterials(part)
+      expect(Array.isArray(mats)).toBe(true)
+      expect((mats as unknown[]).length).toBe(2)
+      geo.dispose()
+    })
+
+    it('boxProjectUvs runs on the whole geometry (groups do not split UV generation)', () => {
+      const geo = geoWithGroups()
+      const part = meshPartFromGeometry(geo, box('a', [0, 0, 0]), [gmA, gmB])
+      const rebuilt = partGeometry(part)
+      const uv = rebuilt.getAttribute('uv')
+      expect(uv).toBeTruthy()
+      expect(uv.count).toBe(rebuilt.getAttribute('position').count)
+      rebuilt.dispose()
+      geo.dispose()
+    })
+  })
 })
 
 describe('replaceWithCombined', () => {
@@ -157,11 +276,77 @@ describe('combineParts (CSG wiring, real engine)', () => {
     const p = spec.parts[0]
     expect(p.id).toBe(partId)
     expect(p.kind).toBe('mesh')
-    expect(p.color).toBe('#112233') // first operand's material
+    expect(p.color).toBe('#112233') // first operand's colour (fallback)
     expect(p.size[0]).toBeCloseTo(1.5, 3)
     expect(p.size[1]).toBeCloseTo(1, 3)
     expect(p.position[0]).toBeCloseTo(0.25, 3) // bounds centre of the union
     expect(p.position[1]).toBeCloseTo(0.5, 3)
+  })
+
+  it('union preserves per-part materials in geometry.groups / geometry.materials', async () => {
+    const { spec } = await combineParts(overlapping(), 'a', 'b', 'union')
+    const p = spec.parts[0]
+    // With useGroups=true, the CSG result carries groups for each source part's material.
+    expect(p.geometry!.groups).toBeDefined()
+    expect(p.geometry!.groups!.length).toBeGreaterThanOrEqual(1)
+    expect(p.geometry!.materials).toBeDefined()
+    // Part A had color '#112233', part B had '#ff0000' — both should appear.
+    const colors = p.geometry!.materials!.map((m) => m.color)
+    expect(colors).toContain('#112233')
+    expect(colors).toContain('#ff0000')
+  })
+
+  it('partMaterials returns a material array for a union with distinct part finishes', async () => {
+    const spec = specWith(
+      box('a', [0, 0.5, 0], [1, 1, 1], { color: '#112233' }),
+      box('b', [0.5, 0.5, 0], [1, 1, 1], { color: '#ff0000' }),
+    )
+    const { spec: combined } = await combineParts(spec, 'a', 'b', 'union')
+    const p = combined.parts[0]
+    const mats = partMaterials(p)
+    expect(Array.isArray(mats)).toBe(true)
+    expect((mats as unknown[]).length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('parts sharing the same finish+colour produce one merged group (deduplication)', async () => {
+    // Both parts have the same colour → the Evaluator should merge their groups.
+    const spec = specWith(
+      box('a', [0, 0.5, 0], [1, 1, 1], { color: '#aabbcc' }),
+      box('b', [0.5, 0.5, 0], [1, 1, 1], { color: '#aabbcc' }),
+    )
+    const { spec: combined } = await combineParts(spec, 'a', 'b', 'union')
+    const p = combined.parts[0]
+    // When both brushes share the same proxy material the Evaluator merges groups.
+    if (p.geometry?.groups) {
+      // All materialIndex values should point to the same entry (merged).
+      const indices = p.geometry.groups.map((g) => g.materialIndex)
+      expect(indices.every((i) => i === 0)).toBe(true)
+    }
+  })
+
+  it('geometry has box-projected UVs after union (tiling finish works)', async () => {
+    const { spec } = await combineParts(overlapping(), 'a', 'b', 'union')
+    const p = spec.parts[0]
+    const geo = partGeometry(p)
+    expect(geo.getAttribute('uv')).toBeTruthy()
+    expect(geo.getAttribute('uv').count).toBe(geo.getAttribute('position').count)
+    geo.dispose()
+  })
+
+  it('serialize round-trip: groups + materials survive JSON stringify/parse', async () => {
+    const { spec } = await combineParts(overlapping(), 'a', 'b', 'union')
+    const serialized = JSON.parse(JSON.stringify(spec))
+    const p = serialized.parts[0]
+    if (p.geometry?.groups) {
+      expect(
+        p.geometry.groups.every(
+          (g: { materialIndex: number }) => typeof g.materialIndex === 'number',
+        ),
+      ).toBe(true)
+      expect(
+        p.geometry.materials.every((m: GroupMaterialData) => typeof m.color === 'string'),
+      ).toBe(true)
+    }
   })
 
   it('subtract keeps only the un-carved half of the first box', async () => {

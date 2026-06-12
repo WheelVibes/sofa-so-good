@@ -26,6 +26,7 @@ import {
   type AssetEditSpec,
   DEFAULT_PART_METALNESS,
   DEFAULT_PART_ROUGHNESS,
+  type GroupMaterialData,
   type MeshOverride,
   type ShapePart,
 } from './editSpec'
@@ -37,6 +38,33 @@ function cachedFinishMaterial(finish: string): MeshStandardMaterial | null {
   const matId = parseFurnitureMaterialFinish(finish)
   if (!matId) return null
   return getBuiltMaterial(furnitureMaterialCacheId(matId)) ?? null
+}
+
+/** Build one owned `MeshStandardMaterial` from a `GroupMaterialData` record
+ *  (the per-source-part surface look baked at CSG combine time, GE3c tail).
+ *  Same logic as `partMaterial` — finish clone with shared textures, or solid
+ *  colour fallback. Every call returns a material the caller OWNS. */
+function groupMaterial(g: GroupMaterialData): MeshStandardMaterial {
+  const glow = g.emissiveIntensity ?? 0
+  const opacity = g.opacity ?? 1
+  const base = g.finish ? cachedFinishMaterial(g.finish) : null
+  if (base) {
+    const m = base.clone()
+    m.emissive = new Color(glow > 0 ? g.color : 0x000000)
+    m.emissiveIntensity = glow
+    m.transparent = opacity < 1
+    m.opacity = opacity
+    return m
+  }
+  return new MeshStandardMaterial({
+    color: g.color,
+    roughness: g.roughness ?? DEFAULT_PART_ROUGHNESS,
+    metalness: g.metalness ?? DEFAULT_PART_METALNESS,
+    emissive: new Color(glow > 0 ? g.color : 0x000000),
+    emissiveIntensity: glow,
+    transparent: opacity < 1,
+    opacity,
+  })
 }
 
 /** The PBR material for a primitive part. Used by both the export
@@ -71,6 +99,20 @@ export function partMaterial(part: ShapePart): MeshStandardMaterial {
     transparent: opacity < 1,
     opacity,
   })
+}
+
+/**
+ * The material(s) for a part's live preview and export mesh. For a `mesh` part
+ * that was combined with `useGroups = true` (GE3c tail), returns an array of
+ * per-group materials so each source part's finish shows on its own triangles.
+ * For all other parts, returns the single `partMaterial` as before.
+ *
+ * Every returned material is caller-owned (safe to dispose). */
+export function partMaterials(part: ShapePart): MeshStandardMaterial | MeshStandardMaterial[] {
+  if (part.kind === 'mesh' && part.geometry?.materials && part.geometry.materials.length > 0) {
+    return part.geometry.materials.map(groupMaterial)
+  }
+  return partMaterial(part)
 }
 
 /**
@@ -182,7 +224,14 @@ export function partGeometry(part: ShapePart): BufferGeometry {
       if (!geo.getAttribute('normal')) geo.computeVertexNormals()
       // The CSG evaluator only keeps position+normal — box-project UVs so a
       // textured `finish` tiles over the result instead of smearing one texel.
+      // Box projection is vertex-by-normal, so it works correctly across groups
+      // (each group's triangles tile at physical scale independently).
       boxProjectUvs(geo)
+      // Restore geometry groups so the multi-material array is applied per-group
+      // (GE3c tail: each source part's finish covers its own faces).
+      if (data.groups) {
+        for (const g of data.groups) geo.addGroup(g.start, g.count, g.materialIndex)
+      }
       return geo
     }
     case 'wedge': {
@@ -224,7 +273,7 @@ export function buildEditedObject(source: Object3D | null, spec: AssetEditSpec):
   }
 
   spec.parts.forEach((part, i) => {
-    const mesh = new Mesh(partGeometry(part), partMaterial(part))
+    const mesh = new Mesh(partGeometry(part), partMaterials(part))
     // Name parts so a saved asset's components are addressable when it's later
     // reopened as a source for per-mesh recolour/hide.
     mesh.name = `${part.kind}-${i + 1}`

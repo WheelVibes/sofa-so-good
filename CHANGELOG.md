@@ -5,6 +5,43 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C273 / GE3c tail] Per-part texture on combined-mesh (CSG) parts
+
+CSG-combined mesh parts now preserve each source part's finish on its own face group.
+Previously combining two parts with different textures produced a union that took only
+the first part's material; now every source part's colour/finish/PBR is kept on its triangles.
+
+**Approach:** `three-bvh-csg`'s `Evaluator` is set to `useGroups = true` with per-brush
+proxy `MeshStandardMaterial` instances (colour-keyed so parts sharing the same
+finish+colour naturally merge their groups). The result geometry carries one draw group
+per distinct source material; the brush's `result.material` array is mapped back to
+`GroupMaterialData` snapshots (serialisable POJOs) stored in `geometry.groups` /
+`geometry.materials` on the `MeshGeometryData` spec. Back-compat: old specs without
+these fields fall back to the single-material path unchanged.
+
+**Serialisation round-trip:** `GroupMaterialData[]` is plain JSON — finish id, colour hex,
+roughness, metalness, glow, opacity. `partGeometry` restores geometry groups from
+`data.groups` on rebuild so Three.js applies the per-group material array. `partMaterials`
+(new export, supersedes `partMaterial` for mesh kind) returns `MeshStandardMaterial[]`
+built from the group configs; the live preview `PartMesh` and `buildEditedObject` both
+use it. The GLTFExporter handles the multi-material mesh correctly (roughness/metalness
+maps merged per group — confirmed by exporter warning in the headless run).
+
+**UVs:** `boxProjectUvs` runs on the whole geometry (vertex-by-normal, group-agnostic) so
+each group's finish tiles at physical metre scale — no per-group split needed.
+
+**Inspector behaviour:** combined (`mesh` kind) parts with `geometry.materials` hide the
+colour/finish/PBR slider controls — those surface-look fields are frozen per-group at
+combine time. Position and rotation remain editable. The inspector note says "re-add the
+parts and combine again to change finishes" — no face-picker UI needed.
+
+**Tests:** +18 new unit tests (6 `meshPartFromGeometry` group-path cases, 7 `combineParts`
+group/UV/serialise cases, 2 `partMaterials` array-return cases, 3 deduplication/round-trip).
+Scenario `glb-csg-textures-simple.json` drives the full flow headless: open designer →
+add box 1 (Oak finish) → add box 2 (Walnut finish) → Union → confirm "Combined" shape →
+save to catalog → reopen designer. All 32 steps pass; GLTFExporter confirms multi-material
+export via merged-texture warning; combined mesh renders in the preview.
+
 ## [C269 / IXT-SUITES batch 1] Interaction-test ladders for the Simple-mode core design loop
 
 Eight scenario JSON files covering the five Simple-mode features — catalog/furnish,
@@ -448,7 +485,7 @@ the inspector's finish dropdown + `QuickFinishes` swatch row (Oak/Walnut/Teak/As
 The finish persists through the save-asset round trip (re-resolved at render, like solid colours).
 Rides the existing GLB-designer flag — no new flag. Verified headless: clicking "Oak" sets the
 part finish to `mat:floor-wood-oak` and the box renders with tiling wood grain (not flat/black),
-no artifacts. Deferred: per-part texture on combined-mesh parts takes the first part's material.
+no artifacts. Follow-up C273 completes the feature: per-part texture on combined-mesh parts.
 
 ## [C252 / P-720] Linked 720° panorama tour — multi-pano capture with room hotspots
 Coohom "720° tour" parity. A tour is an ordered list of stops `{id, label, position:[x,z],
