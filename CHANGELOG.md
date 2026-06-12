@@ -5,6 +5,42 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C275 / R-CURTAIN/L1] Window glass tint + curtain light attenuation
+
+Two coupled window-light effects, both simple-tier, default on, zero per-frame cost at rest:
+
+**Glass tint** — `glassTint: string` added to `AppearanceSlice`; `setGlassTint(hex)` stores a
+hex colour applied as a component-wise RGB multiply to the directional sun light each frame via
+`getWindowGlassTint()` in `Lighting.tsx`. Empty / `'#ffffff'` = neutral (no effect). Gated by
+`windowGlassTint` feature flag.
+
+**Curtain attenuation** — `CurtainLightController` subscribes to the Zustand store and
+recomputes `sceneAttenuationFactor()` whenever `items` or `glassTint` changes; the result is
+written to the `attenuation` module-level signal and applied to `sunRef.current.intensity`
+each frame. Matching criteria: item `defId` = `'curtains'` or `'roller-blind'`; centre within
+0.5 m of the wall; rotation within ±90° of the wall angle; 1-D projection overlaps the window
+extent. `style='open'` (tied back) → no obstruction (factor 1.0). `style='drawn'` + opaque →
+OPAQUE_MIN 0.05 per fully covered window; sheer (`material='sheer'`) → SHEER_MIN 0.40. Scene
+factor = average over all windows. Gated by `curtainLightEffect` feature flag.
+
+**Architecture:** three new files (`windowLightModifiers.ts` pure functions,
+`windowLightSignal.ts` module-level signals, `CurtainLightController.tsx` store subscriber) +
+five modified (`Lighting.tsx`, `featureFlags.ts`, `appearanceSlice.ts`, `Scene.tsx`). Demand
+frameloop: `RenderPump` already calls `invalidate()` on every store change — no explicit call
+needed in the controller.
+
+**Tests:** `windowLightModifiers.test.ts` — 34 unit tests covering isCurtainItem / isCurtainOpen
+/ hexToRgb01 / glassTintRgb / curtainWindowOverlap (null cases: non-curtain, wall distance,
+angle, no overlap; + overlap fraction + sheer detection) / windowAttenuationFactor (open, drawn,
+sheer, partial) / sceneAttenuationFactor (no windows, single window, multi-window average) /
+computeWindowModifiers; feature flag tier assertions in both Simple and Pro modes. Full suite:
+301 files, 2251 tests, all pass. `tsc` clean. Biome clean (3 pre-existing warnings unrelated).
+
+**Scenario:** `scripts/scenarios/window-light-simple.json` — 26 steps on port 5216: baseline
+sunlit room (no curtains), add 3 drawn curtains over bedroom windows (5 total windows → scene
+factor ≈0.43), screenshot visibly dimmer, apply amber tint `#e8b860`, screenshot tinted,
+open all curtains, clear tint, final screenshot.
+
 ## [C272] Interaction-test ladders for pro-tier analytical features (drawings, versions, history, pano tour, render compare)
 
 Seven scenario files added to `scripts/scenarios/`, covering 5 pro-tier features:

@@ -24,6 +24,7 @@ import { FinishDropSurface } from './FinishDropSurface'
 import { GridOverlay } from './GridOverlay'
 import { HqRenderController } from './HqRenderController'
 import { LuxOverlay } from './LuxOverlay'
+import { CurtainLightController } from './lighting/CurtainLightController'
 import { FurnitureLights } from './lighting/FurnitureLights'
 import { Lighting } from './lighting/Lighting'
 import { SceneEnvironment } from './lighting/SceneEnvironment'
@@ -97,6 +98,7 @@ export function Scene() {
         <SceneBackdrop />
         <SceneEnvironment />
         <Lighting />
+        <CurtainLightController />
         <FurnitureLights />
         {customPlan ? <PlanShell /> : <Apartment />}
         {/* "Click a room to edit" hover highlight — works for both plans now. */}

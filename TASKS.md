@@ -49,8 +49,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   Once F3 is available, wire the HDRI selector into `capturePreset` and expose it in the compare modal.
 - [ ] F6 [PROD] WebGPU SSGI experimental Maximum-only toggle with WebGL fallback.
 - [ ] PR4/R-SSAO Soft-shadow upgrade (PCSS/VSM) + contact-shadow refinement; needs real GPU.
-- [ ] R-CURTAIN/L1 Window-glass tint colouring the sun shaft + curtains affecting cast light +
-  inter-room light bleed. Perf-sensitive multi-file scene change.
+- [ ] R-BLEED: inter-room light bleed directional weighting (deferred from C275 — needs geometry
+  raycasting; revisit with PR4).
 
 ## Content & catalog
 - [ ] C-PLANTS/DECOR + F9 [PROD] Curated CC0 decor/plant/styling bundles (Poly Haven/Poly Pizza)
