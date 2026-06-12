@@ -8,6 +8,27 @@ landmine someone already stepped on so you don't have to.
 
 ---
 
+## Interaction-test ladders (required policy, 2026-06-12)
+
+Scenarios are not just debugging aids — they are the app's interaction-test suite,
+kept in `scripts/scenarios/`.
+
+- **Every feature gets a ladder of scenarios, simple → complex.** Simple: the feature
+  opens, renders, and is correctly flag/tier-gated. Complex: full multi-step journeys
+  through the feature AND its interactions with the rest of the app — overlay/modal
+  layering and ordering, Simple↔Pro mode switches, mobile viewport (`viewport` step),
+  and adjacent features that share screen space or state.
+- **No new feature ships without its own ladder.** Build the scenarios alongside the
+  feature and run them as part of visual verification. The motivating failure class:
+  sequencing/layering bugs invisible to unit tests — e.g. a clean-profile boot where
+  one first-run overlay (onboarding) could hide another (product tour).
+- **Existing features** are being back-filled feature-by-feature down the
+  `FEATURE_FLAGS` list — tracked as `IXT-SUITES` in `TASKS.md`. When you touch a
+  feature that has no ladder yet, add at least its simple rungs in the same change.
+- Name files `<feature>-<rung>.json` (e.g. `pano-tour-simple.json`,
+  `pano-tour-journey.json`); keep each scenario focused and re-runnable on a clean
+  profile (`first-run.json` is the worked example).
+
 ## Scenario mode (recommended — use this for anything multi-step)
 
 **Scenario mode** is the primary way to drive complex, multi-step user journeys
