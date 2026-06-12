@@ -25,6 +25,15 @@ const GAP = 14 // gap between spotlight and card
  * disturb the app, and **only the explicit Skip button (or Esc) ends the tour**.
  * Steps whose target is missing (e.g. behind the mobile hamburger) fall back to
  * spotlighting the hamburger; no-target steps centre with a flat scrim.
+ *
+ * On mobile the toolbar controls live behind the hamburger sheet, so before
+ * spotlighting a step the tour opens the sheet and expands the right accordion
+ * section (`step.mobile`) to bring the real control on screen — the spotlight
+ * then highlights it just like on desktop and the user taps it to advance. The
+ * tour overlay (z-modal) sits above the sheet (z-overlay), so the four blocker
+ * panes dim the rest of the sheet while the hole keeps the control tappable.
+ * Steps with no mobile-reachable control (and any no-target step) centre as a
+ * plain card with the sheet closed.
  */
 export function ProductTour() {
   const open = useStore((s) => s.tourOpen)
@@ -37,13 +46,6 @@ export function ProductTour() {
   const [rect, setRect] = useState<Rect | null>(null)
   const current = TOUR_STEPS[step]
 
-  // The spotlight tour targets desktop toolbar controls and its overlay sits
-  // above the mobile hamburger sheet — so it can't work on mobile and would
-  // block the hamburger. End it if it somehow opens on a mobile viewport
-  // (App shows the centred onboarding carousel there instead).
-  useEffect(() => {
-    if (open && isMobile) end()
-  }, [open, isMobile, end])
   // The live resolved target element for the current step (real target or the
   // mobile hamburger fallback). Used by the click-to-advance listener.
   const targetRef = useRef<HTMLElement | null>(null)
@@ -54,30 +56,65 @@ export function ProductTour() {
   useLayoutEffect(() => {
     if (!open || !current) return
     let raf = 0
-    // Resolve the step's target; on mobile the desktop toolbar targets live in
-    // the hamburger sheet, so fall back to spotlighting the hamburger (where the
-    // menus are). No-target steps stay centred (findTarget returns null).
+    // On mobile, bring the step's control on screen before measuring: open the
+    // hamburger sheet and expand the accordion section that holds it. Each call
+    // is idempotent (only clicks when the sheet/section isn't already open) so
+    // the re-measure poll below can keep it open without toggling it shut. When
+    // a step has no mobile target, close the sheet so the centred card is clean.
+    const sheetEl = () => document.querySelector<HTMLElement>('.m-sheet')
+    const menuBtn = () => document.querySelector<HTMLElement>('[aria-label="Menu"]')
+    // Closing uses the sheet's dedicated Close button (only ever closes), not the
+    // hamburger toggle — safe to call from a repeating poll without re-opening.
+    const closeSheet = () =>
+      document.querySelector<HTMLElement>('.m-sheet [aria-label="Close"]')?.click()
+    const revealMobile = () => {
+      const m = current.mobile
+      if (!m) {
+        if (sheetEl()) closeSheet() // centred steps want no sheet
+        return
+      }
+      if (!sheetEl()) {
+        menuBtn()?.click() // open the sheet; next poll tick expands the section
+        return
+      }
+      if (m.section) {
+        const header = document.querySelector<HTMLElement>(`[data-tour-section="${m.section}"]`)
+        if (header && header.getAttribute('aria-expanded') !== 'true') header.click()
+      }
+    }
+    // Resolve the step's target. On mobile we use the mobile selector (resolved
+    // once the sheet/section is revealed); on desktop the toolbar target, falling
+    // back to the hamburger if it's tucked away. No-target steps stay centred.
     const findTarget = (): HTMLElement | null => {
+      if (isMobile) {
+        return current.mobile ? document.querySelector<HTMLElement>(current.mobile.target) : null
+      }
       if (!current.target) return null
       return (
         document.querySelector<HTMLElement>(current.target) ??
         document.querySelector<HTMLElement>('[aria-label="Menu"]')
       )
     }
+    // Scroll the target into view the first time it's found this step — guarded
+    // so the scroll it triggers (which fires the scroll→measure listener) can't
+    // loop. On desktop the toolbar scrolls horizontally; on mobile the revealed
+    // row may sit below the sheet fold.
+    let scrolled = false
     const measure = () => {
+      if (isMobile) revealMobile()
       const el = findTarget()
       targetRef.current = el
       if (el) {
+        if (!scrolled) {
+          scrolled = true
+          el.scrollIntoView({ block: 'nearest', inline: 'center' })
+        }
         const r = el.getBoundingClientRect()
         setRect(r.width > 0 ? { top: r.top, left: r.left, width: r.width, height: r.height } : null)
       } else {
         setRect(null)
       }
     }
-    // Bring the target into view once per step (the toolbar scrolls horizontally
-    // on narrow desktops, so a target like Scene/View could be off-screen). Done
-    // here, NOT in `measure`, so the scroll it triggers can't loop the listener.
-    findTarget()?.scrollIntoView({ block: 'nearest', inline: 'center' })
     measure()
     raf = requestAnimationFrame(measure)
     window.addEventListener('resize', measure)
@@ -93,7 +130,7 @@ export function ProductTour() {
       window.clearInterval(poll)
       window.clearTimeout(stopPoll)
     }
-  }, [open, current])
+  }, [open, current, isMobile])
 
   // Click-to-advance: when the user clicks the spotlighted control itself, the
   // tour moves on (after a short beat so the control's own click handler runs and
@@ -127,7 +164,17 @@ export function ProductTour() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open, next, prev, end])
 
-  if (!open || !current || isMobile) return null
+  // Tidy up on unmount. The tour is only mounted while `tourOpen` (App gates it),
+  // so it unmounts the moment the tour ends (Done/Skip/Esc) — close any mobile
+  // hamburger sheet the tour opened so it doesn't linger behind the location
+  // prompt. The Close button only exists when a sheet is open, so this is a no-op
+  // on desktop or when nothing is open.
+  useEffect(
+    () => () => document.querySelector<HTMLElement>('.m-sheet [aria-label="Close"]')?.click(),
+    [],
+  )
+
+  if (!open || !current) return null
 
   const isLast = step === TOUR_STEPS.length - 1
   // An action step forces interaction (no Next) — but only when we actually have
