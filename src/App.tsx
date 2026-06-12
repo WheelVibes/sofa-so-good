@@ -91,6 +91,7 @@ const SmartStartWizard = lazy(() =>
   import('./ui/wizard/SmartStartWizard').then((m) => ({ default: m.SmartStartWizard })),
 )
 
+import { FinishDragOverlay } from './scene/FinishDragOverlay'
 import { ConfirmModal } from './ui/ConfirmModal'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
@@ -828,6 +829,9 @@ export default function App() {
         <ErrorBoundary scope="3D scene">
           {roomEditorActive ? <RoomEditorScene /> : <Scene />}
         </ErrorBoundary>
+        {/* Drop-target ring: shown while a finish drag is over the canvas
+            (DOM overlay, outside R3F — works under frameloop="demand"). */}
+        <FinishDragOverlay />
         <FpsCounter />
         <RoomEditorCaption />
         <EmptyRoomHint />

@@ -79,3 +79,20 @@ export function findFinishDropTarget(
   }
   return null
 }
+
+/**
+ * True when the hit list contains at least one visible, untagged mesh —
+ * i.e. geometry was hit but none of it was finishable. Used by
+ * `FinishDropSurface` to distinguish a "drop on a custom-plan overview wall"
+ * (untagged geometry present) from a "drop on empty sky" (no hits at all).
+ * Overview FadeWalls are plain `boxGeometry` meshes with no `finishTarget`
+ * or `itemId` userData — they exist in the hit list but classify to null.
+ */
+export function hasUntaggedHits(hits: readonly Pick<Intersection, 'object'>[]): boolean {
+  for (const hit of hits) {
+    if (!hit.object || !effectivelyVisible(hit.object)) continue
+    // Any visible hit that isn't classifiable counts as "untagged geometry".
+    if (!classifyFinishDropObject(hit.object)) return true
+  }
+  return false
+}

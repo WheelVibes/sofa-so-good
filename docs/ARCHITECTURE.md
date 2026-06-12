@@ -198,7 +198,14 @@ same change that reshapes a system.
   `scene/finishDropTarget.ts` classifies the hit via `userData` tags (`itemId` on item
   root groups; `finishTarget {kind,roomId}` on floor meshes + interior wall faces,
   skipping invisible/untagged hits). Both surfaces commit through
-  `state/finishDropApply.ts` (one undo step, floor/wall recents, toast).
+  `state/finishDropApply.ts` (one undo step, floor/wall recents, toast). **Drop-target
+  highlight** (Q31 tail, C262): `scene/finishDragSignal.ts` is a tiny module singleton
+  (`setFinishDragActive` / `subscribeFinishDrag`) driven by `FinishDropSurface`'s
+  `dragenter`/`dragleave`/`drop`/`window.dragend` events; `scene/FinishDragOverlay.tsx`
+  subscribes via `useSyncExternalStore` and renders a CSS ring (`box-shadow + accent`
+  tokens) over the canvas — entirely DOM-side so `frameloop="demand"` is unaffected.
+  Custom-plan overview wall drops show an info toast (`hasUntaggedHits` in
+  `finishDropTarget.ts`) rather than silently no-oping.
 - **Lighting / time of day**: SunCalc → `altitudeCurve.ts` → directional sun +
   hemisphere + IBL + sky. Fixtures emit capped day-gated night point lights; shades glow
   via `fixtureGlow`.

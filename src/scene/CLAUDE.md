@@ -7,6 +7,10 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   `shouldRender`/`isContinuous`/`settleTailMs`, all pure + unit-tested) and call
   `invalidate()` on change; a discrete store change already gets a short settle tail.
   Continuous-span FPS sampling is gated by `renderPumpSignal.ts` — don't sample raw frames.
+  For DOM overlays that only need to appear/disappear (e.g. `FinishDragOverlay`) use a
+  module-level signal (`finishDragSignal.ts` pattern: `useSyncExternalStore` subscriber +
+  pure set/notify) — this avoids routing through the Zustand store and triggering
+  `subscribe(markDirty)` on every drag event.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).

@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## [C262 / Q31 tail] Drop-target highlight + custom-plan overview wall-drop cue
+Two polish items deferred from C251. (1) **Transient drop-target highlight**: while
+a finish swatch is dragged over the 3D canvas a visible ring/tint overlay appears,
+implemented as a pure DOM `<div>` (`FinishDragOverlay`) absolutely positioned over
+the canvas, styled with `box-shadow: inset 0 0 0 3px var(--accent)` +
+`background: var(--accent-soft)` — no hardcoded colours, works in light + dark +
+all 5 themes. The overlay renders nothing when inactive, so frameloop-demand
+frames are unaffected (zero GPU cost at rest). State is managed by a new
+`finishDragSignal.ts` module-level singleton (`setFinishDragActive` /
+`subscribeFinishDrag`) wired to `useSyncExternalStore` in the overlay component —
+deliberately outside the Zustand store to avoid triggering `RenderPump`'s
+`subscribe(markDirty)` on every dragover tick. `FinishDropSurface` drives the
+signal: `dragenter` → active, `dragleave`/`drop` → inactive; a `window dragend`
+listener also clears it (catches the "drag released outside the browser window"
+case where the canvas never fires `dragleave`). (2) **Custom-plan overview wall
+drop cue**: `PlanShell`'s `FadeWall` meshes carry no `finishTarget` userData (they
+are unassociated boxes at the overview level), so drops on them previously silently
+no-oped. New `hasUntaggedHits()` helper in `finishDropTarget.ts` distinguishes an
+empty-sky miss (zero hits) from geometry-hit-but-unclassifiable (the overview-wall
+case). When a drop lands on untagged geometry in the custom-plan overview (not in
+the room editor), a 3 s info toast guides the user: "Open a room to finish its
+walls". +18 tests (signal state machine: enter/over/leave/drop/dragend/cancel all
+clear; idempotency; subscribe/unsubscribe; hasUntaggedHits: tagged/untagged/invisible
+hits, ancestor-walk). `tsc` + full suite green.
 ## [C260 / LP6] Lux overlay — time-of-day scrub, auto-play, and per-fixture exclusion
 Extends the static 3D lux floor heatmap (C256/LP5) with live time-of-day scrubbing and
 per-fixture contribution isolation. `LuxOverlay.tsx` now reads `luxExcludedIds` from the
