@@ -1,16 +1,5 @@
 import { hoursFromDate, useEffectiveHour } from '../../scene/lighting/useEffectiveHour'
-import { PRESET_HOURS, type TimePreset } from '../../state/slices/timeSlice'
 import { useStore } from '../../state/store'
-
-/** Time-of-day checkpoints shown as snap icons along the slider track. Clicking
- *  one jumps to that time; the slider still scrubs freely between them. Labels
- *  follow the user's wording ("Sunset" for the 18:00 dusk preset). */
-const CHECKPOINTS: { preset: TimePreset; icon: string; label: string }[] = [
-  { preset: 'night', icon: '🌙', label: 'Night' },
-  { preset: 'morning', icon: '🌅', label: 'Morning' },
-  { preset: 'noon', icon: '☀️', label: 'Noon' },
-  { preset: 'dusk', icon: '🌇', label: 'Sunset' },
-]
 
 export function formatClock(hour: number): string {
   const h = ((hour % 24) + 24) % 24
@@ -23,23 +12,20 @@ export function formatClock(hour: number): string {
 }
 
 /**
- * Time-of-day control shared by the desktop Scene menu and the mobile sheet:
- * a free-scrub slider with snap-to icon checkpoints (morning / noon / sunset /
- * night) and a "System time" toggle. The System label always shows the real
- * wall-clock time, never the currently-selected manual time.
+ * Time-of-day control shared by the desktop Scene menu and the mobile sheet: a
+ * free-scrub slider over the 24-hour day plus a "System time" toggle. The sun
+ * (and so the light level) follows the real position for the user's location +
+ * today's date at the selected hour, so dusk/sunset land at the place's real
+ * time. The System label always shows the actual wall-clock time, never the
+ * currently-selected manual time.
  */
 export function TimeOfDaySlider() {
   const timeMode = useStore((s) => s.timeMode)
-  const manualHour = useStore((s) => s.manualHour)
   const setManualHour = useStore((s) => s.setManualHour)
-  const setPresetTime = useStore((s) => s.setPresetTime)
   const setTimeMode = useStore((s) => s.setTimeMode)
   const effectiveHour = useEffectiveHour()
   // The actual system clock — independent of the selected/scrubbed time.
   const systemHour = hoursFromDate(new Date())
-
-  const atPreset = (p: TimePreset) =>
-    timeMode === 'manual' && Math.abs(manualHour - PRESET_HOURS[p]) < 1e-3
 
   return (
     <div className="tod" onClick={(e) => e.stopPropagation()}>
@@ -59,21 +45,6 @@ export function TimeOfDaySlider() {
           className="slider"
           style={{ width: '100%' }}
         />
-      </div>
-      <div className="tod-marks">
-        {CHECKPOINTS.map((c) => (
-          <button
-            key={c.preset}
-            type="button"
-            className={`tod-mark${atPreset(c.preset) ? ' on' : ''}`}
-            style={{ left: `${(PRESET_HOURS[c.preset] / 24) * 100}%` }}
-            onClick={() => setPresetTime(c.preset)}
-            title={`${c.label} · ${formatClock(PRESET_HOURS[c.preset])}`}
-            aria-label={`${c.label} (${formatClock(PRESET_HOURS[c.preset])})`}
-          >
-            <span aria-hidden>{c.icon}</span>
-          </button>
-        ))}
       </div>
       <button
         type="button"

@@ -235,14 +235,14 @@ same change that reshapes a system.
   Custom-plan overview wall drops show an info toast (`hasUntaggedHits` in
   `finishDropTarget.ts`) rather than silently no-oping.
 - **Lighting / time of day**: SunCalc → `altitudeCurve.ts` → directional sun +
-  hemisphere + IBL + sky (continuous gradient as the time slides). Manual time is anchored to
-  the location's longitude (`localSolarDate`) so the slider's hours are intuitive regardless of
-  the viewer's timezone (18:00 = dusk, not a TZ-shifted dark); system mode uses the real instant.
-  The shared **`ui/scene/TimeOfDaySlider`** (desktop Scene menu + mobile sheet) is a free-scrub
-  slider with morning/noon/sunset/night snap-icon checkpoints + a "System time" toggle (always
-  shows the real clock). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle —
-  not tied to the sun (lights can be on in daytime). Fixtures emit capped night point lights;
-  shades glow via `fixtureGlow`.
+  hemisphere + IBL + sky (continuous gradient as the time slides). The manual hour runs on the
+  viewer's local clock and `computeSun` evaluates it for the location's lat/lon + today's date,
+  so sunrise/midday/sunset are the real times for that place (a Singapore evening stays lit to
+  ~19:10). The shared **`ui/scene/TimeOfDaySlider`** (desktop Scene menu + mobile sheet) is a
+  free-scrub 24h slider + a "System time" toggle (always shows the real clock, never the
+  selected time). **Lights** (`lightsMode` off/on/auto) is an independent fixture toggle — not
+  tied to the sun (lights can be on in daytime). Fixtures emit capped night point lights; shades
+  glow via `fixtureGlow`.
 - **Parametric furniture generator** (`furniture/parametric/`, PF1): dimension-driven
   bookshelf/wardrobe/sideboard. Pure tested core — `spec.ts` (`clampSpec` envelopes, never
   throws), `buildParts.ts` `buildParametric(spec)` → box parts (floor-anchored/centred/+Z;
