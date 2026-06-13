@@ -151,7 +151,7 @@ export function MobileToolbar() {
   const roomEditorActive = useStore((st) => st.roomEditor.active)
   const floorPlanForRooms = useStore((st) => st.floorPlan)
   const savedViews = useStore((st) => st.savedViews)
-  const setHelpOpen = useStore((st) => st.setHelpOpen)
+  const startTour = useStore((st) => st.startTour)
   const appearanceOpen = useStore((st) => st.appearanceOpen)
   const setAppearanceOpen = useStore((st) => st.setAppearanceOpen)
   const currentUser = useStore((st) => st.currentUser)
@@ -1093,8 +1093,8 @@ export function MobileToolbar() {
                     sub="Render & asset quality"
                     onClick={act(() => setGraphicsOpen(true))}
                   />
-                  <Item icon="Book" label="User guide" onClick={act(openDocs)} />
-                  <Item icon="Help" label="Help" onClick={act(() => setHelpOpen(true))} />
+                  <Item icon="Book" label="User guide ↗" onClick={act(openDocs)} />
+                  <Item icon="Help" label="Replay guided tour" onClick={act(startTour)} />
                 </Section>
               </div>
             </div>

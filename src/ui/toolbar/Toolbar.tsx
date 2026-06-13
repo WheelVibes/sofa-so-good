@@ -1,9 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { useStore } from '../../state/store'
-import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
-import { HelpModal } from '../HelpModal'
 import { BrandMark } from '../Logo'
 import { useIsMobile } from '../useIsMobile'
 import { AppearancePopover } from './AppearancePopover'
@@ -50,8 +48,6 @@ export function Toolbar() {
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
 
   const [graphicsOpen, setGraphicsOpen] = useState(false)
-  const helpOpen = useStore((s) => s.helpOpen)
-  const setHelpOpen = useStore((s) => s.setHelpOpen)
   const isMobile = useIsMobile()
 
   const orbit = cameraMode === 'orbit'
@@ -116,12 +112,7 @@ export function Toolbar() {
   if (floorPlanEditing) return null
 
   if (isMobile) {
-    return (
-      <>
-        <MobileToolbar />
-        <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
-      </>
-    )
+    return <MobileToolbar />
   }
 
   return (
@@ -238,18 +229,9 @@ export function Toolbar() {
           onClick={() => setGraphicsOpen(true)}
         />
         <AppearancePopover />
-        <IconButton icon="Book" label="User guide" onClick={openDocs} />
-        <IconButton
-          icon="Help"
-          label="Help & shortcuts"
-          shortcut="?"
-          active={helpOpen}
-          onClick={() => setHelpOpen(true)}
-        />
       </div>
 
       <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
-      <HelpModal open={helpOpen} onClose={() => setHelpOpen(false)} />
     </>
   )
 }
