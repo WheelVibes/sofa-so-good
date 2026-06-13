@@ -8,6 +8,7 @@ import { LocalStorageAdapter } from '../../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, getThumb, saveThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
+import { downloadFurnitureCsv } from '../../openFurnitureCsv'
 import { openShoppingList } from '../../openShoplist'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
@@ -120,6 +121,14 @@ export function FileMenu() {
           label="Shopping list"
           sub="Buy-list with prices, grouped by retailer"
           onClick={() => openShoppingList()}
+        />
+      ) : null}
+      {fShopExport ? (
+        <MenuItem
+          icon="Export"
+          label="Furniture list (CSV)"
+          sub="Spreadsheet of every item — dims, qty, prices"
+          onClick={() => void downloadFurnitureCsv()}
         />
       ) : null}
       {canRecord() && proMode ? (

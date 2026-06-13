@@ -27,6 +27,7 @@ import { openDocs } from '../docsUrl'
 import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
+import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { openDesignReport } from '../openReport'
 import { openShoppingList } from '../openShoplist'
 import { PresentationSetup } from '../presentation/PresentationSetup'
@@ -1008,6 +1009,14 @@ export function MobileToolbar() {
                       label="Shopping list"
                       sub="Buy-list with prices, grouped by retailer"
                       onClick={act(() => openShoppingList())}
+                    />
+                  ) : null}
+                  {fShopExport ? (
+                    <Item
+                      icon="Export"
+                      label="Furniture list (CSV)"
+                      sub="Spreadsheet of every item — dims, qty, prices"
+                      onClick={act(() => void downloadFurnitureCsv())}
                     />
                   ) : null}
                   {canRecord() ? (

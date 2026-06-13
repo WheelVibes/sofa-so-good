@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Export furniture list to CSV (Sweet Home 3D parity)
+
+- New pure `ui/furnitureCsv.ts` `buildFurnitureCsv(rows)` turns the existing FF&E
+  schedule (`ffe/ffeSchedule.ts`) into a spreadsheet CSV — header + one row per
+  (room, item, variant) with Room, Item, Source, SKU, Width/Depth/Height (mm),
+  Qty, Unit price, Total, plus a grand-total footer. RFC-4180 escaping (quotes
+  fields with comma/quote/CR/LF, doubles interior quotes); reuses the schedule's
+  pricing/dims (no recompute). Dimensions emit as whole millimetres, prices as
+  whole SGD. Thoroughly unit-tested (escaping, totals, units, IKEA SKU rows,
+  empty design).
+- `ui/openFurnitureCsv.ts` dynamic-imports the builder + merged catalog, builds the
+  schedule from the live store, and triggers a UTF-8-BOM `.csv` download (Blob +
+  anchor, like `designFile.ts`). Wired into the desktop **File** menu, the mobile
+  File sheet, and a ⌘K command, all gated behind the existing `shopExport` flag
+  (simple tier, prod-safe pure code).
+
 ## Security: validate report hero image URL (defence-in-depth)
 
 - `ui/report.ts` now only embeds the hero render when it is a `data:image/` URL

@@ -15,6 +15,7 @@ import { firstEditableRoomId } from '../state/rooms'
 import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
+import { downloadFurnitureCsv } from './openFurnitureCsv'
 import { openDesignReport } from './openReport'
 import { openShoppingList } from './openShoplist'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
@@ -42,6 +43,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'hq-render': 'hqRender',
   'render-compare': 'renderCompare',
   'shopping-list': 'shopExport',
+  'furniture-csv': 'shopExport',
   parametric: 'parametricFurniture',
 }
 
@@ -277,6 +279,13 @@ export function CommandPalette() {
         label: 'Shopping list (buy-list export)',
         icon: 'Budget',
         run: () => openShoppingList(),
+      },
+      {
+        id: 'furniture-csv',
+        group: 'Tools & panels',
+        label: 'Furniture list (CSV export)',
+        icon: 'Export',
+        run: () => void downloadFurnitureCsv(),
       },
       {
         id: 'floorplan',
