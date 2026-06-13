@@ -2,7 +2,7 @@ import { useRef, useState } from 'react'
 import { normalizeJoystick, resetWalkMove, setWalkMove } from '../../scene/walkInput'
 import { useStore } from '../../state/store'
 
-const RADIUS = 56 // px, max thumb travel from centre
+const RADIUS = 36 // px, max thumb travel from centre
 const DEAD_ZONE = 0.18 // fraction of RADIUS
 
 const IS_COARSE_POINTER =

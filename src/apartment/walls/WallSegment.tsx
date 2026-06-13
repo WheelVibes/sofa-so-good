@@ -270,15 +270,19 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     const st = useStore.getState()
     const orbit = st.cameraMode === 'orbit'
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
+    const revealMode = st.wallRevealMode ?? 'translucent'
     let target = 1
-    if (revealable && orbit && revealEnabled) {
+    if (revealable && orbit && revealEnabled && revealMode !== 'opaque') {
       const cdx = CENTER_X - camera.position.x
       const cdz = CENTER_Z - camera.position.z
       const clen = Math.hypot(cdx, cdz) || 1
       // dot(outwardNormal, camera→centre dir). Near walls face the camera, so
       // their outward normal opposes this direction (dot ≈ −1) → fade out.
       const d = (reveal.nx * cdx + reveal.nz * cdz) / clen
-      target = smoothstep(-0.4, -0.08, d)
+      const faded = smoothstep(-0.4, -0.08, d)
+      // translucent: walls never fully disappear (min 0.15 opacity).
+      // auto-hide: walls can fully disappear (current legacy behaviour).
+      target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)
     }
     // Settled and fully opaque: nothing to do (the common case).
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return

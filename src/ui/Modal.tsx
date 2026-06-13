@@ -16,12 +16,24 @@ interface ModalProps {
   children: ReactNode
   /** Optional footer rendered below the scrollable body. */
   footer?: ReactNode
+  /** When true, show a back-arrow button (mobile return-to-menu flow) instead of a close X. */
+  showBack?: boolean
 }
 
 /** Centered, blurred-backdrop modal matching the design's
  *  `.modal-overlay > .panel`. Closes on Escape + backdrop click. Portaled to
  *  body so it sits above every panel. */
-export function Modal({ open, onClose, title, sub, width, panelId, children, footer }: ModalProps) {
+export function Modal({
+  open,
+  onClose,
+  title,
+  sub,
+  width,
+  panelId,
+  children,
+  footer,
+  showBack,
+}: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null)
 
   // While open, register in the global open-modal counter so app-wide
@@ -97,13 +109,20 @@ export function Modal({ open, onClose, title, sub, width, panelId, children, foo
         tabIndex={-1}
       >
         <div className="panel-head">
+          {showBack ? (
+            <button type="button" className="icon-btn" aria-label="Back" onClick={onClose}>
+              <Icon.ExitRoom width={16} height={16} />
+            </button>
+          ) : null}
           <div>
             <div className="panel-title">{title}</div>
             {sub ? <div className="panel-sub">{sub}</div> : null}
           </div>
-          <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
-            <Icon.Close width={16} height={16} />
-          </button>
+          {!showBack ? (
+            <button type="button" className="icon-btn" aria-label="Close" onClick={onClose}>
+              <Icon.Close width={16} height={16} />
+            </button>
+          ) : null}
         </div>
         <hr className="hr" />
         <div className="panel-body">{children}</div>

@@ -2,6 +2,7 @@ import { useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useModalGuard } from '../../controls/modalGuard'
 import { useStore } from '../../state/store'
+import { Icon } from './icons'
 
 const COMPASS_DIRS = [
   { label: 'N', deg: 0 },
@@ -15,7 +16,15 @@ const COMPASS_DIRS = [
 ] as const
 
 /** Drag-to-set apartment sun orientation. Moved verbatim from the old Toolbar. */
-export function CompassModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function CompassModal({
+  open,
+  onClose,
+  showBack,
+}: {
+  open: boolean
+  onClose: () => void
+  showBack?: boolean
+}) {
   const orientationDeg = useStore((s) => s.orientationDeg)
   const setOrientationDeg = useStore((s) => s.setOrientationDeg)
   const ref = useRef<SVGSVGElement>(null)
@@ -77,10 +86,20 @@ export function CompassModal({ open, onClose }: { open: boolean; onClose: () => 
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-baseline justify-between gap-6">
+          {showBack ? (
+            <button type="button" onClick={onClose} className="icon-btn" aria-label="Back">
+              <Icon.ExitRoom width={16} height={16} />
+            </button>
+          ) : null}
           <h2 className="text-base font-semibold text-[var(--text)]">Sun direction</h2>
           <span className="tabular-nums text-sm text-[var(--text-3)]">
             {Math.round(orientationDeg)}°
           </span>
+          {!showBack ? (
+            <button type="button" onClick={onClose} className="icon-btn" aria-label="Close">
+              <Icon.Close width={16} height={16} />
+            </button>
+          ) : null}
         </div>
         <svg
           ref={ref}

@@ -5,7 +5,6 @@ import { isItemEmitter, LIGHT_EMITTERS } from '../../furniture/lightEmitters'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { useQuality } from '../useQuality'
-import { lightingFromAltitude } from './altitudeCurve'
 import { setFixtureGlow } from './fixtureGlow'
 import { useSunPosition } from './useSunPosition'
 
@@ -28,9 +27,13 @@ interface ActiveLight {
  * Lights fade in as the sun sets, are capped to the nearest MAX_LIGHTS to the
  * camera, and cast no shadows. Daytime renders nothing (zero cost).
  */
+/** Radians per degree. */
+const DEG = Math.PI / 180
+
 export function FurnitureLights() {
   const items = useStore(useShallow((s) => s.items))
   const lightsMode = useStore((s) => s.lightsMode)
+  const cameraMode = useStore((s) => s.cameraMode)
   const maxLights = useQuality().maxFixtureLights
   const sun = useSunPosition()
   const { camera } = useThree()
@@ -41,11 +44,9 @@ export function FurnitureLights() {
   const lastCamRef = useRef({ x: Number.POSITIVE_INFINITY, z: Number.POSITIVE_INFINITY })
   const lastItemsRef = useRef(items)
 
-  // Darkness: 1 at night, 0 in full day. Ramps through dusk. The effective
-  // fixture level then honours the user's lights mode: forced on/off override
-  // the day/night cycle so windowless rooms can be lit in daylight.
-  const sunLevel = lightingFromAltitude(sun.altitude).sun
-  const darkness = Math.min(1, Math.max(0, 1 - sunLevel / 0.85))
+  // Auto: lights only turn on after sunset (altitude < 0). Ramp from 0 at horizon
+  // to fully on at -6 degrees civil twilight. On/off modes override completely.
+  const darkness = sun.altitude >= 0 ? 0 : Math.min(1, Math.max(0, -sun.altitude / (6 * DEG)))
   const level = lightsMode === 'on' ? 1 : lightsMode === 'off' ? 0 : darkness
   levelRef.current = level
 
@@ -77,7 +78,9 @@ export function FurnitureLights() {
       emitters.push({ item, d2: dx * dx + dz * dz })
     }
     emitters.sort((a, b) => a.d2 - b.d2)
-    const chosen = emitters.slice(0, maxLights)
+    // In orbit mode show all lights (full apartment visible); in walk mode cap
+    // to nearest N for GPU budget.
+    const chosen = cameraMode === 'orbit' ? emitters : emitters.slice(0, maxLights)
     const key = chosen.map((e) => e.item.id).join(',')
     if (key === lastKeyRef.current) return // set unchanged → no re-render
     lastKeyRef.current = key
