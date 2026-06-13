@@ -1,8 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { AiPlacement } from '../ai/autoLayoutAi'
 import type { FloorPlan, PlanRoom } from '../floorplan/types'
-import type { FurnitureDef } from '../furniture/types'
-import { aiLayoutToItems } from './aiLayoutApply'
+import { BUILTIN_CATALOG } from '../furniture/builtinCatalog'
+import type { FurnitureDef, FurnitureItem } from '../furniture/types'
+import { aiLayoutToItems, placeNonOverlapping } from './aiLayoutApply'
 
 const room = (name: string, origin: [number, number], w: number, d: number): PlanRoom => ({
   id: name,
@@ -63,5 +64,34 @@ describe('aiLayoutToItems', () => {
       genId,
     )
     expect(new Set(items.map((i) => i.id)).size).toBe(2)
+  })
+})
+
+describe('placeNonOverlapping', () => {
+  const sofa = (id: string, pos: [number, number]): FurnitureItem => ({
+    id,
+    defId: 'sofa-3seat',
+    position: pos,
+    rotation: 0,
+    props: {},
+  })
+
+  it('keeps a clear piece and drops one stacked on it', () => {
+    const placed = placeNonOverlapping(
+      [],
+      [sofa('a', [2, 2]), sofa('b', [2, 2]), sofa('c', [8, 8])],
+      BUILTIN_CATALOG as unknown as Record<string, FurnitureDef>,
+    )
+    // a accepted; b overlaps a → dropped; c far away → accepted.
+    expect(placed.map((p) => p.id)).toEqual(['a', 'c'])
+  })
+
+  it('drops a candidate that collides with an existing item', () => {
+    const placed = placeNonOverlapping(
+      [sofa('existing', [2, 2])],
+      [sofa('new', [2, 2])],
+      BUILTIN_CATALOG as unknown as Record<string, FurnitureDef>,
+    )
+    expect(placed).toEqual([])
   })
 })

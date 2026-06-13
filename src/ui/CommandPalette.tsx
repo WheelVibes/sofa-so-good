@@ -5,7 +5,7 @@ import { AiPlanError } from '../ai/floorPlanAi'
 import type { FeatureFlag } from '../features/featureFlags'
 import { allPlanRooms } from '../floorplan/levels'
 import { useCatalog, useCatalogByCategory } from '../furniture/catalog'
-import { aiLayoutToItems } from '../layout/aiLayoutApply'
+import { aiLayoutToItems, placeNonOverlapping } from '../layout/aiLayoutApply'
 import {
   arrangeSelectionAsRun,
   faceSelectionIntoRoom,
@@ -297,16 +297,20 @@ export function CommandPalette() {
               })
               const genId = (p: string) =>
                 `${p}-${Math.random().toString(36).slice(2, 9)}-${Date.now().toString(36)}`
-              const items = aiLayoutToItems(placements, st.floorPlan, catalog, genId)
+              const candidates = aiLayoutToItems(placements, st.floorPlan, catalog, genId)
+              // Keep only non-overlapping pieces (the model's positions are rough).
+              const items = placeNonOverlapping(st.items, candidates, catalog)
               if (items.length === 0) {
                 st.notify.start({ title: 'No items could be placed', kind: 'info' })
                 return
               }
               st.pushHistory()
               st.setItems([...st.items, ...items])
+              const skipped = candidates.length - items.length
               st.notify.start({
                 title: `AI placed ${items.length} item${items.length === 1 ? '' : 's'}`,
                 kind: 'success',
+                message: skipped > 0 ? `${skipped} overlapping piece(s) skipped.` : undefined,
               })
             } catch (e) {
               st.notify.start({

@@ -4,11 +4,13 @@
  * Pure: resolves each placement's target room by name, drops unknown rooms /
  * catalog defs, clamps the position into the room's interior rectangle (so the
  * model can't drop a piece outside its room), and emits a `FurnitureItem` with a
- * fresh id. Collision-free arrangement is left to the user / auto-arrange — this
- * just guarantees valid, in-room placements. No three/React/store imports.
+ * fresh id. `placeNonOverlapping` then greedily keeps only the candidates that
+ * don't collide with the existing layout or each other (the model's positions
+ * are approximate). No three/React/store imports.
  */
 
 import type { AiPlacement } from '../ai/autoLayoutAi'
+import { findItemOverlaps } from '../collision/placement'
 import { allPlanRooms } from '../floorplan/levels'
 import type { FloorPlan } from '../floorplan/types'
 import type { FurnitureDef, FurnitureItem, FurnitureType } from '../furniture/types'
@@ -47,4 +49,27 @@ export function aiLayoutToItems(
     })
   }
   return items
+}
+
+/**
+ * Greedily keep the candidate items that don't collide with the existing layout
+ * or with already-accepted candidates (the model's positions are approximate, so
+ * some overlap). Returns the accepted subset (order preserved). Pure — uses the
+ * shared footprint collision test; `noClip` decor never collides.
+ */
+export function placeNonOverlapping(
+  existing: FurnitureItem[],
+  candidates: FurnitureItem[],
+  defs: Record<string, FurnitureDef>,
+): FurnitureItem[] {
+  const accepted = existing.slice()
+  const placed: FurnitureItem[] = []
+  for (const c of candidates) {
+    if (!defs[c.defId]) continue
+    const overlaps = findItemOverlaps([...accepted, c], defs)
+    if (overlaps.some((p) => p.a === c.id || p.b === c.id)) continue
+    accepted.push(c)
+    placed.push(c)
+  }
+  return placed
 }

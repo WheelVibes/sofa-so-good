@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-AILAYOUT (cont.): collision-aware placement for AI auto-furnish
+
+- **`placeNonOverlapping`** (pure, in `layout/aiLayoutApply.ts`) greedily accepts only the AI-proposed
+  items that don't collide with the existing layout or each other (the model's coordinates are
+  approximate), reusing the shared footprint collision test (`findItemOverlaps`). The ⌘K "AI
+  auto-furnish" now filters through it and reports how many overlapping pieces were skipped.
+- **Tests** — keeps a clear piece + drops one stacked on it (and the far one stays); drops a candidate
+  colliding with an existing item.
+
 ## PARITY-AILAYOUT: AI auto-furnish from a text brief (BYO-key)
 
 - **New ⌘K "AI auto-furnish (BYO key)"** — describe the home and an OpenAI-compatible LLM proposes a
