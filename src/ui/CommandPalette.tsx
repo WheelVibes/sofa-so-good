@@ -16,6 +16,7 @@ import { useStore } from '../state/store'
 import { closeAllAuxPanels } from './auxPanels'
 import { openDocs } from './docsUrl'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
+import { downloadPlanSvg } from './openPlanSvg'
 import { openDesignReport } from './openReport'
 import { openShoppingList } from './openShoplist'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
@@ -44,6 +45,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'render-compare': 'renderCompare',
   'shopping-list': 'shopExport',
   'furniture-csv': 'shopExport',
+  'plan-svg': 'dxfExport',
   parametric: 'parametricFurniture',
 }
 
@@ -286,6 +288,13 @@ export function CommandPalette() {
         label: 'Furniture list (CSV export)',
         icon: 'Export',
         run: () => void downloadFurnitureCsv(),
+      },
+      {
+        id: 'plan-svg',
+        group: 'Tools & panels',
+        label: 'Export 2D plan to SVG',
+        icon: 'Export',
+        run: () => void downloadPlanSvg(),
       },
       {
         id: 'floorplan',

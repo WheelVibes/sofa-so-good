@@ -28,6 +28,7 @@ import { GraphicsSettings } from '../GraphicsSettings'
 import { BrandMark } from '../Logo'
 import { Modal } from '../Modal'
 import { downloadFurnitureCsv } from '../openFurnitureCsv'
+import { downloadPlanSvg } from '../openPlanSvg'
 import { openDesignReport } from '../openReport'
 import { openShoppingList } from '../openShoplist'
 import { PresentationSetup } from '../presentation/PresentationSetup'
@@ -201,6 +202,7 @@ export function MobileToolbar() {
   const fComments = useFeature('comments')
   const fUserSets = useFeature('userSets')
   const fShopExport = useFeature('shopExport')
+  const fDxf = useFeature('dxfExport')
   const userSets = useStore((st) => st.userSets)
 
   const close = () => setMenuOpen(false)
@@ -951,6 +953,14 @@ export function MobileToolbar() {
                             label="Report"
                             sub="Printable design report"
                             onClick={act(openReport)}
+                          />
+                        ) : null}
+                        {fDxf ? (
+                          <Item
+                            icon="Export"
+                            label="Export SVG (plan)"
+                            sub="Vector 2D plan for any editor / print"
+                            onClick={act(() => void downloadPlanSvg())}
                           />
                         ) : null}
                       </>

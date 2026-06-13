@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Export 2D plan to SVG (Sweet Home 3D parity)
+
+- New `ui/openPlanSvg.ts` `downloadPlanSvg()` saves the active floor plan as a
+  vector `.svg` — the sibling of the existing DXF export. It **reuses** the shared
+  `reportPlanSvg` renderer (furnished footprints via the report's OBB-corner +
+  category-tint helpers, plus pinned dimension annotations) and the pure
+  `ui/planSvgExport.ts` `buildPlanSvgDocument()` wrapper, which turns the inline
+  embed fragment into a standalone document (XML declaration + injected SVG
+  namespace). The wrapper is unit-tested (namespace injection once, XML prolog,
+  empty-input no-op).
+- Wired into the Tools menu (next to Export DXF), the mobile Tools sheet, and a
+  ⌘K command, all gated behind the existing `dxfExport` flag (its CAD-export
+  sibling). A no-extent plan surfaces a toast instead of an empty file.
+
 ## Export furniture list to CSV (Sweet Home 3D parity)
 
 - New pure `ui/furnitureCsv.ts` `buildFurnitureCsv(rows)` turns the existing FF&E

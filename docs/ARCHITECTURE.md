@@ -288,6 +288,10 @@ same change that reshapes a system.
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + lighting + FF&E, title blocks, `@page` A4) reusing all the
   pure renderers — the formal counterpart to the one-page `report.ts`.
+- **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as DXF;
+  `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
+  `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
+  mobile + ⌘K, `dxfExport` flag (pro).
 - **Shoppable buy-list** (`ui/shoplist.ts` pure `buildShopList`+`buildShopListHtml` →
   per-retailer-grouped buy-list HTML: qty/unit/line totals per (def,variant,room), grand + per-retailer
   totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the

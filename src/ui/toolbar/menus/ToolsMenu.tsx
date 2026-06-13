@@ -9,6 +9,7 @@ import { openBoq } from '../../openBoq'
 import { openDrawingSet } from '../../openDrawingSet'
 import { downloadPlanDxf } from '../../openDxf'
 import { openMoodboard } from '../../openMoodboard'
+import { downloadPlanSvg } from '../../openPlanSvg'
 import { openDesignReport } from '../../openReport'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
@@ -291,6 +292,14 @@ export function ToolsMenu() {
           label="Export DXF (CAD)"
           sub="2D plan for AutoCAD / contractor handoff"
           onClick={() => downloadPlanDxf()}
+        />
+      )}
+      {fDxf && (
+        <MenuItem
+          icon="Export"
+          label="Export SVG (plan)"
+          sub="Vector 2D plan for any editor / print"
+          onClick={() => void downloadPlanSvg()}
         />
       )}
       {fReport && (
