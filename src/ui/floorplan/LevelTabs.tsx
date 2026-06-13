@@ -27,6 +27,11 @@ export function LevelTabs({
     onSelect(id)
   }
 
+  const duplicateLevel = () => {
+    const id = useStore.getState().duplicateLevel(activeLevelId)
+    if (id) onSelect(id)
+  }
+
   const removeLevel = async (level: PlanLevel) => {
     const st = useStore.getState()
     const ok = await st.confirmAction({
@@ -72,6 +77,13 @@ export function LevelTabs({
       ))}
       <button type="button" onClick={addLevel} title="Add a storey above the highest level">
         ＋ Level
+      </button>
+      <button
+        type="button"
+        onClick={duplicateLevel}
+        title="Duplicate the current storey — walls, rooms, openings, furniture + finishes"
+      >
+        ⧉ Duplicate
       </button>
     </div>
   )

@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-LEVELOPS: duplicate a storey (geometry + furniture + finishes)
+
+- **New `duplicateLevel(sourceId)` store action** — clones a storey (ground or upper) into a new storey
+  above the highest level: its walls/openings/rooms (with **fresh, plan-unique ids**, each opening
+  re-pointed at its cloned wall), the furniture on that storey (fresh item ids, same positions), and the
+  per-room floor/wall + per-wall accent finishes (re-keyed to the new room/wall ids). Undoable; returns
+  the new level id (or `null` for an unknown source). Great for maisonettes / repeated floors.
+- **Pure `cloneLevelGeometry`** in `floorplan/levels.ts` (deep-clone + id remap, returns the old→new
+  wall/room id maps) — unit-tested for fresh non-colliding ids, opening→wall re-pointing, and deep clone.
+- **UI** — a `⧉ Duplicate` button in the 2D editor's `LevelTabs` duplicates the active storey and selects
+  the copy. Verified end-to-end: duplicating the default flat creates a "Ground floor copy" storey with
+  all 11 rooms + walls + doors/windows + furniture.
+
 ## RZ2: window glass sky-catch — panes read as lit glass, not flat dark rectangles
 
 - **Daylight-ramped emissive sky-catch on window glass** — `materialRealism.glassSkyCatchIntensity`

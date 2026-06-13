@@ -369,7 +369,8 @@ same change that reshapes a system.
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split** + draggable endpoint handles (`moveWallVertex`) for
   non-orthogonal shapes. Live furniture as `canPlace`-checked footprints (active storey
   only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
-  "＋ Level" (adds + switches) + ✕ on upper tabs (confirmed `removeLevel`); every tool,
+  "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
+  furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); every tool,
   overlay and `PlanInspector` edit routes through the active level (`levelAsPlan` reads,
   `levelId` action args; `updateRoom`/`setRoomCeiling`/finish write-through search all
   storeys by room id). **`P` toggles

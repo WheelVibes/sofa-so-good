@@ -141,6 +141,50 @@ export interface LevelGeometry {
   rooms: PlanRoom[]
 }
 
+/** A deep clone of one storey's geometry with **fresh ids** for every wall,
+ *  opening and room, plus the old→new id maps so callers can re-key per-room /
+ *  per-wall data (finishes, items). Used by `duplicateLevel`. */
+export interface ClonedLevelGeometry extends LevelGeometry {
+  /** old room id → new room id (room ids are plan-unique across storeys). */
+  roomIdMap: Record<string, string>
+  /** old wall id → new wall id (wall-accent finish keys embed the wall id). */
+  wallIdMap: Record<string, string>
+}
+
+/**
+ * Deep-clone a storey's walls/openings/rooms with brand-new ids, preserving
+ * internal references: each opening's `wallId` is re-pointed at the cloned wall.
+ * Pure — `genId(prefix)` supplies fresh ids so the caller controls id format.
+ * Returns the clones plus the id maps for re-keying finishes/items.
+ */
+export function cloneLevelGeometry(
+  geom: LevelGeometry,
+  genId: (prefix: string) => string,
+): ClonedLevelGeometry {
+  const clone = <T>(x: T): T => JSON.parse(JSON.stringify(x)) as T
+  const wallIdMap: Record<string, string> = {}
+  const roomIdMap: Record<string, string> = {}
+  const walls = geom.walls.map((w) => {
+    const c = clone(w)
+    c.id = genId('w')
+    wallIdMap[w.id] = c.id
+    return c
+  })
+  const rooms = geom.rooms.map((r) => {
+    const c = clone(r)
+    c.id = genId('r')
+    roomIdMap[r.id] = c.id
+    return c
+  })
+  const openings = geom.openings.map((o) => {
+    const c = clone(o)
+    c.id = genId('o')
+    c.wallId = wallIdMap[o.wallId] ?? o.wallId
+    return c
+  })
+  return { walls, openings, rooms, roomIdMap, wallIdMap }
+}
+
 /**
  * Apply a geometry update to ONE storey of the plan (the 2D editor's level
  * routing — ML4). Ground (or absent/unknown ids) edits the plan's own arrays;

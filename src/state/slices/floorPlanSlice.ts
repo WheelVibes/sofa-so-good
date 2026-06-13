@@ -1,5 +1,13 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
-import { GROUND_LEVEL_ID, levelOfRoom, withLevelGeometry } from '../../floorplan/levels'
+import {
+  cloneLevelGeometry,
+  GROUND_LEVEL_ID,
+  itemsOnLevel,
+  levelById,
+  levelOfRoom,
+  planLevels,
+  withLevelGeometry,
+} from '../../floorplan/levels'
 import type {
   CeilingConfig,
   FloorPlan,
@@ -102,6 +110,10 @@ export interface FloorPlanSlice {
 
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
+  /** Duplicate a storey (walls/rooms/openings + its furniture + per-room/-wall
+   *  finishes) into a new storey above the highest level; returns its id, or
+   *  `null` for an unknown source. Undoable (PARITY-LEVELOPS). */
+  duplicateLevel: (sourceId: string) => string | null
   /** Remove a storey: its rooms/walls/openings, its items, and its finish keys.
    *  Undoable (history snapshot first). No-op for 'ground' or unknown ids. */
   removeLevel: (id: string) => void
@@ -399,6 +411,67 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       return { floorPlan: { ...s.floorPlan, upperLevels: [...existing, level] } }
     })
     return id
+  },
+  duplicateLevel: (sourceId) => {
+    const s0 = get()
+    const plan = s0.floorPlan
+    // Only duplicate a real storey (levelById falls back to ground for unknowns).
+    if (!planLevels(plan).some((l) => l.id === sourceId)) return null
+    const src = levelById(plan, sourceId)
+    s0.pushHistory()
+    const newId = planId('lvl')
+    const cloned = cloneLevelGeometry(
+      { walls: src.walls, openings: src.openings, rooms: src.rooms },
+      planId,
+    )
+    const existing = plan.upperLevels ?? []
+    const slab = 0.3
+    const top = existing.reduce((m, l) => Math.max(m, l.elevation), 0)
+    const level: PlanUpperLevel = {
+      id: newId,
+      name: `${src.name} copy`,
+      elevation: top + plan.ceilingHeight + slab,
+      ...(src.ceilingHeight !== undefined ? { ceilingHeight: src.ceilingHeight } : {}),
+      walls: cloned.walls,
+      openings: cloned.openings,
+      rooms: cloned.rooms,
+    }
+    // Clone the source storey's furniture onto the new level (fresh ids).
+    const newItems = itemsOnLevel(s0.items, sourceId).map((it) => ({
+      ...(JSON.parse(JSON.stringify(it)) as typeof it),
+      id: planId('item'),
+      levelId: newId,
+    }))
+    set((s) => {
+      const f = s.finishes
+      // Room ids are plan-unique strings; the finish maps are typed by the
+      // known-room union, so work over string-keyed copies and cast back.
+      const floor = { ...f.floor } as Record<string, string>
+      const walls = { ...f.walls } as Record<string, string>
+      for (const [oldR, newR] of Object.entries(cloned.roomIdMap)) {
+        if (floor[oldR] !== undefined) floor[newR] = floor[oldR]
+        if (walls[oldR] !== undefined) walls[newR] = walls[oldR]
+      }
+      // Wall-accent keys are `${wallId}:${roomId}` — remap both halves.
+      const wallAccents = { ...f.wallAccents }
+      for (const [key, mat] of Object.entries(f.wallAccents)) {
+        const [wid, rid] = key.split(':')
+        const nw = cloned.wallIdMap[wid]
+        const nr = cloned.roomIdMap[rid]
+        if (nw && nr) wallAccents[`${nw}:${nr}`] = mat
+      }
+      return {
+        floorPlan: { ...s.floorPlan, upperLevels: [...(s.floorPlan.upperLevels ?? []), level] },
+        items: [...s.items, ...newItems],
+        finishes: {
+          ...f,
+          floor: floor as typeof f.floor,
+          walls: walls as typeof f.walls,
+          wallAccents,
+        },
+      }
+    })
+    return newId
   },
   removeLevel: (id) => {
     if (id === GROUND_LEVEL_ID) return

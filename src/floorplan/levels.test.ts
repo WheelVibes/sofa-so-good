@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import {
   allPlanRooms,
+  cloneLevelGeometry,
   GROUND_LEVEL_ID,
   isMultiLevel,
   itemsOnLevel,
+  type LevelGeometry,
   levelAsPlan,
   levelById,
   levelElevation,
@@ -37,6 +39,54 @@ const single: FloorPlan = {
 }
 
 const multi: FloorPlan = { ...single, id: 'p2', upperLevels: [upper] }
+
+describe('cloneLevelGeometry', () => {
+  const geom: LevelGeometry = {
+    walls: [
+      { id: 'w1', start: [0, 0], end: [4, 0], thickness: 'external' as const },
+      { id: 'w2', start: [4, 0], end: [4, 3], thickness: 'internal' as const },
+    ],
+    openings: [
+      {
+        id: 'o1',
+        kind: 'window' as const,
+        wallId: 'w1',
+        offset: 1,
+        width: 1,
+        sill: 0.9,
+        head: 2.1,
+      },
+      { id: 'o2', kind: 'door' as const, wallId: 'w2', offset: 0.5, width: 0.9, sill: 0, head: 2 },
+    ],
+    rooms: [{ id: 'r1', name: 'Room', origin: [0.1, 0.1] as [number, number], width: 3, depth: 2 }],
+  }
+  let n = 0
+  const genId = (p: string) => `${p}-${n++}`
+
+  it('gives every wall/opening/room a fresh id and maps old→new', () => {
+    n = 0
+    const c = cloneLevelGeometry(geom, genId)
+    expect(c.walls.map((w) => w.id)).not.toEqual(['w1', 'w2'])
+    expect(new Set(c.walls.map((w) => w.id)).size).toBe(2)
+    expect(c.roomIdMap.r1).toBe(c.rooms[0].id)
+    expect(c.wallIdMap.w1).toBe(c.walls[0].id)
+  })
+
+  it('re-points each cloned opening at its cloned wall', () => {
+    n = 0
+    const c = cloneLevelGeometry(geom, genId)
+    expect(c.openings[0].wallId).toBe(c.wallIdMap.w1)
+    expect(c.openings[1].wallId).toBe(c.wallIdMap.w2)
+    expect(c.openings.map((o) => o.id)).not.toContain('o1')
+  })
+
+  it('deep-clones (mutating a clone leaves the source untouched)', () => {
+    n = 0
+    const c = cloneLevelGeometry(geom, genId)
+    c.walls[0].start[0] = 99
+    expect(geom.walls[0].start[0]).toBe(0)
+  })
+})
 
 describe('planLevels', () => {
   it('always exposes the ground floor first, at elevation 0', () => {

@@ -184,6 +184,49 @@ describe('multi-storey level editing (F13/ML4a)', () => {
     useStore.getState().removeLevel('nope')
     expect(useStore.getState().floorPlan).toBe(before)
   })
+
+  it('duplicateLevel clones a storey: geometry (fresh ids), items + finishes', () => {
+    // Build an upper storey with a room, a wall+window, a finish and an item.
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Studio', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    const wid = useStore
+      .getState()
+      .addWall({ start: [0, 0], end: [3, 0], thickness: 'internal' }, lvl)
+    useStore
+      .getState()
+      .addOpening({ kind: 'window', wallId: wid, offset: 0.5, width: 1, sill: 0.9, head: 2.1 }, lvl)
+    useStore.getState().setFloorFinish(roomId as never, 'floor-carpet-grey')
+    useStore.getState().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+    const itemId = useStore.getState().items.at(-1)?.id as string
+    useStore.setState((s) => ({
+      items: s.items.map((it) => (it.id === itemId ? { ...it, levelId: lvl } : it)),
+    }))
+
+    const newId = useStore.getState().duplicateLevel(lvl)
+    expect(newId).toBeTruthy()
+    const s = useStore.getState()
+    const dup = s.floorPlan.upperLevels?.find((l) => l.id === newId)
+    expect(dup).toBeTruthy()
+    // Fresh, non-colliding ids for the cloned geometry.
+    expect(dup?.rooms[0].id).not.toBe(roomId)
+    expect(dup?.walls[0].id).not.toBe(wid)
+    // The cloned opening points at the cloned wall, not the source one.
+    expect(dup?.openings[0].wallId).toBe(dup?.walls[0].id)
+    // The room's floor finish carried over to the new room id.
+    const newRoomId = dup?.rooms[0].id as string
+    expect((s.finishes.floor as Record<string, string>)[newRoomId]).toBe('floor-carpet-grey')
+    // The item was cloned onto the new level (fresh id, same def).
+    const dupItems = s.items.filter((it) => it.levelId === newId)
+    expect(dupItems).toHaveLength(1)
+    expect(dupItems[0].id).not.toBe(itemId)
+    expect(dupItems[0].defId).toBe('bed-double')
+  })
+
+  it('duplicateLevel returns null for an unknown source', () => {
+    expect(useStore.getState().duplicateLevel('nope')).toBeNull()
+  })
 })
 
 describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', () => {
