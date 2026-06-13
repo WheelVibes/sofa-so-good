@@ -35,7 +35,21 @@ for the broader gap matrix, `TASKS.md` for live tracking, `CHANGELOG.md` for shi
   bounce/firefly settings untuned.**
 - **Geometry**: `geometryDetail` segment multiplier; `RoundedBox` corners on some primitives; contact
   shadow blobs Medium+. **No edge bevels on hard primitives; few set-dressing props.**
-- **Backdrops**: procedural City/Park/Hills/Studio (instanced). **No HDRI sky.**
+- **Backdrops**: walk-mode equirectangular photo as `scene.background` (procedural `city/dusk/park/hills`
+  presets + user upload; orbit dollhouse stays clean) — the instanced 3D estates were removed. **No HDRI
+  sky/IBL image yet.**
+
+## Shipped (pruned from the roadmap — see `CHANGELOG.md` for detail)
+- **PHOTO-BACKDROP** — walk-mode equirectangular photo `scene.background` (procedural `city/dusk/park/hills`
+  presets + user upload via `storage/walkBackdrop.ts`; instanced 3D estates removed). Flags `backdrops` +
+  `customBackdrop`. *Follow-up still open:* bundle real CC0 equirectangular photos for the presets (#2 HDRI).
+- **PHOTO-EMISSIVE** — HDR emissive + bloom: lamps/sconces/cove/fan/TV/vanity ramp via
+  `scene/lighting/fixtureGlow.ts` (`fixtureEmissiveIntensity`), night peaks clear the Bloom threshold.
+  *G-tail:* tune the bloom amount on a real GPU.
+
+> **Maintenance.** When a roadmap item ships, **delete it** and add a one-line entry here (and to
+> `CHANGELOG.md`); when one is only *partially* done, trim its entry to the remaining work — so the
+> numbered roadmap stays an accurate, contiguous to-do list and we never re-audit shipped work.
 
 ## Roadmap — prioritised by impact ÷ effort
 
@@ -44,57 +58,31 @@ Legend — Verify: `H` headless-verifiable (DOM/scene-graph/unit) · `G` needs a
 belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 
 ### Tier 1 — highest impact, mostly verifiable, do first
-0. **PHOTO-COLORSPACE — texture colour-management audit** (S, all tiers; Verify H — unit-testable).
+1. **PHOTO-COLORSPACE — texture colour-management audit** (S, all tiers; Verify H — unit-testable).
    The #1 cause of "looks flat/wrong vs reference": albedo/emissive textures must be `SRGBColorSpace`;
    data maps (normal/roughness/metalness/AO) must be `NoColorSpace` (linear). Audit the procedural
    generators (`materials/procedural/generators.ts` CanvasTextures) + `furnitureMaterials.ts` + upload
    path and assert correct `colorSpace` per map role. Cheap, high-certainty, headless-verifiable.
-1. **PHOTO-BACKDROP — flat photo / equirectangular backdrop** ✓ **SHIPPED** (M, all tiers; Verify H/G).
-   The surroundings are now a flat equirectangular photo as `scene.background` shown **in walk mode only**
-   (orbit dollhouse stays clean) — the legacy instanced 3D City/Park/Hills/Studio estates were removed
-   per product decision. Presets `city/dusk/park/hills` bake procedurally (`backdropEquirect.ts` + pure
-   `backdropHorizon.ts`); **users can upload their own photo** (`custom`, persisted in IDB via
-   `storage/walkBackdrop.ts`, `customBackdrop` flag); `none` = plain sky. Flags `backdrops` +
-   `customBackdrop` (Simple tier, prod-safe). **Follow-up:** bundle real CC0 equirectangular photos for the
-   presets (connected session); pairs with #1b.
-   **PRODUCT DECISION (user, 2026-06-13): prefer the cheap "budget trick" photo backdrop over the
-   procedural 3D City/Park/Hills geometry — it saves compute + memory and drives performance.** In
-   WebGL the optimal form is a **single equirectangular photo as `scene.background`** (a skybox): one
-   texture, ZERO per-frame geometry/draw-calls (vs the instanced estates), no per-window placement,
-   doesn't block sunlight, seen correctly through every window; its lack of parallax is physically
-   correct for distant scenery. Add a `photo`/`skyline` `BackdropKind` in `SceneBackdrop` that sets
-   `scene.background` to an LDR equirectangular image and **skips the instanced 3D backdrop entirely**;
-   make the procedural 3D backdrops optional/legacy. Asset-free default = a procedurally-baked
-   sky+skyline equirectangular canvas (reuse `CityBackdrop`'s façade art) so it ships with no fetch;
-   designed to accept a real CC0 photo later. New `photoBackdrop` flag (prod-safe). Pairs with #1b.
-1b. **PHOTO-HDRI — HDRI environment lighting (IBL)** (M, real-time Medium+ **and** path tracer; Verify G/H).
-   The *lighting* counterpart to #1: bundle a few **CC0 Poly Haven** HDRIs (1–2K `.hdr`); add an HDRI
-   mode to `SceneEnvironment` (drei `<Environment>` → PMREM) as `scene.environment` (IBL) and feed the
-   **same env into the path tracer** (`root.environment`, importance-sampled). The HDRI may also serve
-   as the photo background (#1) when present. New `hdriEnvironment` flag (pro, prod-safe). Needs the
-   `.hdr` asset added in a connected session (sandbox can't fetch).
-2. **PHOTO-PT-TUNE — path-tracer quality settings** (S, HQ still; Verify G).
+2. **PHOTO-HDRI — HDRI environment lighting (IBL)** (M, real-time Medium+ **and** path tracer; Verify G/H).
+   The *lighting* counterpart to the shipped photo backdrop: bundle a few **CC0 Poly Haven** HDRIs (1–2K
+   `.hdr`); add an HDRI mode to `SceneEnvironment` (drei `<Environment>` → PMREM) as `scene.environment`
+   (IBL) and feed the **same env into the path tracer** (`root.environment`, importance-sampled). The HDRI
+   may also serve as the photo background when present. New `hdriEnvironment` flag (pro, prod-safe). Needs
+   the `.hdr` asset added in a connected session (sandbox can't fetch).
+3. **PHOTO-PT-TUNE — path-tracer quality settings** (S, HQ still; Verify G).
    In `hqRenderSession.ts`: `bounces≈10`, `transmissiveBounces≈6` (fixes black/opaque glass),
    `filterGlossyFactor≈0.75` (kills sun-through-glass fireflies), `multipleImportanceSampling=true`,
    `stableNoise=true`, `minSamples≈5`; add a quality preset (Draft 64 / Standard 256 / Max 1024).
    Pure config, low risk; pixel pass needs real GPU.
-3. **PHOTO-EMISSIVE — HDR emissive + bloom** ✓ **SHIPPED** (S, all tiers; Verify H + G-tail).
-   Lamps/sconces/cove strips/ceiling fans now ramp emissive via a centralised tuned helper
-   (`scene/lighting/fixtureGlow.ts` `fixtureEmissiveIntensity`) whose night peaks clear the Bloom
-   threshold (~1.05) so they bloom on High/Max AND read self-lit on the flat tier; TV/monitor screens +
-   vanity bulbs bumped >1. Flat-tier self-lit verified headless; **G-tail:** tune the bloom amount on a
-   real GPU.
 4. **PHOTO-DETAIL-PROPS — set-dressing prop bundle** (M, all tiers; Verify H).
    Curated CC0 decor/styling props (books, trays, cushions, vases, plants, rugs, bowls) — the single
    biggest *perceived*-realism lever for casual users (empty rooms read fake). Overlaps C-PLANTS/DECOR
    in TASKS; ship as a prod CC0 pack + one-tap "style this room" placement.
 5. **PHOTO-BEVELS — edge bevels on hard primitives** ◑ **IN PROGRESS** (M, all tiers incl. flat; Verify G).
-   New shared `furniture/primitives/BeveledBox.tsx` (drei `RoundedBox` + auto-clamped ~7 mm chamfer,
-   detail-scaled smoothness; pure tested `safeBevelRadius`) replaces sharp `boxGeometry` slabs. Migrated:
-   tables + desk (CoffeeTable, DiningTable, ConsoleTable, Desk) and freestanding case goods (Sideboard,
-   Dresser, TVConsole, Nightstand — carcass boxes, drawer/door fronts, plinths/legs; panel-built frames
-   left sharp to avoid join notches). **Remaining:** panel/shelf-built units (Bookshelf, Wardrobe,
-   cabinet modules) + appliances. Edge light-catch is real-GPU-pending; structural correctness verified.
+   Shared `furniture/primitives/BeveledBox.tsx` (drei `RoundedBox` + auto-clamped ~7 mm chamfer, pure
+   tested `safeBevelRadius`) already migrated tables/desk + freestanding case goods. **Remaining:**
+   panel/shelf-built units (Bookshelf, Wardrobe, cabinet modules) + appliances. Edge light-catch is
+   real-GPU-pending; structural correctness verified.
 
 ### Tier 2 — high impact, needs real-GPU verification
 6. **PHOTO-DENOISE — browser OIDN on the HQ still** (M–L, HQ still; Verify G).
@@ -112,11 +100,10 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
    `light.shadow.radius`/`blurSamples`) and/or extend the existing `<AccumulativeShadows>` showcase
    path (already used Medium+) to more parked views. Tune `look.ts` shadow params. Re-evaluate PCSS
    once drei patches it.
-9. **PHOTO-GLASS — transmission + volume + IOR fidelity** (M, materials; Verify G).
-   ◑ Window **sky-catch** shipped (RZ2): glass carries a daylight-ramped emissive sky tint
+9. **PHOTO-GLASS — transmission + volume + IOR fidelity** ◑ (M, materials; Verify G).
+   Window **sky-catch** shipped (RZ2): glass carries a daylight-ramped emissive sky tint
    (`glassSkyCatchIntensity`) so panes read as lit glass on every tier (not flat dark rectangles).
-   Remaining transmission/volume/IOR below.
-   Ensure windows/glassware use real `transmission`+`ior`(1.5)+`thickness`+`attenuationColor`
+   **Remaining:** ensure windows/glassware use real `transmission`+`ior`(1.5)+`thickness`+`attenuationColor`
    (`KHR_materials_volume`); add `transmissionResolutionScale` to bound real-time cost. Extend down to
    Medium where affordable.
 
