@@ -91,9 +91,10 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
 5. **PHOTO-BEVELS — edge bevels on hard primitives** ◑ **IN PROGRESS** (M, all tiers incl. flat; Verify G).
    New shared `furniture/primitives/BeveledBox.tsx` (drei `RoundedBox` + auto-clamped ~7 mm chamfer,
    detail-scaled smoothness; pure tested `safeBevelRadius`) replaces sharp `boxGeometry` slabs. Migrated:
-   tables + desk (CoffeeTable, DiningTable, ConsoleTable, Desk). **Remaining:** case goods
-   (Sideboard/Bookshelf/Wardrobe/TVConsole/Dresser/Nightstand/cabinets) + appliances. Edge light-catch
-   pass is real-GPU-pending; structural correctness (no gaps/clipping) verified.
+   tables + desk (CoffeeTable, DiningTable, ConsoleTable, Desk) and freestanding case goods (Sideboard,
+   Dresser, TVConsole, Nightstand — carcass boxes, drawer/door fronts, plinths/legs; panel-built frames
+   left sharp to avoid join notches). **Remaining:** panel/shelf-built units (Bookshelf, Wardrobe,
+   cabinet modules) + appliances. Edge light-catch is real-GPU-pending; structural correctness verified.
 
 ### Tier 2 — high impact, needs real-GPU verification
 6. **PHOTO-DENOISE — browser OIDN on the HQ still** (M–L, HQ still; Verify G).

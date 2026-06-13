@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-BEVELS (RZ3) cont.: chamfered edges on freestanding case goods
+
+- Extended the `BeveledBox` migration from tables to the **freestanding case goods**: `Sideboard`,
+  `Dresser`, `TVConsole`, `Nightstand` — carcass boxes, drawer/door fronts, plinths and tapered/box legs
+  now carry the same tiny auto-clamped chamfer so their large flat faces catch a highlight.
+- **Panel-built frames left sharp on purpose** — the Nightstand `open`/`drawer-shelf` cubby (separate
+  top/bottom/side/back panels that butt together) keeps square edges, because chamfering butting panels
+  would leave visible notches at the joins. Only single-box carcasses + freestanding fronts/legs were
+  beveled. Bookshelf/Wardrobe/cabinet modules (shelf/panel-built) remain for a careful follow-up.
+- Same verification posture as the table batch: structural correctness (no gaps/z-fighting/clipping)
+  holds since the pattern is identical to the verified tables; edge light-catch is real-GPU-pending.
+
 ## PHOTO-BEVELS (RZ3): edge chamfers on hard furniture so it stops reading as cardboard
 
 - **New shared `furniture/primitives/BeveledBox.tsx`** — a drei `RoundedBox` drop-in for sharp

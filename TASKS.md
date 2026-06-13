@@ -165,9 +165,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   payoff; one shared blob texture + plane-per-item, transparent overdraw only.
 - [ ] RZ2: window glass realism — emissive sky-catch on Perf/Medium, `getGlassMaterial`
   transmission on High+ (`apartment/Window.tsx`, half-built in `materialRealism.ts`).
-- [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables + desk done
-  (CoffeeTable/DiningTable/ConsoleTable/Desk). Remaining: case goods (sideboard/bookshelf/wardrobe/
-  TV console/dresser/nightstand/cabinets) + appliances; edge light-catch real-GPU-pending.
+- [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables/desk +
+  freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
+  Nightstand). Remaining: panel/shelf-built units (Bookshelf/Wardrobe/cabinet modules) + appliances;
+  edge light-catch real-GPU-pending.
 - [ ] RZ4: procedural roughness micro-detail + grout aging on wood/tile/marble generators.
 - [ ] RZ5: skirting/baseboard seam AO + painted-trim wear (close-up/walk realism).
 - [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.

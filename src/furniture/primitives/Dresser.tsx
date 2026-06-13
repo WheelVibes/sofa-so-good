@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /** Wide chest of drawers: body + a grid of drawer fronts. `handle` picks the
@@ -26,18 +27,24 @@ export function Dresser({ props }: { props: ParamProps }) {
 
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, legH + bodyH / 2, 0]} material={wood}>
-        <boxGeometry args={[width, bodyH, depth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, legH + bodyH / 2, 0]}
+        material={wood}
+        args={[width, bodyH, depth]}
+      />
       {Array.from({ length: rows }, (_, r) =>
         Array.from({ length: cols }, (_, c) => {
           const x = -width / 2 + gap + dw / 2 + c * (dw + gap)
           const y = legH + gap + dh / 2 + r * (dh + gap)
           return (
             <group key={`${r}.${c}`}>
-              <mesh position={[x, y, depth / 2 + 0.003]} material={wood}>
-                <boxGeometry args={[dw, dh, 0.02]} />
-              </mesh>
+              <BeveledBox
+                position={[x, y, depth / 2 + 0.003]}
+                material={wood}
+                args={[dw, dh, 0.02]}
+              />
               {handle === 'knob' && (
                 <mesh position={[x, y, depth / 2 + 0.03]}>
                   <sphereGeometry args={[0.018, 12, 10]} />
@@ -63,20 +70,24 @@ export function Dresser({ props }: { props: ParamProps }) {
       {base === 'legs' ? (
         [-1, 1].map((sx) =>
           [-1, 1].map((sz) => (
-            <mesh
+            <BeveledBox
               key={`${sx}.${sz}`}
               castShadow
               position={[sx * (width / 2 - 0.06), legH / 2, sz * (depth / 2 - 0.06)]}
+              args={[0.05, legH, 0.05]}
             >
-              <boxGeometry args={[0.05, legH, 0.05]} />
               <meshStandardMaterial color="#3a2c1d" roughness={0.5} metalness={0.1} />
-            </mesh>
+            </BeveledBox>
           )),
         )
       ) : (
-        <mesh castShadow receiveShadow position={[0, legH / 2, 0.01]} material={wood}>
-          <boxGeometry args={[width - 0.08, legH, depth - 0.06]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, legH / 2, 0.01]}
+          material={wood}
+          args={[width - 0.08, legH, depth - 0.06]}
+        />
       )}
     </group>
   )

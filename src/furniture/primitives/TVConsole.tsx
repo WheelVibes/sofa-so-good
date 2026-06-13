@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 interface TVConsoleProps {
@@ -33,15 +34,23 @@ export function TVConsole({ props }: TVConsoleProps) {
   return (
     <group>
       {/* Body */}
-      <mesh castShadow receiveShadow position={[0, bodyY + bodyH / 2, 0]} material={wood}>
-        <boxGeometry args={[width, bodyH, depth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, bodyY + bodyH / 2, 0]}
+        material={wood}
+        args={[width, bodyH, depth]}
+      />
 
       {/* Base: plinth (recessed toe-kick), splayed legs, or nothing */}
       {base === 'plinth' && (
-        <mesh castShadow receiveShadow position={[0, legH / 2, 0.02]} material={wood}>
-          <boxGeometry args={[width - 0.08, legH, depth - 0.06]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, legH / 2, 0.02]}
+          material={wood}
+          args={[width - 0.08, legH, depth - 0.06]}
+        />
       )}
       {base === 'legs' &&
         [-1, 1].map((sx) =>
@@ -64,9 +73,12 @@ export function TVConsole({ props }: TVConsoleProps) {
         const faceY = bodyY + bodyH / 2
         return (
           <group key={s}>
-            <mesh castShadow position={[cx, faceY, depth / 2 - faceInset]} material={wood}>
-              <boxGeometry args={[faceW, bodyH - 0.04, 0.012]} />
-            </mesh>
+            <BeveledBox
+              castShadow
+              position={[cx, faceY, depth / 2 - faceInset]}
+              material={wood}
+              args={[faceW, bodyH - 0.04, 0.012]}
+            />
             {front === 'drawers' ? (
               <mesh castShadow position={[cx, faceY, depth / 2 + 0.01]}>
                 <boxGeometry args={[faceW * 0.45, 0.018, 0.018]} />
