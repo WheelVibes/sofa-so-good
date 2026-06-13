@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Security: reject image decompression bombs before decode (texture upload)
+
+- `materials/convert/decodeImage.ts` now enforces a `MAX_DECODE_DIM` (4096²)
+  pixel-dimension cap **before** allocating RGBA, closing a self-DoS where a
+  few-KB upload declaring e.g. 30000×30000 would allocate gigabytes and OOM-crash
+  the tab. Previously the only bound was the 16 MB file-size cap and a dimension
+  check that ran *after* a full decode.
+- New pure `readImageHeaderDims()` reads PNG IHDR / JPEG SOF dimensions from the
+  header so native bitmaps are rejected before `createImageBitmap` decodes; the
+  exotic paths (TGA/TIFF/EXR/HDR) assert dimensions before their heavy pixel
+  decode/tonemap step. The cap matches the storage validator, so no previously
+  accepted upload is lost. Covered by unit tests for both helpers.
+
 ## Auto-arrange: remove dead dining-chair distribution variable
 
 - Removed a dead `half` local in `layout/autoArrange.ts` (a no-op ternary whose

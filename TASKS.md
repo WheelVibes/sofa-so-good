@@ -90,10 +90,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
 
 ### Security (verified real)
-- [ ] SEC1: pre-decode pixel-dimension cap in `materials/convert/decodeImage.ts` — the
-  `MAX_IMAGE_DIM` check runs AFTER full RGBA decode, so a small file declaring 30000² OOM-
-  crashes the tab (decompression-bomb DoS). Reject `w*h > cap²` before alloc for TGA/TIFF/
-  EXR/HDR + native bitmap.
 - [ ] SEC2: `ui/report.ts` `heroDataUrl` interpolated into `<img src>` with no `^data:image/`
   prefix check (defense-in-depth; mirror `moodboard.ts` `renderHero`).
 

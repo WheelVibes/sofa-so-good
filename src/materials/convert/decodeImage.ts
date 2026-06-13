@@ -20,6 +20,90 @@ export interface DecodedImage {
   height: number
 }
 
+/**
+ * Hard ceiling on decoded pixel dimensions. A source file can be a few KB on
+ * disk yet declare enormous dimensions (a PNG/TIFF/EXR "decompression bomb");
+ * decoding it allocates width·height·4 bytes of RGBA (and the float formats far
+ * more), which can OOM-crash the tab before the post-decode storage validator
+ * (`upload/validate.ts` `MAX_IMAGE_DIM`) ever runs. We reject *before* that
+ * allocation. The cap matches the storage limit, so an over-size image — which
+ * the validator would reject anyway — is now rejected cheaply instead of after a
+ * dangerous full decode (no currently-accepted input is lost).
+ */
+export const MAX_DECODE_DIM = 4096
+
+/** Throw if dimensions are non-positive, non-finite, or exceed {@link MAX_DECODE_DIM}. */
+export function assertDecodable(width: number, height: number): void {
+  if (
+    !Number.isFinite(width) ||
+    !Number.isFinite(height) ||
+    width <= 0 ||
+    height <= 0 ||
+    width > MAX_DECODE_DIM ||
+    height > MAX_DECODE_DIM
+  ) {
+    throw new Error(`Image is ${width}×${height}; max decodable is ${MAX_DECODE_DIM}².`)
+  }
+}
+
+/**
+ * Read intrinsic pixel dimensions from a PNG or JPEG header *without* decoding
+ * the pixels, so a decompression bomb can be rejected before any large
+ * allocation. Returns `null` for formats we don't header-probe (the caller then
+ * falls back to the decoder's reported dimensions, still capped post-decode).
+ * Pure + dependency-free for unit testing.
+ */
+export function readImageHeaderDims(buf: ArrayBuffer): { width: number; height: number } | null {
+  const b = new Uint8Array(buf)
+  // PNG: 8-byte signature, then the IHDR chunk — width@16, height@20 (BE uint32).
+  if (
+    b.length >= 24 &&
+    b[0] === 0x89 &&
+    b[1] === 0x50 &&
+    b[2] === 0x4e &&
+    b[3] === 0x47 &&
+    b[4] === 0x0d &&
+    b[5] === 0x0a &&
+    b[6] === 0x1a &&
+    b[7] === 0x0a
+  ) {
+    const dv = new DataView(buf)
+    return { width: dv.getUint32(16), height: dv.getUint32(20) }
+  }
+  // JPEG: SOI (FFD8) then segments; a Start-Of-Frame marker carries the size.
+  if (b.length >= 4 && b[0] === 0xff && b[1] === 0xd8) {
+    const dv = new DataView(buf)
+    let off = 2
+    while (off + 9 <= b.length) {
+      if (b[off] !== 0xff) {
+        off++
+        continue
+      }
+      const marker = b[off + 1]
+      // Standalone markers (no length): padding (FF), SOI/EOI, restart markers.
+      if (
+        marker === 0xff ||
+        marker === 0xd8 ||
+        marker === 0xd9 ||
+        (marker >= 0xd0 && marker <= 0xd7)
+      ) {
+        off += 2
+        continue
+      }
+      const len = dv.getUint16(off + 2)
+      if (len < 2) break
+      // SOF0–SOF15 (baseline/progressive/etc.), excluding the non-SOF C4/C8/CC.
+      const isSof =
+        marker >= 0xc0 && marker <= 0xcf && marker !== 0xc4 && marker !== 0xc8 && marker !== 0xcc
+      if (isSof) {
+        return { height: dv.getUint16(off + 5), width: dv.getUint16(off + 7) }
+      }
+      off += 2 + len
+    }
+  }
+  return null
+}
+
 const extOf = (n: string): string => n.toLowerCase().match(/\.[a-z0-9]+$/)?.[0] ?? ''
 
 /** Formats the browser decodes natively via createImageBitmap. */
@@ -40,7 +124,17 @@ export function isSupportedTexture(name: string): boolean {
 }
 
 async function viaBitmap(file: File): Promise<DecodedImage> {
+  // Reject decompression bombs from the header *before* createImageBitmap +
+  // getImageData allocate width·height·4 bytes of RGBA.
+  const headerDims = readImageHeaderDims(await file.arrayBuffer())
+  if (headerDims) assertDecodable(headerDims.width, headerDims.height)
   const bmp = await createImageBitmap(file)
+  try {
+    assertDecodable(bmp.width, bmp.height)
+  } catch (e) {
+    bmp.close()
+    throw e
+  }
   const canvas = new OffscreenCanvas(bmp.width, bmp.height)
   const ctx = canvas.getContext('2d')
   if (!ctx) {
@@ -81,6 +175,7 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
       width: number
       height: number
     }
+    assertDecodable(tex.width, tex.height)
     return { data: new Uint8ClampedArray(tex.data), width: tex.width, height: tex.height }
   }
 
@@ -88,6 +183,9 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
     const UTIF = (await import('utif')).default
     const ifds = UTIF.decode(buf)
     if (!ifds.length) throw new Error('TIFF has no images')
+    // IFD dimensions are read cheaply by decode(); reject a bomb before the
+    // heavy decodeImage()/toRGBA8() pixel allocation.
+    assertDecodable(ifds[0].width, ifds[0].height)
     UTIF.decodeImage(buf, ifds[0])
     const rgba = UTIF.toRGBA8(ifds[0])
     return { data: new Uint8ClampedArray(rgba), width: ifds[0].width, height: ifds[0].height }
@@ -98,6 +196,7 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
     const loader = new EXRLoader()
     loader.setDataType(FloatType)
     const tex = loader.parse(buf) as { data: ArrayLike<number>; width: number; height: number }
+    assertDecodable(tex.width, tex.height)
     return {
       data: floatToRgba(tex.data, tex.width, tex.height),
       width: tex.width,
@@ -110,6 +209,7 @@ export async function decodeImage(file: File): Promise<DecodedImage> {
     const loader = new RGBELoader()
     loader.setDataType(FloatType)
     const tex = loader.parse(buf) as { data: ArrayLike<number>; width: number; height: number }
+    assertDecodable(tex.width, tex.height)
     return {
       data: floatToRgba(tex.data, tex.width, tex.height),
       width: tex.width,
