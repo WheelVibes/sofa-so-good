@@ -22,6 +22,7 @@ import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
 import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
 import { useCatalogGetter } from '../../furniture/catalog'
+import { itemPrice } from '../../furniture/furniturePrices'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
@@ -36,6 +37,7 @@ import {
 import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
+import { PLAN_LABEL_TEXT, planLabelLines } from './planLabels'
 
 /** Muted top-down fill per furniture category for the 2D plan layer.
  *  Tokens live in `screens.css` (`--plan-cat-*`) so the plan themes correctly;
@@ -108,6 +110,9 @@ export function FloorPlanEditor() {
   const a = useStore.getState()
 
   const items = useStore((s) => s.items)
+  const planLabels = useStore((s) => s.planLabels)
+  const fPlanLabels = useFeature('planLabels')
+  const labelsOn = fPlanLabels && planLabels !== 'off'
   const selectedItemId = useStore((s) => s.selectedItemId)
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
@@ -848,6 +853,17 @@ export function FloorPlanEditor() {
         )}
 
         <div className="ml-auto flex items-center gap-3">
+          {fPlanLabels && (
+            <button
+              type="button"
+              onClick={() => useStore.getState().cyclePlanLabels()}
+              className={`btn btn-sm${labelsOn ? ' btn-accent' : ''}`}
+              title="Cycle furniture labels on the plan: off → name → name + price"
+              aria-pressed={labelsOn}
+            >
+              {PLAN_LABEL_TEXT[planLabels]}
+            </button>
+          )}
           <button
             type="button"
             onClick={() => setShowWallDims((v) => !v)}
@@ -1109,35 +1125,50 @@ export function FloorPlanEditor() {
               )
             })}
 
-            {/* Name of the selected furniture item — a single label so the user
-                can tell what they clicked among many same-coloured footprints. */}
+            {/* Furniture labels. When the Labels toggle is on (PARITY-PLANLABELS),
+                every footprint shows its name (+ price); otherwise just the
+                selected one, so the user can always tell what they clicked. */}
             {(() => {
-              const it = levelItems.find((i) => i.id === selectedItemId)
-              if (!it) return null
-              const def = getDef(it.defId)
-              const name = it.label ?? def?.name
-              if (!name) return null
-              return (
-                <text
-                  x={toPx(it.position[0])}
-                  y={toPx(it.position[1])}
-                  textAnchor="middle"
-                  dominantBaseline="middle"
-                  className="plan-item-label"
-                  style={{
-                    pointerEvents: 'none',
-                    fontSize: 11,
-                    fontWeight: 700,
-                    fill: 'var(--text)',
-                    paintOrder: 'stroke',
-                    stroke: 'var(--surface)',
-                    strokeWidth: 3,
-                    strokeLinejoin: 'round',
-                  }}
-                >
-                  {name}
-                </text>
-              )
+              const labelled = labelsOn
+                ? levelItems
+                : levelItems.filter((i) => i.id === selectedItemId)
+              return labelled.map((it) => {
+                const def = getDef(it.defId)
+                const name = it.label ?? def?.name
+                if (!name) return null
+                const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
+                const price = def ? itemPrice(def, def.category, variant) : undefined
+                const lines = labelsOn ? planLabelLines(name, price, planLabels) : [name]
+                if (lines.length === 0) return null
+                const cx = toPx(it.position[0])
+                const cy = toPx(it.position[1])
+                return (
+                  <text
+                    key={it.id}
+                    x={cx}
+                    y={cy - (lines.length - 1) * 6}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="plan-item-label"
+                    style={{
+                      pointerEvents: 'none',
+                      fontSize: 11,
+                      fontWeight: 700,
+                      fill: 'var(--text)',
+                      paintOrder: 'stroke',
+                      stroke: 'var(--surface)',
+                      strokeWidth: 3,
+                      strokeLinejoin: 'round',
+                    }}
+                  >
+                    {lines.map((ln, i) => (
+                      <tspan key={ln} x={cx} dy={i === 0 ? 0 : 12} fontWeight={i === 0 ? 700 : 600}>
+                        {ln}
+                      </tspan>
+                    ))}
+                  </text>
+                )
+              })
             })()}
 
             {/* Walls (active storey) */}

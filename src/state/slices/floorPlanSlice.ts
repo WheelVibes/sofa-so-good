@@ -8,6 +8,8 @@ import type {
   PlanUpperLevel,
   PlanWall,
 } from '../../floorplan/types'
+import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
+import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { RootState } from '../store'
 import { pruneFinishesForPlan } from './finishesSlice'
 import type { SliceCreator } from './types'
@@ -40,6 +42,11 @@ export interface FloorPlanSlice {
   baselinePlan: FloorPlan
   /** Whether the 2D Floor Plan Editor overlay is open. */
   floorPlanEditing: boolean
+  /** 2D-plan furniture label mode (off / name / name+price). Session-only. */
+  planLabels: PlanLabelMode
+  setPlanLabels: (mode: PlanLabelMode) => void
+  /** Advance the plan-label mode (off → name → price → off). */
+  cyclePlanLabels: () => void
   /** Currently-selected element in the editor. */
   planSelection: PlanSelection
   /** Saved named floor plans (the apartment library). */
@@ -102,11 +109,12 @@ export interface FloorPlanSlice {
 
 export const FLOOR_PLAN_INITIAL: Pick<
   FloorPlanSlice,
-  'floorPlan' | 'baselinePlan' | 'floorPlanEditing' | 'planSelection' | 'savedPlans'
+  'floorPlan' | 'baselinePlan' | 'floorPlanEditing' | 'planLabels' | 'planSelection' | 'savedPlans'
 > = {
   floorPlan: buildDefaultPlan(),
   baselinePlan: buildDefaultPlan(),
   floorPlanEditing: false,
+  planLabels: 'off',
   planSelection: null,
   savedPlans: [],
 }
@@ -180,6 +188,8 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
   setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
   toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
+  setPlanLabels: (planLabels) => set({ planLabels }),
+  cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
   setPlanSelection: (sel) => set({ planSelection: sel }),
   resetFloorPlan: () => {
     // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built

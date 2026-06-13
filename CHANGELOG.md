@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-PLANLABELS: furniture name / price labels on the 2D plan (Sweet Home 3D parity)
+
+- **New label layer in the 2D Floor Plan Editor** — a `Labels` toolbar toggle cycles **off → name →
+  name + price**; when on, every furniture footprint on the active storey shows its name (and estimated
+  SGD price via the canonical `itemPrice`) centred with a surface-stroke halo for legibility over the
+  coloured footprints. When off, only the selected item is labelled (unchanged), so you can always tell
+  what you clicked.
+- **Pure `ui/floorplan/planLabels.ts`** — unit-tested `planLabelLines` (off/name/price, drops the price
+  line for a free/unpriced item) + `nextPlanLabelMode` cycle + `PLAN_LABEL_TEXT`. State lives in
+  `floorPlanSlice` (`planLabels` + `setPlanLabels`/`cyclePlanLabels`, session-only).
+- **`planLabels` feature flag** (pro tier, prod-safe — pure code). Hidden in Simple, present in Pro;
+  unit-tested in both modes.
+- Verified in the plan editor: names + prices render on all footprints (e.g. "Queen bed $900",
+  "Wardrobe $1,100"), legible with the halo, coexisting with wall-dimension labels; toggle works.
+
 ## PHOTO-BEVELS (RZ3) cont.: chamfered edges on freestanding case goods
 
 - Extended the `BeveledBox` migration from tables to the **freestanding case goods**: `Sideboard`,

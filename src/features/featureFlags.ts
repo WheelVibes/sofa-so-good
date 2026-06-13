@@ -71,6 +71,7 @@ export type FeatureFlag =
   | 'walkCameraControls'
   | 'replaceSimilar'
   | 'customBackdrop'
+  | 'planLabels'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -444,6 +445,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Upload your own photo as the walk-mode window view',
     default: true,
     tier: 'simple',
+  },
+  // 2D-plan furniture name/price labels (Sweet Home 3D parity). A drawing/
+  // annotation aid → pro tier. Pure code, no external assets → prod-safe.
+  planLabels: {
+    label: 'Plan labels',
+    description: 'Show furniture names / prices on the 2D floor plan',
+    default: true,
+    tier: 'pro',
   },
 }
 

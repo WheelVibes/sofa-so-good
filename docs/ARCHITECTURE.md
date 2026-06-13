@@ -362,7 +362,8 @@ same change that reshapes a system.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): 2D editor of store `floorPlan`
   — walls, rectangular/L-shape (`extension`)/free-`polygon` rooms (Polygon + Auto-room),
   doors/windows, ceiling height (global + per-room), grid+corner snap, per-room floor
-  finishes, length labels. Per-room **floor + wall finishes** resolve through
+  finishes, length labels, and a **furniture name/price label** toggle (`planLabels`
+  flag + pure `ui/floorplan/planLabels.ts`, SH3D parity). Per-room **floor + wall finishes** resolve through
   `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split** + draggable endpoint handles (`moveWallVertex`) for
