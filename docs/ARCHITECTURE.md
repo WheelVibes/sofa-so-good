@@ -371,7 +371,8 @@ same change that reshapes a system.
   `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + draggable endpoint handles (`moveWallVertex`) for
-  non-orthogonal shapes. **Text notes** (Text tool → `plan.notes`, draggable/editable, persisted). Live furniture as `canPlace`-checked footprints (active storey
+  non-orthogonal shapes. **Text notes** (Text tool → `plan.notes`, draggable/editable) + **dimension
+  lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT). Live furniture as `canPlace`-checked footprints (active storey
   only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an

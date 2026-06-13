@@ -585,6 +585,25 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
         </div>
       )
     }
+  } else if (sel?.type === 'dim') {
+    const dim = (plan.dimensions ?? []).find((x) => x.id === sel.id)
+    if (dim) {
+      const len = Math.hypot(dim.b[0] - dim.a[0], dim.b[1] - dim.a[1])
+      body = (
+        <div className="space-y-2">
+          <div className="sec-h">
+            <span>Dimension</span>
+          </div>
+          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
+            <span className="label">Length</span>
+            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
+              {formatLength(len, units)}
+            </span>
+          </div>
+          <DeleteBtn onClick={() => a.removeDimension(dim.id)} label="Delete dimension" />
+        </div>
+      )
+    }
   }
 
   return (

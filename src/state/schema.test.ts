@@ -70,6 +70,25 @@ describe('schema', () => {
     ])
   })
 
+  it('round-trips custom dimension lines (PARITY-DIMTEXT) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'dim-plan',
+        name: 'Dims',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        dimensions: [{ id: 'd1', a: [0.2, 0.2], b: [4.0, 0.2] }],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.dimensions).toEqual([{ id: 'd1', a: [0.2, 0.2], b: [4.0, 0.2] }])
+  })
+
   it('round-trips per-room floor + wall finishes on a custom plan', () => {
     useStore.getState().__resetForTest()
     useStore.setState({

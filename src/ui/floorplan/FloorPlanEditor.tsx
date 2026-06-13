@@ -77,6 +77,7 @@ type Tool =
   | 'window'
   | 'scale'
   | 'text'
+  | 'dimension'
 
 /** A reference photo/scan traced over to draw walls. Session-scoped (the object
  *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */
@@ -502,7 +503,7 @@ export function FloorPlanEditor() {
     if (e.button !== 0) return
     const [wx, wz] = pointerWorld(e)
     const st = useStore.getState()
-    if (tool === 'wall' || tool === 'room' || tool === 'scale') {
+    if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
     } else if (tool === 'autoroom') {
       // Make a room from the active storey's wall loop enclosing the click.
@@ -697,6 +698,19 @@ export function FloorPlanEditor() {
       setDraft(null)
       return
     }
+    if (tool === 'dimension') {
+      // Commit a custom dimension line between the dragged endpoints (snapped).
+      if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.1) {
+        const id = st.addDimension({
+          a: [snap(draft.x0), snap(draft.z0)],
+          b: [snap(draft.x), snap(draft.z)],
+          ...(levelId !== GROUND_LEVEL_ID ? { levelId } : {}),
+        })
+        st.setPlanSelection({ type: 'dim', id })
+      }
+      setDraft(null)
+      return
+    }
     if (tool === 'wall') {
       if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.2) {
         const id = st.addWall(
@@ -759,6 +773,7 @@ export function FloorPlanEditor() {
               'door',
               'window',
               'text',
+              'dimension',
             ] as Tool[]
           ).map((t) => (
             <button
@@ -1295,6 +1310,82 @@ export function FloorPlanEditor() {
                 )
               })}
 
+            {/* Dimension lines (active storey) — PARITY-DIMTEXT. Drawn with the
+                Dimension tool; click to select, delete in the inspector. */}
+            {(plan.dimensions ?? [])
+              .filter((d) => (d.levelId ?? GROUND_LEVEL_ID) === levelId)
+              .map((d) => {
+                const selected = sel?.type === 'dim' && sel.id === d.id
+                const x1 = toPx(d.a[0])
+                const y1 = toPx(d.a[1])
+                const x2 = toPx(d.b[0])
+                const y2 = toPx(d.b[1])
+                const dx = x2 - x1
+                const dy = y2 - y1
+                const L = Math.hypot(dx, dy) || 1
+                // Perpendicular unit (px) for end ticks + label offset.
+                const px = -dy / L
+                const py = dx / L
+                const len = Math.hypot(d.b[0] - d.a[0], d.b[1] - d.a[1])
+                const stroke = selected ? 'var(--accent)' : 'var(--text-3)'
+                return (
+                  <g
+                    key={d.id}
+                    style={{ cursor: 'pointer' }}
+                    onPointerDown={(e) => {
+                      e.stopPropagation()
+                      useStore.getState().setPlanSelection({ type: 'dim', id: d.id })
+                    }}
+                  >
+                    {/* Fat invisible hit target so the thin line is easy to click. */}
+                    <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="transparent" strokeWidth={12} />
+                    <line
+                      x1={x1}
+                      y1={y1}
+                      x2={x2}
+                      y2={y2}
+                      stroke={stroke}
+                      strokeWidth={selected ? 2 : 1.5}
+                    />
+                    {/* End ticks (±6 px perpendicular). */}
+                    <line
+                      x1={x1 - px * 6}
+                      y1={y1 - py * 6}
+                      x2={x1 + px * 6}
+                      y2={y1 + py * 6}
+                      stroke={stroke}
+                      strokeWidth={1.5}
+                    />
+                    <line
+                      x1={x2 - px * 6}
+                      y1={y2 - py * 6}
+                      x2={x2 + px * 6}
+                      y2={y2 + py * 6}
+                      stroke={stroke}
+                      strokeWidth={1.5}
+                    />
+                    <text
+                      x={(x1 + x2) / 2 + px * 11}
+                      y={(y1 + y2) / 2 + py * 11}
+                      textAnchor="middle"
+                      dominantBaseline="central"
+                      style={{
+                        pointerEvents: 'none',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        fill: 'var(--text)',
+                        paintOrder: 'stroke',
+                        stroke: 'var(--surface)',
+                        strokeWidth: 3,
+                        strokeLinejoin: 'round',
+                      }}
+                    >
+                      {formatLength(len, units)}
+                    </text>
+                  </g>
+                )
+              })}
+
             {/* Walls (active storey) */}
             {levelPlan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
@@ -1621,8 +1712,8 @@ export function FloorPlanEditor() {
               )
             })}
 
-            {/* Scale calibration line */}
-            {draft && tool === 'scale' && (
+            {/* Scale calibration / dimension draft line */}
+            {draft && (tool === 'scale' || tool === 'dimension') && (
               <line
                 x1={toPx(draft.x0)}
                 y1={toPx(draft.z0)}

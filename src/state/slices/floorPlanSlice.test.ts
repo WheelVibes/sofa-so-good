@@ -240,6 +240,15 @@ describe('multi-storey level editing (F13/ML4a)', () => {
     expect(useStore.getState().floorPlan.notes?.some((n) => n.id === id)).toBe(false)
     expect(useStore.getState().planSelection).toBeNull()
   })
+
+  it('adds and removes custom dimension lines (PARITY-DIMTEXT)', () => {
+    const id = useStore.getState().addDimension({ a: [0, 0], b: [3, 0] })
+    expect(useStore.getState().floorPlan.dimensions?.find((d) => d.id === id)?.b).toEqual([3, 0])
+    useStore.getState().setPlanSelection({ type: 'dim', id })
+    useStore.getState().removeDimension(id)
+    expect(useStore.getState().floorPlan.dimensions?.some((d) => d.id === id)).toBe(false)
+    expect(useStore.getState().planSelection).toBeNull()
+  })
 })
 
 describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', () => {

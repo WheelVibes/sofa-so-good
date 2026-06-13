@@ -12,6 +12,7 @@ import {
 import type {
   CeilingConfig,
   FloorPlan,
+  PlanDimension,
   PlanNote,
   PlanOpening,
   PlanRoom,
@@ -31,6 +32,7 @@ export type PlanSelection =
   | { type: 'room'; id: string }
   | { type: 'opening'; id: string }
   | { type: 'note'; id: string }
+  | { type: 'dim'; id: string }
   | null
 
 let idCounter = 0
@@ -123,6 +125,11 @@ export interface FloorPlanSlice {
   updateNote: (id: string, patch: Partial<Omit<PlanNote, 'id'>>) => void
   /** Remove a note; clears the selection if it was selected. */
   removeNote: (id: string) => void
+
+  /** Add a custom dimension line (PARITY-DIMTEXT); returns its id. */
+  addDimension: (dim: Omit<PlanDimension, 'id'>) => string
+  /** Remove a dimension; clears the selection if it was selected. */
+  removeDimension: (id: string) => void
 
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
@@ -463,6 +470,29 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       },
       planSelection:
         s.planSelection?.type === 'note' && s.planSelection.id === id ? null : s.planSelection,
+    }))
+  },
+
+  addDimension: (dim) => {
+    const id = planId('dim')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        dimensions: [...(s.floorPlan.dimensions ?? []), { ...dim, id }],
+      },
+    }))
+    return id
+  },
+  removeDimension: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        dimensions: (s.floorPlan.dimensions ?? []).filter((d) => d.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'dim' && s.planSelection.id === id ? null : s.planSelection,
     }))
   },
 

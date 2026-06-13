@@ -207,6 +207,9 @@ const FloorPlanZ = z.object({
       }),
     )
     .optional(),
+  dimensions: z
+    .array(z.object({ id: z.string(), a: Vec2Z, b: Vec2Z, levelId: z.string().optional() }))
+    .optional(),
 })
 
 const RawSerializedStateZ = z.object({

@@ -120,6 +120,9 @@ export interface FloorPlan {
   /** Free-text annotation notes placed on the plan (PARITY-DIMTEXT). Each is
    *  level-tagged (`levelId` absent = ground). Additive + optional. */
   notes?: PlanNote[]
+  /** Custom dimension lines drawn on the plan (PARITY-DIMTEXT). Length is
+   *  computed from the endpoints. Level-tagged. Additive + optional. */
+  dimensions?: PlanDimension[]
 }
 
 /** A free-text note placed on the 2D plan at a world position. */
@@ -130,6 +133,15 @@ export interface PlanNote {
   z: number
   text: string
   /** Storey the note sits on; absent = ground (F13). */
+  levelId?: string
+}
+
+/** A custom dimension line between two world points (metres). */
+export interface PlanDimension {
+  id: string
+  a: PlanVec2
+  b: PlanVec2
+  /** Storey the dimension sits on; absent = ground (F13). */
   levelId?: string
 }
 

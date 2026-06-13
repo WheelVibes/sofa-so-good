@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-DIMTEXT (cont.): custom dimension lines on the 2D plan
+
+- **New "Dimension" tool** — drag between two points to drop a custom dimension line; it renders with
+  end ticks + the live measured length label, is click-selectable, and deletable in the inspector
+  (DIMENSION section showing the length). Snaps endpoints to the grid; level-tagged. Completes
+  PARITY-DIMTEXT (text notes + dimension lines → SH3D first-class dimension + text objects).
+- **Persisted** in `plan.dimensions` (new optional `PlanDimension[]` on `FloorPlan`, additive — round-
+  trips through `schema.ts`; rides into the exported plan PNG). New `addDimension`/`removeDimension`
+  actions + a `'dim'` `PlanSelection` variant. The dimension tool reuses the wall/scale two-point draft
+  (dashed live preview).
+- **Tests** — slice add/remove (clears selection) + a `schema.test.ts` round-trip preserving dimensions.
+  Verified end-to-end: the Dimension tool draws a line with a measured label; the inspector shows length
+  + Delete.
+
 ## PARITY-DIMTEXT: free-text notes on the 2D plan
 
 - **New "Text" tool in the 2D Floor Plan Editor** — click to drop a free-text note (prompts for text);
