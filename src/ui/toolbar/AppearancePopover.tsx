@@ -6,6 +6,7 @@ import {
   type ThemeName,
 } from '../../state/slices/appearanceSlice'
 import { useStore } from '../../state/store'
+import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { useIsMobile } from '../useIsMobile'
 import { Icon } from './icons'
@@ -113,22 +114,44 @@ export function AppearanceControls() {
           : 'Every feature, including analysis tools and the floor-plan editor.'}
       </p>
 
-      {/* Sign in / account. Desktop only — the mobile main-menu sheet has its own
-          footer for this, so it isn't duplicated in the mobile Appearance modal. */}
+      {/* Sign in / account + help links. Desktop only — the mobile main-menu sheet
+          has its own footer for sign-in and a dedicated section for help items. */}
       {!isMobile ? (
-        <button
-          type="button"
-          className="btn btn-soft btn-block"
-          style={{ marginTop: 10 }}
-          onClick={() => {
-            const s = useStore.getState()
-            s.setAppearanceOpen(false)
-            s.setLoginOpen(true)
-          }}
-        >
-          <Icon.Eye width={14} height={14} />
-          {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
-        </button>
+        <>
+          <button
+            type="button"
+            className="btn btn-soft btn-block"
+            style={{ marginTop: 10 }}
+            onClick={() => {
+              const s = useStore.getState()
+              s.setAppearanceOpen(false)
+              s.setLoginOpen(true)
+            }}
+          >
+            <Icon.Eye width={14} height={14} />
+            {currentUser ? `Account · ${currentUser.name}` : 'Sign in'}
+          </button>
+          <div className="pop-label" style={{ marginTop: 10 }}>
+            Help
+          </div>
+          <button type="button" className="btn btn-soft btn-block" onClick={openDocs}>
+            <Icon.Book width={14} height={14} />
+            User guide ↗
+          </button>
+          <button
+            type="button"
+            className="btn btn-soft btn-block"
+            style={{ marginTop: 6 }}
+            onClick={() => {
+              const s = useStore.getState()
+              s.setAppearanceOpen(false)
+              s.startTour()
+            }}
+          >
+            <Icon.Help width={14} height={14} />
+            Replay guided tour
+          </button>
+        </>
       ) : null}
     </>
   )

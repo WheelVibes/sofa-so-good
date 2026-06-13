@@ -193,16 +193,6 @@ export default function App() {
   // the editor-scoped keyboard handler.
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      // `?` stays a true toggle: when the Help modal itself is the thing
-      // that's open, `?` closes it again (checked before the modal guard).
-      if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
-        const s = useStore.getState()
-        if (s.helpOpen) {
-          e.preventDefault()
-          s.setHelpOpen(false)
-          return
-        }
-      }
       // No global shortcuts while a modal dialog is open — including ⌘K (don't
       // stack the palette over a dialog; the open palette itself is not a
       // Modal, so its own keyboard handling is unaffected) and Cmd/Ctrl+Z
@@ -214,13 +204,11 @@ export default function App() {
         useStore.getState().toggleCmdk()
         return
       }
-      // `?` (Shift+/) toggles the Help & shortcuts modal — the modal itself
-      // advertises this binding. Skip while typing so it doesn't hijack a real
-      // "?" character, and ignore other modifier combos.
+      // `?` toggles the Appearance panel (which now hosts the user guide + tour).
       if (e.key === '?' && !e.metaKey && !e.ctrlKey && !e.altKey && !isEditableTarget(e)) {
         e.preventDefault()
         const s = useStore.getState()
-        s.setHelpOpen(!s.helpOpen)
+        s.setAppearanceOpen(!s.appearanceOpen)
         return
       }
       // `B` toggles the Budget / shopping panel (an orbit-view .aux panel) when

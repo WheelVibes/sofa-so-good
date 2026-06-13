@@ -314,10 +314,10 @@ export function CommandPalette() {
       {
         id: 'help',
         group: 'Tools & panels',
-        label: 'Help & shortcuts',
+        label: 'Appearance & help',
         hint: '?',
-        icon: 'Help',
-        run: () => s().setHelpOpen(true),
+        icon: 'Palette',
+        run: () => s().setAppearanceOpen(true),
       },
       {
         id: 'docs',
