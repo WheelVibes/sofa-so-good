@@ -100,6 +100,14 @@ describe('Simple/Pro tiering', () => {
     expect(FEATURE_FLAGS.panoTour.tier).toBe(FEATURE_FLAGS.panorama.tier)
   })
 
+  it('replaceSimilar (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Replace-with-similar is an advanced editing aid → pro tier, prod-safe.
+    expect(resolveFlags(false, {}, false, 'simple').replaceSimilar).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').replaceSimilar).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').replaceSimilar).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').replaceSimilar).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { measure: true }, false, 'simple')
     expect(simple.measure).toBe(false)
@@ -204,5 +212,19 @@ describe('vrWalkthrough flag (F21)', () => {
   it('is pro-tier: hidden in Simple, present in Pro', () => {
     expect(resolveFlags(false, {}, false, 'simple').vrWalkthrough).toBe(false)
     expect(resolveFlags(false, {}, false, 'pro').vrWalkthrough).toBe(true)
+  })
+})
+
+describe('walkCameraControls flag (PARITY-WALKCAM)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro (both build kinds)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').walkCameraControls).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').walkCameraControls).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').walkCameraControls).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').walkCameraControls).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.walkCameraControls.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.walkCameraControls.default).toBe(true)
+    expect(FEATURE_FLAGS.walkCameraControls.tier).toBe('pro')
   })
 })

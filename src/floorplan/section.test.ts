@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildSection } from './section'
+import { buildSection, type SectionItemInput } from './section'
 import type { FloorPlan, PlanOpening, PlanRoom, PlanVec2, PlanWall } from './types'
 
 function wall(
@@ -144,9 +144,15 @@ describe('buildSection', () => {
     expect(s.walls).toEqual([])
     expect(s.openings).toEqual([])
     expect(s.rooms).toEqual([])
+    expect(s.items).toEqual([])
     expect(s.ceil).toEqual([])
     expect(s.length).toBe(0)
     expect(s.height).toBe(0)
+  })
+
+  it('a bare shell (no silhouettes supplied) has no furniture items', () => {
+    const s = buildSection(rectPlan(), { axis: 'x', at: 3 })
+    expect(s.items).toEqual([])
   })
 
   it('guards an empty / malformed plan', () => {
@@ -180,5 +186,63 @@ describe('buildSection', () => {
     expect(s.walls).toEqual([])
     expect(s.rooms).toEqual([])
     expect(s.openings).toEqual([])
+    expect(s.items).toEqual([])
+  })
+})
+
+describe('buildSection — furniture silhouettes beyond the cut', () => {
+  /** A 2×1 m footprint centred at (3, 2): straddles the x=3 cut line. */
+  const sofa: SectionItemInput = {
+    id: 's1',
+    label: 'Sofa',
+    corners: [
+      [2, 1.5],
+      [4, 1.5],
+      [4, 2.5],
+      [2, 2.5],
+    ],
+    height: 0.8,
+  }
+
+  it('projects a piece in the cut band onto the section (along extent × height)', () => {
+    // axis 'x' (cut at x=3): the along axis is Z, so the sofa spans z=1.5..2.5.
+    const s = buildSection(rectPlan(), { axis: 'x', at: 3 }, [sofa])
+    expect(s.items.length).toBe(1)
+    const it = s.items[0]!
+    expect(it.label).toBe('Sofa')
+    expect(it.start).toBeCloseTo(1.5, 6)
+    expect(it.end).toBeCloseTo(2.5, 6)
+    expect(it.height).toBeCloseTo(0.8, 6)
+  })
+
+  it('skips a piece whose footprint does not straddle the cut line', () => {
+    const s = buildSection(rectPlan(), { axis: 'x', at: 0.5 }, [sofa])
+    expect(s.items).toEqual([])
+  })
+
+  it('sorts items tallest-first (painted back-to-front)', () => {
+    const tall: SectionItemInput = { ...sofa, id: 's2', label: 'Wardrobe', height: 2.0 }
+    const s = buildSection(rectPlan(), { axis: 'x', at: 3 }, [sofa, tall])
+    expect(s.items.map((i) => i.label)).toEqual(['Wardrobe', 'Sofa'])
+  })
+
+  it('a tall piece raises the section height when it exceeds the ceiling', () => {
+    const overheight: SectionItemInput = { ...sofa, height: 3.5 }
+    const s = buildSection(rectPlan(), { axis: 'x', at: 3 }, [overheight])
+    expect(s.height).toBeCloseTo(3.5, 6)
+  })
+
+  it('drops malformed silhouettes without throwing', () => {
+    const junk = [
+      { id: 's', label: 'ok', corners: [[2, 1]], height: 1 }, // too few corners
+      { id: 's', label: 'ok', corners: sofa.corners, height: 0 }, // zero height
+      // biome-ignore lint/suspicious/noExplicitAny: deliberately malformed input.
+      null as any,
+      sofa,
+    ]
+    // biome-ignore lint/suspicious/noExplicitAny: mixed malformed inputs.
+    const s = buildSection(rectPlan(), { axis: 'x', at: 3 }, junk as any)
+    expect(s.items.length).toBe(1)
+    expect(s.items[0]!.label).toBe('Sofa')
   })
 })

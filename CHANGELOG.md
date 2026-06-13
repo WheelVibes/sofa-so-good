@@ -5,6 +5,114 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Replace with similar (PARITY-REPLACE): one-click swap to a nearest-size catalog sibling
+
+- **New pure core** `furniture/similarItems.ts` — `similarItems(defId, catalog, limit?)` ranks
+  same-`FurnitureCategory` catalog defs by **nearest real footprint** (orientation-independent
+  W×D from `defaultFootprint`), tie-broken by name then id; excludes the def itself and returns
+  `[]` for an unknown def or a category with no siblings. Works across parametric, GLB and IKEA
+  defs. Thoroughly unit-tested.
+- **New store action** `itemsSlice.replaceItemDef(id, newDefId)` swaps a placed item's `defId`
+  while keeping its **id / position / rotation / levelId / label / locked / groupId**, resetting
+  def-specific `props` to the new def's defaults (`defaultParamProps` for parametric, else `{}`).
+  One undo step; no-ops for a missing item/def or a same-def call.
+- **UI** — the inspector's "Swap with similar" control is now **"Replace with similar…"** and
+  opens a ranked picker (nearest-size first, fit badges) that commits through `replaceItemDef`;
+  the right-click context-menu entry and a new ⌘K command `replace-similar` (single selection)
+  open the same picker. The shared `SwapModal` mount gives desktop + mobile inspector parity.
+- **Feature flag** — new `replaceSimilar` flag (tier `pro`, prod default on, prod-safe pure code).
+  Gates the inspector control, the context-menu row and the ⌘K command (`COMMAND_FLAGS`), so the
+  feature is hidden in Simple mode. Tested in both Simple and Pro.
+
+## Cross-section drawing: furniture silhouettes beyond the cut + report integration (PARITY-SECTION)
+
+- **Section now shows furniture beyond the cut in elevation.** Extended the pure `floorplan/section.ts`
+  core with caller-supplied silhouette inputs (`SectionItemInput` = footprint corners + height) so a
+  `Section` reports the pieces standing in the cut's room band, projected as elevation silhouettes
+  (along-axis extent × height), tallest-first. Built via the new `ui/elevation/sectionFigure.ts`
+  `sectionSilhouettes` (reusing the OBB footprint + `itemHeight` helpers) so the core stays free of the
+  GLB/three-tied footprint code. `floorplan/sectionSvg.ts` draws them behind the cut walls with a
+  palette `item` colour (falls back to `wall`).
+- **Wired into both deliverables.** The "Section A–A" drawing-set sheet now passes ground-floor
+  furniture silhouettes; `report.ts` gains a matching "Section A–A" block (between Wall elevations and
+  Lighting). Both ride the existing `drawings` flag (pro) — no new flag. Degrades gracefully: a bare
+  shell renders the cut walls/floor/ceiling with no silhouettes.
+- Tests: silhouette projection/skip/sort/over-height/malformed-guard in `section.test.ts`, the items
+  group in `sectionSvg.test.ts`, and furnished-vs-bare section assertions in `drawingSet.test.ts` +
+  `report.test.ts`. Verified the rendered Section A–A sheet (cut walls, floor/ceiling, room bands, door/
+  window gaps, dining-chair silhouettes) reads correctly with no clipping.
+
+## Walk-mode observer camera controls — field-of-view + eye-height (PARITY-WALKCAM)
+
+- **Adjustable first-person camera** (Sweet Home 3D parity). In walk mode you can now set the
+  observer's **field of view** (50–100°, default 70°) and **eye height** (1.2–1.9 m, default 1.6 m)
+  via two sliders in the walk HUD (`ui/walk/WalkCameraControls.tsx`, top-right, token-styled,
+  desktop + touch). FOV widening/narrowing applies live to the camera; eye-height raises/lowers the
+  viewpoint smoothly without re-spawning the walker. Eye-height respects the metric/imperial unit
+  setting.
+- Settings live on the camera slice (`walkFov`/`walkEyeHeight` + setters), are persisted per-device
+  in `editorPrefs`, and clamp through pure tested helpers (`scene/cameras/walkCameraSettings.ts`).
+- Gated by the new `walkCameraControls` feature flag (pro tier, prod-safe default on). Unit tests
+  cover the clamp helpers and flag gating in both Simple and Pro modes.
+
+## Export 2D plan to SVG (Sweet Home 3D parity)
+
+- New `ui/openPlanSvg.ts` `downloadPlanSvg()` saves the active floor plan as a
+  vector `.svg` — the sibling of the existing DXF export. It **reuses** the shared
+  `reportPlanSvg` renderer (furnished footprints via the report's OBB-corner +
+  category-tint helpers, plus pinned dimension annotations) and the pure
+  `ui/planSvgExport.ts` `buildPlanSvgDocument()` wrapper, which turns the inline
+  embed fragment into a standalone document (XML declaration + injected SVG
+  namespace). The wrapper is unit-tested (namespace injection once, XML prolog,
+  empty-input no-op).
+- Wired into the Tools menu (next to Export DXF), the mobile Tools sheet, and a
+  ⌘K command, all gated behind the existing `dxfExport` flag (its CAD-export
+  sibling). A no-extent plan surfaces a toast instead of an empty file.
+
+## Export furniture list to CSV (Sweet Home 3D parity)
+
+- New pure `ui/furnitureCsv.ts` `buildFurnitureCsv(rows)` turns the existing FF&E
+  schedule (`ffe/ffeSchedule.ts`) into a spreadsheet CSV — header + one row per
+  (room, item, variant) with Room, Item, Source, SKU, Width/Depth/Height (mm),
+  Qty, Unit price, Total, plus a grand-total footer. RFC-4180 escaping (quotes
+  fields with comma/quote/CR/LF, doubles interior quotes); reuses the schedule's
+  pricing/dims (no recompute). Dimensions emit as whole millimetres, prices as
+  whole SGD. Thoroughly unit-tested (escaping, totals, units, IKEA SKU rows,
+  empty design).
+- `ui/openFurnitureCsv.ts` dynamic-imports the builder + merged catalog, builds the
+  schedule from the live store, and triggers a UTF-8-BOM `.csv` download (Blob +
+  anchor, like `designFile.ts`). Wired into the desktop **File** menu, the mobile
+  File sheet, and a ⌘K command, all gated behind the existing `shopExport` flag
+  (simple tier, prod-safe pure code).
+
+## Security: validate report hero image URL (defence-in-depth)
+
+- `ui/report.ts` now only embeds the hero render when it is a `data:image/` URL
+  (and HTML-escapes it), mirroring `moodboard.renderHero`. The sole current
+  caller passes `canvas.toDataURL(...)`, so this changes nothing today, but a
+  future caller can no longer slip a `javascript:`/foreign URL or HTML-breaking
+  string into the `<img src>`. Unit-tested for both the accept and reject paths.
+
+## Security: reject image decompression bombs before decode (texture upload)
+
+- `materials/convert/decodeImage.ts` now enforces a `MAX_DECODE_DIM` (4096²)
+  pixel-dimension cap **before** allocating RGBA, closing a self-DoS where a
+  few-KB upload declaring e.g. 30000×30000 would allocate gigabytes and OOM-crash
+  the tab. Previously the only bound was the 16 MB file-size cap and a dimension
+  check that ran *after* a full decode.
+- New pure `readImageHeaderDims()` reads PNG IHDR / JPEG SOF dimensions from the
+  header so native bitmaps are rejected before `createImageBitmap` decodes; the
+  exotic paths (TGA/TIFF/EXR/HDR) assert dimensions before their heavy pixel
+  decode/tonemap step. The cap matches the storage validator, so no previously
+  accepted upload is lost. Covered by unit tests for both helpers.
+
+## Auto-arrange: remove dead dining-chair distribution variable
+
+- Removed a dead `half` local in `layout/autoArrange.ts` (a no-op ternary whose
+  branches were identical, suppressed with `void half`) — a leftover from an
+  earlier refactor of the dining-chair distribution. `nNorth` already drives the
+  north/south split; behaviour is unchanged (25 auto-arrange tests still pass).
+
 ## Scene time/lighting overhaul: real location/date sun, slider-only time, independent lights
 
 - **Time of day is now a single free-scrub slider** (no preset chips/checkpoints) shared by the

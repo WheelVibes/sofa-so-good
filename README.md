@@ -67,7 +67,8 @@ export the result — all in the browser.
   and an on-screen joystick + drag-to-look on touch; a themed, auto-fading
   **controls banner** greets you on entry with the right hints for your device,
   and a live **minimap** (bottom-right) shows where you are and which room
-  you're in.
+  you're in. In Pro mode, top-right sliders tune the observer's **field of view**
+  (50–100°) and **eye height** (1.2–1.9 m).
 - **View vs. edit** — the orbit (dollhouse) and walk views are **view-only**, for
   looking and presenting; **all** furnishing, customizing and finishing happens
   inside the **per-room editor**. Enter it from the toolbar **Edit** menu →
@@ -221,8 +222,9 @@ export the result — all in the browser.
   a name **filter** + select / lock / hide / delete), a first-run **onboarding** intro, and a fused
   compass + zoom rail. Responsive down to phones, where floating panels become
   bottom sheets.
-- **Production-grade panels** — **Swap with similar** (replace a piece in place
-  with same-category alternatives, each tagged with a footprint-fit badge),
+- **Production-grade panels** — **Replace with similar** (swap a piece in place
+  for a same-category alternative, ranked nearest-size-first and each tagged with
+  a footprint-fit badge; keeps its position, rotation and level),
   **Clearance & fit checks** (HDB door-swing validation with a summary + fix
   suggestions), a **Design score** (an aggregate 0–100 grade across clearance,
   furnishing balance, circulation, daylight and lighting, with actionable

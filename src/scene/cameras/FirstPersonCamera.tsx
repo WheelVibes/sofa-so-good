@@ -30,6 +30,7 @@ import { useCatalogGetter } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
 import { getRoomEditorShell } from '../roomEditorShell'
 import { resetWalkMove, walkInput } from '../walkInput'
+import { clampWalkEyeHeight } from './walkCameraSettings'
 
 interface DoorSegment {
   id: string
@@ -59,10 +60,11 @@ const DOOR_SEGMENTS: DoorSegment[] = (() => {
   return out
 })()
 
-const EYE_HEIGHT = 1.65
+/** Fallback standing eye-height (m) before the live store value is read. The
+ *  user-adjustable height (`walkEyeHeight`, default 1.6) overrides this. */
+const EYE_HEIGHT = 1.6
 const CROUCH_HEIGHT = 1.05
 const CROUCH_RATE = 4.5
-const WALK_FOV = 60
 const WALK_SPEED = 2.1 // ≈ a relaxed real walking pace (m/s)
 const SNEAK_SPEED = 1.0
 const BOB_AMPLITUDE = 0.022 // subtle vertical head-bob while walking
@@ -92,6 +94,13 @@ export function FirstPersonCamera() {
   const floorPlan = useStore((s) => s.floorPlan)
   const roomEditorId = useStore((s) => s.roomEditor.roomId)
   const viewLevelId = useStore((s) => s.viewLevelId)
+  // User-adjustable observer camera (Sweet Home 3D parity, PARITY-WALKCAM).
+  // FOV applies reactively below; eye-height is ref'd so the frame loop reads
+  // the live value and lerps to it (no re-spawn on a slider drag).
+  const walkFov = useStore((s) => s.walkFov)
+  const walkEyeHeight = useStore((s) => s.walkEyeHeight)
+  const eyeHeightRef = useRef(clampWalkEyeHeight(walkEyeHeight))
+  eyeHeightRef.current = clampWalkEyeHeight(walkEyeHeight)
   // The storey the walker stands on (F13/ML6c): outside the room editor it
   // follows the View→Levels selection ('all' → ground); inside the editor it
   // is the edited room's own storey — though the editor scene renders at y=0,
@@ -243,12 +252,14 @@ export function FirstPersonCamera() {
       // plan edit during walk never re-spawns the player.
       const editorShell = getRoomEditorShell(useStore.getState().floorPlan, roomEditorId)
       const [cx, cz] = editorShell ? editorShell.shell.center : [0, 0]
-      camera.position.set(cx, EYE_HEIGHT, cz)
-      camera.lookAt(cx, EYE_HEIGHT, cz - 1)
+      const eye = eyeHeightRef.current
+      camera.position.set(cx, eye, cz)
+      camera.lookAt(cx, eye, cz - 1)
     } else if (isDefaultPlan(useStore.getState().floorPlan)) {
-      camera.position.set(11, EYE_HEIGHT, 6)
+      const eye = eyeHeightRef.current
+      camera.position.set(11, eye, 6)
       // Face into the living/dining instead of inheriting the orbit angle.
-      camera.lookAt(10.4, EYE_HEIGHT, 2.5)
+      camera.lookAt(10.4, eye, 2.5)
     } else {
       const plan = useStore.getState().floorPlan
       const level = walkLevel(plan, viewLevelId)
@@ -260,7 +271,7 @@ export function FirstPersonCamera() {
         const cx = sp?.x ?? bw / 2
         const cz = sp?.z ?? bd / 2
         const span = sp?.span ?? bd
-        const eye = level.elevation + EYE_HEIGHT
+        const eye = level.elevation + eyeHeightRef.current
         camera.position.set(cx, eye, cz + span * 0.32)
         camera.lookAt(cx, eye, cz - span * 0.32)
       } else {
@@ -276,8 +287,9 @@ export function FirstPersonCamera() {
         const cx = big ? big.origin[0] + big.width / 2 : bw / 2
         const cz = big ? big.origin[1] + big.depth / 2 : bd / 2
         const span = big ? big.depth : bd
-        camera.position.set(cx, EYE_HEIGHT, cz + span * 0.32)
-        camera.lookAt(cx, EYE_HEIGHT, cz - span * 0.32)
+        const eye = eyeHeightRef.current
+        camera.position.set(cx, eye, cz + span * 0.32)
+        camera.lookAt(cx, eye, cz - span * 0.32)
       }
     }
     // Seed drag-to-look yaw/pitch from the spawn orientation so the first drag
@@ -285,26 +297,30 @@ export function FirstPersonCamera() {
     const seed = new Euler().setFromQuaternion(camera.quaternion, 'YXZ')
     yaw.current = seed.y
     pitch.current = seed.x
-    yPos.current = floorElevRef.current + EYE_HEIGHT
+    yPos.current = floorElevRef.current + eyeHeightRef.current
     yVel.current = 0
-    groundY.current = floorElevRef.current + EYE_HEIGHT
-    let prevFov: number | null = null
-    if (camera instanceof PerspectiveCamera) {
-      prevFov = camera.fov
-      camera.fov = WALK_FOV
-      camera.updateProjectionMatrix()
-    }
+    groundY.current = floorElevRef.current + eyeHeightRef.current
     return () => {
       useStore.getState().setNearbyDoor(null)
       resetWalkMove()
-      if (camera instanceof PerspectiveCamera && prevFov !== null) {
-        camera.fov = prevFov
-        camera.updateProjectionMatrix()
-      }
     }
     // viewLevelId is a dep on purpose: picking a storey in View → Levels while
     // walking teleports the walker onto that storey (ML6c).
   }, [camera, roomEditorId, viewLevelId])
+
+  // Apply the user's field-of-view to the live perspective camera, restoring the
+  // previous FOV on unmount (exit walk). Reactive to the walkFov slider so a drag
+  // visibly widens/narrows the view without re-spawning the walker (PARITY-WALKCAM).
+  useEffect(() => {
+    if (!(camera instanceof PerspectiveCamera)) return
+    const prevFov = camera.fov
+    camera.fov = walkFov
+    camera.updateProjectionMatrix()
+    return () => {
+      camera.fov = prevFov
+      camera.updateProjectionMatrix()
+    }
+  }, [camera, walkFov])
 
   const tmpForward = useRef(new Vector3())
   const tmpRight = useRef(new Vector3())
@@ -335,7 +351,9 @@ export function FirstPersonCamera() {
     const moving = !!(forward || back || left || rightKey) || joystickMoving
     const crouching = !!pressed.current['ShiftLeft'] || !!pressed.current['ShiftRight']
     // Stand on the walker's level's floor: eye/crouch height + its elevation.
-    const targetGround = floorElevRef.current + (crouching ? CROUCH_HEIGHT : EYE_HEIGHT)
+    // Standing height follows the live user setting (lerped via groundY below).
+    const standHeight = Math.max(CROUCH_HEIGHT, eyeHeightRef.current)
+    const targetGround = floorElevRef.current + (crouching ? CROUCH_HEIGHT : standHeight)
     const dy = targetGround - groundY.current
     const maxStep = CROUCH_RATE * dt
     groundY.current += Math.abs(dy) <= maxStep ? dy : Math.sign(dy) * maxStep

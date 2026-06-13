@@ -68,6 +68,8 @@ export type FeatureFlag =
   | 'crownMolding'
   | 'windowGlassTint'
   | 'curtainLightEffect'
+  | 'walkCameraControls'
+  | 'replaceSimilar'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -414,6 +416,24 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Drawn curtains dim the sun entering through windows',
     default: true,
     tier: 'simple',
+  },
+  // Walk-mode observer camera controls (Sweet Home 3D parity, PARITY-WALKCAM):
+  // field-of-view + eye-height sliders in the walk HUD. Pure code, no external
+  // assets → prod-safe. Pro tier — a fine-tuning control beyond the core loop.
+  walkCameraControls: {
+    label: 'Walk camera controls',
+    description: 'Adjust field-of-view + eye-height in first-person walk mode',
+    default: true,
+    tier: 'pro',
+  },
+  // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
+  // catalog sibling in one click, keeping its position/rotation/level. An
+  // advanced editing aid → pro tier. Pure code, no external assets → prod-safe.
+  replaceSimilar: {
+    label: 'Replace with similar',
+    description: 'Swap a placed item for a nearest-size catalog alternative, keeping its place',
+    default: true,
+    tier: 'pro',
   },
 }
 

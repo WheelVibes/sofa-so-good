@@ -21,6 +21,15 @@ describe('buildReportHtml', () => {
     expect(html).toContain('data:image/png;base64,AAAA')
   })
 
+  it('rejects a hero URL that is not a data:image/ URL (defence-in-depth)', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, 'javascript:alert(1)//')
+    expect(html).not.toContain('javascript:alert(1)')
+    expect(html).not.toContain('<img class="hero"')
+    // A valid data-image URL is still embedded.
+    const ok = buildReportHtml(plan, items, BUILTIN_CATALOG, 'data:image/png;base64,AAAA')
+    expect(ok).toContain('<img class="hero"')
+  })
+
   it('includes a Wall elevations section with per-wall drawings for the furnished flat', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Wall elevations')
@@ -34,6 +43,18 @@ describe('buildReportHtml', () => {
   it('omits the elevations section when there is no furniture', () => {
     const html = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
     expect(html).not.toContain('Wall elevations')
+  })
+
+  it('includes a cross-section for the furnished flat AND for a bare shell', () => {
+    const furnished = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(furnished).toContain('Section A')
+    expect(furnished).toContain('class="walls"') // cut wall columns
+    expect(furnished).toContain('class="items"') // furniture silhouettes beyond the cut
+    // The default flat's plan walls produce a section even with no furniture;
+    // the section block stays (graceful), just without silhouettes.
+    const bare = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(bare).toContain('Section A')
+    expect(bare).not.toContain('class="items"')
   })
 
   it('includes a Design score section with an overall grade and per-category bars', () => {

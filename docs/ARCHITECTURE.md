@@ -280,11 +280,24 @@ same change that reshapes a system.
 - **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
   the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
   shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
+- **Cross-section** (`floorplan/section.ts` pure → a `Section` cut along a mid-plan line: cut wall
+  columns w/ heights, floor/ceiling runs, room spans, opening gaps, + furniture silhouettes beyond the
+  cut supplied via `ui/elevation/sectionFigure.ts` `sectionSilhouettes` so the core stays footprint-
+  helper-free; `floorplan/sectionSvg.ts` renders a palette-injected SVG). A "Section A–A" sheet in the
+  drawing set + a section block in `report.ts`; rides the existing `drawings` flag (pro). Guards a bare
+  shell / partial plan.
 - **FF&E schedule** (`ffe/ffeSchedule.ts` pure → per-(room,def,variant) rows: source/SKU/real dims/
   qty/pricing, reusing `pointInRoom` + `itemPrice`). Rendered as the report's procurement table.
+  **Furniture CSV** (`ui/furnitureCsv.ts` pure `buildFurnitureCsv` → RFC-4180 CSV of the schedule:
+  Room/Item/Source/SKU/W·D·H mm/Qty/Unit/Total + grand-total footer; `ui/openFurnitureCsv.ts` =
+  Blob download). File menu + mobile + ⌘K, `shopExport` flag (simple).
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
-  (cover + plan + per-wall elevations + lighting + FF&E, title blocks, `@page` A4) reusing all the
-  pure renderers — the formal counterpart to the one-page `report.ts`.
+  (cover + plan + per-wall elevations + cross-section + lighting + FF&E, title blocks, `@page` A4)
+  reusing all the pure renderers — the formal counterpart to the one-page `report.ts`.
+- **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as DXF;
+  `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
+  `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
+  mobile + ⌘K, `dxfExport` flag (pro).
 - **Shoppable buy-list** (`ui/shoplist.ts` pure `buildShopList`+`buildShopListHtml` →
   per-retailer-grouped buy-list HTML: qty/unit/line totals per (def,variant,room), grand + per-retailer
   totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the
@@ -376,7 +389,11 @@ same change that reshapes a system.
   hotkeys can't fire behind a dialog; Escape stays per-modal, ⌘K/undo are suppressed).
 - **Walk-mode** (`scene/cameras/FirstPersonCamera.tsx`, `walkInput.ts`, `ui/walk/`): fine
   = Pointer Lock (WASD+mouse, Esc; native banner unstyleable), coarse = `WalkJoystick` +
-  drag-look; `WalkHud`, `Crosshair`. Multi-storey (ML6c): the walker's storey follows
+  drag-look; `WalkHud`, `Crosshair`. **Observer camera controls** (PARITY-WALKCAM,
+  `walkCameraControls` flag, pro): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
+  1.6) sliders in `ui/walk/WalkCameraControls.tsx`, persisted in `editorPrefs`; pure clamp
+  helpers + ranges in `scene/cameras/walkCameraSettings.ts`; FOV applies reactively to the live
+  camera (own effect, restored on exit), eye-height ref'd so a drag re-heights without re-spawn. Multi-storey (ML6c): the walker's storey follows
   `viewLevelId` (`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`) — picking a level in
   View→Levels while walking teleports to its first room centre at `elevation + eye`, and
   collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Mobile viewport** (`index.html`, `responsive.css`,
@@ -402,6 +419,14 @@ same change that reshapes a system.
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group
   (first click→group, second/Alt drills in; rigid centroid rotate; auto-dissolves below
   2; save schema **v2**).
+- **Replace with similar** (PARITY-REPLACE, `replaceSimilar` flag, pro): pure
+  `furniture/similarItems.ts` `similarItems(defId, catalog, limit?)` ranks same-category catalog
+  siblings nearest-footprint-first (orientation-independent W×D from `defaultFootprint`, tie-break
+  name→id; excludes self/unknown); the `itemsSlice.replaceItemDef(id, newDefId)` store action swaps
+  the def in place keeping id/position/rotation/levelId/label/locked/groupId and resetting props
+  (`defaultParamProps` for parametric, else `{}`) in one undo step. UI `ui/SwapModal.tsx` (shared
+  single mount → desktop + mobile inspector parity) lists the ranked alternatives with fit badges;
+  entries: inspector "Replace with similar…", right-click menu, ⌘K `replace-similar`.
 - **Production feature panels** (mutually-exclusive `.aux` slot): **Swap** (`SwapModal`),
   **Clearance** (`ClearancePanel`), **Versions** (`VersionsPanel` — save/restore/Compare
   `versionDiff.ts` + Export/Import `.sofa.json` `designFile.ts`), **History** (`HistoryPanel`

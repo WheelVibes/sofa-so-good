@@ -73,6 +73,100 @@ describe('setAllLocked', () => {
   })
 })
 
+describe('replaceItemDef (PARITY-REPLACE)', () => {
+  beforeEach(() => {
+    useStore.getState().__resetForTest()
+  })
+
+  it('swaps the defId but keeps id / position / rotation / levelId / label / locked / groupId', () => {
+    const s = useStore.getState()
+    const id = s.addItem({
+      defId: 'bookshelf',
+      position: [1.5, 2.5],
+      rotation: Math.PI / 2,
+      props: {},
+    })
+    s.renameItem(id, 'My shelf')
+    // Stamp a group + lock + level to prove they survive the replace.
+    useStore.setState((st) => ({
+      items: st.items.map((it) =>
+        it.id === id ? { ...it, groupId: 'grp-1', locked: true, levelId: 'lvl-2' } : it,
+      ),
+    }))
+
+    const ok = useStore.getState().replaceItemDef(id, 'wardrobe-3door')
+    expect(ok).toBe(true)
+
+    const it = useStore.getState().items.find((i) => i.id === id)!
+    expect(it.id).toBe(id)
+    expect(it.defId).toBe('wardrobe-3door')
+    expect(it.position).toEqual([1.5, 2.5])
+    expect(it.rotation).toBe(Math.PI / 2)
+    expect(it.levelId).toBe('lvl-2')
+    expect(it.label).toBe('My shelf')
+    expect(it.locked).toBe(true)
+    expect(it.groupId).toBe('grp-1')
+  })
+
+  it('resets parametric props to the new def defaults', () => {
+    const s = useStore.getState()
+    const id = s.addItem({
+      defId: 'bookshelf',
+      position: [0, 0],
+      rotation: 0,
+      props: { width: 1.4, finish: 'gloss', shelfCount: 6 },
+    })
+    useStore.getState().replaceItemDef(id, 'wardrobe-3door')
+    const it = useStore.getState().items.find((i) => i.id === id)!
+    // Old bookshelf-only props are gone; new props are the wardrobe defaults.
+    expect(it.props.shelfCount).toBeUndefined()
+    expect(it.props.width).toBe(1.5) // wardrobe-3door default width
+    expect(typeof it.props).toBe('object')
+  })
+
+  it('drops props to {} when replacing a parametric def into a GLB def', () => {
+    const s = useStore.getState()
+    // dining-table-4 (parametric, tables) → pool-table-6ft (builtin GLB, tables).
+    const id = s.addItem({
+      defId: 'dining-table-4',
+      position: [0, 0],
+      rotation: 0,
+      props: { width: 1.6, finish: 'gloss' },
+    })
+    const ok = useStore.getState().replaceItemDef(id, 'pool-table-6ft')
+    expect(ok).toBe(true)
+    const it = useStore.getState().items.find((i) => i.id === id)!
+    expect(it.defId).toBe('pool-table-6ft')
+    expect(it.props).toEqual({})
+  })
+
+  it('is a no-op for an unknown item, unknown def, or same def', () => {
+    const s = useStore.getState()
+    const id = s.addItem({ defId: 'bookshelf', position: [0, 0], rotation: 0, props: {} })
+    expect(useStore.getState().replaceItemDef('does-not-exist', 'wardrobe-3door')).toBe(false)
+    expect(useStore.getState().replaceItemDef(id, 'not-a-real-def')).toBe(false)
+    expect(useStore.getState().replaceItemDef(id, 'bookshelf')).toBe(false)
+    // defId unchanged after the failed calls.
+    expect(useStore.getState().items.find((i) => i.id === id)?.defId).toBe('bookshelf')
+  })
+
+  it('pushes exactly one undo step (undo restores the previous def + props)', () => {
+    const s = useStore.getState()
+    const id = s.addItem({
+      defId: 'bookshelf',
+      position: [0, 0],
+      rotation: 0,
+      props: { width: 1.1 },
+    })
+    useStore.getState().replaceItemDef(id, 'wardrobe-3door')
+    expect(useStore.getState().items.find((i) => i.id === id)?.defId).toBe('wardrobe-3door')
+    useStore.getState().undo()
+    const it = useStore.getState().items.find((i) => i.id === id)!
+    expect(it.defId).toBe('bookshelf')
+    expect(it.props.width).toBe(1.1)
+  })
+})
+
 describe('addItem level stamping (F13/ML5)', () => {
   it('stamps levelId from an upper-storey room editor; ground editor leaves it unset', () => {
     useStore.getState().__resetForTest()

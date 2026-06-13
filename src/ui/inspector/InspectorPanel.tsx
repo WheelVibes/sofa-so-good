@@ -489,6 +489,8 @@ export function InspectorPanel() {
   )
   const proMode = useStore((s) => s.uiMode === 'pro')
   const catalog = useCatalog()
+  // Replace-with-similar (PARITY-REPLACE): swap to a nearest-size sibling.
+  const replaceSimilarOn = useFeature('replaceSimilar')
   // Copy/paste appearance (look-only transfer) + recolour-by-category.
   const copyAppearanceOn = useFeature('copyAppearance')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
@@ -910,15 +912,18 @@ export function InspectorPanel() {
                   Centre
                 </button>
               </div>
-              <button
-                type="button"
-                onClick={() => useStore.getState().setSwapItemId(item.id)}
-                className="btn btn-soft btn-block"
-                style={{ marginTop: 'var(--s-2)' }}
-              >
-                <Icon.Copy width={14} height={14} />
-                Swap with similar
-              </button>
+              {replaceSimilarOn ? (
+                <button
+                  type="button"
+                  onClick={() => useStore.getState().setSwapItemId(item.id)}
+                  className="btn btn-soft btn-block"
+                  style={{ marginTop: 'var(--s-2)' }}
+                  title="Swap this piece for a nearest-size catalog alternative, keeping its place"
+                >
+                  <Icon.Copy width={14} height={14} />
+                  Replace with similar…
+                </button>
+              ) : null}
               {sameTypeCount > 1 ? (
                 <button
                   type="button"

@@ -70,6 +70,20 @@ There's no mouse to capture, so walk mode switches to touch controls:
 You're bounded by the walls — an open door is a gap you can walk through, a
 closed one isn't.
 
+### Camera controls (Pro)
+
+In **Pro** mode, a small panel appears in the top‑right while you walk with two
+sliders:
+
+- **Field of view** (50°–100°) — how wide a view you see. A lower value zooms in
+  (a tighter, more telephoto look); a higher value gives a wide‑angle view that
+  takes in more of the room at once. Default 70°.
+- **Eye height** (1.2 m–1.9 m) — how high you stand. Lower it to see the space as
+  a child would, or raise it for a taller observer. Default 1.6 m. (Shown in feet
+  and inches if you've set imperial units.)
+
+Both apply instantly and are remembered on your device.
+
 ## Saved views & presentation (Pro)
 
 **View → Save current view** bookmarks the camera angle you're at (with the

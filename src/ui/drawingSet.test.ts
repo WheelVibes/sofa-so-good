@@ -38,6 +38,16 @@ describe('buildDrawingSetHtml', () => {
     expect(html).toContain('Section A')
   })
 
+  it('draws furniture silhouettes in the section for the furnished flat, none for a bare plan', () => {
+    const furnished = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(furnished).toContain('Section A')
+    expect(furnished).toContain('class="items"') // silhouettes beyond the cut
+    // Bare plan: the section sheet still renders (cut walls), without silhouettes.
+    const bare = buildDrawingSetHtml(plan, [], BUILTIN_CATALOG)
+    expect(bare).toContain('Section A')
+    expect(bare).not.toContain('class="items"')
+  })
+
   it('includes an electrical-plan sheet when electrical points are supplied', () => {
     const points = [
       { x: 1, z: 1, kind: 'socket' as const },
