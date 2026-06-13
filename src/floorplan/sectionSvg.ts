@@ -1,7 +1,8 @@
 /**
  * Cross-section SVG renderer (feature F32).
  *
- * Pure `Section → SVG string` step: draws the floor line, ceiling lines, the
+ * Pure `Section → SVG string` step: draws the floor line, ceiling lines,
+ * furniture silhouettes standing in the cut's room band (behind the cut), the
  * cut wall columns (filled rectangles), opening gaps (knocked out of the wall
  * fill), room labels, and a height dimension on the side. The horizontal axis
  * is the section's "along" axis (left→right), the vertical axis is height
@@ -24,6 +25,8 @@ export interface SectionPalette {
   opening: string
   /** Strong foreground — labels, dimension, axis. */
   ink: string
+  /** Furniture silhouette fill (behind the cut). Defaults to `wall` when unset. */
+  item?: string
 }
 
 export interface SectionSvgOpts {
@@ -118,6 +121,33 @@ export function sectionSvg(section: Section, opts: SectionSvgOpts): string {
   }
   parts.push('</g>')
 
+  // --- Furniture silhouettes (behind the cut, drawn before the walls) ------
+  if (section.items.length > 0) {
+    const itemFill = palette.item ?? palette.wall
+    parts.push('<g class="items">')
+    for (const it of section.items) {
+      const ix = x(it.start)
+      const iw = Math.max((it.end - it.start) * scale, 1)
+      const ih = Math.min(it.height, section.height)
+      const iy = y(ih)
+      const ihPx = Math.max(ih * scale, 1)
+      parts.push(
+        `<rect x="${n(ix)}" y="${n(iy)}" width="${n(iw)}" height="${n(ihPx)}" fill="${esc(
+          itemFill,
+        )}" fill-opacity="0.55" stroke="${esc(palette.ink)}" stroke-width="0.75" />`,
+      )
+      if (it.label && it.end - it.start > 0.35) {
+        parts.push(
+          `<text x="${n(ix + iw / 2)}" y="${n(iy + ihPx / 2)}" font-size="${FONT - 1}" ` +
+            `text-anchor="middle" dominant-baseline="middle" fill="${esc(palette.ink)}">${esc(
+              it.label,
+            )}</text>`,
+        )
+      }
+    }
+    parts.push('</g>')
+  }
+
   // --- Cut wall columns ----------------------------------------------------
   parts.push('<g class="walls">')
   for (const w of section.walls) {
@@ -195,6 +225,10 @@ function alongRange(section: Section): { min: number; max: number } {
   for (const r of section.rooms) {
     note(r.start)
     note(r.end)
+  }
+  for (const it of section.items) {
+    note(it.start)
+    note(it.end)
   }
   if (!Number.isFinite(min) || !Number.isFinite(max) || max - min < 1e-6) {
     return { min: 0, max: Math.max(section.length, 0.001) }

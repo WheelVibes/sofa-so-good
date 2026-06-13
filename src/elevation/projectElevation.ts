@@ -65,7 +65,7 @@ const clamp = (x: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, x
 
 /** Above-floor height of an item in metres (parametric height prop → def height),
  *  scaled by the item/def scale. */
-function itemHeight(item: FurnitureItem, def: FurnitureDef): number {
+export function itemHeight(item: FurnitureItem, def: FurnitureDef): number {
   let h = def.defaultFootprint.h
   if (def.kind === 'parametric') {
     const hv = item.props['height']

@@ -24,6 +24,7 @@ function sampleSection(): Section {
     ],
     openings: [{ pos: 4, width: 2, sill: 0.9, head: 2.1, kind: 'window' }],
     rooms: [{ name: 'Living', start: 0, end: 4 }],
+    items: [{ id: 'sofa', label: 'Sofa', start: 1, end: 3, height: 0.8 }],
     ceil: [{ start: 0, end: 4, y: 2.8 }],
   }
 }
@@ -38,9 +39,17 @@ describe('sectionSvg', () => {
 
   it('draws a rect per cut wall', () => {
     const svg = sectionSvg(sampleSection(), { palette: PALETTE })
-    // 2 wall rects + 1 opening rect = 3 rects.
-    expect((svg.match(/<rect /g) ?? []).length).toBe(3)
+    // 2 wall rects + 1 opening rect + 1 furniture silhouette = 4 rects.
+    expect((svg.match(/<rect /g) ?? []).length).toBe(4)
     expect(svg).toContain('class="walls"')
+  })
+
+  it('draws furniture silhouettes (in the cut room band) behind the cut', () => {
+    const svg = sectionSvg(sampleSection(), { palette: PALETTE })
+    expect(svg).toContain('class="items"')
+    expect(svg).toContain('Sofa')
+    // The silhouette group is emitted before the walls group (painted behind).
+    expect(svg.indexOf('class="items"')).toBeLessThan(svg.indexOf('class="walls"'))
   })
 
   it('draws floor and ceiling lines', () => {
@@ -88,6 +97,7 @@ describe('sectionSvg', () => {
       walls: [],
       openings: [],
       rooms: [],
+      items: [],
       ceil: [],
     }
     const svg = sectionSvg(empty, { palette: PALETTE })

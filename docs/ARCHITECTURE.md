@@ -280,14 +280,20 @@ same change that reshapes a system.
 - **Wall elevations** (`elevation/projectElevation.ts` pure → `WallElevation` per plan wall, reusing
   the collision OBB helpers; `ui/elevation/elevationSvg.ts` renders to a palette-injected SVG string
   shared by the `ElevationPanel` (token colours) + the report). The vertical counterpart to the plan.
+- **Cross-section** (`floorplan/section.ts` pure → a `Section` cut along a mid-plan line: cut wall
+  columns w/ heights, floor/ceiling runs, room spans, opening gaps, + furniture silhouettes beyond the
+  cut supplied via `ui/elevation/sectionFigure.ts` `sectionSilhouettes` so the core stays footprint-
+  helper-free; `floorplan/sectionSvg.ts` renders a palette-injected SVG). A "Section A–A" sheet in the
+  drawing set + a section block in `report.ts`; rides the existing `drawings` flag (pro). Guards a bare
+  shell / partial plan.
 - **FF&E schedule** (`ffe/ffeSchedule.ts` pure → per-(room,def,variant) rows: source/SKU/real dims/
   qty/pricing, reusing `pointInRoom` + `itemPrice`). Rendered as the report's procurement table.
   **Furniture CSV** (`ui/furnitureCsv.ts` pure `buildFurnitureCsv` → RFC-4180 CSV of the schedule:
   Room/Item/Source/SKU/W·D·H mm/Qty/Unit/Total + grand-total footer; `ui/openFurnitureCsv.ts` =
   Blob download). File menu + mobile + ⌘K, `shopExport` flag (simple).
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
-  (cover + plan + per-wall elevations + lighting + FF&E, title blocks, `@page` A4) reusing all the
-  pure renderers — the formal counterpart to the one-page `report.ts`.
+  (cover + plan + per-wall elevations + cross-section + lighting + FF&E, title blocks, `@page` A4)
+  reusing all the pure renderers — the formal counterpart to the one-page `report.ts`.
 - **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as DXF;
   `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
   `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +

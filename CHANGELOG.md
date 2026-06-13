@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Cross-section drawing: furniture silhouettes beyond the cut + report integration (PARITY-SECTION)
+
+- **Section now shows furniture beyond the cut in elevation.** Extended the pure `floorplan/section.ts`
+  core with caller-supplied silhouette inputs (`SectionItemInput` = footprint corners + height) so a
+  `Section` reports the pieces standing in the cut's room band, projected as elevation silhouettes
+  (along-axis extent × height), tallest-first. Built via the new `ui/elevation/sectionFigure.ts`
+  `sectionSilhouettes` (reusing the OBB footprint + `itemHeight` helpers) so the core stays free of the
+  GLB/three-tied footprint code. `floorplan/sectionSvg.ts` draws them behind the cut walls with a
+  palette `item` colour (falls back to `wall`).
+- **Wired into both deliverables.** The "Section A–A" drawing-set sheet now passes ground-floor
+  furniture silhouettes; `report.ts` gains a matching "Section A–A" block (between Wall elevations and
+  Lighting). Both ride the existing `drawings` flag (pro) — no new flag. Degrades gracefully: a bare
+  shell renders the cut walls/floor/ceiling with no silhouettes.
+- Tests: silhouette projection/skip/sort/over-height/malformed-guard in `section.test.ts`, the items
+  group in `sectionSvg.test.ts`, and furnished-vs-bare section assertions in `drawingSet.test.ts` +
+  `report.test.ts`. Verified the rendered Section A–A sheet (cut walls, floor/ceiling, room bands, door/
+  window gaps, dining-chair silhouettes) reads correctly with no clipping.
+
 ## Walk-mode observer camera controls — field-of-view + eye-height (PARITY-WALKCAM)
 
 - **Adjustable first-person camera** (Sweet Home 3D parity). In walk mode you can now set the

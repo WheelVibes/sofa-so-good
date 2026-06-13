@@ -11,7 +11,11 @@
  *    the section axis + thickness + floor→ceiling height, or `topHeight` for
  *    parapets),
  *  - openings on those cut walls as gaps with sill/head,
- *  - rooms the cut passes through as labelled floor segments.
+ *  - rooms the cut passes through as labelled floor segments,
+ *  - furniture standing in the cut's room band (footprint straddling the cut
+ *    line) projected onto the section plane as elevation silhouettes behind the
+ *    cut — supplied by the caller as footprint corners + height so the core
+ *    stays free of the impure footprint helpers.
  *
  * Walls running parallel to the cut (never crossed by the cut line) are
  * omitted — this is the cut profile only, not a full back-wall elevation.
@@ -75,6 +79,31 @@ export interface SectionRoom {
   end: number
 }
 
+/** Input silhouette for furniture seen *beyond* the cut, computed by the caller
+ *  (which owns the impure footprint helpers) so the core stays dependency-free:
+ *  the piece's floor footprint corners (world metres) + its above-floor height. */
+export interface SectionItemInput {
+  id: string
+  label: string
+  /** Footprint corners in world XZ metres. */
+  corners: PlanVec2[]
+  /** Above-floor height in metres. */
+  height: number
+}
+
+/** A furniture piece projected onto the section plane (elevation of what stands
+ *  in the room band the cut passes through, drawn behind the cut walls). */
+export interface SectionItem {
+  id: string
+  label: string
+  /** Start position along the section axis, metres. */
+  start: number
+  /** End position along the section axis, metres. */
+  end: number
+  /** Above-floor height in metres. */
+  height: number
+}
+
 /** A ceiling run at height `y` spanning `[start,end]` along the section axis. */
 export interface SectionCeil {
   start: number
@@ -92,6 +121,9 @@ export interface Section {
   walls: SectionWall[]
   openings: SectionOpening[]
   rooms: SectionRoom[]
+  /** Furniture standing in the cut's room band, shown in elevation behind the
+   *  cut (empty when no silhouettes were supplied — e.g. a bare shell). */
+  items: SectionItem[]
   /** Floor line height, metres (0). */
   floorY: number
   ceil: SectionCeil[]
@@ -154,7 +186,11 @@ function crossAlong(a: PlanVec2, b: PlanVec2, axis: SectionAxis, at: number): nu
  * non-array walls/openings/rooms, an empty plan, and a cut line outside the
  * plan bounds (→ an empty section, never throws). All values clamped ≥ 0.
  */
-export function buildSection(plan: FloorPlan, cut: SectionCut): Section {
+export function buildSection(
+  plan: FloorPlan,
+  cut: SectionCut,
+  silhouettes: SectionItemInput[] = [],
+): Section {
   const axis: SectionAxis = cut?.axis === 'x' ? 'x' : 'z'
   const at = typeof cut?.at === 'number' && Number.isFinite(cut.at) ? cut.at : 0
   const empty: Section = {
@@ -165,6 +201,7 @@ export function buildSection(plan: FloorPlan, cut: SectionCut): Section {
     walls: [],
     openings: [],
     rooms: [],
+    items: [],
     floorY: 0,
     ceil: [],
   }
@@ -261,6 +298,35 @@ export function buildSection(plan: FloorPlan, cut: SectionCut): Section {
   sectionWalls.sort((p, q) => p.pos - q.pos)
   sectionOpenings.sort((p, q) => p.pos - q.pos)
 
+  // --- Furniture beyond the cut → elevation silhouettes --------------------
+  // A piece counts as "in the cut's room band" when its footprint straddles the
+  // cut line along the fixed axis (so it is what you would see looking along the
+  // cut). It is drawn flattened onto the section: its along-axis extent × height.
+  const sectionItems: SectionItem[] = []
+  for (const sil of safeSilhouettes(silhouettes)) {
+    let fLo = Number.POSITIVE_INFINITY
+    let fHi = Number.NEGATIVE_INFINITY
+    let aLo = Number.POSITIVE_INFINITY
+    let aHi = Number.NEGATIVE_INFINITY
+    for (const p of sil.corners) {
+      const fx = fixedOf(p, axis)
+      const ax = alongOf(p, axis)
+      if (fx < fLo) fLo = fx
+      if (fx > fHi) fHi = fx
+      if (ax < aLo) aLo = ax
+      if (ax > aHi) aHi = ax
+    }
+    // Footprint must straddle the cut line on the fixed axis.
+    if (at < fLo - EPS || at > fHi + EPS) continue
+    if (aHi - aLo < EPS) continue
+    const h = sil.height > 0 ? sil.height : 0
+    if (h < EPS) continue
+    sectionItems.push({ id: sil.id, label: sil.label, start: aLo, end: aHi, height: h })
+    if (h > maxTop) maxTop = h
+  }
+  // Tallest-first so a renderer painting in order keeps shorter pieces on top.
+  sectionItems.sort((p, q) => q.height - p.height)
+
   // --- Section span (length) -----------------------------------------------
   let aMin = Number.POSITIVE_INFINITY
   let aMax = Number.NEGATIVE_INFINITY
@@ -275,6 +341,10 @@ export function buildSection(plan: FloorPlan, cut: SectionCut): Section {
   for (const r of sectionRooms) {
     noteAlong(r.start)
     noteAlong(r.end)
+  }
+  for (const it of sectionItems) {
+    noteAlong(it.start)
+    noteAlong(it.end)
   }
   let length = 0
   if (Number.isFinite(aMin) && Number.isFinite(aMax)) {
@@ -292,9 +362,27 @@ export function buildSection(plan: FloorPlan, cut: SectionCut): Section {
     walls: sectionWalls,
     openings: sectionOpenings,
     rooms: sectionRooms,
+    items: sectionItems,
     floorY: 0,
     ceil,
   }
+}
+
+/** Validate the caller-supplied silhouettes (drop malformed ones). */
+function safeSilhouettes(list: unknown): SectionItemInput[] {
+  if (!isArr<SectionItemInput>(list)) return []
+  return list.filter(
+    (s): s is SectionItemInput =>
+      !!s &&
+      typeof s === 'object' &&
+      typeof s.id === 'string' &&
+      typeof s.label === 'string' &&
+      typeof s.height === 'number' &&
+      Number.isFinite(s.height) &&
+      isArr<PlanVec2>(s.corners) &&
+      s.corners.length >= 3 &&
+      s.corners.every((p) => isArr<number>(p) && p.length >= 2),
+  )
 }
 
 function clampNum(v: unknown, lo: number, hi: number): number {

@@ -34,6 +34,7 @@ import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux } from '../lighting2d/roomLux'
 import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
+import { sectionSilhouettes } from './elevation/sectionFigure'
 import {
   type LightingPalette,
   lightingPlanSvg,
@@ -163,8 +164,13 @@ export function buildDrawingSetHtml(
     })
   }
 
-  // Cross-section — a vertical cut through the middle of the plan (along Z).
-  const section = buildSection(plan, { axis: 'z', at: plan.extent[1] / 2 })
+  // Cross-section — a vertical cut through the middle of the plan (along Z),
+  // with ground-floor furniture in the cut's room band shown in elevation.
+  const section = buildSection(
+    plan,
+    { axis: 'z', at: plan.extent[1] / 2 },
+    sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog),
+  )
   if (section.walls.length > 0) {
     sheets.push({
       name: 'Section A–A',
@@ -175,6 +181,7 @@ export function buildDrawingSetHtml(
           ceil: '#9ca3af',
           opening: '#93c5fd',
           ink: '#4b5563',
+          item: '#d8c8b0',
         },
         widthPx: 900,
       })}</div>`,

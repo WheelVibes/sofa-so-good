@@ -45,6 +45,18 @@ describe('buildReportHtml', () => {
     expect(html).not.toContain('Wall elevations')
   })
 
+  it('includes a cross-section for the furnished flat AND for a bare shell', () => {
+    const furnished = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
+    expect(furnished).toContain('Section A')
+    expect(furnished).toContain('class="walls"') // cut wall columns
+    expect(furnished).toContain('class="items"') // furniture silhouettes beyond the cut
+    // The default flat's plan walls produce a section even with no furniture;
+    // the section block stays (graceful), just without silhouettes.
+    const bare = buildReportHtml(plan, [], BUILTIN_CATALOG, null)
+    expect(bare).toContain('Section A')
+    expect(bare).not.toContain('class="items"')
+  })
+
   it('includes a Design score section with an overall grade and per-category bars', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Design score')

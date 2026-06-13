@@ -30,6 +30,8 @@ import {
   planLevels,
 } from '../floorplan/levels'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
+import { buildSection } from '../floorplan/section'
+import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
 import { planRoomArea } from '../floorplan/types'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
@@ -44,6 +46,7 @@ import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { formatArea, formatDims, formatLength, type UnitSystem } from '../utils/measurement'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
+import { sectionSilhouettes } from './elevation/sectionFigure'
 import {
   type LightingPalette,
   lightingPlanSvg,
@@ -67,6 +70,14 @@ const ELEV_PRINT: ElevationPalette = {
   text: '#4b5563',
 }
 const LIGHTING_PRINT: LightingPalette = { wall: '#9ca3af', ink: '#374151', coverage: '#f59e0b' }
+const SECTION_PRINT = {
+  wall: '#9ca3af',
+  floor: '#374151',
+  ceil: '#9ca3af',
+  opening: '#93c5fd',
+  ink: '#4b5563',
+  item: '#d8c8b0',
+}
 
 const CAT_LABEL: Record<FurnitureCategory, string> = {
   beds: 'Beds',
@@ -638,6 +649,21 @@ export function buildReportHtml(
         .join('')}</div></div>`
     : ''
 
+  // Cross-section — a vertical cut through the middle of the plan (along Z),
+  // with ground-floor furniture in the cut's room band drawn in elevation. The
+  // companion to the wall elevations; degrades to the bare shell when empty.
+  const section = buildSection(
+    plan,
+    { axis: 'z', at: (Array.isArray(plan.extent) ? plan.extent[1] : 0) / 2 },
+    sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog),
+  )
+  const sectionSection = section.walls.length
+    ? `<div class="elev-section"><h2>Section A–A</h2><div class="plan-wrap">${sectionSvg(section, {
+        palette: SECTION_PRINT,
+        widthPx: 700,
+      })}</div></div>`
+    : ''
+
   // Lighting plan — fixtures (from the light-emitter registry) plotted over the
   // walls + a schedule, plus a per-room lumen-method lux estimate vs the
   // recommended residential bands. Only when the design actually has lights.
@@ -842,6 +868,7 @@ export function buildReportHtml(
   ${hackingSection}
   ${dimensionedPlanSection}
   ${elevationsSection}
+  ${sectionSection}
   ${lightingSection}
   ${
     paletteChips
