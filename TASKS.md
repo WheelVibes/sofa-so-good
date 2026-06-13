@@ -1,6 +1,6 @@
 # TASKS — autonomous improvement backlog (OPEN ITEMS ONLY)
 
-Working branch: `claude/codebase-analysis-optimization-ny3xm9` (previous batches merged via PR #24).
+Working branch: `claude/codebase-analysis-optimization-4ijn0x` (previous batches merged via PR #24).
 Each task = its own commit; log every shipped task in `CHANGELOG.md`.
 Licensed/non-redistributable additions are dev-gated; unlicensed ship in prod too.
 
@@ -86,6 +86,35 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   rotation-aware `InstancedBoxes` sibling; deferred until a consumer justifies it).
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
+
+## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
+
+### Security (verified real)
+- [ ] SEC1: pre-decode pixel-dimension cap in `materials/convert/decodeImage.ts` — the
+  `MAX_IMAGE_DIM` check runs AFTER full RGBA decode, so a small file declaring 30000² OOM-
+  crashes the tab (decompression-bomb DoS). Reject `w*h > cap²` before alloc for TGA/TIFF/
+  EXR/HDR + native bitmap.
+- [ ] SEC2: `ui/report.ts` `heroDataUrl` interpolated into `<img src>` with no `^data:image/`
+  prefix check (defense-in-depth; mirror `moodboard.ts` `renderHero`).
+
+### Reliability / data-integrity (verified real)
+- [ ] REL1: guard non-finite (NaN/Infinity) transforms+numeric props on `.sofa.json` import
+  (`storage/designFile.ts` — zod `z.number()` admits NaN) and on `addItem`/`moveItem`/
+  `updateItemProps`; `schema.applySerialized` already drops them on share-link load.
+
+### Realism (pure-code, prod-safe — most users see the flat Performance tier)
+- [ ] RZ1: always-on cheap contact shadows on Performance tier (grounding) — highest visual
+  payoff; one shared blob texture + plane-per-item, transparent overdraw only.
+- [ ] RZ2: window glass realism — emissive sky-catch on Perf/Medium, `getGlassMaterial`
+  transmission on High+ (`apartment/Window.tsx`, half-built in `materialRealism.ts`).
+- [ ] RZ3: beveled edges (`RoundedBox`) on hard furniture primitives (tables/cabinets/shelves).
+- [ ] RZ4: procedural roughness micro-detail + grout aging on wood/tile/marble generators.
+- [ ] RZ5: skirting/baseboard seam AO + painted-trim wear (close-up/walk realism).
+- [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.
+- [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
+
+### Code quality
+- [~] CQ1: dead-code sweep (autoArrange chair `half` removed this batch — keep scanning).
 
 ## Process
 - Keep CLAUDE.md / README.md / docs current per repo rule after each user-facing change.
