@@ -89,10 +89,11 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
 
-### Reliability / data-integrity (verified real)
-- [ ] REL1: guard non-finite (NaN/Infinity) transforms+numeric props on `.sofa.json` import
-  (`storage/designFile.ts` — zod `z.number()` admits NaN) and on `addItem`/`moveItem`/
-  `updateItemProps`; `schema.applySerialized` already drops them on share-link load.
+### Reliability / data-integrity
+- REL1 — RESOLVED as already-covered: `schema.applySerialized` drops non-finite transforms on
+  BOTH share-link and `.sofa.json` load, and `parametric/spec.ts clampSpec` (`num()`+`clamp`)
+  sanitizes NaN props → defaults → envelopes. Placed parametric items bake to GLB defs, so no
+  runtime numeric-prop NaN path. No redundant guards added (would mask real bugs).
 
 ### Realism (pure-code, prod-safe — most users see the flat Performance tier)
 - [ ] RZ1: always-on cheap contact shadows on Performance tier (grounding) — highest visual
