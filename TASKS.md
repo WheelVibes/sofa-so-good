@@ -118,7 +118,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   KTX2 in prod (ETC1S albedo / UASTC normal+ORM).
 - [ ] PHOTO-DETAIL: set-dressing prop pack (books/cushions/plants — biggest perceived-realism lever)
   + edge bevels (RoundedBox) on hard primitives.
-- [ ] PHOTO-EMISSIVE: HDR emissive (`emissiveIntensity`>1) on lamps/screens so they bloom.
+- [ ] PHOTO-EMISSIVE tail: real-GPU pass to tune the bloom look on High/Max for the boosted fixtures
+  (intensities now clear the 1.05 threshold; the flat-tier self-lit read is verified, the bloom amount
+  needs a GPU eye). Base wiring shipped — see CHANGELOG.
 - [ ] PHOTO-GLASS / PHOTO-GTAO / PHOTO-SOFTSHADOW (VSM, NOT drei PCSS — broken r182+) / PHOTO-POM /
   PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 

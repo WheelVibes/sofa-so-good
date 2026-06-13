@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { MeshStandardMaterial } from 'three'
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import { useStore } from '../../state/store'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
@@ -21,7 +21,7 @@ export function CeilingLight({ props }: { props: ParamProps }) {
   const fixtureY = mountH - drop
   const shadeRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
-    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7
+    if (shadeRef.current) shadeRef.current.emissiveIntensity = fixtureEmissiveIntensity('shade')
   })
 
   if (!showFixtures) return null

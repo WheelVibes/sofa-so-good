@@ -52,7 +52,9 @@ export function FlatscreenTV({ props }: { props: ParamProps }) {
             map={getScreenContent(content)}
             emissiveMap={getScreenContent(content)}
             emissive="#ffffff"
-            emissiveIntensity={0.85}
+            // HDR (>1) so the lit screen reads self-lit + blooms (toneMapped off
+            // so the value survives into the bloom buffer; PHOTO-EMISSIVE).
+            emissiveIntensity={1.2}
             roughness={0.2}
             metalness={0}
             toneMapped={false}

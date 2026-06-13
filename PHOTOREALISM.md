@@ -78,9 +78,12 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
    `filterGlossyFactor≈0.75` (kills sun-through-glass fireflies), `multipleImportanceSampling=true`,
    `stableNoise=true`, `minSamples≈5`; add a quality preset (Draft 64 / Standard 256 / Max 1024).
    Pure config, low risk; pixel pass needs real GPU.
-3. **PHOTO-EMISSIVE — HDR emissive (`KHR_materials_emissive_strength`) + bloom** (S, all tiers; Verify H/G).
-   Let lamps/TV screens/LED strips emit >1.0 so they bloom and read self-lit. Wire emissiveIntensity
-   on `lightEmitters`/fixtures; we already have the bloom pass.
+3. **PHOTO-EMISSIVE — HDR emissive + bloom** ✓ **SHIPPED** (S, all tiers; Verify H + G-tail).
+   Lamps/sconces/cove strips/ceiling fans now ramp emissive via a centralised tuned helper
+   (`scene/lighting/fixtureGlow.ts` `fixtureEmissiveIntensity`) whose night peaks clear the Bloom
+   threshold (~1.05) so they bloom on High/Max AND read self-lit on the flat tier; TV/monitor screens +
+   vanity bulbs bumped >1. Flat-tier self-lit verified headless; **G-tail:** tune the bloom amount on a
+   real GPU.
 4. **PHOTO-DETAIL-PROPS — set-dressing prop bundle** (M, all tiers; Verify H).
    Curated CC0 decor/styling props (books, trays, cushions, vases, plants, rugs, bowls) — the single
    biggest *perceived*-realism lever for casual users (empty rooms read fake). Overlaps C-PLANTS/DECOR

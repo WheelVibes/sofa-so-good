@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { MeshStandardMaterial } from 'three'
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import type { ParamProps } from '../types'
 import { readStr } from './shared'
 import { seg, useDetail } from './useDetail'
@@ -27,9 +27,8 @@ export function FloorLamp({ props }: { props: ParamProps }) {
   const shadeRef = useRef<MeshStandardMaterial>(null)
   const bulbRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
-    const g = getFixtureGlow()
-    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.05 + g * 0.6
-    if (bulbRef.current) bulbRef.current.emissiveIntensity = g * 1.1
+    if (shadeRef.current) shadeRef.current.emissiveIntensity = fixtureEmissiveIntensity('shade')
+    if (bulbRef.current) bulbRef.current.emissiveIntensity = fixtureEmissiveIntensity('bulb')
   })
 
   // Arc geometry: a riser then a quarter-circle that carries the shade out to

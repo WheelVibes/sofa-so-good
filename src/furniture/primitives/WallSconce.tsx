@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { MeshStandardMaterial } from 'three'
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 
@@ -15,7 +15,7 @@ export function WallSconce({ props }: { props: ParamProps }) {
 
   const shadeRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
-    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.05 + getFixtureGlow() * 0.9
+    if (shadeRef.current) shadeRef.current.emissiveIntensity = fixtureEmissiveIntensity('shade')
   })
 
   return (

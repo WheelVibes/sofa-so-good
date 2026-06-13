@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { MeshStandardMaterial } from 'three'
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 
@@ -22,7 +22,7 @@ export function CoveLight({ props }: { props: ParamProps }) {
   const lipD = 0.16 // projection into the room
   const stripRef = useRef<MeshStandardMaterial>(null)
   useFrame(() => {
-    if (stripRef.current) stripRef.current.emissiveIntensity = 0.04 + getFixtureGlow() * 1.6
+    if (stripRef.current) stripRef.current.emissiveIntensity = fixtureEmissiveIntensity('strip')
   })
 
   return (

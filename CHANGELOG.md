@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-EMISSIVE: HDR self-lit fixtures + screens (lamps glow + bloom at night)
+
+- **Centralised, tuned emissive ramp** — new `scene/lighting/fixtureGlow.ts` `fixtureEmissiveIntensity(role,
+  glow)` (pure + unit-tested) drives every light fixture's night glow from one place, with per-role peaks
+  (`shade` ~1.33, `bulb` ~1.85, `strip` ~1.66) deliberately **above the Bloom luminance threshold (~1.05)**
+  so lit fixtures bloom on High/Max (like the cove strip + fireplace already did) AND read clearly
+  self-lit on the flat Performance tier (the prod default, where emissive shows but bloom doesn't). Daylight
+  stays dark so fixtures switch off in the sun.
+- **Fixtures migrated** to the helper: `TableLamp`, `FloorLamp` (shade + bulb), `CeilingLight`,
+  `WallSconce`, `CoveLight`, `CeilingFan` — replacing scattered sub-threshold magic numbers (shades capped
+  ~0.76, sconce ~0.95, so they never bloomed and read flat).
+- **Screens + vanity bulbs** bumped into HDR: `FlatscreenTV` 0.85→1.2, `Monitor` 0.8→1.15 (toneMapped off
+  so the value reaches the bloom buffer), `Vanity` Hollywood bulbs 0.9→1.6 when switched on.
+- **Tests** — `fixtureGlow.test.ts` asserts every role peaks above the bloom threshold at full darkness,
+  stays dark in daylight, ramps monotonically, and a bare bulb out-glows a diffusing shade. Verified at
+  night on the flat tier (fixtures read self-lit, no blowout); **bloom amount on High/Max is real-GPU-pending**.
+
 ## PHOTO-BACKDROP: walk-mode equirectangular photo surroundings (3D backdrops removed) + uploads
 
 - **Surroundings are now a flat equirectangular photo** set as `scene.background` (a skybox — one
