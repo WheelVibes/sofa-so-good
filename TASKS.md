@@ -89,10 +89,6 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
 
-### Security (verified real)
-- [ ] SEC2: `ui/report.ts` `heroDataUrl` interpolated into `<img src>` with no `^data:image/`
-  prefix check (defense-in-depth; mirror `moodboard.ts` `renderHero`).
-
 ### Reliability / data-integrity (verified real)
 - [ ] REL1: guard non-finite (NaN/Infinity) transforms+numeric props on `.sofa.json` import
   (`storage/designFile.ts` — zod `z.number()` admits NaN) and on `addItem`/`moveItem`/

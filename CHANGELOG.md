@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Security: validate report hero image URL (defence-in-depth)
+
+- `ui/report.ts` now only embeds the hero render when it is a `data:image/` URL
+  (and HTML-escapes it), mirroring `moodboard.renderHero`. The sole current
+  caller passes `canvas.toDataURL(...)`, so this changes nothing today, but a
+  future caller can no longer slip a `javascript:`/foreign URL or HTML-breaking
+  string into the `<img src>`. Unit-tested for both the accept and reject paths.
+
 ## Security: reject image decompression bombs before decode (texture upload)
 
 - `materials/convert/decodeImage.ts` now enforces a `MAX_DECODE_DIM` (4096²)

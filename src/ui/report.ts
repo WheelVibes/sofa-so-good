@@ -689,7 +689,13 @@ export function buildReportHtml(
         )}</td></tr></table></div>`
     : ''
 
-  const hero = heroDataUrl ? `<img class="hero" src="${heroDataUrl}" alt="render"/>` : ''
+  // Only embed a validated data-image URL (defence-in-depth: matches
+  // moodboard.renderHero so a future caller can't slip a javascript:/foreign URL
+  // or HTML-breaking string into the src attribute).
+  const hero =
+    heroDataUrl && /^data:image\//i.test(heroDataUrl.trim())
+      ? `<img class="hero" src="${esc(heroDataUrl)}" alt="render"/>`
+      : ''
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
     month: 'long',

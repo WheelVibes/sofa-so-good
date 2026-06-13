@@ -21,6 +21,15 @@ describe('buildReportHtml', () => {
     expect(html).toContain('data:image/png;base64,AAAA')
   })
 
+  it('rejects a hero URL that is not a data:image/ URL (defence-in-depth)', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, 'javascript:alert(1)//')
+    expect(html).not.toContain('javascript:alert(1)')
+    expect(html).not.toContain('<img class="hero"')
+    // A valid data-image URL is still embedded.
+    const ok = buildReportHtml(plan, items, BUILTIN_CATALOG, 'data:image/png;base64,AAAA')
+    expect(ok).toContain('<img class="hero"')
+  })
+
   it('includes a Wall elevations section with per-wall drawings for the furnished flat', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Wall elevations')
