@@ -561,6 +561,30 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
         </div>
       )
     }
+  } else if (sel?.type === 'note') {
+    const note = (plan.notes ?? []).find((x) => x.id === sel.id)
+    if (note) {
+      body = (
+        <div className="space-y-2">
+          <div className="sec-h">
+            <span>Note</span>
+          </div>
+          <label className="flex items-center gap-2 text-xs">
+            <span className="label" style={{ whiteSpace: 'nowrap' }}>
+              Text
+            </span>
+            <input
+              type="text"
+              value={note.text}
+              aria-label="Note text"
+              onChange={(e) => a.updateNote(note.id, { text: e.target.value })}
+              className="input"
+            />
+          </label>
+          <DeleteBtn onClick={() => a.removeNote(note.id)} label="Delete note" />
+        </div>
+      )
+    }
   }
 
   return (

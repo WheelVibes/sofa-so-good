@@ -117,6 +117,20 @@ export interface FloorPlan {
   /** Optional storeys above the ground floor (the top-level fields above ARE
    *  the ground floor). Absent/empty = the single-storey plans of today. */
   upperLevels?: PlanUpperLevel[]
+  /** Free-text annotation notes placed on the plan (PARITY-DIMTEXT). Each is
+   *  level-tagged (`levelId` absent = ground). Additive + optional. */
+  notes?: PlanNote[]
+}
+
+/** A free-text note placed on the 2D plan at a world position. */
+export interface PlanNote {
+  id: string
+  /** World position (metres). */
+  x: number
+  z: number
+  text: string
+  /** Storey the note sits on; absent = ground (F13). */
+  levelId?: string
 }
 
 /** Default wall colour for custom plans when `wallColor` is unset. */

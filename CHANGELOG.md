@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-DIMTEXT: free-text notes on the 2D plan
+
+- **New "Text" tool in the 2D Floor Plan Editor** — click to drop a free-text note (prompts for text);
+  notes render on the plan with a legibility halo, are **draggable** (select tool) and **editable +
+  deletable** in the inspector (a NOTE section with a text field + Delete). Level-tagged so each storey
+  shows only its own; selecting one highlights it.
+- **Persisted** in `plan.notes` (new optional `PlanNote[]` on `FloorPlan`, additive — round-trips through
+  `schema.ts`/`FloorPlanZ`, the saved design, share links and the plan library; no version bump). New
+  `addNote`/`updateNote`/`removeNote` slice actions + a `'note'` `PlanSelection` variant; drags coalesce
+  into one undo step. Notes ride into the exported plan PNG (they're part of the editor SVG).
+- **Tests** — slice add/edit/drag/remove (clears selection) + a `schema.test.ts` round-trip preserving
+  notes (incl. a level-tagged one). Verified end-to-end: Text tool places a note, it renders + selects,
+  the inspector edits/deletes it.
+
 ## PARITY-LIGHTINGTEMPLATE-TEXT (material callouts): finishes schedule in the drawing set
 
 - **New "Finishes schedule" sheet** in the printable drawing set — a per-room table of the resolved

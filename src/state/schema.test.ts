@@ -45,6 +45,31 @@ describe('schema', () => {
     expect(room?.polygon).toEqual(polygon)
   })
 
+  it('round-trips plan notes (PARITY-DIMTEXT) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'note-plan',
+        name: 'Notes',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        notes: [
+          { id: 'n1', x: 1, z: 2, text: 'Feature wall' },
+          { id: 'n2', x: 3, z: 1, text: 'Up here', levelId: 'lvl-2' },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.notes).toEqual([
+      { id: 'n1', x: 1, z: 2, text: 'Feature wall' },
+      { id: 'n2', x: 3, z: 1, text: 'Up here', levelId: 'lvl-2' },
+    ])
+  })
+
   it('round-trips per-room floor + wall finishes on a custom plan', () => {
     useStore.getState().__resetForTest()
     useStore.setState({

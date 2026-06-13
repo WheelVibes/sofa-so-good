@@ -227,6 +227,19 @@ describe('multi-storey level editing (F13/ML4a)', () => {
   it('duplicateLevel returns null for an unknown source', () => {
     expect(useStore.getState().duplicateLevel('nope')).toBeNull()
   })
+
+  it('adds, edits, drags and removes plan notes (PARITY-DIMTEXT)', () => {
+    const id = useStore.getState().addNote({ x: 2, z: 3, text: 'TV wall' })
+    expect(useStore.getState().floorPlan.notes?.find((n) => n.id === id)?.text).toBe('TV wall')
+    useStore.getState().updateNote(id, { text: 'Feature wall', x: 4 })
+    const note = useStore.getState().floorPlan.notes?.find((n) => n.id === id)
+    expect(note).toMatchObject({ text: 'Feature wall', x: 4, z: 3 })
+    // Selecting then removing clears the selection.
+    useStore.getState().setPlanSelection({ type: 'note', id })
+    useStore.getState().removeNote(id)
+    expect(useStore.getState().floorPlan.notes?.some((n) => n.id === id)).toBe(false)
+    expect(useStore.getState().planSelection).toBeNull()
+  })
 })
 
 describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', () => {

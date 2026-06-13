@@ -12,6 +12,7 @@ import {
 import type {
   CeilingConfig,
   FloorPlan,
+  PlanNote,
   PlanOpening,
   PlanRoom,
   PlanUpperLevel,
@@ -29,6 +30,7 @@ export type PlanSelection =
   | { type: 'wall'; id: string }
   | { type: 'room'; id: string }
   | { type: 'opening'; id: string }
+  | { type: 'note'; id: string }
   | null
 
 let idCounter = 0
@@ -114,6 +116,13 @@ export interface FloorPlanSlice {
   addOpening: (opening: Omit<PlanOpening, 'id'>, levelId?: string) => string
   updateOpening: (id: string, patch: Partial<PlanOpening>, levelId?: string) => void
   removeOpening: (id: string, levelId?: string) => void
+
+  /** Add a free-text note to the plan (PARITY-DIMTEXT); returns its id. */
+  addNote: (note: Omit<PlanNote, 'id'>) => string
+  /** Patch a note's text / position (coalesced for drags). */
+  updateNote: (id: string, patch: Partial<Omit<PlanNote, 'id'>>) => void
+  /** Remove a note; clears the selection if it was selected. */
+  removeNote: (id: string) => void
 
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
@@ -423,6 +432,37 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         openings: g.openings.filter((o) => o.id !== id),
       })),
       planSelection: null,
+    }))
+  },
+
+  // Notes are a top-level plan array (level-tagged via `note.levelId`), not part
+  // of a storey's wall/room/opening geometry — so they edit the plan directly.
+  addNote: (note) => {
+    const id = planId('note')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: { ...s.floorPlan, notes: [...(s.floorPlan.notes ?? []), { ...note, id }] },
+    }))
+    return id
+  },
+  updateNote: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-note-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        notes: (s.floorPlan.notes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+      },
+    }))
+  },
+  removeNote: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        notes: (s.floorPlan.notes ?? []).filter((n) => n.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'note' && s.planSelection.id === id ? null : s.planSelection,
     }))
   },
 

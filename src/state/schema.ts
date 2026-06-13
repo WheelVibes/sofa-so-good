@@ -196,6 +196,17 @@ const FloorPlanZ = z.object({
   rooms: z.array(PlanRoomZ),
   wallColor: z.string().optional(),
   upperLevels: z.array(PlanUpperLevelZ).optional(),
+  notes: z
+    .array(
+      z.object({
+        id: z.string(),
+        x: z.number(),
+        z: z.number(),
+        text: z.string(),
+        levelId: z.string().optional(),
+      }),
+    )
+    .optional(),
 })
 
 const RawSerializedStateZ = z.object({

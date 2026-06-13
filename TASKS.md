@@ -141,7 +141,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PARITY-SLANTWALL: SH3D slanting walls (per-endpoint top heights).
 - [ ] PARITY-BASEBOARD: SH3D per-wall baseboard params + finish.
 - [ ] PARITY-QUOTE-XLSX: Coohom quote Excel/CSV export + editable templates.
-- [ ] PARITY-DIMTEXT: SH3D first-class dimension-line + on-plan text objects.
+- [~] PARITY-DIMTEXT: **on-plan text notes shipped** (Text tool → placeable/draggable/editable notes,
+  persisted in `plan.notes`). Remaining: first-class custom dimension-line objects (the auto-dimension
+  sheet already exists for fixed measurements).
 
 ### Pending — marquee (L)
 - [ ] PARITY-VIDEO: video flythrough export (camera path → WebM/MP4 via MediaRecorder). [real-GPU verify]

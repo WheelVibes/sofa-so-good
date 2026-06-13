@@ -76,6 +76,7 @@ type Tool =
   | 'door'
   | 'window'
   | 'scale'
+  | 'text'
 
 /** A reference photo/scan traced over to draw walls. Session-scoped (the object
  *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */
@@ -157,6 +158,8 @@ export function FloorPlanEditor() {
   )
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
+  // Active note drag (select tool): grab offset from the note's position.
+  const [movingNote, setMovingNote] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // In-progress polygon-room vertices (polyroom tool): click to add a vertex,
   // click near the first vertex (or Enter) to close into a room.
   const [polyDraft, setPolyDraft] = useState<[number, number][]>([])
@@ -557,6 +560,23 @@ export function FloorPlanEditor() {
         )
         st.setPlanSelection({ type: 'opening', id })
       }
+    } else if (tool === 'text') {
+      // Place a free-text note at the click (PARITY-DIMTEXT); prompt for text.
+      void (async () => {
+        const text = await st.promptText({
+          title: 'Add a note',
+          label: 'Note text',
+          submitLabel: 'Add note',
+        })
+        if (!text) return
+        const id = st.addNote({
+          x: wx,
+          z: wz,
+          text,
+          ...(levelId !== GROUND_LEVEL_ID ? { levelId } : {}),
+        })
+        st.setPlanSelection({ type: 'note', id })
+      })()
     } else {
       st.setPlanSelection(null)
     }
@@ -575,6 +595,13 @@ export function FloorPlanEditor() {
         Math.round((wz - movingStop.gz) * 100) / 100,
       ]
       useStore.getState().updatePanoTourStop(movingStop.id, { position: newPos })
+      return
+    }
+    if (movingNote) {
+      const [wx, wz] = pointerWorld(e)
+      useStore
+        .getState()
+        .updateNote(movingNote.id, { x: snap(wx - movingNote.gx), z: snap(wz - movingNote.gz) })
       return
     }
     if (movingVertex) {
@@ -628,6 +655,10 @@ export function FloorPlanEditor() {
       // from the new position.
       void evictPanoStop(movingStop.id)
       setMovingStop(null)
+      return
+    }
+    if (movingNote) {
+      setMovingNote(null)
       return
     }
     if (movingVertex) {
@@ -718,7 +749,17 @@ export function FloorPlanEditor() {
         <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
         <div className="seg accent" style={{ marginLeft: 4 }}>
           {(
-            ['select', 'wall', 'room', 'polyroom', 'autoroom', 'split', 'door', 'window'] as Tool[]
+            [
+              'select',
+              'wall',
+              'room',
+              'polyroom',
+              'autoroom',
+              'split',
+              'door',
+              'window',
+              'text',
+            ] as Tool[]
           ).map((t) => (
             <button
               key={t}
@@ -1215,6 +1256,44 @@ export function FloorPlanEditor() {
                 )
               })
             })()}
+
+            {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)
+                to select + drag; edit/delete in the inspector. */}
+            {(plan.notes ?? [])
+              .filter((nt) => (nt.levelId ?? GROUND_LEVEL_ID) === levelId)
+              .map((nt) => {
+                const selected = sel?.type === 'note' && sel.id === nt.id
+                return (
+                  <text
+                    key={nt.id}
+                    x={toPx(nt.x)}
+                    y={toPx(nt.z)}
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    className="plan-note"
+                    style={{
+                      cursor: tool === 'select' ? 'move' : 'crosshair',
+                      fontSize: 12,
+                      fontWeight: 600,
+                      fill: selected ? 'var(--accent)' : 'var(--text)',
+                      paintOrder: 'stroke',
+                      stroke: 'var(--surface)',
+                      strokeWidth: 3,
+                      strokeLinejoin: 'round',
+                    }}
+                    onPointerDown={(e) => {
+                      if (tool !== 'select') return
+                      e.stopPropagation()
+                      const [wx, wz] = pointerWorld(e)
+                      useStore.getState().setPlanSelection({ type: 'note', id: nt.id })
+                      setMovingNote({ id: nt.id, gx: wx - nt.x, gz: wz - nt.z })
+                      svgRef.current?.setPointerCapture(e.pointerId)
+                    }}
+                  >
+                    {nt.text}
+                  </text>
+                )
+              })}
 
             {/* Walls (active storey) */}
             {levelPlan.walls.map((w) => {
