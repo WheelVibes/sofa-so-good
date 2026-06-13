@@ -128,7 +128,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PARITY-NORTH: SH3D North/compass widget on the canvas (rotatable, tied to sun azimuth). (Walk
   FOV/eye-height controls shipped — see CHANGELOG PARITY-WALKCAM.)
 - [ ] PARITY-BATCHRENDER: SH3D batch-render all saved views.
-- [ ] PARITY-PLUMBING: Coohom plumbing plan layer (mirror `electricalPlan`).
 - [ ] PARITY-LIGHTINGTEMPLATE-TEXT: Coohom drawing text/material callouts + layer toggles.
 
 ### Pending — high value (M)

@@ -24,6 +24,8 @@ import {
   type PlanLevel,
   planLevels,
 } from '../floorplan/levels'
+import { buildPlumbingPlan, type PlumbingPoint } from '../floorplan/plumbingPlan'
+import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
@@ -77,6 +79,7 @@ export function buildDrawingSetHtml(
   units: UnitSystem = 'metric',
   baselinePlan?: FloorPlan,
   electricalPoints?: ElectricalPoint[],
+  plumbingPoints?: PlumbingPoint[],
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -207,6 +210,28 @@ export function buildDrawingSetHtml(
           widthPx: 900,
         })}</div>
         ${i === wired.length - 1 ? elecSched : ''}`,
+      })
+    })
+  }
+
+  // Plumbing plan (points derived from bathroom / kitchen fixtures) — one
+  // diagram sheet per plumbed storey; the unified schedule rides on the last.
+  if (plumbingPoints && plumbingPoints.length > 0) {
+    const plumb = buildPlumbingPlan(plan, plumbingPoints)
+    const plumbSched = `<table class="sched"><tr class="h"><td>Point</td><td class="n">Qty</td></tr>${plumb.schedule
+      .map((r) => `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td></tr>`)
+      .join('')}</table>`
+    const plumbed = levels.filter((l) => itemsOnLevel(plumb.points, l.id).length > 0)
+    plumbed.forEach((level, i) => {
+      const levelPlan = levelAsPlan(plan, level)
+      const levelPlumb = buildPlumbingPlan(levelPlan, itemsOnLevel(plumb.points, level.id))
+      sheets.push({
+        name: cap('Plumbing plan', level),
+        body: `<div class="draw">${plumbingSvg(levelPlan, levelPlumb, {
+          palette: { wall: '#9ca3af', ink: '#374151', symbol: '#0891b2' },
+          widthPx: 900,
+        })}</div>
+        ${i === plumbed.length - 1 ? plumbSched : ''}`,
       })
     })
   }

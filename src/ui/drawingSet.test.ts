@@ -59,6 +59,26 @@ describe('buildDrawingSetHtml', () => {
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Electrical plan')
   })
 
+  it('includes a plumbing-plan sheet when plumbing points are supplied', () => {
+    const plumbing = [
+      { x: 1, z: 1, kind: 'water-point' as const },
+      { x: 2, z: 1, kind: 'floor-trap' as const },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      plumbing,
+    )
+    expect(html).toContain('Plumbing plan')
+    expect(html).toContain('Floor trap')
+    // No points → no plumbing sheet.
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Plumbing plan')
+  })
+
   it('includes a demolition sheet only when the plan diverged from its baseline', () => {
     const baseline = plan
     const hacked = { ...plan, walls: plan.walls.slice(0, -1) }

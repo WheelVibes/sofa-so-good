@@ -1,6 +1,7 @@
 import { isFeatureEnabled } from '../features/featureFlags'
 import type { ElectricalPoint } from '../floorplan/electricalPlan'
 import { GROUND_LEVEL_ID, planLevels } from '../floorplan/levels'
+import type { PlumbingPoint } from '../floorplan/plumbingPlan'
 import type { FloorPlan } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
 import { buildMergedCatalog } from '../furniture/catalog'
@@ -61,6 +62,40 @@ function deriveElectricalPoints(
   return pts
 }
 
+/** Derive an indicative plumbing layout from placed fixtures: a WC → soil pipe
+ *  + cistern water point; basins / sinks / dishwashers → water + drainage;
+ *  showers → floor trap + water; bathtubs → water + drainage; washing machines →
+ *  water + floor trap; water heaters → a heater point. A sensible starting point
+ *  the user can refine. */
+function derivePlumbingPoints(
+  items: FurnitureItem[],
+  catalog: Record<string, FurnitureDef>,
+): PlumbingPoint[] {
+  const pts: PlumbingPoint[] = []
+  for (const it of items) {
+    if (!catalog[it.defId]) continue
+    const [x, z] = it.position
+    const id = it.defId
+    const lvl = it.levelId ? { levelId: it.levelId } : {}
+    if (/toilet|^wc$/.test(id)) {
+      pts.push({ x, z, kind: 'soil-pipe', ...lvl })
+      pts.push({ x: x + 0.2, z, kind: 'water-point', ...lvl })
+    } else if (/shower/.test(id)) {
+      pts.push({ x, z, kind: 'floor-trap', ...lvl })
+      pts.push({ x: x + 0.2, z, kind: 'water-point', ...lvl })
+    } else if (/washing-machine/.test(id)) {
+      pts.push({ x, z, kind: 'water-point', ...lvl })
+      pts.push({ x: x + 0.2, z, kind: 'floor-trap', ...lvl })
+    } else if (/water-heater|heater/.test(id)) {
+      pts.push({ x, z, kind: 'water-heater', ...lvl })
+    } else if (/sink|basin|bathtub|dishwasher/.test(id)) {
+      pts.push({ x, z, kind: 'water-point', ...lvl })
+      pts.push({ x: x + 0.2, z, kind: 'drainage', ...lvl })
+    }
+  }
+  return pts
+}
+
 /**
  * Build the multi-sheet drawing set from the live store and open it in a new
  * window for print / save-as-PDF. Mirrors `openDesignReport`; surfaces a
@@ -88,7 +123,18 @@ export async function openDrawingSet(): Promise<void> {
     const electrical = isFeatureEnabled('electricalPlan')
       ? deriveElectricalPoints(s.floorPlan, s.items, catalog)
       : undefined
-    html = buildDrawingSetHtml(s.floorPlan, s.items, catalog, s.units, s.baselinePlan, electrical)
+    const plumbing = isFeatureEnabled('plumbingPlan')
+      ? derivePlumbingPoints(s.items, catalog)
+      : undefined
+    html = buildDrawingSetHtml(
+      s.floorPlan,
+      s.items,
+      catalog,
+      s.units,
+      s.baselinePlan,
+      electrical,
+      plumbing,
+    )
   } catch {
     win.close()
     s.notify.start({

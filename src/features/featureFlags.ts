@@ -72,6 +72,7 @@ export type FeatureFlag =
   | 'replaceSimilar'
   | 'customBackdrop'
   | 'planLabels'
+  | 'plumbingPlan'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -451,6 +452,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   planLabels: {
     label: 'Plan labels',
     description: 'Show furniture names / prices on the 2D floor plan',
+    default: true,
+    tier: 'pro',
+  },
+  // Plumbing plan sheet in the drawing set (mirrors electricalPlan). Pure code,
+  // no external assets → prod-safe. A technical drawing → pro tier.
+  plumbingPlan: {
+    label: 'Plumbing plan',
+    description: 'Water-supply / drainage layout sheet in the drawing set',
     default: true,
     tier: 'pro',
   },

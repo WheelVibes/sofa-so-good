@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-PLUMBING: plumbing plan sheet in the drawing set (mirrors electrical)
+
+- **New plumbing layer in the printable drawing set** (Coohom parity) — points (water supply, drainage,
+  floor traps, soil pipes, water heaters) are auto-derived from placed fixtures (WC → soil pipe + cistern
+  water point; sinks/basins/dishwashers/bathtubs → water + drainage; showers → floor trap + water;
+  washing machines → water + floor trap; water heaters → a heater point), then rendered as a per-storey
+  plumbing-plan sheet with symbol glyphs + a per-kind schedule. Gated by a new `plumbingPlan` flag
+  (pro, prod-safe).
+- **Pure `floorplan/plumbingPlan.ts` + `plumbingPlanSvg.ts`** mirror the electrical pair exactly
+  (validated/clamped builder + schedule; `PlumbingPlan → SVG` with XML-escaped labels and a
+  wall-bounds viewBox). Wired into `drawingSet.ts` (per-plumbed-storey sheet + unified schedule) and
+  `openDrawingSet.ts` (derive + gate).
+- **Tests** — `plumbingPlan.test.ts` (validation, schedule order, malformed input, optional fields),
+  `plumbingPlanSvg.test.ts` (symbol per point, escaping, empty-state, malformed plan), and a
+  `drawingSet.test.ts` case asserting the plumbing sheet appears only when points are supplied.
+
 ## PARITY-WALLOPS: reverse + join wall commands in the 2D editor
 
 - **Reverse** and **Join** buttons in the wall inspector (joining Split, which already existed → SH3D
