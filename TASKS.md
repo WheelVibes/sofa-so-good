@@ -96,14 +96,12 @@ mark non-pure-client features. Source of detail: `FEATURE_PARITY.md`.
 ### In progress (worktree subagents dispatched)
 - [~] PARITY-REPLACE: Coohom "Replace-with-similar" — one-click swap a placed item for a similar
   catalog item (same category, nearest footprint), preserving transform; inspector + ⌘K.
-- [~] PARITY-LIGHTPRESET: Coohom one-click lighting presets (day/golden/night/overcast) over the
-  existing sun/IBL + time-of-day; Scene menu + ⌘K, flag-gated.
 - [~] PARITY-SECTION: Coohom section/cross-section drawing sheet added to the drawing set
   (reuse elevation projection), pro tier.
 
 ### Pending — quick wins (S)
-- [ ] PARITY-NORTH: SH3D North/compass widget (rotatable, tied to sun azimuth) + walk FOV/eye-height
-  controls.
+- [ ] PARITY-NORTH: SH3D North/compass widget on the canvas (rotatable, tied to sun azimuth). (Walk
+  FOV/eye-height controls shipped — see CHANGELOG PARITY-WALKCAM.)
 - [ ] PARITY-BATCHRENDER: SH3D batch-render all saved views.
 - [ ] PARITY-PLUMBING: Coohom plumbing plan layer (mirror `electricalPlan`).
 - [ ] PARITY-PLANLABELS: SH3D furniture name/price labels on the 2D plan (toggle).
