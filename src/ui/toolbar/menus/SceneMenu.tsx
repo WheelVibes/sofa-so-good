@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import type { BackdropKind } from '../../../scene/SceneBackdrop'
-import { BACKDROPS } from '../../../scene/SceneBackdrop'
+import { visibleBackdrops } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS } from '../../../state/slices/timeSlice'
 import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
@@ -57,6 +57,7 @@ export function SceneMenu() {
   const setWallRevealMode = useStore((s) => s.setWallRevealMode)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const fBackdrops = useFeature('backdrops')
+  const flags = useStore((s) => s.featureFlags)
   const fRenderPresets = useFeature('renderPresets')
   const [compassOpen, setCompassOpen] = useState(false)
   const activePresetId = useActivePresetId()
@@ -138,7 +139,7 @@ export function SceneMenu() {
                 aria-label="Backdrop"
                 onChange={(e) => setBackdrop(e.target.value as BackdropKind)}
               >
-                {BACKDROPS.map((b) => (
+                {visibleBackdrops((f) => flags[f]).map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.label} — {b.sub}
                   </option>

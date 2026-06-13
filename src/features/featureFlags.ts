@@ -70,6 +70,7 @@ export type FeatureFlag =
   | 'curtainLightEffect'
   | 'walkCameraControls'
   | 'replaceSimilar'
+  | 'photoBackdrop'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -434,6 +435,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Swap a placed item for a nearest-size catalog alternative, keeping its place',
     default: true,
     tier: 'pro',
+  },
+  // Skyline photo backdrop (PHOTO-BACKDROP): a single baked equirectangular image
+  // as `scene.background` (zero per-frame draws) instead of the instanced 3D
+  // estates. Asset-free procedural default → prod-safe. Simple tier — backdrop
+  // choice is part of the core view experience (like `backdrops`).
+  photoBackdrop: {
+    label: 'Skyline backdrop',
+    description: 'Cheap flat equirectangular photo horizon (zero per-frame draw calls)',
+    default: true,
+    tier: 'simple',
   },
 }
 

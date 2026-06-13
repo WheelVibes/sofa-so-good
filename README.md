@@ -55,6 +55,9 @@ export the result — all in the browser.
 - **Selectable 3D backdrop** — choose the surroundings outside the flat from the
   Scene menu: **City** (a layered HDB estate — two rings of towers with rooftop
   water-tanks whose windows light up warm at night),
+  **Skyline** (a cheap flat equirectangular photo horizon set as the scene
+  background — a distant lit-window skyline with **zero per-frame draw calls**,
+  seen correctly through every window),
   **Park** (layered broadleaf + conifer trees and shrubs on a green common),
   **Hills** (depth-banded green hills receding into an aerial-perspective haze),
   or **Studio** (a seamless product-shot cyclorama — a soft gradient cove, no

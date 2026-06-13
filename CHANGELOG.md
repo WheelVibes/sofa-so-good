@@ -5,6 +5,29 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-BACKDROP: cheap flat equirectangular "Skyline" backdrop (zero per-frame draws)
+
+- **New `skyline` backdrop** — instead of the instanced 3D City/Park/Hills estates, paints a single
+  baked **equirectangular photo** into `scene.background` (a skybox): one texture, **zero per-frame
+  geometry/draw-calls**, seen correctly through every window, never occluding the flat or blocking the
+  sun. Its lack of parallax is physically correct for distant scenery — the documented "budget trick"
+  that wins on compute + memory (PHOTOREALISM.md item 1).
+- **New pure `scene/skylineEquirect.ts`** — render-agnostic, unit-tested skyline layout
+  (`buildSkylineBuildings`: two depth-banded layers around the full 360° horizon, seam-wrapped so the
+  equirect tiles; `buildingWindows`: sparse warm lit cells) + `bakeSkylineCanvas` painting a 2048×1024
+  sky-gradient + atmospheric-perspective skyline. Asset-free default, shaped to accept a real CC0
+  equirectangular photo later.
+- **`SkylineBackdrop.tsx`** sets/restores `scene.background` (disposes the texture, invalidates the
+  demand-frameloop on mount/unmount); `Sky.tsx` hides its DreiSky dome while the skyline is active so the
+  equirect background shows through.
+- **`photoBackdrop` feature flag** (Simple tier, prod-safe — asset-free procedural default). Picker is
+  filtered by `visibleBackdrops`; `resolveBackdrop`/`useEffectiveBackdrop` fold the flag into the live
+  scene so a persisted `skyline` choice falls back to City when the flag is off (never an empty
+  background). Persisted-backdrop validation (`editorPrefs.ts`) accepts the new kind.
+- **Tests** — `skylineEquirect.test.ts` (determinism, in-bounds tops, full-width span, seam-wrap tiling,
+  windows-inside-rect, 2:1 dims) + `SceneBackdrop.resolve.test.ts` (resolution fallback, picker gating,
+  flag is on in **both** Simple and Pro). Visual-verified via `scripts/scenarios/skyline-backdrop-simple.json`.
+
 ## Replace with similar (PARITY-REPLACE): one-click swap to a nearest-size catalog sibling
 
 - **New pure core** `furniture/similarItems.ts` — `similarItems(defId, catalog, limit?)` ranks

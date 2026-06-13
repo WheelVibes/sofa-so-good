@@ -11,7 +11,7 @@ import { applyStyle, STYLE_PRESETS } from '../../materials/stylePresets'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
 import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
-import { BACKDROPS, type BackdropKind } from '../../scene/SceneBackdrop'
+import { type BackdropKind, visibleBackdrops } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
 import { detectVrSupport } from '../../scene/xr/vrSupport'
@@ -172,6 +172,7 @@ export function MobileToolbar() {
   const fPresentation = useFeature('presentation')
   const fFloorPlan = useFeature('floorPlanEditor')
   const fBackdrops = useFeature('backdrops')
+  const flags = useStore((st) => st.featureFlags)
   const fSmartStart = useFeature('smartStart')
   const fParametric = useFeature('parametricFurniture')
   const fPanorama = useFeature('panorama')
@@ -703,7 +704,7 @@ export function MobileToolbar() {
                           aria-label="Backdrop"
                           onChange={(e) => s.getState().setBackdrop(e.target.value as BackdropKind)}
                         >
-                          {BACKDROPS.map((b) => (
+                          {visibleBackdrops((f) => flags[f]).map((b) => (
                             <option key={b.id} value={b.id}>
                               {b.label} — {b.sub}
                             </option>

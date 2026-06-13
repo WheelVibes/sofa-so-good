@@ -49,7 +49,11 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
    data maps (normal/roughness/metalness/AO) must be `NoColorSpace` (linear). Audit the procedural
    generators (`materials/procedural/generators.ts` CanvasTextures) + `furnitureMaterials.ts` + upload
    path and assert correct `colorSpace` per map role. Cheap, high-certainty, headless-verifiable.
-1. **PHOTO-BACKDROP — flat photo / equirectangular sky backdrop** (M, all tiers; Verify H/G).
+1. **PHOTO-BACKDROP — flat photo / equirectangular sky backdrop** ✓ **SHIPPED** (M, all tiers; Verify H/G).
+   The `skyline` backdrop bakes a 2048×1024 sky-gradient + atmospheric-perspective skyline into
+   `scene.background` (`scene/skylineEquirect.ts` + `SkylineBackdrop.tsx`), skips all instanced geometry,
+   and hides the DreiSky dome while active; `photoBackdrop` flag (Simple tier, prod-safe). **Follow-up:**
+   swap the procedural bake for a real CC0 equirectangular photo (connected session); pairs with #1b.
    **PRODUCT DECISION (user, 2026-06-13): prefer the cheap "budget trick" photo backdrop over the
    procedural 3D City/Park/Hills geometry — it saves compute + memory and drives performance.** In
    WebGL the optimal form is a **single equirectangular photo as `scene.background`** (a skybox): one

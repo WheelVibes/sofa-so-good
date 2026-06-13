@@ -101,11 +101,9 @@ consolidate into `PHOTOREALISM.md` then implement highest impact÷effort first.
 Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - PHOTO-COLORSPACE — RESOLVED/already-correct: audited generators + `furnitureMaterials` + worker
   hot-swap (`cache.ts`); albedo = `SRGBColorSpace`, normal/roughness = linear (`srgb=false`). No fix.
-- [ ] PHOTO-BACKDROP ⭐ NEXT (user decision 2026-06-13): replace procedural 3D City/Park/Hills with a
-  cheap flat **equirectangular photo as `scene.background`** (skybox — 1 texture, zero per-frame
-  draws, perf+memory win, correct through windows). New `photo`/`skyline` `BackdropKind` in
-  `SceneBackdrop` that skips instanced geometry; asset-free procedurally-baked default, accepts a real
-  CC0 photo later; `photoBackdrop` flag, prod-safe. See PHOTOREALISM.md item 1.
+- PHOTO-BACKDROP ✓ SHIPPED — `skyline` backdrop bakes an equirectangular photo into `scene.background`
+  (zero per-frame draws, `photoBackdrop` flag, prod-safe). Follow-up: swap the procedural bake for a
+  real CC0 equirectangular photo when a connected session can fetch one; pairs with PHOTO-HDRI (#1b).
 - [ ] PHOTO-PT-TUNE: tune `three-gpu-pathtracer` in `hqRenderSession.ts` (bounces/transmissiveBounces/
   filterGlossyFactor/MIS/stableNoise/minSamples) + AgX/Neutral + exposure. Pure config; pixel pass
   real-GPU-pending.
