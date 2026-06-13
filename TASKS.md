@@ -128,7 +128,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PARITY-NORTH: SH3D North/compass widget on the canvas (rotatable, tied to sun azimuth). (Walk
   FOV/eye-height controls shipped — see CHANGELOG PARITY-WALKCAM.)
 - [ ] PARITY-BATCHRENDER: SH3D batch-render all saved views.
-- [ ] PARITY-LIGHTINGTEMPLATE-TEXT: Coohom drawing text/material callouts + layer toggles.
+- [~] PARITY-LIGHTINGTEMPLATE-TEXT: **material callouts shipped** — a per-room Finishes schedule sheet
+  (floor + wall material names) in the drawing set (`floorplan/finishSchedule.ts`). Remaining: free
+  text callouts on sheets + drawing-set layer toggles.
 
 ### Pending — high value (M)
 - [ ] PARITY-SEARCH: Coohom smart/semantic catalog search (tag/fuzzy over catalog + packs).

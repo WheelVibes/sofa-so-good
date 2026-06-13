@@ -299,7 +299,8 @@ same change that reshapes a system.
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
   (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
-  from fixtures) + FF&E, title blocks, `@page` A4) reusing all the pure renderers — the formal counterpart
+  from fixtures) + a per-room finishes schedule (`floorplan/finishSchedule.ts` — floor/wall material
+  callouts) + FF&E, title blocks, `@page` A4) reusing all the pure renderers — the formal counterpart
   to the one-page `report.ts`.
 - **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as DXF;
   `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure

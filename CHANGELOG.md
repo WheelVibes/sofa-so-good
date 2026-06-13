@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-LIGHTINGTEMPLATE-TEXT (material callouts): finishes schedule in the drawing set
+
+- **New "Finishes schedule" sheet** in the printable drawing set — a per-room table of the resolved
+  floor + wall **material names** (the finish callout a builder needs; Coohom/SH3D material callouts).
+  Lists every room across storeys; reads the live finishes (slice → plan-room → app default via the
+  shared `resolvePlanRoom*` resolvers); neutral-plaster rooms read "Plaster (neutral)".
+- **Pure `floorplan/finishSchedule.ts`** (`buildFinishSchedule(plan, finishes, nameOf)`) — `nameOf`
+  injected for testability; the drawing set resolves names via `BUILTIN_MATERIALS` (falls back to the
+  id for user/DLC finishes). Wired into `drawingSet.ts` (+ `finishes` param) and `openDrawingSet.ts`.
+- **Tests** — `finishSchedule.test.ts` (live-over-default precedence, plan-room + app-default fallback,
+  neutral wall, cross-storey ordering, empty plan) + a `drawingSet.test.ts` case asserting the sheet
+  appears only when finishes are supplied.
+
 ## PARITY-FURNLIGHT: turn any item into a night light source
 
 - **Any placed item can now emit light** (Sweet Home 3D parity) — a light-bulb toggle in the inspector

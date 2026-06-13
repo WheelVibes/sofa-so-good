@@ -79,6 +79,26 @@ describe('buildDrawingSetHtml', () => {
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Plumbing plan')
   })
 
+  it('includes a finishes schedule when finishes are supplied', () => {
+    const finishes = {
+      floor: { livingDining: 'floor-wood-oak' },
+      walls: { livingDining: 'wall-paint-white' },
+    }
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      finishes,
+    )
+    expect(html).toContain('Finishes schedule')
+    // No finishes arg → no schedule sheet.
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Finishes schedule')
+  })
+
   it('includes a demolition sheet only when the plan diverged from its baseline', () => {
     const baseline = plan
     const hacked = { ...plan, walls: plan.walls.slice(0, -1) }

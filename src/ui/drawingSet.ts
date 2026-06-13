@@ -16,6 +16,7 @@ import { diffWalls, diffWallsByLevel } from '../floorplan/demolitionPlan'
 import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
 import { buildElectricalPlan, type ElectricalPoint } from '../floorplan/electricalPlan'
 import { electricalSvg } from '../floorplan/electricalPlanSvg'
+import { buildFinishSchedule } from '../floorplan/finishSchedule'
 import {
   allPlanRooms,
   isMultiLevel,
@@ -26,6 +27,7 @@ import {
 } from '../floorplan/levels'
 import { buildPlumbingPlan, type PlumbingPoint } from '../floorplan/plumbingPlan'
 import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
+import type { RoomFinishMaps } from '../floorplan/roomFinishes'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
@@ -34,6 +36,7 @@ import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux } from '../lighting2d/roomLux'
+import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
@@ -80,6 +83,7 @@ export function buildDrawingSetHtml(
   baselinePlan?: FloorPlan,
   electricalPoints?: ElectricalPoint[],
   plumbingPoints?: PlumbingPoint[],
+  finishes?: RoomFinishMaps,
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -234,6 +238,21 @@ export function buildDrawingSetHtml(
         ${i === plumbed.length - 1 ? plumbSched : ''}`,
       })
     })
+  }
+
+  // Finishes schedule — per-room floor + wall material callouts (whole home),
+  // the spec a builder needs alongside the plan (Coohom material callouts).
+  if (finishes) {
+    const nameOf = (id: string) => BUILTIN_MATERIALS[id]?.name ?? id
+    const rows = buildFinishSchedule(plan, finishes, nameOf)
+    if (rows.length > 0) {
+      const table = `<table class="sched"><tr class="h"><td>Room</td><td>Floor</td><td>Wall</td></tr>${rows
+        .map(
+          (r) => `<tr><td>${esc(r.room)}</td><td>${esc(r.floor)}</td><td>${esc(r.wall)}</td></tr>`,
+        )
+        .join('')}</table>`
+      sheets.push({ name: 'Finishes schedule', body: table })
+    }
   }
 
   // Demolition / hacking plan — only when walls changed vs the as-loaded
