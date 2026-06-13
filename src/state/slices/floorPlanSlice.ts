@@ -15,6 +15,7 @@ import type {
   PlanDimension,
   PlanNote,
   PlanOpening,
+  PlanPolyline,
   PlanRoom,
   PlanUpperLevel,
   PlanWall,
@@ -33,6 +34,7 @@ export type PlanSelection =
   | { type: 'opening'; id: string }
   | { type: 'note'; id: string }
   | { type: 'dim'; id: string }
+  | { type: 'polyline'; id: string }
   | null
 
 let idCounter = 0
@@ -130,6 +132,13 @@ export interface FloorPlanSlice {
   addDimension: (dim: Omit<PlanDimension, 'id'>) => string
   /** Remove a dimension; clears the selection if it was selected. */
   removeDimension: (id: string) => void
+
+  /** Add a free-form polyline annotation (PARITY-POLYLINE); returns its id. */
+  addPolyline: (poly: Omit<PlanPolyline, 'id'>) => string
+  /** Patch a polyline's style flags (closed / dashed / arrow). */
+  updatePolyline: (id: string, patch: Partial<Omit<PlanPolyline, 'id'>>) => void
+  /** Remove a polyline; clears the selection if it was selected. */
+  removePolyline: (id: string) => void
 
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
@@ -493,6 +502,40 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       },
       planSelection:
         s.planSelection?.type === 'dim' && s.planSelection.id === id ? null : s.planSelection,
+    }))
+  },
+
+  // Polylines are a top-level plan array (level-tagged via `levelId`), like
+  // notes/dimensions — free-form markup, not storey geometry.
+  addPolyline: (poly) => {
+    const id = planId('poly')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        polylines: [...(s.floorPlan.polylines ?? []), { ...poly, id }],
+      },
+    }))
+    return id
+  },
+  updatePolyline: (id, patch) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        polylines: (s.floorPlan.polylines ?? []).map((p) => (p.id === id ? { ...p, ...patch } : p)),
+      },
+    }))
+  },
+  removePolyline: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        polylines: (s.floorPlan.polylines ?? []).filter((p) => p.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'polyline' && s.planSelection.id === id ? null : s.planSelection,
     }))
   },
 

@@ -75,6 +75,7 @@ export type FeatureFlag =
   | 'plumbingPlan'
   | 'itemAsLight'
   | 'aiLayout'
+  | 'planPolyline'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -480,6 +481,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   aiLayout: {
     label: 'AI auto-furnish',
     description: 'Furnish rooms from a text brief via a BYO-key LLM (experimental)',
+    default: true,
+    tier: 'pro',
+  },
+  planPolyline: {
+    label: 'Plan polyline markup',
+    description: 'Free-form polyline annotations (open/closed, dashed, arrow) in the 2D editor',
     default: true,
     tier: 'pro',
   },

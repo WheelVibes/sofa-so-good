@@ -249,6 +249,28 @@ describe('multi-storey level editing (F13/ML4a)', () => {
     expect(useStore.getState().floorPlan.dimensions?.some((d) => d.id === id)).toBe(false)
     expect(useStore.getState().planSelection).toBeNull()
   })
+
+  it('adds, restyles and removes polyline annotations (PARITY-POLYLINE)', () => {
+    const id = useStore.getState().addPolyline({
+      points: [
+        [0, 0],
+        [2, 0],
+        [2, 2],
+      ],
+    })
+    const made = useStore.getState().floorPlan.polylines?.find((p) => p.id === id)
+    expect(made?.points).toHaveLength(3)
+    expect(made?.closed).toBeUndefined()
+    // Restyle: close the loop + dash it.
+    useStore.getState().updatePolyline(id, { closed: true, dashed: true })
+    const styled = useStore.getState().floorPlan.polylines?.find((p) => p.id === id)
+    expect(styled).toMatchObject({ closed: true, dashed: true })
+    // Selecting then removing clears the selection.
+    useStore.getState().setPlanSelection({ type: 'polyline', id })
+    useStore.getState().removePolyline(id)
+    expect(useStore.getState().floorPlan.polylines?.some((p) => p.id === id)).toBe(false)
+    expect(useStore.getState().planSelection).toBeNull()
+  })
 })
 
 describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', () => {

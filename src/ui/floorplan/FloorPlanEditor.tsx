@@ -22,6 +22,7 @@ import {
   levelOfItem,
   planLevels,
 } from '../../floorplan/levels'
+import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
@@ -78,6 +79,7 @@ type Tool =
   | 'scale'
   | 'text'
   | 'dimension'
+  | 'polyline'
 
 /** A reference photo/scan traced over to draw walls. Session-scoped (the object
  *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */
@@ -164,6 +166,11 @@ export function FloorPlanEditor() {
   // In-progress polygon-room vertices (polyroom tool): click to add a vertex,
   // click near the first vertex (or Enter) to close into a room.
   const [polyDraft, setPolyDraft] = useState<[number, number][]>([])
+  // In-progress polyline-annotation vertices (polyline tool): click to add a
+  // vertex; Enter finishes as an open path, clicking the first vertex (≥3)
+  // closes the loop, Escape cancels (PARITY-POLYLINE).
+  const [polylineDraft, setPolylineDraft] = useState<[number, number][]>([])
+  const fPolyline = useFeature('planPolyline')
   // Reference photo/scan to trace over (Wave F: photo-to-plan, no ML).
   // Persisted to IDB (blob + calibration) so it survives editor close + reload.
   const [backdrop, setBackdrop] = useState<Backdrop | null>(null)
@@ -401,6 +408,22 @@ export function FloorPlanEditor() {
     [levelId],
   )
 
+  /** Commit an in-progress polyline annotation (open or closed) on the active
+   *  storey (PARITY-POLYLINE). Needs ≥2 points; ≥3 to close. */
+  const commitPolyline = useCallback(
+    (verts: [number, number][], closed: boolean) => {
+      if (verts.length < 2) return
+      const st = useStore.getState()
+      const id = st.addPolyline({
+        points: verts,
+        ...(closed && verts.length >= 3 ? { closed: true } : {}),
+        ...(levelId !== GROUND_LEVEL_ID ? { levelId } : {}),
+      })
+      st.setPlanSelection({ type: 'polyline', id })
+    },
+    [levelId],
+  )
+
   // Enter closes an in-progress polygon room; Esc cancels it (or exits the
   // editor when nothing is mid-draw); Delete removes the selected element.
   useEffect(() => {
@@ -409,10 +432,18 @@ export function FloorPlanEditor() {
       // A modal on top of the 2D editor owns the keyboard (incl. its own
       // Escape) — don't exit the editor / delete elements behind it.
       if (isAnyModalOpen()) return
-      if (e.key === 'Enter' && polyDraft.length >= 3) {
+      if (e.key === 'Enter' && polylineDraft.length >= 2) {
+        // Finish an in-progress polyline as an OPEN path.
+        commitPolyline(polylineDraft, false)
+        setPolylineDraft([])
+      } else if (e.key === 'Enter' && polyDraft.length >= 3) {
         commitPolyRoom(polyDraft)
         setPolyDraft([])
       } else if (e.key === 'Escape') {
+        if (polylineDraft.length > 0) {
+          setPolylineDraft([])
+          return
+        }
         if (polyDraft.length > 0) {
           setPolyDraft([])
           return
@@ -428,6 +459,9 @@ export function FloorPlanEditor() {
         if (sel) {
           if (sel.type === 'wall') st.removeWall(sel.id, levelId)
           else if (sel.type === 'room') st.removeRoom(sel.id, levelId)
+          else if (sel.type === 'note') st.removeNote(sel.id)
+          else if (sel.type === 'dim') st.removeDimension(sel.id)
+          else if (sel.type === 'polyline') st.removePolyline(sel.id)
           else st.removeOpening(sel.id, levelId)
         } else if (st.selectedItemId) {
           // A furniture footprint is selected — delete it (parity with 3D).
@@ -437,7 +471,7 @@ export function FloorPlanEditor() {
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [editing, sel, polyDraft, commitPolyRoom, levelId])
+  }, [editing, sel, polyDraft, polylineDraft, commitPolyRoom, commitPolyline, levelId])
 
   if (!editing) return null
 
@@ -522,6 +556,16 @@ export function FloorPlanEditor() {
         setPolyDraft([])
       } else {
         setPolyDraft((p) => [...p, [wx, wz]])
+      }
+    } else if (tool === 'polyline') {
+      // Click adds a vertex; clicking the first vertex (≥3) closes the loop;
+      // Enter finishes as an open path, Escape cancels (PARITY-POLYLINE).
+      const first = polylineDraft[0]
+      if (first && polylineDraft.length >= 3 && Math.hypot(first[0] - wx, first[1] - wz) < 0.35) {
+        commitPolyline(polylineDraft, true)
+        setPolylineDraft([])
+      } else {
+        setPolylineDraft((p) => [...p, [wx, wz]])
       }
     } else if (tool === 'split') {
       // Split the wall nearest the click at the projected point.
@@ -774,6 +818,8 @@ export function FloorPlanEditor() {
               'window',
               'text',
               'dimension',
+              // Polyline markup is a Pro annotation tool (flag-gated).
+              ...(fPolyline ? (['polyline'] as Tool[]) : []),
             ] as Tool[]
           ).map((t) => (
             <button
@@ -781,6 +827,7 @@ export function FloorPlanEditor() {
               type="button"
               onClick={() => {
                 setPolyDraft([])
+                setPolylineDraft([])
                 setTool(t)
               }}
               className={`capitalize${tool === t ? ' on' : ''}`}
@@ -789,7 +836,9 @@ export function FloorPlanEditor() {
                   ? 'Polygon room — click vertices, click the first to close'
                   : t === 'autoroom'
                     ? 'Auto room — click inside a wall-enclosed area to make a room from it'
-                    : undefined
+                    : t === 'polyline'
+                      ? 'Polyline markup — click vertices, Enter to finish (open), click the first to close'
+                      : undefined
               }
             >
               {t === 'polyroom' ? 'Polygon' : t === 'autoroom' ? 'Auto room' : t}
@@ -1386,6 +1435,61 @@ export function FloorPlanEditor() {
                 )
               })}
 
+            {/* Polyline annotations (active storey) — PARITY-POLYLINE. Drawn
+                with the Polyline tool; click to select, edit/delete in the
+                inspector. Open paths can carry an end arrowhead. */}
+            {(plan.polylines ?? [])
+              .filter((p) => (p.levelId ?? GROUND_LEVEL_ID) === levelId)
+              .map((p) => {
+                const selected = sel?.type === 'polyline' && sel.id === p.id
+                const project = ([x, z]: [number, number]): [number, number] => [toPx(x), toPx(z)]
+                const ptsAttr = polylinePointsAttr(p.points, project)
+                const stroke = selected ? 'var(--accent)' : 'var(--text-2)'
+                const Shape = p.closed ? 'polygon' : 'polyline'
+                // Arrowhead at the final point of an open path: a small filled
+                // triangle aligned with the last segment's direction.
+                let arrowPts: string | null = null
+                if (p.arrow && !p.closed && p.points.length >= 2) {
+                  const [ex, ey] = project(p.points[p.points.length - 1])
+                  const [sx, sy] = project(p.points[p.points.length - 2])
+                  const dx = ex - sx
+                  const dy = ey - sy
+                  const L = Math.hypot(dx, dy) || 1
+                  const ux = dx / L
+                  const uy = dy / L
+                  const size = 11
+                  const bx = ex - ux * size
+                  const by = ey - uy * size
+                  const nx = -uy
+                  const ny = ux
+                  arrowPts = `${ex},${ey} ${bx + nx * size * 0.45},${by + ny * size * 0.45} ${bx - nx * size * 0.45},${by - ny * size * 0.45}`
+                }
+                return (
+                  <g
+                    key={p.id}
+                    style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
+                    onPointerDown={(e) => {
+                      if (tool !== 'select') return
+                      e.stopPropagation()
+                      useStore.getState().setPlanSelection({ type: 'polyline', id: p.id })
+                    }}
+                  >
+                    {/* Fat invisible hit target so the thin path is easy to click. */}
+                    <Shape points={ptsAttr} fill="none" stroke="transparent" strokeWidth={12} />
+                    <Shape
+                      points={ptsAttr}
+                      fill="none"
+                      stroke={stroke}
+                      strokeWidth={selected ? 2.5 : 2}
+                      strokeLinejoin="round"
+                      strokeLinecap="round"
+                      strokeDasharray={p.dashed ? '6 4' : undefined}
+                    />
+                    {arrowPts && <polygon points={arrowPts} fill={stroke} />}
+                  </g>
+                )
+              })}
+
             {/* Walls (active storey) */}
             {levelPlan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
@@ -1759,6 +1863,33 @@ export function FloorPlanEditor() {
                   strokeDasharray="5 3"
                 />
                 {polyDraft.map(([x, z], i) => (
+                  <circle
+                    key={i}
+                    cx={toPx(x)}
+                    cy={toPx(z)}
+                    r={i === 0 ? 6 : 4}
+                    fill={i === 0 ? 'none' : 'var(--accent)'}
+                    stroke="var(--accent)"
+                    strokeWidth={i === 0 ? 2 : 0}
+                  />
+                ))}
+              </g>
+            )}
+            {/* In-progress polyline markup: placed edges + vertices; the first
+                vertex is ringed (click it to close, or press Enter to finish
+                as an open path). */}
+            {tool === 'polyline' && polylineDraft.length > 0 && (
+              <g>
+                <polyline
+                  points={polylineDraft.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
+                  fill="none"
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                  strokeDasharray="6 4"
+                  strokeLinejoin="round"
+                  strokeLinecap="round"
+                />
+                {polylineDraft.map(([x, z], i) => (
                   <circle
                     key={i}
                     cx={toPx(x)}

@@ -89,6 +89,35 @@ describe('schema', () => {
     expect(patch.floorPlan?.dimensions).toEqual([{ id: 'd1', a: [0.2, 0.2], b: [4.0, 0.2] }])
   })
 
+  it('round-trips polyline annotations (PARITY-POLYLINE) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    const polyline = {
+      id: 'p1',
+      points: [
+        [0.2, 0.2],
+        [4.0, 0.2],
+        [4.0, 4.0],
+      ] as [number, number][],
+      closed: true,
+      dashed: true,
+    }
+    useStore.setState({
+      floorPlan: {
+        id: 'poly-plan',
+        name: 'Polys',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        polylines: [polyline],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.polylines).toEqual([polyline])
+  })
+
   it('round-trips per-room floor + wall finishes on a custom plan', () => {
     useStore.getState().__resetForTest()
     useStore.setState({

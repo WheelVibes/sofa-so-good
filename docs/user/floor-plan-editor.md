@@ -44,6 +44,24 @@ Rooms don't have to be plain rectangles:
   inside any wall‑enclosed area; the room is created automatically from that
   loop (any shape, including L‑shapes), with the matching area.
 
+## Annotations & markup
+
+Beyond walls and rooms you can mark up the plan:
+
+- **Text** — pick the **Text** tool and click to drop a note; type the label.
+  Switch back to **Select** to drag it, or edit/delete it in the inspector.
+- **Dimension** — pick the **Dimension** tool and drag a line between two points;
+  it shows the measured length. Select it to delete.
+- **Polyline** *(Pro)* — pick the **Polyline** tool and click to drop each point.
+  Press <kbd>Enter</kbd> to finish an **open** path, or click the first point
+  again (after three points) to **close** it into a loop; <kbd>Esc</kbd> cancels.
+  With it selected, the inspector shows its length (or perimeter) and toggles for
+  a **closed loop**, a **dashed** stroke, and an **end arrow** (open paths) — handy
+  for sketching zones, routes or callouts. *(Pro tools are hidden in Simple mode —
+  switch to Pro from the mode toggle to use them.)*
+
+All three are saved with your design and are tagged to the storey you drew them on.
+
 ## Levels (storeys)
 
 Designing a maisonette, loft or landed home? The tab strip in the header —

@@ -1,0 +1,20 @@
+{
+  "name": "plan-polyline",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+
+    { "name": "add-open-arrow", "eval": "window.__store.getState().addPolyline({ points: [[4.5,1.2],[7.0,1.2],[7.0,3.0],[9.2,3.0]], arrow: true })" },
+    { "name": "add-closed-dashed", "eval": "window.__store.getState().addPolyline({ points: [[4.4,4.2],[8.6,4.2],[8.6,6.4],[4.4,6.4]], closed: true, dashed: true })" },
+    { "name": "polylines-present", "waitFor": { "store": "(state.floorPlan.polylines||[]).length === 2" } },
+    { "name": "shot-polylines", "screenshot": "polylines" },
+
+    { "name": "select-closed", "eval": "(() => { const s=window.__store.getState(); const p=s.floorPlan.polylines.find(x=>x.closed); s.setPlanSelection({ type:'polyline', id:p.id }); })()" },
+    { "name": "shot-selected", "screenshot": "polyline-selected" }
+  ]
+}

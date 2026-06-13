@@ -108,6 +108,14 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').replaceSimilar).toBe(true)
   })
 
+  it('planPolyline (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Free-form polyline markup is an advanced 2D-editor annotation → pro tier.
+    expect(resolveFlags(false, {}, false, 'simple').planPolyline).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').planPolyline).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').planPolyline).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').planPolyline).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { measure: true }, false, 'simple')
     expect(simple.measure).toBe(false)

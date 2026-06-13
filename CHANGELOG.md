@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-POLYLINE: free-form polyline annotations on the 2D plan
+
+- **New Polyline tool** in the 2D Floor Plan Editor (Sweet Home 3D parity): click to drop vertices,
+  press **Enter** to finish as an open path, or click the first vertex (≥3) to **close the loop**;
+  Escape cancels. Each polyline supports **dashed** stroke + an **end arrowhead** (open paths) and
+  is level-tagged; the inspector shows its length / perimeter + point count and toggles closed /
+  dashed / arrow. Pure geometry (`floorplan/polyline.ts`: `polylineLength` / `polylineBounds` /
+  `polylinePointsAttr`) is render-agnostic + unit-tested.
+- **Gated** behind the new `planPolyline` flag (**pro** tier — an advanced markup tool, hidden in
+  Simple mode; tested in both modes). Round-trips through the save schema (`floorPlan.polylines`,
+  additive/optional — no version bump). Store actions `addPolyline` / `updatePolyline` /
+  `removePolyline` (one undo step each); slice + schema round-trip tested.
+- **Docs** — `FEATURE_PARITY.md` polyline row folded into "already at parity"; the stale gap tables
+  were pruned of all confirmed-shipped rows (replace-with-similar, smart search, sections, plumbing,
+  denoiser, render presets, AI auto-furnish, CSV/SVG export, dimension/text objects, compass,
+  FOV/eye-height, auto-room, light-source, lock, plan labels, split/join/reverse, all-levels +
+  duplicate-level, turntable record) with a maintenance note to keep them pruned going forward.
+
 ## Plan labels preference persists across reloads
 
 - The 2D-plan **furniture label mode** (`planLabels`: off / name / name+price) is now saved to

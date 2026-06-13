@@ -3,6 +3,7 @@ import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { levelById } from '../../floorplan/levels'
+import { polylineLength } from '../../floorplan/polyline'
 import {
   type CeilingConfig,
   type CeilingStyle,
@@ -601,6 +602,60 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             </span>
           </div>
           <DeleteBtn onClick={() => a.removeDimension(dim.id)} label="Delete dimension" />
+        </div>
+      )
+    }
+  } else if (sel?.type === 'polyline') {
+    const poly = (plan.polylines ?? []).find((x) => x.id === sel.id)
+    if (poly) {
+      const len = polylineLength(poly.points, poly.closed)
+      body = (
+        <div className="space-y-2">
+          <div className="sec-h">
+            <span>Polyline</span>
+          </div>
+          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
+            <span className="label">{poly.closed ? 'Perimeter' : 'Length'}</span>
+            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
+              {formatLength(len, units)}
+            </span>
+          </div>
+          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
+            <span className="label">Points</span>
+            <span className="amt">{poly.points.length}</span>
+          </div>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={!!poly.closed}
+              aria-label="Closed loop"
+              onChange={(e) => a.updatePolyline(poly.id, { closed: e.target.checked || undefined })}
+            />
+            <span className="label">Closed loop</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={!!poly.dashed}
+              aria-label="Dashed stroke"
+              onChange={(e) => a.updatePolyline(poly.id, { dashed: e.target.checked || undefined })}
+            />
+            <span className="label">Dashed</span>
+          </label>
+          {!poly.closed && (
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={!!poly.arrow}
+                aria-label="End arrow"
+                onChange={(e) =>
+                  a.updatePolyline(poly.id, { arrow: e.target.checked || undefined })
+                }
+              />
+              <span className="label">End arrow</span>
+            </label>
+          )}
+          <DeleteBtn onClick={() => a.removePolyline(poly.id)} label="Delete polyline" />
         </div>
       )
     }

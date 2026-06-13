@@ -210,6 +210,21 @@ const FloorPlanZ = z.object({
   dimensions: z
     .array(z.object({ id: z.string(), a: Vec2Z, b: Vec2Z, levelId: z.string().optional() }))
     .optional(),
+  // Free-form polyline markup (PARITY-POLYLINE). Optional + additive — no
+  // schema-version bump; absent → []. `points` MUST round-trip or the polyline
+  // silently vanishes on reload.
+  polylines: z
+    .array(
+      z.object({
+        id: z.string(),
+        points: z.array(Vec2Z),
+        closed: z.boolean().optional(),
+        dashed: z.boolean().optional(),
+        arrow: z.boolean().optional(),
+        levelId: z.string().optional(),
+      }),
+    )
+    .optional(),
 })
 
 const RawSerializedStateZ = z.object({
