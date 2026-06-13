@@ -98,16 +98,30 @@ Top parity goal with Coohom + Sweet Home 3D = make everything ultra-detailed + p
 Deep research fleet in flight (render pipelines, real-time WebGL techniques, in-browser
 path-trace quality + denoise, ultra-detail CC0 assets/materials, our-pipeline gap audit) →
 consolidate into `PHOTOREALISM.md` then implement highest impact÷effort first.
-- [ ] PHOTO-HDRI (R-HDRI): CC0 Poly Haven HDRI environments for IBL + visible sky/skyline through
-  windows (Medium+ tiers). Research verdict: keep procedural 3D backdrops for near-field parallax,
-  layer a far HDRI dome (zero parallax = physically correct for distance) — `SceneEnvironment` +
-  `SceneBackdrop`, new `hdriEnvironment` pro flag, prod-safe (CC0). M.
-- [ ] PHOTO-DENOISE: OIDN-wasm (or A-trous) denoiser on the `three-gpu-pathtracer` HQ render. [verify]
-- [ ] PHOTO-PBR: real high-res CC0 PBR texture maps (Poly Haven/ambientCG) over procedural fallback;
-  KTX2/Basis compression in prod.
-- [ ] PHOTO-DETAIL: edge bevels on hard primitives + set-dressing props (books/cushions/plants) —
-  highest perceived-realism-per-effort.
-- (more items to be added from PHOTOREALISM.md once research lands.)
+Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
+- PHOTO-COLORSPACE — RESOLVED/already-correct: audited generators + `furnitureMaterials` + worker
+  hot-swap (`cache.ts`); albedo = `SRGBColorSpace`, normal/roughness = linear (`srgb=false`). No fix.
+- [ ] PHOTO-BACKDROP ⭐ NEXT (user decision 2026-06-13): replace procedural 3D City/Park/Hills with a
+  cheap flat **equirectangular photo as `scene.background`** (skybox — 1 texture, zero per-frame
+  draws, perf+memory win, correct through windows). New `photo`/`skyline` `BackdropKind` in
+  `SceneBackdrop` that skips instanced geometry; asset-free procedurally-baked default, accepts a real
+  CC0 photo later; `photoBackdrop` flag, prod-safe. See PHOTOREALISM.md item 1.
+- [ ] PHOTO-PT-TUNE: tune `three-gpu-pathtracer` in `hqRenderSession.ts` (bounces/transmissiveBounces/
+  filterGlossyFactor/MIS/stableNoise/minSamples) + AgX/Neutral + exposure. Pure config; pixel pass
+  real-GPU-pending.
+- [ ] PHOTO-HDRI (R-HDRI): CC0 Poly Haven HDRI for IBL + sky through windows (Medium+); keep
+  procedural backdrops for near parallax + far HDRI dome. `hdriEnvironment` pro flag, prod-safe (CC0).
+  Needs the .hdr asset added in a connected session (sandbox can't fetch). M.
+- [ ] PHOTO-DENOISE: browser OIDN (`DennisSmolek/Denoiser` WebGL / `oidn-web` WebGPU) + albedo/normal
+  AOV on the HQ render; fallback to current DenoiseMaterial. [real-GPU verify]
+- [ ] PHOTO-PBR + PHOTO-KTX2: real 2K CC0 PBR maps (Poly Haven/ambientCG) over procedural fallback;
+  un-stub `lib/ktx2encode.ts` with `ktx2-encoder` (basis WASM now exists — stale assumption) to ship
+  KTX2 in prod (ETC1S albedo / UASTC normal+ORM).
+- [ ] PHOTO-DETAIL: set-dressing prop pack (books/cushions/plants — biggest perceived-realism lever)
+  + edge bevels (RoundedBox) on hard primitives.
+- [ ] PHOTO-EMISSIVE: HDR emissive (`emissiveIntensity`>1) on lamps/screens so they bloom.
+- [ ] PHOTO-GLASS / PHOTO-GTAO / PHOTO-SOFTSHADOW (VSM, NOT drei PCSS — broken r182+) / PHOTO-POM /
+  PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 
 ### Pending — quick wins (S)
 - [ ] PARITY-NORTH: SH3D North/compass widget on the canvas (rotatable, tied to sun azimuth). (Walk

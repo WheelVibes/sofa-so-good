@@ -49,13 +49,23 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
    data maps (normal/roughness/metalness/AO) must be `NoColorSpace` (linear). Audit the procedural
    generators (`materials/procedural/generators.ts` CanvasTextures) + `furnitureMaterials.ts` + upload
    path and assert correct `colorSpace` per map role. Cheap, high-certainty, headless-verifiable.
-1. **PHOTO-HDRI — HDRI environment lighting + sky** (M, real-time Medium+ **and** path tracer; Verify G/H).
-   Bundle a few **CC0 Poly Haven** indoor/urban HDRIs (1–2K, `.hdr`); add an HDRI mode to
-   `SceneEnvironment` (drei `<Environment>` → PMREM) doing double duty as `scene.environment` (IBL)
-   + optional `scene.background` (sky/skyline through windows), layered behind the procedural
-   near-field backdrop (correct parallax). Feed the **same env into the path tracer**
-   (`root.environment`, importance-sampled). New `hdriEnvironment` flag (pro, prod-safe). Day/night
-   HDRI pair cross-faded by sun altitude = stretch. *Biggest single realism gain.*
+1. **PHOTO-BACKDROP — flat photo / equirectangular sky backdrop** (M, all tiers; Verify H/G).
+   **PRODUCT DECISION (user, 2026-06-13): prefer the cheap "budget trick" photo backdrop over the
+   procedural 3D City/Park/Hills geometry — it saves compute + memory and drives performance.** In
+   WebGL the optimal form is a **single equirectangular photo as `scene.background`** (a skybox): one
+   texture, ZERO per-frame geometry/draw-calls (vs the instanced estates), no per-window placement,
+   doesn't block sunlight, seen correctly through every window; its lack of parallax is physically
+   correct for distant scenery. Add a `photo`/`skyline` `BackdropKind` in `SceneBackdrop` that sets
+   `scene.background` to an LDR equirectangular image and **skips the instanced 3D backdrop entirely**;
+   make the procedural 3D backdrops optional/legacy. Asset-free default = a procedurally-baked
+   sky+skyline equirectangular canvas (reuse `CityBackdrop`'s façade art) so it ships with no fetch;
+   designed to accept a real CC0 photo later. New `photoBackdrop` flag (prod-safe). Pairs with #1b.
+1b. **PHOTO-HDRI — HDRI environment lighting (IBL)** (M, real-time Medium+ **and** path tracer; Verify G/H).
+   The *lighting* counterpart to #1: bundle a few **CC0 Poly Haven** HDRIs (1–2K `.hdr`); add an HDRI
+   mode to `SceneEnvironment` (drei `<Environment>` → PMREM) as `scene.environment` (IBL) and feed the
+   **same env into the path tracer** (`root.environment`, importance-sampled). The HDRI may also serve
+   as the photo background (#1) when present. New `hdriEnvironment` flag (pro, prod-safe). Needs the
+   `.hdr` asset added in a connected session (sandbox can't fetch).
 2. **PHOTO-PT-TUNE — path-tracer quality settings** (S, HQ still; Verify G).
    In `hqRenderSession.ts`: `bounces≈10`, `transmissiveBounces≈6` (fixes black/opaque glass),
    `filterGlossyFactor≈0.75` (kills sun-through-glass fireflies), `multipleImportanceSampling=true`,
