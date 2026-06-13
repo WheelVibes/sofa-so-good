@@ -84,7 +84,7 @@ read‑out shows how far you've turned). Great for angling a sofa‑and‑rug se
 dining table with its chairs together.
 
 **Right‑click** any placed piece for a **context menu** with the most common
-actions right where you need them — **swap with similar**, rotate, **straighten**
+actions right where you need them — **replace with similar**, rotate, **straighten**
 (snap a freely-turned piece back square to the walls; shown only when it's
 off-axis), **centre in room** (snap it to the middle of its room — handy for
 rugs and ceiling lights), flip, duplicate, **isolate** (hide everything else to
@@ -93,13 +93,14 @@ focus on this piece/selection; **Show all** brings them back),
 you have several pieces selected; Ungroup appears when the piece is already part
 of a group.)
 
-## Swap with similar
+## Replace with similar
 
-Selected a piece but want to try an alternative? Open **Swap with similar** (from
-the right‑click menu or the inspector) to browse same‑category pieces. Each
-option shows a **fit badge** telling you whether it fits the current spot, and
-choosing one **replaces the piece in place** — same position and rotation — so
-you can audition options without re‑placing anything.
+Selected a piece but want to try an alternative? Open **Replace with similar…**
+(from the right‑click menu, the inspector, or the ⌘K command palette) to browse
+same‑category pieces, **ordered with the nearest‑size match first**. Each option
+shows a **fit badge** telling you whether it fits the current spot, and choosing
+one **replaces the piece in place** — same position, rotation and level — so you
+can audition options without re‑placing anything. (A Pro‑mode feature.)
 
 ## The Objects panel (Layers)
 

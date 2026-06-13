@@ -1,6 +1,7 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { canPlace } from '../collision/placement'
+import { useFeature } from '../features/useFeature'
 import { type PlanRoom, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { useStore } from '../state/store'
@@ -24,6 +25,7 @@ export function ContextMenu() {
   const menu = useStore((s) => s.contextMenu)
   const close = useStore((s) => s.closeContextMenu)
   const catalog = useCatalog()
+  const replaceSimilarOn = useFeature('replaceSimilar')
 
   useEffect(() => {
     if (!menu) return
@@ -194,11 +196,13 @@ export function ContextMenu() {
         <Icon.Cube className="icn" width={16} height={16} />
         <b>{def.name}</b>
       </div>
-      <Row
-        icon="Copy"
-        label="Swap with similar…"
-        onClick={() => useStore.getState().setSwapItemId(item.id)}
-      />
+      {replaceSimilarOn ? (
+        <Row
+          icon="Copy"
+          label="Replace with similar…"
+          onClick={() => useStore.getState().setSwapItemId(item.id)}
+        />
+      ) : null}
       <Row icon="Rotate" label="Rotate 90°" sk="R" disabled={locked} onClick={rotate90} />
       {askew ? (
         <Row icon="Rotate" label="Straighten" disabled={locked} onClick={straighten} />

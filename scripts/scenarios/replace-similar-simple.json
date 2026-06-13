@@ -1,0 +1,101 @@
+{
+  "name": "replace-similar-simple",
+  "description": "Simple ladder for Replace with similar (PARITY-REPLACE): the feature is pro-tier so it is hidden in Simple mode and present in Pro. In Pro, place a sofa in the room editor, select it, open the Replace-with-similar picker, screenshot the ranked list, pick the first (nearest-size) alternative, and assert the defId changed while position + rotation are preserved.",
+  "url": "http://localhost:5216/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "assert-hidden-in-simple",
+      "eval": "if (window.__store.getState().featureFlags.replaceSimilar !== false) throw new Error('replaceSimilar should be OFF in Simple mode, got: ' + window.__store.getState().featureFlags.replaceSimilar)"
+    },
+    {
+      "name": "switch-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "assert-present-in-pro",
+      "waitFor": { "store": "state.featureFlags.replaceSimilar === true" },
+      "timeout": 5000,
+      "failMessage": "replaceSimilar should be ON in Pro mode"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "place-sofa",
+      "eval": "window.__store.getState().setItems([{ id: 'rs-sofa-1', defId: 'sofa-3seat', position: [9, 3], rotation: 1.5707963, props: {} }])"
+    },
+    {
+      "name": "select-sofa",
+      "eval": "window.__store.getState().selectItem('rs-sofa-1')"
+    },
+    {
+      "name": "inspector-visible",
+      "waitFor": { "css": ".panel.inspector" },
+      "timeout": 15000,
+      "failMessage": "Inspector did not appear after selecting the sofa"
+    },
+    {
+      "name": "shot-inspector-with-control",
+      "screenshot": "01-inspector-replace-control"
+    },
+    {
+      "name": "open-replace-picker",
+      "store": { "action": "setSwapItemId", "args": ["rs-sofa-1"] }
+    },
+    {
+      "name": "picker-visible",
+      "waitFor": { "css": "#swapPanel" },
+      "timeout": 10000,
+      "failMessage": "Replace-with-similar modal (#swapPanel) did not open"
+    },
+    {
+      "name": "shot-picker-open",
+      "screenshot": "02-replace-picker-ranked"
+    },
+    {
+      "name": "record-before",
+      "eval": "window.__rsBefore = JSON.parse(JSON.stringify(window.__store.getState().items.find(i => i.id === 'rs-sofa-1')))"
+    },
+    {
+      "name": "pick-first-alternative",
+      "eval": "(() => { const cards = Array.from(document.querySelectorAll('#swapPanel .swap-card')); if (cards.length === 0) throw new Error('No alternatives rendered in the picker'); cards[0].click(); })()"
+    },
+    {
+      "name": "wait-replaced",
+      "waitFor": { "store": "window.__store.getState().items.find(i => i.id === 'rs-sofa-1').defId !== 'sofa-3seat'" },
+      "timeout": 5000,
+      "failMessage": "defId did not change after picking an alternative"
+    },
+    {
+      "name": "assert-place-preserved",
+      "eval": "(() => { const a = window.__rsBefore; const b = window.__store.getState().items.find(i => i.id === 'rs-sofa-1'); if (b.position[0] !== a.position[0] || b.position[1] !== a.position[1]) throw new Error('position changed: ' + JSON.stringify(b.position)); if (b.rotation !== a.rotation) throw new Error('rotation changed: ' + b.rotation); if (b.defId === a.defId) throw new Error('defId unchanged'); })()"
+    },
+    {
+      "name": "shot-after-replace",
+      "screenshot": "03-after-replace"
+    }
+  ]
+}

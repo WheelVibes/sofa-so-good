@@ -1,6 +1,8 @@
 import { useMemo } from 'react'
-import { useCatalog, useCatalogByCategory } from '../furniture/catalog'
+import { useFeature } from '../features/useFeature'
+import { useCatalog } from '../furniture/catalog'
 import { itemPrice } from '../furniture/furniturePrices'
+import { similarItems } from '../furniture/similarItems'
 import type { FurnitureDef } from '../furniture/types'
 import { useStore } from '../state/store'
 import { formatDimsShort, type UnitSystem } from '../utils/measurement'
@@ -23,29 +25,41 @@ function fitBadge(
   return { label: `+${over}`, cls: 'warn' }
 }
 
-/** Swap a placed item for a same-category alternative, keeping its position and
- *  rotation. Each candidate is tagged with a footprint-fit badge. */
+/**
+ * Replace-with-similar picker (PARITY-REPLACE). Swap a placed item for a
+ * same-category catalog alternative, keeping its position, rotation and level.
+ * Candidates are ranked nearest-footprint-first by the pure `similarItems` core
+ * and each is tagged with a footprint-fit badge. The commit goes through the
+ * `replaceItemDef` store action (one undo step; resets def-specific props).
+ *
+ * Shared single mount (App), so it works identically in the desktop and mobile
+ * inspectors. Flag-gated by `replaceSimilar` (pro tier → hidden in Simple mode).
+ */
 export function SwapModal() {
+  const on = useFeature('replaceSimilar')
   const swapItemId = useStore((s) => s.swapItemId)
   const setSwapItemId = useStore((s) => s.setSwapItemId)
   const item = useStore((s) => s.items.find((i) => i.id === s.swapItemId) ?? null)
   const catalog = useCatalog()
-  const byCategory = useCatalogByCategory()
   const units = useStore((s) => s.units)
 
   const def = item ? catalog[item.defId] : null
 
-  const alternatives = useMemo(() => {
-    if (!def) return []
-    return (byCategory[def.category] ?? []).filter((d) => d.id !== def.id)
-  }, [byCategory, def])
+  const alternatives = useMemo(
+    () =>
+      def
+        ? similarItems(def.id, catalog)
+            .map((id) => catalog[id])
+            .filter((d): d is FurnitureDef => !!d)
+        : [],
+    [catalog, def],
+  )
 
-  if (!swapItemId || !item || !def) return null
+  // Gate after all hooks so hook order stays stable.
+  if (!on || !swapItemId || !item || !def) return null
 
-  const swap = (altId: string) => {
-    const s = useStore.getState()
-    s.pushHistory()
-    s.setItems(s.items.map((i) => (i.id === item.id ? { ...i, defId: altId, props: {} } : i)))
+  const replace = (altId: string) => {
+    useStore.getState().replaceItemDef(item.id, altId)
     setSwapItemId(null)
   }
 
@@ -53,7 +67,7 @@ export function SwapModal() {
     <Modal
       open
       onClose={() => setSwapItemId(null)}
-      title="Swap with similar"
+      title="Replace with similar"
       sub={`${def.category} · keeps position`}
       width={560}
       panelId="swapPanel"
@@ -76,7 +90,7 @@ export function SwapModal() {
 
       {alternatives.length === 0 ? (
         <p className="empty-mini">
-          <span>No other {def.category} pieces in the catalog to swap to.</span>
+          <span>No other {def.category} pieces in the catalog to replace with.</span>
         </p>
       ) : (
         <div className="swap-grid">
@@ -84,7 +98,12 @@ export function SwapModal() {
             const fit = fitBadge(def, alt, units)
             const price = itemPrice(alt, alt.category)
             return (
-              <button type="button" key={alt.id} className="swap-card" onClick={() => swap(alt.id)}>
+              <button
+                type="button"
+                key={alt.id}
+                className="swap-card"
+                onClick={() => replace(alt.id)}
+              >
                 <div className="card-thumb">
                   <CategoryIcon category={alt.category} width={26} height={26} />
                 </div>

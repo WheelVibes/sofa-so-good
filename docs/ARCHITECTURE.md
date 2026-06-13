@@ -419,6 +419,14 @@ same change that reshapes a system.
   the single source. **Groups** (`groupsSlice.ts`): shared `groupId` = emergent group
   (first click→group, second/Alt drills in; rigid centroid rotate; auto-dissolves below
   2; save schema **v2**).
+- **Replace with similar** (PARITY-REPLACE, `replaceSimilar` flag, pro): pure
+  `furniture/similarItems.ts` `similarItems(defId, catalog, limit?)` ranks same-category catalog
+  siblings nearest-footprint-first (orientation-independent W×D from `defaultFootprint`, tie-break
+  name→id; excludes self/unknown); the `itemsSlice.replaceItemDef(id, newDefId)` store action swaps
+  the def in place keeping id/position/rotation/levelId/label/locked/groupId and resetting props
+  (`defaultParamProps` for parametric, else `{}`) in one undo step. UI `ui/SwapModal.tsx` (shared
+  single mount → desktop + mobile inspector parity) lists the ranked alternatives with fit badges;
+  entries: inspector "Replace with similar…", right-click menu, ⌘K `replace-similar`.
 - **Production feature panels** (mutually-exclusive `.aux` slot): **Swap** (`SwapModal`),
   **Clearance** (`ClearancePanel`), **Versions** (`VersionsPanel` — save/restore/Compare
   `versionDiff.ts` + Export/Import `.sofa.json` `designFile.ts`), **History** (`HistoryPanel`

@@ -222,8 +222,9 @@ export the result — all in the browser.
   a name **filter** + select / lock / hide / delete), a first-run **onboarding** intro, and a fused
   compass + zoom rail. Responsive down to phones, where floating panels become
   bottom sheets.
-- **Production-grade panels** — **Swap with similar** (replace a piece in place
-  with same-category alternatives, each tagged with a footprint-fit badge),
+- **Production-grade panels** — **Replace with similar** (swap a piece in place
+  for a same-category alternative, ranked nearest-size-first and each tagged with
+  a footprint-fit badge; keeps its position, rotation and level),
   **Clearance & fit checks** (HDB door-swing validation with a summary + fix
   suggestions), a **Design score** (an aggregate 0–100 grade across clearance,
   furnishing balance, circulation, daylight and lighting, with actionable

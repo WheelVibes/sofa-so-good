@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Replace with similar (PARITY-REPLACE): one-click swap to a nearest-size catalog sibling
+
+- **New pure core** `furniture/similarItems.ts` — `similarItems(defId, catalog, limit?)` ranks
+  same-`FurnitureCategory` catalog defs by **nearest real footprint** (orientation-independent
+  W×D from `defaultFootprint`), tie-broken by name then id; excludes the def itself and returns
+  `[]` for an unknown def or a category with no siblings. Works across parametric, GLB and IKEA
+  defs. Thoroughly unit-tested.
+- **New store action** `itemsSlice.replaceItemDef(id, newDefId)` swaps a placed item's `defId`
+  while keeping its **id / position / rotation / levelId / label / locked / groupId**, resetting
+  def-specific `props` to the new def's defaults (`defaultParamProps` for parametric, else `{}`).
+  One undo step; no-ops for a missing item/def or a same-def call.
+- **UI** — the inspector's "Swap with similar" control is now **"Replace with similar…"** and
+  opens a ranked picker (nearest-size first, fit badges) that commits through `replaceItemDef`;
+  the right-click context-menu entry and a new ⌘K command `replace-similar` (single selection)
+  open the same picker. The shared `SwapModal` mount gives desktop + mobile inspector parity.
+- **Feature flag** — new `replaceSimilar` flag (tier `pro`, prod default on, prod-safe pure code).
+  Gates the inspector control, the context-menu row and the ⌘K command (`COMMAND_FLAGS`), so the
+  feature is hidden in Simple mode. Tested in both Simple and Pro.
+
 ## Cross-section drawing: furniture silhouettes beyond the cut + report integration (PARITY-SECTION)
 
 - **Section now shows furniture beyond the cut in elevation.** Extended the pure `floorplan/section.ts`

@@ -69,6 +69,7 @@ export type FeatureFlag =
   | 'windowGlassTint'
   | 'curtainLightEffect'
   | 'walkCameraControls'
+  | 'replaceSimilar'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -422,6 +423,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   walkCameraControls: {
     label: 'Walk camera controls',
     description: 'Adjust field-of-view + eye-height in first-person walk mode',
+    default: true,
+    tier: 'pro',
+  },
+  // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
+  // catalog sibling in one click, keeping its position/rotation/level. An
+  // advanced editing aid → pro tier. Pure code, no external assets → prod-safe.
+  replaceSimilar: {
+    label: 'Replace with similar',
+    description: 'Swap a placed item for a nearest-size catalog alternative, keeping its place',
     default: true,
     tier: 'pro',
   },

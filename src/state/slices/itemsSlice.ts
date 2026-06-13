@@ -1,5 +1,6 @@
 import { GROUND_LEVEL_ID, levelOfRoom } from '../../floorplan/levels'
-import type { FurnitureItem, ParamProps } from '../../furniture/types'
+import { buildMergedCatalog } from '../../furniture/catalog'
+import { defaultParamProps, type FurnitureItem, type ParamProps } from '../../furniture/types'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -35,6 +36,12 @@ export interface ItemsSlice {
   /** Copy one item's props (finish/colour/material/form) to every other
    *  placed item sharing its defId. Returns how many items were restyled. */
   applyStyleToAll: (id: string) => number
+  /** Replace a placed item's def with `newDefId`, keeping its id, position,
+   *  rotation and level (PARITY-REPLACE: "replace with similar"). Def-specific
+   *  `props` are reset to the new def's defaults (parametric) or dropped (GLB),
+   *  since the old finish/dimension props don't carry across a different def.
+   *  No-op (returns false) if the item or the new def is missing. One undo step. */
+  replaceItemDef: (id: string, newDefId: string) => boolean
   setItems: (items: FurnitureItem[]) => void
 }
 
@@ -165,6 +172,29 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
       ),
     }))
     return targets.length
+  },
+  replaceItemDef: (id, newDefId) => {
+    const s = get()
+    const item = s.items.find((it) => it.id === id)
+    if (!item || item.defId === newDefId) return false
+    const catalog = buildMergedCatalog({
+      userFurniture: s.userFurniture,
+      resolvedRemoteFurniture: s.resolvedRemoteFurniture,
+      packFurniture: s.packFurniture,
+    })
+    const newDef = catalog[newDefId]
+    if (!newDef) return false
+    // Reset def-specific props: parametric defs seed their defaults so the new
+    // shape renders correctly; other kinds (GLB / IKEA) carry no transferable
+    // props, so drop them.
+    const props: ParamProps = newDef.kind === 'parametric' ? defaultParamProps(newDef) : {}
+    get().pushHistory()
+    set((st) => ({
+      // Keep id / position / rotation / levelId / label / locked / groupId —
+      // only the def + its props change.
+      items: st.items.map((it) => (it.id === id ? { ...it, defId: newDefId, props } : it)),
+    }))
+    return true
   },
   setItems: (items) => set({ items }),
 })

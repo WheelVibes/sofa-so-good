@@ -47,6 +47,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'furniture-csv': 'shopExport',
   'plan-svg': 'dxfExport',
   parametric: 'parametricFurniture',
+  'replace-similar': 'replaceSimilar',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -71,6 +72,9 @@ export function CommandPalette() {
   const catalog = useCatalog()
   // Selection-aware layout commands appear only when a multi-selection is live.
   const selCount = useStore((s) => s.selectedItemIds.length)
+  // The single selected item id (null when 0 or 2+ selected) gates the
+  // single-item "replace with similar" command.
+  const selOneId = useStore((s) => (s.selectedItemIds.length === 1 ? s.selectedItemId : null))
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const inputRef = useRef<HTMLInputElement>(null)
@@ -453,14 +457,27 @@ export function CommandPalette() {
             },
           ]
         : []
-    return [...base, ...layout, ...furniture].map((c) => ({
+    // Single-item command: open the replace-with-similar picker for the one
+    // selected piece (gated by the `replaceSimilar` flag via COMMAND_FLAGS).
+    const single: Command[] = selOneId
+      ? [
+          {
+            id: 'replace-similar',
+            group: 'Selection',
+            label: 'Replace with similar…',
+            icon: 'Copy',
+            run: () => s().setSwapItemId(selOneId),
+          },
+        ]
+      : []
+    return [...base, ...layout, ...single, ...furniture].map((c) => ({
       ...c,
       run: () => {
         c.run()
         close()
       },
     }))
-  }, [byCategory, catalog, selCount])
+  }, [byCategory, catalog, selCount, selOneId])
 
   // Drop commands whose feature flag is off (saved-view commands gate on the
   // savedViews flag) so the palette can't launch a disabled feature. Pro-only

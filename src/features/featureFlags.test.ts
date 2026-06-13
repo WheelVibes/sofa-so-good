@@ -100,6 +100,14 @@ describe('Simple/Pro tiering', () => {
     expect(FEATURE_FLAGS.panoTour.tier).toBe(FEATURE_FLAGS.panorama.tier)
   })
 
+  it('replaceSimilar (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
+    // Replace-with-similar is an advanced editing aid → pro tier, prod-safe.
+    expect(resolveFlags(false, {}, false, 'simple').replaceSimilar).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').replaceSimilar).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').replaceSimilar).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').replaceSimilar).toBe(true)
+  })
+
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
     const simple = resolveFlags(true, { measure: true }, false, 'simple')
     expect(simple.measure).toBe(false)
