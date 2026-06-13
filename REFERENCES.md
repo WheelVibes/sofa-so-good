@@ -32,3 +32,8 @@ docs are public. Proprietary ones are studied via their live apps + help docs.
 
 - **Maket.ai** — generative architecture/floor-plan AI; near-zero-learning-curve generative flows (2026 research pass).
 - **ReRoom AI / Spacely AI / Decor8 AI** — photo-restyle AI tools; commercial-rights-on-paid-tier packaging worth studying for our BYO-key AI surfaces (2026 research pass).
+- **Foyr Neo / Live Home 3D / Floorplanner / RoomSketcher** — pro/cloud planners benchmarked in the 2026 parity pass; study cloud render tiers (4K–16K), credit models, LiDAR/AI scan-to-plan (RoomSketcher FloorCapture + AI Convert), and camera-path video walkthroughs. See `FEATURE_PARITY.md`.
+- **Havenly / Spacejoy** — consumer "AI generate → upsell to human designer" funnel; **style/swipe quiz onboarding** + **press-and-hold local restyle** + deep shop-the-look (2026 pass).
+- **DecorMatters** — gamified/social design-game reference: design challenges, Dcoins/EXP/levels/badges/leaderboards, community feed + AR placement + AR Ruler (2026 pass). The gold standard for a social/gamified front-end (backend-dependent).
+- **Spacely AI Point-and-Edit / Decor8 Chat-to-Design** — best-in-class local "magic recolor"/conversational restyle UX; **Pinterest-board moodboard import** (Spacely) (2026 pass).
+- **FEATURE_PARITY.md** — the living parity matrix (Coohom + Sweet Home 3D deep-dives) distilling this research into a prioritised, client-side-feasible roadmap.
