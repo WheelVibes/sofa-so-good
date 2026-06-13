@@ -35,7 +35,15 @@ const SHADOW_OPTIONS: { value: number; label: string }[] = [
   { value: 4096, label: '4096' },
 ]
 
-export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function GraphicsSettings({
+  open,
+  onClose,
+  showBack,
+}: {
+  open: boolean
+  onClose: () => void
+  showBack?: boolean
+}) {
   const tier = useStore((s) => s.qualityTier)
   const overrides = useStore(useShallow((s) => s.qualityOverrides))
   const userSet = useStore((s) => s.qualityUserSet)
@@ -77,13 +85,20 @@ export function GraphicsSettings({ open, onClose }: { open: boolean; onClose: ()
         onClick={(e) => e.stopPropagation()}
       >
         <div className="panel-head">
+          {showBack ? (
+            <button type="button" onClick={onClose} className="icon-btn" aria-label="Back">
+              <Icon.ExitRoom width={16} height={16} />
+            </button>
+          ) : null}
           <div>
             <div className="panel-title">Graphics</div>
             <div className="panel-sub">Render & assets</div>
           </div>
-          <button type="button" onClick={onClose} className="icon-btn" aria-label="Close">
-            <Icon.Close width={16} height={16} />
-          </button>
+          {!showBack ? (
+            <button type="button" onClick={onClose} className="icon-btn" aria-label="Close">
+              <Icon.Close width={16} height={16} />
+            </button>
+          ) : null}
         </div>
         <hr className="hr" />
         <div className="panel-body">

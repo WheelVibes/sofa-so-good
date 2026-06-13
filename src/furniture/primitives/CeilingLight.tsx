@@ -2,6 +2,7 @@ import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { MeshStandardMaterial } from 'three'
 import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import { useStore } from '../../state/store'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
@@ -10,6 +11,7 @@ import { seg, useDetail } from './useDetail'
  *  ceiling. Floor-anchored group → body offset up in Y to the mount height.
  *  Emissive so it reads as lit. */
 export function CeilingLight({ props }: { props: ParamProps }) {
+  const showFixtures = useStore((s) => s.showCeilingFixtures)
   const detail = useDetail()
   const style = readStr(props, 'style', 'pendant')
   const shade = readStr(props, 'shade', 'dome')
@@ -22,6 +24,7 @@ export function CeilingLight({ props }: { props: ParamProps }) {
     if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7
   })
 
+  if (!showFixtures) return null
   return (
     <group position={[0, fixtureY, 0]}>
       {/* Ceiling rose */}

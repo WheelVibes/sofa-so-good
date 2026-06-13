@@ -18,6 +18,7 @@ import { detectVrSupport } from '../../scene/xr/vrSupport'
 import { enterVr, getXrStore } from '../../scene/xr/xrStore'
 import { firstEditableRoomId } from '../../state/rooms'
 import { applySerialized, serialize } from '../../state/schema'
+import { PRESET_HOURS } from '../../state/slices/timeSlice'
 import { LocalStorageAdapter } from '../../state/storage/LocalStorageAdapter'
 import type { SlotMeta } from '../../state/storage/StorageAdapter'
 import { captureThumb, deleteThumb, saveThumb } from '../../state/storage/slotThumbs'
@@ -142,6 +143,12 @@ export function MobileToolbar() {
   const gridSize = useStore((st) => st.gridSize)
   const autoRotate = useStore((st) => st.autoRotate)
   const lightsMode = useStore((st) => st.lightsMode)
+  const showCeilingFixtures = useStore((st) => st.showCeilingFixtures)
+  const wallRevealMode = useStore((st) => st.wallRevealMode)
+  const timeMode = useStore((st) => st.timeMode)
+  const manualHour = useStore((st) => st.manualHour)
+  const toneMapping = useStore((st) => st.toneMapping)
+  const exposure = useStore((st) => st.exposure)
   const backdrop = useStore((st) => st.backdrop)
   const proMode = useStore((st) => st.uiMode === 'pro')
   const canUndo = useStore((st) => st.past.length > 0)
@@ -204,6 +211,22 @@ export function MobileToolbar() {
   const fShopExport = useFeature('shopExport')
   const fDxf = useFeature('dxfExport')
   const userSets = useStore((st) => st.userSets)
+
+  // Detect which render preset (if any) matches current state for the dropdown.
+  const activePresetId = (() => {
+    if (timeMode !== 'manual') return 'none'
+    for (const p of RENDER_PRESETS) {
+      if (
+        Math.abs(manualHour - PRESET_HOURS[p.time]) < 0.01 &&
+        lightsMode === p.lights &&
+        toneMapping === p.toneMapping &&
+        Math.abs(exposure - p.exposure) < 0.01
+      ) {
+        return p.id
+      }
+    }
+    return 'none'
+  })()
 
   const close = () => setMenuOpen(false)
   // Most actions dismiss the sheet; pass {keep:true} for in-place toggles.
@@ -616,22 +639,61 @@ export function MobileToolbar() {
                       on={lightsMode !== 'auto'}
                       onClick={act(() => s.getState().cycleLightsMode(), { keep: true })}
                     />
-                    {fRenderPresets && <div className="m-sub-h">Render presets</div>}
-                    {fRenderPresets &&
-                      RENDER_PRESETS.map((p) => (
-                        <Item
-                          key={p.id}
-                          icon="Sun"
-                          label={p.label}
-                          sub={p.sub}
-                          onClick={act(() => applyRenderPreset(s.getState(), p), { keep: true })}
-                        />
-                      ))}
+                    <Item
+                      icon="Lights"
+                      label={`Ceiling fixtures: ${showCeilingFixtures ? 'Visible' : 'Hidden'}`}
+                      sub="3D geometry; illumination stays on"
+                      on={showCeilingFixtures}
+                      onClick={act(
+                        () => s.getState().setShowCeilingFixtures(!showCeilingFixtures),
+                        { keep: true },
+                      )}
+                    />
+                    {fRenderPresets && (
+                      <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+                        <span>Render preset</span>
+                        <select
+                          className="input scene-select"
+                          value={activePresetId}
+                          aria-label="Render preset"
+                          onChange={(e) => {
+                            const p = RENDER_PRESETS.find((x) => x.id === e.target.value)
+                            if (p) applyRenderPreset(s.getState(), p)
+                          }}
+                        >
+                          <option value="none">None</option>
+                          {RENDER_PRESETS.map((p) => (
+                            <option key={p.id} value={p.id}>
+                              {p.label}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                    )}
                     <Item
                       icon="Sun"
                       label="Sun direction"
-                      onClick={act(() => setCompassOpen(true))}
+                      onClick={act(() => setCompassOpen(true), { keep: true })}
                     />
+                    <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+                      <span>Wall reveal</span>
+                      <select
+                        className="input scene-select"
+                        value={wallRevealMode}
+                        aria-label="Wall reveal mode"
+                        onChange={(e) =>
+                          s
+                            .getState()
+                            .setWallRevealMode(
+                              e.target.value as 'auto-hide' | 'translucent' | 'opaque',
+                            )
+                        }
+                      >
+                        <option value="translucent">Translucent</option>
+                        <option value="auto-hide">Auto hide</option>
+                        <option value="opaque">Opaque</option>
+                      </select>
+                    </label>
                     {fBackdrops ? (
                       <label className="scene-field" onClick={(e) => e.stopPropagation()}>
                         <span>Backdrop</span>
@@ -1104,13 +1166,13 @@ export function MobileToolbar() {
                     icon="Palette"
                     label="Theme & appearance"
                     sub="Colour theme, light / dark"
-                    onClick={act(() => setAppearanceOpen(true))}
+                    onClick={act(() => setAppearanceOpen(true), { keep: true })}
                   />
                   <Item
                     icon="Quality"
                     label={`Graphics — ${QUALITY_LABEL[qualityTier]}`}
                     sub="Render & asset quality"
-                    onClick={act(() => setGraphicsOpen(true))}
+                    onClick={act(() => setGraphicsOpen(true), { keep: true })}
                   />
                   <Item icon="Book" label="User guide ↗" onClick={act(openDocs)} />
                   <Item icon="Help" label="Replay guided tour" onClick={act(startTour)} />
@@ -1135,13 +1197,18 @@ export function MobileToolbar() {
         </div>
       ) : null}
 
-      <GraphicsSettings open={graphicsOpen} onClose={() => setGraphicsOpen(false)} />
-      <CompassModal open={compassOpen} onClose={() => setCompassOpen(false)} />
+      <GraphicsSettings
+        open={graphicsOpen}
+        onClose={() => setGraphicsOpen(false)}
+        showBack={menuOpen}
+      />
+      <CompassModal open={compassOpen} onClose={() => setCompassOpen(false)} showBack={menuOpen} />
       <Modal
         open={appearanceOpen}
         onClose={() => setAppearanceOpen(false)}
         title="Appearance"
         width={320}
+        showBack={menuOpen}
       >
         <AppearanceControls />
       </Modal>

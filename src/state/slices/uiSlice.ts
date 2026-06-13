@@ -50,6 +50,14 @@ export interface UiSlice {
   exposure: number
   /** Fixture lights mode (auto / forced on / forced off). */
   lightsMode: LightsMode
+  /** Whether ceiling light fixture geometry is shown (illumination is independent).
+   *  Default false = fixtures hidden; point lights still emit when lights are on. */
+  showCeilingFixtures: boolean
+  setShowCeilingFixtures: (v: boolean) => void
+  /** How exterior walls reveal when the orbit camera looks through them.
+   *  'auto-hide' = fade to invisible; 'translucent' = fade to 15% opacity (default); 'opaque' = no fade. */
+  wallRevealMode: 'auto-hide' | 'translucent' | 'opaque'
+  setWallRevealMode: (m: 'auto-hide' | 'translucent' | 'opaque') => void
   /** Snap dragged/placed furniture to the alignment grid, and show the grid
    *  overlay on the floor while it's on. */
   snapEnabled: boolean
@@ -177,6 +185,8 @@ export const UI_INITIAL: Pick<
   | 'toneMapping'
   | 'exposure'
   | 'lightsMode'
+  | 'showCeilingFixtures'
+  | 'wallRevealMode'
   | 'autoShadowsOff'
   | 'backdrop'
   | 'uiMode'
@@ -206,6 +216,8 @@ export const UI_INITIAL: Pick<
   toneMapping: DEFAULT_TONE_MAPPING,
   exposure: DEFAULT_EXPOSURE,
   lightsMode: 'auto',
+  showCeilingFixtures: false,
+  wallRevealMode: 'translucent' as const,
   autoShadowsOff: false,
   snapEnabled: false,
   gridSize: 0.5,
@@ -302,6 +314,8 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setToneMapping: (toneMapping) => set({ toneMapping }),
   setExposure: (e) => set({ exposure: clampExposure(e) }),
   setLightsMode: (m) => set({ lightsMode: m }),
+  setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),
+  setWallRevealMode: (m) => set({ wallRevealMode: m }),
   setPresenting: (presenting) => set({ presenting }),
   setPresentationIncludeTour: (presentationIncludeTour) => set({ presentationIncludeTour }),
   cycleLightsMode: () =>

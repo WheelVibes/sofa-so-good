@@ -39,10 +39,23 @@ import { SourceLine } from './SourceLine'
  * *auto-minimizes* while a move/rotate gesture is in progress so the piece is
  * visible as it's manipulated — restoring to the user's chosen state afterwards.
  */
-function useInspectorMinimize(): { minimized: boolean; toggle: () => void; manual: boolean } {
+function useInspectorMinimize(itemId?: string): {
+  minimized: boolean
+  toggle: () => void
+  manual: boolean
+} {
   const gesturing = useStore((s) => !!s.draggingItemId || s.rotatingGizmo)
-  const [manual, setManual] = useState(false)
-  return { minimized: manual || gesturing, toggle: () => setManual((v) => !v), manual }
+  // Start minimized; track itemId so a new selection resets to minimized.
+  const [state, setState] = useState({ id: itemId, manual: true })
+  if (state.id !== itemId) {
+    setState({ id: itemId, manual: true })
+  }
+  const { manual } = state
+  return {
+    minimized: manual || gesturing,
+    toggle: () => setState((v) => ({ ...v, manual: !v.manual })),
+    manual,
+  }
 }
 
 /** The minimize / expand toggle shown in an inspector panel header. */
@@ -71,7 +84,7 @@ function MultiSelectPanel() {
   const catalog = useCatalog()
   const copyAppearanceOn = useFeature('copyAppearance')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
-  const { minimized, toggle } = useInspectorMinimize()
+  const { minimized, toggle } = useInspectorMinimize(selectedItemIds.join(','))
   // Combined estimated price of the current selection (mirrors the single-item
   // price line + the Budget panel's `itemPrice`).
   const totalPrice = useStore((s) =>
@@ -509,7 +522,7 @@ export function InspectorPanel() {
   const addToGroup = useStore((s) => s.addToGroup)
   const units = useStore((s) => s.units)
   const renameItem = useStore((s) => s.renameItem)
-  const { minimized, toggle } = useInspectorMinimize()
+  const { minimized, toggle } = useInspectorMinimize(item?.id)
   const [arrayCount, setArrayCount] = useState(3)
   const flip = (axis: 'x' | 'z') => {
     pushHistory()
