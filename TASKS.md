@@ -87,6 +87,48 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
 - [ ] PERF6 tail: `antialias`/`preserveDrawingBuffer` are context-creation attributes — toggling
   needs a context recreate (flash) + real-GPU verify.
 
+## FEATURE PARITY IMPLEMENTATION (2026-06-13) — feasible client-side features from FEATURE_PARITY.md
+
+Tracking the client-side-feasible parity gaps as they move to implementation. Status: `[ ]` pending,
+`[~]` in progress (agent assigned), shipped → removed (see CHANGELOG). `[backend]`/`[BYO-key]` tags
+mark non-pure-client features. Source of detail: `FEATURE_PARITY.md`.
+
+### In progress (worktree subagents dispatched)
+- [~] PARITY-REPLACE: Coohom "Replace-with-similar" — one-click swap a placed item for a similar
+  catalog item (same category, nearest footprint), preserving transform; inspector + ⌘K.
+- [~] PARITY-LIGHTPRESET: Coohom one-click lighting presets (day/golden/night/overcast) over the
+  existing sun/IBL + time-of-day; Scene menu + ⌘K, flag-gated.
+- [~] PARITY-SECTION: Coohom section/cross-section drawing sheet added to the drawing set
+  (reuse elevation projection), pro tier.
+
+### Pending — quick wins (S)
+- [ ] PARITY-NORTH: SH3D North/compass widget (rotatable, tied to sun azimuth) + walk FOV/eye-height
+  controls.
+- [ ] PARITY-BATCHRENDER: SH3D batch-render all saved views.
+- [ ] PARITY-PLUMBING: Coohom plumbing plan layer (mirror `electricalPlan`).
+- [ ] PARITY-PLANLABELS: SH3D furniture name/price labels on the 2D plan (toggle).
+- [ ] PARITY-WALLOPS: SH3D wall split/join/reverse commands in the 2D editor.
+- [ ] PARITY-LEVELOPS: SH3D "show all levels (dimmed)" overlay + duplicate-level.
+- [ ] PARITY-LIGHTINGTEMPLATE-TEXT: Coohom drawing text/material callouts + layer toggles.
+
+### Pending — high value (M)
+- [ ] PARITY-SEARCH: Coohom smart/semantic catalog search (tag/fuzzy over catalog + packs).
+- [ ] PARITY-AR: Coohom AR "view in your room" (`<model-viewer>`/WebXR on a GLB export; needs Q-3DEXPORT).
+- [ ] PARITY-DENOISE: Coohom render denoiser (OIDN-wasm/bilateral post-pass on HQ render). [real-GPU verify]
+- [ ] PARITY-8K: Coohom 8K+ tiled still render.
+- [ ] PARITY-SLOPECEIL: SH3D sloping ceilings (per-room ceiling slope).
+- [ ] PARITY-SLANTWALL: SH3D slanting walls (per-endpoint top heights).
+- [ ] PARITY-BASEBOARD: SH3D per-wall baseboard params + finish.
+- [ ] PARITY-FURNLIGHT: SH3D furniture-as-light-source params feeding the render.
+- [ ] PARITY-QUOTE-XLSX: Coohom quote Excel/CSV export + editable templates.
+- [ ] PARITY-DIMTEXT: SH3D first-class dimension-line + on-plan text objects.
+
+### Pending — marquee (L)
+- [ ] PARITY-VIDEO: video flythrough export (camera path → WebM/MP4 via MediaRecorder). [real-GPU verify]
+- [ ] PARITY-CURVEDWALL: SH3D curved/arc walls.
+- [ ] PARITY-AILAYOUT: Coohom AI auto-layout/auto-furnish (LLM → autoArrange). [BYO-key]
+- [ ] PARITY-3DEXPORT: whole-scene OBJ/glTF/STL export (Q-3DEXPORT).
+
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
 
 ### Reliability / data-integrity
