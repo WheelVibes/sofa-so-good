@@ -15,7 +15,13 @@ import { exitPlanEditorToScene } from '../../controls/planEditorHotkey'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
-import { GROUND_LEVEL_ID, levelAsPlan, levelById, levelOfItem } from '../../floorplan/levels'
+import {
+  GROUND_LEVEL_ID,
+  levelAsPlan,
+  levelById,
+  levelOfItem,
+  planLevels,
+} from '../../floorplan/levels'
 import { roomLabelPoint } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
@@ -137,6 +143,9 @@ export function FloorPlanEditor() {
   const activeLevel = levelById(plan, activeLevelId)
   const levelPlan = levelAsPlan(plan, activeLevel)
   const levelId = activeLevel.id
+  const allLevels = planLevels(plan)
+  const isMultiLevel = allLevels.length > 1
+  const otherLevels = allLevels.filter((l) => l.id !== levelId)
   const [draft, setDraft] = useState<{ x0: number; z0: number; x: number; z: number } | null>(null)
   // Active room drag (select tool): grab offset from the room origin.
   const [moving, setMoving] = useState<{ id: string; gx: number; gz: number } | null>(null)
@@ -158,6 +167,9 @@ export function FloorPlanEditor() {
   const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).
   const [showWallDims, setShowWallDims] = useState(true)
+  // Show the OTHER storeys' walls as a dimmed underlay (SH3D "all levels"), so
+  // you can stack walls / line up stairs between floors. Off by default.
+  const [showOtherLevels, setShowOtherLevels] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -873,6 +885,17 @@ export function FloorPlanEditor() {
           >
             Dims
           </button>
+          {isMultiLevel && (
+            <button
+              type="button"
+              onClick={() => setShowOtherLevels((v) => !v)}
+              className={`btn btn-sm${showOtherLevels ? ' btn-accent' : ''}`}
+              title="Show the other storeys' walls as a dimmed underlay (to line up floors)"
+              aria-pressed={showOtherLevels}
+            >
+              All levels
+            </button>
+          )}
           <button
             type="button"
             className="btn btn-sm"
@@ -1016,6 +1039,28 @@ export function FloorPlanEditor() {
               ew={ew}
               ed={ed}
             />
+
+            {/* Other storeys' walls as a dimmed underlay (SH3D "all levels"),
+                so walls/stairs can be lined up between floors. Non-interactive. */}
+            {showOtherLevels &&
+              otherLevels.flatMap((lvl) =>
+                lvl.walls
+                  .filter((w) => wallLength(w) > 0)
+                  .map((w) => (
+                    <line
+                      key={`ghost-${lvl.id}-${w.id}`}
+                      x1={toPx(w.start[0])}
+                      y1={toPx(w.start[1])}
+                      x2={toPx(w.end[0])}
+                      y2={toPx(w.end[1])}
+                      stroke="var(--text-3)"
+                      strokeWidth={w.thickness === 'external' ? 4 : 2.5}
+                      strokeLinecap="round"
+                      opacity={0.16}
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )),
+              )}
 
             {/* Rooms (active storey) */}
             {levelPlan.rooms.map((r) => {

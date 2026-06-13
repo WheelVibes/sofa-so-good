@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-LEVELOPS cont.: "All levels" dimmed underlay in the 2D editor
+
+- The 2D Floor Plan Editor gains an **"All levels"** toggle (shown only on a multi-storey plan) that
+  draws the **other storeys' walls as a faint, non-interactive underlay** beneath the active level — so
+  you can stack walls and line up stairs/risers between floors (Sweet Home 3D parity). Local editor view
+  state (like the Dims toggle), off by default. Verified: with an empty upper level active, the ground
+  floor's walls show through dimmed. Completes PARITY-LEVELOPS (duplicate-level + all-levels underlay).
+
 ## PARITY-LEVELOPS: duplicate a storey (geometry + furniture + finishes)
 
 - **New `duplicateLevel(sourceId)` store action** — clones a storey (ground or upper) into a new storey
