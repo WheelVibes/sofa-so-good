@@ -5,6 +5,7 @@ import { blockedDoorItems } from '../../../layout/clearance'
 import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
 import { closeAllAuxPanels } from '../../auxPanels'
+import { DRAWING_LAYERS } from '../../drawingLayers'
 import { openBoq } from '../../openBoq'
 import { openDrawingSet } from '../../openDrawingSet'
 import { downloadPlanDxf } from '../../openDxf'
@@ -303,14 +304,51 @@ export function ToolsMenu() {
         />
       )}
       {fReport && (
-        <MenuItem
-          icon="FloorPlan"
-          label="Drawing set"
-          sub="Paginated plan + elevations + schedules (PDF)"
-          onClick={() => openDrawingSet()}
-        />
+        <>
+          <MenuItem
+            icon="FloorPlan"
+            label="Drawing set"
+            sub="Paginated plan + elevations + schedules (PDF)"
+            onClick={() => openDrawingSet()}
+          />
+          <DrawingLayersPicker />
+        </>
       )}
     </ToolbarMenu>
+  )
+}
+
+/** Compact checklist of which drawing-set sheet groups to include in the export
+ *  (the floor plan is always included). Lives under the "Drawing set" entry;
+ *  clicks don't close the menu so several layers can be toggled in one go. */
+function DrawingLayersPicker() {
+  const layers = useStore((s) => s.drawingLayers)
+  const setDrawingLayer = useStore((s) => s.setDrawingLayer)
+  return (
+    <div
+      className="px-3 py-1"
+      style={{ display: 'flex', flexDirection: 'column', gap: 'var(--s-1)' }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <span className="label" style={{ fontSize: 'var(--t-xs)', color: 'var(--text-3)' }}>
+        Include sheets
+      </span>
+      {DRAWING_LAYERS.map((l) => (
+        <label
+          key={l.key}
+          className="flex items-center gap-2"
+          style={{ fontSize: 'var(--t-xs)', cursor: 'pointer' }}
+        >
+          <input
+            type="checkbox"
+            checked={layers[l.key] !== false}
+            aria-label={l.label}
+            onChange={(e) => setDrawingLayer(l.key, e.target.checked)}
+          />
+          <span>{l.label}</span>
+        </label>
+      ))}
+    </div>
   )
 }
 

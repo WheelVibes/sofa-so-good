@@ -6,6 +6,7 @@ import {
 } from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
+import type { DrawingLayer, DrawingLayerVisibility } from '../../ui/drawingLayers'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -58,6 +59,10 @@ export interface UiSlice {
    *  'auto-hide' = fade to invisible; 'translucent' = fade to 15% opacity (default); 'opaque' = no fade. */
   wallRevealMode: 'auto-hide' | 'translucent' | 'opaque'
   setWallRevealMode: (m: 'auto-hide' | 'translucent' | 'opaque') => void
+  /** Which construction drawing-set layers (sheet groups) to include in the
+   *  exported set; a layer absent here = included (the full set). Session-only. */
+  drawingLayers: DrawingLayerVisibility
+  setDrawingLayer: (layer: DrawingLayer, on: boolean) => void
   /** Snap dragged/placed furniture to the alignment grid, and show the grid
    *  overlay on the floor while it's on. */
   snapEnabled: boolean
@@ -192,6 +197,7 @@ export const UI_INITIAL: Pick<
   | 'lightsMode'
   | 'showCeilingFixtures'
   | 'wallRevealMode'
+  | 'drawingLayers'
   | 'autoShadowsOff'
   | 'backdrop'
   | 'customBackdropUrl'
@@ -224,6 +230,7 @@ export const UI_INITIAL: Pick<
   lightsMode: 'auto',
   showCeilingFixtures: false,
   wallRevealMode: 'translucent' as const,
+  drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
   snapEnabled: false,
   gridSize: 0.5,
@@ -323,6 +330,8 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setLightsMode: (m) => set({ lightsMode: m }),
   setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),
   setWallRevealMode: (m) => set({ wallRevealMode: m }),
+  setDrawingLayer: (layer, on) =>
+    set((s) => ({ drawingLayers: { ...s.drawingLayers, [layer]: on } })),
   setPresenting: (presenting) => set({ presenting }),
   setPresentationIncludeTour: (presentationIncludeTour) => set({ presentationIncludeTour }),
   cycleLightsMode: () =>

@@ -301,7 +301,10 @@ same change that reshapes a system.
   `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
   from fixtures) + a per-room finishes schedule (`floorplan/finishSchedule.ts` — floor/wall material
   callouts) + FF&E, title blocks, `@page` A4) reusing all the pure renderers — the formal counterpart
-  to the one-page `report.ts`.
+  to the one-page `report.ts`. **Sheet/layer toggles** (PARITY-DRAWLAYERS): `ui/drawingLayers.ts`
+  (dependency-light list + `DrawingLayerVisibility` so the heavy builder stays dynamically imported) +
+  `buildDrawingSetHtml`'s optional `layers` arg gate each group on/off (floor plan always included);
+  the Tools-menu "Include sheets" checklist writes `uiSlice.drawingLayers` (session-only).
 - **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as DXF;
   `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
   `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +

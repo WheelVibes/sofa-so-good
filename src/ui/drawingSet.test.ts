@@ -206,3 +206,71 @@ describe('buildDrawingSetHtml — multi-storey fan-out (F13)', () => {
     expect(html).not.toContain('Demolition &amp; new walls — Ground floor')
   })
 })
+
+describe('buildDrawingSetHtml — layer toggles (PARITY-DRAWLAYERS)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('includes every sheet group by default (no layer map)', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('Floor plan')
+    expect(html).toContain('Dimensioned plan')
+    expect(html).toContain('Lighting plan')
+    expect(html).toContain('FF&amp;E schedule')
+  })
+
+  it('omits toggled-off layers but always keeps the floor plan (the base sheet)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { dimensions: false, ffe: false, lighting: false },
+    )
+    expect(html).toContain('Floor plan')
+    expect(html).not.toContain('Dimensioned plan')
+    expect(html).not.toContain('Lighting plan')
+    expect(html).not.toContain('FF&amp;E schedule')
+  })
+
+  it('keeps a layer set explicitly true (and unlisted layers default on)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { dimensions: true },
+    )
+    expect(html).toContain('Dimensioned plan')
+    expect(html).toContain('FF&amp;E schedule') // unlisted → still included
+  })
+
+  it('skips the demolition layer when toggled off even though the plan diverged', () => {
+    const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
+    const on = buildDrawingSetHtml(hacked, items, BUILTIN_CATALOG, 'metric', plan)
+    expect(on).toContain('Demolition &amp; new walls')
+    const off = buildDrawingSetHtml(
+      hacked,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      plan,
+      undefined,
+      undefined,
+      undefined,
+      { demolition: false },
+    )
+    expect(off).not.toContain('Demolition &amp; new walls')
+  })
+})

@@ -49,13 +49,14 @@ version history · BYO-key AI photo restyle + style variants · **replace-with-s
 model swap** · **smart/semantic catalog search** · **section/cross-section drawings** ·
 **plumbing plan layer** · **render denoiser (HQ path-trace)** · **one-click
 render/lighting presets (day/night/mood)** · **BYO-key AI auto-furnish (text brief →
-layout)** · **all analysis tools (we exceed)**.
+layout)** · **drawing-set sheet/layer toggles (choose which sheets to include)** ·
+**all analysis tools (we exceed)**.
 
 ### Gaps & approach
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| Drawing layer toggles (arch/electrical/plumbing) + text/material callouts | ◑ | ✅ | Sheets exist; add per-layer visibility + an annotation/text layer to the drawing-set generator. | M |
+| Drawing **text** callouts (free annotations on sheets) | ◑ | ✅ | Per-layer sheet toggles + material callouts (finishes schedule) ship; add a free **text-annotation** layer drawn on the drawing-set sheets. | M |
 | 8K+ tiled still render | ◑ | ✅ | Add tiled offscreen render at 8K+ to the HQ render presets. | M |
 | Fast rasterized "preview render" tier | ◑ | ✅ | A high-quality single-frame raster capture as the local analog to cloud 10-s render. | M |
 | IES photometric light import | ❌ | ✅ | Parse `.ies` into spotlight intensity distribution in `scene/lighting`. | M |
@@ -124,7 +125,7 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 
 **Quick wins (S):**
 1. Batch-render all saved cameras (SH3D) — loop the render pipeline over saved views.
-2. Drawing layer toggles + text/material callouts on the drawing set (Coohom).
+2. Free text-annotation callouts on the drawing-set sheets (Coohom) — sheet/layer toggles already ship.
 3. Styled, movable/rotatable room-name label object on the plan (SH3D).
 
 **High-value medium efforts (M):**

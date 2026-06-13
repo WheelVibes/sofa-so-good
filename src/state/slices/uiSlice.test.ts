@@ -47,6 +47,24 @@ describe('uiSlice lights mode', () => {
   })
 })
 
+describe('uiSlice drawing-set layers (PARITY-DRAWLAYERS)', () => {
+  beforeEach(() => useStore.getState().__resetForTest())
+
+  it('defaults to an empty map (= all layers included)', () => {
+    expect(useStore.getState().drawingLayers).toEqual({})
+  })
+
+  it('setDrawingLayer toggles a single layer without disturbing the others', () => {
+    useStore.getState().setDrawingLayer('electrical', false)
+    expect(useStore.getState().drawingLayers).toEqual({ electrical: false })
+    useStore.getState().setDrawingLayer('plumbing', false)
+    expect(useStore.getState().drawingLayers).toEqual({ electrical: false, plumbing: false })
+    // Re-enabling flips just that key back on.
+    useStore.getState().setDrawingLayer('electrical', true)
+    expect(useStore.getState().drawingLayers).toEqual({ electrical: true, plumbing: false })
+  })
+})
+
 describe('uiSlice asset quality', () => {
   beforeEach(() => useStore.getState().__resetForTest())
 

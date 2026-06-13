@@ -175,7 +175,10 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
   the lighting plan, and the FF&E schedule. Print or save as PDF for builders and
-  permits — the multi-sheet counterpart to the one-page Report.
+  permits — the multi-sheet counterpart to the one-page Report. Use the **Include
+  sheets** checklist under it to pick exactly which sheets go in — e.g. a clean
+  client copy with no electrical/plumbing/demolition, or a full builder copy (the
+  floor plan is always included).
 
 ## 360° panorama (Pro)
 

@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-DRAWLAYERS: choose which sheets the construction drawing set includes
+
+- The **drawing set** export (Tools → Drawing set) now has an **"Include sheets"** checklist
+  (RoomSketcher / Chief Architect "layers"): toggle Elevations, Lighting plan, Dimensioned plan,
+  Cross-section, Electrical/Plumbing plans, Finishes schedule, Demolition plan and FF&E schedule on/off
+  — e.g. a clean client copy with no electrical/plumbing/demolition, or a full builder copy. The floor
+  plan is always the base sheet.
+- Pure + back-compat: `buildDrawingSetHtml` takes an optional `layers` map (absent/empty = the full set,
+  so existing callers are unchanged) and gates each sheet group through it. Layer list + types live in a
+  dependency-light `ui/drawingLayers.ts` so the heavy sheet builder stays dynamically imported (P-CHUNK).
+- Store: `drawingLayers` + `setDrawingLayer` (session-only, in `uiSlice`); `openDrawingSet` passes them.
+  Desktop-only picker (the drawing set is a desktop export, so no mobile-parity gap). Unit-tested
+  (filtering on/off + the slice toggle) and visually verified (checklist renders under the menu entry).
+- Gated under the existing `drawings`/`report` surface (a configuration of an already-flagged export,
+  like the render-preset dropdown). Docs: FEATURE_PARITY (folded into parity; remaining gap trimmed to a
+  text-annotation layer), ARCHITECTURE, user design-tools guide.
+
 ## PARITY-POLYLINE: free-form polyline annotations on the 2D plan
 
 - **New Polyline tool** in the 2D Floor Plan Editor (Sweet Home 3D parity): click to drop vertices,
