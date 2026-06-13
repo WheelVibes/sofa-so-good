@@ -80,6 +80,20 @@ export function glassConfig(
   }
 }
 
+/** Soft sky-blue a window pane's "sky-catch" emissive uses (RZ2). */
+export const GLASS_SKYCATCH_COLOR = '#cfe4f5'
+
+/**
+ * Emissive intensity for a window pane's **sky-catch** (RZ2): by day the glass
+ * reads as bright, lit by the sky; at night it goes dark (a reflective pane).
+ * Cheap (emissive only, no transmission pass) so it works on every tier —
+ * including the flat Performance default where windows otherwise read as flat
+ * dark panes. `daylight` is 0 (night) … 1 (full day).
+ */
+export function glassSkyCatchIntensity(daylight: number): number {
+  return clamp(daylight, 0, 1) * 0.4
+}
+
 /** Sheen layer for a soft-fabric finish kind. Velvet shows the strongest, most
  *  coloured sheen; satin / woven fabric a subtler one; leather a faint specular
  *  sheen. Returns `null` for finishes that should stay matte. `sheenColorLift`

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RZ2: window glass sky-catch — panes read as lit glass, not flat dark rectangles
+
+- **Daylight-ramped emissive sky-catch on window glass** — `materialRealism.glassSkyCatchIntensity`
+  (pure, unit-tested) drives a soft sky-blue emissive on the default-flat windows (`apartment/Window.tsx`)
+  that is bright by day and fades to dark at night, so glass reads as catching the sky on **every tier**
+  (including the flat Performance default, where it otherwise looked like a flat transparent pane). Kept
+  below the bloom threshold so windows glow softly without blooming.
+- Verified from outside at midday: panes carry a subtle sky tint and a far pane reads as a distinctly
+  bright blue sky-catch; no z-fighting with the grille/frame, no blowout.
+- **Tail (tracked in TASKS):** apply to `PlanRoomShell` glass (custom plans) and wire the already-built
+  `glassConfig`/`transmissionTiers` real transmission on High/Max (real-GPU verify).
+
 ## PARITY-PLANLABELS: furniture name / price labels on the 2D plan (Sweet Home 3D parity)
 
 - **New label layer in the 2D Floor Plan Editor** — a `Labels` toolbar toggle cycles **off → name →

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { RenderTier } from '../scene/quality'
-import { clearcoatLayer, glassConfig, sheenLayer, transmissionTiers } from './materialRealism'
+import {
+  clearcoatLayer,
+  glassConfig,
+  glassSkyCatchIntensity,
+  sheenLayer,
+  transmissionTiers,
+} from './materialRealism'
 
 const ALL_TIERS: RenderTier[] = ['performance', 'medium', 'high', 'maximum']
 
@@ -130,5 +136,22 @@ describe('tier coverage', () => {
     for (const tier of ALL_TIERS) {
       expect(() => glassConfig(tier)).not.toThrow()
     }
+  })
+})
+
+describe('glassSkyCatchIntensity (RZ2)', () => {
+  it('is bright by day and dark at night', () => {
+    expect(glassSkyCatchIntensity(1)).toBeGreaterThan(0.3)
+    expect(glassSkyCatchIntensity(0)).toBe(0)
+  })
+
+  it('ramps monotonically and clamps out-of-range daylight', () => {
+    expect(glassSkyCatchIntensity(0.5)).toBeGreaterThan(glassSkyCatchIntensity(0.2))
+    expect(glassSkyCatchIntensity(2)).toBe(glassSkyCatchIntensity(1))
+    expect(glassSkyCatchIntensity(-1)).toBe(0)
+  })
+
+  it('stays below the bloom threshold so windows do not bloom', () => {
+    expect(glassSkyCatchIntensity(1)).toBeLessThan(1.05)
   })
 })

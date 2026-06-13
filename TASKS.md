@@ -162,8 +162,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 ### Realism (pure-code, prod-safe — most users see the flat Performance tier)
 - [ ] RZ1: always-on cheap contact shadows on Performance tier (grounding) — highest visual
   payoff; one shared blob texture + plane-per-item, transparent overdraw only.
-- [ ] RZ2: window glass realism — emissive sky-catch on Perf/Medium, `getGlassMaterial`
-  transmission on High+ (`apartment/Window.tsx`, half-built in `materialRealism.ts`).
+- [~] RZ2: window glass realism — **emissive sky-catch shipped** (all tiers; `glassSkyCatchIntensity`
+  in `materialRealism.ts`, wired into `apartment/Window.tsx`). Tail: apply to `PlanRoomShell` glass
+  (custom plans, needs the daylight signal) + wire `getGlassMaterial`/`glassConfig` transmission on
+  High+ (real-GPU verify).
 - [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables/desk +
   freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
   Nightstand). Remaining: panel/shelf-built units (Bookshelf/Wardrobe/cabinet modules) + appliances;

@@ -113,6 +113,9 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
    path (already used Medium+) to more parked views. Tune `look.ts` shadow params. Re-evaluate PCSS
    once drei patches it.
 9. **PHOTO-GLASS — transmission + volume + IOR fidelity** (M, materials; Verify G).
+   ◑ Window **sky-catch** shipped (RZ2): glass carries a daylight-ramped emissive sky tint
+   (`glassSkyCatchIntensity`) so panes read as lit glass on every tier (not flat dark rectangles).
+   Remaining transmission/volume/IOR below.
    Ensure windows/glassware use real `transmission`+`ior`(1.5)+`thickness`+`attenuationColor`
    (`KHR_materials_volume`); add `transmissionResolutionScale` to bound real-time cost. Extend down to
    Medium where affordable.
