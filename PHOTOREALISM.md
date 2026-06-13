@@ -88,10 +88,12 @@ belongs. Flag = gate per CLAUDE.md (CC0 → prod-safe).
    Curated CC0 decor/styling props (books, trays, cushions, vases, plants, rugs, bowls) — the single
    biggest *perceived*-realism lever for casual users (empty rooms read fake). Overlaps C-PLANTS/DECOR
    in TASKS; ship as a prod CC0 pack + one-tap "style this room" placement.
-5. **PHOTO-BEVELS — edge bevels on hard primitives** (M, all tiers incl. flat; Verify G).
-   Replace sharp `boxGeometry` on tables/cabinets/shelves with small-radius `RoundedBox` (or bevelled
-   geometry), `geometryDetail`-scaled. Flat boxes read as cardboard; bevels catch light. No flag (a
-   fidelity tweak to existing primitives, like `pbrSurfaces`).
+5. **PHOTO-BEVELS — edge bevels on hard primitives** ◑ **IN PROGRESS** (M, all tiers incl. flat; Verify G).
+   New shared `furniture/primitives/BeveledBox.tsx` (drei `RoundedBox` + auto-clamped ~7 mm chamfer,
+   detail-scaled smoothness; pure tested `safeBevelRadius`) replaces sharp `boxGeometry` slabs. Migrated:
+   tables + desk (CoffeeTable, DiningTable, ConsoleTable, Desk). **Remaining:** case goods
+   (Sideboard/Bookshelf/Wardrobe/TVConsole/Dresser/Nightstand/cabinets) + appliances. Edge light-catch
+   pass is real-GPU-pending; structural correctness (no gaps/clipping) verified.
 
 ### Tier 2 — high impact, needs real-GPU verification
 6. **PHOTO-DENOISE — browser OIDN on the HQ still** (M–L, HQ still; Verify G).

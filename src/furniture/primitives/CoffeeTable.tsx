@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
 
@@ -68,9 +69,12 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
           )
         })}
         {/* Low cross-strut for stability (reads as a stretcher) */}
-        <mesh castShadow position={[0, legH * 0.32, 0]} material={wood}>
-          <boxGeometry args={[lx * 2 + legR, 0.025, 0.025]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          position={[0, legH * 0.32, 0]}
+          material={wood}
+          args={[lx * 2 + legR, 0.025, 0.025]}
+        />
       </group>
     )
   }
@@ -79,17 +83,28 @@ export function CoffeeTable({ props }: { props: ParamProps }) {
   const zs = [-depth / 2 + inset, depth / 2 - inset]
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, totalH - topT / 2, 0]} material={wood}>
-        <boxGeometry args={[width, topT, depth]} />
-      </mesh>
-      <mesh castShadow position={[0, shelfY, 0]} material={wood}>
-        <boxGeometry args={[width - inset * 2, 0.03, depth - inset * 2]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, totalH - topT / 2, 0]}
+        material={wood}
+        args={[width, topT, depth]}
+      />
+      <BeveledBox
+        castShadow
+        position={[0, shelfY, 0]}
+        material={wood}
+        args={[width - inset * 2, 0.03, depth - inset * 2]}
+      />
       {xs.map((x) =>
         zs.map((z) => (
-          <mesh key={`${x}.${z}`} castShadow position={[x, (totalH - topT) / 2, z]} material={wood}>
-            <boxGeometry args={[legT, totalH - topT, legT]} />
-          </mesh>
+          <BeveledBox
+            key={`${x}.${z}`}
+            castShadow
+            position={[x, (totalH - topT) / 2, z]}
+            material={wood}
+            args={[legT, totalH - topT, legT]}
+          />
         )),
       )}
     </group>

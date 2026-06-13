@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 interface DeskProps {
@@ -40,28 +41,30 @@ export function Desk({ props }: DeskProps) {
   return (
     <group>
       {/* Top */}
-      <mesh castShadow receiveShadow position={[0, height - topThickness / 2, 0]} material={wood}>
-        <boxGeometry args={[width, topThickness, depth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, height - topThickness / 2, 0]}
+        material={wood}
+        args={[width, topThickness, depth]}
+      />
 
       {legStyle === 'panel' && (
         <>
           {/* Left leg plate */}
-          <mesh
+          <BeveledBox
             castShadow
             position={[-width / 2 + legThickness / 2, (height - topThickness) / 2, 0]}
             material={wood}
-          >
-            <boxGeometry args={[legThickness, height - topThickness, depth - 0.04]} />
-          </mesh>
+            args={[legThickness, height - topThickness, depth - 0.04]}
+          />
           {/* Right drawer block */}
-          <mesh
+          <BeveledBox
             castShadow
             position={[width / 2 - drawerW / 2, height - topThickness - drawerH / 2, 0]}
             material={wood}
-          >
-            <boxGeometry args={[drawerW, drawerH, depth - 0.06]} />
-          </mesh>
+            args={[drawerW, drawerH, depth - 0.06]}
+          />
           {/* Drawer knob */}
           <mesh
             castShadow
@@ -79,9 +82,13 @@ export function Desk({ props }: DeskProps) {
 
       {legStyle === 'legs' &&
         corners.map(([x, z], i) => (
-          <mesh key={i} castShadow position={[x, legY / 2, z]} material={wood}>
-            <boxGeometry args={[legThickness, legY, legThickness]} />
-          </mesh>
+          <BeveledBox
+            key={i}
+            castShadow
+            position={[x, legY / 2, z]}
+            material={wood}
+            args={[legThickness, legY, legThickness]}
+          />
         ))}
 
       {legStyle === 'hairpin' &&

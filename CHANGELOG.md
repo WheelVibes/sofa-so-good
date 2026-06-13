@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-BEVELS (RZ3): edge chamfers on hard furniture so it stops reading as cardboard
+
+- **New shared `furniture/primitives/BeveledBox.tsx`** — a drei `RoundedBox` drop-in for sharp
+  `<mesh><boxGeometry/></mesh>` slabs, with a furniture-appropriate **auto-clamped chamfer** (pure,
+  unit-tested `safeBevelRadius`: a ~7 mm target clamped to 40% of the thinnest side so `RoundedBox`
+  never self-intersects on thin panels) and `geometryDetail`-scaled smoothness. The chamfer is tiny so
+  footprints/joins are visually unchanged — it just gives hard edges a highlight.
+- **Migrated the table + desk family** to it: `CoffeeTable`, `DiningTable` (rect tops/legs/aprons +
+  oval/round trestle feet + stretchers), `ConsoleTable`, `Desk` (top + leg plate + drawer block + legs).
+  Cylindrical tops were already round; only the flat box slabs changed.
+- **Tests** — `BeveledBox.test.ts` covers the radius clamp (full target when thick, 40%-clamped on thin
+  panels, custom target, never negative). Verified the migrated tables render with no gaps/z-fighting/
+  clipping at joins; the edge light-catch on lit tiers is real-GPU-pending (`Verify G`). Case goods +
+  appliances remain (tracked in TASKS as RZ3 in-progress).
+
 ## PHOTO-EMISSIVE: HDR self-lit fixtures + screens (lamps glow + bloom at night)
 
 - **Centralised, tuned emissive ramp** — new `scene/lighting/fixtureGlow.ts` `fixtureEmissiveIntensity(role,
