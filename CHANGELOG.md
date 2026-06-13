@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-AILAYOUT: AI auto-furnish from a text brief (BYO-key)
+
+- **New ⌘K "AI auto-furnish (BYO key)"** — describe the home and an OpenAI-compatible LLM proposes a
+  furniture layout, which is validated and placed (Coohom AI auto-layout parity). Reuses the existing
+  vision-feature key/endpoint config (`floorPlanAi`); no key is bundled and the call degrades gracefully
+  (clear error toast) without one. `aiLayout` flag (pro, experimental, prod-safe).
+- **Pure engine `ai/autoLayoutAi.ts`** — `buildLayoutRequest` (rooms + allowed catalog ids + brief →
+  chat body), `parseLayoutResponse` (tolerant of fences/prose; drops items with unknown defId/room or
+  non-finite coords), and `requestAutoLayout` (key/endpoint guards mirroring `recognizeFloorPlan`).
+- **Pure apply `layout/aiLayoutApply.ts`** — `aiLayoutToItems` resolves each placement's room by name,
+  drops unknown rooms/defs, and **clamps the position into the room interior** (inset) so the model can't
+  drop a piece outside its room; emits fresh-id `FurnitureItem`s (appended under one undo step).
+- **Tests** — prompt embeds rooms/ids/brief; parser validation + tolerance; no-key guard rejects without
+  network; apply clamps + drops invalids + fresh ids; `aiLayout` flag hidden in Simple / present in Pro.
+  Verified the ⌘K command registers + renders (Pro). Follow-up: collision-aware placement via autoArrange.
+
 ## IXT-SUITES batch 3: 2D plan-editor tools interaction-test ladder
 
 - **New committed scenario `scripts/scenarios/plan-editor-tools-journey.json`** (21 steps) — a

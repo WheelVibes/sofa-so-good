@@ -74,6 +74,7 @@ export type FeatureFlag =
   | 'planLabels'
   | 'plumbingPlan'
   | 'itemAsLight'
+  | 'aiLayout'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -470,6 +471,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   itemAsLight: {
     label: 'Item as light source',
     description: 'Make any placed item emit light at night',
+    default: true,
+    tier: 'pro',
+  },
+  // AI auto-furnish (PARITY-AILAYOUT): LLM proposes a layout from a brief. BYO
+  // model key (no key bundled); experimental → pro tier, prod-safe (pure code +
+  // graceful no-key error, like aiWalls/aiPhotoreal).
+  aiLayout: {
+    label: 'AI auto-furnish',
+    description: 'Furnish rooms from a text brief via a BYO-key LLM (experimental)',
     default: true,
     tier: 'pro',
   },

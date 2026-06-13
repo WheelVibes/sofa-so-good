@@ -147,7 +147,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 ### Pending — marquee (L)
 - [ ] PARITY-VIDEO: video flythrough export (camera path → WebM/MP4 via MediaRecorder). [real-GPU verify]
 - [ ] PARITY-CURVEDWALL: SH3D curved/arc walls.
-- [ ] PARITY-AILAYOUT: Coohom AI auto-layout/auto-furnish (LLM → autoArrange). [BYO-key]
+- [~] PARITY-AILAYOUT: **engine shipped** — `ai/autoLayoutAi.ts` (prompt + tolerant parse + BYO-key
+  call) + `layout/aiLayoutApply.ts` (validate/clamp into rooms) + ⌘K "AI auto-furnish" (`aiLayout`
+  flag, pro). Pure logic + no-key guard unit-tested; live LLM output needs a real key to tune.
+  Follow-up: collision-aware placement (route through autoArrange) + a key/brief panel beyond the ⌘K prompt.
 - [ ] PARITY-3DEXPORT: whole-scene OBJ/glTF/STL export (Q-3DEXPORT).
 
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings

@@ -478,6 +478,8 @@ same change that reshapes a system.
   fails soft to `furniturePrices.ts`); **AI photoreal** (`ui/ai/`, BYO-key i2i in Share; after a result, "Redesign this
   render" style chips re-run the same call with a restyled prompt — pure `ai/styleVariants.ts`
   + `ui/ai/variantGallery.ts` reducer — into a selectable/downloadable variant gallery);
+  **AI auto-furnish** (`ai/autoLayoutAi.ts` prompt+parse + `layout/aiLayoutApply.ts` validate/clamp,
+  BYO-key LLM via the ⌘K "AI auto-furnish", `aiLayout` flag);
   **Plan sharing** (`planShare.ts`, backend-less `#/plans/<code>`); **3D design link**
   (`designShare.ts`, `#/design/<code>` — same codec, session noise + non-portable
   upload defs stripped, ~16 KB code budget with a `.sofa.json` fallback message,
