@@ -138,7 +138,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PARITY-SLOPECEIL: SH3D sloping ceilings (per-room ceiling slope).
 - [ ] PARITY-SLANTWALL: SH3D slanting walls (per-endpoint top heights).
 - [ ] PARITY-BASEBOARD: SH3D per-wall baseboard params + finish.
-- [ ] PARITY-FURNLIGHT: SH3D furniture-as-light-source params feeding the render.
 - [ ] PARITY-QUOTE-XLSX: Coohom quote Excel/CSV export + editable templates.
 - [ ] PARITY-DIMTEXT: SH3D first-class dimension-line + on-plan text objects.
 

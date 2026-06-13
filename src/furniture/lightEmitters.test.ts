@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import { BUILTIN_CATALOG } from './builtinCatalog'
-import { isEmitter, isItemEmitter, LIGHT_EMITTERS } from './lightEmitters'
+import {
+  isEmitter,
+  isItemEmitter,
+  LIGHT_EMITTERS,
+  OVERRIDE_EMITTER,
+  resolveEmitterSpec,
+} from './lightEmitters'
 import type { FurnitureType } from './types'
 
 describe('LIGHT_EMITTERS', () => {
@@ -57,5 +63,36 @@ describe('LIGHT_EMITTERS', () => {
     // Stand is 0.7 m, tank ~0.42 m → the bulb should sit within the water column.
     expect(h).toBeGreaterThan(0.7)
     expect(h).toBeLessThan(1.12)
+  })
+
+  describe('user light-source override (PARITY-FURNLIGHT)', () => {
+    const sofa = 'sofa-3seat' as FurnitureType
+
+    it('lets any item emit when props.lightOn === yes', () => {
+      expect(isItemEmitter(sofa, {})).toBe(false)
+      expect(isItemEmitter(sofa, { lightOn: 'yes' })).toBe(true)
+    })
+
+    it('resolves the override spec for a flagged non-fixture, none otherwise', () => {
+      expect(resolveEmitterSpec(sofa, {})).toBeNull()
+      expect(resolveEmitterSpec(sofa, { lightOn: 'yes' })).toBe(OVERRIDE_EMITTER)
+    })
+
+    it('keeps the registry spec for a real fixture (override never shadows it)', () => {
+      expect(resolveEmitterSpec('table-lamp' as FurnitureType, {})).toBe(
+        LIGHT_EMITTERS['table-lamp'],
+      )
+      // A gated fixture that is OFF does not fall through to the override.
+      expect(
+        resolveEmitterSpec('vanity' as FurnitureType, { lights: 'no', mirror: 'rect' }),
+      ).toBeNull()
+    })
+
+    it('OVERRIDE_EMITTER has sane values + reads an item height when present', () => {
+      expect(OVERRIDE_EMITTER.intensity).toBeGreaterThan(0)
+      expect(OVERRIDE_EMITTER.distance).toBeGreaterThan(0)
+      expect(OVERRIDE_EMITTER.height({})).toBeCloseTo(1.2)
+      expect(OVERRIDE_EMITTER.height({ height: 0.5 })).toBeCloseTo(0.6)
+    })
   })
 })

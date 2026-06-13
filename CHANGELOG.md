@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-FURNLIGHT: turn any item into a night light source
+
+- **Any placed item can now emit light** (Sweet Home 3D parity) — a light-bulb toggle in the inspector
+  header (for items that aren't already light fixtures, `itemAsLight` flag, pro) sets `props.lightOn`,
+  and the existing `FurnitureLights` system drives a warm point light from it at night, fading in with
+  the sun like the registered fixtures.
+- **`lightEmitters.ts`** gains `OVERRIDE_EMITTER` (a sensible fallback spec — bulb just above the item,
+  warm, moderate intensity/range), an override-aware `isItemEmitter` (registered fixture OR `lightOn`),
+  and `resolveEmitterSpec` (registry spec wins; else the override; else `null`). `FurnitureLights` now
+  resolves per-item via `resolveEmitterSpec` instead of indexing the registry, so overrides + fixtures
+  share one path.
+- **Tests** — `lightEmitters.test.ts` covers the override (`isItemEmitter` with `lightOn`,
+  `resolveEmitterSpec` fallback vs. registry-wins vs. gated-off fixture → null, `OVERRIDE_EMITTER`
+  values + height). Verified: the inspector toggle renders for a non-fixture (sofa) in Pro and flipping
+  it makes the item an emitter.
+
 ## PARITY-PLUMBING: plumbing plan sheet in the drawing set (mirrors electrical)
 
 - **New plumbing layer in the printable drawing set** (Coohom parity) — points (water supply, drainage,

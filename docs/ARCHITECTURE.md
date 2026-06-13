@@ -64,7 +64,8 @@ same change that reshapes a system.
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
   `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/`,
-  `lightEmitters.ts`. Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
+  `lightEmitters.ts` (fixture registry + `resolveEmitterSpec`; any item with `props.lightOn`
+  emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
   `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`); `optimize/` (`optimizeGlb.ts`
   pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;

@@ -1,7 +1,7 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useRef, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
-import { isItemEmitter, LIGHT_EMITTERS } from '../../furniture/lightEmitters'
+import { type EmitterSpec, resolveEmitterSpec } from '../../furniture/lightEmitters'
 import type { FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { useQuality } from '../useQuality'
@@ -70,12 +70,13 @@ export function FurnitureLights() {
     lastCamRef.current.x = cx
     lastCamRef.current.z = cz
     lastItemsRef.current = items
-    const emitters: { item: FurnitureItem; d2: number }[] = []
+    const emitters: { item: FurnitureItem; spec: EmitterSpec; d2: number }[] = []
     for (const item of items) {
-      if (!isItemEmitter(item.defId, item.props)) continue
+      const spec = resolveEmitterSpec(item.defId, item.props)
+      if (!spec) continue
       const dx = item.position[0] - cx
       const dz = item.position[1] - cz
-      emitters.push({ item, d2: dx * dx + dz * dz })
+      emitters.push({ item, spec, d2: dx * dx + dz * dz })
     }
     emitters.sort((a, b) => a.d2 - b.d2)
     // In orbit mode show all lights (full apartment visible); in walk mode cap
@@ -85,8 +86,7 @@ export function FurnitureLights() {
     if (key === lastKeyRef.current) return // set unchanged → no re-render
     lastKeyRef.current = key
     setActive(
-      chosen.map(({ item }) => {
-        const spec = LIGHT_EMITTERS[item.defId]!
+      chosen.map(({ item, spec }) => {
         // Per-item bulb colour (warm/neutral/cool) overrides the emitter default.
         const bulb = typeof item.props.lightColor === 'string' ? item.props.lightColor : spec.color
         // Local bulb offset (e.g. an arc lamp's reach) → world, via rotation.

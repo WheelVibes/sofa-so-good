@@ -73,6 +73,7 @@ export type FeatureFlag =
   | 'customBackdrop'
   | 'planLabels'
   | 'plumbingPlan'
+  | 'itemAsLight'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -460,6 +461,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   plumbingPlan: {
     label: 'Plumbing plan',
     description: 'Water-supply / drainage layout sheet in the drawing set',
+    default: true,
+    tier: 'pro',
+  },
+  // Turn any placed item into a night light source (SH3D parity). Pure code,
+  // feeds the existing FurnitureLights system → prod-safe. Pro tier (an
+  // advanced lighting control beyond the core loop).
+  itemAsLight: {
+    label: 'Item as light source',
+    description: 'Make any placed item emit light at night',
     default: true,
     tier: 'pro',
   },
