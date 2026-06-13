@@ -689,11 +689,9 @@ function arrangeLiving(
     const chairs = get(['diningChair'])
     // Distribute: long (north/south) sides first, then ends.
     const slots: { pos: [number, number]; rot: number }[] = []
-    const half = chairs.length <= 4 ? Math.ceil(chairs.length / 2) : Math.ceil(chairs.length / 2)
     const nNorth = Math.ceil(chairs.length / 2)
     const spread = (n: number, span: number) =>
       Array.from({ length: n }, (_, i) => (n === 1 ? 0 : -span / 2 + (span * i) / (n - 1)))
-    void half
     const northXs = spread(nNorth, fp.w - 0.4)
     const southXs = spread(chairs.length - nNorth, fp.w - 0.4)
     for (const ox of northXs)

@@ -5,6 +5,13 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Auto-arrange: remove dead dining-chair distribution variable
+
+- Removed a dead `half` local in `layout/autoArrange.ts` (a no-op ternary whose
+  branches were identical, suppressed with `void half`) — a leftover from an
+  earlier refactor of the dining-chair distribution. `nNorth` already drives the
+  north/south split; behaviour is unchanged (25 auto-arrange tests still pass).
+
 ## Scene time/lighting overhaul: real location/date sun, slider-only time, independent lights
 
 - **Time of day is now a single free-scrub slider** (no preset chips/checkpoints) shared by the
