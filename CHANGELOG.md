@@ -5,6 +5,12 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Plan labels preference persists across reloads
+
+- The 2D-plan **furniture label mode** (`planLabels`: off / name / name+price) is now saved to
+  `editorPrefs` (per-device, like backdrop/units/snap) so the user's choice survives a reload instead
+  of resetting to off. Invalid stored values fall back to off. Tested round-trip in `editorPrefs.test.ts`.
+
 ## PARITY-AILAYOUT (cont.): collision-aware placement for AI auto-furnish
 
 - **`placeNonOverlapping`** (pure, in `layout/aiLayoutApply.ts`) greedily accepts only the AI-proposed

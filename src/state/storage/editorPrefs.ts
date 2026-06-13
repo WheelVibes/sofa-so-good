@@ -5,10 +5,12 @@
  * design.
  */
 import { clampWalkEyeHeight, clampWalkFov } from '../../scene/cameras/walkCameraSettings'
+import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { BackdropKind } from '../slices/uiSlice'
 import { useStore } from '../store'
 
 const KEY = 'sofa.editor.v1'
+const PLAN_LABEL_MODES: PlanLabelMode[] = ['off', 'name', 'price']
 
 export function loadEditorPrefs(): void {
   try {
@@ -22,6 +24,7 @@ export function loadEditorPrefs(): void {
       uiMode?: string
       walkFov?: number
       walkEyeHeight?: number
+      planLabels?: string
     }
     const backdrops: BackdropKind[] = ['city', 'dusk', 'park', 'hills', 'custom', 'none']
     const cur = useStore.getState()
@@ -38,6 +41,9 @@ export function loadEditorPrefs(): void {
         typeof p.walkEyeHeight === 'number'
           ? clampWalkEyeHeight(p.walkEyeHeight)
           : cur.walkEyeHeight,
+      planLabels: PLAN_LABEL_MODES.includes((p.planLabels ?? '') as PlanLabelMode)
+        ? (p.planLabels as PlanLabelMode)
+        : 'off',
     })
     // Pro features are gated on uiMode, so re-resolve the flag map now that the
     // saved mode is applied (the boot seed assumed the Simple default).
@@ -58,6 +64,7 @@ export function watchEditorPrefs(): void {
       uiMode: s.uiMode,
       walkFov: s.walkFov,
       walkEyeHeight: s.walkEyeHeight,
+      planLabels: s.planLabels,
     })
     if (snap === last) return
     last = snap
