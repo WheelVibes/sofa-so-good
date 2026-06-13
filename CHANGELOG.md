@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES batch 3: 2D plan-editor tools interaction-test ladder
+
+- **New committed scenario `scripts/scenarios/plan-editor-tools-journey.json`** (21 steps) — a
+  re-runnable interaction-test journey exercising this push's 2D-editor features end-to-end: text notes,
+  dimension lines, furniture plan labels (Pro), level duplication, and a wall split→join round-trip.
+  Each mutation is asserted with a `waitFor` store predicate; documented in the visual-verification
+  playbook (worked examples + gotchas). Pays down the per-feature ladder debt for PARITY-PLANLABELS /
+  LEVELOPS / WALLOPS / DIMTEXT.
+
 ## PARITY-DIMTEXT (cont.): custom dimension lines on the 2D plan
 
 - **New "Dimension" tool** — drag between two points to drop a custom dimension line; it renders with
