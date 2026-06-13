@@ -52,17 +52,13 @@ export the result — all in the browser.
   cool pane by day, dark and reflective after dark. One-click **lighting moods**
   (Scene menu / ⌘K) preview the room at daylight, golden hour, a cosy evening, or
   night.
-- **Selectable 3D backdrop** — choose the surroundings outside the flat from the
-  Scene menu: **City** (a layered HDB estate — two rings of towers with rooftop
-  water-tanks whose windows light up warm at night),
-  **Skyline** (a cheap flat equirectangular photo horizon set as the scene
-  background — a distant lit-window skyline with **zero per-frame draw calls**,
-  seen correctly through every window),
-  **Park** (layered broadleaf + conifer trees and shrubs on a green common),
-  **Hills** (depth-banded green hills receding into an aerial-perspective haze),
-  or **Studio** (a seamless product-shot cyclorama — a soft gradient cove, no
-  horizon). The backdrop re-centres on
-  whatever floor plan you load.
+- **Window view (walk mode)** — the surroundings outside the flat are a flat
+  **equirectangular photo** set as the scene background (a skybox with **zero
+  per-frame draw calls**, seen correctly through every window). It shows **only in
+  walk mode** — the orbit dollhouse stays clean. Choose from the Scene menu:
+  **City** (daytime HDB skyline), **Dusk** (evening city lights), **Park** (a green
+  tree-line), **Hills** (distant rolling hills), **Your photo** (upload your own
+  panorama — persisted on your device), or **None** (plain sky).
 - **Three views** — orbit (dollhouse with auto wall-reveal), a one-click
   top-down plan (pair with Measurements for an annotated floor plan), a
   first-person walkthrough, plus a **Turntable** auto-orbit for recording a

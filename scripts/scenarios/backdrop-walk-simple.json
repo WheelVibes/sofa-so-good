@@ -1,0 +1,31 @@
+{
+  "name": "backdrop-walk-simple",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(() => { const s = window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour?.(13); })()"
+    },
+    { "name": "settle-orbit", "wait": 1500 },
+    { "name": "shot-orbit-clean", "screenshot": "orbit-clean" },
+    { "name": "enter-walk", "store": { "action": "setCameraMode", "args": ["firstPerson"] } },
+    { "name": "settle-walk", "wait": 2500 },
+    { "name": "shot-walk-city", "screenshot": "walk-city" },
+    { "name": "look-around-1", "drag": { "from": [400, 400], "to": [1000, 400] } },
+    { "name": "settle-look1", "wait": 1200 },
+    { "name": "shot-walk-city-2", "screenshot": "walk-city-2" },
+    { "name": "set-dusk", "store": { "action": "setBackdrop", "args": ["dusk"] } },
+    { "name": "settle-dusk", "wait": 1500 },
+    { "name": "shot-walk-dusk", "screenshot": "walk-dusk" },
+    { "name": "set-park", "store": { "action": "setBackdrop", "args": ["park"] } },
+    { "name": "settle-park", "wait": 1500 },
+    { "name": "shot-walk-park", "screenshot": "walk-park" },
+    { "name": "set-hills", "store": { "action": "setBackdrop", "args": ["hills"] } },
+    { "name": "settle-hills", "wait": 1500 },
+    { "name": "shot-walk-hills", "screenshot": "walk-hills" },
+    { "name": "back-orbit", "store": { "action": "setCameraMode", "args": ["orbit"] } },
+    { "name": "settle-back", "wait": 2000 },
+    { "name": "shot-orbit-again", "screenshot": "orbit-again" }
+  ]
+}

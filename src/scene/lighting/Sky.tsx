@@ -1,6 +1,6 @@
 import { Sky as DreiSky } from '@react-three/drei'
 import { useStore } from '../../state/store'
-import { useEffectiveBackdrop } from '../SceneBackdrop'
+import { isPhotoBackdropActive } from '../SceneBackdrop'
 import { skyFromAltitude } from './altitudeCurve'
 import { sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
@@ -22,10 +22,13 @@ function rotateY(pos: readonly [number, number, number], deg: number): [number, 
 export function Sky() {
   const sunPos = useSunPosition()
   const orientation = useStore((s) => s.orientationDeg)
-  // The skyline backdrop paints its own equirectangular sky into
-  // `scene.background`; the DreiSky dome would occlude it, so hide it.
-  const backdrop = useEffectiveBackdrop()
-  if (backdrop === 'skyline') return null
+  // In walk mode an active photo backdrop paints its own equirectangular sky into
+  // `scene.background`; the DreiSky dome would occlude it, so hide it then. In
+  // orbit (and for the `none` backdrop) the dome provides the plain sky.
+  const kind = useStore((s) => s.backdrop)
+  const cameraMode = useStore((s) => s.cameraMode)
+  const hasCustom = useStore((s) => !!s.customBackdropUrl)
+  if (isPhotoBackdropActive(kind, cameraMode, hasCustom)) return null
   const dir = sunDirectionToScene(sunPos)
   const scaled: [number, number, number] = [
     dir[0] * SKY_SUN_DISTANCE,

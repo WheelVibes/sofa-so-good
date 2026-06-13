@@ -70,7 +70,7 @@ export type FeatureFlag =
   | 'curtainLightEffect'
   | 'walkCameraControls'
   | 'replaceSimilar'
-  | 'photoBackdrop'
+  | 'customBackdrop'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -200,7 +200,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   },
   backdrops: {
     label: 'Backdrops',
-    description: 'Selectable surroundings (city/park/…)',
+    description: 'Selectable equirectangular photo view through windows in walk mode (city/dusk/…)',
     default: true,
     tier: 'simple',
   },
@@ -436,13 +436,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
-  // Skyline photo backdrop (PHOTO-BACKDROP): a single baked equirectangular image
-  // as `scene.background` (zero per-frame draws) instead of the instanced 3D
-  // estates. Asset-free procedural default → prod-safe. Simple tier — backdrop
-  // choice is part of the core view experience (like `backdrops`).
-  photoBackdrop: {
-    label: 'Skyline backdrop',
-    description: 'Cheap flat equirectangular photo horizon (zero per-frame draw calls)',
+  // Upload-your-own walk-mode backdrop photo (the `custom` backdrop). Pure
+  // client-side — the user's own image, persisted in IDB; no licensing →
+  // prod-safe. Simple tier — part of the core backdrop/view experience.
+  customBackdrop: {
+    label: 'Custom backdrop photo',
+    description: 'Upload your own photo as the walk-mode window view',
     default: true,
     tier: 'simple',
   },

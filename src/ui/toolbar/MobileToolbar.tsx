@@ -11,7 +11,7 @@ import { applyStyle, STYLE_PRESETS } from '../../materials/stylePresets'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
 import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
-import { type BackdropKind, visibleBackdrops } from '../../scene/SceneBackdrop'
+import { BACKDROPS, type BackdropKind } from '../../scene/SceneBackdrop'
 import { EXPORT_EVENT } from '../../scene/ScreenshotController'
 import { useSunStudy } from '../../scene/sunStudy'
 import { detectVrSupport } from '../../scene/xr/vrSupport'
@@ -33,6 +33,7 @@ import { downloadPlanSvg } from '../openPlanSvg'
 import { openDesignReport } from '../openReport'
 import { openShoppingList } from '../openShoplist'
 import { PresentationSetup } from '../presentation/PresentationSetup'
+import { BackdropUpload } from '../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../scene/TimeOfDaySlider'
 import { AppearanceControls } from './AppearancePopover'
 import { CompassModal } from './CompassModal'
@@ -150,6 +151,7 @@ export function MobileToolbar() {
   const toneMapping = useStore((st) => st.toneMapping)
   const exposure = useStore((st) => st.exposure)
   const backdrop = useStore((st) => st.backdrop)
+  const hasCustomBackdrop = useStore((st) => !!st.customBackdropUrl)
   const proMode = useStore((st) => st.uiMode === 'pro')
   const canUndo = useStore((st) => st.past.length > 0)
   const canRedo = useStore((st) => st.future.length > 0)
@@ -172,7 +174,6 @@ export function MobileToolbar() {
   const fPresentation = useFeature('presentation')
   const fFloorPlan = useFeature('floorPlanEditor')
   const fBackdrops = useFeature('backdrops')
-  const flags = useStore((st) => st.featureFlags)
   const fSmartStart = useFeature('smartStart')
   const fParametric = useFeature('parametricFurniture')
   const fPanorama = useFeature('panorama')
@@ -696,21 +697,28 @@ export function MobileToolbar() {
                       </select>
                     </label>
                     {fBackdrops ? (
-                      <label className="scene-field" onClick={(e) => e.stopPropagation()}>
-                        <span>Backdrop</span>
-                        <select
-                          className="input scene-select"
-                          value={backdrop}
-                          aria-label="Backdrop"
-                          onChange={(e) => s.getState().setBackdrop(e.target.value as BackdropKind)}
-                        >
-                          {visibleBackdrops((f) => flags[f]).map((b) => (
-                            <option key={b.id} value={b.id}>
-                              {b.label} — {b.sub}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
+                      <>
+                        <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+                          <span>Window view (walk mode)</span>
+                          <select
+                            className="input scene-select"
+                            value={backdrop}
+                            aria-label="Backdrop"
+                            onChange={(e) =>
+                              s.getState().setBackdrop(e.target.value as BackdropKind)
+                            }
+                          >
+                            {BACKDROPS.filter((b) => b.id !== 'custom' || hasCustomBackdrop).map(
+                              (b) => (
+                                <option key={b.id} value={b.id}>
+                                  {b.label} — {b.sub}
+                                </option>
+                              ),
+                            )}
+                          </select>
+                        </label>
+                        <BackdropUpload />
+                      </>
                     ) : null}
                   </Section>
                 ) : null}

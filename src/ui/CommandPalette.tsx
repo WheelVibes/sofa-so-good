@@ -390,7 +390,9 @@ export function CommandPalette() {
           run: () => s().setPresetTime(p),
         }),
       ),
-      ...BACKDROPS.map(
+      // `custom` is excluded — it requires uploading a photo (Scene menu), not a
+      // one-tap command.
+      ...BACKDROPS.filter((b) => b.id !== 'custom').map(
         (b): Command => ({
           id: `backdrop:${b.id}`,
           group: 'Backdrop',

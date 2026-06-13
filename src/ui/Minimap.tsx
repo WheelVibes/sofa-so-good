@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { roomLabelPoint } from '../floorplan/roomCentroid'
-import { planBounds, pointInRoom, wallLength } from '../floorplan/types'
+import { pointInRoom, wallLength } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import { cameraForwardXZ, cameraPosXZ } from '../scene/cameras/cameraForward'
 import { useStore } from '../state/store'
-import { openingSegments, roomPathD } from './walk/minimapGeometry'
+import { openingSegments, planContentBounds, roomPathD } from './walk/minimapGeometry'
 
 const SIZE = 168
 const PAD = 0.4
@@ -27,13 +27,22 @@ export function Minimap() {
   const roomRefs = useRef<Record<string, SVGPathElement | null>>({})
   const [, force] = useState(0)
 
-  const [W, D] = useMemo(() => planBounds(plan), [plan])
+  // Centre on the apartment's TRUE drawn bounds (walls + rooms), not the padded
+  // plan extent — so the apartment sits in the middle of the widget on both axes
+  // regardless of where it lives in plan space.
+  const b = useMemo(() => planContentBounds(plan), [plan])
+  const W = b.maxX - b.minX
+  const D = b.maxZ - b.minZ
   const scale = useMemo(() => (SIZE - 12) / Math.max(W + PAD * 2, D + PAD * 2), [W, D])
-  const toX = (m: number) => (m + PAD) * scale + 6
-  const toY = (m: number) => (m + PAD) * scale + 6
+  // Split the leftover space on each axis evenly to centre the content box.
+  const offX = useMemo(() => (SIZE - (W + PAD * 2) * scale) / 2, [W, scale])
+  const offY = useMemo(() => (SIZE - (D + PAD * 2) * scale) / 2, [D, scale])
+  const toX = (m: number) => (m - b.minX + PAD) * scale + offX
+  const toY = (m: number) => (m - b.minZ + PAD) * scale + offY
   // World→svg transform for the room fills (so `roomPathD`'s world-metre paths
-  // line up with the toX/toY-mapped walls + dots): toX(m) = m*scale + off.
-  const off = PAD * scale + 6
+  // line up with the toX/toY-mapped walls + dots): toX(m) = m*scale + offset.
+  const offRoomX = (PAD - b.minX) * scale + offX
+  const offRoomY = (PAD - b.minZ) * scale + offY
 
   // Room shapes (accurate for L-shaped / polygon rooms) + centroids for labels.
   const rooms = useMemo(
@@ -49,7 +58,7 @@ export function Minimap() {
 
   // Animate the camera arrow each frame while in walk mode, and live-highlight +
   // name the room the player is currently inside (cheap attribute writes only).
-  // biome-ignore lint/correctness/useExhaustiveDependencies: toX/toY/off are render-stable scale derivations
+  // biome-ignore lint/correctness/useExhaustiveDependencies: toX/toY/offX/offY are render-stable scale derivations
   useEffect(() => {
     if (cameraMode !== 'firstPerson') return
     let raf = 0
@@ -96,7 +105,7 @@ export function Minimap() {
       <svg width="100%" height="100%" viewBox={`0 0 ${SIZE} ${SIZE}`}>
         {/* Rooms — world-metre paths placed by the shared world→svg transform so
             L-shaped / polygon rooms render (and highlight) accurately. */}
-        <g transform={`translate(${off} ${off}) scale(${scale})`}>
+        <g transform={`translate(${offRoomX} ${offRoomY}) scale(${scale})`}>
           {rooms.map((r) => (
             <path
               key={r.id}

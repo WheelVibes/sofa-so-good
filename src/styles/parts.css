@@ -137,7 +137,10 @@
 .fps-hud .fps-u { font-size: var(--t-2xs); font-weight: 600; color: var(--text-3); text-transform: uppercase; letter-spacing: 0.06em; }
 .minimap {
   width: 168px; height: 132px; padding: var(--s-3);
-  background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-3);
+  /* More translucent than a solid panel so the scene shows through (the frosted
+     blur keeps the map legible). Token-based so it tracks all themes. */
+  background: color-mix(in oklab, var(--surface) 55%, transparent);
+  border: 1px solid var(--border); border-radius: var(--r-3);
   box-shadow: var(--shadow-panel); backdrop-filter: blur(var(--blur));
   -webkit-backdrop-filter: blur(var(--blur)); position: relative;
 }

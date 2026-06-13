@@ -2,10 +2,11 @@ import { useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
 import { applyRenderPreset, RENDER_PRESETS } from '../../../scene/renderPresets'
 import type { BackdropKind } from '../../../scene/SceneBackdrop'
-import { visibleBackdrops } from '../../../scene/SceneBackdrop'
+import { BACKDROPS } from '../../../scene/SceneBackdrop'
 import { PRESET_HOURS } from '../../../state/slices/timeSlice'
 import type { LightsMode } from '../../../state/slices/uiSlice'
 import { useStore } from '../../../state/store'
+import { BackdropUpload } from '../../scene/BackdropUpload'
 import { TimeOfDaySlider } from '../../scene/TimeOfDaySlider'
 import { CompassModal } from '../CompassModal'
 import { ToolbarMenu } from '../ToolbarMenu'
@@ -51,13 +52,13 @@ export function SceneMenu() {
   const setLightsMode = useStore((s) => s.setLightsMode)
   const backdrop = useStore((s) => s.backdrop)
   const setBackdrop = useStore((s) => s.setBackdrop)
+  const hasCustomBackdrop = useStore((s) => !!s.customBackdropUrl)
   const showCeilingFixtures = useStore((s) => s.showCeilingFixtures)
   const setShowCeilingFixtures = useStore((s) => s.setShowCeilingFixtures)
   const wallRevealMode = useStore((s) => s.wallRevealMode)
   const setWallRevealMode = useStore((s) => s.setWallRevealMode)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const fBackdrops = useFeature('backdrops')
-  const flags = useStore((s) => s.featureFlags)
   const fRenderPresets = useFeature('renderPresets')
   const [compassOpen, setCompassOpen] = useState(false)
   const activePresetId = useActivePresetId()
@@ -132,20 +133,21 @@ export function SceneMenu() {
           <>
             <div className="scene-sep" />
             <label className="scene-field" onClick={(e) => e.stopPropagation()}>
-              <span>Backdrop</span>
+              <span>Window view (walk mode)</span>
               <select
                 className="input scene-select"
                 value={backdrop}
                 aria-label="Backdrop"
                 onChange={(e) => setBackdrop(e.target.value as BackdropKind)}
               >
-                {visibleBackdrops((f) => flags[f]).map((b) => (
+                {BACKDROPS.filter((b) => b.id !== 'custom' || hasCustomBackdrop).map((b) => (
                   <option key={b.id} value={b.id}>
                     {b.label} — {b.sub}
                   </option>
                 ))}
               </select>
             </label>
+            <BackdropUpload />
           </>
         )}
 

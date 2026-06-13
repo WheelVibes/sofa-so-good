@@ -23,7 +23,7 @@ export function loadEditorPrefs(): void {
       walkFov?: number
       walkEyeHeight?: number
     }
-    const backdrops: BackdropKind[] = ['city', 'skyline', 'park', 'hills', 'none']
+    const backdrops: BackdropKind[] = ['city', 'dusk', 'park', 'hills', 'custom', 'none']
     const cur = useStore.getState()
     useStore.setState({
       snapEnabled: !!p.snapEnabled,

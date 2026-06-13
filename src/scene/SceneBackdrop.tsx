@@ -1,63 +1,99 @@
-import type { FeatureFlag } from '../features/featureFlags'
-import { useFeature } from '../features/useFeature'
+import { useThree } from '@react-three/fiber'
+import { useEffect } from 'react'
+import { CanvasTexture, EquirectangularReflectionMapping, SRGBColorSpace, Texture } from 'three'
+import type { CameraMode } from '../state/slices/cameraSlice'
 import type { BackdropKind } from '../state/slices/uiSlice'
 import { useStore } from '../state/store'
+import { bakeBackdropEquirect, type PhotoBackdropKind } from './backdropEquirect'
 
 export type { BackdropKind }
 
-import { CityBackdrop } from './CityBackdrop'
-import { HillsBackdrop } from './HillsBackdrop'
-import { ParkBackdrop } from './ParkBackdrop'
-import { SkylineBackdrop } from './SkylineBackdrop'
-import { StudioBackdrop } from './StudioBackdrop'
-
-/** A selectable scene backdrop (label/sub for the picker UI). `flag` gates the
- *  option behind a feature flag (hidden when off). */
-export interface BackdropOption {
-  id: BackdropKind
-  label: string
-  sub: string
-  flag?: FeatureFlag
-}
-
-/** The selectable scene backdrops. `skyline` is the cheap equirectangular photo
- *  backdrop (zero per-frame draws), gated by `photoBackdrop`. */
-export const BACKDROPS: BackdropOption[] = [
-  { id: 'city', label: 'City', sub: 'HDB estate blocks' },
-  { id: 'skyline', label: 'Skyline', sub: 'Flat photo horizon', flag: 'photoBackdrop' },
-  { id: 'park', label: 'Park', sub: 'Trees & greenery' },
-  { id: 'hills', label: 'Hills', sub: 'Calm green horizon' },
-  { id: 'none', label: 'Studio', sub: 'Seamless cove' },
+/** A selectable photo backdrop (label/sub for the picker UI). All backdrops are
+ *  flat equirectangular photos shown **in walk mode only** (seen through windows);
+ *  `custom` is the user-uploaded photo (only offered once one is uploaded) and
+ *  `none` shows the plain procedural sky with no skyline. */
+export const BACKDROPS: { id: BackdropKind; label: string; sub: string }[] = [
+  { id: 'city', label: 'City', sub: 'Daytime HDB skyline' },
+  { id: 'dusk', label: 'Dusk', sub: 'Evening city lights' },
+  { id: 'park', label: 'Park', sub: 'Green tree-line' },
+  { id: 'hills', label: 'Hills', sub: 'Distant green hills' },
+  { id: 'custom', label: 'Your photo', sub: 'Uploaded panorama' },
+  { id: 'none', label: 'None', sub: 'Plain sky, no view' },
 ]
 
-/** Backdrops whose gating flag is enabled — the options to show in the picker. */
-export function visibleBackdrops(isOn: (flag: FeatureFlag) => boolean): BackdropOption[] {
-  return BACKDROPS.filter((b) => !b.flag || isOn(b.flag))
+/** Whether the photo backdrop should be painted into `scene.background`: only in
+ *  walk (first-person) mode, and only for a backdrop that has imagery — `none` is
+ *  the plain sky, and `custom` needs an uploaded photo. Pure / unit-testable. */
+export function isPhotoBackdropActive(
+  kind: BackdropKind,
+  cameraMode: CameraMode,
+  hasCustomImage = false,
+): boolean {
+  if (cameraMode !== 'firstPerson') return false
+  if (kind === 'none') return false
+  if (kind === 'custom') return hasCustomImage
+  return true
 }
 
-/** Resolve the *effective* backdrop kind: `skyline` falls back to `city` when its
- *  `photoBackdrop` flag is off (e.g. a persisted choice in a build with it
- *  disabled), so the scene never renders an empty background. Pure for testing. */
-export function resolveBackdrop(kind: BackdropKind, photoBackdropOn: boolean): BackdropKind {
-  if (kind === 'skyline' && !photoBackdropOn) return 'city'
-  return kind
+/** Configure a texture as an LDR equirectangular `scene.background`. */
+function asEquirect(tex: Texture): Texture {
+  tex.mapping = EquirectangularReflectionMapping
+  tex.colorSpace = SRGBColorSpace
+  return tex
 }
 
-/** The effective backdrop kind for the live scene (store choice + flag gating). */
-export function useEffectiveBackdrop(): BackdropKind {
-  const kind = useStore((s) => s.backdrop)
-  const photoOn = useFeature('photoBackdrop')
-  return resolveBackdrop(kind, photoOn)
-}
-
-/** Dispatches to the selected backdrop. Defaults to the city skyline. The Park
- *  and Hills backdrops live in their own files (instanced for cheap depth); City
- *  is the instanced HDB estate; Skyline is the flat equirectangular photo. */
+/**
+ * Manages the equirectangular photo backdrop. Surroundings are only needed in
+ * **walk mode** (to look out the windows); in orbit the dollhouse renders against
+ * the plain procedural sky. When active, sets `scene.background` to the selected
+ * preset (baked once) or the user's uploaded photo, and restores/clears + disposes
+ * on exit or change. Renders no geometry — zero per-frame draw calls.
+ */
 export function SceneBackdrop() {
-  const kind = useEffectiveBackdrop()
-  if (kind === 'skyline') return <SkylineBackdrop />
-  if (kind === 'park') return <ParkBackdrop />
-  if (kind === 'hills') return <HillsBackdrop />
-  if (kind === 'none') return <StudioBackdrop />
-  return <CityBackdrop />
+  const scene = useThree((s) => s.scene)
+  const invalidate = useThree((s) => s.invalidate)
+  const kind = useStore((s) => s.backdrop)
+  const cameraMode = useStore((s) => s.cameraMode)
+  const customUrl = useStore((s) => s.customBackdropUrl)
+  const active = isPhotoBackdropActive(kind, cameraMode, !!customUrl)
+
+  useEffect(() => {
+    if (!active) return
+    const prev = scene.background
+    let texture: Texture | null = null
+    let cancelled = false
+
+    const apply = (tex: Texture) => {
+      if (cancelled) {
+        tex.dispose()
+        return
+      }
+      texture = asEquirect(tex)
+      scene.background = texture
+      invalidate()
+    }
+
+    if (kind === 'custom' && customUrl) {
+      // The uploaded photo loads asynchronously from its object URL.
+      const img = new Image()
+      img.crossOrigin = 'anonymous'
+      img.onload = () => {
+        const tex = new Texture(img)
+        tex.needsUpdate = true
+        apply(tex)
+      }
+      img.src = customUrl
+    } else if (kind !== 'custom' && kind !== 'none') {
+      apply(new CanvasTexture(bakeBackdropEquirect(kind as PhotoBackdropKind)))
+    }
+
+    return () => {
+      cancelled = true
+      if (texture && scene.background === texture) scene.background = prev ?? null
+      texture?.dispose()
+      invalidate()
+    }
+  }, [active, kind, customUrl, scene, invalidate])
+
+  return null
 }

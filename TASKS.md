@@ -101,9 +101,10 @@ consolidate into `PHOTOREALISM.md` then implement highest impact÷effort first.
 Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - PHOTO-COLORSPACE — RESOLVED/already-correct: audited generators + `furnitureMaterials` + worker
   hot-swap (`cache.ts`); albedo = `SRGBColorSpace`, normal/roughness = linear (`srgb=false`). No fix.
-- PHOTO-BACKDROP ✓ SHIPPED — `skyline` backdrop bakes an equirectangular photo into `scene.background`
-  (zero per-frame draws, `photoBackdrop` flag, prod-safe). Follow-up: swap the procedural bake for a
-  real CC0 equirectangular photo when a connected session can fetch one; pairs with PHOTO-HDRI (#1b).
+- PHOTO-BACKDROP ✓ SHIPPED — surroundings are a flat equirectangular photo as `scene.background`, **walk
+  mode only** (orbit clean); legacy 3D City/Park/Hills/Studio removed. Presets city/dusk/park/hills +
+  **user-uploaded `custom` photo** (IDB-persisted) + none; flags `backdrops`/`customBackdrop`, prod-safe.
+  Follow-up: bundle real CC0 equirectangular photos for the presets; pairs with PHOTO-HDRI (#1b).
 - [ ] PHOTO-PT-TUNE: tune `three-gpu-pathtracer` in `hqRenderSession.ts` (bounces/transmissiveBounces/
   filterGlossyFactor/MIS/stableNoise/minSamples) + AgX/Neutral + exposure. Pure config; pixel pass
   real-GPU-pending.
