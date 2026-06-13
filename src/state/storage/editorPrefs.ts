@@ -4,6 +4,7 @@
  * qualityPrefs, these are per-device editing preferences, not part of a saved
  * design.
  */
+import { clampWalkEyeHeight, clampWalkFov } from '../../scene/cameras/walkCameraSettings'
 import { useStore } from '../store'
 
 const KEY = 'sofa.editor.v1'
@@ -18,8 +19,11 @@ export function loadEditorPrefs(): void {
       units?: 'metric' | 'imperial'
       backdrop?: string
       uiMode?: string
+      walkFov?: number
+      walkEyeHeight?: number
     }
     const backdrops = ['city', 'park', 'hills', 'none']
+    const cur = useStore.getState()
     useStore.setState({
       snapEnabled: !!p.snapEnabled,
       gridSize: typeof p.gridSize === 'number' && p.gridSize > 0 ? p.gridSize : 0.5,
@@ -28,6 +32,11 @@ export function loadEditorPrefs(): void {
         ? (p.backdrop as 'city' | 'park' | 'hills' | 'none')
         : 'city',
       uiMode: p.uiMode === 'pro' ? 'pro' : 'simple',
+      walkFov: typeof p.walkFov === 'number' ? clampWalkFov(p.walkFov) : cur.walkFov,
+      walkEyeHeight:
+        typeof p.walkEyeHeight === 'number'
+          ? clampWalkEyeHeight(p.walkEyeHeight)
+          : cur.walkEyeHeight,
     })
     // Pro features are gated on uiMode, so re-resolve the flag map now that the
     // saved mode is applied (the boot seed assumed the Simple default).
@@ -46,6 +55,8 @@ export function watchEditorPrefs(): void {
       units: s.units,
       backdrop: s.backdrop,
       uiMode: s.uiMode,
+      walkFov: s.walkFov,
+      walkEyeHeight: s.walkEyeHeight,
     })
     if (snap === last) return
     last = snap

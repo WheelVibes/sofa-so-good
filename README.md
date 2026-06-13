@@ -67,7 +67,8 @@ export the result — all in the browser.
   and an on-screen joystick + drag-to-look on touch; a themed, auto-fading
   **controls banner** greets you on entry with the right hints for your device,
   and a live **minimap** (bottom-right) shows where you are and which room
-  you're in.
+  you're in. In Pro mode, top-right sliders tune the observer's **field of view**
+  (50–100°) and **eye height** (1.2–1.9 m).
 - **View vs. edit** — the orbit (dollhouse) and walk views are **view-only**, for
   looking and presenting; **all** furnishing, customizing and finishing happens
   inside the **per-room editor**. Enter it from the toolbar **Edit** menu →

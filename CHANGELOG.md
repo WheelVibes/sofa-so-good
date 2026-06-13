@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Walk-mode observer camera controls — field-of-view + eye-height (PARITY-WALKCAM)
+
+- **Adjustable first-person camera** (Sweet Home 3D parity). In walk mode you can now set the
+  observer's **field of view** (50–100°, default 70°) and **eye height** (1.2–1.9 m, default 1.6 m)
+  via two sliders in the walk HUD (`ui/walk/WalkCameraControls.tsx`, top-right, token-styled,
+  desktop + touch). FOV widening/narrowing applies live to the camera; eye-height raises/lowers the
+  viewpoint smoothly without re-spawning the walker. Eye-height respects the metric/imperial unit
+  setting.
+- Settings live on the camera slice (`walkFov`/`walkEyeHeight` + setters), are persisted per-device
+  in `editorPrefs`, and clamp through pure tested helpers (`scene/cameras/walkCameraSettings.ts`).
+- Gated by the new `walkCameraControls` feature flag (pro tier, prod-safe default on). Unit tests
+  cover the clamp helpers and flag gating in both Simple and Pro modes.
+
 ## Export 2D plan to SVG (Sweet Home 3D parity)
 
 - New `ui/openPlanSvg.ts` `downloadPlanSvg()` saves the active floor plan as a

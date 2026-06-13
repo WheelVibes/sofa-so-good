@@ -1,3 +1,9 @@
+import {
+  clampWalkEyeHeight,
+  clampWalkFov,
+  WALK_EYE_DEFAULT,
+  WALK_FOV_DEFAULT,
+} from '../../scene/cameras/walkCameraSettings'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -30,6 +36,12 @@ export interface CameraSlice {
   /** Re-target the orbit camera onto a world point (double-click an item). */
   focusOn: (point: [number, number]) => void
   setTouring: (v: boolean | 'rooms' | 'views') => void
+  /** First-person observer field-of-view (degrees, clamped 50–100). */
+  walkFov: number
+  /** First-person observer eye-height above the floor (metres, clamped 1.2–1.9). */
+  walkEyeHeight: number
+  setWalkFov: (deg: number) => void
+  setWalkEyeHeight: (m: number) => void
 }
 
 export const CAMERA_INITIAL: Pick<
@@ -42,6 +54,8 @@ export const CAMERA_INITIAL: Pick<
   | 'focusNonce'
   | 'focusPoint'
   | 'touring'
+  | 'walkFov'
+  | 'walkEyeHeight'
 > = {
   cameraMode: 'orbit',
   topViewNonce: 0,
@@ -51,6 +65,8 @@ export const CAMERA_INITIAL: Pick<
   focusNonce: 0,
   focusPoint: null,
   touring: false,
+  walkFov: WALK_FOV_DEFAULT,
+  walkEyeHeight: WALK_EYE_DEFAULT,
 }
 
 export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get) => ({
@@ -70,4 +86,6 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get
   setViewLevel: (viewLevelId) => set({ viewLevelId }),
   focusOn: (point) => set((s) => ({ focusPoint: point, focusNonce: s.focusNonce + 1 })),
   setTouring: (v) => set({ touring: v === true ? 'rooms' : v }),
+  setWalkFov: (deg) => set({ walkFov: clampWalkFov(deg) }),
+  setWalkEyeHeight: (m) => set({ walkEyeHeight: clampWalkEyeHeight(m) }),
 })

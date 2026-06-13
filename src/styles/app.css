@@ -150,6 +150,42 @@
   }
 }
 
+/* Walk-mode observer camera controls (FOV + eye-height sliders). Top-right,
+ * clear of the bottom-left joystick + bottom-centre HUD; safe-area aware. */
+.walk-cam-controls {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + 16px);
+  right: calc(env(safe-area-inset-right, 0px) + 16px);
+  z-index: var(--z-pop);
+  display: flex;
+  flex-direction: column;
+  gap: var(--s-2);
+  padding: var(--s-3);
+  width: 232px;
+  max-width: calc(100vw - 32px);
+}
+.walk-cam-row {
+  display: flex;
+  align-items: center;
+  gap: var(--s-2);
+  font-size: var(--t-xs);
+  font-weight: 600;
+  color: var(--text-2);
+}
+.walk-cam-lbl {
+  flex: 0 0 84px;
+}
+.walk-cam-row .slider {
+  flex: 1;
+  min-width: 0;
+}
+.walk-cam-val {
+  flex: 0 0 auto;
+  min-width: 42px;
+  text-align: right;
+  color: var(--text);
+}
+
 /* Inspector / parametric schema field rows. */
 .fld {
   display: flex;

@@ -206,3 +206,17 @@ describe('vrWalkthrough flag (F21)', () => {
     expect(resolveFlags(false, {}, false, 'pro').vrWalkthrough).toBe(true)
   })
 })
+
+describe('walkCameraControls flag (PARITY-WALKCAM)', () => {
+  it('is pro-tier: hidden in Simple, present in Pro (both build kinds)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').walkCameraControls).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').walkCameraControls).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').walkCameraControls).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').walkCameraControls).toBe(true)
+  })
+  it('ships in prod (pure code, no devOnly gate)', () => {
+    expect(FEATURE_FLAGS.walkCameraControls.devOnly).toBeUndefined()
+    expect(FEATURE_FLAGS.walkCameraControls.default).toBe(true)
+    expect(FEATURE_FLAGS.walkCameraControls.tier).toBe('pro')
+  })
+})

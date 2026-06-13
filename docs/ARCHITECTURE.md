@@ -383,7 +383,11 @@ same change that reshapes a system.
   hotkeys can't fire behind a dialog; Escape stays per-modal, ⌘K/undo are suppressed).
 - **Walk-mode** (`scene/cameras/FirstPersonCamera.tsx`, `walkInput.ts`, `ui/walk/`): fine
   = Pointer Lock (WASD+mouse, Esc; native banner unstyleable), coarse = `WalkJoystick` +
-  drag-look; `WalkHud`, `Crosshair`. Multi-storey (ML6c): the walker's storey follows
+  drag-look; `WalkHud`, `Crosshair`. **Observer camera controls** (PARITY-WALKCAM,
+  `walkCameraControls` flag, pro): FOV (50–100°, default 70) + eye-height (1.2–1.9 m, default
+  1.6) sliders in `ui/walk/WalkCameraControls.tsx`, persisted in `editorPrefs`; pure clamp
+  helpers + ranges in `scene/cameras/walkCameraSettings.ts`; FOV applies reactively to the live
+  camera (own effect, restored on exit), eye-height ref'd so a drag re-heights without re-spawn. Multi-storey (ML6c): the walker's storey follows
   `viewLevelId` (`walkLevel`/`levelSpawnPoint` in `floorplan/levels.ts`) — picking a level in
   View→Levels while walking teleports to its first room centre at `elevation + eye`, and
   collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Mobile viewport** (`index.html`, `responsive.css`,
