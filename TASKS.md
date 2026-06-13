@@ -93,11 +93,21 @@ Tracking the client-side-feasible parity gaps as they move to implementation. St
 `[~]` in progress (agent assigned), shipped → removed (see CHANGELOG). `[backend]`/`[BYO-key]` tags
 mark non-pure-client features. Source of detail: `FEATURE_PARITY.md`.
 
-### In progress (worktree subagents dispatched)
-- [~] PARITY-REPLACE: Coohom "Replace-with-similar" — one-click swap a placed item for a similar
-  catalog item (same category, nearest footprint), preserving transform; inspector + ⌘K.
-- [~] PARITY-SECTION: Coohom section/cross-section drawing sheet added to the drawing set
-  (reuse elevation projection), pro tier.
+### ⭐ PRIMARY DIRECTIVE (2026-06-13, user): ULTRA-DETAILED PHOTOREALISM
+Top parity goal with Coohom + Sweet Home 3D = make everything ultra-detailed + photorealistic.
+Deep research fleet in flight (render pipelines, real-time WebGL techniques, in-browser
+path-trace quality + denoise, ultra-detail CC0 assets/materials, our-pipeline gap audit) →
+consolidate into `PHOTOREALISM.md` then implement highest impact÷effort first.
+- [ ] PHOTO-HDRI (R-HDRI): CC0 Poly Haven HDRI environments for IBL + visible sky/skyline through
+  windows (Medium+ tiers). Research verdict: keep procedural 3D backdrops for near-field parallax,
+  layer a far HDRI dome (zero parallax = physically correct for distance) — `SceneEnvironment` +
+  `SceneBackdrop`, new `hdriEnvironment` pro flag, prod-safe (CC0). M.
+- [ ] PHOTO-DENOISE: OIDN-wasm (or A-trous) denoiser on the `three-gpu-pathtracer` HQ render. [verify]
+- [ ] PHOTO-PBR: real high-res CC0 PBR texture maps (Poly Haven/ambientCG) over procedural fallback;
+  KTX2/Basis compression in prod.
+- [ ] PHOTO-DETAIL: edge bevels on hard primitives + set-dressing props (books/cushions/plants) —
+  highest perceived-realism-per-effort.
+- (more items to be added from PHOTOREALISM.md once research lands.)
 
 ### Pending — quick wins (S)
 - [ ] PARITY-NORTH: SH3D North/compass widget on the canvas (rotatable, tied to sun azimuth). (Walk
