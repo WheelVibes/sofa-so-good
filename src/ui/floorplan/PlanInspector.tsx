@@ -462,6 +462,26 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               {formatLength(wallLength(w), units)}
             </span>
           </div>
+          <div className="row" style={{ gap: 6 }}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              style={{ flex: 1 }}
+              title="Reverse this wall's direction (flips its sides / door-swing reference)"
+              onClick={() => a.reverseWall(w.id, levelId)}
+            >
+              Reverse
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              style={{ flex: 1 }}
+              title="Merge with a collinear neighbouring wall (inverse of Split)"
+              onClick={() => a.joinWall(w.id, levelId)}
+            >
+              Join
+            </button>
+          </div>
           <DeleteBtn onClick={() => a.removeWall(w.id, levelId)} label="Delete wall" />
         </div>
       )

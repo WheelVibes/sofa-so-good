@@ -129,7 +129,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   FOV/eye-height controls shipped — see CHANGELOG PARITY-WALKCAM.)
 - [ ] PARITY-BATCHRENDER: SH3D batch-render all saved views.
 - [ ] PARITY-PLUMBING: Coohom plumbing plan layer (mirror `electricalPlan`).
-- [ ] PARITY-WALLOPS: SH3D wall split/join/reverse commands in the 2D editor.
 - [ ] PARITY-LIGHTINGTEMPLATE-TEXT: Coohom drawing text/material callouts + layer toggles.
 
 ### Pending — high value (M)

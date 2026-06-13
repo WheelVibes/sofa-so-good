@@ -3,6 +3,7 @@ import {
   cloneLevelGeometry,
   GROUND_LEVEL_ID,
   itemsOnLevel,
+  levelAsPlan,
   levelById,
   levelOfRoom,
   planLevels,
@@ -16,6 +17,7 @@ import type {
   PlanUpperLevel,
   PlanWall,
 } from '../../floorplan/types'
+import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
 import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
 import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { RootState } from '../store'
@@ -86,6 +88,11 @@ export interface FloorPlanSlice {
    *  default 0.5 = midpoint). Openings are re-homed onto whichever segment
    *  contains them. Used to build L-shapes by then dragging one half. */
   splitWall: (id: string, t?: number, levelId?: string) => void
+  /** Reverse a wall's direction in place (openings keep their position). */
+  reverseWall: (id: string, levelId?: string) => void
+  /** Merge a wall with a collinear neighbour that shares an endpoint (inverse of
+   *  split); selects the merged wall. No-op when there's no collinear neighbour. */
+  joinWall: (id: string, levelId?: string) => void
   /** Move a wall endpoint to a new position, dragging every other wall
    *  endpoint that shared the old position with it (so corners stay joined). */
   moveWallVertex: (
@@ -292,6 +299,35 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })
       return { floorPlan, planSelection: selection }
     })
+  },
+
+  reverseWall: (id, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const res = reverseWallGeometry(g.walls, g.openings, id)
+    if (!res) return // missing/degenerate — no-op, no history step
+    s0.pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, () => ({
+        walls: res.walls,
+        openings: res.openings,
+      })),
+    }))
+  },
+
+  joinWall: (id, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const res = joinAdjacentWalls(g.walls, g.openings, id, planId)
+    if (!res) return // no collinear neighbour — no-op, no history step
+    s0.pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, () => ({
+        walls: res.walls,
+        openings: res.openings,
+      })),
+      planSelection: { type: 'wall', id: res.mergedId },
+    }))
   },
 
   moveWallVertex: (id, which, to, levelId) => {

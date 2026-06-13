@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-WALLOPS: reverse + join wall commands in the 2D editor
+
+- **Reverse** and **Join** buttons in the wall inspector (joining Split, which already existed → SH3D
+  wall split/join/reverse parity is now complete). Reverse swaps a wall's start/end; Join merges the
+  selected wall with a **collinear neighbour sharing an endpoint** into one wall (the inverse of Split)
+  and selects the result. Both **keep every door/window physically in place** — Reverse re-measures the
+  offset from the new start; Join projects each opening's world endpoints onto the merged wall (so it
+  works regardless of either wall's direction).
+- **Pure `floorplan/wallOps.ts`** (`reverseWallGeometry`, `joinAdjacentWalls`) — unit-tested for
+  endpoint swap + opening re-measure, collinear-neighbour merge, reversed-neighbour handling, the
+  not-collinear / disjoint no-op, and external-thickness preservation. Slice actions peek first so a
+  no-op join (no neighbour) doesn't push an empty undo step.
+- Verified end-to-end: split a wall → Reverse → Join merges it back (wall count round-trips); buttons
+  render cleanly in the inspector.
+
 ## PARITY-LEVELOPS cont.: "All levels" dimmed underlay in the 2D editor
 
 - The 2D Floor Plan Editor gains an **"All levels"** toggle (shown only on a multi-storey plan) that
