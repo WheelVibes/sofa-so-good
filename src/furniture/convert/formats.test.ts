@@ -22,6 +22,7 @@ describe('detectModelFormat', () => {
     expect(await detectModelFormat(fileWithBytes('a.obj', [111]))).toBe('obj')
     expect(await detectModelFormat(fileWithBytes('a.stl', [1]))).toBe('stl')
     expect(await detectModelFormat(fileWithBytes('a.dae', [60]))).toBe('dae')
+    expect(await detectModelFormat(fileWithBytes('a.3ds', [0x4d]))).toBe('3ds')
     expect(await detectModelFormat(fileWithBytes('a.3mf', [80]))).toBe('3mf')
     expect(await detectModelFormat(fileWithBytes('a.usdz', [80]))).toBe('usdz')
     expect(await detectModelFormat(fileWithBytes('a.gltf', [123]))).toBe('gltf')

@@ -1,5 +1,6 @@
 import { Html } from '@react-three/drei'
 import { useShallow } from 'zustand/react/shallow'
+import { noExportUserData } from '../export/sceneGltf'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
 import { useStore } from '../state/store'
 import { formatArea, formatDims, formatLength } from '../utils/measurement'
@@ -22,7 +23,7 @@ export function AnnotationsOverlay() {
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   if (annotations.length === 0 || floorPlanEditing) return null
   return (
-    <group>
+    <group userData={noExportUserData()}>
       {annotations.map((ann) => (
         <Annotation
           key={ann.id}

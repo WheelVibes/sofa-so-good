@@ -166,13 +166,18 @@ describe('schema', () => {
             width: 3.8,
             depth: 3.8,
             labelOffset: [1.2, -0.6],
+            labelAngle: 0.5,
+            labelFontScale: 1.4,
           },
         ],
       },
     } as never)
     const saved = serialize(useStore.getState())
     const patch = applySerialized(saved, new Set<string>())
-    expect(patch.floorPlan?.rooms.find((r) => r.id === 'R')?.labelOffset).toEqual([1.2, -0.6])
+    const room = patch.floorPlan?.rooms.find((r) => r.id === 'R')
+    expect(room?.labelOffset).toEqual([1.2, -0.6])
+    expect(room?.labelAngle).toBe(0.5)
+    expect(room?.labelFontScale).toBe(1.4)
   })
 
   it('round-trips imported-GLB metadata on user furniture defs', () => {
@@ -379,6 +384,55 @@ describe('schema', () => {
     if (round.success) {
       const patch = applySerialized(round.data, new Set())
       expect(patch.floorPlan?.wallColor).toBe('#2f6db0')
+    }
+  })
+
+  it('round-trips a custom plan’s template category', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-cat',
+        category: { housingType: 'Condominium', projectName: 'Sky Habitat', apartmentType: 'Loft' },
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.category).toEqual({
+        housingType: 'Condominium',
+        projectName: 'Sky Habitat',
+        apartmentType: 'Loft',
+      })
+    }
+  })
+
+  it('round-trips a per-wall baseboard override (PARITY-BASEBOARD)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-bb',
+        walls: [
+          {
+            id: 'w1',
+            start: [0, 0],
+            end: [4, 0],
+            thickness: 'external',
+            baseboard: { height: 0.25, color: '#3a2a1a', hidden: false },
+          },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      const wall = patch.floorPlan?.walls.find((w) => w.id === 'w1')
+      expect(wall?.baseboard).toEqual({ height: 0.25, color: '#3a2a1a', hidden: false })
     }
   })
 

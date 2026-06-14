@@ -37,4 +37,53 @@ describe('planGeometry', () => {
       expect(b.cy).toBeGreaterThan(0)
     }
   })
+
+  it('a curved wall renders as many full-height chord boxes + collision segments', () => {
+    const curvedPlan: typeof plan = {
+      ...plan,
+      walls: [{ id: 'cw', start: [0, 0], end: [4, 0], thickness: 'internal', arc: 1 }],
+      openings: [],
+    }
+    const boxes = wallBoxes(curvedPlan, curvedPlan.walls[0])
+    // Many sub-segment boxes (one per arc chord), all full ceiling height.
+    expect(boxes.length).toBeGreaterThan(5)
+    for (const b of boxes) expect(b.height).toBeCloseTo(curvedPlan.ceilingHeight, 6)
+    // Collision emits a matching strip of straight segments.
+    const segs = planCollisionWalls(curvedPlan, {})
+    expect(segs.length).toBe(boxes.length)
+  })
+
+  it('an opening on a curved wall is cut from its boxes + opens a collision gap', () => {
+    const base: typeof plan = {
+      ...plan,
+      walls: [{ id: 'cw', start: [0, 0], end: [4, 0], thickness: 'internal', arc: 1 }],
+    }
+    const solid = { ...base, openings: [] }
+    const withDoor = {
+      ...base,
+      openings: [
+        {
+          id: 'd1',
+          kind: 'door' as const,
+          wallId: 'cw',
+          offset: 2,
+          width: 0.9,
+          sill: 0,
+          head: 2.1,
+        },
+      ],
+    }
+    // A door (head 2.1 < ceiling) adds header boxes + a gap → its box set differs
+    // from the solid wall, and every box stays within the wall height.
+    const solidBoxes = wallBoxes(solid, solid.walls[0])
+    const doorBoxes = wallBoxes(withDoor, withDoor.walls[0])
+    expect(doorBoxes.length).not.toBe(solidBoxes.length)
+    expect(doorBoxes.some((b) => b.height < base.ceilingHeight - 0.01)).toBe(true)
+    // Opening the door removes collision segments (a walk-through gap).
+    const closed = planCollisionWalls(withDoor, {})
+    const open = planCollisionWalls(withDoor, { d1: { open: true } })
+    const total = (segs: { ax: number; az: number; bx: number; bz: number }[]) =>
+      segs.reduce((s, g) => s + Math.hypot(g.bx - g.ax, g.bz - g.az), 0)
+    expect(total(open)).toBeLessThan(total(closed))
+  })
 })

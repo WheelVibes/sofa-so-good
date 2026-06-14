@@ -6,7 +6,17 @@
  */
 
 /** 3D model formats we ingest. 'glb'/'gltf' are native; the rest convert. */
-export type ModelFormat = 'glb' | 'gltf' | 'obj' | 'fbx' | 'stl' | 'ply' | 'dae' | '3mf' | 'usdz'
+export type ModelFormat =
+  | 'glb'
+  | 'gltf'
+  | 'obj'
+  | 'fbx'
+  | 'stl'
+  | 'ply'
+  | 'dae'
+  | '3ds'
+  | '3mf'
+  | 'usdz'
 
 /** Entry-file extensions (NOT .mtl/.bin/textures, which are resolved siblings). */
 export const MODEL_EXTENSIONS = [
@@ -17,6 +27,7 @@ export const MODEL_EXTENSIONS = [
   '.stl',
   '.ply',
   '.dae',
+  '.3ds',
   '.3mf',
   '.usdz',
 ] as const
@@ -29,6 +40,7 @@ const EXT_TO_FORMAT: Record<string, ModelFormat> = {
   '.stl': 'stl',
   '.ply': 'ply',
   '.dae': 'dae',
+  '.3ds': '3ds',
   '.3mf': '3mf',
   '.usdz': 'usdz',
 }
@@ -42,6 +54,7 @@ export const MAX_BYTES_BY_FORMAT: Record<ModelFormat, number> = {
   stl: 80,
   ply: 80,
   dae: 80,
+  '3ds': 80,
   '3mf': 80,
   usdz: 80,
 }

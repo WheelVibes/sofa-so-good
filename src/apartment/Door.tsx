@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import type { Group } from 'three'
+import { type Group, Mesh, type MeshStandardMaterial } from 'three'
 import { useStore } from '../state/store'
 import { DOORS, FLAT, WALLS } from './constants'
 import type { DoorSpec, WallSpec } from './types'
@@ -22,7 +22,21 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const angleRef = useRef(0)
 
   useFrame((_, dt) => {
-    if (rootRef.current) rootRef.current.visible = getWallOpacity(spec.wallId) > 0.35
+    // Fade the door leaf WITH its host wall during the orbit reveal (so an opaque
+    // leaf doesn't float in a translucent external wall).
+    const root = rootRef.current
+    if (root) {
+      const wallOp = getWallOpacity(spec.wallId)
+      root.visible = wallOp > 0.02
+      const fading = wallOp < 0.985
+      root.traverse((o) => {
+        if (!(o instanceof Mesh)) return
+        const m = o.material as MeshStandardMaterial
+        m.transparent = fading
+        m.opacity = wallOp
+        m.depthWrite = wallOp > 0.6
+      })
+    }
     const target = isOpen ? SWING_RAD : 0
     if (angleRef.current === target) return
     const step = (SWING_RAD / SWING_SECONDS) * dt

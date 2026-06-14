@@ -9,7 +9,7 @@ import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { itemsCost } from '../../furniture/itemsCost'
-import { isEmitter } from '../../furniture/lightEmitters'
+import { isEmitter, isItemEmitter, resolveEmitterSpec } from '../../furniture/lightEmitters'
 import {
   alignCenter,
   alignEdge,
@@ -25,7 +25,7 @@ import {
   snapSelectionToWall,
 } from '../../layout/selectionActions'
 import { useStore } from '../../state/store'
-import { formatDimsShort } from '../../utils/measurement'
+import { formatDimsShort, formatLength } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
@@ -506,6 +506,13 @@ export function InspectorPanel() {
   // Replace-with-similar (PARITY-REPLACE): swap to a nearest-size sibling.
   const replaceSimilarOn = useFeature('replaceSimilar')
   const itemAsLightOn = useFeature('itemAsLight')
+  // Multi-axis tilt (SweetHome3DJS parity): pitch/roll an item off vertical.
+  const tiltOn = useFeature('tiltFurniture')
+  const tiltItem = useStore((s) => s.tiltItem)
+  // Per-item elevation (SweetHome3DJS parity) — grouped with mount-height control.
+  const elevationOn = useFeature('mountHeights')
+  const setItemElevation = useStore((s) => s.setItemElevation)
+  const inspectorCeiling = useStore((s) => s.floorPlan.ceilingHeight)
   // Copy/paste appearance (look-only transfer) + recolour-by-category.
   const copyAppearanceOn = useFeature('copyAppearance')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
@@ -945,6 +952,98 @@ export function InspectorPanel() {
                   Centre
                 </button>
               </div>
+              {tiltOn &&
+              !item.locked &&
+              !(def.kind === 'parametric' && def.primitive === 'Staircase') ? (
+                <TiltControls
+                  pitch={item.pitch ?? 0}
+                  roll={item.roll ?? 0}
+                  onPitch={(rad) => tiltItem(item.id, { pitch: rad })}
+                  onRoll={(rad) => tiltItem(item.id, { roll: rad })}
+                  onReset={() => tiltItem(item.id, { pitch: 0, roll: 0 })}
+                />
+              ) : null}
+              {elevationOn && !item.locked ? (
+                <div className="fld" style={{ display: 'block', marginTop: 'var(--s-2)' }}>
+                  <div
+                    className="label"
+                    style={{
+                      fontSize: 'var(--t-2xs)',
+                      color: 'var(--text-3)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>Elevation (off floor)</span>
+                    <span>{formatLength(item.elevation ?? 0, units)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    className="slider"
+                    aria-label="Elevation above floor"
+                    min={0}
+                    max={Math.max(0.1, inspectorCeiling)}
+                    step={0.05}
+                    value={item.elevation ?? 0}
+                    onChange={(e) => setItemElevation(item.id, Number(e.target.value))}
+                    style={{ width: '100%' }}
+                  />
+                </div>
+              ) : null}
+              {itemAsLightOn && isItemEmitter(item.defId, item.props)
+                ? (() => {
+                    const spec = resolveEmitterSpec(item.defId, item.props)
+                    const color =
+                      typeof item.props.lightColor === 'string'
+                        ? item.props.lightColor
+                        : (spec?.color ?? '#ffe2b0')
+                    const intensity =
+                      typeof item.props.lightIntensity === 'number'
+                        ? item.props.lightIntensity
+                        : (spec?.intensity ?? 5)
+                    return (
+                      <div className="space-y-1" style={{ marginTop: 'var(--s-2)' }}>
+                        <div
+                          className="label"
+                          style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                        >
+                          Light
+                        </div>
+                        <label className="flex items-center justify-between gap-2 text-xs">
+                          <span>Colour</span>
+                          <input
+                            type="color"
+                            aria-label="Light colour"
+                            value={color}
+                            onChange={(e) =>
+                              useStore
+                                .getState()
+                                .updateItemProps(item.id, { lightColor: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-2 text-xs">
+                          <span>Brightness</span>
+                          <input
+                            type="range"
+                            aria-label="Light brightness"
+                            min={1}
+                            max={12}
+                            step={0.5}
+                            value={intensity}
+                            onChange={(e) =>
+                              useStore.getState().updateItemProps(item.id, {
+                                lightIntensity: Number(e.target.value),
+                              })
+                            }
+                            style={{ flex: 1 }}
+                          />
+                          <span className="w-8 text-right font-mono">{intensity.toFixed(0)}</span>
+                        </label>
+                      </div>
+                    )
+                  })()
+                : null}
               {replaceSimilarOn ? (
                 <button
                   type="button"
@@ -1069,5 +1168,76 @@ export function InspectorPanel() {
         </>
       )}
     </aside>
+  )
+}
+
+const TILT_DEG = 45 // tilt slider range (±°) — enough to angle art / recline / bank
+
+/** Pitch + roll sliders for multi-axis furniture tilt (SweetHome3DJS parity).
+ *  Values are stored in radians; the UI works in whole degrees. */
+function TiltControls({
+  pitch,
+  roll,
+  onPitch,
+  onRoll,
+  onReset,
+}: {
+  pitch: number
+  roll: number
+  onPitch: (rad: number) => void
+  onRoll: (rad: number) => void
+  onReset: () => void
+}) {
+  const toDeg = (rad: number) => Math.round((rad * 180) / Math.PI)
+  const toRad = (deg: number) => (deg * Math.PI) / 180
+  const tilted = !!pitch || !!roll
+  const Row = ({
+    label,
+    value,
+    onChange,
+  }: {
+    label: string
+    value: number
+    onChange: (rad: number) => void
+  }) => (
+    <div className="fld" style={{ display: 'block', marginBottom: 'var(--s-1)' }}>
+      <div
+        className="label"
+        style={{
+          fontSize: 'var(--t-2xs)',
+          color: 'var(--text-3)',
+          display: 'flex',
+          justifyContent: 'space-between',
+        }}
+      >
+        <span>{label}</span>
+        <span>{toDeg(value)}°</span>
+      </div>
+      <input
+        type="range"
+        className="slider"
+        aria-label={`${label} (degrees)`}
+        min={-TILT_DEG}
+        max={TILT_DEG}
+        step={1}
+        value={toDeg(value)}
+        onChange={(e) => onChange(toRad(Number(e.target.value)))}
+        style={{ width: '100%' }}
+      />
+    </div>
+  )
+  return (
+    <div className="sec" style={{ marginTop: 'var(--s-2)' }}>
+      <div className="sec-h">
+        <span>Tilt</span>
+        {tilted ? (
+          <button type="button" className="btn btn-soft btn-sm" onClick={onReset}>
+            Reset
+          </button>
+        ) : null}
+      </div>
+      <Row label="Pitch (forward / back)" value={pitch} onChange={onPitch} />
+      <Row label="Roll (left / right)" value={roll} onChange={onRoll} />
+    </div>
   )
 }

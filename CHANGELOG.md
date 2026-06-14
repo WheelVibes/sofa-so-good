@@ -5,6 +5,293 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Template categories: housing type › project › apartment-type picker
+
+- Floor-plan templates are now **categorised** by a three-level hierarchy — **housing type**
+  (HDB / Condominium) › **project name** › **apartment type** — added as an optional
+  `FloorPlan.category` ({housingType, projectName, apartmentType} in `floorplan/types.ts`). Every
+  built-in `PLAN_TEMPLATES` entry carries one (grouped under Singapore developments, e.g. Serangoon
+  North Vista, Tampines GreenVerge, Bishan Ridges, Sky Habitat, d'Leedon), and the **default plan is
+  now HDB › Serangoon North Vista › 4-Room** (`defaultPlan.ts`).
+- The old flat "Template…" dropdown is replaced by a **cascading picker**
+  (`ui/floorplan/TemplatePicker.tsx`): pick housing type → project → apartment type, which loads that
+  starter plan. The tree is derived by a pure `templateCategoryTree` helper (insertion order preserved,
+  unique apartment types per project — unit-tested).
+- **Saving** a plan to the library now opens `ui/floorplan/SaveTemplateModal.tsx`, which prompts for
+  name + housing type + project + apartment type, so user-authored apartments are categorised like the
+  built-ins. The project + apartment-type fields use a new **fuzzy-search combobox** (`ui/FuzzyCombo.tsx`,
+  pure `comboRows` over `catalog/fuzzySearch`): typing ranks existing values best-first and always
+  appends an **"Add …"** custom row last, so a brand-new project or unit type (e.g. "2-Room + Study")
+  can be committed. `updateFloorPlanMeta` accepts `category`; it round-trips through `schema.ts`
+  (optional + additive) and persists with saved plans. Verified with the `template-categories` and
+  `template-fuzzy-combo` scenarios.
+
+## PARITY-BASEBOARD: per-wall baseboard / skirting params — SweetHome3DJS parity
+
+- Each editable wall gains an optional **baseboard override** (`PlanWall.baseboard`): skirting **height**
+  (m), **colour** (hex), and a **hide** toggle, matching SweetHome3D's per-wall baseboard. The custom-plan
+  shell's skirting (`PlanShell`) now builds per wall so each strip reads its wall's override (defaults
+  unchanged: 0.09 m, off-white); hidden walls draw no skirting. Exposed as a "Baseboard / skirting"
+  group in the Plan-inspector wall section (show toggle + height + colour + reset), behind a new
+  `wallBaseboard` pro flag. Round-trips through `schema.ts` (optional + additive). (Custom plans only —
+  the fixed HDB template still uses `Skirting.tsx`.) Verified with the `wall-baseboard-simple` scenario
+  (tall tan baseboards visible in 3D); flag gated in both Simple/Pro tests.
+
+## PARITY-ROOMLABEL-STYLE: room-name label rotation + font size — SweetHome3DJS parity
+
+- Room-name labels in the 2D plan editor gain optional **rotation** (`PlanRoom.labelAngle`, radians →
+  SVG `rotate` about the label anchor) and a **font-size multiplier** (`PlanRoom.labelFontScale`), so a
+  label can be angled to follow a slanted room/wall and emphasised or shrunk — matching SweetHome3D's
+  label angle/font controls. Both are exposed as "Label angle (°)" / "Label size (×)" fields in the
+  Plan inspector (beside the existing drag-to-reposition), default to unset (horizontal, normal size),
+  and round-trip through `schema.ts` (optional + additive — no version bump). Verified with the
+  `room-label-style` scenario (label renders rotated 30°, 1.6× larger).
+
+## PARITY-BATCHRENDER: batch-render every saved camera view to PNG — SweetHome3DJS parity
+
+- The saved-views section of the View menu (desktop + mobile) gains a **"Render all views"** action
+  (`batchRender` pro-tier flag) that flies the camera to each saved view in turn via `applyView`
+  (restoring that view's captured lighting), waits for the ~0.6 s fly + a lighting settle, then grabs a
+  hi-fi frame with the existing `captureCanvasPng` (a synchronous `gl.render` + readback, so each PNG is
+  fresh at the view's final pose) and downloads it. Files are named `<plan>-NN-<view>.png` (zero-padded
+  so they sort in saved-view order) and staggered so the browser doesn't coalesce rapid downloads.
+  Pure client-side (no backend), mirroring SweetHome3DJS's "export to PNG for each stored point of view".
+  New `ui/renderAllViews.ts` (pure `viewFileName` unit-tested); flag gated in both Simple/Pro tests;
+  `render-all-views-simple` scenario verifies the menu item + progress/success toasts end-to-end.
+
+## PARITY-3DSIMPORT: import legacy .3ds models — SweetHome3DJS Max3DSLoader parity
+
+- The model-upload converter now ingests `.3ds` (3D Studio) files via three's `TDSLoader`, completing
+  SweetHome3DJS's OBJ/DAE/3DS loader set — the converter already covered GLB/glTF/OBJ/FBX/STL/PLY/DAE/
+  3MF/USDZ, so this fills the last literal gap. Added to `convert/formats.ts` (`ModelFormat` +
+  extension/format maps + size ceiling), a `TDSLoader` case in `convert/loadToObject.ts` (sibling
+  textures resolve through the loading manager like OBJ/DAE), and the upload dialog's format hint.
+  Format detection unit-tested; sibling-resolution path shared with the other converters.
+
+## PARITY-AR: "view in your room" AR launch — Coohom parity (no backend)
+
+- New **"View in your room (AR)"** (Tools, `viewInAr` flag): places the live design in AR with no
+  backend or heavy dependency. On **iOS** it exports USDZ and opens Apple **AR Quick Look** via an
+  `<a rel="ar">` (with the required child `<img>` + the click's user gesture) straight from a blob URL;
+  **elsewhere** it downloads an AR-ready GLB with a toast (Android Scene Viewer needs an https-hosted
+  model, which isn't possible client-only — so we hand over the file). `ui/viewInAr.ts` reuses
+  `buildExportRoot` + the USDZ/GLB exporters.
+- Completes the bulk of F22. Flag gating unit-tested; the GLB-fallback path browser-verified via
+  `scenarios/view-in-ar-simple.json` (iOS Quick Look needs a real device).
+
+## PARITY-VIDEO: keyframed walkthrough-video export — Coohom/SweetHome3DJS parity
+
+- New **"Record walkthrough video"** (View → Saved views, under the `walkthrough` flag): flies the
+  saved-views cinematic tour while recording, and downloads a `.webm` when the tour ends. Reuses the
+  whole existing path — the saved-views tour (OrbitCamera), `RecordController`'s canvas-stream
+  MediaRecorder, and its auto-stop-on-tour-end download — so the only new code is `ui/recordViewTour.ts`
+  (coordinates pace + record + tour start) and a user-controllable pace: `viewTourLegSeconds` on the
+  camera slice (the tour's per-leg duration is now store-driven, not a constant), set from a requested
+  total duration (~5 s per view).
+- Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
+  `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
+
+## Fix: wall reveal froze mid-fade (frameloop="demand")
+
+- The orbit wall-reveal opacity lerp runs in `useFrame`, but the canvas renders on-demand — so when
+  the camera stopped, the loop halted **before the fade finished**, leaving walls stuck part-faded
+  (measured one at 0.53 instead of 0.15). Most visible on windowed walls (the un-faded window overlay
+  made the stall obvious). Now `WallSegment` + the custom-plan `FadeWall`/`FadeWindow` call
+  `invalidate()` while `|opacity − target| > ε`, keeping frames coming until the fade settles. Probed
+  across 8 orbit angles: near walls now reach 0.15–0.19, far walls 0.91–1.00.
+
+## Tweak: stronger orbit wall reveal + a 2D-plan compass rose
+
+- **Wider wall-fade threshold** (per request): the orbit dollhouse reveal now fades near walls *and*
+  grazing/side walls that face the camera even slightly — `smoothstep(-0.4, -0.08, d)` →
+  `smoothstep(-0.2, 0.25, d)` in `WallSegment` (default flat); the custom-plan `FadeWall`/`FadeWindow`
+  switched from a binary "between camera & centre" test to the same normalized-dot smoothstep ramp
+  (shared `revealFactor`). A wall at `d≈0` (edge-on) now fades to ~0.42 instead of staying opaque; only
+  clearly far-side walls (`d≳0.25`) stay solid.
+- **2D-plan North/compass rose** (`planCompass` flag, pro; SweetHome3DJS compass parity): a small
+  compass pinned to the floor-plan editor frame whose needle rotates with `orientationDeg`.
+
+## Fix: windows + doors didn't fade with their wall during the orbit reveal
+
+- In orbit "dollhouse" mode, near external walls fade translucent, but a wall's **window** (frame +
+  grille + glass) and **door** leaf stayed fully opaque and just snapped invisible at a 0.35 threshold —
+  so a windowed wall read as "not becoming translucent." Now `WindowPane` + `DoorLeaf` (default flat)
+  fade *every* mesh material's opacity by the host wall's reveal opacity (`getWallOpacity`), and the
+  custom-plan window glass fades via a new `FadeWindow` (mirrors `FadeWall`'s camera-facing test). Glass
+  keeps its day/night tint, scaled by the wall fade. Verified in orbit on the default flat (no opaque
+  grilles poking through a translucent wall).
+
+## PARITY-FLOORTEX: per-room floor-texture transform (scale + angle) — SweetHome3DJS parity
+
+- A room's floor texture can be **scaled (tile size) and rotated** — SweetHome3D's per-surface texture
+  scale/angle. New `PlanRoom.floorTexScale`/`floorTexAngle` are applied at geometry-build time by
+  `materials/worldUv.ts` `applyUvTransform` (`uv' = c + Rot(angle)·((uv − c)/scale)` about the UV
+  centre) inside `worldUvPlaneGeometry`/`worldUvShapeGeometry` — **no material cloning** (the shared
+  material is untouched; only the per-room floor geometry's UVs change). `PlanShell` threads the
+  transform to `PlanRoomFloor`; room-inspector tile-size + angle controls under a new `floorTexture`
+  flag (pro); serialized in `schema.ts` (optional, back-compat).
+- UV-transform unit-tested (identity no-op; scale halves the UV extent; rotation preserves it) + flag
+  gating; browser-verified via `scenarios/floor-texture-simple.json` on a custom plan.
+
+## PARITY-FURNLIGHT (v2): per-light colour + brightness — SweetHome3DJS parity
+
+- Any light-emitting item (a registered fixture, or one flagged "Make a light source") now exposes an
+  inspector **Light colour picker + brightness slider** — SweetHome3D's per-light power/colour. Stored
+  as `props.lightColor` (hex) + `props.lightIntensity` (candela); `FurnitureLights` already read
+  `lightColor` and now reads `lightIntensity` too (overriding the emitter-spec default). Controls show
+  whenever `isItemEmitter` is true, defaulting to the resolved emitter's colour/intensity.
+- Browser-verified via `scenarios/item-light-controls.json` (a table lamp emits a custom blue,
+  high-intensity glow at night).
+
+## PARITY-RESIZE: non-uniform furniture resize (W/D/H) — SweetHome3DJS parity
+
+- GLB / IKEA models can now be resized **independently per axis** (width / height / depth), not just
+  uniformly — the SweetHome3D "Modify furniture" resize with a **Keep proportions** toggle. Per-axis
+  `props.scaleX/scaleY/scaleZ` (each falling back to the uniform `scale`) drive both the render group
+  scale (`gltfRender.ts` `scale3` → `GltfModel` tuple scale) and the collision footprint
+  (`collision/placement.ts` `itemFootprint` scales width by X, depth by Z). Inspector `GltfBody` shows a
+  uniform Scale slider when proportions are locked, else Width/Height/Depth sliders. Stored in the
+  free-form `props` bag (already serialized) — fully back-compatible (uniform `scale` still works).
+- Per-axis footprint unit-tested; render is a one-line per-axis group scale.
+
+## PARITY-ELEVATION: raise furniture off the floor — SweetHome3DJS parity
+
+- New optional `FurnitureItem.elevation` (m): raise any piece off the floor (a floating console, a
+  wall shelf at a custom height) — the SweetHome3D "Modify furniture → Elevation" field. Applied to the
+  render group's Y in `Furniture.tsx`, shifted into the height-aware collision span
+  (`collision/placement.ts` `verticalSpan`) so a raised piece clears floor items, and the floor contact
+  shadow is dropped when elevated. Inspector elevation slider (0 → ceiling height) under the existing
+  `mountHeights` flag; `itemsSlice.setItemElevation` (history-coalesced); serialized in `schema.ts`
+  (optional, back-compat).
+- Browser-verified via `scenarios/item-elevation-simple.json` (a lamp floats off the floor in 3D);
+  collision span tests pass.
+
+## PARITY-CURVEDWALL (v3): true circular arc
+
+- Curved walls now follow a **true circular arc** through the endpoints (with the midpoint bulged by
+  `arc`) instead of the earlier quadratic-Bézier approximation — `wallArc.ts` `arcCircle` computes the
+  circle (centre/radius/sweep, picking the minor vs major arc by the bulge side); `wallArcPoints`
+  samples it, `wallSvgPath` emits an SVG `A` arc. Everything downstream (chord sub-segments,
+  collision, openings, arc-length positioning) is unchanged since it consumes the sampled points.
+- Unit-tested that all sampled points are equidistant from one centre (a real circle); existing curved
+  scenarios re-verified for no regression (2D arc + window-cut still render cleanly).
+
+## PARITY-CURVEDWALL (v2): doors + windows on curved walls
+
+- Curved walls now host **openings** (previously a flat v1 limitation). Openings are positioned by
+  **arc-length** and cut **per-chord**: `wallBoxes`/`planCollisionWalls` map each opening's arc-length
+  span onto the chord sub-segments and apply the usual solid/sill/header (and open-door collision-gap)
+  logic, so a door/window cuts cleanly across however many chords it spans. New `wallArc.ts` helpers —
+  `pointAtArcLength` (point + tangent), `wallArcLength`, `nearestArcLength` (arc hit-test + offset).
+- `doorSwingGeometry`, the 3D window glass + `PlanDoorLeaf`, the 2D opening symbols/labels, and the
+  editor's door/window placement (`nearestWall`) are all arc-aware now (jambs on the arc, normal from
+  the local tangent). Sloped walls still don't host openings (solid prism). Browser-verified via
+  `scenarios/curved-wall-opening.json` (a window cut into a bowed wall renders cleanly in 3D); per-chord
+  cut + collision-gap unit-tested.
+
+## PARITY-SLOPECEIL: sloped (pitched) ceilings — SweetHome3DJS parity
+
+- New `sloped` `CeilingConfig` style (under the existing `ceilingDesign` flag): a per-room pitched
+  ceiling plane that falls from the ceiling height down by a chosen `rise` along the X or Z axis —
+  pairs with sloping walls (PARITY-SLOPEWALL) for a shed roof. Pure `ceilingModel.ts` emits a new
+  `CeilingSlope` part (clamped so the low edge never dips below the min clearance); `RoomCeiling`
+  renders it as a tilted `BackSide` plane (slant-length-corrected so its horizontal projection still
+  fills the room). Per-room picker gains a **Sloped** option + fall/axis controls. Serialized in
+  `schema.ts` (optional, back-compat).
+- Pure model unit-tested (heights, clamping); render path smoke-verified on a custom plan via
+  `scenarios/sloped-ceiling-simple.json`.
+
+## PARITY-SLOPEWALL: sloping (variable-height) walls — SweetHome3DJS parity
+
+- A wall can now have a **sloped top**: optional `PlanWall.topHeightEnd` ramps the top edge linearly
+  from `topHeight` (or ceiling) at `start` to `topHeightEnd` at `end` — a shed/mono-pitch wall. Pure
+  `floorplan/slopedWall.ts` builds the prism as a non-indexed triangle soup (unshared verts →
+  crisp flat normals via `computeVertexNormals`, no rounded edges/z-fighting); `wallBoxes` skips sloped
+  walls and `PlanShell` renders a `SlopedWallMesh` prism instead. Floor collision is unchanged (the
+  slope only affects the top). Inspector start/end top-height fields behind a new `slopingWalls` flag
+  (pro); openings disabled on sloped walls (guarded in `doorSwingGeometry` + PlanShell + the editor
+  tool, like curved walls). Serialized in `schema.ts` (optional, back-compat).
+- Pure prism geometry + flag gating unit-tested; browser-verified via
+  `scenarios/sloping-walls-simple.json` (inspector fields render, a wall is sloped, the 3D prism draws
+  without artifacts on a custom plan).
+
+## PARITY-CURVEDWALL: curved / arc walls — SweetHome3DJS parity
+
+- Walls can now be **bowed into curves**: select a wall in the 2D editor and drag its midpoint handle.
+  `PlanWall.arc` (signed perpendicular bulge, m; absent/0 = straight, fully back-compat) drives a pure
+  `floorplan/wallArc.ts` that models the curve as a quadratic Bézier and samples it into chord
+  sub-segments. Those feed the **existing** `wallBoxes` (3D), `planCollisionWalls` (collision) and
+  topological room detection unchanged — so a curved wall reuses all the proven geometry/collision code
+  (3D = a strip of full-height boxes along the chords).
+- 2D editor draws each wall as an SVG `<path>` (a quadratic when curved) + a draggable bulge handle for
+  the selected wall; behind a new `curvedWalls` flag (pro). Openings (doors/windows) are **not** placed
+  on curved walls in v1 — the door/window tool shows an info toast, and `doorSwingGeometry` / the
+  PlanShell door+window renderers guard against curved walls so a stray opening can't render at the
+  wrong spot. Serialized in `schema.ts` (optional, back-compat).
+- Pure arc math + curved `wallBoxes`/`planCollisionWalls` + flag gating unit-tested; browser-verified
+  via `scenarios/curved-walls-simple.json` (a synthetic handle drag bows the wall, confirmed in 2D).
+
+## PARITY-MODELINFO: catalog model size + creator/licence tooltip — SweetHome3DJS parity
+
+- Catalog cards now carry a hover tooltip with the model's **byte size** (so a user can weigh a heavy
+  model against the memory budget) + its **creator/licence** — SweetHome3DJS `FurnitureTablePanel`
+  parity. Pure `furniture/modelInfo.ts` `modelInfoText`/`formatBytes` builds the string; the card adds
+  it as a `title` behind a new `catalogModelInfo` flag (pro). Returns null (no tooltip) for parametric
+  primitives (generated geometry, no download/licence).
+- User-upload byte size is captured at upload (`persistUserGlb` → `buf.byteLength` on the def + IDB
+  meta, mirroring the `price` field) and rehydrated on boot; serialized in `schema.ts` (optional,
+  back-compat). Licence/creator come from the existing def fields for bundled/remote/pack/IKEA models.
+- Pure helper + flag-gating unit-tested in both modes. (No browser scenario — a hover-only `title`
+  tooltip isn't meaningfully screenshot-verifiable headlessly; its content + gating are unit-covered.)
+
+## PARITY-ROOMPOLY: reshape free-form rooms by dragging vertices — SweetHome3DJS parity
+
+- A free-form (`polyroom`) room can now be **reshaped after creation**: select it in the 2D editor and
+  drag any of its vertex handles. The handle's `pointerdown` snapshots the index, `onMove` rewrites
+  that point in `PlanRoom.polygon` (and keeps `origin/width/depth` in sync as the polygon's bbox, so
+  rect-reading consumers stay correct), `onUp` ends the drag — mirroring the existing wall-vertex drag
+  pattern (`movingPolyVertex`). No new flag (an editing affordance on the already-flagged `polyroom`
+  tool). Browser-verified via `scenarios/room-polygon-edit-simple.json` (handles render, a synthetic
+  vertex drag grows the room 4.0 → 6.0 m²).
+
+## PARITY-TILT: multi-axis furniture tilt (pitch / roll) — SweetHome3DJS parity
+
+- Furniture can now be tilted off vertical, not just yawed: optional `pitch` (about local X) and
+  `roll` (about local Z) on `FurnitureItem` (radians; absent = upright, so saves stay back-compatible
+  and untilted items render byte-identically). New **Tilt** pitch/roll sliders (±45°) in the inspector
+  under a `tiltFurniture` flag (pro tier); structural `Staircase` and locked items are excluded
+  (mirrors how SweetHome3DJS locks doors/windows/stairs from tilting).
+- Clean-room adaptation of SweetHome3DJS's yaw·pitch·roll matrix composition, optimized for our stack:
+  instead of multiplying three matrices per vertex we hand the renderer one intrinsic Euler tuple
+  `[pitch, yaw, roll, 'YXZ']` (`furniture/tiltRotation.ts` `itemRotation`) — one allocation, the GPU
+  world matrix does the rest. The flat floor contact shadow is dropped while tilted (`isTilted`).
+- `itemsSlice.tiltItem` (history-coalesced like a slider drag); serialized in `schema.ts` (optional,
+  back-compat). Pure helper unit-tested (reduces to pure yaw; composes to the same orientation as the
+  three-axis reference quaternion) + flag-gating in both modes. Browser-verified via
+  `scenarios/tilt-furniture-simple.json` (flag off Simple / on Pro, tilt applied + rendered + reset).
+
+## Q-3DEXPORT: whole-scene 3D export (glTF/GLB + OBJ + STL + USDZ) — SweetHome3DJS ObjWriter/glTF parity
+
+- New **Export 3D model** feature (`sceneExport3d` flag, pro tier): exports the whole furnished home —
+  floor, walls, ceiling, doors, windows, furniture, lights — to a binary `.glb` (material-complete),
+  geometry-only `.obj`, `.stl` (3D printing / CAD), or `.usdz` (iOS AR Quick Look — "view in your
+  room"), from Tools, the Share & export modal, the ⌘K palette and the mobile sheet (all gated on both
+  desktop + mobile). Reuses the existing dynamic-imported `GLTFExporter` wrapper
+  (`furniture/convert/toGlb.ts`); adds matching `OBJExporter` (`export/sceneObj.ts`), `STLExporter`
+  (`export/sceneStl.ts`) + `USDZExporter` (`export/sceneUsdz.ts`) wrappers.
+- Editor-only helpers never leak into the export: a pure, unit-tested extract/filter core
+  (`export/sceneGltf.ts` `buildExportRoot`) drops any subtree tagged `userData.noExport` (a typed
+  `noExportUserData`/`markNoExport` tagger modelled on `finishDropTarget`'s pattern, applied to the
+  selection outline, rotate gizmo, hover highlight, grid/alignment/clearance/lux/measurement/annotation
+  overlays, comment pins, sky and placement ghost) plus a structural fallback for three helper types +
+  cameras. The live scene root is reached from DOM code via `scene/SceneExportController` +
+  `scene/sceneExportAccess` (mirrors `ScreenshotController`/`captureCanvas`).
+- The earlier "unverifiable headless" GLTFExporter concern is closed: `scenarios/scene-export-simple.json`
+  drives the real browser end-to-end — verifies the flag is off in Simple / on in Pro, the Tools-menu
+  items render, and the full pipeline (live scene → `buildExportRoot` → `GLTFExporter`) produces a GLB
+  and fires the success toast. Pure-core + flag-gating unit tests in both modes. Docs + REFERENCES
+  (SweetHome3DJS) + `docs/research/sweethome3djs-feature-analysis.md` updated.
+
 ## PARITY-QUOTEXLSX: export the bill of quantities as an Excel .xlsx
 
 - Tools → **"Quote → Excel (.xlsx)"** downloads the bill of quantities as a real spreadsheet (the

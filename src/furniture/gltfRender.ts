@@ -3,7 +3,11 @@ import type { FurnitureItem, GltfDef } from './types'
 
 export interface GltfRender {
   url: string
+  /** Uniform scale (back-compat / base). */
   scale: number
+  /** Per-axis scale [x(width), y(height), z(depth)] — non-uniform resize
+   *  (SweetHome3DJS parity). Each axis falls back to the uniform `scale`. */
+  scale3: [number, number, number]
   tint?: string
   finishOverrides?: Record<string, string>
   /** Per-instance: make the model's largest flat surface a real mirror
@@ -15,6 +19,8 @@ export interface GltfRender {
  *  Returns null when no URL is resolvable (e.g. unhydrated). */
 export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender | null {
   const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : def.scale) ?? 1
+  const ax = (k: string) => (typeof item.props[k] === 'number' ? (item.props[k] as number) : scale)
+  const scale3: [number, number, number] = [ax('scaleX'), ax('scaleY'), ax('scaleZ')]
   const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : undefined
   const reflective = item.props['reflective'] === 1
 
@@ -35,6 +41,7 @@ export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender 
     return {
       url: active.runtimeUrl,
       scale,
+      scale3,
       tint,
       finishOverrides: Object.keys(finishOverrides).length ? finishOverrides : undefined,
       reflective,
@@ -46,6 +53,7 @@ export function selectGltfRender(item: FurnitureItem, def: GltfDef): GltfRender 
   return {
     url,
     scale,
+    scale3,
     tint,
     finishOverrides: 'finishOverrides' in def ? def.finishOverrides : undefined,
     reflective,

@@ -42,7 +42,20 @@ export interface CeilingSide {
   yHigh: number
 }
 
-export type CeilingPart = CeilingPlane | CeilingSide
+/** A pitched (sloped) ceiling plane: a w×d panel that ramps from `yHigh` to
+ *  `yLow` along `axis` (the high edge at the lower coordinate). */
+export interface CeilingSlope {
+  kind: 'slope'
+  cx: number
+  cz: number
+  w: number
+  d: number
+  axis: 'x' | 'z'
+  yHigh: number
+  yLow: number
+}
+
+export type CeilingPart = CeilingPlane | CeilingSide | CeilingSlope
 
 export interface CeilingModel {
   parts: CeilingPart[]
@@ -64,6 +77,7 @@ export function ceilingStyleLabel(config?: CeilingConfig): string {
     const [c, r] = config.grid ?? [2, 2]
     return `Coffered ${c}×${r}${cove}`
   }
+  if (config.style === 'sloped') return 'Sloped'
   return `${config.style[0].toUpperCase()}${config.style.slice(1)}${cove}`
 }
 
@@ -139,6 +153,20 @@ export function buildCeiling(
 
   if (config.style === 'coffered') {
     return cofferedModel(bb, W, D, cx, cz, h, drop, config)
+  }
+
+  if (config.style === 'sloped') {
+    // Pitched plane: high edge at the ceiling height, low edge dropped by `rise`
+    // (clamped so it never dips below the minimum clearance).
+    const rise = clamp(config.slope?.rise ?? 0.4, 0.03, Math.max(0.03, h - MIN_CEILING_CLEARANCE))
+    const axis = config.slope?.axis === 'z' ? 'z' : 'x'
+    const yLow = h - rise
+    return {
+      parts: [{ kind: 'slope', cx, cz, w: W, d: D, axis, yHigh: h, yLow }],
+      lowestY: yLow,
+      cove: null,
+      fallback: false,
+    }
   }
 
   // tray + dropped share an inset rect.

@@ -56,10 +56,20 @@ same change that reshapes a system.
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
   `isDefaultPlan`), `templates.ts` (19 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo +
   two-storey Executive Maisonette, condo studio/1-bed/1+study/2/3/4-bed/penthouse, two-storey
-  terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`),
+  terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`;
+  each carries a `category` {housingType › projectName › apartmentType} and `templateCategoryTree`
+  groups them for the cascading `ui/floorplan/TemplatePicker.tsx`; default = HDB › Serangoon North
+  Vista › 4-Room; `ui/floorplan/SaveTemplateModal.tsx` prompts for the category on save),
   `roomDetect.ts`, `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
   `upperLevels` adds storeys; `planLevels`/`levelById`/`levelAsPlan`/`allPlanRooms`/
-  `withLevelGeometry` — see `docs/research/multi-level-design.md`). 2D editor = `ui/floorplan/`.
+  `withLevelGeometry` — see `docs/research/multi-level-design.md`),
+  `wallArc.ts` (curved walls — `PlanWall.arc` bulge → quadratic-Bézier chord sub-segments reused by
+  `wallBoxes`/`planCollisionWalls`/room detection; 2D bulge handle; `curvedWalls` flag, openings
+  disabled on curves), `slopedWall.ts` (sloping walls — `PlanWall.topHeightEnd` → a prism rendered by
+  PlanShell's `SlopedWallMesh`; `slopingWalls` flag, openings disabled). Each wall may carry a
+  per-wall baseboard override (`PlanWall.baseboard` height/colour/hidden → PlanShell skirting;
+  `wallBaseboard` flag, custom plans only). Furniture also supports multi-axis tilt (`pitch`/`roll`, `furniture/tiltRotation.ts`,
+  `tiltFurniture` flag). 2D editor = `ui/floorplan/`.
 - `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (parametric defs),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
@@ -309,6 +319,19 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
   `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
   mobile + ⌘K, `dxfExport` flag (pro).
+- **Multi-axis furniture tilt** (`tiltFurniture` flag, pro; PARITY-TILT): `FurnitureItem` gains optional
+  `pitch`/`roll` (radians); `furniture/tiltRotation.ts` `itemRotation` returns the intrinsic Euler tuple
+  `[pitch, yaw, roll, 'YXZ']` the `Furniture` root group uses (reduces to pure yaw when untilted).
+  Inspector **Tilt** sliders via `itemsSlice.tiltItem`; serialized (optional) in `schema.ts`. Collision
+  stays yaw-OBB (tilt doesn't change the plan footprint).
+- **3D scene export** (`sceneExport3d` flag, pro; Q-3DEXPORT): `ui/openSceneExport.ts` `exportScene3d`
+  downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`) or
+  `.obj` (`export/sceneObj.ts`, dynamic `OBJExporter`). The live scene root is reached from DOM code via
+  `scene/SceneExportController` + the `scene/sceneExportAccess.ts` singleton (mirrors
+  `ScreenshotController`/`captureCanvas.ts`). Pure `export/sceneGltf.ts` `buildExportRoot` clones the
+  scene and strips editor-only helpers — anything tagged `userData.noExport` via `noExportUserData`/
+  `markNoExport` (selection/gizmo/overlays/sky/pins/ghost), plus a structural fallback for three helper
+  types + cameras. In Tools + Share modal + mobile + ⌘K.
 - **Shoppable buy-list** (`ui/shoplist.ts` pure `buildShopList`+`buildShopListHtml` →
   per-retailer-grouped buy-list HTML: qty/unit/line totals per (def,variant,room), grand + per-retailer
   totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the
@@ -401,7 +424,9 @@ same change that reshapes a system.
   Undoable + persists (`floorPlanStore.ts`).
 - **Toolbar** (`ui/toolbar/`): scrollable icon island (`IconButton` + `ToolbarMenu`).
   Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice` with
-  per-view note + 360°-slide toggles and Present…),
+  per-view note + 360°-slide toggles, Present…, and **Render all views** —
+  `ui/renderAllViews.ts` flies each saved view and downloads a `captureCanvasPng` PNG per view,
+  `batchRender` flag, pro),
   **Scene** (time slider + Lighting + Backdrop + sun `CompassModal`), **Edit** (step into
   room / floor-plan), **Arrange** (Tidy + Sets/Presets/Styles pick→Apply `PickApply`),
   **Tools** (Budget/Checks/Sun study/Walkthrough/Report), **File**, **Graphics**. Three

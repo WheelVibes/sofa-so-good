@@ -21,6 +21,12 @@ const FurnitureItemZ = z.object({
   defId: z.string(),
   position: z.tuple([z.number(), z.number()]),
   rotation: z.number(),
+  // Optional multi-axis tilt (pitch about local X, roll about local Z), radians.
+  // Backward-compatible with pre-tilt saves (absent = upright).
+  pitch: z.number().optional(),
+  roll: z.number().optional(),
+  // Optional elevation above the floor (m) — SweetHome3DJS parity. Back-compat.
+  elevation: z.number().optional(),
   // Optional mirror flips (backward-compatible with pre-flip saves).
   flipX: z.boolean().optional(),
   flipZ: z.boolean().optional(),
@@ -56,6 +62,8 @@ const UserGltfDefZ = z.object({
   finishOverrides: z.record(z.string(), z.string()).optional(),
   // Optional def-level price estimate (parametric generator) — additive.
   price: z.number().optional(),
+  // Optional GLB byte size for the catalog model-info tooltip — additive.
+  byteSize: z.number().optional(),
 })
 
 const IkeaVariantZ = z.object({
@@ -135,6 +143,18 @@ const PlanWallZ = z.object({
   end: Vec2Z,
   thickness: z.enum(['external', 'internal']),
   topHeight: z.number().optional(),
+  // Optional sloping-wall end height (PARITY-SLOPEWALL) — additive, back-compat.
+  topHeightEnd: z.number().optional(),
+  // Optional curvature bulge (m) — additive, back-compat (PARITY-CURVEDWALL).
+  arc: z.number().optional(),
+  // Optional per-wall baseboard override (PARITY-BASEBOARD) — additive, back-compat.
+  baseboard: z
+    .object({
+      height: z.number().optional(),
+      color: z.string().optional(),
+      hidden: z.boolean().optional(),
+    })
+    .optional(),
 })
 const PlanOpeningZ = z.object({
   id: z.string(),
@@ -164,16 +184,24 @@ const PlanRoomZ = z.object({
   wall: z.string().optional(),
   // Movable room-name label offset (metres from the centroid). Optional + additive.
   labelOffset: Vec2Z.optional(),
+  // Room-name label rotation (radians) + font-size multiplier. Optional + additive.
+  labelAngle: z.number().optional(),
+  labelFontScale: z.number().optional(),
+  // Per-room floor-texture transform (scale/angle) — optional + additive.
+  floorTexScale: z.number().optional(),
+  floorTexAngle: z.number().optional(),
   // Per-room ceiling treatment (tray/coffered/dropped). Optional + additive →
   // no schema-version bump; absent → flat (the prior behaviour).
   ceiling: z
     .object({
-      style: z.enum(['flat', 'tray', 'coffered', 'dropped']),
+      style: z.enum(['flat', 'tray', 'coffered', 'dropped', 'sloped']),
       drop: z.number().optional(),
       margin: z.number().optional(),
       grid: z.tuple([z.number(), z.number()]).optional(),
       coveLight: z.boolean().optional(),
       coveColor: z.string().optional(),
+      // Sloped-ceiling pitch (PARITY-SLOPECEIL) — additive, back-compat.
+      slope: z.object({ axis: z.enum(['x', 'z']), rise: z.number() }).optional(),
     })
     .optional(),
 })
@@ -191,6 +219,15 @@ const PlanUpperLevelZ = z.object({
 const FloorPlanZ = z.object({
   id: z.string(),
   name: z.string(),
+  // Template categorisation (housing type → project → apartment type). Optional
+  // + additive — older saved plans simply have none.
+  category: z
+    .object({
+      housingType: z.enum(['HDB', 'Condominium']),
+      projectName: z.string(),
+      apartmentType: z.string(),
+    })
+    .optional(),
   ceilingHeight: z.number(),
   extent: Vec2Z,
   walls: z.array(PlanWallZ),

@@ -240,7 +240,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // Wall height follows the (adjustable) plan ceiling height; per-wall
   // `topHeight` overrides (e.g. parapets) still win inside buildWallSegments.
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
 
@@ -279,7 +279,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       // dot(outwardNormal, camera→centre dir). Near walls face the camera, so
       // their outward normal opposes this direction (dot ≈ −1) → fade out.
       const d = (reveal.nx * cdx + reveal.nz * cdz) / clen
-      const faded = smoothstep(-0.4, -0.08, d)
+      // Wide reveal: near walls fully fade (d≈−1) AND grazing/side walls that
+      // face the camera even slightly fade partially (d up to +0.25), opening
+      // the dollhouse more; only walls clearly on the far side (d≳0.25) stay solid.
+      const faded = smoothstep(-0.2, 0.25, d)
       // translucent: walls never fully disappear (min 0.15 opacity).
       // auto-hide: walls can fully disappear (current legacy behaviour).
       target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)
@@ -288,6 +291,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return
     const cur = opacityRef.current + (target - opacityRef.current) * 0.18
     opacityRef.current = cur
+    // The canvas is frameloop="demand": once the camera stops, the loop halts —
+    // which would freeze this opacity lerp mid-fade (walls stuck part-faded).
+    // Keep requesting frames until the fade settles.
+    if (Math.abs(cur - target) > 0.005) invalidate()
     // Publish so windows/doors on this wall fade with it.
     if (revealable) setWallOpacity(wall.id, cur)
     const visible = cur > 0.02

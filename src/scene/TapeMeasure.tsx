@@ -5,6 +5,7 @@ import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
 import { obbCorners } from '../collision/obb'
 import { itemFootprint } from '../collision/placement'
 import { buildCollisionWalls } from '../collision/wallsFromState'
+import { noExportUserData } from '../export/sceneGltf'
 import { isDefaultPlan, planCollisionWalls } from '../floorplan/planGeometry'
 import { useCatalogGetter } from '../furniture/catalog'
 import { useStore } from '../state/store'
@@ -106,7 +107,7 @@ export function TapeMeasure() {
   }
 
   return (
-    <group>
+    <group userData={noExportUserData()}>
       {/* Transparent floor click/track plane (apartment-sized + margin). The
           priority raycast makes it win the pick over furniture/walls so a click
           anywhere drops a floor point (then snaps to nearby corners). */}

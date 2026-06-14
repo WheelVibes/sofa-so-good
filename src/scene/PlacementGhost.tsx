@@ -4,6 +4,7 @@ import { Color, MeshBasicMaterial, Plane, Raycaster, Vector2, Vector3 } from 'th
 import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
+import { noExportUserData } from '../export/sceneGltf'
 import { useCatalogGetter } from '../furniture/catalog'
 import { Furniture } from '../furniture/Furniture'
 import {
@@ -118,7 +119,7 @@ export function PlacementGhost() {
   // primitive's own material.
   const obb = itemFootprint(ghostItem, def)
   return (
-    <group ref={groupRef}>
+    <group ref={groupRef} userData={noExportUserData()}>
       <Furniture item={ghostItem} def={def} passive />
       <mesh position={[0, 0.005, 0]} rotation={[-Math.PI / 2, 0, 0]} material={tintMaterial}>
         <planeGeometry args={[obb.hx * 2, obb.hz * 2]} />

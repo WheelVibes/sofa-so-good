@@ -1,11 +1,19 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
-import type { Mesh, MeshStandardMaterial } from 'three'
+import { useEffect, useMemo, useRef } from 'react'
+import { BufferAttribute, BufferGeometry, type Mesh, type MeshStandardMaterial } from 'three'
 import { useFeature } from '../features/useFeature'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
-import { DEFAULT_PLAN_WALL_COLOR, type FloorPlan, planBounds, wallLength } from '../floorplan/types'
+import { isSlopedWall, slopedWallTriangles } from '../floorplan/slopedWall'
+import {
+  DEFAULT_PLAN_WALL_COLOR,
+  type FloorPlan,
+  type PlanWall,
+  planBounds,
+  wallLength,
+} from '../floorplan/types'
+import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
@@ -16,9 +24,33 @@ import { PlanDoorLeaf } from './PlanDoorLeaf'
  * One plan wall, fading out in orbit mode when it sits between the camera and
  * the plan centre (so the dollhouse view isn't blocked by near walls).
  */
+/** smoothstep — matches the default flat's WallSegment reveal ramp. */
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
+  return t * t * (3 - 2 * t)
+}
+
+/** Camera-facing reveal factor (1 = opaque, ~0 = faded) for a point at (px,pz)
+ *  relative to the plan centre (cx,cz). Wide ramp so near + grazing walls fade. */
+function revealFactor(
+  camera: { position: { x: number; z: number } },
+  px: number,
+  pz: number,
+  cx: number,
+  cz: number,
+): number {
+  const kx = camera.position.x - px
+  const kz = camera.position.z - pz
+  const dcx = cx - px
+  const dcz = cz - pz
+  const mag = Math.hypot(kx, kz) * Math.hypot(dcx, dcz) || 1
+  const d = (kx * dcx + kz * dcz) / mag // −1 near (facing camera), +1 far
+  return smoothstep(-0.2, 0.25, d)
+}
+
 function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number; color: string }) {
   const ref = useRef<Mesh>(null)
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
   useFrame(() => {
     const mesh = ref.current
@@ -29,16 +61,14 @@ function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number
     // forced off during panorama capture so walls don't leave holes).
     const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
     if (cameraMode === 'orbit' && revealEnabled) {
-      // Wall is "between" camera and centre when (K-W)·(C-W) < 0.
-      const kx = camera.position.x - box.cx
-      const kz = camera.position.z - box.cz
-      const dx = cx - box.cx
-      const dz = cz - box.cz
-      if (kx * dx + kz * dz < 0) target = 0.12
+      target = Math.max(0.12, revealFactor(camera, box.cx, box.cz, cx, cz))
     }
     mat.opacity += (target - mat.opacity) * 0.18
     mat.transparent = mat.opacity < 0.98
     mat.depthWrite = mat.opacity > 0.6
+    // frameloop="demand": keep rendering until the fade settles (else it freezes
+    // mid-fade when the camera stops).
+    if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })
   return (
     <mesh
@@ -127,23 +157,55 @@ function PlanLevelShell({
 
   const boxes = useMemo(() => lp.walls.flatMap((w) => wallBoxes(lp, w)), [lp])
 
+  // Skirting strips along floor-reaching wall spans, carrying each wall's
+  // optional per-wall baseboard override (PARITY-BASEBOARD): height + colour, or
+  // hidden. Built per wall (not from the flattened `boxes`) so the override is
+  // in scope; defaults match the shell skirting (0.09 m, off-white).
+  const skirtings = useMemo(() => {
+    const out: { box: WallBox; height: number; color: string }[] = []
+    for (const w of lp.walls) {
+      const bb = w.baseboard
+      if (bb?.hidden) continue
+      const height = bb?.height && bb.height > 0 ? bb.height : 0.09
+      const color = bb?.color ?? '#eceae4'
+      for (const box of wallBoxes(lp, w)) {
+        if (box.cy - box.height / 2 < 0.01) out.push({ box, height, color })
+      }
+    }
+    return out
+  }, [lp])
+
   // Window glass panes (between sill and head, in the wall gap).
   const windows = useMemo(() => {
     return lp.openings
       .filter((o) => o.kind === 'window')
       .map((o) => {
         const wall = lp.walls.find((w) => w.id === o.wallId)
-        if (!wall) return null
-        const len = wallLength(wall)
-        if (len === 0) return null
-        const dx = (wall.end[0] - wall.start[0]) / len
-        const dz = (wall.end[1] - wall.start[1]) / len
-        const angle = Math.atan2(dx, dz)
+        // Sloped walls (solid prism) don't host openings. Curved walls do — the
+        // glass is positioned + oriented at the opening's mid-arc point.
+        if (!wall || isSlopedWall(wall)) return null
         const s = o.offset + o.width / 2
+        let cx: number
+        let cz: number
+        let angle: number
+        if (isCurvedWall(wall)) {
+          const p = pointAtArcLength(wall, s)
+          cx = p.x
+          cz = p.z
+          angle = p.angle
+        } else {
+          const len = wallLength(wall)
+          if (len === 0) return null
+          const dx = (wall.end[0] - wall.start[0]) / len
+          const dz = (wall.end[1] - wall.start[1]) / len
+          angle = Math.atan2(dx, dz)
+          cx = wall.start[0] + dx * s
+          cz = wall.start[1] + dz * s
+        }
         return {
           id: o.id,
-          cx: wall.start[0] + dx * s,
-          cz: wall.start[1] + dz * s,
+          cx,
+          cz,
           cy: (o.sill + o.head) / 2,
           width: o.width,
           height: o.head - o.sill,
@@ -160,6 +222,11 @@ function PlanLevelShell({
       {lp.rooms.map((r) => {
         const mat = resolvePlanRoomFloor(finishes, r) as MaterialId
         const roomId = r.id
+        // Per-room floor-texture transform (SweetHome3DJS scale/angle parity).
+        const texTransform =
+          r.floorTexScale || r.floorTexAngle
+            ? { scale: r.floorTexScale, angle: r.floorTexAngle }
+            : undefined
         if (r.polygon && r.polygon.length >= 3) {
           return (
             <PlanRoomFloor
@@ -170,6 +237,7 @@ function PlanLevelShell({
               depth={r.depth}
               polygon={r.polygon}
               materialId={mat}
+              texTransform={texTransform}
             />
           )
         }
@@ -181,6 +249,7 @@ function PlanLevelShell({
               width={r.width}
               depth={r.depth}
               materialId={mat}
+              texTransform={texTransform}
             />
             {r.extension && (
               <PlanRoomFloor
@@ -189,6 +258,7 @@ function PlanLevelShell({
                 width={r.extension.width}
                 depth={r.extension.depth}
                 materialId={mat}
+                texTransform={texTransform}
               />
             )}
           </group>
@@ -240,20 +310,24 @@ function PlanLevelShell({
         <FadeWall key={i} box={b} cx={cx} cz={cz} color={wallColor} />
       ))}
 
-      {/* Skirting along floor-reaching wall spans */}
-      {boxes
-        .filter((b) => b.cy - b.height / 2 < 0.01)
-        .map((b, i) => (
-          <mesh
-            key={`sk${i}`}
-            position={[b.cx, 0.045, b.cz]}
-            rotation={[0, b.angle, 0]}
-            receiveShadow
-          >
-            <boxGeometry args={[b.thickness + 0.024, 0.09, b.length]} />
-            <meshStandardMaterial color="#eceae4" roughness={0.7} />
-          </mesh>
-        ))}
+      {/* Sloping-top walls render as prisms (slopedWall.ts), not boxes. */}
+      {lp.walls.filter(isSlopedWall).map((w) => (
+        <SlopedWallMesh key={w.id} wall={w} ceiling={lp.ceilingHeight} color={wallColor} />
+      ))}
+
+      {/* Skirting along floor-reaching wall spans (per-wall baseboard override:
+          height/colour, or hidden — PARITY-BASEBOARD). */}
+      {skirtings.map(({ box: b, height, color }, i) => (
+        <mesh
+          key={`sk${i}`}
+          position={[b.cx, height / 2, b.cz]}
+          rotation={[0, b.angle, 0]}
+          receiveShadow
+        >
+          <boxGeometry args={[b.thickness + 0.024, height, b.length]} />
+          <meshStandardMaterial color={color} roughness={0.7} />
+        </mesh>
+      ))}
 
       {/* Crown molding at the wall–ceiling junction (full-height spans only).
           Uses the same wall-box dimensions as skirting so mitre corners close
@@ -284,22 +358,86 @@ function PlanLevelShell({
         .filter((o) => o.kind === 'door')
         .map((o) => {
           const wall = lp.walls.find((w) => w.id === o.wallId)
-          return wall ? <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={cx} cz={cz} /> : null
+          // Sloped walls (solid prism) don't host openings; curved walls do
+          // (PlanDoorLeaf reads arc-aware geometry from doorSwingGeometry).
+          return wall && !isSlopedWall(wall) ? (
+            <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={cx} cz={cz} />
+          ) : null
         })}
 
-      {/* Window glass */}
+      {/* Window glass — fades with its wall during the orbit reveal (FadeWindow). */}
       {windows.map((w) => (
-        <mesh key={w.id} position={[w.cx, w.cy, w.cz]} rotation={[0, w.angle, 0]}>
-          <boxGeometry args={[0.03, w.height, w.width]} />
-          <meshStandardMaterial
-            color="#bcd6e6"
-            transparent
-            opacity={0.32}
-            roughness={0.1}
-            metalness={0}
-          />
-        </mesh>
+        <FadeWindow key={w.id} win={w} cx={cx} cz={cz} />
       ))}
     </group>
+  )
+}
+
+/** Window glass pane that fades out (like FadeWall) when it sits between the
+ *  orbit camera and the plan centre — so it doesn't stay opaque in a wall that's
+ *  gone translucent. */
+function FadeWindow({
+  win,
+  cx,
+  cz,
+}: {
+  win: { cx: number; cz: number; cy: number; width: number; height: number; angle: number }
+  cx: number
+  cz: number
+}) {
+  const ref = useRef<Mesh>(null)
+  const { camera, invalidate } = useThree()
+  const cameraMode = useStore((s) => s.cameraMode)
+  const BASE = 0.32
+  useFrame(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    const mat = mesh.material as MeshStandardMaterial
+    let factor = 1
+    const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
+    if (cameraMode === 'orbit' && revealEnabled) {
+      factor = Math.max(0.12, revealFactor(camera, win.cx, win.cz, cx, cz))
+    }
+    const target = BASE * factor
+    mat.opacity += (target - mat.opacity) * 0.18
+    if (Math.abs(mat.opacity - target) > 0.003) invalidate()
+  })
+  return (
+    <mesh ref={ref} position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
+      <boxGeometry args={[0.03, win.height, win.width]} />
+      <meshStandardMaterial
+        color="#bcd6e6"
+        transparent
+        opacity={BASE}
+        roughness={0.1}
+        metalness={0}
+      />
+    </mesh>
+  )
+}
+
+/** A sloping-top wall rendered as a prism (PARITY-SLOPEWALL). The triangle soup
+ *  is already in world coordinates, so the mesh sits at the origin; flat normals
+ *  come from `computeVertexNormals` on the unshared verts. */
+function SlopedWallMesh({
+  wall,
+  ceiling,
+  color,
+}: {
+  wall: PlanWall
+  ceiling: number
+  color: string
+}) {
+  const geometry = useMemo(() => {
+    const g = new BufferGeometry()
+    g.setAttribute('position', new BufferAttribute(slopedWallTriangles(wall, ceiling), 3))
+    g.computeVertexNormals()
+    return g
+  }, [wall, ceiling])
+  useEffect(() => () => geometry.dispose(), [geometry])
+  return (
+    <mesh geometry={geometry} castShadow receiveShadow>
+      <meshStandardMaterial color={color} roughness={0.9} metalness={0} />
+    </mesh>
   )
 }

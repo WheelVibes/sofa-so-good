@@ -2,6 +2,7 @@ import { Html } from '@react-three/drei'
 import { useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W } from '../apartment/constants'
+import { noExportUserData } from '../export/sceneGltf'
 import { useFeature } from '../features/useFeature'
 import { GROUND_LEVEL_ID, isMultiLevel, levelElevation } from '../floorplan/levels'
 import type { DesignComment } from '../state/slices/commentsSlice'
@@ -53,7 +54,7 @@ export function CommentPins() {
   }
 
   return (
-    <group>
+    <group userData={noExportUserData()}>
       {comments.map((c, i) => {
         const levelId = c.levelId ?? GROUND_LEVEL_ID
         // Hidden with its storey, like furniture (single-level plans show all).

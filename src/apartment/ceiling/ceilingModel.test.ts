@@ -97,4 +97,23 @@ describe('buildCeiling', () => {
     expect(buildCeiling(RECT, 2.7, { style: 'tray' }).cove).toBeNull()
     expect(buildCeiling(RECT, 2.7, { style: 'tray', coveLight: true }).cove).not.toBeNull()
   })
+
+  it('a sloped ceiling is one pitched plane from ceiling height down by `rise`', () => {
+    const m = buildCeiling(RECT, 2.7, { style: 'sloped', slope: { axis: 'x', rise: 0.6 } })
+    expect(m.fallback).toBe(false)
+    expect(m.parts).toHaveLength(1)
+    const p = m.parts[0]
+    expect(p.kind).toBe('slope')
+    if (p.kind === 'slope') {
+      expect(p.yHigh).toBeCloseTo(2.7, 6)
+      expect(p.yLow).toBeCloseTo(2.1, 6)
+      expect(p.axis).toBe('x')
+    }
+    expect(m.lowestY).toBeCloseTo(2.1, 6)
+  })
+
+  it('clamps a sloped rise so the low edge never dips below the clearance minimum', () => {
+    const m = buildCeiling(RECT, 2.4, { style: 'sloped', slope: { axis: 'z', rise: 5 } })
+    expect(m.lowestY).toBeGreaterThanOrEqual(2.0 - 1e-6)
+  })
 })

@@ -75,6 +75,60 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'simple').smartStart).toBe(true)
   })
 
+  it('sceneExport3d (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Whole-scene 3D export is a pro-tier portability feature (like dxfExport).
+    expect(resolveFlags(true, {}, false, 'simple').sceneExport3d).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').sceneExport3d).toBe(true)
+  })
+
+  it('wallBaseboard (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Per-wall baseboard params are a wall-finish detail → pro tier.
+    expect(resolveFlags(true, {}, false, 'simple').wallBaseboard).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').wallBaseboard).toBe(true)
+  })
+
+  it('batchRender (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Batch PNG-per-view export is an advanced presentation/output feature → pro.
+    expect(resolveFlags(true, {}, false, 'simple').batchRender).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').batchRender).toBe(true)
+  })
+
+  it('tiltFurniture (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Multi-axis tilt is an advanced placement control → pro tier.
+    expect(resolveFlags(true, {}, false, 'simple').tiltFurniture).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').tiltFurniture).toBe(true)
+  })
+
+  it('catalogModelInfo (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    expect(resolveFlags(true, {}, false, 'simple').catalogModelInfo).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').catalogModelInfo).toBe(true)
+  })
+
+  it('curvedWalls (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    expect(resolveFlags(true, {}, false, 'simple').curvedWalls).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').curvedWalls).toBe(true)
+  })
+
+  it('slopingWalls (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    expect(resolveFlags(true, {}, false, 'simple').slopingWalls).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').slopingWalls).toBe(true)
+  })
+
+  it('viewInAr (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    expect(resolveFlags(true, {}, false, 'simple').viewInAr).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').viewInAr).toBe(true)
+  })
+
+  it('floorTexture (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    expect(resolveFlags(true, {}, false, 'simple').floorTexture).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').floorTexture).toBe(true)
+  })
+
+  it('planCompass (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    expect(resolveFlags(true, {}, false, 'simple').planCompass).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').planCompass).toBe(true)
+  })
+
   it('shopExport (simple tier, prod default on) is available in BOTH Simple and Pro modes', () => {
     // Production build, no overrides — the shoppable buy-list ships in prod…
     expect(resolveFlags(false, {}, false, 'simple').shopExport).toBe(true)

@@ -69,10 +69,16 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   reverse/join, text notes + dimension lines) → `plan-editor-tools-journey.json`. Remaining: measure,
   clearanceChecks, smartStart, AI surfaces, roomEditor, GLB designer/parametric re-rungs, crown-molding,
   livePrices, first-run re-rungs, backdrop-upload + furnlight re-rungs.
-- [ ] Q-3DEXPORT Whole-scene glTF/GLB + USDZ (AR) export — needs worker-streamed export + real-GPU
-  verify (a previous GLTFExporter prototype was reverted as unverifiable headless).
-- [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
-  depends on Q-3DEXPORT for the item GLB/USDZ.
+- [~] Q-3DEXPORT Whole-scene glTF/GLB + OBJ export — **shipped** (`sceneExport3d` flag, pro tier;
+  Tools/Share/⌘K/mobile). Pure extract/filter core (`export/sceneGltf.ts`) drops editor helpers; live
+  scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,
+  adds `export/sceneObj.ts`. Browser-verified via `scenarios/scene-export-simple.json` (full pipeline
+  → success toast — the earlier "unverifiable headless" gap is closed by asserting in the real browser).
+  Now also exports **STL** (3D printing / CAD) and **USDZ** (iOS AR Quick Look). **Still open:**
+  worker-streamed export for very large scenes.
+- [~] F22 [PROD] Mobile AR "view in your room": **shipped (PARITY-AR)** — Tools → "View in your room"
+  opens iOS AR Quick Look from USDZ, GLB download elsewhere (`ui/viewInAr.ts`, `viewInAr` flag).
+  Remaining: Android Scene Viewer (needs an https-hosted model → a backend/upload step).
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 
@@ -127,32 +133,55 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 
 ### Pending — quick wins (S)
-- [ ] PARITY-NORTH: SH3D North/compass widget on the canvas (rotatable, tied to sun azimuth). (Walk
-  FOV/eye-height controls shipped — see CHANGELOG PARITY-WALKCAM.)
-- [ ] PARITY-BATCHRENDER: SH3D batch-render all saved views.
+- [~] PARITY-NORTH: 2D-plan North/compass rose **shipped** (`planCompass` flag, needle tied to
+  `orientationDeg`). Remaining: a compass widget on the 3D canvas too.
+- [x] PARITY-BATCHRENDER: SH3D batch-render all saved views — Saved-views "Render all views" flies the
+  camera to each saved view (`applyView`) and downloads a hi-fi PNG per view via `captureCanvasPng`
+  (`ui/renderAllViews.ts`, `batchRender` pro flag).
 - [~] PARITY-LIGHTINGTEMPLATE-TEXT: **material callouts shipped** — a per-room Finishes schedule sheet
   (floor + wall material names) in the drawing set (`floorplan/finishSchedule.ts`). Remaining: free
   text callouts on sheets + drawing-set layer toggles.
 
 ### Pending — high value (M)
 - [ ] PARITY-SEARCH: Coohom smart/semantic catalog search (tag/fuzzy over catalog + packs).
-- [ ] PARITY-AR: Coohom AR "view in your room" (`<model-viewer>`/WebXR on a GLB export; needs Q-3DEXPORT).
+- [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
+  (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).
 - [ ] PARITY-DENOISE: Coohom render denoiser (OIDN-wasm/bilateral post-pass on HQ render). [real-GPU verify]
 - [ ] PARITY-8K: Coohom 8K+ tiled still render.
-- [ ] PARITY-SLOPECEIL: SH3D sloping ceilings (per-room ceiling slope).
-- [ ] PARITY-SLANTWALL: SH3D slanting walls (per-endpoint top heights).
-- [ ] PARITY-BASEBOARD: SH3D per-wall baseboard params + finish.
-- [ ] PARITY-QUOTE-XLSX: Coohom quote Excel/CSV export + editable templates.
+- [x] PARITY-SLOPECEIL: SH3D sloping ceilings **shipped** (see PARITY-SLOPECEIL in CHANGELOG).
+- [x] PARITY-SLANTWALL: SH3D slanting walls **shipped** (PARITY-SLOPEWALL: `PlanWall.topHeightEnd` prism).
+- [x] PARITY-BASEBOARD: SH3D per-wall baseboard params **shipped** — `PlanWall.baseboard`
+  (height/colour/hidden) drives the PlanShell skirting; Plan-inspector wall section + `wallBaseboard`
+  pro flag. (Custom plans only; default HDB layout uses the fixed `Skirting.tsx`.)
+- [~] PARITY-QUOTE-XLSX: quote XLSX/CSV **shipped** (PARITY-QUOTEXLSX). Remaining: user-editable templates.
 
 ### Pending — marquee (L)
-- [ ] PARITY-VIDEO: video flythrough export (camera path → WebM/MP4 via MediaRecorder). [real-GPU verify]
-- [ ] PARITY-CURVEDWALL: SH3D curved/arc walls.
+- [x] PARITY-VIDEO: video flythrough export **shipped** — saved-views cinematic tour → .webm
+  (`ui/recordViewTour.ts`, PARITY-VIDEO in CHANGELOG).
+- [~] PARITY-CURVEDWALL: SH3D curved/arc walls **shipped** — `PlanWall.arc` bulge + `floorplan/wallArc.ts`
+  (Bézier → chord sub-segments) reused by `wallBoxes`/`planCollisionWalls`/room detection; 2D midpoint
+  bulge handle (`curvedWalls` flag, pro). **Openings on curves now supported** — arc-length positioned,
+  cut per-chord (wallBoxes/collision), arc-positioned door leaf + window glass, arc-aware doorSwing +
+  placement (`nearestArcLength`). Curve is a **true circular arc** (`arcCircle`, SVG `A`). Complete.
+- [~] PARITY-SLOPEWALL: SH3D sloping (variable-height) walls **shipped** — `PlanWall.topHeightEnd` +
+  `floorplan/slopedWall.ts` prism (flat-normal triangle soup), `PlanShell` `SlopedWallMesh`, inspector
+  start/end height fields (`slopingWalls` flag, pro). Openings disabled on sloped walls. Pairs with a
+  sloped ceiling (PARITY-SLOPECEIL).
+- [~] PARITY-SLOPECEIL: sloped (pitched) ceiling **shipped** — `sloped` `CeilingConfig` style
+  (`slope:{axis,rise}`) in `ceilingModel.ts` `CeilingSlope` + `RoomCeiling` tilted plane; per-room
+  picker (under `ceilingDesign`). Pairs with PARITY-SLOPEWALL for a shed roof.
+- [~] PARITY-VIDEO: keyframed walkthrough-video export **shipped** — "Record walkthrough video" records
+  the saved-views cinematic tour to a `.webm` (`ui/recordViewTour.ts` + RecordController), pace via
+  `cameraSlice.viewTourLegSeconds` (`walkthrough` flag). Follow-up: an MP4 transcode + a duration modal.
 - [~] PARITY-AILAYOUT: **engine + collision-aware placement shipped** — `ai/autoLayoutAi.ts` (prompt +
   tolerant parse + BYO-key call) + `layout/aiLayoutApply.ts` (validate/clamp into rooms +
   `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure
   logic + no-key guard unit-tested; live LLM output needs a real key to tune. Follow-up: a key/brief
   panel beyond the ⌘K prompt + route through autoArrange for tidier spacing.
-- [ ] PARITY-3DEXPORT: whole-scene OBJ/glTF/STL export (Q-3DEXPORT).
+- [x] PARITY-3DEXPORT: whole-scene OBJ/glTF/STL export **shipped** (see Q-3DEXPORT).
+- [~] PARITY-TILT: multi-axis furniture tilt (pitch/roll) **shipped** — `tiltFurniture` flag,
+  `FurnitureItem.pitch/roll`, inspector sliders, `furniture/tiltRotation.ts` (`[pitch, yaw, roll, 'YXZ']`).
+  Follow-up: a 3D tilt gizmo handle + the SH3D 2D-plan tilt indicator; collision stays yaw-OBB.
 
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
 

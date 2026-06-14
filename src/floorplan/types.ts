@@ -18,6 +18,21 @@ export interface PlanWall {
   thickness: 'external' | 'internal'
   /** Optional cap on solid-wall height (parapets on balconies); floor→ceiling when unset. */
   topHeight?: number
+  /** Optional top height at the wall's `end` (SweetHome3DJS sloping-wall parity):
+   *  when set, the wall top ramps linearly from `topHeight` (or ceiling) at start
+   *  to this at end — a shed/mono-pitch wall. Sloped walls render as a prism and
+   *  don't host openings in this version. */
+  topHeightEnd?: number
+  /** Optional curvature (SweetHome3DJS parity): signed perpendicular bulge (m) at
+   *  the wall's midpoint, measured from the straight chord. Absent/0 = straight.
+   *  Curved walls are approximated as chord sub-segments for rendering/collision
+   *  (see `wallArc.ts`) and cannot host openings in this version. */
+  arc?: number
+  /** Optional per-wall baseboard / skirting override (SweetHome3DJS baseboard
+   *  parity). `height` (m) and `color` (hex) tune the skirting strip along this
+   *  wall's foot; `hidden` suppresses it entirely. Absent fields fall back to the
+   *  shell default (0.09 m, off-white). */
+  baseboard?: { height?: number; color?: string; hidden?: boolean }
 }
 
 export interface PlanOpening {
@@ -65,14 +80,27 @@ export interface PlanRoom {
   wall?: string
   /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
   ceiling?: CeilingConfig
+  /** Optional floor-texture transform (SweetHome3DJS texture scale/angle parity):
+   *  `floorTexScale` multiplies tile size (×, >1 = bigger), `floorTexAngle`
+   *  rotates the texture (radians). Absent = default tiling. */
+  floorTexScale?: number
+  floorTexAngle?: number
   /** Optional in-plane offset (metres) of the room's name label from its
    *  centroid, so a label can be nudged clear of furniture / a tight room
    *  (Sweet Home 3D movable labels). Absent → centred on the centroid. */
   labelOffset?: PlanVec2
+  /** Optional rotation (radians, clockwise on the 2D plan) of the room's name
+   *  label, to align it with a slanted room or wall (Sweet Home 3D label angle).
+   *  Absent → horizontal. */
+  labelAngle?: number
+  /** Optional font-size multiplier for the room's name label (×, >1 = bigger),
+   *  for emphasising / shrinking a label (Sweet Home 3D label font size). Absent
+   *  → default size. */
+  labelFontScale?: number
 }
 
 /** Per-room ceiling treatment. `flat` (or absent) renders the plain ceiling. */
-export type CeilingStyle = 'flat' | 'tray' | 'coffered' | 'dropped'
+export type CeilingStyle = 'flat' | 'tray' | 'coffered' | 'dropped' | 'sloped'
 
 export interface CeilingConfig {
   style: CeilingStyle
@@ -86,6 +114,10 @@ export interface CeilingConfig {
   coveLight?: boolean
   /** Cove glow colour (hex); defaults to a warm white. */
   coveColor?: string
+  /** Sloped ceiling (pitched plane): which axis the ceiling falls along and how
+   *  far it drops from the high edge to the low edge (m). Pairs with sloping
+   *  walls (PARITY-SLOPEWALL). Only read when `style === 'sloped'`. */
+  slope?: { axis: 'x' | 'z'; rise: number }
 }
 
 /** One storey above the ground floor. The plan's top-level walls/openings/
@@ -105,9 +137,27 @@ export interface PlanUpperLevel {
   rooms: PlanRoom[]
 }
 
+/** Top-level housing category for the template picker. */
+export type HousingType = 'HDB' | 'Condominium'
+
+/** Three-level template categorisation: housing type → project → apartment type
+ *  (e.g. HDB › Serangoon North Vista › 4-Room). Every built-in template carries
+ *  one; user-saved plans are prompted for it. */
+export interface PlanCategory {
+  housingType: HousingType
+  /** Development / estate name (e.g. "Serangoon North Vista"). */
+  projectName: string
+  /** Unit type within the project (e.g. "4-Room", "2-Bedroom"). */
+  apartmentType: string
+}
+
 export interface FloorPlan {
   id: string
   name: string
+  /** Optional template categorisation (housing type → project → apartment type)
+   *  driving the template picker. Built-ins set all three; user plans may prompt.
+   *  Optional + additive — older saved plans simply have none. */
+  category?: PlanCategory
   ceilingHeight: number
   /** External footprint (metres) for the floor slab + grid. */
   extent: PlanVec2

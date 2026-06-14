@@ -36,6 +36,7 @@ import { QualityController } from './QualityController'
 import { RecordController } from './RecordController'
 import { RenderPump } from './RenderPump'
 import { SceneBackdrop } from './SceneBackdrop'
+import { SceneExportController } from './SceneExportController'
 import { ScreenshotController } from './ScreenshotController'
 import { ShowcaseController } from './ShowcaseController'
 import { HoverHighlight } from './selection/HoverHighlight'
@@ -126,6 +127,7 @@ export function Scene() {
         <ShowcaseController />
         <QualityController />
         <ScreenshotController />
+        <SceneExportController />
         <PanoramaController />
         <HqRenderController />
         <RecordController />

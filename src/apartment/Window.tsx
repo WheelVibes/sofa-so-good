@@ -1,6 +1,6 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
-import { Color, type Group, type MeshStandardMaterial } from 'three'
+import { Color, type Group, Mesh, type MeshStandardMaterial } from 'three'
 import { GLASS_SKYCATCH_COLOR, glassSkyCatchIntensity } from '../materials/materialRealism'
 import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
 import { WALLS, WINDOWS } from './constants'
@@ -66,19 +66,32 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   const wall = findWall(spec.wallId)
   const groupRef = useRef<Group>(null)
   const glassRef = useRef<MeshStandardMaterial>(null)
-  // Hide the window once its host wall has faded most of the way out, so it
-  // doesn't float in mid-air during the dollhouse reveal; and tint the glass by
-  // daylight (clear by day → dark/reflective at night).
+  // Fade the whole window (frame, grille, sill + glass) WITH its host wall during
+  // the orbit dollhouse reveal — otherwise an opaque frame/grille floats in a
+  // translucent wall. Glass also tints by daylight (clear by day → dark at night).
   useFrame(() => {
-    if (groupRef.current) groupRef.current.visible = getWallOpacity(spec.wallId) > 0.35
-    const m = glassRef.current
-    if (m) {
-      const d = getFixtureGlow() // 1 at night, 0 in daylight
-      m.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
-      m.opacity = 0.28 + d * 0.45 // more opaque (less see-through) at night
-      // Sky-catch (RZ2): glass reads as bright lit glass by day, dark at night.
-      m.emissiveIntensity = glassSkyCatchIntensity(1 - d)
+    const g = groupRef.current
+    if (!g) return
+    const wallOp = getWallOpacity(spec.wallId)
+    g.visible = wallOp > 0.02
+    if (!g.visible) return
+    const d = getFixtureGlow() // 1 at night, 0 in daylight
+    const glass = glassRef.current
+    const glassBase = 0.28 + d * 0.45 // more opaque (less see-through) at night
+    if (glass) {
+      glass.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
+      glass.emissiveIntensity = glassSkyCatchIntensity(1 - d)
     }
+    const fading = wallOp < 0.985
+    g.traverse((o) => {
+      if (!(o instanceof Mesh)) return
+      const m = o.material as MeshStandardMaterial
+      const isGlass = m === glass
+      const base = isGlass ? glassBase : 1
+      m.transparent = isGlass || fading
+      m.opacity = base * wallOp
+      m.depthWrite = !isGlass && wallOp > 0.6
+    })
   })
   if (!wall) return null
   const dx = wall.end[0] - wall.start[0]

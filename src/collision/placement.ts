@@ -68,16 +68,20 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
 
   const defScale = def.kind === 'parametric' ? undefined : def.scale
   const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1
+  // Per-axis (non-uniform) resize: width = local X, depth = local Z; each falls
+  // back to the uniform scale (SweetHome3DJS resize parity).
+  const scaleX = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : scale
+  const scaleZ = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : scale
   const cos = Math.cos(item.rotation)
   const sin = Math.sin(item.rotation)
-  const sx = ox * scale
-  const sz = oz * scale
+  const sx = ox * scaleX
+  const sz = oz * scaleZ
 
   return {
     cx: item.position[0] + cos * sx - sin * sz,
     cz: item.position[1] + sin * sx + cos * sz,
-    hx: (w * scale) / 2,
-    hz: (d * scale) / 2,
+    hx: (w * scaleX) / 2,
+    hz: (d * scaleZ) / 2,
     rot: item.rotation,
   }
 }
@@ -99,10 +103,12 @@ interface PlacementContext {
 function verticalSpan(item: FurnitureItem, def: FurnitureDef): { base: number; top: number } {
   const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h }
   const sh = item.props['surfaceHeight']
-  if (typeof sh === 'number') {
-    return { base: sh, top: sh + (span.top - span.base) }
-  }
-  return span
+  const base0 = typeof sh === 'number' ? sh : span.base
+  const height = span.top - span.base
+  // Per-item elevation raises the whole piece off the floor (SH3D parity), so
+  // its height-aware collision span shifts up with it.
+  const lift = item.elevation ?? 0
+  return { base: base0 + lift, top: base0 + height + lift }
 }
 
 /** True iff two vertical spans overlap (touching edges don't count). */

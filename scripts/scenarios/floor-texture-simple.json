@@ -1,0 +1,22 @@
+{
+  "name": "floor-texture-simple",
+  "description": "Verifies per-room floor-texture transform (PARITY-FLOORTEX). Loads a custom plan, sets a room's floorTexScale (denser tiling), asserts it persisted, and screenshots the 3D floor (the plank tiling should visibly change).",
+  "url": "http://localhost:5245/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "load-template", "eval": "import('/src/floorplan/templates.ts').then(m => { const tpl = JSON.parse(JSON.stringify(m.PLAN_TEMPLATES[0])); window.__store.getState().setFloorPlan(tpl); window.__roomId = tpl.rooms[0].id; })" },
+    { "name": "wait-plan", "wait": 700 },
+    { "name": "shot-before", "screenshot": "01-default-tiling" },
+    { "name": "shrink-tiles", "eval": "window.__store.getState().updateRoom(window.__roomId, { floorTexScale: 0.35 })" },
+    {
+      "name": "verify-persist",
+      "waitFor": { "store": "(() => { const r = state.floorPlan.rooms.find(r=>r.id===window.__roomId); return r && r.floorTexScale === 0.35; })()" },
+      "timeout": 5000,
+      "failMessage": "floorTexScale did not persist on the room"
+    },
+    { "name": "wait-render", "wait": 700 },
+    { "name": "shot-after", "screenshot": "02-denser-tiling" }
+  ]
+}

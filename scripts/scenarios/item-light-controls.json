@@ -1,0 +1,20 @@
+{
+  "name": "item-light-controls",
+  "description": "Verifies per-item light colour + brightness (PARITY-FURNLIGHT). Places a table lamp (a registered emitter), forces lights on at night, sets a custom lightColor + high lightIntensity, asserts the props persist, and screenshots the lit night scene (the lamp's pool should render brightly).",
+  "url": "http://localhost:5244/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "night", "eval": "(() => { const s = window.__store.getState(); s.setManualHour?.(23); s.setLightsMode?.('on'); })()" },
+    { "name": "place-lamp", "eval": "window.__store.getState().setItems([{id:'lit-lamp',defId:'table-lamp',position:[9.6,2.6],rotation:0,props:{surfaceHeight:0.5,lightIntensity:12,lightColor:'#66ccff'}}])" },
+    { "name": "wait", "wait": 1000 },
+    {
+      "name": "verify-props",
+      "waitFor": { "store": "(() => { const it = state.items.find(i=>i.id==='lit-lamp'); return it && it.props.lightIntensity === 12 && it.props.lightColor === '#66ccff'; })()" },
+      "timeout": 5000,
+      "failMessage": "light intensity/colour props did not persist"
+    },
+    { "name": "focus", "eval": "window.__store.getState().focusOn?.([9.6,2.6])" },
+    { "name": "shot", "screenshot": "01-lit-lamp-night" }
+  ]
+}

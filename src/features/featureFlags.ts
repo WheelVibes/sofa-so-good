@@ -50,6 +50,8 @@ export type FeatureFlag =
   | 'paletteFromPhoto'
   | 'dxfExport'
   | 'boq'
+  | 'sceneExport3d'
+  | 'batchRender'
   | 'shopExport'
   | 'suggestions'
   | 'electricalPlan'
@@ -76,6 +78,14 @@ export type FeatureFlag =
   | 'itemAsLight'
   | 'aiLayout'
   | 'planPolyline'
+  | 'tiltFurniture'
+  | 'catalogModelInfo'
+  | 'curvedWalls'
+  | 'slopingWalls'
+  | 'wallBaseboard'
+  | 'viewInAr'
+  | 'floorTexture'
+  | 'planCompass'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -301,6 +311,22 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
+  // Whole-scene 3D export (Q-3DEXPORT / SweetHome3DJS ObjWriter+glTF parity). The
+  // furnished home → glTF/GLB (+ OBJ) for Blender / AR / Coohom hand-off. Pure
+  // client-side three GLTFExporter/OBJExporter (dynamic-imported) → prod-safe, no
+  // sidecar. A portability/hand-off export like dxfExport/boq → pro tier.
+  sceneExport3d: {
+    label: 'Export 3D model',
+    description: 'Whole furnished scene → glTF/GLB (+ OBJ) for Blender / AR / Coohom',
+    default: true,
+    tier: 'pro',
+  },
+  batchRender: {
+    label: 'Render all views',
+    description: 'Batch-export a PNG of every saved camera view in one click (SweetHome3D parity)',
+    default: true,
+    tier: 'pro',
+  },
   shopExport: {
     label: 'Shopping list export',
     description: 'Shoppable buy-list HTML — items, prices, per-retailer totals',
@@ -487,6 +513,78 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   planPolyline: {
     label: 'Plan polyline markup',
     description: 'Free-form polyline annotations (open/closed, dashed, arrow) in the 2D editor',
+    default: true,
+    tier: 'pro',
+  },
+  // Multi-axis furniture tilt (SweetHome3DJS parity): pitch/roll an item off
+  // vertical (angle a picture, recline a backrest, bank a decor piece). Pure
+  // code, no external assets → prod-safe. An advanced placement control beyond
+  // the core furnish loop → pro tier.
+  tiltFurniture: {
+    label: 'Tilt furniture',
+    description: 'Pitch / roll an item off vertical (angle art, recline, bank) in the inspector',
+    default: true,
+    tier: 'pro',
+  },
+  // Catalog card model metadata tooltip (SweetHome3DJS FurnitureTablePanel
+  // parity): model byte size + creator/licence on hover. Pure code → prod-safe.
+  // An informational/pro detail → pro tier.
+  catalogModelInfo: {
+    label: 'Catalog model info',
+    description: 'Show a model’s size + creator / licence in the catalog card tooltip',
+    default: true,
+    tier: 'pro',
+  },
+  // Curved/arc walls (SweetHome3DJS parity): drag a wall's midpoint handle to
+  // bulge it into a curve. Pure geometry (chord sub-segments) → prod-safe. A
+  // structural drawing tool → pro tier.
+  curvedWalls: {
+    label: 'Curved walls',
+    description: 'Bow a wall into a curve by dragging its midpoint handle (no openings on curves)',
+    default: true,
+    tier: 'pro',
+  },
+  // Sloping (variable-height) walls (SweetHome3DJS parity): a shed/mono-pitch
+  // wall whose top ramps from a start to an end height, rendered as a prism.
+  // Pure geometry → prod-safe. A structural drawing tool → pro tier.
+  slopingWalls: {
+    label: 'Sloping walls',
+    description: 'Give a wall a sloped (shed) top — different heights at each end (no openings)',
+    default: true,
+    tier: 'pro',
+  },
+  // Per-wall baseboard / skirting params (SweetHome3DJS baseboard parity): height,
+  // colour, and a hide toggle per wall. Pure geometry/colour → prod-safe. A
+  // wall-finish detail beyond the core loop → pro tier.
+  wallBaseboard: {
+    label: 'Wall baseboards',
+    description: 'Per-wall skirting board height, colour and a hide toggle',
+    default: true,
+    tier: 'pro',
+  },
+  // "View in your room" AR: iOS AR Quick Look from a USDZ (blob), GLB download
+  // elsewhere. Pure client-side (no backend/dep) → prod-safe. A high-wow viewing
+  // surface beyond the core loop → pro tier.
+  viewInAr: {
+    label: 'View in AR',
+    description: 'Place the design in your room — iOS AR Quick Look (USDZ) or an AR-ready GLB',
+    default: true,
+    tier: 'pro',
+  },
+  // Per-room floor-texture transform (SweetHome3DJS texture scale/angle parity):
+  // scale the tile size + rotate the floor texture. Pure geometry-UV transform →
+  // prod-safe. A surface-design refinement → pro tier.
+  floorTexture: {
+    label: 'Floor texture transform',
+    description: 'Scale + rotate a room’s floor texture (tile size / angle)',
+    default: true,
+    tier: 'pro',
+  },
+  // North/compass rose on the 2D plan (SweetHome3DJS compass parity). Pure
+  // overlay reflecting the orientation. Pro tier — a plan annotation aid.
+  planCompass: {
+    label: 'Plan compass',
+    description: 'Show a North/compass rose on the 2D floor plan',
     default: true,
     tier: 'pro',
   },

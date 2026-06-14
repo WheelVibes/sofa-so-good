@@ -1,0 +1,23 @@
+{
+  "name": "item-elevation-simple",
+  "description": "Verifies per-item elevation (SweetHome3DJS parity). Places a floor lamp, raises it off the floor via setItemElevation, asserts the elevation field persisted, and screenshots before/after from a side angle (the piece should float).",
+  "url": "http://localhost:5243/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "place-lamp", "eval": "window.__store.getState().setItems([{id:'elev-lamp',defId:'floor-lamp',position:[9.6,2.6],rotation:0,props:{}}])" },
+    { "name": "wait-place", "wait": 800 },
+    { "name": "focus", "eval": "window.__store.getState().focusOn?.([9.6,2.6])" },
+    { "name": "shot-floor", "screenshot": "01-on-floor" },
+    { "name": "raise-it", "eval": "window.__store.getState().setItemElevation('elev-lamp', 1.2)" },
+    {
+      "name": "verify-elevation",
+      "waitFor": { "store": "(() => { const it = state.items.find(i => i.id==='elev-lamp'); return it && Math.abs(it.elevation - 1.2) < 1e-6; })()" },
+      "timeout": 5000,
+      "failMessage": "setItemElevation did not store the elevation"
+    },
+    { "name": "wait-render", "wait": 500 },
+    { "name": "shot-raised", "screenshot": "02-raised" }
+  ]
+}

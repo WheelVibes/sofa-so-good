@@ -67,6 +67,7 @@ const CEILING_STYLES: { id: CeilingStyle; label: string }[] = [
   { id: 'tray', label: 'Tray' },
   { id: 'coffered', label: 'Coffered' },
   { id: 'dropped', label: 'Dropped' },
+  { id: 'sloped', label: 'Sloped' },
 ]
 
 /** Per-room ceiling-treatment editor: style picker + style-specific params +
@@ -102,7 +103,33 @@ function CeilingControls({
           </button>
         ))}
       </div>
-      {style !== 'flat' ? (
+      {style === 'sloped' ? (
+        <>
+          <Num
+            label="Fall / rise (m)"
+            value={config?.slope?.rise ?? 0.4}
+            step={0.05}
+            min={0.05}
+            onChange={(v) =>
+              set({
+                slope: { axis: config?.slope?.axis ?? 'x', rise: Math.max(0.05, Math.min(1.5, v)) },
+              })
+            }
+          />
+          <div className="seg" style={{ marginTop: 'var(--s-1)' }}>
+            {(['x', 'z'] as const).map((ax) => (
+              <button
+                key={ax}
+                type="button"
+                className={`seg-btn${(config?.slope?.axis ?? 'x') === ax ? ' on' : ''}`}
+                onClick={() => set({ slope: { axis: ax, rise: config?.slope?.rise ?? 0.4 } })}
+              >
+                {ax === 'x' ? 'Falls along X' : 'Falls along Z'}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : style !== 'flat' ? (
         <>
           {style !== 'coffered' ? (
             <Num
@@ -172,6 +199,9 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const a = useStore.getState()
   const isMobile = useIsMobile()
   const ceilingDesignOn = useFeature('ceilingDesign')
+  const slopingWallsOn = useFeature('slopingWalls')
+  const wallBaseboardOn = useFeature('wallBaseboard')
+  const floorTextureOn = useFeature('floorTexture')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -259,6 +289,28 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               Reset label position
             </button>
           ) : null}
+          <div className="space-y-1">
+            <Num
+              label="Label angle (°)"
+              value={Math.round((((r.labelAngle ?? 0) * 180) / Math.PI) * 10) / 10}
+              step={15}
+              onChange={(v) => {
+                const rad = (v * Math.PI) / 180
+                a.updateRoom(r.id, { labelAngle: Math.abs(rad) < 1e-4 ? undefined : rad })
+              }}
+            />
+            <Num
+              label="Label size (×)"
+              value={r.labelFontScale ?? 1}
+              step={0.1}
+              min={0.5}
+              onChange={(v) =>
+                a.updateRoom(r.id, {
+                  labelFontScale: Math.abs(v - 1) < 1e-3 ? undefined : Math.max(0.5, v),
+                })
+              }
+            />
+          </div>
           <Num
             label="X (m)"
             value={r.origin[0]}
@@ -343,6 +395,31 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           </div>
           {ceilingDesignOn ? (
             <CeilingControls roomId={r.id} style={r.ceiling?.style ?? 'flat'} config={r.ceiling} />
+          ) : null}
+          {floorTextureOn ? (
+            <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Floor texture
+              </div>
+              <Num
+                label="Tile size (×)"
+                value={r.floorTexScale ?? 1}
+                step={0.1}
+                min={0.25}
+                onChange={(v) =>
+                  a.updateRoom(r.id, { floorTexScale: Math.abs(v - 1) < 1e-3 ? undefined : v })
+                }
+              />
+              <Num
+                label="Angle (°)"
+                value={Math.round((((r.floorTexAngle ?? 0) * 180) / Math.PI) * 10) / 10}
+                step={5}
+                onChange={(v) => {
+                  const rad = (v * Math.PI) / 180
+                  a.updateRoom(r.id, { floorTexAngle: Math.abs(rad) < 1e-4 ? undefined : rad })
+                }}
+              />
+            </div>
           ) : null}
           {/* L-shape extension: a second rectangle offset from the origin.
               planRoomArea sums both, and the 3D shell renders both floors. */}
@@ -482,6 +559,102 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             step={1}
             onChange={(v) => a.updateWall(w.id, { end: endForAngle(w, v) }, levelId)}
           />
+          {slopingWallsOn ? (
+            <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Sloping top (shed / mono-pitch — no openings)
+              </div>
+              <Num
+                label="Top height @ start (m)"
+                value={w.topHeight ?? plan.ceilingHeight}
+                min={0.3}
+                onChange={(v) => a.updateWall(w.id, { topHeight: v }, levelId)}
+              />
+              <Num
+                label="Top height @ end (m)"
+                value={w.topHeightEnd ?? w.topHeight ?? plan.ceilingHeight}
+                min={0.3}
+                onChange={(v) => a.updateWall(w.id, { topHeightEnd: v }, levelId)}
+              />
+              {w.topHeightEnd !== undefined ? (
+                <button
+                  type="button"
+                  className="btn btn-soft btn-sm btn-block"
+                  onClick={() =>
+                    a.updateWall(w.id, { topHeightEnd: undefined, topHeight: undefined }, levelId)
+                  }
+                >
+                  Reset to flat top
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {wallBaseboardOn ? (
+            <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Baseboard / skirting
+              </div>
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={!w.baseboard?.hidden}
+                  onChange={(e) =>
+                    a.updateWall(
+                      w.id,
+                      { baseboard: { ...w.baseboard, hidden: !e.target.checked } },
+                      levelId,
+                    )
+                  }
+                />
+                <span>Show baseboard</span>
+              </label>
+              {!w.baseboard?.hidden ? (
+                <>
+                  <Num
+                    label="Height (m)"
+                    value={w.baseboard?.height ?? 0.09}
+                    step={0.01}
+                    min={0.01}
+                    onChange={(v) =>
+                      a.updateWall(
+                        w.id,
+                        {
+                          baseboard: {
+                            ...w.baseboard,
+                            height: Math.abs(v - 0.09) < 1e-4 ? undefined : Math.max(0.01, v),
+                          },
+                        },
+                        levelId,
+                      )
+                    }
+                  />
+                  <label className="flex items-center justify-between gap-2 text-xs">
+                    <span className="label">Colour</span>
+                    <input
+                      type="color"
+                      value={w.baseboard?.color ?? '#eceae4'}
+                      onChange={(e) =>
+                        a.updateWall(
+                          w.id,
+                          { baseboard: { ...w.baseboard, color: e.target.value } },
+                          levelId,
+                        )
+                      }
+                    />
+                  </label>
+                </>
+              ) : null}
+              {w.baseboard ? (
+                <button
+                  type="button"
+                  className="btn btn-soft btn-sm btn-block"
+                  onClick={() => a.updateWall(w.id, { baseboard: undefined }, levelId)}
+                >
+                  Reset baseboard
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="row" style={{ gap: 6 }}>
             <button
               type="button"

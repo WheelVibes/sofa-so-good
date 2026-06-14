@@ -1,0 +1,16 @@
+{
+  "name": "room-label-style",
+  "description": "Room-name label rotation + font-size styling (PARITY-ROOMLABEL-STYLE / FEATURE_PARITY row 111). Opens the plan editor, rotates a room label and enlarges its font via updateRoom, and screenshots the 2D plan so the angled, bigger label is visible.",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "style-a-label", "eval": "(() => { const s=window.__store.getState(); const r=s.floorPlan.rooms[0]; s.updateRoom(r.id, { labelAngle: Math.PI/6, labelFontScale: 1.6 }); s.setPlanSelection({ type:'room', id:r.id }); window.__rid = r.id; })()" },
+    { "name": "style-applied", "waitFor": { "store": "(() => { const r=state.floorPlan.rooms.find(r=>r.id===window.__rid); return !!r && r.labelFontScale===1.6 && Math.abs(r.labelAngle - Math.PI/6) < 1e-6 })()" }, "timeout": 5000, "failMessage": "labelAngle/labelFontScale did not apply" },
+    { "name": "shot-styled", "screenshot": "room-label-styled" }
+  ]
+}

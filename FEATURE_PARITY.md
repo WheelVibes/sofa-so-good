@@ -62,12 +62,12 @@ layout)** · **drawing-set sheet/layer toggles (choose which sheets to include)*
 | Fast rasterized "preview render" tier | ◑ | ✅ | A high-quality single-frame raster capture as the local analog to cloud 10-s render. | M |
 | IES photometric light import | ❌ | ✅ | Parse `.ies` into spotlight intensity distribution in `scene/lighting`. | M |
 | Quotation **editable templates** + price-rule library | ◑ | ✅ | BOQ + CSV + **XLSX** ship; add user-editable quote templates + a configurable price-rule library. | M |
-| Walkthrough/flythrough **video** export (keyframed camera path → MP4/WebM) | ◑ | ✅ | Turntable WebM recording ships; add a keyframed camera path over saved views + `MediaRecorder`/WebCodecs capture. | L |
+| Walkthrough/flythrough **video** export (keyframed camera path → MP4/WebM) | ✅ | ✅ | **Shipped (PARITY-VIDEO)** — "Record walkthrough video" records the saved-views cinematic tour to .webm with a user-set pace (`recordViewTour` + RecordController). | L |
 | Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path. | M |
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
 | AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
 | AI matting / background removal | ❌ | ✅ | WASM segmentation (MODNet/rembg-wasm) for product cutouts. | M |
-| AR "view in your room" | ❌ | ✅ | `<model-viewer>`/WebXR Quick Look + Scene Viewer on a GLB export (F22 in TASKS). | M |
+| AR "view in your room" | ✅ | ✅ | **Shipped (PARITY-AR)** — Tools → "View in your room (AR)" opens iOS AR Quick Look from USDZ, GLB download elsewhere (`viewInAr`). Android Scene Viewer needs an https-hosted model (backend) — the only remaining gap. | M |
 | Massive hosted model library (60k–1M+) | ◑ | ☁️ | Can't match scale without a CDN; lean on procedural + curated CC0 + upload. | L |
 | Branded/manufacturer catalogs | ❌ | 📜 | Licensed vendor catalogs need deals + backend. | L |
 | Cloud accounts / real-time multi-user collab / teams / white-label | ❌ | ☁️ | Backend/CRDT; out of our client-side scope. | L |
@@ -104,16 +104,16 @@ room-name labels**.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| **Curved / arc walls** | ❌ | ✅ | Arc geometry + mid-wall curve handle + "arc extent" field; 2D render + 3D extrusion. | L |
-| **Slanting walls** (per-endpoint top heights) | ◑ | ✅ | Per-endpoint "height at start/end" fields + sloped 3D extrusion. | M |
-| **Sloping ceilings** (per-room ceiling slope) | ❌ | ✅ | Per-room ceiling slope params; angled ceiling plane (extend `apartment/ceiling`). | M |
-| **Baseboards/skirting on walls** (height/thickness/finish) | ◑ | ✅ | We have skirting; expose per-wall baseboard params + finish. | M |
-| On-plan room-name label **rotation / font** | ◑ | ✅ | Name is editable, rendered + **draggable** (placement ships); add optional label rotation + font styling. | S |
-| **Batch render** all saved cameras | ◑ | ✅ | "Render all saved views" loop over the render pipeline (saved-views menu exists; the batch loop doesn't). | S |
+| **Curved / arc walls** | ✅ | ✅ | **Shipped (PARITY-CURVEDWALL)** — true circular arc + midpoint bulge handle, openings on curves, 2D `A`-path + 3D chord extrusion. | L |
+| **Slanting walls** (per-endpoint top heights) | ✅ | ✅ | **Shipped (PARITY-SLOPEWALL)** — `PlanWall.topHeightEnd` prism + inspector start/end height. | M |
+| **Sloping ceilings** (per-room ceiling slope) | ✅ | ✅ | **Shipped (PARITY-SLOPECEIL)** — `sloped` `CeilingConfig` pitched plane + per-room picker. | M |
+| **Baseboards/skirting on walls** (height/thickness/finish) | ✅ | ✅ | **Shipped (PARITY-BASEBOARD)** — `PlanWall.baseboard` (height/colour/hidden) drives the PlanShell skirting; Plan-inspector wall section + `wallBaseboard` pro flag. | M |
+| On-plan room-name label **rotation / font** | ✅ | ✅ | **Shipped (PARITY-ROOMLABEL-STYLE)** — `PlanRoom.labelAngle` (SVG `rotate`) + `labelFontScale` with Plan-inspector angle/size fields; drag-to-reposition already shipped. | S |
+| **Batch render** all saved cameras | ✅ | ✅ | **Shipped (PARITY-BATCHRENDER)** — Saved-views "Render all views" flies to each view and downloads a PNG via `captureCanvasPng` (`ui/renderAllViews.ts`, `batchRender` pro flag). | S |
 | **Fisheye / DoF** lens options on render | ◑ | ✅ | Add lens-type + DoF controls to the render camera (DoF partly exists in HQ). | M |
 | Keyboard wall-length entry while drawing | ◑ | ✅ | Live numeric length/angle entry during wall draw. | M |
-| **Video flythrough** export (keyframed camera path → file) | ◑ | ✅ | Turntable WebM recording ships; add the keyframed camera-path + canvas-capture pipeline (shared with the Coohom video gap). | L |
-| Export 3D scene to OBJ / glTF / STL | ◑ | ✅ | three.js `OBJExporter`/`GLTFExporter`/`STLExporter` (Q-3DEXPORT in TASKS). | M |
+| **Video flythrough** export (keyframed camera path → file) | ✅ | ✅ | **Shipped (PARITY-VIDEO)** — saved-views cinematic tour recorded to .webm. | L |
+| Export 3D scene to OBJ / glTF / STL | ✅ | ✅ | **glTF/GLB + OBJ + STL shipped** (`sceneExport3d`, Q-3DEXPORT) — `export/sceneGltf.ts` + `convert/toGlb.ts` / `export/sceneObj.ts` / `export/sceneStl.ts`, in Tools/Share/⌘K/mobile. | M |
 | Import SH3D / SH3F libraries | ❌ | ✅ | Parse the SH3D/SH3F zip (XML + models) into our model; conversion only. | L |
 | Multi-language UI (20+) | ❌ | ✅ | i18n framework + translations; large, pure-client, low near-term value for HDB focus. | L |
 | Plugin/extension API | ❌ | ✅ | Define a JS extension surface; large architectural effort, low near-term value. | L |
@@ -125,14 +125,12 @@ room-name labels**.
 > Shipped items are removed from this list as they land (see `CHANGELOG.md`); this
 > section tracks only what is still open.
 
-**Quick wins (S):**
-1. Batch-render all saved cameras (SH3D) — loop the render pipeline over saved views.
-2. Room-name label rotation + font styling (SH3D) — drag-to-reposition already ships.
+**Quick wins (S):** _(all shipped — see `CHANGELOG.md`)_
 
 **High-value medium efforts (M):**
 4. AR "view in your room" (Coohom/F22) — high "wow"/sales value.
 5. 8K tiled still render + fast rasterized preview tier (Coohom) — quality lift.
-6. Sloping ceilings + slanting walls + per-wall baseboards (SH3D) — realism/CAD depth.
+6. _(shipped: sloping ceilings, slanting walls, per-wall baseboards — see `CHANGELOG.md`)_
 7. Quote editable templates + price-rule library (Coohom) — CSV/XLSX export already ship.
 8. Fisheye / DoF lens options on the render camera (SH3D).
 9. Keyboard wall-length / angle entry while drawing (SH3D).

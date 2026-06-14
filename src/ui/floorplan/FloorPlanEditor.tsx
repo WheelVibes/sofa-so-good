@@ -25,9 +25,18 @@ import {
 import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
-import { PLAN_TEMPLATES } from '../../floorplan/templates'
+import { isSlopedWall } from '../../floorplan/slopedWall'
 import type { PlanWall } from '../../floorplan/types'
 import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
+import {
+  arcFromMidpoint,
+  isCurvedWall,
+  nearestArcLength,
+  pointAtArcLength,
+  wallArcLength,
+  wallCurveMidpoint,
+  wallSvgPath,
+} from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
 import type { FurnitureCategory } from '../../furniture/types'
@@ -45,6 +54,8 @@ import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
 import { PLAN_LABEL_TEXT, planLabelLines } from './planLabels'
+import { SaveTemplateModal } from './SaveTemplateModal'
+import { TemplatePicker } from './TemplatePicker'
 
 /** Muted top-down fill per furniture category for the 2D plan layer.
  *  Tokens live in `screens.css` (`--plan-cat-*`) so the plan themes correctly;
@@ -127,6 +138,9 @@ export function FloorPlanEditor() {
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
   const fPanoTour = useFeature('panoTour')
+  const fCurvedWalls = useFeature('curvedWalls')
+  const fCompass = useFeature('planCompass')
+  const orientationDeg = useStore((s) => s.orientationDeg)
   // Tour stops are only shown/editable on the ground level (stops have a
   // levelId field but the plan editor operates per-level; ground is the
   // common case and keeps the UI simple).
@@ -159,6 +173,14 @@ export function FloorPlanEditor() {
   const [movingVertex, setMovingVertex] = useState<{ id: string; which: 'start' | 'end' } | null>(
     null,
   )
+  // Active polygon-room vertex drag (select tool): which polygon point is moving.
+  // Lets a free-form (polyroom) room be reshaped after creation.
+  const [movingPolyVertex, setMovingPolyVertex] = useState<{ id: string; index: number } | null>(
+    null,
+  )
+  // Active wall-curve bulge drag (select tool): drag a wall's midpoint to bow it
+  // into a curve (PARITY-CURVEDWALL).
+  const [movingBulge, setMovingBulge] = useState<{ id: string } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
@@ -513,6 +535,14 @@ export function FloorPlanEditor() {
   ): { wall: PlanWall; offset: number; dist: number } | null => {
     let best: { wall: PlanWall; offset: number; dist: number } | null = null
     for (const wall of levelPlan.walls) {
+      // Curved walls: measure against the arc (distance + arc-length offset) so a
+      // click on the bulged span is detected and the opening lands at the right
+      // arc position; straight walls use the chord projection.
+      if (isCurvedWall(wall)) {
+        const { offset, dist } = nearestArcLength(wall, [wx, wz])
+        if (!best || dist < best.dist) best = { wall, offset, dist }
+        continue
+      }
       const dx = wall.end[0] - wall.start[0]
       const dz = wall.end[1] - wall.start[1]
       const len = Math.hypot(dx, dz)
@@ -583,9 +613,18 @@ export function FloorPlanEditor() {
       }
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
-      if (hit) {
+      if (hit && isSlopedWall(hit.wall)) {
+        // Sloped walls are a solid prism — they can't host openings.
+        st.notify.start({
+          title: 'Sloped walls can’t have doors or windows yet',
+          kind: 'info',
+          autoDismissMs: 3000,
+        })
+      } else if (hit) {
         const width = tool === 'door' ? 0.9 : 1.2
-        const offset = Math.max(0, Math.min(wallLength(hit.wall) - width, hit.offset - width / 2))
+        // Offsets are arc-length on a curved wall, chord length on a straight one.
+        const wlen = isCurvedWall(hit.wall) ? wallArcLength(hit.wall) : wallLength(hit.wall)
+        const offset = Math.max(0, Math.min(wlen - width, hit.offset - width / 2))
         const snapped = snap(offset)
         const id = st.addOpening(
           {
@@ -674,6 +713,39 @@ export function FloorPlanEditor() {
       useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz], levelId)
       return
     }
+    if (movingBulge) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const wall = levelPlan.walls.find((w) => w.id === movingBulge.id)
+      if (wall) {
+        const arc = Math.round(arcFromMidpoint(wall.start, wall.end, [wx, wz]) * 100) / 100
+        st.updateWall(wall.id, { arc }, levelId)
+      }
+      return
+    }
+    if (movingPolyVertex) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const room = levelPlan.rooms.find((r) => r.id === movingPolyVertex.id)
+      if (room?.polygon) {
+        const poly = room.polygon.map((p, i) =>
+          i === movingPolyVertex.index ? ([wx, wz] as [number, number]) : p,
+        )
+        // Keep origin/width/depth in sync as the polygon's bbox (back-compat for
+        // consumers that still read the rect; the polygon stays authoritative).
+        const xs = poly.map((p) => p[0])
+        const zs = poly.map((p) => p[1])
+        const x0 = Math.min(...xs)
+        const z0 = Math.min(...zs)
+        st.updateRoom(room.id, {
+          polygon: poly,
+          origin: [x0, z0],
+          width: Math.max(0.1, Math.max(...xs) - x0),
+          depth: Math.max(0.1, Math.max(...zs) - z0),
+        })
+      }
+      return
+    }
     if (movingItem) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -732,6 +804,14 @@ export function FloorPlanEditor() {
     }
     if (movingVertex) {
       setMovingVertex(null)
+      return
+    }
+    if (movingPolyVertex) {
+      setMovingPolyVertex(null)
+      return
+    }
+    if (movingBulge) {
+      setMovingBulge(null)
       return
     }
     if (movingItem) {
@@ -812,6 +892,50 @@ export function FloorPlanEditor() {
 
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
+      {/* North/compass rose (SweetHome3DJS parity) — pinned to the editor frame,
+          the needle rotates with the plan's orientation. */}
+      {fCompass ? (
+        <div
+          className="panel"
+          style={{
+            position: 'absolute',
+            right: 12,
+            bottom: 12,
+            zIndex: 5,
+            width: 52,
+            height: 52,
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            pointerEvents: 'none',
+            opacity: 0.9,
+          }}
+          aria-hidden
+        >
+          <svg
+            width={44}
+            height={44}
+            viewBox="-22 -22 44 44"
+            style={{ transform: `rotate(${-orientationDeg}deg)` }}
+          >
+            <title>North compass</title>
+            <circle r={20} fill="none" stroke="var(--border-2)" strokeWidth={1} />
+            {/* North half (accent), South half (muted). */}
+            <polygon points="0,-16 5,0 -5,0" fill="var(--accent)" />
+            <polygon points="0,16 5,0 -5,0" fill="var(--text-3)" />
+            <text
+              x={0}
+              y={-15}
+              textAnchor="middle"
+              fontSize={7}
+              fontWeight={700}
+              fill="var(--text)"
+            >
+              N
+            </text>
+          </svg>
+        </div>
+      ) : null}
       {/* Header / toolbar */}
       <div
         className="flex flex-wrap items-center gap-2 px-4 py-2"
@@ -901,27 +1025,7 @@ export function FloorPlanEditor() {
         <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
           Reset to HDB
         </button>
-        <select
-          value=""
-          onChange={(e) => {
-            const tpl = PLAN_TEMPLATES.find((t) => t.id === e.target.value)
-            if (!tpl) return
-            a.pushHistory()
-            a.setItems([])
-            a.setFloorPlan(JSON.parse(JSON.stringify(tpl)))
-            a.setPlanSelection(null)
-          }}
-          title="Start from a template apartment"
-          className="input"
-          style={{ width: 'auto' }}
-        >
-          <option value="">Template…</option>
-          {PLAN_TEMPLATES.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        <TemplatePicker />
         <PlanLibrary />
 
         {/* Reference photo — trace walls over a floor-plan image / room scan. */}
@@ -1238,16 +1342,47 @@ export function FloorPlanEditor() {
                       )}
                     </>
                   )}
+                  {/* Reshape handles: drag any vertex of a selected free-form
+                      (polyroom) room. stopPropagation keeps the room-move
+                      handler on the parent <g> from firing. */}
+                  {isSel && tool === 'select' && r.polygon && r.polygon.length >= 3
+                    ? r.polygon.map(([vx, vz], i) => (
+                        <circle
+                          key={`pv-${r.id}-${i}`}
+                          data-poly-vertex={`${r.id}:${i}`}
+                          cx={toPx(vx)}
+                          cy={toPx(vz)}
+                          r={5}
+                          fill="var(--accent)"
+                          stroke="var(--surface)"
+                          strokeWidth={1.5}
+                          style={{ cursor: 'grab' }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation()
+                            a.setPlanSelection({ type: 'room', id: r.id })
+                            setMovingPolyVertex({ id: r.id, index: i })
+                            svgRef.current?.setPointerCapture(e.pointerId)
+                          }}
+                        />
+                      ))
+                    : null}
                   {(() => {
                     const [lx, lz] = roomLabelPosition(r)
+                    const px = toPx(lx)
+                    const pz = toPx(lz)
+                    // Optional label rotation (radians → degrees, about the anchor)
+                    // and font-size multiplier — Sweet Home 3D label angle/font.
+                    const deg = r.labelAngle ? (r.labelAngle * 180) / Math.PI : 0
+                    const fontPx = 11 * (r.labelFontScale ?? 1)
                     return (
                       <text
-                        x={toPx(lx)}
-                        y={toPx(lz)}
+                        x={px}
+                        y={pz}
                         textAnchor="middle"
                         className="select-none"
-                        fontSize={11}
+                        fontSize={fontPx}
                         fill="var(--text-2)"
+                        transform={deg ? `rotate(${deg} ${px} ${pz})` : undefined}
                         style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
                         onPointerDown={(e) => {
                           if (tool !== 'select') return
@@ -1258,8 +1393,8 @@ export function FloorPlanEditor() {
                           svgRef.current?.setPointerCapture(e.pointerId)
                         }}
                       >
-                        <tspan x={toPx(lx)}>{r.name}</tspan>
-                        <tspan x={toPx(lx)} dy={14} fill="var(--text-3)">
+                        <tspan x={px}>{r.name}</tspan>
+                        <tspan x={px} dy={fontPx + 3} fill="var(--text-3)">
                           {formatArea(planRoomArea(r), units)}
                         </tspan>
                       </text>
@@ -1526,30 +1661,59 @@ export function FloorPlanEditor() {
             {/* Walls (active storey) */}
             {levelPlan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
+              const d = wallSvgPath(w, toPx)
+              const stroke = isSel
+                ? 'var(--accent)'
+                : w.thickness === 'external'
+                  ? 'var(--plan-wall)'
+                  : 'var(--text-3)'
+              const onWallDown = (e: React.PointerEvent) => {
+                if (tool === 'select') {
+                  e.stopPropagation()
+                  a.setPlanSelection({ type: 'wall', id: w.id })
+                }
+              }
+              // Curve bulge handle: drag a selected wall's midpoint to bow it.
+              const bulge = fCurvedWalls && isSel && tool === 'select' ? wallCurveMidpoint(w) : null
               return (
-                <line
-                  key={w.id}
-                  x1={toPx(w.start[0])}
-                  y1={toPx(w.start[1])}
-                  x2={toPx(w.end[0])}
-                  y2={toPx(w.end[1])}
-                  stroke={
-                    isSel
-                      ? 'var(--accent)'
-                      : w.thickness === 'external'
-                        ? 'var(--plan-wall)'
-                        : 'var(--text-3)'
-                  }
-                  strokeWidth={w.thickness === 'external' ? 7 : 4}
-                  strokeLinecap="round"
-                  onPointerDown={(e) => {
-                    if (tool === 'select') {
-                      e.stopPropagation()
-                      a.setPlanSelection({ type: 'wall', id: w.id })
-                    }
-                  }}
-                  style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
-                />
+                <g key={w.id}>
+                  {/* Fat invisible hit target so curved/thin walls are easy to grab. */}
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={14}
+                    onPointerDown={onWallDown}
+                    style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
+                  />
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth={w.thickness === 'external' ? 7 : 4}
+                    strokeLinecap="round"
+                    onPointerDown={onWallDown}
+                    style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
+                  />
+                  {bulge ? (
+                    <circle
+                      data-wall-bulge={w.id}
+                      cx={toPx(bulge[0])}
+                      cy={toPx(bulge[1])}
+                      r={5}
+                      fill="var(--accent)"
+                      stroke="var(--surface)"
+                      strokeWidth={1.5}
+                      style={{ cursor: 'grab' }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation()
+                        a.setPlanSelection({ type: 'wall', id: w.id })
+                        setMovingBulge({ id: w.id })
+                        svgRef.current?.setPointerCapture(e.pointerId)
+                      }}
+                    />
+                  ) : null}
+                </g>
               )
             })}
 
@@ -1591,10 +1755,23 @@ export function FloorPlanEditor() {
                 if (!wall) return null
                 const len = wallLength(wall)
                 if (len === 0) return null
-                const ux = (wall.end[0] - wall.start[0]) / len
-                const uz = (wall.end[1] - wall.start[1]) / len
-                const mx = wall.start[0] + ux * (o.offset + o.width / 2)
-                const mz = wall.start[1] + uz * (o.offset + o.width / 2)
+                // Opening centre + wall normal — arc-aware for curved walls.
+                let ux: number
+                let uz: number
+                let mx: number
+                let mz: number
+                if (isCurvedWall(wall)) {
+                  const p = pointAtArcLength(wall, o.offset + o.width / 2)
+                  ux = Math.sin(p.angle)
+                  uz = Math.cos(p.angle)
+                  mx = p.x
+                  mz = p.z
+                } else {
+                  ux = (wall.end[0] - wall.start[0]) / len
+                  uz = (wall.end[1] - wall.start[1]) / len
+                  mx = wall.start[0] + ux * (o.offset + o.width / 2)
+                  mz = wall.start[1] + uz * (o.offset + o.width / 2)
+                }
                 // (-uz, ux) is the wall's "right" normal — a door swinging right
                 // has its arc there, so label the opposite side.
                 const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
@@ -1770,18 +1947,30 @@ export function FloorPlanEditor() {
               if (!wall) return null
               const len = wallLength(wall)
               if (len === 0) return null
-              const ux = (wall.end[0] - wall.start[0]) / len
-              const uz = (wall.end[1] - wall.start[1]) / len
-              const nx = -uz // wall normal
-              const nz = ux
-              const sPt: [number, number] = [
-                wall.start[0] + ux * o.offset,
-                wall.start[1] + uz * o.offset,
-              ]
-              const ePt: [number, number] = [
-                wall.start[0] + ux * (o.offset + o.width),
-                wall.start[1] + uz * (o.offset + o.width),
-              ]
+              // Jamb endpoints + wall normal — arc-aware for curved walls.
+              let nx: number
+              let nz: number
+              let sPt: [number, number]
+              let ePt: [number, number]
+              if (isCurvedWall(wall)) {
+                const a0 = pointAtArcLength(wall, o.offset)
+                const a1 = pointAtArcLength(wall, o.offset + o.width)
+                const m = pointAtArcLength(wall, o.offset + o.width / 2)
+                nx = -Math.cos(m.angle)
+                nz = Math.sin(m.angle)
+                sPt = [a0.x, a0.z]
+                ePt = [a1.x, a1.z]
+              } else {
+                const ux = (wall.end[0] - wall.start[0]) / len
+                const uz = (wall.end[1] - wall.start[1]) / len
+                nx = -uz
+                nz = ux
+                sPt = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
+                ePt = [
+                  wall.start[0] + ux * (o.offset + o.width),
+                  wall.start[1] + uz * (o.offset + o.width),
+                ]
+              }
               const isSel = sel?.type === 'opening' && sel.id === o.id
               const color = o.kind === 'door' ? 'var(--accent)' : 'var(--accent-soft-text)'
               const strokeW = wall.thickness === 'external' ? 7 : 4
@@ -1964,12 +2153,14 @@ function PlanLibrary() {
   const saved = useStore((s) => s.savedPlans)
   const plan = useStore((s) => s.floorPlan)
   const a = useStore.getState()
+  const [saveOpen, setSaveOpen] = useState(false)
   return (
     <div className="flex items-center gap-1">
+      <SaveTemplateModal open={saveOpen} onClose={() => setSaveOpen(false)} />
       <button
         type="button"
-        onClick={() => a.saveCurrentPlan(plan.name)}
-        title="Save this apartment to your library"
+        onClick={() => setSaveOpen(true)}
+        title="Save this apartment to your library (with its category)"
         className="btn btn-soft btn-sm"
       >
         Save

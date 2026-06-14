@@ -12,6 +12,7 @@ import { useStore } from '../state/store'
 import { AiPhotorealSection } from './ai/AiPhotorealSection'
 import { Modal } from './Modal'
 import { openDesignReport } from './openReport'
+import { exportScene3d } from './openSceneExport'
 import { buildShareSummary } from './shareSummary'
 import { Icon } from './toolbar/icons'
 
@@ -25,6 +26,7 @@ export function ShareModal() {
   const designNote = useStore((s) => s.designNote)
   const setDesignNote = useStore((s) => s.setDesignNote)
   const aiPhotoreal = useFeature('aiPhotoreal')
+  const sceneExport = useFeature('sceneExport3d')
 
   const toast = (title: string) => useStore.getState().notify.start({ title, kind: 'success' })
 
@@ -182,6 +184,19 @@ export function ShareModal() {
             <Icon.Download width={14} height={14} />
             Export file
           </button>
+          {sceneExport && (
+            <button
+              type="button"
+              className="btn btn-soft"
+              onClick={() => {
+                setOpen(false)
+                void exportScene3d('glb')
+              }}
+            >
+              <Icon.Download width={14} height={14} />
+              Export 3D (.glb)
+            </button>
+          )}
           <button type="button" className="btn btn-soft" onClick={copySummary}>
             <Icon.Copy width={14} height={14} />
             Copy summary

@@ -1,0 +1,70 @@
+{
+  "name": "scene-export-simple",
+  "description": "Simple ladder for whole-scene 3D export (Q-3DEXPORT). Verifies the sceneExport3d flag is OFF in Simple mode and ON in Pro; that the Tools menu shows the GLB/OBJ export items in Pro; and that clicking Export 3D model (.glb) runs the full pipeline (live scene -> buildExportRoot -> GLTFExporter -> download) and fires the success toast.",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    {
+      "name": "verify-flag-off-in-simple",
+      "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags && state.featureFlags.sceneExport3d === false" },
+      "timeout": 10000,
+      "failMessage": "sceneExport3d should be OFF in Simple mode (pro-tier)"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "verify-flag-on-in-pro",
+      "waitFor": { "store": "state.featureFlags && state.featureFlags.sceneExport3d === true" },
+      "timeout": 10000,
+      "failMessage": "sceneExport3d should be ON in Pro mode"
+    },
+    { "name": "place-a-sofa", "eval": "window.__store.getState().setItems([{id:'exp-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}}])" },
+    { "name": "wait-item-place", "wait": 800 },
+    { "name": "open-tools", "click": "button[aria-label=\"Tools\"]" },
+    { "name": "tools-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    {
+      "name": "verify-glb-item-present",
+      "waitFor": { "text": "Export 3D model (.glb)" },
+      "timeout": 5000,
+      "failMessage": "Export 3D model (.glb) menu item not found in Pro Tools menu"
+    },
+    { "name": "shot-tools-menu", "screenshot": "01-tools-3d-export-items" },
+    { "name": "close-menu", "key": "Escape" },
+    {
+      "name": "run-glb-export",
+      "eval": "import('/src/ui/openSceneExport.ts').then(m => m.exportScene3d('glb'))",
+      "timeout": 30000
+    },
+    {
+      "name": "verify-export-success-toast",
+      "waitFor": { "text": "3D model saved" },
+      "timeout": 20000,
+      "failMessage": "Export pipeline did not fire the success toast (live scene -> buildExportRoot -> GLTFExporter)"
+    },
+    { "name": "shot-export-success", "screenshot": "02-export-success-toast" },
+    {
+      "name": "run-stl-export",
+      "eval": "import('/src/ui/openSceneExport.ts').then(m => m.exportScene3d('stl'))",
+      "timeout": 30000
+    },
+    {
+      "name": "verify-stl-success-toast",
+      "waitFor": { "text": "3D model saved" },
+      "timeout": 20000,
+      "failMessage": "STL export pipeline did not fire the success toast (STLExporter)"
+    },
+    {
+      "name": "build-usdz-bytes",
+      "eval": "(async () => { const root = (await import('/src/scene/sceneExportAccess.ts')).getSceneRoot(); const { buildExportRoot } = await import('/src/export/sceneGltf.ts'); const er = buildExportRoot(root); const { exportSceneUsdz } = await import('/src/export/sceneUsdz.ts'); const bytes = await exportSceneUsdz(er); window.__usdzBytes = bytes.byteLength; })()",
+      "timeout": 30000
+    },
+    {
+      "name": "verify-usdz-produced",
+      "waitFor": { "store": "window.__usdzBytes > 0" },
+      "timeout": 5000,
+      "failMessage": "USDZ export (AR) produced no bytes"
+    }
+  ]
+}

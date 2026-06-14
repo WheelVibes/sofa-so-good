@@ -1,0 +1,103 @@
+# .claudeignore — paths Claude Code should NOT parse during general coding tasks.
+# Goal: cut token noise. These are generated, vendored, binary, or large-asset
+# paths that almost never need reading to make a code change. (Source, tests,
+# config, and docs are deliberately NOT ignored.)
+
+# ── Dependencies / vendor ────────────────────────────────────────────────────
+node_modules/
+**/node_modules/
+
+# ── Lockfiles (huge, never hand-edited) ──────────────────────────────────────
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+
+# ── Build / dist targets ─────────────────────────────────────────────────────
+dist/
+dist-ssr/
+build/
+**/.vite/
+*.tsbuildinfo
+
+# ── Test / coverage / harness output ─────────────────────────────────────────
+coverage/
+.nyc_output/
+/tmp/
+playwright-report/
+test-results/
+
+# ── VitePress generated output + caches ──────────────────────────────────────
+docs/user/.vitepress/cache/
+docs/user/.vitepress/.temp/
+docs/user/.vitepress/dist/
+docs/developer/.vitepress/cache/
+docs/developer/.vitepress/.temp/
+docs/developer/.vitepress/dist/
+
+# ── 3D models / textures (binary, multi-MB; metadata lives in code/CREDITS) ──
+*.glb
+*.gltf
+*.fbx
+*.obj
+*.usdz
+*.3ds
+*.dae
+*.ktx2
+*.basis
+*.draco
+*.bin
+*.hdr
+*.exr
+
+# ── Images / raster / heavy vector assets ────────────────────────────────────
+*.png
+*.jpg
+*.jpeg
+*.webp
+*.gif
+*.tif
+*.tiff
+*.ico
+# Keep small UI/source SVGs readable, but ignore bulk asset SVGs:
+assets/screenshots/
+public/assets/
+public/basis/
+public/test-fixtures/
+
+# ── Asset pipeline caches + non-CC0 scrape corpora (never committed anyway) ──
+.asset-cache/
+.cache/
+/ikea/
+/ikea_optimized/
+public/assets/ikea/
+python/scripts/ikea_sg_3d_models/
+
+# ── Static design mockups (standalone HTML, not the React app) ───────────────
+design/
+
+# ── Fonts / archives / media ─────────────────────────────────────────────────
+*.woff
+*.woff2
+*.ttf
+*.otf
+*.zip
+*.gz
+*.mp4
+*.webm
+*.wav
+
+# ── Minified / map files ─────────────────────────────────────────────────────
+*.min.js
+*.min.css
+*.map
+
+# ── Local env / editor / OS noise ────────────────────────────────────────────
+.env
+.env.local
+*.local
+.DS_Store
+*.log
+.idea/
+.vscode/
+.claude/
+.superpowers/

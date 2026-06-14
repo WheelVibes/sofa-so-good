@@ -13,6 +13,8 @@ import { downloadPlanDxf } from '../../openDxf'
 import { openMoodboard } from '../../openMoodboard'
 import { downloadPlanSvg } from '../../openPlanSvg'
 import { openDesignReport } from '../../openReport'
+import { exportScene3d } from '../../openSceneExport'
+import { viewInAr } from '../../viewInAr'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** Tools cluster: budget, clearance checks, sun study, walkthrough, report.
@@ -150,6 +152,8 @@ export function ToolsMenu() {
   const fMoodboard = useFeature('moodboard')
   const fDxf = useFeature('dxfExport')
   const fBoq = useFeature('boq')
+  const fSceneExport = useFeature('sceneExport3d')
+  const fViewInAr = useFeature('viewInAr')
 
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
@@ -310,6 +314,42 @@ export function ToolsMenu() {
           label="Export SVG (plan)"
           sub="Vector 2D plan for any editor / print"
           onClick={() => void downloadPlanSvg()}
+        />
+      )}
+      {fSceneExport && (
+        <>
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.glb)"
+            sub="Whole furnished scene for Blender / AR / Coohom"
+            onClick={() => void exportScene3d('glb')}
+          />
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.obj)"
+            sub="Geometry-only Wavefront OBJ"
+            onClick={() => void exportScene3d('obj')}
+          />
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.stl)"
+            sub="Geometry-only STL for 3D printing / CAD"
+            onClick={() => void exportScene3d('stl')}
+          />
+          <MenuItem
+            icon="Export"
+            label="Export for AR (.usdz)"
+            sub="View in your room — iOS AR Quick Look"
+            onClick={() => void exportScene3d('usdz')}
+          />
+        </>
+      )}
+      {fViewInAr && (
+        <MenuItem
+          icon="Walkthrough"
+          label="View in your room (AR)"
+          sub="Place the design in your room — iOS AR, or an AR-ready GLB"
+          onClick={() => void viewInAr()}
         />
       )}
       {fReport && (

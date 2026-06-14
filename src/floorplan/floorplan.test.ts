@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { INTERIOR_AREA_M2 } from '../apartment/constants'
 import { buildDefaultPlan } from './defaultPlan'
 import { planLevels } from './levels'
-import { PLAN_TEMPLATES } from './templates'
+import { PLAN_TEMPLATES, templateCategoryTree } from './templates'
 import {
   type PlanRoom,
   planRoomArea,
@@ -192,6 +192,36 @@ describe('plan templates', () => {
             expect(overlap, `${tpl.id}/${level.id}: ${a.id} overlaps ${b.id}`).toBe(false)
           }
         }
+      }
+    }
+  })
+
+  it('every template (and the default plan) carries a full category', () => {
+    for (const tpl of PLAN_TEMPLATES) {
+      expect(tpl.category, `${tpl.id} missing category`).toBeDefined()
+      expect(['HDB', 'Condominium']).toContain(tpl.category?.housingType)
+      expect(tpl.category?.projectName?.length, `${tpl.id} project`).toBeGreaterThan(0)
+      expect(tpl.category?.apartmentType?.length, `${tpl.id} apt`).toBeGreaterThan(0)
+    }
+    // The default plan is HDB › Serangoon North Vista › 4-Room.
+    expect(buildDefaultPlan().category).toEqual({
+      housingType: 'HDB',
+      projectName: 'Serangoon North Vista',
+      apartmentType: '4-Room',
+    })
+  })
+
+  it('templateCategoryTree groups by housing type → project → apartment, preserving order', () => {
+    const tree = templateCategoryTree(PLAN_TEMPLATES)
+    expect([...tree.keys()]).toEqual(['HDB', 'Condominium'])
+    // The default 4-Room lives under HDB › Serangoon North Vista.
+    const serangoon = tree.get('HDB')?.get('Serangoon North Vista') ?? []
+    expect(serangoon.map((t) => t.category?.apartmentType)).toEqual(['4-Room', '5-Room'])
+    // Apartment types within a project are unique (so the 3rd dropdown is clean).
+    for (const projects of tree.values()) {
+      for (const list of projects.values()) {
+        const types = list.map((t) => t.category?.apartmentType)
+        expect(new Set(types).size).toBe(types.length)
       }
     }
   })

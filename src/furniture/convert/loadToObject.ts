@@ -7,6 +7,7 @@ import { MTLLoader } from 'three/examples/jsm/loaders/MTLLoader.js'
 import { OBJLoader } from 'three/examples/jsm/loaders/OBJLoader.js'
 import { PLYLoader } from 'three/examples/jsm/loaders/PLYLoader.js'
 import { STLLoader } from 'three/examples/jsm/loaders/STLLoader.js'
+import { TDSLoader } from 'three/examples/jsm/loaders/TDSLoader.js'
 import { USDZLoader } from 'three/examples/jsm/loaders/USDZLoader.js'
 import type { ModelFormat } from './formats'
 
@@ -86,6 +87,10 @@ export async function loadToObject(
       if (!collada?.scene) throw new Error('Collada file has no scene')
       return collada.scene
     }
+    case '3ds':
+      // Legacy 3D Studio (SweetHome3DJS Max3DSLoader parity). Sibling textures
+      // resolve through the manager like OBJ/DAE.
+      return await new TDSLoader(mgr).loadAsync(pool.entryUrl)
     case '3mf':
       return await new ThreeMFLoader(mgr).loadAsync(pool.entryUrl)
     case 'usdz':

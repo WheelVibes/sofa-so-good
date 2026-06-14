@@ -1,0 +1,90 @@
+# .clauderules — execution guardrails for sofa-so-good
+
+> **`CLAUDE.md` is the authority.** This file is a quick-reference companion: the
+> tech-stack map, where things live, and the rules most likely to be violated.
+> If anything here ever conflicts with `CLAUDE.md` or a path-scoped
+> `src/<area>/CLAUDE.md`, **those win** — fix this file to match, don't diverge.
+
+## Stack (from package.json)
+- **React 19 + TypeScript** SPA, **Three.js** via **@react-three/fiber** (R3F) +
+  **drei** / **postprocessing** / **xr**; **Zustand 5** (sliced store); **Zod 4**
+  (save schema); **Vite 8** (build), **Vitest 4** (test), **Biome 2** (format+lint).
+- Persistence: `localStorage` + **idb-keyval** (IndexedDB) for blobs. No backend —
+  everything is client-side; "server" scripts (`scraper-server`, `price-server`)
+  are dev-only sidecars.
+- Docs: **VitePress** (`docs/user/`, `docs/developer/`). Python is offline asset
+  tooling only — **not** part of the app build.
+
+## Architectural patterns
+- **Sliced Zustand store** is the single source of truth (`src/state/slices/*`,
+  one concern per slice). Read fresh state with `useStore.getState()`; push undo
+  via `pushHistory`/`pushHistoryCoalesced`. Dev handle: `window.__store`.
+- **Demand render loop** — the main `<Canvas>` is `frameloop="demand"`; nothing
+  draws unless a store change or `invalidate()` marks the scene dirty (see
+  `scene/RenderPump`). Any continuous animation MUST keep itself dirty or it
+  freezes mid-frame.
+- **Feature flags + tiers** — every user-facing feature has an entry in
+  `FEATURE_FLAGS` (`src/features/featureFlags.ts`), gated via `useFeature()` /
+  `isFeatureEnabled()` (+ `COMMAND_FLAGS` for ⌘K). Each is `tier: 'simple' | 'pro'`;
+  Simple is the default and force-hides `pro` features through `resolveFlags`.
+- **Pure geometry core** — `src/floorplan/` (+ `collision/`, `layout/`, `analysis/`,
+  `export/`) is pure, unit-tested TS with no React/three imports beyond types. UI
+  and rendering consume it; keep new geometry/logic here and testable.
+- **Plan = source of truth for the shell** — `FloorPlan` (walls/rooms/openings/
+  levels) drives both the 2D editor (`ui/floorplan/`) and the 3D shell
+  (`apartment/PlanShell` for custom plans, `apartment/Apartment` for the default).
+- **Path-scoped rules** — `src/{state,furniture,scene,ui,materials,floorplan}/`
+  each carry their own `CLAUDE.md`. **Read it before editing that subtree.**
+
+## Where things live
+| Concern | Location |
+|---|---|
+| App entry / mount | `src/App.tsx`, `src/main.tsx` |
+| State (Zustand slices) | `src/state/slices/`, persistence in `src/state/storage/`, save schema `src/state/schema.ts` |
+| 3D scene / rendering | `src/scene/` (cameras, lighting, render pump, capture, controllers) |
+| 3D apartment shell | `src/apartment/` (walls, windows, doors, skirting, `PlanShell`) |
+| Furniture catalog + meshes | `src/furniture/` (+ `src/catalog/` for packs/pricing/remote) |
+| 2D plan model (pure) | `src/floorplan/` |
+| Plan editor UI | `src/ui/floorplan/` |
+| UI / panels / toolbar / modals | `src/ui/` (DOM overlays; token CSS in `src/styles/`) |
+| Feature flags | `src/features/featureFlags.ts` |
+| Materials / textures | `src/materials/` |
+| Collision / layout / arrange | `src/collision/`, `src/layout/` |
+| Analysis (score/daylight/access) | `src/analysis/`, `src/lighting2d/`, `src/elevation/` |
+| Exports (DXF/GLB/OBJ/STL/BOQ…) | `src/export/`, plus `ui/open*.ts` DOM triggers |
+| AI features (BYO-key) | `src/ai/` |
+| Tests | co-located `*.test.ts(x)` next to the source |
+| Visual-test scenarios | `scripts/scenarios/*.json`, harness `scripts/shot.mjs` |
+| Full code map | `docs/ARCHITECTURE.md` (detailed) · `ARCHITECTURE.md` (high-level blueprint) |
+
+## Strict execution guidelines
+1. **Before editing a `src/` subtree, read its `CLAUDE.md`** if one exists, plus
+   the relevant `docs/ARCHITECTURE.md` lines. Check before you change.
+2. **No feature ships ungated.** New user-facing surface → add a `FEATURE_FLAGS`
+   entry, gate it (`useFeature`/`isFeatureEnabled`/`COMMAND_FLAGS`), pick its tier,
+   and **unit-test BOTH Simple and Pro modes**.
+3. **No hardcoded colour.** Use the CSS token vocabulary in `src/styles/`
+   (`.panel`/`.btn`/`.menu-item`/…) — never Tailwind colour utilities or hex
+   literals. Every surface must work in light + dark across all 5 themes.
+4. **Persisted fields must round-trip** through `src/state/schema.ts` (keep them
+   optional + additive; bump version + migrate only for breaking changes).
+5. **Keep geometry/logic pure + tested in `src/floorplan/` et al.** — don't import
+   React/three there beyond types; add a `*.test.ts`.
+6. **Keep docs current in the same change** (`CLAUDE.md`, `docs/ARCHITECTURE.md`,
+   path-scoped `CLAUDE.md`, `README.md`, user docs if user-facing, `CHANGELOG.md`).
+7. **Visual verification after any app change** (not docs/tests-only): run the app
+   and a `scripts/shot.mjs --scenario` run, screenshot, and review. Green
+   `tsc`+tests is NOT proof the render is right. See
+   `docs/visual-verification-playbook.md`.
+8. **Before commit:** `npm test` + `tsc` + `biome check` (pre-commit hook blocks on
+   errors). Iterate with targeted `npx vitest --run <path>`; run the full suite
+   once right before committing. One focused change per commit; log in `CHANGELOG.md`.
+9. **Do NOT hand-edit generated / vendored / binary paths** (see `.claudeignore`):
+   `package-lock.json`, `dist/`, `.vite/`, VitePress `cache`/`dist`, bundled
+   `*.glb`/textures, or the IKEA scrape corpora. Regenerate via the npm scripts.
+10. **Licensing:** bundled assets are CC0/procedural; GLB/material additions carry
+    per-item license + attribution (CC-BY shown in inspector + `CREDITS.json`).
+    Licensed/sidecar features ship **dev-only** (`devOnly` flag). Do not copy GPL
+    third-party source (e.g. SweetHome3DJS) — reimplement clean-room.
+11. **Commit/push only when asked.** Develop on the designated branch; never push
+    elsewhere without explicit permission; no PR unless requested.

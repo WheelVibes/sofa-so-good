@@ -269,7 +269,7 @@ export function UploadModelDialog({ open, onClose }: UploadModelDialogProps) {
         <div className="flex-1 overflow-y-auto px-5 py-4">
           <p className="mb-4 text-xs text-[var(--text-3)]">
             Drag in <span className="font-mono">.glb</span>/<span className="font-mono">.gltf</span>{' '}
-            or <span className="font-mono">.obj/.fbx/.stl/.ply/.dae/.3mf/.usdz</span> files (or
+            or <span className="font-mono">.obj/.fbx/.stl/.ply/.dae/.3ds/.3mf/.usdz</span> files (or
             whole folders — a folder of several model groups imports every group). Non-GLB models
             are converted to GLB and every model is optimized in your browser. Stored locally only.
           </p>
