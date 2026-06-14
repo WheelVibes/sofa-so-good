@@ -75,9 +75,10 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   category breakdown for a furnished flat + mobile) + `measure-simple.json` (measure/tape pro gate +
   tape-mode toggle + two store-injected points → a 3.00 m measured line whose drei-Html distance label
   renders + clear) + `parametric-designer-simple.json` (custom-size furniture pro gate + dialog mount +
-  live 3D preview + type switch Bookshelf→Wardrobe updates preview/controls + close). Remaining: AI
-  surfaces, GLB designer re-rung, crown-molding, livePrices, first-run re-rungs, backdrop-upload +
-  furnlight re-rungs.
+  live 3D preview + type switch Bookshelf→Wardrobe updates preview/controls + close) +
+  `saved-views-simple.json` (saved camera views: save → move → applyView restores pose + bumps nonce →
+  delete). Remaining: AI surfaces, GLB designer re-rung, crown-molding, livePrices, first-run re-rungs,
+  backdrop-upload + furnlight re-rungs.
 - [~] Q-3DEXPORT Whole-scene glTF/GLB + OBJ export — **shipped** (`sceneExport3d` flag, pro tier;
   Tools/Share/⌘K/mobile). Pure extract/filter core (`export/sceneGltf.ts`) drops editor helpers; live
   scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,

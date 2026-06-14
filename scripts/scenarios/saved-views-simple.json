@@ -1,0 +1,23 @@
+{
+  "name": "saved-views-simple",
+  "description": "IXT-SUITES: saved camera views (simple-tier). Save the current view, move the camera, apply the saved view (bumps applyViewNonce + sets pendingViewPose, forces orbit), then delete it. Store-driven (the UI lives in the View menu).",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "assert-simple-present", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.savedViews === true" }, "timeout": 5000, "failMessage": "savedViews (simple-tier) should be present in Simple mode" },
+    { "name": "pose-a", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;cam.position.set(13,7,-4);if(c){c.target.set(6.4,1.2,4.7);c.update();}cam.lookAt(6.4,1.2,4.7);})()" },
+    { "name": "settle-a", "wait": 1200 },
+    { "name": "save-view", "eval": "(()=>{window.__vid = window.__store.getState().saveCurrentView('Test View');})()" },
+    { "name": "assert-saved", "waitFor": { "store": "state.savedViews.length === 1 && state.savedViews[0].name === 'Test View'" }, "timeout": 5000, "failMessage": "saveCurrentView did not store the view" },
+    { "name": "move-camera", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;cam.position.set(-3,2,12);if(c){c.target.set(6.4,1,4.7);c.update();}cam.lookAt(6.4,1,4.7);})()" },
+    { "name": "settle-moved", "wait": 1000 },
+    { "name": "apply-view", "eval": "(()=>{window.__store.getState().applyView(window.__vid);})()" },
+    { "name": "assert-applied", "waitFor": { "store": "state.applyViewNonce >= 1 && !!state.pendingViewPose" }, "timeout": 5000, "failMessage": "applyView did not set the pending pose / bump the nonce" },
+    { "name": "settle-applied", "wait": 1800 },
+    { "name": "shot-restored", "screenshot": "saved-view-restored" },
+    { "name": "delete-view", "eval": "(()=>{window.__store.getState().deleteView(window.__vid);})()" },
+    { "name": "assert-deleted", "waitFor": { "store": "state.savedViews.length === 0" }, "timeout": 5000, "failMessage": "deleteView did not remove the saved view" }
+  ]
+}

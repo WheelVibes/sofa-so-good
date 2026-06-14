@@ -33,6 +33,14 @@ pruned from `main`; entries from C251 on (branch
   (skirting): trim renders cleanly along the floor/wall junction, no z-fighting or clipping. Skirting
   seam AO + painted-trim wear remain (TASKS RZ5).
 
+## IXT-SUITES: interaction-test ladder for saved camera views
+
+- Added `scripts/scenarios/saved-views-simple.json` (16 steps, 1 screenshot) covering saved camera views
+  (simple-tier): asserts the flag is present in Simple, saves the current view (`saveCurrentView` →
+  `savedViews.length === 1`), moves the camera away, applies the saved view (`applyView` bumps
+  `applyViewNonce` + sets `pendingViewPose`, restoring the dollhouse pose — verified visually), then
+  deletes it. Store-driven (the UI lives in the View menu). Test coverage only — no app code changed.
+
 ## IXT-SUITES: interaction-test ladder for the parametric furniture designer
 
 - Added `scripts/scenarios/parametric-designer-simple.json` (18 steps, 2 screenshots) covering the
