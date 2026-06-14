@@ -115,8 +115,8 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 - **DAE/3DS import** loaders to round out `modelUpload`.
 - Optional **REST cloud-sync** adapter (mirrors `IncrementalHomeRecorder`) behind the existing storage
   adapter seam.
-- **USDZ (AR)** export — extends Q-3DEXPORT (STL now shipped); USDZ unblocks the `PARITY-AR`
-  "view in your room" task.
+- ~~STL / USDZ export~~ **Shipped** (Q-3DEXPORT now does GLB/OBJ/STL/USDZ). Remaining AR work is just an
+  in-app `<model-viewer>`/Scene-Viewer launch surface (F22).
 
 ## 4. Notes on integration style
 Every item above is gated behind a `FEATURE_FLAGS` entry with a `simple`/`pro` tier, follows the

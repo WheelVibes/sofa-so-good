@@ -60,14 +60,15 @@ pruned from `main`; entries from C251 on (branch
   three-axis reference quaternion) + flag-gating in both modes. Browser-verified via
   `scenarios/tilt-furniture-simple.json` (flag off Simple / on Pro, tilt applied + rendered + reset).
 
-## Q-3DEXPORT: whole-scene 3D export (glTF/GLB + OBJ + STL) — SweetHome3DJS ObjWriter/glTF parity
+## Q-3DEXPORT: whole-scene 3D export (glTF/GLB + OBJ + STL + USDZ) — SweetHome3DJS ObjWriter/glTF parity
 
 - New **Export 3D model** feature (`sceneExport3d` flag, pro tier): exports the whole furnished home —
   floor, walls, ceiling, doors, windows, furniture, lights — to a binary `.glb` (material-complete),
-  geometry-only `.obj`, or `.stl` (3D printing / CAD), from Tools, the Share & export modal, the ⌘K
-  palette and the mobile sheet (all gated on both desktop + mobile). Reuses the existing
-  dynamic-imported `GLTFExporter` wrapper (`furniture/convert/toGlb.ts`); adds matching `OBJExporter`
-  (`export/sceneObj.ts`) + `STLExporter` (`export/sceneStl.ts`) wrappers.
+  geometry-only `.obj`, `.stl` (3D printing / CAD), or `.usdz` (iOS AR Quick Look — "view in your
+  room"), from Tools, the Share & export modal, the ⌘K palette and the mobile sheet (all gated on both
+  desktop + mobile). Reuses the existing dynamic-imported `GLTFExporter` wrapper
+  (`furniture/convert/toGlb.ts`); adds matching `OBJExporter` (`export/sceneObj.ts`), `STLExporter`
+  (`export/sceneStl.ts`) + `USDZExporter` (`export/sceneUsdz.ts`) wrappers.
 - Editor-only helpers never leak into the export: a pure, unit-tested extract/filter core
   (`export/sceneGltf.ts` `buildExportRoot`) drops any subtree tagged `userData.noExport` (a typed
   `noExportUserData`/`markNoExport` tagger modelled on `finishDropTarget`'s pattern, applied to the

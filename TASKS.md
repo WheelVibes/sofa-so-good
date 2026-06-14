@@ -74,10 +74,10 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,
   adds `export/sceneObj.ts`. Browser-verified via `scenarios/scene-export-simple.json` (full pipeline
   → success toast — the earlier "unverifiable headless" gap is closed by asserting in the real browser).
-  Now also exports **STL** (3D printing / CAD). **Still open:** USDZ (AR) export, and worker-streamed
-  export for very large scenes.
-- [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
-  depends on Q-3DEXPORT for the item GLB/USDZ.
+  Now also exports **STL** (3D printing / CAD) and **USDZ** (iOS AR Quick Look). **Still open:**
+  worker-streamed export for very large scenes.
+- [~] F22 [PROD] Mobile AR "view in your room": **USDZ export shipped** (Q-3DEXPORT → iOS AR Quick
+  Look). Remaining: an in-app `<model-viewer>`/Scene-Viewer launch surface (Android) wired to the GLB/USDZ.
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 

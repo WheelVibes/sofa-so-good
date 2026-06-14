@@ -334,6 +334,12 @@ export function ToolsMenu() {
             sub="Geometry-only STL for 3D printing / CAD"
             onClick={() => void exportScene3d('stl')}
           />
+          <MenuItem
+            icon="Export"
+            label="Export for AR (.usdz)"
+            sub="View in your room — iOS AR Quick Look"
+            onClick={() => void exportScene3d('usdz')}
+          />
         </>
       )}
       {fReport && (

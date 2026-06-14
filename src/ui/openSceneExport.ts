@@ -3,8 +3,9 @@ import { getSceneRoot } from '../scene/sceneExportAccess'
 import { useStore } from '../state/store'
 
 /** Whole-scene 3D export formats. GLB is binary glTF (material-complete); OBJ is
- *  geometry-only Wavefront; STL is geometry-only for 3D printing / CAD. */
-export type SceneExportFormat = 'glb' | 'obj' | 'stl'
+ *  geometry-only Wavefront; STL is geometry-only for 3D printing / CAD; USDZ is
+ *  Apple AR Quick Look ("view in your room"). */
+export type SceneExportFormat = 'glb' | 'obj' | 'stl' | 'usdz'
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
@@ -46,6 +47,13 @@ export async function exportScene3d(format: SceneExportFormat = 'glb'): Promise<
       const { exportSceneStl } = await import('../export/sceneStl')
       const text = await exportSceneStl(exportRoot)
       downloadBlob(new Blob([text], { type: 'model/stl' }), `${safe}-${stamp}.stl`)
+    } else if (format === 'usdz') {
+      const { exportSceneUsdz } = await import('../export/sceneUsdz')
+      const bytes = await exportSceneUsdz(exportRoot)
+      downloadBlob(
+        new Blob([bytes as BlobPart], { type: 'model/vnd.usdz+zip' }),
+        `${safe}-${stamp}.usdz`,
+      )
     } else {
       const { exportGlb } = await import('../furniture/convert/toGlb')
       const buffer = await exportGlb(exportRoot)

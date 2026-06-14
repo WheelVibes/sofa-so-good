@@ -54,6 +54,17 @@
       "waitFor": { "text": "3D model saved" },
       "timeout": 20000,
       "failMessage": "STL export pipeline did not fire the success toast (STLExporter)"
+    },
+    {
+      "name": "build-usdz-bytes",
+      "eval": "(async () => { const root = (await import('/src/scene/sceneExportAccess.ts')).getSceneRoot(); const { buildExportRoot } = await import('/src/export/sceneGltf.ts'); const er = buildExportRoot(root); const { exportSceneUsdz } = await import('/src/export/sceneUsdz.ts'); const bytes = await exportSceneUsdz(er); window.__usdzBytes = bytes.byteLength; })()",
+      "timeout": 30000
+    },
+    {
+      "name": "verify-usdz-produced",
+      "waitFor": { "store": "window.__usdzBytes > 0" },
+      "timeout": 5000,
+      "failMessage": "USDZ export (AR) produced no bytes"
     }
   ]
 }

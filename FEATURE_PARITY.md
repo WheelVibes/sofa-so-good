@@ -67,7 +67,7 @@ layout)** · **drawing-set sheet/layer toggles (choose which sheets to include)*
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
 | AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
 | AI matting / background removal | ❌ | ✅ | WASM segmentation (MODNet/rembg-wasm) for product cutouts. | M |
-| AR "view in your room" | ❌ | ✅ | `<model-viewer>`/WebXR Quick Look + Scene Viewer on a GLB export (F22 in TASKS). | M |
+| AR "view in your room" | ◑ | ✅ | **USDZ export shipped** (iOS AR Quick Look, `sceneExport3d`); remaining: an in-app `<model-viewer>`/Scene-Viewer launch surface for Android (F22). | M |
 | Massive hosted model library (60k–1M+) | ◑ | ☁️ | Can't match scale without a CDN; lean on procedural + curated CC0 + upload. | L |
 | Branded/manufacturer catalogs | ❌ | 📜 | Licensed vendor catalogs need deals + backend. | L |
 | Cloud accounts / real-time multi-user collab / teams / white-label | ❌ | ☁️ | Backend/CRDT; out of our client-side scope. | L |
