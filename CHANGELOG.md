@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RZ3/PHOTO-BEVELS: beveled edges on Bookshelf + Wardrobe carcasses
+
+- The Bookshelf (plinth, side panels, shelves, cabinet doors) and Wardrobe (closed body, hinged door
+  panels, sliding aluminium frame + laminate inserts, open-carcass sides/top/bottom) now build from
+  the shared `BeveledBox` helper instead of hard `boxGeometry` slabs, so their edges carry a tiny
+  auto-clamped chamfer (≤7 mm, detail-scaled smoothness) that catches a highlight instead of reading as
+  flat cardboard — matching the case goods already converted (Sideboard/Dresser/Nightstand/…).
+- The chamfer is clamped by `safeBevelRadius` (≤40 % of the thinnest side) so thin panels never
+  self-intersect; footprints/joins are visually unchanged. Browser-verified
+  (`scripts/scenarios/case-good-bevels.json`): the wardrobe renders fully intact (doors + handles
+  aligned, no clipping/z-fighting); edge light-catch itself is real-GPU-pending (flat tier has no
+  specular). Cabinet modules + appliances remain (see TASKS RZ3).
+
 ## PARITY-SEARCH: synonym-aware catalog search across every source
 
 - Catalog search now expands the query through a curated **synonym dictionary** (`couch`→sofa,

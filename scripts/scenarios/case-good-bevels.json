@@ -1,0 +1,14 @@
+{
+  "name": "case-good-bevels",
+  "description": "RZ3/PHOTO-BEVELS: verify beveled Bookshelf + Wardrobe carcasses render intact (shelves/books/doors aligned, no self-intersection or clipping) from a clean 3/4 view.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "place-items", "eval": "window.__store.getState().setItems([{id:'bk',defId:'bookshelf',position:[8.0,2.4],rotation:3.1416,props:{}},{id:'wr',defId:'wardrobe-3door',position:[9.8,2.4],rotation:3.1416,props:{}}])" },
+    { "name": "camera-3q", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;cam.position.set(11.6,1.9,0.2);if(c){c.target.set(8.9,1.0,2.4);c.update();}cam.lookAt(8.9,1.0,2.4);})()" },
+    { "name": "settle", "wait": 2800 },
+    { "name": "shot", "screenshot": "case-good-bevels" }
+  ]
+}

@@ -197,8 +197,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   High+ (real-GPU verify).
 - [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables/desk +
   freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
-  Nightstand). Remaining: panel/shelf-built units (Bookshelf/Wardrobe/cabinet modules) + appliances;
-  edge light-catch real-GPU-pending.
+  Nightstand) + Bookshelf/Wardrobe carcasses (sides/shelves/plinth/doors + sliding panels). Remaining:
+  cabinet modules (CabinetModule/ShoeCabinet/WallCabinet/CabinetCorner) + appliances; edge light-catch
+  real-GPU-pending.
 - [ ] RZ5: skirting/baseboard seam AO + painted-trim wear (close-up/walk realism).
 - [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.
 - [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
