@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES: interaction-test ladder for clearance checks
+
+- Added `scripts/scenarios/clearance-checks-simple.json` (21 steps, 3 screenshots) covering the
+  `clearanceChecks` pro feature: asserts it's hidden in Simple mode and present in Pro
+  (`state.featureFlags.clearanceChecks`), opens the panel (`#clearancePanel`, "Clearance checks /
+  HDB 90 cm walkways" with the blocking/overlap/in-wall/walkway/clear summary + per-issue fix hints),
+  toggles the in-scene clearance overlay (`clearanceOn`), checks the mobile bottom-sheet at 390×844,
+  closes the panel, and confirms it's hidden again back in Simple. No app code changed — test coverage
+  only (IXT-SUITES backlog).
+
 ## Catalog search: plural queries now match singular names
 
 - Fixed a search gap where a plural query returned no results: the fuzzy matcher is a subsequence test,
