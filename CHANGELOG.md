@@ -33,6 +33,14 @@ pruned from `main`; entries from C251 on (branch
   (skirting): trim renders cleanly along the floor/wall junction, no z-fighting or clipping. Skirting
   seam AO + painted-trim wear remain (TASKS RZ5).
 
+## IXT-SUITES: interaction-test ladder for the measure / tape tool
+
+- Added `scripts/scenarios/measure-simple.json` (18 steps, 1 screenshot) covering the `measure` pro
+  feature: asserts hidden in Simple / present in Pro, toggles tape mode, injects two points via the
+  `addTapePoint` store action (sidestepping the headless canvas-raycast limit), and verifies a 3.00 m
+  measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
+  clears the points. Test coverage only — no app code changed.
+
 ## QOL: catalog search clear (×) button
 
 - The catalog search field now shows a **clear (×) button** while a query is typed (reusing the themed

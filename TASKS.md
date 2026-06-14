@@ -72,9 +72,10 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   flat" populates an empty flat + closes; mobile leg) + `room-editor-simple.json` (enter isolates a
   room + mounts the editing catalog, placed item persists, exit unmounts the catalog; mobile
   bottom-sheet) + `design-score-simple.json` (designScore pro gate + panel mount with grade dial +
-  category breakdown for a furnished flat + mobile). Remaining: measure, AI surfaces, GLB
-  designer/parametric re-rungs, crown-molding, livePrices, first-run re-rungs, backdrop-upload +
-  furnlight re-rungs.
+  category breakdown for a furnished flat + mobile) + `measure-simple.json` (measure/tape pro gate +
+  tape-mode toggle + two store-injected points → a 3.00 m measured line whose drei-Html distance label
+  renders + clear). Remaining: AI surfaces, GLB designer/parametric re-rungs, crown-molding, livePrices,
+  first-run re-rungs, backdrop-upload + furnlight re-rungs.
 - [~] Q-3DEXPORT Whole-scene glTF/GLB + OBJ export — **shipped** (`sceneExport3d` flag, pro tier;
   Tools/Share/⌘K/mobile). Pure extract/filter core (`export/sceneGltf.ts`) drops editor helpers; live
   scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,
