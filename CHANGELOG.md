@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Catalog search: plural queries now match singular names
+
+- Fixed a search gap where a plural query returned no results: the fuzzy matcher is a subsequence test,
+  so "sofas" scored 0 against "Sofa" (the trailing plural char broke the run) — typing "sofas",
+  "chairs", "tables", etc. surfaced nothing. `fuzzySearchSmart` now also scores a **singularised** form
+  of the query (strip trailing `s`/`es`) at full weight, and expands synonyms of the singular too
+  ("couches" → Sofa). New `singularize` helper + 3 unit tests; browser-verified ("sofas" ranks the
+  sofas first). Builds on PARITY-SEARCH.
+
 ## RZ2 tail: custom-plan window glass sky-catch (daylight day/night look)
 
 - Custom/edited-plan windows (`PlanShell` `FadeWindow`) now match the fixed apartment's glass: a clear,

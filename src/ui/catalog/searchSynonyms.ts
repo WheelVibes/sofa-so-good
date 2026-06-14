@@ -81,10 +81,24 @@ export function expandQuery(query: string): string[] {
 const SYNONYM_DISCOUNT = 0.7
 
 /**
+ * The query plus a singularised form, so a plural query ("sofas", "chairs",
+ * "boxes") still matches a singular catalog name ("Sofa"). The fuzzy matcher is
+ * a subsequence test, so a trailing plural suffix on the query (chars NOT in the
+ * shorter name) otherwise drops the score to 0 — these forms restore the match.
+ * Returned forms are all treated as the user's literal intent (full weight).
+ */
+export function singularize(q: string): string[] {
+  const out = [q]
+  if (q.length > 4 && q.endsWith('es')) out.push(q.slice(0, -2))
+  if (q.length > 3 && q.endsWith('s')) out.push(q.slice(0, -1))
+  return out
+}
+
+/**
  * Synonym-aware fuzzy search. Scores each item's text fields against the query
- * AND its synonym variants (variants discounted), keeps the best, and returns
- * matches sorted best-first (stable for ties). Empty query → all items in order.
- * Drop-in replacement for `fuzzySearch` for catalog-style item lists.
+ * (and a singularised form) at full weight PLUS synonym variants (discounted),
+ * keeps the best, and returns matches sorted best-first (stable for ties). Empty
+ * query → all items in order. Drop-in replacement for `fuzzySearch`.
  */
 export function fuzzySearchSmart<T>(
   query: string,
@@ -94,16 +108,23 @@ export function fuzzySearchSmart<T>(
   const q = query.trim()
   if (q.length === 0) return [...items]
   const original = q.toLowerCase()
-  const variants = expandQuery(q)
+  // Literal forms (full weight): the query + its singular(s).
+  const literals = new Set(singularize(original))
+  // Synonym forms (discounted): synonyms of each literal form, minus the literals.
+  const synonyms = new Set<string>()
+  for (const lit of literals) {
+    for (const v of expandQuery(lit)) {
+      if (!literals.has(v)) synonyms.add(v)
+    }
+  }
   const scored: { item: T; score: number; idx: number }[] = []
   items.forEach((item, idx) => {
     let best = 0
     for (const field of getText(item)) {
-      for (const v of variants) {
+      for (const v of literals) best = Math.max(best, fuzzyScore(v, field))
+      for (const v of synonyms) {
         const raw = fuzzyScore(v, field)
-        if (raw <= 0) continue
-        const s = v === original ? raw : raw * SYNONYM_DISCOUNT
-        if (s > best) best = s
+        if (raw > 0) best = Math.max(best, raw * SYNONYM_DISCOUNT)
       }
     }
     if (best > 0) scored.push({ item, score: best, idx })

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { expandQuery, fuzzySearchSmart } from './searchSynonyms'
+import { expandQuery, fuzzySearchSmart, singularize } from './searchSynonyms'
 
 describe('expandQuery', () => {
   it('returns the original (lower-cased) first and includes synonyms', () => {
@@ -65,5 +65,25 @@ describe('fuzzySearchSmart', () => {
     const items: Item[] = [{ name: 'Sofa' }, { name: 'Refrigerator' }]
     const hits = fuzzySearchSmart('fridge', items, text)
     expect(hits.map((i) => i.name)).toEqual(['Refrigerator'])
+  })
+
+  it('matches a plural query against a singular catalog name', () => {
+    const items: Item[] = [{ name: 'Sofa' }, { name: 'Chair' }, { name: 'Table' }]
+    expect(fuzzySearchSmart('sofas', items, text)[0]?.name).toBe('Sofa')
+    expect(fuzzySearchSmart('chairs', items, text)[0]?.name).toBe('Chair')
+    expect(fuzzySearchSmart('tables', items, text)[0]?.name).toBe('Table')
+  })
+
+  it('matches a plural SYNONYM query ("couches" → Sofa)', () => {
+    const items: Item[] = [{ name: 'Sofa' }, { name: 'Desk' }]
+    expect(fuzzySearchSmart('couches', items, text)[0]?.name).toBe('Sofa')
+  })
+})
+
+describe('singularize', () => {
+  it('adds a singular form for regular plurals, leaves others intact', () => {
+    expect(singularize('sofas')).toContain('sofa')
+    expect(singularize('boxes')).toContain('box')
+    expect(singularize('chair')).toEqual(['chair'])
   })
 })
