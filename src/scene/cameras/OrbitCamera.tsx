@@ -236,7 +236,8 @@ export function OrbitCamera() {
             lighting: f,
           })),
           t: 0,
-          rate: 1 / VIEW_TOUR_LEG_SECONDS,
+          // Pace is user-controllable (video duration); fall back to the default.
+          rate: 1 / (useStore.getState().viewTourLegSeconds || VIEW_TOUR_LEG_SECONDS),
           lastLeg: -1,
         }
       }

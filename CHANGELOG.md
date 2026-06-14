@@ -14,6 +14,18 @@ pruned from `main`; entries from C251 on (branch
   textures resolve through the loading manager like OBJ/DAE), and the upload dialog's format hint.
   Format detection unit-tested; sibling-resolution path shared with the other converters.
 
+## PARITY-VIDEO: keyframed walkthrough-video export — Coohom/SweetHome3DJS parity
+
+- New **"Record walkthrough video"** (View → Saved views, under the `walkthrough` flag): flies the
+  saved-views cinematic tour while recording, and downloads a `.webm` when the tour ends. Reuses the
+  whole existing path — the saved-views tour (OrbitCamera), `RecordController`'s canvas-stream
+  MediaRecorder, and its auto-stop-on-tour-end download — so the only new code is `ui/recordViewTour.ts`
+  (coordinates pace + record + tour start) and a user-controllable pace: `viewTourLegSeconds` on the
+  camera slice (the tour's per-leg duration is now store-driven, not a constant), set from a requested
+  total duration (~5 s per view).
+- Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
+  `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
+
 ## PARITY-SLOPECEIL: sloped (pitched) ceilings — SweetHome3DJS parity
 
 - New `sloped` `CeilingConfig` style (under the existing `ceilingDesign` flag): a per-room pitched

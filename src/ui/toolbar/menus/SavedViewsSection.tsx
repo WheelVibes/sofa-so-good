@@ -1,7 +1,9 @@
 import { useFeature } from '../../../features/useFeature'
+import { canRecord } from '../../../scene/RecordController'
 import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { PresentationSetup } from '../../presentation/PresentationSetup'
+import { recordViewTour } from '../../recordViewTour'
 import { Icon } from '../icons'
 import { MenuItem } from '../ToolbarMenu'
 
@@ -25,6 +27,7 @@ export function SavedViewsSection() {
   const setPresenting = useStore((s) => s.setPresenting)
   const presentationOn = useFeature('presentation')
   const panoTourOn = useFeature('panoTour')
+  const walkthroughOn = useFeature('walkthrough')
 
   const editNote = async (id: string, current: string) => {
     const note = await useStore.getState().promptText({
@@ -83,8 +86,16 @@ export function SavedViewsSection() {
         <MenuItem
           icon="Walkthrough"
           label="Cinematic tour"
-          sub="Fly through your saved views (record via File → Record clip)"
+          sub="Fly through your saved views (no recording)"
           onClick={() => useStore.getState().setTouring('views')}
+        />
+      ) : null}
+      {savedViews.length > 1 && walkthroughOn && canRecord() ? (
+        <MenuItem
+          icon="Record"
+          label="Record walkthrough video"
+          sub="Fly the saved-views tour and download a .webm (~5s per view)"
+          onClick={() => recordViewTour(5 * (savedViews.length - 1))}
         />
       ) : null}
       {savedViews.map((v) => (

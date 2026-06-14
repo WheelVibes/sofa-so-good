@@ -25,6 +25,9 @@ export interface CameraSlice {
   /** Auto-tour state: false, the room fly-over, or the saved-views cinematic
    *  tour. Truthy checks keep working (RenderPump renders continuously). */
   touring: false | 'rooms' | 'views'
+  /** Seconds per leg for the saved-views cinematic tour (video pace control). */
+  viewTourLegSeconds: number
+  setViewTourLegSeconds: (s: number) => void
   setCameraMode: (m: CameraMode) => void
   requestTopView: () => void
   requestHomeView: () => void
@@ -54,6 +57,7 @@ export const CAMERA_INITIAL: Pick<
   | 'focusNonce'
   | 'focusPoint'
   | 'touring'
+  | 'viewTourLegSeconds'
   | 'walkFov'
   | 'walkEyeHeight'
 > = {
@@ -61,6 +65,7 @@ export const CAMERA_INITIAL: Pick<
   topViewNonce: 0,
   homeViewNonce: 0,
   autoRotate: false,
+  viewTourLegSeconds: 3.5,
   viewLevelId: 'all',
   focusNonce: 0,
   focusPoint: null,
@@ -86,6 +91,7 @@ export const createCameraSlice: SliceCreator<CameraSlice, RootState> = (set, get
   setViewLevel: (viewLevelId) => set({ viewLevelId }),
   focusOn: (point) => set((s) => ({ focusPoint: point, focusNonce: s.focusNonce + 1 })),
   setTouring: (v) => set({ touring: v === true ? 'rooms' : v }),
+  setViewTourLegSeconds: (s) => set({ viewTourLegSeconds: Math.max(0.5, Math.min(12, s)) }),
   setWalkFov: (deg) => set({ walkFov: clampWalkFov(deg) }),
   setWalkEyeHeight: (m) => set({ walkEyeHeight: clampWalkEyeHeight(m) }),
 })

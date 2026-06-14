@@ -62,7 +62,7 @@ layout)** · **drawing-set sheet/layer toggles (choose which sheets to include)*
 | Fast rasterized "preview render" tier | ◑ | ✅ | A high-quality single-frame raster capture as the local analog to cloud 10-s render. | M |
 | IES photometric light import | ❌ | ✅ | Parse `.ies` into spotlight intensity distribution in `scene/lighting`. | M |
 | Quotation **editable templates** + price-rule library | ◑ | ✅ | BOQ + CSV + **XLSX** ship; add user-editable quote templates + a configurable price-rule library. | M |
-| Walkthrough/flythrough **video** export (keyframed camera path → MP4/WebM) | ◑ | ✅ | Turntable WebM recording ships; add a keyframed camera path over saved views + `MediaRecorder`/WebCodecs capture. | L |
+| Walkthrough/flythrough **video** export (keyframed camera path → MP4/WebM) | ✅ | ✅ | **Shipped (PARITY-VIDEO)** — "Record walkthrough video" records the saved-views cinematic tour to .webm with a user-set pace (`recordViewTour` + RecordController). | L |
 | Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path. | M |
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
 | AI plan recognition: auto-detect doors/windows + scale | ◑ | 🔑 | Extend the existing BYO-key AI wall tracing to openings + scale calibration. | M |
@@ -112,7 +112,7 @@ room-name labels**.
 | **Batch render** all saved cameras | ◑ | ✅ | "Render all saved views" loop over the render pipeline (saved-views menu exists; the batch loop doesn't). | S |
 | **Fisheye / DoF** lens options on render | ◑ | ✅ | Add lens-type + DoF controls to the render camera (DoF partly exists in HQ). | M |
 | Keyboard wall-length entry while drawing | ◑ | ✅ | Live numeric length/angle entry during wall draw. | M |
-| **Video flythrough** export (keyframed camera path → file) | ◑ | ✅ | Turntable WebM recording ships; add the keyframed camera-path + canvas-capture pipeline (shared with the Coohom video gap). | L |
+| **Video flythrough** export (keyframed camera path → file) | ✅ | ✅ | **Shipped (PARITY-VIDEO)** — saved-views cinematic tour recorded to .webm. | L |
 | Export 3D scene to OBJ / glTF / STL | ✅ | ✅ | **glTF/GLB + OBJ + STL shipped** (`sceneExport3d`, Q-3DEXPORT) — `export/sceneGltf.ts` + `convert/toGlb.ts` / `export/sceneObj.ts` / `export/sceneStl.ts`, in Tools/Share/⌘K/mobile. | M |
 | Import SH3D / SH3F libraries | ❌ | ✅ | Parse the SH3D/SH3F zip (XML + models) into our model; conversion only. | L |
 | Multi-language UI (20+) | ❌ | ✅ | i18n framework + translations; large, pure-client, low near-term value for HDB focus. | L |

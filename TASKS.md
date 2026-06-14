@@ -162,6 +162,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [~] PARITY-SLOPECEIL: sloped (pitched) ceiling **shipped** — `sloped` `CeilingConfig` style
   (`slope:{axis,rise}`) in `ceilingModel.ts` `CeilingSlope` + `RoomCeiling` tilted plane; per-room
   picker (under `ceilingDesign`). Pairs with PARITY-SLOPEWALL for a shed roof.
+- [~] PARITY-VIDEO: keyframed walkthrough-video export **shipped** — "Record walkthrough video" records
+  the saved-views cinematic tour to a `.webm` (`ui/recordViewTour.ts` + RecordController), pace via
+  `cameraSlice.viewTourLegSeconds` (`walkthrough` flag). Follow-up: an MP4 transcode + a duration modal.
 - [~] PARITY-AILAYOUT: **engine + collision-aware placement shipped** — `ai/autoLayoutAi.ts` (prompt +
   tolerant parse + BYO-key call) + `layout/aiLayoutApply.ts` (validate/clamp into rooms +
   `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure

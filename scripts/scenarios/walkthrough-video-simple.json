@@ -1,0 +1,35 @@
+{
+  "name": "walkthrough-video-simple",
+  "description": "Simple ladder for keyframed walkthrough-video export. Saves two camera views, triggers recordViewTour, and asserts the saved-views cinematic tour starts (touring='views') with the user-set pace — the recording rides the proven RecordController path and auto-downloads at tour end.",
+  "url": "http://localhost:5239/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "wait-camera", "wait": 800 },
+    { "name": "save-two-views", "eval": "(() => { const st = window.__store.getState(); st.saveCurrentView('A'); st.requestTopView?.(); st.saveCurrentView('B'); })()" },
+    {
+      "name": "verify-two-views",
+      "waitFor": { "store": "state.savedViews.length >= 2" },
+      "timeout": 5000,
+      "failMessage": "expected at least two saved views"
+    },
+    { "name": "record-walkthrough", "eval": "import('/src/ui/recordViewTour.ts').then(m => m.recordViewTour(8))" },
+    {
+      "name": "verify-tour-started",
+      "waitFor": { "store": "state.touring === 'views'" },
+      "timeout": 5000,
+      "failMessage": "recordViewTour did not start the saved-views cinematic tour"
+    },
+    {
+      "name": "verify-pace-set",
+      "waitFor": { "store": "Math.abs(state.viewTourLegSeconds - 8 / (state.savedViews.length - 1)) < 0.01" },
+      "timeout": 5000,
+      "failMessage": "view-tour pace (viewTourLegSeconds) was not set from the requested total duration"
+    },
+    { "name": "shot-touring", "screenshot": "01-recording-tour" },
+    { "name": "stop", "eval": "(() => { const st = window.__store.getState(); st.setTouring(false); st.setRecording(false); })()" }
+  ]
+}

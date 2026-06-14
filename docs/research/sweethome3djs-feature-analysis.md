@@ -68,7 +68,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | Import custom 3D models | ✅ | `modelUpload` auto-converts to GLB and **exceeds** SweetHome3DJS's set: GLB/glTF, OBJ, FBX, STL, PLY, DAE/Collada, **3DS** (added — `TDSLoader`, Max3DSLoader parity), 3MF, USDZ. |
 | Per-model material/texture editing | ✅ | finishes DLC + `finishOverrides`, drag-to-apply, PBR surfaces. |
 | Photoreal render + sunlight time-of-day | ✅ | render presets + `hqRender` path-tracer + day/night. |
-| **Video** (keyframed camera-path → file) | 🟡 | turntable WebM recording ships; no keyframed camera-path video. |
+| **Video** (keyframed camera-path → file) | ✅ | **shipped — PARITY-VIDEO**: "Record walkthrough video" flies the saved-views cinematic tour while recording → downloads a `.webm` (`recordViewTour` + the existing RecordController); user-set pace via `viewTourLegSeconds`. |
 | Lights (fixtures) | ✅ | `FurnitureLights`, `itemAsLight`, lux overlay. |
 | Furniture multi-axis rotation (**pitch/roll**) | ✅ | **shipped — PARITY-TILT** (`tiltFurniture`): optional `pitch`/`roll` on `FurnitureItem`, inspector sliders, `furniture/tiltRotation.ts`. |
 | Import a blueprint background to trace | 🟡 | reference backdrop + `aiWalls` plan tracing; no scaled blueprint underlay tool. |
@@ -111,7 +111,8 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 ### Phase 4 — portability/fidelity (lower priority; mostly already-strong areas)
 - Dual-format save (precompute a merged `HomeStructure.glb` alongside the JSON state for fast load — the
   `.sh3d` model; reuses the Phase-1 exporter).
-- Keyframed camera-path **video** export (shares the Coohom-video gap; builds on turntable WebM).
+- ~~Keyframed camera-path **video** export~~ **Shipped (PARITY-VIDEO)** — records the saved-views
+  cinematic tour to a `.webm` with a user-set pace.
 - **DAE/3DS import** loaders to round out `modelUpload`.
 - Optional **REST cloud-sync** adapter (mirrors `IncrementalHomeRecorder`) behind the existing storage
   adapter seam.
