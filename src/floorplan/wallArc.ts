@@ -102,6 +102,69 @@ export function wallCurveMidpoint(w: PlanWall): PlanVec2 {
   return [mx + n[0] * (w.arc ?? 0), mz + n[1] * (w.arc ?? 0)]
 }
 
+/** Total length along the curve (sum of chord-segment lengths). For a straight
+ *  wall this equals the chord length. */
+export function wallArcLength(w: PlanWall, segments = DEFAULT_SEGMENTS): number {
+  const pts = wallArcPoints(w, segments)
+  let total = 0
+  for (let i = 0; i < pts.length - 1; i++) {
+    total += Math.hypot(pts[i + 1][0] - pts[i][0], pts[i + 1][1] - pts[i][1])
+  }
+  return total
+}
+
+/** Point + tangent heading at arc-length `s` along the (possibly curved) wall.
+ *  `angle` matches the wall-box convention `atan2(dx, dz)`. Clamps to [0, len]. */
+export function pointAtArcLength(
+  w: PlanWall,
+  s: number,
+  segments = DEFAULT_SEGMENTS,
+): { x: number; z: number; angle: number } {
+  const pts = wallArcPoints(w, segments)
+  let acc = 0
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i]
+    const [bx, bz] = pts[i + 1]
+    const segLen = Math.hypot(bx - ax, bz - az) || 1e-6
+    if (s <= acc + segLen || i === pts.length - 2) {
+      const t = Math.max(0, Math.min(1, (s - acc) / segLen))
+      const dx = (bx - ax) / segLen
+      const dz = (bz - az) / segLen
+      return { x: ax + (bx - ax) * t, z: az + (bz - az) * t, angle: Math.atan2(dx, dz) }
+    }
+    acc += segLen
+  }
+  const [x, z] = pts[0]
+  return { x, z, angle: 0 }
+}
+
+/** Nearest point on the (possibly curved) wall to a world point: its arc-length
+ *  offset + perpendicular distance. Walks the chord polyline. For placing an
+ *  opening on a curve (offset is arc-length) + hit-testing the bulged span. */
+export function nearestArcLength(
+  w: PlanWall,
+  point: PlanVec2,
+  segments = DEFAULT_SEGMENTS,
+): { offset: number; dist: number } {
+  const pts = wallArcPoints(w, segments)
+  let acc = 0
+  let best = { offset: 0, dist: Infinity }
+  for (let i = 0; i < pts.length - 1; i++) {
+    const [ax, az] = pts[i]
+    const [bx, bz] = pts[i + 1]
+    const dx = bx - ax
+    const dz = bz - az
+    const segLen2 = dx * dx + dz * dz || 1e-9
+    const t = Math.max(0, Math.min(1, ((point[0] - ax) * dx + (point[1] - az) * dz) / segLen2))
+    const px = ax + dx * t
+    const pz = az + dz * t
+    const dist = Math.hypot(point[0] - px, point[1] - pz)
+    if (dist < best.dist) best = { offset: acc + Math.sqrt(segLen2) * t, dist }
+    acc += Math.sqrt(segLen2)
+  }
+  return best
+}
+
 /** Signed bulge (for the drag handle) given a dragged midpoint world point:
  *  the component of (point − chordMid) along the chord's left-normal. */
 export function arcFromMidpoint(start: PlanVec2, end: PlanVec2, point: PlanVec2): number {

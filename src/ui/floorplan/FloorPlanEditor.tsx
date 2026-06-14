@@ -32,6 +32,9 @@ import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floor
 import {
   arcFromMidpoint,
   isCurvedWall,
+  nearestArcLength,
+  pointAtArcLength,
+  wallArcLength,
   wallCurveMidpoint,
   wallSvgPath,
 } from '../../floorplan/wallArc'
@@ -529,6 +532,14 @@ export function FloorPlanEditor() {
   ): { wall: PlanWall; offset: number; dist: number } | null => {
     let best: { wall: PlanWall; offset: number; dist: number } | null = null
     for (const wall of levelPlan.walls) {
+      // Curved walls: measure against the arc (distance + arc-length offset) so a
+      // click on the bulged span is detected and the opening lands at the right
+      // arc position; straight walls use the chord projection.
+      if (isCurvedWall(wall)) {
+        const { offset, dist } = nearestArcLength(wall, [wx, wz])
+        if (!best || dist < best.dist) best = { wall, offset, dist }
+        continue
+      }
       const dx = wall.end[0] - wall.start[0]
       const dz = wall.end[1] - wall.start[1]
       const len = Math.hypot(dx, dz)
@@ -599,16 +610,18 @@ export function FloorPlanEditor() {
       }
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
-      if (hit && (isCurvedWall(hit.wall) || isSlopedWall(hit.wall))) {
-        // Curved + sloped walls don't host openings in this version.
+      if (hit && isSlopedWall(hit.wall)) {
+        // Sloped walls are a solid prism — they can't host openings.
         st.notify.start({
-          title: 'Curved or sloped walls can’t have doors or windows yet',
+          title: 'Sloped walls can’t have doors or windows yet',
           kind: 'info',
           autoDismissMs: 3000,
         })
       } else if (hit) {
         const width = tool === 'door' ? 0.9 : 1.2
-        const offset = Math.max(0, Math.min(wallLength(hit.wall) - width, hit.offset - width / 2))
+        // Offsets are arc-length on a curved wall, chord length on a straight one.
+        const wlen = isCurvedWall(hit.wall) ? wallArcLength(hit.wall) : wallLength(hit.wall)
+        const offset = Math.max(0, Math.min(wlen - width, hit.offset - width / 2))
         const snapped = snap(offset)
         const id = st.addOpening(
           {
@@ -1708,10 +1721,23 @@ export function FloorPlanEditor() {
                 if (!wall) return null
                 const len = wallLength(wall)
                 if (len === 0) return null
-                const ux = (wall.end[0] - wall.start[0]) / len
-                const uz = (wall.end[1] - wall.start[1]) / len
-                const mx = wall.start[0] + ux * (o.offset + o.width / 2)
-                const mz = wall.start[1] + uz * (o.offset + o.width / 2)
+                // Opening centre + wall normal — arc-aware for curved walls.
+                let ux: number
+                let uz: number
+                let mx: number
+                let mz: number
+                if (isCurvedWall(wall)) {
+                  const p = pointAtArcLength(wall, o.offset + o.width / 2)
+                  ux = Math.sin(p.angle)
+                  uz = Math.cos(p.angle)
+                  mx = p.x
+                  mz = p.z
+                } else {
+                  ux = (wall.end[0] - wall.start[0]) / len
+                  uz = (wall.end[1] - wall.start[1]) / len
+                  mx = wall.start[0] + ux * (o.offset + o.width / 2)
+                  mz = wall.start[1] + uz * (o.offset + o.width / 2)
+                }
                 // (-uz, ux) is the wall's "right" normal — a door swinging right
                 // has its arc there, so label the opposite side.
                 const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
@@ -1887,18 +1913,30 @@ export function FloorPlanEditor() {
               if (!wall) return null
               const len = wallLength(wall)
               if (len === 0) return null
-              const ux = (wall.end[0] - wall.start[0]) / len
-              const uz = (wall.end[1] - wall.start[1]) / len
-              const nx = -uz // wall normal
-              const nz = ux
-              const sPt: [number, number] = [
-                wall.start[0] + ux * o.offset,
-                wall.start[1] + uz * o.offset,
-              ]
-              const ePt: [number, number] = [
-                wall.start[0] + ux * (o.offset + o.width),
-                wall.start[1] + uz * (o.offset + o.width),
-              ]
+              // Jamb endpoints + wall normal — arc-aware for curved walls.
+              let nx: number
+              let nz: number
+              let sPt: [number, number]
+              let ePt: [number, number]
+              if (isCurvedWall(wall)) {
+                const a0 = pointAtArcLength(wall, o.offset)
+                const a1 = pointAtArcLength(wall, o.offset + o.width)
+                const m = pointAtArcLength(wall, o.offset + o.width / 2)
+                nx = -Math.cos(m.angle)
+                nz = Math.sin(m.angle)
+                sPt = [a0.x, a0.z]
+                ePt = [a1.x, a1.z]
+              } else {
+                const ux = (wall.end[0] - wall.start[0]) / len
+                const uz = (wall.end[1] - wall.start[1]) / len
+                nx = -uz
+                nz = ux
+                sPt = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
+                ePt = [
+                  wall.start[0] + ux * (o.offset + o.width),
+                  wall.start[1] + uz * (o.offset + o.width),
+                ]
+              }
               const isSel = sel?.type === 'opening' && sel.id === o.id
               const color = o.kind === 'door' ? 'var(--accent)' : 'var(--accent-soft-text)'
               const strokeW = wall.thickness === 'external' ? 7 : 4

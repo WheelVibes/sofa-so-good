@@ -13,7 +13,7 @@
 import { isSlopedWall } from './slopedWall'
 import type { FloorPlan, PlanOpening, PlanWall } from './types'
 import { pointInRoom, wallLength } from './types'
-import { isCurvedWall } from './wallArc'
+import { isCurvedWall, pointAtArcLength } from './wallArc'
 
 export type DoorHinge = 'start' | 'end'
 export type DoorSwing = 'left' | 'right'
@@ -48,23 +48,37 @@ export interface DoorSwingGeometry {
  * flag from its `hinge`/`swing` (defaulted). Returns null for a zero-length wall.
  */
 export function doorSwingGeometry(wall: PlanWall, o: PlanOpening): DoorSwingGeometry | null {
-  // Curved + sloped walls don't host openings in this version — guard so a stray
-  // opening renders nothing rather than at the wrong spot.
-  if (isCurvedWall(wall) || isSlopedWall(wall)) return null
-  const len = wallLength(wall)
-  if (len === 0) return null
-  const ux = (wall.end[0] - wall.start[0]) / len
-  const uz = (wall.end[1] - wall.start[1]) / len
+  // Sloped walls don't host openings (their geometry is a solid prism).
+  if (isSlopedWall(wall)) return null
+  // Tangent (ux,uz) + the two jamb points. On a curved wall the jambs sit on the
+  // arc (positioned by arc-length) and the tangent is taken at the opening's
+  // mid-arc; on a straight wall it's the usual linear interpolation.
+  let ux: number
+  let uz: number
+  let sPt: [number, number]
+  let ePt: [number, number]
+  if (isCurvedWall(wall)) {
+    const a = pointAtArcLength(wall, o.offset)
+    const b = pointAtArcLength(wall, o.offset + o.width)
+    const mid = pointAtArcLength(wall, o.offset + o.width / 2)
+    // angle = atan2(dx, dz) → dx = sin(angle), dz = cos(angle).
+    ux = Math.sin(mid.angle)
+    uz = Math.cos(mid.angle)
+    sPt = [a.x, a.z]
+    ePt = [b.x, b.z]
+  } else {
+    const len = wallLength(wall)
+    if (len === 0) return null
+    ux = (wall.end[0] - wall.start[0]) / len
+    uz = (wall.end[1] - wall.start[1]) / len
+    sPt = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
+    ePt = [wall.start[0] + ux * (o.offset + o.width), wall.start[1] + uz * (o.offset + o.width)]
+  }
   const sign = doorSwing(o) === 'right' ? 1 : -1
   // `+ 0` normalises a `-0` (from `-uz * sign` when uz is 0) to `0` so equality
   // checks + downstream consumers never see negative zero.
   const nx = -uz * sign + 0
   const nz = ux * sign + 0
-  const sPt: [number, number] = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
-  const ePt: [number, number] = [
-    wall.start[0] + ux * (o.offset + o.width),
-    wall.start[1] + uz * (o.offset + o.width),
-  ]
   const hingeAtStart = doorHinge(o) === 'start'
   const hinge = hingeAtStart ? sPt : ePt
   const freeJamb = hingeAtStart ? ePt : sPt

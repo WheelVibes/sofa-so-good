@@ -154,8 +154,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PARITY-VIDEO: video flythrough export (camera path → WebM/MP4 via MediaRecorder). [real-GPU verify]
 - [~] PARITY-CURVEDWALL: SH3D curved/arc walls **shipped** — `PlanWall.arc` bulge + `floorplan/wallArc.ts`
   (Bézier → chord sub-segments) reused by `wallBoxes`/`planCollisionWalls`/room detection; 2D midpoint
-  bulge handle (`curvedWalls` flag, pro). Openings disabled on curves (guarded). Follow-up: openings on
-  curved walls + a true circular arc.
+  bulge handle (`curvedWalls` flag, pro). **Openings on curves now supported** — arc-length positioned,
+  cut per-chord (wallBoxes/collision), arc-positioned door leaf + window glass, arc-aware doorSwing +
+  placement (`nearestArcLength`). Follow-up: a true circular arc vs the Bézier approximation (cosmetic).
 - [~] PARITY-SLOPEWALL: SH3D sloping (variable-height) walls **shipped** — `PlanWall.topHeightEnd` +
   `floorplan/slopedWall.ts` prism (flat-normal triangle soup), `PlanShell` `SlopedWallMesh`, inspector
   start/end height fields (`slopingWalls` flag, pro). Openings disabled on sloped walls. Pairs with a

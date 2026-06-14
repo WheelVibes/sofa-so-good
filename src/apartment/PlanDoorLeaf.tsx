@@ -3,6 +3,7 @@ import { useRef } from 'react'
 import type { Group } from 'three'
 import type { PlanOpening, PlanWall } from '../floorplan/types'
 import { wallLength } from '../floorplan/types'
+import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
 
@@ -41,22 +42,40 @@ export function PlanDoorLeaf({
   const { camera } = useThree()
 
   const len = wallLength(wall)
-  const dx = len === 0 ? 1 : (wall.end[0] - wall.start[0]) / len
-  const dz = len === 0 ? 0 : (wall.end[1] - wall.start[1]) / len
-  const angle = Math.atan2(dz, dx)
-  const midX = (wall.start[0] + wall.end[0]) / 2
-  const midZ = (wall.start[1] + wall.end[1]) / 2
-  // Door world centre (for the fade test).
   const sCentre = opening.offset + opening.width / 2
-  const doorX = wall.start[0] + dx * sCentre
-  const doorZ = wall.start[1] + dz * sCentre
-
   const hinge = opening.hinge ?? 'start'
   const swing = opening.swing ?? 'right'
   const height = Math.max(0.4, opening.head - opening.sill)
-  const hingeLocalX =
-    hinge === 'start' ? opening.offset - len / 2 : opening.offset + opening.width - len / 2
   const direction = hinge === 'start' ? 1 : -1
+
+  // Placement frame: a curved wall anchors the door at its mid-arc point + local
+  // tangent (the swing group's local X runs along the wall); a straight wall uses
+  // the wall midpoint + chord direction, with the hinge offset from that midpoint.
+  let angle: number
+  let midX: number
+  let midZ: number
+  let hingeLocalX: number
+  let doorX: number // door world centre (fade test)
+  let doorZ: number
+  if (isCurvedWall(wall)) {
+    const p = pointAtArcLength(wall, sCentre) // angle = atan2(dx, dz)
+    midX = p.x
+    midZ = p.z
+    angle = Math.atan2(Math.cos(p.angle), Math.sin(p.angle)) // → atan2(dz, dx) convention
+    hingeLocalX = hinge === 'start' ? -opening.width / 2 : opening.width / 2
+    doorX = p.x
+    doorZ = p.z
+  } else {
+    const dx = len === 0 ? 1 : (wall.end[0] - wall.start[0]) / len
+    const dz = len === 0 ? 0 : (wall.end[1] - wall.start[1]) / len
+    angle = Math.atan2(dz, dx)
+    midX = (wall.start[0] + wall.end[0]) / 2
+    midZ = (wall.start[1] + wall.end[1]) / 2
+    hingeLocalX =
+      hinge === 'start' ? opening.offset - len / 2 : opening.offset + opening.width - len / 2
+    doorX = wall.start[0] + dx * sCentre
+    doorZ = wall.start[1] + dz * sCentre
+  }
 
   useFrame((_, dt) => {
     // Fade with the wall: hide when the wall sits between the orbit camera and

@@ -45,28 +45,53 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
   // Sloped-top wall: rendered as a prism by PlanShell (slopedWall.ts), not as a
   // box — emit no boxes here so it isn't double-drawn.
   if (isSlopedWall(wall)) return []
-  // Curved wall: render as solid full-height boxes along its chord sub-segments
-  // (curved walls carry no openings in v1, so each chord is a plain solid span).
+  // Curved wall: boxes follow the chord sub-segments. Openings (placed by
+  // arc-length offset) are cut per-chord — each chord applies the same
+  // solid/sill/header logic as a straight wall to the portion of any opening
+  // that falls within its arc-length span, so a door/window on a curve cuts
+  // cleanly across however many chords it spans.
   if (isCurvedWall(wall)) {
     const ceil = wall.topHeight ?? plan.ceilingHeight
     const t = planWallThickness(wall)
-    return wallChords(wall).flatMap((c) => {
+    const ops = openingsForWall(plan, wall.id)
+    const boxes: WallBox[] = []
+    let acc = 0 // arc-length at the chord's start
+    for (const c of wallChords(wall)) {
       const cl = wallLength(c)
-      if (cl < 1e-4) return []
+      if (cl < 1e-4) continue
       const dx = (c.end[0] - c.start[0]) / cl
       const dz = (c.end[1] - c.start[1]) / cl
-      return [
-        {
-          cx: (c.start[0] + c.end[0]) / 2,
-          cz: (c.start[1] + c.end[1]) / 2,
-          length: cl,
+      const angle = Math.atan2(dx, dz)
+      const at = (s: number): [number, number] => [c.start[0] + dx * s, c.start[1] + dz * s]
+      const push = (s0: number, s1: number, yBase: number, yTop: number) => {
+        if (s1 - s0 < 1e-4 || yTop - yBase < 1e-4) return
+        const [ax, az] = at(s0)
+        const [bx, bz] = at(s1)
+        boxes.push({
+          cx: (ax + bx) / 2,
+          cz: (az + bz) / 2,
+          length: s1 - s0,
           thickness: t,
-          height: ceil,
-          cy: ceil / 2,
-          angle: Math.atan2(dx, dz),
-        },
-      ]
-    })
+          height: yTop - yBase,
+          cy: (yBase + yTop) / 2,
+          angle,
+        })
+      }
+      let cursor = 0
+      for (const o of ops) {
+        // Opening's local span within this chord (arc-length → chord-local).
+        const s0 = Math.max(0, Math.min(cl, o.offset - acc))
+        const s1 = Math.max(s0, Math.min(cl, o.offset + o.width - acc))
+        if (s1 <= s0) continue
+        push(cursor, s0, 0, ceil)
+        if (o.kind === 'window' && o.sill > 0) push(s0, s1, 0, o.sill)
+        if (o.head < ceil) push(s0, s1, o.head, ceil)
+        cursor = Math.max(cursor, s1)
+      }
+      push(cursor, cl, 0, ceil)
+      acc += cl
+    }
+    return boxes
   }
   const len = wallLength(wall)
   if (len === 0) return []
@@ -124,12 +149,42 @@ export function planCollisionWalls(
   const walls = Array.isArray(plan.walls) ? plan.walls : []
   const openings = Array.isArray(plan.openings) ? plan.openings : []
   for (const wall of walls) {
-    // Curved wall: emit a straight collision segment per chord (no openings).
+    // Curved wall: a straight collision segment per chord, with gaps where an
+    // OPEN door's arc-length span falls within the chord (mirrors the straight path).
     if (isCurvedWall(wall)) {
       const thickness = planWallThickness(wall)
+      const openDoors = openings.filter(
+        (o) => o.wallId === wall.id && o.kind === 'door' && doorState[o.id]?.open,
+      )
+      let acc = 0
       for (const c of wallChords(wall)) {
-        if (wallLength(c) < 1e-4) continue
-        segs.push({ ax: c.start[0], az: c.start[1], bx: c.end[0], bz: c.end[1], thickness })
+        const cl = wallLength(c)
+        if (cl < 1e-4) continue
+        const dxc = (c.end[0] - c.start[0]) / cl
+        const dzc = (c.end[1] - c.start[1]) / cl
+        const atc = (s: number): [number, number] => [c.start[0] + dxc * s, c.start[1] + dzc * s]
+        const gaps = openDoors
+          .map((o) => ({
+            start: Math.max(0, Math.min(cl, o.offset - acc)),
+            end: Math.max(0, Math.min(cl, o.offset + o.width - acc)),
+          }))
+          .filter((g) => g.end > g.start)
+          .sort((a, b) => a.start - b.start)
+        let cur = 0
+        for (const g of gaps) {
+          if (g.start > cur) {
+            const [ax, az] = atc(cur)
+            const [bx, bz] = atc(g.start)
+            segs.push({ ax, az, bx, bz, thickness })
+          }
+          cur = Math.max(cur, g.end)
+        }
+        if (cur < cl) {
+          const [ax, az] = atc(cur)
+          const [bx, bz] = atc(cl)
+          segs.push({ ax, az, bx, bz, thickness })
+        }
+        acc += cl
       }
       continue
     }

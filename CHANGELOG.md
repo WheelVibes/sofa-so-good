@@ -37,6 +37,19 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## PARITY-CURVEDWALL (v2): doors + windows on curved walls
+
+- Curved walls now host **openings** (previously a flat v1 limitation). Openings are positioned by
+  **arc-length** and cut **per-chord**: `wallBoxes`/`planCollisionWalls` map each opening's arc-length
+  span onto the chord sub-segments and apply the usual solid/sill/header (and open-door collision-gap)
+  logic, so a door/window cuts cleanly across however many chords it spans. New `wallArc.ts` helpers —
+  `pointAtArcLength` (point + tangent), `wallArcLength`, `nearestArcLength` (arc hit-test + offset).
+- `doorSwingGeometry`, the 3D window glass + `PlanDoorLeaf`, the 2D opening symbols/labels, and the
+  editor's door/window placement (`nearestWall`) are all arc-aware now (jambs on the arc, normal from
+  the local tangent). Sloped walls still don't host openings (solid prism). Browser-verified via
+  `scenarios/curved-wall-opening.json` (a window cut into a bowed wall renders cleanly in 3D); per-chord
+  cut + collision-gap unit-tested.
+
 ## PARITY-SLOPECEIL: sloped (pitched) ceilings — SweetHome3DJS parity
 
 - New `sloped` `CeilingConfig` style (under the existing `ceilingDesign` flag): a per-room pitched

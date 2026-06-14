@@ -13,7 +13,7 @@ import {
   planBounds,
   wallLength,
 } from '../floorplan/types'
-import { isCurvedWall } from '../floorplan/wallArc'
+import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
@@ -141,18 +141,31 @@ function PlanLevelShell({
       .filter((o) => o.kind === 'window')
       .map((o) => {
         const wall = lp.walls.find((w) => w.id === o.wallId)
-        // Curved + sloped walls don't host openings in this version.
-        if (!wall || isCurvedWall(wall) || isSlopedWall(wall)) return null
-        const len = wallLength(wall)
-        if (len === 0) return null
-        const dx = (wall.end[0] - wall.start[0]) / len
-        const dz = (wall.end[1] - wall.start[1]) / len
-        const angle = Math.atan2(dx, dz)
+        // Sloped walls (solid prism) don't host openings. Curved walls do — the
+        // glass is positioned + oriented at the opening's mid-arc point.
+        if (!wall || isSlopedWall(wall)) return null
         const s = o.offset + o.width / 2
+        let cx: number
+        let cz: number
+        let angle: number
+        if (isCurvedWall(wall)) {
+          const p = pointAtArcLength(wall, s)
+          cx = p.x
+          cz = p.z
+          angle = p.angle
+        } else {
+          const len = wallLength(wall)
+          if (len === 0) return null
+          const dx = (wall.end[0] - wall.start[0]) / len
+          const dz = (wall.end[1] - wall.start[1]) / len
+          angle = Math.atan2(dx, dz)
+          cx = wall.start[0] + dx * s
+          cz = wall.start[1] + dz * s
+        }
         return {
           id: o.id,
-          cx: wall.start[0] + dx * s,
-          cz: wall.start[1] + dz * s,
+          cx,
+          cz,
           cy: (o.sill + o.head) / 2,
           width: o.width,
           height: o.head - o.sill,
@@ -298,8 +311,9 @@ function PlanLevelShell({
         .filter((o) => o.kind === 'door')
         .map((o) => {
           const wall = lp.walls.find((w) => w.id === o.wallId)
-          // Curved + sloped walls don't host openings in this version.
-          return wall && !isCurvedWall(wall) && !isSlopedWall(wall) ? (
+          // Sloped walls (solid prism) don't host openings; curved walls do
+          // (PlanDoorLeaf reads arc-aware geometry from doorSwingGeometry).
+          return wall && !isSlopedWall(wall) ? (
             <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={cx} cz={cz} />
           ) : null
         })}
