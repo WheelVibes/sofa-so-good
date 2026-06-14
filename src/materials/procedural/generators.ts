@@ -737,6 +737,11 @@ function brickFields(base: [number, number, number], seed: number): Fields {
   const mortar = Math.max(2, Math.round(S / 110)) // joint thickness (px)
   const mortarRgb: [number, number, number] = [188, 182, 172]
   const grain = makeFbm(seed + 5, 3, 26)
+  // Aged mortar: low-freq dirt darkens the joints unevenly (RZ4, as for tile
+  // grout); fine micro fbm breaks up the brick-face roughness so the matte clay
+  // doesn't read perfectly uniform.
+  const mortarDirt = makeFbm(seed + 23, 3, 6)
+  const microRough = makeFbm(seed + 71, 3, 75)
   const hsh = (n: number) => {
     let t = (n * 2654435761) >>> 0
     t ^= t >>> 15
@@ -755,8 +760,17 @@ function brickFields(base: [number, number, number], seed: number): Fields {
       const i = y * S + x
       if (inMortar) {
         const g = grain(x / S, y / S)
-        const c = 0.92 + (g - 0.5) * 0.08
-        setPx(f, i, mortarRgb[0] * c, mortarRgb[1] * c, mortarRgb[2] * c, 0.12, 0.85)
+        const ag = 0.78 + mortarDirt(x / S, y / S) * 0.22 // uneven dirt darkening
+        const c = (0.92 + (g - 0.5) * 0.08) * ag
+        setPx(
+          f,
+          i,
+          mortarRgb[0] * c,
+          mortarRgb[1] * c,
+          mortarRgb[2] * c,
+          0.12,
+          clamp01(0.85 + (1 - ag) * 0.3),
+        )
         continue
       }
       const id = row * 53 + col * 17
@@ -768,8 +782,17 @@ function brickFields(base: [number, number, number], seed: number): Fields {
       const r = base[0] * factor * warm
       const g = base[1] * factor
       const b = base[2] * factor * (2 - warm)
-      // Bricks bulge slightly proud of the mortar; rougher than mortar.
-      setPx(f, i, r, g, b, 0.6 + speck * 0.1, clamp01(0.7 + speck * 0.15))
+      // Bricks bulge slightly proud of the mortar; rougher than mortar, with a
+      // faint micro break-up so the clay face isn't a flat matte slab.
+      setPx(
+        f,
+        i,
+        r,
+        g,
+        b,
+        0.6 + speck * 0.1,
+        clamp01(0.7 + speck * 0.15 + (microRough(x / S, y / S) - 0.5) * 0.08),
+      )
     }
   }
   return f

@@ -130,4 +130,15 @@ describe('procedural detail: grout aging + roughness micro-detail (RZ4)', () => 
       expect(vals.size, `${p} roughness reads flat`).toBeGreaterThan(8)
     }
   })
+
+  it('brick mortar joints are aged — light mortar pixels span a range of darkness', () => {
+    // Dark brick body so the light mortar (≈188 grey) is the bright cluster.
+    const { albedo } = generateProceduralRaw('mortar', 'brick', '#5a2f24', 128)
+    const mortarLum = new Set<number>()
+    for (let i = 0; i < albedo.length; i += 4) {
+      const r = albedo[i]
+      if (r > 150) mortarLum.add(r) // mortar band (dark brick face is well below)
+    }
+    expect(mortarLum.size).toBeGreaterThan(4)
+  })
 })

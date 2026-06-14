@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RZ4 extension: aged mortar + roughness micro-detail on exposed brick
+
+- Extended the RZ4 grout-aging treatment to the `brick` generator: mortar joints are now darkened
+  unevenly by a low-frequency dirt fbm (dirtier patches read slightly rougher) instead of a near-uniform
+  grey, and the brick clay face gains a faint high-frequency roughness break-up so it isn't a flat matte
+  slab. Albedo change (visible on every tier) + roughness; seamless and deterministic per cache key.
+- `generators.test.ts` asserts the mortar pixels span a range of darkness (aged). Browser-verified on a
+  `wall-brick-red` accent wall: running-bond brick with varied mortar + per-brick colour, no artifacts.
+
 ## IXT-SUITES: interaction-test ladder for the per-room editor
 
 - Added `scripts/scenarios/room-editor-simple.json` (21 steps, 3 screenshots) covering the per-room
