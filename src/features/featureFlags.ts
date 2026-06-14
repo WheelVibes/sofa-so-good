@@ -80,6 +80,7 @@ export type FeatureFlag =
   | 'tiltFurniture'
   | 'catalogModelInfo'
   | 'curvedWalls'
+  | 'slopingWalls'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -529,6 +530,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   curvedWalls: {
     label: 'Curved walls',
     description: 'Bow a wall into a curve by dragging its midpoint handle (no openings on curves)',
+    default: true,
+    tier: 'pro',
+  },
+  // Sloping (variable-height) walls (SweetHome3DJS parity): a shed/mono-pitch
+  // wall whose top ramps from a start to an end height, rendered as a prism.
+  // Pure geometry → prod-safe. A structural drawing tool → pro tier.
+  slopingWalls: {
+    label: 'Sloping walls',
+    description: 'Give a wall a sloped (shed) top — different heights at each end (no openings)',
     default: true,
     tier: 'pro',
   },

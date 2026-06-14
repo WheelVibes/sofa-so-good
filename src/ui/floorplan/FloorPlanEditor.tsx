@@ -25,6 +25,7 @@ import {
 import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
+import { isSlopedWall } from '../../floorplan/slopedWall'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
 import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
@@ -598,10 +599,10 @@ export function FloorPlanEditor() {
       }
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
-      if (hit && isCurvedWall(hit.wall)) {
-        // Curved walls don't host openings in this version (PARITY-CURVEDWALL).
+      if (hit && (isCurvedWall(hit.wall) || isSlopedWall(hit.wall))) {
+        // Curved + sloped walls don't host openings in this version.
         st.notify.start({
-          title: 'Curved walls can’t have doors or windows yet',
+          title: 'Curved or sloped walls can’t have doors or windows yet',
           kind: 'info',
           autoDismissMs: 3000,
         })

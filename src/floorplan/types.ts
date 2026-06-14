@@ -18,6 +18,11 @@ export interface PlanWall {
   thickness: 'external' | 'internal'
   /** Optional cap on solid-wall height (parapets on balconies); floor→ceiling when unset. */
   topHeight?: number
+  /** Optional top height at the wall's `end` (SweetHome3DJS sloping-wall parity):
+   *  when set, the wall top ramps linearly from `topHeight` (or ceiling) at start
+   *  to this at end — a shed/mono-pitch wall. Sloped walls render as a prism and
+   *  don't host openings in this version. */
+  topHeightEnd?: number
   /** Optional curvature (SweetHome3DJS parity): signed perpendicular bulge (m) at
    *  the wall's midpoint, measured from the straight chord. Absent/0 = straight.
    *  Curved walls are approximated as chord sub-segments for rendering/collision

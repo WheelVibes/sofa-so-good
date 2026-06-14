@@ -172,6 +172,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const a = useStore.getState()
   const isMobile = useIsMobile()
   const ceilingDesignOn = useFeature('ceilingDesign')
+  const slopingWallsOn = useFeature('slopingWalls')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -482,6 +483,36 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             step={1}
             onChange={(v) => a.updateWall(w.id, { end: endForAngle(w, v) }, levelId)}
           />
+          {slopingWallsOn ? (
+            <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Sloping top (shed / mono-pitch — no openings)
+              </div>
+              <Num
+                label="Top height @ start (m)"
+                value={w.topHeight ?? plan.ceilingHeight}
+                min={0.3}
+                onChange={(v) => a.updateWall(w.id, { topHeight: v }, levelId)}
+              />
+              <Num
+                label="Top height @ end (m)"
+                value={w.topHeightEnd ?? w.topHeight ?? plan.ceilingHeight}
+                min={0.3}
+                onChange={(v) => a.updateWall(w.id, { topHeightEnd: v }, levelId)}
+              />
+              {w.topHeightEnd !== undefined ? (
+                <button
+                  type="button"
+                  className="btn btn-soft btn-sm btn-block"
+                  onClick={() =>
+                    a.updateWall(w.id, { topHeightEnd: undefined, topHeight: undefined }, levelId)
+                  }
+                >
+                  Reset to flat top
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="row" style={{ gap: 6 }}>
             <button
               type="button"

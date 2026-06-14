@@ -4,6 +4,7 @@
  * furniture collision so both see the same shell.
  */
 import type { CollisionWall } from '../collision/walls'
+import { isSlopedWall } from './slopedWall'
 import type { FloorPlan, PlanOpening, PlanWall } from './types'
 import { wallLength } from './types'
 import { isCurvedWall, wallChords } from './wallArc'
@@ -41,6 +42,9 @@ function openingsForWall(plan: FloorPlan, wallId: string): PlanOpening[] {
  * and a header above.
  */
 export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
+  // Sloped-top wall: rendered as a prism by PlanShell (slopedWall.ts), not as a
+  // box — emit no boxes here so it isn't double-drawn.
+  if (isSlopedWall(wall)) return []
   // Curved wall: render as solid full-height boxes along its chord sub-segments
   // (curved walls carry no openings in v1, so each chord is a plain solid span).
   if (isCurvedWall(wall)) {

@@ -155,6 +155,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   (Bézier → chord sub-segments) reused by `wallBoxes`/`planCollisionWalls`/room detection; 2D midpoint
   bulge handle (`curvedWalls` flag, pro). Openings disabled on curves (guarded). Follow-up: openings on
   curved walls + a true circular arc.
+- [~] PARITY-SLOPEWALL: SH3D sloping (variable-height) walls **shipped** — `PlanWall.topHeightEnd` +
+  `floorplan/slopedWall.ts` prism (flat-normal triangle soup), `PlanShell` `SlopedWallMesh`, inspector
+  start/end height fields (`slopingWalls` flag, pro). Openings disabled on sloped walls. Pairs with a
+  sloped ceiling (PARITY-SLOPECEIL).
 - [~] PARITY-AILAYOUT: **engine + collision-aware placement shipped** — `ai/autoLayoutAi.ts` (prompt +
   tolerant parse + BYO-key call) + `layout/aiLayoutApply.ts` (validate/clamp into rooms +
   `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure

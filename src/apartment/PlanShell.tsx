@@ -1,11 +1,18 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useMemo, useRef } from 'react'
-import type { Mesh, MeshStandardMaterial } from 'three'
+import { useEffect, useMemo, useRef } from 'react'
+import { BufferAttribute, BufferGeometry, type Mesh, type MeshStandardMaterial } from 'three'
 import { useFeature } from '../features/useFeature'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
-import { DEFAULT_PLAN_WALL_COLOR, type FloorPlan, planBounds, wallLength } from '../floorplan/types'
+import { isSlopedWall, slopedWallTriangles } from '../floorplan/slopedWall'
+import {
+  DEFAULT_PLAN_WALL_COLOR,
+  type FloorPlan,
+  type PlanWall,
+  planBounds,
+  wallLength,
+} from '../floorplan/types'
 import { isCurvedWall } from '../floorplan/wallArc'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
@@ -134,8 +141,8 @@ function PlanLevelShell({
       .filter((o) => o.kind === 'window')
       .map((o) => {
         const wall = lp.walls.find((w) => w.id === o.wallId)
-        // Curved walls don't host openings (PARITY-CURVEDWALL v1).
-        if (!wall || isCurvedWall(wall)) return null
+        // Curved + sloped walls don't host openings in this version.
+        if (!wall || isCurvedWall(wall) || isSlopedWall(wall)) return null
         const len = wallLength(wall)
         if (len === 0) return null
         const dx = (wall.end[0] - wall.start[0]) / len
@@ -242,6 +249,11 @@ function PlanLevelShell({
         <FadeWall key={i} box={b} cx={cx} cz={cz} color={wallColor} />
       ))}
 
+      {/* Sloping-top walls render as prisms (slopedWall.ts), not boxes. */}
+      {lp.walls.filter(isSlopedWall).map((w) => (
+        <SlopedWallMesh key={w.id} wall={w} ceiling={lp.ceilingHeight} color={wallColor} />
+      ))}
+
       {/* Skirting along floor-reaching wall spans */}
       {boxes
         .filter((b) => b.cy - b.height / 2 < 0.01)
@@ -286,8 +298,8 @@ function PlanLevelShell({
         .filter((o) => o.kind === 'door')
         .map((o) => {
           const wall = lp.walls.find((w) => w.id === o.wallId)
-          // Curved walls don't host openings (PARITY-CURVEDWALL v1).
-          return wall && !isCurvedWall(wall) ? (
+          // Curved + sloped walls don't host openings in this version.
+          return wall && !isCurvedWall(wall) && !isSlopedWall(wall) ? (
             <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={cx} cz={cz} />
           ) : null
         })}
@@ -306,5 +318,31 @@ function PlanLevelShell({
         </mesh>
       ))}
     </group>
+  )
+}
+
+/** A sloping-top wall rendered as a prism (PARITY-SLOPEWALL). The triangle soup
+ *  is already in world coordinates, so the mesh sits at the origin; flat normals
+ *  come from `computeVertexNormals` on the unshared verts. */
+function SlopedWallMesh({
+  wall,
+  ceiling,
+  color,
+}: {
+  wall: PlanWall
+  ceiling: number
+  color: string
+}) {
+  const geometry = useMemo(() => {
+    const g = new BufferGeometry()
+    g.setAttribute('position', new BufferAttribute(slopedWallTriangles(wall, ceiling), 3))
+    g.computeVertexNormals()
+    return g
+  }, [wall, ceiling])
+  useEffect(() => () => geometry.dispose(), [geometry])
+  return (
+    <mesh geometry={geometry} castShadow receiveShadow>
+      <meshStandardMaterial color={color} roughness={0.9} metalness={0} />
+    </mesh>
   )
 }

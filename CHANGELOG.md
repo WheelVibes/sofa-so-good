@@ -14,6 +14,20 @@ pruned from `main`; entries from C251 on (branch
   textures resolve through the loading manager like OBJ/DAE), and the upload dialog's format hint.
   Format detection unit-tested; sibling-resolution path shared with the other converters.
 
+## PARITY-SLOPEWALL: sloping (variable-height) walls — SweetHome3DJS parity
+
+- A wall can now have a **sloped top**: optional `PlanWall.topHeightEnd` ramps the top edge linearly
+  from `topHeight` (or ceiling) at `start` to `topHeightEnd` at `end` — a shed/mono-pitch wall. Pure
+  `floorplan/slopedWall.ts` builds the prism as a non-indexed triangle soup (unshared verts →
+  crisp flat normals via `computeVertexNormals`, no rounded edges/z-fighting); `wallBoxes` skips sloped
+  walls and `PlanShell` renders a `SlopedWallMesh` prism instead. Floor collision is unchanged (the
+  slope only affects the top). Inspector start/end top-height fields behind a new `slopingWalls` flag
+  (pro); openings disabled on sloped walls (guarded in `doorSwingGeometry` + PlanShell + the editor
+  tool, like curved walls). Serialized in `schema.ts` (optional, back-compat).
+- Pure prism geometry + flag gating unit-tested; browser-verified via
+  `scenarios/sloping-walls-simple.json` (inspector fields render, a wall is sloped, the 3D prism draws
+  without artifacts on a custom plan).
+
 ## PARITY-CURVEDWALL: curved / arc walls — SweetHome3DJS parity
 
 - Walls can now be **bowed into curves**: select a wall in the 2D editor and drag its midpoint handle.

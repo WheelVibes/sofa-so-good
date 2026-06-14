@@ -141,6 +141,8 @@ const PlanWallZ = z.object({
   end: Vec2Z,
   thickness: z.enum(['external', 'internal']),
   topHeight: z.number().optional(),
+  // Optional sloping-wall end height (PARITY-SLOPEWALL) — additive, back-compat.
+  topHeightEnd: z.number().optional(),
   // Optional curvature bulge (m) — additive, back-compat (PARITY-CURVEDWALL).
   arc: z.number().optional(),
 })
