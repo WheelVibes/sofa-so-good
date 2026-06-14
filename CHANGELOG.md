@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-MODELINFO: catalog model size + creator/licence tooltip — SweetHome3DJS parity
+
+- Catalog cards now carry a hover tooltip with the model's **byte size** (so a user can weigh a heavy
+  model against the memory budget) + its **creator/licence** — SweetHome3DJS `FurnitureTablePanel`
+  parity. Pure `furniture/modelInfo.ts` `modelInfoText`/`formatBytes` builds the string; the card adds
+  it as a `title` behind a new `catalogModelInfo` flag (pro). Returns null (no tooltip) for parametric
+  primitives (generated geometry, no download/licence).
+- User-upload byte size is captured at upload (`persistUserGlb` → `buf.byteLength` on the def + IDB
+  meta, mirroring the `price` field) and rehydrated on boot; serialized in `schema.ts` (optional,
+  back-compat). Licence/creator come from the existing def fields for bundled/remote/pack/IKEA models.
+- Pure helper + flag-gating unit-tested in both modes. (No browser scenario — a hover-only `title`
+  tooltip isn't meaningfully screenshot-verifiable headlessly; its content + gating are unit-covered.)
+
 ## PARITY-ROOMPOLY: reshape free-form rooms by dragging vertices — SweetHome3DJS parity
 
 - A free-form (`polyroom`) room can now be **reshaped after creation**: select it in the 2D editor and

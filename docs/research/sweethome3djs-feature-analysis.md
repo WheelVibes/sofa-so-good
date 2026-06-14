@@ -79,7 +79,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | Undo/redo | ✅ | history slice + `versions`/`history` panels. |
 | Length units (metric/imperial) | ✅ | `units` everywhere via `utils/measurement`. |
 | Sloped ceiling / roof geometry | ❌ | flat + per-room tray/coffered/dropped only. |
-| Catalog **uncompressed model-size** + creator columns | 🟡 | license/attribution in inspector + credits; no size/creator catalog metadata. |
+| Catalog **uncompressed model-size** + creator columns | ✅ | **shipped — PARITY-MODELINFO** (`catalogModelInfo`): card tooltip shows model byte size (uploads, captured at upload) + licence/creator (all sourced GLBs), `furniture/modelInfo.ts`. (Bundled-GLB byte size still needs a build manifest — minor.) |
 
 ## 3. Roadmap (phased)
 
@@ -89,10 +89,10 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
   gap, lowest risk, fully additive.
 
 ### Phase 2 — net-new, low/medium effort
-- **Uncompressed-model-size + creator catalog metadata.** Surface GLB byte size + author/license in
-  the catalog card/tooltip (SweetHome3DJS `FurnitureTablePanel` parity) so users manage the memory
-  budget. Size is derivable (`blob.size` in IDB for uploads/IKEA/pack; remote already fetches it;
-  builtin needs a build manifest or HEAD). Capture `file.size` at upload + show in the card. Low risk.
+- ~~**Uncompressed-model-size + creator catalog metadata.**~~ **Shipped (PARITY-MODELINFO)** — the
+  catalog card tooltip shows model byte size (uploads, captured at upload) + licence/creator (all
+  sourced GLBs) via `furniture/modelInfo.ts`, behind `catalogModelInfo`. Bundled-GLB byte size would
+  need a build-time manifest (minor follow-up).
 - ~~**Manual room-polygon drawing/editing.**~~ **Shipped** — `polyroom` tool draws polygons; vertex
   reshape handles (`FloorPlanEditor` `movingPolyVertex`) edit them after creation.
 

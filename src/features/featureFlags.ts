@@ -78,6 +78,7 @@ export type FeatureFlag =
   | 'aiLayout'
   | 'planPolyline'
   | 'tiltFurniture'
+  | 'catalogModelInfo'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -509,6 +510,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   tiltFurniture: {
     label: 'Tilt furniture',
     description: 'Pitch / roll an item off vertical (angle art, recline, bank) in the inspector',
+    default: true,
+    tier: 'pro',
+  },
+  // Catalog card model metadata tooltip (SweetHome3DJS FurnitureTablePanel
+  // parity): model byte size + creator/licence on hover. Pure code → prod-safe.
+  // An informational/pro detail → pro tier.
+  catalogModelInfo: {
+    label: 'Catalog model info',
+    description: 'Show a model’s size + creator / licence in the catalog card tooltip',
     default: true,
     tier: 'pro',
   },

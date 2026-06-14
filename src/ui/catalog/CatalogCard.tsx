@@ -1,5 +1,7 @@
+import { useFeature } from '../../features/useFeature'
 import { isUserDef } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
+import { modelInfoText } from '../../furniture/modelInfo'
 import type { FurnitureDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatDims } from '../../utils/measurement'
@@ -20,12 +22,16 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const saved = useStore((s) => s.collections.includes(def.id))
   const toggleCollection = useStore((s) => s.toggleCollection)
   const units = useStore((s) => s.units)
+  const modelInfoOn = useFeature('catalogModelInfo')
+  // Model size + creator/licence for the card tooltip (SweetHome3DJS parity).
+  const modelInfo = modelInfoOn ? modelInfoText(def) : null
   return (
     // biome-ignore lint/a11y/useSemanticElements: a <button> can't host the nested fav/delete buttons (invalid HTML); role=button + key handling gives the same a11y.
     <div
       role="button"
       tabIndex={0}
       aria-label={`Place ${def.name}`}
+      title={modelInfo ? `${def.name} — ${modelInfo}` : undefined}
       onClick={onClick}
       onKeyDown={(e) => {
         if (e.key === 'Enter' || e.key === ' ') {

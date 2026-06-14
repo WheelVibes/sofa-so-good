@@ -60,6 +60,8 @@ const UserGltfDefZ = z.object({
   finishOverrides: z.record(z.string(), z.string()).optional(),
   // Optional def-level price estimate (parametric generator) — additive.
   price: z.number().optional(),
+  // Optional GLB byte size for the catalog model-info tooltip — additive.
+  byteSize: z.number().optional(),
 })
 
 const IkeaVariantZ = z.object({

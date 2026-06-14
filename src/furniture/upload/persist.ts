@@ -84,6 +84,7 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
       mounted: opts.mounted,
       noClip: opts.noClip,
       contentHash,
+      byteSize: buf.byteLength,
       ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
       // Footprint (when measured up front) JSON-encodes into the primitive
       // meta store so hydration restores exact dims before the GLB loads.
@@ -139,6 +140,7 @@ export async function persistUserGlb(file: File, opts: PersistOptions): Promise<
     noClip: opts.noClip,
     finishTargets: opts.finishTargets,
     finishOverrides: opts.finishOverrides,
+    byteSize: buf.byteLength,
     ...(typeof opts.price === 'number' ? { price: opts.price } : {}),
   }
   if (opts.commit ?? true) useStore.getState().addUserFurniture(def)

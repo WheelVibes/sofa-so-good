@@ -271,6 +271,9 @@ export interface UserGltfDef extends FurnitureDefBase {
    *  generator (material-volume estimate). Wins over the category fallback in
    *  `itemPrice`; absent for plain uploads. Persisted (IDB meta + save schema). */
   price?: number
+  /** GLB byte size (bytes), captured at upload, for the catalog model-info
+   *  tooltip (SweetHome3DJS size parity). Persisted (IDB meta + save schema). */
+  byteSize?: number
 }
 
 export interface RemoteGltfDef extends FurnitureDefBase {
