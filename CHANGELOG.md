@@ -33,6 +33,15 @@ pruned from `main`; entries from C251 on (branch
   (skirting): trim renders cleanly along the floor/wall junction, no z-fighting or clipping. Skirting
   seam AO + painted-trim wear remain (TASKS RZ5).
 
+## IXT-SUITES: interaction-test ladder for the parametric furniture designer
+
+- Added `scripts/scenarios/parametric-designer-simple.json` (18 steps, 2 screenshots) covering the
+  custom-size (parametric) furniture designer (`parametricFurniture` pro): asserts hidden in Simple /
+  present in Pro, opens the dialog (`.parametric-dialog`, "Custom-size furniture" with type tabs +
+  dimension sliders + finish swatches + price + a live 3D preview), switches type Bookshelf → Wardrobe
+  (preview + controls update), closes, and confirms it's hidden again in Simple. Test coverage only —
+  no app code changed.
+
 ## IXT-SUITES: interaction-test ladder for the measure / tape tool
 
 - Added `scripts/scenarios/measure-simple.json` (18 steps, 1 screenshot) covering the `measure` pro
