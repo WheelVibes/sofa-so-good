@@ -1,5 +1,44 @@
 import { describe, expect, it } from 'vitest'
-import { skylineLayout } from './photoSkyline'
+import { skylineLayout, skyPalette } from './photoSkyline'
+
+describe('skyPalette', () => {
+  const finite = (c: number[]) => c.every((v) => Number.isFinite(v) && v >= 0 && v <= 255)
+
+  it('returns the night palette below the horizon and day palette high up', () => {
+    const night = skyPalette(-0.5)
+    const day = skyPalette(1.2)
+    expect(night.windowLit).toBe(1)
+    expect(day.windowLit).toBeLessThan(0.2)
+    // Night zenith is much darker than day zenith.
+    expect(night.zenith[2]).toBeLessThan(day.zenith[2])
+  })
+
+  it('warms the horizon around sunset (golden) vs midday', () => {
+    const golden = skyPalette(0.0) // just above horizon
+    const day = skyPalette(1.0)
+    // Golden horizon is warmer: more red than blue; day horizon is pale/cool.
+    expect(golden.horizon[0]).toBeGreaterThan(golden.horizon[2])
+    expect(day.horizon[2]).toBeGreaterThanOrEqual(day.horizon[0] - 30)
+  })
+
+  it('produces valid bounded colours + windowLit for any altitude', () => {
+    for (const a of [-1, -0.1, -0.05, 0, 0.08, 0.2, 0.34, 0.6, 1.4, Number.NaN]) {
+      const p = skyPalette(a)
+      for (const c of [p.zenith, p.horizon, p.ground, p.buildingFar, p.buildingNear])
+        expect(finite(c)).toBe(true)
+      expect(p.windowLit).toBeGreaterThanOrEqual(0)
+      expect(p.windowLit).toBeLessThanOrEqual(1)
+    }
+  })
+
+  it('darkens the sky monotonically from day to night', () => {
+    const bright = skyPalette(1.0).horizon[2]
+    const dusk = skyPalette(0.0).horizon[2]
+    const night = skyPalette(-0.3).horizon[2]
+    expect(bright).toBeGreaterThan(night)
+    expect(dusk).toBeGreaterThan(night)
+  })
+})
 
 describe('skylineLayout', () => {
   it('is deterministic for a given seed', () => {

@@ -1,9 +1,8 @@
 import { useFrame, useThree } from '@react-three/fiber'
-import { useLayoutEffect, useMemo } from 'react'
+import { useLayoutEffect, useMemo, useRef } from 'react'
 import { CanvasTexture, EquirectangularReflectionMapping, SRGBColorSpace } from 'three'
-import { lightingFromAltitude } from './lighting/altitudeCurve'
 import { useSunPosition } from './lighting/useSunPosition'
-import { skylineLayout } from './photoSkyline'
+import { type SkyPalette, skylineLayout, skyPalette } from './photoSkyline'
 
 /**
  * Photo-style backdrop (the "budget trick"): a single equirectangular sky +
@@ -12,8 +11,9 @@ import { skylineLayout } from './photoSkyline'
  * correctly through every window, with no per-window placement and no sunlight
  * blocking. Its lack of parallax is physically correct for distant scenery.
  * The image is generated procedurally (no asset fetch); swap `paintSkyline` for
- * a real CC0 equirectangular photo later. Day/night follows the sun via
- * `scene.backgroundIntensity` (cheap), like the IBL ramp.
+ * a real CC0 equirectangular photo later. The sky colour tracks the real sun
+ * (warm at sunset, deep blue at night) by repainting only when the time-of-day
+ * bucket changes — so it's still effectively static per frame.
  */
 
 const TEX_W = 2048
@@ -21,37 +21,44 @@ const TEX_H = 1024
 /** Fraction of the image height the skyline band occupies above the horizon. */
 const BAND = 0.42
 
-function lerpHex(a: [number, number, number], b: [number, number, number], t: number): string {
-  const r = Math.round(a[0] + (b[0] - a[0]) * t)
-  const g = Math.round(a[1] + (b[1] - a[1]) * t)
-  const bl = Math.round(a[2] + (b[2] - a[2]) * t)
-  return `rgb(${r},${g},${bl})`
+const rgb = (c: [number, number, number]) => `rgb(${c[0]},${c[1]},${c[2]})`
+function lerpRgb(
+  a: [number, number, number],
+  b: [number, number, number],
+  t: number,
+): [number, number, number] {
+  return [
+    Math.round(a[0] + (b[0] - a[0]) * t),
+    Math.round(a[1] + (b[1] - a[1]) * t),
+    Math.round(a[2] + (b[2] - a[2]) * t),
+  ]
 }
 
-/** Paint the procedural equirectangular sky+skyline onto a 2:1 canvas. */
-function paintSkyline(canvas: HTMLCanvasElement): void {
+/** Paint the procedural equirectangular sky+skyline for a given sky palette. */
+function paintSkyline(canvas: HTMLCanvasElement, pal: SkyPalette): void {
   const ctx = canvas.getContext('2d')
   if (!ctx) return
   const W = canvas.width
   const H = canvas.height
   const horizon = H * 0.5
 
-  // Sky: zenith → hazy horizon vertical gradient.
+  // Sky: zenith → hazy horizon vertical gradient (palette-driven).
   const sky = ctx.createLinearGradient(0, 0, 0, horizon)
-  sky.addColorStop(0, '#4f7fb4')
-  sky.addColorStop(0.7, '#9fc0dc')
-  sky.addColorStop(1, '#dce7ee')
+  sky.addColorStop(0, rgb(pal.zenith))
+  sky.addColorStop(0.78, rgb(lerpRgb(pal.zenith, pal.horizon, 0.7)))
+  sky.addColorStop(1, rgb(pal.horizon))
   ctx.fillStyle = sky
   ctx.fillRect(0, 0, W, horizon)
 
   // Ground/haze below the horizon.
   const ground = ctx.createLinearGradient(0, horizon, 0, H)
-  ground.addColorStop(0, '#c2c6bf')
-  ground.addColorStop(1, '#74776f')
+  ground.addColorStop(0, rgb(lerpRgb(pal.horizon, pal.ground, 0.5)))
+  ground.addColorStop(1, rgb(pal.ground))
   ctx.fillStyle = ground
   ctx.fillRect(0, horizon, W, H - horizon)
 
   const band = H * BAND
+  const litAlpha = (0.35 + pal.windowLit * 0.55).toFixed(3)
   const drawBuilding = (
     px: number,
     pw: number,
@@ -62,14 +69,12 @@ function paintSkyline(canvas: HTMLCanvasElement): void {
     rows: number,
   ) => {
     const top = horizon - ph
-    // Far row hazier/lighter/bluer; near row darker/warmer.
-    const body =
-      layer === 1
-        ? lerpHex([86, 84, 88], [120, 116, 120], tone)
-        : lerpHex([150, 162, 176], [186, 196, 206], tone)
-    ctx.fillStyle = body
+    const base = layer === 1 ? pal.buildingNear : pal.buildingFar
+    // Subtle per-building tone jitter for façade variation.
+    const body = lerpRgb(base, layer === 1 ? [120, 116, 120] : [196, 206, 214], tone * 0.4)
+    ctx.fillStyle = rgb(body)
     ctx.fillRect(px, top, pw, ph)
-    // Window grid — mostly dark glazing with a few lit cells (cheap night cue).
+    // Window grid — mostly dark glazing with some lit cells (warm at night).
     const mx = pw * 0.16
     const my = ph * 0.06
     const gw = (pw - mx * 2) / cols
@@ -80,15 +85,16 @@ function paintSkyline(canvas: HTMLCanvasElement): void {
       for (let r = 0; r < rows; r++) {
         for (let c = 0; c < cols; c++) {
           const lit = (Math.sin(c * 12.9898 + r * 78.233 + tone * 100) * 43758.5453) % 1
-          const litOn = Math.abs(lit) > 0.82
-          ctx.fillStyle = litOn ? 'rgba(255,236,180,0.85)' : 'rgba(40,46,54,0.5)'
+          const litOn = Math.abs(lit) > 0.82 && pal.windowLit > 0.25
+          ctx.fillStyle = litOn ? `rgba(255,236,180,${litAlpha})` : 'rgba(40,46,54,0.5)'
           ctx.fillRect(px + mx + c * gw + (gw - ww) / 2, top + my + r * gh + (gh - wh) / 2, ww, wh)
         }
       }
     }
   }
 
-  for (const b of skylineLayout(0xc17)) {
+  const buildings = skylineLayout(0xc17)
+  for (const b of buildings) {
     const px = b.x * W
     const pw = Math.max(2, b.w * W)
     const ph = b.h * band
@@ -98,36 +104,53 @@ function paintSkyline(canvas: HTMLCanvasElement): void {
   }
 }
 
+/** Quantise sun altitude into a sky bucket so we repaint only on real change. */
+function skyBucket(altitude: number): number {
+  return Math.round((Number.isFinite(altitude) ? altitude : 0) * 12)
+}
+
 export function PhotoBackdrop() {
   const scene = useThree((s) => s.scene)
+  const invalidate = useThree((s) => s.invalidate)
   const sun = useSunPosition()
 
-  const texture = useMemo(() => {
-    const canvas = document.createElement('canvas')
-    canvas.width = TEX_W
-    canvas.height = TEX_H
-    paintSkyline(canvas)
-    const tex = new CanvasTexture(canvas)
+  const { canvas, texture } = useMemo(() => {
+    const c = document.createElement('canvas')
+    c.width = TEX_W
+    c.height = TEX_H
+    paintSkyline(c, skyPalette(0.6))
+    const tex = new CanvasTexture(c)
     tex.mapping = EquirectangularReflectionMapping
     tex.colorSpace = SRGBColorSpace
-    return tex
+    return { canvas: c, texture: tex }
   }, [])
+
+  const bucketRef = useRef<number>(skyBucket(0.6))
 
   useLayoutEffect(() => {
     const prev = scene.background
+    const prevIntensity = scene.backgroundIntensity
     scene.background = texture
+    // The palette carries the day/night brightness, so keep the background at
+    // unit intensity (reset any value a prior backdrop/session left behind).
+    scene.backgroundIntensity = 1
     return () => {
-      // Restore whatever was there (normally null) and free the texture.
+      scene.backgroundIntensity = prevIntensity
       if (scene.background === texture) scene.background = prev ?? null
       texture.dispose()
     }
   }, [scene, texture])
 
-  // Dim the visible sky toward night, mirroring the IBL intensity ramp, so the
-  // photo backdrop tracks the time-of-day slider. Cheap: one scalar per frame.
+  // Repaint the equirect ONLY when the sun crosses a sky bucket (a handful of
+  // times across a full day-scrub), so the sky warms at sunset / darkens at
+  // night while staying effectively static per frame.
   useFrame(() => {
-    const level = lightingFromAltitude(sun.altitude).sun // 1 day → 0 night
-    scene.backgroundIntensity = 0.16 + level * 0.84
+    const bucket = skyBucket(sun.altitude)
+    if (bucket === bucketRef.current) return
+    bucketRef.current = bucket
+    paintSkyline(canvas, skyPalette(sun.altitude))
+    texture.needsUpdate = true
+    invalidate()
   })
 
   return null

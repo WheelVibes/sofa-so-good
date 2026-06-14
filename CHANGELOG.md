@@ -42,6 +42,15 @@ pruned from `main`; entries from C251 on (branch
   `report.test.ts`. Verified the rendered Section A–A sheet (cut walls, floor/ceiling, room bands, door/
   window gaps, dining-chair silhouettes) reads correctly with no clipping.
 
+## Photo backdrop: time-of-day sky colour (warm sunset, deep-blue night)
+
+- The photo skyline backdrop now **tracks the real sun's colour**, not just its brightness: a pure
+  tested `skyPalette(altitude)` (`scene/photoSkyline.ts`) lerps night → golden-hour → day keyframes,
+  so the sky warms to peach at sunset and goes deep blue at night, with brighter lit windows after
+  dark. `PhotoBackdrop` repaints the equirect **only when the sun crosses a sky bucket** (a handful
+  of times across a full day-scrub) and `invalidate()`s once, so it stays effectively static per
+  frame — no per-frame cost. Verified midday/dusk/night look distinct.
+
 ## Default backdrop → photo skyline (performance)
 
 - New profiles now default to the lightweight **photo skyline** backdrop instead of the instanced

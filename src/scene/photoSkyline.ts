@@ -14,6 +14,98 @@ import { mulberry32 } from '../materials/procedural/noise'
  * canvas in the browser.
  */
 
+/** RGB triple, 0–255. */
+export type Rgb = [number, number, number]
+
+/** Colour palette for the equirectangular sky at a given sun altitude. */
+export interface SkyPalette {
+  /** Sky colour at the zenith (top of the dome). */
+  zenith: Rgb
+  /** Sky colour at the horizon. */
+  horizon: Rgb
+  /** Ground/haze colour just below the horizon. */
+  ground: Rgb
+  /** Far-row (hazy) building base tone. */
+  buildingFar: Rgb
+  /** Near-row (front) building base tone. */
+  buildingNear: Rgb
+  /** How brightly lit windows read (0 day → 1 night). */
+  windowLit: number
+}
+
+function mix(a: Rgb, b: Rgb, t: number): Rgb {
+  const k = t < 0 ? 0 : t > 1 ? 1 : t
+  return [
+    Math.round(a[0] + (b[0] - a[0]) * k),
+    Math.round(a[1] + (b[1] - a[1]) * k),
+    Math.round(a[2] + (b[2] - a[2]) * k),
+  ]
+}
+
+// Keyframe palettes across the day, keyed by sun altitude (radians).
+const NIGHT: SkyPalette = {
+  zenith: [9, 16, 32],
+  horizon: [26, 34, 54],
+  ground: [16, 20, 28],
+  buildingFar: [30, 36, 50],
+  buildingNear: [18, 22, 32],
+  windowLit: 1,
+}
+const GOLDEN: SkyPalette = {
+  zenith: [74, 96, 150],
+  horizon: [240, 178, 120],
+  ground: [120, 104, 92],
+  buildingFar: [150, 140, 150],
+  buildingNear: [92, 78, 84],
+  windowLit: 0.55,
+}
+const DAY: SkyPalette = {
+  zenith: [79, 127, 180],
+  horizon: [220, 231, 238],
+  ground: [194, 198, 191],
+  buildingFar: [168, 179, 191],
+  buildingNear: [103, 100, 106],
+  windowLit: 0.12,
+}
+
+/**
+ * Sky palette for a given sun altitude (radians; ~ +1.4 high noon, 0 at the
+ * horizon, negative below). Night → golden/horizon → day, lerped so the photo
+ * backdrop warms at sunset and goes deep blue at night, tracking the real sun.
+ * Pure + bounded; never throws.
+ */
+export function skyPalette(altitude: number): SkyPalette {
+  const a = Number.isFinite(altitude) ? altitude : 0
+  if (a <= -0.1) return NIGHT
+  if (a <= 0.08) {
+    // Dusk/dawn band: night → golden.
+    const t = (a + 0.1) / 0.18
+    return {
+      zenith: mix(NIGHT.zenith, GOLDEN.zenith, t),
+      horizon: mix(NIGHT.horizon, GOLDEN.horizon, t),
+      ground: mix(NIGHT.ground, GOLDEN.ground, t),
+      buildingFar: mix(NIGHT.buildingFar, GOLDEN.buildingFar, t),
+      buildingNear: mix(NIGHT.buildingNear, GOLDEN.buildingNear, t),
+      windowLit:
+        NIGHT.windowLit + (GOLDEN.windowLit - NIGHT.windowLit) * Math.max(0, Math.min(1, t)),
+    }
+  }
+  if (a <= 0.34) {
+    // Golden → full day.
+    const t = (a - 0.08) / 0.26
+    return {
+      zenith: mix(GOLDEN.zenith, DAY.zenith, t),
+      horizon: mix(GOLDEN.horizon, DAY.horizon, t),
+      ground: mix(GOLDEN.ground, DAY.ground, t),
+      buildingFar: mix(GOLDEN.buildingFar, DAY.buildingFar, t),
+      buildingNear: mix(GOLDEN.buildingNear, DAY.buildingNear, t),
+      windowLit:
+        GOLDEN.windowLit + (DAY.windowLit - GOLDEN.windowLit) * Math.max(0, Math.min(1, t)),
+    }
+  }
+  return DAY
+}
+
 /** A single building silhouette placed around the 360° horizon. Coordinates
  *  are normalised: `x`/`w` are fractions of the equirect width (azimuth),
  *  `h` is a fraction of the available band height above the horizon. */
