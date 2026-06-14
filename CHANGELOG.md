@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-CURVEDWALL: curved / arc walls — SweetHome3DJS parity
+
+- Walls can now be **bowed into curves**: select a wall in the 2D editor and drag its midpoint handle.
+  `PlanWall.arc` (signed perpendicular bulge, m; absent/0 = straight, fully back-compat) drives a pure
+  `floorplan/wallArc.ts` that models the curve as a quadratic Bézier and samples it into chord
+  sub-segments. Those feed the **existing** `wallBoxes` (3D), `planCollisionWalls` (collision) and
+  topological room detection unchanged — so a curved wall reuses all the proven geometry/collision code
+  (3D = a strip of full-height boxes along the chords).
+- 2D editor draws each wall as an SVG `<path>` (a quadratic when curved) + a draggable bulge handle for
+  the selected wall; behind a new `curvedWalls` flag (pro). Openings (doors/windows) are **not** placed
+  on curved walls in v1 — the door/window tool shows an info toast, and `doorSwingGeometry` / the
+  PlanShell door+window renderers guard against curved walls so a stray opening can't render at the
+  wrong spot. Serialized in `schema.ts` (optional, back-compat).
+- Pure arc math + curved `wallBoxes`/`planCollisionWalls` + flag gating unit-tested; browser-verified
+  via `scenarios/curved-walls-simple.json` (a synthetic handle drag bows the wall, confirmed in 2D).
+
 ## PARITY-MODELINFO: catalog model size + creator/licence tooltip — SweetHome3DJS parity
 
 - Catalog cards now carry a hover tooltip with the model's **byte size** (so a user can weigh a heavy

@@ -28,6 +28,12 @@ import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
 import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
+import {
+  arcFromMidpoint,
+  isCurvedWall,
+  wallCurveMidpoint,
+  wallSvgPath,
+} from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
 import type { FurnitureCategory } from '../../furniture/types'
@@ -127,6 +133,7 @@ export function FloorPlanEditor() {
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
   const fPanoTour = useFeature('panoTour')
+  const fCurvedWalls = useFeature('curvedWalls')
   // Tour stops are only shown/editable on the ground level (stops have a
   // levelId field but the plan editor operates per-level; ground is the
   // common case and keeps the UI simple).
@@ -164,6 +171,9 @@ export function FloorPlanEditor() {
   const [movingPolyVertex, setMovingPolyVertex] = useState<{ id: string; index: number } | null>(
     null,
   )
+  // Active wall-curve bulge drag (select tool): drag a wall's midpoint to bow it
+  // into a curve (PARITY-CURVEDWALL).
+  const [movingBulge, setMovingBulge] = useState<{ id: string } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
@@ -588,7 +598,14 @@ export function FloorPlanEditor() {
       }
     } else if (tool === 'door' || tool === 'window') {
       const hit = nearestWall(wx, wz)
-      if (hit) {
+      if (hit && isCurvedWall(hit.wall)) {
+        // Curved walls don't host openings in this version (PARITY-CURVEDWALL).
+        st.notify.start({
+          title: 'Curved walls can’t have doors or windows yet',
+          kind: 'info',
+          autoDismissMs: 3000,
+        })
+      } else if (hit) {
         const width = tool === 'door' ? 0.9 : 1.2
         const offset = Math.max(0, Math.min(wallLength(hit.wall) - width, hit.offset - width / 2))
         const snapped = snap(offset)
@@ -679,6 +696,16 @@ export function FloorPlanEditor() {
       useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz], levelId)
       return
     }
+    if (movingBulge) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const wall = levelPlan.walls.find((w) => w.id === movingBulge.id)
+      if (wall) {
+        const arc = Math.round(arcFromMidpoint(wall.start, wall.end, [wx, wz]) * 100) / 100
+        st.updateWall(wall.id, { arc }, levelId)
+      }
+      return
+    }
     if (movingPolyVertex) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -764,6 +791,10 @@ export function FloorPlanEditor() {
     }
     if (movingPolyVertex) {
       setMovingPolyVertex(null)
+      return
+    }
+    if (movingBulge) {
+      setMovingBulge(null)
       return
     }
     if (movingItem) {
@@ -1582,30 +1613,59 @@ export function FloorPlanEditor() {
             {/* Walls (active storey) */}
             {levelPlan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
+              const d = wallSvgPath(w, toPx)
+              const stroke = isSel
+                ? 'var(--accent)'
+                : w.thickness === 'external'
+                  ? 'var(--plan-wall)'
+                  : 'var(--text-3)'
+              const onWallDown = (e: React.PointerEvent) => {
+                if (tool === 'select') {
+                  e.stopPropagation()
+                  a.setPlanSelection({ type: 'wall', id: w.id })
+                }
+              }
+              // Curve bulge handle: drag a selected wall's midpoint to bow it.
+              const bulge = fCurvedWalls && isSel && tool === 'select' ? wallCurveMidpoint(w) : null
               return (
-                <line
-                  key={w.id}
-                  x1={toPx(w.start[0])}
-                  y1={toPx(w.start[1])}
-                  x2={toPx(w.end[0])}
-                  y2={toPx(w.end[1])}
-                  stroke={
-                    isSel
-                      ? 'var(--accent)'
-                      : w.thickness === 'external'
-                        ? 'var(--plan-wall)'
-                        : 'var(--text-3)'
-                  }
-                  strokeWidth={w.thickness === 'external' ? 7 : 4}
-                  strokeLinecap="round"
-                  onPointerDown={(e) => {
-                    if (tool === 'select') {
-                      e.stopPropagation()
-                      a.setPlanSelection({ type: 'wall', id: w.id })
-                    }
-                  }}
-                  style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
-                />
+                <g key={w.id}>
+                  {/* Fat invisible hit target so curved/thin walls are easy to grab. */}
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke="transparent"
+                    strokeWidth={14}
+                    onPointerDown={onWallDown}
+                    style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
+                  />
+                  <path
+                    d={d}
+                    fill="none"
+                    stroke={stroke}
+                    strokeWidth={w.thickness === 'external' ? 7 : 4}
+                    strokeLinecap="round"
+                    onPointerDown={onWallDown}
+                    style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
+                  />
+                  {bulge ? (
+                    <circle
+                      data-wall-bulge={w.id}
+                      cx={toPx(bulge[0])}
+                      cy={toPx(bulge[1])}
+                      r={5}
+                      fill="var(--accent)"
+                      stroke="var(--surface)"
+                      strokeWidth={1.5}
+                      style={{ cursor: 'grab' }}
+                      onPointerDown={(e) => {
+                        e.stopPropagation()
+                        a.setPlanSelection({ type: 'wall', id: w.id })
+                        setMovingBulge({ id: w.id })
+                        svgRef.current?.setPointerCapture(e.pointerId)
+                      }}
+                    />
+                  ) : null}
+                </g>
               )
             })}
 

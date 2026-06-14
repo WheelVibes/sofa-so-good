@@ -6,6 +6,7 @@ import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
 import { DEFAULT_PLAN_WALL_COLOR, type FloorPlan, planBounds, wallLength } from '../floorplan/types'
+import { isCurvedWall } from '../floorplan/wallArc'
 import type { MaterialId } from '../materials/types'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
@@ -133,7 +134,8 @@ function PlanLevelShell({
       .filter((o) => o.kind === 'window')
       .map((o) => {
         const wall = lp.walls.find((w) => w.id === o.wallId)
-        if (!wall) return null
+        // Curved walls don't host openings (PARITY-CURVEDWALL v1).
+        if (!wall || isCurvedWall(wall)) return null
         const len = wallLength(wall)
         if (len === 0) return null
         const dx = (wall.end[0] - wall.start[0]) / len
@@ -284,7 +286,10 @@ function PlanLevelShell({
         .filter((o) => o.kind === 'door')
         .map((o) => {
           const wall = lp.walls.find((w) => w.id === o.wallId)
-          return wall ? <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={cx} cz={cz} /> : null
+          // Curved walls don't host openings (PARITY-CURVEDWALL v1).
+          return wall && !isCurvedWall(wall) ? (
+            <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={cx} cz={cz} />
+          ) : null
         })}
 
       {/* Window glass */}

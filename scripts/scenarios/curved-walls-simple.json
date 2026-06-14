@@ -1,0 +1,45 @@
+{
+  "name": "curved-walls-simple",
+  "description": "Simple ladder for curved/arc walls (curvedWalls, SweetHome3DJS parity). Verifies the flag is OFF in Simple / ON in Pro; opens the 2D editor, selects a wall, confirms its bulge handle renders, drives a real synthetic drag on the handle, and asserts the wall gained an `arc` (it bowed into a curve).",
+  "url": "http://localhost:5234/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    {
+      "name": "verify-flag-off-in-simple",
+      "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.curvedWalls === false" },
+      "timeout": 10000,
+      "failMessage": "curvedWalls should be OFF in Simple mode (pro-tier)"
+    },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "verify-flag-on-in-pro",
+      "waitFor": { "store": "state.featureFlags.curvedWalls === true" },
+      "timeout": 10000,
+      "failMessage": "curvedWalls should be ON in Pro mode"
+    },
+    { "name": "open-editor", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "editor-open", "waitFor": { "css": "svg" }, "timeout": 10000 },
+    { "name": "select-a-wall", "eval": "(() => { const s = window.__store.getState(); const w = s.floorPlan.walls[0]; window.__wallId = w.id; s.setPlanSelection({ type: 'wall', id: w.id }); })()" },
+    {
+      "name": "bulge-handle-visible",
+      "waitFor": { "css": "[data-wall-bulge]" },
+      "timeout": 8000,
+      "failMessage": "wall bulge handle did not render on the selected wall in Pro mode"
+    },
+    { "name": "shot-straight", "screenshot": "01-wall-selected-straight" },
+    {
+      "name": "drag-bulge",
+      "eval": "(async () => { const sleep = (ms) => new Promise(r => setTimeout(r, ms)); const el = document.querySelector('[data-wall-bulge=\"'+window.__wallId+'\"]'); if (!el) throw new Error('bulge handle not found'); const svg = el.closest('svg'); const r = el.getBoundingClientRect(); const cx = r.left + r.width/2, cy = r.top + r.height/2; const mk = (type, x, y) => new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'mouse', button: 0 }); el.dispatchEvent(mk('pointerdown', cx, cy)); await sleep(80); svg.dispatchEvent(mk('pointermove', cx + 40, cy + 40)); await sleep(80); svg.dispatchEvent(mk('pointerup', cx + 40, cy + 40)); })()"
+    },
+    { "name": "settle", "wait": 400 },
+    {
+      "name": "verify-wall-curved",
+      "waitFor": { "store": "(() => { const w = state.floorPlan.walls.find(w => w.id === window.__wallId); return !!w && typeof w.arc === 'number' && Math.abs(w.arc) > 0.05; })()" },
+      "timeout": 5000,
+      "failMessage": "dragging the bulge handle did not give the wall an arc"
+    },
+    { "name": "shot-curved", "screenshot": "02-wall-curved" }
+  ]
+}

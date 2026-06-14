@@ -150,7 +150,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 
 ### Pending — marquee (L)
 - [ ] PARITY-VIDEO: video flythrough export (camera path → WebM/MP4 via MediaRecorder). [real-GPU verify]
-- [ ] PARITY-CURVEDWALL: SH3D curved/arc walls.
+- [~] PARITY-CURVEDWALL: SH3D curved/arc walls **shipped** — `PlanWall.arc` bulge + `floorplan/wallArc.ts`
+  (Bézier → chord sub-segments) reused by `wallBoxes`/`planCollisionWalls`/room detection; 2D midpoint
+  bulge handle (`curvedWalls` flag, pro). Openings disabled on curves (guarded). Follow-up: openings on
+  curved walls + a true circular arc.
 - [~] PARITY-AILAYOUT: **engine + collision-aware placement shipped** — `ai/autoLayoutAi.ts` (prompt +
   tolerant parse + BYO-key call) + `layout/aiLayoutApply.ts` (validate/clamp into rooms +
   `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure

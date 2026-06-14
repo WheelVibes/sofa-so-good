@@ -54,8 +54,8 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | --- | --- | --- |
 | Synchronized 2D plan + 3D view off one model | ✅ | `floorPlanEditor` + R3F `Scene`, single Zustand store. |
 | Draw walls (straight) | ✅ | `floorplan/` `PlanWall`, `wallOps.ts` (split/reverse/join). |
-| Draw **round/arc** walls | ❌ | `PlanWall` is a straight segment only. |
-| Draw **sloping** (variable-height) walls | ❌ | only flat-top + optional capped `topHeight`. |
+| Draw **round/arc** walls | ✅ | **shipped — PARITY-CURVEDWALL** (`curvedWalls`): drag a wall's midpoint handle to bow it; `PlanWall.arc` + `wallArc.ts` expand to chord sub-segments through the existing geometry/collision. (Openings on curves are a v1 limitation.) |
+| Draw **sloping** (variable-height) walls | ❌ | only flat-top + optional capped `topHeight`. Pairs with sloped ceilings — a future bundle. |
 | Rooms (rect / polygon) + floor/ceiling finishes | ✅ | `PlanRoom` (rect, L-extension, free `polygon`), `roomFinishes`. |
 | **Manually draw/edit** an arbitrary room polygon in the editor | ✅ | Drawing via the `polyroom` tool (click vertices → close); **reshape now shipped** — drag the vertex handles on a selected polygon room (`FloorPlanEditor` `movingPolyVertex`). |
 | Doors/windows auto-cut wall holes (CSG-like) | ✅ | `PlanOpening` rendered as wall cutouts; door swing + hinge. |
@@ -101,9 +101,12 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
   `FurnitureItem` + inspector sliders, applied via a pure `[pitch, yaw, roll, 'YXZ']` Euler
   (`furniture/tiltRotation.ts`); collision stays yaw-OBB (tilt doesn't change the plan footprint, as in
   SweetHome3DJS); structural/locked items excluded. Gizmo + 2D tilt-handle remain a follow-up.
-- **Round/arc + sloping walls.** Add an arc/`bulge` and a per-end height to `PlanWall`; update
-  `wallOps`, room detection, the 2D editor and the `Walls` extrusion. Invasive across floorplan geometry.
-- **Sloped ceiling / roof geometry.** Extend `ceilingModel.ts` with a pitched-plane option. Medium-high.
+- **Round/arc walls.** ~~Shipped (PARITY-CURVEDWALL)~~ — `PlanWall.arc` bulge + `wallArc.ts` chord
+  expansion through the existing `wallBoxes`/`planCollisionWalls`/room-detection; 2D bulge handle.
+  Remaining: openings on curved walls, and a true circular arc (vs the Bézier approximation).
+- **Sloping (variable-height) walls + sloped ceiling / roof geometry.** Bundle these two: a sloped
+  ceiling under flat-top walls leaves triangular gaps, so they ship together — per-end wall heights +
+  a pitched-plane `ceilingModel.ts` option. Medium-high.
 
 ### Phase 4 — portability/fidelity (lower priority; mostly already-strong areas)
 - Dual-format save (precompute a merged `HomeStructure.glb` alongside the JSON state for fast load — the

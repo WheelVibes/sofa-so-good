@@ -37,4 +37,19 @@ describe('planGeometry', () => {
       expect(b.cy).toBeGreaterThan(0)
     }
   })
+
+  it('a curved wall renders as many full-height chord boxes + collision segments', () => {
+    const curvedPlan: typeof plan = {
+      ...plan,
+      walls: [{ id: 'cw', start: [0, 0], end: [4, 0], thickness: 'internal', arc: 1 }],
+      openings: [],
+    }
+    const boxes = wallBoxes(curvedPlan, curvedPlan.walls[0])
+    // Many sub-segment boxes (one per arc chord), all full ceiling height.
+    expect(boxes.length).toBeGreaterThan(5)
+    for (const b of boxes) expect(b.height).toBeCloseTo(curvedPlan.ceilingHeight, 6)
+    // Collision emits a matching strip of straight segments.
+    const segs = planCollisionWalls(curvedPlan, {})
+    expect(segs.length).toBe(boxes.length)
+  })
 })

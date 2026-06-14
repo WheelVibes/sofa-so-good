@@ -79,6 +79,7 @@ export type FeatureFlag =
   | 'planPolyline'
   | 'tiltFurniture'
   | 'catalogModelInfo'
+  | 'curvedWalls'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -519,6 +520,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   catalogModelInfo: {
     label: 'Catalog model info',
     description: 'Show a model’s size + creator / licence in the catalog card tooltip',
+    default: true,
+    tier: 'pro',
+  },
+  // Curved/arc walls (SweetHome3DJS parity): drag a wall's midpoint handle to
+  // bulge it into a curve. Pure geometry (chord sub-segments) → prod-safe. A
+  // structural drawing tool → pro tier.
+  curvedWalls: {
+    label: 'Curved walls',
+    description: 'Bow a wall into a curve by dragging its midpoint handle (no openings on curves)',
     default: true,
     tier: 'pro',
   },

@@ -6,6 +6,7 @@
 import type { CollisionWall } from '../collision/walls'
 import type { FloorPlan, PlanOpening, PlanWall } from './types'
 import { wallLength } from './types'
+import { isCurvedWall, wallChords } from './wallArc'
 
 const EXTERNAL_T = 0.2
 const INTERNAL_T = 0.1
@@ -40,6 +41,29 @@ function openingsForWall(plan: FloorPlan, wallId: string): PlanOpening[] {
  * and a header above.
  */
 export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
+  // Curved wall: render as solid full-height boxes along its chord sub-segments
+  // (curved walls carry no openings in v1, so each chord is a plain solid span).
+  if (isCurvedWall(wall)) {
+    const ceil = wall.topHeight ?? plan.ceilingHeight
+    const t = planWallThickness(wall)
+    return wallChords(wall).flatMap((c) => {
+      const cl = wallLength(c)
+      if (cl < 1e-4) return []
+      const dx = (c.end[0] - c.start[0]) / cl
+      const dz = (c.end[1] - c.start[1]) / cl
+      return [
+        {
+          cx: (c.start[0] + c.end[0]) / 2,
+          cz: (c.start[1] + c.end[1]) / 2,
+          length: cl,
+          thickness: t,
+          height: ceil,
+          cy: ceil / 2,
+          angle: Math.atan2(dx, dz),
+        },
+      ]
+    })
+  }
   const len = wallLength(wall)
   if (len === 0) return []
   const dx = (wall.end[0] - wall.start[0]) / len
@@ -96,6 +120,15 @@ export function planCollisionWalls(
   const walls = Array.isArray(plan.walls) ? plan.walls : []
   const openings = Array.isArray(plan.openings) ? plan.openings : []
   for (const wall of walls) {
+    // Curved wall: emit a straight collision segment per chord (no openings).
+    if (isCurvedWall(wall)) {
+      const thickness = planWallThickness(wall)
+      for (const c of wallChords(wall)) {
+        if (wallLength(c) < 1e-4) continue
+        segs.push({ ax: c.start[0], az: c.start[1], bx: c.end[0], bz: c.end[1], thickness })
+      }
+      continue
+    }
     const len = wallLength(wall)
     if (len === 0) continue
     const dx = (wall.end[0] - wall.start[0]) / len

@@ -11,6 +11,7 @@
  */
 import type { FloorPlan, PlanOpening, PlanWall } from './types'
 import { pointInRoom, wallLength } from './types'
+import { isCurvedWall } from './wallArc'
 
 export type DoorHinge = 'start' | 'end'
 export type DoorSwing = 'left' | 'right'
@@ -45,6 +46,9 @@ export interface DoorSwingGeometry {
  * flag from its `hinge`/`swing` (defaulted). Returns null for a zero-length wall.
  */
 export function doorSwingGeometry(wall: PlanWall, o: PlanOpening): DoorSwingGeometry | null {
+  // Curved walls don't host openings (PARITY-CURVEDWALL v1) — guard so a stray
+  // opening on a now-curved wall renders nothing rather than at the wrong spot.
+  if (isCurvedWall(wall)) return null
   const len = wallLength(wall)
   if (len === 0) return null
   const ux = (wall.end[0] - wall.start[0]) / len

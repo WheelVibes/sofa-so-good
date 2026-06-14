@@ -18,6 +18,11 @@ export interface PlanWall {
   thickness: 'external' | 'internal'
   /** Optional cap on solid-wall height (parapets on balconies); floor→ceiling when unset. */
   topHeight?: number
+  /** Optional curvature (SweetHome3DJS parity): signed perpendicular bulge (m) at
+   *  the wall's midpoint, measured from the straight chord. Absent/0 = straight.
+   *  Curved walls are approximated as chord sub-segments for rendering/collision
+   *  (see `wallArc.ts`) and cannot host openings in this version. */
+  arc?: number
 }
 
 export interface PlanOpening {
