@@ -257,6 +257,11 @@ export function CatalogDrawer() {
                 </button>
               ) : null}
             </div>
+            {q && allCards.length > 0 ? (
+              <div className="cat-count">
+                {allCards.length} {allCards.length === 1 ? 'match' : 'matches'}
+              </div>
+            ) : null}
           </div>
           {q ? null : (
             <CategoryTabs

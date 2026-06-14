@@ -9,6 +9,7 @@
 /* Clear (×) button inside the search field, shown only while a query is typed. */
 .cat-search .field-clear { position: absolute; right: 4px; width: 24px; height: 24px; }
 .cat-search .input.has-clear { padding-right: 30px; }
+.cat-count { padding-top: var(--s-2); color: var(--text-3); font-size: 12px; }
 
 /* category rail */
 .cat-rail { display: flex; gap: var(--s-1); overflow-x: auto; padding: 0 var(--s-4) var(--s-3); scrollbar-width: none; }

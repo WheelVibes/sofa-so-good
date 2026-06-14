@@ -50,6 +50,12 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## QOL: catalog search result count
+
+- The catalog search now shows a small "N matches" count under the field when a query has results
+  (the empty-state already covers zero), giving quick feedback on how many items matched — like Coohom's
+  search. Subtle muted text via theme tokens. Browser-verified ("sofa" → "8 matches").
+
 ## QOL: catalog search clear (×) button
 
 - The catalog search field now shows a **clear (×) button** while a query is typed (reusing the themed
