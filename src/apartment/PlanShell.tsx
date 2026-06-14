@@ -182,6 +182,11 @@ function PlanLevelShell({
       {lp.rooms.map((r) => {
         const mat = resolvePlanRoomFloor(finishes, r) as MaterialId
         const roomId = r.id
+        // Per-room floor-texture transform (SweetHome3DJS scale/angle parity).
+        const texTransform =
+          r.floorTexScale || r.floorTexAngle
+            ? { scale: r.floorTexScale, angle: r.floorTexAngle }
+            : undefined
         if (r.polygon && r.polygon.length >= 3) {
           return (
             <PlanRoomFloor
@@ -192,6 +197,7 @@ function PlanLevelShell({
               depth={r.depth}
               polygon={r.polygon}
               materialId={mat}
+              texTransform={texTransform}
             />
           )
         }
@@ -203,6 +209,7 @@ function PlanLevelShell({
               width={r.width}
               depth={r.depth}
               materialId={mat}
+              texTransform={texTransform}
             />
             {r.extension && (
               <PlanRoomFloor
@@ -211,6 +218,7 @@ function PlanLevelShell({
                 width={r.extension.width}
                 depth={r.extension.depth}
                 materialId={mat}
+                texTransform={texTransform}
               />
             )}
           </group>

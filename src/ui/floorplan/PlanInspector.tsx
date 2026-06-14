@@ -200,6 +200,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const isMobile = useIsMobile()
   const ceilingDesignOn = useFeature('ceilingDesign')
   const slopingWallsOn = useFeature('slopingWalls')
+  const floorTextureOn = useFeature('floorTexture')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
@@ -371,6 +372,31 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           </div>
           {ceilingDesignOn ? (
             <CeilingControls roomId={r.id} style={r.ceiling?.style ?? 'flat'} config={r.ceiling} />
+          ) : null}
+          {floorTextureOn ? (
+            <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Floor texture
+              </div>
+              <Num
+                label="Tile size (×)"
+                value={r.floorTexScale ?? 1}
+                step={0.1}
+                min={0.25}
+                onChange={(v) =>
+                  a.updateRoom(r.id, { floorTexScale: Math.abs(v - 1) < 1e-3 ? undefined : v })
+                }
+              />
+              <Num
+                label="Angle (°)"
+                value={Math.round((((r.floorTexAngle ?? 0) * 180) / Math.PI) * 10) / 10}
+                step={5}
+                onChange={(v) => {
+                  const rad = (v * Math.PI) / 180
+                  a.updateRoom(r.id, { floorTexAngle: Math.abs(rad) < 1e-4 ? undefined : rad })
+                }}
+              />
+            </div>
           ) : null}
           {/* L-shape extension: a second rectangle offset from the origin.
               planRoomArea sums both, and the 3D shell renders both floors. */}

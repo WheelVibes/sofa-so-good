@@ -75,6 +75,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | Furniture **non-uniform resize** (W/D/H) | ✅ | **shipped — PARITY-RESIZE**: parametric items resize via params; GLB/IKEA models via per-axis `scaleX/Y/Z` (inspector W/D/H sliders + keep-proportions); footprint + render scale per-axis. |
 | Furniture mirror (flipX/flipZ) | ✅ | inspector Flip H/V. |
 | Per-item lock / visibility | ✅ | `locked` + `hiddenItemIds`. |
+| Surface **texture transform** (scale / rotate) | ✅ | **shipped — PARITY-FLOORTEX**: per-room floor-texture tile-size + angle (`PlanRoom.floorTexScale`/`floorTexAngle` → `worldUv.ts` `applyUvTransform`, no material cloning); room-inspector controls under `floorTexture`. |
 | Import a blueprint background to trace | 🟡 | reference backdrop + `aiWalls` plan tracing; no scaled blueprint underlay tool. |
 | **Whole-scene 3D export (OBJ/glTF)** | ✅ | **shipped — Q-3DEXPORT** (`sceneExport3d`); STL/USDZ still open. |
 | Export PDF / SVG / bitmap / DXF | ✅ | report PDF, plan SVG, DXF, drawing set, BOQ/CSV/XLSX, PNG, panorama. |

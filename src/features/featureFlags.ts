@@ -82,6 +82,7 @@ export type FeatureFlag =
   | 'curvedWalls'
   | 'slopingWalls'
   | 'viewInAr'
+  | 'floorTexture'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -549,6 +550,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   viewInAr: {
     label: 'View in AR',
     description: 'Place the design in your room — iOS AR Quick Look (USDZ) or an AR-ready GLB',
+    default: true,
+    tier: 'pro',
+  },
+  // Per-room floor-texture transform (SweetHome3DJS texture scale/angle parity):
+  // scale the tile size + rotate the floor texture. Pure geometry-UV transform →
+  // prod-safe. A surface-design refinement → pro tier.
+  floorTexture: {
+    label: 'Floor texture transform',
+    description: 'Scale + rotate a room’s floor texture (tile size / angle)',
     default: true,
     tier: 'pro',
   },

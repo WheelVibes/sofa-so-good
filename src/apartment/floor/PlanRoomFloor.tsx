@@ -13,7 +13,11 @@ import {
   useSolidMaterial,
   useTexturedMaterial,
 } from '../../materials/useMaterial'
-import { worldUvPlaneGeometry, worldUvShapeGeometry } from '../../materials/worldUv'
+import {
+  type UvTransform,
+  worldUvPlaneGeometry,
+  worldUvShapeGeometry,
+} from '../../materials/worldUv'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { confirmAndEnterRoom } from '../../state/enterRoomConfirm'
@@ -70,6 +74,8 @@ interface Rect {
   polygon?: [number, number][]
   /** When set, clicking the floor in the overview enters that room's editor. */
   roomId?: string
+  /** Optional floor-texture transform (scale/angle) — SweetHome3DJS parity. */
+  texTransform?: UvTransform
 }
 type Props = Rect & { materialId: MaterialId }
 
@@ -79,6 +85,7 @@ function FloorMesh({
   depth,
   polygon,
   roomId,
+  texTransform,
   material,
 }: Rect & { material: MeshStandardMaterial }) {
   const handlers = useOverviewRoomEntry(roomId)
@@ -86,10 +93,16 @@ function FloorMesh({
   const userData = roomId ? finishSurfaceUserData('floor', roomId) : undefined
   if (polygon && polygon.length >= 3) {
     return (
-      <PolygonFloor polygon={polygon} material={material} handlers={handlers} userData={userData} />
+      <PolygonFloor
+        polygon={polygon}
+        material={material}
+        handlers={handlers}
+        userData={userData}
+        texTransform={texTransform}
+      />
     )
   }
-  const geometry = worldUvPlaneGeometry(width, depth)
+  const geometry = worldUvPlaneGeometry(width, depth, texTransform)
   return (
     <mesh
       position={[origin[0] + width / 2, 0.006, origin[1] + depth / 2]}
@@ -110,13 +123,20 @@ function PolygonFloor({
   material,
   handlers,
   userData,
+  texTransform,
 }: {
   polygon: [number, number][]
   material: MeshStandardMaterial
   handlers?: Record<string, unknown>
   userData?: Record<string, unknown>
+  texTransform?: UvTransform
 }) {
-  const geometry = useMemo(() => worldUvShapeGeometry(polygon), [polygon])
+  const texScale = texTransform?.scale
+  const texAngle = texTransform?.angle
+  const geometry = useMemo(
+    () => worldUvShapeGeometry(polygon, { scale: texScale, angle: texAngle }),
+    [polygon, texScale, texAngle],
+  )
   return (
     <mesh
       position={[0, 0.006, 0]}

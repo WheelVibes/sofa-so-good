@@ -75,6 +75,11 @@ export interface PlanRoom {
   wall?: string
   /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
   ceiling?: CeilingConfig
+  /** Optional floor-texture transform (SweetHome3DJS texture scale/angle parity):
+   *  `floorTexScale` multiplies tile size (×, >1 = bigger), `floorTexAngle`
+   *  rotates the texture (radians). Absent = default tiling. */
+  floorTexScale?: number
+  floorTexAngle?: number
   /** Optional in-plane offset (metres) of the room's name label from its
    *  centroid, so a label can be nudged clear of furniture / a tight room
    *  (Sweet Home 3D movable labels). Absent → centred on the centroid. */

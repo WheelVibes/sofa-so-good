@@ -37,6 +37,18 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## PARITY-FLOORTEX: per-room floor-texture transform (scale + angle) — SweetHome3DJS parity
+
+- A room's floor texture can be **scaled (tile size) and rotated** — SweetHome3D's per-surface texture
+  scale/angle. New `PlanRoom.floorTexScale`/`floorTexAngle` are applied at geometry-build time by
+  `materials/worldUv.ts` `applyUvTransform` (`uv' = c + Rot(angle)·((uv − c)/scale)` about the UV
+  centre) inside `worldUvPlaneGeometry`/`worldUvShapeGeometry` — **no material cloning** (the shared
+  material is untouched; only the per-room floor geometry's UVs change). `PlanShell` threads the
+  transform to `PlanRoomFloor`; room-inspector tile-size + angle controls under a new `floorTexture`
+  flag (pro); serialized in `schema.ts` (optional, back-compat).
+- UV-transform unit-tested (identity no-op; scale halves the UV extent; rotation preserves it) + flag
+  gating; browser-verified via `scenarios/floor-texture-simple.json` on a custom plan.
+
 ## PARITY-FURNLIGHT (v2): per-light colour + brightness — SweetHome3DJS parity
 
 - Any light-emitting item (a registered fixture, or one flagged "Make a light source") now exposes an

@@ -176,6 +176,9 @@ const PlanRoomZ = z.object({
   wall: z.string().optional(),
   // Movable room-name label offset (metres from the centroid). Optional + additive.
   labelOffset: Vec2Z.optional(),
+  // Per-room floor-texture transform (scale/angle) — optional + additive.
+  floorTexScale: z.number().optional(),
+  floorTexAngle: z.number().optional(),
   // Per-room ceiling treatment (tray/coffered/dropped). Optional + additive →
   // no schema-version bump; absent → flat (the prior behaviour).
   ceiling: z
