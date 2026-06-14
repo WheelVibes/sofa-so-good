@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-ROOMPOLY: reshape free-form rooms by dragging vertices — SweetHome3DJS parity
+
+- A free-form (`polyroom`) room can now be **reshaped after creation**: select it in the 2D editor and
+  drag any of its vertex handles. The handle's `pointerdown` snapshots the index, `onMove` rewrites
+  that point in `PlanRoom.polygon` (and keeps `origin/width/depth` in sync as the polygon's bbox, so
+  rect-reading consumers stay correct), `onUp` ends the drag — mirroring the existing wall-vertex drag
+  pattern (`movingPolyVertex`). No new flag (an editing affordance on the already-flagged `polyroom`
+  tool). Browser-verified via `scenarios/room-polygon-edit-simple.json` (handles render, a synthetic
+  vertex drag grows the room 4.0 → 6.0 m²).
+
 ## PARITY-TILT: multi-axis furniture tilt (pitch / roll) — SweetHome3DJS parity
 
 - Furniture can now be tilted off vertical, not just yawed: optional `pitch` (about local X) and

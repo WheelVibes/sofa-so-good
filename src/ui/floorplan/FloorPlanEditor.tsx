@@ -159,6 +159,11 @@ export function FloorPlanEditor() {
   const [movingVertex, setMovingVertex] = useState<{ id: string; which: 'start' | 'end' } | null>(
     null,
   )
+  // Active polygon-room vertex drag (select tool): which polygon point is moving.
+  // Lets a free-form (polyroom) room be reshaped after creation.
+  const [movingPolyVertex, setMovingPolyVertex] = useState<{ id: string; index: number } | null>(
+    null,
+  )
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
@@ -674,6 +679,29 @@ export function FloorPlanEditor() {
       useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz], levelId)
       return
     }
+    if (movingPolyVertex) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const room = levelPlan.rooms.find((r) => r.id === movingPolyVertex.id)
+      if (room?.polygon) {
+        const poly = room.polygon.map((p, i) =>
+          i === movingPolyVertex.index ? ([wx, wz] as [number, number]) : p,
+        )
+        // Keep origin/width/depth in sync as the polygon's bbox (back-compat for
+        // consumers that still read the rect; the polygon stays authoritative).
+        const xs = poly.map((p) => p[0])
+        const zs = poly.map((p) => p[1])
+        const x0 = Math.min(...xs)
+        const z0 = Math.min(...zs)
+        st.updateRoom(room.id, {
+          polygon: poly,
+          origin: [x0, z0],
+          width: Math.max(0.1, Math.max(...xs) - x0),
+          depth: Math.max(0.1, Math.max(...zs) - z0),
+        })
+      }
+      return
+    }
     if (movingItem) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -732,6 +760,10 @@ export function FloorPlanEditor() {
     }
     if (movingVertex) {
       setMovingVertex(null)
+      return
+    }
+    if (movingPolyVertex) {
+      setMovingPolyVertex(null)
       return
     }
     if (movingItem) {
@@ -1238,6 +1270,30 @@ export function FloorPlanEditor() {
                       )}
                     </>
                   )}
+                  {/* Reshape handles: drag any vertex of a selected free-form
+                      (polyroom) room. stopPropagation keeps the room-move
+                      handler on the parent <g> from firing. */}
+                  {isSel && tool === 'select' && r.polygon && r.polygon.length >= 3
+                    ? r.polygon.map(([vx, vz], i) => (
+                        <circle
+                          key={`pv-${r.id}-${i}`}
+                          data-poly-vertex={`${r.id}:${i}`}
+                          cx={toPx(vx)}
+                          cy={toPx(vz)}
+                          r={5}
+                          fill="var(--accent)"
+                          stroke="var(--surface)"
+                          strokeWidth={1.5}
+                          style={{ cursor: 'grab' }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation()
+                            a.setPlanSelection({ type: 'room', id: r.id })
+                            setMovingPolyVertex({ id: r.id, index: i })
+                            svgRef.current?.setPointerCapture(e.pointerId)
+                          }}
+                        />
+                      ))
+                    : null}
                   {(() => {
                     const [lx, lz] = roomLabelPosition(r)
                     return (

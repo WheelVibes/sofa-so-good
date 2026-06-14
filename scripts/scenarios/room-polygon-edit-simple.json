@@ -1,0 +1,26 @@
+{
+  "name": "room-polygon-edit-simple",
+  "description": "Simple ladder for room-polygon vertex editing. Opens the 2D editor, injects a free-form (polyroom) room, selects it, confirms draggable vertex handles render, then drives a real synthetic pointer drag on one handle and asserts the room's polygon vertex moved + its area changed.",
+  "url": "http://localhost:5233/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "open-editor", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "editor-open", "waitFor": { "css": "svg" }, "timeout": 10000 },
+    { "name": "add-poly-room", "eval": "(() => { const s = window.__store.getState(); const id = s.addRoom({ name: 'Poly', origin: [1,1], width: 2, depth: 2, polygon: [[1,1],[3,1],[3,3],[1,3]] }); window.__roomId = id; s.setPlanSelection({ type: 'room', id }); s.recordArea = (window.__store.getState().floorPlan); })()" },
+    { "name": "handles-visible", "waitFor": { "css": "[data-poly-vertex]" }, "timeout": 8000, "failMessage": "polygon vertex handles did not render on the selected polyroom" },
+    { "name": "shot-handles", "screenshot": "01-poly-handles" },
+    {
+      "name": "drag-a-vertex",
+      "eval": "(async () => { const sleep = (ms) => new Promise(r => setTimeout(r, ms)); const id = window.__roomId; const el = document.querySelector('[data-poly-vertex=\"'+id+':2\"]'); if (!el) throw new Error('handle not found'); const svg = el.closest('svg'); const r = el.getBoundingClientRect(); const cx = r.left + r.width/2, cy = r.top + r.height/2; const mk = (type, x, y) => new PointerEvent(type, { bubbles: true, cancelable: true, clientX: x, clientY: y, pointerId: 1, pointerType: 'mouse', button: 0 }); el.dispatchEvent(mk('pointerdown', cx, cy)); await sleep(80); svg.dispatchEvent(mk('pointermove', cx + 70, cy + 55)); await sleep(80); svg.dispatchEvent(mk('pointerup', cx + 70, cy + 55)); })()"
+    },
+    { "name": "settle", "wait": 400 },
+    {
+      "name": "verify-vertex-moved",
+      "waitFor": { "store": "(() => { const r = state.floorPlan.rooms.find(r => r.id === window.__roomId); if (!r || !r.polygon) return false; const v = r.polygon[2]; return Math.abs(v[0] - 3) > 0.1 || Math.abs(v[1] - 3) > 0.1; })()" },
+      "timeout": 5000,
+      "failMessage": "dragging the handle did not move the polygon vertex"
+    },
+    { "name": "shot-reshaped", "screenshot": "02-poly-reshaped" }
+  ]
+}

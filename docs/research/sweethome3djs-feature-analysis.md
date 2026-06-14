@@ -57,7 +57,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | Draw **round/arc** walls | ❌ | `PlanWall` is a straight segment only. |
 | Draw **sloping** (variable-height) walls | ❌ | only flat-top + optional capped `topHeight`. |
 | Rooms (rect / polygon) + floor/ceiling finishes | ✅ | `PlanRoom` (rect, L-extension, free `polygon`), `roomFinishes`. |
-| **Manually draw/edit** an arbitrary room polygon in the editor | ❌ | rooms are rect/L or auto-detected; no point-by-point room tool. |
+| **Manually draw/edit** an arbitrary room polygon in the editor | ✅ | Drawing via the `polyroom` tool (click vertices → close); **reshape now shipped** — drag the vertex handles on a selected polygon room (`FloorPlanEditor` `movingPolyVertex`). |
 | Doors/windows auto-cut wall holes (CSG-like) | ✅ | `PlanOpening` rendered as wall cutouts; door swing + hinge. |
 | Dimension lines | ✅ | plan editor dimensions + 3D `AnnotationsOverlay`/tape measure. |
 | Text labels / annotations | ✅ | plan notes, `planLabels` (furniture name/price on plan). |
@@ -91,10 +91,10 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 ### Phase 2 — net-new, low/medium effort
 - **Uncompressed-model-size + creator catalog metadata.** Surface GLB byte size + author/license in
   the catalog card/tooltip (SweetHome3DJS `FurnitureTablePanel` parity) so users manage the memory
-  budget. Data already exists on `UserGltfDef`/credits; add a derived size field + a card line. Low risk.
-- **Manual room-polygon drawing/editing.** A point-by-point room tool in `FloorPlanEditor` writing
-  `PlanRoom.polygon` (the renderer + `planRoomArea` + `roomPolygon` already handle free polygons —
-  this is a UI/editing addition, not a model change). Medium.
+  budget. Size is derivable (`blob.size` in IDB for uploads/IKEA/pack; remote already fetches it;
+  builtin needs a build manifest or HEAD). Capture `file.size` at upload + show in the card. Low risk.
+- ~~**Manual room-polygon drawing/editing.**~~ **Shipped** — `polyroom` tool draws polygons; vertex
+  reshape handles (`FloorPlanEditor` `movingPolyVertex`) edit them after creation.
 
 ### Phase 3 — net-new, structural / higher risk
 - ~~**Multi-axis rotation (pitch/roll).**~~ **Shipped (PARITY-TILT)** — optional `pitch`/`roll` on
