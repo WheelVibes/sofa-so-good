@@ -81,6 +81,12 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').sceneExport3d).toBe(true)
   })
 
+  it('tiltFurniture (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Multi-axis tilt is an advanced placement control → pro tier.
+    expect(resolveFlags(true, {}, false, 'simple').tiltFurniture).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').tiltFurniture).toBe(true)
+  })
+
   it('shopExport (simple tier, prod default on) is available in BOTH Simple and Pro modes', () => {
     // Production build, no overrides — the shoppable buy-list ships in prod…
     expect(resolveFlags(false, {}, false, 'simple').shopExport).toBe(true)

@@ -21,6 +21,10 @@ const FurnitureItemZ = z.object({
   defId: z.string(),
   position: z.tuple([z.number(), z.number()]),
   rotation: z.number(),
+  // Optional multi-axis tilt (pitch about local X, roll about local Z), radians.
+  // Backward-compatible with pre-tilt saves (absent = upright).
+  pitch: z.number().optional(),
+  roll: z.number().optional(),
   // Optional mirror flips (backward-compatible with pre-flip saves).
   flipX: z.boolean().optional(),
   flipZ: z.boolean().optional(),

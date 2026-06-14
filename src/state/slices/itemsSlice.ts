@@ -19,6 +19,10 @@ export interface ItemsSlice {
   addItem: (item: Omit<FurnitureItem, 'id'>) => string
   moveItem: (id: string, position: [number, number]) => void
   rotateItem: (id: string, rotation: number) => void
+  /** Set an item's tilt (pitch about local X, roll about local Z), in radians.
+   *  Pass `undefined` for an axis to leave it unchanged; 0 clears that tilt.
+   *  SweetHome3DJS multi-axis tilt parity (tiltFurniture flag). */
+  tiltItem: (id: string, tilt: { pitch?: number; roll?: number }) => void
   deleteItem: (id: string) => void
   updateItemProps: (id: string, props: ParamProps) => void
   /** Mirror-flip an item along its local X ('x') or Z ('z') axis. */
@@ -84,6 +88,19 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
     set((s) => ({
       items: s.items.map((it) => (it.id === id ? { ...it, rotation } : it)),
     })),
+  // Coalesced like updateItemProps so a pitch/roll slider drag is one undo step.
+  tiltItem: (id, tilt) => {
+    get().pushHistoryCoalesced(`tilt:${id}`)
+    set((s) => ({
+      items: s.items.map((it) => {
+        if (it.id !== id) return it
+        const next = { ...it }
+        if (tilt.pitch !== undefined) next.pitch = tilt.pitch || undefined
+        if (tilt.roll !== undefined) next.roll = tilt.roll || undefined
+        return next
+      }),
+    }))
+  },
   deleteItem: (id) => {
     // Coalesced so a multi-select delete loop produces one undo step.
     get().pushHistoryCoalesced('delete')

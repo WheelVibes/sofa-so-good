@@ -157,6 +157,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   logic + no-key guard unit-tested; live LLM output needs a real key to tune. Follow-up: a key/brief
   panel beyond the ⌘K prompt + route through autoArrange for tidier spacing.
 - [~] PARITY-3DEXPORT: whole-scene OBJ/glTF export **shipped** (see Q-3DEXPORT); STL still open.
+- [~] PARITY-TILT: multi-axis furniture tilt (pitch/roll) **shipped** — `tiltFurniture` flag,
+  `FurnitureItem.pitch/roll`, inspector sliders, `furniture/tiltRotation.ts` (`[pitch, yaw, roll, 'YXZ']`).
+  Follow-up: a 3D tilt gizmo handle + the SH3D 2D-plan tilt indicator; collision stays yaw-OBB.
 
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
 

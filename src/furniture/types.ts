@@ -408,8 +408,14 @@ export interface FurnitureItem {
   defId: FurnitureType
   /** [x, z] in metres in the apartment frame; Y is always 0 (floor-anchored). */
   position: [number, number]
-  /** Y-axis rotation in radians. */
+  /** Y-axis rotation (yaw) in radians. */
   rotation: number
+  /** Optional tilt about the item's local X axis (pitch — nose up/down), radians.
+   *  Absent/0 = upright. SweetHome3DJS multi-axis tilt parity (tiltFurniture). */
+  pitch?: number
+  /** Optional tilt about the item's local Z axis (roll — bank left/right), radians.
+   *  Absent/0 = upright. */
+  roll?: number
   /** Mirror flips in the item's local frame (left↔right / front↔back).
    *  Optional + default false so saved layouts stay backward-compatible. */
   flipX?: boolean

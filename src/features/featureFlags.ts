@@ -77,6 +77,7 @@ export type FeatureFlag =
   | 'itemAsLight'
   | 'aiLayout'
   | 'planPolyline'
+  | 'tiltFurniture'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -498,6 +499,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   planPolyline: {
     label: 'Plan polyline markup',
     description: 'Free-form polyline annotations (open/closed, dashed, arrow) in the 2D editor',
+    default: true,
+    tier: 'pro',
+  },
+  // Multi-axis furniture tilt (SweetHome3DJS parity): pitch/roll an item off
+  // vertical (angle a picture, recline a backrest, bank a decor piece). Pure
+  // code, no external assets → prod-safe. An advanced placement control beyond
+  // the core furnish loop → pro tier.
+  tiltFurniture: {
+    label: 'Tilt furniture',
+    description: 'Pitch / roll an item off vertical (angle art, recline, bank) in the inspector',
     default: true,
     tier: 'pro',
   },

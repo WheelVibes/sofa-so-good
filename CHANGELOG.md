@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-TILT: multi-axis furniture tilt (pitch / roll) — SweetHome3DJS parity
+
+- Furniture can now be tilted off vertical, not just yawed: optional `pitch` (about local X) and
+  `roll` (about local Z) on `FurnitureItem` (radians; absent = upright, so saves stay back-compatible
+  and untilted items render byte-identically). New **Tilt** pitch/roll sliders (±45°) in the inspector
+  under a `tiltFurniture` flag (pro tier); structural `Staircase` and locked items are excluded
+  (mirrors how SweetHome3DJS locks doors/windows/stairs from tilting).
+- Clean-room adaptation of SweetHome3DJS's yaw·pitch·roll matrix composition, optimized for our stack:
+  instead of multiplying three matrices per vertex we hand the renderer one intrinsic Euler tuple
+  `[pitch, yaw, roll, 'YXZ']` (`furniture/tiltRotation.ts` `itemRotation`) — one allocation, the GPU
+  world matrix does the rest. The flat floor contact shadow is dropped while tilted (`isTilted`).
+- `itemsSlice.tiltItem` (history-coalesced like a slider drag); serialized in `schema.ts` (optional,
+  back-compat). Pure helper unit-tested (reduces to pure yaw; composes to the same orientation as the
+  three-axis reference quaternion) + flag-gating in both modes. Browser-verified via
+  `scenarios/tilt-furniture-simple.json` (flag off Simple / on Pro, tilt applied + rendered + reset).
+
 ## Q-3DEXPORT: whole-scene 3D export (glTF/GLB + OBJ) — SweetHome3DJS ObjWriter/glTF parity
 
 - New **Export 3D model** feature (`sceneExport3d` flag, pro tier): exports the whole furnished home —

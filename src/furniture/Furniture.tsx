@@ -8,6 +8,7 @@ import { GltfErrorBoundary } from './GltfErrorBoundary'
 import { GltfModel } from './GltfModel'
 import { selectGltfRender } from './gltfRender'
 import { PRIMITIVE_COMPONENTS } from './primitives'
+import { isTilted, itemRotation } from './tiltRotation'
 import type { FurnitureDef, FurnitureItem, GltfDef } from './types'
 
 interface FurnitureProps {
@@ -125,7 +126,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
   return (
     <group
       position={[item.position[0], def.kind === 'parametric' ? 0 : liftY, item.position[1]]}
-      rotation={[0, item.rotation, 0]}
+      rotation={itemRotation(item)}
       // Tag the root group with the item id so manual raycasts (canvas finish
       // drop — scene/finishDropTarget.ts) can map a hit back to the item.
       userData={{ itemId: item.id }}
@@ -171,7 +172,8 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       {(() => {
         if (!contactShadow) return null
         const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h }
-        if (passive || def.mounted || def.noClip || span.base >= 0.4) return null
+        // A flat floor shadow reads wrong under a tilted piece — drop it then.
+        if (passive || def.mounted || def.noClip || span.base >= 0.4 || isTilted(item)) return null
         const obb = itemFootprint(item, def)
         return <ContactShadow w={obb.hx * 2} d={obb.hz * 2} y={-liftY} />
       })()}

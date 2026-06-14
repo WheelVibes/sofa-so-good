@@ -70,7 +70,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | Photoreal render + sunlight time-of-day | ✅ | render presets + `hqRender` path-tracer + day/night. |
 | **Video** (keyframed camera-path → file) | 🟡 | turntable WebM recording ships; no keyframed camera-path video. |
 | Lights (fixtures) | ✅ | `FurnitureLights`, `itemAsLight`, lux overlay. |
-| Furniture multi-axis rotation (**pitch/roll**) | ❌ | `FurnitureItem.rotation` is a single yaw scalar (+ flipX/flipZ). |
+| Furniture multi-axis rotation (**pitch/roll**) | ✅ | **shipped — PARITY-TILT** (`tiltFurniture`): optional `pitch`/`roll` on `FurnitureItem`, inspector sliders, `furniture/tiltRotation.ts`. |
 | Import a blueprint background to trace | 🟡 | reference backdrop + `aiWalls` plan tracing; no scaled blueprint underlay tool. |
 | **Whole-scene 3D export (OBJ/glTF)** | ✅ | **shipped — Q-3DEXPORT** (`sceneExport3d`); STL/USDZ still open. |
 | Export PDF / SVG / bitmap / DXF | ✅ | report PDF, plan SVG, DXF, drawing set, BOQ/CSV/XLSX, PNG, panorama. |
@@ -97,9 +97,10 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
   this is a UI/editing addition, not a model change). Medium.
 
 ### Phase 3 — net-new, structural / higher risk
-- **Multi-axis rotation (pitch/roll).** Extend `FurnitureItem` with optional `pitch`/`roll`, thread
-  through the renderer transform, the rotate gizmo, the 2D plan, OBB collision (today yaw-only), and the
-  serialization schema (Zod, backward-compatible optional fields). Risky — touches collision + save format.
+- ~~**Multi-axis rotation (pitch/roll).**~~ **Shipped (PARITY-TILT)** — optional `pitch`/`roll` on
+  `FurnitureItem` + inspector sliders, applied via a pure `[pitch, yaw, roll, 'YXZ']` Euler
+  (`furniture/tiltRotation.ts`); collision stays yaw-OBB (tilt doesn't change the plan footprint, as in
+  SweetHome3DJS); structural/locked items excluded. Gizmo + 2D tilt-handle remain a follow-up.
 - **Round/arc + sloping walls.** Add an arc/`bulge` and a per-end height to `PlanWall`; update
   `wallOps`, room detection, the 2D editor and the `Walls` extrusion. Invasive across floorplan geometry.
 - **Sloped ceiling / roof geometry.** Extend `ceilingModel.ts` with a pitched-plane option. Medium-high.
