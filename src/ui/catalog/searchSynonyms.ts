@@ -95,6 +95,43 @@ export function singularize(q: string): string[] {
 }
 
 /**
+ * Room / use-case intent → the item terms typically found there. Lets a user
+ * search by where a piece goes ("bedroom", "office") and get the relevant
+ * furniture, Coohom-style. Keys are matched as whole-query substrings; the
+ * mapped terms are scored as discounted synonyms (so a literal name match still
+ * ranks first, and a bare intent query surfaces the category). Item-level words
+ * ("bed") are intentionally NOT keys — only room/use words — so the common
+ * single-item search isn't broadened unexpectedly.
+ */
+export const CATEGORY_INTENT: Record<string, readonly string[]> = {
+  bedroom: ['bed', 'nightstand', 'wardrobe', 'dresser'],
+  nursery: ['crib', 'changing table', 'rocking chair', 'kids bed'],
+  kitchen: ['cabinet', 'countertop', 'stove', 'refrigerator', 'sink', 'bar stool'],
+  bathroom: ['toilet', 'bathroom sink', 'shower', 'bathtub', 'vanity'],
+  'living room': ['sofa', 'coffee table', 'tv console', 'armchair', 'rug'],
+  lounge: ['sofa', 'coffee table', 'armchair'],
+  dining: ['dining table', 'dining chair', 'sideboard'],
+  office: ['desk', 'office chair', 'bookshelf'],
+  study: ['desk', 'office chair', 'bookshelf'],
+  storage: ['wardrobe', 'cabinet', 'sideboard', 'shoe cabinet', 'bookshelf'],
+  lighting: ['ceiling light', 'floor lamp', 'table lamp', 'pendant'],
+}
+
+/**
+ * If the query expresses a room / use-case intent, the item terms to also search
+ * for (Coohom-style "search by room"). Empty when no intent word is present.
+ */
+export function expandIntent(query: string): string[] {
+  const q = query.toLowerCase().trim()
+  if (!q) return []
+  const out = new Set<string>()
+  for (const [intent, terms] of Object.entries(CATEGORY_INTENT)) {
+    if (q.includes(intent)) for (const t of terms) out.add(t)
+  }
+  return [...out]
+}
+
+/**
  * Synonym-aware fuzzy search. Scores each item's text fields against the query
  * (and a singularised form) at full weight PLUS synonym variants (discounted),
  * keeps the best, and returns matches sorted best-first (stable for ties). Empty
@@ -110,12 +147,16 @@ export function fuzzySearchSmart<T>(
   const original = q.toLowerCase()
   // Literal forms (full weight): the query + its singular(s).
   const literals = new Set(singularize(original))
-  // Synonym forms (discounted): synonyms of each literal form, minus the literals.
+  // Synonym forms (discounted): synonyms of each literal form + any room/use
+  // intent terms, minus the literals.
   const synonyms = new Set<string>()
   for (const lit of literals) {
     for (const v of expandQuery(lit)) {
       if (!literals.has(v)) synonyms.add(v)
     }
+  }
+  for (const v of expandIntent(original)) {
+    if (!literals.has(v)) synonyms.add(v)
   }
   const scored: { item: T; score: number; idx: number }[] = []
   items.forEach((item, idx) => {

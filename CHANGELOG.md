@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Catalog search: search by room / use-case intent
+
+- Catalog search now understands **room/use intent** (Coohom-style): typing "bedroom", "office",
+  "lighting", "storage", etc. surfaces the furniture that belongs there (bedroom → beds, nightstands,
+  wardrobes, dressers) even though no item is literally named that. A `CATEGORY_INTENT` map + `expandIntent`
+  feed the mapped item terms as discounted synonyms in `fuzzySearchSmart`. Item-level words ("bed") are
+  deliberately NOT intent keys, so a single-item search isn't broadened unexpectedly.
+- 4 unit tests (intent expansion + "bed doesn't broaden" guard); browser-verified ("bedroom" returns
+  Nightstand/Wardrobe/Dressing table/etc. in the real catalog). Builds on PARITY-SEARCH.
+
 ## RZ5 (partial): beveled baseboard + crown-molding trim
 
 - Baseboards and crown molding now build from the shared `BeveledBox` chamfer instead of hard

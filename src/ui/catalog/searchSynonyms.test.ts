@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { expandQuery, fuzzySearchSmart, singularize } from './searchSynonyms'
+import { expandIntent, expandQuery, fuzzySearchSmart, singularize } from './searchSynonyms'
 
 describe('expandQuery', () => {
   it('returns the original (lower-cased) first and includes synonyms', () => {
@@ -77,6 +77,45 @@ describe('fuzzySearchSmart', () => {
   it('matches a plural SYNONYM query ("couches" → Sofa)', () => {
     const items: Item[] = [{ name: 'Sofa' }, { name: 'Desk' }]
     expect(fuzzySearchSmart('couches', items, text)[0]?.name).toBe('Sofa')
+  })
+})
+
+describe('expandIntent', () => {
+  it('maps a room/use word to its typical item terms', () => {
+    expect(expandIntent('bedroom')).toEqual(
+      expect.arrayContaining(['bed', 'nightstand', 'wardrobe']),
+    )
+    expect(expandIntent('office')).toEqual(expect.arrayContaining(['desk', 'office chair']))
+  })
+
+  it('triggers on an intent word inside a phrase, and is empty otherwise', () => {
+    expect(expandIntent('modern bedroom')).toContain('bed')
+    expect(expandIntent('sofa')).toEqual([])
+    expect(expandIntent('')).toEqual([])
+  })
+})
+
+describe('fuzzySearchSmart — room/use intent', () => {
+  type Item = { name: string }
+  const text = (i: Item) => [i.name]
+
+  it('"bedroom" surfaces bedroom furniture by name', () => {
+    const items: Item[] = [
+      { name: 'Queen Bed' },
+      { name: 'Nightstand' },
+      { name: 'Dining Table' },
+      { name: 'Wardrobe' },
+    ]
+    const names = fuzzySearchSmart('bedroom', items, text).map((i) => i.name)
+    expect(names).toEqual(expect.arrayContaining(['Queen Bed', 'Nightstand', 'Wardrobe']))
+    expect(names).not.toContain('Dining Table')
+  })
+
+  it('a single-item word ("bed") does NOT broaden via intent', () => {
+    const items: Item[] = [{ name: 'Queen Bed' }, { name: 'Nightstand' }]
+    // "bed" matches the bed by name; the nightstand only comes via the bedroom
+    // intent, which "bed" must not trigger.
+    expect(fuzzySearchSmart('bed', items, text).map((i) => i.name)).toEqual(['Queen Bed'])
   })
 })
 
