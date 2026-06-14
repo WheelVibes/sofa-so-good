@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Template categories: housing type › project › apartment-type picker
+
+- Floor-plan templates are now **categorised** by a three-level hierarchy — **housing type**
+  (HDB / Condominium) › **project name** › **apartment type** — added as an optional
+  `FloorPlan.category` ({housingType, projectName, apartmentType} in `floorplan/types.ts`). Every
+  built-in `PLAN_TEMPLATES` entry carries one (grouped under Singapore developments, e.g. Serangoon
+  North Vista, Tampines GreenVerge, Bishan Ridges, Sky Habitat, d'Leedon), and the **default plan is
+  now HDB › Serangoon North Vista › 4-Room** (`defaultPlan.ts`).
+- The old flat "Template…" dropdown is replaced by a **cascading picker**
+  (`ui/floorplan/TemplatePicker.tsx`): pick housing type → project → apartment type, which loads that
+  starter plan. The tree is derived by a pure `templateCategoryTree` helper (insertion order preserved,
+  unique apartment types per project — unit-tested).
+- **Saving** a plan to the library now opens `ui/floorplan/SaveTemplateModal.tsx`, which prompts for
+  name + housing type + project + apartment type, so user-authored apartments are categorised like the
+  built-ins. The project + apartment-type fields use a new **fuzzy-search combobox** (`ui/FuzzyCombo.tsx`,
+  pure `comboRows` over `catalog/fuzzySearch`): typing ranks existing values best-first and always
+  appends an **"Add …"** custom row last, so a brand-new project or unit type (e.g. "2-Room + Study")
+  can be committed. `updateFloorPlanMeta` accepts `category`; it round-trips through `schema.ts`
+  (optional + additive) and persists with saved plans. Verified with the `template-categories` and
+  `template-fuzzy-combo` scenarios.
+
 ## PARITY-BASEBOARD: per-wall baseboard / skirting params — SweetHome3DJS parity
 
 - Each editable wall gains an optional **baseboard override** (`PlanWall.baseboard`): skirting **height**

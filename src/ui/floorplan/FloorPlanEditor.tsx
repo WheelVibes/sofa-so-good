@@ -26,7 +26,6 @@ import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { isSlopedWall } from '../../floorplan/slopedWall'
-import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
 import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
 import {
@@ -55,6 +54,8 @@ import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
 import { PLAN_LABEL_TEXT, planLabelLines } from './planLabels'
+import { SaveTemplateModal } from './SaveTemplateModal'
+import { TemplatePicker } from './TemplatePicker'
 
 /** Muted top-down fill per furniture category for the 2D plan layer.
  *  Tokens live in `screens.css` (`--plan-cat-*`) so the plan themes correctly;
@@ -1024,27 +1025,7 @@ export function FloorPlanEditor() {
         <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
           Reset to HDB
         </button>
-        <select
-          value=""
-          onChange={(e) => {
-            const tpl = PLAN_TEMPLATES.find((t) => t.id === e.target.value)
-            if (!tpl) return
-            a.pushHistory()
-            a.setItems([])
-            a.setFloorPlan(JSON.parse(JSON.stringify(tpl)))
-            a.setPlanSelection(null)
-          }}
-          title="Start from a template apartment"
-          className="input"
-          style={{ width: 'auto' }}
-        >
-          <option value="">Template…</option>
-          {PLAN_TEMPLATES.map((t) => (
-            <option key={t.id} value={t.id}>
-              {t.name}
-            </option>
-          ))}
-        </select>
+        <TemplatePicker />
         <PlanLibrary />
 
         {/* Reference photo — trace walls over a floor-plan image / room scan. */}
@@ -2172,12 +2153,14 @@ function PlanLibrary() {
   const saved = useStore((s) => s.savedPlans)
   const plan = useStore((s) => s.floorPlan)
   const a = useStore.getState()
+  const [saveOpen, setSaveOpen] = useState(false)
   return (
     <div className="flex items-center gap-1">
+      <SaveTemplateModal open={saveOpen} onClose={() => setSaveOpen(false)} />
       <button
         type="button"
-        onClick={() => a.saveCurrentPlan(plan.name)}
-        title="Save this apartment to your library"
+        onClick={() => setSaveOpen(true)}
+        title="Save this apartment to your library (with its category)"
         className="btn btn-soft btn-sm"
       >
         Save

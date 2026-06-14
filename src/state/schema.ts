@@ -219,6 +219,15 @@ const PlanUpperLevelZ = z.object({
 const FloorPlanZ = z.object({
   id: z.string(),
   name: z.string(),
+  // Template categorisation (housing type → project → apartment type). Optional
+  // + additive — older saved plans simply have none.
+  category: z
+    .object({
+      housingType: z.enum(['HDB', 'Condominium']),
+      projectName: z.string(),
+      apartmentType: z.string(),
+    })
+    .optional(),
   ceilingHeight: z.number(),
   extent: Vec2Z,
   walls: z.array(PlanWallZ),

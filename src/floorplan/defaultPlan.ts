@@ -71,6 +71,8 @@ export function buildDefaultPlan(): FloorPlan {
   return {
     id: 'default-hdb-4room',
     name: 'HDB 4-Room (default)',
+    // Default categorisation: HDB › Serangoon North Vista › 4-Room.
+    category: { housingType: 'HDB', projectName: 'Serangoon North Vista', apartmentType: '4-Room' },
     ceilingHeight: FLAT.ceilingHeight,
     extent: [APARTMENT_EXT_W, APARTMENT_EXT_D],
     walls,

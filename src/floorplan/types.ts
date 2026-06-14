@@ -137,9 +137,27 @@ export interface PlanUpperLevel {
   rooms: PlanRoom[]
 }
 
+/** Top-level housing category for the template picker. */
+export type HousingType = 'HDB' | 'Condominium'
+
+/** Three-level template categorisation: housing type → project → apartment type
+ *  (e.g. HDB › Serangoon North Vista › 4-Room). Every built-in template carries
+ *  one; user-saved plans are prompted for it. */
+export interface PlanCategory {
+  housingType: HousingType
+  /** Development / estate name (e.g. "Serangoon North Vista"). */
+  projectName: string
+  /** Unit type within the project (e.g. "4-Room", "2-Bedroom"). */
+  apartmentType: string
+}
+
 export interface FloorPlan {
   id: string
   name: string
+  /** Optional template categorisation (housing type → project → apartment type)
+   *  driving the template picker. Built-ins set all three; user plans may prompt.
+   *  Optional + additive — older saved plans simply have none. */
+  category?: PlanCategory
   ceilingHeight: number
   /** External footprint (metres) for the floor slab + grid. */
   extent: PlanVec2

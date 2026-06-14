@@ -1,0 +1,24 @@
+{
+  "name": "template-fuzzy-combo",
+  "description": "Fuzzy combobox on the categorised Save modal. Opens Save, types a partial project query into the free-text Project field, and verifies the dropdown shows fuzzy-ranked existing values plus an 'Add …' custom row last.",
+  "url": "http://localhost:5231/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "open-save-modal", "click": "button[title=\"Save this apartment to your library (with its category)\"]" },
+    { "name": "save-fields", "waitFor": { "css": "input[aria-label=\"Project name\"]" }, "timeout": 5000 },
+    { "name": "type-partial-query", "eval": "(() => { const input = document.querySelector('input[aria-label=\"Project name\"]'); const setter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, 'value').set; setter.call(input, 'seran'); input.dispatchEvent(new Event('input', { bubbles: true })); input.focus(); })()" },
+    { "name": "dropdown-open", "waitFor": { "css": "[role=\"option\"]" }, "timeout": 5000, "failMessage": "Fuzzy dropdown did not open" },
+    {
+      "name": "verify-fuzzy-and-custom",
+      "waitFor": { "store": "(() => { const opts=[...document.querySelectorAll('[role=\\\"option\\\"]')].map(o=>o.textContent); return opts.some(t=>t.includes('Serangoon')) && opts[opts.length-1].includes('Add') && opts[opts.length-1].includes('seran') })()" },
+      "timeout": 5000,
+      "failMessage": "Expected a fuzzy match for Serangoon plus a trailing 'Add seran' custom row"
+    },
+    { "name": "shot-fuzzy", "screenshot": "01-fuzzy-combo" }
+  ]
+}

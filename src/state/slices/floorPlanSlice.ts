@@ -84,7 +84,7 @@ export interface FloorPlanSlice {
   newFloorPlan: (name?: string) => void
   /** Patch the top-level plan metadata (name, ceilingHeight, extent, wallColor). */
   updateFloorPlanMeta: (
-    patch: Partial<Pick<FloorPlan, 'name' | 'ceilingHeight' | 'extent' | 'wallColor'>>,
+    patch: Partial<Pick<FloorPlan, 'name' | 'ceilingHeight' | 'extent' | 'wallColor' | 'category'>>,
   ) => void
 
   addWall: (wall: Omit<PlanWall, 'id'>, levelId?: string) => string

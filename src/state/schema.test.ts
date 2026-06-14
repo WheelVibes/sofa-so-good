@@ -387,6 +387,28 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips a custom plan’s template category', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-cat',
+        category: { housingType: 'Condominium', projectName: 'Sky Habitat', apartmentType: 'Loft' },
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      expect(patch.floorPlan?.category).toEqual({
+        housingType: 'Condominium',
+        projectName: 'Sky Habitat',
+        apartmentType: 'Loft',
+      })
+    }
+  })
+
   it('round-trips a per-wall baseboard override (PARITY-BASEBOARD)', () => {
     useStore.getState().__resetForTest()
     useStore.setState({

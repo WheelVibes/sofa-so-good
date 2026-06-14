@@ -56,7 +56,10 @@ same change that reshapes a system.
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
   `isDefaultPlan`), `templates.ts` (19 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo +
   two-storey Executive Maisonette, condo studio/1-bed/1+study/2/3/4-bed/penthouse, two-storey
-  terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`),
+  terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`;
+  each carries a `category` {housingType › projectName › apartmentType} and `templateCategoryTree`
+  groups them for the cascading `ui/floorplan/TemplatePicker.tsx`; default = HDB › Serangoon North
+  Vista › 4-Room; `ui/floorplan/SaveTemplateModal.tsx` prompts for the category on save),
   `roomDetect.ts`, `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
   `upperLevels` adds storeys; `planLevels`/`levelById`/`levelAsPlan`/`allPlanRooms`/
   `withLevelGeometry` — see `docs/research/multi-level-design.md`),

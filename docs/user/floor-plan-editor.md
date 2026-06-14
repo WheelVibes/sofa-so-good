@@ -141,10 +141,16 @@ clean plan.)
 ## Templates & saving
 
 Start from a **template** apartment, **Reset to HDB** for the default flat, or
-**New** for an empty shell. The template picker covers the common Singapore home
-types — HDB 2‑Room Flexi, 3/4/5‑Room, Executive Apartment, 3Gen and Jumbo, plus
-condominium layouts (Studio, 1‑Bedroom, 1+Study, 2‑, 3‑ and 4‑Bedroom, Penthouse)
-— alongside the Studio / One‑bed starters. Three templates are genuinely
+**New** for an empty shell. The **template picker** is a three‑step cascade —
+pick a **housing type** (HDB or Condominium), then a **project**, then the
+**apartment type** — and choosing a type loads that starter plan. The default
+flat is **HDB › Serangoon North Vista › 4‑Room**. It covers the common Singapore
+home types — HDB 2‑Room Flexi, 3/4/5‑Room, Executive Apartment, 3Gen and Jumbo,
+plus condominium layouts (Studio, 1‑Bedroom, 1+Study, 2‑, 3‑ and 4‑Bedroom,
+Penthouse, Loft and a landed Terrace), each grouped under a development name.
+When you **Save** a plan to your library you're prompted for its housing type,
+project and apartment type, so your own apartments are categorised like the
+built‑ins. Three templates are genuinely
 **two‑storey** (see [Levels](#levels-storeys)): the **HDB Executive Maisonette**
 (living/kitchen down, three bedrooms + two baths up), the **Terrace House**
 (landed, bedrooms upstairs) and the **Open Loft** (sleeping mezzanine) — each

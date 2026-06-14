@@ -4,7 +4,7 @@
  * complete, self-consistent FloorPlan (perimeter + partitions + rooms +
  * openings) with clean orthogonal walls.
  */
-import type { FloorPlan, PlanOpening, PlanUpperLevel, PlanWall } from './types'
+import type { FloorPlan, HousingType, PlanOpening, PlanUpperLevel, PlanWall } from './types'
 
 const T = 0.1 // inset of walls from the nominal footprint edge
 
@@ -1062,24 +1062,62 @@ function condo4Bed(): FloorPlan {
   }
 }
 
+/** Attach a template's category (housing type → project → apartment type). Kept
+ *  out of the shape builders so the geometry stays focused; the picker groups by
+ *  these three levels. Singapore-flavoured project names group related unit
+ *  types under a believable development. */
+function cat(
+  plan: FloorPlan,
+  housingType: HousingType,
+  projectName: string,
+  apartmentType: string,
+): FloorPlan {
+  return { ...plan, category: { housingType, projectName, apartmentType } }
+}
+
 export const PLAN_TEMPLATES: FloorPlan[] = [
-  studio(),
-  oneBed(),
-  loft(),
-  hdb2Room(),
-  hdb3Room(),
-  hdb4Room(),
-  hdb5Room(),
-  hdbExecutive(),
-  hdb3Gen(),
-  hdbJumbo(),
-  hdbMaisonette(),
-  condo1Bed(),
-  condo1Study(),
-  condo2Bed(),
-  condo3Bed(),
-  condoPenthouse(),
-  condoTerrace(),
-  condoStudio(),
-  condo4Bed(),
+  // HDB — grouped by BTO/estate project name. The 4-Room is the app default.
+  cat(hdb2Room(), 'HDB', 'Tampines GreenVerge', '2-Room Flexi'),
+  cat(hdb3Room(), 'HDB', 'Tampines GreenVerge', '3-Room'),
+  cat(hdb4Room(), 'HDB', 'Serangoon North Vista', '4-Room'),
+  cat(hdb5Room(), 'HDB', 'Serangoon North Vista', '5-Room'),
+  cat(hdbExecutive(), 'HDB', 'Bishan Ridges', 'Executive Apartment'),
+  cat(hdb3Gen(), 'HDB', 'Punggol Point Cove', '3Gen'),
+  cat(hdbJumbo(), 'HDB', 'Bishan Ridges', 'Jumbo'),
+  cat(hdbMaisonette(), 'HDB', 'Bishan Ridges', 'Executive Maisonette'),
+  // Condominium / landed — grouped by development.
+  cat(studio(), 'Condominium', 'The Sail @ Marina Bay', 'Studio'),
+  cat(oneBed(), 'Condominium', 'The Sail @ Marina Bay', '1-Bedroom'),
+  cat(loft(), 'Condominium', 'Sky Habitat', 'Loft'),
+  cat(condo1Bed(), 'Condominium', 'Sky Habitat', '1-Bedroom'),
+  cat(condo1Study(), 'Condominium', 'Sky Habitat', '1+Study'),
+  cat(condo2Bed(), 'Condominium', "d'Leedon", '2-Bedroom'),
+  cat(condo3Bed(), 'Condominium', "d'Leedon", '3-Bedroom'),
+  cat(condo4Bed(), 'Condominium', "d'Leedon", '4-Bedroom'),
+  cat(condoStudio(), 'Condominium', "d'Leedon", 'Studio'),
+  cat(condoPenthouse(), 'Condominium', 'Marina One Residences', 'Penthouse'),
+  cat(condoTerrace(), 'Condominium', 'Landed Terraces', 'Terrace House'),
 ]
+
+/** Build the housing-type → project → templates tree for the cascading picker.
+ *  Insertion order of `PLAN_TEMPLATES` is preserved at every level. Templates
+ *  without a category (shouldn't happen for built-ins) are skipped. Pure +
+ *  unit-tested. */
+export function templateCategoryTree(
+  templates: FloorPlan[] = PLAN_TEMPLATES,
+): Map<HousingType, Map<string, FloorPlan[]>> {
+  const tree = new Map<HousingType, Map<string, FloorPlan[]>>()
+  for (const t of templates) {
+    if (!t.category) continue
+    const { housingType, projectName } = t.category
+    let projects = tree.get(housingType)
+    if (!projects) {
+      projects = new Map<string, FloorPlan[]>()
+      tree.set(housingType, projects)
+    }
+    const list = projects.get(projectName)
+    if (list) list.push(t)
+    else projects.set(projectName, [t])
+  }
+  return tree
+}
