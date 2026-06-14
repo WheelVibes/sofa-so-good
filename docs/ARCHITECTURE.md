@@ -314,6 +314,11 @@ same change that reshapes a system.
   totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the
   builder). Flag `shopExport` (simple, prod); File menu + mobile File + ⌘K. IKEA product links/SKUs only
   with retailer defs; links dev-gated via `ikeaLive` (licensing) — generic export ships in prod.
+- **Quote / bill of quantities** (`export/boq.ts` `buildBoq` → priced sections [FF&E, finishes by area,
+  carpentry by linear metre]; `boqToHtml`/`boqToCsv`, and `export/boqXlsx.ts` `boqToXlsx` — a hand-built
+  minimal OOXML `.xlsx` via `fflate`, mirroring the CSV columns). `ui/openBoq.ts` `assembleBoqInput`
+  (shared by the HTML quote + the Excel download `ui/downloadBoqXlsx.ts`) prices both identically. Flag
+  `boq` (pro); Tools menu (desktop). PARITY-QUOTEXLSX.
 - **Lighting plan** (`lighting2d/lightingPlan.ts` pure → fixtures from the `LIGHT_EMITTERS` registry
   with world pos/height/intensity/coverage + a schedule, honouring per-item `enabled()` gates;
   `ui/lighting2d/lightingPlanSvg.ts` draws walls + coverage circles + glyphs).

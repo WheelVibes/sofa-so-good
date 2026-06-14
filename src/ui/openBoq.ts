@@ -29,32 +29,13 @@ function floorMap(plan: FloorPlan): Record<string, string> {
  *  The window is opened synchronously (inside the click's user activation) and
  *  the BOQ/area builders are dynamic-imported afterwards — they stay out of
  *  the boot bundle (P-CHUNK). */
-export async function openBoq(): Promise<void> {
+/** Assemble the quote-ready BoqInput from the live design (FF&E from placed
+ *  furniture, finishes from the area schedules, carpentry by linear metre).
+ *  Shared by the HTML quote (`openBoq`) and the Excel export (`downloadBoqXlsx`)
+ *  so they price identically. Dynamic-imports `reportData` (kept out of boot). */
+export async function assembleBoqInput(): Promise<BoqInput> {
   const s = useStore.getState()
-  const win = window.open('', '_blank')
-  if (!win) {
-    s.notify.start({
-      title: 'Quote blocked',
-      kind: 'error',
-      message: 'Allow pop-ups for this site, then open the quote again.',
-    })
-    return
-  }
-  let boqMod: typeof import('../export/boq')
-  let reportDataMod: typeof import('./reportData')
-  try {
-    ;[boqMod, reportDataMod] = await Promise.all([import('../export/boq'), import('./reportData')])
-  } catch {
-    win.close()
-    s.notify.start({
-      title: 'Quote failed',
-      kind: 'error',
-      message: 'Could not load the quote builder — check your connection and try again.',
-    })
-    return
-  }
-  const { buildBoq, boqToHtml } = boqMod
-  const { floorAreaByFinish, wallAreaByFinish } = reportDataMod
+  const { floorAreaByFinish, wallAreaByFinish } = await import('./reportData')
   const plan = s.floorPlan
   const catalog = buildMergedCatalog(s)
 
@@ -86,7 +67,7 @@ export async function openBoq(): Promise<void> {
 
   const fMap = floorMap(plan)
   const wMap = isDefaultPlan(plan) ? (s.finishes.walls as Record<string, string>) : {}
-  const input: BoqInput = {
+  return {
     plan,
     rooms: plan.rooms.map((r) => ({
       id: r.id,
@@ -118,6 +99,37 @@ export async function openBoq(): Promise<void> {
           ]
         : undefined,
   }
+}
+
+export async function openBoq(): Promise<void> {
+  const s = useStore.getState()
+  const win = window.open('', '_blank')
+  if (!win) {
+    s.notify.start({
+      title: 'Quote blocked',
+      kind: 'error',
+      message: 'Allow pop-ups for this site, then open the quote again.',
+    })
+    return
+  }
+  let buildBoq: typeof import('../export/boq').buildBoq
+  let boqToHtml: typeof import('../export/boq').boqToHtml
+  let input: BoqInput
+  try {
+    const boqMod = await import('../export/boq')
+    buildBoq = boqMod.buildBoq
+    boqToHtml = boqMod.boqToHtml
+    input = await assembleBoqInput()
+  } catch {
+    win.close()
+    s.notify.start({
+      title: 'Quote failed',
+      kind: 'error',
+      message: 'Could not load the quote builder — check your connection and try again.',
+    })
+    return
+  }
+  const plan = s.floorPlan
 
   const boq = buildBoq(input)
   const name = plan.name.replace(

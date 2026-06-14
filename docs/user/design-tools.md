@@ -37,6 +37,12 @@ listed under *Unpriced / generic* with the same indicative estimates as the
 Budget panel), with a subtotal per retailer, the grand total, and your budget
 target's under/over. Print it, save it as PDF, or send it with your design.
 
+For a contractor-ready costing, **Tools → Quote (BOQ)** opens a printable bill of
+quantities (FF&E, flooring/painting finishes priced per area, and built-in
+carpentry by linear metre, with per-section subtotals + a grand total). **Tools →
+Quote → Excel (.xlsx)** downloads the same bill as a spreadsheet you can edit or
+send on.
+
 Spend is shown wherever it helps: each catalog card and the inspector show a
 per‑item price (with a **selection total** when you multi‑select), the panel
 breaks spend down **by category and by room**, and the per‑room editor caption

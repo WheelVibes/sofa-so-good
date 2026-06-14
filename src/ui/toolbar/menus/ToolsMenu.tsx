@@ -5,6 +5,7 @@ import { blockedDoorItems } from '../../../layout/clearance'
 import { canRecord } from '../../../scene/RecordController'
 import { useStore } from '../../../state/store'
 import { closeAllAuxPanels } from '../../auxPanels'
+import { downloadBoqXlsx } from '../../downloadBoqXlsx'
 import { DRAWING_LAYERS } from '../../drawingLayers'
 import { openBoq } from '../../openBoq'
 import { openDrawingSet } from '../../openDrawingSet'
@@ -280,12 +281,20 @@ export function ToolsMenu() {
         <MenuItem icon="Report" label="Report" sub="Printable design report" onClick={openReport} />
       )}
       {fBoq && (
-        <MenuItem
-          icon="Budget"
-          label="Quote (BOQ)"
-          sub="Bill of quantities — FF&E, finishes, carpentry"
-          onClick={() => openBoq()}
-        />
+        <>
+          <MenuItem
+            icon="Budget"
+            label="Quote (BOQ)"
+            sub="Bill of quantities — FF&E, finishes, carpentry"
+            onClick={() => openBoq()}
+          />
+          <MenuItem
+            icon="Export"
+            label="Quote → Excel (.xlsx)"
+            sub="Download the bill of quantities as a spreadsheet"
+            onClick={() => void downloadBoqXlsx()}
+          />
+        </>
       )}
       {fDxf && (
         <MenuItem

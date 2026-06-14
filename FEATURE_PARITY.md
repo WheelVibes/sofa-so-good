@@ -51,6 +51,7 @@ model swap** · **smart/semantic catalog search** · **section/cross-section dra
 render/lighting presets (day/night/mood)** · **BYO-key AI auto-furnish (text brief →
 layout)** · **drawing-set sheet/layer toggles (choose which sheets to include)** ·
 **on-plan text callouts on the report + drawing-set sheets** ·
+**quotation CSV + Excel (.xlsx) export** ·
 **all analysis tools (we exceed)**.
 
 ### Gaps & approach
@@ -60,7 +61,7 @@ layout)** · **drawing-set sheet/layer toggles (choose which sheets to include)*
 | 8K+ tiled still render | ◑ | ✅ | Add tiled offscreen render at 8K+ to the HQ render presets. | M |
 | Fast rasterized "preview render" tier | ◑ | ✅ | A high-quality single-frame raster capture as the local analog to cloud 10-s render. | M |
 | IES photometric light import | ❌ | ✅ | Parse `.ies` into spotlight intensity distribution in `scene/lighting`. | M |
-| Quotation Excel/Word export + editable templates + price-rule library | ◑ | ✅ | BOQ + CSV ship; add XLSX export + user-editable templates + a price-rule library. | M |
+| Quotation **editable templates** + price-rule library | ◑ | ✅ | BOQ + CSV + **XLSX** ship; add user-editable quote templates + a configurable price-rule library. | M |
 | Walkthrough/flythrough **video** export (keyframed camera path → MP4/WebM) | ◑ | ✅ | Turntable WebM recording ships; add a keyframed camera path over saved views + `MediaRecorder`/WebCodecs capture. | L |
 | Day-to-night animated render clip | ◑ | ✅ | Animate the time-of-day slider along the video path. | M |
 | AI floor-plan generation (text → plan) | ❌ | 🔑 | BYO-key LLM emits wall/room JSON into the 2D plan schema. | L |
@@ -132,7 +133,7 @@ room-name labels**.
 4. AR "view in your room" (Coohom/F22) — high "wow"/sales value.
 5. 8K tiled still render + fast rasterized preview tier (Coohom) — quality lift.
 6. Sloping ceilings + slanting walls + per-wall baseboards (SH3D) — realism/CAD depth.
-7. Quote Excel/XLSX export + editable templates + price-rule library (Coohom).
+7. Quote editable templates + price-rule library (Coohom) — CSV/XLSX export already ship.
 8. Fisheye / DoF lens options on the render camera (SH3D).
 9. Keyboard wall-length / angle entry while drawing (SH3D).
 10. IES photometric light import (Coohom).

@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-QUOTEXLSX: export the bill of quantities as an Excel .xlsx
+
+- Tools → **"Quote → Excel (.xlsx)"** downloads the bill of quantities as a real spreadsheet (the
+  deliverable contractors/clients expect), alongside the existing HTML quote. Hand-built minimal OOXML
+  (`export/boqXlsx.ts`, `boqToXlsx`) — a 5-part ZIP via `fflate` (already a dep), no SheetJS; text cells
+  use inline strings, money/qty are numeric cells, descriptions are XML-escaped. Mirrors `boqToCsv`'s
+  columns so the exports stay in lock-step.
+- The HTML quote + the Excel export now share one `assembleBoqInput()` (extracted from `openBoq`) so
+  they price identically. Desktop-only (the quote is a desktop export — no mobile-parity gap).
+- Pure builder unit-tested by unzipping the result (valid ZIP magic, all required parts, header + a
+  numeric amount cell, `FF&amp;E` escaping); the menu entry visually verified. Docs updated.
+
 ## PARITY-WALLDIM: edit a wall's exact length + angle in the 2D inspector
 
 - The wall inspector's read-only "Length" line is now an **editable Length (m)** field, plus a new
