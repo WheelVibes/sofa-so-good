@@ -133,25 +133,29 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 
 ### Pending — quick wins (S)
-- [ ] PARITY-NORTH: SH3D North/compass widget on the canvas (rotatable, tied to sun azimuth). (Walk
-  FOV/eye-height controls shipped — see CHANGELOG PARITY-WALKCAM.)
-- [ ] PARITY-BATCHRENDER: SH3D batch-render all saved views.
+- [~] PARITY-NORTH: 2D-plan North/compass rose **shipped** (`planCompass` flag, needle tied to
+  `orientationDeg`). Remaining: a compass widget on the 3D canvas too.
+- [x] PARITY-BATCHRENDER: SH3D batch-render all saved views — Saved-views "Render all views" flies the
+  camera to each saved view (`applyView`) and downloads a hi-fi PNG per view via `captureCanvasPng`
+  (`ui/renderAllViews.ts`, `batchRender` pro flag).
 - [~] PARITY-LIGHTINGTEMPLATE-TEXT: **material callouts shipped** — a per-room Finishes schedule sheet
   (floor + wall material names) in the drawing set (`floorplan/finishSchedule.ts`). Remaining: free
   text callouts on sheets + drawing-set layer toggles.
 
 ### Pending — high value (M)
 - [ ] PARITY-SEARCH: Coohom smart/semantic catalog search (tag/fuzzy over catalog + packs).
-- [ ] PARITY-AR: Coohom AR "view in your room" (`<model-viewer>`/WebXR on a GLB export; needs Q-3DEXPORT).
+- [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
+  (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).
 - [ ] PARITY-DENOISE: Coohom render denoiser (OIDN-wasm/bilateral post-pass on HQ render). [real-GPU verify]
 - [ ] PARITY-8K: Coohom 8K+ tiled still render.
-- [ ] PARITY-SLOPECEIL: SH3D sloping ceilings (per-room ceiling slope).
-- [ ] PARITY-SLANTWALL: SH3D slanting walls (per-endpoint top heights).
+- [x] PARITY-SLOPECEIL: SH3D sloping ceilings **shipped** (see PARITY-SLOPECEIL in CHANGELOG).
+- [x] PARITY-SLANTWALL: SH3D slanting walls **shipped** (PARITY-SLOPEWALL: `PlanWall.topHeightEnd` prism).
 - [ ] PARITY-BASEBOARD: SH3D per-wall baseboard params + finish.
-- [ ] PARITY-QUOTE-XLSX: Coohom quote Excel/CSV export + editable templates.
+- [~] PARITY-QUOTE-XLSX: quote XLSX/CSV **shipped** (PARITY-QUOTEXLSX). Remaining: user-editable templates.
 
 ### Pending — marquee (L)
-- [ ] PARITY-VIDEO: video flythrough export (camera path → WebM/MP4 via MediaRecorder). [real-GPU verify]
+- [x] PARITY-VIDEO: video flythrough export **shipped** — saved-views cinematic tour → .webm
+  (`ui/recordViewTour.ts`, PARITY-VIDEO in CHANGELOG).
 - [~] PARITY-CURVEDWALL: SH3D curved/arc walls **shipped** — `PlanWall.arc` bulge + `floorplan/wallArc.ts`
   (Bézier → chord sub-segments) reused by `wallBoxes`/`planCollisionWalls`/room detection; 2D midpoint
   bulge handle (`curvedWalls` flag, pro). **Openings on curves now supported** — arc-length positioned,

@@ -4,6 +4,7 @@ import { captureThumb } from '../../../state/storage/slotThumbs'
 import { useStore } from '../../../state/store'
 import { PresentationSetup } from '../../presentation/PresentationSetup'
 import { recordViewTour } from '../../recordViewTour'
+import { renderAllSavedViews } from '../../renderAllViews'
 import { Icon } from '../icons'
 import { MenuItem } from '../ToolbarMenu'
 
@@ -28,6 +29,7 @@ export function SavedViewsSection() {
   const presentationOn = useFeature('presentation')
   const panoTourOn = useFeature('panoTour')
   const walkthroughOn = useFeature('walkthrough')
+  const batchRenderOn = useFeature('batchRender')
 
   const editNote = async (id: string, current: string) => {
     const note = await useStore.getState().promptText({
@@ -96,6 +98,14 @@ export function SavedViewsSection() {
           label="Record walkthrough video"
           sub="Fly the saved-views tour and download a .webm (~5s per view)"
           onClick={() => recordViewTour(5 * (savedViews.length - 1))}
+        />
+      ) : null}
+      {savedViews.length > 0 && batchRenderOn ? (
+        <MenuItem
+          icon="Download"
+          label="Render all views"
+          sub="Download a PNG of every saved view"
+          onClick={() => void renderAllSavedViews()}
         />
       ) : null}
       {savedViews.map((v) => (

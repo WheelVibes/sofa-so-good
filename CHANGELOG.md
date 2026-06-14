@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-BATCHRENDER: batch-render every saved camera view to PNG — SweetHome3DJS parity
+
+- The saved-views section of the View menu (desktop + mobile) gains a **"Render all views"** action
+  (`batchRender` pro-tier flag) that flies the camera to each saved view in turn via `applyView`
+  (restoring that view's captured lighting), waits for the ~0.6 s fly + a lighting settle, then grabs a
+  hi-fi frame with the existing `captureCanvasPng` (a synchronous `gl.render` + readback, so each PNG is
+  fresh at the view's final pose) and downloads it. Files are named `<plan>-NN-<view>.png` (zero-padded
+  so they sort in saved-view order) and staggered so the browser doesn't coalesce rapid downloads.
+  Pure client-side (no backend), mirroring SweetHome3DJS's "export to PNG for each stored point of view".
+  New `ui/renderAllViews.ts` (pure `viewFileName` unit-tested); flag gated in both Simple/Pro tests;
+  `render-all-views-simple` scenario verifies the menu item + progress/success toasts end-to-end.
+
 ## PARITY-3DSIMPORT: import legacy .3ds models — SweetHome3DJS Max3DSLoader parity
 
 - The model-upload converter now ingests `.3ds` (3D Studio) files via three's `TDSLoader`, completing

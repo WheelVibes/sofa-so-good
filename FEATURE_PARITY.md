@@ -104,12 +104,12 @@ room-name labels**.
 
 | Feature | Have | Feasible | Gap & approach (reference our modules) | Effort |
 |---|---|---|---|---|
-| **Curved / arc walls** | ❌ | ✅ | Arc geometry + mid-wall curve handle + "arc extent" field; 2D render + 3D extrusion. | L |
-| **Slanting walls** (per-endpoint top heights) | ◑ | ✅ | Per-endpoint "height at start/end" fields + sloped 3D extrusion. | M |
-| **Sloping ceilings** (per-room ceiling slope) | ❌ | ✅ | Per-room ceiling slope params; angled ceiling plane (extend `apartment/ceiling`). | M |
+| **Curved / arc walls** | ✅ | ✅ | **Shipped (PARITY-CURVEDWALL)** — true circular arc + midpoint bulge handle, openings on curves, 2D `A`-path + 3D chord extrusion. | L |
+| **Slanting walls** (per-endpoint top heights) | ✅ | ✅ | **Shipped (PARITY-SLOPEWALL)** — `PlanWall.topHeightEnd` prism + inspector start/end height. | M |
+| **Sloping ceilings** (per-room ceiling slope) | ✅ | ✅ | **Shipped (PARITY-SLOPECEIL)** — `sloped` `CeilingConfig` pitched plane + per-room picker. | M |
 | **Baseboards/skirting on walls** (height/thickness/finish) | ◑ | ✅ | We have skirting; expose per-wall baseboard params + finish. | M |
 | On-plan room-name label **rotation / font** | ◑ | ✅ | Name is editable, rendered + **draggable** (placement ships); add optional label rotation + font styling. | S |
-| **Batch render** all saved cameras | ◑ | ✅ | "Render all saved views" loop over the render pipeline (saved-views menu exists; the batch loop doesn't). | S |
+| **Batch render** all saved cameras | ✅ | ✅ | **Shipped (PARITY-BATCHRENDER)** — Saved-views "Render all views" flies to each view and downloads a PNG via `captureCanvasPng` (`ui/renderAllViews.ts`, `batchRender` pro flag). | S |
 | **Fisheye / DoF** lens options on render | ◑ | ✅ | Add lens-type + DoF controls to the render camera (DoF partly exists in HQ). | M |
 | Keyboard wall-length entry while drawing | ◑ | ✅ | Live numeric length/angle entry during wall draw. | M |
 | **Video flythrough** export (keyframed camera path → file) | ✅ | ✅ | **Shipped (PARITY-VIDEO)** — saved-views cinematic tour recorded to .webm. | L |
@@ -126,8 +126,7 @@ room-name labels**.
 > section tracks only what is still open.
 
 **Quick wins (S):**
-1. Batch-render all saved cameras (SH3D) — loop the render pipeline over saved views.
-2. Room-name label rotation + font styling (SH3D) — drag-to-reposition already ships.
+1. Room-name label rotation + font styling (SH3D) — drag-to-reposition already ships.
 
 **High-value medium efforts (M):**
 4. AR "view in your room" (Coohom/F22) — high "wow"/sales value.

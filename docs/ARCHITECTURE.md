@@ -419,7 +419,9 @@ same change that reshapes a system.
   Undoable + persists (`floorPlanStore.ts`).
 - **Toolbar** (`ui/toolbar/`): scrollable icon island (`IconButton` + `ToolbarMenu`).
   Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice` with
-  per-view note + 360°-slide toggles and Present…),
+  per-view note + 360°-slide toggles, Present…, and **Render all views** —
+  `ui/renderAllViews.ts` flies each saved view and downloads a `captureCanvasPng` PNG per view,
+  `batchRender` flag, pro),
   **Scene** (time slider + Lighting + Backdrop + sun `CompassModal`), **Edit** (step into
   room / floor-plan), **Arrange** (Tidy + Sets/Presets/Styles pick→Apply `PickApply`),
   **Tools** (Budget/Checks/Sun study/Walkthrough/Report), **File**, **Graphics**. Three

@@ -51,6 +51,7 @@ export type FeatureFlag =
   | 'dxfExport'
   | 'boq'
   | 'sceneExport3d'
+  | 'batchRender'
   | 'shopExport'
   | 'suggestions'
   | 'electricalPlan'
@@ -316,6 +317,12 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   sceneExport3d: {
     label: 'Export 3D model',
     description: 'Whole furnished scene → glTF/GLB (+ OBJ) for Blender / AR / Coohom',
+    default: true,
+    tier: 'pro',
+  },
+  batchRender: {
+    label: 'Render all views',
+    description: 'Batch-export a PNG of every saved camera view in one click (SweetHome3D parity)',
     default: true,
     tier: 'pro',
   },

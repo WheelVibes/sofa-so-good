@@ -81,6 +81,12 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').sceneExport3d).toBe(true)
   })
 
+  it('batchRender (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Batch PNG-per-view export is an advanced presentation/output feature → pro.
+    expect(resolveFlags(true, {}, false, 'simple').batchRender).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').batchRender).toBe(true)
+  })
+
   it('tiltFurniture (pro tier) is hidden in Simple mode and present in Pro mode', () => {
     // Multi-axis tilt is an advanced placement control → pro tier.
     expect(resolveFlags(true, {}, false, 'simple').tiltFurniture).toBe(false)

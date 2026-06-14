@@ -94,6 +94,10 @@ saved view row has three small buttons:
 - The **note** button — add a presenter note, shown as the slide's caption.
 - The **trash** button — delete the view.
 
+**View → Render all views** flies through every saved view in turn and downloads
+a high-quality PNG of each — a one-click way to export a whole set of presentation
+images at once (named so they sort in saved-view order).
+
 **View → Present…** turns your saved views into a full-screen client slideshow:
 each slide flies the camera to its view (restoring that view's lighting) and
 captions it with the view's name and note. Navigate with the on-screen arrows,
