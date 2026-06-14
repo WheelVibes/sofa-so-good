@@ -65,7 +65,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | Compass / North + sun by date+geo location | ✅ | `orientation` slice + SunCalc lighting, manual-hour slider. |
 | Multiple levels / storeys + stairs | ✅ | F13 multi-storey (`floorplan/levels.ts`), `Staircase` primitive. |
 | Furniture catalog (searchable, categorized) | ✅ | 15 categories + builtin/IKEA/pack/remote/user sources. |
-| Import custom 3D models | 🟡 | `modelUpload` auto-converts to GLB; OBJ covered; **3DS/DAE not explicit**. |
+| Import custom 3D models | ✅ | `modelUpload` auto-converts to GLB and **exceeds** SweetHome3DJS's set: GLB/glTF, OBJ, FBX, STL, PLY, DAE/Collada, **3DS** (added — `TDSLoader`, Max3DSLoader parity), 3MF, USDZ. |
 | Per-model material/texture editing | ✅ | finishes DLC + `finishOverrides`, drag-to-apply, PBR surfaces. |
 | Photoreal render + sunlight time-of-day | ✅ | render presets + `hqRender` path-tracer + day/night. |
 | **Video** (keyframed camera-path → file) | 🟡 | turntable WebM recording ships; no keyframed camera-path video. |

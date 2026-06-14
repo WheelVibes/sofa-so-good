@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-3DSIMPORT: import legacy .3ds models — SweetHome3DJS Max3DSLoader parity
+
+- The model-upload converter now ingests `.3ds` (3D Studio) files via three's `TDSLoader`, completing
+  SweetHome3DJS's OBJ/DAE/3DS loader set — the converter already covered GLB/glTF/OBJ/FBX/STL/PLY/DAE/
+  3MF/USDZ, so this fills the last literal gap. Added to `convert/formats.ts` (`ModelFormat` +
+  extension/format maps + size ceiling), a `TDSLoader` case in `convert/loadToObject.ts` (sibling
+  textures resolve through the loading manager like OBJ/DAE), and the upload dialog's format hint.
+  Format detection unit-tested; sibling-resolution path shared with the other converters.
+
 ## PARITY-CURVEDWALL: curved / arc walls — SweetHome3DJS parity
 
 - Walls can now be **bowed into curves**: select a wall in the 2D editor and drag its midpoint handle.
