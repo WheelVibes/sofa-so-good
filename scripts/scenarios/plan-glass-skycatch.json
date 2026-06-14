@@ -1,0 +1,18 @@
+{
+  "name": "plan-glass-skycatch",
+  "description": "RZ2 tail: custom-plan window glass should sky-catch by day (clear light-blue, lit) and go dark at night, like the fixed apartment windows. Day vs night shots, viewed from outside a window wall.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "load-template", "eval": "window.__loadTemplate?.('tpl-1bed')" },
+    { "name": "settle-load", "wait": 2500 },
+    { "name": "cam-window", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;const fp=window.__store.getState().floorPlan;const xs=fp.rooms.flatMap(r=>[r.origin[0],r.origin[0]+r.width]);const zs=fp.rooms.flatMap(r=>[r.origin[1],r.origin[1]+r.depth]);const ew=Math.max(...xs),ed=Math.max(...zs);const cx=ew/2,cz=ed/2; if(ew>=ed){cam.position.set(cx,1.6,-ed*1.4);}else{cam.position.set(-ew*1.4,1.6,cz);} if(c){c.target.set(cx,1.2,cz);c.update();}cam.lookAt(cx,1.2,cz);})()" },
+    { "name": "day", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "settle-day", "wait": 2200 },
+    { "name": "shot-day", "screenshot": "glass-day" },
+    { "name": "night", "eval": "window.__store.getState().setManualHour?.(23)" },
+    { "name": "settle-night", "wait": 2200 },
+    { "name": "shot-night", "screenshot": "glass-night" }
+  ]
+}

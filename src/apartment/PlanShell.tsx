@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { BufferAttribute, BufferGeometry, type Mesh, type MeshStandardMaterial } from 'three'
+import { BufferAttribute, BufferGeometry, Color, type Mesh, type MeshStandardMaterial } from 'three'
 import { useFeature } from '../features/useFeature'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
@@ -14,11 +14,18 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import { GLASS_SKYCATCH_COLOR, glassSkyCatchIntensity } from '../materials/materialRealism'
 import type { MaterialId } from '../materials/types'
+import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
 import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
+
+// Window glass day/night tint — clear cool pane by day, dark reflective at night
+// (matches the fixed apartment's Window.tsx so custom + default plans look alike).
+const GLASS_DAY = new Color('#bcd4e6')
+const GLASS_NIGHT = new Color('#20272f')
 
 /**
  * One plan wall, fading out in orbit mode when it sits between the camera and
@@ -436,17 +443,23 @@ function FadeWindow({
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
-  const BASE = 0.32
   useFrame(() => {
     const mesh = ref.current
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
+    // Daylight-driven glass look (parity with the fixed apartment's Window): a
+    // clear sky-lit pane by day → dark reflective at night, via an emissive
+    // sky-catch (cheap, all tiers) + a day/night colour + opacity blend.
+    const d = getFixtureGlow() // 1 at night, 0 in daylight
+    mat.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
+    mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
+    const base = 0.28 + d * 0.45 // more opaque (less see-through) at night
     let factor = 1
     const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
     if (win.revealable && cameraMode === 'orbit' && revealEnabled) {
       factor = Math.max(0.12, revealFactor(camera, win.cx, win.cz, win.angle, cx, cz))
     }
-    const target = BASE * factor
+    const target = base * factor
     mat.opacity += (target - mat.opacity) * 0.18
     if (Math.abs(mat.opacity - target) > 0.003) invalidate()
   })
@@ -454,9 +467,11 @@ function FadeWindow({
     <mesh ref={ref} position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
       <boxGeometry args={[0.03, win.height, win.width]} />
       <meshStandardMaterial
-        color="#bcd6e6"
+        color="#bcd4e6"
+        emissive={GLASS_SKYCATCH_COLOR}
+        emissiveIntensity={0.4}
         transparent
-        opacity={BASE}
+        opacity={0.32}
         roughness={0.1}
         metalness={0}
       />

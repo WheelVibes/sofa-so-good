@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RZ2 tail: custom-plan window glass sky-catch (daylight day/night look)
+
+- Custom/edited-plan windows (`PlanShell` `FadeWindow`) now match the fixed apartment's glass: a clear,
+  sky-lit pane by day that goes dark and reflective at night, driven by the `getFixtureGlow` daylight
+  signal — a cheap emissive sky-catch (`glassSkyCatchIntensity`, all tiers) plus a day→night colour
+  (`#bcd4e6`→`#20272f`) and opacity blend (more opaque at night). Previously custom-plan glass was a
+  static pale pane regardless of time of day.
+- Browser-verified (`scripts/scenarios/plan-glass-skycatch.json`): glass reads clear/light by day and
+  dark by night on a loaded template plan; full suite green. Room-editor glass + High+ transmission
+  remain (TASKS RZ2).
+
 ## PARITY-NORTH: 3D nav compass now tracks scene North
 
 - The on-canvas 3D nav compass (`NavCluster`) previously rotated its needle by the camera heading

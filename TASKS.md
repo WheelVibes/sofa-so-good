@@ -189,10 +189,10 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   runtime numeric-prop NaN path. No redundant guards added (would mask real bugs).
 
 ### Realism (pure-code, prod-safe — most users see the flat Performance tier)
-- [~] RZ2: window glass realism — **emissive sky-catch shipped** (all tiers; `glassSkyCatchIntensity`
-  in `materialRealism.ts`, wired into `apartment/Window.tsx`). Tail: apply to `PlanRoomShell` glass
-  (custom plans, needs the daylight signal) + wire `getGlassMaterial`/`glassConfig` transmission on
-  High+ (real-GPU verify).
+- [~] RZ2: window glass realism — **emissive sky-catch shipped** on the fixed apartment
+  (`apartment/Window.tsx`) AND custom-plan windows (`PlanShell` `FadeWindow`: daylight day/night tint +
+  sky-catch emissive). Tail: room-editor glass (`PlanRoomShell`, separate lightweight canvas) + wire
+  `getGlassMaterial`/`glassConfig` transmission on High+ (real-GPU verify).
 - [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables/desk +
   freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
   Nightstand) + Bookshelf/Wardrobe carcasses + parametric kitchen CabinetModule (base/wall/tall:
