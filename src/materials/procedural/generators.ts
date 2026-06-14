@@ -413,16 +413,31 @@ function concreteFields(base: [number, number, number], seed: number): Fields {
   f.normalStrength = 7
   const mottle = makeFbm(seed + 5, 5, 5)
   const pores = makeFbm(seed + 41, 4, 90)
+  // Low-frequency cloudy staining — the broad water-mark / cure-blotch tonal
+  // variation real poured concrete always has, on a larger scale than the mottle
+  // (RZ4). Darkens in big soft patches + makes those patches a touch less rough
+  // (sealed/stained sheen). `baseFreq` MUST be an integer (it sizes the value-
+  // noise grid) — 3 gives patches larger than the freq-5 mottle.
+  const stain = makeFbm(seed + 19, 2, 3)
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const u = x / S
       const v = y / S
       const m = mottle(u, v)
       const p = pores(u, v)
+      const st = stain(u, v)
       const pore = p > 0.86 ? (p - 0.86) / 0.14 : 0
-      const factor = 0.86 + (m - 0.5) * 0.22 - pore * 0.25
+      const factor = (0.86 + (m - 0.5) * 0.22 - pore * 0.25) * (0.9 + st * 0.1)
       const [r, g, b] = shade(base, clamp01(factor))
-      setPx(f, y * S + x, r, g, b, clamp01(m * 0.6 + pore), 0.78 + (m - 0.5) * 0.1)
+      setPx(
+        f,
+        y * S + x,
+        r,
+        g,
+        b,
+        clamp01(m * 0.6 + pore),
+        0.78 + (m - 0.5) * 0.1 - (st - 0.5) * 0.06,
+      )
     }
   }
   return f

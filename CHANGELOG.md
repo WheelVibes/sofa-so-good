@@ -33,6 +33,16 @@ pruned from `main`; entries from C251 on (branch
   (skirting): trim renders cleanly along the floor/wall junction, no z-fighting or clipping. Skirting
   seam AO + painted-trim wear remain (TASKS RZ5).
 
+## RZ4 extension: cloudy staining on concrete
+
+- The `concrete` generator gains a low-frequency cloudy-staining layer — the broad water-mark /
+  cure-blotch tonal variation real poured concrete has, on a larger scale than the existing mottle, with
+  the stained patches reading a touch less rough (sealed sheen). Makes bare-concrete floors/walls read
+  less like a flat slab. Browser-verified on a `floor-concrete` floor (grey with soft cloudy patches).
+- A `generators.test.ts` variance+determinism guard was added first and **caught a NaN→black
+  regression**: value-noise grid sizing requires an **integer** `baseFreq`, so the initial `2.4`
+  produced `undefined` grid reads → NaN → all-black albedo; fixed to `3` (documented inline).
+
 ## RZ4 extension: aged mortar + roughness micro-detail on exposed brick
 
 - Extended the RZ4 grout-aging treatment to the `brick` generator: mortar joints are now darkened

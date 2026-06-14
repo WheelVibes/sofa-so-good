@@ -131,6 +131,15 @@ describe('procedural detail: grout aging + roughness micro-detail (RZ4)', () => 
     }
   })
 
+  it('concrete carries broad tonal variation (cloudy staining + mottle), deterministically', () => {
+    const a = generateProceduralRaw('c', 'concrete', '#b8b6b2', 96)
+    const b = generateProceduralRaw('c', 'concrete', '#b8b6b2', 96)
+    expect(Array.from(a.albedo)).toEqual(Array.from(b.albedo)) // deterministic
+    const lum = new Set<number>()
+    for (let i = 0; i < a.albedo.length; i += 4) lum.add(a.albedo[i])
+    expect(lum.size).toBeGreaterThan(12) // not a flat slab
+  })
+
   it('brick mortar joints are aged — light mortar pixels span a range of darkness', () => {
     // Dark brick body so the light mortar (≈188 grey) is the bright cluster.
     const { albedo } = generateProceduralRaw('mortar', 'brick', '#5a2f24', 128)
