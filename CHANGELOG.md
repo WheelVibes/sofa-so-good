@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: custom-plan walls now turn translucent consistently in the dollhouse view
+
+- **Bug:** in a custom/edited floor plan (`PlanShell`), orbiting to look into the home left near
+  walls only partly translucent — a long facade wall split into segments by windows would have its
+  middle fade while the ends stayed opaque, and near walls viewed off-axis stayed solid. Internal
+  partitions also half-faded, giving a muddy patchwork.
+- **Cause:** `FadeWall`/`FadeWindow`/`PlanDoorLeaf` decided the fade from a **position** test (the
+  angle between *segment→camera* and *segment→centre*), which is evaluated per segment-centre — so
+  segments of one wall disagreed, and off-axis near walls read as "far". It also faded every wall,
+  including internal partitions.
+- **Fix:** switched to the **orientation-based** metric the default flat already uses (`WallSegment`):
+  a wall fades from its outward broad-face normal vs the camera→centre direction, which is identical
+  for every segment of a wall, so the whole wall fades together regardless of where the camera sits.
+  And, like the default, **only external/perimeter walls fade** — internal partitions stay solid so
+  the layout still reads. Windows and door leaves follow their host wall's external flag.
+- Verified on a custom template (`scripts/scenarios/wall-reveal-verify.json`): from a face-on angle
+  the near external wall fully turns translucent (min opacity 0.12) while internal partitions stay
+  opaque; no patchy per-segment reveal.
+
 ## RZ4: aged grout + roughness micro-detail on procedural surfaces
 
 - **Grout joints now read as lived-in, not pristine.** The tile / hexagon / subway generators darken

@@ -30,25 +30,53 @@ function smoothstep(edge0: number, edge1: number, x: number): number {
   return t * t * (3 - 2 * t)
 }
 
-/** Camera-facing reveal factor (1 = opaque, ~0 = faded) for a point at (px,pz)
- *  relative to the plan centre (cx,cz). Wide ramp so near + grazing walls fade. */
+/** Camera-facing reveal factor (1 = opaque, ~0 = faded) for a wall/opening box.
+ *  Orientation-based — matches the default flat's `WallSegment`: a wall fades when
+ *  its outward broad-face normal points back toward the camera (i.e. it sits
+ *  between the camera and the plan interior). This is independent of WHERE along
+ *  the wall a box sits, so every segment of one wall fades together — fixing the
+ *  patchy reveal the old position-based metric gave for long walls split into
+ *  segments by openings, and for near walls viewed off-axis (only the segment
+ *  nearest the view axis faded). `angle` is the box's Y-rotation; the box's broad
+ *  faces (the wall surfaces) have the XZ normal (cos a, −sin a). */
 function revealFactor(
   camera: { position: { x: number; z: number } },
   px: number,
   pz: number,
+  angle: number,
   cx: number,
   cz: number,
 ): number {
-  const kx = camera.position.x - px
-  const kz = camera.position.z - pz
-  const dcx = cx - px
-  const dcz = cz - pz
-  const mag = Math.hypot(kx, kz) * Math.hypot(dcx, dcz) || 1
-  const d = (kx * dcx + kz * dcz) / mag // −1 near (facing camera), +1 far
+  // Wall broad-face normal, oriented outward (away from the plan centre).
+  let nx = Math.cos(angle)
+  let nz = -Math.sin(angle)
+  if (nx * (px - cx) + nz * (pz - cz) < 0) {
+    nx = -nx
+    nz = -nz
+  }
+  // dot(outward normal, camera→centre dir): a near wall's outward face opposes
+  // this direction (d ≈ −1) → fade out; a far wall's aligns (d ≈ +1) → stays opaque.
+  const dcx = cx - camera.position.x
+  const dcz = cz - camera.position.z
+  const clen = Math.hypot(dcx, dcz) || 1
+  const d = (nx * dcx + nz * dcz) / clen
   return smoothstep(-0.2, 0.25, d)
 }
 
-function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number; color: string }) {
+function FadeWall({
+  box,
+  cx,
+  cz,
+  color,
+  revealable,
+}: {
+  box: WallBox
+  cx: number
+  cz: number
+  color: string
+  /** Only external/perimeter walls fade; internal partitions stay solid. */
+  revealable: boolean
+}) {
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
@@ -60,8 +88,8 @@ function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number
     // Same wallReveal override the default flat's WallSegment honours (also
     // forced off during panorama capture so walls don't leave holes).
     const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
-    if (cameraMode === 'orbit' && revealEnabled) {
-      target = Math.max(0.12, revealFactor(camera, box.cx, box.cz, cx, cz))
+    if (revealable && cameraMode === 'orbit' && revealEnabled) {
+      target = Math.max(0.12, revealFactor(camera, box.cx, box.cz, box.angle, cx, cz))
     }
     mat.opacity += (target - mat.opacity) * 0.18
     mat.transparent = mat.opacity < 0.98
@@ -155,7 +183,16 @@ function PlanLevelShell({
   const crownMolding = useFeature('crownMolding')
   const lp = useMemo(() => levelAsPlan(plan, level), [plan, level])
 
-  const boxes = useMemo(() => lp.walls.flatMap((w) => wallBoxes(lp, w)), [lp])
+  // Pair each render box with whether its source wall is an external/perimeter
+  // wall: only those fade for the camera reveal (internal partitions stay solid
+  // so the room layout reads clearly), matching the default flat's WallSegment.
+  const boxes = useMemo(
+    () =>
+      lp.walls.flatMap((w) =>
+        wallBoxes(lp, w).map((box) => ({ box, revealable: w.thickness === 'external' })),
+      ),
+    [lp],
+  )
 
   // Skirting strips along floor-reaching wall spans, carrying each wall's
   // optional per-wall baseboard override (PARITY-BASEBOARD): height + colour, or
@@ -210,6 +247,7 @@ function PlanLevelShell({
           width: o.width,
           height: o.head - o.sill,
           angle,
+          revealable: wall.thickness === 'external',
         }
       })
       .filter((x): x is NonNullable<typeof x> => x != null)
@@ -305,9 +343,10 @@ function PlanLevelShell({
         )
       })}
 
-      {/* Walls (fade when between the orbit camera and the plan centre) */}
-      {boxes.map((b, i) => (
-        <FadeWall key={i} box={b} cx={cx} cz={cz} color={wallColor} />
+      {/* Walls — external walls fade when between the orbit camera and the plan
+          centre; internal partitions stay solid. */}
+      {boxes.map(({ box, revealable }, i) => (
+        <FadeWall key={i} box={box} cx={cx} cz={cz} color={wallColor} revealable={revealable} />
       ))}
 
       {/* Sloping-top walls render as prisms (slopedWall.ts), not boxes. */}
@@ -334,6 +373,7 @@ function PlanLevelShell({
           flush; polygonOffset prevents z-fighting against the ceiling plane. */}
       {crownMolding &&
         boxes
+          .map(({ box }) => box)
           .filter((b) => b.cy + b.height / 2 >= lp.ceilingHeight - 0.01)
           .map((b, i) => (
             <mesh
@@ -381,7 +421,15 @@ function FadeWindow({
   cx,
   cz,
 }: {
-  win: { cx: number; cz: number; cy: number; width: number; height: number; angle: number }
+  win: {
+    cx: number
+    cz: number
+    cy: number
+    width: number
+    height: number
+    angle: number
+    revealable: boolean
+  }
   cx: number
   cz: number
 }) {
@@ -395,8 +443,8 @@ function FadeWindow({
     const mat = mesh.material as MeshStandardMaterial
     let factor = 1
     const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
-    if (cameraMode === 'orbit' && revealEnabled) {
-      factor = Math.max(0.12, revealFactor(camera, win.cx, win.cz, cx, cz))
+    if (win.revealable && cameraMode === 'orbit' && revealEnabled) {
+      factor = Math.max(0.12, revealFactor(camera, win.cx, win.cz, win.angle, cx, cz))
     }
     const target = BASE * factor
     mat.opacity += (target - mat.opacity) * 0.18
