@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RZ5 (partial): beveled baseboard + crown-molding trim
+
+- The fixed apartment's skirting baseboards and crown molding (`WallSegment`) now build from the shared
+  `BeveledBox` chamfer instead of hard `boxGeometry`, so the trim edges round slightly and catch a
+  highlight rather than reading as flat slabs — matching the case-good bevel pass. The crown molding's
+  `polygonOffset` (ceiling z-fight guard) is preserved on its material. Browser-verified: baseboards
+  render cleanly along the floor/wall junction, no z-fighting or clipping. Custom-plan (PlanShell)
+  skirting/crown + seam AO remain (TASKS RZ5).
+
 ## RZ4 extension: aged mortar + roughness micro-detail on exposed brick
 
 - Extended the RZ4 grout-aging treatment to the `brick` generator: mortar joints are now darkened
