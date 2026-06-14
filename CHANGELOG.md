@@ -58,6 +58,13 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## QOL: recent searches also captured on click-away
+
+- Recent catalog searches are now remembered when the search field loses focus with a ≥2-char query
+  (e.g. you searched then clicked a result), not only on Enter — capturing the common click-away case.
+  `pushRecent` de-dupes so the Enter+blur paths are idempotent. Browser-verified (type "couch", blur →
+  persisted recents `["couch"]`).
+
 ## IXT-SUITES: interaction-test ladder for the accessibility check
 
 - Added `scripts/scenarios/accessibility-simple.json` (17 steps, 2 screenshots) covering the

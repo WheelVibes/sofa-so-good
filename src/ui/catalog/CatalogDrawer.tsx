@@ -240,7 +240,13 @@ export function CatalogDrawer() {
                 value={query}
                 onChange={(e) => onSearch(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
-                onBlur={() => setSearchFocused(false)}
+                onBlur={() => {
+                  setSearchFocused(false)
+                  // Remember the term on click-away too (not just Enter), so a
+                  // search you ran then clicked a result for is captured. Skip
+                  // 1-char fragments; pushRecent de-dupes, so it's idempotent.
+                  if (query.trim().length >= 2) setRecent(pushRecent(query))
+                }}
                 onKeyDown={(e) => {
                   // Esc clears a non-empty query (keeping focus to keep typing),
                   // else blurs the field — a quick way out of search.
