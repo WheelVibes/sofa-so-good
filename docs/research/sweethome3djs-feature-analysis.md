@@ -69,7 +69,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | Per-model material/texture editing | ✅ | finishes DLC + `finishOverrides`, drag-to-apply, PBR surfaces. |
 | Photoreal render + sunlight time-of-day | ✅ | render presets + `hqRender` path-tracer + day/night. |
 | **Video** (keyframed camera-path → file) | ✅ | **shipped — PARITY-VIDEO**: "Record walkthrough video" flies the saved-views cinematic tour while recording → downloads a `.webm` (`recordViewTour` + the existing RecordController); user-set pace via `viewTourLegSeconds`. |
-| Lights (fixtures) | ✅ | `FurnitureLights`, `itemAsLight`, lux overlay. |
+| Lights (fixtures) | ✅ | `FurnitureLights`, `itemAsLight`, lux overlay. **Per-light colour + brightness** now user-editable (PARITY-FURNLIGHT) — inspector colour picker + brightness slider on any emitting item. |
 | Furniture multi-axis rotation (**pitch/roll**) | ✅ | **shipped — PARITY-TILT** (`tiltFurniture`): optional `pitch`/`roll` on `FurnitureItem`, inspector sliders, `furniture/tiltRotation.ts`. |
 | Furniture **elevation** (raise off floor) | ✅ | **shipped — PARITY-ELEVATION**: `FurnitureItem.elevation` + inspector slider (under `mountHeights`); collision span shifts with it. |
 | Furniture **non-uniform resize** (W/D/H) | ✅ | **shipped — PARITY-RESIZE**: parametric items resize via params; GLB/IKEA models via per-axis `scaleX/Y/Z` (inspector W/D/H sliders + keep-proportions); footprint + render scale per-axis. |

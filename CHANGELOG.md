@@ -37,6 +37,16 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## PARITY-FURNLIGHT (v2): per-light colour + brightness — SweetHome3DJS parity
+
+- Any light-emitting item (a registered fixture, or one flagged "Make a light source") now exposes an
+  inspector **Light colour picker + brightness slider** — SweetHome3D's per-light power/colour. Stored
+  as `props.lightColor` (hex) + `props.lightIntensity` (candela); `FurnitureLights` already read
+  `lightColor` and now reads `lightIntensity` too (overriding the emitter-spec default). Controls show
+  whenever `isItemEmitter` is true, defaulting to the resolved emitter's colour/intensity.
+- Browser-verified via `scenarios/item-light-controls.json` (a table lamp emits a custom blue,
+  high-intensity glow at night).
+
 ## PARITY-RESIZE: non-uniform furniture resize (W/D/H) — SweetHome3DJS parity
 
 - GLB / IKEA models can now be resized **independently per axis** (width / height / depth), not just

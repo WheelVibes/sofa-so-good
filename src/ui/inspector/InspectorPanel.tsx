@@ -9,7 +9,7 @@ import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { itemsCost } from '../../furniture/itemsCost'
-import { isEmitter } from '../../furniture/lightEmitters'
+import { isEmitter, isItemEmitter, resolveEmitterSpec } from '../../furniture/lightEmitters'
 import {
   alignCenter,
   alignEdge,
@@ -990,6 +990,60 @@ export function InspectorPanel() {
                   />
                 </div>
               ) : null}
+              {itemAsLightOn && isItemEmitter(item.defId, item.props)
+                ? (() => {
+                    const spec = resolveEmitterSpec(item.defId, item.props)
+                    const color =
+                      typeof item.props.lightColor === 'string'
+                        ? item.props.lightColor
+                        : (spec?.color ?? '#ffe2b0')
+                    const intensity =
+                      typeof item.props.lightIntensity === 'number'
+                        ? item.props.lightIntensity
+                        : (spec?.intensity ?? 5)
+                    return (
+                      <div className="space-y-1" style={{ marginTop: 'var(--s-2)' }}>
+                        <div
+                          className="label"
+                          style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                        >
+                          Light
+                        </div>
+                        <label className="flex items-center justify-between gap-2 text-xs">
+                          <span>Colour</span>
+                          <input
+                            type="color"
+                            aria-label="Light colour"
+                            value={color}
+                            onChange={(e) =>
+                              useStore
+                                .getState()
+                                .updateItemProps(item.id, { lightColor: e.target.value })
+                            }
+                          />
+                        </label>
+                        <label className="flex items-center justify-between gap-2 text-xs">
+                          <span>Brightness</span>
+                          <input
+                            type="range"
+                            aria-label="Light brightness"
+                            min={1}
+                            max={12}
+                            step={0.5}
+                            value={intensity}
+                            onChange={(e) =>
+                              useStore.getState().updateItemProps(item.id, {
+                                lightIntensity: Number(e.target.value),
+                              })
+                            }
+                            style={{ flex: 1 }}
+                          />
+                          <span className="w-8 text-right font-mono">{intensity.toFixed(0)}</span>
+                        </label>
+                      </div>
+                    )
+                  })()
+                : null}
               {replaceSimilarOn ? (
                 <button
                   type="button"

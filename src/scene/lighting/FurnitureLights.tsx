@@ -94,11 +94,14 @@ export function FurnitureLights() {
         const r = item.rotation
         const wx = item.position[0] + ox * Math.cos(r) + oz * Math.sin(r)
         const wz = item.position[1] - ox * Math.sin(r) + oz * Math.cos(r)
+        // Per-item intensity override (PARITY-FURNLIGHT) — a brightness slider.
+        const baseIntensity =
+          typeof item.props.lightIntensity === 'number' ? item.props.lightIntensity : spec.intensity
         return {
           id: item.id,
           position: [wx, spec.height(item.props), wz],
           color: bulb,
-          baseIntensity: spec.intensity,
+          baseIntensity,
           distance: spec.distance,
         }
       }),
