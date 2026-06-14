@@ -1,0 +1,69 @@
+import { describe, expect, it } from 'vitest'
+import { expandQuery, fuzzySearchSmart } from './searchSynonyms'
+
+describe('expandQuery', () => {
+  it('returns the original (lower-cased) first and includes synonyms', () => {
+    const out = expandQuery('couch')
+    expect(out[0]).toBe('couch')
+    expect(out).toContain('sofa')
+    expect(out).toContain('settee')
+  })
+
+  it('substitutes a synonym term inside a longer phrase', () => {
+    expect(expandQuery('leather couch')).toContain('leather sofa')
+    expect(expandQuery('grey telly')).toContain('grey tv')
+  })
+
+  it('prefers the longest matching term (so "tv console" is not shadowed by "tv")', () => {
+    const out = expandQuery('tv console')
+    // Expanded via the tv-console group, not the bare tv group.
+    expect(out).toContain('media unit')
+    expect(out).toContain('entertainment unit')
+  })
+
+  it('is a no-op for an unknown term and for empty input', () => {
+    expect(expandQuery('blorptron')).toEqual(['blorptron'])
+    expect(expandQuery('  ')).toEqual([''])
+  })
+})
+
+describe('fuzzySearchSmart', () => {
+  type Item = { name: string; keywords?: string[] }
+  const text = (i: Item) => [i.name, ...(i.keywords ?? [])]
+
+  it('finds an item by a synonym even when it has NO keywords (packs/uploads)', () => {
+    const items: Item[] = [{ name: 'Table' }, { name: 'Sofa' }, { name: 'Lamp' }]
+    const hits = fuzzySearchSmart('couch', items, text)
+    expect(hits[0]?.name).toBe('Sofa')
+  })
+
+  it('matches a synonym inside a phrase ("3-seater couch" → a Sofa)', () => {
+    const items: Item[] = [{ name: 'Dining Chair' }, { name: '3-Seater Sofa' }]
+    const hits = fuzzySearchSmart('3-seater couch', items, text)
+    expect(hits[0]?.name).toBe('3-Seater Sofa')
+  })
+
+  it('ranks a literal name match above a synonym-only match', () => {
+    const items: Item[] = [{ name: 'Sofa' }, { name: 'Couch Bed' }]
+    // Query "couch": "Couch Bed" matches literally (substring); "Sofa" only via synonym.
+    const hits = fuzzySearchSmart('couch', items, text)
+    expect(hits[0]?.name).toBe('Couch Bed')
+  })
+
+  it('empty query returns every item in original order', () => {
+    const items: Item[] = [{ name: 'B' }, { name: 'A' }, { name: 'C' }]
+    expect(fuzzySearchSmart('', items, text).map((i) => i.name)).toEqual(['B', 'A', 'C'])
+    expect(fuzzySearchSmart('   ', items, text).map((i) => i.name)).toEqual(['B', 'A', 'C'])
+  })
+
+  it('still does typo-tolerant matching on the original query', () => {
+    const items: Item[] = [{ name: 'Chair' }, { name: 'Table' }]
+    expect(fuzzySearchSmart('chiar', items, text)[0]?.name).toBe('Chair')
+  })
+
+  it('drops items that match neither the query nor any synonym', () => {
+    const items: Item[] = [{ name: 'Sofa' }, { name: 'Refrigerator' }]
+    const hits = fuzzySearchSmart('fridge', items, text)
+    expect(hits.map((i) => i.name)).toEqual(['Refrigerator'])
+  })
+})

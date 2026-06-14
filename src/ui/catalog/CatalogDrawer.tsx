@@ -5,9 +5,9 @@ import { Icon } from '../toolbar/icons'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
-import { fuzzySearch } from './fuzzySearch'
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
+import { fuzzySearchSmart } from './searchSynonyms'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
 // renderer) and the model upload dialog (format converters + optimize pass)
@@ -119,8 +119,9 @@ export function CatalogDrawer() {
   // Fuzzy (typo-tolerant, ranked) search across the WHOLE catalog (local +
   // browsable CC0) when querying; otherwise the active category / favourites.
   const baseCards = q
-    ? // Searching uses the fuzzy relevance ranking — sort is for browsing only.
-      fuzzySearch(q, unified.all, gridItemText)
+    ? // Searching uses synonym-aware fuzzy ranking (so "couch" finds a "Sofa",
+      // even for pack/uploaded items without keywords) — sort is browse-only.
+      fuzzySearchSmart(q, unified.all, gridItemText)
     : active === 'favourites'
       ? unified.favourites
       : active === 'recent'

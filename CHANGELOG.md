@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-SEARCH: synonym-aware catalog search across every source
+
+- Catalog search now expands the query through a curated **synonym dictionary** (`couch`→sofa,
+  `telly`→tv, `fridge`→refrigerator, `bedside table`→nightstand, …) before fuzzy-ranking, so
+  alternate everyday terms surface the right item. Crucially this applies to the QUERY, so it works
+  for **pack and user-uploaded items that have no hand-authored keywords** — previously a search for
+  "couch" missed an uploaded model literally named "Sofa". Matches Coohom's forgiving search.
+- New `ui/catalog/searchSynonyms.ts`: `SYNONYM_GROUPS` + `expandQuery` (substitutes a synonym inside a
+  phrase — "leather couch" → "leather sofa", longest-term-first so "tv console" isn't shadowed by
+  "tv") + `fuzzySearchSmart` (scores the query AND its synonym variants, variants discounted so a
+  literal name match still ranks first). The generic `fuzzyScore`/`fuzzySearch` stays pure. Wired into
+  `CatalogDrawer`'s search; existing per-item keywords still apply and the prior keyword test is
+  unchanged.
+- 7 unit tests (synonym-without-keywords, phrase substitution, literal-beats-synonym, typo tolerance,
+  empty-query passthrough, non-match drop). Browser-verified (`scripts/scenarios/smart-search-synonyms.json`):
+  typing "couch" ranks the 3-seat + 2-seat sofas first.
+
 ## Fix: custom-plan walls now turn translucent consistently in the dollhouse view
 
 - **Bug:** in a custom/edited floor plan (`PlanShell`), orbiting to look into the home left near

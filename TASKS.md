@@ -143,7 +143,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   text callouts on sheets + drawing-set layer toggles.
 
 ### Pending — high value (M)
-- [ ] PARITY-SEARCH: Coohom smart/semantic catalog search (tag/fuzzy over catalog + packs).
 - [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
   (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).
 - [ ] PARITY-DENOISE: Coohom render denoiser (OIDN-wasm/bilateral post-pass on HQ render). [real-GPU verify]
