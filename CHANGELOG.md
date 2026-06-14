@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RZ1: contact-shadow grounding on the flat Performance tier
+
+- Furniture now casts a **soft contact-shadow blob on every quality tier — including the default flat
+  Performance tier**, which previously rendered with no grounding at all so pieces read as floating on
+  weak GPUs / the software renderer. The cue is the existing cheap `scene/ContactShadow.tsx` (one shared
+  radial-gradient texture + a transparent floor plane per item, `depthWrite` off at +0.006 m → no shadow
+  map, no z-fighting), so the cost is just transparent overdraw. Implemented by flipping
+  `QUALITY_PRESETS.performance.contactShadows` `false → true` (`scene/quality.ts`); Medium+ already had it.
+- Gated behind a new **`contactShadows` feature flag** (`features/featureFlags.ts`) — **simple tier,
+  default on, prod-safe** (pure code, no assets) so it shows in both Simple and Pro mode. `FurnitureLayer`
+  ANDs the flag with the per-tier quality setting (`useFeature('contactShadows') && quality.contactShadows`),
+  and the Graphics-panel per-setting override still applies independently.
+- Tests: `quality.test.ts` asserts every tier (incl. performance) enables contact shadows; `featureFlags.test.ts`
+  asserts the flag is simple-tier (on in Simple AND Pro). Visually verified on the Performance tier via
+  `scripts/scenarios/contact-shadows-perf.json` — soft grounding halos under sofa + armchair with the flag on,
+  bare floor with it off, no z-fighting/clipping.
+
 ## Template categories: housing type › project › apartment-type picker
 
 - Floor-plan templates are now **categorised** by a three-level hierarchy — **housing type**

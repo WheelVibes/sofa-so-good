@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { useFeature } from '../features/useFeature'
 import { isMultiLevel, planLevels } from '../floorplan/levels'
 import { useQuality } from '../scene/useQuality'
 import { useStore } from '../state/store'
@@ -22,7 +23,11 @@ export function FurnitureLayer({ room }: { room?: RoomContainment } = {}) {
   // AccumulativeShadows ground plane is converging, so contacts don't
   // double-darken.
   const accumulating = useStore((s) => s.showcaseAccumulating)
-  const contactShadow = useQuality().contactShadows && !accumulating
+  // Grounding blobs are gated by the `contactShadows` feature flag (RZ1) on top
+  // of the per-tier quality setting, so they can be turned off independently.
+  const contactShadowsOn = useFeature('contactShadows')
+  const qualityContactShadows = useQuality().contactShadows
+  const contactShadow = contactShadowsOn && qualityContactShadows && !accumulating
   // Re-render furniture whenever a DLC/catalog material finishes building so
   // the primitives' synchronous material lookup picks up the new texture.
   const materialEpoch = useStore((s) => s.materialEpoch)

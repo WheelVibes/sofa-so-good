@@ -192,8 +192,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   runtime numeric-prop NaN path. No redundant guards added (would mask real bugs).
 
 ### Realism (pure-code, prod-safe — most users see the flat Performance tier)
-- [ ] RZ1: always-on cheap contact shadows on Performance tier (grounding) — highest visual
-  payoff; one shared blob texture + plane-per-item, transparent overdraw only.
 - [~] RZ2: window glass realism — **emissive sky-catch shipped** (all tiers; `glassSkyCatchIntensity`
   in `materialRealism.ts`, wired into `apartment/Window.tsx`). Tail: apply to `PlanRoomShell` glass
   (custom plans, needs the daylight signal) + wire `getGlassMaterial`/`glassConfig` transmission on

@@ -32,6 +32,10 @@ describe('quality presets', () => {
     expect(p.postprocessing).toBe(false)
   })
 
+  it('every tier — including the flat performance tier — grounds furniture with contact shadows (RZ1)', () => {
+    for (const t of RENDER_TIERS) expect(QUALITY_PRESETS[t].contactShadows).toBe(true)
+  })
+
   it('shadow resolution is monotonically non-decreasing across the tier order', () => {
     const sizes = RENDER_TIERS.map((t) => QUALITY_PRESETS[t].shadowMapSize)
     for (let i = 1; i < sizes.length; i++) {
