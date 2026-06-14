@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-PT-TUNE: interior-tuned path tracer (no more black glass / fireflies)
+
+- The HQ path-traced render now applies interior-appropriate quality settings (`hqTracerConfig.ts`,
+  applied in `hqRenderSession.ts` right after the `WebGLPathTracer` is built): `bounces 10`,
+  `transmissiveBounces 6` (so glass renders as glass, not black/opaque), `filterGlossyFactor 0.75`
+  (suppresses sun-through-glass fireflies), and `multipleImportanceSampling` (faster convergence on lit
+  surfaces). The library defaults left glass dark and let bright speckles through.
+- Pure config + unit test (`hqTracerConfig.test.ts`: transmissive ≤ total bounces, glossy factor in
+  [0,1], MIS on); applied behind a try/catch so a library API change can't break rendering. The sample
+  count (`HqRenderModal`, 64–1024) remains the time↔quality dial. Pixel improvement is GPU-pending (the
+  HQ tracer needs a real GPU; SwiftShader headless won't converge). Closes PHOTO-PT-TUNE; PHOTOREALISM.md
+  updated (Shipped + roadmap converted to a bullet list so it no longer needs renumbering).
+
 ## PHOTO-COLORSPACE: fix wood-albedo colour space + lock texture colour management
 
 - Audited every procedural texture path (`materials/procedural/generators.ts`, `furnitureMaterials.ts`,
