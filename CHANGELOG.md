@@ -58,6 +58,14 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## IXT-SUITES: interaction-test ladder for pinned comments
+
+- Added `scripts/scenarios/comments-simple.json` (22 steps, 2 screenshots) covering the `comments` pro
+  feature: asserts hidden in Simple / present in Pro, opens the panel (`#commentsPanel`, "Comments"),
+  pins a note via `addComment` (rendered both as an in-scene pin and in the panel list), resolves it
+  (`setCommentResolved`), checks the mobile bottom-sheet, closes, and confirms it's hidden again in
+  Simple. Test coverage only — no app code changed.
+
 ## QOL: recent searches also captured on click-away
 
 - Recent catalog searches are now remembered when the search field loses focus with a ≥2-char query
