@@ -23,6 +23,8 @@ export interface ItemsSlice {
    *  Pass `undefined` for an axis to leave it unchanged; 0 clears that tilt.
    *  SweetHome3DJS multi-axis tilt parity (tiltFurniture flag). */
   tiltItem: (id: string, tilt: { pitch?: number; roll?: number }) => void
+  /** Raise/lower an item off the floor (metres; 0 clears). SweetHome3DJS parity. */
+  setItemElevation: (id: string, elevation: number) => void
   deleteItem: (id: string) => void
   updateItemProps: (id: string, props: ParamProps) => void
   /** Mirror-flip an item along its local X ('x') or Z ('z') axis. */
@@ -99,6 +101,14 @@ export const createItemsSlice: SliceCreator<ItemsSlice, RootState> = (set, get) 
         if (tilt.roll !== undefined) next.roll = tilt.roll || undefined
         return next
       }),
+    }))
+  },
+  setItemElevation: (id, elevation) => {
+    get().pushHistoryCoalesced(`elev:${id}`)
+    set((s) => ({
+      items: s.items.map((it) =>
+        it.id === id ? { ...it, elevation: elevation || undefined } : it,
+      ),
     }))
   },
   deleteItem: (id) => {

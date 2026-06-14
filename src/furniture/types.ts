@@ -419,6 +419,10 @@ export interface FurnitureItem {
   /** Optional tilt about the item's local Z axis (roll — bank left/right), radians.
    *  Absent/0 = upright. */
   roll?: number
+  /** Optional elevation above the floor (m) — raise a piece off the ground (a
+   *  wall shelf, floating console). Absent/0 = floor-anchored. SweetHome3DJS
+   *  "elevation" parity. */
+  elevation?: number
   /** Mirror flips in the item's local frame (left↔right / front↔back).
    *  Optional + default false so saved layouts stay backward-compatible. */
   flipX?: boolean

@@ -25,7 +25,7 @@ import {
   snapSelectionToWall,
 } from '../../layout/selectionActions'
 import { useStore } from '../../state/store'
-import { formatDimsShort } from '../../utils/measurement'
+import { formatDimsShort, formatLength } from '../../utils/measurement'
 import { CategoryIcon } from '../catalog/CategoryIcon'
 import { Icon } from '../toolbar/icons'
 import { GltfBody } from './GltfBody'
@@ -509,6 +509,10 @@ export function InspectorPanel() {
   // Multi-axis tilt (SweetHome3DJS parity): pitch/roll an item off vertical.
   const tiltOn = useFeature('tiltFurniture')
   const tiltItem = useStore((s) => s.tiltItem)
+  // Per-item elevation (SweetHome3DJS parity) — grouped with mount-height control.
+  const elevationOn = useFeature('mountHeights')
+  const setItemElevation = useStore((s) => s.setItemElevation)
+  const inspectorCeiling = useStore((s) => s.floorPlan.ceilingHeight)
   // Copy/paste appearance (look-only transfer) + recolour-by-category.
   const copyAppearanceOn = useFeature('copyAppearance')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
@@ -958,6 +962,33 @@ export function InspectorPanel() {
                   onRoll={(rad) => tiltItem(item.id, { roll: rad })}
                   onReset={() => tiltItem(item.id, { pitch: 0, roll: 0 })}
                 />
+              ) : null}
+              {elevationOn && !item.locked ? (
+                <div className="fld" style={{ display: 'block', marginTop: 'var(--s-2)' }}>
+                  <div
+                    className="label"
+                    style={{
+                      fontSize: 'var(--t-2xs)',
+                      color: 'var(--text-3)',
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                    }}
+                  >
+                    <span>Elevation (off floor)</span>
+                    <span>{formatLength(item.elevation ?? 0, units)}</span>
+                  </div>
+                  <input
+                    type="range"
+                    className="slider"
+                    aria-label="Elevation above floor"
+                    min={0}
+                    max={Math.max(0.1, inspectorCeiling)}
+                    step={0.05}
+                    value={item.elevation ?? 0}
+                    onChange={(e) => setItemElevation(item.id, Number(e.target.value))}
+                    style={{ width: '100%' }}
+                  />
+                </div>
               ) : null}
               {replaceSimilarOn ? (
                 <button

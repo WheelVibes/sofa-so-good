@@ -99,10 +99,12 @@ interface PlacementContext {
 function verticalSpan(item: FurnitureItem, def: FurnitureDef): { base: number; top: number } {
   const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h }
   const sh = item.props['surfaceHeight']
-  if (typeof sh === 'number') {
-    return { base: sh, top: sh + (span.top - span.base) }
-  }
-  return span
+  const base0 = typeof sh === 'number' ? sh : span.base
+  const height = span.top - span.base
+  // Per-item elevation raises the whole piece off the floor (SH3D parity), so
+  // its height-aware collision span shifts up with it.
+  const lift = item.elevation ?? 0
+  return { base: base0 + lift, top: base0 + height + lift }
 }
 
 /** True iff two vertical spans overlap (touching edges don't count). */

@@ -71,6 +71,10 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | **Video** (keyframed camera-path → file) | ✅ | **shipped — PARITY-VIDEO**: "Record walkthrough video" flies the saved-views cinematic tour while recording → downloads a `.webm` (`recordViewTour` + the existing RecordController); user-set pace via `viewTourLegSeconds`. |
 | Lights (fixtures) | ✅ | `FurnitureLights`, `itemAsLight`, lux overlay. |
 | Furniture multi-axis rotation (**pitch/roll**) | ✅ | **shipped — PARITY-TILT** (`tiltFurniture`): optional `pitch`/`roll` on `FurnitureItem`, inspector sliders, `furniture/tiltRotation.ts`. |
+| Furniture **elevation** (raise off floor) | ✅ | **shipped — PARITY-ELEVATION**: `FurnitureItem.elevation` + inspector slider (under `mountHeights`); collision span shifts with it. |
+| Furniture **non-uniform resize** (W/D/H) | 🟡 | parametric items resize via params; GLB/IKEA models — see PARITY-RESIZE below. |
+| Furniture mirror (flipX/flipZ) | ✅ | inspector Flip H/V. |
+| Per-item lock / visibility | ✅ | `locked` + `hiddenItemIds`. |
 | Import a blueprint background to trace | 🟡 | reference backdrop + `aiWalls` plan tracing; no scaled blueprint underlay tool. |
 | **Whole-scene 3D export (OBJ/glTF)** | ✅ | **shipped — Q-3DEXPORT** (`sceneExport3d`); STL/USDZ still open. |
 | Export PDF / SVG / bitmap / DXF | ✅ | report PDF, plan SVG, DXF, drawing set, BOQ/CSV/XLSX, PNG, panorama. |

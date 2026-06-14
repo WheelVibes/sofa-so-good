@@ -25,6 +25,8 @@ const FurnitureItemZ = z.object({
   // Backward-compatible with pre-tilt saves (absent = upright).
   pitch: z.number().optional(),
   roll: z.number().optional(),
+  // Optional elevation above the floor (m) — SweetHome3DJS parity. Back-compat.
+  elevation: z.number().optional(),
   // Optional mirror flips (backward-compatible with pre-flip saves).
   flipX: z.boolean().optional(),
   flipZ: z.boolean().optional(),

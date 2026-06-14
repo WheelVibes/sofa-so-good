@@ -37,6 +37,18 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## PARITY-ELEVATION: raise furniture off the floor — SweetHome3DJS parity
+
+- New optional `FurnitureItem.elevation` (m): raise any piece off the floor (a floating console, a
+  wall shelf at a custom height) — the SweetHome3D "Modify furniture → Elevation" field. Applied to the
+  render group's Y in `Furniture.tsx`, shifted into the height-aware collision span
+  (`collision/placement.ts` `verticalSpan`) so a raised piece clears floor items, and the floor contact
+  shadow is dropped when elevated. Inspector elevation slider (0 → ceiling height) under the existing
+  `mountHeights` flag; `itemsSlice.setItemElevation` (history-coalesced); serialized in `schema.ts`
+  (optional, back-compat).
+- Browser-verified via `scenarios/item-elevation-simple.json` (a lamp floats off the floor in 3D);
+  collision span tests pass.
+
 ## PARITY-CURVEDWALL (v3): true circular arc
 
 - Curved walls now follow a **true circular arc** through the endpoints (with the midpoint bulged by

@@ -122,10 +122,16 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
   // local space, so they stay at group-Y 0 to avoid double-counting.
   const liftY =
     typeof item.props['surfaceHeight'] === 'number' ? (item.props['surfaceHeight'] as number) : 0
+  // Per-item elevation raises the whole piece off the floor (SH3D parity).
+  const elevation = item.elevation ?? 0
 
   return (
     <group
-      position={[item.position[0], def.kind === 'parametric' ? 0 : liftY, item.position[1]]}
+      position={[
+        item.position[0],
+        (def.kind === 'parametric' ? 0 : liftY) + elevation,
+        item.position[1],
+      ]}
       rotation={itemRotation(item)}
       // Tag the root group with the item id so manual raycasts (canvas finish
       // drop — scene/finishDropTarget.ts) can map a hit back to the item.
@@ -172,8 +178,16 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
       {(() => {
         if (!contactShadow) return null
         const span = def.verticalSpan ?? { base: 0, top: def.defaultFootprint.h }
-        // A flat floor shadow reads wrong under a tilted piece — drop it then.
-        if (passive || def.mounted || def.noClip || span.base >= 0.4 || isTilted(item)) return null
+        // No floor contact shadow under a tilted or elevated (off-floor) piece.
+        if (
+          passive ||
+          def.mounted ||
+          def.noClip ||
+          span.base >= 0.4 ||
+          isTilted(item) ||
+          elevation > 0.01
+        )
+          return null
         const obb = itemFootprint(item, def)
         return <ContactShadow w={obb.hx * 2} d={obb.hz * 2} y={-liftY} />
       })()}
