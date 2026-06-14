@@ -42,6 +42,13 @@ pruned from `main`; entries from C251 on (branch
   `report.test.ts`. Verified the rendered Section A–A sheet (cut walls, floor/ceiling, room bands, door/
   window gaps, dining-chair silhouettes) reads correctly with no clipping.
 
+## Default backdrop → photo skyline (performance)
+
+- New profiles now default to the lightweight **photo skyline** backdrop instead of the instanced
+  3D City estate, so the out-of-the-box experience gets the zero-geometry compute+memory win. The
+  3D City/Park/Hills backdrops remain one tap away in the picker; existing users keep their saved
+  choice (only fresh/invalid prefs adopt the new default).
+
 ## Photo skyline backdrop — the cheap "budget trick" (PHOTO-BACKDROP)
 
 - **New `Skyline photo` backdrop** (`scene/PhotoBackdrop.tsx`) — a single equirectangular sky +

@@ -11,7 +11,7 @@ describe('editorPrefs', () => {
       snapEnabled: false,
       gridSize: 0.5,
       units: 'metric',
-      backdrop: 'city',
+      backdrop: 'photo',
       uiMode: 'simple',
     } as never)
   })
@@ -39,7 +39,7 @@ describe('editorPrefs', () => {
   it('falls back to safe values for invalid/missing backdrop + uiMode', () => {
     localStorage.setItem(KEY, JSON.stringify({ backdrop: 'martian', uiMode: 'wizard' }))
     loadEditorPrefs()
-    expect(useStore.getState().backdrop).toBe('city')
+    expect(useStore.getState().backdrop).toBe('photo')
     // Default interface is Simple; only an explicit 'pro' opts into the full UI.
     expect(useStore.getState().uiMode).toBe('simple')
   })
@@ -54,7 +54,7 @@ describe('editorPrefs', () => {
     localStorage.setItem(KEY, '{ not json')
     expect(() => loadEditorPrefs()).not.toThrow()
     // Store keeps its defaults.
-    expect(useStore.getState().backdrop).toBe('city')
+    expect(useStore.getState().backdrop).toBe('photo')
   })
 
   it('persists store changes back to localStorage (round-trip)', () => {

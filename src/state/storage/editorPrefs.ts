@@ -30,7 +30,7 @@ export function loadEditorPrefs(): void {
       units: p.units === 'imperial' ? 'imperial' : 'metric',
       backdrop: backdrops.includes(p.backdrop ?? '')
         ? (p.backdrop as 'city' | 'park' | 'hills' | 'photo' | 'none')
-        : 'city',
+        : 'photo',
       uiMode: p.uiMode === 'pro' ? 'pro' : 'simple',
       walkFov: typeof p.walkFov === 'number' ? clampWalkFov(p.walkFov) : cur.walkFov,
       walkEyeHeight:

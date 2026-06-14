@@ -209,7 +209,10 @@ export const UI_INITIAL: Pick<
   autoShadowsOff: false,
   snapEnabled: false,
   gridSize: 0.5,
-  backdrop: 'city' as BackdropKind,
+  // Default to the lightweight photo skyline backdrop (zero per-frame geometry)
+  // for the best out-of-the-box performance; the 3D City/Park/Hills estates are
+  // opt-in from the backdrop picker.
+  backdrop: 'photo' as BackdropKind,
   uiMode: 'simple' as UiMode,
   presenting: false,
   presentationIncludeTour: false,
