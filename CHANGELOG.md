@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES: interaction-test ladder for the per-room editor
+
+- Added `scripts/scenarios/room-editor-simple.json` (21 steps, 3 screenshots) covering the per-room
+  editor: `enterRoomEditor` isolates a room and the editing catalog mounts only there (`.panel.catalog`),
+  an item placed in the editor persists, `exitRoomEditor` returns to the full scene and unmounts the
+  catalog (the item still persists), and the catalog renders as a mobile bottom-sheet at 390×844. Test
+  coverage only — no app code changed.
+
 ## IXT-SUITES: interaction-test ladder for Smart Start
 
 - Added `scripts/scenarios/smart-start-simple.json` (20 steps, 3 screenshots) covering the Smart Start
