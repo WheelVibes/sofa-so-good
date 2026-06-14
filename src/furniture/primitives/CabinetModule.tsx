@@ -8,6 +8,7 @@ import {
   type WorktopFeature,
 } from '../cabinet/cabinetModel'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { GlassMaterial } from './GlassMaterial'
 import { readNum, readStr } from './shared'
 
@@ -63,18 +64,18 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
         const key = `${p.role}-${i}`
         if (p.role === 'countertop') {
           return (
-            <mesh
+            <BeveledBox
               key={key}
               castShadow
               receiveShadow
               position={p.position}
               material={worktopMat ?? undefined}
+              args={p.size}
             >
-              <boxGeometry args={p.size} />
               {worktopMat ? null : (
                 <meshStandardMaterial color={worktopColor} roughness={0.22} metalness={0.15} />
               )}
-            </mesh>
+            </BeveledBox>
           )
         }
         if (p.role === 'glass') {
@@ -110,9 +111,13 @@ function CabinetBody({ props, type }: { props: ParamProps; type: CabinetType }) 
         const isShakerDoor = p.role === 'door' && front === 'shaker'
         return (
           <group key={key}>
-            <mesh castShadow receiveShadow position={p.position} material={bodyMat}>
-              <boxGeometry args={p.size} />
-            </mesh>
+            <BeveledBox
+              castShadow
+              receiveShadow
+              position={p.position}
+              material={bodyMat}
+              args={p.size}
+            />
             {isShakerDoor &&
               shakerRails(p.size[0], p.size[1]).map(([dx, dy, bw, bh], k) => (
                 <mesh

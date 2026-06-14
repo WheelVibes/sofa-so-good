@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RZ3/PHOTO-BEVELS: beveled edges on parametric kitchen cabinets
+
+- The parametric `CabinetModule` (base / wall / tall kitchen cabinets) now renders its body panels
+  (carcass / toe-kick / cornice / doors / drawers / shelves) and the worktop/countertop through the
+  shared `BeveledBox` helper instead of hard `boxGeometry`, so cabinet and counter edges carry the
+  same small auto-clamped chamfer as the rest of the case goods. Handles, glass, shaker rails, sink
+  and hob are left as-is (small/detail or non-box). Part positions/sizes/materials are unchanged —
+  only the box-vs-rounded geometry differs.
+- tsc + biome + full suite (incl. `cabinetModel`) green. Verification is by parity with the
+  Bookshelf/Wardrobe `BeveledBox` swap visually confirmed earlier (identical helper + `safeBevelRadius`
+  clamp, unit-tested) — CabinetModule is the user-generated parametric primitive with no builtin
+  catalog def to place headlessly. ShoeCabinet/WallCabinet/CabinetCorner + appliances remain (TASKS RZ3).
+
 ## RZ3/PHOTO-BEVELS: beveled edges on Bookshelf + Wardrobe carcasses
 
 - The Bookshelf (plinth, side panels, shelves, cabinet doors) and Wardrobe (closed body, hinged door
