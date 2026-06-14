@@ -82,7 +82,7 @@ export interface PlanRoom {
 }
 
 /** Per-room ceiling treatment. `flat` (or absent) renders the plain ceiling. */
-export type CeilingStyle = 'flat' | 'tray' | 'coffered' | 'dropped'
+export type CeilingStyle = 'flat' | 'tray' | 'coffered' | 'dropped' | 'sloped'
 
 export interface CeilingConfig {
   style: CeilingStyle
@@ -96,6 +96,10 @@ export interface CeilingConfig {
   coveLight?: boolean
   /** Cove glow colour (hex); defaults to a warm white. */
   coveColor?: string
+  /** Sloped ceiling (pitched plane): which axis the ceiling falls along and how
+   *  far it drops from the high edge to the low edge (m). Pairs with sloping
+   *  walls (PARITY-SLOPEWALL). Only read when `style === 'sloped'`. */
+  slope?: { axis: 'x' | 'z'; rise: number }
 }
 
 /** One storey above the ground floor. The plan's top-level walls/openings/

@@ -78,7 +78,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | Server/cloud sync (IncrementalHomeRecorder) | 🟡 | local autosave + link share; no REST/cloud sync adapter. |
 | Undo/redo | ✅ | history slice + `versions`/`history` panels. |
 | Length units (metric/imperial) | ✅ | `units` everywhere via `utils/measurement`. |
-| Sloped ceiling / roof geometry | ❌ | flat + per-room tray/coffered/dropped only. |
+| Sloped ceiling / roof geometry | ✅ | **shipped — PARITY-SLOPECEIL**: a `sloped` `CeilingConfig` style (pitched plane, `slope: {axis, rise}`) in `ceilingModel.ts` + `RoomCeiling`; per-room picker. Pairs with sloping walls. |
 | Catalog **uncompressed model-size** + creator columns | ✅ | **shipped — PARITY-MODELINFO** (`catalogModelInfo`): card tooltip shows model byte size (uploads, captured at upload) + licence/creator (all sourced GLBs), `furniture/modelInfo.ts`. (Bundled-GLB byte size still needs a build manifest — minor.) |
 
 ## 3. Roadmap (phased)
@@ -104,9 +104,9 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 - **Round/arc walls.** ~~Shipped (PARITY-CURVEDWALL)~~ — `PlanWall.arc` bulge + `wallArc.ts` chord
   expansion through the existing `wallBoxes`/`planCollisionWalls`/room-detection; 2D bulge handle.
   Remaining: openings on curved walls, and a true circular arc (vs the Bézier approximation).
-- **Sloping (variable-height) walls + sloped ceiling / roof geometry.** Bundle these two: a sloped
-  ceiling under flat-top walls leaves triangular gaps, so they ship together — per-end wall heights +
-  a pitched-plane `ceilingModel.ts` option. Medium-high.
+- ~~**Sloping (variable-height) walls + sloped ceiling / roof geometry.**~~ **Shipped** —
+  `PlanWall.topHeightEnd` prism walls (PARITY-SLOPEWALL) + a `sloped` `CeilingConfig` pitched plane
+  (PARITY-SLOPECEIL); set both to match for a shed roof.
 
 ### Phase 4 — portability/fidelity (lower priority; mostly already-strong areas)
 - Dual-format save (precompute a merged `HomeStructure.glb` alongside the JSON state for fast load — the

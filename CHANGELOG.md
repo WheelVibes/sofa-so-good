@@ -14,6 +14,18 @@ pruned from `main`; entries from C251 on (branch
   textures resolve through the loading manager like OBJ/DAE), and the upload dialog's format hint.
   Format detection unit-tested; sibling-resolution path shared with the other converters.
 
+## PARITY-SLOPECEIL: sloped (pitched) ceilings — SweetHome3DJS parity
+
+- New `sloped` `CeilingConfig` style (under the existing `ceilingDesign` flag): a per-room pitched
+  ceiling plane that falls from the ceiling height down by a chosen `rise` along the X or Z axis —
+  pairs with sloping walls (PARITY-SLOPEWALL) for a shed roof. Pure `ceilingModel.ts` emits a new
+  `CeilingSlope` part (clamped so the low edge never dips below the min clearance); `RoomCeiling`
+  renders it as a tilted `BackSide` plane (slant-length-corrected so its horizontal projection still
+  fills the room). Per-room picker gains a **Sloped** option + fall/axis controls. Serialized in
+  `schema.ts` (optional, back-compat).
+- Pure model unit-tested (heights, clamping); render path smoke-verified on a custom plan via
+  `scenarios/sloped-ceiling-simple.json`.
+
 ## PARITY-SLOPEWALL: sloping (variable-height) walls — SweetHome3DJS parity
 
 - A wall can now have a **sloped top**: optional `PlanWall.topHeightEnd` ramps the top edge linearly

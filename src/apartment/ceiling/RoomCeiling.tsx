@@ -82,6 +82,27 @@ function renderPart(p: CeilingPart, i: number, highPlus: boolean) {
       </mesh>
     )
   }
+  // Pitched (sloped) ceiling plane — a tilted panel ramping yHigh→yLow along an
+  // axis. Renders on all tiers (it IS the ceiling, not a cosmetic depth strip).
+  if (p.kind === 'slope') {
+    const rise = p.yHigh - p.yLow
+    const span = p.axis === 'x' ? p.w : p.d
+    const a = Math.atan2(rise, span) // tilt angle
+    const cosA = Math.max(1e-3, Math.cos(a))
+    const midY = (p.yHigh + p.yLow) / 2
+    // Outer group tilts; inner down-facing plane is sized to the slant length so
+    // its horizontal projection matches the room (w × d).
+    const planeW = p.axis === 'x' ? p.w / cosA : p.w
+    const planeD = p.axis === 'z' ? p.d / cosA : p.d
+    const groupRot: [number, number, number] = p.axis === 'x' ? [0, 0, -a] : [a, 0, 0]
+    return (
+      <group key={`sl${i}`} position={[p.cx, midY, p.cz]} rotation={groupRot}>
+        <mesh rotation={[-Math.PI / 2, 0, 0]} material={CEILING_MAT}>
+          <planeGeometry args={[planeW, planeD]} />
+        </mesh>
+      </group>
+    )
+  }
   // Vertical riser / box-wall strip — only on High/Maximum (cosmetic depth).
   if (!highPlus) return null
   const hgt = p.yHigh - p.yLow

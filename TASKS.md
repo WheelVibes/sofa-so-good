@@ -159,6 +159,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   `floorplan/slopedWall.ts` prism (flat-normal triangle soup), `PlanShell` `SlopedWallMesh`, inspector
   start/end height fields (`slopingWalls` flag, pro). Openings disabled on sloped walls. Pairs with a
   sloped ceiling (PARITY-SLOPECEIL).
+- [~] PARITY-SLOPECEIL: sloped (pitched) ceiling **shipped** — `sloped` `CeilingConfig` style
+  (`slope:{axis,rise}`) in `ceilingModel.ts` `CeilingSlope` + `RoomCeiling` tilted plane; per-room
+  picker (under `ceilingDesign`). Pairs with PARITY-SLOPEWALL for a shed roof.
 - [~] PARITY-AILAYOUT: **engine + collision-aware placement shipped** — `ai/autoLayoutAi.ts` (prompt +
   tolerant parse + BYO-key call) + `layout/aiLayoutApply.ts` (validate/clamp into rooms +
   `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure

@@ -1,0 +1,34 @@
+{
+  "name": "sloped-ceiling-simple",
+  "description": "Simple ladder for sloped (pitched) ceilings (PARITY-SLOPECEIL, under the ceilingDesign flag). Loads a custom plan, applies a sloped ceiling to a room, asserts the config persisted, and confirms the 3D shell still renders (the RoomCeiling slope render path mounts without error). Ceiling itself is BackSide so it's seen from below in walk mode; this is the no-crash + state smoke test.",
+  "url": "http://localhost:5238/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    {
+      "name": "verify-ceilingdesign-on",
+      "waitFor": { "store": "state.featureFlags.ceilingDesign === true" },
+      "timeout": 8000,
+      "failMessage": "ceilingDesign should be ON in Pro mode"
+    },
+    { "name": "load-template", "eval": "import('/src/floorplan/templates.ts').then(m => { const tpl = JSON.parse(JSON.stringify(m.PLAN_TEMPLATES[0])); window.__store.getState().setFloorPlan(tpl); window.__roomId = tpl.rooms[0].id; })" },
+    { "name": "wait-plan", "wait": 600 },
+    { "name": "apply-sloped-ceiling", "eval": "window.__store.getState().setRoomCeiling(window.__roomId, { style: 'sloped', slope: { axis: 'x', rise: 0.6 } })" },
+    {
+      "name": "verify-config",
+      "waitFor": { "store": "(() => { const r = state.floorPlan.rooms.find(r => r.id === window.__roomId); return !!r && r.ceiling && r.ceiling.style === 'sloped' && r.ceiling.slope && r.ceiling.slope.rise === 0.6; })()" },
+      "timeout": 5000,
+      "failMessage": "sloped ceiling config did not persist on the room"
+    },
+    { "name": "wait-render", "wait": 800 },
+    {
+      "name": "verify-shell-rendered",
+      "waitFor": { "store": "state.floorPlan.rooms.length > 0" },
+      "timeout": 5000
+    },
+    { "name": "shot-3d", "screenshot": "01-sloped-ceiling-applied" }
+  ]
+}

@@ -178,12 +178,14 @@ const PlanRoomZ = z.object({
   // no schema-version bump; absent → flat (the prior behaviour).
   ceiling: z
     .object({
-      style: z.enum(['flat', 'tray', 'coffered', 'dropped']),
+      style: z.enum(['flat', 'tray', 'coffered', 'dropped', 'sloped']),
       drop: z.number().optional(),
       margin: z.number().optional(),
       grid: z.tuple([z.number(), z.number()]).optional(),
       coveLight: z.boolean().optional(),
       coveColor: z.string().optional(),
+      // Sloped-ceiling pitch (PARITY-SLOPECEIL) — additive, back-compat.
+      slope: z.object({ axis: z.enum(['x', 'z']), rise: z.number() }).optional(),
     })
     .optional(),
 })

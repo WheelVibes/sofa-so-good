@@ -67,6 +67,7 @@ const CEILING_STYLES: { id: CeilingStyle; label: string }[] = [
   { id: 'tray', label: 'Tray' },
   { id: 'coffered', label: 'Coffered' },
   { id: 'dropped', label: 'Dropped' },
+  { id: 'sloped', label: 'Sloped' },
 ]
 
 /** Per-room ceiling-treatment editor: style picker + style-specific params +
@@ -102,7 +103,33 @@ function CeilingControls({
           </button>
         ))}
       </div>
-      {style !== 'flat' ? (
+      {style === 'sloped' ? (
+        <>
+          <Num
+            label="Fall / rise (m)"
+            value={config?.slope?.rise ?? 0.4}
+            step={0.05}
+            min={0.05}
+            onChange={(v) =>
+              set({
+                slope: { axis: config?.slope?.axis ?? 'x', rise: Math.max(0.05, Math.min(1.5, v)) },
+              })
+            }
+          />
+          <div className="seg" style={{ marginTop: 'var(--s-1)' }}>
+            {(['x', 'z'] as const).map((ax) => (
+              <button
+                key={ax}
+                type="button"
+                className={`seg-btn${(config?.slope?.axis ?? 'x') === ax ? ' on' : ''}`}
+                onClick={() => set({ slope: { axis: ax, rise: config?.slope?.rise ?? 0.4 } })}
+              >
+                {ax === 'x' ? 'Falls along X' : 'Falls along Z'}
+              </button>
+            ))}
+          </div>
+        </>
+      ) : style !== 'flat' ? (
         <>
           {style !== 'coffered' ? (
             <Num
