@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## RZ4: aged grout + roughness micro-detail on procedural surfaces
+
+- **Grout joints now read as lived-in, not pristine.** The tile / hexagon / subway generators darken
+  their grout/joint albedo unevenly via a low-frequency dirt fbm (down to ~74 % in the dirtiest
+  patches, dirtier spots slightly rougher), so grout lines stop looking like a single flat printed
+  tone. Visible on every tier including the flat Performance default (it's an albedo change).
+- **Roughness micro-detail** added to wood, tile and marble faces — a faint high-frequency fbm break-up
+  (±0.04–0.08) so varnished timber / glossy ceramic / polished marble don't read as a dead-uniform
+  sheen under reflections (Medium+). Touches only the roughness map; albedo/normal unchanged on faces.
+- All changes live in the shared `procedural/generators.ts` field functions, so both the sync and
+  OffscreenCanvas-worker paths get them; fbm tiling preserves seamlessness, and outputs stay
+  deterministic per `{id, pattern, swatch, size}` (cache-key safe). Tests in `generators.test.ts`
+  assert determinism, that tile grout pixels span a range of darkness (aged), and that tile/marble
+  roughness maps carry micro-detail. Visual: `scripts/scenarios/grout-aging-rz4.json` (tile/hex/marble
+  floors render cleanly, no z-fighting/clipping).
+
 ## RZ1: contact-shadow grounding on the flat Performance tier
 
 - Furniture now casts a **soft contact-shadow blob on every quality tier — including the default flat

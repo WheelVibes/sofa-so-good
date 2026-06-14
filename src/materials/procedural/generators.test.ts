@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import type { ProceduralPattern } from '../types'
 import {
   effectivePatternSize,
+  generateProceduralRaw,
   getProceduralBaseSize,
   PATTERN_SIZE_CAP,
   setProceduralBaseSize,
@@ -92,6 +93,41 @@ describe('per-pattern size registry (PERF9 tail)', () => {
     for (const p of Object.keys(PATTERN_SIZE_CAP) as ProceduralPattern[]) {
       const effective = effectivePatternSize(p)
       expect(effective, `${p} exceeds BASE_SIZE=256`).toBeLessThanOrEqual(256)
+    }
+  })
+})
+
+// `generateProceduralRaw` is the pure, DOM-free pixel path (no canvas) — so the
+// actual generated maps can be inspected directly here.
+describe('procedural detail: grout aging + roughness micro-detail (RZ4)', () => {
+  it('is deterministic — identical inputs produce byte-identical maps', () => {
+    for (const p of ['tile', 'wood', 'marble'] as const) {
+      const a = generateProceduralRaw('x', p, '#cfd2d4', 96)
+      const b = generateProceduralRaw('x', p, '#cfd2d4', 96)
+      expect(Array.from(a.albedo)).toEqual(Array.from(b.albedo))
+      expect(Array.from(a.roughness)).toEqual(Array.from(b.roughness))
+      expect(Array.from(a.normal)).toEqual(Array.from(b.normal))
+    }
+  })
+
+  it('tile grout joints are aged — joint pixels span a range of darkness, not one flat tone', () => {
+    const { albedo } = generateProceduralRaw('grout', 'tile', '#ffffff', 128)
+    // Grout is markedly darker than the bright ceramic face (~240+); collect the
+    // dark joint cluster and confirm it carries varied dirt rather than one tone.
+    const groutLum = new Set<number>()
+    for (let i = 0; i < albedo.length; i += 4) {
+      const r = albedo[i]
+      if (r < 190) groutLum.add(r)
+    }
+    expect(groutLum.size).toBeGreaterThan(4)
+  })
+
+  it('roughness maps carry micro-detail (not a single flat value) for tile + marble', () => {
+    for (const p of ['tile', 'marble'] as const) {
+      const { roughness } = generateProceduralRaw('r', p, '#d8d8d8', 96)
+      const vals = new Set<number>()
+      for (let i = 0; i < roughness.length; i += 4) vals.add(roughness[i])
+      expect(vals.size, `${p} roughness reads flat`).toBeGreaterThan(8)
     }
   })
 })

@@ -200,7 +200,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
   Nightstand). Remaining: panel/shelf-built units (Bookshelf/Wardrobe/cabinet modules) + appliances;
   edge light-catch real-GPU-pending.
-- [ ] RZ4: procedural roughness micro-detail + grout aging on wood/tile/marble generators.
 - [ ] RZ5: skirting/baseboard seam AO + painted-trim wear (close-up/walk realism).
 - [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.
 - [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.

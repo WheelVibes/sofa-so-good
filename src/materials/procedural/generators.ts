@@ -198,6 +198,10 @@ function woodFields(base: [number, number, number], seed: number): Fields {
   // Cathedral grain: low-freq along the board, tight bands across it.
   const grainAlong = makeFbm(seed + 7, 4, 3)
   const fineGrain = makeFbm(seed + 99, 3, 28)
+  // High-frequency roughness break-up: real varnished timber never has a
+  // perfectly uniform sheen — micro scuffs / pore tooth make the gloss vary
+  // texel-to-texel (RZ4). Cheap fbm, only touches the roughness map.
+  const microRough = makeFbm(seed + 211, 3, 70)
   for (let y = 0; y < S; y++) {
     const pi = Math.floor(y / plankH)
     const yInPlank = (y % plankH) / plankH // 0..1
@@ -237,8 +241,11 @@ function woodFields(base: [number, number, number], seed: number): Fields {
       const g = base[1] * factor
       const b = base[2] * factor * (2 - pk.warm)
       const h = clamp01(0.55 * groove + band * 0.3 + knotH)
-      // Satin-varnished boards: fairly glossy, grain lines slightly rougher.
-      const rough = clamp01(0.42 + band * 0.16 + (1 - groove) * 0.2)
+      // Satin-varnished boards: fairly glossy, grain lines slightly rougher,
+      // plus a faint micro break-up so the sheen isn't dead-flat.
+      const rough = clamp01(
+        0.42 + band * 0.16 + (1 - groove) * 0.2 + (microRough(u, v) - 0.5) * 0.08,
+      )
       setPx(f, y * S + x, r, g, b, h, rough)
     }
   }
@@ -255,6 +262,11 @@ function tileFields(base: [number, number, number], seed: number): Fields {
   const cellTint: number[] = []
   for (let i = 0; i < tilesPerRow * tilesPerRow; i++) cellTint.push(0.94 + rand() * 0.12)
   const speck = makeFbm(seed + 3, 3, 50)
+  // Aged grout: low-freq dirt fbm darkens the joints unevenly so they read as
+  // lived-in rather than a pristine uniform line (RZ4). Fine micro fbm breaks
+  // up the glossy ceramic-face roughness so the sheen isn't perfectly uniform.
+  const groutDirt = makeFbm(seed + 17, 3, 7)
+  const microRough = makeFbm(seed + 53, 4, 85)
   const grout: [number, number, number] = [base[0] * 0.62, base[1] * 0.62, base[2] * 0.6]
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
@@ -265,16 +277,34 @@ function tileFields(base: [number, number, number], seed: number): Fields {
       const distEdge = Math.min(inX, cell - inX, inY, cell - inY)
       const i = y * S + x
       if (distEdge < groutW) {
-        // Recessed grout line.
+        // Recessed grout line, darkened unevenly by accumulated dirt; dirtier
+        // patches read slightly rougher.
         const t = distEdge / groutW
-        setPx(f, i, grout[0], grout[1], grout[2], 0.05 + t * 0.1, 0.9)
+        const ag = 0.74 + groutDirt(x / S, y / S) * 0.26
+        setPx(
+          f,
+          i,
+          grout[0] * ag,
+          grout[1] * ag,
+          grout[2] * ag,
+          0.05 + t * 0.1,
+          clamp01(0.86 + (1 - ag) * 0.5),
+        )
       } else {
         const tint = cellTint[cy * tilesPerRow + cx]
         const sp = (speck(x / S, y / S) - 0.5) * 0.06
         const factor = clamp01(tint + sp)
         const [r, g, b] = shade(base, factor)
-        // Glossy ceramic: low roughness, slight variance.
-        setPx(f, i, r, g, b, 0.85, 0.18 + Math.abs(sp) * 1.5)
+        // Glossy ceramic: low roughness, slight variance + micro break-up.
+        setPx(
+          f,
+          i,
+          r,
+          g,
+          b,
+          0.85,
+          clamp01(0.18 + Math.abs(sp) * 1.5 + (microRough(x / S, y / S) - 0.5) * 0.07),
+        )
       }
     }
   }
@@ -299,6 +329,7 @@ function hexagonFields(base: [number, number, number], seed: number): Fields {
   const tint: number[] = []
   for (let i = 0; i < cols * rows; i++) tint.push(0.92 + rand() * 0.14)
   const speck = makeFbm(seed + 3, 3, 50)
+  const groutDirt = makeFbm(seed + 17, 3, 7) // aged-grout dirt (RZ4)
   const grout: [number, number, number] = [base[0] * 0.6, base[1] * 0.6, base[2] * 0.58]
   const groutW = 3.5 // px threshold on the gap between the two nearest centres
   for (let y = 0; y < S; y++) {
@@ -337,7 +368,16 @@ function hexagonFields(base: [number, number, number], seed: number): Fields {
       const i = y * S + x
       if (edge < groutW) {
         const t = edge / groutW
-        setPx(f, i, grout[0], grout[1], grout[2], 0.05 + t * 0.1, 0.9)
+        const ag = 0.74 + groutDirt(x / S, y / S) * 0.26
+        setPx(
+          f,
+          i,
+          grout[0] * ag,
+          grout[1] * ag,
+          grout[2] * ag,
+          0.05 + t * 0.1,
+          clamp01(0.86 + (1 - ag) * 0.5),
+        )
       } else {
         const tt = tint[bestRow * cols + bestCol]
         const sp = (speck(x / S, y / S) - 0.5) * 0.05
@@ -393,6 +433,9 @@ function marbleFields(base: [number, number, number], seed: number): Fields {
   f.normalStrength = 4
   const turb = makeFbm(seed + 13, 5, 4)
   const fine = makeFbm(seed + 71, 4, 30)
+  // Polished marble still has faint smudge/wipe variation in its sheen — a fine
+  // roughness break-up so it doesn't read as a dead-uniform mirror (RZ4).
+  const microRough = makeFbm(seed + 53, 3, 70)
   for (let y = 0; y < S; y++) {
     for (let x = 0; x < S; x++) {
       const u = x / S
@@ -405,7 +448,8 @@ function marbleFields(base: [number, number, number], seed: number): Fields {
       // Veins darken slightly with a cool tint.
       const factor = clamp01(baseFac - veinMask * 0.28)
       const [r, g, b] = shade(base, factor)
-      setPx(f, y * S + x, r, g, b, veinMask * 0.4, 0.22 + veinMask * 0.1)
+      const rough = clamp01(0.22 + veinMask * 0.1 + (microRough(u, v) - 0.5) * 0.07)
+      setPx(f, y * S + x, r, g, b, veinMask * 0.4, rough)
     }
   }
   return f
@@ -644,6 +688,7 @@ function subwayFields(base: [number, number, number], seed: number): Fields {
   const bevel = Math.max(3, Math.round(S / 90)) // soft edge bevel band
   const groutRgb: [number, number, number] = [218, 214, 206]
   const speck = makeFbm(seed + 7, 3, 60)
+  const groutDirt = makeFbm(seed + 17, 3, 7) // aged-grout dirt (RZ4)
   for (let y = 0; y < S; y++) {
     const row = Math.floor(y / th)
     const yIn = y - row * th
@@ -655,8 +700,17 @@ function subwayFields(base: [number, number, number], seed: number): Fields {
       const edge = Math.min(xIn, tw - xIn, yIn, th - yIn)
       const i = y * S + x
       if (edge < grout) {
-        // Recessed grout joint.
-        setPx(f, i, groutRgb[0], groutRgb[1], groutRgb[2], 0.05, 0.8)
+        // Recessed grout joint, unevenly darkened by accumulated dirt.
+        const ag = 0.74 + groutDirt(x / S, y / S) * 0.26
+        setPx(
+          f,
+          i,
+          groutRgb[0] * ag,
+          groutRgb[1] * ag,
+          groutRgb[2] * ag,
+          0.05,
+          clamp01(0.8 + (1 - ag) * 0.5),
+        )
         continue
       }
       // Ceramic face — bright, low roughness; a bevel band near the joint catches
