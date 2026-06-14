@@ -58,6 +58,14 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## IXT-SUITES: interaction-test ladder for presentation mode
+
+- Added `scripts/scenarios/presentation-simple.json` (23 steps, 2 screenshots) covering the
+  `presentation` pro feature (full-screen saved-views slideshow): asserts hidden in Simple / present in
+  Pro, seeds two saved views, starts presenting (`setPresenting` → the slideshow mounts on "Presentation
+  · 1 / 2" with the view caption), advances with Next ("2 / 2"), exits, and confirms it's hidden again in
+  Simple. Test coverage only — no app code changed.
+
 ## IXT-SUITES: interaction-test ladder for "My sets"
 
 - Added `scripts/scenarios/user-sets-simple.json` (15 steps, 1 screenshot) covering the `userSets` pro

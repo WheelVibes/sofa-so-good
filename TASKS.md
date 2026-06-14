@@ -81,9 +81,10 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   glazing/openable PASS/FAIL breakdown + mobile) + `accessibility-simple.json` (accessibility pro gate +
   panel with door-width + 1.5 m turning-circle checks + mobile) + `comments-simple.json` (pinned
   comments pro gate + panel + addComment in-scene pin + resolve + mobile) + `user-sets-simple.json`
-  ("My sets" pro gate + select items → saveSelectionAsSet → delete). Remaining: AI surfaces, GLB
-  designer re-rung, crown-molding, ceilingDesign, presentation, livePrices, first-run re-rungs,
-  backdrop-upload + furnlight re-rungs.
+  ("My sets" pro gate + select items → saveSelectionAsSet → delete) + `presentation-simple.json`
+  (presentation pro gate + seed 2 views → setPresenting slideshow 1/2 → Next 2/2 → Exit). Remaining: AI
+  surfaces, GLB designer re-rung, crown-molding, ceilingDesign (logic unit-tested; visual needs
+  walk-mode look-up), livePrices, first-run re-rungs, backdrop-upload + furnlight re-rungs.
 - [~] Q-3DEXPORT Whole-scene glTF/GLB + OBJ export — **shipped** (`sceneExport3d` flag, pro tier;
   Tools/Share/⌘K/mobile). Pure extract/filter core (`export/sceneGltf.ts`) drops editor helpers; live
   scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,
