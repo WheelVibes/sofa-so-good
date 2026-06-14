@@ -33,6 +33,14 @@ pruned from `main`; entries from C251 on (branch
   (skirting): trim renders cleanly along the floor/wall junction, no z-fighting or clipping. Skirting
   seam AO + painted-trim wear remain (TASKS RZ5).
 
+## QOL: catalog search clear (×) button
+
+- The catalog search field now shows a **clear (×) button** while a query is typed (reusing the themed
+  `.icon-btn`), so a query can be cleared with one click — the universally-expected affordance that was
+  previously only reachable via the Escape key. Positioned inside the field's right edge with the input
+  gaining right padding so text never runs under it. Browser-verified: the × appears on input and clears
+  the query on click (light/dark themed via tokens).
+
 ## Robustness: value-noise period guard (prevents NaN→black textures)
 
 - Hardened `makeValueNoise` (the base of every procedural pattern) against a non-integer `period`: the

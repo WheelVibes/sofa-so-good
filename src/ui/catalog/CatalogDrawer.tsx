@@ -244,8 +244,18 @@ export function CatalogDrawer() {
                   }
                 }}
                 placeholder={`Search ${totalCount} items…`}
-                className="input"
+                className={q ? 'input has-clear' : 'input'}
               />
+              {q ? (
+                <button
+                  type="button"
+                  className="icon-btn field-clear"
+                  aria-label="Clear search"
+                  onClick={() => onSearch('')}
+                >
+                  <Icon.Close width={14} height={14} />
+                </button>
+              ) : null}
             </div>
           </div>
           {q ? null : (
