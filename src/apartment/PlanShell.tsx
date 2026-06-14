@@ -14,6 +14,7 @@ import {
   wallLength,
 } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
+import { BeveledBox } from '../furniture/primitives/BeveledBox'
 import { GLASS_SKYCATCH_COLOR, glassSkyCatchIntensity } from '../materials/materialRealism'
 import type { MaterialId } from '../materials/types'
 import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
@@ -364,15 +365,15 @@ function PlanLevelShell({
       {/* Skirting along floor-reaching wall spans (per-wall baseboard override:
           height/colour, or hidden — PARITY-BASEBOARD). */}
       {skirtings.map(({ box: b, height, color }, i) => (
-        <mesh
+        <BeveledBox
           key={`sk${i}`}
           position={[b.cx, height / 2, b.cz]}
           rotation={[0, b.angle, 0]}
           receiveShadow
+          args={[b.thickness + 0.024, height, b.length]}
         >
-          <boxGeometry args={[b.thickness + 0.024, height, b.length]} />
           <meshStandardMaterial color={color} roughness={0.7} />
-        </mesh>
+        </BeveledBox>
       ))}
 
       {/* Crown molding at the wall–ceiling junction (full-height spans only).
@@ -383,12 +384,12 @@ function PlanLevelShell({
           .map(({ box }) => box)
           .filter((b) => b.cy + b.height / 2 >= lp.ceilingHeight - 0.01)
           .map((b, i) => (
-            <mesh
+            <BeveledBox
               key={`cm${i}`}
               position={[b.cx, lp.ceilingHeight - 0.035, b.cz]}
               rotation={[0, b.angle, 0]}
+              args={[b.thickness + 0.024, 0.07, b.length]}
             >
-              <boxGeometry args={[b.thickness + 0.024, 0.07, b.length]} />
               <meshStandardMaterial
                 color="#eeece6"
                 roughness={0.55}
@@ -397,7 +398,7 @@ function PlanLevelShell({
                 polygonOffsetFactor={-2}
                 polygonOffsetUnits={-2}
               />
-            </mesh>
+            </BeveledBox>
           ))}
 
       {/* Door leaves — swinging, clickable; closed by default (matches collision). */}

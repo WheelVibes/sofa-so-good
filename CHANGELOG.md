@@ -7,12 +7,13 @@ pruned from `main`; entries from C251 on (branch
 
 ## RZ5 (partial): beveled baseboard + crown-molding trim
 
-- The fixed apartment's skirting baseboards and crown molding (`WallSegment`) now build from the shared
-  `BeveledBox` chamfer instead of hard `boxGeometry`, so the trim edges round slightly and catch a
-  highlight rather than reading as flat slabs — matching the case-good bevel pass. The crown molding's
-  `polygonOffset` (ceiling z-fight guard) is preserved on its material. Browser-verified: baseboards
-  render cleanly along the floor/wall junction, no z-fighting or clipping. Custom-plan (PlanShell)
-  skirting/crown + seam AO remain (TASKS RZ5).
+- Baseboards and crown molding now build from the shared `BeveledBox` chamfer instead of hard
+  `boxGeometry` in BOTH the fixed apartment (`WallSegment`) and custom plans (`PlanShell` skirting +
+  crown), so the trim edges round slightly and catch a highlight rather than reading as flat slabs —
+  matching the case-good bevel pass. The crown molding's `polygonOffset` (ceiling z-fight guard) is
+  preserved on its material. Browser-verified on both the default flat (baseboards) and a template plan
+  (skirting): trim renders cleanly along the floor/wall junction, no z-fighting or clipping. Skirting
+  seam AO + painted-trim wear remain (TASKS RZ5).
 
 ## RZ4 extension: aged mortar + roughness micro-detail on exposed brick
 

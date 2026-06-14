@@ -202,9 +202,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   Nightstand) + Bookshelf/Wardrobe carcasses + parametric kitchen CabinetModule (base/wall/tall:
   carcass/doors/drawers/countertop). Remaining: ShoeCabinet/WallCabinet/CabinetCorner + appliances;
   edge light-catch real-GPU-pending.
-- [~] RZ5: painted-trim realism — baseboard + crown molding (fixed apartment `WallSegment`) now use
-  the `BeveledBox` chamfer so trim edges catch a highlight (light-catch real-GPU-pending). Remaining:
-  PlanShell custom-plan skirting/crown bevels + skirting-floor seam AO + painted-trim wear.
+- [~] RZ5: painted-trim realism — baseboard + crown molding now bevel their edges in BOTH the fixed
+  apartment (`WallSegment`) and custom plans (`PlanShell` skirting + crown), so trim catches a highlight
+  (light-catch real-GPU-pending). Remaining: skirting-floor seam AO + painted-trim wear.
 - [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.
 - [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
 
