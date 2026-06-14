@@ -58,6 +58,14 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## IXT-SUITES: interaction-test ladder for the accessibility check
+
+- Added `scripts/scenarios/accessibility-simple.json` (17 steps, 2 screenshots) covering the
+  `accessibility` pro feature: asserts hidden in Simple / present in Pro, opens the panel
+  (`#accessibilityPanel`, "Accessibility" with the per-door width checks + per-room 1.5 m turning-circle
+  results + OK/NARROW/TIGHT badges), checks the mobile bottom-sheet, closes, and confirms it's hidden
+  again in Simple. Test coverage only — no app code changed.
+
 ## IXT-SUITES: interaction-test ladder for the daylight & ventilation check
 
 - Added `scripts/scenarios/daylight-simple.json` (17 steps, 2 screenshots) covering the `daylight` pro

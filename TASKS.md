@@ -78,8 +78,9 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   live 3D preview + type switch Bookshelf→Wardrobe updates preview/controls + close) +
   `saved-views-simple.json` (saved camera views: save → move → applyView restores pose + bumps nonce →
   delete) + `daylight-simple.json` (daylight & ventilation pro gate + panel mount with per-room
-  glazing/openable PASS/FAIL breakdown + mobile). Remaining: AI surfaces, accessibility-check, GLB
-  designer re-rung, crown-molding, livePrices, first-run re-rungs, backdrop-upload + furnlight re-rungs.
+  glazing/openable PASS/FAIL breakdown + mobile) + `accessibility-simple.json` (accessibility pro gate +
+  panel with door-width + 1.5 m turning-circle checks + mobile). Remaining: AI surfaces, GLB designer
+  re-rung, crown-molding, livePrices, first-run re-rungs, backdrop-upload + furnlight re-rungs.
 - [~] Q-3DEXPORT Whole-scene glTF/GLB + OBJ export — **shipped** (`sceneExport3d` flag, pro tier;
   Tools/Share/⌘K/mobile). Pure extract/filter core (`export/sceneGltf.ts`) drops editor helpers; live
   scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,
