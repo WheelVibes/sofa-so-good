@@ -328,6 +328,12 @@ export function ToolsMenu() {
             sub="Geometry-only Wavefront OBJ"
             onClick={() => void exportScene3d('obj')}
           />
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.stl)"
+            sub="Geometry-only STL for 3D printing / CAD"
+            onClick={() => void exportScene3d('stl')}
+          />
         </>
       )}
       {fReport && (

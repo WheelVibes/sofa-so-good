@@ -43,6 +43,17 @@
       "timeout": 20000,
       "failMessage": "Export pipeline did not fire the success toast (live scene -> buildExportRoot -> GLTFExporter)"
     },
-    { "name": "shot-export-success", "screenshot": "02-export-success-toast" }
+    { "name": "shot-export-success", "screenshot": "02-export-success-toast" },
+    {
+      "name": "run-stl-export",
+      "eval": "import('/src/ui/openSceneExport.ts').then(m => m.exportScene3d('stl'))",
+      "timeout": 30000
+    },
+    {
+      "name": "verify-stl-success-toast",
+      "waitFor": { "text": "3D model saved" },
+      "timeout": 20000,
+      "failMessage": "STL export pipeline did not fire the success toast (STLExporter)"
+    }
   ]
 }

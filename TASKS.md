@@ -74,7 +74,8 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,
   adds `export/sceneObj.ts`. Browser-verified via `scenarios/scene-export-simple.json` (full pipeline
   → success toast — the earlier "unverifiable headless" gap is closed by asserting in the real browser).
-  **Still open:** USDZ (AR) + STL export, and worker-streamed export for very large scenes.
+  Now also exports **STL** (3D printing / CAD). **Still open:** USDZ (AR) export, and worker-streamed
+  export for very large scenes.
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
   depends on Q-3DEXPORT for the item GLB/USDZ.
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
@@ -159,7 +160,7 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure
   logic + no-key guard unit-tested; live LLM output needs a real key to tune. Follow-up: a key/brief
   panel beyond the ⌘K prompt + route through autoArrange for tidier spacing.
-- [~] PARITY-3DEXPORT: whole-scene OBJ/glTF export **shipped** (see Q-3DEXPORT); STL still open.
+- [x] PARITY-3DEXPORT: whole-scene OBJ/glTF/STL export **shipped** (see Q-3DEXPORT).
 - [~] PARITY-TILT: multi-axis furniture tilt (pitch/roll) **shipped** — `tiltFurniture` flag,
   `FurnitureItem.pitch/roll`, inspector sliders, `furniture/tiltRotation.ts` (`[pitch, yaw, roll, 'YXZ']`).
   Follow-up: a 3D tilt gizmo handle + the SH3D 2D-plan tilt indicator; collision stays yaw-OBB.

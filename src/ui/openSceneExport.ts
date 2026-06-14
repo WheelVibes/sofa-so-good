@@ -2,9 +2,9 @@ import { buildExportRoot } from '../export/sceneGltf'
 import { getSceneRoot } from '../scene/sceneExportAccess'
 import { useStore } from '../state/store'
 
-/** Whole-scene 3D export formats. GLB is binary glTF (material-complete);
- *  OBJ is geometry-only Wavefront for tools that prefer it. */
-export type SceneExportFormat = 'glb' | 'obj'
+/** Whole-scene 3D export formats. GLB is binary glTF (material-complete); OBJ is
+ *  geometry-only Wavefront; STL is geometry-only for 3D printing / CAD. */
+export type SceneExportFormat = 'glb' | 'obj' | 'stl'
 
 function downloadBlob(blob: Blob, filename: string): void {
   const url = URL.createObjectURL(blob)
@@ -42,6 +42,10 @@ export async function exportScene3d(format: SceneExportFormat = 'glb'): Promise<
       const { exportSceneObj } = await import('../export/sceneObj')
       const text = await exportSceneObj(exportRoot)
       downloadBlob(new Blob([text], { type: 'text/plain' }), `${safe}-${stamp}.obj`)
+    } else if (format === 'stl') {
+      const { exportSceneStl } = await import('../export/sceneStl')
+      const text = await exportSceneStl(exportRoot)
+      downloadBlob(new Blob([text], { type: 'model/stl' }), `${safe}-${stamp}.stl`)
     } else {
       const { exportGlb } = await import('../furniture/convert/toGlb')
       const buffer = await exportGlb(exportRoot)
