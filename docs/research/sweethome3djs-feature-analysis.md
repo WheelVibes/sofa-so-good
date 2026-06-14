@@ -54,7 +54,7 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
 | --- | --- | --- |
 | Synchronized 2D plan + 3D view off one model | ✅ | `floorPlanEditor` + R3F `Scene`, single Zustand store. |
 | Draw walls (straight) | ✅ | `floorplan/` `PlanWall`, `wallOps.ts` (split/reverse/join). |
-| Draw **round/arc** walls | ✅ | **shipped — PARITY-CURVEDWALL** (`curvedWalls`): drag a wall's midpoint handle to bow it; `PlanWall.arc` + `wallArc.ts` chord sub-segments through the existing geometry/collision. **Now also hosts doors/windows** — openings are positioned by arc-length and cut per-chord (3D + collision + 2D + door-swing). Follow-up: a true circular arc vs the Bézier approximation (cosmetic). |
+| Draw **round/arc** walls | ✅ | **shipped — PARITY-CURVEDWALL** (`curvedWalls`): drag a wall's midpoint handle to bow it into a **true circular arc** (`wallArc.ts` `arcCircle`); chord sub-segments feed the existing geometry/collision, 2D draws an SVG `A` arc. **Hosts doors/windows** too — arc-length positioned, cut per-chord (3D + collision + 2D + door-swing). |
 | Draw **sloping** (variable-height) walls | ✅ | **shipped — PARITY-SLOPEWALL** (`slopingWalls`): `PlanWall.topHeightEnd` ramps the top start→end, rendered as a prism (`slopedWall.ts`); inspector start/end height fields. Pairs with the sloped ceiling below. |
 | Rooms (rect / polygon) + floor/ceiling finishes | ✅ | `PlanRoom` (rect, L-extension, free `polygon`), `roomFinishes`. |
 | **Manually draw/edit** an arbitrary room polygon in the editor | ✅ | Drawing via the `polyroom` tool (click vertices → close); **reshape now shipped** — drag the vertex handles on a selected polygon room (`FloorPlanEditor` `movingPolyVertex`). |
@@ -101,9 +101,9 @@ Legend: ✅ already in sofa-so-good · 🟡 partial · ❌ net-new gap.
   `FurnitureItem` + inspector sliders, applied via a pure `[pitch, yaw, roll, 'YXZ']` Euler
   (`furniture/tiltRotation.ts`); collision stays yaw-OBB (tilt doesn't change the plan footprint, as in
   SweetHome3DJS); structural/locked items excluded. Gizmo + 2D tilt-handle remain a follow-up.
-- **Round/arc walls.** **Shipped (PARITY-CURVEDWALL)** — `PlanWall.arc` bulge + `wallArc.ts` chord
-  expansion through the existing geometry/collision; 2D bulge handle; **openings on curves** (arc-length
-  positioned, per-chord cut). Remaining: a true circular arc (vs the Bézier approximation — cosmetic).
+- **Round/arc walls.** **Shipped (PARITY-CURVEDWALL)** — `PlanWall.arc` bulge → a **true circular arc**
+  (`arcCircle`); chord expansion through the existing geometry/collision; 2D bulge handle + SVG `A` arc;
+  **openings on curves** (arc-length positioned, per-chord cut). Complete.
 - ~~**Sloping (variable-height) walls + sloped ceiling / roof geometry.**~~ **Shipped** —
   `PlanWall.topHeightEnd` prism walls (PARITY-SLOPEWALL) + a `sloped` `CeilingConfig` pitched plane
   (PARITY-SLOPECEIL); set both to match for a shed roof.

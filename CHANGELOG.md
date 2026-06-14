@@ -37,6 +37,16 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## PARITY-CURVEDWALL (v3): true circular arc
+
+- Curved walls now follow a **true circular arc** through the endpoints (with the midpoint bulged by
+  `arc`) instead of the earlier quadratic-Bézier approximation — `wallArc.ts` `arcCircle` computes the
+  circle (centre/radius/sweep, picking the minor vs major arc by the bulge side); `wallArcPoints`
+  samples it, `wallSvgPath` emits an SVG `A` arc. Everything downstream (chord sub-segments,
+  collision, openings, arc-length positioning) is unchanged since it consumes the sampled points.
+- Unit-tested that all sampled points are equidistant from one centre (a real circle); existing curved
+  scenarios re-verified for no regression (2D arc + window-cut still render cleanly).
+
 ## PARITY-CURVEDWALL (v2): doors + windows on curved walls
 
 - Curved walls now host **openings** (previously a flat v1 limitation). Openings are positioned by

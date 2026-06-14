@@ -3,16 +3,12 @@
  *
  * A wall's optional `arc` is the signed perpendicular bulge (metres) at its
  * midpoint, measured from the straight chord between `start` and `end`. We model
- * the curve as a **quadratic Bézier** whose control point sits at `chordMid +
- * 2·arc·leftNormal` — so the curve passes exactly through `chordMid + arc·
- * leftNormal` at its midpoint (the drag handle's target) — then sample it into
- * short straight chord sub-segments. Those feed the *existing* straight-wall
- * pipeline (`wallBoxes`, `planCollisionWalls`, room detection) unchanged, so a
- * curved wall reuses all the proven geometry/collision code.
- *
- * A Bézier (vs a true circular arc) keeps the math allocation-light and free of
- * angle-wrap edge cases; for the bulges used in interior plans it is visually
- * indistinguishable from an arc. Pure + unit-tested (no three/React imports).
+ * the curve as a **true circular arc** through the two endpoints whose midpoint
+ * bulges by `arc` (`arcCircle`), then sample it into short straight chord
+ * sub-segments. Those feed the *existing* straight-wall pipeline (`wallBoxes`,
+ * `planCollisionWalls`, room detection) unchanged, so a curved wall reuses all
+ * the proven geometry/collision code. The 2D editor draws it as an SVG `A` arc.
+ * Pure + unit-tested (no three/React imports).
  */
 import type { PlanVec2, PlanWall } from './types'
 
@@ -32,34 +28,66 @@ function leftNormal(start: PlanVec2, end: PlanVec2): PlanVec2 {
   return [-dz / len, dx / len]
 }
 
-/** Quadratic-Bézier control point for the wall's curve. */
-function controlPoint(w: PlanWall): PlanVec2 {
+/**
+ * The true circular arc through `start` and `end` whose midpoint bulges by `arc`
+ * (signed, along the chord's left-normal). Returns the circle centre `o`, radius
+ * `r`, the start angle `phi0` and signed sweep `delta` (so `phi0 + delta` reaches
+ * `end`, passing through the bulge apex), or null for a straight wall.
+ *
+ * Geometry: with chord length L and sagitta h, R = (L²/4 + h²) / (2|h|); the
+ * centre sits on the perpendicular bisector on the side opposite the bulge. The
+ * sweep direction is chosen so the arc's midpoint lands on the bulge side (this
+ * picks the minor vs major arc correctly for |h| ≷ L/2).
+ */
+function arcCircle(w: PlanWall): { o: PlanVec2; r: number; phi0: number; delta: number } | null {
+  if (!isCurvedWall(w)) return null
   const [sx, sz] = w.start
   const [ex, ez] = w.end
+  const dx = ex - sx
+  const dz = ez - sz
+  const len = Math.hypot(dx, dz)
+  if (len < 1e-6) return null
+  const h = w.arc ?? 0
+  const n = leftNormal(w.start, w.end)
   const mx = (sx + ex) / 2
   const mz = (sz + ez) / 2
-  const n = leftNormal(w.start, w.end)
-  const k = 2 * (w.arc ?? 0) // doubled so the curve midpoint lands at arc·n
-  return [mx + n[0] * k, mz + n[1] * k]
+  const r = (len * len) / 4 / (2 * Math.abs(h)) + Math.abs(h) / 2
+  // Centre on the perpendicular bisector, opposite the bulge side.
+  const off = (r - Math.abs(h)) * Math.sign(h)
+  const o: PlanVec2 = [mx - n[0] * off, mz - n[1] * off]
+  const phi0 = Math.atan2(sz - o[1], sx - o[0])
+  const phiE = Math.atan2(ez - o[1], ex - o[0])
+  let delta = phiE - phi0
+  while (delta <= -Math.PI) delta += 2 * Math.PI
+  while (delta > Math.PI) delta -= 2 * Math.PI
+  // Pick minor/major arc: the sampled midpoint must sit on the bulge side.
+  const phiMid = phi0 + delta / 2
+  const midSide =
+    (o[0] + r * Math.cos(phiMid) - mx) * n[0] + (o[1] + r * Math.sin(phiMid) - mz) * n[1]
+  if (Math.sign(midSide) !== Math.sign(h)) delta -= Math.sign(delta) * 2 * Math.PI
+  return { o, r, phi0, delta }
 }
 
 /** Sample the wall's curve into `segments + 1` ordered points (start → end).
- *  A straight wall returns just its two endpoints. */
+ *  A straight wall returns just its two endpoints. A curved wall is a true
+ *  circular arc (SweetHome3DJS parity). */
 export function wallArcPoints(w: PlanWall, segments = DEFAULT_SEGMENTS): PlanVec2[] {
-  if (!isCurvedWall(w)) return [w.start, w.end]
-  const [sx, sz] = w.start
-  const [ex, ez] = w.end
-  const [cxp, czp] = controlPoint(w)
+  const c = arcCircle(w)
+  if (!c) return [w.start, w.end]
   const n = Math.max(2, Math.round(segments))
   const pts: PlanVec2[] = []
   for (let i = 0; i <= n; i++) {
-    const t = i / n
-    const mt = 1 - t
-    // Quadratic Bézier: (1-t)²·start + 2(1-t)t·ctrl + t²·end
-    const a = mt * mt
-    const b = 2 * mt * t
-    const c = t * t
-    pts.push([a * sx + b * cxp + c * ex, a * sz + b * czp + c * ez])
+    // Anchor the exact endpoints (avoid float drift at i=0 / i=n).
+    if (i === 0) {
+      pts.push(w.start)
+      continue
+    }
+    if (i === n) {
+      pts.push(w.end)
+      continue
+    }
+    const phi = c.phi0 + c.delta * (i / n)
+    pts.push([c.o[0] + c.r * Math.cos(phi), c.o[1] + c.r * Math.sin(phi)])
   }
   return pts
 }
@@ -83,13 +111,18 @@ export function wallChords(w: PlanWall, segments = DEFAULT_SEGMENTS): PlanWall[]
   return chords
 }
 
-/** SVG path `d` for a curved wall (one quadratic segment), or a straight line. */
+/** SVG path `d` for a curved wall (a true `A` arc), or a straight line. */
 export function wallSvgPath(w: PlanWall, toPx: (m: number) => number): string {
   const s = `${toPx(w.start[0])},${toPx(w.start[1])}`
   const e = `${toPx(w.end[0])},${toPx(w.end[1])}`
-  if (!isCurvedWall(w)) return `M ${s} L ${e}`
-  const [cxp, czp] = controlPoint(w)
-  return `M ${s} Q ${toPx(cxp)},${toPx(czp)} ${e}`
+  const c = arcCircle(w)
+  if (!c) return `M ${s} L ${e}`
+  const rPx = toPx(c.r) - toPx(0) // world radius → screen px (toPx is affine)
+  const largeArc = Math.abs(c.delta) > Math.PI ? 1 : 0
+  // toPx preserves orientation (z maps to screen-y, downward), so a positive
+  // (increasing-angle) sweep reads as SVG sweep-flag 1.
+  const sweep = c.delta > 0 ? 1 : 0
+  return `M ${s} A ${rPx} ${rPx} 0 ${largeArc} ${sweep} ${e}`
 }
 
 /** The world point on the wall's curve at its midpoint — where the bulge drag
