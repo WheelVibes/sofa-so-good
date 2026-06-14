@@ -164,6 +164,20 @@ describe('levelAsPlan / visibleLevels', () => {
     expect(visibleLevels(multi, 'lvl-2').map((l) => l.id)).toEqual(['lvl-2'])
     expect(visibleLevels(multi, 'stale').map((l) => l.id)).toEqual(['ground', 'lvl-2'])
   })
+
+  it('scopes the plan notes to the storey (multi-level sheets stay per-level)', () => {
+    const annotated: FloorPlan = {
+      ...multi,
+      notes: [
+        { id: 'ng', x: 1, z: 1, text: 'ground note' },
+        { id: 'nu', x: 1, z: 1, text: 'upper note', levelId: 'lvl-2' },
+      ],
+    }
+    const ground = levelAsPlan(annotated, planLevels(annotated)[0])
+    const up = levelAsPlan(annotated, planLevels(annotated)[1])
+    expect(ground.notes?.map((n) => n.id)).toEqual(['ng'])
+    expect(up.notes?.map((n) => n.id)).toEqual(['nu'])
+  })
 })
 
 describe('walkLevel / levelSpawnPoint (ML6c)', () => {

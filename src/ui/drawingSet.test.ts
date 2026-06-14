@@ -256,6 +256,14 @@ describe('buildDrawingSetHtml — layer toggles (PARITY-DRAWLAYERS)', () => {
     expect(html).toContain('FF&amp;E schedule') // unlisted → still included
   })
 
+  it('carries the plan text notes onto the floor-plan sheet (PARITY-DIMTEXT callouts)', () => {
+    const annotated = { ...plan, notes: [{ id: 'n1', x: 3, z: 2, text: 'Feature wall' }] }
+    const html = buildDrawingSetHtml(annotated, items, BUILTIN_CATALOG)
+    expect(html).toContain('Feature wall')
+    // No note on the plain plan.
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Feature wall')
+  })
+
   it('skips the demolition layer when toggled off even though the plan diverged', () => {
     const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
     const on = buildDrawingSetHtml(hacked, items, BUILTIN_CATALOG, 'metric', plan)

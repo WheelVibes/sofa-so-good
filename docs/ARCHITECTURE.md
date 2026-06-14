@@ -374,7 +374,9 @@ same change that reshapes a system.
   `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + draggable endpoint handles (`moveWallVertex`) for
-  non-orthogonal shapes. **Text notes** (Text tool → `plan.notes`, draggable/editable) + **dimension
+  non-orthogonal shapes. **Text notes** (Text tool → `plan.notes`, draggable/editable; also rendered on
+  the report + drawing-set plan sheets via `reportPlanSvg` `notesSvg`, level-scoped by `levelAsPlan` —
+  PARITY-PLANTEXT) + **dimension
   lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).
   **Polyline markup** (Polyline tool → `plan.polylines`, open/closed + dashed + end-arrow; pure
   `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE). Live furniture as `canPlace`-checked footprints (active storey

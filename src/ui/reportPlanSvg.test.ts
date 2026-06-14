@@ -65,6 +65,30 @@ describe('reportPlanSvg', () => {
     expect(svg).toMatch(/9(\.0)? m²/) // rect area label (3×3)
   })
 
+  it('renders free-text notes as amber callouts (PARITY-DIMTEXT on deliverables)', () => {
+    const plan = buildDefaultPlan()
+    const withNote = reportPlanSvg({ ...plan, notes: [{ id: 'n1', x: 3, z: 2, text: 'TV wall' }] })
+    expect(withNote).toContain('TV wall')
+    expect(withNote).toContain('#b45309') // the note ink + locator dot
+    // No notes → no amber callout (clean default).
+    expect(reportPlanSvg(plan)).not.toContain('#b45309')
+  })
+
+  it('escapes note text + skips blank notes', () => {
+    const plan = buildDefaultPlan()
+    const svg = reportPlanSvg({
+      ...plan,
+      notes: [
+        { id: 'n1', x: 3, z: 2, text: '<b>x</b>' },
+        { id: 'n2', x: 4, z: 2, text: '   ' },
+      ],
+    })
+    expect(svg).not.toContain('<b>x</b>')
+    expect(svg).toContain('&lt;b&gt;x&lt;/b&gt;')
+    // Blank note contributes no extra dot (only one locator circle).
+    expect(svg.match(/<circle/g)?.length ?? 0).toBe(1)
+  })
+
   it('draws a scale bar with a metric label', () => {
     const svg = reportPlanSvg(buildDefaultPlan())
     // Default HDB ~10 m wide → quarter ≈ 2.5 m → "2 m" bar.

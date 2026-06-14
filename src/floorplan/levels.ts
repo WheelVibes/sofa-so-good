@@ -91,11 +91,17 @@ export function allPlanRooms(plan: FloorPlan): PlanRoom[] {
  *  collision walls, …) work per storey unchanged. Ground returns the plan
  *  itself (same reference, no realloc). */
 export function levelAsPlan(plan: FloorPlan, level: PlanLevel): FloorPlan {
+  // Notes are top-level + level-tagged; scope them to this storey so per-level
+  // consumers (the drawing-set sheets) don't show every storey's annotations.
+  const notesFor = (id: string) =>
+    plan.notes ? plan.notes.filter((n) => (n.levelId ?? GROUND_LEVEL_ID) === id) : undefined
   if (level.id === GROUND_LEVEL_ID) {
     // Strip upperLevels so the result is genuinely single-storey — recursive
     // consumers (e.g. daylight's per-level fan-out) must terminate. Keep the
     // same reference for already-single-storey plans (the common case).
-    return isMultiLevel(plan) ? { ...plan, upperLevels: undefined } : plan
+    return isMultiLevel(plan)
+      ? { ...plan, upperLevels: undefined, notes: notesFor(GROUND_LEVEL_ID) }
+      : plan
   }
   return {
     ...plan,
@@ -104,6 +110,7 @@ export function levelAsPlan(plan: FloorPlan, level: PlanLevel): FloorPlan {
     rooms: level.rooms,
     ceilingHeight: level.ceilingHeight ?? plan.ceilingHeight,
     upperLevels: undefined,
+    notes: notesFor(level.id),
   }
 }
 

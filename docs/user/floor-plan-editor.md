@@ -61,6 +61,8 @@ Beyond walls and rooms you can mark up the plan:
   switch to Pro from the mode toggle to use them.)*
 
 All three are saved with your design and are tagged to the storey you drew them on.
+Your **text notes** also print onto the floor-plan sheet of the **Report** and the
+**Drawing set**, so on-plan callouts reach the documents you hand to a builder.
 
 ## Levels (storeys)
 

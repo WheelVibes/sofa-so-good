@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-PLANTEXT: on-plan text notes carry onto the report + drawing-set sheets
+
+- The 2D editor's free-text **notes** (Text tool, PARITY-DIMTEXT) now render on the **report** and
+  **drawing-set** floor-plan sheets as amber text callouts with a locator dot — so a designer's on-plan
+  annotations reach the printed deliverables (Coohom/SH3D drawing text callouts). Pure SVG in
+  `reportPlanSvg` (`notesSvg`), shared by the report, the drawing set and the SVG plan export; blank
+  notes are skipped and text is escaped.
+- Multi-storey correctness: `levelAsPlan` now scopes `plan.notes` to the storey, so each per-level
+  drawing sheet shows only that storey's notes (not every storey's).
+- Unit-tested (note text present + escaped + amber ink + blank skipped; per-level note scoping; note on
+  the drawing-set sheet). Pure string/data change — verified via assertions like the rest of the
+  report/drawing output (these open in a separate print window).
+
 ## PARITY-DRAWLAYERS: choose which sheets the construction drawing set includes
 
 - The **drawing set** export (Tools → Drawing set) now has an **"Include sheets"** checklist
