@@ -288,6 +288,28 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               Reset label position
             </button>
           ) : null}
+          <div className="space-y-1">
+            <Num
+              label="Label angle (°)"
+              value={Math.round((((r.labelAngle ?? 0) * 180) / Math.PI) * 10) / 10}
+              step={15}
+              onChange={(v) => {
+                const rad = (v * Math.PI) / 180
+                a.updateRoom(r.id, { labelAngle: Math.abs(rad) < 1e-4 ? undefined : rad })
+              }}
+            />
+            <Num
+              label="Label size (×)"
+              value={r.labelFontScale ?? 1}
+              step={0.1}
+              min={0.5}
+              onChange={(v) =>
+                a.updateRoom(r.id, {
+                  labelFontScale: Math.abs(v - 1) < 1e-3 ? undefined : Math.max(0.5, v),
+                })
+              }
+            />
+          </div>
           <Num
             label="X (m)"
             value={r.origin[0]}

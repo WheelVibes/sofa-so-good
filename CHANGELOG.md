@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-ROOMLABEL-STYLE: room-name label rotation + font size — SweetHome3DJS parity
+
+- Room-name labels in the 2D plan editor gain optional **rotation** (`PlanRoom.labelAngle`, radians →
+  SVG `rotate` about the label anchor) and a **font-size multiplier** (`PlanRoom.labelFontScale`), so a
+  label can be angled to follow a slanted room/wall and emphasised or shrunk — matching SweetHome3D's
+  label angle/font controls. Both are exposed as "Label angle (°)" / "Label size (×)" fields in the
+  Plan inspector (beside the existing drag-to-reposition), default to unset (horizontal, normal size),
+  and round-trip through `schema.ts` (optional + additive — no version bump). Verified with the
+  `room-label-style` scenario (label renders rotated 30°, 1.6× larger).
+
 ## PARITY-BATCHRENDER: batch-render every saved camera view to PNG — SweetHome3DJS parity
 
 - The saved-views section of the View menu (desktop + mobile) gains a **"Render all views"** action

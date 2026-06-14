@@ -108,7 +108,7 @@ room-name labels**.
 | **Slanting walls** (per-endpoint top heights) | ✅ | ✅ | **Shipped (PARITY-SLOPEWALL)** — `PlanWall.topHeightEnd` prism + inspector start/end height. | M |
 | **Sloping ceilings** (per-room ceiling slope) | ✅ | ✅ | **Shipped (PARITY-SLOPECEIL)** — `sloped` `CeilingConfig` pitched plane + per-room picker. | M |
 | **Baseboards/skirting on walls** (height/thickness/finish) | ◑ | ✅ | We have skirting; expose per-wall baseboard params + finish. | M |
-| On-plan room-name label **rotation / font** | ◑ | ✅ | Name is editable, rendered + **draggable** (placement ships); add optional label rotation + font styling. | S |
+| On-plan room-name label **rotation / font** | ✅ | ✅ | **Shipped (PARITY-ROOMLABEL-STYLE)** — `PlanRoom.labelAngle` (SVG `rotate`) + `labelFontScale` with Plan-inspector angle/size fields; drag-to-reposition already shipped. | S |
 | **Batch render** all saved cameras | ✅ | ✅ | **Shipped (PARITY-BATCHRENDER)** — Saved-views "Render all views" flies to each view and downloads a PNG via `captureCanvasPng` (`ui/renderAllViews.ts`, `batchRender` pro flag). | S |
 | **Fisheye / DoF** lens options on render | ◑ | ✅ | Add lens-type + DoF controls to the render camera (DoF partly exists in HQ). | M |
 | Keyboard wall-length entry while drawing | ◑ | ✅ | Live numeric length/angle entry during wall draw. | M |
@@ -125,8 +125,7 @@ room-name labels**.
 > Shipped items are removed from this list as they land (see `CHANGELOG.md`); this
 > section tracks only what is still open.
 
-**Quick wins (S):**
-1. Room-name label rotation + font styling (SH3D) — drag-to-reposition already ships.
+**Quick wins (S):** _(all shipped — see `CHANGELOG.md`)_
 
 **High-value medium efforts (M):**
 4. AR "view in your room" (Coohom/F22) — high "wow"/sales value.

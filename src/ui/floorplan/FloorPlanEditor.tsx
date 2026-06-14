@@ -1387,14 +1387,21 @@ export function FloorPlanEditor() {
                     : null}
                   {(() => {
                     const [lx, lz] = roomLabelPosition(r)
+                    const px = toPx(lx)
+                    const pz = toPx(lz)
+                    // Optional label rotation (radians → degrees, about the anchor)
+                    // and font-size multiplier — Sweet Home 3D label angle/font.
+                    const deg = r.labelAngle ? (r.labelAngle * 180) / Math.PI : 0
+                    const fontPx = 11 * (r.labelFontScale ?? 1)
                     return (
                       <text
-                        x={toPx(lx)}
-                        y={toPx(lz)}
+                        x={px}
+                        y={pz}
                         textAnchor="middle"
                         className="select-none"
-                        fontSize={11}
+                        fontSize={fontPx}
                         fill="var(--text-2)"
+                        transform={deg ? `rotate(${deg} ${px} ${pz})` : undefined}
                         style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
                         onPointerDown={(e) => {
                           if (tool !== 'select') return
@@ -1405,8 +1412,8 @@ export function FloorPlanEditor() {
                           svgRef.current?.setPointerCapture(e.pointerId)
                         }}
                       >
-                        <tspan x={toPx(lx)}>{r.name}</tspan>
-                        <tspan x={toPx(lx)} dy={14} fill="var(--text-3)">
+                        <tspan x={px}>{r.name}</tspan>
+                        <tspan x={px} dy={fontPx + 3} fill="var(--text-3)">
                           {formatArea(planRoomArea(r), units)}
                         </tspan>
                       </text>

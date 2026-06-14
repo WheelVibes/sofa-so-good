@@ -166,13 +166,18 @@ describe('schema', () => {
             width: 3.8,
             depth: 3.8,
             labelOffset: [1.2, -0.6],
+            labelAngle: 0.5,
+            labelFontScale: 1.4,
           },
         ],
       },
     } as never)
     const saved = serialize(useStore.getState())
     const patch = applySerialized(saved, new Set<string>())
-    expect(patch.floorPlan?.rooms.find((r) => r.id === 'R')?.labelOffset).toEqual([1.2, -0.6])
+    const room = patch.floorPlan?.rooms.find((r) => r.id === 'R')
+    expect(room?.labelOffset).toEqual([1.2, -0.6])
+    expect(room?.labelAngle).toBe(0.5)
+    expect(room?.labelFontScale).toBe(1.4)
   })
 
   it('round-trips imported-GLB metadata on user furniture defs', () => {

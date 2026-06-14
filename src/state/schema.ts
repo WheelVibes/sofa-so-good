@@ -176,6 +176,9 @@ const PlanRoomZ = z.object({
   wall: z.string().optional(),
   // Movable room-name label offset (metres from the centroid). Optional + additive.
   labelOffset: Vec2Z.optional(),
+  // Room-name label rotation (radians) + font-size multiplier. Optional + additive.
+  labelAngle: z.number().optional(),
+  labelFontScale: z.number().optional(),
   // Per-room floor-texture transform (scale/angle) — optional + additive.
   floorTexScale: z.number().optional(),
   floorTexAngle: z.number().optional(),

@@ -84,6 +84,14 @@ export interface PlanRoom {
    *  centroid, so a label can be nudged clear of furniture / a tight room
    *  (Sweet Home 3D movable labels). Absent → centred on the centroid. */
   labelOffset?: PlanVec2
+  /** Optional rotation (radians, clockwise on the 2D plan) of the room's name
+   *  label, to align it with a slanted room or wall (Sweet Home 3D label angle).
+   *  Absent → horizontal. */
+  labelAngle?: number
+  /** Optional font-size multiplier for the room's name label (×, >1 = bigger),
+   *  for emphasising / shrinking a label (Sweet Home 3D label font size). Absent
+   *  → default size. */
+  labelFontScale?: number
 }
 
 /** Per-room ceiling treatment. `flat` (or absent) renders the plain ceiling. */
