@@ -33,6 +33,16 @@ pruned from `main`; entries from C251 on (branch
   (skirting): trim renders cleanly along the floor/wall junction, no z-fighting or clipping. Skirting
   seam AO + painted-trim wear remain (TASKS RZ5).
 
+## Robustness: value-noise period guard (prevents NaN→black textures)
+
+- Hardened `makeValueNoise` (the base of every procedural pattern) against a non-integer `period`: the
+  lattice grid is sized and indexed by `period`, so a fractional value previously produced out-of-grid
+  `undefined` reads → NaN → all-black textures (the trap that bit the concrete staining work). It now
+  coerces to a valid positive integer — the **identity for every integer period in use today**, so all
+  existing textures are byte-for-byte unchanged (the generator determinism tests confirm it). New
+  `noise.test.ts` proves non-integer `period`/`baseFreq` now yield finite output and integer periods are
+  unchanged.
+
 ## RZ4 extension: cloudy staining on concrete
 
 - The `concrete` generator gains a low-frequency cloudy-staining layer — the broad water-mark /
