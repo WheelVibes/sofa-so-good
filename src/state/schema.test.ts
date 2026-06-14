@@ -45,6 +45,79 @@ describe('schema', () => {
     expect(room?.polygon).toEqual(polygon)
   })
 
+  it('round-trips plan notes (PARITY-DIMTEXT) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'note-plan',
+        name: 'Notes',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        notes: [
+          { id: 'n1', x: 1, z: 2, text: 'Feature wall' },
+          { id: 'n2', x: 3, z: 1, text: 'Up here', levelId: 'lvl-2' },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.notes).toEqual([
+      { id: 'n1', x: 1, z: 2, text: 'Feature wall' },
+      { id: 'n2', x: 3, z: 1, text: 'Up here', levelId: 'lvl-2' },
+    ])
+  })
+
+  it('round-trips custom dimension lines (PARITY-DIMTEXT) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'dim-plan',
+        name: 'Dims',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        dimensions: [{ id: 'd1', a: [0.2, 0.2], b: [4.0, 0.2] }],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.dimensions).toEqual([{ id: 'd1', a: [0.2, 0.2], b: [4.0, 0.2] }])
+  })
+
+  it('round-trips polyline annotations (PARITY-POLYLINE) on a custom plan', () => {
+    useStore.getState().__resetForTest()
+    const polyline = {
+      id: 'p1',
+      points: [
+        [0.2, 0.2],
+        [4.0, 0.2],
+        [4.0, 4.0],
+      ] as [number, number][],
+      closed: true,
+      dashed: true,
+    }
+    useStore.setState({
+      floorPlan: {
+        id: 'poly-plan',
+        name: 'Polys',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [{ id: 'R', name: 'Room', origin: [0.2, 0.2], width: 3.8, depth: 3.8 }],
+        polylines: [polyline],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.polylines).toEqual([polyline])
+  })
+
   it('round-trips per-room floor + wall finishes on a custom plan', () => {
     useStore.getState().__resetForTest()
     useStore.setState({
@@ -73,6 +146,33 @@ describe('schema', () => {
     const room = patch.floorPlan?.rooms.find((r) => r.id === 'R')
     expect(room?.floor).toBe('floor-tile-grey')
     expect(room?.wall).toBe('wall-paint-sage')
+  })
+
+  it('round-trips a movable room-name label offset (PARITY-ROOMLABEL)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'label-plan',
+        name: 'Labels',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [
+          {
+            id: 'R',
+            name: 'Room',
+            origin: [0.2, 0.2],
+            width: 3.8,
+            depth: 3.8,
+            labelOffset: [1.2, -0.6],
+          },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.rooms.find((r) => r.id === 'R')?.labelOffset).toEqual([1.2, -0.6])
   })
 
   it('round-trips imported-GLB metadata on user furniture defs', () => {

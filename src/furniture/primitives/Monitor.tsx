@@ -44,7 +44,8 @@ export function Monitor({ props }: { props: ParamProps }) {
             map={getScreenContent(content)}
             emissiveMap={getScreenContent(content)}
             emissive="#ffffff"
-            emissiveIntensity={0.8}
+            // HDR (>1) so the lit screen reads self-lit + blooms (PHOTO-EMISSIVE).
+            emissiveIntensity={1.15}
             roughness={0.2}
             metalness={0}
             toneMapped={false}

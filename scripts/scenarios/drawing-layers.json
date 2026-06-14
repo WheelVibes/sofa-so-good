@@ -1,0 +1,19 @@
+{
+  "name": "drawing-layers",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "tall-viewport", "viewport": { "width": 900, "height": 1300 } },
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-tools", "click": "button[aria-label=\"Tools\"]" },
+    { "name": "tools-open", "waitFor": { "css": ".menu-item" }, "timeout": 8000 },
+    { "name": "shot-picker", "screenshot": "tools-layer-picker" },
+
+    { "name": "toggle-electrical-off", "store": { "action": "setDrawingLayer", "args": ["electrical", false] } },
+    { "name": "toggle-plumbing-off", "store": { "action": "setDrawingLayer", "args": ["plumbing", false] } },
+    { "name": "layers-set", "waitFor": { "store": "state.drawingLayers.electrical === false && state.drawingLayers.plumbing === false" } },
+    { "name": "shot-toggled", "screenshot": "tools-layer-toggled" }
+  ]
+}

@@ -1,5 +1,6 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /**
@@ -30,23 +31,34 @@ export function ConsoleTable({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Top */}
-      <mesh castShadow receiveShadow position={[0, h - topT / 2, 0]} material={wood}>
-        <boxGeometry args={[width, topT, depth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, h - topT / 2, 0]}
+        material={wood}
+        args={[width, topT, depth]}
+      />
       {/* Legs */}
       {xs.map((x) =>
         zs.map((z) => (
-          <mesh key={`${x}.${z}`} castShadow position={[x, (h - topT) / 2, z]} material={legMat}>
-            <boxGeometry args={[legT, h - topT, legT]} />
-          </mesh>
+          <BeveledBox
+            key={`${x}.${z}`}
+            castShadow
+            position={[x, (h - topT) / 2, z]}
+            material={legMat}
+            args={[legT, h - topT, legT]}
+          />
         )),
       )}
       {style === 'drawers' ? (
         <>
           {/* Drawer band just under the top, with two fronts + bar pulls */}
-          <mesh castShadow position={[0, h - topT - 0.09, 0]} material={wood}>
-            <boxGeometry args={[width - inset * 2, 0.16, depth - inset * 2]} />
-          </mesh>
+          <BeveledBox
+            castShadow
+            position={[0, h - topT - 0.09, 0]}
+            material={wood}
+            args={[width - inset * 2, 0.16, depth - inset * 2]}
+          />
           {[-1, 1].map((s) => (
             <mesh key={s} position={[s * width * 0.22, h - topT - 0.09, depth / 2 + 0.012]}>
               <boxGeometry args={[width * 0.2, 0.018, 0.02]} />
@@ -56,9 +68,13 @@ export function ConsoleTable({ props }: { props: ParamProps }) {
         </>
       ) : (
         /* Lower display shelf */
-        <mesh castShadow receiveShadow position={[0, 0.18, 0]} material={wood}>
-          <boxGeometry args={[width - inset * 2, 0.03, depth - inset * 2]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, 0.18, 0]}
+          material={wood}
+          args={[width - inset * 2, 0.03, depth - inset * 2]}
+        />
       )}
     </group>
   )

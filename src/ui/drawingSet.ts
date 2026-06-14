@@ -16,6 +16,7 @@ import { diffWalls, diffWallsByLevel } from '../floorplan/demolitionPlan'
 import { demolitionSvg } from '../floorplan/demolitionPlanSvg'
 import { buildElectricalPlan, type ElectricalPoint } from '../floorplan/electricalPlan'
 import { electricalSvg } from '../floorplan/electricalPlanSvg'
+import { buildFinishSchedule } from '../floorplan/finishSchedule'
 import {
   allPlanRooms,
   isMultiLevel,
@@ -24,6 +25,9 @@ import {
   type PlanLevel,
   planLevels,
 } from '../floorplan/levels'
+import { buildPlumbingPlan, type PlumbingPoint } from '../floorplan/plumbingPlan'
+import { plumbingSvg } from '../floorplan/plumbingPlanSvg'
+import type { RoomFinishMaps } from '../floorplan/roomFinishes'
 import { buildSection } from '../floorplan/section'
 import { sectionSvg } from '../floorplan/sectionSvg'
 import type { FloorPlan } from '../floorplan/types'
@@ -32,7 +36,9 @@ import { CATEGORY_COLORS } from '../furniture/categoryColors'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
 import { estimateRoomLux } from '../lighting2d/roomLux'
+import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
 import { formatArea, formatLength, type UnitSystem } from '../utils/measurement'
+import { type DrawingLayerVisibility, drawingLayerOn as layerOn } from './drawingLayers'
 import { type ElevationPalette, elevationCaption, elevationSvg } from './elevation/elevationSvg'
 import { sectionSilhouettes } from './elevation/sectionFigure'
 import {
@@ -69,7 +75,8 @@ interface Sheet {
 const storeyNote = (text: string) =>
   `<div style="color:#b45309;font-weight:600;font-size:12px">${esc(text)}</div>`
 
-/** Build the full drawing-set HTML document. */
+/** Build the full drawing-set HTML document. `layers` hides individual sheet
+ *  groups (default: all included). */
 export function buildDrawingSetHtml(
   plan: FloorPlan,
   items: FurnitureItem[],
@@ -77,6 +84,9 @@ export function buildDrawingSetHtml(
   units: UnitSystem = 'metric',
   baselinePlan?: FloorPlan,
   electricalPoints?: ElectricalPoint[],
+  plumbingPoints?: PlumbingPoint[],
+  finishes?: RoomFinishMaps,
+  layers?: DrawingLayerVisibility,
 ): string {
   const date = new Date().toLocaleDateString('en-SG', {
     year: 'numeric',
@@ -113,21 +123,23 @@ export function buildDrawingSetHtml(
   }
 
   // One elevation per wall that carries furniture or openings.
-  const elevations = projectAllElevations(plan, items, catalog).filter(
-    (e) => e.length > 0 && e.height > 0 && (e.items.length > 0 || e.openings.length > 0),
-  )
-  elevations.forEach((e, i) => {
-    sheets.push({
-      name: elevationCaption(e, i, units),
-      body: `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units })}</div>`,
+  if (layerOn(layers, 'elevations')) {
+    const elevations = projectAllElevations(plan, items, catalog).filter(
+      (e) => e.length > 0 && e.height > 0 && (e.items.length > 0 || e.openings.length > 0),
+    )
+    elevations.forEach((e, i) => {
+      sheets.push({
+        name: elevationCaption(e, i, units),
+        body: `<div class="draw">${elevationSvg(e, { palette: ELEV_PRINT, units })}</div>`,
+      })
     })
-  })
+  }
 
   // Lighting plan (+ per-room lux estimate vs recommended residential bands) —
   // one diagram sheet per lit storey; the fixture schedule + lux table stay
   // unified (whole home) and ride on the last lighting sheet.
   const lighting = buildLightingPlan(items, catalog)
-  if (lighting.lights.length) {
+  if (layerOn(layers, 'lighting') && lighting.lights.length) {
     const lightSched = `<table class="sched"><tr class="h"><td>Fixture</td><td class="n">Qty</td><td class="n">Height</td><td class="n">Intensity</td></tr>${lighting.schedule
       .map(
         (r) =>
@@ -153,15 +165,17 @@ export function buildDrawingSetHtml(
   }
 
   // Dimensioned plan — overall + per-room running dimensions, per storey.
-  for (const level of levels) {
-    if (!Array.isArray(level.walls) || level.walls.length === 0) continue
-    sheets.push({
-      name: cap('Dimensioned plan', level),
-      body: `<div class="draw">${dimensionSvg(levelAsPlan(plan, level), {
-        palette: { ink: '#374151', faint: '#cbd5e1' },
-        widthPx: 900,
-      })}</div>`,
-    })
+  if (layerOn(layers, 'dimensions')) {
+    for (const level of levels) {
+      if (!Array.isArray(level.walls) || level.walls.length === 0) continue
+      sheets.push({
+        name: cap('Dimensioned plan', level),
+        body: `<div class="draw">${dimensionSvg(levelAsPlan(plan, level), {
+          palette: { ink: '#374151', faint: '#cbd5e1' },
+          widthPx: 900,
+        })}</div>`,
+      })
+    }
   }
 
   // Cross-section — a vertical cut through the middle of the plan (along Z),
@@ -171,7 +185,7 @@ export function buildDrawingSetHtml(
     { axis: 'z', at: plan.extent[1] / 2 },
     sectionSilhouettes(itemsOnLevel(items, levels[0]!.id), catalog),
   )
-  if (section.walls.length > 0) {
+  if (layerOn(layers, 'section') && section.walls.length > 0) {
     sheets.push({
       name: 'Section A–A',
       body: `<div class="draw">${sectionSvg(section, {
@@ -191,7 +205,7 @@ export function buildDrawingSetHtml(
   // Electrical / power & data plan (points derived from appliances + doors) —
   // one diagram sheet per wired storey; the unified point schedule rides on the
   // last electrical sheet.
-  if (electricalPoints && electricalPoints.length > 0) {
+  if (layerOn(layers, 'electrical') && electricalPoints && electricalPoints.length > 0) {
     const elec = buildElectricalPlan(plan, electricalPoints)
     const elecSched = `<table class="sched"><tr class="h"><td>Point</td><td class="n">Qty</td></tr>${elec.schedule
       .map((r) => `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td></tr>`)
@@ -211,10 +225,47 @@ export function buildDrawingSetHtml(
     })
   }
 
+  // Plumbing plan (points derived from bathroom / kitchen fixtures) — one
+  // diagram sheet per plumbed storey; the unified schedule rides on the last.
+  if (layerOn(layers, 'plumbing') && plumbingPoints && plumbingPoints.length > 0) {
+    const plumb = buildPlumbingPlan(plan, plumbingPoints)
+    const plumbSched = `<table class="sched"><tr class="h"><td>Point</td><td class="n">Qty</td></tr>${plumb.schedule
+      .map((r) => `<tr><td>${esc(r.label)}</td><td class="n">×${r.count}</td></tr>`)
+      .join('')}</table>`
+    const plumbed = levels.filter((l) => itemsOnLevel(plumb.points, l.id).length > 0)
+    plumbed.forEach((level, i) => {
+      const levelPlan = levelAsPlan(plan, level)
+      const levelPlumb = buildPlumbingPlan(levelPlan, itemsOnLevel(plumb.points, level.id))
+      sheets.push({
+        name: cap('Plumbing plan', level),
+        body: `<div class="draw">${plumbingSvg(levelPlan, levelPlumb, {
+          palette: { wall: '#9ca3af', ink: '#374151', symbol: '#0891b2' },
+          widthPx: 900,
+        })}</div>
+        ${i === plumbed.length - 1 ? plumbSched : ''}`,
+      })
+    })
+  }
+
+  // Finishes schedule — per-room floor + wall material callouts (whole home),
+  // the spec a builder needs alongside the plan (Coohom material callouts).
+  if (layerOn(layers, 'finishes') && finishes) {
+    const nameOf = (id: string) => BUILTIN_MATERIALS[id]?.name ?? id
+    const rows = buildFinishSchedule(plan, finishes, nameOf)
+    if (rows.length > 0) {
+      const table = `<table class="sched"><tr class="h"><td>Room</td><td>Floor</td><td>Wall</td></tr>${rows
+        .map(
+          (r) => `<tr><td>${esc(r.room)}</td><td>${esc(r.floor)}</td><td>${esc(r.wall)}</td></tr>`,
+        )
+        .join('')}</table>`
+      sheets.push({ name: 'Finishes schedule', body: table })
+    }
+  }
+
   // Demolition / hacking plan — only when walls changed vs the as-loaded
   // baseline. Multi-storey: each storey diffs against the SAME storey of the
   // baseline; a storey existing on only one side gets a whole-storey callout.
-  if (baselinePlan) {
+  if (layerOn(layers, 'demolition') && baselinePlan) {
     if (multi || isMultiLevel(baselinePlan)) {
       for (const row of diffWallsByLevel(baselinePlan, plan)) {
         if (row.diff.demolished.length === 0 && row.diff.added.length === 0) continue
@@ -248,7 +299,7 @@ export function buildDrawingSetHtml(
   }
 
   // FF&E schedule.
-  const ffe = buildFfeSchedule(plan, items, catalog)
+  const ffe = layerOn(layers, 'ffe') ? buildFfeSchedule(plan, items, catalog) : []
   if (ffe.length) {
     const dim = (n: number) => esc(formatLength(n, units))
     sheets.push({

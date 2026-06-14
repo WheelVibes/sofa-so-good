@@ -65,8 +65,10 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   using the C267 harness; work down the `FEATURE_FLAGS` list in priority order.
   Covered: batch 1 (C269) Simple core loop — catalog/furnish, finishes, budget, share,
   view-modes; batch 2 (C272) pro analytical — drawings/lighting, versions, history, panoTour,
-  renderCompare. Remaining: measure, clearanceChecks, smartStart, AI surfaces, roomEditor,
-  multiStorey, GLB designer/parametric re-rungs, crown-molding, livePrices, first-run re-rungs.
+  renderCompare; batch 3 — 2D-editor tools journey (plan labels, level duplicate + all-levels, wall
+  reverse/join, text notes + dimension lines) → `plan-editor-tools-journey.json`. Remaining: measure,
+  clearanceChecks, smartStart, AI surfaces, roomEditor, GLB designer/parametric re-rungs, crown-molding,
+  livePrices, first-run re-rungs, backdrop-upload + furnlight re-rungs.
 - [ ] Q-3DEXPORT Whole-scene glTF/GLB + USDZ (AR) export — needs worker-streamed export + real-GPU
   verify (a previous GLTFExporter prototype was reverted as unverifiable headless).
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
@@ -101,11 +103,10 @@ consolidate into `PHOTOREALISM.md` then implement highest impact÷effort first.
 Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - PHOTO-COLORSPACE — RESOLVED/already-correct: audited generators + `furnitureMaterials` + worker
   hot-swap (`cache.ts`); albedo = `SRGBColorSpace`, normal/roughness = linear (`srgb=false`). No fix.
-- [ ] PHOTO-BACKDROP ⭐ NEXT (user decision 2026-06-13): replace procedural 3D City/Park/Hills with a
-  cheap flat **equirectangular photo as `scene.background`** (skybox — 1 texture, zero per-frame
-  draws, perf+memory win, correct through windows). New `photo`/`skyline` `BackdropKind` in
-  `SceneBackdrop` that skips instanced geometry; asset-free procedurally-baked default, accepts a real
-  CC0 photo later; `photoBackdrop` flag, prod-safe. See PHOTOREALISM.md item 1.
+- PHOTO-BACKDROP ✓ SHIPPED — surroundings are a flat equirectangular photo as `scene.background`, **walk
+  mode only** (orbit clean); legacy 3D City/Park/Hills/Studio removed. Presets city/dusk/park/hills +
+  **user-uploaded `custom` photo** (IDB-persisted) + none; flags `backdrops`/`customBackdrop`, prod-safe.
+  Follow-up: bundle real CC0 equirectangular photos for the presets; pairs with PHOTO-HDRI (#1b).
 - [ ] PHOTO-PT-TUNE: tune `three-gpu-pathtracer` in `hqRenderSession.ts` (bounces/transmissiveBounces/
   filterGlossyFactor/MIS/stableNoise/minSamples) + AgX/Neutral + exposure. Pure config; pixel pass
   real-GPU-pending.
@@ -119,7 +120,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   KTX2 in prod (ETC1S albedo / UASTC normal+ORM).
 - [ ] PHOTO-DETAIL: set-dressing prop pack (books/cushions/plants — biggest perceived-realism lever)
   + edge bevels (RoundedBox) on hard primitives.
-- [ ] PHOTO-EMISSIVE: HDR emissive (`emissiveIntensity`>1) on lamps/screens so they bloom.
+- [ ] PHOTO-EMISSIVE tail: real-GPU pass to tune the bloom look on High/Max for the boosted fixtures
+  (intensities now clear the 1.05 threshold; the flat-tier self-lit read is verified, the bloom amount
+  needs a GPU eye). Base wiring shipped — see CHANGELOG.
 - [ ] PHOTO-GLASS / PHOTO-GTAO / PHOTO-SOFTSHADOW (VSM, NOT drei PCSS — broken r182+) / PHOTO-POM /
   PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 
@@ -127,11 +130,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PARITY-NORTH: SH3D North/compass widget on the canvas (rotatable, tied to sun azimuth). (Walk
   FOV/eye-height controls shipped — see CHANGELOG PARITY-WALKCAM.)
 - [ ] PARITY-BATCHRENDER: SH3D batch-render all saved views.
-- [ ] PARITY-PLUMBING: Coohom plumbing plan layer (mirror `electricalPlan`).
-- [ ] PARITY-PLANLABELS: SH3D furniture name/price labels on the 2D plan (toggle).
-- [ ] PARITY-WALLOPS: SH3D wall split/join/reverse commands in the 2D editor.
-- [ ] PARITY-LEVELOPS: SH3D "show all levels (dimmed)" overlay + duplicate-level.
-- [ ] PARITY-LIGHTINGTEMPLATE-TEXT: Coohom drawing text/material callouts + layer toggles.
+- [~] PARITY-LIGHTINGTEMPLATE-TEXT: **material callouts shipped** — a per-room Finishes schedule sheet
+  (floor + wall material names) in the drawing set (`floorplan/finishSchedule.ts`). Remaining: free
+  text callouts on sheets + drawing-set layer toggles.
 
 ### Pending — high value (M)
 - [ ] PARITY-SEARCH: Coohom smart/semantic catalog search (tag/fuzzy over catalog + packs).
@@ -141,14 +142,16 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PARITY-SLOPECEIL: SH3D sloping ceilings (per-room ceiling slope).
 - [ ] PARITY-SLANTWALL: SH3D slanting walls (per-endpoint top heights).
 - [ ] PARITY-BASEBOARD: SH3D per-wall baseboard params + finish.
-- [ ] PARITY-FURNLIGHT: SH3D furniture-as-light-source params feeding the render.
 - [ ] PARITY-QUOTE-XLSX: Coohom quote Excel/CSV export + editable templates.
-- [ ] PARITY-DIMTEXT: SH3D first-class dimension-line + on-plan text objects.
 
 ### Pending — marquee (L)
 - [ ] PARITY-VIDEO: video flythrough export (camera path → WebM/MP4 via MediaRecorder). [real-GPU verify]
 - [ ] PARITY-CURVEDWALL: SH3D curved/arc walls.
-- [ ] PARITY-AILAYOUT: Coohom AI auto-layout/auto-furnish (LLM → autoArrange). [BYO-key]
+- [~] PARITY-AILAYOUT: **engine + collision-aware placement shipped** — `ai/autoLayoutAi.ts` (prompt +
+  tolerant parse + BYO-key call) + `layout/aiLayoutApply.ts` (validate/clamp into rooms +
+  `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure
+  logic + no-key guard unit-tested; live LLM output needs a real key to tune. Follow-up: a key/brief
+  panel beyond the ⌘K prompt + route through autoArrange for tidier spacing.
 - [ ] PARITY-3DEXPORT: whole-scene OBJ/glTF/STL export (Q-3DEXPORT).
 
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
@@ -162,9 +165,14 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 ### Realism (pure-code, prod-safe — most users see the flat Performance tier)
 - [ ] RZ1: always-on cheap contact shadows on Performance tier (grounding) — highest visual
   payoff; one shared blob texture + plane-per-item, transparent overdraw only.
-- [ ] RZ2: window glass realism — emissive sky-catch on Perf/Medium, `getGlassMaterial`
-  transmission on High+ (`apartment/Window.tsx`, half-built in `materialRealism.ts`).
-- [ ] RZ3: beveled edges (`RoundedBox`) on hard furniture primitives (tables/cabinets/shelves).
+- [~] RZ2: window glass realism — **emissive sky-catch shipped** (all tiers; `glassSkyCatchIntensity`
+  in `materialRealism.ts`, wired into `apartment/Window.tsx`). Tail: apply to `PlanRoomShell` glass
+  (custom plans, needs the daylight signal) + wire `getGlassMaterial`/`glassConfig` transmission on
+  High+ (real-GPU verify).
+- [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables/desk +
+  freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
+  Nightstand). Remaining: panel/shelf-built units (Bookshelf/Wardrobe/cabinet modules) + appliances;
+  edge light-catch real-GPU-pending.
 - [ ] RZ4: procedural roughness micro-detail + grout aging on wood/tile/marble generators.
 - [ ] RZ5: skirting/baseboard seam AO + painted-trim wear (close-up/walk realism).
 - [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.

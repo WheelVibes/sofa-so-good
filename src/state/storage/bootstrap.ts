@@ -28,6 +28,7 @@ import { loadEditorPrefs, watchEditorPrefs } from './editorPrefs'
 import { loadFloorPlans, watchFloorPlans } from './floorPlanStore'
 import { hydrate } from './hydrate'
 import { loadQualityPrefs, watchQualityPrefs } from './qualityPrefs'
+import { hydrateWalkBackdrop } from './walkBackdrop'
 
 let started = false
 
@@ -67,6 +68,7 @@ export async function runBootstrap(): Promise<void> {
       loadEditorPrefs()
       watchEditorPrefs()
     })
+    await runStep('walkBackdrop', hydrateWalkBackdrop)
     runStep('budgetPrefs', () => {
       loadBudgetPrefs()
       watchBudgetPrefs()

@@ -59,6 +59,46 @@ describe('buildDrawingSetHtml', () => {
     expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Electrical plan')
   })
 
+  it('includes a plumbing-plan sheet when plumbing points are supplied', () => {
+    const plumbing = [
+      { x: 1, z: 1, kind: 'water-point' as const },
+      { x: 2, z: 1, kind: 'floor-trap' as const },
+    ]
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      plumbing,
+    )
+    expect(html).toContain('Plumbing plan')
+    expect(html).toContain('Floor trap')
+    // No points → no plumbing sheet.
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Plumbing plan')
+  })
+
+  it('includes a finishes schedule when finishes are supplied', () => {
+    const finishes = {
+      floor: { livingDining: 'floor-wood-oak' },
+      walls: { livingDining: 'wall-paint-white' },
+    }
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      finishes,
+    )
+    expect(html).toContain('Finishes schedule')
+    // No finishes arg → no schedule sheet.
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Finishes schedule')
+  })
+
   it('includes a demolition sheet only when the plan diverged from its baseline', () => {
     const baseline = plan
     const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
@@ -164,5 +204,81 @@ describe('buildDrawingSetHtml — multi-storey fan-out (F13)', () => {
     expect(html).toContain('Entire storey added')
     // Ground floor is unchanged → no ground demolition sheet.
     expect(html).not.toContain('Demolition &amp; new walls — Ground floor')
+  })
+})
+
+describe('buildDrawingSetHtml — layer toggles (PARITY-DRAWLAYERS)', () => {
+  const plan = buildDefaultPlan()
+  const items = defaultLayout().map((e) => {
+    const d = BUILTIN_CATALOG[e.defId]
+    return d?.kind === 'parametric' ? { ...e, props: { ...defaultParamProps(d), ...e.props } } : e
+  })
+
+  it('includes every sheet group by default (no layer map)', () => {
+    const html = buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)
+    expect(html).toContain('Floor plan')
+    expect(html).toContain('Dimensioned plan')
+    expect(html).toContain('Lighting plan')
+    expect(html).toContain('FF&amp;E schedule')
+  })
+
+  it('omits toggled-off layers but always keeps the floor plan (the base sheet)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { dimensions: false, ffe: false, lighting: false },
+    )
+    expect(html).toContain('Floor plan')
+    expect(html).not.toContain('Dimensioned plan')
+    expect(html).not.toContain('Lighting plan')
+    expect(html).not.toContain('FF&amp;E schedule')
+  })
+
+  it('keeps a layer set explicitly true (and unlisted layers default on)', () => {
+    const html = buildDrawingSetHtml(
+      plan,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      undefined,
+      undefined,
+      undefined,
+      undefined,
+      { dimensions: true },
+    )
+    expect(html).toContain('Dimensioned plan')
+    expect(html).toContain('FF&amp;E schedule') // unlisted → still included
+  })
+
+  it('carries the plan text notes onto the floor-plan sheet (PARITY-DIMTEXT callouts)', () => {
+    const annotated = { ...plan, notes: [{ id: 'n1', x: 3, z: 2, text: 'Feature wall' }] }
+    const html = buildDrawingSetHtml(annotated, items, BUILTIN_CATALOG)
+    expect(html).toContain('Feature wall')
+    // No note on the plain plan.
+    expect(buildDrawingSetHtml(plan, items, BUILTIN_CATALOG)).not.toContain('Feature wall')
+  })
+
+  it('skips the demolition layer when toggled off even though the plan diverged', () => {
+    const hacked = { ...plan, walls: plan.walls.slice(0, -1) }
+    const on = buildDrawingSetHtml(hacked, items, BUILTIN_CATALOG, 'metric', plan)
+    expect(on).toContain('Demolition &amp; new walls')
+    const off = buildDrawingSetHtml(
+      hacked,
+      items,
+      BUILTIN_CATALOG,
+      'metric',
+      plan,
+      undefined,
+      undefined,
+      undefined,
+      { demolition: false },
+    )
+    expect(off).not.toContain('Demolition &amp; new walls')
   })
 })

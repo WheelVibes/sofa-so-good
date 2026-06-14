@@ -9,6 +9,7 @@ import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { planDuplicates } from '../../furniture/duplicatePlacement'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { itemsCost } from '../../furniture/itemsCost'
+import { isEmitter } from '../../furniture/lightEmitters'
 import {
   alignCenter,
   alignEdge,
@@ -504,6 +505,7 @@ export function InspectorPanel() {
   const catalog = useCatalog()
   // Replace-with-similar (PARITY-REPLACE): swap to a nearest-size sibling.
   const replaceSimilarOn = useFeature('replaceSimilar')
+  const itemAsLightOn = useFeature('itemAsLight')
   // Copy/paste appearance (look-only transfer) + recolour-by-category.
   const copyAppearanceOn = useFeature('copyAppearance')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
@@ -735,6 +737,24 @@ export function InspectorPanel() {
           </div>
         </div>
         <div className="insp-head-btns">
+          {itemAsLightOn && !isEmitter(item.defId) && (
+            <button
+              type="button"
+              onClick={() => {
+                const next = { ...item.props }
+                if (item.props.lightOn === 'yes') delete next.lightOn
+                else next.lightOn = 'yes'
+                useStore.getState().updateItemProps(item.id, next)
+              }}
+              className={`icon-btn${item.props.lightOn === 'yes' ? ' on' : ''}`}
+              aria-label={
+                item.props.lightOn === 'yes' ? 'Turn off light source' : 'Make a light source'
+              }
+              title="Emit light at night from this item"
+            >
+              <Icon.Lights width={16} height={16} />
+            </button>
+          )}
           <button
             type="button"
             onClick={() => useStore.getState().toggleLock(item.id)}

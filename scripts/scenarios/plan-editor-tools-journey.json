@@ -1,0 +1,33 @@
+{
+  "name": "plan-editor-tools-journey",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "shot-editor", "screenshot": "editor" },
+
+    { "name": "add-note", "eval": "window.__store.getState().addNote({ x: 5.2, z: 2.0, text: 'Feature wall' })" },
+    { "name": "note-present", "waitFor": { "store": "(state.floorPlan.notes||[]).length === 1" } },
+
+    { "name": "add-dimension", "eval": "window.__store.getState().addDimension({ a: [4.2, 3.0], b: [9.0, 3.0] })" },
+    { "name": "dim-present", "waitFor": { "store": "(state.floorPlan.dimensions||[]).length === 1" } },
+
+    { "name": "labels-price", "store": { "action": "setPlanLabels", "args": ["price"] } },
+    { "name": "labels-set", "waitFor": { "store": "state.planLabels === 'price'" } },
+    { "name": "shot-annotations", "screenshot": "notes-dims-labels" },
+
+    { "name": "duplicate-level", "eval": "window.__store.getState().duplicateLevel('ground')" },
+    { "name": "level-added", "waitFor": { "store": "(state.floorPlan.upperLevels||[]).length === 1" } },
+
+    { "name": "split-wall", "eval": "(() => { const s=window.__store.getState(); window.__w0 = s.floorPlan.walls.length; const wid = s.floorPlan.walls[0].id; s.splitWall(wid); })()" },
+    { "name": "split-applied", "waitFor": { "store": "state.floorPlan.walls.length === window.__w0 + 1" } },
+    { "name": "join-wall", "eval": "(() => { const s=window.__store.getState(); const sel=s.planSelection; if (sel && sel.type==='wall') s.joinWall(sel.id); })()" },
+    { "name": "join-applied", "waitFor": { "store": "state.floorPlan.walls.length === window.__w0" } },
+
+    { "name": "shot-final", "screenshot": "final" }
+  ]
+}

@@ -184,6 +184,93 @@ describe('multi-storey level editing (F13/ML4a)', () => {
     useStore.getState().removeLevel('nope')
     expect(useStore.getState().floorPlan).toBe(before)
   })
+
+  it('duplicateLevel clones a storey: geometry (fresh ids), items + finishes', () => {
+    // Build an upper storey with a room, a wall+window, a finish and an item.
+    const lvl = useStore.getState().addLevel()
+    const roomId = useStore
+      .getState()
+      .addRoom({ name: 'Studio', origin: [0, 0], width: 3, depth: 3 }, lvl)
+    const wid = useStore
+      .getState()
+      .addWall({ start: [0, 0], end: [3, 0], thickness: 'internal' }, lvl)
+    useStore
+      .getState()
+      .addOpening({ kind: 'window', wallId: wid, offset: 0.5, width: 1, sill: 0.9, head: 2.1 }, lvl)
+    useStore.getState().setFloorFinish(roomId as never, 'floor-carpet-grey')
+    useStore.getState().addItem({ defId: 'bed-double', position: [1, 1], rotation: 0, props: {} })
+    const itemId = useStore.getState().items.at(-1)?.id as string
+    useStore.setState((s) => ({
+      items: s.items.map((it) => (it.id === itemId ? { ...it, levelId: lvl } : it)),
+    }))
+
+    const newId = useStore.getState().duplicateLevel(lvl)
+    expect(newId).toBeTruthy()
+    const s = useStore.getState()
+    const dup = s.floorPlan.upperLevels?.find((l) => l.id === newId)
+    expect(dup).toBeTruthy()
+    // Fresh, non-colliding ids for the cloned geometry.
+    expect(dup?.rooms[0].id).not.toBe(roomId)
+    expect(dup?.walls[0].id).not.toBe(wid)
+    // The cloned opening points at the cloned wall, not the source one.
+    expect(dup?.openings[0].wallId).toBe(dup?.walls[0].id)
+    // The room's floor finish carried over to the new room id.
+    const newRoomId = dup?.rooms[0].id as string
+    expect((s.finishes.floor as Record<string, string>)[newRoomId]).toBe('floor-carpet-grey')
+    // The item was cloned onto the new level (fresh id, same def).
+    const dupItems = s.items.filter((it) => it.levelId === newId)
+    expect(dupItems).toHaveLength(1)
+    expect(dupItems[0].id).not.toBe(itemId)
+    expect(dupItems[0].defId).toBe('bed-double')
+  })
+
+  it('duplicateLevel returns null for an unknown source', () => {
+    expect(useStore.getState().duplicateLevel('nope')).toBeNull()
+  })
+
+  it('adds, edits, drags and removes plan notes (PARITY-DIMTEXT)', () => {
+    const id = useStore.getState().addNote({ x: 2, z: 3, text: 'TV wall' })
+    expect(useStore.getState().floorPlan.notes?.find((n) => n.id === id)?.text).toBe('TV wall')
+    useStore.getState().updateNote(id, { text: 'Feature wall', x: 4 })
+    const note = useStore.getState().floorPlan.notes?.find((n) => n.id === id)
+    expect(note).toMatchObject({ text: 'Feature wall', x: 4, z: 3 })
+    // Selecting then removing clears the selection.
+    useStore.getState().setPlanSelection({ type: 'note', id })
+    useStore.getState().removeNote(id)
+    expect(useStore.getState().floorPlan.notes?.some((n) => n.id === id)).toBe(false)
+    expect(useStore.getState().planSelection).toBeNull()
+  })
+
+  it('adds and removes custom dimension lines (PARITY-DIMTEXT)', () => {
+    const id = useStore.getState().addDimension({ a: [0, 0], b: [3, 0] })
+    expect(useStore.getState().floorPlan.dimensions?.find((d) => d.id === id)?.b).toEqual([3, 0])
+    useStore.getState().setPlanSelection({ type: 'dim', id })
+    useStore.getState().removeDimension(id)
+    expect(useStore.getState().floorPlan.dimensions?.some((d) => d.id === id)).toBe(false)
+    expect(useStore.getState().planSelection).toBeNull()
+  })
+
+  it('adds, restyles and removes polyline annotations (PARITY-POLYLINE)', () => {
+    const id = useStore.getState().addPolyline({
+      points: [
+        [0, 0],
+        [2, 0],
+        [2, 2],
+      ],
+    })
+    const made = useStore.getState().floorPlan.polylines?.find((p) => p.id === id)
+    expect(made?.points).toHaveLength(3)
+    expect(made?.closed).toBeUndefined()
+    // Restyle: close the loop + dash it.
+    useStore.getState().updatePolyline(id, { closed: true, dashed: true })
+    const styled = useStore.getState().floorPlan.polylines?.find((p) => p.id === id)
+    expect(styled).toMatchObject({ closed: true, dashed: true })
+    // Selecting then removing clears the selection.
+    useStore.getState().setPlanSelection({ type: 'polyline', id })
+    useStore.getState().removePolyline(id)
+    expect(useStore.getState().floorPlan.polylines?.some((p) => p.id === id)).toBe(false)
+    expect(useStore.getState().planSelection).toBeNull()
+  })
 })
 
 describe('per-storey editing — level routing for the 2D editor (F13/ML4b)', () => {

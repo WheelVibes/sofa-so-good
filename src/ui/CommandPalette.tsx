@@ -1,7 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+import { requestAutoLayout } from '../ai/autoLayoutAi'
+import { AiPlanError } from '../ai/floorPlanAi'
 import type { FeatureFlag } from '../features/featureFlags'
+import { allPlanRooms } from '../floorplan/levels'
 import { useCatalog, useCatalogByCategory } from '../furniture/catalog'
+import { aiLayoutToItems, placeNonOverlapping } from '../layout/aiLayoutApply'
 import {
   arrangeSelectionAsRun,
   faceSelectionIntoRoom,
@@ -48,6 +52,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'plan-svg': 'dxfExport',
   parametric: 'parametricFurniture',
   'replace-similar': 'replaceSimilar',
+  'ai-furnish': 'aiLayout',
 }
 
 /** ⌘K command ids that are Pro-only (hidden in Simple mode). */
@@ -266,6 +271,58 @@ export function CommandPalette() {
         run: () => s().setRenderCompareOpen(true),
       },
       {
+        id: 'ai-furnish',
+        group: 'Tools & panels',
+        label: 'AI auto-furnish (BYO key)',
+        hint: 'LLM',
+        icon: 'Style',
+        run: () => {
+          void (async () => {
+            const st = s()
+            const brief = await st.promptText({
+              title: 'AI auto-furnish',
+              label: 'Describe the home (style, who lives here)…',
+              submitLabel: 'Furnish',
+            })
+            if (brief == null) return
+            const rooms = allPlanRooms(st.floorPlan).map((r) => ({
+              name: r.name,
+              w: r.width,
+              d: r.depth,
+            }))
+            const defIds = Object.keys(catalog).slice(0, 120)
+            try {
+              const placements = await requestAutoLayout(rooms, defIds, brief, {
+                validRooms: new Set(rooms.map((r) => r.name)),
+              })
+              const genId = (p: string) =>
+                `${p}-${Math.random().toString(36).slice(2, 9)}-${Date.now().toString(36)}`
+              const candidates = aiLayoutToItems(placements, st.floorPlan, catalog, genId)
+              // Keep only non-overlapping pieces (the model's positions are rough).
+              const items = placeNonOverlapping(st.items, candidates, catalog)
+              if (items.length === 0) {
+                st.notify.start({ title: 'No items could be placed', kind: 'info' })
+                return
+              }
+              st.pushHistory()
+              st.setItems([...st.items, ...items])
+              const skipped = candidates.length - items.length
+              st.notify.start({
+                title: `AI placed ${items.length} item${items.length === 1 ? '' : 's'}`,
+                kind: 'success',
+                message: skipped > 0 ? `${skipped} overlapping piece(s) skipped.` : undefined,
+              })
+            } catch (e) {
+              st.notify.start({
+                title: "Couldn't auto-furnish",
+                kind: 'error',
+                message: e instanceof AiPlanError ? e.message : undefined,
+              })
+            }
+          })()
+        },
+      },
+      {
         id: 'palette-from-photo',
         group: 'Tools & panels',
         label: 'Palette from photo',
@@ -390,7 +447,9 @@ export function CommandPalette() {
           run: () => s().setPresetTime(p),
         }),
       ),
-      ...BACKDROPS.map(
+      // `custom` is excluded — it requires uploading a photo (Scene menu), not a
+      // one-tap command.
+      ...BACKDROPS.filter((b) => b.id !== 'custom').map(
         (b): Command => ({
           id: `backdrop:${b.id}`,
           group: 'Backdrop',

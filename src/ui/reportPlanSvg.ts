@@ -1,5 +1,5 @@
 import { doorSwingGeometry } from '../floorplan/doorSwing'
-import { roomLabelPoint } from '../floorplan/roomCentroid'
+import { roomLabelPosition } from '../floorplan/roomCentroid'
 import type { FloorPlan } from '../floorplan/types'
 import { planBounds, planRoomArea, wallLength } from '../floorplan/types'
 import type { MeasurementAnnotation } from '../state/slices/measurementsSlice'
@@ -14,6 +14,21 @@ const esc = (s: string) =>
   )
 
 const ANN = '#0d9488' // teal — dimension callouts, distinct from the wall strokes
+const NOTE = '#b45309' // amber — free text callouts (matches the drawing-set storey notes)
+
+/** Render the plan's free-text notes (the editor's Text tool, PARITY-DIMTEXT) as
+ *  amber text callouts with a small locator dot — so the user's on-plan
+ *  annotations carry through to the printed report + drawing set. */
+function notesSvg(plan: FloorPlan): string {
+  return (plan.notes ?? [])
+    .filter((n) => n.text.trim().length > 0)
+    .map((n) => {
+      const x = n.x.toFixed(3)
+      const z = n.z.toFixed(3)
+      return `<circle cx="${x}" cy="${z}" r="0.06" fill="${NOTE}"/><text x="${x}" y="${(n.z - 0.16).toFixed(3)}" font-size="0.3" font-weight="600" fill="${NOTE}" text-anchor="middle" dominant-baseline="middle">${esc(n.text)}</text>`
+    })
+    .join('')
+}
 
 /** Render pinned dimension annotations as dashed lines/rects + labels (world
  *  metres, same coord space as the plan). */
@@ -154,7 +169,7 @@ export function reportPlanSvg(
   // the plan reads on its own without cross-referencing the rooms table).
   const labels = plan.rooms
     .map((r) => {
-      const [lx, lz] = roomLabelPoint(r)
+      const [lx, lz] = roomLabelPosition(r)
       const x = lx.toFixed(3)
       return `<text x="${x}" y="${lz.toFixed(3)}" font-size="0.32" fill="#6b7280" text-anchor="middle"><tspan x="${x}" dy="-0.14">${esc(r.name)}</tspan><tspan x="${x}" dy="0.42" font-size="0.26" fill="#9ca3af">${esc(formatArea(planRoomArea(r), units))}</tspan></text>`
     })
@@ -165,5 +180,5 @@ export function reportPlanSvg(
   const barY = d + pad + scaleStrip * 0.55
   const vbH = d + pad * 2 + scaleStrip
   const openings = openingsSvg(plan)
-  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
+  return `<svg class="plan-svg" viewBox="${-pad} ${-pad} ${(w + pad * 2).toFixed(3)} ${vbH.toFixed(3)}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Floor plan">${furniture}${walls}${openings}${labels}${notesSvg(plan)}${annotationSvg(annotations, units)}${scaleBarSvg(w, barY, units)}</svg>`
 }

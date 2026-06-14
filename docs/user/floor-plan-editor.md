@@ -30,7 +30,9 @@ Rooms don't have to be plain rectangles:
 - **Reshape a wall** — select a wall with the **Select** tool and drag the round
   handles at its ends. Walls that share that corner move with it, so the outline
   stays joined. Drag a corner off the grid line and the wall takes an angle —
-  use this with **Split** to bend a straight run into an **L**.
+  use this with **Split** to bend a straight run into an **L**. For exact sizes,
+  the inspector has **Length (m)** and **Angle (°)** fields: set a wall to
+  precisely 3.2 m, or rotate it to 45°, without nudging the X/Z by hand.
 - **L‑shaped rooms** — with a room selected, click **Make L‑shaped** to add a
   second rectangle (the “extension”), then set its offset and size. The room's
   **area updates to include the extension**, and the 3D flat renders both parts.
@@ -43,6 +45,26 @@ Rooms don't have to be plain rectangles:
 - **Auto room from walls** — already drew the walls? Pick **Auto room** and click
   inside any wall‑enclosed area; the room is created automatically from that
   loop (any shape, including L‑shapes), with the matching area.
+
+## Annotations & markup
+
+Beyond walls and rooms you can mark up the plan:
+
+- **Text** — pick the **Text** tool and click to drop a note; type the label.
+  Switch back to **Select** to drag it, or edit/delete it in the inspector.
+- **Dimension** — pick the **Dimension** tool and drag a line between two points;
+  it shows the measured length. Select it to delete.
+- **Polyline** *(Pro)* — pick the **Polyline** tool and click to drop each point.
+  Press <kbd>Enter</kbd> to finish an **open** path, or click the first point
+  again (after three points) to **close** it into a loop; <kbd>Esc</kbd> cancels.
+  With it selected, the inspector shows its length (or perimeter) and toggles for
+  a **closed loop**, a **dashed** stroke, and an **end arrow** (open paths) — handy
+  for sketching zones, routes or callouts. *(Pro tools are hidden in Simple mode —
+  switch to Pro from the mode toggle to use them.)*
+
+All three are saved with your design and are tagged to the storey you drew them on.
+Your **text notes** also print onto the floor-plan sheet of the **Report** and the
+**Drawing set**, so on-plan callouts reach the documents you hand to a builder.
 
 ## Levels (storeys)
 
@@ -88,6 +110,10 @@ Select a room and the inspector shows **Floor finish** and **Wall finish**
 dropdowns — the pick renders immediately in 3D and stays in sync with the
 finish picker inside the per‑room editor. **Wall finish** offers **Plaster
 (default)** to return a room's walls to the plain shell.
+
+You can also **drag a room's name** on the plan to nudge it clear of furniture or
+a tight room — it prints in the new spot on the Report and Drawing set too. The
+inspector's **Reset label position** button recentres it.
 
 ## Ceiling height & wall colour
 

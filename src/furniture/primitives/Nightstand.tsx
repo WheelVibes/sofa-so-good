@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /** Bedside cabinet on short legs. Styles: 'drawers' (two drawer fronts),
@@ -23,21 +24,24 @@ export function Nightstand({ props }: { props: ParamProps }) {
     </mesh>
   )
   const drawerFront = (key: string, cy: number, h: number) => (
-    <mesh key={key} position={[0, cy, depth / 2 + 0.003]} material={wood}>
-      <boxGeometry args={[width * 0.84, h, 0.02]} />
-    </mesh>
+    <BeveledBox
+      key={key}
+      position={[0, cy, depth / 2 + 0.003]}
+      material={wood}
+      args={[width * 0.84, h, 0.02]}
+    />
   )
 
   const legs = [-1, 1].map((sx) =>
     [-1, 1].map((sz) => (
-      <mesh
+      <BeveledBox
         key={`${sx}.${sz}`}
         castShadow
         position={[sx * (width / 2 - 0.05), legH / 2, sz * (depth / 2 - 0.05)]}
+        args={[0.04, legH, 0.04]}
       >
-        <boxGeometry args={[0.04, legH, 0.04]} />
         <meshStandardMaterial color="#3a2c1d" roughness={0.5} metalness={0.1} />
-      </mesh>
+      </BeveledBox>
     )),
   )
 
@@ -45,9 +49,13 @@ export function Nightstand({ props }: { props: ParamProps }) {
     return (
       <group>
         {/* Body */}
-        <mesh castShadow receiveShadow position={[0, legH + bodyH / 2, 0]} material={wood}>
-          <boxGeometry args={[width, bodyH, depth]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, legH + bodyH / 2, 0]}
+          material={wood}
+          args={[width, bodyH, depth]}
+        />
         {[0, 1].map((i) => {
           const cy = legH + bodyH * (i === 0 ? 0.72 : 0.28)
           return (

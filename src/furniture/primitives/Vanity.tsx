@@ -29,7 +29,9 @@ export function Vanity({ props }: { props: ParamProps }) {
   const bulb = {
     color: '#fff4d8',
     emissive: '#fff0cc',
-    emissiveIntensity: lights ? 0.9 : 0.5,
+    // Hollywood bulbs glow hot (HDR >1) when switched on so they bloom + read
+    // self-lit (PHOTO-EMISSIVE); dim but visible when off.
+    emissiveIntensity: lights ? 1.6 : 0.5,
     roughness: 0.4,
   } as const
 

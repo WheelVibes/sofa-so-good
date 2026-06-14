@@ -37,6 +37,12 @@ listed under *Unpriced / generic* with the same indicative estimates as the
 Budget panel), with a subtotal per retailer, the grand total, and your budget
 target's under/over. Print it, save it as PDF, or send it with your design.
 
+For a contractor-ready costing, **Tools → Quote (BOQ)** opens a printable bill of
+quantities (FF&E, flooring/painting finishes priced per area, and built-in
+carpentry by linear metre, with per-section subtotals + a grand total). **Tools →
+Quote → Excel (.xlsx)** downloads the same bill as a spreadsheet you can edit or
+send on.
+
 Spend is shown wherever it helps: each catalog card and the inspector show a
 per‑item price (with a **selection total** when you multi‑select), the panel
 breaks spend down **by category and by room**, and the per‑room editor caption
@@ -175,7 +181,10 @@ move, instead of pressing **Undo** repeatedly. The panel also has **Undo** /
 - **Drawing set** — a formal, paginated **plan set** (A4 landscape, one drawing per
   sheet with title blocks): cover + sheet index, floor plan, each wall elevation,
   the lighting plan, and the FF&E schedule. Print or save as PDF for builders and
-  permits — the multi-sheet counterpart to the one-page Report.
+  permits — the multi-sheet counterpart to the one-page Report. Use the **Include
+  sheets** checklist under it to pick exactly which sheets go in — e.g. a clean
+  client copy with no electrical/plumbing/demolition, or a full builder copy (the
+  floor plan is always included).
 
 ## 360° panorama (Pro)
 

@@ -70,6 +70,12 @@ export type FeatureFlag =
   | 'curtainLightEffect'
   | 'walkCameraControls'
   | 'replaceSimilar'
+  | 'customBackdrop'
+  | 'planLabels'
+  | 'plumbingPlan'
+  | 'itemAsLight'
+  | 'aiLayout'
+  | 'planPolyline'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -199,7 +205,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   },
   backdrops: {
     label: 'Backdrops',
-    description: 'Selectable surroundings (city/park/…)',
+    description: 'Selectable equirectangular photo view through windows in walk mode (city/dusk/…)',
     default: true,
     tier: 'simple',
   },
@@ -432,6 +438,55 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   replaceSimilar: {
     label: 'Replace with similar',
     description: 'Swap a placed item for a nearest-size catalog alternative, keeping its place',
+    default: true,
+    tier: 'pro',
+  },
+  // Upload-your-own walk-mode backdrop photo (the `custom` backdrop). Pure
+  // client-side — the user's own image, persisted in IDB; no licensing →
+  // prod-safe. Simple tier — part of the core backdrop/view experience.
+  customBackdrop: {
+    label: 'Custom backdrop photo',
+    description: 'Upload your own photo as the walk-mode window view',
+    default: true,
+    tier: 'simple',
+  },
+  // 2D-plan furniture name/price labels (Sweet Home 3D parity). A drawing/
+  // annotation aid → pro tier. Pure code, no external assets → prod-safe.
+  planLabels: {
+    label: 'Plan labels',
+    description: 'Show furniture names / prices on the 2D floor plan',
+    default: true,
+    tier: 'pro',
+  },
+  // Plumbing plan sheet in the drawing set (mirrors electricalPlan). Pure code,
+  // no external assets → prod-safe. A technical drawing → pro tier.
+  plumbingPlan: {
+    label: 'Plumbing plan',
+    description: 'Water-supply / drainage layout sheet in the drawing set',
+    default: true,
+    tier: 'pro',
+  },
+  // Turn any placed item into a night light source (SH3D parity). Pure code,
+  // feeds the existing FurnitureLights system → prod-safe. Pro tier (an
+  // advanced lighting control beyond the core loop).
+  itemAsLight: {
+    label: 'Item as light source',
+    description: 'Make any placed item emit light at night',
+    default: true,
+    tier: 'pro',
+  },
+  // AI auto-furnish (PARITY-AILAYOUT): LLM proposes a layout from a brief. BYO
+  // model key (no key bundled); experimental → pro tier, prod-safe (pure code +
+  // graceful no-key error, like aiWalls/aiPhotoreal).
+  aiLayout: {
+    label: 'AI auto-furnish',
+    description: 'Furnish rooms from a text brief via a BYO-key LLM (experimental)',
+    default: true,
+    tier: 'pro',
+  },
+  planPolyline: {
+    label: 'Plan polyline markup',
+    description: 'Free-form polyline annotations (open/closed, dashed, arrow) in the 2D editor',
     default: true,
     tier: 'pro',
   },

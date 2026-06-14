@@ -94,9 +94,34 @@ export function isEmitter(defId: FurnitureType): boolean {
   return defId in LIGHT_EMITTERS
 }
 
-/** Whether a *placed item* currently emits: registered AND its per-item
- *  `enabled` gate (if any) passes for the item's params. */
+/**
+ * Fallback spec for a **user light-source override** (PARITY-FURNLIGHT): any
+ * placed item with `props.lightOn === 'yes'` emits a warm point light, even if
+ * its def isn't a registered fixture. Bulb sits a little above the item (reads
+ * `props.height` when the item exposes one, else ~1.2 m).
+ */
+export const OVERRIDE_EMITTER: EmitterSpec = {
+  height: (p) => (typeof p.height === 'number' ? p.height + 0.1 : 1.2),
+  color: '#ffe2b0',
+  intensity: 5,
+  distance: 4,
+}
+
+/** Whether a *placed item* currently emits: a registered fixture whose per-item
+ *  `enabled` gate (if any) passes, OR any item the user flagged as a light
+ *  source (`props.lightOn === 'yes'`). */
 export function isItemEmitter(defId: FurnitureType, props: ParamProps): boolean {
   const spec = LIGHT_EMITTERS[defId]
-  return spec !== undefined && (spec.enabled?.(props) ?? true)
+  if (spec) return spec.enabled?.(props) ?? true
+  return props.lightOn === 'yes'
+}
+
+/** The emitter spec to drive a placed item's light, or `null` if it doesn't
+ *  emit. A registered fixture (gate-passing) wins; otherwise a user override
+ *  (`lightOn`) falls back to `OVERRIDE_EMITTER`. */
+export function resolveEmitterSpec(defId: FurnitureType, props: ParamProps): EmitterSpec | null {
+  const spec = LIGHT_EMITTERS[defId]
+  if (spec && (spec.enabled?.(props) ?? true)) return spec
+  if (props.lightOn === 'yes') return OVERRIDE_EMITTER
+  return null
 }

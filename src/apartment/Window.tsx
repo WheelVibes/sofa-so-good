@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import { Color, type Group, type MeshStandardMaterial } from 'three'
+import { GLASS_SKYCATCH_COLOR, glassSkyCatchIntensity } from '../materials/materialRealism'
 import { getFixtureGlow } from '../scene/lighting/fixtureGlow'
 import { WALLS, WINDOWS } from './constants'
 import type { WallSpec, WindowSpec } from './types'
@@ -75,6 +76,8 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       const d = getFixtureGlow() // 1 at night, 0 in daylight
       m.color.lerpColors(GLASS_DAY, GLASS_NIGHT, d)
       m.opacity = 0.28 + d * 0.45 // more opaque (less see-through) at night
+      // Sky-catch (RZ2): glass reads as bright lit glass by day, dark at night.
+      m.emissiveIntensity = glassSkyCatchIntensity(1 - d)
     }
   })
   if (!wall) return null
@@ -103,6 +106,8 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
           <meshStandardMaterial
             ref={glassRef}
             color="#bcd4e6"
+            emissive={GLASS_SKYCATCH_COLOR}
+            emissiveIntensity={0.4}
             roughness={0.05}
             metalness={0.1}
             transparent

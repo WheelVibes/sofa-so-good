@@ -1,5 +1,6 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 interface DiningTableProps {
@@ -72,15 +73,22 @@ export function DiningTable({ props }: DiningTableProps) {
               <cylinderGeometry args={[0.06, 0.08, colH, 18]} />
             </mesh>
             {/* Cross-foot running across the depth */}
-            <mesh castShadow receiveShadow position={[s * colX, 0.03, 0]} material={legMat}>
-              <boxGeometry args={[0.1, 0.05, dim.d * 0.62]} />
-            </mesh>
+            <BeveledBox
+              castShadow
+              receiveShadow
+              position={[s * colX, 0.03, 0]}
+              material={legMat}
+              args={[0.1, 0.05, dim.d * 0.62]}
+            />
           </group>
         ))}
         {/* Stretcher beam linking the two pedestals */}
-        <mesh castShadow position={[0, 0.12, 0]} material={legMat}>
-          <boxGeometry args={[colX * 2, 0.05, 0.05]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          position={[0, 0.12, 0]}
+          material={legMat}
+          args={[colX * 2, 0.05, 0.05]}
+        />
       </group>
     )
   }
@@ -113,13 +121,21 @@ export function DiningTable({ props }: DiningTableProps) {
 
   return (
     <group>
-      <mesh castShadow receiveShadow position={[0, totalH - topThickness / 2, 0]} material={topMat}>
-        <boxGeometry args={[dim.w, topThickness, dim.d]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, totalH - topThickness / 2, 0]}
+        material={topMat}
+        args={[dim.w, topThickness, dim.d]}
+      />
       {legPositions.map((p, i) => (
-        <mesh key={i} castShadow position={p} material={legMat}>
-          <boxGeometry args={[legThickness, totalH - topThickness, legThickness]} />
-        </mesh>
+        <BeveledBox
+          key={i}
+          castShadow
+          position={p}
+          material={legMat}
+          args={[legThickness, totalH - topThickness, legThickness]}
+        />
       ))}
       {/* Apron rails just under the top, connecting the legs. */}
       {(() => {
@@ -130,14 +146,22 @@ export function DiningTable({ props }: DiningTableProps) {
         return (
           <>
             {[zN, zS].map((z, i) => (
-              <mesh key={`la${i}`} castShadow position={[0, apronY, z]} material={legMat}>
-                <boxGeometry args={[innerW, apronH, 0.03]} />
-              </mesh>
+              <BeveledBox
+                key={`la${i}`}
+                castShadow
+                position={[0, apronY, z]}
+                material={legMat}
+                args={[innerW, apronH, 0.03]}
+              />
             ))}
             {[xL, xR].map((x, i) => (
-              <mesh key={`wa${i}`} castShadow position={[x, apronY, 0]} material={legMat}>
-                <boxGeometry args={[0.03, apronH, innerD]} />
-              </mesh>
+              <BeveledBox
+                key={`wa${i}`}
+                castShadow
+                position={[x, apronY, 0]}
+                material={legMat}
+                args={[0.03, apronH, innerD]}
+              />
             ))}
           </>
         )

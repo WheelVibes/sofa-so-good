@@ -162,6 +162,8 @@ const PlanRoomZ = z.object({
   floor: z.string().optional(),
   // Per-room wall finish (optional + additive → no schema-version bump).
   wall: z.string().optional(),
+  // Movable room-name label offset (metres from the centroid). Optional + additive.
+  labelOffset: Vec2Z.optional(),
   // Per-room ceiling treatment (tray/coffered/dropped). Optional + additive →
   // no schema-version bump; absent → flat (the prior behaviour).
   ceiling: z
@@ -196,6 +198,35 @@ const FloorPlanZ = z.object({
   rooms: z.array(PlanRoomZ),
   wallColor: z.string().optional(),
   upperLevels: z.array(PlanUpperLevelZ).optional(),
+  notes: z
+    .array(
+      z.object({
+        id: z.string(),
+        x: z.number(),
+        z: z.number(),
+        text: z.string(),
+        levelId: z.string().optional(),
+      }),
+    )
+    .optional(),
+  dimensions: z
+    .array(z.object({ id: z.string(), a: Vec2Z, b: Vec2Z, levelId: z.string().optional() }))
+    .optional(),
+  // Free-form polyline markup (PARITY-POLYLINE). Optional + additive — no
+  // schema-version bump; absent → []. `points` MUST round-trip or the polyline
+  // silently vanishes on reload.
+  polylines: z
+    .array(
+      z.object({
+        id: z.string(),
+        points: z.array(Vec2Z),
+        closed: z.boolean().optional(),
+        dashed: z.boolean().optional(),
+        arrow: z.boolean().optional(),
+        levelId: z.string().optional(),
+      }),
+    )
+    .optional(),
 })
 
 const RawSerializedStateZ = z.object({

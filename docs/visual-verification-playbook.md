@@ -275,6 +275,18 @@ then optionally switches back to Simple and asserts it is hidden again.
 
 **Key gotcha: versions panel save flow requires interactive `promptText()`.** Seeding a version directly into `localStorage` with a schema-valid payload (requires `version:2`, `apartmentId:'serangoon-north-vista-4r'`, `userFurniture:[]`, `userMaterials:[]`, `timeMode`, `manualHour`, `cameraMode`, `savedAt`, `items`, `doors`, `finishes`) bypasses the modal entirely and exercises the load/compare/restore path. See `versions-journey.json` step `seed-saved-version-in-localstorage`.
 
+### Worked example — 2D plan-editor tools journey (IXT-SUITES batch 3)
+
+**`plan-editor-tools-journey.json`** (21 steps, 3 shots) covers the 2D-editor tools added in the
+parity push: text notes (`addNote`), dimension lines (`addDimension`), furniture plan labels
+(`setPlanLabels('price')`, Pro), level duplication (`duplicateLevel('ground')`), and wall split→join
+round-trip (`splitWall` then `joinWall`). Each mutation is asserted with a `waitFor: { store: … }`
+predicate (e.g. `(state.floorPlan.notes||[]).length === 1`, `state.floorPlan.walls.length === window.__w0`).
+**Key gotchas:** set `setUiMode('pro')` + `reresolveFeatureFlags()` before `setPlanLabels` (it's a pro
+flag); the tools' store actions are exposed directly (`addNote`/`addDimension`/`duplicateLevel`/
+`splitWall`/`joinWall`), so drive them via `eval`/`store` steps rather than synthesising canvas drags
+(`splitWall` selects the first half, so `joinWall(planSelection.id)` merges it back to the original count).
+
 ---
 
 ## Legacy mode (one-shot, backward-compatible)

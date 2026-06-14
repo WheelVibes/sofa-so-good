@@ -3,6 +3,7 @@ import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { levelById } from '../../floorplan/levels'
+import { polylineLength } from '../../floorplan/polyline'
 import {
   type CeilingConfig,
   type CeilingStyle,
@@ -10,6 +11,7 @@ import {
   planRoomArea,
   wallLength,
 } from '../../floorplan/types'
+import { endForAngle, endForLength, wallAngleDeg } from '../../floorplan/wallOps'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
@@ -244,7 +246,19 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               onChange={(e) => a.updateRoom(r.id, { name: e.target.value })}
               className="input"
             />
+            <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+              Drag the name on the plan to reposition it.
+            </span>
           </label>
+          {r.labelOffset ? (
+            <button
+              type="button"
+              className="btn btn-soft btn-sm btn-block"
+              onClick={() => a.updateRoom(r.id, { labelOffset: undefined })}
+            >
+              Reset label position
+            </button>
+          ) : null}
           <Num
             label="X (m)"
             value={r.origin[0]}
@@ -456,11 +470,37 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             value={w.end[1]}
             onChange={(v) => a.updateWall(w.id, { end: [w.end[0], v] }, levelId)}
           />
-          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
-            <span className="label">Length</span>
-            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
-              {formatLength(wallLength(w), units)}
-            </span>
+          <Num
+            label="Length (m)"
+            value={wallLength(w)}
+            min={0.01}
+            onChange={(v) => a.updateWall(w.id, { end: endForLength(w, v) }, levelId)}
+          />
+          <Num
+            label="Angle (°)"
+            value={Math.round(wallAngleDeg(w) * 10) / 10}
+            step={1}
+            onChange={(v) => a.updateWall(w.id, { end: endForAngle(w, v) }, levelId)}
+          />
+          <div className="row" style={{ gap: 6 }}>
+            <button
+              type="button"
+              className="btn btn-sm"
+              style={{ flex: 1 }}
+              title="Reverse this wall's direction (flips its sides / door-swing reference)"
+              onClick={() => a.reverseWall(w.id, levelId)}
+            >
+              Reverse
+            </button>
+            <button
+              type="button"
+              className="btn btn-sm"
+              style={{ flex: 1 }}
+              title="Merge with a collinear neighbouring wall (inverse of Split)"
+              onClick={() => a.joinWall(w.id, levelId)}
+            >
+              Join
+            </button>
           </div>
           <DeleteBtn onClick={() => a.removeWall(w.id, levelId)} label="Delete wall" />
         </div>
@@ -538,6 +578,103 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             </>
           )}
           <DeleteBtn onClick={() => a.removeOpening(o.id, levelId)} label={`Delete ${o.kind}`} />
+        </div>
+      )
+    }
+  } else if (sel?.type === 'note') {
+    const note = (plan.notes ?? []).find((x) => x.id === sel.id)
+    if (note) {
+      body = (
+        <div className="space-y-2">
+          <div className="sec-h">
+            <span>Note</span>
+          </div>
+          <label className="flex items-center gap-2 text-xs">
+            <span className="label" style={{ whiteSpace: 'nowrap' }}>
+              Text
+            </span>
+            <input
+              type="text"
+              value={note.text}
+              aria-label="Note text"
+              onChange={(e) => a.updateNote(note.id, { text: e.target.value })}
+              className="input"
+            />
+          </label>
+          <DeleteBtn onClick={() => a.removeNote(note.id)} label="Delete note" />
+        </div>
+      )
+    }
+  } else if (sel?.type === 'dim') {
+    const dim = (plan.dimensions ?? []).find((x) => x.id === sel.id)
+    if (dim) {
+      const len = Math.hypot(dim.b[0] - dim.a[0], dim.b[1] - dim.a[1])
+      body = (
+        <div className="space-y-2">
+          <div className="sec-h">
+            <span>Dimension</span>
+          </div>
+          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
+            <span className="label">Length</span>
+            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
+              {formatLength(len, units)}
+            </span>
+          </div>
+          <DeleteBtn onClick={() => a.removeDimension(dim.id)} label="Delete dimension" />
+        </div>
+      )
+    }
+  } else if (sel?.type === 'polyline') {
+    const poly = (plan.polylines ?? []).find((x) => x.id === sel.id)
+    if (poly) {
+      const len = polylineLength(poly.points, poly.closed)
+      body = (
+        <div className="space-y-2">
+          <div className="sec-h">
+            <span>Polyline</span>
+          </div>
+          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
+            <span className="label">{poly.closed ? 'Perimeter' : 'Length'}</span>
+            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
+              {formatLength(len, units)}
+            </span>
+          </div>
+          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
+            <span className="label">Points</span>
+            <span className="amt">{poly.points.length}</span>
+          </div>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={!!poly.closed}
+              aria-label="Closed loop"
+              onChange={(e) => a.updatePolyline(poly.id, { closed: e.target.checked || undefined })}
+            />
+            <span className="label">Closed loop</span>
+          </label>
+          <label className="flex items-center gap-2 text-xs">
+            <input
+              type="checkbox"
+              checked={!!poly.dashed}
+              aria-label="Dashed stroke"
+              onChange={(e) => a.updatePolyline(poly.id, { dashed: e.target.checked || undefined })}
+            />
+            <span className="label">Dashed</span>
+          </label>
+          {!poly.closed && (
+            <label className="flex items-center gap-2 text-xs">
+              <input
+                type="checkbox"
+                checked={!!poly.arrow}
+                aria-label="End arrow"
+                onChange={(e) =>
+                  a.updatePolyline(poly.id, { arrow: e.target.checked || undefined })
+                }
+              />
+              <span className="label">End arrow</span>
+            </label>
+          )}
+          <DeleteBtn onClick={() => a.removePolyline(poly.id)} label="Delete polyline" />
         </div>
       )
     }

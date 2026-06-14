@@ -5,6 +5,362 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-QUOTEXLSX: export the bill of quantities as an Excel .xlsx
+
+- Tools → **"Quote → Excel (.xlsx)"** downloads the bill of quantities as a real spreadsheet (the
+  deliverable contractors/clients expect), alongside the existing HTML quote. Hand-built minimal OOXML
+  (`export/boqXlsx.ts`, `boqToXlsx`) — a 5-part ZIP via `fflate` (already a dep), no SheetJS; text cells
+  use inline strings, money/qty are numeric cells, descriptions are XML-escaped. Mirrors `boqToCsv`'s
+  columns so the exports stay in lock-step.
+- The HTML quote + the Excel export now share one `assembleBoqInput()` (extracted from `openBoq`) so
+  they price identically. Desktop-only (the quote is a desktop export — no mobile-parity gap).
+- Pure builder unit-tested by unzipping the result (valid ZIP magic, all required parts, header + a
+  numeric amount cell, `FF&amp;E` escaping); the menu entry visually verified. Docs updated.
+
+## PARITY-WALLDIM: edit a wall's exact length + angle in the 2D inspector
+
+- The wall inspector's read-only "Length" line is now an **editable Length (m)** field, plus a new
+  **Angle (°)** field (Sweet Home 3D's wall edit-dialog precision). Typing a length resizes the wall to
+  exactly that (start fixed, direction preserved); typing an angle rotates it about its start (length
+  preserved) — set a wall to exactly 3.2 m or rotate it to 45° instead of nudging X/Z by hand.
+- Pure geometry in `floorplan/wallOps.ts` (`endForLength`, `endForAngle`, `wallAngleDeg`; compass
+  bearing +X=0 → +Z=90), unit-tested incl. zero-length guards. Visually verified the field renders and
+  a length edit resizes the wall on the canvas. Docs: ARCHITECTURE + user floor-plan guide.
+
+## PHOTO-PT-TUNE: interior-tuned path tracer (no more black glass / fireflies)
+
+- The HQ path-traced render now applies interior-appropriate quality settings (`hqTracerConfig.ts`,
+  applied in `hqRenderSession.ts` right after the `WebGLPathTracer` is built): `bounces 10`,
+  `transmissiveBounces 6` (so glass renders as glass, not black/opaque), `filterGlossyFactor 0.75`
+  (suppresses sun-through-glass fireflies), and `multipleImportanceSampling` (faster convergence on lit
+  surfaces). The library defaults left glass dark and let bright speckles through.
+- Pure config + unit test (`hqTracerConfig.test.ts`: transmissive ≤ total bounces, glossy factor in
+  [0,1], MIS on); applied behind a try/catch so a library API change can't break rendering. The sample
+  count (`HqRenderModal`, 64–1024) remains the time↔quality dial. Pixel improvement is GPU-pending (the
+  HQ tracer needs a real GPU; SwiftShader headless won't converge). Closes PHOTO-PT-TUNE; PHOTOREALISM.md
+  updated (Shipped + roadmap converted to a bullet list so it no longer needs renumbering).
+
+## PHOTO-COLORSPACE: fix wood-albedo colour space + lock texture colour management
+
+- Audited every procedural texture path (`materials/procedural/generators.ts`, `furnitureMaterials.ts`,
+  GLB-loader + upload) under three 0.184 (texture default `NoColorSpace`). All albedo/colour maps are
+  `SRGBColorSpace` and data maps (normal/rough/metal/AO) stay linear — **except the wood albedo, which
+  was missing the sRGB tag** and rendered its grain with linear-instead-of-sRGB gamma (wood is one of
+  the most-used finishes). Fixed (one line), matching every other albedo map in the file.
+- Added `furnitureMaterialColorSpace.test.ts` as a **regression guard**: asserts wood/stone/concrete/
+  velvet materials tag their `map` sRGB and their `normalMap`/`roughnessMap` linear (a minimal canvas
+  2D stub lets the generators run under happy-dom, which has no real canvas). Closes the #1
+  photorealism roadmap item (PHOTOREALISM.md).
+
+## PARITY-ROOMLABEL: drag-to-reposition room-name labels on the 2D plan
+
+- Room-name labels can now be **dragged** off their centroid in the 2D editor (Sweet Home 3D movable
+  labels) — grab the name with the Select tool and move it clear of furniture or a tight room. The
+  nudge is a per-room `labelOffset` (metres from the centroid) that round-trips in the save schema
+  (optional + additive) and is honoured by both the editor and the printed report / drawing-set plan
+  (`roomLabelPosition` = centroid + offset, shared so they agree).
+- Inspector: a hint plus a **Reset label position** button (shown only once a label has been moved).
+  Drags coalesce into one undo step (`updateRoom` already uses `pushHistoryCoalesced`).
+- Pure `roomLabelPosition` + schema round-trip + the offset path are unit-tested; visually verified the
+  label moves off-centre and the inspector reset control appears. Docs: FEATURE_PARITY (folded into
+  parity; row trimmed to label rotation/font), ARCHITECTURE, user floor-plan guide.
+
+## PARITY-PLANTEXT: on-plan text notes carry onto the report + drawing-set sheets
+
+- The 2D editor's free-text **notes** (Text tool, PARITY-DIMTEXT) now render on the **report** and
+  **drawing-set** floor-plan sheets as amber text callouts with a locator dot — so a designer's on-plan
+  annotations reach the printed deliverables (Coohom/SH3D drawing text callouts). Pure SVG in
+  `reportPlanSvg` (`notesSvg`), shared by the report, the drawing set and the SVG plan export; blank
+  notes are skipped and text is escaped.
+- Multi-storey correctness: `levelAsPlan` now scopes `plan.notes` to the storey, so each per-level
+  drawing sheet shows only that storey's notes (not every storey's).
+- Unit-tested (note text present + escaped + amber ink + blank skipped; per-level note scoping; note on
+  the drawing-set sheet). Pure string/data change — verified via assertions like the rest of the
+  report/drawing output (these open in a separate print window).
+
+## PARITY-DRAWLAYERS: choose which sheets the construction drawing set includes
+
+- The **drawing set** export (Tools → Drawing set) now has an **"Include sheets"** checklist
+  (RoomSketcher / Chief Architect "layers"): toggle Elevations, Lighting plan, Dimensioned plan,
+  Cross-section, Electrical/Plumbing plans, Finishes schedule, Demolition plan and FF&E schedule on/off
+  — e.g. a clean client copy with no electrical/plumbing/demolition, or a full builder copy. The floor
+  plan is always the base sheet.
+- Pure + back-compat: `buildDrawingSetHtml` takes an optional `layers` map (absent/empty = the full set,
+  so existing callers are unchanged) and gates each sheet group through it. Layer list + types live in a
+  dependency-light `ui/drawingLayers.ts` so the heavy sheet builder stays dynamically imported (P-CHUNK).
+- Store: `drawingLayers` + `setDrawingLayer` (session-only, in `uiSlice`); `openDrawingSet` passes them.
+  Desktop-only picker (the drawing set is a desktop export, so no mobile-parity gap). Unit-tested
+  (filtering on/off + the slice toggle) and visually verified (checklist renders under the menu entry).
+- Gated under the existing `drawings`/`report` surface (a configuration of an already-flagged export,
+  like the render-preset dropdown). Docs: FEATURE_PARITY (folded into parity; remaining gap trimmed to a
+  text-annotation layer), ARCHITECTURE, user design-tools guide.
+
+## PARITY-POLYLINE: free-form polyline annotations on the 2D plan
+
+- **New Polyline tool** in the 2D Floor Plan Editor (Sweet Home 3D parity): click to drop vertices,
+  press **Enter** to finish as an open path, or click the first vertex (≥3) to **close the loop**;
+  Escape cancels. Each polyline supports **dashed** stroke + an **end arrowhead** (open paths) and
+  is level-tagged; the inspector shows its length / perimeter + point count and toggles closed /
+  dashed / arrow. Pure geometry (`floorplan/polyline.ts`: `polylineLength` / `polylineBounds` /
+  `polylinePointsAttr`) is render-agnostic + unit-tested.
+- **Gated** behind the new `planPolyline` flag (**pro** tier — an advanced markup tool, hidden in
+  Simple mode; tested in both modes). Round-trips through the save schema (`floorPlan.polylines`,
+  additive/optional — no version bump). Store actions `addPolyline` / `updatePolyline` /
+  `removePolyline` (one undo step each); slice + schema round-trip tested.
+- **Docs** — `FEATURE_PARITY.md` polyline row folded into "already at parity"; the stale gap tables
+  were pruned of all confirmed-shipped rows (replace-with-similar, smart search, sections, plumbing,
+  denoiser, render presets, AI auto-furnish, CSV/SVG export, dimension/text objects, compass,
+  FOV/eye-height, auto-room, light-source, lock, plan labels, split/join/reverse, all-levels +
+  duplicate-level, turntable record) with a maintenance note to keep them pruned going forward.
+
+## Plan labels preference persists across reloads
+
+- The 2D-plan **furniture label mode** (`planLabels`: off / name / name+price) is now saved to
+  `editorPrefs` (per-device, like backdrop/units/snap) so the user's choice survives a reload instead
+  of resetting to off. Invalid stored values fall back to off. Tested round-trip in `editorPrefs.test.ts`.
+
+## PARITY-AILAYOUT (cont.): collision-aware placement for AI auto-furnish
+
+- **`placeNonOverlapping`** (pure, in `layout/aiLayoutApply.ts`) greedily accepts only the AI-proposed
+  items that don't collide with the existing layout or each other (the model's coordinates are
+  approximate), reusing the shared footprint collision test (`findItemOverlaps`). The ⌘K "AI
+  auto-furnish" now filters through it and reports how many overlapping pieces were skipped.
+- **Tests** — keeps a clear piece + drops one stacked on it (and the far one stays); drops a candidate
+  colliding with an existing item.
+
+## PARITY-AILAYOUT: AI auto-furnish from a text brief (BYO-key)
+
+- **New ⌘K "AI auto-furnish (BYO key)"** — describe the home and an OpenAI-compatible LLM proposes a
+  furniture layout, which is validated and placed (Coohom AI auto-layout parity). Reuses the existing
+  vision-feature key/endpoint config (`floorPlanAi`); no key is bundled and the call degrades gracefully
+  (clear error toast) without one. `aiLayout` flag (pro, experimental, prod-safe).
+- **Pure engine `ai/autoLayoutAi.ts`** — `buildLayoutRequest` (rooms + allowed catalog ids + brief →
+  chat body), `parseLayoutResponse` (tolerant of fences/prose; drops items with unknown defId/room or
+  non-finite coords), and `requestAutoLayout` (key/endpoint guards mirroring `recognizeFloorPlan`).
+- **Pure apply `layout/aiLayoutApply.ts`** — `aiLayoutToItems` resolves each placement's room by name,
+  drops unknown rooms/defs, and **clamps the position into the room interior** (inset) so the model can't
+  drop a piece outside its room; emits fresh-id `FurnitureItem`s (appended under one undo step).
+- **Tests** — prompt embeds rooms/ids/brief; parser validation + tolerance; no-key guard rejects without
+  network; apply clamps + drops invalids + fresh ids; `aiLayout` flag hidden in Simple / present in Pro.
+  Verified the ⌘K command registers + renders (Pro). Follow-up: collision-aware placement via autoArrange.
+
+## IXT-SUITES batch 3: 2D plan-editor tools interaction-test ladder
+
+- **New committed scenario `scripts/scenarios/plan-editor-tools-journey.json`** (21 steps) — a
+  re-runnable interaction-test journey exercising this push's 2D-editor features end-to-end: text notes,
+  dimension lines, furniture plan labels (Pro), level duplication, and a wall split→join round-trip.
+  Each mutation is asserted with a `waitFor` store predicate; documented in the visual-verification
+  playbook (worked examples + gotchas). Pays down the per-feature ladder debt for PARITY-PLANLABELS /
+  LEVELOPS / WALLOPS / DIMTEXT.
+
+## PARITY-DIMTEXT (cont.): custom dimension lines on the 2D plan
+
+- **New "Dimension" tool** — drag between two points to drop a custom dimension line; it renders with
+  end ticks + the live measured length label, is click-selectable, and deletable in the inspector
+  (DIMENSION section showing the length). Snaps endpoints to the grid; level-tagged. Completes
+  PARITY-DIMTEXT (text notes + dimension lines → SH3D first-class dimension + text objects).
+- **Persisted** in `plan.dimensions` (new optional `PlanDimension[]` on `FloorPlan`, additive — round-
+  trips through `schema.ts`; rides into the exported plan PNG). New `addDimension`/`removeDimension`
+  actions + a `'dim'` `PlanSelection` variant. The dimension tool reuses the wall/scale two-point draft
+  (dashed live preview).
+- **Tests** — slice add/remove (clears selection) + a `schema.test.ts` round-trip preserving dimensions.
+  Verified end-to-end: the Dimension tool draws a line with a measured label; the inspector shows length
+  + Delete.
+
+## PARITY-DIMTEXT: free-text notes on the 2D plan
+
+- **New "Text" tool in the 2D Floor Plan Editor** — click to drop a free-text note (prompts for text);
+  notes render on the plan with a legibility halo, are **draggable** (select tool) and **editable +
+  deletable** in the inspector (a NOTE section with a text field + Delete). Level-tagged so each storey
+  shows only its own; selecting one highlights it.
+- **Persisted** in `plan.notes` (new optional `PlanNote[]` on `FloorPlan`, additive — round-trips through
+  `schema.ts`/`FloorPlanZ`, the saved design, share links and the plan library; no version bump). New
+  `addNote`/`updateNote`/`removeNote` slice actions + a `'note'` `PlanSelection` variant; drags coalesce
+  into one undo step. Notes ride into the exported plan PNG (they're part of the editor SVG).
+- **Tests** — slice add/edit/drag/remove (clears selection) + a `schema.test.ts` round-trip preserving
+  notes (incl. a level-tagged one). Verified end-to-end: Text tool places a note, it renders + selects,
+  the inspector edits/deletes it.
+
+## PARITY-LIGHTINGTEMPLATE-TEXT (material callouts): finishes schedule in the drawing set
+
+- **New "Finishes schedule" sheet** in the printable drawing set — a per-room table of the resolved
+  floor + wall **material names** (the finish callout a builder needs; Coohom/SH3D material callouts).
+  Lists every room across storeys; reads the live finishes (slice → plan-room → app default via the
+  shared `resolvePlanRoom*` resolvers); neutral-plaster rooms read "Plaster (neutral)".
+- **Pure `floorplan/finishSchedule.ts`** (`buildFinishSchedule(plan, finishes, nameOf)`) — `nameOf`
+  injected for testability; the drawing set resolves names via `BUILTIN_MATERIALS` (falls back to the
+  id for user/DLC finishes). Wired into `drawingSet.ts` (+ `finishes` param) and `openDrawingSet.ts`.
+- **Tests** — `finishSchedule.test.ts` (live-over-default precedence, plan-room + app-default fallback,
+  neutral wall, cross-storey ordering, empty plan) + a `drawingSet.test.ts` case asserting the sheet
+  appears only when finishes are supplied.
+
+## PARITY-FURNLIGHT: turn any item into a night light source
+
+- **Any placed item can now emit light** (Sweet Home 3D parity) — a light-bulb toggle in the inspector
+  header (for items that aren't already light fixtures, `itemAsLight` flag, pro) sets `props.lightOn`,
+  and the existing `FurnitureLights` system drives a warm point light from it at night, fading in with
+  the sun like the registered fixtures.
+- **`lightEmitters.ts`** gains `OVERRIDE_EMITTER` (a sensible fallback spec — bulb just above the item,
+  warm, moderate intensity/range), an override-aware `isItemEmitter` (registered fixture OR `lightOn`),
+  and `resolveEmitterSpec` (registry spec wins; else the override; else `null`). `FurnitureLights` now
+  resolves per-item via `resolveEmitterSpec` instead of indexing the registry, so overrides + fixtures
+  share one path.
+- **Tests** — `lightEmitters.test.ts` covers the override (`isItemEmitter` with `lightOn`,
+  `resolveEmitterSpec` fallback vs. registry-wins vs. gated-off fixture → null, `OVERRIDE_EMITTER`
+  values + height). Verified: the inspector toggle renders for a non-fixture (sofa) in Pro and flipping
+  it makes the item an emitter.
+
+## PARITY-PLUMBING: plumbing plan sheet in the drawing set (mirrors electrical)
+
+- **New plumbing layer in the printable drawing set** (Coohom parity) — points (water supply, drainage,
+  floor traps, soil pipes, water heaters) are auto-derived from placed fixtures (WC → soil pipe + cistern
+  water point; sinks/basins/dishwashers/bathtubs → water + drainage; showers → floor trap + water;
+  washing machines → water + floor trap; water heaters → a heater point), then rendered as a per-storey
+  plumbing-plan sheet with symbol glyphs + a per-kind schedule. Gated by a new `plumbingPlan` flag
+  (pro, prod-safe).
+- **Pure `floorplan/plumbingPlan.ts` + `plumbingPlanSvg.ts`** mirror the electrical pair exactly
+  (validated/clamped builder + schedule; `PlumbingPlan → SVG` with XML-escaped labels and a
+  wall-bounds viewBox). Wired into `drawingSet.ts` (per-plumbed-storey sheet + unified schedule) and
+  `openDrawingSet.ts` (derive + gate).
+- **Tests** — `plumbingPlan.test.ts` (validation, schedule order, malformed input, optional fields),
+  `plumbingPlanSvg.test.ts` (symbol per point, escaping, empty-state, malformed plan), and a
+  `drawingSet.test.ts` case asserting the plumbing sheet appears only when points are supplied.
+
+## PARITY-WALLOPS: reverse + join wall commands in the 2D editor
+
+- **Reverse** and **Join** buttons in the wall inspector (joining Split, which already existed → SH3D
+  wall split/join/reverse parity is now complete). Reverse swaps a wall's start/end; Join merges the
+  selected wall with a **collinear neighbour sharing an endpoint** into one wall (the inverse of Split)
+  and selects the result. Both **keep every door/window physically in place** — Reverse re-measures the
+  offset from the new start; Join projects each opening's world endpoints onto the merged wall (so it
+  works regardless of either wall's direction).
+- **Pure `floorplan/wallOps.ts`** (`reverseWallGeometry`, `joinAdjacentWalls`) — unit-tested for
+  endpoint swap + opening re-measure, collinear-neighbour merge, reversed-neighbour handling, the
+  not-collinear / disjoint no-op, and external-thickness preservation. Slice actions peek first so a
+  no-op join (no neighbour) doesn't push an empty undo step.
+- Verified end-to-end: split a wall → Reverse → Join merges it back (wall count round-trips); buttons
+  render cleanly in the inspector.
+
+## PARITY-LEVELOPS cont.: "All levels" dimmed underlay in the 2D editor
+
+- The 2D Floor Plan Editor gains an **"All levels"** toggle (shown only on a multi-storey plan) that
+  draws the **other storeys' walls as a faint, non-interactive underlay** beneath the active level — so
+  you can stack walls and line up stairs/risers between floors (Sweet Home 3D parity). Local editor view
+  state (like the Dims toggle), off by default. Verified: with an empty upper level active, the ground
+  floor's walls show through dimmed. Completes PARITY-LEVELOPS (duplicate-level + all-levels underlay).
+
+## PARITY-LEVELOPS: duplicate a storey (geometry + furniture + finishes)
+
+- **New `duplicateLevel(sourceId)` store action** — clones a storey (ground or upper) into a new storey
+  above the highest level: its walls/openings/rooms (with **fresh, plan-unique ids**, each opening
+  re-pointed at its cloned wall), the furniture on that storey (fresh item ids, same positions), and the
+  per-room floor/wall + per-wall accent finishes (re-keyed to the new room/wall ids). Undoable; returns
+  the new level id (or `null` for an unknown source). Great for maisonettes / repeated floors.
+- **Pure `cloneLevelGeometry`** in `floorplan/levels.ts` (deep-clone + id remap, returns the old→new
+  wall/room id maps) — unit-tested for fresh non-colliding ids, opening→wall re-pointing, and deep clone.
+- **UI** — a `⧉ Duplicate` button in the 2D editor's `LevelTabs` duplicates the active storey and selects
+  the copy. Verified end-to-end: duplicating the default flat creates a "Ground floor copy" storey with
+  all 11 rooms + walls + doors/windows + furniture.
+
+## RZ2: window glass sky-catch — panes read as lit glass, not flat dark rectangles
+
+- **Daylight-ramped emissive sky-catch on window glass** — `materialRealism.glassSkyCatchIntensity`
+  (pure, unit-tested) drives a soft sky-blue emissive on the default-flat windows (`apartment/Window.tsx`)
+  that is bright by day and fades to dark at night, so glass reads as catching the sky on **every tier**
+  (including the flat Performance default, where it otherwise looked like a flat transparent pane). Kept
+  below the bloom threshold so windows glow softly without blooming.
+- Verified from outside at midday: panes carry a subtle sky tint and a far pane reads as a distinctly
+  bright blue sky-catch; no z-fighting with the grille/frame, no blowout.
+- **Tail (tracked in TASKS):** apply to `PlanRoomShell` glass (custom plans) and wire the already-built
+  `glassConfig`/`transmissionTiers` real transmission on High/Max (real-GPU verify).
+
+## PARITY-PLANLABELS: furniture name / price labels on the 2D plan (Sweet Home 3D parity)
+
+- **New label layer in the 2D Floor Plan Editor** — a `Labels` toolbar toggle cycles **off → name →
+  name + price**; when on, every furniture footprint on the active storey shows its name (and estimated
+  SGD price via the canonical `itemPrice`) centred with a surface-stroke halo for legibility over the
+  coloured footprints. When off, only the selected item is labelled (unchanged), so you can always tell
+  what you clicked.
+- **Pure `ui/floorplan/planLabels.ts`** — unit-tested `planLabelLines` (off/name/price, drops the price
+  line for a free/unpriced item) + `nextPlanLabelMode` cycle + `PLAN_LABEL_TEXT`. State lives in
+  `floorPlanSlice` (`planLabels` + `setPlanLabels`/`cyclePlanLabels`, session-only).
+- **`planLabels` feature flag** (pro tier, prod-safe — pure code). Hidden in Simple, present in Pro;
+  unit-tested in both modes.
+- Verified in the plan editor: names + prices render on all footprints (e.g. "Queen bed $900",
+  "Wardrobe $1,100"), legible with the halo, coexisting with wall-dimension labels; toggle works.
+
+## PHOTO-BEVELS (RZ3) cont.: chamfered edges on freestanding case goods
+
+- Extended the `BeveledBox` migration from tables to the **freestanding case goods**: `Sideboard`,
+  `Dresser`, `TVConsole`, `Nightstand` — carcass boxes, drawer/door fronts, plinths and tapered/box legs
+  now carry the same tiny auto-clamped chamfer so their large flat faces catch a highlight.
+- **Panel-built frames left sharp on purpose** — the Nightstand `open`/`drawer-shelf` cubby (separate
+  top/bottom/side/back panels that butt together) keeps square edges, because chamfering butting panels
+  would leave visible notches at the joins. Only single-box carcasses + freestanding fronts/legs were
+  beveled. Bookshelf/Wardrobe/cabinet modules (shelf/panel-built) remain for a careful follow-up.
+- Same verification posture as the table batch: structural correctness (no gaps/z-fighting/clipping)
+  holds since the pattern is identical to the verified tables; edge light-catch is real-GPU-pending.
+
+## PHOTO-BEVELS (RZ3): edge chamfers on hard furniture so it stops reading as cardboard
+
+- **New shared `furniture/primitives/BeveledBox.tsx`** — a drei `RoundedBox` drop-in for sharp
+  `<mesh><boxGeometry/></mesh>` slabs, with a furniture-appropriate **auto-clamped chamfer** (pure,
+  unit-tested `safeBevelRadius`: a ~7 mm target clamped to 40% of the thinnest side so `RoundedBox`
+  never self-intersects on thin panels) and `geometryDetail`-scaled smoothness. The chamfer is tiny so
+  footprints/joins are visually unchanged — it just gives hard edges a highlight.
+- **Migrated the table + desk family** to it: `CoffeeTable`, `DiningTable` (rect tops/legs/aprons +
+  oval/round trestle feet + stretchers), `ConsoleTable`, `Desk` (top + leg plate + drawer block + legs).
+  Cylindrical tops were already round; only the flat box slabs changed.
+- **Tests** — `BeveledBox.test.ts` covers the radius clamp (full target when thick, 40%-clamped on thin
+  panels, custom target, never negative). Verified the migrated tables render with no gaps/z-fighting/
+  clipping at joins; the edge light-catch on lit tiers is real-GPU-pending (`Verify G`). Case goods +
+  appliances remain (tracked in TASKS as RZ3 in-progress).
+
+## PHOTO-EMISSIVE: HDR self-lit fixtures + screens (lamps glow + bloom at night)
+
+- **Centralised, tuned emissive ramp** — new `scene/lighting/fixtureGlow.ts` `fixtureEmissiveIntensity(role,
+  glow)` (pure + unit-tested) drives every light fixture's night glow from one place, with per-role peaks
+  (`shade` ~1.33, `bulb` ~1.85, `strip` ~1.66) deliberately **above the Bloom luminance threshold (~1.05)**
+  so lit fixtures bloom on High/Max (like the cove strip + fireplace already did) AND read clearly
+  self-lit on the flat Performance tier (the prod default, where emissive shows but bloom doesn't). Daylight
+  stays dark so fixtures switch off in the sun.
+- **Fixtures migrated** to the helper: `TableLamp`, `FloorLamp` (shade + bulb), `CeilingLight`,
+  `WallSconce`, `CoveLight`, `CeilingFan` — replacing scattered sub-threshold magic numbers (shades capped
+  ~0.76, sconce ~0.95, so they never bloomed and read flat).
+- **Screens + vanity bulbs** bumped into HDR: `FlatscreenTV` 0.85→1.2, `Monitor` 0.8→1.15 (toneMapped off
+  so the value reaches the bloom buffer), `Vanity` Hollywood bulbs 0.9→1.6 when switched on.
+- **Tests** — `fixtureGlow.test.ts` asserts every role peaks above the bloom threshold at full darkness,
+  stays dark in daylight, ramps monotonically, and a bare bulb out-glows a diffusing shade. Verified at
+  night on the flat tier (fixtures read self-lit, no blowout); **bloom amount on High/Max is real-GPU-pending**.
+
+## PHOTO-BACKDROP: walk-mode equirectangular photo surroundings (3D backdrops removed) + uploads
+
+- **Surroundings are now a flat equirectangular photo** set as `scene.background` (a skybox — one
+  texture, **zero per-frame draw calls**, seen correctly through every window, never blocking the sun),
+  shown **in walk mode only** (per product decision the orbit dollhouse stays clean — surroundings aren't
+  needed there). The legacy instanced 3D City/Park/Hills/Studio estates + their helpers (`Ground`,
+  `backdropOffset`, `instancedBatch`) were **removed**.
+- **Procedural presets** `city/dusk/park/hills` bake a 2048×1024 sky-gradient + horizon band in
+  `scene/backdropEquirect.ts`, driven by pure, unit-tested generators in `scene/backdropHorizon.ts`
+  (`buildSkylineBuildings`/`buildingWindows`, `buildTreeline`, `buildHillBands`/`hillRidgeY` — all
+  seam-wrapped so the equirect tiles). `none` = plain procedural sky.
+- **Upload your own photo** (`custom` backdrop): `ui/scene/BackdropUpload.tsx` validates + persists the
+  image to IDB (`storage/walkBackdrop.ts`, hydrated on boot as a live object URL), selects it, and shows
+  it through the windows. Desktop Scene menu + mobile toolbar parity; `customBackdrop` flag.
+- **`SceneBackdrop.tsx`** sets/restores `scene.background` (bakes presets synchronously, loads the custom
+  photo async; disposes + invalidates on change/exit); `isPhotoBackdropActive(kind, cameraMode, hasCustom)`
+  gates it and `Sky.tsx` hides its DreiSky dome when active. New `backdrops` (relabelled) +
+  `customBackdrop` flags (Simple tier, prod-safe).
+- **Minimap** (`ui/Minimap.tsx`): background made translucent (token `color-mix`, all themes) and the
+  apartment **centred on both axes** via a new tested `planContentBounds` (true wall/room box, not the
+  padded extent).
+- **Tests** — `backdropHorizon.test.ts` (generator determinism, in-bounds, seam-wrap tiling, dusk
+  window-density, hill seam continuity), `SceneBackdrop.test.ts` (walk-only + custom gating, picker
+  options, flag tiering in **both** Simple and Pro), `walkBackdrop.test.ts` (IDB round-trip, file
+  validation, clear, hydrate), `minimapGeometry.test.ts` (+`planContentBounds`). Visual-verified via
+  `scripts/scenarios/backdrop-walk-simple.json` (presets through windows, orbit clean, custom photo,
+  translucent + centred minimap).
+
 ## Replace with similar (PARITY-REPLACE): one-click swap to a nearest-size catalog sibling
 
 - **New pure core** `furniture/similarItems.ts` — `similarItems(defId, catalog, limit?)` ranks

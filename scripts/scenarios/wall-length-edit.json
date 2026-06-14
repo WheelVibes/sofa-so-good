@@ -1,0 +1,20 @@
+{
+  "name": "wall-length-edit",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "new-plan", "eval": "window.__store.getState().newFloorPlan('Wall test')" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "select-wall", "eval": "(() => { const s=window.__store.getState(); const w=s.floorPlan.walls[0]; window.__wid=w.id; s.setPlanSelection({ type:'wall', id:w.id }); })()" },
+    { "name": "wall-selected", "waitFor": { "store": "state.planSelection && state.planSelection.type==='wall'" } },
+    { "name": "shot-inspector", "screenshot": "wall-inspector" },
+
+    { "name": "shorten-wall", "eval": "(() => { const s=window.__store.getState(); const w=s.floorPlan.walls.find(x=>x.id===window.__wid); const L=Math.hypot(w.end[0]-w.start[0], w.end[1]-w.start[1])||1; const ux=(w.end[0]-w.start[0])/L, uz=(w.end[1]-w.start[1])/L; const nl=2.0; s.updateWall(w.id, { end:[w.start[0]+ux*nl, w.start[1]+uz*nl] }); })()" },
+    { "name": "shortened", "waitFor": { "store": "(()=>{const w=state.floorPlan.walls.find(x=>x.id===window.__wid); return Math.round(Math.hypot(w.end[0]-w.start[0], w.end[1]-w.start[1])*100)/100 === 2;})()" } },
+    { "name": "shot-shortened", "screenshot": "wall-shortened" }
+  ]
+}

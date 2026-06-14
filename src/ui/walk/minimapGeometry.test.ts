@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { FloorPlan, PlanRoom } from '../../floorplan/types'
-import { openingSegments, roomPathD } from './minimapGeometry'
+import { openingSegments, planContentBounds, roomPathD } from './minimapGeometry'
 
 const base = (over: Partial<PlanRoom>): PlanRoom => ({
   id: 'r',
@@ -9,6 +9,41 @@ const base = (over: Partial<PlanRoom>): PlanRoom => ({
   width: 4,
   depth: 3,
   ...over,
+})
+
+describe('planContentBounds', () => {
+  const plan = (over: Partial<FloorPlan>): FloorPlan =>
+    ({ extent: [100, 100], walls: [], rooms: [], openings: [], ...over }) as FloorPlan
+
+  it('returns the true wall/room box, ignoring the padded extent', () => {
+    // Extent is a huge 100×100, but the apartment only spans x∈[2,6], z∈[1,4].
+    const bounds = planContentBounds(
+      plan({ rooms: [base({ origin: [2, 1], width: 4, depth: 3 })] }),
+    )
+    expect(bounds).toEqual({ minX: 2, minZ: 1, maxX: 6, maxZ: 4 })
+  })
+
+  it('includes walls and polygon rooms', () => {
+    const bounds = planContentBounds(
+      plan({
+        walls: [{ id: 'w', start: [0, 0], end: [8, 0], thickness: 'external' } as never],
+        rooms: [
+          base({
+            polygon: [
+              [1, 1],
+              [1, 5],
+              [5, 5],
+            ],
+          }),
+        ],
+      }),
+    )
+    expect(bounds).toEqual({ minX: 0, minZ: 0, maxX: 8, maxZ: 5 })
+  })
+
+  it('returns a zero box for an empty plan', () => {
+    expect(planContentBounds(plan({}))).toEqual({ minX: 0, minZ: 0, maxX: 0, maxZ: 0 })
+  })
 })
 
 describe('roomPathD', () => {

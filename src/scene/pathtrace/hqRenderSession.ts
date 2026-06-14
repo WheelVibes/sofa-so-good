@@ -13,6 +13,7 @@
  */
 
 import type { Camera, Object3D, Scene } from 'three'
+import { HQ_TRACER_CONFIG } from './hqTracerConfig'
 
 export interface HqRenderOptions {
   width: number
@@ -176,6 +177,19 @@ export async function createHqRenderSession(
   renderer.toneMapping = ACESFilmicToneMapping
 
   const tracer = new WebGLPathTracer(renderer)
+  // Interior-tuned quality (PHOTO-PT-TUNE): enough transmissive bounces that
+  // glass isn't black, glossy filtering to kill sun-through-glass fireflies, and
+  // MIS for faster convergence. Set before setScene so material/uniform changes
+  // apply from the first sample. Guarded so a lib API change can't break the
+  // render (falls back to library defaults).
+  try {
+    tracer.bounces = HQ_TRACER_CONFIG.bounces
+    tracer.transmissiveBounces = HQ_TRACER_CONFIG.transmissiveBounces
+    tracer.filterGlossyFactor = HQ_TRACER_CONFIG.filterGlossyFactor
+    tracer.multipleImportanceSampling = HQ_TRACER_CONFIG.multipleImportanceSampling
+  } catch {
+    // keep library defaults
+  }
   // Edge-preserving denoise on the canvas blit (the lib's DenoiseMaterial —
   // a smart blur that respects geometry edges). Falls back to the plain blit
   // if construction fails so a lib upgrade can't break rendering.

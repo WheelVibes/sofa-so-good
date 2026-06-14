@@ -1,13 +1,28 @@
 import { buildDefaultPlan } from '../../floorplan/defaultPlan'
-import { GROUND_LEVEL_ID, levelOfRoom, withLevelGeometry } from '../../floorplan/levels'
+import {
+  cloneLevelGeometry,
+  GROUND_LEVEL_ID,
+  itemsOnLevel,
+  levelAsPlan,
+  levelById,
+  levelOfRoom,
+  planLevels,
+  withLevelGeometry,
+} from '../../floorplan/levels'
 import type {
   CeilingConfig,
   FloorPlan,
+  PlanDimension,
+  PlanNote,
   PlanOpening,
+  PlanPolyline,
   PlanRoom,
   PlanUpperLevel,
   PlanWall,
 } from '../../floorplan/types'
+import { joinAdjacentWalls, reverseWallGeometry } from '../../floorplan/wallOps'
+import type { PlanLabelMode } from '../../ui/floorplan/planLabels'
+import { nextPlanLabelMode } from '../../ui/floorplan/planLabels'
 import type { RootState } from '../store'
 import { pruneFinishesForPlan } from './finishesSlice'
 import type { SliceCreator } from './types'
@@ -17,6 +32,9 @@ export type PlanSelection =
   | { type: 'wall'; id: string }
   | { type: 'room'; id: string }
   | { type: 'opening'; id: string }
+  | { type: 'note'; id: string }
+  | { type: 'dim'; id: string }
+  | { type: 'polyline'; id: string }
   | null
 
 let idCounter = 0
@@ -40,6 +58,11 @@ export interface FloorPlanSlice {
   baselinePlan: FloorPlan
   /** Whether the 2D Floor Plan Editor overlay is open. */
   floorPlanEditing: boolean
+  /** 2D-plan furniture label mode (off / name / name+price). Session-only. */
+  planLabels: PlanLabelMode
+  setPlanLabels: (mode: PlanLabelMode) => void
+  /** Advance the plan-label mode (off → name → price → off). */
+  cyclePlanLabels: () => void
   /** Currently-selected element in the editor. */
   planSelection: PlanSelection
   /** Saved named floor plans (the apartment library). */
@@ -71,6 +94,11 @@ export interface FloorPlanSlice {
    *  default 0.5 = midpoint). Openings are re-homed onto whichever segment
    *  contains them. Used to build L-shapes by then dragging one half. */
   splitWall: (id: string, t?: number, levelId?: string) => void
+  /** Reverse a wall's direction in place (openings keep their position). */
+  reverseWall: (id: string, levelId?: string) => void
+  /** Merge a wall with a collinear neighbour that shares an endpoint (inverse of
+   *  split); selects the merged wall. No-op when there's no collinear neighbour. */
+  joinWall: (id: string, levelId?: string) => void
   /** Move a wall endpoint to a new position, dragging every other wall
    *  endpoint that shared the old position with it (so corners stay joined). */
   moveWallVertex: (
@@ -93,8 +121,31 @@ export interface FloorPlanSlice {
   updateOpening: (id: string, patch: Partial<PlanOpening>, levelId?: string) => void
   removeOpening: (id: string, levelId?: string) => void
 
+  /** Add a free-text note to the plan (PARITY-DIMTEXT); returns its id. */
+  addNote: (note: Omit<PlanNote, 'id'>) => string
+  /** Patch a note's text / position (coalesced for drags). */
+  updateNote: (id: string, patch: Partial<Omit<PlanNote, 'id'>>) => void
+  /** Remove a note; clears the selection if it was selected. */
+  removeNote: (id: string) => void
+
+  /** Add a custom dimension line (PARITY-DIMTEXT); returns its id. */
+  addDimension: (dim: Omit<PlanDimension, 'id'>) => string
+  /** Remove a dimension; clears the selection if it was selected. */
+  removeDimension: (id: string) => void
+
+  /** Add a free-form polyline annotation (PARITY-POLYLINE); returns its id. */
+  addPolyline: (poly: Omit<PlanPolyline, 'id'>) => string
+  /** Patch a polyline's style flags (closed / dashed / arrow). */
+  updatePolyline: (id: string, patch: Partial<Omit<PlanPolyline, 'id'>>) => void
+  /** Remove a polyline; clears the selection if it was selected. */
+  removePolyline: (id: string) => void
+
   /** Add an empty storey above the highest level; returns its id (F13/ML4). */
   addLevel: (name?: string) => string
+  /** Duplicate a storey (walls/rooms/openings + its furniture + per-room/-wall
+   *  finishes) into a new storey above the highest level; returns its id, or
+   *  `null` for an unknown source. Undoable (PARITY-LEVELOPS). */
+  duplicateLevel: (sourceId: string) => string | null
   /** Remove a storey: its rooms/walls/openings, its items, and its finish keys.
    *  Undoable (history snapshot first). No-op for 'ground' or unknown ids. */
   removeLevel: (id: string) => void
@@ -102,11 +153,12 @@ export interface FloorPlanSlice {
 
 export const FLOOR_PLAN_INITIAL: Pick<
   FloorPlanSlice,
-  'floorPlan' | 'baselinePlan' | 'floorPlanEditing' | 'planSelection' | 'savedPlans'
+  'floorPlan' | 'baselinePlan' | 'floorPlanEditing' | 'planLabels' | 'planSelection' | 'savedPlans'
 > = {
   floorPlan: buildDefaultPlan(),
   baselinePlan: buildDefaultPlan(),
   floorPlanEditing: false,
+  planLabels: 'off',
   planSelection: null,
   savedPlans: [],
 }
@@ -180,6 +232,8 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
   setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
   toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
+  setPlanLabels: (planLabels) => set({ planLabels }),
+  cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
   setPlanSelection: (sel) => set({ planSelection: sel }),
   resetFloorPlan: () => {
     // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built
@@ -270,6 +324,35 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })
       return { floorPlan, planSelection: selection }
     })
+  },
+
+  reverseWall: (id, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const res = reverseWallGeometry(g.walls, g.openings, id)
+    if (!res) return // missing/degenerate — no-op, no history step
+    s0.pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, () => ({
+        walls: res.walls,
+        openings: res.openings,
+      })),
+    }))
+  },
+
+  joinWall: (id, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const res = joinAdjacentWalls(g.walls, g.openings, id, planId)
+    if (!res) return // no collinear neighbour — no-op, no history step
+    s0.pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, () => ({
+        walls: res.walls,
+        openings: res.openings,
+      })),
+      planSelection: { type: 'wall', id: res.mergedId },
+    }))
   },
 
   moveWallVertex: (id, which, to, levelId) => {
@@ -368,6 +451,94 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     }))
   },
 
+  // Notes are a top-level plan array (level-tagged via `note.levelId`), not part
+  // of a storey's wall/room/opening geometry — so they edit the plan directly.
+  addNote: (note) => {
+    const id = planId('note')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: { ...s.floorPlan, notes: [...(s.floorPlan.notes ?? []), { ...note, id }] },
+    }))
+    return id
+  },
+  updateNote: (id, patch) => {
+    get().pushHistoryCoalesced(`plan-note-${id}`)
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        notes: (s.floorPlan.notes ?? []).map((n) => (n.id === id ? { ...n, ...patch } : n)),
+      },
+    }))
+  },
+  removeNote: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        notes: (s.floorPlan.notes ?? []).filter((n) => n.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'note' && s.planSelection.id === id ? null : s.planSelection,
+    }))
+  },
+
+  addDimension: (dim) => {
+    const id = planId('dim')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        dimensions: [...(s.floorPlan.dimensions ?? []), { ...dim, id }],
+      },
+    }))
+    return id
+  },
+  removeDimension: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        dimensions: (s.floorPlan.dimensions ?? []).filter((d) => d.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'dim' && s.planSelection.id === id ? null : s.planSelection,
+    }))
+  },
+
+  // Polylines are a top-level plan array (level-tagged via `levelId`), like
+  // notes/dimensions — free-form markup, not storey geometry.
+  addPolyline: (poly) => {
+    const id = planId('poly')
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        polylines: [...(s.floorPlan.polylines ?? []), { ...poly, id }],
+      },
+    }))
+    return id
+  },
+  updatePolyline: (id, patch) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        polylines: (s.floorPlan.polylines ?? []).map((p) => (p.id === id ? { ...p, ...patch } : p)),
+      },
+    }))
+  },
+  removePolyline: (id) => {
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: {
+        ...s.floorPlan,
+        polylines: (s.floorPlan.polylines ?? []).filter((p) => p.id !== id),
+      },
+      planSelection:
+        s.planSelection?.type === 'polyline' && s.planSelection.id === id ? null : s.planSelection,
+    }))
+  },
+
   addLevel: (name) => {
     const id = planId('lvl')
     get().pushHistory()
@@ -389,6 +560,67 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       return { floorPlan: { ...s.floorPlan, upperLevels: [...existing, level] } }
     })
     return id
+  },
+  duplicateLevel: (sourceId) => {
+    const s0 = get()
+    const plan = s0.floorPlan
+    // Only duplicate a real storey (levelById falls back to ground for unknowns).
+    if (!planLevels(plan).some((l) => l.id === sourceId)) return null
+    const src = levelById(plan, sourceId)
+    s0.pushHistory()
+    const newId = planId('lvl')
+    const cloned = cloneLevelGeometry(
+      { walls: src.walls, openings: src.openings, rooms: src.rooms },
+      planId,
+    )
+    const existing = plan.upperLevels ?? []
+    const slab = 0.3
+    const top = existing.reduce((m, l) => Math.max(m, l.elevation), 0)
+    const level: PlanUpperLevel = {
+      id: newId,
+      name: `${src.name} copy`,
+      elevation: top + plan.ceilingHeight + slab,
+      ...(src.ceilingHeight !== undefined ? { ceilingHeight: src.ceilingHeight } : {}),
+      walls: cloned.walls,
+      openings: cloned.openings,
+      rooms: cloned.rooms,
+    }
+    // Clone the source storey's furniture onto the new level (fresh ids).
+    const newItems = itemsOnLevel(s0.items, sourceId).map((it) => ({
+      ...(JSON.parse(JSON.stringify(it)) as typeof it),
+      id: planId('item'),
+      levelId: newId,
+    }))
+    set((s) => {
+      const f = s.finishes
+      // Room ids are plan-unique strings; the finish maps are typed by the
+      // known-room union, so work over string-keyed copies and cast back.
+      const floor = { ...f.floor } as Record<string, string>
+      const walls = { ...f.walls } as Record<string, string>
+      for (const [oldR, newR] of Object.entries(cloned.roomIdMap)) {
+        if (floor[oldR] !== undefined) floor[newR] = floor[oldR]
+        if (walls[oldR] !== undefined) walls[newR] = walls[oldR]
+      }
+      // Wall-accent keys are `${wallId}:${roomId}` — remap both halves.
+      const wallAccents = { ...f.wallAccents }
+      for (const [key, mat] of Object.entries(f.wallAccents)) {
+        const [wid, rid] = key.split(':')
+        const nw = cloned.wallIdMap[wid]
+        const nr = cloned.roomIdMap[rid]
+        if (nw && nr) wallAccents[`${nw}:${nr}`] = mat
+      }
+      return {
+        floorPlan: { ...s.floorPlan, upperLevels: [...(s.floorPlan.upperLevels ?? []), level] },
+        items: [...s.items, ...newItems],
+        finishes: {
+          ...f,
+          floor: floor as typeof f.floor,
+          walls: walls as typeof f.walls,
+          wallAccents,
+        },
+      }
+    })
+    return newId
   },
   removeLevel: (id) => {
     if (id === GROUND_LEVEL_ID) return

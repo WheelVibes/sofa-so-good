@@ -6,6 +6,7 @@ import {
 } from '../../scene/look'
 import type { AssetTier, QualitySettings, RenderTier } from '../../scene/quality'
 import { RENDER_TIERS } from '../../scene/quality'
+import type { DrawingLayer, DrawingLayerVisibility } from '../../ui/drawingLayers'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -15,7 +16,7 @@ import type { SliceCreator } from './types'
 export type LightsMode = 'auto' | 'on' | 'off'
 
 /** Selectable 3D scene surroundings (see `scene/SceneBackdrop`). */
-export type BackdropKind = 'city' | 'park' | 'hills' | 'none'
+export type BackdropKind = 'city' | 'dusk' | 'park' | 'hills' | 'custom' | 'none'
 
 /** Interface density. 'simple' hides advanced/technical clusters (analysis Tools,
  *  the floor-plan editor) for a friendlier first experience; 'pro' shows all. */
@@ -58,15 +59,24 @@ export interface UiSlice {
    *  'auto-hide' = fade to invisible; 'translucent' = fade to 15% opacity (default); 'opaque' = no fade. */
   wallRevealMode: 'auto-hide' | 'translucent' | 'opaque'
   setWallRevealMode: (m: 'auto-hide' | 'translucent' | 'opaque') => void
+  /** Which construction drawing-set layers (sheet groups) to include in the
+   *  exported set; a layer absent here = included (the full set). Session-only. */
+  drawingLayers: DrawingLayerVisibility
+  setDrawingLayer: (layer: DrawingLayer, on: boolean) => void
   /** Snap dragged/placed furniture to the alignment grid, and show the grid
    *  overlay on the floor while it's on. */
   snapEnabled: boolean
   /** Alignment-grid cell size in metres (e.g. 0.1 = 10 cm, 1 = 1 m). */
   gridSize: number
-  /** Selected 3D scene backdrop (surroundings outside the flat). Persisted via
-   *  editorPrefs, like snap/units. */
+  /** Selected scene backdrop — the equirectangular photo seen through windows in
+   *  walk mode. Persisted via editorPrefs, like snap/units. */
   backdrop: BackdropKind
   setBackdrop: (b: BackdropKind) => void
+  /** Live object URL of the user-uploaded `custom` backdrop photo, or null. Not
+   *  persisted directly (the blob lives in IDB via `storage/walkBackdrop`; this
+   *  URL is recreated on boot by `hydrateWalkBackdrop`). */
+  customBackdropUrl: string | null
+  setCustomBackdropUrl: (url: string | null) => void
   /** Interface density (simple hides advanced clusters). Persisted via editorPrefs. */
   uiMode: UiMode
   setUiMode: (m: UiMode) => void
@@ -187,8 +197,10 @@ export const UI_INITIAL: Pick<
   | 'lightsMode'
   | 'showCeilingFixtures'
   | 'wallRevealMode'
+  | 'drawingLayers'
   | 'autoShadowsOff'
   | 'backdrop'
+  | 'customBackdropUrl'
   | 'uiMode'
   | 'snapEnabled'
   | 'gridSize'
@@ -218,10 +230,12 @@ export const UI_INITIAL: Pick<
   lightsMode: 'auto',
   showCeilingFixtures: false,
   wallRevealMode: 'translucent' as const,
+  drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
   snapEnabled: false,
   gridSize: 0.5,
   backdrop: 'city' as BackdropKind,
+  customBackdropUrl: null,
   uiMode: 'simple' as UiMode,
   presenting: false,
   presentationIncludeTour: false,
@@ -316,6 +330,8 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setLightsMode: (m) => set({ lightsMode: m }),
   setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),
   setWallRevealMode: (m) => set({ wallRevealMode: m }),
+  setDrawingLayer: (layer, on) =>
+    set((s) => ({ drawingLayers: { ...s.drawingLayers, [layer]: on } })),
   setPresenting: (presenting) => set({ presenting }),
   setPresentationIncludeTour: (presentationIncludeTour) => set({ presentationIncludeTour }),
   cycleLightsMode: () =>
@@ -326,6 +342,18 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   toggleSnap: () => set((s) => ({ snapEnabled: !s.snapEnabled })),
   setGridSize: (m) => set({ gridSize: m }),
   setBackdrop: (backdrop) => set({ backdrop }),
+  setCustomBackdropUrl: (url) =>
+    set((s) => {
+      // Revoke the previous live URL so swapping photos doesn't leak blobs.
+      if (s.customBackdropUrl && s.customBackdropUrl !== url) {
+        try {
+          URL.revokeObjectURL(s.customBackdropUrl)
+        } catch {
+          /* not a revocable URL */
+        }
+      }
+      return { customBackdropUrl: url }
+    }),
   setUiMode: (uiMode) => {
     set({ uiMode })
     // Pro features are gated on the mode, so re-resolve the flag map when it flips.

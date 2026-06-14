@@ -65,6 +65,10 @@ export interface PlanRoom {
   wall?: string
   /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
   ceiling?: CeilingConfig
+  /** Optional in-plane offset (metres) of the room's name label from its
+   *  centroid, so a label can be nudged clear of furniture / a tight room
+   *  (Sweet Home 3D movable labels). Absent → centred on the centroid. */
+  labelOffset?: PlanVec2
 }
 
 /** Per-room ceiling treatment. `flat` (or absent) renders the plain ceiling. */
@@ -117,6 +121,52 @@ export interface FloorPlan {
   /** Optional storeys above the ground floor (the top-level fields above ARE
    *  the ground floor). Absent/empty = the single-storey plans of today. */
   upperLevels?: PlanUpperLevel[]
+  /** Free-text annotation notes placed on the plan (PARITY-DIMTEXT). Each is
+   *  level-tagged (`levelId` absent = ground). Additive + optional. */
+  notes?: PlanNote[]
+  /** Custom dimension lines drawn on the plan (PARITY-DIMTEXT). Length is
+   *  computed from the endpoints. Level-tagged. Additive + optional. */
+  dimensions?: PlanDimension[]
+  /** Free-form polyline markup drawn on the plan (PARITY-POLYLINE) — open or
+   *  closed paths with optional dashed stroke / end arrow, for sketching zones,
+   *  routes and callouts beyond walls/rooms. Level-tagged. Additive + optional. */
+  polylines?: PlanPolyline[]
+}
+
+/** A free-text note placed on the 2D plan at a world position. */
+export interface PlanNote {
+  id: string
+  /** World position (metres). */
+  x: number
+  z: number
+  text: string
+  /** Storey the note sits on; absent = ground (F13). */
+  levelId?: string
+}
+
+/** A custom dimension line between two world points (metres). */
+export interface PlanDimension {
+  id: string
+  a: PlanVec2
+  b: PlanVec2
+  /** Storey the dimension sits on; absent = ground (F13). */
+  levelId?: string
+}
+
+/** A free-form polyline annotation: an ordered list of world points (metres),
+ *  optionally closed into a loop, with optional dashed stroke + end arrowhead. */
+export interface PlanPolyline {
+  id: string
+  /** Ordered vertices (≥2). */
+  points: PlanVec2[]
+  /** Join the last point back to the first (a closed loop); absent = open. */
+  closed?: boolean
+  /** Dashed stroke instead of solid; absent = solid. */
+  dashed?: boolean
+  /** Arrowhead at the final point (open polylines only); absent = none. */
+  arrow?: boolean
+  /** Storey the polyline sits on; absent = ground (F13). */
+  levelId?: string
 }
 
 /** Default wall colour for custom plans when `wallColor` is unset. */

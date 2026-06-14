@@ -31,6 +31,55 @@ export function roomPathD(r: PlanRoom): string {
   return d
 }
 
+export interface PlanContentBounds {
+  minX: number
+  minZ: number
+  maxX: number
+  maxZ: number
+}
+
+/**
+ * True world-metre bounding box of the **drawn** apartment (walls + room
+ * shapes), as opposed to `planBounds` which returns only the max corner against
+ * `plan.extent`. The minimap centres on this so the apartment sits in the middle
+ * of the widget regardless of where it lives in plan space or how the extent is
+ * padded. Returns a zero box for an empty plan.
+ */
+export function planContentBounds(plan: FloorPlan): PlanContentBounds {
+  let minX = Number.POSITIVE_INFINITY
+  let minZ = Number.POSITIVE_INFINITY
+  let maxX = Number.NEGATIVE_INFINITY
+  let maxZ = Number.NEGATIVE_INFINITY
+  const acc = (x: number, z: number) => {
+    if (x < minX) minX = x
+    if (z < minZ) minZ = z
+    if (x > maxX) maxX = x
+    if (z > maxZ) maxZ = z
+  }
+  for (const w of plan.walls) {
+    if (wallLength(w) === 0) continue
+    acc(w.start[0], w.start[1])
+    acc(w.end[0], w.end[1])
+  }
+  for (const r of plan.rooms) {
+    if (r.polygon && r.polygon.length >= 3) {
+      for (const [px, pz] of r.polygon) acc(px, pz)
+    } else if (r.width > 0 && r.depth > 0) {
+      acc(r.origin[0], r.origin[1])
+      acc(r.origin[0] + r.width, r.origin[1] + r.depth)
+      if (r.extension && r.extension.width > 0 && r.extension.depth > 0) {
+        acc(r.origin[0] + r.extension.offset[0], r.origin[1] + r.extension.offset[1])
+        acc(
+          r.origin[0] + r.extension.offset[0] + r.extension.width,
+          r.origin[1] + r.extension.offset[1] + r.extension.depth,
+        )
+      }
+    }
+  }
+  if (!Number.isFinite(minX)) return { minX: 0, minZ: 0, maxX: 0, maxZ: 0 }
+  return { minX, minZ, maxX, maxZ }
+}
+
 export interface OpeningSeg {
   id: string
   kind: 'door' | 'window'

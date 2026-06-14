@@ -1,5 +1,6 @@
 import { getSurfaceMaterial, getWoodMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 /**
@@ -65,9 +66,13 @@ export function Sideboard({ props }: { props: ParamProps }) {
   return (
     <group>
       {/* Carcass */}
-      <mesh castShadow receiveShadow position={[0, legH + bodyH / 2, 0]} material={wood}>
-        <boxGeometry args={[width, bodyH, depth]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, legH + bodyH / 2, 0]}
+        material={wood}
+        args={[width, bodyH, depth]}
+      />
 
       {/* Fronts, bay by bay */}
       {Array.from({ length: bays }, (_, b) => {
@@ -83,9 +88,7 @@ export function Sideboard({ props }: { props: ParamProps }) {
                 const y = legH + gap + dh / 2 + r * (dh + gap)
                 return (
                   <group key={r}>
-                    <mesh position={[x, y, faceZ]} material={wood}>
-                      <boxGeometry args={[bayW, dh, 0.02]} />
-                    </mesh>
+                    <BeveledBox position={[x, y, faceZ]} material={wood} args={[bayW, dh, 0.02]} />
                     <Pull x={x} y={y} />
                   </group>
                 )
@@ -99,9 +102,11 @@ export function Sideboard({ props }: { props: ParamProps }) {
         const hingeLeft = b % 2 === 0
         return (
           <group key={b}>
-            <mesh position={[x, y, faceZ]} material={wood}>
-              <boxGeometry args={[bayW, bodyH - gap * 2, 0.02]} />
-            </mesh>
+            <BeveledBox
+              position={[x, y, faceZ]}
+              material={wood}
+              args={[bayW, bodyH - gap * 2, 0.02]}
+            />
             <Pull x={x + (hingeLeft ? bayW / 2 - 0.04 : -bayW / 2 + 0.04)} y={y} />
           </group>
         )
@@ -109,9 +114,13 @@ export function Sideboard({ props }: { props: ParamProps }) {
 
       {/* Base */}
       {legs === 'plinth' ? (
-        <mesh castShadow receiveShadow position={[0, legH / 2, 0.01]} material={wood}>
-          <boxGeometry args={[width - 0.1, legH, depth - 0.06]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, legH / 2, 0.01]}
+          material={wood}
+          args={[width - 0.1, legH, depth - 0.06]}
+        />
       ) : (
         [-1, 1].map((sx) =>
           [-1, 1].map((sz) => {
@@ -127,15 +136,14 @@ export function Sideboard({ props }: { props: ParamProps }) {
             }
             // Tapered mid-century leg: a thin box, splayed slightly outward.
             return (
-              <mesh
+              <BeveledBox
                 key={`${sx}.${sz}`}
                 castShadow
                 position={[lx + sx * 0.02, legH / 2, lz + sz * 0.02]}
                 rotation={[sz * 0.12, 0, -sx * 0.12]}
                 material={legMat}
-              >
-                <boxGeometry args={[0.035, legH, 0.035]} />
-              </mesh>
+                args={[0.035, legH, 0.035]}
+              />
             )
           }),
         )

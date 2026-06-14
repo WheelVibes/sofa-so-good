@@ -64,7 +64,8 @@ same change that reshapes a system.
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
   `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/`,
-  `lightEmitters.ts`. Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
+  `lightEmitters.ts` (fixture registry + `resolveEmitterSpec`; any item with `props.lightOn`
+  emits via the `OVERRIDE_EMITTER` fallback — `itemAsLight` flag). Sub-dirs: `gltf/` (`decoders.ts` Draco@boot, `lod.ts`,
   `textureBudget.ts`, `finishTargets.ts`, `mirrorPlane.ts`); `convert/` (any-format→GLB:
   `formats.ts`/`loadToObject.ts`/`toGlb.ts`/`convertModel.ts`); `optimize/` (`optimizeGlb.ts`
   pure worker-safe weld/prune+Draco+WebP, never-throws; opt-in KTX2 `lib/ktx2encode.ts`;
@@ -85,10 +86,14 @@ same change that reshapes a system.
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
   (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in
   `ui/PanoramaModal.tsx`, `panorama` flag), cameras, selection,
-  `SceneBackdrop.tsx` dispatcher (City/Park/Hills/Studio); `CityBackdrop.tsx` (instanced two-ring HDB
-  estate + rooftop tanks + night-lit windows), `ParkBackdrop.tsx`/`HillsBackdrop.tsx` (instanced trees /
-  depth-banded hills), `StudioBackdrop.tsx` (seamless gradient-dome cyclorama) — all share `Ground.tsx`
-  + `instancedBatch.tsx`. Main Canvas is **`frameloop="demand"`**:
+  `SceneBackdrop.tsx` — the surroundings are a **flat equirectangular photo as `scene.background`**
+  (skybox; **zero per-frame draws**) shown **in walk mode only** (seen through windows); orbit renders the
+  plain procedural sky with no surroundings (`isPhotoBackdropActive(kind, cameraMode, hasCustom)` gates it;
+  `Sky.tsx` hides its dome when active). Presets `city/dusk/park/hills` bake procedurally
+  (`backdropEquirect.ts` + pure `backdropHorizon.ts` buildings/treeline/hills generators); `custom` is a
+  **user-uploaded photo** (persisted in IDB via `storage/walkBackdrop.ts`, hydrated on boot, controlled by
+  `ui/scene/BackdropUpload.tsx` + the `customBackdrop` flag); `none` = plain sky. (The legacy instanced 3D
+  City/Park/Hills/Studio estates were removed.) Main Canvas is **`frameloop="demand"`**:
   `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
   `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
   `bakeInstanceMatrix`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/
@@ -292,8 +297,14 @@ same change that reshapes a system.
   Room/Item/Source/SKU/W·D·H mm/Qty/Unit/Total + grand-total footer; `ui/openFurnitureCsv.ts` =
   Blob download). File menu + mobile + ⌘K, `shopExport` flag (simple).
 - **Drawing set** (`ui/drawingSet.ts` + `openDrawingSet.ts`): a paginated multi-sheet "plan set"
-  (cover + plan + per-wall elevations + cross-section + lighting + FF&E, title blocks, `@page` A4)
-  reusing all the pure renderers — the formal counterpart to the one-page `report.ts`.
+  (cover + plan + per-wall elevations + cross-section + lighting + electrical (`floorplan/electricalPlan*`,
+  `electricalPlan` flag) + plumbing (`floorplan/plumbingPlan*`, `plumbingPlan` flag — points auto-derived
+  from fixtures) + a per-room finishes schedule (`floorplan/finishSchedule.ts` — floor/wall material
+  callouts) + FF&E, title blocks, `@page` A4) reusing all the pure renderers — the formal counterpart
+  to the one-page `report.ts`. **Sheet/layer toggles** (PARITY-DRAWLAYERS): `ui/drawingLayers.ts`
+  (dependency-light list + `DrawingLayerVisibility` so the heavy builder stays dynamically imported) +
+  `buildDrawingSetHtml`'s optional `layers` arg gate each group on/off (floor plan always included);
+  the Tools-menu "Include sheets" checklist writes `uiSlice.drawingLayers` (session-only).
 - **CAD plan exports**: `ui/openDxf.ts` (`export/dxf.ts` `planToDxf`) downloads the plan as DXF;
   `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
   `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
@@ -303,6 +314,11 @@ same change that reshapes a system.
   totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the
   builder). Flag `shopExport` (simple, prod); File menu + mobile File + ⌘K. IKEA product links/SKUs only
   with retailer defs; links dev-gated via `ikeaLive` (licensing) — generic export ships in prod.
+- **Quote / bill of quantities** (`export/boq.ts` `buildBoq` → priced sections [FF&E, finishes by area,
+  carpentry by linear metre]; `boqToHtml`/`boqToCsv`, and `export/boqXlsx.ts` `boqToXlsx` — a hand-built
+  minimal OOXML `.xlsx` via `fflate`, mirroring the CSV columns). `ui/openBoq.ts` `assembleBoqInput`
+  (shared by the HTML quote + the Excel download `ui/downloadBoqXlsx.ts`) prices both identically. Flag
+  `boq` (pro); Tools menu (desktop). PARITY-QUOTEXLSX.
 - **Lighting plan** (`lighting2d/lightingPlan.ts` pure → fixtures from the `LIGHT_EMITTERS` registry
   with world pos/height/intensity/coverage + a schedule, honouring per-item `enabled()` gates;
   `ui/lighting2d/lightingPlanSvg.ts` draws walls + coverage circles + glyphs).
@@ -358,13 +374,24 @@ same change that reshapes a system.
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): 2D editor of store `floorPlan`
   — walls, rectangular/L-shape (`extension`)/free-`polygon` rooms (Polygon + Auto-room),
   doors/windows, ceiling height (global + per-room), grid+corner snap, per-room floor
-  finishes, length labels. Per-room **floor + wall finishes** resolve through
+  finishes, length labels, and a **furniture name/price label** toggle (`planLabels`
+  flag + pure `ui/floorplan/planLabels.ts`, SH3D parity). Per-room **floor + wall finishes** resolve through
   `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
   the finish setters write through to the active plan and plan activation prunes stale
-  custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split** + draggable endpoint handles (`moveWallVertex`) for
-  non-orthogonal shapes. Live furniture as `canPlace`-checked footprints (active storey
+  custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + **exact length/angle** inspector
+  fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) for
+  non-orthogonal shapes. **Text notes** (Text tool → `plan.notes`, draggable/editable; also rendered on
+  the report + drawing-set plan sheets via `reportPlanSvg` `notesSvg`, level-scoped by `levelAsPlan` —
+  PARITY-PLANTEXT) + **dimension
+  lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).
+  **Polyline markup** (Polyline tool → `plan.polylines`, open/closed + dashed + end-arrow; pure
+  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE). **Draggable room-name labels**
+  (`room.labelOffset`; `roomLabelPosition` = centroid + offset, shared by editor + report/drawing set —
+  PARITY-ROOMLABEL). Live furniture as `canPlace`-checked footprints (active storey
   only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
-  "＋ Level" (adds + switches) + ✕ on upper tabs (confirmed `removeLevel`); every tool,
+  "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
+  furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an
+  **"All levels"** toggle draws the other storeys' walls as a dimmed underlay to align floors; every tool,
   overlay and `PlanInspector` edit routes through the active level (`levelAsPlan` reads,
   `levelId` action args; `updateRoom`/`setRoomCeiling`/finish write-through search all
   storeys by room id). **`P` toggles
@@ -466,6 +493,8 @@ same change that reshapes a system.
   fails soft to `furniturePrices.ts`); **AI photoreal** (`ui/ai/`, BYO-key i2i in Share; after a result, "Redesign this
   render" style chips re-run the same call with a restyled prompt — pure `ai/styleVariants.ts`
   + `ui/ai/variantGallery.ts` reducer — into a selectable/downloadable variant gallery);
+  **AI auto-furnish** (`ai/autoLayoutAi.ts` prompt+parse + `layout/aiLayoutApply.ts` validate/clamp,
+  BYO-key LLM via the ⌘K "AI auto-furnish", `aiLayout` flag);
   **Plan sharing** (`planShare.ts`, backend-less `#/plans/<code>`); **3D design link**
   (`designShare.ts`, `#/design/<code>` — same codec, session noise + non-portable
   upload defs stripped, ~16 KB code budget with a `.sofa.json` fallback message,

@@ -158,6 +158,10 @@ function getWoodMaps(): { albedo: Texture; normal: Texture; rough: Texture } {
     }
   }
   const a = canvasFrom(albedo)
+  // Albedo is a colour map → sRGB (the other albedo maps in this file all tag it;
+  // wood was missing it, rendering its grain with linear-instead-of-sRGB gamma).
+  // The normal + roughness maps stay linear (the CanvasTexture default).
+  a.colorSpace = SRGBColorSpace
   const n = canvasFrom(heightToNormalRGBA(height, N, 3))
   const rg = canvasFrom(rough)
   woodMaps = { albedo: a, normal: n, rough: rg }

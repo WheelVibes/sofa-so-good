@@ -66,4 +66,14 @@ describe('editorPrefs', () => {
     expect(p.backdrop).toBe('hills')
     expect(p.uiMode).toBe('simple')
   })
+
+  it('round-trips the plan-labels mode (valid value persisted + restored)', () => {
+    localStorage.setItem(KEY, JSON.stringify({ planLabels: 'price' }))
+    loadEditorPrefs()
+    expect(useStore.getState().planLabels).toBe('price')
+    // An invalid stored value falls back to off.
+    localStorage.setItem(KEY, JSON.stringify({ planLabels: 'bogus' }))
+    loadEditorPrefs()
+    expect(useStore.getState().planLabels).toBe('off')
+  })
 })

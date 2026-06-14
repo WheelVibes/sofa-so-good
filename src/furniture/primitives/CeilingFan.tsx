@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { Group, MeshStandardMaterial } from 'three'
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import { useAnimatedSource } from '../../scene/useAnimatedSource'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
@@ -21,7 +21,7 @@ export function CeilingFan({ props }: { props: ParamProps }) {
 
   useFrame((_, dt) => {
     if (bladesRef.current) bladesRef.current.rotation.y += dt * 3.2
-    if (lightRef.current) lightRef.current.emissiveIntensity = 0.05 + getFixtureGlow() * 0.8
+    if (lightRef.current) lightRef.current.emissiveIntensity = fixtureEmissiveIntensity('shade')
   })
 
   const dropY = mountH - 0.25

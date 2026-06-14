@@ -1,7 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useRef } from 'react'
 import type { MeshStandardMaterial } from 'three'
-import { getFixtureGlow } from '../../scene/lighting/fixtureGlow'
+import { fixtureEmissiveIntensity } from '../../scene/lighting/fixtureGlow'
 import type { ParamProps } from '../types'
 import { readNum, readStr } from './shared'
 import { seg, useDetail } from './useDetail'
@@ -22,7 +22,7 @@ export function TableLamp({ props }: { props: ParamProps }) {
   const shadeRef = useRef<MeshStandardMaterial>(null)
   const detail = useDetail()
   useFrame(() => {
-    if (shadeRef.current) shadeRef.current.emissiveIntensity = 0.06 + getFixtureGlow() * 0.7
+    if (shadeRef.current) shadeRef.current.emissiveIntensity = fixtureEmissiveIntensity('shade')
   })
 
   return (
