@@ -76,8 +76,9 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   → success toast — the earlier "unverifiable headless" gap is closed by asserting in the real browser).
   Now also exports **STL** (3D printing / CAD) and **USDZ** (iOS AR Quick Look). **Still open:**
   worker-streamed export for very large scenes.
-- [~] F22 [PROD] Mobile AR "view in your room": **USDZ export shipped** (Q-3DEXPORT → iOS AR Quick
-  Look). Remaining: an in-app `<model-viewer>`/Scene-Viewer launch surface (Android) wired to the GLB/USDZ.
+- [~] F22 [PROD] Mobile AR "view in your room": **shipped (PARITY-AR)** — Tools → "View in your room"
+  opens iOS AR Quick Look from USDZ, GLB download elsewhere (`ui/viewInAr.ts`, `viewInAr` flag).
+  Remaining: Android Scene Viewer (needs an https-hosted model → a backend/upload step).
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
 - [ ] GE4 tail: "Update original" full export round-trip needs a real-env verification pass.
 

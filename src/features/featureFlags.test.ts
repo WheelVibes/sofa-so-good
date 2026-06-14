@@ -102,6 +102,11 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').slopingWalls).toBe(true)
   })
 
+  it('viewInAr (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    expect(resolveFlags(true, {}, false, 'simple').viewInAr).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').viewInAr).toBe(true)
+  })
+
   it('shopExport (simple tier, prod default on) is available in BOTH Simple and Pro modes', () => {
     // Production build, no overrides — the shoppable buy-list ships in prod…
     expect(resolveFlags(false, {}, false, 'simple').shopExport).toBe(true)

@@ -14,6 +14,7 @@ import { openMoodboard } from '../../openMoodboard'
 import { downloadPlanSvg } from '../../openPlanSvg'
 import { openDesignReport } from '../../openReport'
 import { exportScene3d } from '../../openSceneExport'
+import { viewInAr } from '../../viewInAr'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** Tools cluster: budget, clearance checks, sun study, walkthrough, report.
@@ -152,6 +153,7 @@ export function ToolsMenu() {
   const fDxf = useFeature('dxfExport')
   const fBoq = useFeature('boq')
   const fSceneExport = useFeature('sceneExport3d')
+  const fViewInAr = useFeature('viewInAr')
 
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
@@ -341,6 +343,14 @@ export function ToolsMenu() {
             onClick={() => void exportScene3d('usdz')}
           />
         </>
+      )}
+      {fViewInAr && (
+        <MenuItem
+          icon="Walkthrough"
+          label="View in your room (AR)"
+          sub="Place the design in your room — iOS AR, or an AR-ready GLB"
+          onClick={() => void viewInAr()}
+        />
       )}
       {fReport && (
         <>

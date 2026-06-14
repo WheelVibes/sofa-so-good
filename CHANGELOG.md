@@ -14,6 +14,17 @@ pruned from `main`; entries from C251 on (branch
   textures resolve through the loading manager like OBJ/DAE), and the upload dialog's format hint.
   Format detection unit-tested; sibling-resolution path shared with the other converters.
 
+## PARITY-AR: "view in your room" AR launch — Coohom parity (no backend)
+
+- New **"View in your room (AR)"** (Tools, `viewInAr` flag): places the live design in AR with no
+  backend or heavy dependency. On **iOS** it exports USDZ and opens Apple **AR Quick Look** via an
+  `<a rel="ar">` (with the required child `<img>` + the click's user gesture) straight from a blob URL;
+  **elsewhere** it downloads an AR-ready GLB with a toast (Android Scene Viewer needs an https-hosted
+  model, which isn't possible client-only — so we hand over the file). `ui/viewInAr.ts` reuses
+  `buildExportRoot` + the USDZ/GLB exporters.
+- Completes the bulk of F22. Flag gating unit-tested; the GLB-fallback path browser-verified via
+  `scenarios/view-in-ar-simple.json` (iOS Quick Look needs a real device).
+
 ## PARITY-VIDEO: keyframed walkthrough-video export — Coohom/SweetHome3DJS parity
 
 - New **"Record walkthrough video"** (View → Saved views, under the `walkthrough` flag): flies the
