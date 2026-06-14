@@ -236,6 +236,7 @@ export function CatalogDrawer() {
               <Icon.Search width={16} height={16} className="icn" />
               <input
                 type="search"
+                aria-label="Search the furniture catalog"
                 value={query}
                 onChange={(e) => onSearch(e.target.value)}
                 onFocus={() => setSearchFocused(true)}
@@ -267,7 +268,7 @@ export function CatalogDrawer() {
               ) : null}
             </div>
             {q && allCards.length > 0 ? (
-              <div className="cat-count">
+              <div className="cat-count" aria-live="polite">
                 {allCards.length} {allCards.length === 1 ? 'match' : 'matches'}
               </div>
             ) : null}

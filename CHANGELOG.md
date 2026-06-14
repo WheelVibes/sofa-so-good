@@ -58,6 +58,14 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## a11y: catalog search labels + live result count
+
+- Accessibility pass on the catalog search: the input now carries an explicit `aria-label` (it was
+  labelled only by its placeholder, which screen readers don't treat as a label), the result-count line
+  is an `aria-live="polite"` region (so "N matches" is announced as the user types). The recent-search chips
+  are already individually labelled buttons. Additive ARIA only — no behaviour or rendering change
+  (tsc + full suite green).
+
 ## QOL: clear recent catalog searches
 
 - The recent-searches chip row now ends with a **"Clear"** button that wipes the saved terms (calls the
