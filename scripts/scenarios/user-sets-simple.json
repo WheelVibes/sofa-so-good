@@ -1,0 +1,22 @@
+{
+  "name": "user-sets-simple",
+  "description": "IXT-SUITES: My sets (save a selection as a reusable furniture set, pro). Hidden in Simple, present in Pro; selecting items + saveSelectionAsSet stores a named set, which deleteUserSet removes. Store-driven (UI is in the Arrange menu).",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1'); localStorage.removeItem('hdb_user_sets') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.userSets === false" }, "timeout": 5000, "failMessage": "userSets should be OFF in Simple mode" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.userSets === true" }, "timeout": 5000, "failMessage": "userSets should be ON in Pro mode" },
+    { "name": "place-and-select", "eval": "(()=>{const s=window.__store.getState(); s.setItems([{id:'us1',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}},{id:'us2',defId:'coffee-table',position:[8.3,2.55],rotation:0,props:{}}]); s.setSelectedItemIds(['us1','us2']);})()" },
+    { "name": "assert-selected", "waitFor": { "store": "state.selectedItemIds && state.selectedItemIds.length === 2" }, "timeout": 5000, "failMessage": "selection of 2 items did not take" },
+    { "name": "save-set", "eval": "(()=>{window.__sid = window.__store.getState().saveSelectionAsSet('Living set');})()" },
+    { "name": "assert-saved", "waitFor": { "store": "state.userSets.length === 1 && state.userSets[0].name === 'Living set'" }, "timeout": 5000, "failMessage": "saveSelectionAsSet did not store the set" },
+    { "name": "shot", "screenshot": "user-set-saved" },
+    { "name": "delete-set", "eval": "(()=>{window.__store.getState().deleteUserSet(window.__sid);})()" },
+    { "name": "assert-deleted", "waitFor": { "store": "state.userSets.length === 0" }, "timeout": 5000, "failMessage": "deleteUserSet did not remove the set" },
+    { "name": "back-to-simple", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.userSets === false" }, "timeout": 5000 }
+  ]
+}

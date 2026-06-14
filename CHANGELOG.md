@@ -58,6 +58,14 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## IXT-SUITES: interaction-test ladder for "My sets"
+
+- Added `scripts/scenarios/user-sets-simple.json` (15 steps, 1 screenshot) covering the `userSets` pro
+  feature: asserts hidden in Simple / present in Pro, places + selects two items (`setSelectedItemIds`),
+  saves the selection as a named set (`saveSelectionAsSet` → `userSets.length === 1`), then deletes it
+  (`deleteUserSet`). Store-driven (the UI lives in the Arrange menu). Test coverage only — no app code
+  changed.
+
 ## IXT-SUITES: interaction-test ladder for pinned comments
 
 - Added `scripts/scenarios/comments-simple.json` (22 steps, 2 screenshots) covering the `comments` pro
