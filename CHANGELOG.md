@@ -58,6 +58,14 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## IXT-SUITES: interaction-test ladder for the daylight & ventilation check
+
+- Added `scripts/scenarios/daylight-simple.json` (17 steps, 2 screenshots) covering the `daylight` pro
+  feature: asserts hidden in Simple / present in Pro, opens the panel (`#daylightPanel`, "Daylight &
+  ventilation" with the per-room glazing/openable breakdown + PASS/FAIL badges + Daylight/Ventilation
+  scores), checks the mobile bottom-sheet, closes, and confirms it's hidden again in Simple. Test
+  coverage only — no app code changed.
+
 ## a11y: catalog search labels + live result count
 
 - Accessibility pass on the catalog search: the input now carries an explicit `aria-label` (it was
