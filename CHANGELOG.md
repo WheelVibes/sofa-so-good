@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PHOTO-COLORSPACE: fix wood-albedo colour space + lock texture colour management
+
+- Audited every procedural texture path (`materials/procedural/generators.ts`, `furnitureMaterials.ts`,
+  GLB-loader + upload) under three 0.184 (texture default `NoColorSpace`). All albedo/colour maps are
+  `SRGBColorSpace` and data maps (normal/rough/metal/AO) stay linear — **except the wood albedo, which
+  was missing the sRGB tag** and rendered its grain with linear-instead-of-sRGB gamma (wood is one of
+  the most-used finishes). Fixed (one line), matching every other albedo map in the file.
+- Added `furnitureMaterialColorSpace.test.ts` as a **regression guard**: asserts wood/stone/concrete/
+  velvet materials tag their `map` sRGB and their `normalMap`/`roughnessMap` linear (a minimal canvas
+  2D stub lets the generators run under happy-dom, which has no real canvas). Closes the #1
+  photorealism roadmap item (PHOTOREALISM.md).
+
 ## PARITY-ROOMLABEL: drag-to-reposition room-name labels on the 2D plan
 
 - Room-name labels can now be **dragged** off their centroid in the 2D editor (Sweet Home 3D movable
