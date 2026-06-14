@@ -50,6 +50,15 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## QOL: recent catalog searches
+
+- The catalog search now remembers **recent search terms** (per-device, most-recent-first, de-duplicated,
+  capped at 6) and shows them as clickable chips when the field is focused and empty — one tap re-runs a
+  past search, like Coohom/modern catalogs. Terms are committed on Enter; chips use `onMouseDown`
+  preventDefault so a click lands before the focus-blur hides them. New pure `recentSearches.ts`
+  (load/add/cap/parse, storage-guarded) with 7 unit tests; browser-verified (search "armchair" then
+  "sofa" → chips `["sofa","armchair"]`, click re-applies).
+
 ## QOL: catalog search result count
 
 - The catalog search now shows a small "N matches" count under the field when a query has results

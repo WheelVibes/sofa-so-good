@@ -7,6 +7,7 @@ import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
+import { loadRecent, pushRecent } from './recentSearches'
 import { fuzzySearchSmart } from './searchSynonyms'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
@@ -87,6 +88,9 @@ export function CatalogDrawer() {
   const [page, setPage] = useState(0)
   const [sortBy, setSortBy] = useState<SortKey>(() => loadBrowsePrefs().sortBy)
   const [maxPrice, setMaxPrice] = useState('')
+  // Recent searches: chips shown when the field is focused + empty (commit on Enter).
+  const [recent, setRecent] = useState<string[]>(() => loadRecent())
+  const [searchFocused, setSearchFocused] = useState(false)
 
   useEffect(() => {
     if (open && phStatus === 'idle') void bootstrapRemote()
@@ -234,6 +238,8 @@ export function CatalogDrawer() {
                 type="search"
                 value={query}
                 onChange={(e) => onSearch(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => setSearchFocused(false)}
                 onKeyDown={(e) => {
                   // Esc clears a non-empty query (keeping focus to keep typing),
                   // else blurs the field — a quick way out of search.
@@ -241,6 +247,9 @@ export function CatalogDrawer() {
                     e.stopPropagation()
                     if (query) onSearch('')
                     else e.currentTarget.blur()
+                  } else if (e.key === 'Enter' && query.trim()) {
+                    // Commit the term to recent searches (most-recent-first).
+                    setRecent(pushRecent(query))
                   }
                 }}
                 placeholder={`Search ${totalCount} items…`}
@@ -260,6 +269,24 @@ export function CatalogDrawer() {
             {q && allCards.length > 0 ? (
               <div className="cat-count">
                 {allCards.length} {allCards.length === 1 ? 'match' : 'matches'}
+              </div>
+            ) : null}
+            {searchFocused && !q && recent.length > 0 ? (
+              <div className="cat-recent">
+                {recent.map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    className="cat-recent-chip"
+                    // Keep input focus through the click so the chip doesn't
+                    // unmount on blur before the click registers.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => onSearch(term)}
+                  >
+                    <Icon.Search width={11} height={11} />
+                    {term}
+                  </button>
+                ))}
               </div>
             ) : null}
           </div>
