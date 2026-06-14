@@ -37,6 +37,15 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## Fix: wall reveal froze mid-fade (frameloop="demand")
+
+- The orbit wall-reveal opacity lerp runs in `useFrame`, but the canvas renders on-demand — so when
+  the camera stopped, the loop halted **before the fade finished**, leaving walls stuck part-faded
+  (measured one at 0.53 instead of 0.15). Most visible on windowed walls (the un-faded window overlay
+  made the stall obvious). Now `WallSegment` + the custom-plan `FadeWall`/`FadeWindow` call
+  `invalidate()` while `|opacity − target| > ε`, keeping frames coming until the fade settles. Probed
+  across 8 orbit angles: near walls now reach 0.15–0.19, far walls 0.91–1.00.
+
 ## Tweak: stronger orbit wall reveal + a 2D-plan compass rose
 
 - **Wider wall-fade threshold** (per request): the orbit dollhouse reveal now fades near walls *and*

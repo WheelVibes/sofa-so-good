@@ -50,7 +50,7 @@ function revealFactor(
 
 function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number; color: string }) {
   const ref = useRef<Mesh>(null)
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
   useFrame(() => {
     const mesh = ref.current
@@ -66,6 +66,9 @@ function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number
     mat.opacity += (target - mat.opacity) * 0.18
     mat.transparent = mat.opacity < 0.98
     mat.depthWrite = mat.opacity > 0.6
+    // frameloop="demand": keep rendering until the fade settles (else it freezes
+    // mid-fade when the camera stops).
+    if (Math.abs(mat.opacity - target) > 0.005) invalidate()
   })
   return (
     <mesh
@@ -366,7 +369,7 @@ function FadeWindow({
   cz: number
 }) {
   const ref = useRef<Mesh>(null)
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
   const cameraMode = useStore((s) => s.cameraMode)
   const BASE = 0.32
   useFrame(() => {
@@ -380,6 +383,7 @@ function FadeWindow({
     }
     const target = BASE * factor
     mat.opacity += (target - mat.opacity) * 0.18
+    if (Math.abs(mat.opacity - target) > 0.003) invalidate()
   })
   return (
     <mesh ref={ref} position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>

@@ -240,7 +240,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // Wall height follows the (adjustable) plan ceiling height; per-wall
   // `topHeight` overrides (e.g. parapets) still win inside buildWallSegments.
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
-  const { camera } = useThree()
+  const { camera, invalidate } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
 
@@ -291,6 +291,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     if (Math.abs(target - opacityRef.current) < 0.004 && target >= 0.999) return
     const cur = opacityRef.current + (target - opacityRef.current) * 0.18
     opacityRef.current = cur
+    // The canvas is frameloop="demand": once the camera stops, the loop halts —
+    // which would freeze this opacity lerp mid-fade (walls stuck part-faded).
+    // Keep requesting frames until the fade settles.
+    if (Math.abs(cur - target) > 0.005) invalidate()
     // Publish so windows/doors on this wall fade with it.
     if (revealable) setWallOpacity(wall.id, cur)
     const visible = cur > 0.02
