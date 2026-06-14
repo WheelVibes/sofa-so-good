@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES: interaction-test ladder for Smart Start
+
+- Added `scripts/scenarios/smart-start-simple.json` (20 steps, 3 screenshots) covering the Smart Start
+  one-click furnish wizard (simple-tier): asserts it's present in Simple mode, opens the wizard modal
+  (style grid: Move-in Default / Scandi Calm / Warm Industrial / Cozy Tropical / Japandi / Coastal +
+  brief input), picks a style, clicks "Furnish my flat" and confirms an emptied flat is furnished
+  (`state.items.length > 0`) with the modal closed, then checks the mobile modal at 390×844. Test
+  coverage only — no app code changed.
+
 ## IXT-SUITES: interaction-test ladder for clearance checks
 
 - Added `scripts/scenarios/clearance-checks-simple.json` (21 steps, 3 screenshots) covering the

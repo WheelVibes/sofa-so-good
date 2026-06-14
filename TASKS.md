@@ -68,8 +68,9 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   renderCompare; batch 3 — 2D-editor tools journey (plan labels, level duplicate + all-levels, wall
   reverse/join, text notes + dimension lines) → `plan-editor-tools-journey.json`; batch 4 —
   `clearance-checks-simple.json` (clearanceChecks pro gate + panel mount + in-scene overlay toggle +
-  mobile bottom-sheet). Remaining: measure, smartStart, AI surfaces, roomEditor, GLB
-  designer/parametric re-rungs, crown-molding, livePrices, first-run re-rungs, backdrop-upload +
+  mobile bottom-sheet) + `smart-start-simple.json` (Smart Start wizard → style grid → "Furnish my
+  flat" populates an empty flat + closes; mobile leg). Remaining: measure, AI surfaces, roomEditor,
+  GLB designer/parametric re-rungs, crown-molding, livePrices, first-run re-rungs, backdrop-upload +
   furnlight re-rungs.
 - [~] Q-3DEXPORT Whole-scene glTF/GLB + OBJ export — **shipped** (`sceneExport3d` flag, pro tier;
   Tools/Share/⌘K/mobile). Pure extract/filter core (`export/sceneGltf.ts`) drops editor helpers; live
