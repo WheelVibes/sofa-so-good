@@ -7,7 +7,7 @@ import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
-import { loadRecent, pushRecent } from './recentSearches'
+import { clearRecent, loadRecent, pushRecent } from './recentSearches'
 import { fuzzySearchSmart } from './searchSynonyms'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
@@ -287,6 +287,17 @@ export function CatalogDrawer() {
                     {term}
                   </button>
                 ))}
+                <button
+                  type="button"
+                  className="cat-recent-clear"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    clearRecent()
+                    setRecent([])
+                  }}
+                >
+                  Clear
+                </button>
               </div>
             ) : null}
           </div>

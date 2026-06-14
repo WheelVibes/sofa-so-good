@@ -50,6 +50,12 @@ pruned from `main`; entries from C251 on (branch
   measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
   clears the points. Test coverage only — no app code changed.
 
+## QOL: clear recent catalog searches
+
+- The recent-searches chip row now ends with a **"Clear"** button that wipes the saved terms (calls the
+  existing `clearRecent`), completing the feature. Browser-verified: clicking Clear removes the chips and
+  empties the persisted list (localStorage key cleared).
+
 ## QOL: recent catalog searches
 
 - The catalog search now remembers **recent search terms** (per-device, most-recent-first, de-duplicated,
