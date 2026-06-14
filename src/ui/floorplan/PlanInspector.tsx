@@ -11,6 +11,7 @@ import {
   planRoomArea,
   wallLength,
 } from '../../floorplan/types'
+import { endForAngle, endForLength, wallAngleDeg } from '../../floorplan/wallOps'
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
@@ -469,12 +470,18 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
             value={w.end[1]}
             onChange={(v) => a.updateWall(w.id, { end: [w.end[0], v] }, levelId)}
           />
-          <div className="row" style={{ padding: '6px 0', fontSize: 'var(--t-xs)' }}>
-            <span className="label">Length</span>
-            <span className="amt" style={{ color: 'var(--accent-soft-text)', fontWeight: 700 }}>
-              {formatLength(wallLength(w), units)}
-            </span>
-          </div>
+          <Num
+            label="Length (m)"
+            value={wallLength(w)}
+            min={0.01}
+            onChange={(v) => a.updateWall(w.id, { end: endForLength(w, v) }, levelId)}
+          />
+          <Num
+            label="Angle (°)"
+            value={Math.round(wallAngleDeg(w) * 10) / 10}
+            step={1}
+            onChange={(v) => a.updateWall(w.id, { end: endForAngle(w, v) }, levelId)}
+          />
           <div className="row" style={{ gap: 6 }}>
             <button
               type="button"

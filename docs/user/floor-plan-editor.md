@@ -30,7 +30,9 @@ Rooms don't have to be plain rectangles:
 - **Reshape a wall** — select a wall with the **Select** tool and drag the round
   handles at its ends. Walls that share that corner move with it, so the outline
   stays joined. Drag a corner off the grid line and the wall takes an angle —
-  use this with **Split** to bend a straight run into an **L**.
+  use this with **Split** to bend a straight run into an **L**. For exact sizes,
+  the inspector has **Length (m)** and **Angle (°)** fields: set a wall to
+  precisely 3.2 m, or rotate it to 45°, without nudging the X/Z by hand.
 - **L‑shaped rooms** — with a room selected, click **Make L‑shaped** to add a
   second rectangle (the “extension”), then set its offset and size. The room's
   **area updates to include the extension**, and the 3D flat renders both parts.

@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import type { PlanOpening, PlanWall } from './types'
-import { joinAdjacentWalls, reverseWallGeometry } from './wallOps'
+import {
+  endForAngle,
+  endForLength,
+  joinAdjacentWalls,
+  reverseWallGeometry,
+  wallAngleDeg,
+} from './wallOps'
 
 const wall = (id: string, start: [number, number], end: [number, number]): PlanWall => ({
   id,
@@ -89,5 +95,37 @@ describe('joinAdjacentWalls', () => {
       { ...wall('b', [2, 0], [5, 0]), thickness: 'external' },
     ]
     expect(joinAdjacentWalls(walls, [], 'a', genId)!.walls[0].thickness).toBe('external')
+  })
+})
+
+describe('editable wall length / angle (PARITY-WALLDIM)', () => {
+  it('endForLength keeps start + direction and sets the exact length', () => {
+    // A 3-4-5 wall (length 5) along (0.6,0.8) → resize to 10 keeps direction.
+    const w = wall('a', [1, 1], [4, 5])
+    expect(endForLength(w, 10)).toEqual([1 + 0.6 * 10, 1 + 0.8 * 10])
+    // Clamps to a 1 cm minimum (never zero/negative).
+    expect(endForLength(w, 0)).toEqual([1 + 0.6 * 0.01, 1 + 0.8 * 0.01])
+  })
+
+  it('endForLength runs +X for a zero-length wall', () => {
+    expect(endForLength(wall('a', [2, 2], [2, 2]), 3)).toEqual([5, 2])
+  })
+
+  it('wallAngleDeg reports the compass bearing (+X=0, +Z=90)', () => {
+    expect(wallAngleDeg(wall('a', [0, 0], [1, 0]))).toBeCloseTo(0)
+    expect(wallAngleDeg(wall('a', [0, 0], [0, 1]))).toBeCloseTo(90)
+    expect(wallAngleDeg(wall('a', [0, 0], [-1, 0]))).toBeCloseTo(180)
+    expect(wallAngleDeg(wall('a', [0, 0], [0, -1]))).toBeCloseTo(270)
+  })
+
+  it('endForAngle rotates about start, preserving length', () => {
+    const w = wall('a', [1, 1], [4, 1]) // length 3, bearing 0
+    const [x, z] = endForAngle(w, 90)
+    expect(x).toBeCloseTo(1)
+    expect(z).toBeCloseTo(4) // start + (0,1)*3
+  })
+
+  it('endForAngle leaves a zero-length wall unchanged', () => {
+    expect(endForAngle(wall('a', [2, 2], [2, 2]), 45)).toEqual([2, 2])
   })
 })

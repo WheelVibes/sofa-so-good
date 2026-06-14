@@ -35,6 +35,39 @@ export interface WallOpResult {
 }
 
 /**
+ * Editable wall length/angle (PARITY-WALLDIM) — pure geometry for the inspector's
+ * exact "Length (m)" + "Angle (°)" fields. Both keep the wall's `start` fixed and
+ * move only its `end`, matching the existing endpoint Num fields (the start stays
+ * joined to its neighbour). Compass convention: the bearing is the start→end
+ * vector measured from +X toward +Z, normalised to [0,360).
+ */
+export function wallAngleDeg(w: PlanWall): number {
+  const a = (Math.atan2(w.end[1] - w.start[1], w.end[0] - w.start[0]) * 180) / Math.PI
+  return ((a % 360) + 360) % 360
+}
+
+/** New `end` that makes the wall exactly `lengthM` long (≥1 cm), keeping its
+ *  start + direction. A zero-length wall defaults to running along +X. */
+export function endForLength(w: PlanWall, lengthM: number): PlanVec2 {
+  const L = Math.max(0.01, lengthM)
+  let [ux, uz] = unit(w)
+  if (ux === 0 && uz === 0) {
+    ux = 1
+    uz = 0
+  }
+  return [w.start[0] + ux * L, w.start[1] + uz * L]
+}
+
+/** New `end` that rotates the wall to `angleDeg` (from +X toward +Z) about its
+ *  start, keeping its current length. A zero-length wall is returned unchanged. */
+export function endForAngle(w: PlanWall, angleDeg: number): PlanVec2 {
+  const L = wallLen(w)
+  if (L < EPS) return [w.end[0], w.end[1]]
+  const r = (angleDeg * Math.PI) / 180
+  return [w.start[0] + Math.cos(r) * L, w.start[1] + Math.sin(r) * L]
+}
+
+/**
  * Reverse a wall's start/end. Each opening on it keeps its physical position by
  * re-measuring its offset from the new start (`len - offset - width`). Returns
  * `null` if the wall is missing or degenerate.

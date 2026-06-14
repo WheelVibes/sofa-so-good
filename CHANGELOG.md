@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-WALLDIM: edit a wall's exact length + angle in the 2D inspector
+
+- The wall inspector's read-only "Length" line is now an **editable Length (m)** field, plus a new
+  **Angle (°)** field (Sweet Home 3D's wall edit-dialog precision). Typing a length resizes the wall to
+  exactly that (start fixed, direction preserved); typing an angle rotates it about its start (length
+  preserved) — set a wall to exactly 3.2 m or rotate it to 45° instead of nudging X/Z by hand.
+- Pure geometry in `floorplan/wallOps.ts` (`endForLength`, `endForAngle`, `wallAngleDeg`; compass
+  bearing +X=0 → +Z=90), unit-tested incl. zero-length guards. Visually verified the field renders and
+  a length edit resizes the wall on the canvas. Docs: ARCHITECTURE + user floor-plan guide.
+
 ## PHOTO-PT-TUNE: interior-tuned path tracer (no more black glass / fireflies)
 
 - The HQ path-traced render now applies interior-appropriate quality settings (`hqTracerConfig.ts`,
