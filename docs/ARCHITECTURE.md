@@ -85,10 +85,12 @@ same change that reshapes a system.
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
   (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in
   `ui/PanoramaModal.tsx`, `panorama` flag), cameras, selection,
-  `SceneBackdrop.tsx` dispatcher (City/Park/Hills/Studio); `CityBackdrop.tsx` (instanced two-ring HDB
-  estate + rooftop tanks + night-lit windows), `ParkBackdrop.tsx`/`HillsBackdrop.tsx` (instanced trees /
-  depth-banded hills), `StudioBackdrop.tsx` (seamless gradient-dome cyclorama) — all share `Ground.tsx`
-  + `instancedBatch.tsx`. Main Canvas is **`frameloop="demand"`**:
+  `SceneBackdrop.tsx` dispatcher (Photo/City/Park/Hills/Studio); `PhotoBackdrop.tsx` (the cheap
+  "budget trick" — a single procedural equirectangular sky+skyline as `scene.background`, ZERO
+  per-frame geometry, day/night via `backgroundIntensity`; layout in pure tested `photoSkyline.ts`),
+  `CityBackdrop.tsx` (instanced two-ring HDB estate + rooftop tanks + night-lit windows),
+  `ParkBackdrop.tsx`/`HillsBackdrop.tsx` (instanced trees / depth-banded hills), `StudioBackdrop.tsx`
+  (seamless gradient-dome cyclorama) — the 3D ones share `Ground.tsx` + `instancedBatch.tsx`. Main Canvas is **`frameloop="demand"`**:
   `RenderPump.tsx` invalidates only when wanted (`renderDecision.ts` pure tested logic;
   `renderPumpSignal.ts` gates FPS sampling). `InstancedBoxes.tsx` (pure tested
   `bakeInstanceMatrix`) collapses repeat geometry — bookshelf/crib + RoomDivider/CubeShelf/

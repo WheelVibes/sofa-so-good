@@ -42,6 +42,22 @@ pruned from `main`; entries from C251 on (branch
   `report.test.ts`. Verified the rendered Section A–A sheet (cut walls, floor/ceiling, room bands, door/
   window gaps, dining-chair silhouettes) reads correctly with no clipping.
 
+## Photo skyline backdrop — the cheap "budget trick" (PHOTO-BACKDROP)
+
+- **New `Skyline photo` backdrop** (`scene/PhotoBackdrop.tsx`) — a single equirectangular sky +
+  city-skyline image set as `scene.background`, replacing the instanced 3D City/Park/Hills estates
+  for the window view. **Renders ZERO per-frame geometry** (one texture vs many instanced draw
+  calls) — a real compute + memory win — yet is seen correctly through every window, needs no
+  per-window placement, and doesn't block sunlight; its lack of parallax is physically correct for
+  distant scenery. Listed first in the backdrop picker as "best performance".
+- The image is generated procedurally (`scene/photoSkyline.ts` `skylineLayout`, pure + unit-tested:
+  deterministic, two depth rows, near row taller/darker) so it ships with **no asset fetch**; it's
+  designed to be swapped for a real CC0 equirectangular photo later. Day/night tracks the sun via
+  `scene.backgroundIntensity` (cheap scalar), like the IBL ramp.
+- Rides the existing `backdrops` flag (a new option, not a new feature); the `photo` value persists
+  through `editorPrefs`. Visually verified: sky renders in orbit, the outdoor view shows through
+  windows in walk mode, and the backdrop dims to night.
+
 ## Walk-mode observer camera controls — field-of-view + eye-height (PARITY-WALKCAM)
 
 - **Adjustable first-person camera** (Sweet Home 3D parity). In walk mode you can now set the

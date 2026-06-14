@@ -22,14 +22,14 @@ export function loadEditorPrefs(): void {
       walkFov?: number
       walkEyeHeight?: number
     }
-    const backdrops = ['city', 'park', 'hills', 'none']
+    const backdrops = ['city', 'park', 'hills', 'photo', 'none']
     const cur = useStore.getState()
     useStore.setState({
       snapEnabled: !!p.snapEnabled,
       gridSize: typeof p.gridSize === 'number' && p.gridSize > 0 ? p.gridSize : 0.5,
       units: p.units === 'imperial' ? 'imperial' : 'metric',
       backdrop: backdrops.includes(p.backdrop ?? '')
-        ? (p.backdrop as 'city' | 'park' | 'hills' | 'none')
+        ? (p.backdrop as 'city' | 'park' | 'hills' | 'photo' | 'none')
         : 'city',
       uiMode: p.uiMode === 'pro' ? 'pro' : 'simple',
       walkFov: typeof p.walkFov === 'number' ? clampWalkFov(p.walkFov) : cur.walkFov,

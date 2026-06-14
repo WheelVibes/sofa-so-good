@@ -15,7 +15,7 @@ import type { SliceCreator } from './types'
 export type LightsMode = 'auto' | 'on' | 'off'
 
 /** Selectable 3D scene surroundings (see `scene/SceneBackdrop`). */
-export type BackdropKind = 'city' | 'park' | 'hills' | 'none'
+export type BackdropKind = 'city' | 'park' | 'hills' | 'photo' | 'none'
 
 /** Interface density. 'simple' hides advanced/technical clusters (analysis Tools,
  *  the floor-plan editor) for a friendlier first experience; 'pro' shows all. */
