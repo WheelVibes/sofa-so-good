@@ -326,20 +326,55 @@ function PlanLevelShell({
           ) : null
         })}
 
-      {/* Window glass */}
+      {/* Window glass — fades with its wall during the orbit reveal (FadeWindow). */}
       {windows.map((w) => (
-        <mesh key={w.id} position={[w.cx, w.cy, w.cz]} rotation={[0, w.angle, 0]}>
-          <boxGeometry args={[0.03, w.height, w.width]} />
-          <meshStandardMaterial
-            color="#bcd6e6"
-            transparent
-            opacity={0.32}
-            roughness={0.1}
-            metalness={0}
-          />
-        </mesh>
+        <FadeWindow key={w.id} win={w} cx={cx} cz={cz} />
       ))}
     </group>
+  )
+}
+
+/** Window glass pane that fades out (like FadeWall) when it sits between the
+ *  orbit camera and the plan centre — so it doesn't stay opaque in a wall that's
+ *  gone translucent. */
+function FadeWindow({
+  win,
+  cx,
+  cz,
+}: {
+  win: { cx: number; cz: number; cy: number; width: number; height: number; angle: number }
+  cx: number
+  cz: number
+}) {
+  const ref = useRef<Mesh>(null)
+  const { camera } = useThree()
+  const cameraMode = useStore((s) => s.cameraMode)
+  const BASE = 0.32
+  useFrame(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    const mat = mesh.material as MeshStandardMaterial
+    let factor = 1
+    const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
+    if (cameraMode === 'orbit' && revealEnabled) {
+      const kx = camera.position.x - win.cx
+      const kz = camera.position.z - win.cz
+      if (kx * (cx - win.cx) + kz * (cz - win.cz) < 0) factor = 0.12
+    }
+    const target = BASE * factor
+    mat.opacity += (target - mat.opacity) * 0.18
+  })
+  return (
+    <mesh ref={ref} position={[win.cx, win.cy, win.cz]} rotation={[0, win.angle, 0]}>
+      <boxGeometry args={[0.03, win.height, win.width]} />
+      <meshStandardMaterial
+        color="#bcd6e6"
+        transparent
+        opacity={BASE}
+        roughness={0.1}
+        metalness={0}
+      />
+    </mesh>
   )
 }
 

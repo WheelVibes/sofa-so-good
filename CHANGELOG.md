@@ -37,6 +37,16 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## Fix: windows + doors didn't fade with their wall during the orbit reveal
+
+- In orbit "dollhouse" mode, near external walls fade translucent, but a wall's **window** (frame +
+  grille + glass) and **door** leaf stayed fully opaque and just snapped invisible at a 0.35 threshold —
+  so a windowed wall read as "not becoming translucent." Now `WindowPane` + `DoorLeaf` (default flat)
+  fade *every* mesh material's opacity by the host wall's reveal opacity (`getWallOpacity`), and the
+  custom-plan window glass fades via a new `FadeWindow` (mirrors `FadeWall`'s camera-facing test). Glass
+  keeps its day/night tint, scaled by the wall fade. Verified in orbit on the default flat (no opaque
+  grilles poking through a translucent wall).
+
 ## PARITY-FLOORTEX: per-room floor-texture transform (scale + angle) — SweetHome3DJS parity
 
 - A room's floor texture can be **scaled (tile size) and rotated** — SweetHome3D's per-surface texture
