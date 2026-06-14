@@ -81,6 +81,12 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').sceneExport3d).toBe(true)
   })
 
+  it('wallBaseboard (pro tier) is hidden in Simple mode and present in Pro mode', () => {
+    // Per-wall baseboard params are a wall-finish detail → pro tier.
+    expect(resolveFlags(true, {}, false, 'simple').wallBaseboard).toBe(false)
+    expect(resolveFlags(true, {}, false, 'pro').wallBaseboard).toBe(true)
+  })
+
   it('batchRender (pro tier) is hidden in Simple mode and present in Pro mode', () => {
     // Batch PNG-per-view export is an advanced presentation/output feature → pro.
     expect(resolveFlags(true, {}, false, 'simple').batchRender).toBe(false)

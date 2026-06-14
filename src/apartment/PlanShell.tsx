@@ -157,6 +157,24 @@ function PlanLevelShell({
 
   const boxes = useMemo(() => lp.walls.flatMap((w) => wallBoxes(lp, w)), [lp])
 
+  // Skirting strips along floor-reaching wall spans, carrying each wall's
+  // optional per-wall baseboard override (PARITY-BASEBOARD): height + colour, or
+  // hidden. Built per wall (not from the flattened `boxes`) so the override is
+  // in scope; defaults match the shell skirting (0.09 m, off-white).
+  const skirtings = useMemo(() => {
+    const out: { box: WallBox; height: number; color: string }[] = []
+    for (const w of lp.walls) {
+      const bb = w.baseboard
+      if (bb?.hidden) continue
+      const height = bb?.height && bb.height > 0 ? bb.height : 0.09
+      const color = bb?.color ?? '#eceae4'
+      for (const box of wallBoxes(lp, w)) {
+        if (box.cy - box.height / 2 < 0.01) out.push({ box, height, color })
+      }
+    }
+    return out
+  }, [lp])
+
   // Window glass panes (between sill and head, in the wall gap).
   const windows = useMemo(() => {
     return lp.openings
@@ -297,20 +315,19 @@ function PlanLevelShell({
         <SlopedWallMesh key={w.id} wall={w} ceiling={lp.ceilingHeight} color={wallColor} />
       ))}
 
-      {/* Skirting along floor-reaching wall spans */}
-      {boxes
-        .filter((b) => b.cy - b.height / 2 < 0.01)
-        .map((b, i) => (
-          <mesh
-            key={`sk${i}`}
-            position={[b.cx, 0.045, b.cz]}
-            rotation={[0, b.angle, 0]}
-            receiveShadow
-          >
-            <boxGeometry args={[b.thickness + 0.024, 0.09, b.length]} />
-            <meshStandardMaterial color="#eceae4" roughness={0.7} />
-          </mesh>
-        ))}
+      {/* Skirting along floor-reaching wall spans (per-wall baseboard override:
+          height/colour, or hidden — PARITY-BASEBOARD). */}
+      {skirtings.map(({ box: b, height, color }, i) => (
+        <mesh
+          key={`sk${i}`}
+          position={[b.cx, height / 2, b.cz]}
+          rotation={[0, b.angle, 0]}
+          receiveShadow
+        >
+          <boxGeometry args={[b.thickness + 0.024, height, b.length]} />
+          <meshStandardMaterial color={color} roughness={0.7} />
+        </mesh>
+      ))}
 
       {/* Crown molding at the wall–ceiling junction (full-height spans only).
           Uses the same wall-box dimensions as skirting so mitre corners close

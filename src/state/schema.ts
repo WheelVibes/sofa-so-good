@@ -147,6 +147,14 @@ const PlanWallZ = z.object({
   topHeightEnd: z.number().optional(),
   // Optional curvature bulge (m) — additive, back-compat (PARITY-CURVEDWALL).
   arc: z.number().optional(),
+  // Optional per-wall baseboard override (PARITY-BASEBOARD) — additive, back-compat.
+  baseboard: z
+    .object({
+      height: z.number().optional(),
+      color: z.string().optional(),
+      hidden: z.boolean().optional(),
+    })
+    .optional(),
 })
 const PlanOpeningZ = z.object({
   id: z.string(),

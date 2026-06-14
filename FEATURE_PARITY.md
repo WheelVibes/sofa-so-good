@@ -107,7 +107,7 @@ room-name labels**.
 | **Curved / arc walls** | ✅ | ✅ | **Shipped (PARITY-CURVEDWALL)** — true circular arc + midpoint bulge handle, openings on curves, 2D `A`-path + 3D chord extrusion. | L |
 | **Slanting walls** (per-endpoint top heights) | ✅ | ✅ | **Shipped (PARITY-SLOPEWALL)** — `PlanWall.topHeightEnd` prism + inspector start/end height. | M |
 | **Sloping ceilings** (per-room ceiling slope) | ✅ | ✅ | **Shipped (PARITY-SLOPECEIL)** — `sloped` `CeilingConfig` pitched plane + per-room picker. | M |
-| **Baseboards/skirting on walls** (height/thickness/finish) | ◑ | ✅ | We have skirting; expose per-wall baseboard params + finish. | M |
+| **Baseboards/skirting on walls** (height/thickness/finish) | ✅ | ✅ | **Shipped (PARITY-BASEBOARD)** — `PlanWall.baseboard` (height/colour/hidden) drives the PlanShell skirting; Plan-inspector wall section + `wallBaseboard` pro flag. | M |
 | On-plan room-name label **rotation / font** | ✅ | ✅ | **Shipped (PARITY-ROOMLABEL-STYLE)** — `PlanRoom.labelAngle` (SVG `rotate`) + `labelFontScale` with Plan-inspector angle/size fields; drag-to-reposition already shipped. | S |
 | **Batch render** all saved cameras | ✅ | ✅ | **Shipped (PARITY-BATCHRENDER)** — Saved-views "Render all views" flies to each view and downloads a PNG via `captureCanvasPng` (`ui/renderAllViews.ts`, `batchRender` pro flag). | S |
 | **Fisheye / DoF** lens options on render | ◑ | ✅ | Add lens-type + DoF controls to the render camera (DoF partly exists in HQ). | M |
@@ -130,7 +130,7 @@ room-name labels**.
 **High-value medium efforts (M):**
 4. AR "view in your room" (Coohom/F22) — high "wow"/sales value.
 5. 8K tiled still render + fast rasterized preview tier (Coohom) — quality lift.
-6. Sloping ceilings + slanting walls + per-wall baseboards (SH3D) — realism/CAD depth.
+6. _(shipped: sloping ceilings, slanting walls, per-wall baseboards — see `CHANGELOG.md`)_
 7. Quote editable templates + price-rule library (Coohom) — CSV/XLSX export already ship.
 8. Fisheye / DoF lens options on the render camera (SH3D).
 9. Keyboard wall-length / angle entry while drawing (SH3D).

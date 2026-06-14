@@ -28,6 +28,11 @@ export interface PlanWall {
    *  Curved walls are approximated as chord sub-segments for rendering/collision
    *  (see `wallArc.ts`) and cannot host openings in this version. */
   arc?: number
+  /** Optional per-wall baseboard / skirting override (SweetHome3DJS baseboard
+   *  parity). `height` (m) and `color` (hex) tune the skirting strip along this
+   *  wall's foot; `hidden` suppresses it entirely. Absent fields fall back to the
+   *  shell default (0.09 m, off-white). */
+  baseboard?: { height?: number; color?: string; hidden?: boolean }
 }
 
 export interface PlanOpening {

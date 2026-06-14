@@ -150,7 +150,9 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
 - [ ] PARITY-8K: Coohom 8K+ tiled still render.
 - [x] PARITY-SLOPECEIL: SH3D sloping ceilings **shipped** (see PARITY-SLOPECEIL in CHANGELOG).
 - [x] PARITY-SLANTWALL: SH3D slanting walls **shipped** (PARITY-SLOPEWALL: `PlanWall.topHeightEnd` prism).
-- [ ] PARITY-BASEBOARD: SH3D per-wall baseboard params + finish.
+- [x] PARITY-BASEBOARD: SH3D per-wall baseboard params **shipped** — `PlanWall.baseboard`
+  (height/colour/hidden) drives the PlanShell skirting; Plan-inspector wall section + `wallBaseboard`
+  pro flag. (Custom plans only; default HDB layout uses the fixed `Skirting.tsx`.)
 - [~] PARITY-QUOTE-XLSX: quote XLSX/CSV **shipped** (PARITY-QUOTEXLSX). Remaining: user-editable templates.
 
 ### Pending — marquee (L)

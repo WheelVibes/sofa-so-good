@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-BASEBOARD: per-wall baseboard / skirting params — SweetHome3DJS parity
+
+- Each editable wall gains an optional **baseboard override** (`PlanWall.baseboard`): skirting **height**
+  (m), **colour** (hex), and a **hide** toggle, matching SweetHome3D's per-wall baseboard. The custom-plan
+  shell's skirting (`PlanShell`) now builds per wall so each strip reads its wall's override (defaults
+  unchanged: 0.09 m, off-white); hidden walls draw no skirting. Exposed as a "Baseboard / skirting"
+  group in the Plan-inspector wall section (show toggle + height + colour + reset), behind a new
+  `wallBaseboard` pro flag. Round-trips through `schema.ts` (optional + additive). (Custom plans only —
+  the fixed HDB template still uses `Skirting.tsx`.) Verified with the `wall-baseboard-simple` scenario
+  (tall tan baseboards visible in 3D); flag gated in both Simple/Pro tests.
+
 ## PARITY-ROOMLABEL-STYLE: room-name label rotation + font size — SweetHome3DJS parity
 
 - Room-name labels in the 2D plan editor gain optional **rotation** (`PlanRoom.labelAngle`, radians →

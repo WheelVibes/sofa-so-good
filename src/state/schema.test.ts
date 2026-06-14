@@ -387,6 +387,33 @@ describe('schema', () => {
     }
   })
 
+  it('round-trips a per-wall baseboard override (PARITY-BASEBOARD)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        ...useStore.getState().floorPlan,
+        id: 'custom-bb',
+        walls: [
+          {
+            id: 'w1',
+            start: [0, 0],
+            end: [4, 0],
+            thickness: 'external',
+            baseboard: { height: 0.25, color: '#3a2a1a', hidden: false },
+          },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const round = SerializedStateZ.safeParse(saved)
+    expect(round.success).toBe(true)
+    if (round.success) {
+      const patch = applySerialized(round.data, new Set())
+      const wall = patch.floorPlan?.walls.find((w) => w.id === 'w1')
+      expect(wall?.baseboard).toEqual({ height: 0.25, color: '#3a2a1a', hidden: false })
+    }
+  })
+
   it('round-trips a custom plan’s per-room finishes (keyed by custom room ids)', () => {
     useStore.getState().__resetForTest()
     // A custom plan whose room id is NOT in the fixed ROOMS table.

@@ -200,6 +200,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const isMobile = useIsMobile()
   const ceilingDesignOn = useFeature('ceilingDesign')
   const slopingWallsOn = useFeature('slopingWalls')
+  const wallBaseboardOn = useFeature('wallBaseboard')
   const floorTextureOn = useFeature('floorTexture')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
@@ -584,6 +585,72 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
                   }
                 >
                   Reset to flat top
+                </button>
+              ) : null}
+            </div>
+          ) : null}
+          {wallBaseboardOn ? (
+            <div className="space-y-1" style={{ marginTop: 'var(--s-1)' }}>
+              <div className="label" style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}>
+                Baseboard / skirting
+              </div>
+              <label className="flex items-center gap-2 text-xs">
+                <input
+                  type="checkbox"
+                  checked={!w.baseboard?.hidden}
+                  onChange={(e) =>
+                    a.updateWall(
+                      w.id,
+                      { baseboard: { ...w.baseboard, hidden: !e.target.checked } },
+                      levelId,
+                    )
+                  }
+                />
+                <span>Show baseboard</span>
+              </label>
+              {!w.baseboard?.hidden ? (
+                <>
+                  <Num
+                    label="Height (m)"
+                    value={w.baseboard?.height ?? 0.09}
+                    step={0.01}
+                    min={0.01}
+                    onChange={(v) =>
+                      a.updateWall(
+                        w.id,
+                        {
+                          baseboard: {
+                            ...w.baseboard,
+                            height: Math.abs(v - 0.09) < 1e-4 ? undefined : Math.max(0.01, v),
+                          },
+                        },
+                        levelId,
+                      )
+                    }
+                  />
+                  <label className="flex items-center justify-between gap-2 text-xs">
+                    <span className="label">Colour</span>
+                    <input
+                      type="color"
+                      value={w.baseboard?.color ?? '#eceae4'}
+                      onChange={(e) =>
+                        a.updateWall(
+                          w.id,
+                          { baseboard: { ...w.baseboard, color: e.target.value } },
+                          levelId,
+                        )
+                      }
+                    />
+                  </label>
+                </>
+              ) : null}
+              {w.baseboard ? (
+                <button
+                  type="button"
+                  className="btn btn-soft btn-sm btn-block"
+                  onClick={() => a.updateWall(w.id, { baseboard: undefined }, levelId)}
+                >
+                  Reset baseboard
                 </button>
               ) : null}
             </div>

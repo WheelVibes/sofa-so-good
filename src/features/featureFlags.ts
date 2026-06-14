@@ -82,6 +82,7 @@ export type FeatureFlag =
   | 'catalogModelInfo'
   | 'curvedWalls'
   | 'slopingWalls'
+  | 'wallBaseboard'
   | 'viewInAr'
   | 'floorTexture'
   | 'planCompass'
@@ -549,6 +550,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   slopingWalls: {
     label: 'Sloping walls',
     description: 'Give a wall a sloped (shed) top — different heights at each end (no openings)',
+    default: true,
+    tier: 'pro',
+  },
+  // Per-wall baseboard / skirting params (SweetHome3DJS baseboard parity): height,
+  // colour, and a hide toggle per wall. Pure geometry/colour → prod-safe. A
+  // wall-finish detail beyond the core loop → pro tier.
+  wallBaseboard: {
+    label: 'Wall baseboards',
+    description: 'Per-wall skirting board height, colour and a hide toggle',
     default: true,
     tier: 'pro',
   },
