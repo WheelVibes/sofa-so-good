@@ -37,6 +37,17 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## PARITY-RESIZE: non-uniform furniture resize (W/D/H) — SweetHome3DJS parity
+
+- GLB / IKEA models can now be resized **independently per axis** (width / height / depth), not just
+  uniformly — the SweetHome3D "Modify furniture" resize with a **Keep proportions** toggle. Per-axis
+  `props.scaleX/scaleY/scaleZ` (each falling back to the uniform `scale`) drive both the render group
+  scale (`gltfRender.ts` `scale3` → `GltfModel` tuple scale) and the collision footprint
+  (`collision/placement.ts` `itemFootprint` scales width by X, depth by Z). Inspector `GltfBody` shows a
+  uniform Scale slider when proportions are locked, else Width/Height/Depth sliders. Stored in the
+  free-form `props` bag (already serialized) — fully back-compatible (uniform `scale` still works).
+- Per-axis footprint unit-tested; render is a one-line per-axis group scale.
+
 ## PARITY-ELEVATION: raise furniture off the floor — SweetHome3DJS parity
 
 - New optional `FurnitureItem.elevation` (m): raise any piece off the floor (a floating console, a

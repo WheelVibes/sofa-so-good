@@ -68,16 +68,20 @@ export function itemFootprint(item: FurnitureItem, def: FurnitureDef): OBB {
 
   const defScale = def.kind === 'parametric' ? undefined : def.scale
   const scale = (typeof item.props['scale'] === 'number' ? item.props['scale'] : defScale) ?? 1
+  // Per-axis (non-uniform) resize: width = local X, depth = local Z; each falls
+  // back to the uniform scale (SweetHome3DJS resize parity).
+  const scaleX = typeof item.props['scaleX'] === 'number' ? (item.props['scaleX'] as number) : scale
+  const scaleZ = typeof item.props['scaleZ'] === 'number' ? (item.props['scaleZ'] as number) : scale
   const cos = Math.cos(item.rotation)
   const sin = Math.sin(item.rotation)
-  const sx = ox * scale
-  const sz = oz * scale
+  const sx = ox * scaleX
+  const sz = oz * scaleZ
 
   return {
     cx: item.position[0] + cos * sx - sin * sz,
     cz: item.position[1] + sin * sx + cos * sz,
-    hx: (w * scale) / 2,
-    hz: (d * scale) / 2,
+    hx: (w * scaleX) / 2,
+    hz: (d * scaleZ) / 2,
     rot: item.rotation,
   }
 }

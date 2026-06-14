@@ -106,7 +106,7 @@ function FurnitureInner({ item, def, passive, contactShadow }: FurnitureProps) {
             return (
               <GltfModel
                 url={r.url}
-                scale={r.scale}
+                scale={r.scale3}
                 tint={r.tint}
                 finishOverrides={r.finishOverrides}
                 reflective={r.reflective}

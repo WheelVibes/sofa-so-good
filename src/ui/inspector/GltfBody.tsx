@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { itemFootprint } from '../../collision/placement'
 import type { FurnitureItem, GltfDef } from '../../furniture/types'
 import { useStore } from '../../state/store'
@@ -8,36 +9,81 @@ interface GltfBodyProps {
   def: GltfDef
 }
 
-/** GLTF-backed items expose a small set of generic controls — scale,
- *  optional tint, and (for built-ins) the attribution string so users
- *  can credit the asset author. */
+/** GLTF-backed items expose a small set of generic controls — scale (uniform or
+ *  per-axis W/D/H), optional tint, and (for built-ins) the attribution string so
+ *  users can credit the asset author. */
 export function GltfBody({ item, def }: GltfBodyProps) {
   const updateItemProps = useStore((s) => s.updateItemProps)
   const units = useStore((s) => s.units)
   const scale = typeof item.props['scale'] === 'number' ? item.props['scale'] : (def.scale ?? 1)
+  const ax = (k: string) => (typeof item.props[k] === 'number' ? (item.props[k] as number) : scale)
+  const sx = ax('scaleX')
+  const sy = ax('scaleY')
+  const sz = ax('scaleZ')
   const tint = typeof item.props['tint'] === 'string' ? item.props['tint'] : ''
   const reflective = item.props['reflective'] === 1
+  // Keep-proportions defaults on for an unscaled/uniform item (SH3D resize UX).
+  const [keepProportions, setKeepProportions] = useState(sx === sy && sy === sz)
 
   // Resulting real-world footprint at the current scale (unrotated), so the
   // user sizes in real dimensions rather than a bare multiplier.
   const fp = itemFootprint({ ...item, rotation: 0 }, def)
   const dims = formatDimsShort([fp.hx * 2, fp.hz * 2], units)
 
+  // Write all four scale props so the per-axis values stay authoritative.
+  const setUniform = (v: number) =>
+    updateItemProps(item.id, { scale: v, scaleX: v, scaleY: v, scaleZ: v })
+
+  const AxisSlider = ({ label, prop, value }: { label: string; prop: string; value: number }) => (
+    <label className="flex items-center justify-between gap-2 text-xs">
+      <span className="w-12">{label}</span>
+      <input
+        type="range"
+        min={0.25}
+        max={3}
+        step={0.05}
+        value={value}
+        onChange={(e) => updateItemProps(item.id, { [prop]: Number(e.target.value) })}
+        className="flex-1 accent-blue-500"
+      />
+      <span className="w-12 text-right font-mono">{value.toFixed(2)}×</span>
+    </label>
+  )
+
   return (
     <div className="space-y-2">
-      <label className="flex items-center justify-between gap-2 text-xs">
-        <span className="flex-1">Scale</span>
+      {keepProportions ? (
+        <label className="flex items-center justify-between gap-2 text-xs">
+          <span className="flex-1">Scale</span>
+          <input
+            type="range"
+            min={0.25}
+            max={3}
+            step={0.05}
+            value={sx}
+            onChange={(e) => setUniform(Number(e.target.value))}
+            className="flex-1 accent-blue-500"
+          />
+          <span className="w-12 text-right font-mono">{sx.toFixed(2)}×</span>
+        </label>
+      ) : (
+        <>
+          <AxisSlider label="Width" prop="scaleX" value={sx} />
+          <AxisSlider label="Height" prop="scaleY" value={sy} />
+          <AxisSlider label="Depth" prop="scaleZ" value={sz} />
+        </>
+      )}
+      <label className="flex items-center gap-2 text-[11px] text-[var(--text-2)]">
         <input
-          type="range"
-          // Wide range so a badly-scaled upload/IKEA import can be corrected.
-          min={0.25}
-          max={3}
-          step={0.05}
-          value={scale}
-          onChange={(e) => updateItemProps(item.id, { scale: Number(e.target.value) })}
-          className="flex-1 accent-blue-500"
+          type="checkbox"
+          checked={keepProportions}
+          onChange={(e) => {
+            const on = e.target.checked
+            setKeepProportions(on)
+            if (on) setUniform(sx) // collapse to the current width on re-lock
+          }}
         />
-        <span className="w-12 text-right font-mono">{scale.toFixed(2)}×</span>
+        <span>Keep proportions</span>
       </label>
       <p className="text-right text-[10px] text-[var(--text-3)] font-mono">≈ {dims}</p>
       <label className="flex items-center justify-between gap-2 text-xs">

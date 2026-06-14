@@ -31,6 +31,29 @@ const ctx = (others: FurnitureItem[] = []) => ({
 })
 
 describe('placement', () => {
+  it('itemFootprint scales a GLB footprint per axis (non-uniform resize)', () => {
+    const def: BuiltinGltfDef = {
+      id: 'g',
+      name: 'G',
+      category: 'decor',
+      kind: 'gltf',
+      source: 'builtin',
+      url: '/none.glb',
+      license: 'CC0',
+      defaultFootprint: { w: 2, d: 1, h: 1 },
+    }
+    const item: FurnitureItem = {
+      id: 'g1',
+      defId: 'g',
+      position: [0, 0],
+      rotation: 0,
+      props: { scaleX: 2, scaleZ: 0.5 },
+    }
+    const fp = itemFootprint(item, def)
+    expect(fp.hx * 2).toBeCloseTo(4, 6) // width 2 × scaleX 2
+    expect(fp.hz * 2).toBeCloseTo(0.5, 6) // depth 1 × scaleZ 0.5
+  })
+
   it('itemFootprint reflects parametric width/depth overrides', () => {
     const item: FurnitureItem = {
       ...placedSofa(5, 5),

@@ -75,7 +75,8 @@ export function seedGltfFootprint(
 
 interface GltfModelProps {
   url: string
-  scale?: number
+  /** Uniform scale, or a per-axis [x, y, z] tuple (non-uniform resize). */
+  scale?: number | [number, number, number]
   /** Optional hex tint multiplied into every cloned material's base colour. */
   tint?: string
   /** Per-finish-target hex tint, keyed by target key. */
