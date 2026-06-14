@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-NORTH: 3D nav compass now tracks scene North
+
+- The on-canvas 3D nav compass (`NavCluster`) previously rotated its needle by the camera heading
+  alone, ignoring the user-set North orientation — so once `orientationDeg` was changed it disagreed
+  with the 2D plan compass and pointed the wrong way. The needle now rotates by `heading −
+  orientationDeg`, so it points to **true scene North** and matches the 2D compass (which rotates by
+  `-orientationDeg`); at `orientationDeg = 0` the behaviour is unchanged.
+- Extracted the pure math to `ui/compassHeading.ts` (`forwardToHeadingDeg` + `compassNeedleDeg`) with
+  4 unit tests. Browser-verified (`scripts/scenarios/compass-orientation.json`): rotating North +90°
+  shifts the needle SVG transform by −90° (315°→225°). Completes PARITY-NORTH (2D compass already shipped).
+
 ## RZ3/PHOTO-BEVELS: beveled edges on parametric kitchen cabinets
 
 - The parametric `CabinetModule` (base / wall / tall kitchen cabinets) now renders its body panels

@@ -1,0 +1,16 @@
+{
+  "name": "compass-orientation",
+  "description": "PARITY-NORTH: the 3D nav compass needle must track scene North (orientationDeg), not just camera heading. Probe the needle SVG transform at orientation 0 vs 90.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "orient-0", "eval": "window.__store.getState().setOrientationDeg(0)" },
+    { "name": "settle0", "wait": 700 },
+    { "name": "read-0", "eval": "(()=>{const g=document.querySelector('.compass-cell svg g');window.__t0=g?g.getAttribute('transform'):'none';return window.__t0;})()" },
+    { "name": "orient-90", "eval": "window.__store.getState().setOrientationDeg(90)" },
+    { "name": "settle90", "wait": 700 },
+    { "name": "read-90", "eval": "(()=>{const g=document.querySelector('.compass-cell svg g');const t90=g?g.getAttribute('transform'):'none';const num=s=>parseFloat((s||'').replace(/rotate\\(([-0-9.]+).*/, '$1'));const r0=num(window.__t0),r90=num(t90);let diff=r90-r0;diff=((diff%360)+360)%360;console.log('PROBE compass t0='+window.__t0+' t90='+t90+' diffMod360='+diff);return 'done';})()" },
+    { "name": "shot", "screenshot": "compass-90" }
+  ]
+}

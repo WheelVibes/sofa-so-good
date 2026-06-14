@@ -133,8 +133,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 
 ### Pending — quick wins (S)
-- [~] PARITY-NORTH: 2D-plan North/compass rose **shipped** (`planCompass` flag, needle tied to
-  `orientationDeg`). Remaining: a compass widget on the 3D canvas too.
 - [x] PARITY-BATCHRENDER: SH3D batch-render all saved views — Saved-views "Render all views" flies the
   camera to each saved view (`applyView`) and downloads a hi-fi PNG per view via `captureCanvasPng`
   (`ui/renderAllViews.ts`, `batchRender` pro flag).
