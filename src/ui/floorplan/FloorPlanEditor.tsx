@@ -138,6 +138,8 @@ export function FloorPlanEditor() {
   const { getDef, ref: catalogRef } = useCatalogGetter()
   const fPanoTour = useFeature('panoTour')
   const fCurvedWalls = useFeature('curvedWalls')
+  const fCompass = useFeature('planCompass')
+  const orientationDeg = useStore((s) => s.orientationDeg)
   // Tour stops are only shown/editable on the ground level (stops have a
   // levelId field but the plan editor operates per-level; ground is the
   // common case and keeps the UI simple).
@@ -889,6 +891,50 @@ export function FloorPlanEditor() {
 
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
+      {/* North/compass rose (SweetHome3DJS parity) — pinned to the editor frame,
+          the needle rotates with the plan's orientation. */}
+      {fCompass ? (
+        <div
+          className="panel"
+          style={{
+            position: 'absolute',
+            right: 12,
+            bottom: 12,
+            zIndex: 5,
+            width: 52,
+            height: 52,
+            borderRadius: '50%',
+            display: 'grid',
+            placeItems: 'center',
+            pointerEvents: 'none',
+            opacity: 0.9,
+          }}
+          aria-hidden
+        >
+          <svg
+            width={44}
+            height={44}
+            viewBox="-22 -22 44 44"
+            style={{ transform: `rotate(${-orientationDeg}deg)` }}
+          >
+            <title>North compass</title>
+            <circle r={20} fill="none" stroke="var(--border-2)" strokeWidth={1} />
+            {/* North half (accent), South half (muted). */}
+            <polygon points="0,-16 5,0 -5,0" fill="var(--accent)" />
+            <polygon points="0,16 5,0 -5,0" fill="var(--text-3)" />
+            <text
+              x={0}
+              y={-15}
+              textAnchor="middle"
+              fontSize={7}
+              fontWeight={700}
+              fill="var(--text)"
+            >
+              N
+            </text>
+          </svg>
+        </div>
+      ) : null}
       {/* Header / toolbar */}
       <div
         className="flex flex-wrap items-center gap-2 px-4 py-2"

@@ -24,6 +24,30 @@ import { PlanDoorLeaf } from './PlanDoorLeaf'
  * One plan wall, fading out in orbit mode when it sits between the camera and
  * the plan centre (so the dollhouse view isn't blocked by near walls).
  */
+/** smoothstep — matches the default flat's WallSegment reveal ramp. */
+function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
+  return t * t * (3 - 2 * t)
+}
+
+/** Camera-facing reveal factor (1 = opaque, ~0 = faded) for a point at (px,pz)
+ *  relative to the plan centre (cx,cz). Wide ramp so near + grazing walls fade. */
+function revealFactor(
+  camera: { position: { x: number; z: number } },
+  px: number,
+  pz: number,
+  cx: number,
+  cz: number,
+): number {
+  const kx = camera.position.x - px
+  const kz = camera.position.z - pz
+  const dcx = cx - px
+  const dcz = cz - pz
+  const mag = Math.hypot(kx, kz) * Math.hypot(dcx, dcz) || 1
+  const d = (kx * dcx + kz * dcz) / mag // −1 near (facing camera), +1 far
+  return smoothstep(-0.2, 0.25, d)
+}
+
 function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number; color: string }) {
   const ref = useRef<Mesh>(null)
   const { camera } = useThree()
@@ -37,12 +61,7 @@ function FadeWall({ box, cx, cz, color }: { box: WallBox; cx: number; cz: number
     // forced off during panorama capture so walls don't leave holes).
     const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
     if (cameraMode === 'orbit' && revealEnabled) {
-      // Wall is "between" camera and centre when (K-W)·(C-W) < 0.
-      const kx = camera.position.x - box.cx
-      const kz = camera.position.z - box.cz
-      const dx = cx - box.cx
-      const dz = cz - box.cz
-      if (kx * dx + kz * dz < 0) target = 0.12
+      target = Math.max(0.12, revealFactor(camera, box.cx, box.cz, cx, cz))
     }
     mat.opacity += (target - mat.opacity) * 0.18
     mat.transparent = mat.opacity < 0.98
@@ -357,9 +376,7 @@ function FadeWindow({
     let factor = 1
     const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
     if (cameraMode === 'orbit' && revealEnabled) {
-      const kx = camera.position.x - win.cx
-      const kz = camera.position.z - win.cz
-      if (kx * (cx - win.cx) + kz * (cz - win.cz) < 0) factor = 0.12
+      factor = Math.max(0.12, revealFactor(camera, win.cx, win.cz, cx, cz))
     }
     const target = BASE * factor
     mat.opacity += (target - mat.opacity) * 0.18

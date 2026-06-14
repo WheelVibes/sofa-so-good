@@ -37,6 +37,17 @@ pruned from `main`; entries from C251 on (branch
 - Pace + tour-start verified via `scenarios/walkthrough-video-simple.json` (two views → record →
   `touring='views'` with the computed pace); recording itself rides the already-proven turntable path.
 
+## Tweak: stronger orbit wall reveal + a 2D-plan compass rose
+
+- **Wider wall-fade threshold** (per request): the orbit dollhouse reveal now fades near walls *and*
+  grazing/side walls that face the camera even slightly — `smoothstep(-0.4, -0.08, d)` →
+  `smoothstep(-0.2, 0.25, d)` in `WallSegment` (default flat); the custom-plan `FadeWall`/`FadeWindow`
+  switched from a binary "between camera & centre" test to the same normalized-dot smoothstep ramp
+  (shared `revealFactor`). A wall at `d≈0` (edge-on) now fades to ~0.42 instead of staying opaque; only
+  clearly far-side walls (`d≳0.25`) stay solid.
+- **2D-plan North/compass rose** (`planCompass` flag, pro; SweetHome3DJS compass parity): a small
+  compass pinned to the floor-plan editor frame whose needle rotates with `orientationDeg`.
+
 ## Fix: windows + doors didn't fade with their wall during the orbit reveal
 
 - In orbit "dollhouse" mode, near external walls fade translucent, but a wall's **window** (frame +

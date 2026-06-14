@@ -279,7 +279,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       // dot(outwardNormal, camera→centre dir). Near walls face the camera, so
       // their outward normal opposes this direction (dot ≈ −1) → fade out.
       const d = (reveal.nx * cdx + reveal.nz * cdz) / clen
-      const faded = smoothstep(-0.4, -0.08, d)
+      // Wide reveal: near walls fully fade (d≈−1) AND grazing/side walls that
+      // face the camera even slightly fade partially (d up to +0.25), opening
+      // the dollhouse more; only walls clearly on the far side (d≳0.25) stay solid.
+      const faded = smoothstep(-0.2, 0.25, d)
       // translucent: walls never fully disappear (min 0.15 opacity).
       // auto-hide: walls can fully disappear (current legacy behaviour).
       target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)

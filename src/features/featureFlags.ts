@@ -83,6 +83,7 @@ export type FeatureFlag =
   | 'slopingWalls'
   | 'viewInAr'
   | 'floorTexture'
+  | 'planCompass'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -559,6 +560,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   floorTexture: {
     label: 'Floor texture transform',
     description: 'Scale + rotate a room’s floor texture (tile size / angle)',
+    default: true,
+    tier: 'pro',
+  },
+  // North/compass rose on the 2D plan (SweetHome3DJS compass parity). Pure
+  // overlay reflecting the orientation. Pro tier — a plan annotation aid.
+  planCompass: {
+    label: 'Plan compass',
+    description: 'Show a North/compass rose on the 2D floor plan',
     default: true,
     tier: 'pro',
   },
