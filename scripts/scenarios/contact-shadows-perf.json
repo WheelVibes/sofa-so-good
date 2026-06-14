@@ -1,0 +1,24 @@
+{
+  "name": "contact-shadows-perf",
+  "description": "RZ1: verify cheap blob contact shadows now ground furniture on the default flat Performance tier (and that the contactShadows feature flag is simple-tier / on by default).",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "assert-perf-tier", "waitFor": { "store": "state.qualityTier === 'performance'" }, "timeout": 5000, "failMessage": "Expected default qualityTier=performance" },
+    { "name": "assert-flag-on", "waitFor": { "store": "state.featureFlags.contactShadows === true" }, "timeout": 5000, "failMessage": "contactShadows flag expected on by default in Simple mode" },
+    { "name": "place-items", "eval": "window.__store.getState().setItems([{id:'cs-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}},{id:'cs-coffee',defId:'coffee-table',position:[8.3,2.55],rotation:0,props:{}},{id:'cs-chair',defId:'armchair',position:[7.2,3.4],rotation:0.8,props:{}}])" },
+    { "name": "focus-scene", "eval": "window.__store.getState().focusOn?.([8.4,2.8])" },
+    { "name": "settle", "wait": 2500 },
+    { "name": "shot-default", "screenshot": "perf-default-angle" },
+    { "name": "tilt-to-profile", "drag": { "from": [800, 520], "to": [800, 250] } },
+    { "name": "settle2", "wait": 600 },
+    { "name": "zoom-in", "wheel": { "x": 800, "y": 500, "dy": -350 } },
+    { "name": "settle3", "wait": 1200 },
+    { "name": "shot-profile", "screenshot": "perf-profile-angle" },
+    { "name": "flag-off", "eval": "window.__store.getState().setFeatureFlag?.('contactShadows', false)" },
+    { "name": "settle4", "wait": 1200 },
+    { "name": "shot-flag-off", "screenshot": "perf-flag-off" }
+  ]
+}

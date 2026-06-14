@@ -66,9 +66,25 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   Covered: batch 1 (C269) Simple core loop — catalog/furnish, finishes, budget, share,
   view-modes; batch 2 (C272) pro analytical — drawings/lighting, versions, history, panoTour,
   renderCompare; batch 3 — 2D-editor tools journey (plan labels, level duplicate + all-levels, wall
-  reverse/join, text notes + dimension lines) → `plan-editor-tools-journey.json`. Remaining: measure,
-  clearanceChecks, smartStart, AI surfaces, roomEditor, GLB designer/parametric re-rungs, crown-molding,
-  livePrices, first-run re-rungs, backdrop-upload + furnlight re-rungs.
+  reverse/join, text notes + dimension lines) → `plan-editor-tools-journey.json`; batch 4 —
+  `clearance-checks-simple.json` (clearanceChecks pro gate + panel mount + in-scene overlay toggle +
+  mobile bottom-sheet) + `smart-start-simple.json` (Smart Start wizard → style grid → "Furnish my
+  flat" populates an empty flat + closes; mobile leg) + `room-editor-simple.json` (enter isolates a
+  room + mounts the editing catalog, placed item persists, exit unmounts the catalog; mobile
+  bottom-sheet) + `design-score-simple.json` (designScore pro gate + panel mount with grade dial +
+  category breakdown for a furnished flat + mobile) + `measure-simple.json` (measure/tape pro gate +
+  tape-mode toggle + two store-injected points → a 3.00 m measured line whose drei-Html distance label
+  renders + clear) + `parametric-designer-simple.json` (custom-size furniture pro gate + dialog mount +
+  live 3D preview + type switch Bookshelf→Wardrobe updates preview/controls + close) +
+  `saved-views-simple.json` (saved camera views: save → move → applyView restores pose + bumps nonce →
+  delete) + `daylight-simple.json` (daylight & ventilation pro gate + panel mount with per-room
+  glazing/openable PASS/FAIL breakdown + mobile) + `accessibility-simple.json` (accessibility pro gate +
+  panel with door-width + 1.5 m turning-circle checks + mobile) + `comments-simple.json` (pinned
+  comments pro gate + panel + addComment in-scene pin + resolve + mobile) + `user-sets-simple.json`
+  ("My sets" pro gate + select items → saveSelectionAsSet → delete) + `presentation-simple.json`
+  (presentation pro gate + seed 2 views → setPresenting slideshow 1/2 → Next 2/2 → Exit). Remaining: AI
+  surfaces, GLB designer re-rung, crown-molding, ceilingDesign (logic unit-tested; visual needs
+  walk-mode look-up), livePrices, first-run re-rungs, backdrop-upload + furnlight re-rungs.
 - [~] Q-3DEXPORT Whole-scene glTF/GLB + OBJ export — **shipped** (`sceneExport3d` flag, pro tier;
   Tools/Share/⌘K/mobile). Pure extract/filter core (`export/sceneGltf.ts`) drops editor helpers; live
   scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,
@@ -133,8 +149,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   PHOTO-SSGI-SSR (WebGPU) / PHOTO-WEBGPU — see PHOTOREALISM.md (mostly real-GPU/frontier).
 
 ### Pending — quick wins (S)
-- [~] PARITY-NORTH: 2D-plan North/compass rose **shipped** (`planCompass` flag, needle tied to
-  `orientationDeg`). Remaining: a compass widget on the 3D canvas too.
 - [x] PARITY-BATCHRENDER: SH3D batch-render all saved views — Saved-views "Render all views" flies the
   camera to each saved view (`applyView`) and downloads a hi-fi PNG per view via `captureCanvasPng`
   (`ui/renderAllViews.ts`, `batchRender` pro flag).
@@ -143,7 +157,6 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   text callouts on sheets + drawing-set layer toggles.
 
 ### Pending — high value (M)
-- [ ] PARITY-SEARCH: Coohom smart/semantic catalog search (tag/fuzzy over catalog + packs).
 - [~] PARITY-AR: AR "view in your room" **shipped** — iOS AR Quick Look (USDZ) + GLB fallback
   (`ui/viewInAr.ts`, `viewInAr` flag). Remaining: Android Scene Viewer (needs an https-hosted model).
 - [ ] PARITY-DENOISE: Coohom render denoiser (OIDN-wasm/bilateral post-pass on HQ render). [real-GPU verify]
@@ -192,18 +205,18 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   runtime numeric-prop NaN path. No redundant guards added (would mask real bugs).
 
 ### Realism (pure-code, prod-safe — most users see the flat Performance tier)
-- [ ] RZ1: always-on cheap contact shadows on Performance tier (grounding) — highest visual
-  payoff; one shared blob texture + plane-per-item, transparent overdraw only.
-- [~] RZ2: window glass realism — **emissive sky-catch shipped** (all tiers; `glassSkyCatchIntensity`
-  in `materialRealism.ts`, wired into `apartment/Window.tsx`). Tail: apply to `PlanRoomShell` glass
-  (custom plans, needs the daylight signal) + wire `getGlassMaterial`/`glassConfig` transmission on
-  High+ (real-GPU verify).
+- [~] RZ2: window glass realism — **emissive sky-catch shipped** on the fixed apartment
+  (`apartment/Window.tsx`) AND custom-plan windows (`PlanShell` `FadeWindow`: daylight day/night tint +
+  sky-catch emissive). Tail: room-editor glass (`PlanRoomShell`, separate lightweight canvas) + wire
+  `getGlassMaterial`/`glassConfig` transmission on High+ (real-GPU verify).
 - [~] RZ3/PHOTO-BEVELS: beveled edges via shared `BeveledBox` helper — tables/desk +
   freestanding case goods done (CoffeeTable/DiningTable/ConsoleTable/Desk/Sideboard/Dresser/TVConsole/
-  Nightstand). Remaining: panel/shelf-built units (Bookshelf/Wardrobe/cabinet modules) + appliances;
+  Nightstand) + Bookshelf/Wardrobe carcasses + parametric kitchen CabinetModule (base/wall/tall:
+  carcass/doors/drawers/countertop). Remaining: ShoeCabinet/WallCabinet/CabinetCorner + appliances;
   edge light-catch real-GPU-pending.
-- [ ] RZ4: procedural roughness micro-detail + grout aging on wood/tile/marble generators.
-- [ ] RZ5: skirting/baseboard seam AO + painted-trim wear (close-up/walk realism).
+- [~] RZ5: painted-trim realism — baseboard + crown molding now bevel their edges in BOTH the fixed
+  apartment (`WallSegment`) and custom plans (`PlanShell` skirting + crown), so trim catches a highlight
+  (light-catch real-GPU-pending). Remaining: skirting-floor seam AO + painted-trim wear.
 - [ ] RZ6: upholstery seam stitching + seeded fabric-wrinkle variation on sofas/chairs.
 - [ ] RZ7: PCF/penumbra shadow softening on Medium+ tiers.
 

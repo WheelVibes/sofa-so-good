@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react'
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { type BoxInstance, InstancedBoxes } from './InstancedBoxes'
 import { readNum, readStr } from './shared'
 
@@ -38,9 +39,14 @@ export function Bookshelf({ props }: BookshelfProps) {
   const shelves = Array.from({ length: shelfCount }, (_, i) => {
     const y = shelfThickness / 2 + i * shelfSpacing
     return (
-      <mesh key={i} castShadow receiveShadow position={[0, y, 0]} material={wood}>
-        <boxGeometry args={[width - sideThickness * 2, shelfThickness, depth - backThickness]} />
-      </mesh>
+      <BeveledBox
+        key={i}
+        castShadow
+        receiveShadow
+        position={[0, y, 0]}
+        material={wood}
+        args={[width - sideThickness * 2, shelfThickness, depth - backThickness]}
+      />
     )
   })
 
@@ -92,9 +98,13 @@ export function Bookshelf({ props }: BookshelfProps) {
     ;[-1, 1].forEach((s) => {
       const cx = s * (doorW / 2 + 0.003)
       cabinetDoors.push(
-        <mesh key={`door${s}`} castShadow position={[cx, doorY, depth / 2 - 0.012]} material={wood}>
-          <boxGeometry args={[doorW, doorH, 0.018]} />
-        </mesh>,
+        <BeveledBox
+          key={`door${s}`}
+          castShadow
+          position={[cx, doorY, depth / 2 - 0.012]}
+          material={wood}
+          args={[doorW, doorH, 0.018]}
+        />,
       )
       // Vertical bar handle near the centre gap.
       cabinetDoors.push(
@@ -109,26 +119,28 @@ export function Bookshelf({ props }: BookshelfProps) {
   return (
     <group>
       {/* Recessed plinth (toe-kick) */}
-      <mesh castShadow receiveShadow position={[0, plinthH / 2, 0.02]} material={wood}>
-        <boxGeometry args={[width - 0.06, plinthH, depth - 0.06]} />
-      </mesh>
+      <BeveledBox
+        castShadow
+        receiveShadow
+        position={[0, plinthH / 2, 0.02]}
+        material={wood}
+        args={[width - 0.06, plinthH, depth - 0.06]}
+      />
       {/* Carcass lifted onto the plinth */}
       <group position={[0, plinthH, 0]}>
         {/* Sides */}
-        <mesh
+        <BeveledBox
           castShadow
           position={[-width / 2 + sideThickness / 2, carcassH / 2, 0]}
           material={wood}
-        >
-          <boxGeometry args={[sideThickness, carcassH, depth]} />
-        </mesh>
-        <mesh
+          args={[sideThickness, carcassH, depth]}
+        />
+        <BeveledBox
           castShadow
           position={[width / 2 - sideThickness / 2, carcassH / 2, 0]}
           material={wood}
-        >
-          <boxGeometry args={[sideThickness, carcassH, depth]} />
-        </mesh>
+          args={[sideThickness, carcassH, depth]}
+        />
         {/* Back */}
         <mesh
           receiveShadow

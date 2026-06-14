@@ -1,0 +1,30 @@
+{
+  "name": "presentation-simple",
+  "description": "IXT-SUITES: presentation mode (full-screen saved-views slideshow, pro). Hidden in Simple, present in Pro; seeding two saved views and starting presentation mounts the slideshow (Presentation · 1 / 2), Next advances to 2 / 2, Exit closes it.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.presentation === false" }, "timeout": 5000, "failMessage": "presentation should be OFF in Simple mode" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.presentation === true" }, "timeout": 5000, "failMessage": "presentation should be ON in Pro mode" },
+    { "name": "seed-view-1", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls; cam.position.set(13,7,-4); if(c){c.target.set(6.4,1.2,4.7);c.update();} cam.lookAt(6.4,1.2,4.7); window.__store.getState().saveCurrentView('Living overview');})()" },
+    { "name": "settle-1", "wait": 800 },
+    { "name": "seed-view-2", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls; cam.position.set(-3,5,12); if(c){c.target.set(6.4,1,4.7);c.update();} cam.lookAt(6.4,1,4.7); window.__store.getState().saveCurrentView('Kitchen angle');})()" },
+    { "name": "assert-two-views", "waitFor": { "store": "state.savedViews.length === 2" }, "timeout": 5000, "failMessage": "expected 2 saved views" },
+    { "name": "start-presenting", "eval": "(()=>{window.__store.getState().setPresenting(true);})()" },
+    { "name": "assert-presenting", "waitFor": { "store": "state.presenting === true" }, "timeout": 5000 },
+    { "name": "slide-1", "waitFor": { "text": "Presentation · 1 / 2" }, "timeout": 8000, "failMessage": "slideshow did not mount on slide 1" },
+    { "name": "settle-slide1", "wait": 1500 },
+    { "name": "shot-slide1", "screenshot": "presentation-slide-1" },
+    { "name": "next", "click": "button[aria-label='Next view']" },
+    { "name": "slide-2", "waitFor": { "text": "Presentation · 2 / 2" }, "timeout": 5000, "failMessage": "Next did not advance to slide 2" },
+    { "name": "settle-slide2", "wait": 1500 },
+    { "name": "shot-slide2", "screenshot": "presentation-slide-2" },
+    { "name": "exit", "click": { "text": "Exit" } },
+    { "name": "assert-exited", "waitFor": { "store": "state.presenting === false" }, "timeout": 5000, "failMessage": "Exit did not stop the presentation" },
+    { "name": "back-to-simple", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.presentation === false" }, "timeout": 5000 }
+  ]
+}

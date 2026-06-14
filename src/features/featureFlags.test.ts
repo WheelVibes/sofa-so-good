@@ -235,6 +235,13 @@ describe('renderPresets flag (F4)', () => {
   })
 })
 
+describe('contactShadows flag (RZ1)', () => {
+  it('is simple-tier: grounding shadows stay on in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').contactShadows).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').contactShadows).toBe(true)
+  })
+})
+
 describe('hqRender flag (F1)', () => {
   it('is pro-tier: hidden in Simple, present in Pro', () => {
     expect(resolveFlags(false, {}, false, 'simple').hqRender).toBe(false)

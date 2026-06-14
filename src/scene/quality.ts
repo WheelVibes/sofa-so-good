@@ -41,8 +41,10 @@ export interface QualitySettings {
   dprMax: number
   /** Fade exterior walls between camera and interior (cheap; always on). */
   wallReveal: boolean
-  /** Soft contact-shadow blobs under furniture (transparent overdraw; off on
-   *  the performance tier to save fill rate on weak GPUs). */
+  /** Soft contact-shadow blobs under furniture (cheap transparent overdraw, no
+   *  shadow map). On at every tier — including the flat performance tier, where
+   *  they are the only grounding cue — gated by the `contactShadows` feature
+   *  flag (RZ1). */
   contactShadows: boolean
   /** Tessellation multiplier for furniture curved geometry (cylinders, lathes,
    *  rounded boxes). Scales segment counts so higher tiers render smoother
@@ -74,7 +76,9 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     maxFixtureLights: 2,
     dprMax: 1,
     wallReveal: true,
-    contactShadows: false,
+    // Cheap blob grounding (no shadow map) — the only contact cue on the flat
+    // tier, so furniture doesn't look like it floats. RZ1.
+    contactShadows: true,
     geometryDetail: 0.7,
     showcase: false,
     aoFullRes: false,
@@ -134,7 +138,8 @@ export const QUALITY_LABEL: Record<RenderTier, string> = {
 
 /** One-line description per tier for the Graphics panel. */
 export const QUALITY_DESCRIPTION: Record<RenderTier, string> = {
-  performance: 'Flat & fast — no shadows or effects. Best for laptops/phones without a GPU.',
+  performance:
+    'Flat & fast — soft contact grounding only, no real-time shadows or effects. Best for laptops/phones without a GPU.',
   medium: 'Sun shadows + soft reflections. Good all-round default.',
   high: 'Adds bloom, ambient occlusion & antialiasing. Needs a dedicated GPU.',
   maximum:

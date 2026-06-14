@@ -5,6 +5,325 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES: interaction-test ladder for Design score
+
+- Added `scripts/scenarios/design-score-simple.json` (18 steps, 2 screenshots) covering the `designScore`
+  pro feature: asserts hidden in Simple / present in Pro, furnishes the flat, opens the panel
+  (`#designScorePanel`, "Design score" with the grade dial + Clearance/Furnishing/Circulation/Daylight/
+  Lighting breakdown + suggestions), checks the mobile bottom-sheet, closes, and confirms it's hidden
+  again in Simple. Test coverage only — no app code changed.
+
+## Catalog search: search by room / use-case intent
+
+- Catalog search now understands **room/use intent** (Coohom-style): typing "bedroom", "office",
+  "lighting", "storage", etc. surfaces the furniture that belongs there (bedroom → beds, nightstands,
+  wardrobes, dressers) even though no item is literally named that. A `CATEGORY_INTENT` map + `expandIntent`
+  feed the mapped item terms as discounted synonyms in `fuzzySearchSmart`. Item-level words ("bed") are
+  deliberately NOT intent keys, so a single-item search isn't broadened unexpectedly.
+- 4 unit tests (intent expansion + "bed doesn't broaden" guard); browser-verified ("bedroom" returns
+  Nightstand/Wardrobe/Dressing table/etc. in the real catalog). Builds on PARITY-SEARCH.
+
+## RZ5 (partial): beveled baseboard + crown-molding trim
+
+- Baseboards and crown molding now build from the shared `BeveledBox` chamfer instead of hard
+  `boxGeometry` in BOTH the fixed apartment (`WallSegment`) and custom plans (`PlanShell` skirting +
+  crown), so the trim edges round slightly and catch a highlight rather than reading as flat slabs —
+  matching the case-good bevel pass. The crown molding's `polygonOffset` (ceiling z-fight guard) is
+  preserved on its material. Browser-verified on both the default flat (baseboards) and a template plan
+  (skirting): trim renders cleanly along the floor/wall junction, no z-fighting or clipping. Skirting
+  seam AO + painted-trim wear remain (TASKS RZ5).
+
+## IXT-SUITES: interaction-test ladder for saved camera views
+
+- Added `scripts/scenarios/saved-views-simple.json` (16 steps, 1 screenshot) covering saved camera views
+  (simple-tier): asserts the flag is present in Simple, saves the current view (`saveCurrentView` →
+  `savedViews.length === 1`), moves the camera away, applies the saved view (`applyView` bumps
+  `applyViewNonce` + sets `pendingViewPose`, restoring the dollhouse pose — verified visually), then
+  deletes it. Store-driven (the UI lives in the View menu). Test coverage only — no app code changed.
+
+## IXT-SUITES: interaction-test ladder for the parametric furniture designer
+
+- Added `scripts/scenarios/parametric-designer-simple.json` (18 steps, 2 screenshots) covering the
+  custom-size (parametric) furniture designer (`parametricFurniture` pro): asserts hidden in Simple /
+  present in Pro, opens the dialog (`.parametric-dialog`, "Custom-size furniture" with type tabs +
+  dimension sliders + finish swatches + price + a live 3D preview), switches type Bookshelf → Wardrobe
+  (preview + controls update), closes, and confirms it's hidden again in Simple. Test coverage only —
+  no app code changed.
+
+## IXT-SUITES: interaction-test ladder for the measure / tape tool
+
+- Added `scripts/scenarios/measure-simple.json` (18 steps, 1 screenshot) covering the `measure` pro
+  feature: asserts hidden in Simple / present in Pro, toggles tape mode, injects two points via the
+  `addTapePoint` store action (sidestepping the headless canvas-raycast limit), and verifies a 3.00 m
+  measured line with its drei-`Html` distance label renders in-scene, then that turning tape mode off
+  clears the points. Test coverage only — no app code changed.
+
+## IXT-SUITES: interaction-test ladder for presentation mode
+
+- Added `scripts/scenarios/presentation-simple.json` (23 steps, 2 screenshots) covering the
+  `presentation` pro feature (full-screen saved-views slideshow): asserts hidden in Simple / present in
+  Pro, seeds two saved views, starts presenting (`setPresenting` → the slideshow mounts on "Presentation
+  · 1 / 2" with the view caption), advances with Next ("2 / 2"), exits, and confirms it's hidden again in
+  Simple. Test coverage only — no app code changed.
+
+## IXT-SUITES: interaction-test ladder for "My sets"
+
+- Added `scripts/scenarios/user-sets-simple.json` (15 steps, 1 screenshot) covering the `userSets` pro
+  feature: asserts hidden in Simple / present in Pro, places + selects two items (`setSelectedItemIds`),
+  saves the selection as a named set (`saveSelectionAsSet` → `userSets.length === 1`), then deletes it
+  (`deleteUserSet`). Store-driven (the UI lives in the Arrange menu). Test coverage only — no app code
+  changed.
+
+## IXT-SUITES: interaction-test ladder for pinned comments
+
+- Added `scripts/scenarios/comments-simple.json` (22 steps, 2 screenshots) covering the `comments` pro
+  feature: asserts hidden in Simple / present in Pro, opens the panel (`#commentsPanel`, "Comments"),
+  pins a note via `addComment` (rendered both as an in-scene pin and in the panel list), resolves it
+  (`setCommentResolved`), checks the mobile bottom-sheet, closes, and confirms it's hidden again in
+  Simple. Test coverage only — no app code changed.
+
+## QOL: recent searches also captured on click-away
+
+- Recent catalog searches are now remembered when the search field loses focus with a ≥2-char query
+  (e.g. you searched then clicked a result), not only on Enter — capturing the common click-away case.
+  `pushRecent` de-dupes so the Enter+blur paths are idempotent. Browser-verified (type "couch", blur →
+  persisted recents `["couch"]`).
+
+## IXT-SUITES: interaction-test ladder for the accessibility check
+
+- Added `scripts/scenarios/accessibility-simple.json` (17 steps, 2 screenshots) covering the
+  `accessibility` pro feature: asserts hidden in Simple / present in Pro, opens the panel
+  (`#accessibilityPanel`, "Accessibility" with the per-door width checks + per-room 1.5 m turning-circle
+  results + OK/NARROW/TIGHT badges), checks the mobile bottom-sheet, closes, and confirms it's hidden
+  again in Simple. Test coverage only — no app code changed.
+
+## IXT-SUITES: interaction-test ladder for the daylight & ventilation check
+
+- Added `scripts/scenarios/daylight-simple.json` (17 steps, 2 screenshots) covering the `daylight` pro
+  feature: asserts hidden in Simple / present in Pro, opens the panel (`#daylightPanel`, "Daylight &
+  ventilation" with the per-room glazing/openable breakdown + PASS/FAIL badges + Daylight/Ventilation
+  scores), checks the mobile bottom-sheet, closes, and confirms it's hidden again in Simple. Test
+  coverage only — no app code changed.
+
+## a11y: catalog search labels + live result count
+
+- Accessibility pass on the catalog search: the input now carries an explicit `aria-label` (it was
+  labelled only by its placeholder, which screen readers don't treat as a label), the result-count line
+  is an `aria-live="polite"` region (so "N matches" is announced as the user types). The recent-search chips
+  are already individually labelled buttons. Additive ARIA only — no behaviour or rendering change
+  (tsc + full suite green).
+
+## QOL: clear recent catalog searches
+
+- The recent-searches chip row now ends with a **"Clear"** button that wipes the saved terms (calls the
+  existing `clearRecent`), completing the feature. Browser-verified: clicking Clear removes the chips and
+  empties the persisted list (localStorage key cleared).
+
+## QOL: recent catalog searches
+
+- The catalog search now remembers **recent search terms** (per-device, most-recent-first, de-duplicated,
+  capped at 6) and shows them as clickable chips when the field is focused and empty — one tap re-runs a
+  past search, like Coohom/modern catalogs. Terms are committed on Enter; chips use `onMouseDown`
+  preventDefault so a click lands before the focus-blur hides them. New pure `recentSearches.ts`
+  (load/add/cap/parse, storage-guarded) with 7 unit tests; browser-verified (search "armchair" then
+  "sofa" → chips `["sofa","armchair"]`, click re-applies).
+
+## QOL: catalog search result count
+
+- The catalog search now shows a small "N matches" count under the field when a query has results
+  (the empty-state already covers zero), giving quick feedback on how many items matched — like Coohom's
+  search. Subtle muted text via theme tokens. Browser-verified ("sofa" → "8 matches").
+
+## QOL: catalog search clear (×) button
+
+- The catalog search field now shows a **clear (×) button** while a query is typed (reusing the themed
+  `.icon-btn`), so a query can be cleared with one click — the universally-expected affordance that was
+  previously only reachable via the Escape key. Positioned inside the field's right edge with the input
+  gaining right padding so text never runs under it. Browser-verified: the × appears on input and clears
+  the query on click (light/dark themed via tokens).
+
+## Robustness: value-noise period guard (prevents NaN→black textures)
+
+- Hardened `makeValueNoise` (the base of every procedural pattern) against a non-integer `period`: the
+  lattice grid is sized and indexed by `period`, so a fractional value previously produced out-of-grid
+  `undefined` reads → NaN → all-black textures (the trap that bit the concrete staining work). It now
+  coerces to a valid positive integer — the **identity for every integer period in use today**, so all
+  existing textures are byte-for-byte unchanged (the generator determinism tests confirm it). New
+  `noise.test.ts` proves non-integer `period`/`baseFreq` now yield finite output and integer periods are
+  unchanged.
+
+## RZ4 extension: cloudy staining on concrete
+
+- The `concrete` generator gains a low-frequency cloudy-staining layer — the broad water-mark /
+  cure-blotch tonal variation real poured concrete has, on a larger scale than the existing mottle, with
+  the stained patches reading a touch less rough (sealed sheen). Makes bare-concrete floors/walls read
+  less like a flat slab. Browser-verified on a `floor-concrete` floor (grey with soft cloudy patches).
+- A `generators.test.ts` variance+determinism guard was added first and **caught a NaN→black
+  regression**: value-noise grid sizing requires an **integer** `baseFreq`, so the initial `2.4`
+  produced `undefined` grid reads → NaN → all-black albedo; fixed to `3` (documented inline).
+
+## RZ4 extension: aged mortar + roughness micro-detail on exposed brick
+
+- Extended the RZ4 grout-aging treatment to the `brick` generator: mortar joints are now darkened
+  unevenly by a low-frequency dirt fbm (dirtier patches read slightly rougher) instead of a near-uniform
+  grey, and the brick clay face gains a faint high-frequency roughness break-up so it isn't a flat matte
+  slab. Albedo change (visible on every tier) + roughness; seamless and deterministic per cache key.
+- `generators.test.ts` asserts the mortar pixels span a range of darkness (aged). Browser-verified on a
+  `wall-brick-red` accent wall: running-bond brick with varied mortar + per-brick colour, no artifacts.
+
+## IXT-SUITES: interaction-test ladder for the per-room editor
+
+- Added `scripts/scenarios/room-editor-simple.json` (21 steps, 3 screenshots) covering the per-room
+  editor: `enterRoomEditor` isolates a room and the editing catalog mounts only there (`.panel.catalog`),
+  an item placed in the editor persists, `exitRoomEditor` returns to the full scene and unmounts the
+  catalog (the item still persists), and the catalog renders as a mobile bottom-sheet at 390×844. Test
+  coverage only — no app code changed.
+
+## IXT-SUITES: interaction-test ladder for Smart Start
+
+- Added `scripts/scenarios/smart-start-simple.json` (20 steps, 3 screenshots) covering the Smart Start
+  one-click furnish wizard (simple-tier): asserts it's present in Simple mode, opens the wizard modal
+  (style grid: Move-in Default / Scandi Calm / Warm Industrial / Cozy Tropical / Japandi / Coastal +
+  brief input), picks a style, clicks "Furnish my flat" and confirms an emptied flat is furnished
+  (`state.items.length > 0`) with the modal closed, then checks the mobile modal at 390×844. Test
+  coverage only — no app code changed.
+
+## IXT-SUITES: interaction-test ladder for clearance checks
+
+- Added `scripts/scenarios/clearance-checks-simple.json` (21 steps, 3 screenshots) covering the
+  `clearanceChecks` pro feature: asserts it's hidden in Simple mode and present in Pro
+  (`state.featureFlags.clearanceChecks`), opens the panel (`#clearancePanel`, "Clearance checks /
+  HDB 90 cm walkways" with the blocking/overlap/in-wall/walkway/clear summary + per-issue fix hints),
+  toggles the in-scene clearance overlay (`clearanceOn`), checks the mobile bottom-sheet at 390×844,
+  closes the panel, and confirms it's hidden again back in Simple. No app code changed — test coverage
+  only (IXT-SUITES backlog).
+
+## Catalog search: plural queries now match singular names
+
+- Fixed a search gap where a plural query returned no results: the fuzzy matcher is a subsequence test,
+  so "sofas" scored 0 against "Sofa" (the trailing plural char broke the run) — typing "sofas",
+  "chairs", "tables", etc. surfaced nothing. `fuzzySearchSmart` now also scores a **singularised** form
+  of the query (strip trailing `s`/`es`) at full weight, and expands synonyms of the singular too
+  ("couches" → Sofa). New `singularize` helper + 3 unit tests; browser-verified ("sofas" ranks the
+  sofas first). Builds on PARITY-SEARCH.
+
+## RZ2 tail: custom-plan window glass sky-catch (daylight day/night look)
+
+- Custom/edited-plan windows (`PlanShell` `FadeWindow`) now match the fixed apartment's glass: a clear,
+  sky-lit pane by day that goes dark and reflective at night, driven by the `getFixtureGlow` daylight
+  signal — a cheap emissive sky-catch (`glassSkyCatchIntensity`, all tiers) plus a day→night colour
+  (`#bcd4e6`→`#20272f`) and opacity blend (more opaque at night). Previously custom-plan glass was a
+  static pale pane regardless of time of day.
+- Browser-verified (`scripts/scenarios/plan-glass-skycatch.json`): glass reads clear/light by day and
+  dark by night on a loaded template plan; full suite green. Room-editor glass + High+ transmission
+  remain (TASKS RZ2).
+
+## PARITY-NORTH: 3D nav compass now tracks scene North
+
+- The on-canvas 3D nav compass (`NavCluster`) previously rotated its needle by the camera heading
+  alone, ignoring the user-set North orientation — so once `orientationDeg` was changed it disagreed
+  with the 2D plan compass and pointed the wrong way. The needle now rotates by `heading −
+  orientationDeg`, so it points to **true scene North** and matches the 2D compass (which rotates by
+  `-orientationDeg`); at `orientationDeg = 0` the behaviour is unchanged.
+- Extracted the pure math to `ui/compassHeading.ts` (`forwardToHeadingDeg` + `compassNeedleDeg`) with
+  4 unit tests. Browser-verified (`scripts/scenarios/compass-orientation.json`): rotating North +90°
+  shifts the needle SVG transform by −90° (315°→225°). Completes PARITY-NORTH (2D compass already shipped).
+
+## RZ3/PHOTO-BEVELS: beveled edges on parametric kitchen cabinets
+
+- The parametric `CabinetModule` (base / wall / tall kitchen cabinets) now renders its body panels
+  (carcass / toe-kick / cornice / doors / drawers / shelves) and the worktop/countertop through the
+  shared `BeveledBox` helper instead of hard `boxGeometry`, so cabinet and counter edges carry the
+  same small auto-clamped chamfer as the rest of the case goods. Handles, glass, shaker rails, sink
+  and hob are left as-is (small/detail or non-box). Part positions/sizes/materials are unchanged —
+  only the box-vs-rounded geometry differs.
+- tsc + biome + full suite (incl. `cabinetModel`) green. Verification is by parity with the
+  Bookshelf/Wardrobe `BeveledBox` swap visually confirmed earlier (identical helper + `safeBevelRadius`
+  clamp, unit-tested) — CabinetModule is the user-generated parametric primitive with no builtin
+  catalog def to place headlessly. ShoeCabinet/WallCabinet/CabinetCorner + appliances remain (TASKS RZ3).
+
+## RZ3/PHOTO-BEVELS: beveled edges on Bookshelf + Wardrobe carcasses
+
+- The Bookshelf (plinth, side panels, shelves, cabinet doors) and Wardrobe (closed body, hinged door
+  panels, sliding aluminium frame + laminate inserts, open-carcass sides/top/bottom) now build from
+  the shared `BeveledBox` helper instead of hard `boxGeometry` slabs, so their edges carry a tiny
+  auto-clamped chamfer (≤7 mm, detail-scaled smoothness) that catches a highlight instead of reading as
+  flat cardboard — matching the case goods already converted (Sideboard/Dresser/Nightstand/…).
+- The chamfer is clamped by `safeBevelRadius` (≤40 % of the thinnest side) so thin panels never
+  self-intersect; footprints/joins are visually unchanged. Browser-verified
+  (`scripts/scenarios/case-good-bevels.json`): the wardrobe renders fully intact (doors + handles
+  aligned, no clipping/z-fighting); edge light-catch itself is real-GPU-pending (flat tier has no
+  specular). Cabinet modules + appliances remain (see TASKS RZ3).
+
+## PARITY-SEARCH: synonym-aware catalog search across every source
+
+- Catalog search now expands the query through a curated **synonym dictionary** (`couch`→sofa,
+  `telly`→tv, `fridge`→refrigerator, `bedside table`→nightstand, …) before fuzzy-ranking, so
+  alternate everyday terms surface the right item. Crucially this applies to the QUERY, so it works
+  for **pack and user-uploaded items that have no hand-authored keywords** — previously a search for
+  "couch" missed an uploaded model literally named "Sofa". Matches Coohom's forgiving search.
+- New `ui/catalog/searchSynonyms.ts`: `SYNONYM_GROUPS` + `expandQuery` (substitutes a synonym inside a
+  phrase — "leather couch" → "leather sofa", longest-term-first so "tv console" isn't shadowed by
+  "tv") + `fuzzySearchSmart` (scores the query AND its synonym variants, variants discounted so a
+  literal name match still ranks first). The generic `fuzzyScore`/`fuzzySearch` stays pure. Wired into
+  `CatalogDrawer`'s search; existing per-item keywords still apply and the prior keyword test is
+  unchanged.
+- 7 unit tests (synonym-without-keywords, phrase substitution, literal-beats-synonym, typo tolerance,
+  empty-query passthrough, non-match drop). Browser-verified (`scripts/scenarios/smart-search-synonyms.json`):
+  typing "couch" ranks the 3-seat + 2-seat sofas first.
+
+## Fix: custom-plan walls now turn translucent consistently in the dollhouse view
+
+- **Bug:** in a custom/edited floor plan (`PlanShell`), orbiting to look into the home left near
+  walls only partly translucent — a long facade wall split into segments by windows would have its
+  middle fade while the ends stayed opaque, and near walls viewed off-axis stayed solid. Internal
+  partitions also half-faded, giving a muddy patchwork.
+- **Cause:** `FadeWall`/`FadeWindow`/`PlanDoorLeaf` decided the fade from a **position** test (the
+  angle between *segment→camera* and *segment→centre*), which is evaluated per segment-centre — so
+  segments of one wall disagreed, and off-axis near walls read as "far". It also faded every wall,
+  including internal partitions.
+- **Fix:** switched to the **orientation-based** metric the default flat already uses (`WallSegment`):
+  a wall fades from its outward broad-face normal vs the camera→centre direction, which is identical
+  for every segment of a wall, so the whole wall fades together regardless of where the camera sits.
+  And, like the default, **only external/perimeter walls fade** — internal partitions stay solid so
+  the layout still reads. Windows and door leaves follow their host wall's external flag.
+- Verified on a custom template (`scripts/scenarios/wall-reveal-verify.json`): from a face-on angle
+  the near external wall fully turns translucent (min opacity 0.12) while internal partitions stay
+  opaque; no patchy per-segment reveal.
+
+## RZ4: aged grout + roughness micro-detail on procedural surfaces
+
+- **Grout joints now read as lived-in, not pristine.** The tile / hexagon / subway generators darken
+  their grout/joint albedo unevenly via a low-frequency dirt fbm (down to ~74 % in the dirtiest
+  patches, dirtier spots slightly rougher), so grout lines stop looking like a single flat printed
+  tone. Visible on every tier including the flat Performance default (it's an albedo change).
+- **Roughness micro-detail** added to wood, tile and marble faces — a faint high-frequency fbm break-up
+  (±0.04–0.08) so varnished timber / glossy ceramic / polished marble don't read as a dead-uniform
+  sheen under reflections (Medium+). Touches only the roughness map; albedo/normal unchanged on faces.
+- All changes live in the shared `procedural/generators.ts` field functions, so both the sync and
+  OffscreenCanvas-worker paths get them; fbm tiling preserves seamlessness, and outputs stay
+  deterministic per `{id, pattern, swatch, size}` (cache-key safe). Tests in `generators.test.ts`
+  assert determinism, that tile grout pixels span a range of darkness (aged), and that tile/marble
+  roughness maps carry micro-detail. Visual: `scripts/scenarios/grout-aging-rz4.json` (tile/hex/marble
+  floors render cleanly, no z-fighting/clipping).
+
+## RZ1: contact-shadow grounding on the flat Performance tier
+
+- Furniture now casts a **soft contact-shadow blob on every quality tier — including the default flat
+  Performance tier**, which previously rendered with no grounding at all so pieces read as floating on
+  weak GPUs / the software renderer. The cue is the existing cheap `scene/ContactShadow.tsx` (one shared
+  radial-gradient texture + a transparent floor plane per item, `depthWrite` off at +0.006 m → no shadow
+  map, no z-fighting), so the cost is just transparent overdraw. Implemented by flipping
+  `QUALITY_PRESETS.performance.contactShadows` `false → true` (`scene/quality.ts`); Medium+ already had it.
+- Gated behind a new **`contactShadows` feature flag** (`features/featureFlags.ts`) — **simple tier,
+  default on, prod-safe** (pure code, no assets) so it shows in both Simple and Pro mode. `FurnitureLayer`
+  ANDs the flag with the per-tier quality setting (`useFeature('contactShadows') && quality.contactShadows`),
+  and the Graphics-panel per-setting override still applies independently.
+- Tests: `quality.test.ts` asserts every tier (incl. performance) enables contact shadows; `featureFlags.test.ts`
+  asserts the flag is simple-tier (on in Simple AND Pro). Visually verified on the Performance tier via
+  `scripts/scenarios/contact-shadows-perf.json` — soft grounding halos under sofa + armchair with the flag on,
+  bare floor with it off, no z-fighting/clipping.
+
 ## Template categories: housing type › project › apartment-type picker
 
 - Floor-plan templates are now **categorised** by a three-level hierarchy — **housing type**

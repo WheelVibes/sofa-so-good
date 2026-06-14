@@ -3,6 +3,7 @@ import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
 import { type Group, Mesh, type MeshStandardMaterial } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
+import { BeveledBox } from '../../furniture/primitives/BeveledBox'
 import type {
   MaterialId,
   ProceduralMaterialDef,
@@ -134,10 +135,14 @@ function Baseboard({
 }) {
   const z = sign * (thickness / 2 + 0.006)
   return (
-    <mesh position={[segMid, BASEBOARD_H / 2, z]} castShadow receiveShadow>
-      <boxGeometry args={[segLen, BASEBOARD_H, 0.018]} />
+    <BeveledBox
+      position={[segMid, BASEBOARD_H / 2, z]}
+      castShadow
+      receiveShadow
+      args={[segLen, BASEBOARD_H, 0.018]}
+    >
       <meshStandardMaterial color="#eeece6" roughness={0.55} metalness={0} />
-    </mesh>
+    </BeveledBox>
   )
 }
 
@@ -162,8 +167,7 @@ function CrownMolding({
 }) {
   const z = sign * (thickness / 2 + 0.004)
   return (
-    <mesh position={[segMid, segTop - CROWN_H / 2, z]}>
-      <boxGeometry args={[segLen, CROWN_H, CROWN_T]} />
+    <BeveledBox position={[segMid, segTop - CROWN_H / 2, z]} args={[segLen, CROWN_H, CROWN_T]}>
       <meshStandardMaterial
         color="#eeece6"
         roughness={0.55}
@@ -172,7 +176,7 @@ function CrownMolding({
         polygonOffsetFactor={-2}
         polygonOffsetUnits={-2}
       />
-    </mesh>
+    </BeveledBox>
   )
 }
 

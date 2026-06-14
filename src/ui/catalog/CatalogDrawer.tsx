@@ -5,9 +5,10 @@ import { Icon } from '../toolbar/icons'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
 import { filterByMaxPrice, SORT_LABEL, type SortKey, sortCards } from './catalogBrowse'
-import { fuzzySearch } from './fuzzySearch'
 import { LayersPanel } from './LayersPanel'
 import { RemoteCard } from './RemoteCard'
+import { clearRecent, loadRecent, pushRecent } from './recentSearches'
+import { fuzzySearchSmart } from './searchSynonyms'
 
 // Lazy-loaded: the packs tab (pack install pipeline + unzip + thumbnail
 // renderer) and the model upload dialog (format converters + optimize pass)
@@ -87,6 +88,9 @@ export function CatalogDrawer() {
   const [page, setPage] = useState(0)
   const [sortBy, setSortBy] = useState<SortKey>(() => loadBrowsePrefs().sortBy)
   const [maxPrice, setMaxPrice] = useState('')
+  // Recent searches: chips shown when the field is focused + empty (commit on Enter).
+  const [recent, setRecent] = useState<string[]>(() => loadRecent())
+  const [searchFocused, setSearchFocused] = useState(false)
 
   useEffect(() => {
     if (open && phStatus === 'idle') void bootstrapRemote()
@@ -119,8 +123,9 @@ export function CatalogDrawer() {
   // Fuzzy (typo-tolerant, ranked) search across the WHOLE catalog (local +
   // browsable CC0) when querying; otherwise the active category / favourites.
   const baseCards = q
-    ? // Searching uses the fuzzy relevance ranking — sort is for browsing only.
-      fuzzySearch(q, unified.all, gridItemText)
+    ? // Searching uses synonym-aware fuzzy ranking (so "couch" finds a "Sofa",
+      // even for pack/uploaded items without keywords) — sort is browse-only.
+      fuzzySearchSmart(q, unified.all, gridItemText)
     : active === 'favourites'
       ? unified.favourites
       : active === 'recent'
@@ -231,8 +236,17 @@ export function CatalogDrawer() {
               <Icon.Search width={16} height={16} className="icn" />
               <input
                 type="search"
+                aria-label="Search the furniture catalog"
                 value={query}
                 onChange={(e) => onSearch(e.target.value)}
+                onFocus={() => setSearchFocused(true)}
+                onBlur={() => {
+                  setSearchFocused(false)
+                  // Remember the term on click-away too (not just Enter), so a
+                  // search you ran then clicked a result for is captured. Skip
+                  // 1-char fragments; pushRecent de-dupes, so it's idempotent.
+                  if (query.trim().length >= 2) setRecent(pushRecent(query))
+                }}
                 onKeyDown={(e) => {
                   // Esc clears a non-empty query (keeping focus to keep typing),
                   // else blurs the field — a quick way out of search.
@@ -240,12 +254,59 @@ export function CatalogDrawer() {
                     e.stopPropagation()
                     if (query) onSearch('')
                     else e.currentTarget.blur()
+                  } else if (e.key === 'Enter' && query.trim()) {
+                    // Commit the term to recent searches (most-recent-first).
+                    setRecent(pushRecent(query))
                   }
                 }}
                 placeholder={`Search ${totalCount} items…`}
-                className="input"
+                className={q ? 'input has-clear' : 'input'}
               />
+              {q ? (
+                <button
+                  type="button"
+                  className="icon-btn field-clear"
+                  aria-label="Clear search"
+                  onClick={() => onSearch('')}
+                >
+                  <Icon.Close width={14} height={14} />
+                </button>
+              ) : null}
             </div>
+            {q && allCards.length > 0 ? (
+              <div className="cat-count" aria-live="polite">
+                {allCards.length} {allCards.length === 1 ? 'match' : 'matches'}
+              </div>
+            ) : null}
+            {searchFocused && !q && recent.length > 0 ? (
+              <div className="cat-recent">
+                {recent.map((term) => (
+                  <button
+                    key={term}
+                    type="button"
+                    className="cat-recent-chip"
+                    // Keep input focus through the click so the chip doesn't
+                    // unmount on blur before the click registers.
+                    onMouseDown={(e) => e.preventDefault()}
+                    onClick={() => onSearch(term)}
+                  >
+                    <Icon.Search width={11} height={11} />
+                    {term}
+                  </button>
+                ))}
+                <button
+                  type="button"
+                  className="cat-recent-clear"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    clearRecent()
+                    setRecent([])
+                  }}
+                >
+                  Clear
+                </button>
+              </div>
+            ) : null}
           </div>
           {q ? null : (
             <CategoryTabs

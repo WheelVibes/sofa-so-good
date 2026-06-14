@@ -78,13 +78,24 @@ export function PlanDoorLeaf({
   }
 
   useFrame((_, dt) => {
-    // Fade with the wall: hide when the wall sits between the orbit camera and
-    // the plan centre (same predicate as FadeWall).
+    // Hide with the host wall when an EXTERNAL wall sits between the orbit camera
+    // and the plan centre (internal partitions never fade, so their doors stay).
+    // Orientation-based (matches FadeWall): test the wall's outward broad-face
+    // normal against the camera→centre direction, NOT the door's position
+    // relative to centre — so a door in a long near wall hides together with its
+    // wall instead of only when it happens to sit on the view axis.
     if (rootRef.current) {
-      const kx = camera.position.x - doorX
-      const kz = camera.position.z - doorZ
-      const between = kx * (cx - doorX) + kz * (cz - doorZ) < 0
-      rootRef.current.visible = !(useStore.getState().cameraMode === 'orbit' && between)
+      let hide = false
+      if (wall.thickness === 'external' && useStore.getState().cameraMode === 'orbit') {
+        let nx = -Math.sin(angle)
+        let nz = Math.cos(angle)
+        if (nx * (doorX - cx) + nz * (doorZ - cz) < 0) {
+          nx = -nx
+          nz = -nz
+        }
+        hide = nx * (cx - camera.position.x) + nz * (cz - camera.position.z) < 0
+      }
+      rootRef.current.visible = !hide
     }
     const target = isOpen ? SWING_RAD : 0
     if (angleRef.current !== target) {

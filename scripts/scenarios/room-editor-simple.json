@@ -1,0 +1,28 @@
+{
+  "name": "room-editor-simple",
+  "description": "IXT-SUITES: per-room editor. Enter isolates a room and mounts the editing catalog (catalog only shows in the editor); items placed there persist; exit unmounts the catalog and returns to the full scene. Mobile leg.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "enter-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "assert-active", "waitFor": { "store": "state.roomEditor.active === true && state.roomEditor.roomId === 'livingDining'" }, "timeout": 5000, "failMessage": "Room editor did not activate for livingDining" },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "catalog-mounts", "waitFor": { "css": ".panel.catalog" }, "timeout": 8000, "failMessage": "Editing catalog should mount inside the room editor" },
+    { "name": "settle-room", "wait": 2000 },
+    { "name": "shot-editor", "screenshot": "room-editor" },
+    { "name": "place-item", "eval": "window.__store.getState().setItems([{id:'re-sofa',defId:'sofa-3seat',position:[9.6,2.55],rotation:1.5708,props:{}}])" },
+    { "name": "assert-placed", "waitFor": { "store": "state.items.some(i => i.id === 're-sofa')" }, "timeout": 5000 },
+    { "name": "exit-editor", "store": { "action": "exitRoomEditor", "args": [] } },
+    { "name": "assert-exited", "waitFor": { "store": "state.roomEditor.active === false" }, "timeout": 5000, "failMessage": "Room editor did not exit" },
+    { "name": "catalog-unmounts", "waitFor": { "css": ".panel.catalog", "visible": false }, "timeout": 5000, "failMessage": "Catalog should unmount when leaving the room editor" },
+    { "name": "assert-item-persists", "waitFor": { "store": "state.items.some(i => i.id === 're-sofa')" }, "timeout": 5000, "failMessage": "Item placed in the editor should persist after exit" },
+    { "name": "settle-full", "wait": 1500 },
+    { "name": "shot-full", "screenshot": "full-scene" },
+    { "name": "reenter-mobile", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 1500 },
+    { "name": "shot-mobile", "screenshot": "room-editor-mobile" }
+  ]
+}

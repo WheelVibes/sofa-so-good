@@ -1,0 +1,16 @@
+{
+  "name": "smart-search-synonyms",
+  "description": "PARITY-SEARCH: typing the synonym 'couch' into the catalog search surfaces Sofa items (synonym-aware fuzzy search).",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "enter-room-editor", "store": { "action": "enterRoomEditor", "args": ["livingDining"] } },
+    { "name": "open-catalog", "store": { "action": "setCatalogOpen", "args": [true] } },
+    { "name": "search-input-ready", "waitFor": { "css": ".cat-search input[type=search]" }, "timeout": 10000 },
+    { "name": "type-couch", "eval": "(()=>{const inp=document.querySelector('.cat-search input[type=search]');const setVal=(el,v)=>{Object.getOwnPropertyDescriptor(Object.getPrototypeOf(el),'value').set.call(el,v);el.dispatchEvent(new Event('input',{bubbles:true}));};setVal(inp,'couch');})()" },
+    { "name": "settle", "wait": 1200 },
+    { "name": "probe-results", "eval": "(()=>{const cards=[...document.querySelectorAll('.panel.catalog .cat-card, .panel.catalog [class*=card]')];const names=cards.map(c=>(c.getAttribute('title')||c.textContent||'').trim().slice(0,40)).filter(Boolean).slice(0,6);console.log('PROBE couch-results='+JSON.stringify(names));return 'done';})()" },
+    { "name": "shot", "screenshot": "search-couch" }
+  ]
+}

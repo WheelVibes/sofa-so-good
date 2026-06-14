@@ -1,0 +1,27 @@
+{
+  "name": "smart-start-simple",
+  "description": "IXT-SUITES: Smart Start (simple-tier one-click furnish). Present in Simple mode; the wizard modal opens with style cards, 'Furnish my flat' applies a layout (items populate) and closes the modal. Mobile leg.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "clear-items", "eval": "window.__store.getState().setItems([])" },
+    { "name": "assert-simple-present", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.smartStart === true" }, "timeout": 5000, "failMessage": "Smart Start (simple-tier) should be present in Simple mode" },
+    { "name": "open-wizard", "store": { "action": "setSmartStartOpen", "args": [true] } },
+    { "name": "wizard-visible", "waitFor": { "css": ".modal-overlay" }, "timeout": 8000, "failMessage": "Smart Start modal did not open" },
+    { "name": "wizard-title", "waitFor": { "text": "Furnish my flat" }, "timeout": 5000 },
+    { "name": "shot-wizard", "screenshot": "smart-start-wizard" },
+    { "name": "pick-style", "click": ".ss-card" },
+    { "name": "settle-pick", "wait": 400 },
+    { "name": "furnish", "click": { "text": "Furnish my flat" } },
+    { "name": "assert-furnished", "waitFor": { "store": "state.items.length > 0 && state.smartStartOpen === false" }, "timeout": 8000, "failMessage": "Smart Start did not furnish the flat / close" },
+    { "name": "settle-furnish", "wait": 1500 },
+    { "name": "shot-furnished", "screenshot": "smart-start-furnished" },
+    { "name": "reopen-mobile", "store": { "action": "setSmartStartOpen", "args": [true] } },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 1000 },
+    { "name": "mobile-visible", "waitFor": { "css": ".modal-overlay" }, "timeout": 5000 },
+    { "name": "shot-mobile", "screenshot": "smart-start-mobile" }
+  ]
+}

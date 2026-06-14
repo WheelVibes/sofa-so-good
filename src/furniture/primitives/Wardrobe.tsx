@@ -1,5 +1,6 @@
 import { getSurfaceMaterial } from '../../materials/furnitureMaterials'
 import type { ParamProps } from '../types'
+import { BeveledBox } from './BeveledBox'
 import { readNum, readStr } from './shared'
 
 interface WardrobeProps {
@@ -127,19 +128,23 @@ export function Wardrobe({ props }: WardrobeProps) {
           <boxGeometry args={[width, height, t]} />
         </mesh>
         {[-1, 1].map((s) => (
-          <mesh
+          <BeveledBox
             key={s}
             castShadow
             position={[s * (width / 2 - t / 2), height / 2, 0]}
             material={wood}
-          >
-            <boxGeometry args={[t, height, depth]} />
-          </mesh>
+            args={[t, height, depth]}
+          />
         ))}
         {[t / 2, height - t / 2].map((y, i) => (
-          <mesh key={i} castShadow receiveShadow position={[0, y, 0]} material={wood}>
-            <boxGeometry args={[width, t, depth]} />
-          </mesh>
+          <BeveledBox
+            key={i}
+            castShadow
+            receiveShadow
+            position={[0, y, 0]}
+            material={wood}
+            args={[width, t, depth]}
+          />
         ))}
         {twoBays ? (
           <mesh castShadow position={[0, height / 2, 0]} material={wood}>
@@ -168,14 +173,16 @@ export function Wardrobe({ props }: WardrobeProps) {
       return (
         <group key={i}>
           {/* Aluminium frame */}
-          <mesh castShadow position={[x, height / 2, z]}>
-            <boxGeometry args={[panelW, panelH, 0.03]} />
+          <BeveledBox castShadow position={[x, height / 2, z]} args={[panelW, panelH, 0.03]}>
             <meshStandardMaterial {...frameMetal} />
-          </mesh>
+          </BeveledBox>
           {/* Laminate insert */}
-          <mesh castShadow position={[x, height / 2, z + 0.016]} material={wood}>
-            <boxGeometry args={[panelW - 0.05, panelH - 0.05, 0.01]} />
-          </mesh>
+          <BeveledBox
+            castShadow
+            position={[x, height / 2, z + 0.016]}
+            material={wood}
+            args={[panelW - 0.05, panelH - 0.05, 0.01]}
+          />
           {/* Recessed edge pull (vertical channel on the leading edge) */}
           <mesh position={[x + panelW / 2 - 0.03, height / 2, z + 0.02]}>
             <boxGeometry args={[0.015, panelH - 0.2, 0.01]} />
@@ -196,9 +203,12 @@ export function Wardrobe({ props }: WardrobeProps) {
           const handleX = x + handleSide * (doorPanelW / 2 - 0.05)
           return (
             <group key={i}>
-              <mesh castShadow position={[x, height / 2, depth / 2 - doorInset]} material={wood}>
-                <boxGeometry args={[doorPanelW, doorPanelH, 0.015]} />
-              </mesh>
+              <BeveledBox
+                castShadow
+                position={[x, height / 2, depth / 2 - doorInset]}
+                material={wood}
+                args={[doorPanelW, doorPanelH, 0.015]}
+              />
               <mesh castShadow position={[handleX, height / 2, depth / 2 + 0.012]}>
                 <boxGeometry args={[0.02, 0.22, 0.02]} />
                 <meshStandardMaterial color="#8a8d92" roughness={0.3} metalness={0.7} />
@@ -211,9 +221,13 @@ export function Wardrobe({ props }: WardrobeProps) {
     <group>
       {/* Solid body for closed wardrobes; the open style draws its own carcass */}
       {!open && (
-        <mesh castShadow receiveShadow position={[0, height / 2, 0]} material={wood}>
-          <boxGeometry args={[width, height, depth]} />
-        </mesh>
+        <BeveledBox
+          castShadow
+          receiveShadow
+          position={[0, height / 2, 0]}
+          material={wood}
+          args={[width, height, depth]}
+        />
       )}
       {doors}
       {slidePanels}

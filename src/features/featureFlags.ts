@@ -86,6 +86,7 @@ export type FeatureFlag =
   | 'viewInAr'
   | 'floorTexture'
   | 'planCompass'
+  | 'contactShadows'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */
@@ -587,6 +588,17 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Show a North/compass rose on the 2D floor plan',
     default: true,
     tier: 'pro',
+  },
+  // Soft contact-shadow blobs that ground every piece of furniture against the
+  // floor (RZ1). One shared radial-gradient texture + a transparent plane per
+  // item — cheap fill-rate overdraw, no shadow map — so it reads even on the
+  // flat Performance tier and the software renderer. Pure code, no external
+  // assets → prod-safe. A core realism cue everyone sees → simple tier.
+  contactShadows: {
+    label: 'Contact shadows',
+    description: 'Soft grounding shadow blobs under furniture (all quality tiers)',
+    default: true,
+    tier: 'simple',
   },
 }
 

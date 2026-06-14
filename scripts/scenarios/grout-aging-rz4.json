@@ -1,0 +1,25 @@
+{
+  "name": "grout-aging-rz4",
+  "description": "RZ4: verify aged (unevenly darkened) grout on tile + hexagon floor finishes, visible on the flat Performance tier (albedo). Applies tile/hex/marble floors and shoots a close floor angle.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setItems?.([])" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "apply-tile-floor", "store": { "action": "setFloorFinish", "args": ["livingDining", "floor-tile-white"] } },
+    { "name": "verify-tile", "waitFor": { "store": "state.finishes.floor['livingDining'] === 'floor-tile-white'" }, "timeout": 5000 },
+    { "name": "focus-floor", "eval": "window.__store.getState().focusOn?.([8.5,2.8])" },
+    { "name": "settle", "wait": 2500 },
+    { "name": "tilt-down", "drag": { "from": [800, 250], "to": [800, 520] } },
+    { "name": "settle2", "wait": 500 },
+    { "name": "zoom-floor", "wheel": { "x": 800, "y": 520, "dy": -450 } },
+    { "name": "settle3", "wait": 1500 },
+    { "name": "shot-tile", "screenshot": "tile-grout" },
+    { "name": "apply-hex-floor", "store": { "action": "setFloorFinish", "args": ["livingDining", "floor-tile-hex"] } },
+    { "name": "settle4", "wait": 1800 },
+    { "name": "shot-hex", "screenshot": "hex-grout" },
+    { "name": "apply-marble-floor", "store": { "action": "setFloorFinish", "args": ["livingDining", "floor-tile-marble"] } },
+    { "name": "settle5", "wait": 1800 },
+    { "name": "shot-marble", "screenshot": "marble" }
+  ]
+}

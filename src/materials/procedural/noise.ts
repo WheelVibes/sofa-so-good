@@ -38,13 +38,19 @@ function smooth(t: number): number {
  * Returns a sampler over continuous (x, y) in lattice space.
  */
 export function makeValueNoise(period: number, seed: number): (x: number, y: number) => number {
+  // The lattice grid is sized AND indexed by `period`, so a non-integer period
+  // yields out-of-grid reads → `undefined` → NaN → all-black textures (a trap
+  // for new generators). Coerce to a valid positive integer; this is the
+  // identity for the integer periods every caller uses today, so existing
+  // textures are byte-for-byte unchanged.
+  const p = Math.max(1, Math.round(period))
   const rand = mulberry32(seed)
-  const grid = new Float32Array(period * period)
+  const grid = new Float32Array(p * p)
   for (let i = 0; i < grid.length; i++) grid[i] = rand()
   const at = (ix: number, iy: number) => {
-    const x = ((ix % period) + period) % period
-    const y = ((iy % period) + period) % period
-    return grid[y * period + x]
+    const x = ((ix % p) + p) % p
+    const y = ((iy % p) + p) % p
+    return grid[y * p + x]
   }
   return (x: number, y: number) => {
     const x0 = Math.floor(x)

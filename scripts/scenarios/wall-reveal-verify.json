@@ -1,0 +1,18 @@
+{
+  "name": "wall-reveal-verify",
+  "description": "Verify the wall-reveal fix on a custom plan from a normal angled dollhouse view + a low off-axis view (the user's reported angles). External near walls should fade UNIFORMLY; internal partitions stay solid.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "load-template", "eval": "window.__loadTemplate?.('tpl-1bed')" },
+    { "name": "settle-load", "wait": 2500 },
+    { "name": "cam-dollhouse", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;const fp=window.__store.getState().floorPlan;const xs=fp.rooms.flatMap(r=>[r.origin[0],r.origin[0]+r.width]);const zs=fp.rooms.flatMap(r=>[r.origin[1],r.origin[1]+r.depth]);const ew=Math.max(...xs),ed=Math.max(...zs);const cx=ew/2,cz=ed/2;cam.position.set(cx+ew*0.55,5.5,-ed*0.7);if(c){c.target.set(cx,1.2,cz);c.update();}cam.lookAt(cx,1.2,cz);})()" },
+    { "name": "settle1", "wait": 2500 },
+    { "name": "shot-dollhouse", "screenshot": "dollhouse-angled" },
+    { "name": "cam-low-offaxis", "eval": "(()=>{const t=window.__three,cam=t.camera,c=t.controls;const fp=window.__store.getState().floorPlan;const xs=fp.rooms.flatMap(r=>[r.origin[0],r.origin[0]+r.width]);const zs=fp.rooms.flatMap(r=>[r.origin[1],r.origin[1]+r.depth]);const ew=Math.max(...xs),ed=Math.max(...zs);const cx=ew/2,cz=ed/2;cam.position.set(cx+ew*0.3,2.8,-ed*1.1);if(c){c.target.set(cx,1.2,cz);c.update();}cam.lookAt(cx,1.2,cz);})()" },
+    { "name": "settle2", "wait": 2500 },
+    { "name": "shot-low", "screenshot": "low-off-axis" }
+  ]
+}
