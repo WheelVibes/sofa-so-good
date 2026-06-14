@@ -1,5 +1,6 @@
 import { Html } from '@react-three/drei'
 import { ROOMS } from '../apartment/constants'
+import { noExportUserData } from '../export/sceneGltf'
 import { type PlanRoom, planRoomArea } from '../floorplan/types'
 import { useStore } from '../state/store'
 import { formatLength, formatRoomSize } from '../utils/measurement'
@@ -31,7 +32,7 @@ export function MeasurementOverlay() {
   const floorPlanEditing = useStore((s) => s.floorPlanEditing)
   if (!show || floorPlanEditing) return null
   return (
-    <group>
+    <group userData={noExportUserData()}>
       {planRooms.map((r) => {
         const [cx, cz] = roomLabelCentre(r)
         const height =

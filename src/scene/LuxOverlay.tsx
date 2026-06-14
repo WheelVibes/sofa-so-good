@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef } from 'react'
 import { DataTexture, LinearFilter, RGBAFormat, SRGBColorSpace } from 'three'
 import { useShallow } from 'zustand/react/shallow'
+import { noExportUserData } from '../export/sceneGltf'
 import { useFeature } from '../features/useFeature'
 import { useCatalogGetter } from '../furniture/catalog'
 import { buildLightingPlan } from '../lighting2d/lightingPlan'
@@ -151,7 +152,7 @@ export function LuxOverlay() {
 
   if (layers.length === 0) return null
   return (
-    <group>
+    <group userData={noExportUserData()}>
       {layers.map((l) => (
         <mesh key={l.key} position={[l.cx, l.y, l.cz]} rotation={[-Math.PI / 2, 0, 0]}>
           <planeGeometry args={[l.width, l.depth]} />

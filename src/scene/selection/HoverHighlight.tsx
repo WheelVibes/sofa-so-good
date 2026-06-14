@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { itemFootprint } from '../../collision/placement'
+import { noExportUserData } from '../../export/sceneGltf'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { useStore } from '../../state/store'
 import { boxEdges, useDisposeGeometry } from '../geometryUtil'
@@ -34,6 +35,7 @@ export function HoverHighlight() {
       position={[item.position[0], 0.015, item.position[1]]}
       rotation={[0, item.rotation, 0]}
       renderOrder={2}
+      userData={noExportUserData()}
     >
       <lineBasicMaterial color="#93c5fd" transparent opacity={0.8} depthWrite={false} />
     </lineSegments>

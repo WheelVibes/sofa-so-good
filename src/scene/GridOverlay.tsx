@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
+import { noExportUserData } from '../export/sceneGltf'
 import { planBounds } from '../floorplan/types'
 import { canEditScene } from '../state/editing'
 import { useStore } from '../state/store'
@@ -48,7 +49,7 @@ export function GridOverlay() {
 
   if (!snapEnabled || !editing) return null
   return (
-    <group position={[0, 0.02, 0]}>
+    <group position={[0, 0.02, 0]} userData={noExportUserData()}>
       <lineSegments geometry={minor} renderOrder={3}>
         <lineBasicMaterial color="#bcd8f5" transparent opacity={0.55} depthWrite={false} />
       </lineSegments>

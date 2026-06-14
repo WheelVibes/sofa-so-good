@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
+import { noExportUserData } from '../export/sceneGltf'
 import { useCatalogGetter } from '../furniture/catalog'
 import { blockedDoorItems, doorSwingRects, frontClearanceRect } from '../layout/clearance'
 import { useStore } from '../state/store'
@@ -36,7 +37,7 @@ export function ClearanceOverlay() {
 
   if (!on) return null
   return (
-    <group>
+    <group userData={noExportUserData()}>
       {/* Door swing zones */}
       {rects.map((r, i) => (
         <mesh

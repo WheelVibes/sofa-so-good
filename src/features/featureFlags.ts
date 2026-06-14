@@ -50,6 +50,7 @@ export type FeatureFlag =
   | 'paletteFromPhoto'
   | 'dxfExport'
   | 'boq'
+  | 'sceneExport3d'
   | 'shopExport'
   | 'suggestions'
   | 'electricalPlan'
@@ -298,6 +299,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   boq: {
     label: 'Quote (BOQ)',
     description: 'Bill-of-quantities quote export',
+    default: true,
+    tier: 'pro',
+  },
+  // Whole-scene 3D export (Q-3DEXPORT / SweetHome3DJS ObjWriter+glTF parity). The
+  // furnished home → glTF/GLB (+ OBJ) for Blender / AR / Coohom hand-off. Pure
+  // client-side three GLTFExporter/OBJExporter (dynamic-imported) → prod-safe, no
+  // sidecar. A portability/hand-off export like dxfExport/boq → pro tier.
+  sceneExport3d: {
+    label: 'Export 3D model',
+    description: 'Whole furnished scene → glTF/GLB (+ OBJ) for Blender / AR / Coohom',
     default: true,
     tier: 'pro',
   },

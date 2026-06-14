@@ -6,6 +6,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { canPlace, itemFootprint } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { buildCollisionWalls } from '../../collision/wallsFromState'
+import { noExportUserData } from '../../export/sceneGltf'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
@@ -259,7 +260,11 @@ export function RotateGizmo() {
         : `${live >= 0 ? '+' : '−'}${Math.abs(Math.round((live * 180) / Math.PI))}°`
 
   return (
-    <group position={[pivot[0], LIFT, pivot[1]]} rotation={[0, faceRot, 0]}>
+    <group
+      position={[pivot[0], LIFT, pivot[1]]}
+      rotation={[0, faceRot, 0]}
+      userData={noExportUserData()}
+    >
       {/* Wide invisible grab band over the visible ring — generous touch target. */}
       <mesh
         ref={priorityRaycast}

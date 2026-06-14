@@ -31,6 +31,7 @@ import { Modal } from '../Modal'
 import { downloadFurnitureCsv } from '../openFurnitureCsv'
 import { downloadPlanSvg } from '../openPlanSvg'
 import { openDesignReport } from '../openReport'
+import { exportScene3d } from '../openSceneExport'
 import { openShoppingList } from '../openShoplist'
 import { PresentationSetup } from '../presentation/PresentationSetup'
 import { BackdropUpload } from '../scene/BackdropUpload'
@@ -212,6 +213,7 @@ export function MobileToolbar() {
   const fUserSets = useFeature('userSets')
   const fShopExport = useFeature('shopExport')
   const fDxf = useFeature('dxfExport')
+  const fSceneExport = useFeature('sceneExport3d')
   const userSets = useStore((st) => st.userSets)
 
   // Detect which render preset (if any) matches current state for the dropdown.
@@ -1098,6 +1100,14 @@ export function MobileToolbar() {
                       label="Furniture list (CSV)"
                       sub="Spreadsheet of every item — dims, qty, prices"
                       onClick={act(() => void downloadFurnitureCsv())}
+                    />
+                  ) : null}
+                  {fSceneExport ? (
+                    <Item
+                      icon="Export"
+                      label="Export 3D model (.glb)"
+                      sub="Whole furnished scene for Blender / AR / Coohom"
+                      onClick={act(() => void exportScene3d('glb'))}
                     />
                   ) : null}
                   {canRecord() ? (

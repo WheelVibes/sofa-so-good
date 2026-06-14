@@ -69,8 +69,12 @@ subagents for independent slices (each runs its OWN dev server on a unique port 
   reverse/join, text notes + dimension lines) → `plan-editor-tools-journey.json`. Remaining: measure,
   clearanceChecks, smartStart, AI surfaces, roomEditor, GLB designer/parametric re-rungs, crown-molding,
   livePrices, first-run re-rungs, backdrop-upload + furnlight re-rungs.
-- [ ] Q-3DEXPORT Whole-scene glTF/GLB + USDZ (AR) export — needs worker-streamed export + real-GPU
-  verify (a previous GLTFExporter prototype was reverted as unverifiable headless).
+- [~] Q-3DEXPORT Whole-scene glTF/GLB + OBJ export — **shipped** (`sceneExport3d` flag, pro tier;
+  Tools/Share/⌘K/mobile). Pure extract/filter core (`export/sceneGltf.ts`) drops editor helpers; live
+  scene reached via `scene/SceneExportController` + `sceneExportAccess`; reuses `convert/toGlb.ts`,
+  adds `export/sceneObj.ts`. Browser-verified via `scenarios/scene-export-simple.json` (full pipeline
+  → success toast — the earlier "unverifiable headless" gap is closed by asserting in the real browser).
+  **Still open:** USDZ (AR) + STL export, and worker-streamed export for very large scenes.
 - [ ] F22 [PROD] Mobile AR "view in your room" (`<model-viewer>` Quick Look/Scene Viewer);
   depends on Q-3DEXPORT for the item GLB/USDZ.
 - [~] F21 (C247): WebXR entry + inert provider shipped; controller locomotion + real-headset pass open.
@@ -152,7 +156,7 @@ Full prioritised roadmap in **`PHOTOREALISM.md`**. Status of the key items:
   `placeNonOverlapping` drops colliding pieces) + ⌘K "AI auto-furnish" (`aiLayout` flag, pro). Pure
   logic + no-key guard unit-tested; live LLM output needs a real key to tune. Follow-up: a key/brief
   panel beyond the ⌘K prompt + route through autoArrange for tidier spacing.
-- [ ] PARITY-3DEXPORT: whole-scene OBJ/glTF/STL export (Q-3DEXPORT).
+- [~] PARITY-3DEXPORT: whole-scene OBJ/glTF export **shipped** (see Q-3DEXPORT); STL still open.
 
 ## Codebase analysis batch (2026-06-13, branch …-4ijn0x) — verified findings
 

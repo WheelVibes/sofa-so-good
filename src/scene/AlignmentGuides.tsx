@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { BufferGeometry, Float32BufferAttribute } from 'three'
 import { useShallow } from 'zustand/react/shallow'
+import { noExportUserData } from '../export/sceneGltf'
 import { planBounds } from '../floorplan/types'
 import { useStore } from '../state/store'
 import { useDisposeGeometry } from './geometryUtil'
@@ -29,7 +30,12 @@ export function AlignmentGuides() {
 
   if (guides.length === 0) return null
   return (
-    <lineSegments geometry={geometry} position={[0, 0.03, 0]} renderOrder={5}>
+    <lineSegments
+      geometry={geometry}
+      position={[0, 0.03, 0]}
+      renderOrder={5}
+      userData={noExportUserData()}
+    >
       <lineBasicMaterial
         color="#ff3df0"
         transparent

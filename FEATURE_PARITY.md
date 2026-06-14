@@ -113,7 +113,7 @@ room-name labels**.
 | **Fisheye / DoF** lens options on render | ◑ | ✅ | Add lens-type + DoF controls to the render camera (DoF partly exists in HQ). | M |
 | Keyboard wall-length entry while drawing | ◑ | ✅ | Live numeric length/angle entry during wall draw. | M |
 | **Video flythrough** export (keyframed camera path → file) | ◑ | ✅ | Turntable WebM recording ships; add the keyframed camera-path + canvas-capture pipeline (shared with the Coohom video gap). | L |
-| Export 3D scene to OBJ / glTF / STL | ◑ | ✅ | three.js `OBJExporter`/`GLTFExporter`/`STLExporter` (Q-3DEXPORT in TASKS). | M |
+| Export 3D scene to OBJ / glTF / STL | ✅ | ✅ | **glTF/GLB + OBJ shipped** (`sceneExport3d`, Q-3DEXPORT) — `export/sceneGltf.ts` + `convert/toGlb.ts` / `export/sceneObj.ts`, in Tools/Share/⌘K/mobile. STL still open. | M |
 | Import SH3D / SH3F libraries | ❌ | ✅ | Parse the SH3D/SH3F zip (XML + models) into our model; conversion only. | L |
 | Multi-language UI (20+) | ❌ | ✅ | i18n framework + translations; large, pure-client, low near-term value for HDB focus. | L |
 | Plugin/extension API | ❌ | ✅ | Define a JS extension surface; large architectural effort, low near-term value. | L |

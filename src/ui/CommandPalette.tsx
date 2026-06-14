@@ -22,6 +22,7 @@ import { openDocs } from './docsUrl'
 import { downloadFurnitureCsv } from './openFurnitureCsv'
 import { downloadPlanSvg } from './openPlanSvg'
 import { openDesignReport } from './openReport'
+import { exportScene3d } from './openSceneExport'
 import { openShoppingList } from './openShoplist'
 import { pickPaletteFromPhoto } from './paletteFromPhoto'
 import { Icon, type IconName } from './toolbar/icons'
@@ -50,6 +51,7 @@ const COMMAND_FLAGS: Record<string, FeatureFlag> = {
   'shopping-list': 'shopExport',
   'furniture-csv': 'shopExport',
   'plan-svg': 'dxfExport',
+  'export-3d': 'sceneExport3d',
   parametric: 'parametricFurniture',
   'replace-similar': 'replaceSimilar',
   'ai-furnish': 'aiLayout',
@@ -356,6 +358,13 @@ export function CommandPalette() {
         label: 'Export 2D plan to SVG',
         icon: 'Export',
         run: () => void downloadPlanSvg(),
+      },
+      {
+        id: 'export-3d',
+        group: 'Tools & panels',
+        label: 'Export 3D model (GLB)',
+        icon: 'Export',
+        run: () => void exportScene3d('glb'),
       },
       {
         id: 'floorplan',

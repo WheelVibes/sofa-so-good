@@ -1,4 +1,5 @@
 import { useEffect, useMemo } from 'react'
+import { noExportUserData } from '../../export/sceneGltf'
 import { roomPolygon } from '../../floorplan/types'
 import { worldUvShapeGeometry } from '../../materials/worldUv'
 import { useDisposeGeometry } from '../../scene/geometryUtil'
@@ -45,6 +46,7 @@ export function RoomHoverHighlight() {
       rotation={[-Math.PI / 2, 0, 0]}
       renderOrder={2}
       geometry={geometry}
+      userData={noExportUserData()}
     >
       <meshBasicMaterial color="#4a90d9" transparent opacity={0.22} depthWrite={false} />
     </mesh>

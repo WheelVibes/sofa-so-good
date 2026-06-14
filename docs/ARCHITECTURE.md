@@ -309,6 +309,14 @@ same change that reshapes a system.
   `ui/openPlanSvg.ts` downloads it as a vector `.svg`, reusing `reportPlanSvg` + pure
   `ui/planSvgExport.ts` `buildPlanSvgDocument` (XML prolog + injected `xmlns`). Both in Tools +
   mobile + ⌘K, `dxfExport` flag (pro).
+- **3D scene export** (`sceneExport3d` flag, pro; Q-3DEXPORT): `ui/openSceneExport.ts` `exportScene3d`
+  downloads the whole furnished home as `.glb` (reusing `furniture/convert/toGlb.ts` `exportGlb`) or
+  `.obj` (`export/sceneObj.ts`, dynamic `OBJExporter`). The live scene root is reached from DOM code via
+  `scene/SceneExportController` + the `scene/sceneExportAccess.ts` singleton (mirrors
+  `ScreenshotController`/`captureCanvas.ts`). Pure `export/sceneGltf.ts` `buildExportRoot` clones the
+  scene and strips editor-only helpers — anything tagged `userData.noExport` via `noExportUserData`/
+  `markNoExport` (selection/gizmo/overlays/sky/pins/ghost), plus a structural fallback for three helper
+  types + cameras. In Tools + Share modal + mobile + ⌘K.
 - **Shoppable buy-list** (`ui/shoplist.ts` pure `buildShopList`+`buildShopListHtml` →
   per-retailer-grouped buy-list HTML: qty/unit/line totals per (def,variant,room), grand + per-retailer
   totals, budget under/over; `openShoplist.ts` opens the window synchronously then dynamic-imports the

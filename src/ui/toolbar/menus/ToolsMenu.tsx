@@ -13,6 +13,7 @@ import { downloadPlanDxf } from '../../openDxf'
 import { openMoodboard } from '../../openMoodboard'
 import { downloadPlanSvg } from '../../openPlanSvg'
 import { openDesignReport } from '../../openReport'
+import { exportScene3d } from '../../openSceneExport'
 import { MenuItem, ToolbarMenu } from '../ToolbarMenu'
 
 /** Tools cluster: budget, clearance checks, sun study, walkthrough, report.
@@ -150,6 +151,7 @@ export function ToolsMenu() {
   const fMoodboard = useFeature('moodboard')
   const fDxf = useFeature('dxfExport')
   const fBoq = useFeature('boq')
+  const fSceneExport = useFeature('sceneExport3d')
 
   return (
     <ToolbarMenu icon="Tools" label="Tools" active={Boolean(anyActive)}>
@@ -311,6 +313,22 @@ export function ToolsMenu() {
           sub="Vector 2D plan for any editor / print"
           onClick={() => void downloadPlanSvg()}
         />
+      )}
+      {fSceneExport && (
+        <>
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.glb)"
+            sub="Whole furnished scene for Blender / AR / Coohom"
+            onClick={() => void exportScene3d('glb')}
+          />
+          <MenuItem
+            icon="Export"
+            label="Export 3D model (.obj)"
+            sub="Geometry-only Wavefront OBJ"
+            onClick={() => void exportScene3d('obj')}
+          />
+        </>
       )}
       {fReport && (
         <>

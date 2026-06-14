@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Q-3DEXPORT: whole-scene 3D export (glTF/GLB + OBJ) — SweetHome3DJS ObjWriter/glTF parity
+
+- New **Export 3D model** feature (`sceneExport3d` flag, pro tier): exports the whole furnished home —
+  floor, walls, ceiling, doors, windows, furniture, lights — to a binary `.glb` (material-complete) or
+  geometry-only `.obj`, from Tools, the Share & export modal, the ⌘K palette and the mobile sheet (all
+  gated on both desktop + mobile). Reuses the existing dynamic-imported `GLTFExporter` wrapper
+  (`furniture/convert/toGlb.ts`); adds a matching `OBJExporter` wrapper (`export/sceneObj.ts`).
+- Editor-only helpers never leak into the export: a pure, unit-tested extract/filter core
+  (`export/sceneGltf.ts` `buildExportRoot`) drops any subtree tagged `userData.noExport` (a typed
+  `noExportUserData`/`markNoExport` tagger modelled on `finishDropTarget`'s pattern, applied to the
+  selection outline, rotate gizmo, hover highlight, grid/alignment/clearance/lux/measurement/annotation
+  overlays, comment pins, sky and placement ghost) plus a structural fallback for three helper types +
+  cameras. The live scene root is reached from DOM code via `scene/SceneExportController` +
+  `scene/sceneExportAccess` (mirrors `ScreenshotController`/`captureCanvas`).
+- The earlier "unverifiable headless" GLTFExporter concern is closed: `scenarios/scene-export-simple.json`
+  drives the real browser end-to-end — verifies the flag is off in Simple / on in Pro, the Tools-menu
+  items render, and the full pipeline (live scene → `buildExportRoot` → `GLTFExporter`) produces a GLB
+  and fires the success toast. Pure-core + flag-gating unit tests in both modes. Docs + REFERENCES
+  (SweetHome3DJS) + `docs/research/sweethome3djs-feature-analysis.md` updated.
+
 ## PARITY-QUOTEXLSX: export the bill of quantities as an Excel .xlsx
 
 - Tools → **"Quote → Excel (.xlsx)"** downloads the bill of quantities as a real spreadsheet (the

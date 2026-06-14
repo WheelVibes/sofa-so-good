@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { itemFootprint } from '../../collision/placement'
+import { noExportUserData } from '../../export/sceneGltf'
 import { useCatalogGetter } from '../../furniture/catalog'
 import type { FurnitureDef, FurnitureItem } from '../../furniture/types'
 import { useStore } from '../../state/store'
@@ -53,7 +54,11 @@ function ItemOutline({ item, def, isDragging, dragValid }: ItemOutlineProps) {
   ] as const
 
   return (
-    <group position={[obb.cx, OUTLINE_LIFT, obb.cz]} rotation={[0, obb.rot, 0]}>
+    <group
+      position={[obb.cx, OUTLINE_LIFT, obb.cz]}
+      rotation={[0, obb.rot, 0]}
+      userData={noExportUserData()}
+    >
       <mesh position={[0, 0.0005, 0]} rotation={[-Math.PI / 2, 0, 0]} renderOrder={1}>
         <planeGeometry args={[obb.hx * 2, obb.hz * 2]} />
         <meshBasicMaterial

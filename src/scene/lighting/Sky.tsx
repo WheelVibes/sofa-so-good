@@ -1,4 +1,5 @@
 import { Sky as DreiSky } from '@react-three/drei'
+import { noExportUserData } from '../../export/sceneGltf'
 import { useStore } from '../../state/store'
 import { isPhotoBackdropActive } from '../SceneBackdrop'
 import { skyFromAltitude } from './altitudeCurve'
@@ -38,12 +39,14 @@ export function Sky() {
   const sunPosition = rotateY(scaled, orientation)
   const sky = skyFromAltitude(sunPos.altitude)
   return (
-    <DreiSky
-      sunPosition={sunPosition}
-      turbidity={sky.turbidity}
-      rayleigh={sky.rayleigh}
-      mieCoefficient={sky.mieCoefficient}
-      mieDirectionalG={sky.mieDirectionalG}
-    />
+    <group userData={noExportUserData()}>
+      <DreiSky
+        sunPosition={sunPosition}
+        turbidity={sky.turbidity}
+        rayleigh={sky.rayleigh}
+        mieCoefficient={sky.mieCoefficient}
+        mieDirectionalG={sky.mieDirectionalG}
+      />
+    </group>
   )
 }

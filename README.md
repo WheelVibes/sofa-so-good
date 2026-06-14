@@ -234,6 +234,11 @@ export the result — all in the browser.
   share links), and **Share & export** (shareable link + a real PNG snapshot).
   The **2D floor-plan editor** and **upload dialogs** are fully theme-aware in
   light and dark.
+- **Export 3D model (glTF/GLB + OBJ)** *(Pro)* — export the whole furnished
+  home (floor, walls, ceiling, doors, windows, furniture, lights) as a `.glb`
+  (material-complete) or `.obj` file for Blender, AR or other 3D tools, from
+  Tools, the Share modal, or the ⌘K palette. Editor-only helpers (selection
+  outline, gizmo, grid, overlays, sky, comment pins) are stripped automatically.
 - **Smart Start** — pick a style and the whole flat is furnished + the walls and
   floors finished in one click (from onboarding, the ⌘K palette, or the Arrange
   menu). Works on any floor plan too: load an HDB, condo or landed template (or
