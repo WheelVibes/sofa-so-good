@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## IXT-SUITES: interaction-test ladder for Design score
+
+- Added `scripts/scenarios/design-score-simple.json` (18 steps, 2 screenshots) covering the `designScore`
+  pro feature: asserts hidden in Simple / present in Pro, furnishes the flat, opens the panel
+  (`#designScorePanel`, "Design score" with the grade dial + Clearance/Furnishing/Circulation/Daylight/
+  Lighting breakdown + suggestions), checks the mobile bottom-sheet, closes, and confirms it's hidden
+  again in Simple. Test coverage only — no app code changed.
+
 ## Catalog search: search by room / use-case intent
 
 - Catalog search now understands **room/use intent** (Coohom-style): typing "bedroom", "office",

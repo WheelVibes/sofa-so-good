@@ -1,0 +1,25 @@
+{
+  "name": "design-score-simple",
+  "description": "IXT-SUITES: designScore (pro) flag gate + panel. Hidden in Simple, present in Pro; the panel (#designScorePanel) mounts with a letter grade dial + category breakdown for a furnished flat. Mobile leg; back-to-Simple hides it.",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()" },
+    { "name": "set-daytime", "eval": "window.__store.getState().setManualHour?.(13)" },
+    { "name": "ensure-furnished", "eval": "(()=>{const s=window.__store.getState(); if((s.items?.length??0)===0){ s.applyLayoutPreset?.('move-in'); }})()" },
+    { "name": "assert-simple-hidden", "waitFor": { "store": "state.uiMode === 'simple' && state.featureFlags.designScore === false" }, "timeout": 5000, "failMessage": "designScore should be OFF in Simple mode" },
+    { "name": "to-pro", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('pro'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-pro-on", "waitFor": { "store": "state.featureFlags.designScore === true" }, "timeout": 5000, "failMessage": "designScore should be ON in Pro mode" },
+    { "name": "open-panel", "store": { "action": "setDesignScoreOpen", "args": [true] } },
+    { "name": "panel-visible", "waitFor": { "css": "#designScorePanel" }, "timeout": 8000, "failMessage": "Design score panel did not mount (needs a furnished flat to score)" },
+    { "name": "assert-title", "waitFor": { "text": "Design score" }, "timeout": 5000 },
+    { "name": "shot-panel", "screenshot": "design-score" },
+    { "name": "mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 1000 },
+    { "name": "shot-mobile", "screenshot": "design-score-mobile" },
+    { "name": "close-panel", "store": { "action": "setDesignScoreOpen", "args": [false] } },
+    { "name": "panel-gone", "waitFor": { "css": "#designScorePanel", "visible": false }, "timeout": 5000 },
+    { "name": "back-to-simple", "eval": "(()=>{const s=window.__store.getState(); s.setUiMode('simple'); s.reresolveFeatureFlags();})()" },
+    { "name": "assert-simple-again", "waitFor": { "store": "state.featureFlags.designScore === false" }, "timeout": 5000 }
+  ]
+}
