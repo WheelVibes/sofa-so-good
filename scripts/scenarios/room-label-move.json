@@ -1,0 +1,15 @@
+{
+  "name": "room-label-move",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "pro-mode", "store": { "action": "setUiMode", "args": ["pro"] } },
+    { "name": "reresolve-flags", "eval": "window.__store.getState().reresolveFeatureFlags()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "offset-a-label", "eval": "(() => { const s=window.__store.getState(); const r=s.floorPlan.rooms[0]; s.updateRoom(r.id, { labelOffset: [2.2, -1.4] }); s.setPlanSelection({ type:'room', id:r.id }); window.__rid = r.id; })()" },
+    { "name": "offset-applied", "waitFor": { "store": "!!state.floorPlan.rooms.find(r=>r.id===window.__rid)?.labelOffset" } },
+    { "name": "shot-offset", "screenshot": "room-label-offset" }
+  ]
+}

@@ -65,6 +65,10 @@ export interface PlanRoom {
   wall?: string
   /** Optional ceiling treatment (tray / coffered / dropped); absent → flat. */
   ceiling?: CeilingConfig
+  /** Optional in-plane offset (metres) of the room's name label from its
+   *  centroid, so a label can be nudged clear of furniture / a tight room
+   *  (Sweet Home 3D movable labels). Absent → centred on the centroid. */
+  labelOffset?: PlanVec2
 }
 
 /** Per-room ceiling treatment. `flat` (or absent) renders the plain ceiling. */

@@ -148,6 +148,33 @@ describe('schema', () => {
     expect(room?.wall).toBe('wall-paint-sage')
   })
 
+  it('round-trips a movable room-name label offset (PARITY-ROOMLABEL)', () => {
+    useStore.getState().__resetForTest()
+    useStore.setState({
+      floorPlan: {
+        id: 'label-plan',
+        name: 'Labels',
+        ceilingHeight: 2.6,
+        extent: [4.2, 4.2],
+        walls: [{ id: 'w', start: [0.1, 0.1], end: [4.1, 0.1], thickness: 'external' }],
+        openings: [],
+        rooms: [
+          {
+            id: 'R',
+            name: 'Room',
+            origin: [0.2, 0.2],
+            width: 3.8,
+            depth: 3.8,
+            labelOffset: [1.2, -0.6],
+          },
+        ],
+      },
+    } as never)
+    const saved = serialize(useStore.getState())
+    const patch = applySerialized(saved, new Set<string>())
+    expect(patch.floorPlan?.rooms.find((r) => r.id === 'R')?.labelOffset).toEqual([1.2, -0.6])
+  })
+
   it('round-trips imported-GLB metadata on user furniture defs', () => {
     useStore.getState().__resetForTest()
     useStore.getState().setUserFurniture([

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { roomLabelPoint } from './roomCentroid'
+import { roomLabelPoint, roomLabelPosition } from './roomCentroid'
 import type { PlanRoom } from './types'
 
 const rect = (over: Partial<PlanRoom> = {}): PlanRoom => ({
@@ -40,5 +40,15 @@ describe('roomLabelPoint', () => {
     const [x, z] = roomLabelPoint(r)
     expect(x).toBeCloseTo(1)
     expect(z).toBeCloseTo(1)
+  })
+})
+
+describe('roomLabelPosition (movable labels — PARITY-ROOMLABEL)', () => {
+  it('equals the centroid when no offset is set', () => {
+    expect(roomLabelPosition(rect())).toEqual([4, 5])
+  })
+
+  it('adds the label offset to the centroid', () => {
+    expect(roomLabelPosition(rect({ labelOffset: [1.5, -0.5] }))).toEqual([5.5, 4.5])
   })
 })

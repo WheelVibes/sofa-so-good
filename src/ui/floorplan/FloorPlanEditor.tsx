@@ -23,7 +23,7 @@ import {
   planLevels,
 } from '../../floorplan/levels'
 import { polylinePointsAttr } from '../../floorplan/polyline'
-import { roomLabelPoint } from '../../floorplan/roomCentroid'
+import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { PLAN_TEMPLATES } from '../../floorplan/templates'
 import type { PlanWall } from '../../floorplan/types'
@@ -163,6 +163,13 @@ export function FloorPlanEditor() {
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
   const [movingNote, setMovingNote] = useState<{ id: string; gx: number; gz: number } | null>(null)
+  // Active room-name-label drag (select tool): grab offset from the label's
+  // current world position (PARITY-ROOMLABEL).
+  const [movingRoomLabel, setMovingRoomLabel] = useState<{
+    id: string
+    gx: number
+    gz: number
+  } | null>(null)
   // In-progress polygon-room vertices (polyroom tool): click to add a vertex,
   // click near the first vertex (or Enter) to close into a room.
   const [polyDraft, setPolyDraft] = useState<[number, number][]>([])
@@ -649,6 +656,19 @@ export function FloorPlanEditor() {
         .updateNote(movingNote.id, { x: snap(wx - movingNote.gx), z: snap(wz - movingNote.gz) })
       return
     }
+    if (movingRoomLabel) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const room = levelPlan.rooms.find((r) => r.id === movingRoomLabel.id)
+      if (room) {
+        // Offset = new label world position − the room's centroid.
+        const [cx, cz] = roomLabelPoint(room)
+        const lx = snap(wx - movingRoomLabel.gx)
+        const lz = snap(wz - movingRoomLabel.gz)
+        st.updateRoom(room.id, { labelOffset: [lx - cx, lz - cz] })
+      }
+      return
+    }
     if (movingVertex) {
       const [wx, wz] = pointerWorld(e, movingVertex.id)
       useStore.getState().moveWallVertex(movingVertex.id, movingVertex.which, [wx, wz], levelId)
@@ -704,6 +724,10 @@ export function FloorPlanEditor() {
     }
     if (movingNote) {
       setMovingNote(null)
+      return
+    }
+    if (movingRoomLabel) {
+      setMovingRoomLabel(null)
       return
     }
     if (movingVertex) {
@@ -1215,7 +1239,7 @@ export function FloorPlanEditor() {
                     </>
                   )}
                   {(() => {
-                    const [lx, lz] = roomLabelPoint(r)
+                    const [lx, lz] = roomLabelPosition(r)
                     return (
                       <text
                         x={toPx(lx)}
@@ -1224,6 +1248,15 @@ export function FloorPlanEditor() {
                         className="select-none"
                         fontSize={11}
                         fill="var(--text-2)"
+                        style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                        onPointerDown={(e) => {
+                          if (tool !== 'select') return
+                          e.stopPropagation()
+                          const [wx, wz] = pointerWorld(e)
+                          a.setPlanSelection({ type: 'room', id: r.id })
+                          setMovingRoomLabel({ id: r.id, gx: wx - lx, gz: wz - lz })
+                          svgRef.current?.setPointerCapture(e.pointerId)
+                        }}
                       >
                         <tspan x={toPx(lx)}>{r.name}</tspan>
                         <tspan x={toPx(lx)} dy={14} fill="var(--text-3)">

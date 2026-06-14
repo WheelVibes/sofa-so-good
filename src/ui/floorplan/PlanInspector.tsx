@@ -245,7 +245,19 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               onChange={(e) => a.updateRoom(r.id, { name: e.target.value })}
               className="input"
             />
+            <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+              Drag the name on the plan to reposition it.
+            </span>
           </label>
+          {r.labelOffset ? (
+            <button
+              type="button"
+              className="btn btn-soft btn-sm btn-block"
+              onClick={() => a.updateRoom(r.id, { labelOffset: undefined })}
+            >
+              Reset label position
+            </button>
+          ) : null}
           <Num
             label="X (m)"
             value={r.origin[0]}

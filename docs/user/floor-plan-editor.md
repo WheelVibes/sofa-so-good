@@ -109,6 +109,10 @@ dropdowns — the pick renders immediately in 3D and stays in sync with the
 finish picker inside the per‑room editor. **Wall finish** offers **Plaster
 (default)** to return a room's walls to the plain shell.
 
+You can also **drag a room's name** on the plan to nudge it clear of furniture or
+a tight room — it prints in the new spot on the Report and Drawing set too. The
+inspector's **Reset label position** button recentres it.
+
 ## Ceiling height & wall colour
 
 With nothing selected, the inspector shows a **Ceiling height** field — raise or

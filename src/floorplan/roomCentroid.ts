@@ -43,3 +43,12 @@ export function roomLabelPoint(r: PlanRoom): [number, number] {
   }
   return [r.origin[0] + r.width / 2, r.origin[1] + r.depth / 2]
 }
+
+/** Where the room's NAME label is drawn: its centroid (`roomLabelPoint`) plus the
+ *  optional user `labelOffset` (Sweet Home 3D movable labels). Shared by the 2D
+ *  editor + the printable report so a nudged label agrees everywhere. */
+export function roomLabelPosition(r: PlanRoom): [number, number] {
+  const [cx, cz] = roomLabelPoint(r)
+  const off = r.labelOffset
+  return off ? [cx + off[0], cz + off[1]] : [cx, cz]
+}

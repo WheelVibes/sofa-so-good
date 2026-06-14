@@ -379,7 +379,9 @@ same change that reshapes a system.
   PARITY-PLANTEXT) + **dimension
   lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).
   **Polyline markup** (Polyline tool → `plan.polylines`, open/closed + dashed + end-arrow; pure
-  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE). Live furniture as `canPlace`-checked footprints (active storey
+  `floorplan/polyline.ts`; `planPolyline` flag, pro — PARITY-POLYLINE). **Draggable room-name labels**
+  (`room.labelOffset`; `roomLabelPosition` = centroid + offset, shared by editor + report/drawing set —
+  PARITY-ROOMLABEL). Live furniture as `canPlace`-checked footprints (active storey
   only). **Level tabs** (`LevelTabs.tsx`, F13/ML4b): Ground floor + each upper level +
   "＋ Level" (adds + switches) + "⧉ Duplicate" (`duplicateLevel` clones a storey's geometry +
   furniture + finishes via pure `cloneLevelGeometry`) + ✕ on upper tabs (confirmed `removeLevel`); an

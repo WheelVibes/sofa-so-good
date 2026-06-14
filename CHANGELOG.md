@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PARITY-ROOMLABEL: drag-to-reposition room-name labels on the 2D plan
+
+- Room-name labels can now be **dragged** off their centroid in the 2D editor (Sweet Home 3D movable
+  labels) — grab the name with the Select tool and move it clear of furniture or a tight room. The
+  nudge is a per-room `labelOffset` (metres from the centroid) that round-trips in the save schema
+  (optional + additive) and is honoured by both the editor and the printed report / drawing-set plan
+  (`roomLabelPosition` = centroid + offset, shared so they agree).
+- Inspector: a hint plus a **Reset label position** button (shown only once a label has been moved).
+  Drags coalesce into one undo step (`updateRoom` already uses `pushHistoryCoalesced`).
+- Pure `roomLabelPosition` + schema round-trip + the offset path are unit-tested; visually verified the
+  label moves off-centre and the inspector reset control appears. Docs: FEATURE_PARITY (folded into
+  parity; row trimmed to label rotation/font), ARCHITECTURE, user floor-plan guide.
+
 ## PARITY-PLANTEXT: on-plan text notes carry onto the report + drawing-set sheets
 
 - The 2D editor's free-text **notes** (Text tool, PARITY-DIMTEXT) now render on the **report** and

@@ -96,7 +96,8 @@ dimension-line objects** · **on-plan text notes** · **polyline annotations
 FOV/eye-height controls** · **auto-detect room (double-click)** ·
 **furniture-as-light-source into render** · **per-furniture lock** · **furniture
 name/price labels on the 2D plan** · **wall split/join/reverse** · **all-levels
-(dimmed) overlay + duplicate-level** · **turntable video recording (WebM)**.
+(dimmed) overlay + duplicate-level** · **turntable video recording (WebM)** · **drag-to-reposition
+room-name labels**.
 
 ### Gaps & approach
 
@@ -106,7 +107,7 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 | **Slanting walls** (per-endpoint top heights) | ◑ | ✅ | Per-endpoint "height at start/end" fields + sloped 3D extrusion. | M |
 | **Sloping ceilings** (per-room ceiling slope) | ❌ | ✅ | Per-room ceiling slope params; angled ceiling plane (extend `apartment/ceiling`). | M |
 | **Baseboards/skirting on walls** (height/thickness/finish) | ◑ | ✅ | We have skirting; expose per-wall baseboard params + finish. | M |
-| Editable on-plan **room-name label** (placement/rotation/font) | ◑ | ✅ | Room name is editable + rendered; add a styled, movable/rotatable label object. | S |
+| On-plan room-name label **rotation / font** | ◑ | ✅ | Name is editable, rendered + **draggable** (placement ships); add optional label rotation + font styling. | S |
 | **Batch render** all saved cameras | ◑ | ✅ | "Render all saved views" loop over the render pipeline (saved-views menu exists; the batch loop doesn't). | S |
 | **Fisheye / DoF** lens options on render | ◑ | ✅ | Add lens-type + DoF controls to the render camera (DoF partly exists in HQ). | M |
 | Keyboard wall-length entry while drawing | ◑ | ✅ | Live numeric length/angle entry during wall draw. | M |
@@ -125,7 +126,7 @@ name/price labels on the 2D plan** · **wall split/join/reverse** · **all-level
 
 **Quick wins (S):**
 1. Batch-render all saved cameras (SH3D) — loop the render pipeline over saved views.
-2. Styled, movable/rotatable room-name label object on the plan (SH3D).
+2. Room-name label rotation + font styling (SH3D) — drag-to-reposition already ships.
 
 **High-value medium efforts (M):**
 4. AR "view in your room" (Coohom/F22) — high "wow"/sales value.
