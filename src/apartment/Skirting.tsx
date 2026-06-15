@@ -80,7 +80,11 @@ export function Skirting() {
       const mat = mesh.material as MeshStandardMaterial
       if (!mat) continue
       mesh.visible = op > 0.02
-      mat.transparent = op < 0.985
+      const next = op < 0.985
+      // Toggling `transparent` at runtime needs a recompile to blend (see
+      // WallSegment); flip needsUpdate only on the actual transition.
+      if (next !== mat.transparent) mat.needsUpdate = true
+      mat.transparent = next
       mat.opacity = op
       mat.depthWrite = op > 0.6
     }

@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Wall reveal: the real fix — `needsUpdate` on the transparent toggle
+
+- **Root cause of the bedroom-facade reveal bug.** The fade math was correct all along (the
+  wall opacity provably dropped to 0.15 when faced), but the wall *rendered* opaque anyway:
+  the wall body / window frames / door leaves / skirting are created **opaque**
+  (`transparent: false`) and only flip `material.transparent = true` at runtime when fading.
+  three.js bakes the transparent flag into the compiled program, so without a `needsUpdate`
+  the alpha blend never engaged — "the opacity value decreases but the render doesn't update"
+  (diagnosed from a live on-device overlay reading the real applied opacity). Custom plans
+  (`PlanShell`) were unaffected because their materials are authored `transparent` from the
+  start.
+- **Fix:** set `material.needsUpdate = true` on the frame the `transparent` flag actually
+  flips (not every frame — no needless recompiles) in `WallSegment`, `Window` (non-glass
+  parts), `Door`, `Skirting`, and `PlanShell` `FadeWall`. The dollhouse reveal now renders
+  genuinely translucent — **verified by headless screenshot** (the facade goes see-through,
+  showing the bedrooms/furniture behind), which itself confirms this was a real material bug,
+  not the previously-assumed headless-renderer limitation.
+
 ## Wall reveal: robust per-wall outward normal (fixes off-centre bedroom facade)
 
 - The dollhouse wall-reveal fade now orients each wall's "outward" direction by **probing which

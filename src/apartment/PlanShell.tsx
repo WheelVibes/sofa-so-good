@@ -127,7 +127,11 @@ function FadeWall({
       )
     }
     mat.opacity += (target - mat.opacity) * 0.18
-    mat.transparent = mat.opacity < 0.98
+    const next = mat.opacity < 0.98
+    // Toggling `transparent` at runtime needs a recompile for the blend to
+    // engage (see WallSegment); flip needsUpdate only on the transition.
+    if (next !== mat.transparent) mat.needsUpdate = true
+    mat.transparent = next
     mat.depthWrite = mat.opacity > 0.6
     // frameloop="demand": keep rendering until the fade settles (else it freezes
     // mid-fade when the camera stops).

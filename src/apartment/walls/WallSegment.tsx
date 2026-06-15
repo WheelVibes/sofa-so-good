@@ -262,6 +262,13 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const { camera, invalidate } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
+  // Last-applied `transparent` flag for the group's materials. Toggling
+  // `Material.transparent` at runtime only changes the alpha-blend behaviour
+  // after a `needsUpdate` (it's baked into the compiled program), so without
+  // this the wall keeps rendering opaque even as `opacity` drops — the "values
+  // decrease but the render doesn't update" bug. We flip needsUpdate only on the
+  // transition (not every frame) to avoid needless shader recompiles.
+  const transparentRef = useRef(false)
 
   // Outward (away-from-interior) horizontal normal + midpoint of this wall, used
   // to fade the wall when the camera sits on its outward side (between the camera
@@ -330,6 +337,9 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     if (revealable) setWallOpacity(wall.id, cur)
     const visible = cur > 0.02
     const transparent = cur < 0.985
+    // Only force a material recompile when the transparent flag actually flips.
+    const transparentChanged = transparent !== transparentRef.current
+    transparentRef.current = transparent
     group.traverse((o) => {
       if (!(o instanceof Mesh)) return
       o.visible = visible
@@ -338,6 +348,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         m.transparent = transparent
         m.opacity = cur
         m.depthWrite = !transparent
+        if (transparentChanged) m.needsUpdate = true
       }
       if (Array.isArray(mat)) mat.forEach(apply)
       else if (mat) apply(mat)
