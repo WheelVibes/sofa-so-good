@@ -20,7 +20,12 @@ blend never engages).
 ## Custom plans
 
 `PlanShell.tsx` renders a user-authored plan instead (walls extruded with
-openings + per-room floor finishes) when a non-default plan is active.
+openings + per-room floor finishes) when a non-default plan is active. It has no
+grounding slab (each room draws its own floor); walled-in floor with no room gets
+a **fallback ground** (`UnroomedFloor`) so there's never a hole — neutral fill,
+turning red under the pro `unroomedFlag` to flag the gap. The enclosed footprint
+is found by a pure even-odd ray test over the exterior wall centre-lines
+(`floorplan/footprint.ts`).
 
 **Wall thickness** (pro `wallThickness` flag) is configurable: a plan-wide
 default per category (`FloorPlan.wallThickness?: {external?, internal?}`) plus an

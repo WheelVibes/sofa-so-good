@@ -1,7 +1,15 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { BufferAttribute, BufferGeometry, Color, type Mesh, type MeshStandardMaterial } from 'three'
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Color,
+  DoubleSide,
+  type Mesh,
+  type MeshStandardMaterial,
+} from 'three'
 import { useFeature } from '../features/useFeature'
+import { type Bounds, unroomedCells, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
@@ -320,6 +328,10 @@ function PlanLevelShell({
 
   return (
     <group>
+      {/* Red fallback ground over any walled-in floor with no room (unroomedFlag):
+          fills the void where the grounding slab used to be AND flags it to fix. */}
+      <UnroomedFloor walls={lp.walls} isInterior={isInterior} />
+
       {/* Per-room floors (catalog finish, defaulting to oak); click-to-enter
           works on every storey (the room editor is level-aware, ML5). */}
       {lp.rooms.map((r) => {
@@ -594,6 +606,87 @@ function SlopedWallMesh({
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial color={color} roughness={0.9} metalness={0} />
+    </mesh>
+  )
+}
+
+/** Fallback ground over walled-in floor that has no room. It ALWAYS fills the
+ *  void left by removing the grounding slab (so there's never a hole), and turns
+ *  RED when the `unroomedFlag` pro feature is on — flagging the gap so the user
+ *  adds a room there (it clears once a room covers it). Simple mode just sees a
+ *  neutral fill. Built as a grid of small quads inside the building perimeter but
+ *  outside every room — see `floorplan/footprint.ts`. Custom plans only. */
+function UnroomedFloor({
+  walls,
+  isInterior,
+}: {
+  walls: readonly PlanWall[]
+  isInterior: (x: number, z: number) => boolean
+}) {
+  const flagged = useFeature('unroomedFlag')
+  const geometry = useMemo(() => {
+    const ext: WallSeg[] = walls
+      .filter((w) => w.thickness === 'external')
+      .map((w) => ({ start: w.start, end: w.end }))
+    if (ext.length < 3) return null
+    let minX = Infinity
+    let minZ = Infinity
+    let maxX = -Infinity
+    let maxZ = -Infinity
+    for (const w of ext) {
+      for (const p of [w.start, w.end]) {
+        minX = Math.min(minX, p[0])
+        maxX = Math.max(maxX, p[0])
+        minZ = Math.min(minZ, p[1])
+        maxZ = Math.max(maxZ, p[1])
+      }
+    }
+    const cell = 0.25
+    const bounds: Bounds = { minX, minZ, maxX, maxZ }
+    const cells = unroomedCells(ext, isInterior, bounds, cell)
+    if (cells.length === 0) return null
+    // One up-facing quad per cell, merged into a single buffer.
+    const h = cell / 2
+    const Y = 0.012 // just above floor level (no slab beneath any more)
+    const pos = new Float32Array(cells.length * 18)
+    let i = 0
+    for (const [cx, cz] of cells) {
+      const x0 = cx - h
+      const x1 = cx + h
+      const z0 = cz - h
+      const z1 = cz + h
+      const verts: [number, number][] = [
+        [x0, z0],
+        [x1, z0],
+        [x1, z1],
+        [x0, z0],
+        [x1, z1],
+        [x0, z1],
+      ]
+      for (const [vx, vz] of verts) {
+        pos[i++] = vx
+        pos[i++] = Y
+        pos[i++] = vz
+      }
+    }
+    const g = new BufferGeometry()
+    g.setAttribute('position', new BufferAttribute(pos, 3))
+    g.computeVertexNormals()
+    return g
+  }, [walls, isInterior])
+  useEffect(() => () => geometry?.dispose(), [geometry])
+  if (!geometry) return null
+  return (
+    <mesh geometry={geometry} renderOrder={1}>
+      <meshStandardMaterial
+        // Pro: red flag (semi-transparent warning). Simple: neutral screed fill.
+        color={flagged ? '#e0483a' : '#bdb6aa'}
+        roughness={0.9}
+        metalness={0}
+        transparent={flagged}
+        opacity={flagged ? 0.82 : 1}
+        side={DoubleSide}
+      />
     </mesh>
   )
 }

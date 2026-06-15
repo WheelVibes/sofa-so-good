@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Custom plans: fallback ground for un-roomed floor + red flag
+
+- After dropping the grounding slab, walled-in floor with no room over it would be a void.
+  `PlanShell` now renders a **fallback ground** there — always (so there's never a hole),
+  within the building footprint (not beyond the walls). It detects the enclosed area with a
+  pure even-odd ray test over the exterior wall centre-lines (`floorplan/footprint.ts`
+  `pointInBuilding` / `unroomedCells`, grid-sampled), so it's correct on L/U/notched outlines.
+- The fallback turns **red** when the new pro `unroomedFlag` feature is on — flagging
+  un-roomed gaps so the user adds a room there (it clears once a room covers it). Simple mode
+  shows a neutral screed fill instead (no hole, no alarming red). Verified by screenshot in
+  both modes (removed a bedroom → red in Pro, neutral in Simple) + unit tests for the footprint
+  geometry.
+
 ## Custom plans: drop the grounding slab (rely on per-room floors)
 
 - Removed `PlanShell`'s grounding slab — the bare grey pad that protruded ~0.25 m past the

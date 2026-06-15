@@ -84,6 +84,7 @@ export type FeatureFlag =
   | 'slopingWalls'
   | 'wallBaseboard'
   | 'wallThickness'
+  | 'unroomedFlag'
   | 'viewInAr'
   | 'floorTexture'
   | 'planCompass'
@@ -570,6 +571,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   wallThickness: {
     label: 'Wall thickness',
     description: 'Set a plan-wide default wall thickness and per-wall overrides',
+    default: true,
+    tier: 'pro',
+  },
+  // Flags walled-in floor area with no room over it (red fallback ground), so
+  // un-roomed gaps are obvious to fix. Pure geometry → prod-safe; an authoring
+  // aid beyond the core loop → pro tier.
+  unroomedFlag: {
+    label: 'Un-roomed area flag',
+    description: 'Highlight walled-in floor with no room assigned (red) in custom plans',
     default: true,
     tier: 'pro',
   },
