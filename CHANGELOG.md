@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Per-wall thickness overrides reach the curated flat too
+
+- The per-wall thickness override (`PlanWall.thicknessM`) now also drives the **curated HDB
+  flat**, not just custom plans. The default plan's wall ids match the curated `WALLS`
+  (`buildDefaultPlan` copies `id`), so editing a wall's thickness in the 2D plan inspector
+  flows to the 3D curated render with no new selection UI. `wallSegments.ts` gained a per-wall
+  override map (`setFlatWallThicknessOverrides`, keyed by wall id, synced from `floorPlan.walls`
+  by the store subscription); `wallThicknessMetres` consults override → global default →
+  built-in. `WallSegment` resolves thickness reactively (per-wall override + global default)
+  so a memoised wall rebuilds on edit; `Skirting`/`RoomShell` re-derive on `floorPlan.walls`
+  changes. Verified by screenshot (two bedroom partitions thicken individually).
+
 ## Configurable wall thickness (global default + per-wall overrides)
 
 - New pro `wallThickness` feature: a **plan-wide default** thickness per category

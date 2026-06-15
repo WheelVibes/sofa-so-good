@@ -26,11 +26,14 @@ openings + per-room floor finishes) when a non-default plan is active.
 default per category (`FloorPlan.wallThickness?: {external?, internal?}`) plus an
 optional per-wall override (`PlanWall.thicknessM?`). Custom plans resolve it via
 `planGeometry.planWallThickness(wall, plan)` (override → plan default → built-in
-0.2 m / 0.1 m). The curated flat reads the *global* default through a module-level
-holder in `wallSegments.ts` (`setFlatWallThicknessDefaults`, kept in sync with
-`floorPlan.wallThickness` by a `state/store.ts` subscription) so its render +
-collision track it; per-wall overrides don't apply to the curated flat (no
-per-wall editor). Edited in the 2D `PlanInspector` (plan-level + selected-wall).
+0.2 m / 0.1 m). The curated flat reads BOTH the global default and per-wall overrides through a
+module-level holder in `wallSegments.ts` (`setFlatWallThicknessDefaults` +
+`setFlatWallThicknessOverrides`, kept in sync with `floorPlan.wallThickness` and
+`floorPlan.walls` by a `state/store.ts` subscription) so its render + collision
+track them — the default plan's wall ids match the curated `WALLS`
+(`buildDefaultPlan`), so 2D-editor per-wall edits flow to the curated render with
+no extra selection UI. All edited in the 2D `PlanInspector` (plan-level defaults +
+selected-wall override).
 
 ## Multi-storey plans (F13)
 

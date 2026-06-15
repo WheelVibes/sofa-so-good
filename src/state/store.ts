@@ -1,5 +1,8 @@
 import { create } from 'zustand'
-import { setFlatWallThicknessDefaults } from '../apartment/wallSegments'
+import {
+  setFlatWallThicknessDefaults,
+  setFlatWallThicknessOverrides,
+} from '../apartment/wallSegments'
 import type { FloorPlan } from '../floorplan/types'
 import {
   APPEARANCE_INITIAL,
@@ -208,15 +211,22 @@ export const useStore = create<RootState>((set, get, api) => ({
   __resetForTest: () => set({ ...INITIAL }),
 }))
 
-// Keep the curated flat's module-level wall-thickness defaults in sync with the
-// active plan's plan-wide `wallThickness` setting (custom plans resolve it via
-// `planWallThickness(wall, plan)` instead). Cheap guard so it only re-applies on
-// an actual change; fired once now for the initial plan.
+// Keep the curated flat's module-level wall thickness in sync with the active
+// plan: the plan-wide `wallThickness` default AND per-wall `thicknessM` overrides
+// (the default plan's wall ids match the curated WALLS, so 2D-editor edits flow
+// to the curated render). Custom plans resolve via `planWallThickness(wall, plan)`
+// instead. Cheap reference guards; fired once now for the initial plan.
 let lastWallThickness: FloorPlan['wallThickness']
-const applyFlatWallThickness = (wt: FloorPlan['wallThickness']) => {
-  if (wt === lastWallThickness) return
-  lastWallThickness = wt
-  setFlatWallThicknessDefaults(wt)
+let lastWalls: FloorPlan['walls'] | undefined
+const applyFlatWallThickness = (plan: FloorPlan) => {
+  if (plan.wallThickness !== lastWallThickness) {
+    lastWallThickness = plan.wallThickness
+    setFlatWallThicknessDefaults(plan.wallThickness)
+  }
+  if (plan.walls !== lastWalls) {
+    lastWalls = plan.walls
+    setFlatWallThicknessOverrides(plan.walls)
+  }
 }
-applyFlatWallThickness(useStore.getState().floorPlan.wallThickness)
-useStore.subscribe((s) => applyFlatWallThickness(s.floorPlan.wallThickness))
+applyFlatWallThickness(useStore.getState().floorPlan)
+useStore.subscribe((s) => applyFlatWallThickness(s.floorPlan))

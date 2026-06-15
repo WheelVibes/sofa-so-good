@@ -21,7 +21,7 @@ import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W, ROOMS, WALLS } from '../constants'
+import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, ROOMS, WALLS } from '../constants'
 import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
@@ -266,11 +266,14 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // Wall height follows the (adjustable) plan ceiling height; per-wall
   // `topHeight` overrides (e.g. parapets) still win inside buildWallSegments.
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
-  // Subscribe to the plan-wide wall-thickness default so this (memoised) wall
-  // re-renders when the global setting changes; the resolved metres come from
-  // `wallThicknessMetres` (module-level holder) and feed the `thickness` dep of
-  // the body-geometry memo below, which rebuilds on the new value.
-  useStore((s) => s.floorPlan.wallThickness)
+  // Reactive thickness inputs (this wall is memoised on `wall`, a constant, so
+  // it would otherwise never re-render on a thickness change): the plan-wide
+  // default + this wall's own override (default-plan wall ids match the curated
+  // WALLS). Resolved into `thickness` below, which is a real body-geometry dep.
+  const wallThicknessDefault = useStore((s) => s.floorPlan.wallThickness)
+  const wallThicknessOverride = useStore(
+    (s) => s.floorPlan.walls.find((w) => w.id === wall.id)?.thicknessM,
+  )
   const { camera, invalidate } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
@@ -385,7 +388,15 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
       else if (mat) apply(mat)
     })
   })
-  const thickness = wallThicknessMetres(wall)
+  // Resolve reactively (mirrors wallThicknessMetres' precedence: per-wall
+  // override → plan default → built-in) so a 2D-editor thickness edit rebuilds
+  // this wall's body. Pure collision/geometry still read the module holder.
+  const thickness =
+    wallThicknessOverride != null && wallThicknessOverride > 0
+      ? wallThicknessOverride
+      : wall.thickness === 'external'
+        ? (wallThicknessDefault?.external ?? FLAT.externalWallThickness)
+        : (wallThicknessDefault?.internal ?? FLAT.internalWallThickness)
   // Half-thickness of the wall this end abuts (0 if the end is free). Used to
   // (a) extend the body box outward so corners close flush, and (b) pull the
   // interior face plane in to the inner edge of the abutting wall, so finish

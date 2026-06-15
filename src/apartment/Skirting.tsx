@@ -35,11 +35,12 @@ interface Strip {
  * an opaque skirting band at the floor (the rest of the wall goes translucent).
  */
 export function Skirting() {
-  // Re-derive strip widths when the plan-wide wall-thickness default changes
-  // (the metres come from `wallThicknessMetres`, a module-level holder, so the
-  // value isn't referenced directly — it's an intentional recompute trigger).
+  // Re-derive strip widths when the plan-wide default OR any per-wall override
+  // changes (the metres come from `wallThicknessMetres`, a module-level holder,
+  // so these aren't referenced directly — they're intentional recompute triggers).
   const wallThicknessDefault = useStore((s) => s.floorPlan.wallThickness)
-  // biome-ignore lint/correctness/useExhaustiveDependencies: wallThicknessDefault is an intentional recompute trigger for the module-level thickness holder
+  const planWalls = useStore((s) => s.floorPlan.walls)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: wallThicknessDefault + planWalls are intentional recompute triggers for the module-level thickness holder
   const strips = useMemo<Strip[]>(() => {
     const out: Strip[] = []
     for (const wall of WALLS) {
@@ -70,7 +71,7 @@ export function Skirting() {
       }
     }
     return out
-  }, [wallThicknessDefault])
+  }, [wallThicknessDefault, planWalls])
 
   // Fade each strip with its host wall (same per-wall opacity the windows/doors
   // read), so external-wall skirting goes translucent in the orbit reveal
