@@ -5,13 +5,43 @@
 `constants.ts` is the **source of truth** for walls/doors/windows/rooms (derived
 from the floor-plan SVG). `walls/`, `floor/`, `Window.tsx`, `Door.tsx`,
 `Ceiling.tsx`, `Skirting.tsx`, plus a grounding slab in `Apartment.tsx`.
-**Wall reveal** (`walls/wallReveal`): exterior walls between the orbit camera and
-the interior fade out (windows/doors fade with them).
+**Wall reveal** (`walls/wallReveal` + pure `walls/wallRevealMath`): walls between
+the orbit camera and the interior fade out (windows/doors/skirting fade with
+them). Two settings (`wallRevealMode` × `wallRevealScope`, both session-only):
+mode = `translucent` (15% opacity, default) / `auto-hide` (fully hidden) /
+`opaque` (no fade); scope = `exterior` (perimeter only, default) / `all`
+(interior partitions fade too). Exterior walls orient "outward" via a
+point-in-room probe (`orientOutward`); interior partitions (rooms on both sides)
+fade when faced via `cameraFacingNormal`. The body is a single watertight
+extruded shape (`walls/wallBodyShape`) so it has no internal seams when
+translucent. Materials flip `needsUpdate` on the transparent transition (else the
+blend never engages).
 
 ## Custom plans
 
 `PlanShell.tsx` renders a user-authored plan instead (walls extruded with
-openings + per-room floor finishes) when a non-default plan is active.
+openings + per-room floor finishes) when a non-default plan is active. It has no
+grounding slab (each room draws its own floor); walled-in floor with no room gets
+a **neutral fallback ground** (`UnroomedFloor`) so there's never a hole. The
+enclosed footprint is the exact polygon traced from the exterior wall centre-lines
+(`floorplan/footprint.ts` `traceBuildingOutline`), rendered just below the room
+floors so only un-roomed floor shows. The **red** un-roomed flag (same polygon
+filled `--danger`) lives in the 2D editor (`FloorPlanEditor`, `unroomedFlag`,
+simple tier), not the orbit view. Skirting strips fade with their wall
+(`FadeSkirting`, sharing `planWallRevealTarget` with `FadeWall`).
+
+**Wall thickness** (pro `wallThickness` flag) is configurable: a plan-wide
+default per category (`FloorPlan.wallThickness?: {external?, internal?}`) plus an
+optional per-wall override (`PlanWall.thicknessM?`). Custom plans resolve it via
+`planGeometry.planWallThickness(wall, plan)` (override → plan default → built-in
+0.2 m / 0.1 m). The curated flat reads BOTH the global default and per-wall overrides through a
+module-level holder in `wallSegments.ts` (`setFlatWallThicknessDefaults` +
+`setFlatWallThicknessOverrides`, kept in sync with `floorPlan.wallThickness` and
+`floorPlan.walls` by a `state/store.ts` subscription) so its render + collision
+track them — the default plan's wall ids match the curated `WALLS`
+(`buildDefaultPlan`), so 2D-editor per-wall edits flow to the curated render with
+no extra selection UI. All edited in the 2D `PlanInspector` (plan-level defaults +
+selected-wall override).
 
 ## Multi-storey plans (F13)
 

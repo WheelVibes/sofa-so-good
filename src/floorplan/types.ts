@@ -16,6 +16,11 @@ export interface PlanWall {
   start: PlanVec2
   end: PlanVec2
   thickness: 'external' | 'internal'
+  /** Optional explicit thickness (m) for THIS wall, overriding both its
+   *  external/internal category default and the plan-level default. Absent =
+   *  use the plan default for the category (falling back to 0.2 m external /
+   *  0.1 m internal). Edited in the 2D plan inspector (pro). */
+  thicknessM?: number
   /** Optional cap on solid-wall height (parapets on balconies); floor→ceiling when unset. */
   topHeight?: number
   /** Optional top height at the wall's `end` (SweetHome3DJS sloping-wall parity):
@@ -168,6 +173,11 @@ export interface FloorPlan {
    *  off-white when unset. (Custom-plan walls are a solid colour; the built-in
    *  apartment uses per-room procedural finishes.) */
   wallColor?: string
+  /** Optional plan-wide default wall thickness (m) per category, overriding the
+   *  built-in 0.2 m external / 0.1 m internal. A wall's own `thicknessM` wins
+   *  over this. Applies to custom plans AND the curated flat (the global default
+   *  is read by both renderers). Additive + optional. */
+  wallThickness?: { external?: number; internal?: number }
   /** Optional storeys above the ground floor (the top-level fields above ARE
    *  the ground floor). Absent/empty = the single-storey plans of today. */
   upperLevels?: PlanUpperLevel[]

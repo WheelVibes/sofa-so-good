@@ -20,6 +20,9 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
   const swingRef = useRef<Group>(null!)
   const rootRef = useRef<Group>(null)
   const angleRef = useRef(0)
+  // Last-applied `transparent` flag — toggling it at runtime needs a
+  // `needsUpdate` for the blend to engage (see WallSegment).
+  const transparentRef = useRef(false)
 
   useFrame((_, dt) => {
     // Fade the door leaf WITH its host wall during the orbit reveal (so an opaque
@@ -29,12 +32,15 @@ export function DoorLeaf({ spec }: { spec: DoorSpec }) {
       const wallOp = getWallOpacity(spec.wallId)
       root.visible = wallOp > 0.02
       const fading = wallOp < 0.985
+      const changed = fading !== transparentRef.current
+      transparentRef.current = fading
       root.traverse((o) => {
         if (!(o instanceof Mesh)) return
         const m = o.material as MeshStandardMaterial
         m.transparent = fading
         m.opacity = wallOp
         m.depthWrite = wallOp > 0.6
+        if (changed) m.needsUpdate = true
       })
     }
     const target = isOpen ? SWING_RAD : 0

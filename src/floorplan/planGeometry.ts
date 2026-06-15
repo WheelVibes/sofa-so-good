@@ -12,8 +12,38 @@ import { isCurvedWall, wallChords } from './wallArc'
 const EXTERNAL_T = 0.2
 const INTERNAL_T = 0.1
 
-export function planWallThickness(w: PlanWall): number {
+/** Resolve a plan wall's thickness (m): the wall's own `thicknessM` override
+ *  wins, then the plan-wide `wallThickness` default for its category, then the
+ *  built-in 0.2 m external / 0.1 m internal. */
+export function planWallThickness(w: PlanWall, plan?: FloorPlan): number {
+  if (w.thicknessM != null && w.thicknessM > 0) return w.thicknessM
+  const d =
+    w.thickness === 'external' ? plan?.wallThickness?.external : plan?.wallThickness?.internal
+  if (d != null && d > 0) return d
   return w.thickness === 'external' ? EXTERNAL_T : INTERNAL_T
+}
+
+/** Thickness (m) of a straight wall whose centreline passes through this wall's
+ *  `start` (or `end`) point — i.e. the wall it abuts at that corner — or 0 if the
+ *  end is free. Used to extend a wall's end box to the neighbour's OUTER face so
+ *  corners close with no notch, regardless of differing (override) thicknesses. */
+function planWallEndAbutment(wall: PlanWall, plan: FloorPlan, atStart: boolean): number {
+  const point = atStart ? wall.start : wall.end
+  for (const other of plan.walls) {
+    if (other.id === wall.id || isSlopedWall(other) || isCurvedWall(other)) continue
+    const dx = other.end[0] - other.start[0]
+    const dz = other.end[1] - other.start[1]
+    const len = Math.hypot(dx, dz)
+    if (len === 0) continue
+    const tx = dx / len
+    const tz = dz / len
+    const px = point[0] - other.start[0]
+    const pz = point[1] - other.start[1]
+    const along = px * tx + pz * tz
+    const perp = Math.abs(px * -tz + pz * tx)
+    if (perp < 1e-3 && along > -1e-3 && along < len + 1e-3) return planWallThickness(other, plan)
+  }
+  return 0
 }
 
 /** A renderable, axis-rotated wall box. */
@@ -52,7 +82,7 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
   // cleanly across however many chords it spans.
   if (isCurvedWall(wall)) {
     const ceil = wall.topHeight ?? plan.ceilingHeight
-    const t = planWallThickness(wall)
+    const t = planWallThickness(wall, plan)
     const ops = openingsForWall(plan, wall.id)
     const boxes: WallBox[] = []
     let acc = 0 // arc-length at the chord's start
@@ -98,7 +128,7 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
   const dx = (wall.end[0] - wall.start[0]) / len
   const dz = (wall.end[1] - wall.start[1]) / len
   const angle = Math.atan2(dx, dz) // heading so +Z maps along the wall
-  const t = planWallThickness(wall)
+  const t = planWallThickness(wall, plan)
   const ceil = wall.topHeight ?? plan.ceilingHeight
   const boxes: WallBox[] = []
   const at = (s: number): [number, number] => [wall.start[0] + dx * s, wall.start[1] + dz * s]
@@ -118,20 +148,29 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
     })
   }
 
+  // Extend a solid span that touches the wall's start/end by the abutting wall's
+  // half-thickness, so the box reaches the neighbour's OUTER face and the outside
+  // corner closes with no notch — correct for any (override) thickness pairing.
+  const startAbut = planWallEndAbutment(wall, plan, true) / 2
+  const endAbut = planWallEndAbutment(wall, plan, false) / 2
+  const pushSolid = (s0: number, s1: number) => {
+    push(s0 <= 1e-6 ? s0 - startAbut : s0, s1 >= len - 1e-6 ? s1 + endAbut : s1, 0, ceil)
+  }
+
   const ops = openingsForWall(plan, wall.id)
   let cursor = 0
   for (const o of ops) {
     const s0 = Math.max(0, Math.min(len, o.offset))
     const s1 = Math.max(s0, Math.min(len, o.offset + o.width))
-    // Solid span before the opening.
-    push(cursor, s0, 0, ceil)
+    // Solid span before the opening (extended at the wall start if it reaches it).
+    pushSolid(cursor, s0)
     // Sill under a window.
     if (o.kind === 'window' && o.sill > 0) push(s0, s1, 0, o.sill)
     // Header above the opening.
     if (o.head < ceil) push(s0, s1, o.head, ceil)
     cursor = Math.max(cursor, s1)
   }
-  push(cursor, len, 0, ceil)
+  pushSolid(cursor, len)
   return boxes
 }
 
@@ -152,7 +191,7 @@ export function planCollisionWalls(
     // Curved wall: a straight collision segment per chord, with gaps where an
     // OPEN door's arc-length span falls within the chord (mirrors the straight path).
     if (isCurvedWall(wall)) {
-      const thickness = planWallThickness(wall)
+      const thickness = planWallThickness(wall, plan)
       const openDoors = openings.filter(
         (o) => o.wallId === wall.id && o.kind === 'door' && doorState[o.id]?.open,
       )
@@ -192,7 +231,7 @@ export function planCollisionWalls(
     if (len === 0) continue
     const dx = (wall.end[0] - wall.start[0]) / len
     const dz = (wall.end[1] - wall.start[1]) / len
-    const thickness = planWallThickness(wall)
+    const thickness = planWallThickness(wall, plan)
     const at = (s: number): [number, number] => [wall.start[0] + dx * s, wall.start[1] + dz * s]
 
     // Gaps come from OPEN doors only.

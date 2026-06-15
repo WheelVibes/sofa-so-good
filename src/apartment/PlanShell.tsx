@@ -1,7 +1,17 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef } from 'react'
-import { BufferAttribute, BufferGeometry, Color, type Mesh, type MeshStandardMaterial } from 'three'
+import {
+  BufferAttribute,
+  BufferGeometry,
+  Color,
+  DoubleSide,
+  type Mesh,
+  type MeshStandardMaterial,
+  ShapeUtils,
+  Vector2,
+} from 'three'
 import { useFeature } from '../features/useFeature'
+import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
@@ -10,6 +20,7 @@ import {
   DEFAULT_PLAN_WALL_COLOR,
   type FloorPlan,
   type PlanRoom,
+  type PlanVec2,
   type PlanWall,
   planBounds,
   wallLength,
@@ -24,6 +35,7 @@ import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import {
+  cameraFacingNormal,
   orientOutward,
   pointInRooms,
   type RoomRect,
@@ -56,20 +68,28 @@ function revealFactor(
   probe: number,
   cx: number,
   cz: number,
+  interior: boolean,
 ): number {
   const candNx = Math.cos(angle)
   const candNz = -Math.sin(angle)
-  const out = orientOutward(px, pz, candNx, candNz, isInterior, probe)
   let nx = candNx
   let nz = candNz
-  if (out) {
-    nx = out.nx
-    nz = out.nz
-  } else if (nx * (px - cx) + nz * (pz - cz) < 0) {
-    nx = -nx
-    nz = -nz
+  if (interior) {
+    // Interior partition (rooms on both sides): fade when the camera faces it.
+    const f = cameraFacingNormal(px, pz, candNx, candNz, camera.position.x, camera.position.z)
+    nx = f.nx
+    nz = f.nz
+  } else {
+    const out = orientOutward(px, pz, candNx, candNz, isInterior, probe)
+    if (out) {
+      nx = out.nx
+      nz = out.nz
+    } else if (nx * (px - cx) + nz * (pz - cz) < 0) {
+      nx = -nx
+      nz = -nz
+    }
   }
-  return wallRevealFactor(camera.position.x, camera.position.z, px, pz, nx, nz)
+  return wallRevealFactor(camera.position.x, camera.position.z, px, pz, nx, nz, cx, cz)
 }
 
 /** Interior room rectangles (+ L-extensions) for a level, for the point-in-room
@@ -91,20 +111,45 @@ function levelRoomRects(rooms: readonly PlanRoom[]): RoomRect[] {
   }))
 }
 
+/** Target opacity (1 = solid, →0.15/0 = faded) for a wall box given the current
+ *  reveal mode + scope — shared by the wall body and its skirting so they fade
+ *  together. Returns 1 when the wall doesn't participate / mode is opaque. */
+function planWallRevealTarget(
+  camera: { position: { x: number; z: number } },
+  cameraMode: string,
+  box: WallBox,
+  isExterior: boolean,
+  isInterior: (x: number, z: number) => boolean,
+  cx: number,
+  cz: number,
+): number {
+  const st = useStore.getState()
+  const revealEnabled = st.qualityOverrides.wallReveal ?? true
+  const revealMode = st.wallRevealMode ?? 'translucent'
+  const revealScope = st.wallRevealScope ?? 'exterior'
+  const participates = isExterior || revealScope === 'all'
+  if (!(participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque'))
+    return 1
+  const probe = box.thickness / 2 + 0.3
+  const f = revealFactor(camera, box.cx, box.cz, box.angle, isInterior, probe, cx, cz, !isExterior)
+  return revealMode === 'auto-hide' ? f : Math.max(0.15, f)
+}
+
 function FadeWall({
   box,
   cx,
   cz,
   color,
-  revealable,
+  isExterior,
   isInterior,
 }: {
   box: WallBox
   cx: number
   cz: number
   color: string
-  /** Only external/perimeter walls fade; internal partitions stay solid. */
-  revealable: boolean
+  /** True for external/perimeter walls; interior partitions only fade in the
+   *  'all' reveal scope. */
+  isExterior: boolean
   /** Point-in-room test used to orient each wall's outward normal. */
   isInterior: (x: number, z: number) => boolean
 }) {
@@ -115,19 +160,13 @@ function FadeWall({
     const mesh = ref.current
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
-    let target = 1
-    // Same wallReveal override the default flat's WallSegment honours (also
-    // forced off during panorama capture so walls don't leave holes).
-    const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
-    if (revealable && cameraMode === 'orbit' && revealEnabled) {
-      const probe = box.thickness / 2 + 0.3
-      target = Math.max(
-        0.12,
-        revealFactor(camera, box.cx, box.cz, box.angle, isInterior, probe, cx, cz),
-      )
-    }
+    const target = planWallRevealTarget(camera, cameraMode, box, isExterior, isInterior, cx, cz)
     mat.opacity += (target - mat.opacity) * 0.18
-    mat.transparent = mat.opacity < 0.98
+    const next = mat.opacity < 0.98
+    // Toggling `transparent` at runtime needs a recompile for the blend to
+    // engage (see WallSegment); flip needsUpdate only on the transition.
+    if (next !== mat.transparent) mat.needsUpdate = true
+    mat.transparent = next
     mat.depthWrite = mat.opacity > 0.6
     // frameloop="demand": keep rendering until the fade settles (else it freezes
     // mid-fade when the camera stops).
@@ -144,6 +183,110 @@ function FadeWall({
       <boxGeometry args={[box.thickness, box.height, box.length]} />
       <meshStandardMaterial color={color} roughness={0.9} transparent opacity={1} />
     </mesh>
+  )
+}
+
+/** Fade a wall-trim mesh (skirting / crown) in lockstep with its host wall box,
+ *  so the wall reveals floor-to-ceiling as ONE piece (and fully hides in auto-hide
+ *  mode) instead of leaving an opaque trim band. Shares `planWallRevealTarget`
+ *  with `FadeWall`. */
+function useTrimFade(
+  ref: React.RefObject<Mesh | null>,
+  box: WallBox,
+  isExterior: boolean,
+  isInterior: (x: number, z: number) => boolean,
+  cx: number,
+  cz: number,
+) {
+  const { camera, invalidate } = useThree()
+  const cameraMode = useStore((s) => s.cameraMode)
+  useFrame(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    const mat = mesh.material as MeshStandardMaterial
+    if (!mat) return
+    const target = planWallRevealTarget(camera, cameraMode, box, isExterior, isInterior, cx, cz)
+    mat.opacity += (target - mat.opacity) * 0.18
+    const next = mat.opacity < 0.98
+    if (next !== mat.transparent) mat.needsUpdate = true
+    mat.transparent = next
+    mat.depthWrite = mat.opacity > 0.6
+    mesh.visible = mat.opacity > 0.02
+    if (Math.abs(mat.opacity - target) > 0.005) invalidate()
+  })
+}
+
+/** A skirting strip that fades/hides with its host wall (floor trim). */
+function FadeSkirting({
+  box,
+  height,
+  color,
+  isExterior,
+  isInterior,
+  cx,
+  cz,
+}: {
+  box: WallBox
+  height: number
+  color: string
+  isExterior: boolean
+  isInterior: (x: number, z: number) => boolean
+  cx: number
+  cz: number
+}) {
+  const ref = useRef<Mesh>(null)
+  useTrimFade(ref, box, isExterior, isInterior, cx, cz)
+  return (
+    <BeveledBox
+      ref={ref}
+      position={[box.cx, height / 2, box.cz]}
+      rotation={[0, box.angle, 0]}
+      receiveShadow
+      args={[box.thickness + 0.024, height, box.length]}
+    >
+      <meshStandardMaterial color={color} roughness={0.7} transparent opacity={1} />
+    </BeveledBox>
+  )
+}
+
+/** Crown molding at the wall–ceiling junction that fades/hides with its host wall
+ *  (ceiling trim) — so a faded wall reveals floor-to-ceiling with no opaque band
+ *  left at the top. */
+function FadeCrown({
+  box,
+  ceilingHeight,
+  isExterior,
+  isInterior,
+  cx,
+  cz,
+}: {
+  box: WallBox
+  ceilingHeight: number
+  isExterior: boolean
+  isInterior: (x: number, z: number) => boolean
+  cx: number
+  cz: number
+}) {
+  const ref = useRef<Mesh>(null)
+  useTrimFade(ref, box, isExterior, isInterior, cx, cz)
+  return (
+    <BeveledBox
+      ref={ref}
+      position={[box.cx, ceilingHeight - 0.035, box.cz]}
+      rotation={[0, box.angle, 0]}
+      args={[box.thickness + 0.024, 0.07, box.length]}
+    >
+      <meshStandardMaterial
+        color="#eeece6"
+        roughness={0.55}
+        metalness={0}
+        polygonOffset
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
+        transparent
+        opacity={1}
+      />
+    </BeveledBox>
   )
 }
 
@@ -165,13 +308,9 @@ export function PlanShell() {
 
   return (
     <group>
-      {/* Grounding slab — top kept 10 cm below the plan floors to avoid
-          z-fighting (see Apartment.tsx). */}
-      <mesh position={[ew / 2, -0.2, ed / 2]} receiveShadow>
-        <boxGeometry args={[ew + 0.5, 0.2, ed + 0.5]} />
-        <meshStandardMaterial color="#9a958d" roughness={0.95} />
-      </mesh>
-
+      {/* No grounding slab: each room draws its own floor (PlanRoomFloor), so a
+          slab would only add a bare grey pad protruding past the walls. The
+          curated flat (Apartment.tsx) likewise has none — kept consistent. */}
       {levels.map((level) => (
         <group key={level.id} position={[0, level.elevation, 0]}>
           {level.elevation > 0 ? <LevelSlab level={level} /> : null}
@@ -232,7 +371,7 @@ function PlanLevelShell({
   const boxes = useMemo(
     () =>
       lp.walls.flatMap((w) =>
-        wallBoxes(lp, w).map((box) => ({ box, revealable: w.thickness === 'external' })),
+        wallBoxes(lp, w).map((box) => ({ box, isExterior: w.thickness === 'external' })),
       ),
     [lp],
   )
@@ -242,14 +381,15 @@ function PlanLevelShell({
   // hidden. Built per wall (not from the flattened `boxes`) so the override is
   // in scope; defaults match the shell skirting (0.09 m, off-white).
   const skirtings = useMemo(() => {
-    const out: { box: WallBox; height: number; color: string }[] = []
+    const out: { box: WallBox; height: number; color: string; isExterior: boolean }[] = []
     for (const w of lp.walls) {
       const bb = w.baseboard
       if (bb?.hidden) continue
       const height = bb?.height && bb.height > 0 ? bb.height : 0.09
       const color = bb?.color ?? '#eceae4'
+      const isExterior = w.thickness === 'external'
       for (const box of wallBoxes(lp, w)) {
-        if (box.cy - box.height / 2 < 0.01) out.push({ box, height, color })
+        if (box.cy - box.height / 2 < 0.01) out.push({ box, height, color, isExterior })
       }
     }
     return out
@@ -298,6 +438,11 @@ function PlanLevelShell({
 
   return (
     <group>
+      {/* Neutral fallback ground over walled-in floor with no room — fills the
+          void left by the removed grounding slab (the red un-roomed flag is in
+          the 2D editor, not here). */}
+      <UnroomedFloor walls={lp.walls} />
+
       {/* Per-room floors (catalog finish, defaulting to oak); click-to-enter
           works on every storey (the room editor is level-aware, ML5). */}
       {lp.rooms.map((r) => {
@@ -388,14 +533,14 @@ function PlanLevelShell({
 
       {/* Walls — external walls fade when between the orbit camera and the plan
           centre; internal partitions stay solid. */}
-      {boxes.map(({ box, revealable }, i) => (
+      {boxes.map(({ box, isExterior }, i) => (
         <FadeWall
           key={i}
           box={box}
           cx={cx}
           cz={cz}
           color={wallColor}
-          revealable={revealable}
+          isExterior={isExterior}
           isInterior={isInterior}
         />
       ))}
@@ -407,41 +552,34 @@ function PlanLevelShell({
 
       {/* Skirting along floor-reaching wall spans (per-wall baseboard override:
           height/colour, or hidden — PARITY-BASEBOARD). */}
-      {skirtings.map(({ box: b, height, color }, i) => (
-        <BeveledBox
+      {skirtings.map(({ box: b, height, color, isExterior }, i) => (
+        <FadeSkirting
           key={`sk${i}`}
-          position={[b.cx, height / 2, b.cz]}
-          rotation={[0, b.angle, 0]}
-          receiveShadow
-          args={[b.thickness + 0.024, height, b.length]}
-        >
-          <meshStandardMaterial color={color} roughness={0.7} />
-        </BeveledBox>
+          box={b}
+          height={height}
+          color={color}
+          isExterior={isExterior}
+          isInterior={isInterior}
+          cx={cx}
+          cz={cz}
+        />
       ))}
 
-      {/* Crown molding at the wall–ceiling junction (full-height spans only).
-          Uses the same wall-box dimensions as skirting so mitre corners close
-          flush; polygonOffset prevents z-fighting against the ceiling plane. */}
+      {/* Crown molding at the wall–ceiling junction (full-height spans only),
+          fading/hiding with its wall so the reveal is floor-to-ceiling. */}
       {crownMolding &&
         boxes
-          .map(({ box }) => box)
-          .filter((b) => b.cy + b.height / 2 >= lp.ceilingHeight - 0.01)
-          .map((b, i) => (
-            <BeveledBox
+          .filter(({ box: b }) => b.cy + b.height / 2 >= lp.ceilingHeight - 0.01)
+          .map(({ box: b, isExterior }, i) => (
+            <FadeCrown
               key={`cm${i}`}
-              position={[b.cx, lp.ceilingHeight - 0.035, b.cz]}
-              rotation={[0, b.angle, 0]}
-              args={[b.thickness + 0.024, 0.07, b.length]}
-            >
-              <meshStandardMaterial
-                color="#eeece6"
-                roughness={0.55}
-                metalness={0}
-                polygonOffset
-                polygonOffsetFactor={-2}
-                polygonOffsetUnits={-2}
-              />
-            </BeveledBox>
+              box={b}
+              ceilingHeight={lp.ceilingHeight}
+              isExterior={isExterior}
+              isInterior={isInterior}
+              cx={cx}
+              cz={cz}
+            />
           ))}
 
       {/* Door leaves — swinging, clickable; closed by default (matches collision). */}
@@ -509,14 +647,26 @@ function FadeWindow({
     mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
     const base = 0.28 + d * 0.45 // more opaque (less see-through) at night
     let factor = 1
-    const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
-    if (win.revealable && cameraMode === 'orbit' && revealEnabled) {
+    const st = useStore.getState()
+    const revealEnabled = st.qualityOverrides.wallReveal ?? true
+    const revealMode = st.wallRevealMode ?? 'translucent'
+    const revealScope = st.wallRevealScope ?? 'exterior'
+    const participates = win.revealable || revealScope === 'all'
+    if (participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque') {
       // 0.3 m probe past the pane centre — the host wall's thickness isn't carried
       // on the window box, but a fixed reach clears the wall into the room.
-      factor = Math.max(
-        0.12,
-        revealFactor(camera, win.cx, win.cz, win.angle, isInterior, 0.3, cx, cz),
+      const f = revealFactor(
+        camera,
+        win.cx,
+        win.cz,
+        win.angle,
+        isInterior,
+        0.3,
+        cx,
+        cz,
+        !win.revealable,
       )
+      factor = revealMode === 'auto-hide' ? f : Math.max(0.15, f)
     }
     const target = base * factor
     mat.opacity += (target - mat.opacity) * 0.18
@@ -560,6 +710,50 @@ function SlopedWallMesh({
   return (
     <mesh geometry={geometry} castShadow receiveShadow>
       <meshStandardMaterial color={color} roughness={0.9} metalness={0} />
+    </mesh>
+  )
+}
+
+/** Build a flat horizontal mesh from a traced outline polygon at height `y`
+ *  (ear-clipped via three's ShapeUtils — handles concave/notched outlines). */
+function outlineGeometry(outline: PlanVec2[], y: number): BufferGeometry | null {
+  const contour = outline.map(([x, z]) => new Vector2(x, z))
+  const tris = ShapeUtils.triangulateShape(contour, [])
+  if (tris.length === 0) return null
+  const pos = new Float32Array(tris.length * 9)
+  let p = 0
+  for (const tri of tris) {
+    for (const idx of tri) {
+      const v = contour[idx]
+      pos[p++] = v.x
+      pos[p++] = y
+      pos[p++] = v.y
+    }
+  }
+  const g = new BufferGeometry()
+  g.setAttribute('position', new BufferAttribute(pos, 3))
+  g.computeVertexNormals()
+  return g
+}
+
+/** Neutral fallback ground over the exact wall-enclosed footprint, sitting just
+ *  below the room floors so it shows ONLY where no room covers it — filling the
+ *  void left by removing the grounding slab (no hole). Orbit view only; the red
+ *  un-roomed flag lives in the 2D plan editor. Custom plans only (PlanShell). */
+function UnroomedFloor({ walls }: { walls: readonly PlanWall[] }) {
+  const geometry = useMemo(() => {
+    const ext: WallSeg[] = walls
+      .filter((w) => w.thickness === 'external')
+      .map((w) => ({ start: w.start, end: w.end }))
+    const outline = traceBuildingOutline(ext)
+    if (!outline) return null
+    return outlineGeometry(outline, -0.01) // 1 cm below room floors → they cover it
+  }, [walls])
+  useEffect(() => () => geometry?.dispose(), [geometry])
+  if (!geometry) return null
+  return (
+    <mesh geometry={geometry} receiveShadow>
+      <meshStandardMaterial color="#bdb6aa" roughness={0.95} metalness={0} side={DoubleSide} />
     </mesh>
   )
 }

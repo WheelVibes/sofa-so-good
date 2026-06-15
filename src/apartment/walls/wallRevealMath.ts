@@ -60,12 +60,47 @@ export function wallRevealFactor(
   midZ: number,
   outNx: number,
   outNz: number,
+  centerX?: number,
+  centerZ?: number,
 ): number {
   const tx = camX - midX
   const tz = camZ - midZ
   const len = Math.hypot(tx, tz) || 1
   const dot = (outNx * tx + outNz * tz) / len // >0 → camera on the outward side → fade
-  return 1 - smoothstep(-0.25, 0.2, dot)
+  // Facing term: a wall fades once it's perpendicular-or-facing the camera
+  // (dot ≥ 0); walls whose outward normal points clearly AWAY (dot ≤ −0.4, the
+  // far "back" of the dollhouse) stay solid so the model still reads as a box.
+  const facing = 1 - smoothstep(-0.4, 0, dot)
+  if (centerX === undefined || centerZ === undefined) return facing
+  // Proximity term: a near SIDE wall (a room's perpendicular wall, edge-on to
+  // the view) has no camera-facing outward normal, so the facing term alone
+  // leaves it as an awkward opaque fin. Fade any wall that sits clearly NEARER
+  // the camera than the plan centre does; walls past the centre (the far half)
+  // keep their facing-based opacity. Taking the min means a wall fades if it
+  // EITHER faces the camera OR is a near wall — opening up the near rooms fully.
+  const camToCenter = Math.hypot(camX - centerX, camZ - centerZ) || 1
+  const ratio = (len - camToCenter) / camToCenter // <0 nearer than centre, >0 farther
+  const proximity = smoothstep(-0.2, 0.05, ratio) // near → 0 (faded), far → 1 (opaque)
+  return Math.min(facing, proximity)
+}
+
+/**
+ * Orient a wall's face normal `(nx, nz)` so it points **toward the camera**.
+ * Used for interior partitions (which have rooms on both sides, so there is no
+ * single "outward"): in the all-walls reveal scope a partition fades when the
+ * camera faces it, revealing the room behind. Feeding this into
+ * `wallRevealFactor` makes a head-on partition fade and an edge-on one stay.
+ */
+export function cameraFacingNormal(
+  midX: number,
+  midZ: number,
+  nx: number,
+  nz: number,
+  camX: number,
+  camZ: number,
+): { nx: number; nz: number } {
+  const towardCam = nx * (camX - midX) + nz * (camZ - midZ)
+  return towardCam < 0 ? { nx: -nx, nz: -nz } : { nx, nz }
 }
 
 /** A rectangle (+ optional L-shaped extension) in plan metres — the shape both

@@ -83,6 +83,8 @@ export type FeatureFlag =
   | 'curvedWalls'
   | 'slopingWalls'
   | 'wallBaseboard'
+  | 'wallThickness'
+  | 'unroomedFlag'
   | 'viewInAr'
   | 'floorTexture'
   | 'planCompass'
@@ -562,6 +564,24 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     description: 'Per-wall skirting board height, colour and a hide toggle',
     default: true,
     tier: 'pro',
+  },
+  // Configurable wall thickness: a plan-wide default (external/internal) plus
+  // per-wall metre overrides, edited in the 2D plan inspector. Pure geometry →
+  // prod-safe; an authoring detail beyond the core loop → pro tier.
+  wallThickness: {
+    label: 'Wall thickness',
+    description: 'Set a plan-wide default wall thickness and per-wall overrides',
+    default: true,
+    tier: 'pro',
+  },
+  // Flags walled-in floor with no room (red) in the 2D plan editor so the gap is
+  // obvious to fix. Shown in both modes (a casual user should see it too) → simple
+  // tier. The 3D fallback ground that fills the void is unconditional (not this).
+  unroomedFlag: {
+    label: 'Un-roomed area flag',
+    description: 'Highlight walled-in floor with no room assigned (red) in the 2D plan editor',
+    default: true,
+    tier: 'simple',
   },
   // "View in your room" AR: iOS AR Quick Look from a USDZ (blob), GLB download
   // elsewhere. Pure client-side (no backend/dep) → prod-safe. A high-wow viewing

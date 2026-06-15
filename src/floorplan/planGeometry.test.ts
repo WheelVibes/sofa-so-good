@@ -1,7 +1,36 @@
 import { describe, expect, it } from 'vitest'
 import { buildCollisionWalls } from '../collision/wallsFromState'
 import { buildDefaultPlan } from './defaultPlan'
-import { isDefaultPlan, planCollisionWalls, wallBoxes } from './planGeometry'
+import { isDefaultPlan, planCollisionWalls, planWallThickness, wallBoxes } from './planGeometry'
+import type { FloorPlan, PlanWall } from './types'
+
+describe('planWallThickness', () => {
+  const ext: PlanWall = { id: 'a', start: [0, 0], end: [1, 0], thickness: 'external' }
+  const int: PlanWall = { id: 'b', start: [0, 0], end: [1, 0], thickness: 'internal' }
+  const planWith = (wallThickness: FloorPlan['wallThickness']) =>
+    ({ wallThickness }) as Pick<FloorPlan, 'wallThickness'> as FloorPlan
+
+  it('falls back to the built-in 0.2 / 0.1 m defaults', () => {
+    expect(planWallThickness(ext)).toBe(0.2)
+    expect(planWallThickness(int)).toBe(0.1)
+  })
+
+  it('uses the plan-wide default for the wall category when set', () => {
+    const plan = planWith({ external: 0.3, internal: 0.15 })
+    expect(planWallThickness(ext, plan)).toBe(0.3)
+    expect(planWallThickness(int, plan)).toBe(0.15)
+  })
+
+  it('a per-wall thicknessM override wins over the plan default', () => {
+    const plan = planWith({ external: 0.3 })
+    expect(planWallThickness({ ...ext, thicknessM: 0.45 }, plan)).toBe(0.45)
+  })
+
+  it('ignores non-positive overrides/defaults', () => {
+    const plan = planWith({ external: 0 })
+    expect(planWallThickness({ ...ext, thicknessM: 0 }, plan)).toBe(0.2)
+  })
+})
 
 describe('planGeometry', () => {
   const plan = buildDefaultPlan()
@@ -36,6 +65,29 @@ describe('planGeometry', () => {
       expect(b.height).toBeGreaterThan(0)
       expect(b.cy).toBeGreaterThan(0)
     }
+  })
+
+  it('extends a wall end box to the abutting neighbour, but leaves free ends alone', () => {
+    // L-corner: A (horizontal) and B (vertical) share [0,0]; A.end is free.
+    const lPlan: typeof plan = {
+      ...plan,
+      walls: [
+        { id: 'A', start: [0, 0], end: [4, 0], thickness: 'external' },
+        { id: 'B', start: [0, 0], end: [0, 4], thickness: 'external' },
+      ],
+      openings: [],
+    }
+    const a = wallBoxes(lPlan, lPlan.walls[0])
+    expect(a).toHaveLength(1)
+    // Start abuts B (0.2 m → +0.1 extension); end is free (no extension): 4 + 0.1.
+    expect(a[0].length).toBeCloseTo(4.1, 6)
+
+    // A thicker B (override) extends A's end box further (0.6 → +0.3).
+    const thickB: typeof plan = {
+      ...lPlan,
+      walls: [lPlan.walls[0], { ...lPlan.walls[1], thicknessM: 0.6 }],
+    }
+    expect(wallBoxes(thickB, thickB.walls[0])[0].length).toBeCloseTo(4.3, 6)
   })
 
   it('a curved wall renders as many full-height chord boxes + collision segments', () => {

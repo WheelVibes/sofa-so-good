@@ -41,6 +41,10 @@ function WallBox({
 }) {
   const ref = useRef<Mesh>(null)
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
+  // Re-render this wall when the plan-wide default OR per-wall overrides change
+  // (resolved metres come from the module-level holder in `wallThicknessMetres`).
+  useStore((s) => s.floorPlan.wallThickness)
+  useStore((s) => s.floorPlan.walls)
   const [sx, sz] = wall.start
   const [ex, ez] = wall.end
   const len = Math.hypot(ex - sx, ez - sz)

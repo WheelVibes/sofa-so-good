@@ -201,6 +201,7 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const ceilingDesignOn = useFeature('ceilingDesign')
   const slopingWallsOn = useFeature('slopingWalls')
   const wallBaseboardOn = useFeature('wallBaseboard')
+  const wallThicknessOn = useFeature('wallThickness')
   const floorTextureOn = useFeature('floorTexture')
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
@@ -249,6 +250,38 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           Paints every wall in this plan.
         </span>
       </div>
+      {wallThicknessOn ? (
+        <div className="flex flex-col gap-2">
+          <span className="label">Wall thickness</span>
+          <Num
+            label="Exterior (m)"
+            value={plan.wallThickness?.external ?? 0.2}
+            step={0.01}
+            min={0.05}
+            onChange={(v) => {
+              if (!Number.isFinite(v)) return
+              a.updateFloorPlanMeta({
+                wallThickness: { ...plan.wallThickness, external: Math.min(1, Math.max(0.05, v)) },
+              })
+            }}
+          />
+          <Num
+            label="Interior (m)"
+            value={plan.wallThickness?.internal ?? 0.1}
+            step={0.01}
+            min={0.05}
+            onChange={(v) => {
+              if (!Number.isFinite(v)) return
+              a.updateFloorPlanMeta({
+                wallThickness: { ...plan.wallThickness, internal: Math.min(1, Math.max(0.05, v)) },
+              })
+            }}
+          />
+          <span className="text-xs" style={{ color: 'var(--text-3)' }}>
+            Plan-wide defaults; a selected wall can override its own thickness.
+          </span>
+        </div>
+      ) : null}
       <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
         Pick a tool and draw on the canvas, or select an element to edit it.
         <br />
@@ -527,6 +560,29 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               </button>
             ))}
           </div>
+          {wallThicknessOn ? (
+            <div className="flex flex-col gap-1">
+              <Num
+                label="Thickness (m)"
+                value={w.thicknessM ?? (w.thickness === 'external' ? 0.2 : 0.1)}
+                step={0.01}
+                min={0.05}
+                onChange={(v) => {
+                  if (!Number.isFinite(v)) return
+                  a.updateWall(w.id, { thicknessM: Math.min(1, Math.max(0.05, v)) }, levelId)
+                }}
+              />
+              {w.thicknessM != null ? (
+                <button
+                  type="button"
+                  className="btn ghost btn-sm self-start"
+                  onClick={() => a.updateWall(w.id, { thicknessM: undefined }, levelId)}
+                >
+                  Use plan default
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <Num
             label="Start X"
             value={w.start[0]}

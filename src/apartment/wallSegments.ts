@@ -54,8 +54,38 @@ export function buildWallSegments(wall: WallSpec, ceilingHeight: number): WallSe
   return segments
 }
 
+// Active wall-thickness state (m) for the curated flat, held at module scope so
+// pure consumers (collision + geometry) stay in sync without signature churn;
+// React renderers also subscribe to the relevant `floorPlan` fields so they
+// re-render when it changes (see state/store.ts subscription). Two layers:
+//  - default per category (the plan-wide `wallThickness` setting), and
+//  - a per-wall override map keyed by wall id (the default plan's `PlanWall.thicknessM`,
+//    whose ids match the curated WALLS — buildDefaultPlan), edited in the 2D inspector.
+let externalT = FLAT.externalWallThickness
+let internalT = FLAT.internalWallThickness
+let perWallOverride: Record<string, number> = {}
+
+/** Set the curated flat's default wall thicknesses (m). Falsy/absent values
+ *  reset to the built-in 0.2 m external / 0.1 m internal. */
+export function setFlatWallThicknessDefaults(d?: { external?: number; internal?: number }): void {
+  externalT = d?.external && d.external > 0 ? d.external : FLAT.externalWallThickness
+  internalT = d?.internal && d.internal > 0 ? d.internal : FLAT.internalWallThickness
+}
+
+/** Set per-wall thickness overrides (m) by wall id for the curated flat, from
+ *  the active plan's walls (`PlanWall.thicknessM`). Non-positive/absent ignored. */
+export function setFlatWallThicknessOverrides(
+  walls?: readonly { id: string; thicknessM?: number }[],
+): void {
+  const m: Record<string, number> = {}
+  if (walls) for (const w of walls) if (w.thicknessM && w.thicknessM > 0) m[w.id] = w.thicknessM
+  perWallOverride = m
+}
+
 export function wallThicknessMetres(wall: WallSpec): number {
-  return wall.thickness === 'external' ? FLAT.externalWallThickness : FLAT.internalWallThickness
+  const o = perWallOverride[wall.id]
+  if (o != null) return o
+  return wall.thickness === 'external' ? externalT : internalT
 }
 
 /** Returns the thickness of the wall that this wall's start/end abuts, or 0

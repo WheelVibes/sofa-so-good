@@ -59,6 +59,12 @@ export interface UiSlice {
    *  'auto-hide' = fade to invisible; 'translucent' = fade to 15% opacity (default); 'opaque' = no fade. */
   wallRevealMode: 'auto-hide' | 'translucent' | 'opaque'
   setWallRevealMode: (m: 'auto-hide' | 'translucent' | 'opaque') => void
+  /** Which walls the reveal applies to: 'exterior' = perimeter walls only
+   *  (default — keeps interior partitions solid so the layout reads); 'all' =
+   *  interior partitions fade too (full see-through dollhouse). Ignored when
+   *  `wallRevealMode` is 'opaque'. */
+  wallRevealScope: 'exterior' | 'all'
+  setWallRevealScope: (s: 'exterior' | 'all') => void
   /** Which construction drawing-set layers (sheet groups) to include in the
    *  exported set; a layer absent here = included (the full set). Session-only. */
   drawingLayers: DrawingLayerVisibility
@@ -197,6 +203,7 @@ export const UI_INITIAL: Pick<
   | 'lightsMode'
   | 'showCeilingFixtures'
   | 'wallRevealMode'
+  | 'wallRevealScope'
   | 'drawingLayers'
   | 'autoShadowsOff'
   | 'backdrop'
@@ -230,6 +237,7 @@ export const UI_INITIAL: Pick<
   lightsMode: 'auto',
   showCeilingFixtures: false,
   wallRevealMode: 'translucent' as const,
+  wallRevealScope: 'exterior' as const,
   drawingLayers: {} as DrawingLayerVisibility,
   autoShadowsOff: false,
   snapEnabled: false,
@@ -330,6 +338,7 @@ export const createUiSlice: SliceCreator<UiSlice, RootState> = (set, get) => ({
   setLightsMode: (m) => set({ lightsMode: m }),
   setShowCeilingFixtures: (v) => set({ showCeilingFixtures: v }),
   setWallRevealMode: (m) => set({ wallRevealMode: m }),
+  setWallRevealScope: (s) => set({ wallRevealScope: s }),
   setDrawingLayer: (layer, on) =>
     set((s) => ({ drawingLayers: { ...s.drawingLayers, [layer]: on } })),
   setPresenting: (presenting) => set({ presenting }),

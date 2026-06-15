@@ -6,7 +6,7 @@ import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
-import { orientOutward } from './walls/wallRevealMath'
+import { cameraFacingNormal, orientOutward, wallRevealFactor } from './walls/wallRevealMath'
 
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
@@ -91,20 +91,37 @@ export function PlanDoorLeaf({
     // wall instead of only when it happens to sit on the view axis.
     if (rootRef.current) {
       let hide = false
-      if (wall.thickness === 'external' && useStore.getState().cameraMode === 'orbit') {
+      const st = useStore.getState()
+      const revealMode = st.wallRevealMode ?? 'translucent'
+      const revealScope = st.wallRevealScope ?? 'exterior'
+      const isExterior = wall.thickness === 'external'
+      // Exterior doors hide with their wall; interior doors only in 'all' scope.
+      const participates = isExterior || revealScope === 'all'
+      if (participates && revealMode !== 'opaque' && st.cameraMode === 'orbit') {
         let nx = -Math.sin(angle)
         let nz = Math.cos(angle)
-        // Orient outward by probing which side of the wall is a room (robust on
-        // notched/non-rectangular plans); fall back to "away from plan centre".
-        const out = isInterior ? orientOutward(doorX, doorZ, nx, nz, isInterior, 0.3) : null
-        if (out) {
-          nx = out.nx
-          nz = out.nz
-        } else if (nx * (doorX - cx) + nz * (doorZ - cz) < 0) {
-          nx = -nx
-          nz = -nz
+        if (isExterior) {
+          // Orient outward by probing which side of the wall is a room (robust on
+          // notched/non-rectangular plans); fall back to "away from plan centre".
+          const out = isInterior ? orientOutward(doorX, doorZ, nx, nz, isInterior, 0.3) : null
+          if (out) {
+            nx = out.nx
+            nz = out.nz
+          } else if (nx * (doorX - cx) + nz * (doorZ - cz) < 0) {
+            nx = -nx
+            nz = -nz
+          }
+        } else {
+          // Interior partition door: orient the normal toward the camera so it
+          // hides when the camera faces the partition (revealing the room behind).
+          const f = cameraFacingNormal(doorX, doorZ, nx, nz, camera.position.x, camera.position.z)
+          nx = f.nx
+          nz = f.nz
         }
-        hide = nx * (cx - camera.position.x) + nz * (cz - camera.position.z) < 0
+        // Hide once the host wall is at least half-faded for this view — same
+        // criterion as the wall's own reveal factor, so leaf + wall stay in sync.
+        hide =
+          wallRevealFactor(camera.position.x, camera.position.z, doorX, doorZ, nx, nz, cx, cz) < 0.5
       }
       rootRef.current.visible = !hide
     }

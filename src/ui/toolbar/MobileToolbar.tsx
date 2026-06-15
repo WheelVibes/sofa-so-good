@@ -147,6 +147,7 @@ export function MobileToolbar() {
   const lightsMode = useStore((st) => st.lightsMode)
   const showCeilingFixtures = useStore((st) => st.showCeilingFixtures)
   const wallRevealMode = useStore((st) => st.wallRevealMode)
+  const wallRevealScope = useStore((st) => st.wallRevealScope)
   const timeMode = useStore((st) => st.timeMode)
   const manualHour = useStore((st) => st.manualHour)
   const toneMapping = useStore((st) => st.toneMapping)
@@ -693,11 +694,27 @@ export function MobileToolbar() {
                             )
                         }
                       >
-                        <option value="translucent">Translucent</option>
-                        <option value="auto-hide">Auto hide</option>
-                        <option value="opaque">Opaque</option>
+                        <option value="translucent">Fade translucent</option>
+                        <option value="auto-hide">Fully hidden</option>
+                        <option value="opaque">Fully opaque</option>
                       </select>
                     </label>
+                    {wallRevealMode !== 'opaque' && (
+                      <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+                        <span>Reveal walls</span>
+                        <select
+                          className="input scene-select"
+                          value={wallRevealScope}
+                          aria-label="Wall reveal scope"
+                          onChange={(e) =>
+                            s.getState().setWallRevealScope(e.target.value as 'exterior' | 'all')
+                          }
+                        >
+                          <option value="exterior">Exterior only</option>
+                          <option value="all">Exterior + interior</option>
+                        </select>
+                      </label>
+                    )}
                     {fBackdrops ? (
                       <>
                         <label className="scene-field" onClick={(e) => e.stopPropagation()}>

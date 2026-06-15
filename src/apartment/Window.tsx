@@ -66,6 +66,9 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
   const wall = findWall(spec.wallId)
   const groupRef = useRef<Group>(null)
   const glassRef = useRef<MeshStandardMaterial>(null)
+  // Last-applied `transparent` flag for the opaque (non-glass) parts — toggling
+  // it at runtime needs a `needsUpdate` to actually blend (see WallSegment).
+  const opaqueTransparentRef = useRef(false)
   // Fade the whole window (frame, grille, sill + glass) WITH its host wall during
   // the orbit dollhouse reveal — otherwise an opaque frame/grille floats in a
   // translucent wall. Glass also tints by daylight (clear by day → dark at night).
@@ -83,6 +86,8 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       glass.emissiveIntensity = glassSkyCatchIntensity(1 - d)
     }
     const fading = wallOp < 0.985
+    const opaqueChanged = fading !== opaqueTransparentRef.current
+    opaqueTransparentRef.current = fading
     g.traverse((o) => {
       if (!(o instanceof Mesh)) return
       const m = o.material as MeshStandardMaterial
@@ -91,6 +96,10 @@ export function WindowPane({ spec }: { spec: WindowSpec }) {
       m.transparent = isGlass || fading
       m.opacity = base * wallOp
       m.depthWrite = !isGlass && wallOp > 0.6
+      // Non-glass parts flip transparent on/off with the wall fade; recompile
+      // on the transition so the blend actually engages (glass is always
+      // transparent, so it never needs this).
+      if (!isGlass && opaqueChanged) m.needsUpdate = true
     })
   })
   if (!wall) return null

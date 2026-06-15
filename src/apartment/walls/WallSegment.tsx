@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
-import { type Group, Mesh, type MeshStandardMaterial } from 'three'
+import { ExtrudeGeometry, type Group, Mesh, type MeshStandardMaterial, Path, Shape } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { BeveledBox } from '../../furniture/primitives/BeveledBox'
@@ -21,7 +21,7 @@ import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W, ROOMS, WALLS } from '../constants'
+import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, ROOMS, WALLS } from '../constants'
 import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
@@ -29,8 +29,15 @@ import {
   wallEndAbutmentThickness,
   wallThicknessMetres,
 } from '../wallSegments'
+import { buildWallBodyOutline } from './wallBodyShape'
 import { setWallOpacity } from './wallReveal'
-import { orientOutward, pointInRooms, type RoomRect, wallRevealFactor } from './wallRevealMath'
+import {
+  cameraFacingNormal,
+  orientOutward,
+  pointInRooms,
+  type RoomRect,
+  wallRevealFactor,
+} from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
 
 // Interior room rectangles (+ L-extensions) for the point-in-room test that
@@ -259,9 +266,26 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // Wall height follows the (adjustable) plan ceiling height; per-wall
   // `topHeight` overrides (e.g. parapets) still win inside buildWallSegments.
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
+  // Reactive thickness inputs (this wall is memoised on `wall`, a constant, so
+  // it would otherwise never re-render on a thickness change): the plan-wide
+  // default + the whole walls array. Subscribing to ALL walls (not just this
+  // one's override) is deliberate — a corner stays seamless only if BOTH walls
+  // rebuild when EITHER changes, since each extends to its neighbour's outer
+  // face (`wallEndAbutmentThickness`, override-aware). `thickness` + the abutment
+  // extents below are real body-geometry deps, so the rebuild is exact.
+  const wallThicknessDefault = useStore((s) => s.floorPlan.wallThickness)
+  const planWalls = useStore((s) => s.floorPlan.walls)
+  const wallThicknessOverride = planWalls.find((w) => w.id === wall.id)?.thicknessM
   const { camera, invalidate } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
+  // Last-applied `transparent` flag for the group's materials. Toggling
+  // `Material.transparent` at runtime only changes the alpha-blend behaviour
+  // after a `needsUpdate` (it's baked into the compiled program), so without
+  // this the wall keeps rendering opaque even as `opacity` drops — the "values
+  // decrease but the render doesn't update" bug. We flip needsUpdate only on the
+  // transition (not every frame) to avoid needless shader recompiles.
+  const transparentRef = useRef(false)
 
   // Outward (away-from-interior) horizontal normal + midpoint of this wall, used
   // to fade the wall when the camera sits on its outward side (between the camera
@@ -288,9 +312,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     return { nx, nz, mx, mz }
   }, [wall, dx, dz])
 
-  // Only exterior perimeter walls are revealed; internal partitions stay solid
-  // so the room layout reads clearly.
-  const revealable = wall.thickness === 'external'
+  const isExterior = wall.thickness === 'external'
 
   useFrame(() => {
     const group = groupRef.current
@@ -299,20 +321,39 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     const orbit = st.cameraMode === 'orbit'
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
     const revealMode = st.wallRevealMode ?? 'translucent'
+    const revealScope = st.wallRevealScope ?? 'exterior'
+    // Exterior walls always participate; interior partitions only in 'all' scope
+    // (default 'exterior' keeps them solid so the room layout reads).
+    const participates = isExterior || revealScope === 'all'
     let target = 1
-    if (revealable && orbit && revealEnabled && revealMode !== 'opaque') {
-      // Per-wall: fade fully when the camera is on this wall's outward side
-      // (the wall is between the camera and the rooms), ramping through grazing
-      // angles — correct regardless of where the bounding-box centre lands on a
-      // non-rectangular plan, so an off-centre wall (e.g. a bedroom facade) goes
-      // fully translucent when faced, not just slightly.
+    if (participates && orbit && revealEnabled && revealMode !== 'opaque') {
+      // Exterior: fade when the camera is on the wall's OUTWARD side (the wall is
+      // between the camera and the rooms). Interior partition: it has rooms on
+      // both sides, so fade when the camera FACES it (revealing the room behind);
+      // orient the normal toward the camera for that.
+      let nx = reveal.nx
+      let nz = reveal.nz
+      if (!isExterior) {
+        const f = cameraFacingNormal(
+          reveal.mx,
+          reveal.mz,
+          nx,
+          nz,
+          camera.position.x,
+          camera.position.z,
+        )
+        nx = f.nx
+        nz = f.nz
+      }
       const faded = wallRevealFactor(
         camera.position.x,
         camera.position.z,
         reveal.mx,
         reveal.mz,
-        reveal.nx,
-        reveal.nz,
+        nx,
+        nz,
+        CENTER_X,
+        CENTER_Z,
       )
       // translucent: walls never fully disappear (min 0.15 opacity).
       // auto-hide: walls can fully disappear (current legacy behaviour).
@@ -326,10 +367,15 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     // which would freeze this opacity lerp mid-fade (walls stuck part-faded).
     // Keep requesting frames until the fade settles.
     if (Math.abs(cur - target) > 0.005) invalidate()
-    // Publish so windows/doors on this wall fade with it.
-    if (revealable) setWallOpacity(wall.id, cur)
+    // Publish so windows/doors on this wall fade with it (interior doors too,
+    // when interior partitions participate). Always published while lerping so
+    // the value also returns to 1 when a wall stops participating (scope change).
+    setWallOpacity(wall.id, cur)
     const visible = cur > 0.02
     const transparent = cur < 0.985
+    // Only force a material recompile when the transparent flag actually flips.
+    const transparentChanged = transparent !== transparentRef.current
+    transparentRef.current = transparent
     group.traverse((o) => {
       if (!(o instanceof Mesh)) return
       o.visible = visible
@@ -338,12 +384,21 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         m.transparent = transparent
         m.opacity = cur
         m.depthWrite = !transparent
+        if (transparentChanged) m.needsUpdate = true
       }
       if (Array.isArray(mat)) mat.forEach(apply)
       else if (mat) apply(mat)
     })
   })
-  const thickness = wallThicknessMetres(wall)
+  // Resolve reactively (mirrors wallThicknessMetres' precedence: per-wall
+  // override → plan default → built-in) so a 2D-editor thickness edit rebuilds
+  // this wall's body. Pure collision/geometry still read the module holder.
+  const thickness =
+    wallThicknessOverride != null && wallThicknessOverride > 0
+      ? wallThicknessOverride
+      : wall.thickness === 'external'
+        ? (wallThicknessDefault?.external ?? FLAT.externalWallThickness)
+        : (wallThicknessDefault?.internal ?? FLAT.internalWallThickness)
   // Half-thickness of the wall this end abuts (0 if the end is free). Used to
   // (a) extend the body box outward so corners close flush, and (b) pull the
   // interior face plane in to the inner edge of the abutting wall, so finish
@@ -353,6 +408,34 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const segments = buildWallSegments(wall, ceilingHeight)
   const midX = (wall.start[0] + wall.end[0]) / 2
   const midZ = (wall.start[1] + wall.end[1]) / 2
+
+  // Body geometry: ONE watertight extruded shape (wall rectangle minus window
+  // holes / door notches) instead of separate abutting boxes. Boxes left
+  // internal end-cap faces that showed through as floor-to-ceiling seams at
+  // every opening once the wall faded translucent for the dollhouse reveal; a
+  // single shape has no internal faces, so the translucent wall reads cleanly.
+  const wallTop = wall.topHeight ?? ceilingHeight
+  const bodyGeometry = useMemo(() => {
+    const { outline, holes } = buildWallBodyOutline(wall, wallTop, length, startAbut, endAbut)
+    const shape = new Shape()
+    shape.moveTo(outline[0][0], outline[0][1])
+    for (let i = 1; i < outline.length; i++) shape.lineTo(outline[i][0], outline[i][1])
+    shape.closePath()
+    for (const h of holes) {
+      const p = new Path()
+      p.moveTo(h[0][0], h[0][1])
+      for (let i = 1; i < h.length; i++) p.lineTo(h[i][0], h[i][1])
+      p.closePath()
+      shape.holes.push(p)
+    }
+    const geo = new ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false, steps: 1 })
+    // ExtrudeGeometry runs the profile along +Z from 0..depth; centre it on the
+    // wall's thickness so the body straddles the centreline like the old boxes.
+    geo.translate(0, 0, -thickness / 2)
+    geo.computeVertexNormals()
+    return geo
+  }, [wall, wallTop, length, startAbut, endAbut, thickness])
+  useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
 
   // Subdivide each render segment further by room boundary projections
   // so a wall like wall-int-mid-S (which spans bath2/SY/HS on its north
@@ -399,24 +482,13 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
 
   return (
     <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
-      {/* Body — one box per render segment (cutouts split the body). At the
-          wall's absolute start/end, extend the body box by the abutting
-          wall's half-thickness so it reaches that wall's outer face; without
-          this, centerline-length boxes leave a notch at every outside corner. */}
-      {segments.map((s, i) => {
-        const extStart = s.start < 1e-6 ? startAbut : 0
-        const extEnd = s.end > length - 1e-6 ? endAbut : 0
-        const segLen = s.end - s.start + extStart + extEnd
-        const segMid = (s.start - extStart + s.end + extEnd) / 2 - length / 2
-        const segHeight = s.top - s.bottom
-        const segMidY = s.bottom + segHeight / 2
-        return (
-          <mesh key={i} position={[segMid, segMidY, 0]} castShadow receiveShadow>
-            <boxGeometry args={[segLen, segHeight, thickness]} />
-            <meshStandardMaterial color="#dcd8d2" roughness={0.95} />
-          </mesh>
-        )
-      })}
+      {/* Body — a single watertight extruded shape (wall outline minus window
+          holes / door notches), extended at each end by the abutting wall's
+          half-thickness so outside corners close flush. One mesh = no internal
+          seams when the wall fades translucent for the dollhouse reveal. */}
+      <mesh geometry={bodyGeometry} castShadow receiveShadow>
+        <meshStandardMaterial color="#dcd8d2" roughness={0.95} />
+      </mesh>
       {/* Interior face planes — one per (face-span, side), each painted
           with the room actually backing that span. Spans that touch the
           wall's absolute start/end are extended outward by the abutting

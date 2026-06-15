@@ -5,6 +5,161 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Custom plans: crown molding fades with the wall (full floor-to-ceiling reveal)
+
+- Crown molding (the wall–ceiling trim) was a static mesh in `PlanShell`, so a faded/hidden
+  wall left an opaque band at the ceiling — the reveal wasn't truly floor-to-ceiling. It now
+  fades/hides with its host wall via a new `FadeCrown`, sharing a `useTrimFade` hook with
+  `FadeSkirting` (both driven by `planWallRevealTarget`). So body + skirting (floor) + crown
+  (ceiling) reveal as one piece in every mode — translucent fades all to 0.15, **auto-hide
+  removes all** (skirting + crown follow the same hide logic), opaque keeps all solid. Both
+  interior and exterior trim fade with their wall. Verified by screenshot (translucent: uniform
+  top-to-bottom; hidden: nothing left behind).
+
+## Un-roomed flag: exact traced outline, red in the 2D editor + custom-plan skirting fade
+
+- **Exact footprint.** Un-roomed detection now traces the plan's exterior wall centre-lines
+  into a single ordered polygon (`footprint.ts` `traceBuildingOutline`, walking shared
+  endpoints), replacing the grid sample — so the fill/flag has crisp edges and handles
+  L/U/notched outlines. Rendered beneath the room floors/fills, so only walled-in floor with
+  no room shows through.
+- **Red moved to the 2D editor, shown in both modes.** The red un-roomed highlight now lives
+  in the 2D plan editor (`FloorPlanEditor`, the traced polygon filled `--danger` beneath the
+  rooms) — where you author — not the orbit view. `unroomedFlag` retiered `pro` → `simple` so a
+  casual user sees it too. The 3D orbit keeps an unconditional **neutral** fallback ground over
+  the same footprint (fills the void; no red there).
+- **Custom-plan skirting fade.** Skirting strips now fade in lockstep with their host wall
+  (new `FadeSkirting`, sharing `planWallRevealTarget` with `FadeWall`) — previously an opaque
+  skirting band stayed at the floor when an interior wall went translucent. Verified by
+  screenshot (2D red flag, 3D neutral fill, interior skirtings fading); footprint tracing
+  unit-tested (square, L-shape, open/short loops).
+
+## Custom plans: fallback ground for un-roomed floor + red flag
+
+- After dropping the grounding slab, walled-in floor with no room over it would be a void.
+  `PlanShell` now renders a **fallback ground** there — always (so there's never a hole),
+  within the building footprint (not beyond the walls). It detects the enclosed area with a
+  pure even-odd ray test over the exterior wall centre-lines (`floorplan/footprint.ts`
+  `pointInBuilding` / `unroomedCells`, grid-sampled), so it's correct on L/U/notched outlines.
+- The fallback turns **red** when the new pro `unroomedFlag` feature is on — flagging
+  un-roomed gaps so the user adds a room there (it clears once a room covers it). Simple mode
+  shows a neutral screed fill instead (no hole, no alarming red). Verified by screenshot in
+  both modes (removed a bedroom → red in Pro, neutral in Simple) + unit tests for the footprint
+  geometry.
+
+## Custom plans: drop the grounding slab (rely on per-room floors)
+
+- Removed `PlanShell`'s grounding slab — the bare grey pad that protruded ~0.25 m past the
+  walls under a custom plan. Each room already draws its own floor (`PlanRoomFloor`, per-room
+  catalog finish), so the slab only added an unfinished-looking base plate. The curated flat
+  (`Apartment.tsx`) has had none since C-prior; custom plans now match. Verified by screenshot
+  (clean low-angle base + full per-room floor coverage top-down, no holes).
+
+## Wall thickness: seamless corners for any (override) thickness pairing
+
+- Connecting walls now keep perfect, gap-free corners regardless of differing per-wall
+  thicknesses (no notch or jutting). **Curated flat:** the abutment extension already reaches
+  each neighbour's outer face (`wallEndAbutmentThickness`, override-aware), but `WallSegment`
+  only re-rendered on its OWN override — so thickening wall A left neighbour B's corner stale.
+  It now subscribes to the whole `floorPlan.walls` array, so both walls rebuild when either
+  changes (verified: a clean NW corner after thickening the north wall). **Custom plans:**
+  `wallBoxes` previously used centreline-length boxes (an outer-corner notch that grows with
+  thickness); it now extends each end span by the abutting wall's half-thickness
+  (`planWallEndAbutment`), mirroring the curated flat. Unit test for the extension; both paths
+  verified by screenshot.
+
+## Per-wall thickness overrides reach the curated flat too
+
+- The per-wall thickness override (`PlanWall.thicknessM`) now also drives the **curated HDB
+  flat**, not just custom plans. The default plan's wall ids match the curated `WALLS`
+  (`buildDefaultPlan` copies `id`), so editing a wall's thickness in the 2D plan inspector
+  flows to the 3D curated render with no new selection UI. `wallSegments.ts` gained a per-wall
+  override map (`setFlatWallThicknessOverrides`, keyed by wall id, synced from `floorPlan.walls`
+  by the store subscription); `wallThicknessMetres` consults override → global default →
+  built-in. `WallSegment` resolves thickness reactively (per-wall override + global default)
+  so a memoised wall rebuilds on edit; `Skirting`/`RoomShell` re-derive on `floorPlan.walls`
+  changes. Verified by screenshot (two bedroom partitions thicken individually).
+
+## Configurable wall thickness (global default + per-wall overrides)
+
+- New pro `wallThickness` feature: a **plan-wide default** thickness per category
+  (`FloorPlan.wallThickness?: { external?, internal? }`) plus an optional **per-wall
+  override** (`PlanWall.thicknessM?`), both edited in the 2D plan inspector (plan-level
+  controls + a "Thickness (m)" field on a selected wall with "Use plan default" reset).
+  Replaces the previously hardcoded 0.2 m / 0.1 m.
+- Custom plans resolve via `planGeometry.planWallThickness(wall, plan)` (override → plan
+  default → built-in), so render + collision + 2D editor all agree. The curated flat honours
+  the **global default** too: `wallSegments.ts` holds the active defaults in a module-level
+  holder (`setFlatWallThicknessDefaults`), kept in sync with `floorPlan.wallThickness` by a
+  store subscription, and `WallSegment`/`Skirting`/`RoomShell` re-render on change. Per-wall
+  overrides don't apply to the curated flat (it has no per-wall editor).
+- Schema fields are optional + additive (no version bump). Unit tests for both resolvers; the
+  flag is `pro` so the generic Simple/Pro tiering test covers its gating. Global default
+  verified live by screenshot (curated flat walls thicken 0.2 → 0.5 m).
+
+## Wall reveal: fade near side/return walls (no awkward opaque fins)
+
+- Edge-on "return"/side walls used to stay opaque when you faced an adjacent
+  facade — e.g. bedroom 3's east wall stuck at ~0.94 opacity while looking at the
+  north facade, an awkward fin (and east/south walls only fully hid when faced
+  head-on, not at grazing angles). `wallRevealFactor` now combines the per-wall
+  facing term with a **proximity** term: a wall clearly nearer the camera than the
+  plan centre fades regardless of its normal, while walls past the centre (the far
+  "back") keep their facing-based opacity — so near rooms open fully but the
+  dollhouse still reads as a box. The facing ramp also widened so a perpendicular
+  near wall (dot ≈ 0) fully fades. Centre is passed by `WallSegment` (flat),
+  `PlanShell`, and `PlanDoorLeaf`; it's only a proximity reference (orientation is
+  still the robust point-in-room probe, so off-centre facades are unaffected).
+  Verified by state probe (the return wall drops 0.94 → 0.01 facing north, far
+  walls stay ~0.96) + screenshots.
+
+## Wall reveal: add scope (exterior only / exterior + interior)
+
+- The wall-reveal control is now two axes: **mode** (`Fade translucent` (default) / `Fully hidden`
+  / `Fully opaque`) **×** **scope** (`Exterior only` (default) / `Exterior + interior`). New
+  session-only `wallRevealScope` store field + setters; the scope dropdown shows in the Scene
+  menu (desktop + mobile) whenever the mode isn't fully opaque. Mode labels clarified.
+- Interior partitions (rooms on both sides, so no single "outward") fade when the camera **faces**
+  them via the new pure `cameraFacingNormal` helper; exterior walls keep the point-in-room
+  outward probe. Interior walls' published opacity drives their doors (curated `Door` + custom
+  `PlanDoorLeaf`) to fade/hide in sync; the value returns to 1 when scope flips back to exterior.
+  Wired through `WallSegment` (fixed flat) and `PlanShell` `FadeWall`/`FadeWindow`/`PlanDoorLeaf`
+  (custom plans) — the custom-plan path now also honours the mode (previously always translucent).
+- `cameraFacingNormal` unit-tested; all four mode×scope combinations verified by headless
+  screenshot.
+
+## Wall body: single watertight extrusion (seamless translucent walls)
+
+- With the walls now fading translucent, the wall **body** showed floor-to-ceiling vertical
+  seams at every window/door edge: the body was built from separate abutting boxes (jambs +
+  sill + header), and their internal end-cap faces became visible (and double-blended) once
+  the boxes turned transparent. Replaced the per-segment boxes with **one extruded shape per
+  wall** — the wall rectangle minus window holes / door notches — so the body is watertight
+  with no internal faces and reads seamlessly when translucent. New pure, unit-tested
+  `walls/wallBodyShape.ts` (`buildWallBodyOutline`: floor-reaching cutouts → bottom notches,
+  floating cutouts → interior holes, heads clamped to the wall top, ends extended by the
+  abutment for flush corners). The face planes (per-room finish), skirting, and crown still
+  use the render segments, unchanged. Verified by headless screenshot (window edges seamless
+  head-on and at an orbit angle).
+
+## Wall reveal: the real fix — `needsUpdate` on the transparent toggle
+
+- **Root cause of the bedroom-facade reveal bug.** The fade math was correct all along (the
+  wall opacity provably dropped to 0.15 when faced), but the wall *rendered* opaque anyway:
+  the wall body / window frames / door leaves / skirting are created **opaque**
+  (`transparent: false`) and only flip `material.transparent = true` at runtime when fading.
+  three.js bakes the transparent flag into the compiled program, so without a `needsUpdate`
+  the alpha blend never engaged — "the opacity value decreases but the render doesn't update"
+  (diagnosed from a live on-device overlay reading the real applied opacity). Custom plans
+  (`PlanShell`) were unaffected because their materials are authored `transparent` from the
+  start.
+- **Fix:** set `material.needsUpdate = true` on the frame the `transparent` flag actually
+  flips (not every frame — no needless recompiles) in `WallSegment`, `Window` (non-glass
+  parts), `Door`, `Skirting`, and `PlanShell` `FadeWall`. The dollhouse reveal now renders
+  genuinely translucent — **verified by headless screenshot** (the facade goes see-through,
+  showing the bedrooms/furniture behind), which itself confirms this was a real material bug,
+  not the previously-assumed headless-renderer limitation.
+
 ## Wall reveal: robust per-wall outward normal (fixes off-centre bedroom facade)
 
 - The dollhouse wall-reveal fade now orients each wall's "outward" direction by **probing which

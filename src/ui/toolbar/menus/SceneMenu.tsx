@@ -18,9 +18,14 @@ const LIGHTS_MODES: { key: LightsMode; label: string }[] = [
 ]
 
 const WALL_REVEAL_MODES: { key: 'auto-hide' | 'translucent' | 'opaque'; label: string }[] = [
-  { key: 'translucent', label: 'Translucent' },
-  { key: 'auto-hide', label: 'Auto hide' },
-  { key: 'opaque', label: 'Opaque' },
+  { key: 'translucent', label: 'Fade translucent' },
+  { key: 'auto-hide', label: 'Fully hidden' },
+  { key: 'opaque', label: 'Fully opaque' },
+]
+
+const WALL_REVEAL_SCOPES: { key: 'exterior' | 'all'; label: string }[] = [
+  { key: 'exterior', label: 'Exterior only' },
+  { key: 'all', label: 'Exterior + interior' },
 ]
 
 /** Detect the active render preset by matching current scene state values. */
@@ -57,6 +62,8 @@ export function SceneMenu() {
   const setShowCeilingFixtures = useStore((s) => s.setShowCeilingFixtures)
   const wallRevealMode = useStore((s) => s.wallRevealMode)
   const setWallRevealMode = useStore((s) => s.setWallRevealMode)
+  const wallRevealScope = useStore((s) => s.wallRevealScope)
+  const setWallRevealScope = useStore((s) => s.setWallRevealScope)
   const proMode = useStore((s) => s.uiMode === 'pro')
   const fBackdrops = useFeature('backdrops')
   const fRenderPresets = useFeature('renderPresets')
@@ -170,6 +177,25 @@ export function SceneMenu() {
             ))}
           </select>
         </label>
+        {/* Scope: which walls the reveal applies to. Irrelevant when fully
+            opaque (no fade), so it's only shown for the two fading modes. */}
+        {wallRevealMode !== 'opaque' && (
+          <label className="scene-field" onClick={(e) => e.stopPropagation()}>
+            <span>Reveal walls</span>
+            <select
+              className="input scene-select"
+              value={wallRevealScope}
+              aria-label="Wall reveal scope"
+              onChange={(e) => setWallRevealScope(e.target.value as 'exterior' | 'all')}
+            >
+              {WALL_REVEAL_SCOPES.map((s) => (
+                <option key={s.key} value={s.key}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
 
         {/* ---- Sun direction (Pro) ---- */}
         {proMode ? (
