@@ -31,8 +31,8 @@ describe('nextPlanLabelMode', () => {
 })
 
 describe('planLabels flag tiering (both modes)', () => {
-  it('is a pro feature: hidden in Simple, present in Pro', () => {
-    expect(resolveFlags(false, {}, false, 'simple').planLabels).toBe(false)
+  it('is a simple feature: present in both Simple and Pro', () => {
+    expect(resolveFlags(false, {}, false, 'simple').planLabels).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').planLabels).toBe(true)
   })
 })

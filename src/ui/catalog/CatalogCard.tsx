@@ -23,6 +23,8 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
   const toggleCollection = useStore((s) => s.toggleCollection)
   const units = useStore((s) => s.units)
   const modelInfoOn = useFeature('catalogModelInfo')
+  // Price displays are gated behind the budget/price feature (off by default).
+  const priceOn = useFeature('budget')
   // Model size + creator/licence for the card tooltip (SweetHome3DJS parity).
   const modelInfo = modelInfoOn ? modelInfoText(def) : null
   return (
@@ -85,8 +87,12 @@ export function CatalogCard({ def, onDelete }: CatalogCardProps) {
       </div>
       <span className="pr mono">
         {formatDims(def.defaultFootprint.w, def.defaultFootprint.d, units)}
-        {' · '}
-        <b>~${itemPrice(def, def.category).toLocaleString('en-SG')}</b>
+        {priceOn ? (
+          <>
+            {' · '}
+            <b>~${itemPrice(def, def.category).toLocaleString('en-SG')}</b>
+          </>
+        ) : null}
       </span>
       {isUser ? (
         <span className="badge neutral" style={{ position: 'absolute', top: 6, left: 6 }}>

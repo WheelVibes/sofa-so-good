@@ -84,6 +84,8 @@ function MultiSelectPanel() {
   const ungroup = useStore((s) => s.ungroup)
   const catalog = useCatalog()
   const copyAppearanceOn = useFeature('copyAppearance')
+  // Price displays are gated behind the budget/price feature (off by default).
+  const priceOn = useFeature('budget')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
   const { minimized, toggle } = useInspectorMinimize(selectedItemIds.join(','))
   // Combined estimated price of the current selection (mirrors the single-item
@@ -238,7 +240,8 @@ function MultiSelectPanel() {
           <div className="panel-title">{count} items selected</div>
           {minimized ? null : (
             <div className="panel-sub">
-              Multi-select{totalPrice > 0 ? ` · ~$${totalPrice.toLocaleString('en-SG')} total` : ''}
+              Multi-select
+              {priceOn && totalPrice > 0 ? ` · ~$${totalPrice.toLocaleString('en-SG')} total` : ''}
             </div>
           )}
         </div>
@@ -515,6 +518,8 @@ export function InspectorPanel() {
   const inspectorCeiling = useStore((s) => s.floorPlan.ceilingHeight)
   // Copy/paste appearance (look-only transfer) + recolour-by-category.
   const copyAppearanceOn = useFeature('copyAppearance')
+  // Price displays are gated behind the budget/price feature (off by default).
+  const priceOn = useFeature('budget')
   const appearanceClipboard = useStore((s) => s.appearanceClipboard)
   const sameCategoryCount = useStore((s) => {
     if (!item) return 0
@@ -728,17 +733,19 @@ export function InspectorPanel() {
                 <div className="dims mono" title="Width × Depth × Height">
                   {formatDimsShort([w, d, def.defaultFootprint.h], units)}
                 </div>
-                <div
-                  className="insp-price mono"
-                  title="Estimated price (see the Budget panel for the full list)"
-                >
-                  ~$
-                  {itemPrice(
-                    def,
-                    def.category,
-                    typeof item.props.variant === 'string' ? item.props.variant : undefined,
-                  ).toLocaleString('en-SG')}
-                </div>
+                {priceOn ? (
+                  <div
+                    className="insp-price mono"
+                    title="Estimated price (see the Budget panel for the full list)"
+                  >
+                    ~$
+                    {itemPrice(
+                      def,
+                      def.category,
+                      typeof item.props.variant === 'string' ? item.props.variant : undefined,
+                    ).toLocaleString('en-SG')}
+                  </div>
+                ) : null}
               </>
             )}
           </div>

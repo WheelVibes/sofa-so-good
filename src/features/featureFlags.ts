@@ -130,31 +130,33 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Measure',
     description: 'Tape / area measure tool',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   budget: {
     label: 'Budget',
     description: 'Shopping list + budget panel',
-    default: true,
+    // Price/shopping surface — off by default (not production-ready).
+    default: false,
     tier: 'simple',
   },
   clearanceChecks: {
     label: 'Clearance checks',
     description: 'Door-swing / fit checks',
-    default: true,
+    // Clearance warnings — off by default (not production-ready).
+    default: false,
     tier: 'pro',
   },
   versions: {
     label: 'Versions',
     description: 'Save / restore / compare snapshots',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   history: {
     label: 'Edit history',
     description: 'Undo timeline panel',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   shareExport: {
     label: 'Share & export',
@@ -177,20 +179,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   textBrief: {
     label: 'Describe-it brief',
     description: 'Free-text brief matched to a Smart Start style + budget',
-    default: true,
+    // Describe-it brief — off by default (not production-ready).
+    default: false,
     tier: 'simple',
   },
   panorama: {
     label: '360° panorama',
     description: 'Equirect 360° capture with drag-to-look viewer + PNG export',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   panoTour: {
     label: '360° tour',
     description: 'Linked multi-room panorama tour with clickable room-to-room hotspots',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   renderPresets: {
     label: 'Render presets',
@@ -202,7 +205,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'HQ render',
     description: 'Progressive path-traced photoreal still (three-gpu-pathtracer)',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   vrWalkthrough: {
     label: 'VR walkthrough',
@@ -238,7 +241,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Model upload',
     description: 'Import GLB / OBJ / … models',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   aiPhotoreal: {
     label: 'AI photoreal export',
@@ -262,7 +265,8 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   livePrices: {
     label: 'Live SG retailer prices',
     description: 'Live price lookup — IKEA/Courts/HipVan/Castlery (needs a sidecar)',
-    default: true,
+    // Price feature — off by default (not production-ready).
+    default: false,
     devOnly: true,
     tier: 'pro',
   },
@@ -311,18 +315,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   boq: {
     label: 'Quote (BOQ)',
     description: 'Bill-of-quantities quote export',
-    default: true,
+    // Price/quote surface — off by default (not production-ready).
+    default: false,
     tier: 'pro',
   },
   // Whole-scene 3D export (Q-3DEXPORT / SweetHome3DJS ObjWriter+glTF parity). The
   // furnished home → glTF/GLB (+ OBJ) for Blender / AR / Coohom hand-off. Pure
   // client-side three GLTFExporter/OBJExporter (dynamic-imported) → prod-safe, no
-  // sidecar. A portability/hand-off export like dxfExport/boq → pro tier.
+  // sidecar. Surfaced in the default experience (curated launch set) → simple tier.
   sceneExport3d: {
     label: 'Export 3D model',
     description: 'Whole furnished scene → glTF/GLB (+ OBJ) for Blender / AR / Coohom',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   batchRender: {
     label: 'Render all views',
@@ -333,7 +338,8 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   shopExport: {
     label: 'Shopping list export',
     description: 'Shoppable buy-list HTML — items, prices, per-retailer totals',
-    default: true,
+    // Shopping-list/price surface — off by default (not production-ready).
+    default: false,
     tier: 'simple',
   },
   suggestions: {
@@ -352,13 +358,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Mount-height presets',
     description: 'One-tap standard heights for wall/ceiling items',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   copyAppearance: {
     label: 'Copy appearance',
     description: 'Copy/paste finish between items + recolour a category',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   userSets: {
     label: 'My sets',
@@ -402,29 +408,29 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
-  // An authoring tool (CLAUDE.md: authoring tools are pro-tier), prod-safe
-  // pure code → ships on by default.
+  // An authoring tool, prod-safe pure code. Surfaced in the default experience
+  // (curated launch set) → simple tier.
   parametricFurniture: {
     label: 'Custom-size furniture',
     description: 'Generate shelving / wardrobes / sideboards to exact dimensions',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
-  // Parametric kitchen cabinet run (C270). Authoring tool → pro tier.
-  // Pure procedural geometry → prod-safe, default on.
+  // Parametric kitchen cabinet run (C270). Pure procedural geometry → prod-safe.
+  // Surfaced in the default experience (curated launch set) → simple tier.
   kitchenCabinets: {
     label: 'Custom kitchen cabinets',
     description: 'Generate a parametric kitchen base-cabinet run with optional upper cabinets',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
-  // Analytical/professional feature (comparing render presets → pro tier, F4 tail).
-  // Prod-safe pure code → default on.
+  // Compare render presets. Prod-safe pure code. Surfaced in the default
+  // experience (curated launch set) → simple tier.
   renderCompare: {
     label: 'Render preset compare',
     description: 'A/B compare two render presets with a draggable before/after divider',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Decorative wall–ceiling trim (T2). Pure procedural geometry, no external
   // assets → prod-safe. Crown molding is a core finish detail visible in casual
@@ -454,21 +460,21 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   },
   // Walk-mode observer camera controls (Sweet Home 3D parity, PARITY-WALKCAM):
   // field-of-view + eye-height sliders in the walk HUD. Pure code, no external
-  // assets → prod-safe. Pro tier — a fine-tuning control beyond the core loop.
+  // assets → prod-safe. Surfaced in the default experience (curated launch set) → simple tier.
   walkCameraControls: {
     label: 'Walk camera controls',
     description: 'Adjust field-of-view + eye-height in first-person walk mode',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Replace-with-similar (PARITY-REPLACE): swap a placed item for a nearest-size
-  // catalog sibling in one click, keeping its position/rotation/level. An
-  // advanced editing aid → pro tier. Pure code, no external assets → prod-safe.
+  // catalog sibling in one click, keeping its position/rotation/level. Pure code,
+  // no external assets → prod-safe. Surfaced in the default experience → simple tier.
   replaceSimilar: {
     label: 'Replace with similar',
     description: 'Swap a placed item for a nearest-size catalog alternative, keeping its place',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Upload-your-own walk-mode backdrop photo (the `custom` backdrop). Pure
   // client-side — the user's own image, persisted in IDB; no licensing →
@@ -479,13 +485,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
-  // 2D-plan furniture name/price labels (Sweet Home 3D parity). A drawing/
-  // annotation aid → pro tier. Pure code, no external assets → prod-safe.
+  // 2D-plan furniture name/price labels (Sweet Home 3D parity). Pure code, no
+  // external assets → prod-safe. Surfaced in the default experience → simple tier.
   planLabels: {
     label: 'Plan labels',
     description: 'Show furniture names / prices on the 2D floor plan',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Plumbing plan sheet in the drawing set (mirrors electricalPlan). Pure code,
   // no external assets → prod-safe. A technical drawing → pro tier.
@@ -496,13 +502,13 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'pro',
   },
   // Turn any placed item into a night light source (SH3D parity). Pure code,
-  // feeds the existing FurnitureLights system → prod-safe. Pro tier (an
-  // advanced lighting control beyond the core loop).
+  // feeds the existing FurnitureLights system → prod-safe. Surfaced in the
+  // default experience (curated launch set) → simple tier.
   itemAsLight: {
     label: 'Item as light source',
     description: 'Make any placed item emit light at night',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // AI auto-furnish (PARITY-AILAYOUT): LLM proposes a layout from a brief. BYO
   // model key (no key bundled); experimental → pro tier, prod-safe (pure code +
@@ -517,7 +523,7 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     label: 'Plan polyline markup',
     description: 'Free-form polyline annotations (open/closed, dashed, arrow) in the 2D editor',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Multi-axis furniture tilt (SweetHome3DJS parity): pitch/roll an item off
   // vertical (angle a picture, recline a backrest, bank a decor piece). Pure
@@ -539,40 +545,40 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     tier: 'pro',
   },
   // Curved/arc walls (SweetHome3DJS parity): drag a wall's midpoint handle to
-  // bulge it into a curve. Pure geometry (chord sub-segments) → prod-safe. A
-  // structural drawing tool → pro tier.
+  // bulge it into a curve. Pure geometry (chord sub-segments) → prod-safe.
+  // Surfaced in the default experience (curated launch set) → simple tier.
   curvedWalls: {
     label: 'Curved walls',
     description: 'Bow a wall into a curve by dragging its midpoint handle (no openings on curves)',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Sloping (variable-height) walls (SweetHome3DJS parity): a shed/mono-pitch
   // wall whose top ramps from a start to an end height, rendered as a prism.
-  // Pure geometry → prod-safe. A structural drawing tool → pro tier.
+  // Pure geometry → prod-safe. Surfaced in the default experience → simple tier.
   slopingWalls: {
     label: 'Sloping walls',
     description: 'Give a wall a sloped (shed) top — different heights at each end (no openings)',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Per-wall baseboard / skirting params (SweetHome3DJS baseboard parity): height,
-  // colour, and a hide toggle per wall. Pure geometry/colour → prod-safe. A
-  // wall-finish detail beyond the core loop → pro tier.
+  // colour, and a hide toggle per wall. Pure geometry/colour → prod-safe.
+  // Surfaced in the default experience (curated launch set) → simple tier.
   wallBaseboard: {
     label: 'Wall baseboards',
     description: 'Per-wall skirting board height, colour and a hide toggle',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Configurable wall thickness: a plan-wide default (external/internal) plus
   // per-wall metre overrides, edited in the 2D plan inspector. Pure geometry →
-  // prod-safe; an authoring detail beyond the core loop → pro tier.
+  // prod-safe. Surfaced in the default experience (curated launch set) → simple tier.
   wallThickness: {
     label: 'Wall thickness',
     description: 'Set a plan-wide default wall thickness and per-wall overrides',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Flags walled-in floor with no room (red) in the 2D plan editor so the gap is
   // obvious to fix. Shown in both modes (a casual user should see it too) → simple
@@ -594,20 +600,20 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   },
   // Per-room floor-texture transform (SweetHome3DJS texture scale/angle parity):
   // scale the tile size + rotate the floor texture. Pure geometry-UV transform →
-  // prod-safe. A surface-design refinement → pro tier.
+  // prod-safe. Surfaced in the default experience (curated launch set) → simple tier.
   floorTexture: {
     label: 'Floor texture transform',
     description: 'Scale + rotate a room’s floor texture (tile size / angle)',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // North/compass rose on the 2D plan (SweetHome3DJS compass parity). Pure
-  // overlay reflecting the orientation. Pro tier — a plan annotation aid.
+  // overlay reflecting the orientation. Surfaced in the default experience → simple tier.
   planCompass: {
     label: 'Plan compass',
     description: 'Show a North/compass rose on the 2D floor plan',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // Soft contact-shadow blobs that ground every piece of furniture against the
   // floor (RZ1). One shared radial-gradient texture + a transparent plane per

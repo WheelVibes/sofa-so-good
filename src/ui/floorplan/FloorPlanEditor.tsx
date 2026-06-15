@@ -135,6 +135,8 @@ export function FloorPlanEditor() {
   const planLabels = useStore((s) => s.planLabels)
   const fPlanLabels = useFeature('planLabels')
   const labelsOn = fPlanLabels && planLabels !== 'off'
+  // Price displays are gated behind the budget/price feature (off by default).
+  const fPrice = useFeature('budget')
   const selectedItemId = useStore((s) => s.selectedItemId)
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
@@ -1483,7 +1485,7 @@ export function FloorPlanEditor() {
                 const name = it.label ?? def?.name
                 if (!name) return null
                 const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
-                const price = def ? itemPrice(def, def.category, variant) : undefined
+                const price = fPrice && def ? itemPrice(def, def.category, variant) : undefined
                 const lines = labelsOn ? planLabelLines(name, price, planLabels) : [name]
                 if (lines.length === 0) return null
                 const cx = toPx(it.position[0])

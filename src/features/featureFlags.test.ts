@@ -68,22 +68,22 @@ describe('Simple/Pro tiering', () => {
   it('Pro mode restores pro features to their normal resolution', () => {
     const pro = resolveFlags(true, {}, false, 'pro')
     // A representative pro feature is on in pro, off in simple.
-    expect(pro.measure).toBe(true)
-    expect(resolveFlags(true, {}, false, 'simple').measure).toBe(false)
+    expect(pro.drawings).toBe(true)
+    expect(resolveFlags(true, {}, false, 'simple').drawings).toBe(false)
     // Simple features are unaffected by the mode.
     expect(pro.smartStart).toBe(true)
     expect(resolveFlags(true, {}, false, 'simple').smartStart).toBe(true)
   })
 
-  it('sceneExport3d (pro tier) is hidden in Simple mode and present in Pro mode', () => {
-    // Whole-scene 3D export is a pro-tier portability feature (like dxfExport).
-    expect(resolveFlags(true, {}, false, 'simple').sceneExport3d).toBe(false)
+  it('sceneExport3d (simple tier) is present in BOTH Simple and Pro modes', () => {
+    // Whole-scene 3D export is part of the curated launch set → simple tier.
+    expect(resolveFlags(true, {}, false, 'simple').sceneExport3d).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').sceneExport3d).toBe(true)
   })
 
-  it('wallBaseboard (pro tier) is hidden in Simple mode and present in Pro mode', () => {
-    // Per-wall baseboard params are a wall-finish detail → pro tier.
-    expect(resolveFlags(true, {}, false, 'simple').wallBaseboard).toBe(false)
+  it('wallBaseboard (simple tier) is present in BOTH Simple and Pro modes', () => {
+    // Per-wall baseboard params are part of the curated launch set → simple tier.
+    expect(resolveFlags(true, {}, false, 'simple').wallBaseboard).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').wallBaseboard).toBe(true)
   })
 
@@ -104,13 +104,13 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').catalogModelInfo).toBe(true)
   })
 
-  it('curvedWalls (pro tier) is hidden in Simple mode and present in Pro mode', () => {
-    expect(resolveFlags(true, {}, false, 'simple').curvedWalls).toBe(false)
+  it('curvedWalls (simple tier) is present in BOTH Simple and Pro modes', () => {
+    expect(resolveFlags(true, {}, false, 'simple').curvedWalls).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').curvedWalls).toBe(true)
   })
 
-  it('slopingWalls (pro tier) is hidden in Simple mode and present in Pro mode', () => {
-    expect(resolveFlags(true, {}, false, 'simple').slopingWalls).toBe(false)
+  it('slopingWalls (simple tier) is present in BOTH Simple and Pro modes', () => {
+    expect(resolveFlags(true, {}, false, 'simple').slopingWalls).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').slopingWalls).toBe(true)
   })
 
@@ -119,22 +119,25 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(true, {}, false, 'pro').viewInAr).toBe(true)
   })
 
-  it('floorTexture (pro tier) is hidden in Simple mode and present in Pro mode', () => {
-    expect(resolveFlags(true, {}, false, 'simple').floorTexture).toBe(false)
+  it('floorTexture (simple tier) is present in BOTH Simple and Pro modes', () => {
+    expect(resolveFlags(true, {}, false, 'simple').floorTexture).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').floorTexture).toBe(true)
   })
 
-  it('planCompass (pro tier) is hidden in Simple mode and present in Pro mode', () => {
-    expect(resolveFlags(true, {}, false, 'simple').planCompass).toBe(false)
+  it('planCompass (simple tier) is present in BOTH Simple and Pro modes', () => {
+    expect(resolveFlags(true, {}, false, 'simple').planCompass).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').planCompass).toBe(true)
   })
 
-  it('shopExport (simple tier, prod default on) is available in BOTH Simple and Pro modes', () => {
-    // Production build, no overrides — the shoppable buy-list ships in prod…
-    expect(resolveFlags(false, {}, false, 'simple').shopExport).toBe(true)
-    expect(resolveFlags(false, {}, false, 'pro').shopExport).toBe(true)
-    // …while the brand-link gate (ikeaLive, devOnly) stays off in prod.
+  it('shopExport (simple tier, prod default OFF) is off in BOTH Simple and Pro modes', () => {
+    // Production build, no overrides — the shoppable buy-list is off by default
+    // (not production-ready), in both modes…
+    expect(resolveFlags(false, {}, false, 'simple').shopExport).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').shopExport).toBe(false)
+    // …while the brand-link gate (ikeaLive, devOnly) also stays off in prod.
     expect(resolveFlags(false, {}, false, 'pro').ikeaLive).toBe(false)
+    // A privileged (dev/admin) override can still turn it on.
+    expect(resolveFlags(true, { shopExport: true }, false, 'pro').shopExport).toBe(true)
   })
 
   it('finishDnd (simple tier, prod default on) is available in BOTH Simple and Pro modes', () => {
@@ -144,39 +147,39 @@ describe('Simple/Pro tiering', () => {
     expect(resolveFlags(false, {}, false, 'pro').finishDnd).toBe(true)
   })
 
-  it('panoTour (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
-    // Both modes, both build kinds — the linked 360° tour is a pro feature.
-    expect(resolveFlags(false, {}, false, 'simple').panoTour).toBe(false)
+  it('panoTour (simple tier, prod default on) is present in BOTH Simple and Pro', () => {
+    // Both modes, both build kinds — the linked 360° tour is a simple feature.
+    expect(resolveFlags(false, {}, false, 'simple').panoTour).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').panoTour).toBe(true)
-    expect(resolveFlags(true, {}, false, 'simple').panoTour).toBe(false)
+    expect(resolveFlags(true, {}, false, 'simple').panoTour).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').panoTour).toBe(true)
     // Tiered consistently with the single-shot panorama it builds on.
     expect(FEATURE_FLAGS.panoTour.tier).toBe(FEATURE_FLAGS.panorama.tier)
   })
 
-  it('replaceSimilar (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
-    // Replace-with-similar is an advanced editing aid → pro tier, prod-safe.
-    expect(resolveFlags(false, {}, false, 'simple').replaceSimilar).toBe(false)
+  it('replaceSimilar (simple tier, prod default on) is present in BOTH Simple and Pro', () => {
+    // Replace-with-similar is part of the curated launch set → simple tier, prod-safe.
+    expect(resolveFlags(false, {}, false, 'simple').replaceSimilar).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').replaceSimilar).toBe(true)
-    expect(resolveFlags(true, {}, false, 'simple').replaceSimilar).toBe(false)
+    expect(resolveFlags(true, {}, false, 'simple').replaceSimilar).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').replaceSimilar).toBe(true)
   })
 
-  it('planPolyline (pro tier, prod default on) is hidden in Simple and present in Pro', () => {
-    // Free-form polyline markup is an advanced 2D-editor annotation → pro tier.
-    expect(resolveFlags(false, {}, false, 'simple').planPolyline).toBe(false)
+  it('planPolyline (simple tier, prod default on) is present in BOTH Simple and Pro', () => {
+    // Free-form polyline markup ships in the curated launch set → simple tier.
+    expect(resolveFlags(false, {}, false, 'simple').planPolyline).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').planPolyline).toBe(true)
-    expect(resolveFlags(true, {}, false, 'simple').planPolyline).toBe(false)
+    expect(resolveFlags(true, {}, false, 'simple').planPolyline).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').planPolyline).toBe(true)
   })
 
   it('Simple mode wins over a dev override (pro stays hidden)', () => {
-    const simple = resolveFlags(true, { measure: true }, false, 'simple')
-    expect(simple.measure).toBe(false)
+    const simple = resolveFlags(true, { drawings: true }, false, 'simple')
+    expect(simple.drawings).toBe(false)
   })
 
   it('defaults to Pro when no mode is passed (non-store callers see everything)', () => {
-    expect(resolveFlags(true, {}).measure).toBe(true)
+    expect(resolveFlags(true, {}).drawings).toBe(true)
   })
 })
 
@@ -205,18 +208,18 @@ describe('parseStoredOverrides (localStorage JSON)', () => {
 })
 
 describe('textBrief flag (Smart Start describe-it box)', () => {
-  it('is enabled in BOTH Simple and Pro modes by default (simple-tier)', () => {
-    expect(resolveFlags(false, {}, false, 'simple').textBrief).toBe(true)
-    expect(resolveFlags(false, {}, false, 'pro').textBrief).toBe(true)
+  it('is OFF by default in BOTH Simple and Pro modes (simple-tier, prod default off)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').textBrief).toBe(false)
+    expect(resolveFlags(false, {}, false, 'pro').textBrief).toBe(false)
   })
-  it('can still be turned off by a privileged (dev/admin) override', () => {
-    expect(resolveFlags(true, { textBrief: false }, false, 'pro').textBrief).toBe(false)
+  it('can still be turned on by a privileged (dev/admin) override', () => {
+    expect(resolveFlags(true, { textBrief: true }, false, 'pro').textBrief).toBe(true)
   })
 })
 
 describe('panorama flag (360° capture)', () => {
-  it('is pro-tier: hidden in Simple, present in Pro', () => {
-    expect(resolveFlags(false, {}, false, 'simple').panorama).toBe(false)
+  it('is simple-tier: present in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').panorama).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').panorama).toBe(true)
   })
 })
@@ -243,8 +246,8 @@ describe('contactShadows flag (RZ1)', () => {
 })
 
 describe('hqRender flag (F1)', () => {
-  it('is pro-tier: hidden in Simple, present in Pro', () => {
-    expect(resolveFlags(false, {}, false, 'simple').hqRender).toBe(false)
+  it('is simple-tier: present in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').hqRender).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').hqRender).toBe(true)
   })
 })
@@ -267,8 +270,8 @@ describe('comments flag (F24)', () => {
 })
 
 describe('parametricFurniture flag (PF1)', () => {
-  it('is pro-tier: hidden in Simple, present in Pro (prod default on)', () => {
-    expect(resolveFlags(false, {}, false, 'simple').parametricFurniture).toBe(false)
+  it('is simple-tier: present in both Simple and Pro (prod default on)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').parametricFurniture).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').parametricFurniture).toBe(true)
   })
   it('ships in prod (pure code, no devOnly gate)', () => {
@@ -285,15 +288,15 @@ describe('vrWalkthrough flag (F21)', () => {
 })
 
 describe('walkCameraControls flag (PARITY-WALKCAM)', () => {
-  it('is pro-tier: hidden in Simple, present in Pro (both build kinds)', () => {
-    expect(resolveFlags(false, {}, false, 'simple').walkCameraControls).toBe(false)
+  it('is simple-tier: present in both Simple and Pro (both build kinds)', () => {
+    expect(resolveFlags(false, {}, false, 'simple').walkCameraControls).toBe(true)
     expect(resolveFlags(false, {}, false, 'pro').walkCameraControls).toBe(true)
-    expect(resolveFlags(true, {}, false, 'simple').walkCameraControls).toBe(false)
+    expect(resolveFlags(true, {}, false, 'simple').walkCameraControls).toBe(true)
     expect(resolveFlags(true, {}, false, 'pro').walkCameraControls).toBe(true)
   })
   it('ships in prod (pure code, no devOnly gate)', () => {
     expect(FEATURE_FLAGS.walkCameraControls.devOnly).toBeUndefined()
     expect(FEATURE_FLAGS.walkCameraControls.default).toBe(true)
-    expect(FEATURE_FLAGS.walkCameraControls.tier).toBe('pro')
+    expect(FEATURE_FLAGS.walkCameraControls.tier).toBe('simple')
   })
 })

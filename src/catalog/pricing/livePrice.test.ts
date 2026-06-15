@@ -78,8 +78,11 @@ describe('livePrices dev/tier gate (unchanged by retailer expansion)', () => {
     expect(resolveFlags(false, {}, false, 'pro').livePrices).toBe(false)
   })
 
-  it('in dev it is pro-tier: hidden in Simple, on in Pro', () => {
+  it('in dev it is pro-tier and default-off: hidden in Simple, off in Pro unless overridden on', () => {
     expect(resolveFlags(true, {}, false, 'simple').livePrices).toBe(false)
-    expect(resolveFlags(true, {}, false, 'pro').livePrices).toBe(true)
+    // Prod default is now off, so even a privileged Pro session stays off by default…
+    expect(resolveFlags(true, {}, false, 'pro').livePrices).toBe(false)
+    // …but a dev/admin override can still turn it on (devOnly unlocked when privileged).
+    expect(resolveFlags(true, { livePrices: true }, false, 'pro').livePrices).toBe(true)
   })
 })

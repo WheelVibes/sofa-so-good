@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Curated launch feature set — re-tier + price-display gating
+
+- Production feature curation. **Off by default now** (`default: false` in `FEATURE_FLAGS`):
+  `budget` (shopping list + budget panel), `shopExport`, `boq`, `livePrices`, `clearanceChecks`,
+  `textBrief` (describe-it brief) — none are production-ready yet. **Surfaced in the default
+  (Simple) experience** by re-tiering `pro → simple` (so the existing `useFeature`/Simple-mode
+  gate shows them): plan compass, wall thickness, wall baseboards, sloping + curved walls, plan
+  polyline markup, plan labels, replace-with-similar, walk camera controls, 360° panorama + tour,
+  HQ render, model upload, export 3D model, mount-height presets, copy appearance, custom-size
+  furniture, custom kitchen cabinets, render-preset compare, item-as-light, measure, versions,
+  edit history, floor-texture transform (24 flags).
+- **Price displays were unconditional** in several surfaces; they now hide with the `budget`
+  flag (off by default): catalog cards, the inspector (single-item + multi-select total), the
+  catalog drawer's price sort option + max-price filter, the swap modal, the parametric
+  estimate, and the floor-plan furniture labels. The budget/shopping-list menu entries were
+  already `budget`/`shopExport`-gated.
+
 ## iOS standalone: status-bar tint tracks the time-of-day sky
 
 - On an Add-to-Home-Screen iOS PWA the canvas is full-bleed under the notch, but the

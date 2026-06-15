@@ -107,17 +107,17 @@ describe('renderCompare feature flag — Simple/Pro tiering', () => {
     useStore.getState().setUiMode('pro')
   })
 
-  it('renderCompare is hidden in Simple mode and present in Pro mode (resolveFlags)', () => {
+  it('renderCompare is present in BOTH Simple and Pro mode (resolveFlags)', () => {
     const simple = resolveFlags(true, {}, false, 'simple')
     const pro = resolveFlags(true, {}, false, 'pro')
-    expect(simple.renderCompare).toBe(false)
+    expect(simple.renderCompare).toBe(true)
     expect(pro.renderCompare).toBe(true)
   })
 
-  it('renderCompare tier is "pro" in the store (both modes end-to-end)', () => {
+  it('renderCompare tier is "simple" in the store (present in both modes end-to-end)', () => {
     // setUiMode calls reresolveFeatureFlags internally.
     useStore.getState().setUiMode('simple')
-    expect(useStore.getState().featureFlags.renderCompare).toBe(false)
+    expect(useStore.getState().featureFlags.renderCompare).toBe(true)
 
     useStore.getState().setUiMode('pro')
     expect(useStore.getState().featureFlags.renderCompare).toBe(true)

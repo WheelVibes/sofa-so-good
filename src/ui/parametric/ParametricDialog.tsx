@@ -33,6 +33,8 @@ export function ParametricDialog() {
   const open = useStore((s) => s.parametricOpen)
   const enabled = useFeature('parametricFurniture')
   const kitchenEnabled = useFeature('kitchenCabinets')
+  // Price displays are gated behind the budget/price feature (off by default).
+  const priceOn = useFeature('budget')
   const isMobile = useIsMobile()
   const close = () => useStore.getState().setParametricOpen(false)
 
@@ -184,28 +186,32 @@ export function ParametricDialog() {
                 placeholder={specLabel(spec)}
                 style={{ width: '100%', marginBottom: 'var(--s-2)' }}
               />
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'baseline',
-                  marginBottom: 'var(--s-2)',
-                  fontSize: 'var(--t-xs)',
-                }}
-              >
-                <span style={{ color: 'var(--text-3)' }}>Estimated price</span>
-                <span className="mono">~S${price}</span>
-              </div>
-              <div
-                style={{
-                  fontSize: 'var(--t-2xs)',
-                  color: 'var(--text-3)',
-                  marginBottom: 'var(--s-2)',
-                }}
-              >
-                A rough flat-pack material estimate — not a quote. It rides into the budget like any
-                catalog price.
-              </div>
+              {priceOn ? (
+                <>
+                  <div
+                    style={{
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'baseline',
+                      marginBottom: 'var(--s-2)',
+                      fontSize: 'var(--t-xs)',
+                    }}
+                  >
+                    <span style={{ color: 'var(--text-3)' }}>Estimated price</span>
+                    <span className="mono">~S${price}</span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 'var(--t-2xs)',
+                      color: 'var(--text-3)',
+                      marginBottom: 'var(--s-2)',
+                    }}
+                  >
+                    A rough flat-pack material estimate — not a quote. It rides into the budget like
+                    any catalog price.
+                  </div>
+                </>
+              ) : null}
               <div style={{ display: 'flex', gap: 'var(--s-2)' }}>
                 <button
                   type="button"

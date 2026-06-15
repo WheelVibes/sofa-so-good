@@ -11,12 +11,12 @@ import { ParametricDialog } from './ParametricDialog'
 describe('ParametricDialog (PF1) — Simple/Pro gating', () => {
   beforeEach(() => useStore.getState().__resetForTest())
 
-  it('does NOT render in Simple mode (default) even when opened', () => {
+  it('renders in Simple mode (default) when opened — parametricFurniture is simple-tier', () => {
     act(() => useStore.getState().setParametricOpen(true))
     render(<ParametricDialog />)
     expect(useStore.getState().uiMode).toBe('simple')
-    expect(useStore.getState().featureFlags.parametricFurniture).toBe(false)
-    expect(screen.queryByText('Custom-size furniture')).toBeNull()
+    expect(useStore.getState().featureFlags.parametricFurniture).toBe(true)
+    expect(screen.getByText('Custom-size furniture')).toBeTruthy()
   })
 
   it('renders in Pro mode with type tabs + dimension controls', () => {
@@ -76,14 +76,15 @@ describe('ParametricDialog (PF1) — Simple/Pro gating', () => {
 describe('ParametricDialog — Kitchen tab (C270)', () => {
   beforeEach(() => useStore.getState().__resetForTest())
 
-  it('Kitchen tab hidden in Simple mode (kitchenCabinets is pro-tier)', () => {
+  it('Kitchen tab visible in Simple mode (kitchenCabinets is simple-tier)', () => {
     act(() => {
-      // Simple mode (default) → kitchenCabinets forced off.
+      // Simple mode (default) → kitchenCabinets is simple-tier, so on.
       useStore.getState().setParametricOpen(true)
     })
     render(<ParametricDialog />)
-    // parametricFurniture itself is pro-only → whole dialog hidden.
-    expect(screen.queryByText('Kitchen run')).toBeNull()
+    // parametricFurniture is simple-tier → the dialog mounts, and the
+    // simple-tier kitchenCabinets flag keeps the Kitchen tab present.
+    expect(screen.getByText('Kitchen run')).toBeTruthy()
   })
 
   it('Kitchen tab visible in Pro mode', () => {
