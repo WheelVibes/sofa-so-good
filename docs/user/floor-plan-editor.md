@@ -134,17 +134,19 @@ screen and centred** when you open the editor. Click the percentage to reset to
 
 ## On a phone: the Tools menu
 
-On a small screen the toolbar collapses to keep the canvas clear: a **☰ Tools**
-button, the drawing-tool palette, and **Done**. Tap **☰ Tools** to reach
-everything else — the plan name and levels, New / Reset / templates / Reference
-photo, the label/dimension/export/zoom controls, the **Ceiling height** and
-**Wall colour** defaults, and a **Help → user guide** link.
+On a small screen the toolbar fits one row: a **☰ Tools** button, a **tool
+dropdown** for picking the drawing tool, and **Done**. Tap **☰ Tools** to open
+the **Plan tools** sheet with everything else — the plan name and levels, New /
+Reset / templates / Reference photo, the label/dimension/export/zoom controls,
+the **Ceiling height** and **Wall colour** defaults, and a **Help → user guide**
+link.
 
 ## Properties panel
 
-When you select a wall, room, door or window, the **Properties** panel opens
-**minimized** so it doesn't cover the plan — tap the **＋** in its header to
-expand it (and the **−** to collapse it again).
+The **Properties** panel starts **minimized** (just its header) so it never
+covers the plan — tap the **＋** in its header to expand it, and the **−** to
+collapse it again. Selecting a wall, room, door or window keeps it minimized
+until you expand it.
 
 ## Export the plan as an image
 

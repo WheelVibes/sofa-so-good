@@ -5,14 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## Floor-plan editor: collapse the mobile toolbar behind a Tools menu
+## Floor-plan editor: one-row mobile toolbar (tool dropdown + Tools modal)
 
-- On phones the floor-plan toolbar wrapped into ~5 cluttered rows. It now collapses to a compact
-  bar — a **☰ Tools** button, the drawing-tool palette (horizontally scrollable), and **Done** —
-  with everything else behind the Tools menu: plan name, level tabs, New / Reset / Template /
-  Save / Reference photo, Labels / Dims / All-levels / Export / zoom, the **plan defaults**
-  (ceiling height + wall colour), and a **Help → user guide ↗** link (reuses `openDocs`). Desktop
-  is unchanged (full inline toolbar). Mirrors the per-room editor's collapsed mobile toolbar.
+- On phones the floor-plan toolbar wrapped into ~5 cluttered rows (the "Auto room" button even
+  wrapped to two lines). It now fits a **single row**: a **☰ Tools** button, a compact
+  **drawing-tool dropdown** (`<select>` — no more wrapping palette), and **Done**. Everything else
+  opens in a proper **"Plan tools" modal**: plan name, level tabs, New / Reset / Template / Save /
+  Reference photo, Labels / Dims / All-levels / Export / zoom, the **plan defaults** (ceiling
+  height + wall colour), and a **Help → user guide ↗** link (reuses `openDocs`). The secondary
+  controls are shared fragments so desktop keeps its full inline toolbar unchanged.
+- Because those defaults now live in the Tools modal, the **Properties panel is hidden on mobile
+  when nothing is selected** (its resting view only repeated the defaults) — it appears
+  (minimized, expandable) only when you select a wall/room/door/window to edit it. Desktop keeps
+  the defaults panel.
 
 ## Editor UX: fit-to-view on load + plan-inspector minimize
 

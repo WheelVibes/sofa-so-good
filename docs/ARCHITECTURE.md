@@ -426,11 +426,14 @@ same change that reshapes a system.
   **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
   Undoable + persists (`floorPlanStore.ts`). On open the plan is **fit to the measured canvas
   viewport** (a `ResizeObserver` drives `basePX`, replacing a fixed 940×620 assumption) so it
-  fills any screen without a manual zoom-out. **Mobile:** the toolbar collapses behind a single
-  **☰ Tools** menu (`isMobile`) — only the drawing-tool palette (scrollable) + Done stay on the
-  bar; the menu holds the secondary controls, the plan defaults (ceiling height + wall colour),
-  and a Help → user-guide link (`openDocs`). `PlanInspector` gets a **minimize toggle** in its
-  header (`usePlanInspectorMinimize`), starting minimized whenever an element is selected.
+  fills any screen without a manual zoom-out. **Mobile:** the toolbar is a single row
+  (`isMobile`) — a **☰ Tools** button, a compact drawing-tool `<select>`, and Done; everything
+  else (name, levels, New/Reset/Template/Save/Reference, labels/dims/all-levels/export/zoom, the
+  plan defaults, and a Help → user-guide link via `openDocs`) opens in a **"Plan tools" `Modal`**.
+  The secondary controls are shared fragments so desktop keeps its full inline toolbar.
+  `PlanInspector` gets a **minimize toggle** in its header (`usePlanInspectorMinimize`, starts
+  minimized on selection) and is **hidden entirely on mobile when nothing is selected** (its
+  resting view only repeats the defaults, which now live in the Tools modal).
 - **Toolbar** (`ui/toolbar/`): scrollable icon island (`IconButton` + `ToolbarMenu`).
   Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice` with
   per-view note + 360°-slide toggles, Present…, and **Render all views** —

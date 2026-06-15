@@ -23,8 +23,8 @@ const WALL_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.wall ?? []
 
 /** Minimize state for the plan inspector. Starts minimized whenever an element
  *  is selected (so the property sheet doesn't cover the plan, especially on
- *  mobile) — a new selection re-minimizes; deselecting expands the resting
- *  defaults/help view. The user can toggle at any time. */
+ *  mobile) — a new selection re-minimizes; the resting (no-selection) defaults
+ *  view stays expanded. The user can toggle at any time. */
 function usePlanInspectorMinimize(
   selKey: string,
   hasSelection: boolean,
@@ -228,6 +228,11 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
+
+  // On mobile the resting (no-selection) view only repeats the plan defaults,
+  // which now live in the toolbar's Tools modal — so the panel is shown only
+  // when an element is selected (to edit it). Desktop keeps the defaults panel.
+  if (isMobile && !sel) return null
 
   let body: React.ReactNode = (
     <div className="flex flex-col gap-3">
