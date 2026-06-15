@@ -4,9 +4,9 @@
  * - Auto-advance pause on tour-stop panorama slides
  * - composeTourSlides with real feature-flag resolution
  *
- * The `presentation` and `panoTour` flags are BOTH pro-tier, so the toggle
- * must be invisible (effectively disabled) in Simple mode — both flags are off
- * in Simple, so the gating logic never mounts the toggle.
+ * `presentation` is pro-tier while `panoTour` is simple-tier. The toggle
+ * requires BOTH flags, so in Simple mode `presentation` is off → the toggle is
+ * invisible (effectively disabled) even though `panoTour` is on there.
  */
 
 import { describe, expect, it } from 'vitest'
@@ -43,9 +43,9 @@ function makeStop(id: string, levelId?: string): PanoTourStop {
 // ---------------------------------------------------------------------------
 
 describe('P-720 tail — presentation + panoTour flag gating', () => {
-  it('both presentation and panoTour are pro-tier (hidden in Simple)', () => {
+  it('presentation is pro-tier (hidden in Simple) while panoTour is simple-tier (shown in both)', () => {
     expect(FEATURE_FLAGS.presentation.tier).toBe('pro')
-    expect(FEATURE_FLAGS.panoTour.tier).toBe('pro')
+    expect(FEATURE_FLAGS.panoTour.tier).toBe('simple')
   })
 
   it('presentation is OFF in Simple mode', () => {
@@ -53,9 +53,9 @@ describe('P-720 tail — presentation + panoTour flag gating', () => {
     expect(simple.presentation).toBe(false)
   })
 
-  it('panoTour is OFF in Simple mode', () => {
+  it('panoTour is ON in Simple mode (simple-tier)', () => {
     const simple = resolveFlags(true, {}, false, 'simple')
-    expect(simple.panoTour).toBe(false)
+    expect(simple.panoTour).toBe(true)
   })
 
   it('presentation is ON in Pro mode (default)', () => {

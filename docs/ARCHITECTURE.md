@@ -137,7 +137,10 @@ same change that reshapes a system.
   + Original assets (restored on exit); reuses every controller on the **same live
   `store.items`**. `roomShell(roomId)` clips shared walls to the footprint; `<RoomShell>`
   hides walls on the camera's outward side. Toolbar = exit + room-switcher `<select>`,
-  Esc exits. **Walk bounded to the room** (`buildRoomCollisionWalls`).
+  Esc exits. **Walk bounded to the room** (`buildRoomCollisionWalls`). On entry the orbit
+  camera **fits the whole room to the viewport** (`OrbitCamera` room branch → aspect-aware
+  `fitDistance`, the same helper as the whole-plan dollhouse), so the room just fills the
+  screen on any aspect ratio.
 - **Design system & theming** (`appearanceSlice`, `appearancePrefs`): 5 themes
   (Clay/Kampong/Porcelain/Estate/Harbour) × light/dark = 10 OKLCH palettes via
   `[data-theme]`+`[data-mode]` (pre-paint inline script, `hdb_appearance`, Auto=OS).
@@ -421,7 +424,16 @@ same change that reshapes a system.
   2D⇄3D** — the binding lives in `controls/planEditorHotkey.ts` (always mounted via App,
   modal-guarded), NOT in the lazy-mounted editor, so it opens from the 3D view too.
   **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
-  Undoable + persists (`floorPlanStore.ts`).
+  Undoable + persists (`floorPlanStore.ts`). On open the plan is **fit to the measured canvas
+  viewport** (a `ResizeObserver` drives `basePX`, replacing a fixed 940×620 assumption) so it
+  fills any screen without a manual zoom-out. **Mobile:** the toolbar is a single row
+  (`isMobile`) — a **☰ Tools** button, a compact drawing-tool `<select>`, and Done; everything
+  else (name, levels, New/Reset/Template/Save/Reference, labels/dims/all-levels/export/zoom, the
+  plan defaults, and a Help → user-guide link via `openDocs`) opens in a **"Plan tools" `Modal`**.
+  The secondary controls are shared fragments so desktop keeps its full inline toolbar.
+  `PlanInspector` gets a **minimize toggle** in its header (`usePlanInspectorMinimize`, starts
+  minimized on selection) and is **hidden entirely on mobile when nothing is selected** (its
+  resting view only repeats the defaults, which now live in the Tools modal).
 - **Toolbar** (`ui/toolbar/`): scrollable icon island (`IconButton` + `ToolbarMenu`).
   Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice` with
   per-view note + 360°-slide toggles, Present…, and **Render all views** —
@@ -451,7 +463,16 @@ same change that reshapes a system.
   collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Mobile viewport** (`index.html`, `responsive.css`,
   `MobileLongPress.tsx`): `viewport-fit=cover`+`100dvh` full-bleed canvas (controls in
   `env(safe-area-inset-*)`); `body.mobile` kills text-select/callout/double-tap-zoom;
-  long-press → `contextmenu`. **FPS** (`FpsCounter.tsx`): DOM pill, rAF, `showFps`.
+  long-press → `contextmenu`. **Dynamic status-bar tint** (`scene/lighting/statusBarTint.ts`):
+  because the canvas is full-bleed under the notch, a static `<meta name="theme-color">` band
+  fights the time-of-day sky on the iOS standalone (Add-to-Home-Screen) status bar. `Lighting`'s
+  frame loop `updateStatusBarTint`s every `theme-color` meta to the **real top-centre canvas
+  pixel** (read back via the preserve-drawing-buffer Export/Record already need; the analytic
+  hemisphere sky colour, linear→sRGB, is the pre-first-frame fallback), so the chrome matches the
+  scene exactly — tone-mapping, exposure and camera pitch included. The apply step dedups on an
+  unchanged hex; because the read runs *before* r3f draws, the day/night settle edge fires one
+  extra `invalidate()` so the final frame is the one sampled. **FPS** (`FpsCounter.tsx`): DOM
+  pill, rAF, `showFps`.
 - **Design tools** (Arrange/Tools): **Sets** (`furnitureSets.ts` + IKEA `ikeaSets.ts`),
   **Checks** (`layout/clearance.ts`), **Sun study**, **Walkthrough** (tour+record),
   **Measure** (`TapeMeasure.tsx`, Distance/Area, 📌 Pin → persistent `annotations`),

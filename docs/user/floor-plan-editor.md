@@ -128,8 +128,25 @@ returns the default warm off‑white). It's saved with the plan too.
 
 The canvas is an open grid that extends in every direction — **scroll** (or
 drag the scrollbars) to pan around, and **zoom** with the **− / + buttons** (or
-**Ctrl/⌘ + scroll** to zoom around the cursor). The plan is centred when you
-open the editor. Click the percentage to reset to 100%.
+**Ctrl/⌘ + scroll** to zoom around the cursor). The whole plan is **fit to the
+screen and centred** when you open the editor. Click the percentage to reset to
+100%.
+
+## On a phone: the Tools menu
+
+On a small screen the toolbar fits one row: a **☰ Tools** button, a **tool
+dropdown** for picking the drawing tool, and **Done**. Tap **☰ Tools** to open
+the **Plan tools** sheet with everything else — the plan name and levels, New /
+Reset / templates / Reference photo, the label/dimension/export/zoom controls,
+the **Ceiling height** and **Wall colour** defaults, and a **Help → user guide**
+link.
+
+## Properties panel
+
+The **Properties** panel starts **minimized** (just its header) so it never
+covers the plan — tap the **＋** in its header to expand it, and the **−** to
+collapse it again. Selecting a wall, room, door or window keeps it minimized
+until you expand it.
 
 ## Export the plan as an image
 

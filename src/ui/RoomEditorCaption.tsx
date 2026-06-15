@@ -1,3 +1,4 @@
+import { useFeature } from '../features/useFeature'
 import { planRoomArea, pointInRoom } from '../floorplan/types'
 import { useCatalog } from '../furniture/catalog'
 import { itemsCost } from '../furniture/itemsCost'
@@ -19,6 +20,8 @@ export function RoomEditorCaption() {
   const items = useStore((s) => s.items)
   const units = useStore((s) => s.units)
   const catalog = useCatalog()
+  // Price displays are gated behind the budget/price feature (off by default).
+  const priceOn = useFeature('budget')
   // On mobile the room NAME is already in the collapsed top bar's dropdown, so
   // the caption drops it there and shows only the size (avoids redundancy).
   const isMobile = useIsMobile()
@@ -53,7 +56,7 @@ export function RoomEditorCaption() {
         {!isMobile && '  ·  '}
         {formatRoomSize(room.width, room.depth, planRoomArea(room), units)}
         {`  ·  ${count} ${count === 1 ? 'item' : 'items'}`}
-        {roomCost > 0 ? `  ·  ~$${roomCost.toLocaleString('en-SG')}` : ''}
+        {priceOn && roomCost > 0 ? `  ·  ~$${roomCost.toLocaleString('en-SG')}` : ''}
       </span>
     </div>
   )

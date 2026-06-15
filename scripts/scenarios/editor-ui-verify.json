@@ -1,0 +1,27 @@
+{
+  "name": "editor-ui-verify",
+  "url": "http://localhost:5219/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    { "name": "dismiss", "eval": "localStorage.setItem('hdb_onboarded','1'); const s=window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); s.setManualHour(13)" },
+    { "name": "viewport-desktop", "viewport": { "width": 1280, "height": 800 } },
+    { "name": "open-plan", "eval": "window.__store.getState().setFloorPlanEditing(true)" },
+    { "name": "plan-open", "waitFor": { "css": ".plan-screen" }, "timeout": 15000 },
+    { "name": "settle-fit", "wait": 1000 },
+    { "name": "shot-plan-desktop", "screenshot": "plan-desktop-fit" },
+    { "name": "select-room", "eval": "(()=>{const s=window.__store.getState();const p=s.floorPlan;const lvls=p.levels||[];let id=null;for(const l of lvls){if(l.rooms&&l.rooms.length){id=l.rooms[0].id;break;}}if(!id&&p.rooms&&p.rooms.length)id=p.rooms[0].id;if(id)s.setPlanSelection({type:'room',id});return 'room='+id})()" },
+    { "name": "settle-sel", "wait": 400 },
+    { "name": "shot-inspector-min", "screenshot": "plan-inspector-minimized" },
+    { "name": "expand-inspector", "eval": "(()=>{const btn=[...document.querySelectorAll('button[aria-label]')].find(b=>/Expand properties/i.test(b.getAttribute('aria-label')||''));if(btn)btn.click();return btn?'expanded':'no-btn'})()" },
+    { "name": "settle-exp", "wait": 300 },
+    { "name": "shot-inspector-exp", "screenshot": "plan-inspector-expanded" },
+    { "name": "viewport-mobile", "viewport": { "width": 390, "height": 844 } },
+    { "name": "settle-mobile", "wait": 1000 },
+    { "name": "shot-plan-mobile", "screenshot": "plan-mobile" },
+    { "name": "close-plan", "eval": "window.__store.getState().setPlanSelection(null); window.__store.getState().setFloorPlanEditing(false)" },
+    { "name": "viewport-desktop2", "viewport": { "width": 1280, "height": 800 } },
+    { "name": "enter-room", "eval": "(()=>{const s=window.__store.getState();const p=s.floorPlan;const lvls=p.levels||[];let id=null;for(const l of lvls){if(l.rooms&&l.rooms.length){id=l.rooms[0].id;break;}}if(!id&&p.rooms&&p.rooms.length)id=p.rooms[0].id;if(id)s.enterRoomEditor(id);return 'room='+id})()" },
+    { "name": "settle-room", "wait": 1600 },
+    { "name": "shot-room-editor", "screenshot": "room-editor-fit" }
+  ]
+}

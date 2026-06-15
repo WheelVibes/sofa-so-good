@@ -37,6 +37,8 @@ function fitBadge(
  */
 export function SwapModal() {
   const on = useFeature('replaceSimilar')
+  // Price displays are gated behind the budget/price feature (off by default).
+  const priceOn = useFeature('budget')
   const swapItemId = useStore((s) => s.swapItemId)
   const setSwapItemId = useStore((s) => s.setSwapItemId)
   const item = useStore((s) => s.items.find((i) => i.id === s.swapItemId) ?? null)
@@ -96,7 +98,7 @@ export function SwapModal() {
         <div className="swap-grid">
           {alternatives.map((alt) => {
             const fit = fitBadge(def, alt, units)
-            const price = itemPrice(alt, alt.category)
+            const price = priceOn ? itemPrice(alt, alt.category) : null
             return (
               <button
                 type="button"
@@ -109,7 +111,7 @@ export function SwapModal() {
                 </div>
                 <span className="nm">{alt.name}</span>
                 <div className="meta">
-                  <b>${price.toLocaleString('en-SG')}</b>
+                  {price !== null ? <b>${price.toLocaleString('en-SG')}</b> : null}
                   <span className={`fittag badge ${fit.cls}`}>{fit.label}</span>
                 </div>
               </button>

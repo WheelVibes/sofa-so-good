@@ -5,6 +5,71 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: one-row mobile toolbar (tool dropdown + Tools modal)
+
+- On phones the floor-plan toolbar wrapped into ~5 cluttered rows (the "Auto room" button even
+  wrapped to two lines). It now fits a **single row**: a **☰ Tools** button, a compact
+  **drawing-tool dropdown** (`<select>` — no more wrapping palette), and **Done**. Everything else
+  opens in a proper **"Plan tools" modal**: plan name, level tabs, New / Reset / Template / Save /
+  Reference photo, Labels / Dims / All-levels / Export / zoom, the **plan defaults** (ceiling
+  height + wall colour), and a **Help → user guide ↗** link (reuses `openDocs`). The secondary
+  controls are shared fragments so desktop keeps its full inline toolbar unchanged.
+- Because those defaults now live in the Tools modal, the **Properties panel is hidden on mobile
+  when nothing is selected** (its resting view only repeated the defaults) — it appears
+  (minimized, expandable) only when you select a wall/room/door/window to edit it. Desktop keeps
+  the defaults panel.
+
+## Editor UX: fit-to-view on load + plan-inspector minimize
+
+- **Per-room editor** now frames the whole room to the viewport on load: the dollhouse
+  camera uses the aspect-aware `fitDistance` (the same helper as the whole-plan dollhouse)
+  instead of a fixed `radius × 1.5` multiple, so the room just fills the screen on any aspect
+  ratio (portrait phones included) rather than being cropped or tiny.
+- **Floor-plan editor** now fits the whole plan to the *actual* canvas viewport on open: the
+  base scale is computed from the measured container size (via a `ResizeObserver`) instead of a
+  fixed 940×620 assumption, so the plan no longer overflows / needs a manual zoom-out on
+  small/mobile screens. Re-fits on resize.
+- **Plan-inspector minimize** (PARITY with the 3D inspector): the floor-plan Properties panel
+  gets a minimize/expand toggle in its header and starts **minimized whenever an element is
+  selected** (so the sheet doesn't cover the plan, especially on mobile); deselecting expands
+  the resting defaults/help view.
+- Gated the **room-editor caption price** (`~$…`) behind the `budget` flag too (it was an
+  unconditional price display missed in the price-gating pass).
+
+## Curated launch feature set — re-tier + price-display gating
+
+- Production feature curation. **Off by default now** (`default: false` in `FEATURE_FLAGS`):
+  `budget` (shopping list + budget panel), `shopExport`, `boq`, `livePrices`, `clearanceChecks`,
+  `textBrief` (describe-it brief) — none are production-ready yet. **Surfaced in the default
+  (Simple) experience** by re-tiering `pro → simple` (so the existing `useFeature`/Simple-mode
+  gate shows them): plan compass, wall thickness, wall baseboards, sloping + curved walls, plan
+  polyline markup, plan labels, replace-with-similar, walk camera controls, 360° panorama + tour,
+  HQ render, model upload, export 3D model, mount-height presets, copy appearance, custom-size
+  furniture, custom kitchen cabinets, render-preset compare, item-as-light, measure, versions,
+  edit history, floor-texture transform (24 flags).
+- **Price displays were unconditional** in several surfaces; they now hide with the `budget`
+  flag (off by default): catalog cards, the inspector (single-item + multi-select total), the
+  catalog drawer's price sort option + max-price filter, the swap modal, the parametric
+  estimate, and the floor-plan furniture labels. The budget/shopping-list menu entries were
+  already `budget`/`shopExport`-gated.
+
+## iOS standalone: status-bar tint tracks the time-of-day sky
+
+- On an Add-to-Home-Screen iOS PWA the canvas is full-bleed under the notch, but the
+  `<meta name="theme-color">` band was static Clay (`#ecdfce`/`#251f1b`), so the top edge showed
+  a hard seam against the sky — which shifts colour across the day. New
+  `scene/lighting/statusBarTint.ts` samples the **real top-centre canvas pixel** each frame
+  (read back via the preserve-drawing-buffer the Export/Record features already require) and
+  overrides every `theme-color` meta (both media-scoped tags) with it, so the chrome matches the
+  scene *exactly* — tone-mapping, exposure and camera pitch included — not just an approximate
+  sky colour. The analytic hemisphere sky tint (linear→sRGB) is the pre-first-frame fallback.
+  `Lighting`'s frame loop drives it (`updateStatusBarTint`); the apply step dedups on an unchanged
+  hex (cheap string compare), and since the read runs before r3f draws, the day/night settle edge
+  fires one extra `invalidate()` so the final frame is the one sampled. Verified end-to-end: the
+  applied tint equals the rendered top pixel at noon (`#f5f7f7`) and night (`#3b3734`).
+  Colour-conversion + DOM-override + fallback logic unit-tested; interaction-test scenario added
+  (`scripts/scenarios/status-bar-tint-simple.json`).
+
 ## Custom plans: crown molding fades with the wall (full floor-to-ceiling reveal)
 
 - Crown molding (the wall–ceiling trim) was a static mesh in `PlanShell`, so a faded/hidden

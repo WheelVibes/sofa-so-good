@@ -15,10 +15,30 @@ import { endForAngle, endForLength, wallAngleDeg } from '../../floorplan/wallOps
 import { BUILTIN_MATERIALS_BY_CATEGORY } from '../../materials/builtinCatalog'
 import { useStore } from '../../state/store'
 import { formatArea, formatLength } from '../../utils/measurement'
+import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 
 const FLOOR_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.floor ?? []
 const WALL_MATERIALS = BUILTIN_MATERIALS_BY_CATEGORY.wall ?? []
+
+/** Minimize state for the plan inspector. Starts minimized whenever an element
+ *  is selected (so the property sheet doesn't cover the plan, especially on
+ *  mobile) — a new selection re-minimizes; the resting (no-selection) defaults
+ *  view stays expanded. The user can toggle at any time. */
+function usePlanInspectorMinimize(
+  selKey: string,
+  hasSelection: boolean,
+): {
+  minimized: boolean
+  toggle: () => void
+} {
+  const [state, setState] = useState({ key: selKey, manual: hasSelection })
+  if (state.key !== selKey) setState({ key: selKey, manual: hasSelection })
+  return {
+    minimized: state.manual,
+    toggle: () => setState((v) => ({ ...v, manual: !v.manual })),
+  }
+}
 
 /** Numeric field with a label, editing one metre value. Holds the raw text while
  *  focused so the user can clear / type a partial value ("1.", "-") freely, and
@@ -203,9 +223,16 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const wallBaseboardOn = useFeature('wallBaseboard')
   const wallThicknessOn = useFeature('wallThickness')
   const floorTextureOn = useFeature('floorTexture')
+  const selKey = sel ? `${sel.type}:${sel.id}` : 'none'
+  const { minimized, toggle } = usePlanInspectorMinimize(selKey, !!sel)
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
+
+  // On mobile the resting (no-selection) view only repeats the plan defaults,
+  // which now live in the toolbar's Tools modal — so the panel is shown only
+  // when an element is selected (to edit it). Desktop keeps the defaults panel.
+  if (isMobile && !sel) return null
 
   let body: React.ReactNode = (
     <div className="flex flex-col gap-3">
@@ -920,10 +947,27 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
         position: isMobile ? undefined : 'static',
       }}
     >
-      <div className="sec-h" style={{ marginBottom: 'var(--s-3)' }}>
+      <div
+        className="sec-h"
+        style={{
+          marginBottom: minimized ? 0 : 'var(--s-3)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+        }}
+      >
         <span>Properties</span>
+        <button
+          type="button"
+          onClick={toggle}
+          className="icon-btn"
+          aria-label={minimized ? 'Expand properties' : 'Minimize properties'}
+          title={minimized ? 'Expand' : 'Minimize'}
+        >
+          {minimized ? <Icon.Plus width={16} height={16} /> : <Icon.Minus width={16} height={16} />}
+        </button>
       </div>
-      {body}
+      {minimized ? null : body}
     </aside>
   )
 }

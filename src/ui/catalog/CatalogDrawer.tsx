@@ -80,6 +80,8 @@ export function CatalogDrawer() {
   const fPacks = useFeature('packs')
   const fUpload = useFeature('modelUpload')
   const fParametric = useFeature('parametricFurniture')
+  // Price displays/filters are gated behind the budget/price feature (off by default).
+  const priceOn = useFeature('budget')
   const unified = useUnifiedCatalog()
   const [active, setActive] = useState<CatalogCategory>(() => loadBrowsePrefs().active)
   const [mode, setMode] = useState<Mode>('catalog')
@@ -130,7 +132,10 @@ export function CatalogDrawer() {
       ? unified.favourites
       : active === 'recent'
         ? unified.recent
-        : sortCards(unified.byCategory[active] ?? [], sortBy)
+        : sortCards(
+            unified.byCategory[active] ?? [],
+            !priceOn && sortBy === 'price' ? 'default' : sortBy,
+          )
   // Optional max-price filter — browse-only (its control lives in the browse
   // sort row), so a stale cap can never silently filter search results.
   const allCards = q ? baseCards : filterByMaxPrice(baseCards, maxPrice)
@@ -343,28 +348,32 @@ export function CatalogDrawer() {
                 className="input"
                 style={{ flex: 1, height: 28, padding: '0 6px' }}
               >
-                {(Object.keys(SORT_LABEL) as SortKey[]).map((k) => (
-                  <option key={k} value={k}>
-                    {SORT_LABEL[k]}
-                  </option>
-                ))}
+                {(Object.keys(SORT_LABEL) as SortKey[])
+                  .filter((k) => priceOn || k !== 'price')
+                  .map((k) => (
+                    <option key={k} value={k}>
+                      {SORT_LABEL[k]}
+                    </option>
+                  ))}
               </select>
-              <span style={{ marginLeft: 4 }}>Max&nbsp;$</span>
-              <input
-                type="number"
-                min={0}
-                inputMode="numeric"
-                value={maxPrice}
-                aria-label="Maximum price (SGD)"
-                placeholder="any"
-                onChange={(e) => {
-                  setMaxPrice(e.target.value)
-                  setPage(0)
-                }}
-                className="input mono"
-                style={{ width: 64, height: 28, padding: '0 6px' }}
-              />
-              {maxPrice.trim() !== '' ? (
+              {priceOn ? <span style={{ marginLeft: 4 }}>Max&nbsp;$</span> : null}
+              {priceOn ? (
+                <input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={maxPrice}
+                  aria-label="Maximum price (SGD)"
+                  placeholder="any"
+                  onChange={(e) => {
+                    setMaxPrice(e.target.value)
+                    setPage(0)
+                  }}
+                  className="input mono"
+                  style={{ width: 64, height: 28, padding: '0 6px' }}
+                />
+              ) : null}
+              {priceOn && maxPrice.trim() !== '' ? (
                 <button
                   type="button"
                   aria-label="Clear max price"
