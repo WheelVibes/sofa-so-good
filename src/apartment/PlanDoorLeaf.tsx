@@ -6,6 +6,7 @@ import { wallLength } from '../floorplan/types'
 import { isCurvedWall, pointAtArcLength } from '../floorplan/wallArc'
 import { useStore } from '../state/store'
 import { FLAT } from './constants'
+import { orientOutward } from './walls/wallRevealMath'
 
 const SWING_RAD = Math.PI / 2
 const SWING_SECONDS = 0.2
@@ -27,12 +28,16 @@ export function PlanDoorLeaf({
   opening,
   cx,
   cz,
+  isInterior,
 }: {
   wall: PlanWall
   opening: PlanOpening
-  /** Plan-centre X/Z, for the camera-facing fade test. */
+  /** Plan-centre X/Z, used as the fallback reference for the camera-facing fade. */
   cx: number
   cz: number
+  /** Point-in-room test used to orient the host wall's outward normal (robust on
+   *  non-rectangular plans); falls back to the plan-centre reference if absent. */
+  isInterior?: (x: number, z: number) => boolean
 }) {
   const isOpen = useStore((s) => s.doors[opening.id]?.open ?? false)
   const toggle = useStore((s) => s.toggleDoor)
@@ -89,7 +94,13 @@ export function PlanDoorLeaf({
       if (wall.thickness === 'external' && useStore.getState().cameraMode === 'orbit') {
         let nx = -Math.sin(angle)
         let nz = Math.cos(angle)
-        if (nx * (doorX - cx) + nz * (doorZ - cz) < 0) {
+        // Orient outward by probing which side of the wall is a room (robust on
+        // notched/non-rectangular plans); fall back to "away from plan centre".
+        const out = isInterior ? orientOutward(doorX, doorZ, nx, nz, isInterior, 0.3) : null
+        if (out) {
+          nx = out.nx
+          nz = out.nz
+        } else if (nx * (doorX - cx) + nz * (doorZ - cz) < 0) {
           nx = -nx
           nz = -nz
         }

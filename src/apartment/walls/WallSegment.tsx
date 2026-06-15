@@ -21,7 +21,7 @@ import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
-import { APARTMENT_EXT_D, APARTMENT_EXT_W, WALLS } from '../constants'
+import { APARTMENT_EXT_D, APARTMENT_EXT_W, ROOMS, WALLS } from '../constants'
 import type { RoomId, WallSpec } from '../types'
 import {
   buildWallSegments,
@@ -30,7 +30,27 @@ import {
   wallThicknessMetres,
 } from '../wallSegments'
 import { setWallOpacity } from './wallReveal'
+import { orientOutward, pointInRooms, type RoomRect, wallRevealFactor } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
+
+// Interior room rectangles (+ L-extensions) for the point-in-room test that
+// orients each wall's "outward" normal — robust to the flat's non-rectangular,
+// notched perimeter (a single bounding-box centre mis-judges offset walls).
+const ROOM_RECTS: RoomRect[] = Object.values(ROOMS).map((r) => ({
+  x: r.origin[0],
+  z: r.origin[1],
+  w: r.width,
+  d: r.depth,
+  ext: r.extension
+    ? {
+        x: r.origin[0] + r.extension.offset[0],
+        z: r.origin[1] + r.extension.offset[1],
+        w: r.extension.width,
+        d: r.extension.depth,
+      }
+    : undefined,
+}))
+const isInteriorPoint = (x: number, z: number) => pointInRooms(x, z, ROOM_RECTS, 0.05)
 
 const FACE_OFFSET = 0.001 // lift face plane fractionally off the body box
 
@@ -231,11 +251,6 @@ interface WallSegmentProps {
 const CENTER_X = APARTMENT_EXT_W / 2
 const CENTER_Z = APARTMENT_EXT_D / 2
 
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
-  return t * t * (3 - 2 * t)
-}
-
 function WallSegmentInner({ wall }: WallSegmentProps) {
   const dx = wall.end[0] - wall.start[0]
   const dz = wall.end[1] - wall.start[1]
@@ -248,21 +263,30 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)
 
-  // Outward (away-from-interior) horizontal normal of this wall, used to fade
-  // the wall when it sits between the orbit camera and the apartment centre.
+  // Outward (away-from-interior) horizontal normal + midpoint of this wall, used
+  // to fade the wall when the camera sits on its outward side (between the camera
+  // and the rooms). The outward direction is found per-wall by probing which
+  // side is a room (robust to the flat's notched perimeter); if that's ambiguous
+  // we fall back to "away from the bounding-box centre".
   const reveal = useMemo(() => {
     const mx = (wall.start[0] + wall.end[0]) / 2
     const mz = (wall.start[1] + wall.end[1]) / 2
     const len = Math.hypot(dx, dz) || 1
-    // Two perpendiculars; pick the one pointing away from the apartment centre.
-    let nx = -dz / len
-    let nz = dx / len
-    if (nx * (mx - CENTER_X) + nz * (mz - CENTER_Z) < 0) {
+    const pnx = -dz / len
+    const pnz = dx / len
+    const probe = wallThicknessMetres(wall) / 2 + 0.3
+    const out = orientOutward(mx, mz, pnx, pnz, isInteriorPoint, probe)
+    let nx = pnx
+    let nz = pnz
+    if (out) {
+      nx = out.nx
+      nz = out.nz
+    } else if (nx * (mx - CENTER_X) + nz * (mz - CENTER_Z) < 0) {
       nx = -nx
       nz = -nz
     }
-    return { nx, nz }
-  }, [wall.start, wall.end, dx, dz])
+    return { nx, nz, mx, mz }
+  }, [wall, dx, dz])
 
   // Only exterior perimeter walls are revealed; internal partitions stay solid
   // so the room layout reads clearly.
@@ -277,16 +301,19 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     const revealMode = st.wallRevealMode ?? 'translucent'
     let target = 1
     if (revealable && orbit && revealEnabled && revealMode !== 'opaque') {
-      const cdx = CENTER_X - camera.position.x
-      const cdz = CENTER_Z - camera.position.z
-      const clen = Math.hypot(cdx, cdz) || 1
-      // dot(outwardNormal, camera→centre dir). Near walls face the camera, so
-      // their outward normal opposes this direction (dot ≈ −1) → fade out.
-      const d = (reveal.nx * cdx + reveal.nz * cdz) / clen
-      // Wide reveal: near walls fully fade (d≈−1) AND grazing/side walls that
-      // face the camera even slightly fade partially (d up to +0.25), opening
-      // the dollhouse more; only walls clearly on the far side (d≳0.25) stay solid.
-      const faded = smoothstep(-0.2, 0.25, d)
+      // Per-wall: fade fully when the camera is on this wall's outward side
+      // (the wall is between the camera and the rooms), ramping through grazing
+      // angles — correct regardless of where the bounding-box centre lands on a
+      // non-rectangular plan, so an off-centre wall (e.g. a bedroom facade) goes
+      // fully translucent when faced, not just slightly.
+      const faded = wallRevealFactor(
+        camera.position.x,
+        camera.position.z,
+        reveal.mx,
+        reveal.mz,
+        reveal.nx,
+        reveal.nz,
+      )
       // translucent: walls never fully disappear (min 0.15 opacity).
       // auto-hide: walls can fully disappear (current legacy behaviour).
       target = revealMode === 'auto-hide' ? faded : Math.max(0.15, faded)
