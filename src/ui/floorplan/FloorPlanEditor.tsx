@@ -15,6 +15,7 @@ import { exitPlanEditorToScene } from '../../controls/planEditorHotkey'
 import { isEditableTarget } from '../../controls/useKeyboard'
 import { useFeature } from '../../features/useFeature'
 import { defaultDoorSwing, doorSwing, doorSwingGeometry } from '../../floorplan/doorSwing'
+import { traceBuildingOutline } from '../../floorplan/footprint'
 import {
   GROUND_LEVEL_ID,
   levelAsPlan,
@@ -161,6 +162,20 @@ export function FloorPlanEditor() {
   const activeLevel = levelById(plan, activeLevelId)
   const levelPlan = levelAsPlan(plan, activeLevel)
   const levelId = activeLevel.id
+  // Exact wall-enclosed outline (exterior walls) for the un-roomed flag: drawn
+  // beneath the room fills, so walled-in floor with no room shows through in red.
+  const fUnroomed = useFeature('unroomedFlag')
+  const unroomedOutline = useMemo(
+    () =>
+      fUnroomed
+        ? traceBuildingOutline(
+            levelPlan.walls
+              .filter((w) => w.thickness === 'external')
+              .map((w) => ({ start: w.start, end: w.end })),
+          )
+        : null,
+    [fUnroomed, levelPlan.walls],
+  )
   const allLevels = planLevels(plan)
   const isMultiLevel = allLevels.length > 1
   const otherLevels = allLevels.filter((l) => l.id !== levelId)
@@ -1294,6 +1309,19 @@ export function FloorPlanEditor() {
                     />
                   )),
               )}
+
+            {/* Un-roomed flag: the exact wall-enclosed outline filled red, drawn
+                BENEATH the rooms so only walled-in floor with no room shows red
+                (a "add a room here" cue). Clears as rooms cover it. */}
+            {unroomedOutline && (
+              <polygon
+                points={unroomedOutline.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
+                fill="var(--danger)"
+                fillOpacity={0.5}
+                stroke="none"
+                style={{ pointerEvents: 'none' }}
+              />
+            )}
 
             {/* Rooms (active storey) */}
             {levelPlan.rooms.map((r) => {

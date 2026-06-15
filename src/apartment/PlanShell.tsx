@@ -7,9 +7,11 @@ import {
   DoubleSide,
   type Mesh,
   type MeshStandardMaterial,
+  ShapeUtils,
+  Vector2,
 } from 'three'
 import { useFeature } from '../features/useFeature'
-import { type Bounds, unroomedCells, type WallSeg } from '../floorplan/footprint'
+import { traceBuildingOutline, type WallSeg } from '../floorplan/footprint'
 import { levelAsPlan, type PlanLevel, visibleLevels } from '../floorplan/levels'
 import { type WallBox, wallBoxes } from '../floorplan/planGeometry'
 import { resolvePlanRoomFloor } from '../floorplan/roomFinishes'
@@ -18,6 +20,7 @@ import {
   DEFAULT_PLAN_WALL_COLOR,
   type FloorPlan,
   type PlanRoom,
+  type PlanVec2,
   type PlanWall,
   planBounds,
   wallLength,
@@ -108,6 +111,30 @@ function levelRoomRects(rooms: readonly PlanRoom[]): RoomRect[] {
   }))
 }
 
+/** Target opacity (1 = solid, →0.15/0 = faded) for a wall box given the current
+ *  reveal mode + scope — shared by the wall body and its skirting so they fade
+ *  together. Returns 1 when the wall doesn't participate / mode is opaque. */
+function planWallRevealTarget(
+  camera: { position: { x: number; z: number } },
+  cameraMode: string,
+  box: WallBox,
+  isExterior: boolean,
+  isInterior: (x: number, z: number) => boolean,
+  cx: number,
+  cz: number,
+): number {
+  const st = useStore.getState()
+  const revealEnabled = st.qualityOverrides.wallReveal ?? true
+  const revealMode = st.wallRevealMode ?? 'translucent'
+  const revealScope = st.wallRevealScope ?? 'exterior'
+  const participates = isExterior || revealScope === 'all'
+  if (!(participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque'))
+    return 1
+  const probe = box.thickness / 2 + 0.3
+  const f = revealFactor(camera, box.cx, box.cz, box.angle, isInterior, probe, cx, cz, !isExterior)
+  return revealMode === 'auto-hide' ? f : Math.max(0.15, f)
+}
+
 function FadeWall({
   box,
   cx,
@@ -133,29 +160,7 @@ function FadeWall({
     const mesh = ref.current
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
-    let target = 1
-    // Honour the same wall-reveal mode + scope the fixed flat's WallSegment does
-    // (wallReveal override is also forced off during panorama capture).
-    const st = useStore.getState()
-    const revealEnabled = st.qualityOverrides.wallReveal ?? true
-    const revealMode = st.wallRevealMode ?? 'translucent'
-    const revealScope = st.wallRevealScope ?? 'exterior'
-    const participates = isExterior || revealScope === 'all'
-    if (participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque') {
-      const probe = box.thickness / 2 + 0.3
-      const f = revealFactor(
-        camera,
-        box.cx,
-        box.cz,
-        box.angle,
-        isInterior,
-        probe,
-        cx,
-        cz,
-        !isExterior,
-      )
-      target = revealMode === 'auto-hide' ? f : Math.max(0.15, f)
-    }
+    const target = planWallRevealTarget(camera, cameraMode, box, isExterior, isInterior, cx, cz)
     mat.opacity += (target - mat.opacity) * 0.18
     const next = mat.opacity < 0.98
     // Toggling `transparent` at runtime needs a recompile for the blend to
@@ -178,6 +183,56 @@ function FadeWall({
       <boxGeometry args={[box.thickness, box.height, box.length]} />
       <meshStandardMaterial color={color} roughness={0.9} transparent opacity={1} />
     </mesh>
+  )
+}
+
+/** A skirting strip that fades in lockstep with its host wall box — otherwise an
+ *  opaque skirting band is left at the floor when the wall goes translucent
+ *  (matches the fixed flat's Skirting). Uses the same `planWallRevealTarget`. */
+function FadeSkirting({
+  box,
+  height,
+  color,
+  isExterior,
+  isInterior,
+  cx,
+  cz,
+}: {
+  box: WallBox
+  height: number
+  color: string
+  isExterior: boolean
+  isInterior: (x: number, z: number) => boolean
+  cx: number
+  cz: number
+}) {
+  const ref = useRef<Mesh>(null)
+  const { camera, invalidate } = useThree()
+  const cameraMode = useStore((s) => s.cameraMode)
+  useFrame(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    const mat = mesh.material as MeshStandardMaterial
+    if (!mat) return
+    const target = planWallRevealTarget(camera, cameraMode, box, isExterior, isInterior, cx, cz)
+    mat.opacity += (target - mat.opacity) * 0.18
+    const next = mat.opacity < 0.98
+    if (next !== mat.transparent) mat.needsUpdate = true
+    mat.transparent = next
+    mat.depthWrite = mat.opacity > 0.6
+    mesh.visible = mat.opacity > 0.02
+    if (Math.abs(mat.opacity - target) > 0.005) invalidate()
+  })
+  return (
+    <BeveledBox
+      ref={ref}
+      position={[box.cx, height / 2, box.cz]}
+      rotation={[0, box.angle, 0]}
+      receiveShadow
+      args={[box.thickness + 0.024, height, box.length]}
+    >
+      <meshStandardMaterial color={color} roughness={0.7} transparent opacity={1} />
+    </BeveledBox>
   )
 }
 
@@ -272,14 +327,15 @@ function PlanLevelShell({
   // hidden. Built per wall (not from the flattened `boxes`) so the override is
   // in scope; defaults match the shell skirting (0.09 m, off-white).
   const skirtings = useMemo(() => {
-    const out: { box: WallBox; height: number; color: string }[] = []
+    const out: { box: WallBox; height: number; color: string; isExterior: boolean }[] = []
     for (const w of lp.walls) {
       const bb = w.baseboard
       if (bb?.hidden) continue
       const height = bb?.height && bb.height > 0 ? bb.height : 0.09
       const color = bb?.color ?? '#eceae4'
+      const isExterior = w.thickness === 'external'
       for (const box of wallBoxes(lp, w)) {
-        if (box.cy - box.height / 2 < 0.01) out.push({ box, height, color })
+        if (box.cy - box.height / 2 < 0.01) out.push({ box, height, color, isExterior })
       }
     }
     return out
@@ -328,9 +384,10 @@ function PlanLevelShell({
 
   return (
     <group>
-      {/* Red fallback ground over any walled-in floor with no room (unroomedFlag):
-          fills the void where the grounding slab used to be AND flags it to fix. */}
-      <UnroomedFloor walls={lp.walls} isInterior={isInterior} />
+      {/* Neutral fallback ground over walled-in floor with no room — fills the
+          void left by the removed grounding slab (the red un-roomed flag is in
+          the 2D editor, not here). */}
+      <UnroomedFloor walls={lp.walls} />
 
       {/* Per-room floors (catalog finish, defaulting to oak); click-to-enter
           works on every storey (the room editor is level-aware, ML5). */}
@@ -441,16 +498,17 @@ function PlanLevelShell({
 
       {/* Skirting along floor-reaching wall spans (per-wall baseboard override:
           height/colour, or hidden — PARITY-BASEBOARD). */}
-      {skirtings.map(({ box: b, height, color }, i) => (
-        <BeveledBox
+      {skirtings.map(({ box: b, height, color, isExterior }, i) => (
+        <FadeSkirting
           key={`sk${i}`}
-          position={[b.cx, height / 2, b.cz]}
-          rotation={[0, b.angle, 0]}
-          receiveShadow
-          args={[b.thickness + 0.024, height, b.length]}
-        >
-          <meshStandardMaterial color={color} roughness={0.7} />
-        </BeveledBox>
+          box={b}
+          height={height}
+          color={color}
+          isExterior={isExterior}
+          isInterior={isInterior}
+          cx={cx}
+          cz={cz}
+        />
       ))}
 
       {/* Crown molding at the wall–ceiling junction (full-height spans only).
@@ -610,83 +668,46 @@ function SlopedWallMesh({
   )
 }
 
-/** Fallback ground over walled-in floor that has no room. It ALWAYS fills the
- *  void left by removing the grounding slab (so there's never a hole), and turns
- *  RED when the `unroomedFlag` pro feature is on — flagging the gap so the user
- *  adds a room there (it clears once a room covers it). Simple mode just sees a
- *  neutral fill. Built as a grid of small quads inside the building perimeter but
- *  outside every room — see `floorplan/footprint.ts`. Custom plans only. */
-function UnroomedFloor({
-  walls,
-  isInterior,
-}: {
-  walls: readonly PlanWall[]
-  isInterior: (x: number, z: number) => boolean
-}) {
-  const flagged = useFeature('unroomedFlag')
+/** Build a flat horizontal mesh from a traced outline polygon at height `y`
+ *  (ear-clipped via three's ShapeUtils — handles concave/notched outlines). */
+function outlineGeometry(outline: PlanVec2[], y: number): BufferGeometry | null {
+  const contour = outline.map(([x, z]) => new Vector2(x, z))
+  const tris = ShapeUtils.triangulateShape(contour, [])
+  if (tris.length === 0) return null
+  const pos = new Float32Array(tris.length * 9)
+  let p = 0
+  for (const tri of tris) {
+    for (const idx of tri) {
+      const v = contour[idx]
+      pos[p++] = v.x
+      pos[p++] = y
+      pos[p++] = v.y
+    }
+  }
+  const g = new BufferGeometry()
+  g.setAttribute('position', new BufferAttribute(pos, 3))
+  g.computeVertexNormals()
+  return g
+}
+
+/** Neutral fallback ground over the exact wall-enclosed footprint, sitting just
+ *  below the room floors so it shows ONLY where no room covers it — filling the
+ *  void left by removing the grounding slab (no hole). Orbit view only; the red
+ *  un-roomed flag lives in the 2D plan editor. Custom plans only (PlanShell). */
+function UnroomedFloor({ walls }: { walls: readonly PlanWall[] }) {
   const geometry = useMemo(() => {
     const ext: WallSeg[] = walls
       .filter((w) => w.thickness === 'external')
       .map((w) => ({ start: w.start, end: w.end }))
-    if (ext.length < 3) return null
-    let minX = Infinity
-    let minZ = Infinity
-    let maxX = -Infinity
-    let maxZ = -Infinity
-    for (const w of ext) {
-      for (const p of [w.start, w.end]) {
-        minX = Math.min(minX, p[0])
-        maxX = Math.max(maxX, p[0])
-        minZ = Math.min(minZ, p[1])
-        maxZ = Math.max(maxZ, p[1])
-      }
-    }
-    const cell = 0.25
-    const bounds: Bounds = { minX, minZ, maxX, maxZ }
-    const cells = unroomedCells(ext, isInterior, bounds, cell)
-    if (cells.length === 0) return null
-    // One up-facing quad per cell, merged into a single buffer.
-    const h = cell / 2
-    const Y = 0.012 // just above floor level (no slab beneath any more)
-    const pos = new Float32Array(cells.length * 18)
-    let i = 0
-    for (const [cx, cz] of cells) {
-      const x0 = cx - h
-      const x1 = cx + h
-      const z0 = cz - h
-      const z1 = cz + h
-      const verts: [number, number][] = [
-        [x0, z0],
-        [x1, z0],
-        [x1, z1],
-        [x0, z0],
-        [x1, z1],
-        [x0, z1],
-      ]
-      for (const [vx, vz] of verts) {
-        pos[i++] = vx
-        pos[i++] = Y
-        pos[i++] = vz
-      }
-    }
-    const g = new BufferGeometry()
-    g.setAttribute('position', new BufferAttribute(pos, 3))
-    g.computeVertexNormals()
-    return g
-  }, [walls, isInterior])
+    const outline = traceBuildingOutline(ext)
+    if (!outline) return null
+    return outlineGeometry(outline, -0.01) // 1 cm below room floors → they cover it
+  }, [walls])
   useEffect(() => () => geometry?.dispose(), [geometry])
   if (!geometry) return null
   return (
-    <mesh geometry={geometry} renderOrder={1}>
-      <meshStandardMaterial
-        // Pro: red flag (semi-transparent warning). Simple: neutral screed fill.
-        color={flagged ? '#e0483a' : '#bdb6aa'}
-        roughness={0.9}
-        metalness={0}
-        transparent={flagged}
-        opacity={flagged ? 0.82 : 1}
-        side={DoubleSide}
-      />
+    <mesh geometry={geometry} receiveShadow>
+      <meshStandardMaterial color="#bdb6aa" roughness={0.95} metalness={0} side={DoubleSide} />
     </mesh>
   )
 }

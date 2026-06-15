@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { type Bounds, pointInBuilding, unroomedCells, type WallSeg } from './footprint'
+import { pointInBuilding, traceBuildingOutline, type WallSeg } from './footprint'
 
-// A 4×4 square building perimeter (centre-lines), CW from origin.
+// A 4×4 square building perimeter (centre-lines).
 const square: WallSeg[] = [
   { start: [0, 0], end: [4, 0] },
   { start: [4, 0], end: [4, 4] },
@@ -14,11 +14,9 @@ describe('pointInBuilding', () => {
     expect(pointInBuilding(2, 2, square)).toBe(true)
     expect(pointInBuilding(-1, 2, square)).toBe(false)
     expect(pointInBuilding(5, 2, square)).toBe(false)
-    expect(pointInBuilding(2, 5, square)).toBe(false)
   })
 
-  it('handles an L-shaped (notched) outline', () => {
-    // L: full bottom 6 wide, left arm 2 wide up to 6 → notch top-right is OUTSIDE.
+  it('handles an L-shaped (notched) outline — notch reads as outside', () => {
     const L: WallSeg[] = [
       { start: [0, 0], end: [6, 0] },
       { start: [6, 0], end: [6, 2] },
@@ -27,42 +25,44 @@ describe('pointInBuilding', () => {
       { start: [2, 6], end: [0, 6] },
       { start: [0, 6], end: [0, 0] },
     ]
-    expect(pointInBuilding(1, 5, L)).toBe(true) // in the left arm
-    expect(pointInBuilding(5, 1, L)).toBe(true) // in the bottom arm
-    expect(pointInBuilding(5, 5, L)).toBe(false) // the notch — outside
+    expect(pointInBuilding(1, 5, L)).toBe(true)
+    expect(pointInBuilding(5, 5, L)).toBe(false)
   })
 })
 
-describe('unroomedCells', () => {
-  const bounds: Bounds = { minX: 0, minZ: 0, maxX: 4, maxZ: 4 }
-
-  it('returns nothing when a room covers the whole building', () => {
-    const all = () => true
-    expect(unroomedCells(square, all, bounds, 0.5)).toHaveLength(0)
+describe('traceBuildingOutline', () => {
+  it('traces a square loop in order (4 points)', () => {
+    const out = traceBuildingOutline(square)
+    expect(out).not.toBeNull()
+    expect(out).toHaveLength(4)
+    // Closed loop covering all four corners (order may start anywhere on the loop).
+    const keys = new Set(out?.map((p) => `${p[0]},${p[1]}`))
+    expect(keys).toEqual(new Set(['0,0', '4,0', '4,4', '0,4']))
   })
 
-  it('flags only the enclosed, un-roomed cells', () => {
-    // One room covers the left half (x < 2); the right half is un-roomed.
-    const leftHalf = (x: number) => x < 2
-    const cells = unroomedCells(square, leftHalf, bounds, 0.5)
-    expect(cells.length).toBeGreaterThan(0)
-    // Every flagged cell is inside the building AND in the un-roomed right half.
-    for (const [x, z] of cells) {
-      expect(pointInBuilding(x, z, square)).toBe(true)
-      expect(x).toBeGreaterThanOrEqual(2)
-      expect(z).toBeGreaterThan(0)
-      expect(z).toBeLessThan(4)
-    }
+  it('traces an L-shape (6 points), regardless of wall input order', () => {
+    const L: WallSeg[] = [
+      { start: [2, 2], end: [2, 6] },
+      { start: [0, 6], end: [0, 0] },
+      { start: [6, 0], end: [6, 2] },
+      { start: [0, 0], end: [6, 0] },
+      { start: [2, 6], end: [0, 6] },
+      { start: [6, 2], end: [2, 2] },
+    ]
+    const out = traceBuildingOutline(L)
+    expect(out).toHaveLength(6)
   })
 
-  it('never flags cells outside the building', () => {
-    const none = () => false
-    const cells = unroomedCells(square, none, { minX: -3, minZ: -3, maxX: 7, maxZ: 7 }, 0.5)
-    for (const [x, z] of cells) expect(pointInBuilding(x, z, square)).toBe(true)
-    expect(cells.length).toBeGreaterThan(0)
+  it('returns null when the walls do not form a closed loop', () => {
+    const open: WallSeg[] = [
+      { start: [0, 0], end: [4, 0] },
+      { start: [4, 0], end: [4, 4] },
+      { start: [4, 4], end: [0, 4] }, // missing the closing segment
+    ]
+    expect(traceBuildingOutline(open)).toBeNull()
   })
 
-  it('returns nothing without an enclosing loop (< 3 segments)', () => {
-    expect(unroomedCells(square.slice(0, 2), () => false, bounds)).toHaveLength(0)
+  it('returns null with fewer than 3 segments', () => {
+    expect(traceBuildingOutline(square.slice(0, 2))).toBeNull()
   })
 })

@@ -1,15 +1,14 @@
 import type { PlanVec2 } from './types'
 
 /**
- * Detecting un-roomed enclosed floor area (areas walled-in but with no room
- * over them, so they'd otherwise be a hole now that the grounding slab is gone).
+ * Building-footprint geometry for the un-roomed fallback / flag.
  *
- * `pointInBuilding` is a standard even-odd ray-crossing point-in-polygon, but
- * over the plan's **exterior** wall centre-lines (which form the perimeter loop)
- * — robust to L/U/notched outlines and to unordered segments, since a ray from
- * inside crosses the closed boundary an odd number of times. `unroomedCells`
- * samples a grid and returns the centres that are inside the building yet
- * outside every room (`isInRoom`) — the caller renders a red fallback ground.
+ * `traceBuildingOutline` walks the plan's **exterior** wall centre-lines into a
+ * single ordered polygon — the exact enclosed outline (handles L/U/notched
+ * shapes), so the fallback ground / red flag has crisp edges instead of a grid.
+ * The caller renders this polygon BENEATH the room floors/fills, so roomed area
+ * is covered and only un-roomed area shows through. `pointInBuilding` is a
+ * standard even-odd ray test kept for point queries.
  *
  * Pure (no three/React) so it is fully unit-tested.
  */
@@ -26,7 +25,6 @@ export function pointInBuilding(x: number, z: number, extWalls: readonly WallSeg
   for (const w of extWalls) {
     const z0 = w.start[1]
     const z1 = w.end[1]
-    // Half-open in z so a vertex shared by two segments is counted once.
     if (z0 > z !== z1 > z) {
       const t = (z - z0) / (z1 - z0)
       const xCross = w.start[0] + t * (w.end[0] - w.start[0])
@@ -36,28 +34,44 @@ export function pointInBuilding(x: number, z: number, extWalls: readonly WallSeg
   return inside
 }
 
-export interface Bounds {
-  minX: number
-  minZ: number
-  maxX: number
-  maxZ: number
-}
+const key = (p: PlanVec2) => `${Math.round(p[0] * 1000)},${Math.round(p[1] * 1000)}`
 
-/** Grid-sample the plan and return the cell centres (XZ) that are inside the
- *  building perimeter but outside every room — i.e. walled-in floor with no room.
- *  `cell` is the grid pitch (m). `isInRoom` is the caller's point-in-room test. */
-export function unroomedCells(
-  extWalls: readonly WallSeg[],
-  isInRoom: (x: number, z: number) => boolean,
-  bounds: Bounds,
-  cell = 0.25,
-): PlanVec2[] {
-  const out: PlanVec2[] = []
-  if (extWalls.length < 3) return out // no enclosing loop yet
-  for (let x = bounds.minX + cell / 2; x < bounds.maxX; x += cell) {
-    for (let z = bounds.minZ + cell / 2; z < bounds.maxZ; z += cell) {
-      if (pointInBuilding(x, z, extWalls) && !isInRoom(x, z)) out.push([x, z])
+/**
+ * Trace the exterior walls into one ordered outline polygon by walking shared
+ * endpoints (the perimeter is a closed loop of degree-2 vertices). Returns the
+ * polygon points in order, or `null` if the exterior walls don't form a single
+ * closed loop (mid-draw / branching / disconnected) — the caller then skips the
+ * fallback rather than guess.
+ */
+export function traceBuildingOutline(extWalls: readonly WallSeg[]): PlanVec2[] | null {
+  if (extWalls.length < 3) return null
+  // Directed adjacency: from a point, which walls leave it (and to where).
+  const adj = new Map<string, { idx: number; to: PlanVec2 }[]>()
+  extWalls.forEach((w, idx) => {
+    for (const [a, b] of [
+      [w.start, w.end],
+      [w.end, w.start],
+    ] as const) {
+      const list = adj.get(key(a)) ?? []
+      list.push({ idx, to: b })
+      adj.set(key(a), list)
     }
+  })
+
+  const used = new Set<number>()
+  const startKey = key(extWalls[0].start)
+  const outline: PlanVec2[] = [extWalls[0].start]
+  let cur = extWalls[0].end
+  used.add(0)
+
+  for (let i = 0; i < extWalls.length; i++) {
+    if (key(cur) === startKey) return outline.length >= 3 ? outline : null
+    outline.push(cur)
+    const next = (adj.get(key(cur)) ?? []).find((e) => !used.has(e.idx))
+    if (!next) return null // open chain / dead-end
+    used.add(next.idx)
+    cur = next.to
   }
-  return out
+  // Returned to start exactly when every wall is consumed.
+  return key(cur) === startKey && outline.length >= 3 ? outline : null
 }

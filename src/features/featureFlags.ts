@@ -574,14 +574,14 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'pro',
   },
-  // Flags walled-in floor area with no room over it (red fallback ground), so
-  // un-roomed gaps are obvious to fix. Pure geometry → prod-safe; an authoring
-  // aid beyond the core loop → pro tier.
+  // Flags walled-in floor with no room (red) in the 2D plan editor so the gap is
+  // obvious to fix. Shown in both modes (a casual user should see it too) → simple
+  // tier. The 3D fallback ground that fills the void is unconditional (not this).
   unroomedFlag: {
     label: 'Un-roomed area flag',
-    description: 'Highlight walled-in floor with no room assigned (red) in custom plans',
+    description: 'Highlight walled-in floor with no room assigned (red) in the 2D plan editor',
     default: true,
-    tier: 'pro',
+    tier: 'simple',
   },
   // "View in your room" AR: iOS AR Quick Look from a USDZ (blob), GLB download
   // elsewhere. Pure client-side (no backend/dep) → prod-safe. A high-wow viewing

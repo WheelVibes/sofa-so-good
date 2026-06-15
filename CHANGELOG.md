@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Un-roomed flag: exact traced outline, red in the 2D editor + custom-plan skirting fade
+
+- **Exact footprint.** Un-roomed detection now traces the plan's exterior wall centre-lines
+  into a single ordered polygon (`footprint.ts` `traceBuildingOutline`, walking shared
+  endpoints), replacing the grid sample — so the fill/flag has crisp edges and handles
+  L/U/notched outlines. Rendered beneath the room floors/fills, so only walled-in floor with
+  no room shows through.
+- **Red moved to the 2D editor, shown in both modes.** The red un-roomed highlight now lives
+  in the 2D plan editor (`FloorPlanEditor`, the traced polygon filled `--danger` beneath the
+  rooms) — where you author — not the orbit view. `unroomedFlag` retiered `pro` → `simple` so a
+  casual user sees it too. The 3D orbit keeps an unconditional **neutral** fallback ground over
+  the same footprint (fills the void; no red there).
+- **Custom-plan skirting fade.** Skirting strips now fade in lockstep with their host wall
+  (new `FadeSkirting`, sharing `planWallRevealTarget` with `FadeWall`) — previously an opaque
+  skirting band stayed at the floor when an interior wall went translucent. Verified by
+  screenshot (2D red flag, 3D neutral fill, interior skirtings fading); footprint tracing
+  unit-tested (square, L-shape, open/short loops).
+
 ## Custom plans: fallback ground for un-roomed floor + red flag
 
 - After dropping the grounding slab, walled-in floor with no room over it would be a void.
