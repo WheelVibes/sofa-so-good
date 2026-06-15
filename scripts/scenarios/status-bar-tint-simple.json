@@ -1,0 +1,32 @@
+{
+  "name": "status-bar-tint-simple",
+  "url": "http://localhost:5219/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 30000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "localStorage.setItem('hdb_onboarded','1'); const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    { "name": "set-noon", "eval": "window.__store.getState().setManualHour(13)" },
+    { "name": "settle-noon", "wait": 4000 },
+    {
+      "name": "assert-noon-tint",
+      "eval": "(()=>{const m=document.querySelector('meta[name=\"theme-color\"]').getAttribute('content'); window.__noonTint=m; if(m==='#ecdfce'||m==='#251f1b') throw new Error('status bar still static clay at noon: '+m); return m})()"
+    },
+    { "name": "shot-noon", "screenshot": "noon" },
+    { "name": "set-sunset", "eval": "window.__store.getState().setManualHour(19)" },
+    { "name": "settle-sunset", "wait": 4000 },
+    {
+      "name": "assert-sunset-tint",
+      "eval": "(()=>{const m=document.querySelector('meta[name=\"theme-color\"]').getAttribute('content'); window.__sunsetTint=m; if(m===window.__noonTint) throw new Error('sunset tint did not change from noon: '+m); return m})()"
+    },
+    { "name": "shot-sunset", "screenshot": "sunset" },
+    { "name": "set-night", "eval": "window.__store.getState().setManualHour(1)" },
+    { "name": "settle-night", "wait": 4000 },
+    {
+      "name": "assert-night-tint",
+      "eval": "(()=>{const m=document.querySelector('meta[name=\"theme-color\"]').getAttribute('content'); window.__nightTint=m; if(m===window.__sunsetTint) throw new Error('night tint did not change from sunset: '+m); return 'noon='+window.__noonTint+' sunset='+window.__sunsetTint+' night='+m})()"
+    },
+    { "name": "shot-night", "screenshot": "night" }
+  ]
+}

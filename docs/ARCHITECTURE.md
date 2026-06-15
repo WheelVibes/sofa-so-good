@@ -451,7 +451,16 @@ same change that reshapes a system.
   collision walls (`levelAsPlan`) + furniture blockers are that storey's own. **Mobile viewport** (`index.html`, `responsive.css`,
   `MobileLongPress.tsx`): `viewport-fit=cover`+`100dvh` full-bleed canvas (controls in
   `env(safe-area-inset-*)`); `body.mobile` kills text-select/callout/double-tap-zoom;
-  long-press → `contextmenu`. **FPS** (`FpsCounter.tsx`): DOM pill, rAF, `showFps`.
+  long-press → `contextmenu`. **Dynamic status-bar tint** (`scene/lighting/statusBarTint.ts`):
+  because the canvas is full-bleed under the notch, a static `<meta name="theme-color">` band
+  fights the time-of-day sky on the iOS standalone (Add-to-Home-Screen) status bar. `Lighting`'s
+  frame loop `updateStatusBarTint`s every `theme-color` meta to the **real top-centre canvas
+  pixel** (read back via the preserve-drawing-buffer Export/Record already need; the analytic
+  hemisphere sky colour, linear→sRGB, is the pre-first-frame fallback), so the chrome matches the
+  scene exactly — tone-mapping, exposure and camera pitch included. The apply step dedups on an
+  unchanged hex; because the read runs *before* r3f draws, the day/night settle edge fires one
+  extra `invalidate()` so the final frame is the one sampled. **FPS** (`FpsCounter.tsx`): DOM
+  pill, rAF, `showFps`.
 - **Design tools** (Arrange/Tools): **Sets** (`furnitureSets.ts` + IKEA `ikeaSets.ts`),
   **Checks** (`layout/clearance.ts`), **Sun study**, **Walkthrough** (tour+record),
   **Measure** (`TapeMeasure.tsx`, Distance/Area, 📌 Pin → persistent `annotations`),

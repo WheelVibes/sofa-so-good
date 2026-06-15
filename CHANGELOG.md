@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## iOS standalone: status-bar tint tracks the time-of-day sky
+
+- On an Add-to-Home-Screen iOS PWA the canvas is full-bleed under the notch, but the
+  `<meta name="theme-color">` band was static Clay (`#ecdfce`/`#251f1b`), so the top edge showed
+  a hard seam against the sky — which shifts colour across the day. New
+  `scene/lighting/statusBarTint.ts` samples the **real top-centre canvas pixel** each frame
+  (read back via the preserve-drawing-buffer the Export/Record features already require) and
+  overrides every `theme-color` meta (both media-scoped tags) with it, so the chrome matches the
+  scene *exactly* — tone-mapping, exposure and camera pitch included — not just an approximate
+  sky colour. The analytic hemisphere sky tint (linear→sRGB) is the pre-first-frame fallback.
+  `Lighting`'s frame loop drives it (`updateStatusBarTint`); the apply step dedups on an unchanged
+  hex (cheap string compare), and since the read runs before r3f draws, the day/night settle edge
+  fires one extra `invalidate()` so the final frame is the one sampled. Verified end-to-end: the
+  applied tint equals the rendered top pixel at noon (`#f5f7f7`) and night (`#3b3734`).
+  Colour-conversion + DOM-override + fallback logic unit-tested; interaction-test scenario added
+  (`scripts/scenarios/status-bar-tint-simple.json`).
+
 ## Custom plans: crown molding fades with the wall (full floor-to-ceiling reveal)
 
 - Crown molding (the wall–ceiling trim) was a static mesh in `PlanShell`, so a faded/hidden

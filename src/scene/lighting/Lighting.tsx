@@ -9,6 +9,7 @@ import { TONE_MAPPING_THREE } from '../toneMappingThree'
 import { useQuality } from '../useQuality'
 import { lightingFromAltitude } from './altitudeCurve'
 import { shadowFrustumForPlan } from './shadowFrustum'
+import { updateStatusBarTint } from './statusBarTint'
 import { type SunPosition, sunDirectionToScene } from './sunPosition'
 import { useSunPosition } from './useSunPosition'
 import { getWindowAttenuation, getWindowGlassTint } from './windowLightSignal'
@@ -61,6 +62,7 @@ export function Lighting() {
   const orientation = useStore((s) => s.orientationDeg)
   const shadowMapSize = useQuality().shadowMapSize
   const gl = useThree((s) => s.gl)
+  const invalidate = useThree((s) => s.invalidate)
   const sunRef = useRef<DirectionalLight>(null!)
   const ambientRef = useRef<AmbientLight>(null!)
   const hemiRef = useRef<HemisphereLight>(null!)
@@ -133,6 +135,11 @@ export function Lighting() {
     else if (settled && holdRef.current) {
       holdRef.current()
       holdRef.current = null
+      // The status-bar tint below samples the *previously* rendered frame (this
+      // callback runs before r3f draws). On the settle edge that's still the
+      // mid-tween frame, so request one more frame: its sample reads the now
+      // final-rendered frame and lands the chrome on the exact settled colour.
+      invalidate()
     }
 
     if (!settled) {
@@ -169,6 +176,12 @@ export function Lighting() {
       hemiRef.current.groundColor.setRGB(cur.groundColor[0], cur.groundColor[1], cur.groundColor[2])
     }
     if (ambientRef.current) ambientRef.current.intensity = cur.ambient * 0.35
+
+    // Keep the OS/browser chrome (iOS standalone status bar, mobile address bar)
+    // tinted to the top of the canvas so its top edge blends into the scene.
+    // Samples the real rendered pixel, falling back to the eased sky colour; the
+    // apply step dedups, so an unchanged colour is just a string compare.
+    updateStatusBarTint(gl.domElement, cur.skyColor)
   })
 
   return (
