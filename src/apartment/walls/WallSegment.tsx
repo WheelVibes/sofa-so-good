@@ -1,6 +1,6 @@
 import { useFrame, useThree } from '@react-three/fiber'
 import { memo, Suspense, useEffect, useMemo, useRef } from 'react'
-import { type Group, Mesh, type MeshStandardMaterial } from 'three'
+import { ExtrudeGeometry, type Group, Mesh, type MeshStandardMaterial, Path, Shape } from 'three'
 import { useShallow } from 'zustand/react/shallow'
 import { useFeature } from '../../features/useFeature'
 import { BeveledBox } from '../../furniture/primitives/BeveledBox'
@@ -29,6 +29,7 @@ import {
   wallEndAbutmentThickness,
   wallThicknessMetres,
 } from '../wallSegments'
+import { buildWallBodyOutline } from './wallBodyShape'
 import { setWallOpacity } from './wallReveal'
 import { orientOutward, pointInRooms, type RoomRect, wallRevealFactor } from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
@@ -365,6 +366,34 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const midX = (wall.start[0] + wall.end[0]) / 2
   const midZ = (wall.start[1] + wall.end[1]) / 2
 
+  // Body geometry: ONE watertight extruded shape (wall rectangle minus window
+  // holes / door notches) instead of separate abutting boxes. Boxes left
+  // internal end-cap faces that showed through as floor-to-ceiling seams at
+  // every opening once the wall faded translucent for the dollhouse reveal; a
+  // single shape has no internal faces, so the translucent wall reads cleanly.
+  const wallTop = wall.topHeight ?? ceilingHeight
+  const bodyGeometry = useMemo(() => {
+    const { outline, holes } = buildWallBodyOutline(wall, wallTop, length, startAbut, endAbut)
+    const shape = new Shape()
+    shape.moveTo(outline[0][0], outline[0][1])
+    for (let i = 1; i < outline.length; i++) shape.lineTo(outline[i][0], outline[i][1])
+    shape.closePath()
+    for (const h of holes) {
+      const p = new Path()
+      p.moveTo(h[0][0], h[0][1])
+      for (let i = 1; i < h.length; i++) p.lineTo(h[i][0], h[i][1])
+      p.closePath()
+      shape.holes.push(p)
+    }
+    const geo = new ExtrudeGeometry(shape, { depth: thickness, bevelEnabled: false, steps: 1 })
+    // ExtrudeGeometry runs the profile along +Z from 0..depth; centre it on the
+    // wall's thickness so the body straddles the centreline like the old boxes.
+    geo.translate(0, 0, -thickness / 2)
+    geo.computeVertexNormals()
+    return geo
+  }, [wall, wallTop, length, startAbut, endAbut, thickness])
+  useEffect(() => () => bodyGeometry.dispose(), [bodyGeometry])
+
   // Subdivide each render segment further by room boundary projections
   // so a wall like wall-int-mid-S (which spans bath2/SY/HS on its north
   // face with no cutouts) gets one face-span per backing room.
@@ -410,24 +439,13 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
 
   return (
     <group ref={groupRef} position={[midX, 0, midZ]} rotation={[0, -angle, 0]}>
-      {/* Body — one box per render segment (cutouts split the body). At the
-          wall's absolute start/end, extend the body box by the abutting
-          wall's half-thickness so it reaches that wall's outer face; without
-          this, centerline-length boxes leave a notch at every outside corner. */}
-      {segments.map((s, i) => {
-        const extStart = s.start < 1e-6 ? startAbut : 0
-        const extEnd = s.end > length - 1e-6 ? endAbut : 0
-        const segLen = s.end - s.start + extStart + extEnd
-        const segMid = (s.start - extStart + s.end + extEnd) / 2 - length / 2
-        const segHeight = s.top - s.bottom
-        const segMidY = s.bottom + segHeight / 2
-        return (
-          <mesh key={i} position={[segMid, segMidY, 0]} castShadow receiveShadow>
-            <boxGeometry args={[segLen, segHeight, thickness]} />
-            <meshStandardMaterial color="#dcd8d2" roughness={0.95} />
-          </mesh>
-        )
-      })}
+      {/* Body — a single watertight extruded shape (wall outline minus window
+          holes / door notches), extended at each end by the abutting wall's
+          half-thickness so outside corners close flush. One mesh = no internal
+          seams when the wall fades translucent for the dollhouse reveal. */}
+      <mesh geometry={bodyGeometry} castShadow receiveShadow>
+        <meshStandardMaterial color="#dcd8d2" roughness={0.95} />
+      </mesh>
       {/* Interior face planes — one per (face-span, side), each painted
           with the room actually backing that span. Spans that touch the
           wall's absolute start/end are extended outward by the abutting

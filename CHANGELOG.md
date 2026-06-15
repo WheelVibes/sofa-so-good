@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Wall body: single watertight extrusion (seamless translucent walls)
+
+- With the walls now fading translucent, the wall **body** showed floor-to-ceiling vertical
+  seams at every window/door edge: the body was built from separate abutting boxes (jambs +
+  sill + header), and their internal end-cap faces became visible (and double-blended) once
+  the boxes turned transparent. Replaced the per-segment boxes with **one extruded shape per
+  wall** — the wall rectangle minus window holes / door notches — so the body is watertight
+  with no internal faces and reads seamlessly when translucent. New pure, unit-tested
+  `walls/wallBodyShape.ts` (`buildWallBodyOutline`: floor-reaching cutouts → bottom notches,
+  floating cutouts → interior holes, heads clamped to the wall top, ends extended by the
+  abutment for flush corners). The face planes (per-room finish), skirting, and crown still
+  use the render segments, unchanged. Verified by headless screenshot (window edges seamless
+  head-on and at an orbit angle).
+
 ## Wall reveal: the real fix — `needsUpdate` on the transparent toggle
 
 - **Root cause of the bedroom-facade reveal bug.** The fade math was correct all along (the
