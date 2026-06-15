@@ -67,6 +67,29 @@ describe('planGeometry', () => {
     }
   })
 
+  it('extends a wall end box to the abutting neighbour, but leaves free ends alone', () => {
+    // L-corner: A (horizontal) and B (vertical) share [0,0]; A.end is free.
+    const lPlan: typeof plan = {
+      ...plan,
+      walls: [
+        { id: 'A', start: [0, 0], end: [4, 0], thickness: 'external' },
+        { id: 'B', start: [0, 0], end: [0, 4], thickness: 'external' },
+      ],
+      openings: [],
+    }
+    const a = wallBoxes(lPlan, lPlan.walls[0])
+    expect(a).toHaveLength(1)
+    // Start abuts B (0.2 m → +0.1 extension); end is free (no extension): 4 + 0.1.
+    expect(a[0].length).toBeCloseTo(4.1, 6)
+
+    // A thicker B (override) extends A's end box further (0.6 → +0.3).
+    const thickB: typeof plan = {
+      ...lPlan,
+      walls: [lPlan.walls[0], { ...lPlan.walls[1], thicknessM: 0.6 }],
+    }
+    expect(wallBoxes(thickB, thickB.walls[0])[0].length).toBeCloseTo(4.3, 6)
+  })
+
   it('a curved wall renders as many full-height chord boxes + collision segments', () => {
     const curvedPlan: typeof plan = {
       ...plan,

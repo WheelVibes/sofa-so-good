@@ -268,12 +268,14 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
   // Reactive thickness inputs (this wall is memoised on `wall`, a constant, so
   // it would otherwise never re-render on a thickness change): the plan-wide
-  // default + this wall's own override (default-plan wall ids match the curated
-  // WALLS). Resolved into `thickness` below, which is a real body-geometry dep.
+  // default + the whole walls array. Subscribing to ALL walls (not just this
+  // one's override) is deliberate — a corner stays seamless only if BOTH walls
+  // rebuild when EITHER changes, since each extends to its neighbour's outer
+  // face (`wallEndAbutmentThickness`, override-aware). `thickness` + the abutment
+  // extents below are real body-geometry deps, so the rebuild is exact.
   const wallThicknessDefault = useStore((s) => s.floorPlan.wallThickness)
-  const wallThicknessOverride = useStore(
-    (s) => s.floorPlan.walls.find((w) => w.id === wall.id)?.thicknessM,
-  )
+  const planWalls = useStore((s) => s.floorPlan.walls)
+  const wallThicknessOverride = planWalls.find((w) => w.id === wall.id)?.thicknessM
   const { camera, invalidate } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)

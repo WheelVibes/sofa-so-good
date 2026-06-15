@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Wall thickness: seamless corners for any (override) thickness pairing
+
+- Connecting walls now keep perfect, gap-free corners regardless of differing per-wall
+  thicknesses (no notch or jutting). **Curated flat:** the abutment extension already reaches
+  each neighbour's outer face (`wallEndAbutmentThickness`, override-aware), but `WallSegment`
+  only re-rendered on its OWN override — so thickening wall A left neighbour B's corner stale.
+  It now subscribes to the whole `floorPlan.walls` array, so both walls rebuild when either
+  changes (verified: a clean NW corner after thickening the north wall). **Custom plans:**
+  `wallBoxes` previously used centreline-length boxes (an outer-corner notch that grows with
+  thickness); it now extends each end span by the abutting wall's half-thickness
+  (`planWallEndAbutment`), mirroring the curated flat. Unit test for the extension; both paths
+  verified by screenshot.
+
 ## Per-wall thickness overrides reach the curated flat too
 
 - The per-wall thickness override (`PlanWall.thicknessM`) now also drives the **curated HDB

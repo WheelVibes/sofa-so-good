@@ -23,6 +23,29 @@ export function planWallThickness(w: PlanWall, plan?: FloorPlan): number {
   return w.thickness === 'external' ? EXTERNAL_T : INTERNAL_T
 }
 
+/** Thickness (m) of a straight wall whose centreline passes through this wall's
+ *  `start` (or `end`) point — i.e. the wall it abuts at that corner — or 0 if the
+ *  end is free. Used to extend a wall's end box to the neighbour's OUTER face so
+ *  corners close with no notch, regardless of differing (override) thicknesses. */
+function planWallEndAbutment(wall: PlanWall, plan: FloorPlan, atStart: boolean): number {
+  const point = atStart ? wall.start : wall.end
+  for (const other of plan.walls) {
+    if (other.id === wall.id || isSlopedWall(other) || isCurvedWall(other)) continue
+    const dx = other.end[0] - other.start[0]
+    const dz = other.end[1] - other.start[1]
+    const len = Math.hypot(dx, dz)
+    if (len === 0) continue
+    const tx = dx / len
+    const tz = dz / len
+    const px = point[0] - other.start[0]
+    const pz = point[1] - other.start[1]
+    const along = px * tx + pz * tz
+    const perp = Math.abs(px * -tz + pz * tx)
+    if (perp < 1e-3 && along > -1e-3 && along < len + 1e-3) return planWallThickness(other, plan)
+  }
+  return 0
+}
+
 /** A renderable, axis-rotated wall box. */
 export interface WallBox {
   /** Centre in world XZ. */
@@ -125,20 +148,29 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
     })
   }
 
+  // Extend a solid span that touches the wall's start/end by the abutting wall's
+  // half-thickness, so the box reaches the neighbour's OUTER face and the outside
+  // corner closes with no notch — correct for any (override) thickness pairing.
+  const startAbut = planWallEndAbutment(wall, plan, true) / 2
+  const endAbut = planWallEndAbutment(wall, plan, false) / 2
+  const pushSolid = (s0: number, s1: number) => {
+    push(s0 <= 1e-6 ? s0 - startAbut : s0, s1 >= len - 1e-6 ? s1 + endAbut : s1, 0, ceil)
+  }
+
   const ops = openingsForWall(plan, wall.id)
   let cursor = 0
   for (const o of ops) {
     const s0 = Math.max(0, Math.min(len, o.offset))
     const s1 = Math.max(s0, Math.min(len, o.offset + o.width))
-    // Solid span before the opening.
-    push(cursor, s0, 0, ceil)
+    // Solid span before the opening (extended at the wall start if it reaches it).
+    pushSolid(cursor, s0)
     // Sill under a window.
     if (o.kind === 'window' && o.sill > 0) push(s0, s1, 0, o.sill)
     // Header above the opening.
     if (o.head < ceil) push(s0, s1, o.head, ceil)
     cursor = Math.max(cursor, s1)
   }
-  push(cursor, len, 0, ceil)
+  pushSolid(cursor, len)
   return boxes
 }
 
