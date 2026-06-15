@@ -1,6 +1,9 @@
-import { useMemo } from 'react'
+import { useFrame } from '@react-three/fiber'
+import { useMemo, useRef } from 'react'
+import type { Group, Mesh, MeshStandardMaterial } from 'three'
 import { FLAT, WALLS } from './constants'
 import { buildWallSegments, wallThicknessMetres } from './wallSegments'
+import { getWallOpacity } from './walls/wallReveal'
 
 const SKIRT_H = 0.09 // skirting board height
 const PROUD = 0.012 // how far it sticks out past each wall face
@@ -13,6 +16,8 @@ interface Strip {
   thickness: number
   height: number
   angle: number
+  /** Host wall — the strip fades with it during the camera reveal. */
+  wallId: string
 }
 
 /**
@@ -22,6 +27,11 @@ interface Strip {
  * Default flat only. (Crown molding was removed: a light fixed-colour band at
  * the wall top read as a discoloured strip against coloured/accent walls and
  * interrupted the clean floor-to-ceiling wall the painted face already gives.)
+ *
+ * Each strip fades with its host wall during the orbit "dollhouse" reveal —
+ * `getWallOpacity(wallId)` mirrors the value `WallSegment` publishes (1 for
+ * internal walls, which never fade) — so a faded external wall no longer leaves
+ * an opaque skirting band at the floor (the rest of the wall goes translucent).
  */
 export function Skirting() {
   const strips = useMemo<Strip[]>(() => {
@@ -40,15 +50,44 @@ export function Skirting() {
         const cx = wall.start[0] + (ux * (a + b)) / 2
         const cz = wall.start[1] + (uz * (a + b)) / 2
         if (seg.bottom < 0.001) {
-          out.push({ cx, cy: SKIRT_H / 2, cz, length: b - a, thickness: t, height: SKIRT_H, angle })
+          out.push({
+            cx,
+            cy: SKIRT_H / 2,
+            cz,
+            length: b - a,
+            thickness: t,
+            height: SKIRT_H,
+            angle,
+            wallId: wall.id,
+          })
         }
       }
     }
     return out
   }, [])
 
+  // Fade each strip with its host wall (same per-wall opacity the windows/doors
+  // read), so external-wall skirting goes translucent in the orbit reveal
+  // instead of leaving an opaque band at the floor. Children order matches
+  // `strips` (one mesh per strip, in order), so we index in lockstep.
+  const groupRef = useRef<Group>(null)
+  useFrame(() => {
+    const g = groupRef.current
+    if (!g) return
+    for (let i = 0; i < g.children.length && i < strips.length; i++) {
+      const mesh = g.children[i] as Mesh
+      const op = getWallOpacity(strips[i].wallId)
+      const mat = mesh.material as MeshStandardMaterial
+      if (!mat) continue
+      mesh.visible = op > 0.02
+      mat.transparent = op < 0.985
+      mat.opacity = op
+      mat.depthWrite = op > 0.6
+    }
+  })
+
   return (
-    <group>
+    <group ref={groupRef}>
       {strips.map((s, i) => (
         <mesh key={i} position={[s.cx, s.cy, s.cz]} rotation={[0, s.angle, 0]} receiveShadow>
           <boxGeometry args={[s.thickness, s.height, s.length]} />
