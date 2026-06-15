@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Editor UX: fit-to-view on load + plan-inspector minimize
+
+- **Per-room editor** now frames the whole room to the viewport on load: the dollhouse
+  camera uses the aspect-aware `fitDistance` (the same helper as the whole-plan dollhouse)
+  instead of a fixed `radius × 1.5` multiple, so the room just fills the screen on any aspect
+  ratio (portrait phones included) rather than being cropped or tiny.
+- **Floor-plan editor** now fits the whole plan to the *actual* canvas viewport on open: the
+  base scale is computed from the measured container size (via a `ResizeObserver`) instead of a
+  fixed 940×620 assumption, so the plan no longer overflows / needs a manual zoom-out on
+  small/mobile screens. Re-fits on resize.
+- **Plan-inspector minimize** (PARITY with the 3D inspector): the floor-plan Properties panel
+  gets a minimize/expand toggle in its header and starts **minimized whenever an element is
+  selected** (so the sheet doesn't cover the plan, especially on mobile); deselecting expands
+  the resting defaults/help view.
+- Gated the **room-editor caption price** (`~$…`) behind the `budget` flag too (it was an
+  unconditional price display missed in the price-gating pass).
+
 ## Curated launch feature set — re-tier + price-display gating
 
 - Production feature curation. **Off by default now** (`default: false` in `FEATURE_FLAGS`):

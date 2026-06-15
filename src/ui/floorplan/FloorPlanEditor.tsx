@@ -383,12 +383,31 @@ export function FloorPlanEditor() {
   // `controls/planEditorHotkey.ts` (always mounted via App) — this component is
   // lazy-mounted only while open, so a listener here could never OPEN it.
 
+  // Measured size of the scrollable canvas viewport, so the plan fits the REAL
+  // screen on load (a fixed 940×620 assumption left the plan overflowing — and
+  // needing a manual zoom-out — on small/mobile viewports). Falls back to the
+  // old constants until the first measurement lands.
+  const [viewport, setViewport] = useState({ w: MAX_W, h: MAX_H })
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el || !editing) return
+    const measure = () => setViewport({ w: el.clientWidth, h: el.clientHeight })
+    measure()
+    const ro = new ResizeObserver(measure)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [editing])
+
   const [ew, ed] = planBounds(plan)
   const basePX = useMemo(() => {
-    const fitW = MAX_W / (ew + FIT_PAD * 2)
-    const fitH = MAX_H / (ed + FIT_PAD * 2)
-    return Math.max(24, Math.min(fitW, fitH, 80))
-  }, [ew, ed])
+    // Fit to the measured viewport (minus the canvas padding) so the whole plan
+    // is visible at zoom 1 on any screen size.
+    const availW = Math.max(160, viewport.w - 32)
+    const availH = Math.max(160, viewport.h - 32)
+    const fitW = availW / (ew + FIT_PAD * 2)
+    const fitH = availH / (ed + FIT_PAD * 2)
+    return Math.max(16, Math.min(fitW, fitH, 80))
+  }, [ew, ed, viewport.w, viewport.h])
   // User zoom (ctrl/⌘+wheel or the ± buttons) multiplies the base px-per-metre;
   // every coordinate (toPx + its inverse) reads PX, so zoom stays consistent.
   const [zoom, setZoom] = useState(1)
@@ -422,11 +441,13 @@ export function FloorPlanEditor() {
     [ew, ed],
   )
 
-  // Centre the plan when the editor opens. The grid extends every direction.
-  // biome-ignore lint/correctness/useExhaustiveDependencies: re-centre only on open; PX read fresh.
+  // Centre the plan when the editor opens, and re-fit when the viewport scale
+  // settles (first measurement) or the plan bounds change. The grid extends
+  // every direction.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: re-centre on open + scale change; PX read fresh.
   useEffect(() => {
     if (editing) centerPlan(PX)
-  }, [editing, centerPlan])
+  }, [editing, centerPlan, basePX])
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
    *  explicit polygon for area/render/containment) on the active storey. */

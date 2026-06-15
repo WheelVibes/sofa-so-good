@@ -113,7 +113,17 @@ export function OrbitCamera() {
       const [cx, cz] = editorShell.shell.center
       const r = Math.max(editorShell.shell.radius, 1.5)
       c.target.set(cx, 1.0, cz)
-      camera.position.set(cx + r * 1.5, r * 1.7, cz + r * 1.5)
+      if (camera instanceof PerspectiveCamera) {
+        // Fit the whole room (footprint + wall height) to the viewport so it just
+        // fills the dollhouse view on load — aspect-aware (portrait phones too),
+        // mirroring the whole-plan dollhouse framing rather than a fixed multiple.
+        const radius = Math.hypot(r, APPROX_WALL_H / 2) * 1.12
+        const dist = fitDistance(radius, camera)
+        const inv = 1 / Math.hypot(0.82, 0.6, 0.82)
+        camera.position.set(cx + 0.82 * inv * dist, 0.6 * inv * dist, cz + 0.82 * inv * dist)
+      } else {
+        camera.position.set(cx + r * 1.5, r * 1.7, cz + r * 1.5)
+      }
       c.update()
       return
     }
