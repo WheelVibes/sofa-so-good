@@ -191,13 +191,9 @@ export function PlanShell() {
 
   return (
     <group>
-      {/* Grounding slab — top kept 10 cm below the plan floors to avoid
-          z-fighting (see Apartment.tsx). */}
-      <mesh position={[ew / 2, -0.2, ed / 2]} receiveShadow>
-        <boxGeometry args={[ew + 0.5, 0.2, ed + 0.5]} />
-        <meshStandardMaterial color="#9a958d" roughness={0.95} />
-      </mesh>
-
+      {/* No grounding slab: each room draws its own floor (PlanRoomFloor), so a
+          slab would only add a bare grey pad protruding past the walls. The
+          curated flat (Apartment.tsx) likewise has none — kept consistent. */}
       {levels.map((level) => (
         <group key={level.id} position={[0, level.elevation, 0]}>
           {level.elevation > 0 ? <LevelSlab level={level} /> : null}

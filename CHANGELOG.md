@@ -5,6 +5,14 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Custom plans: drop the grounding slab (rely on per-room floors)
+
+- Removed `PlanShell`'s grounding slab — the bare grey pad that protruded ~0.25 m past the
+  walls under a custom plan. Each room already draws its own floor (`PlanRoomFloor`, per-room
+  catalog finish), so the slab only added an unfinished-looking base plate. The curated flat
+  (`Apartment.tsx`) has had none since C-prior; custom plans now match. Verified by screenshot
+  (clean low-angle base + full per-room floor coverage top-down, no holes).
+
 ## Wall thickness: seamless corners for any (override) thickness pairing
 
 - Connecting walls now keep perfect, gap-free corners regardless of differing per-wall
