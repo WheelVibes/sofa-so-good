@@ -186,9 +186,37 @@ function FadeWall({
   )
 }
 
-/** A skirting strip that fades in lockstep with its host wall box — otherwise an
- *  opaque skirting band is left at the floor when the wall goes translucent
- *  (matches the fixed flat's Skirting). Uses the same `planWallRevealTarget`. */
+/** Fade a wall-trim mesh (skirting / crown) in lockstep with its host wall box,
+ *  so the wall reveals floor-to-ceiling as ONE piece (and fully hides in auto-hide
+ *  mode) instead of leaving an opaque trim band. Shares `planWallRevealTarget`
+ *  with `FadeWall`. */
+function useTrimFade(
+  ref: React.RefObject<Mesh | null>,
+  box: WallBox,
+  isExterior: boolean,
+  isInterior: (x: number, z: number) => boolean,
+  cx: number,
+  cz: number,
+) {
+  const { camera, invalidate } = useThree()
+  const cameraMode = useStore((s) => s.cameraMode)
+  useFrame(() => {
+    const mesh = ref.current
+    if (!mesh) return
+    const mat = mesh.material as MeshStandardMaterial
+    if (!mat) return
+    const target = planWallRevealTarget(camera, cameraMode, box, isExterior, isInterior, cx, cz)
+    mat.opacity += (target - mat.opacity) * 0.18
+    const next = mat.opacity < 0.98
+    if (next !== mat.transparent) mat.needsUpdate = true
+    mat.transparent = next
+    mat.depthWrite = mat.opacity > 0.6
+    mesh.visible = mat.opacity > 0.02
+    if (Math.abs(mat.opacity - target) > 0.005) invalidate()
+  })
+}
+
+/** A skirting strip that fades/hides with its host wall (floor trim). */
 function FadeSkirting({
   box,
   height,
@@ -207,22 +235,7 @@ function FadeSkirting({
   cz: number
 }) {
   const ref = useRef<Mesh>(null)
-  const { camera, invalidate } = useThree()
-  const cameraMode = useStore((s) => s.cameraMode)
-  useFrame(() => {
-    const mesh = ref.current
-    if (!mesh) return
-    const mat = mesh.material as MeshStandardMaterial
-    if (!mat) return
-    const target = planWallRevealTarget(camera, cameraMode, box, isExterior, isInterior, cx, cz)
-    mat.opacity += (target - mat.opacity) * 0.18
-    const next = mat.opacity < 0.98
-    if (next !== mat.transparent) mat.needsUpdate = true
-    mat.transparent = next
-    mat.depthWrite = mat.opacity > 0.6
-    mesh.visible = mat.opacity > 0.02
-    if (Math.abs(mat.opacity - target) > 0.005) invalidate()
-  })
+  useTrimFade(ref, box, isExterior, isInterior, cx, cz)
   return (
     <BeveledBox
       ref={ref}
@@ -232,6 +245,47 @@ function FadeSkirting({
       args={[box.thickness + 0.024, height, box.length]}
     >
       <meshStandardMaterial color={color} roughness={0.7} transparent opacity={1} />
+    </BeveledBox>
+  )
+}
+
+/** Crown molding at the wall–ceiling junction that fades/hides with its host wall
+ *  (ceiling trim) — so a faded wall reveals floor-to-ceiling with no opaque band
+ *  left at the top. */
+function FadeCrown({
+  box,
+  ceilingHeight,
+  isExterior,
+  isInterior,
+  cx,
+  cz,
+}: {
+  box: WallBox
+  ceilingHeight: number
+  isExterior: boolean
+  isInterior: (x: number, z: number) => boolean
+  cx: number
+  cz: number
+}) {
+  const ref = useRef<Mesh>(null)
+  useTrimFade(ref, box, isExterior, isInterior, cx, cz)
+  return (
+    <BeveledBox
+      ref={ref}
+      position={[box.cx, ceilingHeight - 0.035, box.cz]}
+      rotation={[0, box.angle, 0]}
+      args={[box.thickness + 0.024, 0.07, box.length]}
+    >
+      <meshStandardMaterial
+        color="#eeece6"
+        roughness={0.55}
+        metalness={0}
+        polygonOffset
+        polygonOffsetFactor={-2}
+        polygonOffsetUnits={-2}
+        transparent
+        opacity={1}
+      />
     </BeveledBox>
   )
 }
@@ -511,29 +565,21 @@ function PlanLevelShell({
         />
       ))}
 
-      {/* Crown molding at the wall–ceiling junction (full-height spans only).
-          Uses the same wall-box dimensions as skirting so mitre corners close
-          flush; polygonOffset prevents z-fighting against the ceiling plane. */}
+      {/* Crown molding at the wall–ceiling junction (full-height spans only),
+          fading/hiding with its wall so the reveal is floor-to-ceiling. */}
       {crownMolding &&
         boxes
-          .map(({ box }) => box)
-          .filter((b) => b.cy + b.height / 2 >= lp.ceilingHeight - 0.01)
-          .map((b, i) => (
-            <BeveledBox
+          .filter(({ box: b }) => b.cy + b.height / 2 >= lp.ceilingHeight - 0.01)
+          .map(({ box: b, isExterior }, i) => (
+            <FadeCrown
               key={`cm${i}`}
-              position={[b.cx, lp.ceilingHeight - 0.035, b.cz]}
-              rotation={[0, b.angle, 0]}
-              args={[b.thickness + 0.024, 0.07, b.length]}
-            >
-              <meshStandardMaterial
-                color="#eeece6"
-                roughness={0.55}
-                metalness={0}
-                polygonOffset
-                polygonOffsetFactor={-2}
-                polygonOffsetUnits={-2}
-              />
-            </BeveledBox>
+              box={b}
+              ceilingHeight={lp.ceilingHeight}
+              isExterior={isExterior}
+              isInterior={isInterior}
+              cx={cx}
+              cz={cz}
+            />
           ))}
 
       {/* Door leaves — swinging, clickable; closed by default (matches collision). */}

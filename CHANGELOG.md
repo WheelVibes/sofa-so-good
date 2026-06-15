@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Custom plans: crown molding fades with the wall (full floor-to-ceiling reveal)
+
+- Crown molding (the wall–ceiling trim) was a static mesh in `PlanShell`, so a faded/hidden
+  wall left an opaque band at the ceiling — the reveal wasn't truly floor-to-ceiling. It now
+  fades/hides with its host wall via a new `FadeCrown`, sharing a `useTrimFade` hook with
+  `FadeSkirting` (both driven by `planWallRevealTarget`). So body + skirting (floor) + crown
+  (ceiling) reveal as one piece in every mode — translucent fades all to 0.15, **auto-hide
+  removes all** (skirting + crown follow the same hide logic), opaque keeps all solid. Both
+  interior and exterior trim fade with their wall. Verified by screenshot (translucent: uniform
+  top-to-bottom; hidden: nothing left behind).
+
 ## Un-roomed flag: exact traced outline, red in the 2D editor + custom-plan skirting fade
 
 - **Exact footprint.** Un-roomed detection now traces the plan's exterior wall centre-lines
