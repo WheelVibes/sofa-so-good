@@ -1,4 +1,6 @@
 import { create } from 'zustand'
+import { setFlatWallThicknessDefaults } from '../apartment/wallSegments'
+import type { FloorPlan } from '../floorplan/types'
 import {
   APPEARANCE_INITIAL,
   type AppearanceSlice,
@@ -205,3 +207,16 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createUserSetsSlice(set, get, api),
   __resetForTest: () => set({ ...INITIAL }),
 }))
+
+// Keep the curated flat's module-level wall-thickness defaults in sync with the
+// active plan's plan-wide `wallThickness` setting (custom plans resolve it via
+// `planWallThickness(wall, plan)` instead). Cheap guard so it only re-applies on
+// an actual change; fired once now for the initial plan.
+let lastWallThickness: FloorPlan['wallThickness']
+const applyFlatWallThickness = (wt: FloorPlan['wallThickness']) => {
+  if (wt === lastWallThickness) return
+  lastWallThickness = wt
+  setFlatWallThicknessDefaults(wt)
+}
+applyFlatWallThickness(useStore.getState().floorPlan.wallThickness)
+useStore.subscribe((s) => applyFlatWallThickness(s.floorPlan.wallThickness))

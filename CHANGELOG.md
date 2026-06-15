@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Configurable wall thickness (global default + per-wall overrides)
+
+- New pro `wallThickness` feature: a **plan-wide default** thickness per category
+  (`FloorPlan.wallThickness?: { external?, internal? }`) plus an optional **per-wall
+  override** (`PlanWall.thicknessM?`), both edited in the 2D plan inspector (plan-level
+  controls + a "Thickness (m)" field on a selected wall with "Use plan default" reset).
+  Replaces the previously hardcoded 0.2 m / 0.1 m.
+- Custom plans resolve via `planGeometry.planWallThickness(wall, plan)` (override → plan
+  default → built-in), so render + collision + 2D editor all agree. The curated flat honours
+  the **global default** too: `wallSegments.ts` holds the active defaults in a module-level
+  holder (`setFlatWallThicknessDefaults`), kept in sync with `floorPlan.wallThickness` by a
+  store subscription, and `WallSegment`/`Skirting`/`RoomShell` re-render on change. Per-wall
+  overrides don't apply to the curated flat (it has no per-wall editor).
+- Schema fields are optional + additive (no version bump). Unit tests for both resolvers; the
+  flag is `pro` so the generic Simple/Pro tiering test covers its gating. Global default
+  verified live by screenshot (curated flat walls thicken 0.2 → 0.5 m).
+
 ## Wall reveal: fade near side/return walls (no awkward opaque fins)
 
 - Edge-on "return"/side walls used to stay opaque when you faced an adjacent

@@ -266,6 +266,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   // Wall height follows the (adjustable) plan ceiling height; per-wall
   // `topHeight` overrides (e.g. parapets) still win inside buildWallSegments.
   const ceilingHeight = useStore((s) => s.floorPlan.ceilingHeight)
+  // Subscribe to the plan-wide wall-thickness default so this (memoised) wall
+  // re-renders when the global setting changes; the resolved metres come from
+  // `wallThicknessMetres` (module-level holder) and feed the `thickness` dep of
+  // the body-geometry memo below, which rebuilds on the new value.
+  useStore((s) => s.floorPlan.wallThickness)
   const { camera, invalidate } = useThree()
   const groupRef = useRef<Group>(null)
   const opacityRef = useRef(1)

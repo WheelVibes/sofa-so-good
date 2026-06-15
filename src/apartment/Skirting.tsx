@@ -1,6 +1,7 @@
 import { useFrame } from '@react-three/fiber'
 import { useMemo, useRef } from 'react'
 import type { Group, Mesh, MeshStandardMaterial } from 'three'
+import { useStore } from '../state/store'
 import { FLAT, WALLS } from './constants'
 import { buildWallSegments, wallThicknessMetres } from './wallSegments'
 import { getWallOpacity } from './walls/wallReveal'
@@ -34,6 +35,11 @@ interface Strip {
  * an opaque skirting band at the floor (the rest of the wall goes translucent).
  */
 export function Skirting() {
+  // Re-derive strip widths when the plan-wide wall-thickness default changes
+  // (the metres come from `wallThicknessMetres`, a module-level holder, so the
+  // value isn't referenced directly — it's an intentional recompute trigger).
+  const wallThicknessDefault = useStore((s) => s.floorPlan.wallThickness)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: wallThicknessDefault is an intentional recompute trigger for the module-level thickness holder
   const strips = useMemo<Strip[]>(() => {
     const out: Strip[] = []
     for (const wall of WALLS) {
@@ -64,7 +70,7 @@ export function Skirting() {
       }
     }
     return out
-  }, [])
+  }, [wallThicknessDefault])
 
   // Fade each strip with its host wall (same per-wall opacity the windows/doors
   // read), so external-wall skirting goes translucent in the orbit reveal

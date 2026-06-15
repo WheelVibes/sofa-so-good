@@ -83,6 +83,7 @@ export type FeatureFlag =
   | 'curvedWalls'
   | 'slopingWalls'
   | 'wallBaseboard'
+  | 'wallThickness'
   | 'viewInAr'
   | 'floorTexture'
   | 'planCompass'
@@ -560,6 +561,15 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
   wallBaseboard: {
     label: 'Wall baseboards',
     description: 'Per-wall skirting board height, colour and a hide toggle',
+    default: true,
+    tier: 'pro',
+  },
+  // Configurable wall thickness: a plan-wide default (external/internal) plus
+  // per-wall metre overrides, edited in the 2D plan inspector. Pure geometry →
+  // prod-safe; an authoring detail beyond the core loop → pro tier.
+  wallThickness: {
+    label: 'Wall thickness',
+    description: 'Set a plan-wide default wall thickness and per-wall overrides',
     default: true,
     tier: 'pro',
   },

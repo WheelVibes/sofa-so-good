@@ -12,7 +12,14 @@ import { isCurvedWall, wallChords } from './wallArc'
 const EXTERNAL_T = 0.2
 const INTERNAL_T = 0.1
 
-export function planWallThickness(w: PlanWall): number {
+/** Resolve a plan wall's thickness (m): the wall's own `thicknessM` override
+ *  wins, then the plan-wide `wallThickness` default for its category, then the
+ *  built-in 0.2 m external / 0.1 m internal. */
+export function planWallThickness(w: PlanWall, plan?: FloorPlan): number {
+  if (w.thicknessM != null && w.thicknessM > 0) return w.thicknessM
+  const d =
+    w.thickness === 'external' ? plan?.wallThickness?.external : plan?.wallThickness?.internal
+  if (d != null && d > 0) return d
   return w.thickness === 'external' ? EXTERNAL_T : INTERNAL_T
 }
 
@@ -52,7 +59,7 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
   // cleanly across however many chords it spans.
   if (isCurvedWall(wall)) {
     const ceil = wall.topHeight ?? plan.ceilingHeight
-    const t = planWallThickness(wall)
+    const t = planWallThickness(wall, plan)
     const ops = openingsForWall(plan, wall.id)
     const boxes: WallBox[] = []
     let acc = 0 // arc-length at the chord's start
@@ -98,7 +105,7 @@ export function wallBoxes(plan: FloorPlan, wall: PlanWall): WallBox[] {
   const dx = (wall.end[0] - wall.start[0]) / len
   const dz = (wall.end[1] - wall.start[1]) / len
   const angle = Math.atan2(dx, dz) // heading so +Z maps along the wall
-  const t = planWallThickness(wall)
+  const t = planWallThickness(wall, plan)
   const ceil = wall.topHeight ?? plan.ceilingHeight
   const boxes: WallBox[] = []
   const at = (s: number): [number, number] => [wall.start[0] + dx * s, wall.start[1] + dz * s]
@@ -152,7 +159,7 @@ export function planCollisionWalls(
     // Curved wall: a straight collision segment per chord, with gaps where an
     // OPEN door's arc-length span falls within the chord (mirrors the straight path).
     if (isCurvedWall(wall)) {
-      const thickness = planWallThickness(wall)
+      const thickness = planWallThickness(wall, plan)
       const openDoors = openings.filter(
         (o) => o.wallId === wall.id && o.kind === 'door' && doorState[o.id]?.open,
       )
@@ -192,7 +199,7 @@ export function planCollisionWalls(
     if (len === 0) continue
     const dx = (wall.end[0] - wall.start[0]) / len
     const dz = (wall.end[1] - wall.start[1]) / len
-    const thickness = planWallThickness(wall)
+    const thickness = planWallThickness(wall, plan)
     const at = (s: number): [number, number] => [wall.start[0] + dx * s, wall.start[1] + dz * s]
 
     // Gaps come from OPEN doors only.

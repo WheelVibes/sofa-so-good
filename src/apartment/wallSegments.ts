@@ -54,8 +54,25 @@ export function buildWallSegments(wall: WallSpec, ceilingHeight: number): WallSe
   return segments
 }
 
+// Active default thicknesses (m) for the curated flat's external/internal walls.
+// Default to the built-in FLAT spec; overridden to the active plan's plan-wide
+// `wallThickness` default via a store subscription (see state/store.ts), so the
+// curated flat honours the global wall-thickness setting too. Held at module
+// scope (not threaded through every pure consumer) so collision + geometry stay
+// in sync without signature churn; React renderers also subscribe to
+// `floorPlan.wallThickness` so they re-render when it changes.
+let externalT = FLAT.externalWallThickness
+let internalT = FLAT.internalWallThickness
+
+/** Set the curated flat's default wall thicknesses (m). Falsy/absent values
+ *  reset to the built-in 0.2 m external / 0.1 m internal. */
+export function setFlatWallThicknessDefaults(d?: { external?: number; internal?: number }): void {
+  externalT = d?.external && d.external > 0 ? d.external : FLAT.externalWallThickness
+  internalT = d?.internal && d.internal > 0 ? d.internal : FLAT.internalWallThickness
+}
+
 export function wallThicknessMetres(wall: WallSpec): number {
-  return wall.thickness === 'external' ? FLAT.externalWallThickness : FLAT.internalWallThickness
+  return wall.thickness === 'external' ? externalT : internalT
 }
 
 /** Returns the thickness of the wall that this wall's start/end abuts, or 0

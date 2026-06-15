@@ -142,6 +142,8 @@ const PlanWallZ = z.object({
   start: Vec2Z,
   end: Vec2Z,
   thickness: z.enum(['external', 'internal']),
+  // Optional per-wall explicit thickness (m) override — additive, back-compat.
+  thicknessM: z.number().optional(),
   topHeight: z.number().optional(),
   // Optional sloping-wall end height (PARITY-SLOPEWALL) — additive, back-compat.
   topHeightEnd: z.number().optional(),
@@ -234,6 +236,10 @@ const FloorPlanZ = z.object({
   openings: z.array(PlanOpeningZ),
   rooms: z.array(PlanRoomZ),
   wallColor: z.string().optional(),
+  // Plan-wide default wall thickness (m) per category — additive, back-compat.
+  wallThickness: z
+    .object({ external: z.number().optional(), internal: z.number().optional() })
+    .optional(),
   upperLevels: z.array(PlanUpperLevelZ).optional(),
   notes: z
     .array(
