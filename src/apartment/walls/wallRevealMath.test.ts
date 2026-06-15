@@ -61,14 +61,39 @@ describe('wallRevealFactor', () => {
     expect(wallRevealFactor(2, 5, 2, 0, 0, -1)).toBeCloseTo(1)
   })
 
-  it('partially fades for a grazing/side view', () => {
-    const f = wallRevealFactor(7, 0, 2, 0, 0, -1) // camera due-east, wall faces north
+  it('fully fades a perpendicular/edge-on near wall (no awkward fins)', () => {
+    // Camera due-east of a north-facing wall: the wall is edge-on (dot ≈ 0).
+    // It should fully fade rather than stick at a partial opacity.
+    expect(wallRevealFactor(7, 0, 2, 0, 0, -1)).toBeCloseTo(0)
+  })
+
+  it('partially fades a wall whose normal points somewhat away', () => {
+    // dot ≈ −0.2 (camera mostly on the interior side, slightly off): mid-ramp.
+    const f = wallRevealFactor(6.9, 1, 2, 0, 0, -1)
     expect(f).toBeGreaterThan(0.2)
     expect(f).toBeLessThan(0.8)
   })
 
-  it('is independent of distance (only the direction matters)', () => {
+  it('is independent of distance when no centre is given (facing only)', () => {
     expect(wallRevealFactor(2, -3, 2, 0, 0, -1)).toBeCloseTo(wallRevealFactor(2, -30, 2, 0, 0, -1))
+  })
+
+  it('fades a near side wall (edge-on) when a plan centre is given', () => {
+    // A side wall at (9, 0.7) whose outward normal points +X (east), camera to
+    // the north-west at (5.5, -9), plan centre at (6.4, 4.6). The facing term
+    // alone keeps it opaque (camera on its interior side), but it sits nearer the
+    // camera than the centre, so the proximity term fades it.
+    const facingOnly = wallRevealFactor(5.5, -9, 9, 0.7, 1, 0)
+    expect(facingOnly).toBeGreaterThan(0.8) // edge-on, would stay opaque
+    const withCentre = wallRevealFactor(5.5, -9, 9, 0.7, 1, 0, 6.4, 4.6)
+    expect(withCentre).toBeLessThan(0.2) // near wall → fades
+  })
+
+  it('keeps a far wall opaque even with a plan centre', () => {
+    // Wall on the far side of the centre from the camera stays solid (the
+    // dollhouse "back"): camera north, wall far south.
+    const f = wallRevealFactor(6.4, -9, 7, 9.25, 0, 1, 6.4, 4.6)
+    expect(f).toBeCloseTo(1)
   })
 })
 

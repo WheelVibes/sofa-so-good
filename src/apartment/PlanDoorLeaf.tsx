@@ -120,7 +120,8 @@ export function PlanDoorLeaf({
         }
         // Hide once the host wall is at least half-faded for this view — same
         // criterion as the wall's own reveal factor, so leaf + wall stay in sync.
-        hide = wallRevealFactor(camera.position.x, camera.position.z, doorX, doorZ, nx, nz) < 0.5
+        hide =
+          wallRevealFactor(camera.position.x, camera.position.z, doorX, doorZ, nx, nz, cx, cz) < 0.5
       }
       rootRef.current.visible = !hide
     }

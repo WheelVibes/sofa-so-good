@@ -60,12 +60,28 @@ export function wallRevealFactor(
   midZ: number,
   outNx: number,
   outNz: number,
+  centerX?: number,
+  centerZ?: number,
 ): number {
   const tx = camX - midX
   const tz = camZ - midZ
   const len = Math.hypot(tx, tz) || 1
   const dot = (outNx * tx + outNz * tz) / len // >0 → camera on the outward side → fade
-  return 1 - smoothstep(-0.25, 0.2, dot)
+  // Facing term: a wall fades once it's perpendicular-or-facing the camera
+  // (dot ≥ 0); walls whose outward normal points clearly AWAY (dot ≤ −0.4, the
+  // far "back" of the dollhouse) stay solid so the model still reads as a box.
+  const facing = 1 - smoothstep(-0.4, 0, dot)
+  if (centerX === undefined || centerZ === undefined) return facing
+  // Proximity term: a near SIDE wall (a room's perpendicular wall, edge-on to
+  // the view) has no camera-facing outward normal, so the facing term alone
+  // leaves it as an awkward opaque fin. Fade any wall that sits clearly NEARER
+  // the camera than the plan centre does; walls past the centre (the far half)
+  // keep their facing-based opacity. Taking the min means a wall fades if it
+  // EITHER faces the camera OR is a near wall — opening up the near rooms fully.
+  const camToCenter = Math.hypot(camX - centerX, camZ - centerZ) || 1
+  const ratio = (len - camToCenter) / camToCenter // <0 nearer than centre, >0 farther
+  const proximity = smoothstep(-0.2, 0.05, ratio) // near → 0 (faded), far → 1 (opaque)
+  return Math.min(facing, proximity)
 }
 
 /**

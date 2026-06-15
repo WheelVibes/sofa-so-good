@@ -342,6 +342,8 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         reveal.mz,
         nx,
         nz,
+        CENTER_X,
+        CENTER_Z,
       )
       // translucent: walls never fully disappear (min 0.15 opacity).
       // auto-hide: walls can fully disappear (current legacy behaviour).

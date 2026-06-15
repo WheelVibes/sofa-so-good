@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Wall reveal: fade near side/return walls (no awkward opaque fins)
+
+- Edge-on "return"/side walls used to stay opaque when you faced an adjacent
+  facade — e.g. bedroom 3's east wall stuck at ~0.94 opacity while looking at the
+  north facade, an awkward fin (and east/south walls only fully hid when faced
+  head-on, not at grazing angles). `wallRevealFactor` now combines the per-wall
+  facing term with a **proximity** term: a wall clearly nearer the camera than the
+  plan centre fades regardless of its normal, while walls past the centre (the far
+  "back") keep their facing-based opacity — so near rooms open fully but the
+  dollhouse still reads as a box. The facing ramp also widened so a perpendicular
+  near wall (dot ≈ 0) fully fades. Centre is passed by `WallSegment` (flat),
+  `PlanShell`, and `PlanDoorLeaf`; it's only a proximity reference (orientation is
+  still the robust point-in-room probe, so off-centre facades are unaffected).
+  Verified by state probe (the return wall drops 0.94 → 0.01 facing north, far
+  walls stay ~0.96) + screenshots.
+
 ## Wall reveal: add scope (exterior only / exterior + interior)
 
 - The wall-reveal control is now two axes: **mode** (`Fade translucent` (default) / `Fully hidden`

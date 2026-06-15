@@ -78,7 +78,7 @@ function revealFactor(
       nz = -nz
     }
   }
-  return wallRevealFactor(camera.position.x, camera.position.z, px, pz, nx, nz)
+  return wallRevealFactor(camera.position.x, camera.position.z, px, pz, nx, nz, cx, cz)
 }
 
 /** Interior room rectangles (+ L-extensions) for a level, for the point-in-room
