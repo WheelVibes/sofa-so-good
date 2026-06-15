@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Wall reveal: robust per-wall outward normal (fixes off-centre bedroom facade)
+
+- The dollhouse wall-reveal fade now orients each wall's "outward" direction by **probing which
+  side of the wall is a room** (`pointInRooms`) instead of "away from the bounding-box centre".
+  On the curated flat the bedroom band sits on the north wall, which is offset from the apartment
+  centre, so the old centre heuristic mis-judged it: a faced bedroom facade only partially faded
+  (~0.5 opacity, "very slightly translucent") while the centred living/kitchen walls went almost
+  clear. The new metric makes every faced exterior wall reach the same near-clear state — verified
+  via state probe (`wall-ext-N` factor → 0, published opacity lerping to 0.15; E/S walls stay
+  opaque). This is shape-independent, so it also works on non-rectangular / notched custom plans.
+- New pure module `walls/wallRevealMath.ts` (`smoothstep`, `orientOutward`, `wallRevealFactor`,
+  `pointInRooms`, `RoomRect`), fully unit-tested (`wallRevealMath.test.ts`, 12 tests incl. an
+  L-shape case where the bbox centre lands in the notch). Integration test `wallReveal.flat.test.ts`
+  (4 tests) locks in the real-`ROOMS`/`WALLS` bedroom-facade behaviour.
+- Wired into `WallSegment` (fixed flat), `PlanShell` `FadeWall`/`FadeWindow`, and `PlanDoorLeaf`
+  (custom plans) — each builds the room rectangles for its level and falls back to the plan-centre
+  reference only when the probe is ambiguous (interior partitions stay solid).
+
 ## IXT-SUITES: interaction-test ladder for Design score
 
 - Added `scripts/scenarios/design-score-simple.json` (18 steps, 2 screenshots) covering the `designScore`

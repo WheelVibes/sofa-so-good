@@ -9,6 +9,7 @@ import { isSlopedWall, slopedWallTriangles } from '../floorplan/slopedWall'
 import {
   DEFAULT_PLAN_WALL_COLOR,
   type FloorPlan,
+  type PlanRoom,
   type PlanWall,
   planBounds,
   wallLength,
@@ -22,6 +23,12 @@ import { useStore } from '../state/store'
 import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
+import {
+  orientOutward,
+  pointInRooms,
+  type RoomRect,
+  wallRevealFactor,
+} from './walls/wallRevealMath'
 
 // Window glass day/night tint — clear cool pane by day, dark reflective at night
 // (matches the fixed apartment's Window.tsx so custom + default plans look alike).
@@ -32,43 +39,56 @@ const GLASS_NIGHT = new Color('#20272f')
  * One plan wall, fading out in orbit mode when it sits between the camera and
  * the plan centre (so the dollhouse view isn't blocked by near walls).
  */
-/** smoothstep — matches the default flat's WallSegment reveal ramp. */
-function smoothstep(edge0: number, edge1: number, x: number): number {
-  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
-  return t * t * (3 - 2 * t)
-}
-
 /** Camera-facing reveal factor (1 = opaque, ~0 = faded) for a wall/opening box.
- *  Orientation-based — matches the default flat's `WallSegment`: a wall fades when
- *  its outward broad-face normal points back toward the camera (i.e. it sits
- *  between the camera and the plan interior). This is independent of WHERE along
- *  the wall a box sits, so every segment of one wall fades together — fixing the
- *  patchy reveal the old position-based metric gave for long walls split into
- *  segments by openings, and for near walls viewed off-axis (only the segment
- *  nearest the view axis faded). `angle` is the box's Y-rotation; the box's broad
- *  faces (the wall surfaces) have the XZ normal (cos a, −sin a). */
+ *  Per-wall and shape-independent: a wall fades when the camera sits on its
+ *  OUTWARD side (between the camera and the rooms). "Outward" is found by probing
+ *  which side of the box is a room (`isInterior`), so it's correct on
+ *  non-rectangular plans (L/U/notched) where the bounding-box centre is an
+ *  unreliable reference; it falls back to "away from the plan centre" only when
+ *  the probe is ambiguous. `angle` is the box's Y-rotation; the box's broad faces
+ *  (the wall surfaces) have the XZ normal (cos a, −sin a). */
 function revealFactor(
   camera: { position: { x: number; z: number } },
   px: number,
   pz: number,
   angle: number,
+  isInterior: (x: number, z: number) => boolean,
+  probe: number,
   cx: number,
   cz: number,
 ): number {
-  // Wall broad-face normal, oriented outward (away from the plan centre).
-  let nx = Math.cos(angle)
-  let nz = -Math.sin(angle)
-  if (nx * (px - cx) + nz * (pz - cz) < 0) {
+  const candNx = Math.cos(angle)
+  const candNz = -Math.sin(angle)
+  const out = orientOutward(px, pz, candNx, candNz, isInterior, probe)
+  let nx = candNx
+  let nz = candNz
+  if (out) {
+    nx = out.nx
+    nz = out.nz
+  } else if (nx * (px - cx) + nz * (pz - cz) < 0) {
     nx = -nx
     nz = -nz
   }
-  // dot(outward normal, camera→centre dir): a near wall's outward face opposes
-  // this direction (d ≈ −1) → fade out; a far wall's aligns (d ≈ +1) → stays opaque.
-  const dcx = cx - camera.position.x
-  const dcz = cz - camera.position.z
-  const clen = Math.hypot(dcx, dcz) || 1
-  const d = (nx * dcx + nz * dcz) / clen
-  return smoothstep(-0.2, 0.25, d)
+  return wallRevealFactor(camera.position.x, camera.position.z, px, pz, nx, nz)
+}
+
+/** Interior room rectangles (+ L-extensions) for a level, for the point-in-room
+ *  outward probe. Polygon rooms fall back to their origin/width/depth bounds. */
+function levelRoomRects(rooms: readonly PlanRoom[]): RoomRect[] {
+  return rooms.map((r) => ({
+    x: r.origin[0],
+    z: r.origin[1],
+    w: r.width,
+    d: r.depth,
+    ext: r.extension
+      ? {
+          x: r.origin[0] + r.extension.offset[0],
+          z: r.origin[1] + r.extension.offset[1],
+          w: r.extension.width,
+          d: r.extension.depth,
+        }
+      : undefined,
+  }))
 }
 
 function FadeWall({
@@ -77,6 +97,7 @@ function FadeWall({
   cz,
   color,
   revealable,
+  isInterior,
 }: {
   box: WallBox
   cx: number
@@ -84,6 +105,8 @@ function FadeWall({
   color: string
   /** Only external/perimeter walls fade; internal partitions stay solid. */
   revealable: boolean
+  /** Point-in-room test used to orient each wall's outward normal. */
+  isInterior: (x: number, z: number) => boolean
 }) {
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
@@ -97,7 +120,11 @@ function FadeWall({
     // forced off during panorama capture so walls don't leave holes).
     const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
     if (revealable && cameraMode === 'orbit' && revealEnabled) {
-      target = Math.max(0.12, revealFactor(camera, box.cx, box.cz, box.angle, cx, cz))
+      const probe = box.thickness / 2 + 0.3
+      target = Math.max(
+        0.12,
+        revealFactor(camera, box.cx, box.cz, box.angle, isInterior, probe, cx, cz),
+      )
     }
     mat.opacity += (target - mat.opacity) * 0.18
     mat.transparent = mat.opacity < 0.98
@@ -190,6 +217,14 @@ function PlanLevelShell({
   const finishes = useStore((s) => s.finishes)
   const crownMolding = useFeature('crownMolding')
   const lp = useMemo(() => levelAsPlan(plan, level), [plan, level])
+
+  // Point-in-room test for this storey, used to orient each wall's "outward"
+  // normal so the reveal fade works on non-rectangular / notched custom plans
+  // (where a single bounding-box centre mis-judges off-centre walls).
+  const isInterior = useMemo(() => {
+    const rects = levelRoomRects(lp.rooms)
+    return (x: number, z: number) => pointInRooms(x, z, rects, 0.05)
+  }, [lp])
 
   // Pair each render box with whether its source wall is an external/perimeter
   // wall: only those fade for the camera reveal (internal partitions stay solid
@@ -354,7 +389,15 @@ function PlanLevelShell({
       {/* Walls — external walls fade when between the orbit camera and the plan
           centre; internal partitions stay solid. */}
       {boxes.map(({ box, revealable }, i) => (
-        <FadeWall key={i} box={box} cx={cx} cz={cz} color={wallColor} revealable={revealable} />
+        <FadeWall
+          key={i}
+          box={box}
+          cx={cx}
+          cz={cz}
+          color={wallColor}
+          revealable={revealable}
+          isInterior={isInterior}
+        />
       ))}
 
       {/* Sloping-top walls render as prisms (slopedWall.ts), not boxes. */}
@@ -409,13 +452,20 @@ function PlanLevelShell({
           // Sloped walls (solid prism) don't host openings; curved walls do
           // (PlanDoorLeaf reads arc-aware geometry from doorSwingGeometry).
           return wall && !isSlopedWall(wall) ? (
-            <PlanDoorLeaf key={o.id} wall={wall} opening={o} cx={cx} cz={cz} />
+            <PlanDoorLeaf
+              key={o.id}
+              wall={wall}
+              opening={o}
+              cx={cx}
+              cz={cz}
+              isInterior={isInterior}
+            />
           ) : null
         })}
 
       {/* Window glass — fades with its wall during the orbit reveal (FadeWindow). */}
       {windows.map((w) => (
-        <FadeWindow key={w.id} win={w} cx={cx} cz={cz} />
+        <FadeWindow key={w.id} win={w} cx={cx} cz={cz} isInterior={isInterior} />
       ))}
     </group>
   )
@@ -428,6 +478,7 @@ function FadeWindow({
   win,
   cx,
   cz,
+  isInterior,
 }: {
   win: {
     cx: number
@@ -440,6 +491,8 @@ function FadeWindow({
   }
   cx: number
   cz: number
+  /** Point-in-room test used to orient the host wall's outward normal. */
+  isInterior: (x: number, z: number) => boolean
 }) {
   const ref = useRef<Mesh>(null)
   const { camera, invalidate } = useThree()
@@ -458,7 +511,12 @@ function FadeWindow({
     let factor = 1
     const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
     if (win.revealable && cameraMode === 'orbit' && revealEnabled) {
-      factor = Math.max(0.12, revealFactor(camera, win.cx, win.cz, win.angle, cx, cz))
+      // 0.3 m probe past the pane centre — the host wall's thickness isn't carried
+      // on the window box, but a fixed reach clears the wall into the room.
+      factor = Math.max(
+        0.12,
+        revealFactor(camera, win.cx, win.cz, win.angle, isInterior, 0.3, cx, cz),
+      )
     }
     const target = base * factor
     mat.opacity += (target - mat.opacity) * 0.18

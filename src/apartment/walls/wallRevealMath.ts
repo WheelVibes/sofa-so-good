@@ -1,0 +1,93 @@
+/**
+ * Pure geometry for the camera-facing "dollhouse" wall reveal.
+ *
+ * The old heuristic faded a wall by comparing its outward normal to the
+ * direction of the plan's **bounding-box centre**. That breaks on
+ * non-rectangular plans (L/U/notched shapes, and the default HDB flat): the
+ * bbox centre can land in a notch or sit far off the room mass, so a wall's
+ * "outward" side is mis-judged and it never fades when you orbit to face it.
+ *
+ * This module decides everything **per wall**, with no global centre:
+ *  - `orientOutward` finds which way is "out" by probing a short step off each
+ *    face of the wall midpoint against an `isInterior(x, z)` test (point-in-room).
+ *  - `wallRevealFactor` fades a wall when the camera sits on that outward side
+ *    (i.e. the wall is between the camera and the rooms), using the wall's own
+ *    midpoint as the reference — correct for any plan shape.
+ *
+ * Dependency-free so it is fully unit-tested without the R3F/scene stack.
+ */
+
+export function smoothstep(edge0: number, edge1: number, x: number): number {
+  const t = Math.min(1, Math.max(0, (x - edge0) / (edge1 - edge0)))
+  return t * t * (3 - 2 * t)
+}
+
+/**
+ * Orient a wall's face normal `(nx, nz)` so it points **outward** (away from the
+ * interior). Probes a point `probe` metres off each face of the wall midpoint:
+ *  - if the +normal side is interior → outward is the negated normal,
+ *  - if the −normal side is interior → outward is the normal as-is.
+ * Returns `null` when both sides read interior (an internal partition between
+ * two rooms) or neither does (ambiguous) — the caller then leaves the wall solid.
+ * `probe` should clear the wall's half-thickness so it lands inside the room.
+ */
+export function orientOutward(
+  midX: number,
+  midZ: number,
+  nx: number,
+  nz: number,
+  isInterior: (x: number, z: number) => boolean,
+  probe = 0.3,
+): { nx: number; nz: number } | null {
+  const plus = isInterior(midX + nx * probe, midZ + nz * probe)
+  const minus = isInterior(midX - nx * probe, midZ - nz * probe)
+  if (plus === minus) return null // both/neither interior → not a clear exterior wall
+  return plus ? { nx: -nx, nz: -nz } : { nx, nz }
+}
+
+/**
+ * Reveal opacity factor for a wall: `1` (opaque) when the camera is on the
+ * interior side, ramping to `0` (faded) as the camera moves to the wall's
+ * outward side — so a wall between the camera and the rooms goes translucent.
+ * Per-wall (uses the wall midpoint), independent of plan shape. The ramp keeps
+ * grazing/side walls partially faded (opening the dollhouse) while walls clearly
+ * on the far/interior side stay solid.
+ */
+export function wallRevealFactor(
+  camX: number,
+  camZ: number,
+  midX: number,
+  midZ: number,
+  outNx: number,
+  outNz: number,
+): number {
+  const tx = camX - midX
+  const tz = camZ - midZ
+  const len = Math.hypot(tx, tz) || 1
+  const dot = (outNx * tx + outNz * tz) / len // >0 → camera on the outward side → fade
+  return 1 - smoothstep(-0.25, 0.2, dot)
+}
+
+/** A rectangle (+ optional L-shaped extension) in plan metres — the shape both
+ *  the fixed-apartment `RoomDef` and the custom-plan `PlanRoom` reduce to for a
+ *  point-in-room test. */
+export interface RoomRect {
+  x: number
+  z: number
+  w: number
+  d: number
+  ext?: { x: number; z: number; w: number; d: number }
+}
+
+/** True if `(x, z)` lies inside any room rectangle (or its L-extension). A small
+ *  `pad` lets a probe just inside a wall still register as interior. */
+export function pointInRooms(x: number, z: number, rooms: readonly RoomRect[], pad = 0): boolean {
+  for (const r of rooms) {
+    if (x >= r.x - pad && x <= r.x + r.w + pad && z >= r.z - pad && z <= r.z + r.d + pad)
+      return true
+    const e = r.ext
+    if (e && x >= e.x - pad && x <= e.x + e.w + pad && z >= e.z - pad && z <= e.z + e.d + pad)
+      return true
+  }
+  return false
+}
