@@ -5,8 +5,17 @@
 `constants.ts` is the **source of truth** for walls/doors/windows/rooms (derived
 from the floor-plan SVG). `walls/`, `floor/`, `Window.tsx`, `Door.tsx`,
 `Ceiling.tsx`, `Skirting.tsx`, plus a grounding slab in `Apartment.tsx`.
-**Wall reveal** (`walls/wallReveal`): exterior walls between the orbit camera and
-the interior fade out (windows/doors fade with them).
+**Wall reveal** (`walls/wallReveal` + pure `walls/wallRevealMath`): walls between
+the orbit camera and the interior fade out (windows/doors/skirting fade with
+them). Two settings (`wallRevealMode` × `wallRevealScope`, both session-only):
+mode = `translucent` (15% opacity, default) / `auto-hide` (fully hidden) /
+`opaque` (no fade); scope = `exterior` (perimeter only, default) / `all`
+(interior partitions fade too). Exterior walls orient "outward" via a
+point-in-room probe (`orientOutward`); interior partitions (rooms on both sides)
+fade when faced via `cameraFacingNormal`. The body is a single watertight
+extruded shape (`walls/wallBodyShape`) so it has no internal seams when
+translucent. Materials flip `needsUpdate` on the transparent transition (else the
+blend never engages).
 
 ## Custom plans
 

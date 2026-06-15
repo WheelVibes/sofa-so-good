@@ -31,7 +31,13 @@ import {
 } from '../wallSegments'
 import { buildWallBodyOutline } from './wallBodyShape'
 import { setWallOpacity } from './wallReveal'
-import { orientOutward, pointInRooms, type RoomRect, wallRevealFactor } from './wallRevealMath'
+import {
+  cameraFacingNormal,
+  orientOutward,
+  pointInRooms,
+  type RoomRect,
+  wallRevealFactor,
+} from './wallRevealMath'
 import { wallSidesSpans } from './wallRoomSides'
 
 // Interior room rectangles (+ L-extensions) for the point-in-room test that
@@ -296,9 +302,7 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     return { nx, nz, mx, mz }
   }, [wall, dx, dz])
 
-  // Only exterior perimeter walls are revealed; internal partitions stay solid
-  // so the room layout reads clearly.
-  const revealable = wall.thickness === 'external'
+  const isExterior = wall.thickness === 'external'
 
   useFrame(() => {
     const group = groupRef.current
@@ -307,20 +311,37 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     const orbit = st.cameraMode === 'orbit'
     const revealEnabled = st.qualityOverrides.wallReveal ?? true
     const revealMode = st.wallRevealMode ?? 'translucent'
+    const revealScope = st.wallRevealScope ?? 'exterior'
+    // Exterior walls always participate; interior partitions only in 'all' scope
+    // (default 'exterior' keeps them solid so the room layout reads).
+    const participates = isExterior || revealScope === 'all'
     let target = 1
-    if (revealable && orbit && revealEnabled && revealMode !== 'opaque') {
-      // Per-wall: fade fully when the camera is on this wall's outward side
-      // (the wall is between the camera and the rooms), ramping through grazing
-      // angles — correct regardless of where the bounding-box centre lands on a
-      // non-rectangular plan, so an off-centre wall (e.g. a bedroom facade) goes
-      // fully translucent when faced, not just slightly.
+    if (participates && orbit && revealEnabled && revealMode !== 'opaque') {
+      // Exterior: fade when the camera is on the wall's OUTWARD side (the wall is
+      // between the camera and the rooms). Interior partition: it has rooms on
+      // both sides, so fade when the camera FACES it (revealing the room behind);
+      // orient the normal toward the camera for that.
+      let nx = reveal.nx
+      let nz = reveal.nz
+      if (!isExterior) {
+        const f = cameraFacingNormal(
+          reveal.mx,
+          reveal.mz,
+          nx,
+          nz,
+          camera.position.x,
+          camera.position.z,
+        )
+        nx = f.nx
+        nz = f.nz
+      }
       const faded = wallRevealFactor(
         camera.position.x,
         camera.position.z,
         reveal.mx,
         reveal.mz,
-        reveal.nx,
-        reveal.nz,
+        nx,
+        nz,
       )
       // translucent: walls never fully disappear (min 0.15 opacity).
       // auto-hide: walls can fully disappear (current legacy behaviour).
@@ -334,8 +355,10 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
     // which would freeze this opacity lerp mid-fade (walls stuck part-faded).
     // Keep requesting frames until the fade settles.
     if (Math.abs(cur - target) > 0.005) invalidate()
-    // Publish so windows/doors on this wall fade with it.
-    if (revealable) setWallOpacity(wall.id, cur)
+    // Publish so windows/doors on this wall fade with it (interior doors too,
+    // when interior partitions participate). Always published while lerping so
+    // the value also returns to 1 when a wall stops participating (scope change).
+    setWallOpacity(wall.id, cur)
     const visible = cur > 0.02
     const transparent = cur < 0.985
     // Only force a material recompile when the transparent flag actually flips.

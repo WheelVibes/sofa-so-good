@@ -68,6 +68,25 @@ export function wallRevealFactor(
   return 1 - smoothstep(-0.25, 0.2, dot)
 }
 
+/**
+ * Orient a wall's face normal `(nx, nz)` so it points **toward the camera**.
+ * Used for interior partitions (which have rooms on both sides, so there is no
+ * single "outward"): in the all-walls reveal scope a partition fades when the
+ * camera faces it, revealing the room behind. Feeding this into
+ * `wallRevealFactor` makes a head-on partition fade and an edge-on one stay.
+ */
+export function cameraFacingNormal(
+  midX: number,
+  midZ: number,
+  nx: number,
+  nz: number,
+  camX: number,
+  camZ: number,
+): { nx: number; nz: number } {
+  const towardCam = nx * (camX - midX) + nz * (camZ - midZ)
+  return towardCam < 0 ? { nx: -nx, nz: -nz } : { nx, nz }
+}
+
 /** A rectangle (+ optional L-shaped extension) in plan metres — the shape both
  *  the fixed-apartment `RoomDef` and the custom-plan `PlanRoom` reduce to for a
  *  point-in-room test. */

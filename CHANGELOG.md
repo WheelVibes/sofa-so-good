@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Wall reveal: add scope (exterior only / exterior + interior)
+
+- The wall-reveal control is now two axes: **mode** (`Fade translucent` (default) / `Fully hidden`
+  / `Fully opaque`) **×** **scope** (`Exterior only` (default) / `Exterior + interior`). New
+  session-only `wallRevealScope` store field + setters; the scope dropdown shows in the Scene
+  menu (desktop + mobile) whenever the mode isn't fully opaque. Mode labels clarified.
+- Interior partitions (rooms on both sides, so no single "outward") fade when the camera **faces**
+  them via the new pure `cameraFacingNormal` helper; exterior walls keep the point-in-room
+  outward probe. Interior walls' published opacity drives their doors (curated `Door` + custom
+  `PlanDoorLeaf`) to fade/hide in sync; the value returns to 1 when scope flips back to exterior.
+  Wired through `WallSegment` (fixed flat) and `PlanShell` `FadeWall`/`FadeWindow`/`PlanDoorLeaf`
+  (custom plans) — the custom-plan path now also honours the mode (previously always translucent).
+- `cameraFacingNormal` unit-tested; all four mode×scope combinations verified by headless
+  screenshot.
+
 ## Wall body: single watertight extrusion (seamless translucent walls)
 
 - With the walls now fading translucent, the wall **body** showed floor-to-ceiling vertical

@@ -24,6 +24,7 @@ import { PlanRoomCeiling } from './floor/PlanRoomCeiling'
 import { PlanRoomFloor } from './floor/PlanRoomFloor'
 import { PlanDoorLeaf } from './PlanDoorLeaf'
 import {
+  cameraFacingNormal,
   orientOutward,
   pointInRooms,
   type RoomRect,
@@ -56,18 +57,26 @@ function revealFactor(
   probe: number,
   cx: number,
   cz: number,
+  interior: boolean,
 ): number {
   const candNx = Math.cos(angle)
   const candNz = -Math.sin(angle)
-  const out = orientOutward(px, pz, candNx, candNz, isInterior, probe)
   let nx = candNx
   let nz = candNz
-  if (out) {
-    nx = out.nx
-    nz = out.nz
-  } else if (nx * (px - cx) + nz * (pz - cz) < 0) {
-    nx = -nx
-    nz = -nz
+  if (interior) {
+    // Interior partition (rooms on both sides): fade when the camera faces it.
+    const f = cameraFacingNormal(px, pz, candNx, candNz, camera.position.x, camera.position.z)
+    nx = f.nx
+    nz = f.nz
+  } else {
+    const out = orientOutward(px, pz, candNx, candNz, isInterior, probe)
+    if (out) {
+      nx = out.nx
+      nz = out.nz
+    } else if (nx * (px - cx) + nz * (pz - cz) < 0) {
+      nx = -nx
+      nz = -nz
+    }
   }
   return wallRevealFactor(camera.position.x, camera.position.z, px, pz, nx, nz)
 }
@@ -96,15 +105,16 @@ function FadeWall({
   cx,
   cz,
   color,
-  revealable,
+  isExterior,
   isInterior,
 }: {
   box: WallBox
   cx: number
   cz: number
   color: string
-  /** Only external/perimeter walls fade; internal partitions stay solid. */
-  revealable: boolean
+  /** True for external/perimeter walls; interior partitions only fade in the
+   *  'all' reveal scope. */
+  isExterior: boolean
   /** Point-in-room test used to orient each wall's outward normal. */
   isInterior: (x: number, z: number) => boolean
 }) {
@@ -116,15 +126,27 @@ function FadeWall({
     if (!mesh) return
     const mat = mesh.material as MeshStandardMaterial
     let target = 1
-    // Same wallReveal override the default flat's WallSegment honours (also
-    // forced off during panorama capture so walls don't leave holes).
-    const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
-    if (revealable && cameraMode === 'orbit' && revealEnabled) {
+    // Honour the same wall-reveal mode + scope the fixed flat's WallSegment does
+    // (wallReveal override is also forced off during panorama capture).
+    const st = useStore.getState()
+    const revealEnabled = st.qualityOverrides.wallReveal ?? true
+    const revealMode = st.wallRevealMode ?? 'translucent'
+    const revealScope = st.wallRevealScope ?? 'exterior'
+    const participates = isExterior || revealScope === 'all'
+    if (participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque') {
       const probe = box.thickness / 2 + 0.3
-      target = Math.max(
-        0.12,
-        revealFactor(camera, box.cx, box.cz, box.angle, isInterior, probe, cx, cz),
+      const f = revealFactor(
+        camera,
+        box.cx,
+        box.cz,
+        box.angle,
+        isInterior,
+        probe,
+        cx,
+        cz,
+        !isExterior,
       )
+      target = revealMode === 'auto-hide' ? f : Math.max(0.15, f)
     }
     mat.opacity += (target - mat.opacity) * 0.18
     const next = mat.opacity < 0.98
@@ -236,7 +258,7 @@ function PlanLevelShell({
   const boxes = useMemo(
     () =>
       lp.walls.flatMap((w) =>
-        wallBoxes(lp, w).map((box) => ({ box, revealable: w.thickness === 'external' })),
+        wallBoxes(lp, w).map((box) => ({ box, isExterior: w.thickness === 'external' })),
       ),
     [lp],
   )
@@ -392,14 +414,14 @@ function PlanLevelShell({
 
       {/* Walls — external walls fade when between the orbit camera and the plan
           centre; internal partitions stay solid. */}
-      {boxes.map(({ box, revealable }, i) => (
+      {boxes.map(({ box, isExterior }, i) => (
         <FadeWall
           key={i}
           box={box}
           cx={cx}
           cz={cz}
           color={wallColor}
-          revealable={revealable}
+          isExterior={isExterior}
           isInterior={isInterior}
         />
       ))}
@@ -513,14 +535,26 @@ function FadeWindow({
     mat.emissiveIntensity = glassSkyCatchIntensity(1 - d)
     const base = 0.28 + d * 0.45 // more opaque (less see-through) at night
     let factor = 1
-    const revealEnabled = useStore.getState().qualityOverrides.wallReveal ?? true
-    if (win.revealable && cameraMode === 'orbit' && revealEnabled) {
+    const st = useStore.getState()
+    const revealEnabled = st.qualityOverrides.wallReveal ?? true
+    const revealMode = st.wallRevealMode ?? 'translucent'
+    const revealScope = st.wallRevealScope ?? 'exterior'
+    const participates = win.revealable || revealScope === 'all'
+    if (participates && cameraMode === 'orbit' && revealEnabled && revealMode !== 'opaque') {
       // 0.3 m probe past the pane centre — the host wall's thickness isn't carried
       // on the window box, but a fixed reach clears the wall into the room.
-      factor = Math.max(
-        0.12,
-        revealFactor(camera, win.cx, win.cz, win.angle, isInterior, 0.3, cx, cz),
+      const f = revealFactor(
+        camera,
+        win.cx,
+        win.cz,
+        win.angle,
+        isInterior,
+        0.3,
+        cx,
+        cz,
+        !win.revealable,
       )
+      factor = revealMode === 'auto-hide' ? f : Math.max(0.15, f)
     }
     const target = base * factor
     mat.opacity += (target - mat.opacity) * 0.18

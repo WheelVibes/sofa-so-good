@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  cameraFacingNormal,
   orientOutward,
   pointInRooms,
   type RoomRect,
@@ -68,6 +69,28 @@ describe('wallRevealFactor', () => {
 
   it('is independent of distance (only the direction matters)', () => {
     expect(wallRevealFactor(2, -3, 2, 0, 0, -1)).toBeCloseTo(wallRevealFactor(2, -30, 2, 0, 0, -1))
+  })
+})
+
+describe('cameraFacingNormal', () => {
+  // Interior partition along X at z=2 (normal ±Z).
+  it('keeps the normal when it already points toward the camera', () => {
+    // Camera south of the wall (z=10): +Z points toward it.
+    expect(cameraFacingNormal(2, 2, 0, 1, 2, 10)).toEqual({ nx: 0, nz: 1 })
+  })
+
+  it('flips the normal to point toward the camera', () => {
+    // Camera north of the wall (z=-10): +Z points away → flip to −Z.
+    expect(cameraFacingNormal(2, 2, 0, 1, 2, -10)).toEqual({ nx: -0, nz: -1 })
+  })
+
+  it('makes a faced partition fade via wallRevealFactor (either side)', () => {
+    // From either side, orienting toward the camera then feeding wallRevealFactor
+    // yields a low factor (fades) when the camera looks at the partition head-on.
+    const south = cameraFacingNormal(2, 2, 0, 1, 2, 9)
+    expect(wallRevealFactor(2, 9, 2, 2, south.nx, south.nz)).toBeCloseTo(0)
+    const north = cameraFacingNormal(2, 2, 0, 1, 2, -9)
+    expect(wallRevealFactor(2, -9, 2, 2, north.nx, north.nz)).toBeCloseTo(0)
   })
 })
 
