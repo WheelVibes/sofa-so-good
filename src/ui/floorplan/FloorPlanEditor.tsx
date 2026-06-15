@@ -28,7 +28,13 @@ import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
 import { isSlopedWall } from '../../floorplan/slopedWall'
 import type { PlanWall } from '../../floorplan/types'
-import { planBounds, planRoomArea, planTotalArea, wallLength } from '../../floorplan/types'
+import {
+  DEFAULT_PLAN_WALL_COLOR,
+  planBounds,
+  planRoomArea,
+  planTotalArea,
+  wallLength,
+} from '../../floorplan/types'
 import {
   arcFromMidpoint,
   isCurvedWall,
@@ -43,7 +49,9 @@ import { itemPrice } from '../../furniture/furniturePrices'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
+import { openDocs } from '../docsUrl'
 import { evictPanoStop } from '../panorama/panoImageIdb'
+import { useIsMobile } from '../useIsMobile'
 import {
   type BackdropMeta,
   persistBackdrop,
@@ -140,6 +148,11 @@ export function FloorPlanEditor() {
   const selectedItemId = useStore((s) => s.selectedItemId)
   const annotations = useStore((s) => s.annotations)
   const { getDef, ref: catalogRef } = useCatalogGetter()
+  // Mobile: the toolbar is too cluttered to fit, so secondary controls + the
+  // plan defaults collapse behind a single "Tools" menu (parity with the
+  // per-room editor's collapsed mobile toolbar).
+  const isMobile = useIsMobile()
+  const [toolsMenuOpen, setToolsMenuOpen] = useState(false)
   const fPanoTour = useFeature('panoTour')
   const fCurvedWalls = useFeature('curvedWalls')
   const fCompass = useFeature('planCompass')
@@ -983,15 +996,40 @@ export function FloorPlanEditor() {
           backdropFilter: 'blur(var(--blur))',
         }}
       >
-        <span className="panel-title">Floor plan</span>
-        <input
-          value={plan.name}
-          onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
-          className="input"
-          style={{ width: 192 }}
-        />
-        <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
-        <div className="seg accent" style={{ marginLeft: 4 }}>
+        {isMobile ? (
+          <button
+            type="button"
+            className={`btn btn-sm${toolsMenuOpen ? ' btn-accent' : ''}`}
+            aria-expanded={toolsMenuOpen}
+            aria-label="Plan tools menu"
+            onClick={() => setToolsMenuOpen((v) => !v)}
+          >
+            ☰ Tools
+          </button>
+        ) : (
+          <span className="panel-title">Floor plan</span>
+        )}
+        {(!isMobile || toolsMenuOpen) && (
+          <input
+            value={plan.name}
+            onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
+            className="input"
+            style={{ width: 192 }}
+            aria-label="Plan name"
+          />
+        )}
+        {(!isMobile || toolsMenuOpen) && (
+          <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
+        )}
+        <div
+          className="seg accent"
+          style={{
+            marginLeft: 4,
+            // The drawing-tool palette stays on the bar; on a phone it scrolls
+            // horizontally rather than overflowing off-screen.
+            ...(isMobile ? { maxWidth: '100%', overflowX: 'auto' } : {}),
+          }}
+        >
           {(
             [
               'select',
@@ -1046,186 +1084,254 @@ export function FloorPlanEditor() {
             ))}
           </div>
         )}
-        <button
-          type="button"
-          onClick={() => {
-            // Fresh apartment: clear the inherited furniture (undoable) so the
-            // new shell starts empty rather than full of the old layout.
-            a.pushHistory()
-            a.setItems([])
-            a.newFloorPlan()
-          }}
-          title="Start a fresh, empty apartment shell"
-          className="btn btn-sm"
-        >
-          New
-        </button>
-        <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
-          Reset to HDB
-        </button>
-        <TemplatePicker />
-        <PlanLibrary />
-
-        {/* Reference photo — trace walls over a floor-plan image / room scan. */}
-        <input
-          ref={fileRef}
-          type="file"
-          accept="image/*"
-          style={{ display: 'none' }}
-          onChange={(e) => {
-            const f = e.target.files?.[0]
-            if (f) loadBackdrop(f)
-            e.target.value = ''
-          }}
-        />
-        {!backdrop ? (
-          <button
-            type="button"
-            onClick={() => fileRef.current?.click()}
-            title="Load a floor-plan photo / scan to trace over"
-            className="btn btn-sm"
-          >
-            Reference photo…
-          </button>
-        ) : (
-          <div className="seg" style={{ alignItems: 'center', gap: 6, paddingRight: 6 }}>
+        {(!isMobile || toolsMenuOpen) && (
+          <>
             <button
               type="button"
-              className={tool === 'scale' ? 'on' : ''}
-              onClick={() => setTool(tool === 'scale' ? 'select' : 'scale')}
-              title="Drag a line over a known dimension, then type its real length"
+              onClick={() => {
+                // Fresh apartment: clear the inherited furniture (undoable) so the
+                // new shell starts empty rather than full of the old layout.
+                a.pushHistory()
+                a.setItems([])
+                a.newFloorPlan()
+              }}
+              title="Start a fresh, empty apartment shell"
+              className="btn btn-sm"
             >
-              Set scale
+              New
             </button>
+            <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
+              Reset to HDB
+            </button>
+            <TemplatePicker />
+            <PlanLibrary />
+
+            {/* Reference photo — trace walls over a floor-plan image / room scan. */}
             <input
-              type="range"
-              min={0}
-              max={1}
-              step={0.05}
-              value={backdrop.opacity}
-              title="Reference opacity"
-              style={{ width: 70 }}
-              onChange={(e) =>
-                setBackdrop((b) => (b ? { ...b, opacity: Number(e.target.value) } : b))
-              }
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              style={{ display: 'none' }}
+              onChange={(e) => {
+                const f = e.target.files?.[0]
+                if (f) loadBackdrop(f)
+                e.target.value = ''
+              }}
             />
-            {aiWalls && (
+            {!backdrop ? (
               <button
                 type="button"
-                onClick={runAiWalls}
-                disabled={aiBusy}
-                title="Experimental: recognise walls from the photo with a vision model (your API key)"
+                onClick={() => fileRef.current?.click()}
+                title="Load a floor-plan photo / scan to trace over"
+                className="btn btn-sm"
               >
-                {aiBusy ? 'Recognising…' : 'AI walls'}
+                Reference photo…
               </button>
+            ) : (
+              <div className="seg" style={{ alignItems: 'center', gap: 6, paddingRight: 6 }}>
+                <button
+                  type="button"
+                  className={tool === 'scale' ? 'on' : ''}
+                  onClick={() => setTool(tool === 'scale' ? 'select' : 'scale')}
+                  title="Drag a line over a known dimension, then type its real length"
+                >
+                  Set scale
+                </button>
+                <input
+                  type="range"
+                  min={0}
+                  max={1}
+                  step={0.05}
+                  value={backdrop.opacity}
+                  title="Reference opacity"
+                  style={{ width: 70 }}
+                  onChange={(e) =>
+                    setBackdrop((b) => (b ? { ...b, opacity: Number(e.target.value) } : b))
+                  }
+                />
+                {aiWalls && (
+                  <button
+                    type="button"
+                    onClick={runAiWalls}
+                    disabled={aiBusy}
+                    title="Experimental: recognise walls from the photo with a vision model (your API key)"
+                  >
+                    {aiBusy ? 'Recognising…' : 'AI walls'}
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={() => {
+                    URL.revokeObjectURL(backdrop.url)
+                    if (backdropUrlRef.current === backdrop.url) backdropUrlRef.current = null
+                    setBackdrop(null)
+                    void removePersistedBackdrop()
+                    if (tool === 'scale') setTool('select')
+                  }}
+                  title="Remove reference photo"
+                >
+                  ✕
+                </button>
+              </div>
             )}
-            <button
-              type="button"
-              onClick={() => {
-                URL.revokeObjectURL(backdrop.url)
-                if (backdropUrlRef.current === backdrop.url) backdropUrlRef.current = null
-                setBackdrop(null)
-                void removePersistedBackdrop()
-                if (tool === 'scale') setTool('select')
-              }}
-              title="Remove reference photo"
-            >
-              ✕
-            </button>
-          </div>
+          </>
         )}
 
-        <div className="ml-auto flex items-center gap-3">
-          {fPlanLabels && (
-            <button
-              type="button"
-              onClick={() => useStore.getState().cyclePlanLabels()}
-              className={`btn btn-sm${labelsOn ? ' btn-accent' : ''}`}
-              title="Cycle furniture labels on the plan: off → name → name + price"
-              aria-pressed={labelsOn}
-            >
-              {PLAN_LABEL_TEXT[planLabels]}
-            </button>
+        <div
+          className={
+            isMobile ? 'flex flex-wrap items-center gap-2' : 'ml-auto flex items-center gap-3'
+          }
+          style={isMobile ? { flexBasis: '100%' } : undefined}
+        >
+          {(!isMobile || toolsMenuOpen) && (
+            <>
+              {fPlanLabels && (
+                <button
+                  type="button"
+                  onClick={() => useStore.getState().cyclePlanLabels()}
+                  className={`btn btn-sm${labelsOn ? ' btn-accent' : ''}`}
+                  title="Cycle furniture labels on the plan: off → name → name + price"
+                  aria-pressed={labelsOn}
+                >
+                  {PLAN_LABEL_TEXT[planLabels]}
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => setShowWallDims((v) => !v)}
+                className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
+                title="Toggle wall-length labels"
+                aria-pressed={showWallDims}
+              >
+                Dims
+              </button>
+              {isMultiLevel && (
+                <button
+                  type="button"
+                  onClick={() => setShowOtherLevels((v) => !v)}
+                  className={`btn btn-sm${showOtherLevels ? ' btn-accent' : ''}`}
+                  title="Show the other storeys' walls as a dimmed underlay (to line up floors)"
+                  aria-pressed={showOtherLevels}
+                >
+                  All levels
+                </button>
+              )}
+              <button
+                type="button"
+                className="btn btn-sm"
+                title="Download the floor plan as a PNG image"
+                onClick={() => {
+                  if (!svgRef.current) return
+                  const safe =
+                    (plan.name || 'floor-plan')
+                      .replace(/[^a-z0-9-_]+/gi, '-')
+                      .replace(/^-+|-+$/g, '') || 'floor-plan'
+                  // Crop to the plan's bounding box + padding (not the whole open
+                  // canvas) so the exported image is just the plan.
+                  const crop = {
+                    x: (GRID_MARGIN - EXPORT_PAD) * PX,
+                    y: (GRID_MARGIN - EXPORT_PAD) * PX,
+                    w: (ew + EXPORT_PAD * 2) * PX,
+                    h: (ed + EXPORT_PAD * 2) * PX,
+                  }
+                  exportPlanPng(svgRef.current, safe, crop).catch(() =>
+                    a.notify.start({ title: "Couldn't export the plan image", kind: 'error' }),
+                  )
+                }}
+              >
+                Export PNG
+              </button>
+              <div className="seg" style={{ alignItems: 'center' }}>
+                <button
+                  type="button"
+                  title="Zoom out"
+                  onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))}
+                >
+                  −
+                </button>
+                <button
+                  type="button"
+                  title="Reset zoom & centre"
+                  onClick={() => {
+                    setZoom(1)
+                    requestAnimationFrame(() => centerPlan(basePX))
+                  }}
+                  style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
+                >
+                  {Math.round(zoom * 100)}%
+                </button>
+                <button
+                  type="button"
+                  title="Zoom in"
+                  onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}
+                >
+                  +
+                </button>
+              </div>
+              <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
+                Total{' '}
+                <b className="mono" style={{ color: 'var(--text)' }}>
+                  {formatArea(total, units)}
+                </b>{' '}
+                · {levelPlan.rooms.length} rooms
+              </span>
+              {isMobile && toolsMenuOpen && (
+                <div
+                  className="flex flex-col gap-2"
+                  style={{
+                    flexBasis: '100%',
+                    borderTop: '1px solid var(--border)',
+                    paddingTop: 'var(--s-2)',
+                    marginTop: 'var(--s-1)',
+                  }}
+                >
+                  <label className="flex items-center justify-between gap-2 text-xs">
+                    <span className="label">Ceiling height (m)</span>
+                    <input
+                      type="number"
+                      step={0.05}
+                      min={2.2}
+                      value={plan.ceilingHeight}
+                      onChange={(e) => {
+                        const v = Number.parseFloat(e.target.value)
+                        if (Number.isFinite(v))
+                          a.updateFloorPlanMeta({ ceilingHeight: Math.min(4, Math.max(2.2, v)) })
+                      }}
+                      className="input mono"
+                      style={{ width: 96, textAlign: 'right' }}
+                    />
+                  </label>
+                  <label className="flex items-center justify-between gap-2 text-xs">
+                    <span className="label">Wall colour</span>
+                    <input
+                      type="color"
+                      aria-label="Wall colour"
+                      value={plan.wallColor ?? DEFAULT_PLAN_WALL_COLOR}
+                      onChange={(e) => a.updateFloorPlanMeta({ wallColor: e.target.value })}
+                      style={{
+                        width: 40,
+                        height: 28,
+                        padding: 0,
+                        border: 'none',
+                        background: 'none',
+                      }}
+                    />
+                  </label>
+                  <button
+                    type="button"
+                    className="btn btn-sm btn-block"
+                    onClick={() => {
+                      setToolsMenuOpen(false)
+                      openDocs()
+                    }}
+                    title="Open the user guide in a new tab"
+                  >
+                    Help — user guide ↗
+                  </button>
+                </div>
+              )}
+            </>
           )}
-          <button
-            type="button"
-            onClick={() => setShowWallDims((v) => !v)}
-            className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
-            title="Toggle wall-length labels"
-            aria-pressed={showWallDims}
-          >
-            Dims
-          </button>
-          {isMultiLevel && (
-            <button
-              type="button"
-              onClick={() => setShowOtherLevels((v) => !v)}
-              className={`btn btn-sm${showOtherLevels ? ' btn-accent' : ''}`}
-              title="Show the other storeys' walls as a dimmed underlay (to line up floors)"
-              aria-pressed={showOtherLevels}
-            >
-              All levels
-            </button>
-          )}
-          <button
-            type="button"
-            className="btn btn-sm"
-            title="Download the floor plan as a PNG image"
-            onClick={() => {
-              if (!svgRef.current) return
-              const safe =
-                (plan.name || 'floor-plan')
-                  .replace(/[^a-z0-9-_]+/gi, '-')
-                  .replace(/^-+|-+$/g, '') || 'floor-plan'
-              // Crop to the plan's bounding box + padding (not the whole open
-              // canvas) so the exported image is just the plan.
-              const crop = {
-                x: (GRID_MARGIN - EXPORT_PAD) * PX,
-                y: (GRID_MARGIN - EXPORT_PAD) * PX,
-                w: (ew + EXPORT_PAD * 2) * PX,
-                h: (ed + EXPORT_PAD * 2) * PX,
-              }
-              exportPlanPng(svgRef.current, safe, crop).catch(() =>
-                a.notify.start({ title: "Couldn't export the plan image", kind: 'error' }),
-              )
-            }}
-          >
-            Export PNG
-          </button>
-          <div className="seg" style={{ alignItems: 'center' }}>
-            <button
-              type="button"
-              title="Zoom out"
-              onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))}
-            >
-              −
-            </button>
-            <button
-              type="button"
-              title="Reset zoom & centre"
-              onClick={() => {
-                setZoom(1)
-                requestAnimationFrame(() => centerPlan(basePX))
-              }}
-              style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
-            >
-              {Math.round(zoom * 100)}%
-            </button>
-            <button
-              type="button"
-              title="Zoom in"
-              onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}
-            >
-              +
-            </button>
-          </div>
-          <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
-            Total{' '}
-            <b className="mono" style={{ color: 'var(--text)' }}>
-              {formatArea(total, units)}
-            </b>{' '}
-            · {levelPlan.rooms.length} rooms
-          </span>
           <button type="button" onClick={exitPlanEditorToScene} className="btn btn-accent btn-sm">
             Done
           </button>

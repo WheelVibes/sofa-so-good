@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: collapse the mobile toolbar behind a Tools menu
+
+- On phones the floor-plan toolbar wrapped into ~5 cluttered rows. It now collapses to a compact
+  bar — a **☰ Tools** button, the drawing-tool palette (horizontally scrollable), and **Done** —
+  with everything else behind the Tools menu: plan name, level tabs, New / Reset / Template /
+  Save / Reference photo, Labels / Dims / All-levels / Export / zoom, the **plan defaults**
+  (ceiling height + wall colour), and a **Help → user guide ↗** link (reuses `openDocs`). Desktop
+  is unchanged (full inline toolbar). Mirrors the per-room editor's collapsed mobile toolbar.
+
 ## Editor UX: fit-to-view on load + plan-inspector minimize
 
 - **Per-room editor** now frames the whole room to the viewport on load: the dollhouse

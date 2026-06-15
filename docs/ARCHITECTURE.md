@@ -137,7 +137,10 @@ same change that reshapes a system.
   + Original assets (restored on exit); reuses every controller on the **same live
   `store.items`**. `roomShell(roomId)` clips shared walls to the footprint; `<RoomShell>`
   hides walls on the camera's outward side. Toolbar = exit + room-switcher `<select>`,
-  Esc exits. **Walk bounded to the room** (`buildRoomCollisionWalls`).
+  Esc exits. **Walk bounded to the room** (`buildRoomCollisionWalls`). On entry the orbit
+  camera **fits the whole room to the viewport** (`OrbitCamera` room branch → aspect-aware
+  `fitDistance`, the same helper as the whole-plan dollhouse), so the room just fills the
+  screen on any aspect ratio.
 - **Design system & theming** (`appearanceSlice`, `appearancePrefs`): 5 themes
   (Clay/Kampong/Porcelain/Estate/Harbour) × light/dark = 10 OKLCH palettes via
   `[data-theme]`+`[data-mode]` (pre-paint inline script, `hdb_appearance`, Auto=OS).
@@ -421,7 +424,13 @@ same change that reshapes a system.
   2D⇄3D** — the binding lives in `controls/planEditorHotkey.ts` (always mounted via App,
   modal-guarded), NOT in the lazy-mounted editor, so it opens from the 3D view too.
   **Reference backdrop** (Scale → `mPerPx`, IDB) + **"AI walls"** (BYO-key).
-  Undoable + persists (`floorPlanStore.ts`).
+  Undoable + persists (`floorPlanStore.ts`). On open the plan is **fit to the measured canvas
+  viewport** (a `ResizeObserver` drives `basePX`, replacing a fixed 940×620 assumption) so it
+  fills any screen without a manual zoom-out. **Mobile:** the toolbar collapses behind a single
+  **☰ Tools** menu (`isMobile`) — only the drawing-tool palette (scrollable) + Done stay on the
+  bar; the menu holds the secondary controls, the plan defaults (ceiling height + wall colour),
+  and a Help → user-guide link (`openDocs`). `PlanInspector` gets a **minimize toggle** in its
+  header (`usePlanInspectorMinimize`), starting minimized whenever an element is selected.
 - **Toolbar** (`ui/toolbar/`): scrollable icon island (`IconButton` + `ToolbarMenu`).
   Menus: **View** (Orbit/Walk + top/reset/turntable + saved views `cameraViewsSlice` with
   per-view note + 360°-slide toggles, Present…, and **Render all views** —
