@@ -73,7 +73,9 @@ same change that reshapes a system.
   per-wall baseboard override (`PlanWall.baseboard` height/colour/hidden → PlanShell skirting;
   `wallBaseboard` flag, custom plans only). Furniture also supports multi-axis tilt (`pitch`/`roll`, `furniture/tiltRotation.ts`,
   `tiltFurniture` flag). 2D editor = `ui/floorplan/`.
-- `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (parametric defs),
+- `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (assembles the catalog from
+  per-category `defs/<category>.ts` modules + the `cabinet/` engine; also derives
+  `BUILTIN_BY_CATEGORY`),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
   `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/`,
@@ -570,7 +572,7 @@ same change that reshapes a system.
 
 ## Adding content
 - **Furniture**: add `primitives/<Name>.tsx` (`{props}`), register in `index.ts` +
-  `PrimitiveKind`, add a `ParametricDef` to `builtinCatalog.ts`. Set `verticalSpan`/
+  `PrimitiveKind`, add a `ParametricDef` to `furniture/defs/<category>.ts`. Set `verticalSpan`/
   `mounted`/`noClip` for non-floor; `lightEmitters.ts` to emit light; `furniture/defaults/`
   to ship in the flat (collision-checked by `defaultLayout.test.ts`). 15 categories
   (`FurnitureCategory`: beds/seating/tables/storage/kitchen/bathroom/appliances/lighting/
