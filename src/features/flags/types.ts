@@ -1,0 +1,101 @@
+/**
+ * Feature-flag type vocabulary — the `FeatureFlag` union (every gateable feature),
+ * the per-flag `FlagDef` shape, and the `FlagOverrides` map. Kept separate from the
+ * registry data (`./registry`) and the resolution logic (`./resolve`) so each stays
+ * small and focused; all three are re-exported from `../featureFlags`.
+ */
+
+export type FeatureFlag =
+  | 'report'
+  | 'walkthrough'
+  | 'sunStudy'
+  | 'measure'
+  | 'budget'
+  | 'clearanceChecks'
+  | 'versions'
+  | 'history'
+  | 'shareExport'
+  | 'floorPlanEditor'
+  | 'smartStart'
+  | 'textBrief'
+  | 'panorama'
+  | 'panoTour'
+  | 'renderPresets'
+  | 'hqRender'
+  | 'vrWalkthrough'
+  | 'savedViews'
+  | 'backdrops'
+  | 'packs'
+  | 'remoteMaterials'
+  | 'modelUpload'
+  | 'aiPhotoreal'
+  | 'aiWalls'
+  | 'ikeaLive'
+  | 'livePrices'
+  | 'drawings'
+  | 'daylight'
+  | 'designScore'
+  | 'accessibility'
+  | 'moodboard'
+  | 'paletteFromPhoto'
+  | 'dxfExport'
+  | 'boq'
+  | 'sceneExport3d'
+  | 'batchRender'
+  | 'shopExport'
+  | 'suggestions'
+  | 'electricalPlan'
+  | 'mountHeights'
+  | 'copyAppearance'
+  | 'userSets'
+  | 'designerPicks'
+  | 'ceilingDesign'
+  | 'presentation'
+  | 'pbrSurfaces'
+  | 'comments'
+  | 'finishDnd'
+  | 'parametricFurniture'
+  | 'kitchenCabinets'
+  | 'renderCompare'
+  | 'crownMolding'
+  | 'windowGlassTint'
+  | 'curtainLightEffect'
+  | 'walkCameraControls'
+  | 'replaceSimilar'
+  | 'customBackdrop'
+  | 'planLabels'
+  | 'plumbingPlan'
+  | 'itemAsLight'
+  | 'aiLayout'
+  | 'planPolyline'
+  | 'tiltFurniture'
+  | 'catalogModelInfo'
+  | 'curvedWalls'
+  | 'slopingWalls'
+  | 'wallBaseboard'
+  | 'wallThickness'
+  | 'unroomedFlag'
+  | 'viewInAr'
+  | 'floorTexture'
+  | 'planCompass'
+  | 'contactShadows'
+
+export interface FlagDef {
+  /** Short human label for the dev flags panel. */
+  label: string
+  /** What the flag gates. */
+  description: string
+  /** Production default when no override applies. */
+  default: boolean
+  /** Forced off in a production build (a dev/QA-only surface). */
+  devOnly?: boolean
+  /**
+   * UI tier: `simple` features are part of the minimal core experience and show
+   * in both Simple and Pro mode; `pro` features are advanced/professional and are
+   * **forced off in Simple mode** (the app's default), keeping the simple UI
+   * uncluttered. Every flag must declare a tier (see CLAUDE.md).
+   */
+  tier: 'simple' | 'pro'
+}
+
+export type FlagOverrides = Partial<Record<FeatureFlag, boolean>>

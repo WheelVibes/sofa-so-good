@@ -5,6 +5,84 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Docs: reframe as an HDB + condo app; concise README
+
+- The product is an interior-design app for Singapore **HDB flats AND condominiums**, not just a
+  4-room HDB sandbox. Reframed the framing across the live docs + metadata — `README.md` title is
+  now **Sofa So Good**, plus `CLAUDE.md`, root `ARCHITECTURE.md`, `docs/ARCHITECTURE.md`,
+  `docs/developer/architecture.md`, the user guide (`docs/user/index.md`, `getting-started.md`,
+  VitePress config), `index.html` (`<title>` + description + OG/Twitter), and
+  `public/manifest.webmanifest`. The move-in default is still a furnished 4-room HDB.
+- Rewrote `README.md` from ~340 verbose lines into a concise, scannable page: a highlights table
+  that links out to the relevant user-guide pages for detail, trimmed dev/commands, and tidy
+  documentation + licensing sections.
+
+## Modularity: split the monolithic files into co-located modules
+
+Broke up the largest files into focused, cohesive modules. Each is a behaviour-preserving
+code-move — the public symbol stays at its original path (re-exporting / re-assembling from the
+new modules) so no import sites changed — verified per split by `tsc` + the full test suite, and
+the UI splits additionally by `scripts/shot.mjs` screenshots.
+
+- `furniture/builtinCatalog.ts` (4,697 → registry) → per-category `furniture/defs/<category>.ts`;
+  rebuilt via a brace-aware split and proved **deep-equal** to the original catalog (99 keys, zero
+  value drift).
+- `furniture/layoutPresets.ts` (1,561) → one file per preset under `furniture/presets/`.
+- `floorplan/templates.ts` (1,123) → `templates/{hdb,condo,shared}.ts`.
+- `features/featureFlags.ts` (761) → `features/flags/{types,registry,resolve}.ts`.
+- `materials/procedural/generators.ts` (1,127) → pattern family files under `procedural/patterns/`
+  over a shared `procedural/fieldKit.ts` (tile size threaded as a param — patterns are now pure).
+- `ui/report.ts` → `report/reportStyles.ts` (print CSS) + `report/reportShared.ts` (palettes/helpers).
+- `ui/inspector/InspectorPanel.tsx` (1,250) → `MultiSelectPanel`, `PosField`, `TiltControls`,
+  `useInspectorMinimize` co-located files.
+- `ui/FinishPicker.tsx` (900) → `ui/finish/swatches.tsx` (swatch grid + sub-components).
+- `ui/toolbar/MobileToolbar.tsx` (1,253) → `toolbar/mobile/parts.tsx` (Item/Section parts).
+- `src/App.tsx` (933) → `ui/app/lazyComponents.tsx` + `ui/app/roomScopedItemIds.ts` (lazy chunks
+  preserved).
+- `ui/floorplan/FloorPlanEditor.tsx` (2,455) → `floorplan/editor/{planConstants,GridLines,PlanLibrary}`.
+
+## Fully offline: self-hosted fonts + decoders + PWA service worker
+
+- The core app now needs **zero runtime network**. Replaced the Google Fonts CDN `@import`
+  (`src/index.css`) with self-hosted `@fontsource` packages (Plus Jakarta Sans + JetBrains Mono)
+  imported in `main.tsx`; family names match the existing `--font-ui`/`--font-mono` tokens.
+- Self-hosted the Draco glTF decoder under `public/draco/` (copied from the installed `three` by
+  `scripts/copy-decoders.mjs`, wired into `predev`/`prebuild`); `gltf/decoders.ts` now defaults
+  `DRACO_DECODER_PATH` to the base-aware `withBase('/draco/')` instead of the gstatic CDN
+  (`VITE_DRACO_DECODER_PATH` override kept). Fixed `decodeGpuTexture`'s bare `/basis/` transcoder
+  path (404s under the prod sub-path) to `withBase('/basis/')`.
+- Added `vite-plugin-pwa` (Workbox `generateSW`): precaches the build (JS/CSS/wasm/woff2 + bundled
+  GLB/texture assets) so the app loads and runs offline after the first visit. `registerType`
+  autoUpdate; keeps the existing `public/manifest.webmanifest` (`manifest:false`);
+  `maximumFileSizeToCacheInBytes` raised to 8 MiB for the three/vendor chunks; CacheFirst runtime
+  caching for optional cross-origin CC0 assets. Build-only (dev SW disabled so it never fights HMR
+  or the dev proxies); opt out with `VITE_DISABLE_PWA=1`. The SW is infrastructure, not a UI
+  surface, so it is intentionally **not** a `FEATURE_FLAGS` entry.
+- Verified with a headless Puppeteer run against `npm run preview`: the built app boots offline
+  (3D canvas renders, fonts present) with **no** requests to `fonts.googleapis.com` or
+  `gstatic.com`.
+
+## Cleanup: remove dead code, consolidate duplicate `formatBytes`, add knip
+
+- Deleted unused components `HelpModal` and `Fixtures` (never imported), removed the never-called
+  `readShadow` from the remote-cache shadow pointer, and dropped the dead `formatMeters` alias.
+- Consolidated the duplicated `formatBytes()` (was copied in `catalog/remote/hooks.ts` and
+  `furniture/modelInfo.ts`) into `utils/measurement.ts`; both call sites now import the shared
+  helper.
+- Added `knip` + `knip.json` + `npm run deadcode` for ongoing unused-file/export detection.
+
+## Docs: drop parallel-agent / git-worktree workflow requirements
+
+- The contributor docs assumed an agent fleet running in parallel git worktrees. That workflow is
+  no longer used, so the **requirement** is gone: removed the "running as one of several parallel
+  agents" test-worker / hardlink-copy block from `CLAUDE.md`, the "parallel worktree subagents"
+  resume note from `TASKS.md`, and the "Parallel worktree agents fight over the dev server" section
+  + parallel-agent asides from `docs/visual-verification-playbook.md`.
+- Simplified the worktree-referencing **comments** in `vite.config.ts`, `vitest.config.ts`, and
+  `scripts/shot.mjs`. The functional safeguards stay unchanged — `resolve.dedupe` (single
+  React/three instance), the `.claude/**` Vitest exclude, and the `shot.mjs` `flock` mutex are all
+  still correct and harmless; only the parallel-agent/worktree wording was trimmed.
+
 ## Floor-plan editor: one-row mobile toolbar (tool dropdown + Tools modal)
 
 - On phones the floor-plan toolbar wrapped into ~5 cluttered rows (the "Auto room" button even

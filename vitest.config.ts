@@ -7,15 +7,13 @@ process.env.TZ = 'Asia/Singapore'
 
 export default defineConfig({
   plugins: [react()],
-  // Prevent duplicate React/three when running in a git worktree where
-  // node_modules may contain a nested node_modules/ sub-tree.
+  // Prevent duplicate React/three when a nested node_modules/ sub-tree is present.
   resolve: { dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'scheduler', 'three'] },
   test: {
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.ts'],
     globals: true,
-    // Never pick up test files inside transient Claude agent worktrees (full
-    // repo copies under .claude/worktrees/) or other vendored dirs.
+    // Never pick up test files under .claude/ or other vendored dirs.
     exclude: ['**/node_modules/**', '**/dist/**', '.claude/**'],
     env: {
       TZ: 'Asia/Singapore',

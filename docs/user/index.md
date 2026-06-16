@@ -2,7 +2,7 @@
 layout: home
 hero:
   name: Sofa So Good
-  text: Design your HDB flat in 3D
+  text: Design your HDB or condo home in 3D
   tagline: Furnish it, finish the walls and floors, light it across the day, and walk through it — right in your browser.
   actions:
     - theme: brand

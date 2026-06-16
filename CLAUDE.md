@@ -1,8 +1,11 @@
-# HDB 3D Interior-Design Sandbox — agent entry point
+# Sofa So Good — agent entry point
 
-A browser 3D sandbox of a Singapore HDB 4-room flat for interior design (furnish,
-finish surfaces, light across the day, walk through). React + TypeScript + Three.js
-(@react-three/fiber), Zustand (sliced store), Vite, Vitest, Biome.
+A browser 3D interior-design app for Singapore homes — **HDB flats and condominiums**
+(furnish, finish surfaces, light across the day, walk through). Ships a library of
+accurate starter plans (HDB 2/3/4/5-room + Executive/3Gen/Jumbo/Maisonette, condo
+studio → penthouse, landed terrace) plus a 2D editor for custom plans; the move-in
+default is a furnished 4-room HDB. React + TypeScript + Three.js (@react-three/fiber),
+Zustand (sliced store), Vite, Vitest, Biome.
 
 > **This file is the entry point — hard rules + conventions only; keep it lean.**
 > It is loaded on *every* turn, so it must stay short: do **not** grow it with system
@@ -55,13 +58,8 @@ finish surfaces, light across the day, walk through). React + TypeScript + Three
 - **Before each commit**: `npm test` + `tsc` + `biome` (pre-commit hook blocks on errors).
   While **iterating**, run targeted tests only (`npx vitest --run <paths near your change>`);
   run the **full suite exactly once, right before the commit** — full-suite runs are ~2 min
-  and dominate iteration time, especially under parallel-agent load.
-  **When running as one of several parallel agents** (sandbox has 4 cores): cap test workers
-  (`npm test -- --run --maxWorkers=2`), never run the full suite and a screenshot/scenario
-  harness at the same time (sequence heavy phases), and seed a fresh worktree's deps with a
-  hardlink copy instead of a reinstall:
-  `cp -al /home/user/sofa-so-good/node_modules <worktree>/node_modules && rm -rf <worktree>/node_modules/.vite`
-  (seconds vs minutes; the `.vite` removal keeps dep-optimizer caches per-worktree).
+  and dominate iteration time. Never run the full suite and a screenshot/scenario harness at the
+  same time (sequence heavy phases).
   Commit/push only when asked; one focused change per commit; log shipped work in `CHANGELOG.md`.
 - **Research against references.** When designing a new feature or judging what good UI/UX
   should look like, consult **[REFERENCES.md](REFERENCES.md)** (competitor/reference apps —

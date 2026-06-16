@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   AiPlanError,
   classifyVisionEndpoint,
@@ -46,7 +46,6 @@ import {
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
-import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { openDocs } from '../docsUrl'
@@ -60,78 +59,24 @@ import {
   removePersistedBackdrop,
   updateBackdropMeta,
 } from './backdropPersist'
+import { GridLines } from './editor/GridLines'
+import { PlanLibrary } from './editor/PlanLibrary'
+import {
+  type Backdrop,
+  CATEGORY_FILL,
+  EXPORT_PAD,
+  FIT_PAD,
+  GRID_MARGIN,
+  MAX_H,
+  MAX_W,
+  type Tool,
+} from './editor/planConstants'
 import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
 import { PLAN_LABEL_TEXT, planLabelLines } from './planLabels'
-import { SaveTemplateModal } from './SaveTemplateModal'
 import { TemplatePicker } from './TemplatePicker'
 
-/** Muted top-down fill per furniture category for the 2D plan layer.
- *  Tokens live in `screens.css` (`--plan-cat-*`) so the plan themes correctly;
- *  `exportPlanPng.ts` PLAN_VARS must list every var used here. */
-const CATEGORY_FILL: Record<FurnitureCategory, string> = {
-  beds: 'var(--plan-cat-beds)',
-  seating: 'var(--plan-cat-seating)',
-  tables: 'var(--plan-cat-tables)',
-  storage: 'var(--plan-cat-storage)',
-  kitchen: 'var(--plan-cat-kitchen)',
-  bathroom: 'var(--plan-cat-bathroom)',
-  appliances: 'var(--plan-cat-appliances)',
-  lighting: 'var(--plan-cat-lighting)',
-  decor: 'var(--plan-cat-decor)',
-  textiles: 'var(--plan-cat-textiles)',
-  outdoor: 'var(--plan-cat-outdoor)',
-  electronics: 'var(--plan-cat-electronics)',
-  kids: 'var(--plan-cat-kids)',
-  laundry: 'var(--plan-cat-laundry)',
-  others: 'var(--plan-cat-others)',
-}
-
-type Tool =
-  | 'select'
-  | 'wall'
-  | 'room'
-  | 'polyroom'
-  | 'autoroom'
-  | 'split'
-  | 'door'
-  | 'window'
-  | 'scale'
-  | 'text'
-  | 'dimension'
-  | 'polyline'
-
-/** A reference photo/scan traced over to draw walls. Session-scoped (the object
- *  URL lives only this session); `mPerPx` is the calibrated real-world scale. */
-interface Backdrop {
-  url: string
-  /** Natural pixel dimensions of the loaded image. */
-  w: number
-  h: number
-  opacity: number
-  /** Metres per image pixel (set via the Scale tool). */
-  mPerPx: number
-  /** World position (m) of the image's top-left corner. */
-  ox: number
-  oz: number
-}
-
-const FIT_PAD = 0.6 // metres of breathing room when fitting the plan to the view
-// Large grid margin around the plan so the canvas reads as an open, pannable
-// grid (Figma-style) rather than a tight box that clips anything drawn outside
-// the current plan bounds. The plan stays centred (equal margin all sides).
-const GRID_MARGIN = 20
-const EXPORT_PAD = 1 // metres of padding around the plan in the exported PNG
-const MAX_W = 940
-const MAX_H = 620
-
-/**
- * 2D top-down Floor Plan Editor. Edits the active `floorPlan` in the store:
- * draw interior/exterior walls, rectangular rooms (auto area), and doors /
- * windows on walls. Coordinates are metres; drawing snaps to the grid size.
- * The 3D apartment renders whatever plan is active here.
- */
 export function FloorPlanEditor() {
   const editing = useStore((s) => s.floorPlanEditing)
   const plan = useStore((s) => s.floorPlan)
@@ -2346,110 +2291,3 @@ export function FloorPlanEditor() {
 }
 
 /** Save / load / delete named apartments (the plan library). */
-function PlanLibrary() {
-  const saved = useStore((s) => s.savedPlans)
-  const plan = useStore((s) => s.floorPlan)
-  const a = useStore.getState()
-  const [saveOpen, setSaveOpen] = useState(false)
-  return (
-    <div className="flex items-center gap-1">
-      <SaveTemplateModal open={saveOpen} onClose={() => setSaveOpen(false)} />
-      <button
-        type="button"
-        onClick={() => setSaveOpen(true)}
-        title="Save this apartment to your library (with its category)"
-        className="btn btn-soft btn-sm"
-      >
-        Save
-      </button>
-      {saved.length > 0 && (
-        <select
-          value=""
-          onChange={(e) => {
-            if (e.target.value) a.loadSavedPlan(e.target.value)
-          }}
-          title="Load a saved apartment"
-          className="input"
-          style={{ width: 'auto' }}
-        >
-          <option value="">Load… ({saved.length})</option>
-          {saved.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      )}
-      {saved.some((p) => p.name === plan.name) && (
-        <button
-          onClick={() => {
-            const m = saved.find((p) => p.name === plan.name)
-            if (m) a.deleteSavedPlan(m.id)
-          }}
-          title="Delete this saved apartment from the library"
-          className="btn btn-danger btn-sm"
-        >
-          Delete
-        </button>
-      )}
-    </div>
-  )
-}
-
-/** Grid lines spanning the whole (margin-padded) canvas, so the plan sits on an
- *  open grid you can draw/pan across — not a tight box around the current
- *  bounds. Memoised: its inputs are stable during a wall drag, so the ~200
- *  lines don't re-render every pointer-move. */
-const GridLines = memo(function GridLines({
-  W,
-  H,
-  PX,
-  gridSize,
-  margin,
-  ew,
-  ed,
-}: {
-  W: number
-  H: number
-  PX: number
-  gridSize: number
-  margin: number
-  ew: number
-  ed: number
-}) {
-  const g = gridSize > 0 ? gridSize : 0.5
-  const lines: React.ReactNode[] = []
-  const x0 = Math.ceil(-margin / g) * g
-  const z0 = Math.ceil(-margin / g) * g
-  for (let x = x0; x <= ew + margin + 1e-6; x += g) {
-    const major = Math.abs(x - Math.round(x)) < 1e-6
-    const px = (x + margin) * PX
-    lines.push(
-      <line
-        key={`vx${x.toFixed(3)}`}
-        x1={px}
-        y1={0}
-        x2={px}
-        y2={H}
-        stroke={major ? 'var(--border-2)' : 'var(--border)'}
-        strokeWidth={major ? 1 : 0.5}
-      />,
-    )
-  }
-  for (let z = z0; z <= ed + margin + 1e-6; z += g) {
-    const major = Math.abs(z - Math.round(z)) < 1e-6
-    const py = (z + margin) * PX
-    lines.push(
-      <line
-        key={`hz${z.toFixed(3)}`}
-        x1={0}
-        y1={py}
-        x2={W}
-        y2={py}
-        stroke={major ? 'var(--border-2)' : 'var(--border)'}
-        strokeWidth={major ? 1 : 0.5}
-      />,
-    )
-  }
-  return <g>{lines}</g>
-})

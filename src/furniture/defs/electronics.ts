@@ -1,0 +1,200 @@
+import type { FurnitureDef } from '../types'
+
+/** electronics furniture definitions. Part of the built-in catalog (see ../builtinCatalog.ts). */
+export const ELECTRONICS_DEFS = {
+  'flatscreen-tv': {
+    kind: 'parametric',
+    id: 'flatscreen-tv',
+    name: 'TV (flatscreen)',
+    keywords: ['television', 'telly', 'flat screen'],
+    category: 'electronics',
+    primitive: 'FlatscreenTV',
+    defaultFootprint: { w: 1.25, d: 0.25, h: 0.85 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: '55',
+        options: [
+          { value: '43', label: '43"' },
+          { value: '55', label: '55"' },
+          { value: '65', label: '65"' },
+          { value: '75', label: '75"' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'mount',
+        label: 'Mount',
+        default: 'stand',
+        options: [
+          { value: 'stand', label: 'On stand' },
+          { value: 'wall', label: 'Wall' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'screen',
+        label: 'Screen',
+        default: 'off',
+        options: [
+          { value: 'off', label: 'Off' },
+          { value: 'on', label: 'On' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'screenContent',
+        label: 'On-screen',
+        default: 'landscape',
+        options: [
+          { value: 'landscape', label: 'Landscape' },
+          { value: 'sunset', label: 'Sunset' },
+          { value: 'abstract', label: 'Abstract' },
+        ],
+      },
+    ],
+  },
+  soundbar: {
+    kind: 'parametric',
+    id: 'soundbar',
+    name: 'Soundbar',
+    category: 'electronics',
+    keywords: ['speaker', 'home theatre', 'home theater', 'audio'],
+    primitive: 'Soundbar',
+    defaultFootprint: { w: 1.0, d: 0.1, h: 0.08 },
+    footprintParams: { w: 'width' },
+    mounted: true,
+    // Sits just below a standard wall TV (whose span starts ~0.9 m) and above
+    // a media console — a slim band so it clears both.
+    verticalSpan: { base: 0.7, top: 0.86 },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'width',
+        label: 'Width',
+        min: 0.6,
+        max: 1.4,
+        step: 0.05,
+        default: 1.0,
+        unit: 'm',
+      },
+      {
+        kind: 'number',
+        key: 'mountHeight',
+        label: 'Mount height',
+        min: 0.5,
+        max: 1.6,
+        step: 0.05,
+        default: 0.78,
+        unit: 'm',
+      },
+      { kind: 'color', key: 'color', label: 'Body', default: '#202024' },
+      {
+        kind: 'enum',
+        key: 'grille',
+        label: 'Grille',
+        default: 'fabric',
+        options: [
+          { value: 'fabric', label: 'Speaker cloth' },
+          { value: 'metal', label: 'Perforated metal' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'sub',
+        label: 'Subwoofer',
+        default: 'none',
+        options: [
+          { value: 'none', label: 'None' },
+          { value: 'wireless', label: 'Wireless sub' },
+        ],
+      },
+    ],
+  },
+  'floor-speaker': {
+    kind: 'parametric',
+    id: 'floor-speaker',
+    name: 'Floor speaker',
+    category: 'electronics',
+    keywords: ['tower speaker', 'hi-fi', 'hifi', 'loudspeaker', 'audio', 'stereo'],
+    primitive: 'FloorSpeaker',
+    defaultFootprint: { w: 0.27, d: 0.35, h: 0.95 },
+    paramSchema: [
+      {
+        kind: 'number',
+        key: 'height',
+        label: 'Height',
+        min: 0.7,
+        max: 1.2,
+        step: 0.05,
+        default: 0.95,
+        unit: 'm',
+      },
+      {
+        kind: 'integer',
+        key: 'drivers',
+        label: 'Woofers',
+        min: 1,
+        max: 3,
+        default: 2,
+      },
+      {
+        kind: 'enum',
+        key: 'finish',
+        label: 'Finish',
+        default: 'matte',
+        options: [
+          { value: 'matte', label: 'Matte' },
+          { value: 'wood', label: 'Wood veneer' },
+        ],
+      },
+      { kind: 'color', key: 'color', label: 'Body', default: '#1d1d20' },
+    ],
+  },
+  monitor: {
+    kind: 'parametric',
+    id: 'monitor',
+    name: 'Monitor',
+    keywords: ['computer monitor', 'display', 'screen'],
+    category: 'electronics',
+    primitive: 'Monitor',
+    defaultFootprint: { w: 0.62, d: 0.2, h: 0.5 },
+    verticalSpan: { base: 0.74, top: 1.25 },
+    paramSchema: [
+      {
+        kind: 'enum',
+        key: 'size',
+        label: 'Size',
+        default: '27',
+        options: [
+          { value: '24', label: '24"' },
+          { value: '27', label: '27"' },
+          { value: '32', label: '32"' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'screen',
+        label: 'Screen',
+        default: 'off',
+        options: [
+          { value: 'off', label: 'Off' },
+          { value: 'on', label: 'On' },
+        ],
+      },
+      {
+        kind: 'enum',
+        key: 'screenContent',
+        label: 'On-screen',
+        default: 'landscape',
+        options: [
+          { value: 'landscape', label: 'Landscape' },
+          { value: 'sunset', label: 'Sunset' },
+          { value: 'abstract', label: 'Abstract' },
+        ],
+      },
+    ],
+  },
+} satisfies Record<string, FurnitureDef>

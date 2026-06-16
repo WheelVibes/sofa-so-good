@@ -1,7 +1,7 @@
 {
-  "name": "Sofa So Good — 3D HDB Interior Designer",
+  "name": "Sofa So Good — 3D Interior Designer for HDBs & Condos",
   "short_name": "Sofa So Good",
-  "description": "A realistic, interactive 3D Singapore HDB apartment interior-design sandbox — furnish it, finish surfaces, light it across the day, and walk through it.",
+  "description": "A realistic, interactive 3D interior-design app for Singapore homes — HDB flats and condominiums. Furnish them, finish surfaces, light them across the day, and walk through the result.",
   "start_url": ".",
   "scope": ".",
   "display": "standalone",

@@ -42,9 +42,12 @@ export function formatDims(width: number, depth: number, units: UnitSystem = 'me
   return `${width.toFixed(2)} × ${depth.toFixed(2)} m`
 }
 
-/** A length displayed as metres regardless of unit preference (back-compat). */
-export function formatMeters(metres: number): string {
-  return formatLength(metres, 'metric')
+/** Human-readable byte size (B / KB / MB), e.g. "12 MB" / "840 KB". Shared by the
+ *  remote-catalog cards and the model-info tooltip. */
+export function formatBytes(bytes: number): string {
+  if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`
+  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`
+  return `${bytes} B`
 }
 
 /** Compact small-object dimensions (furniture footprints): centimetres in

@@ -115,13 +115,6 @@ export function useAssetSize(
   return size
 }
 
-/** Human-readable byte size, e.g. "12 MB" / "840 KB". */
-export function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${bytes} B`
-}
-
 export function useResolveStatus(key: string): 'idle' | 'fetching' | 'ready' | 'error' {
   return useStore((s) => {
     if (s.resolvedRemoteFurniture[key] || s.resolvedRemoteMaterials[key]) return 'ready'

@@ -1,18 +1,68 @@
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vite'
+import { VitePWA } from 'vite-plugin-pwa'
 
 // Dev-only proxies for CC0 asset providers that don't ship CORS headers.
 // Production deployments need an equivalent proxy (Cloudflare Worker etc.) —
 // see TODO.md "Runtime CC0 Catalog: production proxy".
+
+// The service worker precaches the build so the core app runs fully offline after
+// the first load. It is a build/runtime concern (no UI surface), so it isn't a
+// FEATURE_FLAGS entry — set VITE_DISABLE_PWA=1 to opt out of generating/registering it.
+const pwaEnabled = process.env.VITE_DISABLE_PWA !== '1'
+
 export default defineConfig(({ command }) => ({
   // GitHub Pages serves this project site under /sofa-so-good/. Only apply the
   // sub-path for production builds; the dev server stays at root.
   base: command === 'build' ? '/sofa-so-good/' : '/',
-  plugins: [react()],
+  plugins: [
+    react(),
+    ...(pwaEnabled
+      ? [
+          VitePWA({
+            registerType: 'autoUpdate',
+            injectRegister: 'auto',
+            // Keep the existing public/manifest.webmanifest (linked from index.html)
+            // as the single source of truth — only generate the service worker.
+            manifest: false,
+            // A live SW fights Vite HMR and the dev proxies, so keep it build-only;
+            // verify offline behaviour against `npm run preview`.
+            devOptions: { enabled: false },
+            workbox: {
+              // Precache the build: the heavy three/vendor/react JS chunks, CSS,
+              // the self-hosted fonts (woff2) + draco/basis decoders (wasm), and the
+              // bundled GLB/texture assets — everything the core app needs offline.
+              globPatterns: [
+                '**/*.{js,css,html,svg,wasm,woff2,json,webmanifest}',
+                'assets/**/*.{glb,jpg,jpeg,png,ktx2}',
+              ],
+              // The `three` and `vendor` chunks exceed Workbox's 2 MiB default cap;
+              // raise it so they precache and the app boots with no network.
+              maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
+              cleanupOutdatedCaches: true,
+              runtimeCaching: [
+                {
+                  // Remote CC0 catalog assets (Poly Haven / ambientCG / Kenney) are
+                  // optional and cross-origin; cache what's been fetched so repeat
+                  // browsing works offline. statuses:[0,200] allows opaque responses.
+                  urlPattern: /^https?:\/\/.*\.(?:png|jpg|jpeg|webp|glb|hdr|exr|ktx2)$/i,
+                  handler: 'CacheFirst',
+                  options: {
+                    cacheName: 'remote-cc0-assets',
+                    cacheableResponse: { statuses: [0, 200] },
+                    expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                  },
+                },
+              ],
+            },
+          }),
+        ]
+      : []),
+  ],
   // Force a single three.js instance — stats-gl (via drei) otherwise pulls a
   // second, older three, bloating the bundle and breaking instanceof checks.
   // Also dedupe react/react-dom to avoid "Invalid hook call" from duplicate React
-  // instances that can arise when running from a worktree with nested node_modules.
+  // instances that can arise with a nested node_modules tree.
   resolve: { dedupe: ['three', 'react', 'react-dom', 'react/jsx-runtime', 'scheduler'] },
   build: {
     // Split heavy, rarely-changing dependencies into their own long-lived

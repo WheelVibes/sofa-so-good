@@ -3,7 +3,8 @@
 Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
 
 - **New parametric item** = `primitives/<Name>.tsx` (a fn taking `{ props }`) + register in
-  `primitives/index.ts` + the `PrimitiveKind` union + a `ParametricDef` in `builtinCatalog.ts`.
+  `primitives/index.ts` + the `PrimitiveKind` union + a `ParametricDef` in the matching
+  `defs/<category>.ts` (assembled into `BUILTIN_CATALOG` by `builtinCatalog.ts`).
   Set `verticalSpan`/`mounted`/`noClip` for non-floor items; `lightEmitters.ts` to emit light
   at night; add to `defaults/` to ship in the move-in flat (collision-checked by
   `defaultLayout.test.ts`).

@@ -60,6 +60,7 @@ import {
   WebGLRenderer,
   WebGLRenderTarget,
 } from 'three'
+import { withBase } from '../../utils/assetUrl'
 import type { DecodedImage } from './decodeImage'
 
 // ─── Shared readback helper ───────────────────────────────────────────────────
@@ -209,9 +210,10 @@ export async function decodeKtx2(buffer: ArrayBuffer): Promise<DecodedImage> {
   try {
     const { KTX2Loader } = await import('three/examples/jsm/loaders/KTX2Loader.js')
     const loader = new KTX2Loader()
-    // Basis transcoder is served from /basis/ (copied to public/basis/ at
-    // build/dev time). Falls back to the drei CDN if the local path is empty.
-    loader.setTranscoderPath('/basis/')
+    // Basis transcoder is self-hosted under public/basis/. Resolve against Vite's
+    // `base` so it works in dev (/basis/) and under the prod sub-path
+    // (/sofa-so-good/basis/) — a bare '/basis/' 404s on GitHub Pages.
+    loader.setTranscoderPath(withBase('/basis/'))
     loader.detectSupport(renderer)
 
     // Wrap the callback-based parse() in a Promise

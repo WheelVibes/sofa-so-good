@@ -1,6 +1,5 @@
-/* Fonts must be the very first thing the browser sees. */
-@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
-
+/* Fonts (Plus Jakarta Sans + JetBrains Mono) are self-hosted via @fontsource and
+ * imported in src/main.tsx — no Google Fonts CDN at runtime. */
 @import 'tailwindcss';
 
 /* ── HDB Sandbox design system ──────────────────────────────────────────

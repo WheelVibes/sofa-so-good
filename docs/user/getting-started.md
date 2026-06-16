@@ -1,15 +1,17 @@
 # Quick start
 
-Sofa So Good is a browser sandbox of an accurate Singapore HDB 4‑room flat. You
-furnish it, finish the walls and floors, light it across the day, and walk
-through it — nothing to install, nothing to upload.
+Sofa So Good is a browser interior-design app for Singapore homes — HDB flats and
+condominiums. Pick a starter plan (HDB 2/3/4/5-room, Executive, condo, landed
+terrace…) or draw your own, then furnish it, finish the walls and floors, light it
+across the day, and walk through it — nothing to install, nothing to upload.
 
-![Sofa So Good — the furnished HDB flat in 3D](/screenshots/app-overview.png)
+![Sofa So Good — a furnished home in 3D](/screenshots/app-overview.png)
 
 ## First run
 
-The flat opens **already furnished** with a move‑in‑ready layout, so you can
-start rearranging immediately. On the very first visit you'll see:
+The app opens with a **move‑in‑ready 4‑room HDB**, already furnished, so you can
+start rearranging immediately (switch to another HDB/condo plan any time from the
+floor-plan editor). On the very first visit you'll see:
 
 - A short **onboarding** carousel introducing the three things you can do —
   furnish, refinish, and walk through. Its last step asks where you'd like to

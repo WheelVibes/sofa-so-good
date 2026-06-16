@@ -1,0 +1,54 @@
+import type { LayoutPreset } from './types'
+
+export const japandi: LayoutPreset = {
+  id: 'japandi',
+  name: 'Japandi',
+  description: 'Oak + warm white, low-contrast natural calm with black accents.',
+  dryFloor: 'floor-wood-oak',
+  wall: 'wall-paint-warm',
+  style: {
+    'sofa-3seat': {
+      color: '#b8ab97',
+      material: 'fabric',
+      pattern: 'plain',
+      pillowColor: '#3a3a36',
+    },
+    armchair: { color: '#a89880', material: 'fabric', style: 'standard' },
+    'dining-chair': { style: 'wood', seatColor: '#b8956a', finish: 'wood' },
+    rug: { color: '#cfc6b4', borderColor: '#3a3a36', pattern: 'plain' },
+    'coffee-table': { color: '#7a5f42', finish: 'wood', shape: 'round' },
+    'side-table': { topColor: '#7a5f42', finish: 'wood' },
+    'dining-table-4': { topColor: '#a8855a', legColor: '#3a3026' },
+    'bed-queen': {
+      frameColor: '#a8855a',
+      beddingColor: '#e0d8c8',
+      headboardStyle: 'paneled',
+      pillowColor: '#cfc6b4',
+    },
+    'bed-single': { frameColor: '#a8855a', beddingColor: '#e0d8c8', headboardStyle: 'paneled' },
+    'bed-double': { frameColor: '#a8855a', beddingColor: '#e0d8c8', headboardStyle: 'paneled' },
+    nightstand: { color: '#a8855a' },
+    dresser: { color: '#a8855a', handle: 'recessed' },
+    bookshelf: { color: '#a8855a' },
+    desk: { color: '#a8855a', legStyle: 'legs' },
+    'tv-console': { color: '#3a3026', base: 'legs' },
+    'wardrobe-3door': { color: '#cdbfa6', doorStyle: 'sliding' },
+    curtains: { color: '#e0d8c8' },
+  },
+  extraItems: [
+    {
+      id: 'japandi-feature',
+      defId: 'feature-wall',
+      position: [12.53, 2.45],
+      rotation: -Math.PI / 2,
+      props: { width: 3.0, height: 2.55, style: 'fluted', color: '#a8855a', finish: 'wood' },
+    },
+    {
+      id: 'japandi-bench',
+      defId: 'bench',
+      position: [1.05, 2.55],
+      rotation: 0,
+      props: { style: 'upholstered', material: 'fabric', color: '#cdb696', legColor: '#3a3026' },
+    },
+  ],
+}

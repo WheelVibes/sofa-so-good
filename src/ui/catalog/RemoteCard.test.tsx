@@ -3,8 +3,9 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RemoteEntry } from '../../catalog/remote/types'
 import { useStore } from '../../state/store'
 
-// Mock the network/IDB-backed hooks; keep formatBytes real so we assert the
-// actual formatted string. useAssetSize is what this feature adds.
+// Mock the network/IDB-backed hooks. formatBytes lives in utils/measurement (not
+// mocked here) so the rendered card shows the real formatted string. useAssetSize
+// is what this feature adds.
 const sizeRef = { current: undefined as number | null | undefined }
 vi.mock('../../catalog/remote/hooks', async (orig) => {
   const real = (await orig()) as Record<string, unknown>

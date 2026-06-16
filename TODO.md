@@ -2,13 +2,16 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+
 ## Render fidelity + GLTF hardening (2026-05-31)
 Milestone 1 of the IKEA-grade fidelity program. Spec:
 [docs/superpowers/specs/2026-05-30-render-fidelity-gltf-hardening-design.md](docs/superpowers/specs/2026-05-30-render-fidelity-gltf-hardening-design.md);
 plan: [docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md](docs/superpowers/plans/2026-05-30-render-fidelity-gltf-hardening.md).
 
-- Follow-ups: verify the runtime Draco CDN fetch behind the prod reverse-proxy
-  / CSP.
+- ~~Follow-ups: verify the runtime Draco CDN fetch behind the prod reverse-proxy
+  / CSP.~~ **Done** — the Draco decoder is now self-hosted under `public/draco/`
+  (`scripts/copy-decoders.mjs`, base-aware `withBase('/draco/')`), so there is no
+  runtime CDN fetch to proxy. See the offline/PWA work below.
 
 **Next milestone — slot-based product configurator** (mattress-on-frame,
 modular sofa): base + named slots with anchor points, swappable compatible

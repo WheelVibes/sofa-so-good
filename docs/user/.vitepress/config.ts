@@ -4,7 +4,7 @@ import { defineConfig } from 'vitepress'
 // https://<pages-host>/sofa-so-good/docs/. base MUST match that sub-path.
 export default defineConfig({
   title: 'Sofa So Good',
-  description: 'User guide — furnish, finish, and walk through your HDB flat in 3D.',
+  description: 'User guide — furnish, finish, and walk through your HDB or condo home in 3D.',
   base: '/sofa-so-good/docs/',
   // Written relative to the VitePress root (docs/user). Lands in the repo's
   // dist/docs so `build:all` deploys it alongside the app. VitePress only

@@ -10,7 +10,9 @@ same change that reshapes a system.
 
 ## Commands (full)
 - `npm run dev` (localhost:5173; store on `window.__store`); `npm test`/`test:watch`;
-  `npm run build` (= `tsc` + Vite prod build).
+  `npm run build` (= `tsc` + Vite prod build). `predev`/`prebuild` run `copy-decoders`
+  (self-hosts the Draco decoder into `public/draco/`); `npm run copy-decoders` runs it manually.
+- `npm run deadcode` — **knip** (unused files/exports/deps report; `knip.json`).
 - `npm run check`/`check:fix` — **Biome** (format+lint; 2-space/100-col/single-quote/
   no-semicolons/trailing-commas). CI blocks on format+`tsc`+lint; **pre-commit hook**
   (`.githooks/`, auto-installed by `prepare`) runs `biome check --staged` (bypass
@@ -54,7 +56,8 @@ same change that reshapes a system.
   when a room's `ceiling` config is set (`ceilingDesign` flag).
 - `src/floorplan/` — editable plan model: `types.ts` (FloorPlan + area/bounds/polygon
   helpers), `defaultPlan.ts`, `planGeometry.ts` (→ wall boxes + collision walls;
-  `isDefaultPlan`), `templates.ts` (19 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo +
+  `isDefaultPlan`), `templates.ts` (the registry — builders in `templates/{hdb,condo,shared}.ts`;
+  19 starter `PLAN_TEMPLATES`: HDB 2/3/4/5-room + Exec/3Gen/Jumbo +
   two-storey Executive Maisonette, condo studio/1-bed/1+study/2/3/4-bed/penthouse, two-storey
   terrace + mezzanine loft (real `upperLevels`, ML6a) — `docs/research/{hdb,condo}-floor-plans.md`;
   each carries a `category` {housingType › projectName › apartmentType} and `templateCategoryTree`
@@ -70,7 +73,9 @@ same change that reshapes a system.
   per-wall baseboard override (`PlanWall.baseboard` height/colour/hidden → PlanShell skirting;
   `wallBaseboard` flag, custom plans only). Furniture also supports multi-axis tilt (`pitch`/`roll`, `furniture/tiltRotation.ts`,
   `tiltFurniture` flag). 2D editor = `ui/floorplan/`.
-- `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (parametric defs),
+- `src/furniture/` — catalog + rendering. `builtinCatalog.ts` (assembles the catalog from
+  per-category `defs/<category>.ts` modules + the `cabinet/` engine; also derives
+  `BUILTIN_BY_CATEGORY`),
   `catalog.ts` (merges built-ins+packs+user/IKEA; `useCatalogGetter` = stable
   non-rendering accessor), `primitives/` (components registered in `index.ts` +
   `PrimitiveKind`), `GltfModel.tsx`/`gltfRender.ts` (all GLB items), `defaults/`,
@@ -216,8 +221,9 @@ same change that reshapes a system.
   for uploads, whose in-browser-generated tiers live in IDB as blob URLs — registered at
   persist + rehydration); `textureBudget.ts` = last-resort downscale. `--ktx2`
   emits Basis-Universal (needs `toktx`, else WebP).
-- **Procedural materials**: `procedural/generators.ts` paints one tiling tile per finish
-  from seeded noise; world-space UVs tile at fixed physical scale. `PATTERN_SIZE_CAP` declares
+- **Procedural materials**: `procedural/patterns/<family>.ts` paint one tiling tile per finish
+  from seeded noise (over the shared `procedural/fieldKit.ts` buffers); `procedural/generators.ts`
+  owns size/caps + the `PATTERN_FN` dispatch + canvas→texture. World-space UVs tile at fixed scale. `PATTERN_SIZE_CAP` declares
   the max useful resolution per pattern (smooth patterns cap at 256²; high-frequency geometric
   patterns cap at 512²); `effectivePatternSize(pattern)` clamps to `min(BASE_SIZE, cap)` so
   smooth patterns stay at 256 even on Medium+ tiers — saving GPU memory with no visible loss.
@@ -551,13 +557,22 @@ same change that reshapes a system.
   `LocalAdminProvider`, `VITE_ADMIN_PASSWORD`) unlocks dev-only features — **NOT a security
   boundary**.
 - **Loading + fast boot** (`ui/loading/`, `storage/bootstrap.ts`, `bootPhase`/`loading`):
-  `main.tsx` registers decoders then renders immediately; async `runBootstrap()` (IDB +
-  autosave restore + default seed *after* hydration) flips `bootPhase`→`'ready'`.
-  `LoadingOverlay` covers boot + orbit↔walk + room enter/exit.
+  `main.tsx` imports the self-hosted fonts, registers decoders, then renders immediately; async
+  `runBootstrap()` (IDB + autosave restore + default seed *after* hydration) flips
+  `bootPhase`→`'ready'`. `LoadingOverlay` covers boot + orbit↔walk + room enter/exit.
+- **Fully offline / PWA**: the core app needs **no runtime network**. Fonts (Plus Jakarta Sans +
+  JetBrains Mono) are self-hosted via `@fontsource` (imported in `main.tsx`, no Google Fonts CDN);
+  the Draco decoder is self-hosted under `public/draco/` (copied from the installed `three` by
+  `scripts/copy-decoders.mjs`, wired into `predev`/`prebuild`) and `gltf/decoders.ts` defaults to
+  the base-aware `withBase('/draco/')` (override `VITE_DRACO_DECODER_PATH`); the Basis transcoder
+  is `public/basis/` via `withBase('/basis/')`. A `vite-plugin-pwa` Workbox service worker
+  (`vite.config.ts`) precaches the build so the app loads and runs offline after the first visit
+  (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`). Optional network-bound
+  features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline.
 
 ## Adding content
 - **Furniture**: add `primitives/<Name>.tsx` (`{props}`), register in `index.ts` +
-  `PrimitiveKind`, add a `ParametricDef` to `builtinCatalog.ts`. Set `verticalSpan`/
+  `PrimitiveKind`, add a `ParametricDef` to `furniture/defs/<category>.ts`. Set `verticalSpan`/
   `mounted`/`noClip` for non-floor; `lightEmitters.ts` to emit light; `furniture/defaults/`
   to ship in the flat (collision-checked by `defaultLayout.test.ts`). 15 categories
   (`FurnitureCategory`: beds/seating/tables/storage/kitchen/bathroom/appliances/lighting/
@@ -565,7 +580,7 @@ same change that reshapes a system.
   update the union, `FURNITURE_CATEGORIES`, every exhaustive `Record<FurnitureCategory,…>`
   consumer, + `CategoryTabs`/`CategoryIcon`. Category auto-detected for imports.
 - **Finish**: add to `materials/builtinCatalog.ts` (`procedural` w/ a pattern, or
-  `solid`); new patterns in `procedural/generators.ts`.
+  `solid`); new pattern painters in `procedural/patterns/<family>.ts`, wired into `PATTERN_FN`.
 - **GLB models**: bundled + user uploads go through `GltfModel`; set collision flags;
   run `optimize:glb`. **Bundled pipeline** (`scripts/asset-pipeline/`): drop `<name>.glb`
   (+ optional `.glb.json` sidecar) into `public/assets/furniture/`, `npm run index-assets`

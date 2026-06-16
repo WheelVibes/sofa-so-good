@@ -27,13 +27,16 @@ describe('registerGltfDecoders', () => {
     setDecoderPath.mockClear()
   })
 
-  it('wires the Draco decoder path on the shared useGLTF loader', async () => {
+  it('wires a self-hosted (non-CDN) Draco decoder path on the shared useGLTF loader', async () => {
     const { registerGltfDecoders } = await freshModule()
     const report = registerGltfDecoders()
 
     // Draco: the one real global registration hook drei 9.122 exposes.
     expect(setDecoderPath).toHaveBeenCalledTimes(1)
-    expect(setDecoderPath).toHaveBeenCalledWith(expect.stringContaining('draco'))
+    const path = setDecoderPath.mock.calls[0][0] as string
+    // Offline-first: defaults to the base-aware local /draco/ path, never a CDN.
+    expect(path).toMatch(/\/draco\/$/)
+    expect(path).not.toMatch(/^https?:/)
     expect(report.draco).toBe(true)
   })
 

@@ -1,0 +1,28 @@
+import type { LayoutPreset } from './types'
+
+export const warmIndustrial: LayoutPreset = {
+  id: 'warm-industrial',
+  name: 'Warm Industrial',
+  description: 'Charcoal tile, greige walls, leather and dark timber.',
+  dryFloor: 'floor-tile-charcoal',
+  wall: 'wall-paint-greige',
+  style: {
+    'sofa-3seat': { color: '#6b4a3a', material: 'leather', sheen: 0.4, pillowColor: '#3a352c' },
+    armchair: { color: '#5a3f33', material: 'leather', style: 'tub', sheen: 0.4 },
+    'dining-chair': { style: 'wood', seatColor: '#3a2c1d', finish: 'wood' },
+    rug: { color: '#7a6f60', borderColor: '#3a352c', pattern: 'herringbone' },
+    'coffee-table': { color: '#3a2c1d', finish: 'wood' },
+    'side-table': { topColor: '#3a2c1d', shape: 'drum', finish: 'wood' },
+    'dining-table-4': { topColor: '#4a3420', legColor: '#2c2118' },
+    'bed-queen': { frameColor: '#3a2c1d', beddingColor: '#8a7f70', headboardStyle: 'paneled' },
+    'bed-single': { frameColor: '#3a2c1d', beddingColor: '#8a7f70', headboardStyle: 'paneled' },
+    'bed-double': { frameColor: '#3a2c1d', beddingColor: '#8a7f70', headboardStyle: 'paneled' },
+    nightstand: { color: '#3a2c1d' },
+    dresser: { color: '#3a2c1d', handle: 'bar' },
+    bookshelf: { color: '#3a2c1d' },
+    desk: { color: '#3a2c1d', legStyle: 'hairpin' },
+    'tv-console': { color: '#3a2c1d', base: 'legs' },
+    'wardrobe-3door': { color: '#4a4038', doorStyle: 'sliding' },
+    curtains: { color: '#6a6258' },
+  },
+}

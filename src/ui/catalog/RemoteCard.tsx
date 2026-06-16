@@ -1,13 +1,9 @@
 import { useEffect, useRef, useState } from 'react'
-import {
-  formatBytes,
-  useAssetSize,
-  useResolveStatus,
-  useThumbnail,
-} from '../../catalog/remote/hooks'
+import { useAssetSize, useResolveStatus, useThumbnail } from '../../catalog/remote/hooks'
 import type { RemoteEntry } from '../../catalog/remote/types'
 import type { FurnitureCategory } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { formatBytes } from '../../utils/measurement'
 import { Icon } from '../toolbar/icons'
 import { CategoryIcon } from './CategoryIcon'
 
