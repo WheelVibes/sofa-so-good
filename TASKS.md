@@ -24,9 +24,8 @@ viewport-responsive with desktop **and** mobile/touch parity; licensed/non-redis
 visually verify any app (non-docs/test) change via `scripts/shot.mjs` and review the pixels.
 
 **How to resume after a context clear:** read this file + `CHANGELOG.md` (newest first — everything
-shipped is recorded there), then pick the next item (highest priority first). Use parallel worktree
-subagents for independent slices (each runs its OWN dev server on a unique port ≥5208, never
-`pkill -f vite`); cherry-pick their commits, re-run gates, push.
+shipped is recorded there), then pick the next item (highest priority first). Work one item at a
+time: make the change, re-run the gates (`npm test` + `tsc` + `biome`), and push.
 
 **Prioritization:** (1) correctness/security → (2) reliability/edge-cases + mobile parity →
 (3) performance/memory → (4) realism + high-value features → (5) QOL/aesthetic polish.

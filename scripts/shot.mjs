@@ -104,11 +104,11 @@ if (!legacyMode) {
 // ──────────────────────────────────────────────────────────────────────────────
 
 // Machine-wide harness mutex: SwiftShader Chromium instances are the heaviest
-// processes in this sandbox (1–2 GB each); concurrent runs from parallel agents
-// have coincided with container-level restarts that silently kill every running
-// agent. Serialize ALL shot.mjs invocations by re-exec'ing under `flock` — the
-// kernel releases the lock when the holder dies, so no stale-lock handling is
-// needed. Waits up to 15 min for the lock, then fails loudly.
+// processes in this sandbox (1–2 GB each); concurrent runs have coincided with
+// container-level restarts that silently kill the running process. Serialize ALL
+// shot.mjs invocations by re-exec'ing under `flock` — the kernel releases the lock
+// when the holder dies, so no stale-lock handling is needed. Waits up to 15 min
+// for the lock, then fails loudly.
 if (!process.env.SHOT_HARNESS_LOCKED) {
   const { spawnSync } = await import('node:child_process')
   const t0 = Date.now()
@@ -188,12 +188,10 @@ page.on('pageerror', (e) => logs.push(`[pageerror] ${e.message}`))
 // Navigate to the app
 // ──────────────────────────────────────────────────────────────────────────────
 
-// SHOT_URL overrides the target (e.g. a parallel worktree's dev server on
-// another port); SHOT_NAV_TIMEOUT (ms) extends the load timeout when the
-// machine is busy (cold Vite transforms under parallel jobs easily pass 60 s).
-// Precedence: SHOT_URL env > scenario url > default — scenarios written in one
-// worktree hardcode that worktree's port, so the runner's env must win or the
-// scenario is not portable across servers.
+// SHOT_URL overrides the target (e.g. a dev server on another port);
+// SHOT_NAV_TIMEOUT (ms) extends the load timeout when the machine is busy (cold
+// Vite transforms easily pass 60 s). Precedence: SHOT_URL env > scenario url >
+// default — so a scenario that hardcodes a port stays portable across servers.
 const url = process.env.SHOT_URL ?? scenario?.url ?? 'http://localhost:5173/'
 const navTimeout = Number(process.env.SHOT_NAV_TIMEOUT || 60000)
 try {

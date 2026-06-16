@@ -33,9 +33,9 @@ kept in `scripts/scenarios/`.
 
 **Harness runs are serialized machine-wide.** `shot.mjs` re-execs itself under
 `flock` (`/tmp/sofa-shot-harness.lock`) because concurrent SwiftShader Chromiums
-(1–2 GB each) have coincided with container restarts that silently kill every
-running agent. A second invocation queues (up to 15 min) until the first
-finishes — expect that delay under parallel-agent load; it is not a hang.
+(1–2 GB each) have coincided with container restarts that silently kill the
+running process. A second invocation queues (up to 15 min) until the first
+finishes — that delay is expected, not a hang.
 
 **Scenario mode** is the primary way to drive complex, multi-step user journeys
 headlessly. It runs an ordered list of named steps in a single browser session
@@ -300,11 +300,9 @@ anything that requires multiple screenshots or interaction steps, use scenario m
   `waitMs` ≥ 8000 for anything that loads a GLB.
 - Env: `SHOT_VIEWPORT="W,H"` (responsive breakpoints), `SHOT_TOUCH=1` (emulate a
   touch device — coarse pointer + `hasTouch`), `SHOT_INIT_LS='{…}'` (seed
-  localStorage, e.g. `hdb_onboarded`), `SHOT_URL` (target another port — parallel
-  agents must run their **own** server on a free port, e.g.
-  `npm run dev -- --port 5199 --strictPort`, and never `pkill -f vite`),
-  `SHOT_NAV_TIMEOUT` ms (cold Vite transforms under parallel jobs easily blow
-  the default 60 s `goto`).
+  localStorage, e.g. `hdb_onboarded`), `SHOT_URL` (target a dev server on another
+  port, e.g. `npm run dev -- --port 5199 --strictPort`), `SHOT_NAV_TIMEOUT` ms
+  (cold Vite transforms can blow the default 60 s `goto`).
 - A dev server with a live HMR socket may never reach `networkidle2`; the harness
   catches the goto timeout and continues (the page has committed — `waitMs` covers
   boot), logging a `[harness] goto…` line. Treat that line as informational.
@@ -477,10 +475,8 @@ that depends on it. Polling is more robust; log only the final state.
 In **scenario mode**: use `{"waitFor": {"store": "!!window.__myCache"}}` or a
 `wait` step with a generous delay.
 
-### Parallel worktree agents fight over the dev server
-Subagent worktrees live under `.claude/worktrees/` INSIDE the repo: their dev
-servers take 5173/5174 first, and their builds/file churn spam your Vite watcher
-(page reloads, dropped connections). Run your own server on a fixed port
+### Pointing the harness at a non-default dev server
+If the default port (5173) is taken, run your server on a fixed port
 (`npm run dev -- --port 5199 --strictPort`) and point the harness at it with
 `SHOT_URL=http://localhost:5199/`.
 

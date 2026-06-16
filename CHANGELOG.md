@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Docs: drop parallel-agent / git-worktree workflow requirements
+
+- The contributor docs assumed an agent fleet running in parallel git worktrees. That workflow is
+  no longer used, so the **requirement** is gone: removed the "running as one of several parallel
+  agents" test-worker / hardlink-copy block from `CLAUDE.md`, the "parallel worktree subagents"
+  resume note from `TASKS.md`, and the "Parallel worktree agents fight over the dev server" section
+  + parallel-agent asides from `docs/visual-verification-playbook.md`.
+- Simplified the worktree-referencing **comments** in `vite.config.ts`, `vitest.config.ts`, and
+  `scripts/shot.mjs`. The functional safeguards stay unchanged — `resolve.dedupe` (single
+  React/three instance), the `.claude/**` Vitest exclude, and the `shot.mjs` `flock` mutex are all
+  still correct and harmless; only the parallel-agent/worktree wording was trimmed.
+
 ## Floor-plan editor: one-row mobile toolbar (tool dropdown + Tools modal)
 
 - On phones the floor-plan toolbar wrapped into ~5 cluttered rows (the "Auto room" button even
