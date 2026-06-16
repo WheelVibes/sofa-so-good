@@ -34,7 +34,7 @@ interface SwatchGroupProps {
 
 /** A compact one-tap row of curated "designer picks" for a surface, shown above
  *  the full grid. Same swatch styling as RecentFinishes; parent owns the value. */
-export function DesignerPicks({
+function DesignerPicks({
   mats,
   active,
   onSelect,
@@ -73,7 +73,7 @@ export function DesignerPicks({
 
 /** A compact row of recently-applied finish materials (filtered to one surface),
  *  for quickly re-applying the same finish across rooms. */
-export function RecentFinishes({
+function RecentFinishes({
   mats,
   active,
   onSelect,
@@ -119,7 +119,7 @@ function providerTag(def: MaterialDef): { label: string; cls: string } | null {
 }
 
 /** A small finish-colour swatches row (recent custom colours). */
-export function RecentColors({
+function RecentColors({
   recent,
   active,
   onCustom,

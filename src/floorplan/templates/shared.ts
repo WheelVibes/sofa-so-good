@@ -42,7 +42,7 @@ export function room(
   return { id, name, origin: [x, z], width: w, depth: d, floor }
 }
 
-export const PARAPET = 1.0 // balcony parapet height (m)
+const PARAPET = 1.0 // balcony parapet height (m)
 
 /** Balcony parapet wall (low solid wall via topHeight). */
 export function parapet(id: string, start: [number, number], end: [number, number]): PlanWall {

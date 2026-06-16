@@ -2,37 +2,6 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
-## Modularity refactor — remaining monolith splits (2026-06-16)
-Part of the modularity/offline refactor (branch `claude/refactor-modularity-offline-s41ufd`).
-**Done so far:** dead-code removal + `formatBytes` consolidation + knip; fully-offline work
-(self-hosted fonts + Draco/Basis decoders + `vite-plugin-pwa` service worker); dropped the
-parallel-agent/worktree workflow requirements from the docs; split `featureFlags.ts`
-(→ `features/flags/{types,registry,resolve}.ts`) and `floorplan/templates.ts`
-(→ `templates/{hdb,condo,shared}.ts`).
-
-**Remaining monolith splits** (each is its own focused, verified commit; keep the public symbol
-in the original path re-exporting from new co-located modules so import sites don't change):
-- `src/furniture/builtinCatalog.ts` (4,697) → `furniture/defs/<category>.ts` + shared
-  `paramSchemaBuilders.ts`. NOTE: it's one exhaustive `Record<FurnitureType, FurnitureDef>` with
-  ~95 **interleaved** entries — group by `category`, reassemble via spreads, and deep-equal the
-  result against the pre-split catalog to prove no entry/key drift.
-- `src/materials/procedural/generators.ts` (1,127) → `procedural/<family>/*.ts` + `noiseUtils.ts`
-  + keep the `PATTERN_FN` dispatch + public API in `generators.ts`. The `*Fields` pattern fns share
-  a large helper set (`makeFbm`/`rand`/`hsh`/`grain`/`clamp01`/…) — extract those to the shared
-  util first.
-- `src/ui/report.ts` (883) → `report/sections/*.ts` + `report/reportStyles.ts` + composer. It's one
-  ~760-line `buildReportHtml`; extract section builders that take the report data as params.
-- `src/furniture/layoutPresets.ts` (1,561) → `furniture/presets/*` (one file per preset) + a
-  registry + `buildPresetItems`/types.
-- **Stateful UI components** (extract pure helpers → stateless sub-components → state hook last;
-  keep Zustand wiring in the parent; **visual-verify each with `scripts/shot.mjs` scenarios**):
-  `ui/inspector/InspectorPanel.tsx` (1,250; seams: `MultiSelectPanel`, `TiltControls`, `PosField`,
-  `useInspectorMinimize`, `multiSelectActions.ts`), `ui/FinishPicker.tsx` (900; reuse
-  `materials/finishDrop.ts`), `ui/toolbar/MobileToolbar.tsx` (1,253; per-section files),
-  `src/App.tsx` (933), then `ui/floorplan/FloorPlanEditor.tsx` (2,455) **last** — pure
-  `editor/planGeometry.ts`/`tools.ts` first, then SVG layers, then `useFloorPlanEditorState`;
-  regression-check with `scripts/scenarios/plan-editor-tools-journey.json`.
-
 
 ## Render fidelity + GLTF hardening (2026-05-31)
 Milestone 1 of the IKEA-grade fidelity program. Spec:

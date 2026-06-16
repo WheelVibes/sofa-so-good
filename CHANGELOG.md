@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Modularity: split the monolithic files into co-located modules
+
+Broke up the largest files into focused, cohesive modules. Each is a behaviour-preserving
+code-move — the public symbol stays at its original path (re-exporting / re-assembling from the
+new modules) so no import sites changed — verified per split by `tsc` + the full test suite, and
+the UI splits additionally by `scripts/shot.mjs` screenshots.
+
+- `furniture/builtinCatalog.ts` (4,697 → registry) → per-category `furniture/defs/<category>.ts`;
+  rebuilt via a brace-aware split and proved **deep-equal** to the original catalog (99 keys, zero
+  value drift).
+- `furniture/layoutPresets.ts` (1,561) → one file per preset under `furniture/presets/`.
+- `floorplan/templates.ts` (1,123) → `templates/{hdb,condo,shared}.ts`.
+- `features/featureFlags.ts` (761) → `features/flags/{types,registry,resolve}.ts`.
+- `materials/procedural/generators.ts` (1,127) → pattern family files under `procedural/patterns/`
+  over a shared `procedural/fieldKit.ts` (tile size threaded as a param — patterns are now pure).
+- `ui/report.ts` → `report/reportStyles.ts` (print CSS) + `report/reportShared.ts` (palettes/helpers).
+- `ui/inspector/InspectorPanel.tsx` (1,250) → `MultiSelectPanel`, `PosField`, `TiltControls`,
+  `useInspectorMinimize` co-located files.
+- `ui/FinishPicker.tsx` (900) → `ui/finish/swatches.tsx` (swatch grid + sub-components).
+- `ui/toolbar/MobileToolbar.tsx` (1,253) → `toolbar/mobile/parts.tsx` (Item/Section parts).
+- `src/App.tsx` (933) → `ui/app/lazyComponents.tsx` + `ui/app/roomScopedItemIds.ts` (lazy chunks
+  preserved).
+- `ui/floorplan/FloorPlanEditor.tsx` (2,455) → `floorplan/editor/{planConstants,GridLines,PlanLibrary}`.
+
 ## Fully offline: self-hosted fonts + decoders + PWA service worker
 
 - The core app now needs **zero runtime network**. Replaced the Google Fonts CDN `@import`
