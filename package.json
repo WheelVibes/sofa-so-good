@@ -5,7 +5,10 @@
   "type": "module",
   "scripts": {
     "prepare": "git rev-parse --is-inside-work-tree >/dev/null 2>&1 && git config core.hooksPath .githooks || true",
+    "copy-decoders": "node scripts/copy-decoders.mjs",
+    "predev": "node scripts/copy-decoders.mjs",
     "dev": "vite",
+    "prebuild": "node scripts/copy-decoders.mjs",
     "build": "tsc && vite build",
     "preview": "vite preview",
     "test": "vitest run",
@@ -32,6 +35,8 @@
     "build:all": "npm run build && npm run docs:build"
   },
   "dependencies": {
+    "@fontsource/jetbrains-mono": "^5.2.8",
+    "@fontsource/plus-jakarta-sans": "^5.2.8",
     "@react-three/drei": "^10.7.7",
     "@react-three/fiber": "^9.6.1",
     "@react-three/postprocessing": "^3.0.4",

@@ -1,4 +1,5 @@
 import { useGLTF } from '@react-three/drei'
+import { withBase } from '../../utils/assetUrl'
 
 /**
  * What `registerGltfDecoders` wired (or confirmed) for compressed-GLB loading.
@@ -19,15 +20,16 @@ export interface DecoderReport {
 }
 
 /**
- * Draco WASM/JS decoder bundle. Hosted by Google on gstatic so we don't have to
- * ship the ~1 MB decoder. drei lazily constructs a single shared `DRACOLoader`
- * the first time a Draco-compressed GLB is loaded and points it at this path.
+ * Draco WASM/JS decoder bundle. Self-hosted under `public/draco/` (copied from the
+ * installed `three` by `scripts/copy-decoders.mjs`) so the app needs no CDN and runs
+ * fully offline. drei lazily constructs a single shared `DRACOLoader` the first time
+ * a Draco-compressed GLB is loaded and points it at this path.
+ *
+ * Defaults to the base-aware local path (`/draco/` in dev, `/sofa-so-good/draco/`
+ * under the GitHub Pages base); override via VITE_DRACO_DECODER_PATH for a CDN or
+ * other self-hosted location.
  */
-// Defaults to drei's tested Draco version; override via VITE_DRACO_DECODER_PATH
-// for offline/CSP-restricted or self-hosted deployments.
-const DRACO_DECODER_PATH =
-  import.meta.env.VITE_DRACO_DECODER_PATH ??
-  'https://www.gstatic.com/draco/versioned/decoders/1.5.5/'
+const DRACO_DECODER_PATH = import.meta.env.VITE_DRACO_DECODER_PATH ?? withBase('/draco/')
 
 /** Module-level idempotency guard — see {@link registerGltfDecoders}. */
 let registered = false
