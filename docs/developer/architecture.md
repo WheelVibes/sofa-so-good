@@ -1,6 +1,9 @@
 # Architecture
 
-A browser 3D sandbox of a Singapore HDB 4-room flat for interior design.
+A browser 3D interior-design app for Singapore homes — HDB flats and condominiums
+(starter plans for HDB 2/3/4/5-room + Executive/3Gen/Jumbo/Maisonette, condo studio →
+penthouse, and a landed terrace; plus a 2D editor for custom plans). The move-in
+default is a furnished 4-room HDB.
 
 ## Tech stack
 

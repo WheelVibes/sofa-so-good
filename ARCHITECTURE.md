@@ -1,8 +1,12 @@
 # ARCHITECTURE — high-level blueprint
 
-A browser **3D interior-design sandbox** of a Singapore HDB flat: furnish, finish
-surfaces, light across the day, and walk through. Single-page app, **no backend** —
-all state lives client-side (`localStorage` + IndexedDB).
+A browser **3D interior-design app** for Singapore homes — **HDB flats and
+condominiums**: furnish, finish surfaces, light across the day, and walk through.
+Ships a library of accurate starter plans (HDB 2/3/4/5-room + Executive/3Gen/Jumbo/
+Maisonette, condo studio → penthouse, landed terrace) and a 2D editor for custom
+plans; the move-in default is a furnished 4-room HDB. Single-page app, **no
+backend** — all state lives client-side (`localStorage` + IndexedDB), and it runs
+**fully offline** (self-hosted fonts/decoders + a precaching service worker).
 
 > **Two architecture docs, by depth:**
 > - **This file** = the orientation map: the directory tree + how data flows. Read

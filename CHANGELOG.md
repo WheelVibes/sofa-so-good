@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Docs: reframe as an HDB + condo app; concise README
+
+- The product is an interior-design app for Singapore **HDB flats AND condominiums**, not just a
+  4-room HDB sandbox. Reframed the framing across the live docs + metadata — `README.md` title is
+  now **Sofa So Good**, plus `CLAUDE.md`, root `ARCHITECTURE.md`, `docs/ARCHITECTURE.md`,
+  `docs/developer/architecture.md`, the user guide (`docs/user/index.md`, `getting-started.md`,
+  VitePress config), `index.html` (`<title>` + description + OG/Twitter), and
+  `public/manifest.webmanifest`. The move-in default is still a furnished 4-room HDB.
+- Rewrote `README.md` from ~340 verbose lines into a concise, scannable page: a highlights table
+  that links out to the relevant user-guide pages for detail, trimmed dev/commands, and tidy
+  documentation + licensing sections.
+
 ## Modularity: split the monolithic files into co-located modules
 
 Broke up the largest files into focused, cohesive modules. Each is a behaviour-preserving

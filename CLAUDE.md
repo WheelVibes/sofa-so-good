@@ -1,8 +1,11 @@
-# HDB 3D Interior-Design Sandbox — agent entry point
+# Sofa So Good — agent entry point
 
-A browser 3D sandbox of a Singapore HDB 4-room flat for interior design (furnish,
-finish surfaces, light across the day, walk through). React + TypeScript + Three.js
-(@react-three/fiber), Zustand (sliced store), Vite, Vitest, Biome.
+A browser 3D interior-design app for Singapore homes — **HDB flats and condominiums**
+(furnish, finish surfaces, light across the day, walk through). Ships a library of
+accurate starter plans (HDB 2/3/4/5-room + Executive/3Gen/Jumbo/Maisonette, condo
+studio → penthouse, landed terrace) plus a 2D editor for custom plans; the move-in
+default is a furnished 4-room HDB. React + TypeScript + Three.js (@react-three/fiber),
+Zustand (sliced store), Vite, Vitest, Biome.
 
 > **This file is the entry point — hard rules + conventions only; keep it lean.**
 > It is loaded on *every* turn, so it must stay short: do **not** grow it with system
