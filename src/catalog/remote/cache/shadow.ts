@@ -7,15 +7,6 @@ export interface ShadowPointer {
   fetchedAt: string
 }
 
-export function readShadow(p: ProviderId): ShadowPointer | null {
-  try {
-    const raw = localStorage.getItem(KEY(p))
-    return raw ? (JSON.parse(raw) as ShadowPointer) : null
-  } catch {
-    return null
-  }
-}
-
 export function writeShadow(p: ProviderId, ptr: ShadowPointer): void {
   try {
     localStorage.setItem(KEY(p), JSON.stringify(ptr))

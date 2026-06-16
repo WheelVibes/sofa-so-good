@@ -4,14 +4,8 @@
  * can weigh a heavy model against the memory budget and see attribution at a
  * glance. Pure + dependency-free so it unit-tests and can be read anywhere.
  */
+import { formatBytes } from '../utils/measurement'
 import type { FurnitureDef } from './types'
-
-/** Human-readable byte size (B / KB / MB), matching the remote-catalog formatter. */
-export function formatBytes(bytes: number): string {
-  if (bytes >= 1024 * 1024) return `${Math.round(bytes / (1024 * 1024))} MB`
-  if (bytes >= 1024) return `${Math.round(bytes / 1024)} KB`
-  return `${bytes} B`
-}
 
 /**
  * A one-line "model info" string for a catalog card tooltip, or null when there's

@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
   formatArea,
+  formatBytes,
   formatDims,
   formatDimsShort,
   formatLength,
-  formatMeters,
   formatRoomSize,
 } from './measurement'
 
-describe('formatMeters', () => {
-  it('formats with two decimals', () => {
-    expect(formatMeters(2.6)).toBe('2.60 m')
+describe('formatBytes', () => {
+  it('formats B / KB / MB', () => {
+    expect(formatBytes(512)).toBe('512 B')
+    expect(formatBytes(2048)).toBe('2 KB')
+    expect(formatBytes(3 * 1024 * 1024)).toBe('3 MB')
   })
 })
 

@@ -1,0 +1,8 @@
+{
+  "entry": ["src/main.tsx!", "src/setupTests.ts", "scripts/**/*.{mjs,ts}", "**/*.test.{ts,tsx}"],
+  "project": ["src/**/*.{ts,tsx}"],
+  "ignore": ["src/**/*.d.ts", "src/types/**"],
+  "ignoreBinaries": ["flock"],
+  "vite": { "config": ["vite.config.ts"] },
+  "vitest": { "config": ["vitest.config.ts"] }
+}
