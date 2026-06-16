@@ -10,7 +10,9 @@ same change that reshapes a system.
 
 ## Commands (full)
 - `npm run dev` (localhost:5173; store on `window.__store`); `npm test`/`test:watch`;
-  `npm run build` (= `tsc` + Vite prod build).
+  `npm run build` (= `tsc` + Vite prod build). `predev`/`prebuild` run `copy-decoders`
+  (self-hosts the Draco decoder into `public/draco/`); `npm run copy-decoders` runs it manually.
+- `npm run deadcode` — **knip** (unused files/exports/deps report; `knip.json`).
 - `npm run check`/`check:fix` — **Biome** (format+lint; 2-space/100-col/single-quote/
   no-semicolons/trailing-commas). CI blocks on format+`tsc`+lint; **pre-commit hook**
   (`.githooks/`, auto-installed by `prepare`) runs `biome check --staged` (bypass
@@ -551,9 +553,18 @@ same change that reshapes a system.
   `LocalAdminProvider`, `VITE_ADMIN_PASSWORD`) unlocks dev-only features — **NOT a security
   boundary**.
 - **Loading + fast boot** (`ui/loading/`, `storage/bootstrap.ts`, `bootPhase`/`loading`):
-  `main.tsx` registers decoders then renders immediately; async `runBootstrap()` (IDB +
-  autosave restore + default seed *after* hydration) flips `bootPhase`→`'ready'`.
-  `LoadingOverlay` covers boot + orbit↔walk + room enter/exit.
+  `main.tsx` imports the self-hosted fonts, registers decoders, then renders immediately; async
+  `runBootstrap()` (IDB + autosave restore + default seed *after* hydration) flips
+  `bootPhase`→`'ready'`. `LoadingOverlay` covers boot + orbit↔walk + room enter/exit.
+- **Fully offline / PWA**: the core app needs **no runtime network**. Fonts (Plus Jakarta Sans +
+  JetBrains Mono) are self-hosted via `@fontsource` (imported in `main.tsx`, no Google Fonts CDN);
+  the Draco decoder is self-hosted under `public/draco/` (copied from the installed `three` by
+  `scripts/copy-decoders.mjs`, wired into `predev`/`prebuild`) and `gltf/decoders.ts` defaults to
+  the base-aware `withBase('/draco/')` (override `VITE_DRACO_DECODER_PATH`); the Basis transcoder
+  is `public/basis/` via `withBase('/basis/')`. A `vite-plugin-pwa` Workbox service worker
+  (`vite.config.ts`) precaches the build so the app loads and runs offline after the first visit
+  (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`). Optional network-bound
+  features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline.
 
 ## Adding content
 - **Furniture**: add `primitives/<Name>.tsx` (`{props}`), register in `index.ts` +

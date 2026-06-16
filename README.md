@@ -195,6 +195,11 @@ export the result — all in the browser.
   transitions into walkthrough and the per-room editor, with a contextual
   caption ("Furnishing your flat…", "Entering walkthrough…", "Entering room…").
   It fades quickly on fast loads and respects reduced-motion preferences.
+- **Works fully offline** — the core app needs no network at runtime: fonts and the
+  3D model decoders (Draco/Basis) are self-hosted, and an installable **PWA** service
+  worker precaches the build, so once it has loaded you can furnish, finish, light, save,
+  and walk through your flat with the network off. (Optional online extras — the remote
+  CC0 catalog, AI export, and location search — simply stay idle when you're offline.)
 - **One design system, five themes** — a Singapore-rooted interface authored in
   OKLCH: **Clay** (terracotta), **Kampong** (garden green), **Porcelain**
   (teal-jade), **Estate** (HDB ochre), and **Harbour** (cool marina blue), each in

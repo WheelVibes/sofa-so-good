@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fully offline: self-hosted fonts + decoders + PWA service worker
+
+- The core app now needs **zero runtime network**. Replaced the Google Fonts CDN `@import`
+  (`src/index.css`) with self-hosted `@fontsource` packages (Plus Jakarta Sans + JetBrains Mono)
+  imported in `main.tsx`; family names match the existing `--font-ui`/`--font-mono` tokens.
+- Self-hosted the Draco glTF decoder under `public/draco/` (copied from the installed `three` by
+  `scripts/copy-decoders.mjs`, wired into `predev`/`prebuild`); `gltf/decoders.ts` now defaults
+  `DRACO_DECODER_PATH` to the base-aware `withBase('/draco/')` instead of the gstatic CDN
+  (`VITE_DRACO_DECODER_PATH` override kept). Fixed `decodeGpuTexture`'s bare `/basis/` transcoder
+  path (404s under the prod sub-path) to `withBase('/basis/')`.
+- Added `vite-plugin-pwa` (Workbox `generateSW`): precaches the build (JS/CSS/wasm/woff2 + bundled
+  GLB/texture assets) so the app loads and runs offline after the first visit. `registerType`
+  autoUpdate; keeps the existing `public/manifest.webmanifest` (`manifest:false`);
+  `maximumFileSizeToCacheInBytes` raised to 8 MiB for the three/vendor chunks; CacheFirst runtime
+  caching for optional cross-origin CC0 assets. Build-only (dev SW disabled so it never fights HMR
+  or the dev proxies); opt out with `VITE_DISABLE_PWA=1`. The SW is infrastructure, not a UI
+  surface, so it is intentionally **not** a `FEATURE_FLAGS` entry.
+- Verified with a headless Puppeteer run against `npm run preview`: the built app boots offline
+  (3D canvas renders, fonts present) with **no** requests to `fonts.googleapis.com` or
+  `gstatic.com`.
+
+## Cleanup: remove dead code, consolidate duplicate `formatBytes`, add knip
+
+- Deleted unused components `HelpModal` and `Fixtures` (never imported), removed the never-called
+  `readShadow` from the remote-cache shadow pointer, and dropped the dead `formatMeters` alias.
+- Consolidated the duplicated `formatBytes()` (was copied in `catalog/remote/hooks.ts` and
+  `furniture/modelInfo.ts`) into `utils/measurement.ts`; both call sites now import the shared
+  helper.
+- Added `knip` + `knip.json` + `npm run deadcode` for ongoing unused-file/export detection.
+
 ## Docs: drop parallel-agent / git-worktree workflow requirements
 
 - The contributor docs assumed an agent fleet running in parallel git worktrees. That workflow is
