@@ -219,8 +219,9 @@ same change that reshapes a system.
   for uploads, whose in-browser-generated tiers live in IDB as blob URLs — registered at
   persist + rehydration); `textureBudget.ts` = last-resort downscale. `--ktx2`
   emits Basis-Universal (needs `toktx`, else WebP).
-- **Procedural materials**: `procedural/generators.ts` paints one tiling tile per finish
-  from seeded noise; world-space UVs tile at fixed physical scale. `PATTERN_SIZE_CAP` declares
+- **Procedural materials**: `procedural/patterns/<family>.ts` paint one tiling tile per finish
+  from seeded noise (over the shared `procedural/fieldKit.ts` buffers); `procedural/generators.ts`
+  owns size/caps + the `PATTERN_FN` dispatch + canvas→texture. World-space UVs tile at fixed scale. `PATTERN_SIZE_CAP` declares
   the max useful resolution per pattern (smooth patterns cap at 256²; high-frequency geometric
   patterns cap at 512²); `effectivePatternSize(pattern)` clamps to `min(BASE_SIZE, cap)` so
   smooth patterns stay at 256 even on Medium+ tiers — saving GPU memory with no visible loss.
@@ -577,7 +578,7 @@ same change that reshapes a system.
   update the union, `FURNITURE_CATEGORIES`, every exhaustive `Record<FurnitureCategory,…>`
   consumer, + `CategoryTabs`/`CategoryIcon`. Category auto-detected for imports.
 - **Finish**: add to `materials/builtinCatalog.ts` (`procedural` w/ a pattern, or
-  `solid`); new patterns in `procedural/generators.ts`.
+  `solid`); new pattern painters in `procedural/patterns/<family>.ts`, wired into `PATTERN_FN`.
 - **GLB models**: bundled + user uploads go through `GltfModel`; set collision flags;
   run `optimize:glb`. **Bundled pipeline** (`scripts/asset-pipeline/`): drop `<name>.glb`
   (+ optional `.glb.json` sidecar) into `public/assets/furniture/`, `npm run index-assets`

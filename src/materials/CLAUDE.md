@@ -3,9 +3,10 @@
 Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
 
 - **New finish** = an entry in `builtinCatalog.ts` (`procedural` with a pattern, or
-  `solid`); new patterns go in `procedural/generators.ts` (paint one tiling tile:
-  albedo+normal+roughness from seeded noise) AND add an entry to `PATTERN_SIZE_CAP`
-  (256 for smooth/noise-based, 512 for high-frequency geometric patterns with fine detail).
+  `solid`); new pattern painters go in `procedural/patterns/<family>.ts` (paint one tiling tile:
+  albedo+normal+roughness from seeded noise over the shared `procedural/fieldKit.ts` buffers),
+  wired into the `PATTERN_FN` dispatch in `procedural/generators.ts` AND add an entry to
+  `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
@@ -32,7 +33,7 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   then fires a worker request off-thread that hot-swaps the maps and calls
   `notifyProceduralSwap()` to kick a render frame. Graceful degradation: if
   `OffscreenCanvas`/`Worker` are unavailable or the worker errors, the sync texture stays.
-  When adding a new pattern, add its `generateProceduralRaw` path to the shared
-  `PATTERN_FN` dispatch inside `generators.ts` (not a separate worker-only file).
+  When adding a new pattern, add its painter to `procedural/patterns/<family>.ts` and wire it
+  into the shared `PATTERN_FN` dispatch inside `generators.ts` (not a separate worker-only file).
   The `RenderPump` subscribes to `subscribeProceduralSwap` — do not add more subscribers
   elsewhere; the signal is intentionally not a store slice (avoids re-render overhead).
