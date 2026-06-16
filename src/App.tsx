@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef } from 'react'
+import { Suspense, useCallback, useEffect, useRef } from 'react'
 import { canPlace } from './collision/placement'
 import { placementWalls } from './collision/placementWalls'
 import {
@@ -16,6 +16,7 @@ import { useCatalog } from './furniture/catalog'
 import { planDuplicates } from './furniture/duplicatePlacement'
 import { tidyHome } from './layout/tidyHome'
 import { cameraForwardXZ } from './scene/cameras/cameraForward'
+import { FinishDragOverlay } from './scene/FinishDragOverlay'
 import { MobileLongPress } from './scene/MobileLongPress'
 import { RoomEditorScene } from './scene/RoomEditorScene'
 import { getRoomEditorShell } from './scene/roomEditorShell'
@@ -26,12 +27,30 @@ import { editableRoomIds } from './state/rooms'
 import { runBootstrap } from './state/storage/bootstrap'
 import { useStore } from './state/store'
 import { AccessibilityPanel } from './ui/AccessibilityPanel'
+import {
+  ElevationPanel,
+  FloorPlanEditor,
+  GlbDesignerDialog,
+  HistoryPanel,
+  HqRenderModal,
+  PanoramaModal,
+  PanoTourModal,
+  ParametricDialog,
+  ProductTour,
+  RenderCompareModal,
+  ShareModal,
+  SmartStartWizard,
+  VersionsPanel,
+} from './ui/app/lazyComponents'
+import { roomScopedItemIds } from './ui/app/roomScopedItemIds'
 import { LoginScreen } from './ui/auth/LoginScreen'
 import { BudgetHud } from './ui/BudgetHud'
 import { BudgetPanel } from './ui/BudgetPanel'
+import { resolveBootDecision } from './ui/bootDecision'
 import { ClearancePanel } from './ui/ClearancePanel'
 import { CommandPalette } from './ui/CommandPalette'
 import { CommentsPanel } from './ui/CommentsPanel'
+import { ConfirmModal } from './ui/ConfirmModal'
 import { ContextMenu } from './ui/ContextMenu'
 import { Crosshair } from './ui/Crosshair'
 import { CatalogDrawer } from './ui/catalog/CatalogDrawer'
@@ -45,57 +64,6 @@ import { ErrorBoundary } from './ui/ErrorBoundary'
 import { FinishPicker } from './ui/FinishPicker'
 import { FlagsPanel } from './ui/FlagsPanel'
 import { FpsCounter } from './ui/FpsCounter'
-
-// Lazy-loaded: the 2D editor (+ its AI/template deps) is only needed once the
-// user opens it, so it stays out of the initial bundle.
-const FloorPlanEditor = lazy(() =>
-  import('./ui/floorplan/FloorPlanEditor').then((m) => ({ default: m.FloorPlanEditor })),
-)
-// The GLB designer is a large, Pro-only, fullscreen tool that few sessions open —
-// lazy-load it so its editor + GLTF exporter stay out of the initial bundle.
-const GlbDesignerDialog = lazy(() =>
-  import('./ui/glbEditor/GlbDesignerDialog').then((m) => ({ default: m.GlbDesignerDialog })),
-)
-// Parametric furniture generator (PF1) — rarely-open dialog with its own R3F
-// preview + GLTF exporter; lazy so it stays out of the boot bundle.
-const ParametricDialog = lazy(() =>
-  import('./ui/parametric/ParametricDialog').then((m) => ({ default: m.ParametricDialog })),
-)
-// Rarely-opened, dependency-heavy panels/modals — lazy-loaded + gated on their
-// open flag so their code (AI client, GLTF/design-file IO, elevation projection,
-// SVG builders, tour) stays out of the initial bundle (PERF5).
-const ShareModal = lazy(() => import('./ui/ShareModal').then((m) => ({ default: m.ShareModal })))
-const PanoramaModal = lazy(() =>
-  import('./ui/PanoramaModal').then((m) => ({ default: m.PanoramaModal })),
-)
-const PanoTourModal = lazy(() =>
-  import('./ui/panorama/PanoTourModal').then((m) => ({ default: m.PanoTourModal })),
-)
-const HqRenderModal = lazy(() =>
-  import('./ui/HqRenderModal').then((m) => ({ default: m.HqRenderModal })),
-)
-const RenderCompareModal = lazy(() =>
-  import('./ui/RenderCompareModal').then((m) => ({ default: m.RenderCompareModal })),
-)
-const VersionsPanel = lazy(() =>
-  import('./ui/VersionsPanel').then((m) => ({ default: m.VersionsPanel })),
-)
-const ElevationPanel = lazy(() =>
-  import('./ui/ElevationPanel').then((m) => ({ default: m.ElevationPanel })),
-)
-const HistoryPanel = lazy(() =>
-  import('./ui/HistoryPanel').then((m) => ({ default: m.HistoryPanel })),
-)
-const ProductTour = lazy(() =>
-  import('./ui/tour/ProductTour').then((m) => ({ default: m.ProductTour })),
-)
-const SmartStartWizard = lazy(() =>
-  import('./ui/wizard/SmartStartWizard').then((m) => ({ default: m.SmartStartWizard })),
-)
-
-import { FinishDragOverlay } from './scene/FinishDragOverlay'
-import { resolveBootDecision } from './ui/bootDecision'
-import { ConfirmModal } from './ui/ConfirmModal'
 import { InspectorPanel } from './ui/inspector/InspectorPanel'
 import { LocationPrompt } from './ui/LocationPrompt'
 import { LoadingOverlay } from './ui/loading/LoadingOverlay'
@@ -113,17 +81,6 @@ import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
 import { WalkCameraControls } from './ui/walk/WalkCameraControls'
 import { WalkJoystick } from './ui/walk/WalkJoystick'
-
-/** Ids of the furniture in the room currently being edited (the set the room
- *  editor renders). Used by the room-scoped select-all / cycle shortcuts. Falls
- *  back to all items when not in the editor (callers gate on `canEditScene`). */
-function roomScopedItemIds(s: ReturnType<typeof useStore.getState>): string[] {
-  const { roomEditor, floorPlan, items } = s
-  if (!roomEditor.active || !roomEditor.roomId) return items.map((i) => i.id)
-  const shell = getRoomEditorShell(floorPlan, roomEditor.roomId)?.shell
-  if (!shell) return items.map((i) => i.id)
-  return items.filter((it) => shell.contains(it.position[0], it.position[1])).map((i) => i.id)
-}
 
 export default function App() {
   const toggleMeasurements = useStore((s) => s.toggleMeasurements)
