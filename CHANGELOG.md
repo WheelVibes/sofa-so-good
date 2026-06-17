@@ -17,6 +17,15 @@ pruned from `main`; entries from C251 on (branch
   dot at the start/anchor and a ring at the live end — so the precise snapped
   point is visible even under a finger. Desktop keeps drag-to-draw.
 
+## Floor-plan editor: mobile tool picker is now a grid popover
+
+- The mobile drawing-tool picker is no longer a native `<select>` dropdown — it's
+  a **"‹current tool› ▾"** button that opens a tidy grid of labelled tool chips
+  below it (`PlanToolMenu`, on the shared `Popover`), with the active tool
+  highlighted. Every tool is visible at once with a big touch target and the
+  current selection is obvious — matching how mobile floor-plan apps surface
+  their tools, instead of a hidden two-step dropdown.
+
 ## Floor-plan editor: undo/redo in the mobile top bar
 
 - Undo/redo (↶ ↷) now sit directly in the mobile editor's top bar — in both View

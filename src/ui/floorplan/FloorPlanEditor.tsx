@@ -63,6 +63,7 @@ import {
 import { GridLines } from './editor/GridLines'
 import { PlanLibrary } from './editor/PlanLibrary'
 import { PlanMenu } from './editor/PlanMenu'
+import { PlanToolMenu } from './editor/PlanToolMenu'
 import {
   type Backdrop,
   CATEGORY_FILL,
@@ -1708,19 +1709,7 @@ export function FloorPlanEditor() {
               ☰ Menu
             </button>
             {editMode === 'edit' && (
-              <select
-                aria-label="Drawing tool"
-                className="input"
-                value={tool === 'scale' ? 'select' : tool}
-                onChange={(e) => pickTool(e.target.value as Tool)}
-                style={{ flex: 1, minWidth: 0 }}
-              >
-                {toolList.map((t) => (
-                  <option key={t} value={t}>
-                    {toolLabel(t)}
-                  </option>
-                ))}
-              </select>
+              <PlanToolMenu tools={toolList} tool={tool} label={toolLabel} onPick={pickTool} />
             )}
             {/* Undo/redo are important enough to stay in the top bar (not buried
                 in the ☰ Menu). `ml-auto` pushes them + Done to the right. */}
