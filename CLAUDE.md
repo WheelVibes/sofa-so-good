@@ -61,6 +61,13 @@ Zustand (sliced store), Vite, Vitest, Biome.
   and dominate iteration time. Never run the full suite and a screenshot/scenario harness at the
   same time (sequence heavy phases).
   Commit/push only when asked; one focused change per commit; log shipped work in `CHANGELOG.md`.
+- **Versioning (`major.minor.patch.build`).** The running build lives in `src/version.ts`
+  (`APP_VERSION`, the source of truth the "Check for updates" flow compares); `package.json`
+  mirrors the first three parts. Current line started at **`0.1.0.0`**. **Every commit bumps the
+  `build`** (or `patch`/`minor` for bigger work). **Each PR to `main` bumps `patch` or `minor`**
+  depending on how big / how many features it carries (small fix → patch; sizeable or multi-feature
+  → minor); reset the lower parts on a higher bump (a minor bump zeroes patch+build). **Never bump
+  `major`** until explicitly told to. Keep `src/version.ts` and `package.json` in sync.
 - **Research against references.** When designing a new feature or judging what good UI/UX
   should look like, consult **[REFERENCES.md](REFERENCES.md)** (competitor/reference apps —
   Coohom, Planner 5D, IKEA Kreativ, Sweet Home 3D, …) and aim to match or surpass them. Any

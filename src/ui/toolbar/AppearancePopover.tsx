@@ -6,6 +6,7 @@ import {
   type ThemeName,
 } from '../../state/slices/appearanceSlice'
 import { useStore } from '../../state/store'
+import { APP_VERSION } from '../../version'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { useIsMobile } from '../useIsMobile'
@@ -158,6 +159,19 @@ export function AppearanceControls() {
           </button>
         </>
       ) : null}
+
+      {/* Running build (major.minor.patch.build) — what "Check for updates"
+          compares against the deployed version. */}
+      <div
+        style={{
+          marginTop: 10,
+          fontSize: 'var(--t-2xs)',
+          color: 'var(--text-3)',
+          textAlign: 'center',
+        }}
+      >
+        Sofa So Good · v{APP_VERSION}
+      </div>
     </>
   )
 }
