@@ -37,6 +37,42 @@ export function showOpeningDim(widthM: number, pxPerMetre: number, isMobile: boo
   return widthM * pxPerMetre >= (isMobile ? 70 : 44)
 }
 
+/**
+ * Wrap a label into lines that each fit within `maxChars`, breaking on spaces;
+ * a single word longer than the line is hyphenated across lines (so e.g.
+ * "Household Shelter" wraps to two lines, and an extreme word still fits its
+ * room). Always returns at least one line.
+ */
+export function wrapLabel(text: string, maxChars: number): string[] {
+  const limit = Math.max(1, Math.floor(maxChars))
+  const lines: string[] = []
+  let cur = ''
+  for (let word of text.split(/\s+/).filter(Boolean)) {
+    // Hyphenate a word that can't fit on a line by itself.
+    if (word.length > limit) {
+      if (cur) {
+        lines.push(cur)
+        cur = ''
+      }
+      while (word.length > limit) {
+        const take = Math.max(1, limit - 1) // leave room for the hyphen
+        lines.push(`${word.slice(0, take)}-`)
+        word = word.slice(take)
+      }
+      cur = word
+      continue
+    }
+    const candidate = cur ? `${cur} ${word}` : word
+    if (candidate.length <= limit) cur = candidate
+    else {
+      if (cur) lines.push(cur)
+      cur = word
+    }
+  }
+  if (cur) lines.push(cur)
+  return lines.length ? lines : ['']
+}
+
 export type RoomLabelDetail = 'full' | 'name' | 'none'
 
 /**

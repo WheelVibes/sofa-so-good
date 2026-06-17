@@ -82,6 +82,7 @@ import {
   roomLabelDetail,
   showOpeningDim,
   showWallDim,
+  wrapLabel,
 } from './editor/planLabelDisplay'
 import { WallDimension } from './editor/WallDimension'
 import { exportPlanPng } from './exportPlanPng'
@@ -1798,10 +1799,27 @@ export function FloorPlanEditor() {
                     // and font-size multiplier — Sweet Home 3D label angle/font.
                     const deg = r.labelAngle ? (r.labelAngle * 180) / Math.PI : 0
                     const fontPx = roomFont * (r.labelFontScale ?? 1)
+                    // Wrap the name to the room's on-screen width so long names
+                    // (e.g. "Household Shelter") stay inside the room; over-long
+                    // words hyphenate. ~0.55·fontPx ≈ average glyph advance.
+                    const roomWidthM =
+                      r.polygon && r.polygon.length >= 3
+                        ? Math.max(...r.polygon.map((p) => p[0])) -
+                          Math.min(...r.polygon.map((p) => p[0]))
+                        : r.width
+                    const maxChars = Math.max(
+                      4,
+                      Math.floor((roomWidthM * PX * 0.92) / (fontPx * 0.55)),
+                    )
+                    const nameLines = wrapLabel(r.name, maxChars)
+                    const lineH = fontPx + 1
+                    const totalLines = nameLines.length + (detail === 'full' ? 1 : 0)
+                    // Vertically centre the multi-line block on the label anchor.
+                    const yTop = pz - ((totalLines - 1) * lineH) / 2
                     return (
                       <text
                         x={px}
-                        y={pz}
+                        y={yTop}
                         textAnchor="middle"
                         className="select-none"
                         fontSize={fontPx}
@@ -1820,9 +1838,13 @@ export function FloorPlanEditor() {
                           setMovingRoomLabel({ id: r.id, gx: wx - lx, gz: wz - lz })
                         }}
                       >
-                        <tspan x={px}>{r.name}</tspan>
+                        {nameLines.map((ln, i) => (
+                          <tspan key={`${ln}-${i}`} x={px} dy={i === 0 ? 0 : lineH}>
+                            {ln}
+                          </tspan>
+                        ))}
                         {detail === 'full' && (
-                          <tspan x={px} dy={fontPx + 3} fill="var(--text-3)">
+                          <tspan x={px} dy={lineH + 2} fill="var(--text-3)">
                             {formatArea(planRoomArea(r), units)}
                           </tspan>
                         )}

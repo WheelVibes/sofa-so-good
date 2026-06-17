@@ -5,7 +5,26 @@ import {
   roomLabelDetail,
   showOpeningDim,
   showWallDim,
+  wrapLabel,
 } from './planLabelDisplay'
+
+describe('wrapLabel', () => {
+  it('keeps a short name on one line', () => {
+    expect(wrapLabel('Kitchen', 12)).toEqual(['Kitchen'])
+  })
+
+  it('wraps a two-word name onto two lines when it would overflow', () => {
+    expect(wrapLabel('Household Shelter', 10)).toEqual(['Household', 'Shelter'])
+  })
+
+  it('hyphenates a single word that is too long for the line', () => {
+    expect(wrapLabel('Household', 6)).toEqual(['House-', 'hold'])
+  })
+
+  it('always returns at least one line', () => {
+    expect(wrapLabel('', 8)).toEqual([''])
+  })
+})
 
 describe('dimFontPx / roomFontPx', () => {
   it('scale with zoom but stay within legible bounds', () => {
