@@ -451,7 +451,8 @@ same change that reshapes a system.
   fills any screen without a manual zoom-out. **Mobile:** the toolbar is a single row
   (`isMobile`) — a **☰ Tools** button, a compact drawing-tool `<select>`, and Done; everything
   else (name, levels, New/Reset/Template/Save/Reference, labels/dims/all-levels/export/zoom, the
-  plan defaults, and a Help → user-guide link via `openDocs`) opens in a **"Plan tools" `Modal`**.
+  plan defaults, and a Help → user-guide link via `openDocs`) opens in a **"Plan tools" `Modal`**, grouped
+  into labelled **Plan / View / Edit / Defaults** sections (`.plan-tools-group`) so it reads as a tidy sheet.
   The secondary controls are shared fragments; **desktop** keeps the core loop inline and groups the
   rest into two `PlanMenu` dropdowns (`editor/PlanMenu.tsx`, on the shared `Popover`): **Plan ▾**
   (New/Reset/Reference) + **View ▾** (labels/dims/furniture/all-levels/export). Escape closes an open

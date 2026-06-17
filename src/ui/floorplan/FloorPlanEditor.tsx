@@ -1757,28 +1757,46 @@ export function FloorPlanEditor() {
       </div>
       {isMobile && (
         <Modal open={toolsMenuOpen} onClose={() => setToolsMenuOpen(false)} title="Plan tools">
-          <div className="flex flex-col gap-3">
-            <input
-              value={plan.name}
-              onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
-              className="input"
-              aria-label="Plan name"
-            />
-            <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
-            {wallTypeSeg ? (
-              <div className="flex flex-wrap items-center gap-2">{wallTypeSeg}</div>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-2">
-              {templateLibrary}
-              {fileActions}
-            </div>
-            <div className="flex flex-wrap items-center gap-2">
-              {multiSelectToggle}
-              {quickActions}
-              {viewMenuActions}
-            </div>
-            {totalLabel}
-            {planDefaults}
+          {/* Grouped into labelled sections so the sheet reads as tidy settings
+              rather than one dense wall of buttons. */}
+          <div className="plan-tools-sheet">
+            <section className="plan-tools-group">
+              <div className="menu-label">Plan</div>
+              <input
+                value={plan.name}
+                onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
+                className="input"
+                aria-label="Plan name"
+              />
+              <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
+              <div className="flex flex-wrap items-center gap-2">
+                {templateLibrary}
+                {fileActions}
+              </div>
+            </section>
+
+            <section className="plan-tools-group">
+              <div className="menu-label">View</div>
+              <div className="flex flex-wrap items-center gap-2">{viewMenuActions}</div>
+              <div className="flex flex-wrap items-center gap-2">{quickActions}</div>
+            </section>
+
+            {(wallTypeSeg || multiSelectToggle) && (
+              <section className="plan-tools-group">
+                <div className="menu-label">Edit</div>
+                {wallTypeSeg ? (
+                  <div className="flex flex-wrap items-center gap-2">{wallTypeSeg}</div>
+                ) : null}
+                {multiSelectToggle}
+              </section>
+            )}
+
+            <section className="plan-tools-group">
+              <div className="menu-label">Defaults</div>
+              {planDefaults}
+              {totalLabel}
+            </section>
+
             <button
               type="button"
               className="btn btn-sm btn-block"

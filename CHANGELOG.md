@@ -17,6 +17,15 @@ pruned from `main`; entries from C251 on (branch
   dot at the start/anchor and a ring at the live end — so the precise snapped
   point is visible even under a finger. Desktop keeps drag-to-draw.
 
+## Floor-plan editor: tidier mobile "Plan tools" sheet
+
+- The mobile **☰ Menu** sheet is reorganised from one dense wall of buttons into
+  labelled sections — **Plan** (name, levels, template/save, new/reset/reference),
+  **View** (labels/dims/furniture/all-levels/export + undo-redo/grid/zoom),
+  **Edit** (wall thickness + multi-select, when relevant) and **Defaults**
+  (ceiling height, wall colour, area total) — each separated, so it reads as a
+  tidy settings sheet.
+
 ## Floor-plan editor: decluttered desktop toolbar
 
 - The desktop toolbar's secondary actions are grouped into two tidy dropdowns
