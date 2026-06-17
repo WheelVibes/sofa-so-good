@@ -5,6 +5,18 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: precise tap-to-place wall drawing on touch
+
+- On a phone/tablet the **Wall** tool is now **tap-to-place**: tap to drop the
+  start, tap to drop the end — each point snaps to the grid and to existing
+  walls, so you place exact points instead of guessing where a drag lifts off
+  under your fingertip. Walls **chain**: each new wall starts from the previous
+  one's end, so a run of rooms goes tap-tap-tap; tap the last point again (or
+  switch tools) to finish. A press-drag in one gesture still works too.
+- Both platforms now draw **snap markers** on the wall being drawn — a filled
+  dot at the start/anchor and a ring at the live end — so the precise snapped
+  point is visible even under a finger. Desktop keeps drag-to-draw.
+
 ## Floor-plan editor: decluttered desktop toolbar
 
 - The desktop toolbar's secondary actions are grouped into two tidy dropdowns

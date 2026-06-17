@@ -22,10 +22,16 @@ between the 2D plan and the 3D scene at any time.
 
 ## Drawing
 
-- **Walls** — choose interior or exterior thickness, then drag to draw. Endpoints
-  snap to the grid, to nearby wall corners, and onto the side of an existing wall
-  (a clean T‑junction) — so new walls join up without fiddling. Dragging an
-  endpoint clearly past a wall stays free, so you can still extend beyond it.
+- **Walls** — choose interior or exterior thickness, then draw. On a computer,
+  drag from start to end. On a **phone or tablet**, *tap* to drop the start then
+  *tap* to drop the end — each point snaps to the grid and to existing walls, so
+  you place exact points instead of guessing a drag under your fingertip. Walls
+  **chain**: each new wall continues from the last one's end, so a run goes
+  tap‑tap‑tap; tap the last point again (or pick another tool) to stop. A small
+  dot marks the start and a ring marks the end so you can see exactly where each
+  point lands. Endpoints snap to the grid, to nearby wall corners, and onto the
+  side of an existing wall (a clean T‑junction); dragging clearly past a wall
+  stays free, so you can still extend beyond it.
 - **Rooms** — drag a rectangle; its area is computed and added to the total.
 - **Doors / windows** — click on a wall to drop one. Select a door to set which
   way it opens: **Hinge** (which jamb it pivots on) and **Swing** (which side of

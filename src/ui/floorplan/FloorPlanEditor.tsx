@@ -256,6 +256,10 @@ export function FloorPlanEditor() {
   // Whether the current pan actually moved — used to swallow the context menu
   // that a right-drag would otherwise pop at the end of the pan.
   const panDidMove = useRef(false)
+  // Touch wall tap-to-place: whether an anchor (start point) already existed when
+  // the current pointer went down, so onUp can tell "placing the start" from
+  // "placing the end / ending the chain".
+  const wallTapHadAnchor = useRef(false)
 
   // Rehydrate a previously-saved backdrop when the editor opens (the component
   // is always mounted and only renders when `editing`, so this can't be a
@@ -811,7 +815,15 @@ export function FloorPlanEditor() {
     }
     const [wx, wz] = pointerWorld(e, undefined, tool === 'wall')
     const st = useStore.getState()
-    if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
+    if (tool === 'wall' && isMobile) {
+      // Touch: tap-to-place chaining (precise — each point snaps to grid/walls,
+      // and you tap an exact spot instead of guessing a drag's lift-off under
+      // your finger). No anchor yet → this taps the start; an anchor exists →
+      // this sets the end (onUp commits + chains from it). A press-drag in one
+      // gesture still works (the end follows the finger before release).
+      wallTapHadAnchor.current = draft !== null
+      setDraft(draft ? { ...draft, x: wx, z: wz } : { x0: wx, z0: wz, x: wx, z: wz })
+    } else if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
     } else if (tool === 'autoroom') {
       // Make a room from the active storey's wall loop enclosing the click.
@@ -1161,6 +1173,24 @@ export function FloorPlanEditor() {
       setDraft(null)
       return
     }
+    if (tool === 'wall' && isMobile) {
+      // Touch tap-to-place: a real segment commits and the chain continues from
+      // its end (tap the next point to keep going). A tap on/near the anchor (no
+      // segment) ends the chain; the very first tap just keeps the anchor.
+      const len = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
+      if (len > 0.2) {
+        const id = st.addWall(
+          { start: [draft.x0, draft.z0], end: [draft.x, draft.z], thickness: wallType },
+          levelId,
+        )
+        st.setPlanSelection({ type: 'wall', id })
+        setDraft({ x0: draft.x, z0: draft.z, x: draft.x, z: draft.z }) // chain from the end
+      } else if (wallTapHadAnchor.current) {
+        setDraft(null) // tapped the anchor again → finish the chain
+      }
+      // else: first tap just placed the anchor — keep it (draft stays).
+      return
+    }
     if (tool === 'wall') {
       if (Math.hypot(draft.x - draft.x0, draft.z - draft.z0) > 0.2) {
         const id = st.addWall(
@@ -1215,6 +1245,7 @@ export function FloorPlanEditor() {
   const pickTool = (t: Tool) => {
     setPolyDraft([])
     setPolylineDraft([])
+    setDraft(null) // drop any in-progress wall tap-chain / draft
     setTool(t)
     setEditMode('edit') // choosing a tool implies you want to edit
   }
@@ -1232,6 +1263,7 @@ export function FloorPlanEditor() {
           setTool('select')
           setPolyDraft([])
           setPolylineDraft([])
+          setDraft(null)
         }}
         title="View — pan & zoom only; dragging never moves anything"
       >
@@ -2796,15 +2828,29 @@ export function FloorPlanEditor() {
 
             {/* Draft (in-progress draw) */}
             {draft && tool === 'wall' && (
-              <line
-                x1={toPx(draft.x0)}
-                y1={toPx(draft.z0)}
-                x2={toPx(draft.x)}
-                y2={toPx(draft.z)}
-                stroke="var(--accent)"
-                strokeWidth={4}
-                strokeLinecap="round"
-              />
+              <>
+                <line
+                  x1={toPx(draft.x0)}
+                  y1={toPx(draft.z0)}
+                  x2={toPx(draft.x)}
+                  y2={toPx(draft.z)}
+                  stroke="var(--accent)"
+                  strokeWidth={4}
+                  strokeLinecap="round"
+                />
+                {/* Snap markers at the exact (grid/wall-snapped) endpoints, so the
+                    point you're placing is visible even under a fingertip. The
+                    filled dot is the start/anchor; the ring is the live end. */}
+                <circle cx={toPx(draft.x0)} cy={toPx(draft.z0)} r={5} fill="var(--accent)" />
+                <circle
+                  cx={toPx(draft.x)}
+                  cy={toPx(draft.z)}
+                  r={5}
+                  fill="var(--surface-solid)"
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                />
+              </>
             )}
             {draft && tool === 'room' && (
               <rect

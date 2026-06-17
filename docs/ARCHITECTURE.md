@@ -414,7 +414,10 @@ same change that reshapes a system.
   fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) +
   whole-wall drag/rotate keeping connected corners joined (`moveWallTo`, rotation clamped ±90°) for
   non-orthogonal shapes. Drawing a new wall snaps its endpoints to existing corners **and** wall spans
-  (a T-junction) via pure `ui/floorplan/editor/snapToWalls.ts` (vertex wins over edge; free past the radius).
+  (a T-junction) via pure `ui/floorplan/editor/snapToWalls.ts` (vertex wins over edge; free past the radius);
+  **on touch the Wall tool is tap-to-place + chaining** (tap start, tap end, continues from the last end;
+  `wallTapHadAnchor` ref distinguishes placing the start vs the end), with snapped start-dot/end-ring markers
+  drawn on the draft (desktop keeps drag-to-draw).
   **Wall + door/window inspectors mirror the furniture inspector** (`PlanInspector`): a custom **Name**
   (pure defaults in `floorplan/planElementName.ts`; `PlanWall.name`/`PlanOpening.name`, custom wins; room
   creation auto-names boundary walls `<room> wall ##` via pure `floorplan/roomWallNames.ts` in `addRoom`,
