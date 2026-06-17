@@ -1438,29 +1438,34 @@ export function FloorPlanEditor() {
       </button>
     ) : null
 
-  // Frequent, compact controls kept inline: undo/redo, snap-grid, zoom.
-  const quickActions = (
+  // Undo / redo (also ⌘Z / ⇧⌘Z) — visible buttons for touch, where there's no
+  // keyboard. Important enough to sit in the mobile top bar, not just the menu.
+  const undoRedo = (
+    <div className="seg" style={{ alignItems: 'center' }}>
+      <button
+        type="button"
+        title="Undo (⌘Z)"
+        aria-label="Undo"
+        disabled={!canUndo}
+        onClick={() => useStore.getState().undo()}
+      >
+        ↶
+      </button>
+      <button
+        type="button"
+        title="Redo (⇧⌘Z)"
+        aria-label="Redo"
+        disabled={!canRedo}
+        onClick={() => useStore.getState().redo()}
+      >
+        ↷
+      </button>
+    </div>
+  )
+
+  // Snap-grid size + zoom — frequent but lower-priority than undo/redo.
+  const gridZoom = (
     <>
-      {/* Undo / redo (also ⌘Z / ⇧⌘Z). Visible buttons for touch, where there's
-          no keyboard. */}
-      <div className="seg" style={{ alignItems: 'center' }}>
-        <button
-          type="button"
-          title="Undo (⌘Z)"
-          disabled={!canUndo}
-          onClick={() => useStore.getState().undo()}
-        >
-          ↶
-        </button>
-        <button
-          type="button"
-          title="Redo (⇧⌘Z)"
-          disabled={!canRedo}
-          onClick={() => useStore.getState().redo()}
-        >
-          ↷
-        </button>
-      </div>
       {/* Snap-grid size — finer = more precise placement. */}
       <label className="seg" style={{ alignItems: 'center', gap: 6, paddingLeft: 8 }}>
         <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
@@ -1507,6 +1512,14 @@ export function FloorPlanEditor() {
           +
         </button>
       </div>
+    </>
+  )
+
+  // Frequent, compact controls kept inline on desktop: undo/redo + grid + zoom.
+  const quickActions = (
+    <>
+      {undoRedo}
+      {gridZoom}
     </>
   )
 
@@ -1709,14 +1722,18 @@ export function FloorPlanEditor() {
                 ))}
               </select>
             )}
-            <button
-              type="button"
-              onClick={exitPlanEditorToScene}
-              className="btn btn-accent btn-sm"
-              style={{ marginLeft: 'auto' }}
-            >
-              Done
-            </button>
+            {/* Undo/redo are important enough to stay in the top bar (not buried
+                in the ☰ Menu). `ml-auto` pushes them + Done to the right. */}
+            <div className="ml-auto flex items-center gap-2">
+              {undoRedo}
+              <button
+                type="button"
+                onClick={exitPlanEditorToScene}
+                className="btn btn-accent btn-sm"
+              >
+                Done
+              </button>
+            </div>
           </>
         ) : (
           <>
@@ -1778,7 +1795,8 @@ export function FloorPlanEditor() {
             <section className="plan-tools-group">
               <div className="menu-label">View</div>
               <div className="flex flex-wrap items-center gap-2">{viewMenuActions}</div>
-              <div className="flex flex-wrap items-center gap-2">{quickActions}</div>
+              {/* undo/redo live in the top bar on mobile, so only grid + zoom here. */}
+              <div className="flex flex-wrap items-center gap-2">{gridZoom}</div>
             </section>
 
             {(wallTypeSeg || multiSelectToggle) && (

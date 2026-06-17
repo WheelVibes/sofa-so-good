@@ -17,6 +17,13 @@ pruned from `main`; entries from C251 on (branch
   dot at the start/anchor and a ring at the live end — so the precise snapped
   point is visible even under a finger. Desktop keeps drag-to-draw.
 
+## Floor-plan editor: undo/redo in the mobile top bar
+
+- Undo/redo (↶ ↷) now sit directly in the mobile editor's top bar — in both View
+  and Edit — instead of being buried in the ☰ Menu, so the most-used action is
+  always one tap away. They're no longer duplicated inside the menu (which keeps
+  grid + zoom under **View**).
+
 ## Floor-plan editor: tidier mobile "Plan tools" sheet
 
 - The mobile **☰ Menu** sheet is reorganised from one dense wall of buttons into

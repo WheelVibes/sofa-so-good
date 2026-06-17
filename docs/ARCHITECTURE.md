@@ -449,7 +449,8 @@ same change that reshapes a system.
   Undoable + persists (`floorPlanStore.ts`). On open the plan is **fit to the measured canvas
   viewport** (a `ResizeObserver` drives `basePX`, replacing a fixed 940×620 assumption) so it
   fills any screen without a manual zoom-out. **Mobile:** the toolbar is a single row
-  (`isMobile`) — a **☰ Tools** button, a compact drawing-tool `<select>`, and Done; everything
+  (`isMobile`) — a **☰ Menu** button, a compact drawing-tool `<select>`, **undo/redo** (top-bar, not
+  buried in the menu), and Done; everything
   else (name, levels, New/Reset/Template/Save/Reference, labels/dims/all-levels/export/zoom, the
   plan defaults, and a Help → user-guide link via `openDocs`) opens in a **"Plan tools" `Modal`**, grouped
   into labelled **Plan / View / Edit / Defaults** sections (`.plan-tools-group`) so it reads as a tidy sheet.

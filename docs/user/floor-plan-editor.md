@@ -187,8 +187,9 @@ screen and centred** when you open the editor. Click the percentage to reset to
 
 ## On a phone: the Tools menu
 
-On a small screen the toolbar fits one row: a **☰ Menu** button, a **tool
-dropdown** for picking the drawing tool, and **Done**. Tap **☰ Menu** to open the
+On a small screen the toolbar fits one row: **View / Edit**, a **☰ Menu** button,
+a **tool dropdown** for picking the drawing tool, **undo / redo** (↶ ↷), and
+**Done**. Tap **☰ Menu** to open the
 **Plan tools** sheet, organised into tidy sections so it isn't a wall of buttons:
 **Plan** (name, levels, templates, New / Reset / Reference photo), **View**
 (labels, dimensions, furniture, all-levels, Export PNG, undo/redo, grid, zoom),
