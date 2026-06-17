@@ -5,6 +5,33 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: View/Edit mode, orbit-like pan/zoom, decluttered dimensions, correct door swing
+
+- **View/Edit mode toggle.** The 2D editor now has a header toggle. **View** (the
+  default on touch) pans/zooms and taps to inspect only — a one-finger drag never
+  shifts a wall or a sofa by accident. **Edit** reveals the tools and lets you
+  move things; on touch you tap an item to select it first, then drag (a drag on
+  anything unselected pans). Mouse drag-to-move is unchanged. Move handles
+  (wall/room vertices, curve bulge) only show in Edit.
+- **Pan/zoom feels like orbit.** Wheel/trackpad-pinch zooms to the cursor with no
+  modifier (was Ctrl+wheel — and React's passive `onWheel` meant its
+  `preventDefault` was ignored, so Ctrl+wheel zoomed the whole browser page);
+  now a native non-passive listener. Right-drag pans too; zoom-to-cursor scroll
+  is applied in a layout effect so it no longer clamps and "doesn't take".
+- **Decluttered dimensions.** Dimensions render as architectural callouts —
+  extension lines + arrowheads spanning the measured length, rotated text in a
+  line gap, oriented outside the plan (`WallDimension`); door/window widths use
+  the same marker. Default **off**; the "Dims" toggle enables them. Label fonts
+  scale with zoom (clamped) and cull progressively by on-screen size / screen so
+  the plan never becomes overlapping text (`planLabelDisplay`, unit-tested).
+- **Door swing matches 3D for end-hinged doors.** The 2D arc (and clearance +
+  report) drew the swing side from `swing` alone, ignoring the hinge jamb; the 3D
+  leaf mirrors it for end-hinged doors. Bedroom 2 (the only end-hinged door in the
+  default flat) swung outward in 2D but inward in orbit/walk — folded the hinge
+  into `doorSwingGeometry`'s sign so all 2D consumers agree with 3D.
+- **Harness:** `shot.mjs` auto-dismisses the onboarding carousel + location prompt
+  by default (opt out with `SHOT_KEEP_FIRSTRUN=1` or per-scenario `keepFirstRun`).
+
 ## Offline: idle-preload feature chunks so nothing needs opening once
 
 - Even though the service worker precaches every chunk, a user who opened a feature (e.g. the

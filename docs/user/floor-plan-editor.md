@@ -6,6 +6,20 @@ between the 2D plan and the 3D scene at any time.
 
 ![The 2D floor-plan editor showing furniture footprints](/screenshots/floor-plan-editor.png)
 
+## Moving around — and View vs Edit
+
+- **Zoom** with the mouse wheel or a trackpad pinch — it zooms toward the cursor
+  (the ± buttons in the header zoom around the centre). **Pan** by dragging with
+  the middle or right mouse button, or with one finger on a touch screen.
+- The header has a **View / Edit** toggle:
+  - **View** — pan, zoom, and tap to inspect only; a drag never moves anything.
+    This is the default on phones/tablets, so a one‑finger pan can't nudge a wall
+    or a sofa by accident.
+  - **Edit** — reveals the drawing tools and lets you move things. On a touch
+    screen you **tap an item to select it first, then drag** it; a drag on
+    anything unselected just pans. (With a mouse, drag‑to‑move works directly.)
+  - Picking any tool switches you to Edit automatically.
+
 ## Drawing
 
 - **Walls** — choose interior or exterior thickness, then drag to draw. Endpoints
@@ -17,11 +31,14 @@ between the 2D plan and the 3D scene at any time.
   and the **Checks** tool keeps that swing arc clear of furniture.
 - **Split** — click a wall to cut it into two segments at that point. Any door or
   window on it moves to the matching half.
-- **Select tool** — click to select, drag to move a room or a piece of furniture.
+- **Select tool** — click to select, drag to move a room or a piece of furniture
+  (on touch, tap to select first — see *View vs Edit* above).
 - **Grid & corner snapping** keep everything aligned (cycle the grid size from the
   toolbar).
-- **Dims** (header toggle) labels every wall's length and every door/window's
-  width, so the plan reads with full dimensions.
+- **Dims** (header toggle, **off by default**) draws a dimension line — with
+  arrowheads spanning the length — on every wall and every door/window width.
+  Labels scale with zoom and thin out automatically when zoomed out so the plan
+  never turns into a wall of overlapping text.
 
 ## Non‑rectangular rooms (L‑shapes & angles)
 

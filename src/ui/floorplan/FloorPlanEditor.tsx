@@ -198,6 +198,12 @@ export function FloorPlanEditor() {
   // when zoomed out; the toolbar "Dims" toggle turns them on. When on, callouts
   // are culled + font-scaled by zoom/screen so they stay legible (see below).
   const [showWallDims, setShowWallDims] = useState(false)
+  // View vs Edit interaction mode. **View** = pan/zoom + tap-to-inspect only, so
+  // a one-finger drag never shifts anything (the default on touch, where stray
+  // drags are easy). **Edit** enables drawing + moving; on touch an item must be
+  // tapped (selected) before a drag moves it — otherwise the drag pans. Mouse
+  // (desktop) edit keeps the direct drag-to-move behaviour.
+  const [editMode, setEditMode] = useState<'view' | 'edit'>(isMobile ? 'view' : 'edit')
   // Show the OTHER storeys' walls as a dimmed underlay (SH3D "all levels"), so
   // you can stack walls / line up stairs between floors. Off by default.
   const [showOtherLevels, setShowOtherLevels] = useState(false)
@@ -647,23 +653,52 @@ export function FloorPlanEditor() {
     return best && best.dist < 0.4 ? best : null
   }
 
+  // Start a canvas pan from a pointer-down (used by middle/right-drag, view mode,
+  // and mobile-edit drags that aren't moving the selected item).
+  const startPan = (e: React.PointerEvent) => {
+    if (!canvasRef.current) return
+    panRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      sl: canvasRef.current.scrollLeft,
+      st: canvasRef.current.scrollTop,
+    }
+    panDidMove.current = false
+    svgRef.current?.setPointerCapture(e.pointerId)
+  }
+
+  /**
+   * Decide whether a pointer-down on a draggable element starts a MOVE. View
+   * mode never moves; on touch, edit mode requires the element to already be
+   * selected (tap first). When true it has captured the pointer + stopped
+   * propagation; when false the caller just selects and lets the gesture bubble
+   * to the canvas pan.
+   */
+  const beginElementDrag = (e: React.PointerEvent, isSelectedNow: boolean): boolean => {
+    if (editMode !== 'edit') return false
+    if (isMobile && !isSelectedNow) return false
+    e.stopPropagation()
+    svgRef.current?.setPointerCapture(e.pointerId)
+    return true
+  }
+
   const onDown = (e: React.PointerEvent) => {
     // Middle- OR right-button drags pan the open canvas (orbit-style: a drag
     // moves the view, leaving the left button free to draw/select). The right
     // button's context menu is suppressed in onContextMenu when a pan moved.
     if ((e.button === 1 || e.button === 2) && canvasRef.current) {
       e.preventDefault()
-      panRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        sl: canvasRef.current.scrollLeft,
-        st: canvasRef.current.scrollTop,
-      }
-      panDidMove.current = false
-      svgRef.current?.setPointerCapture(e.pointerId)
+      startPan(e)
       return
     }
     if (e.button !== 0) return
+    // View mode (any drag pans), or a mobile-edit select-tool drag — on empty
+    // canvas, or an unselected item whose handler fell through here — pans
+    // instead of editing. The selected item's handler captures before this runs.
+    if (editMode === 'view' || (isMobile && tool === 'select')) {
+      startPan(e)
+      return
+    }
     const [wx, wz] = pointerWorld(e)
     const st = useStore.getState()
     if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
@@ -1007,7 +1042,38 @@ export function FloorPlanEditor() {
     setPolyDraft([])
     setPolylineDraft([])
     setTool(t)
+    setEditMode('edit') // choosing a tool implies you want to edit
   }
+
+  // View ⇄ Edit toggle. View = pan/zoom + tap-to-inspect (safe one-finger pan on
+  // touch); Edit reveals the tools + lets you move/draw.
+  const viewToggle = (
+    <div className="seg accent">
+      <button
+        type="button"
+        className={editMode === 'view' ? 'on' : ''}
+        aria-pressed={editMode === 'view'}
+        onClick={() => {
+          setEditMode('view')
+          setTool('select')
+          setPolyDraft([])
+          setPolylineDraft([])
+        }}
+        title="View — pan & zoom only; dragging never moves anything"
+      >
+        View
+      </button>
+      <button
+        type="button"
+        className={editMode === 'edit' ? 'on' : ''}
+        aria-pressed={editMode === 'edit'}
+        onClick={() => setEditMode('edit')}
+        title="Edit — draw + move items (on touch, tap an item before dragging it)"
+      >
+        Edit
+      </button>
+    </div>
+  )
 
   // The drawing-tool palette (desktop: a button row; mobile: a compact <select>
   // so the whole bar stays one row instead of wrapping "Auto room" to 2 lines).
@@ -1334,29 +1400,39 @@ export function FloorPlanEditor() {
       >
         {isMobile ? (
           <>
+            {viewToggle}
+            {editMode === 'edit' && (
+              <button
+                type="button"
+                className={`btn btn-sm${toolsMenuOpen ? ' btn-accent' : ''}`}
+                aria-haspopup="dialog"
+                aria-expanded={toolsMenuOpen}
+                onClick={() => setToolsMenuOpen(true)}
+              >
+                ☰ Tools
+              </button>
+            )}
+            {editMode === 'edit' && (
+              <select
+                aria-label="Drawing tool"
+                className="input"
+                value={tool === 'scale' ? 'select' : tool}
+                onChange={(e) => pickTool(e.target.value as Tool)}
+                style={{ flex: 1, minWidth: 0 }}
+              >
+                {toolList.map((t) => (
+                  <option key={t} value={t}>
+                    {toolLabel(t)}
+                  </option>
+                ))}
+              </select>
+            )}
             <button
               type="button"
-              className={`btn btn-sm${toolsMenuOpen ? ' btn-accent' : ''}`}
-              aria-haspopup="dialog"
-              aria-expanded={toolsMenuOpen}
-              onClick={() => setToolsMenuOpen(true)}
+              onClick={exitPlanEditorToScene}
+              className="btn btn-accent btn-sm"
+              style={{ marginLeft: 'auto' }}
             >
-              ☰ Tools
-            </button>
-            <select
-              aria-label="Drawing tool"
-              className="input"
-              value={tool === 'scale' ? 'select' : tool}
-              onChange={(e) => pickTool(e.target.value as Tool)}
-              style={{ flex: 1, minWidth: 0 }}
-            >
-              {toolList.map((t) => (
-                <option key={t} value={t}>
-                  {toolLabel(t)}
-                </option>
-              ))}
-            </select>
-            <button type="button" onClick={exitPlanEditorToScene} className="btn btn-accent btn-sm">
               Done
             </button>
           </>
@@ -1371,8 +1447,9 @@ export function FloorPlanEditor() {
               aria-label="Plan name"
             />
             <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
-            {toolPalette}
-            {wallTypeSeg}
+            {viewToggle}
+            {editMode === 'edit' && toolPalette}
+            {editMode === 'edit' && wallTypeSeg}
             {planActions}
             <div className="ml-auto flex items-center gap-3">
               {viewActions}
@@ -1453,7 +1530,7 @@ export function FloorPlanEditor() {
             height={H}
             className="plan-paper touch-none"
             style={{
-              cursor: tool === 'select' ? 'default' : 'crosshair',
+              cursor: editMode === 'view' ? 'grab' : tool === 'select' ? 'default' : 'crosshair',
               padding: 0,
               // Render at the full canvas size (overrides responsive `.plan-paper`
               // width rules) so the grid + plan aren't shrunk/clipped.
@@ -1532,11 +1609,11 @@ export function FloorPlanEditor() {
                   style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
                   onPointerDown={(e) => {
                     if (tool !== 'select') return
-                    e.stopPropagation()
-                    const [wx, wz] = pointerWorld(e)
+                    const willMove = beginElementDrag(e, sel?.type === 'room' && sel.id === r.id)
                     a.setPlanSelection({ type: 'room', id: r.id })
+                    if (!willMove) return
+                    const [wx, wz] = pointerWorld(e)
                     setMoving({ id: r.id, gx: wx - r.origin[0], gz: wz - r.origin[1] })
-                    svgRef.current?.setPointerCapture(e.pointerId)
                   }}
                 >
                   {r.polygon && r.polygon.length >= 3 ? (
@@ -1573,7 +1650,11 @@ export function FloorPlanEditor() {
                   {/* Reshape handles: drag any vertex of a selected free-form
                       (polyroom) room. stopPropagation keeps the room-move
                       handler on the parent <g> from firing. */}
-                  {isSel && tool === 'select' && r.polygon && r.polygon.length >= 3
+                  {editMode === 'edit' &&
+                  isSel &&
+                  tool === 'select' &&
+                  r.polygon &&
+                  r.polygon.length >= 3
                     ? r.polygon.map(([vx, vz], i) => (
                         <circle
                           key={`pv-${r.id}-${i}`}
@@ -1621,11 +1702,14 @@ export function FloorPlanEditor() {
                         style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
                         onPointerDown={(e) => {
                           if (tool !== 'select') return
-                          e.stopPropagation()
-                          const [wx, wz] = pointerWorld(e)
+                          const willMove = beginElementDrag(
+                            e,
+                            sel?.type === 'room' && sel.id === r.id,
+                          )
                           a.setPlanSelection({ type: 'room', id: r.id })
+                          if (!willMove) return
+                          const [wx, wz] = pointerWorld(e)
                           setMovingRoomLabel({ id: r.id, gx: wx - lx, gz: wz - lz })
-                          svgRef.current?.setPointerCapture(e.pointerId)
                         }}
                       >
                         <tspan x={px}>{r.name}</tspan>
@@ -1668,13 +1752,13 @@ export function FloorPlanEditor() {
                   style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
                   onPointerDown={(e) => {
                     if (tool !== 'select') return
-                    e.stopPropagation()
-                    const [wx, wz] = pointerWorld(e)
                     const st = useStore.getState()
-                    st.selectItem(it.id)
+                    const willMove = beginElementDrag(e, selectedItemId === it.id)
+                    st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
+                    if (!willMove) return // view / unselected-on-touch: let it pan
+                    const [wx, wz] = pointerWorld(e)
                     st.pushHistory()
                     setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
-                    svgRef.current?.setPointerCapture(e.pointerId)
                   }}
                 />
               )
@@ -1752,11 +1836,11 @@ export function FloorPlanEditor() {
                     }}
                     onPointerDown={(e) => {
                       if (tool !== 'select') return
-                      e.stopPropagation()
-                      const [wx, wz] = pointerWorld(e)
+                      const willMove = beginElementDrag(e, sel?.type === 'note' && sel.id === nt.id)
                       useStore.getState().setPlanSelection({ type: 'note', id: nt.id })
+                      if (!willMove) return
+                      const [wx, wz] = pointerWorld(e)
                       setMovingNote({ id: nt.id, gx: wx - nt.x, gz: wz - nt.z })
-                      svgRef.current?.setPointerCapture(e.pointerId)
                     }}
                   >
                     {nt.text}
@@ -1905,13 +1989,17 @@ export function FloorPlanEditor() {
                   ? 'var(--plan-wall)'
                   : 'var(--text-3)'
               const onWallDown = (e: React.PointerEvent) => {
-                if (tool === 'select') {
-                  e.stopPropagation()
-                  a.setPlanSelection({ type: 'wall', id: w.id })
-                }
+                if (tool !== 'select') return
+                a.setPlanSelection({ type: 'wall', id: w.id })
+                // Desktop edit keeps the selection (stop the canvas from clearing
+                // it); view + touch let the gesture bubble so a drag pans.
+                if (editMode === 'edit' && !isMobile) e.stopPropagation()
               }
               // Curve bulge handle: drag a selected wall's midpoint to bow it.
-              const bulge = fCurvedWalls && isSel && tool === 'select' ? wallCurveMidpoint(w) : null
+              const bulge =
+                editMode === 'edit' && fCurvedWalls && isSel && tool === 'select'
+                  ? wallCurveMidpoint(w)
+                  : null
               return (
                 <g key={w.id}>
                   {/* Fat invisible hit target so curved/thin walls are easy to grab. */}
@@ -2112,6 +2200,7 @@ export function FloorPlanEditor() {
                       isGround
                         ? (e) => {
                             if (e.button !== 0) return
+                            if (editMode !== 'edit') return // view mode: let it pan
                             e.stopPropagation()
                             const [wx, wz] = pointerWorld(e)
                             setMovingStop({ id: s.id, gx: wx - sx, gz: wz - sz })
@@ -2154,7 +2243,8 @@ export function FloorPlanEditor() {
             {/* Endpoint handles for the selected wall (drag to reshape; shared
                 corners move together). Lets the user pull a rectangle into an
                 L-shape by dragging one corner. */}
-            {tool === 'select' &&
+            {editMode === 'edit' &&
+              tool === 'select' &&
               sel?.type === 'wall' &&
               (() => {
                 const w = levelPlan.walls.find((x) => x.id === sel.id)
@@ -2214,10 +2304,10 @@ export function FloorPlanEditor() {
               const color = o.kind === 'door' ? 'var(--accent)' : 'var(--accent-soft-text)'
               const strokeW = wall.thickness === 'external' ? 7 : 4
               const onPD = (e: React.PointerEvent) => {
-                if (tool === 'select') {
-                  e.stopPropagation()
-                  a.setPlanSelection({ type: 'opening', id: o.id })
-                }
+                if (tool !== 'select') return
+                a.setPlanSelection({ type: 'opening', id: o.id })
+                // Desktop edit keeps the selection; view + touch let a drag pan.
+                if (editMode === 'edit' && !isMobile) e.stopPropagation()
               }
               return (
                 <g key={o.id} onPointerDown={onPD} style={{ cursor: 'pointer' }}>
