@@ -50,6 +50,34 @@ describe('floorPlanSlice', () => {
     expect(B.end).toEqual([2, 2])
   })
 
+  it('duplicates a wall as a new, unlocked, unnamed copy offset from the source', () => {
+    useStore.getState().newFloorPlan('Dup wall test')
+    const id = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    useStore.getState().updateWall(id, { name: 'Custom', locked: true })
+    const newId = useStore.getState().duplicateWall(id)
+    expect(newId).toBeTruthy()
+    const copy = useStore.getState().floorPlan.walls.find((w) => w.id === newId)!
+    expect(copy.start).toEqual([0.3, 0.3])
+    expect(copy.end).toEqual([2.3, 0.3])
+    expect(copy.name).toBeUndefined() // custom name not copied
+    expect(copy.locked).toBeUndefined() // copy is editable
+    expect(useStore.getState().planSelection).toEqual({ type: 'wall', id: newId })
+  })
+
+  it('duplicates an opening onto the same wall, nudged along it and clamped', () => {
+    useStore.getState().newFloorPlan('Dup opening test')
+    const wid = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
+    const oid = useStore
+      .getState()
+      .addOpening({ kind: 'door', wallId: wid, offset: 0.5, width: 0.9, sill: 0, head: 2.1 })
+    const newId = useStore.getState().duplicateOpening(oid)
+    const copy = useStore.getState().floorPlan.openings.find((o) => o.id === newId)!
+    expect(copy.wallId).toBe(wid)
+    expect(copy.offset).toBeCloseTo(1.4, 5) // 0.5 + width 0.9
+    expect(copy.name).toBeUndefined()
+    expect(useStore.getState().planSelection).toEqual({ type: 'opening', id: newId })
+  })
+
   it('splits a wall into two segments at the midpoint, re-homing openings', () => {
     const s = useStore.getState()
     s.newFloorPlan('Split test')

@@ -43,6 +43,24 @@ between the 2D plan and the 3D scene at any time.
   Labels scale with zoom and thin out automatically when zoomed out so the plan
   never turns into a wall of overlapping text.
 
+## Inspecting an element
+
+Select a wall, door or window and the **Properties** panel works just like the
+furniture inspector — a **Name** field on top, then a grid of quick actions:
+
+- **Name** — give it your own label (e.g. “Front door”). Left blank, it shows a
+  generated default like *Wall 123456*; a name you type always sticks.
+- **Walls** — *Reverse*, *Split* (cut in two at the midpoint), *Join* (merge a
+  collinear neighbour), *Duplicate*, *Lock* and *Delete*, with the exact
+  thickness / start / end / length / angle fields underneath.
+- **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
+  *Lock* and *Delete*, plus the offset / width / sill / head fields.
+- **Lock** — a locked wall or opening can still be selected but won't move,
+  reshape or delete by accident (its drag handles disappear) — unlock it to edit
+  again.
+- **Duplicate** — drops an editable copy beside the original (the name and lock
+  aren't carried over).
+
 ## Non‑rectangular rooms (L‑shapes & angles)
 
 Rooms don't have to be plain rectangles:

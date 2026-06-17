@@ -661,12 +661,16 @@ export function FloorPlanEditor() {
         if (isEditableTarget(e)) return
         const st = useStore.getState()
         if (sel) {
-          if (sel.type === 'wall') st.removeWall(sel.id, levelId)
-          else if (sel.type === 'room') st.removeRoom(sel.id, levelId)
+          // Locked walls/openings can't be deleted (matches furniture lock).
+          const lvl = levelById(st.floorPlan, levelId)
+          if (sel.type === 'wall') {
+            if (!lvl.walls.find((w) => w.id === sel.id)?.locked) st.removeWall(sel.id, levelId)
+          } else if (sel.type === 'room') st.removeRoom(sel.id, levelId)
           else if (sel.type === 'note') st.removeNote(sel.id)
           else if (sel.type === 'dim') st.removeDimension(sel.id)
           else if (sel.type === 'polyline') st.removePolyline(sel.id)
-          else st.removeOpening(sel.id, levelId)
+          else if (!lvl.openings.find((o) => o.id === sel.id)?.locked)
+            st.removeOpening(sel.id, levelId)
         } else if (st.selectedItemId) {
           // A furniture footprint is selected — delete it (parity with 3D).
           st.deleteItem(st.selectedItemId)
@@ -2217,6 +2221,7 @@ export function FloorPlanEditor() {
                 const willMove = beginElementDrag(e, isSel)
                 a.setPlanSelection({ type: 'wall', id: w.id })
                 if (!willMove) return // view / unselected-on-touch: let it pan
+                if (w.locked) return // locked walls select but don't move (like furniture)
                 // Drag the whole wall (endpoint handles, which stopPropagation,
                 // handle per-corner reshape instead).
                 const [wx, wz] = pointerWorld(e)
@@ -2224,7 +2229,7 @@ export function FloorPlanEditor() {
               }
               // Curve bulge handle: drag a selected wall's midpoint to bow it.
               const bulge =
-                editMode === 'edit' && fCurvedWalls && isSel && tool === 'select'
+                editMode === 'edit' && fCurvedWalls && isSel && tool === 'select' && !w.locked
                   ? wallCurveMidpoint(w)
                   : null
               return (
@@ -2488,7 +2493,7 @@ export function FloorPlanEditor() {
               sel?.type === 'wall' &&
               (() => {
                 const w = levelPlan.walls.find((x) => x.id === sel.id)
-                if (!w) return null
+                if (!w || w.locked) return null // locked: no reshape/rotate handles
                 const sx = toPx(w.start[0])
                 const sy = toPx(w.start[1])
                 const ex = toPx(w.end[0])
@@ -2603,6 +2608,7 @@ export function FloorPlanEditor() {
                 const willMove = beginElementDrag(e, isSel)
                 a.setPlanSelection({ type: 'opening', id: o.id })
                 if (!willMove) return // view / unselected-on-touch: let it pan
+                if (o.locked) return // locked openings select but don't move
                 // Start dragging the opening along its wall.
                 const [wx, wz] = pointerWorld(e)
                 useStore.getState().pushHistory()
@@ -2613,7 +2619,7 @@ export function FloorPlanEditor() {
                   key={o.id}
                   data-opening={o.id}
                   onPointerDown={onPD}
-                  style={{ cursor: editMode === 'edit' ? 'grab' : 'pointer' }}
+                  style={{ cursor: editMode === 'edit' && !o.locked ? 'grab' : 'pointer' }}
                 >
                   {/* Selected: translucent accent halo over the opening span so
                       the selection is obvious (mirrors the furniture highlight). */}

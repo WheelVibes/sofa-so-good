@@ -411,8 +411,15 @@ same change that reshapes a system.
   `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + **exact length/angle** inspector
-  fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) for
-  non-orthogonal shapes. **Text notes** (Text tool → `plan.notes`, draggable/editable; also rendered on
+  fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) +
+  whole-wall drag/rotate keeping connected corners joined (`moveWallTo`, rotation clamped ±90°) for
+  non-orthogonal shapes. Drawing a new wall snaps its endpoints to existing corners **and** wall spans
+  (a T-junction) via pure `ui/floorplan/editor/snapToWalls.ts` (vertex wins over edge; free past the radius).
+  **Wall + door/window inspectors mirror the furniture inspector** (`PlanInspector`): a custom **Name**
+  (pure defaults in `floorplan/planElementName.ts`; `PlanWall.name`/`PlanOpening.name`, custom wins) +
+  an **action grid** (Reverse/Split/Join/Duplicate/Lock/Delete for walls; Flip hinge/swing/Duplicate/Lock/Delete
+  for doors). **Lock** (`PlanWall.locked`/`PlanOpening.locked`) keeps an element selectable but un-draggable/
+  -deletable on the canvas; **`duplicateWall`/`duplicateOpening`** make an editable copy (name + lock dropped). **Text notes** (Text tool → `plan.notes`, draggable/editable; also rendered on
   the report + drawing-set plan sheets via `reportPlanSvg` `notesSvg`, level-scoped by `levelAsPlan` —
   PARITY-PLANTEXT) + **dimension
   lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).

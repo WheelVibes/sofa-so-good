@@ -5,6 +5,24 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: wall / door / window inspector parity (name, lock, duplicate)
+
+- The wall and door/window inspectors now mirror the **furniture inspector**: a
+  **Name** field at the top (custom name with the generated default as
+  placeholder), then an **action grid** of icon buttons —
+  walls get *Reverse · Split · Join · Duplicate · Lock · Delete*; doors get
+  *Flip hinge · Flip swing · Duplicate · Lock · Delete* (windows omit the door
+  flips). Detailed fields (thickness, coordinates, swing, …) follow underneath.
+- **Custom names** — walls/doors/windows carry an optional name. Unset, they show
+  a stable generated default (`Wall 123456`, `Door …`, `Window …`); a custom name
+  takes absolute precedence. (Schema is additive + back-compat; round-trips on
+  save/load.)
+- **Lock** — a locked wall/opening can still be *selected* but can't be dragged,
+  reshaped, rotated, or deleted from the canvas (handles hidden; ⌫/Del ignored) —
+  matching how furniture lock works.
+- **Duplicate** — `duplicateWall` / `duplicateOpening` make an editable copy
+  (offset so it's visible; the custom name + lock are not copied) and select it.
+
 ## Floor-plan editor: new walls snap to join existing ones
 
 - **Drawing a wall snaps to existing geometry** so segments connect cleanly: an

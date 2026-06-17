@@ -101,6 +101,10 @@ export interface FloorPlanSlice {
   splitWall: (id: string, t?: number, levelId?: string) => void
   /** Reverse a wall's direction in place (openings keep their position). */
   reverseWall: (id: string, levelId?: string) => void
+  /** Duplicate a wall, offset slightly so the copy is visible, and select it.
+   *  A custom name is NOT copied (the duplicate gets its own default). Returns
+   *  the new wall's id, or undefined when the source is missing. */
+  duplicateWall: (id: string, levelId?: string) => string | undefined
   /** Merge a wall with a collinear neighbour that shares an endpoint (inverse of
    *  split); selects the merged wall. No-op when there's no collinear neighbour. */
   joinWall: (id: string, levelId?: string) => void
@@ -133,6 +137,11 @@ export interface FloorPlanSlice {
   addOpening: (opening: Omit<PlanOpening, 'id'>, levelId?: string) => string
   updateOpening: (id: string, patch: Partial<PlanOpening>, levelId?: string) => void
   removeOpening: (id: string, levelId?: string) => void
+  /** Duplicate an opening on the same wall, nudged along it so the copy is
+   *  visible, clamped within the wall; selects the copy. A custom name is not
+   *  copied. Returns the new opening's id, or undefined when the source/wall is
+   *  missing. */
+  duplicateOpening: (id: string, levelId?: string) => string | undefined
 
   /** Add a free-text note to the plan (PARITY-DIMTEXT); returns its id. */
   addNote: (note: Omit<PlanNote, 'id'>) => string
@@ -302,6 +311,28 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })),
       planSelection: null,
     }))
+  },
+  duplicateWall: (id, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const src = g.walls.find((w) => w.id === id)
+    if (!src) return undefined
+    const newId = planId('w')
+    const off = 0.3 // visible offset so the copy doesn't sit exactly on the source
+    // A copy is its own element: drop the custom name + lock so it's editable.
+    const { name: _n, locked: _l, ...rest } = src
+    const copy: PlanWall = {
+      ...rest,
+      id: newId,
+      start: [src.start[0] + off, src.start[1] + off],
+      end: [src.end[0] + off, src.end[1] + off],
+    }
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({ walls: [...gg.walls, copy] })),
+      planSelection: { type: 'wall', id: newId },
+    }))
+    return newId
   },
 
   splitWall: (id, t = 0.5, levelId) => {
@@ -485,6 +516,30 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })),
       planSelection: null,
     }))
+  },
+  duplicateOpening: (id, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const src = g.openings.find((o) => o.id === id)
+    if (!src) return undefined
+    const wall = g.walls.find((w) => w.id === src.wallId)
+    if (!wall) return undefined
+    const wlen = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+    // Nudge the copy along the wall by ~one width, clamped within the wall span.
+    const maxOff = Math.max(0, wlen - src.width)
+    const nudged = src.offset + src.width
+    const offset = nudged <= maxOff ? nudged : Math.max(0, src.offset - src.width)
+    const newId = planId(src.kind === 'door' ? 'door' : 'win')
+    const { name: _n, locked: _l, ...rest } = src
+    const copy: PlanOpening = { ...rest, id: newId, offset }
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+        openings: [...gg.openings, copy],
+      })),
+      planSelection: { type: 'opening', id: newId },
+    }))
+    return newId
   },
 
   // Notes are a top-level plan array (level-tagged via `note.levelId`), not part

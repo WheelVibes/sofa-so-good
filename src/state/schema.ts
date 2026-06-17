@@ -142,6 +142,9 @@ const PlanWallZ = z.object({
   start: Vec2Z,
   end: Vec2Z,
   thickness: z.enum(['external', 'internal']),
+  // Optional custom name + lock flag — additive, back-compat.
+  name: z.string().optional(),
+  locked: z.boolean().optional(),
   // Optional per-wall explicit thickness (m) override — additive, back-compat.
   thicknessM: z.number().optional(),
   topHeight: z.number().optional(),
@@ -162,6 +165,9 @@ const PlanOpeningZ = z.object({
   id: z.string(),
   kind: z.enum(['door', 'window']),
   wallId: z.string(),
+  // Optional custom name + lock flag — additive, back-compat.
+  name: z.string().optional(),
+  locked: z.boolean().optional(),
   offset: z.number(),
   width: z.number(),
   sill: z.number(),

@@ -3,6 +3,7 @@ import type { RoomId } from '../../apartment/types'
 import { useFeature } from '../../features/useFeature'
 import { doorHinge, doorSwing } from '../../floorplan/doorSwing'
 import { levelById } from '../../floorplan/levels'
+import { defaultOpeningName, defaultWallName } from '../../floorplan/planElementName'
 import { polylineLength } from '../../floorplan/polyline'
 import {
   type CeilingConfig,
@@ -574,6 +575,60 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     if (w)
       body = (
         <div className="space-y-2">
+          <NameField
+            value={w.name}
+            placeholder={defaultWallName(w)}
+            onChange={(v) => a.updateWall(w.id, { name: v }, levelId)}
+          />
+          <div className="action-grid">
+            <ActBtn
+              label="Reverse"
+              icon={<Icon.FlipH width={16} height={16} />}
+              disabled={w.locked}
+              title="Reverse this wall's direction (flips its sides / door-swing reference)"
+              onClick={() => a.reverseWall(w.id, levelId)}
+            />
+            <ActBtn
+              label="Split"
+              icon={<Icon.FlipV width={16} height={16} />}
+              disabled={w.locked}
+              title="Split this wall into two segments at its midpoint"
+              onClick={() => a.splitWall(w.id, 0.5, levelId)}
+            />
+            <ActBtn
+              label="Join"
+              icon={<Icon.Rotate width={16} height={16} />}
+              disabled={w.locked}
+              title="Merge with a collinear neighbouring wall (inverse of Split)"
+              onClick={() => a.joinWall(w.id, levelId)}
+            />
+            <ActBtn
+              label="Duplicate"
+              icon={<Icon.Copy width={16} height={16} />}
+              title="Make a copy of this wall"
+              onClick={() => a.duplicateWall(w.id, levelId)}
+            />
+            <ActBtn
+              label={w.locked ? 'Locked' : 'Lock'}
+              icon={
+                w.locked ? (
+                  <Icon.Lock width={16} height={16} />
+                ) : (
+                  <Icon.Unlock width={16} height={16} />
+                )
+              }
+              on={w.locked}
+              title={w.locked ? 'Unlock — allow moving/editing' : 'Lock in place'}
+              onClick={() => a.updateWall(w.id, { locked: !w.locked || undefined }, levelId)}
+            />
+            <ActBtn
+              label="Delete"
+              icon={<Icon.Trash width={16} height={16} />}
+              danger
+              disabled={w.locked}
+              onClick={() => a.removeWall(w.id, levelId)}
+            />
+          </div>
           <div className="seg accent" style={{ display: 'flex' }}>
             {(['external', 'internal'] as const).map((t) => (
               <button
@@ -738,27 +793,6 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               ) : null}
             </div>
           ) : null}
-          <div className="row" style={{ gap: 6 }}>
-            <button
-              type="button"
-              className="btn btn-sm"
-              style={{ flex: 1 }}
-              title="Reverse this wall's direction (flips its sides / door-swing reference)"
-              onClick={() => a.reverseWall(w.id, levelId)}
-            >
-              Reverse
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm"
-              style={{ flex: 1 }}
-              title="Merge with a collinear neighbouring wall (inverse of Split)"
-              onClick={() => a.joinWall(w.id, levelId)}
-            >
-              Join
-            </button>
-          </div>
-          <DeleteBtn onClick={() => a.removeWall(w.id, levelId)} label="Delete wall" />
         </div>
       )
   } else if (sel?.type === 'opening') {
@@ -770,6 +804,69 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
         <div className="space-y-2">
           <div className="sec-h">
             <span className="capitalize">{o.kind}</span>
+          </div>
+          <NameField
+            value={o.name}
+            placeholder={defaultOpeningName(o)}
+            onChange={(v) => a.updateOpening(o.id, { name: v }, levelId)}
+          />
+          <div className={`action-grid${o.kind === 'door' ? '' : ' two'}`}>
+            {o.kind === 'door' ? (
+              <>
+                <ActBtn
+                  label="Flip hinge"
+                  icon={<Icon.FlipH width={16} height={16} />}
+                  disabled={o.locked}
+                  title="Pivot on the opposite jamb"
+                  onClick={() =>
+                    a.updateOpening(
+                      o.id,
+                      { hinge: doorHinge(o) === 'start' ? 'end' : 'start' },
+                      levelId,
+                    )
+                  }
+                />
+                <ActBtn
+                  label="Flip swing"
+                  icon={<Icon.FlipV width={16} height={16} />}
+                  disabled={o.locked}
+                  title="Swing the leaf to the wall's other side"
+                  onClick={() =>
+                    a.updateOpening(
+                      o.id,
+                      { swing: doorSwing(o) === 'left' ? 'right' : 'left' },
+                      levelId,
+                    )
+                  }
+                />
+              </>
+            ) : null}
+            <ActBtn
+              label="Duplicate"
+              icon={<Icon.Copy width={16} height={16} />}
+              title={`Make a copy of this ${o.kind}`}
+              onClick={() => a.duplicateOpening(o.id, levelId)}
+            />
+            <ActBtn
+              label={o.locked ? 'Locked' : 'Lock'}
+              icon={
+                o.locked ? (
+                  <Icon.Lock width={16} height={16} />
+                ) : (
+                  <Icon.Unlock width={16} height={16} />
+                )
+              }
+              on={o.locked}
+              title={o.locked ? 'Unlock — allow moving/editing' : 'Lock in place'}
+              onClick={() => a.updateOpening(o.id, { locked: !o.locked || undefined }, levelId)}
+            />
+            <ActBtn
+              label="Delete"
+              icon={<Icon.Trash width={16} height={16} />}
+              danger
+              disabled={o.locked}
+              onClick={() => a.removeOpening(o.id, levelId)}
+            />
           </div>
           <Num
             label="Offset (m)"
@@ -833,7 +930,6 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
               </div>
             </>
           )}
-          <DeleteBtn onClick={() => a.removeOpening(o.id, levelId)} label={`Delete ${o.kind}`} />
         </div>
       )
     }
@@ -980,6 +1076,69 @@ function DeleteBtn({ onClick, label }: { onClick: () => void; label: string }) {
       className="btn btn-danger btn-block"
       style={{ marginTop: 'var(--s-1)' }}
     >
+      {label}
+    </button>
+  )
+}
+
+/** Custom-name field shared by the wall / door / window inspectors. Mirrors the
+ *  furniture inspector: a placeholder shows the generated default, and clearing
+ *  the field falls back to it (a blank name is stored as `undefined`). */
+function NameField({
+  value,
+  placeholder,
+  onChange,
+}: {
+  value?: string
+  placeholder: string
+  onChange: (v: string | undefined) => void
+}) {
+  return (
+    <label className="flex items-center gap-2 text-xs">
+      <span className="label" style={{ whiteSpace: 'nowrap' }}>
+        Name
+      </span>
+      <input
+        type="text"
+        value={value ?? ''}
+        placeholder={placeholder}
+        aria-label="Custom name"
+        onChange={(e) => onChange(e.target.value.trim() ? e.target.value : undefined)}
+        className="input"
+        style={{ flex: 1, minWidth: 0 }}
+      />
+    </label>
+  )
+}
+
+/** One cell of the inspector action grid (mirrors the furniture inspector's
+ *  `.act` buttons): an icon over a label, with `on` / `danger` / `disabled`. */
+function ActBtn({
+  label,
+  icon,
+  onClick,
+  on,
+  danger,
+  disabled,
+  title,
+}: {
+  label: string
+  icon?: React.ReactNode
+  onClick: () => void
+  on?: boolean
+  danger?: boolean
+  disabled?: boolean
+  title?: string
+}) {
+  return (
+    <button
+      type="button"
+      className={`act${on ? ' on' : ''}${danger ? ' danger' : ''}`}
+      onClick={() => !disabled && onClick()}
+      disabled={disabled}
+      title={title}
+    >
+      {icon}
       {label}
     </button>
   )
