@@ -5,6 +5,30 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Offline: recover from failed chunk loads instead of crashing the app
+
+- Opening the floor-plan editor (or any lazy panel/tool) could crash-land the whole app on the
+  top-level ErrorBoundary with **"Importing a module script failed"** — a failed dynamic
+  `import()` of a code-split chunk. The build already precaches every chunk (verified: the
+  editor opens fully offline from a clean build), so the trigger is a chunk the page can't
+  fetch right now: a **stale hash after a redeploy** (the PWA's `cleanupOutdatedCaches` drops
+  old chunks) or a **transient miss** before the service worker finished precaching on the
+  first visit.
+- Added `src/ui/app/lazyWithRetry.tsx`: a drop-in `React.lazy` replacement that retries a
+  chunk `import()` with backoff and, if it still fails **while online**, reloads once (guarded
+  against reload loops via a sessionStorage cooldown; never reloads while offline, where a
+  reload can't help) to pull the fresh build + service worker. `main.tsx` installs a
+  `vite:preloadError` handler (`installChunkErrorRecovery`) for `modulepreload` failures.
+- Migrated every `React.lazy` call site to `lazyWithRetry` (`lazyComponents.tsx`, `Effects`,
+  `MaybeXr`, `CatalogDrawer`, `FinishPicker`). Infrastructure, not a user-facing feature, so —
+  like the service worker — it carries no `FEATURE_FLAGS` entry. Unit-tested
+  (`lazyWithRetry.test.tsx`: error classification, retry-then-succeed, non-chunk pass-through,
+  online reload, no-loop cooldown, offline reject).
+- Added offline verification tooling: `scripts/static-serve.mjs` (serves `dist/` under the
+  production base the way a static host does — `vite preview` doesn't honour `base` for assets
+  in this sandbox) and `scripts/offline-test.mjs` (headless: precache → reload → offline →
+  open the editor). Confirmed the editor opens offline with no error.
+
 ## Docs: reframe as an HDB + condo app; concise README
 
 - The product is an interior-design app for Singapore **HDB flats AND condominiums**, not just a

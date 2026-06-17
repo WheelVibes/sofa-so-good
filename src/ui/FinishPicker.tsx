@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useShallow } from 'zustand/react/shallow'
 import { ROOMS, roomArea } from '../apartment/constants'
 import type { RoomId } from '../apartment/types'
@@ -20,6 +20,7 @@ import { useMaterials } from '../materials/useMaterial'
 import { editableRooms } from '../state/rooms'
 import { useStore } from '../state/store'
 import { formatArea } from '../utils/measurement'
+import { lazyWithRetry } from './app/lazyWithRetry'
 import { RemoteBrowseTab } from './catalog/RemoteBrowseTab'
 import { SwatchGroup } from './finish/swatches'
 import { Icon } from './toolbar/icons'
@@ -27,7 +28,7 @@ import { Icon } from './toolbar/icons'
 // Lazy-loaded: the texture upload dialog (and its TGA/TIFF/EXR/HDR decode
 // pipeline) only loads once the user opens it (P-CHUNK). It resets its state
 // on close anyway, so mount-gating on `uploadOpen` is behaviour-identical.
-const UploadMaterialDialog = lazy(() =>
+const UploadMaterialDialog = lazyWithRetry(() =>
   import('./upload/UploadMaterialDialog').then((m) => ({ default: m.UploadMaterialDialog })),
 )
 

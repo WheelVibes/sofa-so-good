@@ -569,6 +569,16 @@ same change that reshapes a system.
   (`vite.config.ts`) precaches the build so the app loads and runs offline after the first visit
   (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`). Optional network-bound
   features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline.
+  Every code-split feature (panels/modals/tools in `ui/app/lazyComponents.tsx`, plus the post
+  stack, XR, upload dialogs) loads through **`ui/app/lazyWithRetry.tsx`** instead of bare
+  `React.lazy`: a failed chunk `import()` (stale hash after a redeploy — Workbox
+  `cleanupOutdatedCaches` drops old chunks — or a transient miss before precache finishes) is
+  retried, then recovered with a single guarded reload when online, so it never crash-lands the
+  app on the top-level ErrorBoundary with "Importing a module script failed". `main.tsx` also
+  installs a `vite:preloadError` handler (`installChunkErrorRecovery`) for `modulepreload`
+  failures. Verify with `node scripts/static-serve.mjs` (serves `dist/` under the prod base —
+  unlike `vite preview`, which doesn't honour `base` for assets in this sandbox) + a headless
+  offline run (`scripts/offline-test.mjs`).
 
 ## Adding content
 - **Furniture**: add `primitives/<Name>.tsx` (`{props}`), register in `index.ts` +

@@ -1,6 +1,7 @@
-import { lazy, Suspense, useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useFeature } from '../../features/useFeature'
 import { useStore } from '../../state/store'
+import { lazyWithRetry } from '../app/lazyWithRetry'
 import { Icon } from '../toolbar/icons'
 import { CatalogCard } from './CatalogCard'
 import { type CatalogCategory, CategoryTabs } from './CategoryTabs'
@@ -15,8 +16,8 @@ import { fuzzySearchSmart } from './searchSynonyms'
 // are only needed once the user opens them, so they stay out of the boot
 // bundle (P-CHUNK). The upload dialog resets its state on close anyway, so
 // mount-gating it on `uploadOpen` is behaviour-identical.
-const PacksTab = lazy(() => import('./PacksTab').then((m) => ({ default: m.PacksTab })))
-const UploadModelDialog = lazy(() =>
+const PacksTab = lazyWithRetry(() => import('./PacksTab').then((m) => ({ default: m.PacksTab })))
+const UploadModelDialog = lazyWithRetry(() =>
   import('../upload/UploadModelDialog').then((m) => ({ default: m.UploadModelDialog })),
 )
 
