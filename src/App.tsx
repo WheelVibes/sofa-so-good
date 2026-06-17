@@ -80,7 +80,6 @@ import { Toolbar } from './ui/Toolbar'
 import { WalkHud } from './ui/WalkHud'
 import { WallAccentPicker } from './ui/WallAccentPicker'
 import { WebGLFallback } from './ui/WebGLFallback'
-import { WalkCameraControls } from './ui/walk/WalkCameraControls'
 import { WalkJoystick } from './ui/walk/WalkJoystick'
 
 export default function App() {
@@ -801,7 +800,6 @@ export default function App() {
         <TapeModeToggle />
         <Crosshair />
         <WalkJoystick />
-        <WalkCameraControls />
         <WalkHud />
         <DoorPrompt />
         <CatalogDrawer />

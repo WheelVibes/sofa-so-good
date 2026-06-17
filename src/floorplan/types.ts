@@ -59,6 +59,10 @@ export interface PlanOpening {
   /** Optional user-given name; absent = a generated default (`Door <hash>` /
    *  `Window <hash>`). A custom name takes precedence and is never overwritten. */
   name?: string
+  /** True when `name` was assigned automatically by room allocation (`<room>
+   *  door ##`), so a later room rename may re-flow it. Cleared when the user
+   *  edits the name in the inspector — a user-set name then always wins. */
+  nameAuto?: boolean
   /** When true the opening can't be dragged or deleted from the canvas. */
   locked?: boolean
   /** Distance from the wall's start along its length, to the opening's start. */

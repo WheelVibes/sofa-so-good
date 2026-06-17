@@ -23,6 +23,7 @@ import {
   levelOfItem,
   planLevels,
 } from '../../floorplan/levels'
+import { planIntegrityFlags } from '../../floorplan/planIntegrity'
 import { polylinePointsAttr } from '../../floorplan/polyline'
 import { roomLabelPoint, roomLabelPosition } from '../../floorplan/roomCentroid'
 import { detectRoomPolygon } from '../../floorplan/roomDetect'
@@ -33,6 +34,7 @@ import {
   planBounds,
   planRoomArea,
   planTotalArea,
+  pointInRoom,
   wallLength,
 } from '../../floorplan/types'
 import {
@@ -52,6 +54,7 @@ import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
+import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import {
   type BackdropMeta,
@@ -166,6 +169,17 @@ export function FloorPlanEditor() {
         : null,
     [fUnroomed, levelPlan.walls],
   )
+  // Stray-element flags (Pro): walls joined to nothing, rooms touching no other
+  // room, openings off any wall — drawn in red so the apartment can be made whole.
+  const fIntegrity = useFeature('planIntegrity')
+  const strays = useMemo(
+    () =>
+      fIntegrity
+        ? planIntegrityFlags(levelPlan.walls, levelPlan.rooms, levelPlan.openings)
+        : { walls: new Set<string>(), rooms: new Set<string>(), openings: new Set<string>() },
+    [fIntegrity, levelPlan.walls, levelPlan.rooms, levelPlan.openings],
+  )
+  const strayCount = strays.walls.size + strays.rooms.size + strays.openings.size
   const allLevels = planLevels(plan)
   const isMultiLevel = allLevels.length > 1
   const otherLevels = allLevels.filter((l) => l.id !== levelId)
@@ -249,6 +263,11 @@ export function FloorPlanEditor() {
   // Show the OTHER storeys' walls as a dimmed underlay (SH3D "all levels"), so
   // you can stack walls / line up stairs between floors. Off by default.
   const [showOtherLevels, setShowOtherLevels] = useState(false)
+  // "Skeleton" view: draw every wall at one uniform thin stroke (ignoring the
+  // external/internal thickness), so it's obvious whether wall endpoints meet to
+  // form a closed room — thick walls of different widths otherwise hide small
+  // gaps / overlaps at corners. Openings stay drawn (they're part of the wall).
+  const [skeleton, setSkeleton] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
@@ -478,6 +497,30 @@ export function FloorPlanEditor() {
   // new size lays out and then clamps the scroll — feeling unresponsive).
   const pendingScroll = useRef<{ left: number; top: number } | null>(null)
   const PX = basePX * zoom
+  // Two-finger pinch-zoom (touch): the SVG has `touch-action: none`, so the
+  // browser does no native pinch — we track the active touch points ourselves
+  // and zoom around their midpoint. `touchPts` is every touch currently down on
+  // the canvas; `pinch` holds the gesture baseline (start spread + zoom) while
+  // two are down.
+  const touchPts = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const pinch = useRef<{ dist: number; zoom: number } | null>(null)
+
+  // Zoom to `next`, keeping the world point under (clientX, clientY) fixed —
+  // the shared anchored-scroll path used by wheel + pinch zoom.
+  const zoomToPoint = useCallback((next: number, clientX: number, clientY: number) => {
+    const el = canvasRef.current
+    const cur = zoomRef.current
+    const clamped = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, next))
+    if (!el || clamped === cur) return
+    const rect = el.getBoundingClientRect()
+    const px = clientX - rect.left
+    const py = clientY - rect.top
+    const cx = el.scrollLeft + px
+    const cy = el.scrollTop + py
+    const r = clamped / cur
+    pendingScroll.current = { left: cx * r - px, top: cy * r - py }
+    setZoom(clamped)
+  }, [])
 
   // Zoom around the viewport centre (for the ± buttons / keyboard), reusing the
   // same anchored-scroll path as wheel zoom so the view stays put.
@@ -798,6 +841,30 @@ export function FloorPlanEditor() {
   }
 
   const onDown = (e: React.PointerEvent) => {
+    if (e.pointerType === 'touch') {
+      touchPts.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      if (touchPts.current.size >= 2) {
+        // Second finger down → pinch-zoom. Abandon whatever single-finger gesture
+        // the first finger started (pan / draw / element drag) so it doesn't run
+        // underneath the zoom or commit on lift.
+        const [a2, b2] = [...touchPts.current.values()]
+        pinch.current = { dist: Math.hypot(a2.x - b2.x, a2.y - b2.y) || 1, zoom: zoomRef.current }
+        panRef.current = null
+        setDraft(null)
+        setMoving(null)
+        setMovingItem(null)
+        setMovingVertex(null)
+        setMovingPolyVertex(null)
+        setMovingBulge(null)
+        setMovingWall(null)
+        setRotatingWall(null)
+        setMovingOpening(null)
+        setMovingStop(null)
+        setMovingNote(null)
+        setMovingRoomLabel(null)
+        return
+      }
+    }
     // Middle- OR right-button drags pan the open canvas (orbit-style: a drag
     // moves the view, leaving the left button free to draw/select). The right
     // button's context menu is suppressed in onContextMenu when a pan moved.
@@ -828,13 +895,21 @@ export function FloorPlanEditor() {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
     } else if (tool === 'autoroom') {
       // Make a room from the active storey's wall loop enclosing the click.
-      const poly = detectRoomPolygon(levelById(st.floorPlan, levelId).walls, [wx, wz])
-      if (poly) commitPolyRoom(poly)
-      else
-        st.notify.start({
-          title: 'No enclosing walls here — draw a closed wall loop first',
-          kind: 'info',
-        })
+      const lvl = levelById(st.floorPlan, levelId)
+      if (lvl.rooms.some((r) => pointInRoom(r, wx, wz))) {
+        // Already allocated here — don't stack a duplicate room on top.
+        st.notify.start({ title: 'This area is already a room', kind: 'info' })
+      } else {
+        // Walls enclose the area regardless of any doors/windows in them
+        // (openings don't break a wall), so a room with openings still detects.
+        const poly = detectRoomPolygon(lvl.walls, [wx, wz])
+        if (poly) commitPolyRoom(poly)
+        else
+          st.notify.start({
+            title: 'No enclosing walls here — draw a closed wall loop first',
+            kind: 'info',
+          })
+      }
     } else if (tool === 'polyroom') {
       // Click near the first vertex (≥3 placed) closes the polygon into a room.
       const first = polyDraft[0]
@@ -924,6 +999,21 @@ export function FloorPlanEditor() {
   }
 
   const onMove = (e: React.PointerEvent) => {
+    if (pinch.current && e.pointerType === 'touch') {
+      if (touchPts.current.has(e.pointerId)) {
+        touchPts.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+      }
+      if (touchPts.current.size >= 2) {
+        const [a2, b2] = [...touchPts.current.values()]
+        const dist = Math.hypot(a2.x - b2.x, a2.y - b2.y)
+        zoomToPoint(
+          pinch.current.zoom * (dist / pinch.current.dist),
+          (a2.x + b2.x) / 2,
+          (a2.y + b2.y) / 2,
+        )
+      }
+      return
+    }
     if (panRef.current && canvasRef.current) {
       panDidMove.current = true
       canvasRef.current.scrollLeft = panRef.current.sl - (e.clientX - panRef.current.x)
@@ -1085,9 +1175,23 @@ export function FloorPlanEditor() {
     setDraft({ ...draft, x: wx, z: wz })
   }
 
-  const onUp = () => {
+  const onUp = (e?: React.PointerEvent) => {
+    if (e?.pointerType === 'touch') {
+      const wasPinching = pinch.current !== null
+      touchPts.current.delete(e.pointerId)
+      if (touchPts.current.size < 2) pinch.current = null
+      // A lift during/after a pinch must not commit a draft or selection drag
+      // (those were cancelled when the second finger landed); while a finger is
+      // still down, keep waiting rather than running the single-touch up logic.
+      if (wasPinching || touchPts.current.size >= 1) return
+    }
     if (panRef.current) {
+      const moved = panDidMove.current
       panRef.current = null
+      // A tap (not a drag) on the empty canvas in select mode clears the
+      // selection — the desktop edit path already deselects on pointer-down via
+      // the `else` in onDown; this covers view mode + touch, which pan instead.
+      if (!moved && tool === 'select') useStore.getState().setPlanSelection(null)
       return
     }
     if (movingStop) {
@@ -1450,7 +1554,7 @@ export function FloorPlanEditor() {
         disabled={!canUndo}
         onClick={() => useStore.getState().undo()}
       >
-        ↶
+        <Icon.Undo width={16} height={16} />
       </button>
       <button
         type="button"
@@ -1459,7 +1563,7 @@ export function FloorPlanEditor() {
         disabled={!canRedo}
         onClick={() => useStore.getState().redo()}
       >
-        ↷
+        <Icon.Redo width={16} height={16} />
       </button>
     </div>
   )
@@ -1557,6 +1661,15 @@ export function FloorPlanEditor() {
       >
         Furniture
       </button>
+      <button
+        type="button"
+        onClick={() => setSkeleton((v) => !v)}
+        className={`btn btn-sm${skeleton ? ' btn-accent' : ''}`}
+        title="Skeleton view — draw all walls uniformly thin to check whether they meet to enclose rooms"
+        aria-pressed={skeleton}
+      >
+        Skeleton
+      </button>
       {isMultiLevel && (
         <button
           type="button"
@@ -1602,6 +1715,14 @@ export function FloorPlanEditor() {
         {formatArea(total, units)}
       </b>{' '}
       · {levelPlan.rooms.length} rooms
+      {fIntegrity && strayCount > 0 ? (
+        <b
+          style={{ color: 'var(--danger)', marginLeft: 6, whiteSpace: 'nowrap' }}
+          title="Stray elements (in red): a wall joined to no other wall, a room touching no other room, or a door/window off any wall. Connect them to make the apartment whole."
+        >
+          ⚠ {strayCount} stray
+        </b>
+      ) : null}
     </span>
   )
 
@@ -1641,14 +1762,17 @@ export function FloorPlanEditor() {
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
       {/* North/compass rose (SweetHome3DJS parity) — pinned to the editor frame,
-          the needle rotates with the plan's orientation. */}
+          the needle rotates with the plan's orientation. On mobile the bottom-right
+          is the (full-width) inspector bottom-sheet's corner — and the compass
+          would sit over its expand/lock/delete icons — so it moves to the free
+          top-right of the canvas (just below the header). */}
       {fCompass ? (
         <div
           className="panel"
           style={{
             position: 'absolute',
             right: 12,
-            bottom: 12,
+            ...(isMobile ? { top: 128 } : { bottom: 12 }),
             zIndex: 5,
             width: 52,
             height: 52,
@@ -1745,7 +1869,7 @@ export function FloorPlanEditor() {
               {quickActions}
               <PlanMenu
                 label="View"
-                active={showWallDims || showFurniture || labelsOn || showOtherLevels}
+                active={showWallDims || showFurniture || skeleton || labelsOn || showOtherLevels}
               >
                 {viewMenuActions}
               </PlanMenu>
@@ -1862,6 +1986,7 @@ export function FloorPlanEditor() {
             onPointerDown={onDown}
             onPointerMove={onMove}
             onPointerUp={onUp}
+            onPointerCancel={onUp}
           >
             {/* Reference photo/scan to trace over (behind the grid). */}
             {backdrop && (
@@ -1925,6 +2050,19 @@ export function FloorPlanEditor() {
             {/* Rooms (active storey) */}
             {levelPlan.rooms.map((r) => {
               const isSel = sel?.type === 'room' && sel.id === r.id
+              // Stray room (touches no other room) → red tint so it's obvious it
+              // needs joining into the apartment.
+              const stray = strays.rooms.has(r.id)
+              const roomFill = isSel
+                ? 'var(--accent-soft)'
+                : stray
+                  ? 'var(--danger-soft)'
+                  : 'var(--surface-2)'
+              const roomStroke = isSel
+                ? 'var(--accent)'
+                : stray
+                  ? 'var(--danger)'
+                  : 'var(--border-2)'
               return (
                 <g
                   key={r.id}
@@ -1941,8 +2079,8 @@ export function FloorPlanEditor() {
                   {r.polygon && r.polygon.length >= 3 ? (
                     <polygon
                       points={r.polygon.map(([x, z]) => `${toPx(x)},${toPx(z)}`).join(' ')}
-                      fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
-                      stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                      fill={roomFill}
+                      stroke={roomStroke}
                       strokeDasharray="4 3"
                     />
                   ) : (
@@ -1952,8 +2090,8 @@ export function FloorPlanEditor() {
                         y={toPx(r.origin[1])}
                         width={r.width * PX}
                         height={r.depth * PX}
-                        fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
-                        stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                        fill={roomFill}
+                        stroke={roomStroke}
                         strokeDasharray="4 3"
                       />
                       {r.extension && (
@@ -1962,8 +2100,8 @@ export function FloorPlanEditor() {
                           y={toPx(r.origin[1] + r.extension.offset[1])}
                           width={r.extension.width * PX}
                           height={r.extension.depth * PX}
-                          fill={isSel ? 'var(--accent-soft)' : 'var(--surface-2)'}
-                          stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                          fill={roomFill}
+                          stroke={roomStroke}
                           strokeDasharray="4 3"
                         />
                       )}
@@ -2335,12 +2473,18 @@ export function FloorPlanEditor() {
             {levelPlan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
               const inSel = selectedWalls.has(w.id) // primary OR a multi-select extra
+              const stray = strays.walls.has(w.id) // joined to no other wall
               const d = wallSvgPath(w, toPx)
               const stroke = inSel
                 ? 'var(--accent)'
-                : w.thickness === 'external'
-                  ? 'var(--plan-wall)'
-                  : 'var(--text-3)'
+                : stray
+                  ? 'var(--danger)'
+                  : w.thickness === 'external'
+                    ? 'var(--plan-wall)'
+                    : 'var(--text-3)'
+              // Skeleton view draws every wall at one thin stroke so corner
+              // connections (gaps / overlaps) are obvious regardless of thickness.
+              const bodyW = skeleton ? 2 : w.thickness === 'external' ? 7 : 4
               const onWallDown = (e: React.PointerEvent) => {
                 if (tool !== 'select') return
                 // Additive select (Shift/⌘/Ctrl-click, or the touch "Select more"
@@ -2375,7 +2519,21 @@ export function FloorPlanEditor() {
                       fill="none"
                       stroke="var(--accent)"
                       strokeOpacity={0.35}
-                      strokeWidth={(w.thickness === 'external' ? 7 : 4) + 11}
+                      strokeWidth={bodyW + 11}
+                      strokeLinecap="round"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )}
+                  {/* Stray wall halo (red dashed) so a disconnected wall stands
+                      out even when it's not selected. */}
+                  {stray && !inSel && (
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="var(--danger)"
+                      strokeOpacity={0.4}
+                      strokeWidth={bodyW + 8}
+                      strokeDasharray="2 5"
                       strokeLinecap="round"
                       style={{ pointerEvents: 'none' }}
                     />
@@ -2393,7 +2551,7 @@ export function FloorPlanEditor() {
                     d={d}
                     fill="none"
                     stroke={stroke}
-                    strokeWidth={w.thickness === 'external' ? 7 : 4}
+                    strokeWidth={bodyW}
                     strokeLinecap="round"
                     onPointerDown={onWallDown}
                     style={{ cursor: tool === 'select' ? 'pointer' : 'crosshair' }}
@@ -2636,9 +2794,24 @@ export function FloorPlanEditor() {
                 const L = Math.hypot(ex - sx, ey - sy) || 1
                 const npx = -(ey - sy) / L
                 const npy = (ex - sx) / L
-                const ROT_OFF = 30
-                const hx = mpx + npx * ROT_OFF
-                const hy = mpy + npy * ROT_OFF
+                // Rotation ring radius — encircles the wall (like the furniture
+                // rotate gizmo), with a floor so short walls still get a grabbable ring.
+                const ringR = Math.max(L / 2 + 16, 30)
+                const startRotate = (e: React.PointerEvent) => {
+                  e.stopPropagation()
+                  const [gx, gz] = pointerWorld(e)
+                  const cx = (w.start[0] + w.end[0]) / 2
+                  const cz = (w.start[1] + w.end[1]) / 2
+                  setRotatingWall({
+                    id: w.id,
+                    cx,
+                    cz,
+                    s0: [...w.start],
+                    e0: [...w.end],
+                    a0: Math.atan2(gz - cz, gx - cx),
+                  })
+                  svgRef.current?.setPointerCapture(e.pointerId)
+                }
                 return (
                   <>
                     {(['start', 'end'] as const).map((which) => {
@@ -2661,39 +2834,41 @@ export function FloorPlanEditor() {
                         />
                       )
                     })}
-                    {/* Rotate handle */}
-                    <line
-                      x1={mpx}
-                      y1={mpy}
-                      x2={hx}
-                      y2={hy}
+                    {/* Rotation ring — grab anywhere on the ring (or its knob) to
+                        rotate the wall about its centre, like the furniture rotate
+                        gizmo. A fat transparent ring makes the stroke easy to grab;
+                        `pointerEvents: 'stroke'` keeps the ring's interior
+                        click-through so elements inside stay selectable. */}
+                    <circle
+                      cx={mpx}
+                      cy={mpy}
+                      r={ringR}
+                      fill="none"
+                      stroke="transparent"
+                      strokeWidth={18}
+                      style={{ cursor: 'grab', pointerEvents: 'stroke' }}
+                      onPointerDown={startRotate}
+                    />
+                    <circle
+                      cx={mpx}
+                      cy={mpy}
+                      r={ringR}
+                      fill="none"
                       stroke="var(--accent)"
-                      strokeWidth={1.5}
+                      strokeOpacity={0.5}
+                      strokeWidth={2}
+                      strokeDasharray="4 4"
                       style={{ pointerEvents: 'none' }}
                     />
                     <circle
-                      cx={hx}
-                      cy={hy}
+                      cx={mpx + npx * ringR}
+                      cy={mpy + npy * ringR}
                       r={7}
                       fill="var(--surface-solid)"
                       stroke="var(--accent)"
                       strokeWidth={2}
                       style={{ cursor: 'grab' }}
-                      onPointerDown={(e) => {
-                        e.stopPropagation()
-                        const [gx, gz] = pointerWorld(e)
-                        const cx = (w.start[0] + w.end[0]) / 2
-                        const cz = (w.start[1] + w.end[1]) / 2
-                        setRotatingWall({
-                          id: w.id,
-                          cx,
-                          cz,
-                          s0: [...w.start],
-                          e0: [...w.end],
-                          a0: Math.atan2(gz - cz, gx - cx),
-                        })
-                        svgRef.current?.setPointerCapture(e.pointerId)
-                      }}
+                      onPointerDown={startRotate}
                     />
                   </>
                 )
@@ -2730,12 +2905,15 @@ export function FloorPlanEditor() {
                 ]
               }
               const isSel = sel?.type === 'opening' && sel.id === o.id
+              // Stray opening (sitting off its wall's span) → red so it's flagged.
               const color = isSel
                 ? 'var(--accent)'
-                : o.kind === 'door'
-                  ? 'var(--accent)'
-                  : 'var(--accent-soft-text)'
-              const strokeW = wall.thickness === 'external' ? 7 : 4
+                : strays.openings.has(o.id)
+                  ? 'var(--danger)'
+                  : o.kind === 'door'
+                    ? 'var(--accent)'
+                    : 'var(--accent-soft-text)'
+              const strokeW = skeleton ? 2 : wall.thickness === 'external' ? 7 : 4
               const onPD = (e: React.PointerEvent) => {
                 if (tool !== 'select') return
                 const willMove = beginElementDrag(e, isSel)

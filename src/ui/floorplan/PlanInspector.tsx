@@ -867,7 +867,9 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           <NameField
             value={o.name}
             placeholder={defaultOpeningName(o)}
-            onChange={(v) => a.updateOpening(o.id, { name: v }, levelId)}
+            // Editing the name makes it permanent (clears the auto-assigned flag)
+            // so a later room rename never overwrites it again.
+            onChange={(v) => a.updateOpening(o.id, { name: v, nameAuto: undefined }, levelId)}
           />
           <div className={`action-grid${o.kind === 'door' ? '' : ' two'}`}>
             {o.kind === 'door' ? (
@@ -1091,6 +1093,34 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     }
   }
 
+  // Quick lock + delete for the selected wall / door / window, surfaced in the
+  // header so they're reachable WITHOUT expanding the panel (the inspector
+  // starts minimized on selection). `null` for other selections / multi-select.
+  const quick = (() => {
+    if (isMulti) return null
+    if (sel?.type === 'wall') {
+      const w = level.walls.find((x) => x.id === sel.id)
+      if (!w) return null
+      return {
+        kind: 'wall' as const,
+        locked: !!w.locked,
+        onLock: () => a.updateWall(w.id, { locked: !w.locked || undefined }, levelId),
+        onDelete: () => a.removeWall(w.id, levelId),
+      }
+    }
+    if (sel?.type === 'opening') {
+      const o = level.openings.find((x) => x.id === sel.id)
+      if (!o) return null
+      return {
+        kind: o.kind,
+        locked: !!o.locked,
+        onLock: () => a.updateOpening(o.id, { locked: !o.locked || undefined }, levelId),
+        onDelete: () => a.removeOpening(o.id, levelId),
+      }
+    }
+    return null
+  })()
+
   return (
     <aside
       className="plan-props w-64 shrink-0 overflow-y-auto p-3"
@@ -1108,13 +1138,79 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           marginBottom: minimized ? 0 : 'var(--s-3)',
           display: 'flex',
           alignItems: 'center',
-          justifyContent: 'space-between',
+          gap: 4,
         }}
       >
-        <span>Properties</span>
+        {/* Tapping the title bar toggles the panel (expand when minimized,
+            minimize when open) — everywhere except the explicit icon buttons,
+            which stop propagation. The big button fills the bar so the whole
+            title row is the tap target (touch-friendly). */}
         <button
           type="button"
           onClick={toggle}
+          className="plan-props-title"
+          style={{
+            flex: 1,
+            minWidth: 0,
+            textAlign: 'left',
+            background: 'none',
+            border: 'none',
+            padding: 0,
+            margin: 0,
+            font: 'inherit',
+            color: 'inherit',
+            letterSpacing: 'inherit',
+            textTransform: 'inherit',
+            cursor: 'pointer',
+          }}
+          aria-label={minimized ? 'Expand properties' : 'Minimize properties'}
+          aria-expanded={!minimized}
+          title={minimized ? 'Expand' : 'Minimize'}
+        >
+          Properties
+        </button>
+        {/* Quick lock + delete for a selected wall/door/window while minimized,
+            so they don't need the panel expanded. */}
+        {minimized && quick ? (
+          <>
+            <button
+              type="button"
+              className={`icon-btn${quick.locked ? ' on' : ''}`}
+              onClick={(e) => {
+                e.stopPropagation()
+                quick.onLock()
+              }}
+              aria-pressed={quick.locked}
+              aria-label={quick.locked ? `Unlock ${quick.kind}` : `Lock ${quick.kind}`}
+              title={quick.locked ? 'Unlock — allow moving/editing' : 'Lock in place'}
+            >
+              {quick.locked ? (
+                <Icon.Lock width={16} height={16} />
+              ) : (
+                <Icon.Unlock width={16} height={16} />
+              )}
+            </button>
+            <button
+              type="button"
+              className="icon-btn"
+              disabled={quick.locked}
+              onClick={(e) => {
+                e.stopPropagation()
+                if (!quick.locked) quick.onDelete()
+              }}
+              aria-label={`Delete ${quick.kind}`}
+              title={quick.locked ? 'Unlock first to delete' : `Delete ${quick.kind}`}
+            >
+              <Icon.Trash width={16} height={16} />
+            </button>
+          </>
+        ) : null}
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation()
+            toggle()
+          }}
           className="icon-btn"
           aria-label={minimized ? 'Expand properties' : 'Minimize properties'}
           title={minimized ? 'Expand' : 'Minimize'}

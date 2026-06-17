@@ -9,15 +9,14 @@ import { useStore } from '../../state/store'
 import { formatLength } from '../../utils/measurement'
 
 /**
- * Walk-mode observer camera controls (Sweet Home 3D parity, PARITY-WALKCAM):
- * field-of-view + eye-height sliders, shown while in first-person walk mode.
- * Gated by the `walkCameraControls` flag (pro tier). Token-class styled so it
- * works in light/dark across all themes, and pointer/touch friendly — it sits in
- * the top-right, clear of the bottom-left joystick and the bottom-centre HUD, and
- * stops propagation so a drag on a slider never reaches the canvas drag-to-look.
- * Eye-height respects the metric/imperial unit preference.
+ * Walk-mode observer camera settings (Sweet Home 3D parity, PARITY-WALKCAM):
+ * field-of-view + eye-height sliders. Rendered as a **"Walk settings"** section
+ * inside the Appearance & help popover (so it's tucked away, not floating over
+ * the walk view) and only while in first-person walk mode. Gated by the
+ * `walkCameraControls` flag (pro tier). Token-class styled so it works in
+ * light/dark across all themes; eye-height respects the unit preference.
  */
-export function WalkCameraControls() {
+export function WalkSettings() {
   const enabled = useFeature('walkCameraControls')
   const cameraMode = useStore((s) => s.cameraMode)
   const walkFov = useStore((s) => s.walkFov)
@@ -28,16 +27,11 @@ export function WalkCameraControls() {
 
   if (!enabled || cameraMode !== 'firstPerson') return null
 
-  const stop = (e: React.SyntheticEvent) => e.stopPropagation()
-
   return (
-    <div
-      className="walk-cam-controls panel"
-      onPointerDown={stop}
-      onPointerMove={stop}
-      onClick={stop}
-      onTouchStart={stop}
-    >
+    <>
+      <div className="pop-label" style={{ marginTop: 10 }}>
+        Walk settings
+      </div>
       <label className="walk-cam-row">
         <span className="walk-cam-lbl">Field of view</span>
         <input
@@ -52,7 +46,7 @@ export function WalkCameraControls() {
         />
         <span className="walk-cam-val mono">{Math.round(walkFov)}°</span>
       </label>
-      <label className="walk-cam-row">
+      <label className="walk-cam-row" style={{ marginTop: 6 }}>
         <span className="walk-cam-lbl">Eye height</span>
         <input
           type="range"
@@ -66,6 +60,6 @@ export function WalkCameraControls() {
         />
         <span className="walk-cam-val mono">{formatLength(walkEyeHeight, units)}</span>
       </label>
-    </div>
+    </>
   )
 }

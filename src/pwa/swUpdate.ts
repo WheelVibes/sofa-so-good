@@ -1,5 +1,6 @@
 import { registerSW } from 'virtual:pwa-register'
 import { useStore } from '../state/store'
+import { APP_VERSION } from '../version'
 
 /**
  * Service-worker registration + update strategy.
@@ -85,7 +86,7 @@ export async function runUpdateCheck(): Promise<void> {
   if (res === 'updating') {
     notify.start({ title: 'Update found — reloading to the new version…', kind: 'success' })
   } else if (res === 'uptodate') {
-    notify.start({ title: 'You’re on the latest version', kind: 'info' })
+    notify.start({ title: `You’re on the latest version (v${APP_VERSION})`, kind: 'info' })
   } else {
     notify.start({ title: 'Updates aren’t available in this environment', kind: 'info' })
   }

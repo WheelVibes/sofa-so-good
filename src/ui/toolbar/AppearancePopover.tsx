@@ -6,9 +6,11 @@ import {
   type ThemeName,
 } from '../../state/slices/appearanceSlice'
 import { useStore } from '../../state/store'
+import { APP_VERSION } from '../../version'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { useIsMobile } from '../useIsMobile'
+import { WalkSettings } from '../walk/WalkCameraControls'
 import { Icon } from './icons'
 import { Popover } from './Popover'
 import { Tooltip } from './Tooltip'
@@ -114,6 +116,10 @@ export function AppearanceControls() {
           : 'Every feature, including analysis tools and the floor-plan editor.'}
       </p>
 
+      {/* Walk-mode camera settings (field of view + eye height) — self-gates to
+          first-person mode, so it only appears here while walking. */}
+      <WalkSettings />
+
       {/* Sign in / account + help links. Desktop only — the mobile main-menu sheet
           has its own footer for sign-in and a dedicated section for help items. */}
       {!isMobile ? (
@@ -153,6 +159,19 @@ export function AppearanceControls() {
           </button>
         </>
       ) : null}
+
+      {/* Running build (major.minor.patch.build) — what "Check for updates"
+          compares against the deployed version. */}
+      <div
+        style={{
+          marginTop: 10,
+          fontSize: 'var(--t-2xs)',
+          color: 'var(--text-3)',
+          textAlign: 'center',
+        }}
+      >
+        Sofa So Good · v{APP_VERSION}
+      </div>
     </>
   )
 }

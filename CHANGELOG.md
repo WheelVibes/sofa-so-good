@@ -5,6 +5,45 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: binding edits, stray-element flags, skeleton view + touch fixes
+
+A batch of floor-plan-editor fixes so plan edits are real, the apartment can be
+made whole, and the editor behaves on touch.
+
+- **Edits now bind to 3D.** Editing the seeded default flat used to leave orbit /
+  walk showing the curated apartment, ignoring your wall/room/door changes — the
+  scene only renders the live plan for *custom* plans. The first structural edit
+  to the default plan now **forks it to a custom plan** (`forkIfDefault` in the
+  floor-plan slice), so every wall/room/opening/level/meta edit shows up in orbit
+  and walk. The default plan's geometry already reproduces the curated shell, so
+  the switch is seamless (and undo restores the default).
+- **Stray-element flags** (new `planIntegrity` Pro feature): walls joined to no
+  other wall, rooms touching no other room, and doors/windows off any wall are
+  drawn **red** in the editor, with a `⚠ N stray` count, so the whole apartment
+  can be made connected. Doors/windows are part of their wall, so a wall with
+  openings still encloses a room and **Auto room** works across it.
+- **Skeleton view** toggle: draws every wall at one uniform thin stroke
+  (ignoring thickness) so you can see whether wall ends actually meet to close a
+  room. Openings stay drawn.
+- **Auto room** no longer stacks a duplicate room when you click inside an area
+  that's already a room — it flags it instead (and the toast de-dupes, below).
+- **Room rename re-flows names.** Renaming a room now re-names its auto-named
+  boundary walls **and** the doors/windows on them (`<room> wall/door/window ##`).
+  Elements you renamed yourself keep their custom name (tracked via `nameAuto`,
+  now also on openings) and are never overwritten.
+- **Wall rotation is now a ring gizmo** (like furniture rotation): grab anywhere
+  on the ring around a selected wall — not just a single small handle — to rotate.
+- **Inspector**: while minimized, a selected wall/door/window shows quick **lock**
+  + **delete** icons in the title bar; tapping the title bar toggles the panel
+  (expand when minimized, minimize when open) everywhere except those icons.
+- **Touch fixes**: two-finger **pinch-to-zoom** in the 2D editor; form fields no
+  longer trigger iOS's focus-zoom (16px on mobile, so the page never zooms in and
+  gets stuck); tapping empty canvas in select mode **deselects**, and opening /
+  closing the editor clears the selection.
+- **Notifications de-dupe**: repeating the same warning (e.g. tapping an
+  already-roomed area) resurfaces the existing toast and restarts its timer
+  instead of stacking duplicates.
+
 ## PWA: foreground/periodic update checks + manual "Check for updates"
 
 - Installed Home-Screen PWAs (esp. iOS standalone, which has no reload UI and only

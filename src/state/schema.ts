@@ -166,8 +166,9 @@ const PlanOpeningZ = z.object({
   id: z.string(),
   kind: z.enum(['door', 'window']),
   wallId: z.string(),
-  // Optional custom name + lock flag — additive, back-compat.
+  // Optional custom name (+ auto-assigned flag) + lock flag — additive, back-compat.
   name: z.string().optional(),
+  nameAuto: z.boolean().optional(),
   locked: z.boolean().optional(),
   offset: z.number(),
   width: z.number(),

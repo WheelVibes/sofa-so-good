@@ -80,8 +80,33 @@ export const createNotificationsSlice: SliceCreator<NotificationsSlice, RootStat
         autoDismissMs: autoDismissMs !== undefined ? autoDismissMs : defaultAutoDismissMs(kind),
         createdAt: Date.now(),
       }
-      set((s) => ({ notifications: [...s.notifications, n] }))
-      return id
+      // De-dupe identical toasts (same kind + title + message): instead of
+      // stacking a copy when the same action fires repeatedly (e.g. tapping a
+      // wall that's already a room), RESURFACE the existing one — restart its
+      // auto-dismiss timer (the container re-derives timers from `createdAt`)
+      // and move it to the front. Progress toasts are keyed by their returned id
+      // for live updates, so they never de-dupe.
+      let resultId = id
+      set((s) => {
+        const dup =
+          kind !== 'progress'
+            ? s.notifications.find(
+                (x) =>
+                  x.kind === kind && x.title === title && (x.message ?? '') === (message ?? ''),
+              )
+            : undefined
+        if (dup) {
+          resultId = dup.id
+          return {
+            notifications: [
+              ...s.notifications.filter((x) => x.id !== dup.id),
+              { ...dup, createdAt: Date.now() },
+            ],
+          }
+        }
+        return { notifications: [...s.notifications, n] }
+      })
+      return resultId
     },
     update: (id, patch) =>
       set((s) => ({
