@@ -46,6 +46,7 @@ import {
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
+import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { openDocs } from '../docsUrl'
@@ -93,6 +94,9 @@ export function FloorPlanEditor() {
   const editing = useStore((s) => s.floorPlanEditing)
   const plan = useStore((s) => s.floorPlan)
   const gridSize = useStore((s) => s.gridSize)
+  const setGridSize = useStore((s) => s.setGridSize)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const canRedo = useStore((s) => s.future.length > 0)
   const sel = useStore((s) => s.planSelection)
   const units = useStore((s) => s.units)
   const a = useStore.getState()
@@ -204,6 +208,10 @@ export function FloorPlanEditor() {
   // tapped (selected) before a drag moves it — otherwise the drag pans. Mouse
   // (desktop) edit keeps the direct drag-to-move behaviour.
   const [editMode, setEditMode] = useState<'view' | 'edit'>(isMobile ? 'view' : 'edit')
+  // Furniture footprints are HIDDEN by default in the editor so they don't get in
+  // the way of (or get accidentally grabbed while) editing walls/rooms. The
+  // "Furniture" toggle shows them; while hidden they can't be selected or moved.
+  const [showFurniture, setShowFurniture] = useState(false)
   // Show the OTHER storeys' walls as a dimmed underlay (SH3D "all levels"), so
   // you can stack walls / line up stairs between floors. Off by default.
   const [showOtherLevels, setShowOtherLevels] = useState(false)
@@ -382,6 +390,35 @@ export function FloorPlanEditor() {
   }, [editing])
 
   const [ew, ed] = planBounds(plan)
+  // True plan centre = midpoint of its actual bounding box (leftmost↔rightmost,
+  // topmost↔bottommost of walls + rooms), NOT ew/2,ed/2 — the plan needn't start
+  // at world 0, and we want that box's middle centred in the canvas.
+  const planCenter = useMemo<[number, number]>(() => {
+    let minX = Number.POSITIVE_INFINITY
+    let minZ = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let maxZ = Number.NEGATIVE_INFINITY
+    const acc = (x: number, z: number) => {
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (z < minZ) minZ = z
+      if (z > maxZ) maxZ = z
+    }
+    for (const w of levelPlan.walls) {
+      acc(w.start[0], w.start[1])
+      acc(w.end[0], w.end[1])
+    }
+    for (const r of levelPlan.rooms) {
+      if (r.polygon && r.polygon.length >= 3) for (const [x, z] of r.polygon) acc(x, z)
+      else {
+        acc(r.origin[0], r.origin[1])
+        acc(r.origin[0] + r.width, r.origin[1] + r.depth)
+      }
+    }
+    return Number.isFinite(minX) ? [(minX + maxX) / 2, (minZ + maxZ) / 2] : [ew / 2, ed / 2]
+  }, [levelPlan, ew, ed])
+  const planCenterRef = useRef(planCenter)
+  planCenterRef.current = planCenter
   const basePX = useMemo(() => {
     // Fit to the measured viewport (minus the canvas padding) so the whole plan
     // is visible at zoom 1 on any screen size.
@@ -434,23 +471,42 @@ export function FloorPlanEditor() {
   // Scroll the (large, margin-padded) canvas so the plan is centred. Retries
   // each frame until the SVG has laid out at its full (inline) size — before
   // that, scrollLeft clamps to 0 (content not yet wider than the view).
+  const centerRaf = useRef(0)
   const centerPlan = useCallback(
     (px: number) => {
       const el = canvasRef.current
       if (!el) return
+      // Cancel any in-flight centering: on open the viewport is first measured at
+      // its default size, then re-measured (ResizeObserver) at the real size —
+      // without this, the first (stale-px) pass could win the race and land the
+      // plan off-centre (notably too low on tall mobile viewports).
+      cancelAnimationFrame(centerRaf.current)
+      // Wait until the SVG has laid out at its FULL expected size, then scroll so
+      // the plan's true bbox centre sits at the canvas centre. We measure the
+      // SVG's real offset within the scroll content (via getBoundingClientRect +
+      // current scroll) so canvas padding / any extra content can't bias it.
+      const expH = (ed + GRID_MARGIN * 2) * px
       let frames = 0
       const run = () => {
         frames++
-        if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight || frames > 120) {
-          el.scrollLeft = Math.max(0, (ew / 2 + GRID_MARGIN) * px - el.clientWidth / 2)
-          el.scrollTop = Math.max(0, (ed / 2 + GRID_MARGIN) * px - el.clientHeight / 2)
+        const svg = svgRef.current
+        const ready = svg ? svg.getBoundingClientRect().height >= expH - 1 : false
+        if ((svg && ready) || frames > 120) {
+          const cRect = el.getBoundingClientRect()
+          const sRect = svg?.getBoundingClientRect()
+          // Content-space offset of the SVG's top-left corner.
+          const svgLeft = sRect ? sRect.left - cRect.left + el.scrollLeft : 0
+          const svgTop = sRect ? sRect.top - cRect.top + el.scrollTop : 0
+          const [cxW, czW] = planCenterRef.current
+          el.scrollLeft = Math.max(0, svgLeft + (cxW + GRID_MARGIN) * px - el.clientWidth / 2)
+          el.scrollTop = Math.max(0, svgTop + (czW + GRID_MARGIN) * px - el.clientHeight / 2)
           return
         }
-        requestAnimationFrame(run)
+        centerRaf.current = requestAnimationFrame(run)
       }
-      requestAnimationFrame(run)
+      centerRaf.current = requestAnimationFrame(run)
     },
-    [ew, ed],
+    [ed],
   )
 
   // Centre the plan when the editor opens, and re-fit when the viewport scale
@@ -846,8 +902,12 @@ export function FloorPlanEditor() {
       const st = useStore.getState()
       const wall = levelPlan.walls.find((w) => w.id === movingBulge.id)
       if (wall) {
-        const arc = Math.round(arcFromMidpoint(wall.start, wall.end, [wx, wz]) * 100) / 100
-        st.updateWall(wall.id, { arc }, levelId)
+        let arc = Math.round(arcFromMidpoint(wall.start, wall.end, [wx, wz]) * 100) / 100
+        // Snap back to a perfectly straight wall when the midpoint is within
+        // ~12 px of the chord — even off a grid line — so flattening a curve is
+        // easy. Clearing `arc` (undefined) makes the wall straight again.
+        if (Math.abs(arc) * PX < 12) arc = 0
+        st.updateWall(wall.id, { arc: arc === 0 ? undefined : arc }, levelId)
       }
       return
     }
@@ -1234,6 +1294,53 @@ export function FloorPlanEditor() {
       >
         Dims
       </button>
+      <button
+        type="button"
+        onClick={() => setShowFurniture((v) => !v)}
+        className={`btn btn-sm${showFurniture ? ' btn-accent' : ''}`}
+        title="Show furniture footprints (hidden by default so they don't get in the way of editing; hidden furniture can't be selected or moved)"
+        aria-pressed={showFurniture}
+      >
+        Furniture
+      </button>
+      {/* Undo / redo (also ⌘Z / ⇧⌘Z). Visible buttons for touch, where there's
+          no keyboard. */}
+      <div className="seg" style={{ alignItems: 'center' }}>
+        <button
+          type="button"
+          title="Undo (⌘Z)"
+          disabled={!canUndo}
+          onClick={() => useStore.getState().undo()}
+        >
+          ↶
+        </button>
+        <button
+          type="button"
+          title="Redo (⇧⌘Z)"
+          disabled={!canRedo}
+          onClick={() => useStore.getState().redo()}
+        >
+          ↷
+        </button>
+      </div>
+      {/* Snap-grid size — finer = more precise placement. */}
+      <label className="seg" style={{ alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+        <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
+          Grid
+        </span>
+        <select
+          aria-label="Snap grid size"
+          className="input"
+          value={gridSize}
+          onChange={(e) => setGridSize(Number(e.target.value))}
+        >
+          {GRID_SIZES.map((g) => (
+            <option key={g} value={g}>
+              {g < 1 ? `${+(g * 100).toFixed(1)} cm` : `${g} m`}
+            </option>
+          ))}
+        </select>
+      </label>
       {isMultiLevel && (
         <button
           type="button"
@@ -1401,17 +1508,18 @@ export function FloorPlanEditor() {
         {isMobile ? (
           <>
             {viewToggle}
-            {editMode === 'edit' && (
-              <button
-                type="button"
-                className={`btn btn-sm${toolsMenuOpen ? ' btn-accent' : ''}`}
-                aria-haspopup="dialog"
-                aria-expanded={toolsMenuOpen}
-                onClick={() => setToolsMenuOpen(true)}
-              >
-                ☰ Tools
-              </button>
-            )}
+            {/* The ☰ menu holds furniture/undo/grid/labels/export/etc., useful in
+                both modes — so show it always (the drawing-tool picker stays
+                Edit-only). */}
+            <button
+              type="button"
+              className={`btn btn-sm${toolsMenuOpen ? ' btn-accent' : ''}`}
+              aria-haspopup="dialog"
+              aria-expanded={toolsMenuOpen}
+              onClick={() => setToolsMenuOpen(true)}
+            >
+              ☰ Menu
+            </button>
             {editMode === 'edit' && (
               <select
                 aria-label="Drawing tool"
@@ -1726,89 +1834,98 @@ export function FloorPlanEditor() {
             })}
 
             {/* Furniture footprints — the live 3D layout, top-down, filtered to
-                the active storey. Click to select (shared with 3D); drag
-                (select tool) to move. */}
-            {levelItems.map((it) => {
-              const def = getDef(it.defId)
-              if (!def) return null
-              const obb = itemFootprint(it, def)
-              const pts = obbCorners(obb)
-                .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
-                .join(' ')
-              const isSel = selectedItemId === it.id
-              return (
-                <polygon
-                  key={it.id}
-                  points={pts}
-                  fill={
-                    isSel
-                      ? 'var(--accent-soft)'
-                      : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
-                  }
-                  fillOpacity={isSel ? 0.95 : 0.55}
-                  stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
-                  strokeWidth={isSel ? 2 : 1}
-                  strokeLinejoin="round"
-                  style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
-                  onPointerDown={(e) => {
-                    if (tool !== 'select') return
-                    const st = useStore.getState()
-                    const willMove = beginElementDrag(e, selectedItemId === it.id)
-                    st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
-                    if (!willMove) return // view / unselected-on-touch: let it pan
-                    const [wx, wz] = pointerWorld(e)
-                    st.pushHistory()
-                    setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
-                  }}
-                />
-              )
-            })}
+                the active storey. Hidden by default (the "Furniture" toggle);
+                while hidden they render nothing, so they can't be selected/moved.
+                Click to select (shared with 3D); drag (select tool) to move. */}
+            {showFurniture &&
+              levelItems.map((it) => {
+                const def = getDef(it.defId)
+                if (!def) return null
+                const obb = itemFootprint(it, def)
+                const pts = obbCorners(obb)
+                  .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
+                  .join(' ')
+                const isSel = selectedItemId === it.id
+                return (
+                  <polygon
+                    key={it.id}
+                    points={pts}
+                    fill={
+                      isSel
+                        ? 'var(--accent-soft)'
+                        : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
+                    }
+                    fillOpacity={isSel ? 0.95 : 0.55}
+                    stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                    strokeWidth={isSel ? 2 : 1}
+                    strokeLinejoin="round"
+                    style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                    onPointerDown={(e) => {
+                      if (tool !== 'select') return
+                      const st = useStore.getState()
+                      const willMove = beginElementDrag(e, selectedItemId === it.id)
+                      st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
+                      if (!willMove) return // view / unselected-on-touch: let it pan
+                      const [wx, wz] = pointerWorld(e)
+                      st.pushHistory()
+                      setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
+                    }}
+                  />
+                )
+              })}
 
             {/* Furniture labels. When the Labels toggle is on (PARITY-PLANLABELS),
                 every footprint shows its name (+ price); otherwise just the
                 selected one, so the user can always tell what they clicked. */}
-            {(() => {
-              const labelled = labelsOn
-                ? levelItems
-                : levelItems.filter((i) => i.id === selectedItemId)
-              return labelled.map((it) => {
-                const def = getDef(it.defId)
-                const name = it.label ?? def?.name
-                if (!name) return null
-                const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
-                const price = fPrice && def ? itemPrice(def, def.category, variant) : undefined
-                const lines = labelsOn ? planLabelLines(name, price, planLabels) : [name]
-                if (lines.length === 0) return null
-                const cx = toPx(it.position[0])
-                const cy = toPx(it.position[1])
-                return (
-                  <text
-                    key={it.id}
-                    x={cx}
-                    y={cy - (lines.length - 1) * 6}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="plan-item-label"
-                    style={{
-                      pointerEvents: 'none',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      fill: 'var(--text)',
-                      paintOrder: 'stroke',
-                      stroke: 'var(--surface)',
-                      strokeWidth: 3,
-                      strokeLinejoin: 'round',
-                    }}
-                  >
-                    {lines.map((ln, i) => (
-                      <tspan key={ln} x={cx} dy={i === 0 ? 0 : 12} fontWeight={i === 0 ? 700 : 600}>
-                        {ln}
-                      </tspan>
-                    ))}
-                  </text>
-                )
-              })
-            })()}
+            {showFurniture &&
+              (() => {
+                const labelled = labelsOn
+                  ? levelItems
+                  : levelItems.filter((i) => i.id === selectedItemId)
+                return labelled.map((it) => {
+                  const def = getDef(it.defId)
+                  const name = it.label ?? def?.name
+                  if (!name) return null
+                  const variant =
+                    typeof it.props.variant === 'string' ? it.props.variant : undefined
+                  const price = fPrice && def ? itemPrice(def, def.category, variant) : undefined
+                  const lines = labelsOn ? planLabelLines(name, price, planLabels) : [name]
+                  if (lines.length === 0) return null
+                  const cx = toPx(it.position[0])
+                  const cy = toPx(it.position[1])
+                  return (
+                    <text
+                      key={it.id}
+                      x={cx}
+                      y={cy - (lines.length - 1) * 6}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="plan-item-label"
+                      style={{
+                        pointerEvents: 'none',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        fill: 'var(--text)',
+                        paintOrder: 'stroke',
+                        stroke: 'var(--surface)',
+                        strokeWidth: 3,
+                        strokeLinejoin: 'round',
+                      }}
+                    >
+                      {lines.map((ln, i) => (
+                        <tspan
+                          key={ln}
+                          x={cx}
+                          dy={i === 0 ? 0 : 12}
+                          fontWeight={i === 0 ? 700 : 600}
+                        >
+                          {ln}
+                        </tspan>
+                      ))}
+                    </text>
+                  )
+                })
+              })()}
 
             {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)
                 to select + drag; edit/delete in the inspector. */}
@@ -2002,6 +2119,19 @@ export function FloorPlanEditor() {
                   : null
               return (
                 <g key={w.id}>
+                  {/* Selected: a translucent accent halo around the wall so the
+                      selection is obvious (mirrors the furniture highlight). */}
+                  {isSel && (
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="var(--accent)"
+                      strokeOpacity={0.35}
+                      strokeWidth={(w.thickness === 'external' ? 7 : 4) + 11}
+                      strokeLinecap="round"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )}
                   {/* Fat invisible hit target so curved/thin walls are easy to grab. */}
                   <path
                     d={d}
@@ -2301,7 +2431,11 @@ export function FloorPlanEditor() {
                 ]
               }
               const isSel = sel?.type === 'opening' && sel.id === o.id
-              const color = o.kind === 'door' ? 'var(--accent)' : 'var(--accent-soft-text)'
+              const color = isSel
+                ? 'var(--accent)'
+                : o.kind === 'door'
+                  ? 'var(--accent)'
+                  : 'var(--accent-soft-text)'
               const strokeW = wall.thickness === 'external' ? 7 : 4
               const onPD = (e: React.PointerEvent) => {
                 if (tool !== 'select') return
@@ -2311,6 +2445,21 @@ export function FloorPlanEditor() {
               }
               return (
                 <g key={o.id} onPointerDown={onPD} style={{ cursor: 'pointer' }}>
+                  {/* Selected: translucent accent halo over the opening span so
+                      the selection is obvious (mirrors the furniture highlight). */}
+                  {isSel && (
+                    <line
+                      x1={toPx(sPt[0])}
+                      y1={toPx(sPt[1])}
+                      x2={toPx(ePt[0])}
+                      y2={toPx(ePt[1])}
+                      stroke="var(--accent)"
+                      strokeOpacity={0.4}
+                      strokeWidth={strokeW + 11}
+                      strokeLinecap="round"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )}
                   {/* Mask the wall under the opening */}
                   <line
                     x1={toPx(sPt[0])}
@@ -2453,14 +2602,17 @@ export function FloorPlanEditor() {
                 ))}
               </g>
             )}
-            {/* Live dimension readout while drawing. */}
+            {/* Live dimension readout while drawing — follows the cursor with a
+                readable halo so you always know the current length/size. */}
             {draft && (
               <text
-                x={toPx(draft.x) + 8}
-                y={toPx(draft.z) - 8}
-                fontSize={12}
-                fill="var(--accent-soft-text)"
+                x={toPx(draft.x) + 10}
+                y={toPx(draft.z) - 10}
+                fontSize={13}
+                fontWeight={700}
+                fill="var(--accent)"
                 className="select-none"
+                style={{ paintOrder: 'stroke', stroke: 'var(--surface-solid)', strokeWidth: 4 }}
               >
                 {tool === 'wall'
                   ? formatLength(Math.hypot(draft.x - draft.x0, draft.z - draft.z0), units)

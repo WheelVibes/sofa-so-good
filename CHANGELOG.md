@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: furniture toggle, undo/redo, grid sizes, centring, clearer selection
+
+- **Furniture show/hide** (header "Furniture", **hidden by default**) so footprints
+  don't get in the way of editing — while hidden they can't be selected or moved.
+- **Undo/redo buttons** in the toolbar (the ⌘Z / ⇧⌘Z hotkeys already worked, but
+  there was no on-screen control — essential on touch).
+- **Configurable snap grid** — a header selector with finer steps (down to 2.5 cm,
+  was a min of 10 cm) for precise placement.
+- **Plan centres in the canvas on open** — vertically too. Centres on the plan's
+  true bounding-box midpoint (top↔bottom, left↔right), measuring the SVG's real
+  offset in the scroll content so padding / a non-zero plan origin can't bias it
+  (it previously sat too low on tall mobile viewports).
+- **Clearer selection** — selected walls and doors/windows now get a translucent
+  accent halo (mirroring the furniture highlight), so what's selected is obvious.
+- **Curved walls snap back to straight** — dragging a wall's curve midpoint within
+  ~12 px of the straight chord flattens it (clears the arc), even off a grid line.
+- **Live length while drawing** a wall is more legible (larger, with a halo).
+- Mobile: the ☰ menu is available in both View and Edit (it holds furniture/undo/
+  grid/labels/export, not just drawing tools).
+
 ## Floor-plan editor: View/Edit mode, orbit-like pan/zoom, decluttered dimensions, correct door swing
 
 - **View/Edit mode toggle.** The 2D editor now has a header toggle. **View** (the
