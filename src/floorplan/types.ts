@@ -16,10 +16,14 @@ export interface PlanWall {
   start: PlanVec2
   end: PlanVec2
   thickness: 'external' | 'internal'
-  /** Optional user-given name. Absent = a generated default (`Wall <hash>` or a
-   *  room-derived `<room> wall ##`); a custom name set here takes absolute
-   *  precedence and is never overwritten by room/auto-room allocation. */
+  /** Optional name. Absent = a generated default (`Wall <hash>`). Room/auto-room
+   *  allocation may write a `<room> wall ##` name here, but only over an
+   *  unset/auto name — a user-set name (with `nameAuto` cleared) always wins. */
   name?: string
+  /** True when `name` was assigned automatically by room allocation (so a later
+   *  allocation may replace it). Cleared when the user edits the name, which
+   *  makes it permanent. */
+  nameAuto?: boolean
   /** When true the wall can't be dragged, reshaped, or deleted from the canvas
    *  (matches furniture lock). Edited in the 2D plan inspector. */
   locked?: boolean

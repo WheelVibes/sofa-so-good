@@ -49,7 +49,10 @@ Select a wall, door or window and the **Properties** panel works just like the
 furniture inspector — a **Name** field on top, then a grid of quick actions:
 
 - **Name** — give it your own label (e.g. “Front door”). Left blank, it shows a
-  generated default like *Wall 123456*; a name you type always sticks.
+  generated default like *Wall 123456*. When you create a room around walls
+  (Room, Polygon or **Auto room**), their boundary walls are auto-named
+  *‹room› wall 01, 02, …* — but **a name you type always sticks** and is never
+  overwritten by a later room.
 - **Walls** — *Reverse*, *Split* (cut in two at the midpoint), *Join* (merge a
   collinear neighbour), *Duplicate*, *Lock* and *Delete*, with the exact
   thickness / start / end / length / angle fields underneath.

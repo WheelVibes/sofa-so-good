@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: auto-name boundary walls on room allocation
+
+- Creating a room (Room tool, Polygon, or **Auto room**) now names its boundary
+  walls **`<room name> wall ##`** (2-digit, in boundary order) — so a freshly
+  walled room reads as *Living wall 01 … 04* instead of anonymous hashes.
+- A **user-set name takes absolute precedence** and is never overwritten: walls
+  carry a `nameAuto` flag (set when allocation names them, cleared the moment you
+  edit the name in the inspector), so re-allocating a room re-labels only the
+  auto-named walls and leaves your custom names alone.
+- Matching is a pure, unit-tested helper (`floorplan/roomWallNames.ts`): a wall
+  belongs to a room when it lies along one of the room's boundary edges
+  (collinear + overlapping, with a small tolerance for walls just off the
+  interior rectangle).
+
 ## Floor-plan editor: multi-select walls (bulk lock / delete)
 
 - **Select several walls at once** — Shift/⌘/Ctrl-click adds or removes a wall

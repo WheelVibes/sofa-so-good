@@ -416,7 +416,9 @@ same change that reshapes a system.
   non-orthogonal shapes. Drawing a new wall snaps its endpoints to existing corners **and** wall spans
   (a T-junction) via pure `ui/floorplan/editor/snapToWalls.ts` (vertex wins over edge; free past the radius).
   **Wall + door/window inspectors mirror the furniture inspector** (`PlanInspector`): a custom **Name**
-  (pure defaults in `floorplan/planElementName.ts`; `PlanWall.name`/`PlanOpening.name`, custom wins) +
+  (pure defaults in `floorplan/planElementName.ts`; `PlanWall.name`/`PlanOpening.name`, custom wins; room
+  creation auto-names boundary walls `<room> wall ##` via pure `floorplan/roomWallNames.ts` in `addRoom`,
+  flagged `nameAuto` so a user-typed name is never overwritten) +
   an **action grid** (Reverse/Split/Join/Duplicate/Lock/Delete for walls; Flip hinge/swing/Duplicate/Lock/Delete
   for doors). **Lock** (`PlanWall.locked`/`PlanOpening.locked`) keeps an element selectable but un-draggable/
   -deletable on the canvas; **`duplicateWall`/`duplicateOpening`** make an editable copy (name + lock dropped).

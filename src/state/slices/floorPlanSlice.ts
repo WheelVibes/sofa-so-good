@@ -9,6 +9,7 @@ import {
   planLevels,
   withLevelGeometry,
 } from '../../floorplan/levels'
+import { assignRoomWallNames } from '../../floorplan/roomWallNames'
 import type {
   CeilingConfig,
   FloorPlan,
@@ -519,9 +520,18 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     const id = planId('r')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
-        rooms: [...g.rooms, { ...room, id }],
-      })),
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => {
+        const newRoom = { ...room, id }
+        // Auto-name the room's boundary walls `<room> wall ##` — but never
+        // overwrite a user-set name (only unset / previously auto-assigned ones).
+        const names = new Map(assignRoomWallNames(g.walls, newRoom).map((a) => [a.id, a.name]))
+        const walls = g.walls.map((w) => {
+          const name = names.get(w.id)
+          if (name && (!w.name || w.nameAuto)) return { ...w, name, nameAuto: true as const }
+          return w
+        })
+        return { rooms: [...g.rooms, newRoom], walls }
+      }),
     }))
     return id
   },

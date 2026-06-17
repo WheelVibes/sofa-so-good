@@ -78,6 +78,36 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().planSelection).toEqual({ type: 'opening', id: newId })
   })
 
+  it('auto-names boundary walls on room allocation, never overriding a custom name', () => {
+    useStore.getState().newFloorPlan('Naming test')
+    for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
+    // Four walls tracing a 4×3 rectangle.
+    const top = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
+    const right = useStore.getState().addWall({ start: [4, 0], end: [4, 3], thickness: 'internal' })
+    const bottom = useStore
+      .getState()
+      .addWall({ start: [4, 3], end: [0, 3], thickness: 'internal' })
+    const left = useStore.getState().addWall({ start: [0, 3], end: [0, 0], thickness: 'internal' })
+    // Give one wall a user-set custom name (nameAuto cleared) — it must survive.
+    useStore.getState().updateWall(left, { name: 'My special wall', nameAuto: undefined })
+
+    useStore.getState().addRoom({ name: 'Living', origin: [0, 0], width: 4, depth: 3 })
+    const byId = (id: string) => useStore.getState().floorPlan.walls.find((w) => w.id === id)!
+    expect(byId(top).name).toBe('Living wall 01')
+    expect(byId(top).nameAuto).toBe(true)
+    expect(byId(right).name).toBe('Living wall 02')
+    expect(byId(bottom).name).toBe('Living wall 03')
+    // The user-named wall is untouched.
+    expect(byId(left).name).toBe('My special wall')
+    expect(byId(left).nameAuto).toBeUndefined()
+
+    // Re-allocating a room over the same walls re-names the auto ones but still
+    // leaves the custom name alone.
+    useStore.getState().addRoom({ name: 'Studio', origin: [0, 0], width: 4, depth: 3 })
+    expect(byId(top).name).toBe('Studio wall 01')
+    expect(byId(left).name).toBe('My special wall')
+  })
+
   it('multi-selects walls, then bulk-locks and bulk-deletes them', () => {
     useStore.getState().newFloorPlan('Multi test')
     for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)

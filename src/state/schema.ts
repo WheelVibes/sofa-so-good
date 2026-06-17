@@ -142,8 +142,9 @@ const PlanWallZ = z.object({
   start: Vec2Z,
   end: Vec2Z,
   thickness: z.enum(['external', 'internal']),
-  // Optional custom name + lock flag — additive, back-compat.
+  // Optional custom name (+ auto-assigned flag) + lock flag — additive, back-compat.
   name: z.string().optional(),
+  nameAuto: z.boolean().optional(),
   locked: z.boolean().optional(),
   // Optional per-wall explicit thickness (m) override — additive, back-compat.
   thicknessM: z.number().optional(),

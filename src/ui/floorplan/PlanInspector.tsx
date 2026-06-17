@@ -635,7 +635,9 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
           <NameField
             value={w.name}
             placeholder={defaultWallName(w)}
-            onChange={(v) => a.updateWall(w.id, { name: v }, levelId)}
+            // Editing the name makes it permanent (clears the auto-assigned flag)
+            // so room/auto-room allocation never overwrites it again.
+            onChange={(v) => a.updateWall(w.id, { name: v, nameAuto: undefined }, levelId)}
           />
           <div className="action-grid">
             <ActBtn
