@@ -1,0 +1,19 @@
+{
+  "name": "plan-binding-3d-verify",
+  "url": "http://localhost:5173/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "orbit-default", "eval": "window.__store.getState().setCameraMode?.('orbit')" },
+    { "name": "wait-scene", "wait": 1500 },
+    { "name": "shot-3d-before", "screenshot": "3d-before-edit" },
+
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "remove-a-wall", "eval": "(() => { const s=window.__store.getState(); const w=s.floorPlan.walls.find(x=>x.thickness==='internal'); if (w) s.removeWall(w.id); })()" },
+    { "name": "forked", "waitFor": { "store": "state.floorPlan.id !== 'default-hdb-4room'" } },
+    { "name": "close-plan", "store": { "action": "setFloorPlanEditing", "args": [false] } },
+    { "name": "wait-3d", "wait": 1800 },
+    { "name": "shot-3d-after", "screenshot": "3d-after-edit" }
+  ]
+}
