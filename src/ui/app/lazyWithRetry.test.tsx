@@ -108,4 +108,20 @@ describe('lazyWithRetry', () => {
     expect(typeof C).toBe('object')
     expect(C).toHaveProperty('$$typeof')
   })
+
+  it('exposes preload() that runs the import factory once', async () => {
+    const factory = vi.fn().mockResolvedValue({ default: () => null })
+    const C = lazyWithRetry(factory)
+    await C.preload()
+    expect(factory).toHaveBeenCalledTimes(1)
+  })
+
+  it('preload() swallows failures and never triggers a reload', async () => {
+    const reload = vi.spyOn(window.location, 'reload').mockImplementation(() => {})
+    const factory = vi.fn().mockRejectedValue(chunkError())
+    const C = lazyWithRetry(factory)
+    await expect(C.preload()).resolves.toBeUndefined()
+    expect(reload).not.toHaveBeenCalled()
+    reload.mockRestore()
+  })
 })

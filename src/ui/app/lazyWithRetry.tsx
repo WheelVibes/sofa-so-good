@@ -86,15 +86,32 @@ export async function importWithRetry<T>(
   }
 }
 
+/** A lazy component that can also be warmed ahead of time via `preload()`. */
+export type PreloadableLazyComponent<T extends ComponentType<unknown>> = LazyExoticComponent<T> & {
+  /** Fetch + evaluate the chunk now (idempotent; errors swallowed). Used by the
+   *  idle preloader so a feature is already cached before it's first opened. */
+  preload: () => Promise<void>
+}
+
 /**
  * Drop-in replacement for React's `lazy` that makes chunk loading resilient to
- * stale deploys and transient offline misses. Same signature as `lazy`.
+ * stale deploys and transient offline misses, and exposes a `preload()` for
+ * idle warming. Same call signature as `lazy`.
  */
 // biome-ignore lint/suspicious/noExplicitAny: matches React.lazy's own component constraint
 export function lazyWithRetry<T extends ComponentType<any>>(
   factory: () => Promise<{ default: T }>,
-): LazyExoticComponent<T> {
-  return lazy(() => importWithRetry(factory))
+): PreloadableLazyComponent<T> {
+  const Component = lazy(() => importWithRetry(factory)) as PreloadableLazyComponent<T>
+  // Background warm uses the plain factory (NOT importWithRetry): a failed
+  // preload must never trigger the recovery reload — it just gets retried for
+  // real when the user actually opens the feature.
+  Component.preload = () =>
+    factory().then(
+      () => undefined,
+      () => undefined,
+    )
+  return Component
 }
 
 /**

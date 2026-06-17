@@ -42,6 +42,7 @@ import {
   SmartStartWizard,
   VersionsPanel,
 } from './ui/app/lazyComponents'
+import { preloadFeatureChunks } from './ui/app/preloadOnIdle'
 import { roomScopedItemIds } from './ui/app/roomScopedItemIds'
 import { LoginScreen } from './ui/auth/LoginScreen'
 import { BudgetHud } from './ui/BudgetHud'
@@ -285,6 +286,10 @@ export default function App() {
   // competing with the initial scene paint or gating the loading screen.
   useEffect(() => {
     if (!booting) {
+      // Idle-preload the on-demand feature chunks (2D editor, dialogs, panels)
+      // so they're cached + instant without the user opening each one once —
+      // and offline-ready even if they disconnect mid-precache.
+      const cancelChunkPreload = preloadFeatureChunks()
       const warm = () => {
         const s = useStore.getState()
         if (s.remoteIndexes.polyhaven.status === 'idle') void s.bootstrapRemoteCatalog()
@@ -295,10 +300,16 @@ export default function App() {
       }
       if (w.requestIdleCallback) {
         const id = w.requestIdleCallback(warm, { timeout: 4000 })
-        return () => w.cancelIdleCallback?.(id)
+        return () => {
+          w.cancelIdleCallback?.(id)
+          cancelChunkPreload()
+        }
       }
       const id = window.setTimeout(warm, 2000)
-      return () => window.clearTimeout(id)
+      return () => {
+        window.clearTimeout(id)
+        cancelChunkPreload()
+      }
     }
   }, [booting])
 
