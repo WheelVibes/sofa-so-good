@@ -13,6 +13,9 @@
 //   SHOT_VIEWPORT="W,H"        viewport override (default 1600,1000)
 //   SHOT_TOUCH=1               emulate touch device (isMobile+hasTouch)
 //   SHOT_INIT_LS='{…}'         seed localStorage before page load
+//   SHOT_KEEP_FIRSTRUN=1       DON'T auto-dismiss onboarding + location prompt
+//                              (default: both are dismissed so they can't block
+//                              the canvas; set this to screenshot those flows)
 //   SHOT_URL                   target URL (default http://localhost:5173/)
 //   SHOT_NAV_TIMEOUT           navigation timeout ms (default 60000)
 
@@ -99,6 +102,11 @@ if (!legacyMode) {
   fs.mkdirSync(outDir, { recursive: true })
 }
 
+// Keep the first-run onboarding + location prompt (rather than auto-dismissing
+// them) when the env flag is set OR the scenario opts in — so the first-run
+// scenarios can still walk those flows.
+const keepFirstRun = !!process.env.SHOT_KEEP_FIRSTRUN || scenario?.keepFirstRun === true
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Launch browser (shared by both modes)
 // ──────────────────────────────────────────────────────────────────────────────
@@ -171,6 +179,13 @@ await page.setViewport({
     initLs = {}
   }
 
+  // Always dismiss the first-run onboarding carousel so it can't cover the
+  // canvas (the location prompt is handled after load — it's a store flag, not
+  // localStorage). Set SHOT_KEEP_FIRSTRUN=1 to test the onboarding flow itself.
+  if (!process.env.SHOT_INIT_LS && !keepFirstRun) {
+    initLs.hdb_onboarded = '1'
+  }
+
   await page.evaluateOnNewDocument((entries) => {
     try {
       for (const [k, v] of Object.entries(entries)) localStorage.setItem(k, v)
@@ -202,6 +217,28 @@ try {
   // rely on waitMs/waitFor below. Anything else is a real failure.
   if (!String(err).includes('Navigation timeout')) throw err
   logs.push('[harness] goto networkidle2 timed out; continuing with waitMs')
+}
+
+// Dismiss the post-onboarding "Where are you?" location prompt so it can't block
+// the view. It's a store flag (not localStorage), so seed it after boot via
+// __store (dev), with a click-the-skip-button fallback for prod builds. Opt out
+// with SHOT_KEEP_FIRSTRUN=1 to screenshot the location flow itself.
+if (!keepFirstRun) {
+  await page.waitForFunction(() => !!window.__store, { timeout: 5000 }).catch(() => {})
+  await page
+    .evaluate(() => {
+      try {
+        window.__store?.getState?.().dismissLocationPrompt?.()
+      } catch {
+        /* prod build: no __store */
+      }
+      const btn = [...document.querySelectorAll('button')].find((b) =>
+        /use default location|^\s*skip\b/i.test(b.textContent || ''),
+      )
+      btn?.click()
+    })
+    .catch(() => {})
+  logs.push('[harness] dismissed first-run onboarding + location prompt')
 }
 
 // ──────────────────────────────────────────────────────────────────────────────

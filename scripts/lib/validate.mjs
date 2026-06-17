@@ -247,6 +247,9 @@ export function normaliseScenario(raw) {
   return {
     name: raw.name ?? 'unnamed-scenario',
     url: raw.url ?? null,
+    // When true, the harness keeps the first-run onboarding + location prompt
+    // (instead of auto-dismissing them) so the scenario can walk those flows.
+    keepFirstRun: raw.keepFirstRun === true,
     steps,
   }
 }
