@@ -957,7 +957,11 @@ export function FloorPlanEditor() {
     if (rotatingWall) {
       const [wx, wz] = pointerWorld(e)
       const ang = Math.atan2(wz - rotatingWall.cz, wx - rotatingWall.cx)
-      const d = ang - rotatingWall.a0
+      // Wrap to (-π, π], then clamp to ±90° each way: a larger turn would swing
+      // a segment back across its neighbours and tangle the shared corners.
+      let d = ang - rotatingWall.a0
+      d = Math.atan2(Math.sin(d), Math.cos(d))
+      d = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, d))
       const cos = Math.cos(d)
       const sin = Math.sin(d)
       const rot = (p: [number, number]): [number, number] => {
