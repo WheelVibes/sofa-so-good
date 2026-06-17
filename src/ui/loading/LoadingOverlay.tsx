@@ -60,6 +60,7 @@ function FurnishingRoom() {
   const stroke = 'var(--text-2)'
   return (
     <svg
+      className="hdb-room"
       width="200"
       height="160"
       viewBox="0 0 200 160"
@@ -111,32 +112,49 @@ function FurnishingRoom() {
 }
 
 /* One module-level stylesheet; keyframes Tailwind can't express. The room
- * outline draws in, then each piece scales/fades up on a stagger, and the
- * whole cycle repeats every 4s. prefers-reduced-motion shows it fully drawn,
- * static, with only a gentle pulse. */
+ * outline fades + settles in, then each piece scales/fades up on a stagger, and
+ * the whole cycle repeats every 4s. prefers-reduced-motion shows it static with
+ * only a gentle pulse.
+ *
+ * IMPORTANT — keep this loader smooth even while the main thread is busy
+ * building a heavy scene (orbit mode): animate ONLY compositor-accelerated
+ * properties (`opacity` + `transform`) and hint them with `will-change`, so the
+ * compositor thread runs the animation independently of main-thread paint.
+ * Never animate paint-bound props here (e.g. `stroke-dashoffset`, used by the
+ * old "draw-in" effect) — those run on the main thread and stutter under load. */
 const KEYFRAMES = `
-@keyframes hdb-draw-in { to { stroke-dashoffset: 0; } }
 @keyframes hdb-pop-in {
   0%, 8%   { opacity: 0; transform: translateY(6px) scale(0.92); }
   18%, 86% { opacity: 1; transform: translateY(0) scale(1); }
   100%     { opacity: 0; transform: translateY(6px) scale(0.92); }
 }
-@keyframes hdb-shell-cycle {
-  0%   { stroke-dashoffset: var(--len); }
-  14%  { stroke-dashoffset: 0; }
-  86%  { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: var(--len); }
+@keyframes hdb-fade-cycle {
+  0%   { opacity: 0; transform: scale(0.97); }
+  14%  { opacity: 1; transform: scale(1); }
+  86%  { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(0.97); }
 }
-.hdb-draw { animation: hdb-shell-cycle 4s ease-in-out infinite; }
-.hdb-shell { --len: 540; stroke-dasharray: var(--len); stroke-dashoffset: var(--len); }
-.hdb-floor { --len: 160; stroke-dasharray: var(--len); stroke-dashoffset: var(--len); animation-delay: 0.15s; }
-.hdb-pop { transform-box: fill-box; transform-origin: center; animation: hdb-pop-in 4s ease-in-out infinite; }
+/* The whole room floats gently up and down (transform only → compositor). */
+@keyframes hdb-bob {
+  0%, 100% { transform: translateY(-5px); }
+  50%      { transform: translateY(5px); }
+}
+.hdb-room { will-change: transform; animation: hdb-bob 3.6s ease-in-out infinite; }
+.hdb-draw, .hdb-pop {
+  transform-box: fill-box;
+  transform-origin: center;
+  will-change: opacity, transform;
+}
+.hdb-draw { animation: hdb-fade-cycle 4s ease-in-out infinite; }
+.hdb-floor { animation-delay: 0.15s; }
+.hdb-pop { animation: hdb-pop-in 4s ease-in-out infinite; }
 .hdb-pop-1 { animation-delay: 0.6s; }
 .hdb-pop-2 { animation-delay: 0.9s; }
 .hdb-pop-3 { animation-delay: 1.2s; }
 .hdb-pop-4 { animation-delay: 1.5s; }
 @media (prefers-reduced-motion: reduce) {
-  .hdb-draw { animation: none; stroke-dashoffset: 0; }
+  .hdb-room { animation: none; transform: none; }
+  .hdb-draw { animation: none; opacity: 1; transform: none; }
   .hdb-pop { animation: hdb-rm-pulse 2.2s ease-in-out infinite; opacity: 1; }
   @keyframes hdb-rm-pulse { 0%, 100% { opacity: 0.85; } 50% { opacity: 1; } }
 }
