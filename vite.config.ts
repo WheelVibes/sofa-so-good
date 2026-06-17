@@ -35,6 +35,11 @@ export default defineConfig(({ command }) => ({
               globPatterns: [
                 '**/*.{js,css,html,svg,wasm,woff2,json,webmanifest}',
                 'assets/**/*.{glb,jpg,jpeg,png,ktx2}',
+                // The VitePress user guide (built into dist/docs by
+                // scripts/build-with-guide.mjs before this scan) so it works
+                // offline from the first launch — its screenshots in particular,
+                // since the patterns above only cover top-level assets/.
+                'docs/**/*.{png,jpg,jpeg,webp}',
               ],
               // The `three` and `vendor` chunks exceed Workbox's 2 MiB default cap;
               // raise it so they precache and the app boots with no network.
@@ -83,6 +88,11 @@ export default defineConfig(({ command }) => ({
   // instances that can arise with a nested node_modules tree.
   resolve: { dedupe: ['three', 'react', 'react-dom', 'react/jsx-runtime', 'scheduler'] },
   build: {
+    // Normally the app build empties dist/ first. The full-offline build
+    // (scripts/build-with-guide.mjs) sets VITE_KEEP_DIST=1 so this run preserves
+    // the already-built VitePress guide in dist/docs — letting the PWA scan
+    // precache it. A plain `vite build`/`npm run build` keeps the default.
+    emptyOutDir: process.env.VITE_KEEP_DIST !== '1',
     // Split heavy, rarely-changing dependencies into their own long-lived
     // cache chunks so app-code edits don't bust the whole bundle and the
     // browser can parse vendor code in parallel.

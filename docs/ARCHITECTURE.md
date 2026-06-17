@@ -570,8 +570,12 @@ same change that reshapes a system.
   (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`). Optional network-bound
   features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline. The SPA
   navigation fallback is denylisted for `<base>/docs/` (`navigateFallbackDenylist`) so it can't
-  serve the app shell in place of the separately-built VitePress **user guide**, which has its
-  own `StaleWhileRevalidate` runtime cache (`user-guide`) so it works offline after one visit.
+  serve the app shell in place of the separately-built VitePress **user guide**. The guide is
+  **precached** so it works offline from the first launch: `npm run build:all` runs
+  `scripts/build-with-guide.mjs`, which builds the guide into `dist/docs` *first*, then runs the
+  app build with `VITE_KEEP_DIST=1` (so `emptyOutDir` is off and the PWA scan includes
+  `dist/docs`; `globPatterns` cover its html/js/css/woff2 + a `docs/**` rule for screenshots). A
+  `StaleWhileRevalidate` `user-guide` runtime cache still backs any page not in the precache.
   Every code-split feature (panels/modals/tools in `ui/app/lazyComponents.tsx`, plus the post
   stack, XR, upload dialogs) loads through **`ui/app/lazyWithRetry.tsx`** instead of bare
   `React.lazy`: a failed chunk `import()` (stale hash after a redeploy — Workbox

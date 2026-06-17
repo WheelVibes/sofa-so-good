@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Offline: precache the user guide so it works from the first launch
+
+- The VitePress **user guide** (`<base>/docs/`) is now **precached** into the service worker, so
+  it's available offline from the very first launch — not just after a first online visit. The
+  guide builds *before* the app so the PWA's build-time scan can include it: `npm run build:all`
+  now runs `scripts/build-with-guide.mjs`, which (1) builds the guide into `dist/docs`, then
+  (2) runs the app build with `VITE_KEEP_DIST=1` so `emptyOutDir` is off and the SW precache
+  picks up `dist/docs`. Added a `docs/**/*.{png,jpg,jpeg,webp}` glob so the guide's screenshots
+  precache too (the existing patterns already cover its html/js/css/woff2). The precache grows
+  from 150 → 225 entries (~16 → ~21.5 MiB, a one-time background download). Verified headless:
+  load online once → go offline → the guide home, a sub-page, and a screenshot all load from
+  cache (`scripts/offline-guide-test.mjs`). The `StaleWhileRevalidate` `user-guide` runtime
+  cache stays as a backstop.
+
 ## Offline: fix SW hijacking the user guide; verify every feature offline
 
 - The Workbox SPA navigation fallback had **no denylist**, so once the service worker was
