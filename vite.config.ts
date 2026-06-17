@@ -40,7 +40,25 @@ export default defineConfig(({ command }) => ({
               // raise it so they precache and the app boots with no network.
               maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
               cleanupOutdatedCaches: true,
+              // The SPA navigation fallback (serve index.html for navigations)
+              // must NOT swallow the separately-built VitePress user guide at
+              // `<base>/docs/` — without this denylist the SW returns the app
+              // shell for the guide (wrong content, online and offline). Denied
+              // navigations fall through to the `/docs/` runtime cache below.
+              navigateFallbackDenylist: [/\/docs\//],
               runtimeCaching: [
+                {
+                  // User guide (separate VitePress build at `<base>/docs/`) — not
+                  // in the app precache, so cache it on first visit to make the
+                  // in-browser guide available offline thereafter.
+                  urlPattern: /\/docs\//,
+                  handler: 'StaleWhileRevalidate',
+                  options: {
+                    cacheName: 'user-guide',
+                    cacheableResponse: { statuses: [0, 200] },
+                    expiration: { maxEntries: 200, maxAgeSeconds: 60 * 60 * 24 * 30 },
+                  },
+                },
                 {
                   // Remote CC0 catalog assets (Poly Haven / ambientCG / Kenney) are
                   // optional and cross-origin; cache what's been fetched so repeat

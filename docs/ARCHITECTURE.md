@@ -568,7 +568,10 @@ same change that reshapes a system.
   is `public/basis/` via `withBase('/basis/')`. A `vite-plugin-pwa` Workbox service worker
   (`vite.config.ts`) precaches the build so the app loads and runs offline after the first visit
   (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`). Optional network-bound
-  features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline.
+  features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline. The SPA
+  navigation fallback is denylisted for `<base>/docs/` (`navigateFallbackDenylist`) so it can't
+  serve the app shell in place of the separately-built VitePress **user guide**, which has its
+  own `StaleWhileRevalidate` runtime cache (`user-guide`) so it works offline after one visit.
   Every code-split feature (panels/modals/tools in `ui/app/lazyComponents.tsx`, plus the post
   stack, XR, upload dialogs) loads through **`ui/app/lazyWithRetry.tsx`** instead of bare
   `React.lazy`: a failed chunk `import()` (stale hash after a redeploy — Workbox

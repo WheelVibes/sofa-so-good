@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Offline: fix SW hijacking the user guide; verify every feature offline
+
+- The Workbox SPA navigation fallback had **no denylist**, so once the service worker was
+  active it served the **app shell** for `<base>/docs/` — "Open the user guide" showed the 3D
+  app instead of the VitePress guide (wrong content, online *and* offline). Added
+  `navigateFallbackDenylist: [/\/docs\//]` plus a `StaleWhileRevalidate` `user-guide` runtime
+  cache so the guide loads correctly and works offline after one visit.
+- Swept the full feature surface offline (production build behind the SW, network off) via the
+  command palette: **29/29 non-exempt features open with no ErrorBoundary and no uncaught
+  errors** (catalog, objects, measure, Smart Start, 3D asset designer, custom-size furniture,
+  tidy, design score, accessibility, comments, versions, history, share/export, panorama, tour,
+  HQ render, render compare, palette-from-photo, design report, furniture CSV, plan SVG, 3D
+  model export, floor-plan editor, room edit, appearance, product tour, top/reset view, time of
+  day). Exempt features (AI / remote catalog / external APIs / sidecars) degrade gracefully
+  (clear message, no crash). New harnesses: `scripts/offline-features-test.mjs` +
+  `scripts/offline-exempt-test.mjs`.
+- Confirmed asset precache coverage is complete for everything loaded at runtime: all JS/CSS/
+  WASM/woff2 chunks, the self-hosted fonts, Draco/Basis decoders, and bundled GLB/material
+  textures (`assets/**`). Scene rendering is fully offline-safe — procedural IBL
+  (`SceneEnvironment` Lightformers, no HDR fetch), procedurally-baked window backdrops, and
+  precached materials/models (already wrapped in `GltfErrorBoundary`).
+
 ## Offline: recover from failed chunk loads instead of crashing the app
 
 - Opening the floor-plan editor (or any lazy panel/tool) could crash-land the whole app on the
