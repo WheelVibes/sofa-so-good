@@ -84,6 +84,7 @@ import {
   showWallDim,
   wrapLabel,
 } from './editor/planLabelDisplay'
+import { snapToWalls } from './editor/snapToWalls'
 import { WallDimension } from './editor/WallDimension'
 import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
@@ -678,28 +679,20 @@ export function FloorPlanEditor() {
 
   if (!editing) return null
 
-  const pointerWorld = (e: React.PointerEvent, excludeWallId?: string): [number, number] => {
+  const pointerWorld = (
+    e: React.PointerEvent,
+    excludeWallId?: string,
+    snapEdges?: boolean,
+  ): [number, number] => {
     const rect = svgRef.current!.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * W
     const y = ((e.clientY - rect.top) / rect.height) * H
-    let wx = snap(x / PX - GRID_MARGIN)
-    let wz = snap(y / PX - GRID_MARGIN)
-    // Vertex snap: prefer an existing wall endpoint (on the active storey)
-    // within ~0.3 m so walls connect cleanly at corners. Skip the wall being
-    // vertex-dragged so its own endpoints don't capture the cursor.
-    let best = 0.3
-    for (const w of levelPlan.walls) {
-      if (w.id === excludeWallId) continue
-      for (const p of [w.start, w.end]) {
-        const dd = Math.hypot(p[0] - wx, p[1] - wz)
-        if (dd < best) {
-          best = dd
-          wx = p[0]
-          wz = p[1]
-        }
-      }
-    }
-    return [wx, wz]
+    const wx = snap(x / PX - GRID_MARGIN)
+    const wz = snap(y / PX - GRID_MARGIN)
+    // Vertex snap (always) + edge snap (wall drawing only): connect walls cleanly
+    // at corners, and let a new wall tee mid-span into an existing one. Skip the
+    // wall being vertex-dragged so its own endpoints don't capture the cursor.
+    return snapToWalls([wx, wz], levelPlan.walls, { excludeWallId, edges: snapEdges })
   }
 
   /** Nearest active-storey wall to a world point, with the projected offset. */
@@ -788,7 +781,7 @@ export function FloorPlanEditor() {
       startPan(e)
       return
     }
-    const [wx, wz] = pointerWorld(e)
+    const [wx, wz] = pointerWorld(e, undefined, tool === 'wall')
     const st = useStore.getState()
     if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
@@ -1047,7 +1040,7 @@ export function FloorPlanEditor() {
       return
     }
     if (!draft) return
-    const [wx, wz] = pointerWorld(e)
+    const [wx, wz] = pointerWorld(e, undefined, tool === 'wall')
     setDraft({ ...draft, x: wx, z: wz })
   }
 

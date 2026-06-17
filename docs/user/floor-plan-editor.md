@@ -23,7 +23,9 @@ between the 2D plan and the 3D scene at any time.
 ## Drawing
 
 - **Walls** — choose interior or exterior thickness, then drag to draw. Endpoints
-  snap to the grid and to nearby wall corners.
+  snap to the grid, to nearby wall corners, and onto the side of an existing wall
+  (a clean T‑junction) — so new walls join up without fiddling. Dragging an
+  endpoint clearly past a wall stays free, so you can still extend beyond it.
 - **Rooms** — drag a rectangle; its area is computed and added to the total.
 - **Doors / windows** — click on a wall to drop one. Select a door to set which
   way it opens: **Hinge** (which jamb it pivots on) and **Swing** (which side of
@@ -33,7 +35,8 @@ between the 2D plan and the 3D scene at any time.
   window on it moves to the matching half.
 - **Select tool** — click to select, drag to move a room or a piece of furniture
   (on touch, tap to select first — see *View vs Edit* above).
-- **Grid & corner snapping** keep everything aligned (cycle the grid size from the
+- **Grid, corner & wall snapping** keep everything aligned — new walls snap to the
+  grid, to existing corners, and onto existing walls (cycle the grid size from the
   toolbar).
 - **Dims** (header toggle, **off by default**) draws a dimension line — with
   arrowheads spanning the length — on every wall and every door/window width.

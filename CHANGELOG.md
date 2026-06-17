@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: new walls snap to join existing ones
+
+- **Drawing a wall snaps to existing geometry** so segments connect cleanly: an
+  existing wall *endpoint* within ~0.3 m captures the cursor (corner join), and
+  failing that the nearest point on a wall *span* within ~0.25 m captures it
+  (a mid-wall T-junction). Dragging clearly past a wall stays free, so a new wall
+  can still extend beyond the one it crosses — snapping only engages near
+  existing walls. Vertex snap wins over edge snap when both are in range.
+- The vertex+edge snapping is a pure, unit-tested helper (`editor/snapToWalls.ts`)
+  shared by the editor's pointer→world mapping.
+
 ## Floor-plan editor: furniture toggle, undo/redo, grid sizes, centring, clearer selection
 
 - **Furniture show/hide** (header "Furniture", **hidden by default**) so footprints
