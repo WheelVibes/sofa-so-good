@@ -78,6 +78,53 @@ describe('floorPlanSlice', () => {
     expect(useStore.getState().planSelection).toEqual({ type: 'opening', id: newId })
   })
 
+  it('multi-selects walls, then bulk-locks and bulk-deletes them', () => {
+    useStore.getState().newFloorPlan('Multi test')
+    for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
+    const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+    const c = useStore.getState().addWall({ start: [2, 2], end: [0, 2], thickness: 'internal' })
+    // Primary select A, then add B and C to the multi-selection.
+    useStore.getState().setPlanSelection({ type: 'wall', id: a })
+    useStore.getState().toggleWallSelection(b)
+    useStore.getState().toggleWallSelection(c)
+    // C is the newest primary; A and B are the extras.
+    expect(useStore.getState().planSelection).toEqual({ type: 'wall', id: c })
+    expect(new Set(useStore.getState().selectedWallIds)).toEqual(new Set([a, b]))
+
+    // Toggling C off promotes another wall to primary.
+    useStore.getState().toggleWallSelection(c)
+    expect(useStore.getState().planSelection?.type).toBe('wall')
+    expect(useStore.getState().selectedWallIds.length).toBe(1)
+
+    // Re-add C, then bulk-lock all three.
+    useStore.getState().toggleWallSelection(c)
+    useStore.getState().setWallsLocked([a, b, c], true)
+    expect(useStore.getState().floorPlan.walls.filter((w) => w.locked).length).toBe(3)
+
+    // removeWalls skips locked walls.
+    useStore.getState().removeWalls([a, b, c])
+    expect(useStore.getState().floorPlan.walls.length).toBe(3)
+
+    // Unlock then bulk-delete: all gone, selection cleared.
+    useStore.getState().setWallsLocked([a, b, c], false)
+    useStore.getState().removeWalls([a, b, c])
+    expect(useStore.getState().floorPlan.walls.length).toBe(0)
+    expect(useStore.getState().planSelection).toBeNull()
+    expect(useStore.getState().selectedWallIds).toEqual([])
+  })
+
+  it('a plain selection clears the multi-selection extras', () => {
+    useStore.getState().newFloorPlan('Multi clear test')
+    const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+    useStore.getState().setPlanSelection({ type: 'wall', id: a })
+    useStore.getState().toggleWallSelection(b)
+    expect(useStore.getState().selectedWallIds.length).toBe(1)
+    useStore.getState().setPlanSelection({ type: 'wall', id: a })
+    expect(useStore.getState().selectedWallIds).toEqual([])
+  })
+
   it('splits a wall into two segments at the midpoint, re-homing openings', () => {
     const s = useStore.getState()
     s.newFloorPlan('Split test')

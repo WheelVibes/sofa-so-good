@@ -5,6 +5,20 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: multi-select walls (bulk lock / delete)
+
+- **Select several walls at once** — Shift/⌘/Ctrl-click adds or removes a wall
+  from the selection; on touch a new toolbar **Select+** toggle makes taps
+  additive (the Shift-click equivalent). Every selected wall gets the accent
+  halo.
+- The inspector shows a **"N walls selected"** panel with **Lock all / Unlock
+  all**, **Delete all** (skips locked walls), and **Clear selection**. ⌫/Delete
+  removes the whole selection in one undoable step.
+- State is session-only (`selectedWallIds` + `planWallMultiAdd`); a plain click
+  clears the multi-selection, and ids are filtered to existing walls so
+  deletes/merges leave nothing stale. New slice actions: `toggleWallSelection`,
+  `removeWalls`, `setWallsLocked`.
+
 ## Floor-plan editor: wall / door / window inspector parity (name, lock, duplicate)
 
 - The wall and door/window inspectors now mirror the **furniture inspector**: a

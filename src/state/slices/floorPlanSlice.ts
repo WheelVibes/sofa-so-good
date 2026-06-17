@@ -63,8 +63,25 @@ export interface FloorPlanSlice {
   setPlanLabels: (mode: PlanLabelMode) => void
   /** Advance the plan-label mode (off → name → price → off). */
   cyclePlanLabels: () => void
-  /** Currently-selected element in the editor. */
+  /** Currently-selected element in the editor (the "primary" selection that the
+   *  inspector edits). */
   planSelection: PlanSelection
+  /** Additional walls in a multi-selection, *beyond* the primary `planSelection`
+   *  wall. The full wall selection = primary wall (if any) ∪ these. Session-only
+   *  (not persisted, not in history); cleared by any plain (non-additive)
+   *  selection. */
+  selectedWallIds: string[]
+  /** When on, a tap/click on a wall toggles it in the multi-selection instead of
+   *  replacing it (the touch-friendly equivalent of Shift-click). Session-only. */
+  planWallMultiAdd: boolean
+  setPlanWallMultiAdd: (on: boolean) => void
+  /** Toggle a wall in the multi-selection (Shift/⌘-click or multi-add mode):
+   *  adds it as the new primary, or removes it (promoting another to primary). */
+  toggleWallSelection: (id: string) => void
+  /** Bulk-delete walls (skips locked ones); one history step; clears selection. */
+  removeWalls: (ids: string[], levelId?: string) => void
+  /** Bulk lock/unlock walls; one history step. */
+  setWallsLocked: (ids: string[], locked: boolean, levelId?: string) => void
   /** Saved named floor plans (the apartment library). */
   savedPlans: FloorPlan[]
   /** Save the active plan into the library (new entry; returns its id). */
@@ -175,13 +192,22 @@ export interface FloorPlanSlice {
 
 export const FLOOR_PLAN_INITIAL: Pick<
   FloorPlanSlice,
-  'floorPlan' | 'baselinePlan' | 'floorPlanEditing' | 'planLabels' | 'planSelection' | 'savedPlans'
+  | 'floorPlan'
+  | 'baselinePlan'
+  | 'floorPlanEditing'
+  | 'planLabels'
+  | 'planSelection'
+  | 'selectedWallIds'
+  | 'planWallMultiAdd'
+  | 'savedPlans'
 > = {
   floorPlan: buildDefaultPlan(),
   baselinePlan: buildDefaultPlan(),
   floorPlanEditing: false,
   planLabels: 'off',
   planSelection: null,
+  selectedWallIds: [],
+  planWallMultiAdd: false,
   savedPlans: [],
 }
 
@@ -256,7 +282,50 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
   setPlanLabels: (planLabels) => set({ planLabels }),
   cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
-  setPlanSelection: (sel) => set({ planSelection: sel }),
+  // A plain selection always replaces the multi-selection (clears the extras),
+  // so single-click select behaves exactly as before.
+  setPlanSelection: (sel) => set({ planSelection: sel, selectedWallIds: [] }),
+  setPlanWallMultiAdd: (on) => set({ planWallMultiAdd: on }),
+  toggleWallSelection: (id) =>
+    set((s) => {
+      const primary = s.planSelection?.type === 'wall' ? s.planSelection.id : null
+      const combined = [...new Set([...(primary ? [primary] : []), ...s.selectedWallIds])]
+      if (combined.includes(id)) {
+        // Remove it; promote the first remaining wall to primary.
+        const rest = combined.filter((w) => w !== id)
+        return {
+          planSelection: rest.length ? { type: 'wall', id: rest[0] } : null,
+          selectedWallIds: rest.slice(1),
+        }
+      }
+      // Add it as the new primary; everything previously selected becomes extra.
+      return { planSelection: { type: 'wall', id }, selectedWallIds: combined }
+    }),
+  removeWalls: (ids, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const removable = new Set(ids.filter((id) => !g.walls.find((w) => w.id === id)?.locked))
+    if (removable.size === 0) return
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+        walls: gg.walls.filter((w) => !removable.has(w.id)),
+        openings: gg.openings.filter((o) => !removable.has(o.wallId)),
+      })),
+      planSelection: null,
+      selectedWallIds: [],
+    }))
+  },
+  setWallsLocked: (ids, locked, levelId) => {
+    const set0 = new Set(ids)
+    if (set0.size === 0) return
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+        walls: gg.walls.map((w) => (set0.has(w.id) ? { ...w, locked: locked || undefined } : w)),
+      })),
+    }))
+  },
   resetFloorPlan: () => {
     // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built
     // custom plan is destroyed with no way back.
@@ -331,6 +400,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     set((s) => ({
       floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({ walls: [...gg.walls, copy] })),
       planSelection: { type: 'wall', id: newId },
+      selectedWallIds: [],
     }))
     return newId
   },
@@ -366,7 +436,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
           }),
         }
       })
-      return { floorPlan, planSelection: selection }
+      return { floorPlan, planSelection: selection, selectedWallIds: [] }
     })
   },
 
@@ -396,6 +466,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         openings: res.openings,
       })),
       planSelection: { type: 'wall', id: res.mergedId },
+      selectedWallIds: [],
     }))
   },
 

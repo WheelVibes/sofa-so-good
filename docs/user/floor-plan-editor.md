@@ -61,6 +61,12 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
 - **Duplicate** — drops an editable copy beside the original (the name and lock
   aren't carried over).
 
+**Select several walls at once** — Shift‑click (or ⌘/Ctrl‑click) walls to add or
+remove them from the selection; on a touch screen, turn on the toolbar **Select+**
+toggle and tap walls instead. The Properties panel then shows how many are
+selected with **Lock all**, **Delete all** (locked walls are kept) and **Clear
+selection** — handy for clearing out a whole run of walls in one go.
+
 ## Non‑rectangular rooms (L‑shapes & angles)
 
 Rooms don't have to be plain rectangles:

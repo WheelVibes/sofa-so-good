@@ -100,6 +100,8 @@ export function FloorPlanEditor() {
   const canUndo = useStore((s) => s.past.length > 0)
   const canRedo = useStore((s) => s.future.length > 0)
   const sel = useStore((s) => s.planSelection)
+  const selectedWallIdsRaw = useStore((s) => s.selectedWallIds)
+  const planWallMultiAdd = useStore((s) => s.planWallMultiAdd)
   const units = useStore((s) => s.units)
   const a = useStore.getState()
 
@@ -141,6 +143,13 @@ export function FloorPlanEditor() {
   const activeLevel = levelById(plan, activeLevelId)
   const levelPlan = levelAsPlan(plan, activeLevel)
   const levelId = activeLevel.id
+  // The full wall selection = primary wall (if any) ∪ the multi-select extras,
+  // filtered to walls that still exist (so deletes/merges leave no stale ids).
+  const selectedWalls = useMemo(() => {
+    const ids = new Set<string>([...(sel?.type === 'wall' ? [sel.id] : []), ...selectedWallIdsRaw])
+    const present = new Set(levelPlan.walls.map((w) => w.id))
+    return new Set([...ids].filter((id) => present.has(id)))
+  }, [sel, selectedWallIdsRaw, levelPlan.walls])
   // Exact wall-enclosed outline (exterior walls) for the un-roomed flag: drawn
   // beneath the room fills, so walled-in floor with no room shows through in red.
   const fUnroomed = useFeature('unroomedFlag')
@@ -660,6 +669,17 @@ export function FloorPlanEditor() {
         // the selected element.
         if (isEditableTarget(e)) return
         const st = useStore.getState()
+        // A multi-wall selection deletes them all in one step (skips locked).
+        const wallIds = [
+          ...new Set([
+            ...(st.planSelection?.type === 'wall' ? [st.planSelection.id] : []),
+            ...st.selectedWallIds,
+          ]),
+        ]
+        if (wallIds.length > 1) {
+          st.removeWalls(wallIds, levelId)
+          return
+        }
         if (sel) {
           // Locked walls/openings can't be deleted (matches furniture lock).
           const lvl = levelById(st.floorPlan, levelId)
@@ -1393,6 +1413,20 @@ export function FloorPlanEditor() {
       >
         Furniture
       </button>
+      {/* Multi-select walls (touch-friendly equivalent of Shift-click). Only
+          meaningful with the Select tool in Edit mode, so it's hidden otherwise
+          to keep the toolbar uncluttered. */}
+      {tool === 'select' && editMode === 'edit' ? (
+        <button
+          type="button"
+          onClick={() => a.setPlanWallMultiAdd(!planWallMultiAdd)}
+          className={`btn btn-sm${planWallMultiAdd ? ' btn-accent' : ''}`}
+          title="Select multiple walls: tap walls to add/remove them (or Shift-click). Then Delete or Lock them together."
+          aria-pressed={planWallMultiAdd}
+        >
+          Select+
+        </button>
+      ) : null}
       {/* Undo / redo (also ⌘Z / ⇧⌘Z). Visible buttons for touch, where there's
           no keyboard. */}
       <div className="seg" style={{ alignItems: 'center' }}>
@@ -2210,15 +2244,23 @@ export function FloorPlanEditor() {
             {/* Walls (active storey) */}
             {levelPlan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
+              const inSel = selectedWalls.has(w.id) // primary OR a multi-select extra
               const d = wallSvgPath(w, toPx)
-              const stroke = isSel
+              const stroke = inSel
                 ? 'var(--accent)'
                 : w.thickness === 'external'
                   ? 'var(--plan-wall)'
                   : 'var(--text-3)'
               const onWallDown = (e: React.PointerEvent) => {
                 if (tool !== 'select') return
-                const willMove = beginElementDrag(e, isSel)
+                // Additive select (Shift/⌘/Ctrl-click, or the touch "Select more"
+                // toggle): toggle this wall in the multi-selection and don't drag.
+                if (e.shiftKey || e.metaKey || e.ctrlKey || planWallMultiAdd) {
+                  e.stopPropagation()
+                  a.toggleWallSelection(w.id)
+                  return
+                }
+                const willMove = beginElementDrag(e, inSel)
                 a.setPlanSelection({ type: 'wall', id: w.id })
                 if (!willMove) return // view / unselected-on-touch: let it pan
                 if (w.locked) return // locked walls select but don't move (like furniture)
@@ -2235,8 +2277,9 @@ export function FloorPlanEditor() {
               return (
                 <g key={w.id} data-wall={w.id}>
                   {/* Selected: a translucent accent halo around the wall so the
-                      selection is obvious (mirrors the furniture highlight). */}
-                  {isSel && (
+                      selection is obvious (mirrors the furniture highlight).
+                      Shown for every wall in the (multi-)selection. */}
+                  {inSel && (
                     <path
                       d={d}
                       fill="none"

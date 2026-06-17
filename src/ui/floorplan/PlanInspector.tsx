@@ -215,6 +215,7 @@ function CeilingControls({
  *  looked up on (and edits routed to) the editor's active storey (F13/ML4b). */
 export function PlanInspector({ levelId }: { levelId?: string }) {
   const sel = useStore((s) => s.planSelection)
+  const selectedWallIds = useStore((s) => s.selectedWallIds)
   const plan = useStore((s) => s.floorPlan)
   const units = useStore((s) => s.units)
   const a = useStore.getState()
@@ -224,11 +225,19 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
   const wallBaseboardOn = useFeature('wallBaseboard')
   const wallThicknessOn = useFeature('wallThickness')
   const floorTextureOn = useFeature('floorTexture')
-  const selKey = sel ? `${sel.type}:${sel.id}` : 'none'
-  const { minimized, toggle } = usePlanInspectorMinimize(selKey, !!sel)
   // The active storey's geometry — selection ids come from the editor canvas,
   // which only ever shows (so only ever selects) active-level elements.
   const level = levelById(plan, levelId)
+
+  // Full wall multi-selection (primary ∪ extras), filtered to existing walls.
+  const wallSelIds = [
+    ...new Set([...(sel?.type === 'wall' ? [sel.id] : []), ...selectedWallIds]),
+  ].filter((id) => level.walls.some((w) => w.id === id))
+  const isMulti = wallSelIds.length > 1
+
+  const selKey = isMulti ? `multi:${wallSelIds.length}` : sel ? `${sel.type}:${sel.id}` : 'none'
+  // A multi-selection is an action panel — keep it expanded (don't auto-minimize).
+  const { minimized, toggle } = usePlanInspectorMinimize(selKey, !!sel && !isMulti)
 
   // On mobile the resting (no-selection) view only repeats the plan defaults,
   // which now live in the toolbar's Tools modal — so the panel is shown only
@@ -325,7 +334,55 @@ export function PlanInspector({ levelId }: { levelId?: string }) {
     </div>
   )
 
-  if (sel?.type === 'room') {
+  if (isMulti) {
+    const selWalls = level.walls.filter((w) => wallSelIds.includes(w.id))
+    const allLocked = selWalls.every((w) => w.locked)
+    const lockedCount = selWalls.filter((w) => w.locked).length
+    body = (
+      <div className="space-y-2">
+        <div className="sec-h">
+          <span>{wallSelIds.length} walls selected</span>
+        </div>
+        <div className="action-grid two">
+          <ActBtn
+            label={allLocked ? 'Unlock all' : 'Lock all'}
+            icon={
+              allLocked ? (
+                <Icon.Unlock width={16} height={16} />
+              ) : (
+                <Icon.Lock width={16} height={16} />
+              )
+            }
+            on={allLocked}
+            title={allLocked ? 'Unlock every selected wall' : 'Lock every selected wall'}
+            onClick={() => a.setWallsLocked(wallSelIds, !allLocked, levelId)}
+          />
+          <ActBtn
+            label="Delete all"
+            icon={<Icon.Trash width={16} height={16} />}
+            danger
+            title={
+              lockedCount
+                ? `Delete the ${wallSelIds.length - lockedCount} unlocked walls (locked ones are kept)`
+                : 'Delete every selected wall'
+            }
+            onClick={() => a.removeWalls(wallSelIds, levelId)}
+          />
+        </div>
+        <button
+          type="button"
+          className="btn btn-soft btn-block"
+          onClick={() => a.setPlanSelection(null)}
+        >
+          Clear selection
+        </button>
+        <p className="text-xs leading-relaxed" style={{ color: 'var(--text-2)' }}>
+          Tip: Shift-click (or the toolbar <b style={{ color: 'var(--text)' }}>Select+</b> toggle on
+          touch) adds or removes walls. {lockedCount > 0 ? `${lockedCount} locked.` : null}
+        </p>
+      </div>
+    )
+  } else if (sel?.type === 'room') {
     const r = level.rooms.find((x) => x.id === sel.id)
     if (r)
       body = (
