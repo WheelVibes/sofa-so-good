@@ -112,6 +112,14 @@ export interface FloorPlanSlice {
     to: [number, number],
     levelId?: string,
   ) => void
+  /** Move a whole wall to new endpoints (drag/rotate), dragging any connected
+   *  walls that shared the old start/end so corners stay joined. */
+  moveWallTo: (
+    id: string,
+    newStart: [number, number],
+    newEnd: [number, number],
+    levelId?: string,
+  ) => void
 
   addRoom: (room: Omit<PlanRoom, 'id'>, levelId?: string) => string
   /** Patch a room by id — searches EVERY storey (rooms ids are plan-unique
@@ -377,6 +385,29 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
             if (shared(w.end)) next.end = [...to] as [number, number]
             return next
           }),
+        }
+      }),
+    }))
+  },
+
+  moveWallTo: (id, newStart, newEnd, levelId) => {
+    get().pushHistoryCoalesced(`plan-wall-move-${id}`)
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => {
+        const target = g.walls.find((w) => w.id === id)
+        if (!target) return {}
+        const cs = target.start
+        const ce = target.end
+        const EPS = 1e-3
+        const near = (p: [number, number], q: [number, number]) =>
+          Math.abs(p[0] - q[0]) < EPS && Math.abs(p[1] - q[1]) < EPS
+        // Endpoints coincident with the wall's OLD start move to newStart; with
+        // the old end → newEnd. This drags the wall itself plus every wall that
+        // shared either corner, so the network stays connected.
+        const remap = (p: [number, number]): [number, number] =>
+          near(p, cs) ? [...newStart] : near(p, ce) ? [...newEnd] : p
+        return {
+          walls: g.walls.map((w) => ({ ...w, start: remap(w.start), end: remap(w.end) })),
         }
       }),
     }))

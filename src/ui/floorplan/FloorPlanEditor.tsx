@@ -177,6 +177,24 @@ export function FloorPlanEditor() {
   // Active door/window drag ALONG its wall: `grab` = the along-wall distance
   // between the grab point and the opening's offset, so it doesn't jump on grab.
   const [movingOpening, setMovingOpening] = useState<{ id: string; grab: number } | null>(null)
+  // Active whole-wall translate: original endpoints + grab point; connected walls
+  // follow via moveWallTo so corners stay joined.
+  const [movingWall, setMovingWall] = useState<{
+    id: string
+    s0: [number, number]
+    e0: [number, number]
+    grab: [number, number]
+  } | null>(null)
+  // Active wall rotate (handle): centre + original endpoints + the pointer angle
+  // at grab, so rotation tracks the handle.
+  const [rotatingWall, setRotatingWall] = useState<{
+    id: string
+    cx: number
+    cz: number
+    s0: [number, number]
+    e0: [number, number]
+    a0: number
+  } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
@@ -926,6 +944,35 @@ export function FloorPlanEditor() {
       }
       return
     }
+    if (movingWall) {
+      const [wx, wz] = pointerWorld(e)
+      // Snap the DELTA so the wall stays rigid and moves in grid steps.
+      const dx = snap(wx - movingWall.grab[0])
+      const dz = snap(wz - movingWall.grab[1])
+      const ns: [number, number] = [movingWall.s0[0] + dx, movingWall.s0[1] + dz]
+      const ne: [number, number] = [movingWall.e0[0] + dx, movingWall.e0[1] + dz]
+      useStore.getState().moveWallTo(movingWall.id, ns, ne, levelId)
+      return
+    }
+    if (rotatingWall) {
+      const [wx, wz] = pointerWorld(e)
+      const ang = Math.atan2(wz - rotatingWall.cz, wx - rotatingWall.cx)
+      const d = ang - rotatingWall.a0
+      const cos = Math.cos(d)
+      const sin = Math.sin(d)
+      const rot = (p: [number, number]): [number, number] => {
+        const x = p[0] - rotatingWall.cx
+        const z = p[1] - rotatingWall.cz
+        return [
+          snap(rotatingWall.cx + x * cos - z * sin),
+          snap(rotatingWall.cz + x * sin + z * cos),
+        ]
+      }
+      useStore
+        .getState()
+        .moveWallTo(rotatingWall.id, rot(rotatingWall.s0), rot(rotatingWall.e0), levelId)
+      return
+    }
     if (movingOpening) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -1030,6 +1077,14 @@ export function FloorPlanEditor() {
     }
     if (movingBulge) {
       setMovingBulge(null)
+      return
+    }
+    if (movingWall) {
+      setMovingWall(null)
+      return
+    }
+    if (rotatingWall) {
+      setRotatingWall(null)
       return
     }
     if (movingOpening) {
@@ -2162,10 +2217,13 @@ export function FloorPlanEditor() {
                   : 'var(--text-3)'
               const onWallDown = (e: React.PointerEvent) => {
                 if (tool !== 'select') return
+                const willMove = beginElementDrag(e, isSel)
                 a.setPlanSelection({ type: 'wall', id: w.id })
-                // Desktop edit keeps the selection (stop the canvas from clearing
-                // it); view + touch let the gesture bubble so a drag pans.
-                if (editMode === 'edit' && !isMobile) e.stopPropagation()
+                if (!willMove) return // view / unselected-on-touch: let it pan
+                // Drag the whole wall (endpoint handles, which stopPropagation,
+                // handle per-corner reshape instead).
+                const [wx, wz] = pointerWorld(e)
+                setMovingWall({ id: w.id, s0: [...w.start], e0: [...w.end], grab: [wx, wz] })
               }
               // Curve bulge handle: drag a selected wall's midpoint to bow it.
               const bulge =
@@ -2173,7 +2231,7 @@ export function FloorPlanEditor() {
                   ? wallCurveMidpoint(w)
                   : null
               return (
-                <g key={w.id}>
+                <g key={w.id} data-wall={w.id}>
                   {/* Selected: a translucent accent halo around the wall so the
                       selection is obvious (mirrors the furniture highlight). */}
                   {isSel && (
@@ -2425,34 +2483,85 @@ export function FloorPlanEditor() {
                 )
               })}
 
-            {/* Endpoint handles for the selected wall (drag to reshape; shared
-                corners move together). Lets the user pull a rectangle into an
-                L-shape by dragging one corner. */}
+            {/* Selected-wall handles: drag the body to move (connected corners
+                follow), drag an end handle to extend/shorten that end, or drag
+                the rotate handle (offset from the midpoint) to rotate. */}
             {editMode === 'edit' &&
               tool === 'select' &&
               sel?.type === 'wall' &&
               (() => {
                 const w = levelPlan.walls.find((x) => x.id === sel.id)
                 if (!w) return null
-                return (['start', 'end'] as const).map((which) => {
-                  const p = w[which]
-                  return (
+                const sx = toPx(w.start[0])
+                const sy = toPx(w.start[1])
+                const ex = toPx(w.end[0])
+                const ey = toPx(w.end[1])
+                const mpx = (sx + ex) / 2
+                const mpy = (sy + ey) / 2
+                const L = Math.hypot(ex - sx, ey - sy) || 1
+                const npx = -(ey - sy) / L
+                const npy = (ex - sx) / L
+                const ROT_OFF = 30
+                const hx = mpx + npx * ROT_OFF
+                const hy = mpy + npy * ROT_OFF
+                return (
+                  <>
+                    {(['start', 'end'] as const).map((which) => {
+                      const p = w[which]
+                      return (
+                        <circle
+                          key={which}
+                          cx={toPx(p[0])}
+                          cy={toPx(p[1])}
+                          r={6}
+                          fill="var(--accent)"
+                          stroke="var(--surface-solid)"
+                          strokeWidth={2}
+                          style={{ cursor: 'grab' }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation()
+                            setMovingVertex({ id: w.id, which })
+                            svgRef.current?.setPointerCapture(e.pointerId)
+                          }}
+                        />
+                      )
+                    })}
+                    {/* Rotate handle */}
+                    <line
+                      x1={mpx}
+                      y1={mpy}
+                      x2={hx}
+                      y2={hy}
+                      stroke="var(--accent)"
+                      strokeWidth={1.5}
+                      style={{ pointerEvents: 'none' }}
+                    />
                     <circle
-                      key={which}
-                      cx={toPx(p[0])}
-                      cy={toPx(p[1])}
-                      r={6}
-                      fill="var(--accent)"
-                      stroke="var(--surface-solid)"
+                      cx={hx}
+                      cy={hy}
+                      r={7}
+                      fill="var(--surface-solid)"
+                      stroke="var(--accent)"
                       strokeWidth={2}
                       style={{ cursor: 'grab' }}
                       onPointerDown={(e) => {
                         e.stopPropagation()
-                        setMovingVertex({ id: w.id, which })
+                        const [gx, gz] = pointerWorld(e)
+                        const cx = (w.start[0] + w.end[0]) / 2
+                        const cz = (w.start[1] + w.end[1]) / 2
+                        setRotatingWall({
+                          id: w.id,
+                          cx,
+                          cz,
+                          s0: [...w.start],
+                          e0: [...w.end],
+                          a0: Math.atan2(gz - cz, gx - cx),
+                        })
+                        svgRef.current?.setPointerCapture(e.pointerId)
                       }}
                     />
-                  )
-                })
+                  </>
+                )
               })()}
 
             {/* Openings — architectural symbols (door swing / window double-line) */}

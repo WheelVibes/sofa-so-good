@@ -34,6 +34,22 @@ describe('floorPlanSlice', () => {
     expect(after.openings.some((o) => o.id === oid)).toBe(false)
   })
 
+  it('moveWallTo drags a wall and keeps connected walls joined at the corner', () => {
+    useStore.getState().newFloorPlan('Connectivity test')
+    // Two walls meeting at the corner (2,0): A = (0,0)->(2,0), B = (2,0)->(2,2).
+    const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+    // Translate A by (0,1): its shared corner (2,0)->(2,1) should drag B's start.
+    useStore.getState().moveWallTo(a, [0, 1], [2, 1])
+    const A = useStore.getState().floorPlan.walls.find((w) => w.id === a)!
+    const B = useStore.getState().floorPlan.walls.find((w) => w.id === b)!
+    expect(A.start).toEqual([0, 1])
+    expect(A.end).toEqual([2, 1])
+    // B stays joined: its start followed the shared corner; its far end is fixed.
+    expect(B.start).toEqual([2, 1])
+    expect(B.end).toEqual([2, 2])
+  })
+
   it('splits a wall into two segments at the midpoint, re-homing openings', () => {
     const s = useStore.getState()
     s.newFloorPlan('Split test')
