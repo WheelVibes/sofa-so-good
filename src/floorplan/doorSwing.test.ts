@@ -44,10 +44,19 @@ describe('doorSwingGeometry', () => {
     expect(g.normal).toEqual([0, 1])
     expect([0, 1]).toContain(g.sweep)
   })
-  it('flips the hinge to the end jamb', () => {
+  it('flips the hinge to the end jamb — and the swing side with it', () => {
+    // hinge='end' mirrors the swing side (to match the 3D leaf): a default
+    // ('right') door now opens to -Z, the leaf tip pivoting on the end jamb.
     const g = doorSwingGeometry(wall, { ...base, hinge: 'end' })!
     expect(g.hinge).toEqual([2, 0])
     expect(g.freeJamb).toEqual([1, 0])
+    expect(g.normal).toEqual([0, -1])
+    expect(g.leafTip).toEqual([2, -1])
+  })
+  it('hinge + swing both flipping returns to the start-jamb side', () => {
+    // end+left = start+right side (+Z), pivoting on the end jamb.
+    const g = doorSwingGeometry(wall, { ...base, hinge: 'end', swing: 'left' })!
+    expect(g.normal).toEqual([0, 1])
     expect(g.leafTip).toEqual([2, 1])
   })
   it('flips the swing to the opposite side', () => {
