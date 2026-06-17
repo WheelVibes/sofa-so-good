@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   AiPlanError,
   classifyVisionEndpoint,
@@ -69,8 +69,20 @@ import {
   GRID_MARGIN,
   MAX_H,
   MAX_W,
+  MAX_ZOOM,
+  MIN_ZOOM,
   type Tool,
+  ZOOM_BTN_STEP,
+  ZOOM_WHEEL_SENS,
 } from './editor/planConstants'
+import {
+  dimFontPx,
+  roomFontPx,
+  roomLabelDetail,
+  showOpeningDim,
+  showWallDim,
+} from './editor/planLabelDisplay'
+import { WallDimension } from './editor/WallDimension'
 import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
@@ -182,15 +194,21 @@ export function FloorPlanEditor() {
   const [aiBusy, setAiBusy] = useState(false)
   const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).
-  const [showWallDims, setShowWallDims] = useState(true)
+  // Dimensions default OFF — they're the densest overlay and collide with walls
+  // when zoomed out; the toolbar "Dims" toggle turns them on. When on, callouts
+  // are culled + font-scaled by zoom/screen so they stay legible (see below).
+  const [showWallDims, setShowWallDims] = useState(false)
   // Show the OTHER storeys' walls as a dimmed underlay (SH3D "all levels"), so
   // you can stack walls / line up stairs between floors. Off by default.
   const [showOtherLevels, setShowOtherLevels] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
-  // Middle-mouse drag-to-pan: start client pos + canvas scroll at grab.
+  // Middle/right-mouse drag-to-pan: start client pos + canvas scroll at grab.
   const panRef = useRef<{ x: number; y: number; sl: number; st: number } | null>(null)
+  // Whether the current pan actually moved — used to swallow the context menu
+  // that a right-drag would otherwise pop at the end of the pan.
+  const panDidMove = useRef(false)
 
   // Rehydrate a previously-saved backdrop when the editor opens (the component
   // is always mounted and only renders when `editing`, so this can't be a
@@ -367,16 +385,45 @@ export function FloorPlanEditor() {
     const fitH = availH / (ed + FIT_PAD * 2)
     return Math.max(16, Math.min(fitW, fitH, 80))
   }, [ew, ed, viewport.w, viewport.h])
-  // User zoom (ctrl/⌘+wheel or the ± buttons) multiplies the base px-per-metre;
+  // User zoom (wheel/pinch or the ± buttons) multiplies the base px-per-metre;
   // every coordinate (toPx + its inverse) reads PX, so zoom stays consistent.
   const [zoom, setZoom] = useState(1)
+  // Latest zoom for the native wheel listener (attached once; reads via ref so
+  // we don't re-bind on every zoom change).
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
+  // Scroll target to apply *after* the zoom re-render grows the SVG, so a
+  // zoom-to-cursor keeps the point under the cursor (a rAF can fire before the
+  // new size lays out and then clamps the scroll — feeling unresponsive).
+  const pendingScroll = useRef<{ left: number; top: number } | null>(null)
   const PX = basePX * zoom
+
+  // Zoom around the viewport centre (for the ± buttons / keyboard), reusing the
+  // same anchored-scroll path as wheel zoom so the view stays put.
+  const zoomAroundCentre = useCallback((compute: (z: number) => number) => {
+    const el = canvasRef.current
+    const cur = zoomRef.current
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, compute(cur)))
+    if (!el || next === cur) return
+    const px = el.clientWidth / 2
+    const py = el.clientHeight / 2
+    const cx = el.scrollLeft + px
+    const cy = el.scrollTop + py
+    const r = next / cur
+    pendingScroll.current = { left: cx * r - px, top: cy * r - py }
+    setZoom(next)
+  }, [])
   // Canvas is the plan plus a generous grid margin on every side (pannable via
   // the scroll container; the plan stays centred because the margin is equal).
   const W = (ew + GRID_MARGIN * 2) * PX
   const H = (ed + GRID_MARGIN * 2) * PX
   const toPx = (m: number) => (m + GRID_MARGIN) * PX
   const snap = (m: number) => (gridSize > 0 ? Math.round(m / gridSize) * gridSize : m)
+  // Plan centre in screen px (dimension callouts orient away from it) + the
+  // zoom/screen-scaled label fonts so overlays stay legible without dominating.
+  const planCentrePx: [number, number] = [toPx(ew / 2), toPx(ed / 2)]
+  const dimFont = dimFontPx(PX)
+  const roomFont = roomFontPx(PX)
 
   // Scroll the (large, margin-padded) canvas so the plan is centred. Retries
   // each frame until the SVG has laid out at its full (inline) size — before
@@ -407,6 +454,52 @@ export function FloorPlanEditor() {
   useEffect(() => {
     if (editing) centerPlan(PX)
   }, [editing, centerPlan, basePX])
+
+  // Wheel / trackpad-pinch zoom, anchored to the cursor. Uses a NATIVE
+  // non-passive listener because React's synthetic `onWheel` is passive — its
+  // `preventDefault()` is ignored, so Ctrl+wheel would zoom the whole browser
+  // page and plain-wheel would just scroll. Plain wheel zooms here (no modifier
+  // needed) so it feels as direct and sensitive as orbit-mode dolly.
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el || !editing) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const rect = el.getBoundingClientRect()
+      const px = e.clientX - rect.left
+      const py = e.clientY - rect.top
+      const cx = el.scrollLeft + px
+      const cy = el.scrollTop + py
+      // Normalise line/page delta modes to pixels for consistent sensitivity.
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? rect.height : 1
+      const cur = zoomRef.current
+      const next = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, cur * Math.exp(-e.deltaY * unit * ZOOM_WHEEL_SENS)),
+      )
+      if (next === cur) return
+      const r = next / cur
+      // Keep the cursor's world point fixed: the content scales by r, so the
+      // same point sits at cx*r and we offset by the cursor's view position.
+      pendingScroll.current = { left: cx * r - px, top: cy * r - py }
+      setZoom(next)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [editing])
+
+  // Apply the zoom-to-cursor scroll target after the grown SVG has laid out
+  // (scrollLeft set before the content is wider than the view clamps to 0).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `zoom` is the trigger — re-apply the pending scroll after each zoom re-render.
+  useLayoutEffect(() => {
+    const el = canvasRef.current
+    const p = pendingScroll.current
+    if (el && p) {
+      el.scrollLeft = p.left
+      el.scrollTop = p.top
+      pendingScroll.current = null
+    }
+  }, [zoom])
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
    *  explicit polygon for area/render/containment) on the active storey. */
@@ -555,9 +648,10 @@ export function FloorPlanEditor() {
   }
 
   const onDown = (e: React.PointerEvent) => {
-    // Middle-button drags to pan the open canvas; ignore right-click. Only the
-    // left button draws/selects.
-    if (e.button === 1 && canvasRef.current) {
+    // Middle- OR right-button drags pan the open canvas (orbit-style: a drag
+    // moves the view, leaving the left button free to draw/select). The right
+    // button's context menu is suppressed in onContextMenu when a pan moved.
+    if ((e.button === 1 || e.button === 2) && canvasRef.current) {
       e.preventDefault()
       panRef.current = {
         x: e.clientX,
@@ -565,6 +659,7 @@ export function FloorPlanEditor() {
         sl: canvasRef.current.scrollLeft,
         st: canvasRef.current.scrollTop,
       }
+      panDidMove.current = false
       svgRef.current?.setPointerCapture(e.pointerId)
       return
     }
@@ -672,6 +767,7 @@ export function FloorPlanEditor() {
 
   const onMove = (e: React.PointerEvent) => {
     if (panRef.current && canvasRef.current) {
+      panDidMove.current = true
       canvasRef.current.scrollLeft = panRef.current.sl - (e.clientX - panRef.current.x)
       canvasRef.current.scrollTop = panRef.current.st - (e.clientY - panRef.current.y)
       return
@@ -1111,7 +1207,7 @@ export function FloorPlanEditor() {
         <button
           type="button"
           title="Zoom out"
-          onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))}
+          onClick={() => zoomAroundCentre((z) => z - ZOOM_BTN_STEP)}
         >
           −
         </button>
@@ -1119,6 +1215,7 @@ export function FloorPlanEditor() {
           type="button"
           title="Reset zoom & centre"
           onClick={() => {
+            pendingScroll.current = null
             setZoom(1)
             requestAnimationFrame(() => centerPlan(basePX))
           }}
@@ -1129,7 +1226,7 @@ export function FloorPlanEditor() {
         <button
           type="button"
           title="Zoom in"
-          onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}
+          onClick={() => zoomAroundCentre((z) => z + ZOOM_BTN_STEP)}
         >
           +
         </button>
@@ -1329,26 +1426,15 @@ export function FloorPlanEditor() {
         <div
           ref={canvasRef}
           className="plan-canvas min-h-0 flex-1 overflow-auto p-4"
-          onWheel={(e) => {
-            // Ctrl/⌘+wheel zooms around the cursor; plain wheel scrolls (pans).
-            if (!(e.ctrlKey || e.metaKey)) return
-            e.preventDefault()
-            const el = canvasRef.current
-            if (!el) return
-            const rect = el.getBoundingClientRect()
-            const px = e.clientX - rect.left
-            const py = e.clientY - rect.top
-            const cx = el.scrollLeft + px
-            const cy = el.scrollTop + py
-            const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
-            const next = Math.min(3, Math.max(0.4, zoom * factor))
-            if (next === zoom) return
-            setZoom(next)
-            const r = next / zoom
-            requestAnimationFrame(() => {
-              el.scrollLeft = cx * r - px
-              el.scrollTop = cy * r - py
-            })
+          // Wheel zoom is wired as a native non-passive listener (see effect
+          // above); a React onWheel here would be passive and couldn't
+          // preventDefault. Right-drag pans, so suppress its context menu.
+          onContextMenu={(e) => {
+            // Swallow the menu only when a right-drag pan actually moved.
+            if (panDidMove.current) {
+              e.preventDefault()
+              panDidMove.current = false
+            }
           }}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes('Files')) e.preventDefault()
@@ -1509,13 +1595,20 @@ export function FloorPlanEditor() {
                       ))
                     : null}
                   {(() => {
+                    // Progressive detail by on-screen room size: full (name +
+                    // area) → name only → hidden. Keeps the most important info
+                    // (the name) longest as the plan zooms out / shrinks. A
+                    // selected room always shows full so editing stays legible.
+                    const detail =
+                      isSel && tool === 'select' ? 'full' : roomLabelDetail(planRoomArea(r), PX)
+                    if (detail === 'none') return null
                     const [lx, lz] = roomLabelPosition(r)
                     const px = toPx(lx)
                     const pz = toPx(lz)
                     // Optional label rotation (radians → degrees, about the anchor)
                     // and font-size multiplier — Sweet Home 3D label angle/font.
                     const deg = r.labelAngle ? (r.labelAngle * 180) / Math.PI : 0
-                    const fontPx = 11 * (r.labelFontScale ?? 1)
+                    const fontPx = roomFont * (r.labelFontScale ?? 1)
                     return (
                       <text
                         x={px}
@@ -1536,9 +1629,11 @@ export function FloorPlanEditor() {
                         }}
                       >
                         <tspan x={px}>{r.name}</tspan>
-                        <tspan x={px} dy={fontPx + 3} fill="var(--text-3)">
-                          {formatArea(planRoomArea(r), units)}
-                        </tspan>
+                        {detail === 'full' && (
+                          <tspan x={px} dy={fontPx + 3} fill="var(--text-3)">
+                            {formatArea(planRoomArea(r), units)}
+                          </tspan>
+                        )}
                       </text>
                     )
                   })()}
@@ -1859,78 +1954,80 @@ export function FloorPlanEditor() {
               )
             })}
 
-            {/* Persistent wall-length labels (a staple of pro floor planners),
-                placed at each wall midpoint, nudged to the wall's outward side.
-                Shown only for walls long enough to be legible. */}
+            {/* Persistent wall-length dimensions (a staple of pro floor
+                planners): a proper dimension line with extension lines +
+                arrowheads spanning each wall, oriented to the plan's outside.
+                Culled to walls long enough on screen to fit the callout, and the
+                text font scales with zoom — so they stay legible without
+                cluttering when zoomed out. */}
             {showWallDims &&
               levelPlan.walls.map((w) => {
                 const len = wallLength(w)
-                if (len < 0.4) return null
-                const mx = (w.start[0] + w.end[0]) / 2
-                const mz = (w.start[1] + w.end[1]) / 2
-                const ux = (w.end[0] - w.start[0]) / len
-                const uz = (w.end[1] - w.start[1]) / len
-                // Perpendicular offset (in metres) so the label clears the line.
-                const off = 0.28
-                const isSel = sel?.type === 'wall' && sel.id === w.id
+                if (!showWallDim(len, PX)) return null
                 return (
-                  <text
+                  <WallDimension
                     key={`dim-${w.id}`}
-                    x={toPx(mx - uz * off)}
-                    y={toPx(mz + ux * off)}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="plan-dim-label"
-                    fill={isSel ? 'var(--accent)' : 'var(--text-2)'}
-                    style={{ pointerEvents: 'none', fontSize: 11, fontWeight: 600 }}
-                  >
-                    {formatLength(len, units)}
-                  </text>
+                    a={w.start}
+                    b={w.end}
+                    label={formatLength(len, units)}
+                    toPx={toPx}
+                    centre={planCentrePx}
+                    fontPx={dimFont}
+                    selected={sel?.type === 'wall' && sel.id === w.id}
+                  />
                 )
               })}
 
-            {/* Opening (door/window) width labels — same "Dims" toggle. Placed on
-                the side opposite a door's swing so they clear the arc. */}
+            {/* Opening (door/window) width dimensions — same "Dims" toggle.
+                Rendered as a dimension marker spanning the opening along its
+                wall, matching the wall callouts. Curved walls keep a plain label
+                (a straight marker can't follow the arc). */}
             {showWallDims &&
               levelPlan.openings.map((o) => {
                 const wall = levelPlan.walls.find((w) => w.id === o.wallId)
                 if (!wall) return null
                 const len = wallLength(wall)
                 if (len === 0) return null
-                // Opening centre + wall normal — arc-aware for curved walls.
-                let ux: number
-                let uz: number
-                let mx: number
-                let mz: number
+                // Least-important, most-numerous labels — drop when they can't
+                // fit (and sooner on mobile) to keep the plan readable.
+                if (!showOpeningDim(o.width, PX, isMobile)) return null
+                const isSel = sel?.type === 'opening' && sel.id === o.id
                 if (isCurvedWall(wall)) {
                   const p = pointAtArcLength(wall, o.offset + o.width / 2)
-                  ux = Math.sin(p.angle)
-                  uz = Math.cos(p.angle)
-                  mx = p.x
-                  mz = p.z
-                } else {
-                  ux = (wall.end[0] - wall.start[0]) / len
-                  uz = (wall.end[1] - wall.start[1]) / len
-                  mx = wall.start[0] + ux * (o.offset + o.width / 2)
-                  mz = wall.start[1] + uz * (o.offset + o.width / 2)
+                  const ux = Math.sin(p.angle)
+                  const uz = Math.cos(p.angle)
+                  const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
+                  return (
+                    <text
+                      key={`odim-${o.id}`}
+                      x={toPx(p.x - uz * off)}
+                      y={toPx(p.z + ux * off)}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="plan-dim-label"
+                      fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
+                      style={{ pointerEvents: 'none', fontSize: dimFont, fontWeight: 600 }}
+                    >
+                      {formatLength(o.width, units)}
+                    </text>
+                  )
                 }
-                // (-uz, ux) is the wall's "right" normal — a door swinging right
-                // has its arc there, so label the opposite side.
-                const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
-                const isSel = sel?.type === 'opening' && sel.id === o.id
+                const ux = (wall.end[0] - wall.start[0]) / len
+                const uz = (wall.end[1] - wall.start[1]) / len
                 return (
-                  <text
+                  <WallDimension
                     key={`odim-${o.id}`}
-                    x={toPx(mx - uz * off)}
-                    y={toPx(mz + ux * off)}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="plan-dim-label"
-                    fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
-                    style={{ pointerEvents: 'none', fontSize: 10, fontWeight: 600 }}
-                  >
-                    {formatLength(o.width, units)}
-                  </text>
+                    a={[wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]}
+                    b={[
+                      wall.start[0] + ux * (o.offset + o.width),
+                      wall.start[1] + uz * (o.offset + o.width),
+                    ]}
+                    label={formatLength(o.width, units)}
+                    toPx={toPx}
+                    centre={planCentrePx}
+                    fontPx={dimFont}
+                    selected={isSel}
+                  />
                 )
               })}
 

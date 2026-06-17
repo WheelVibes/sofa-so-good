@@ -58,3 +58,12 @@ export const GRID_MARGIN = 20
 export const EXPORT_PAD = 1 // metres of padding around the plan in the exported PNG
 export const MAX_W = 940
 export const MAX_H = 620
+
+/** User-zoom limits — multiplies the fit-to-view base px-per-metre. */
+export const MIN_ZOOM = 0.25
+export const MAX_ZOOM = 5
+/** Wheel-zoom sensitivity: factor = exp(-deltaY * this). Tuned so one mouse
+ *  notch (~100px) is a ~13% step and trackpad pinches scrub smoothly. */
+export const ZOOM_WHEEL_SENS = 0.0013
+/** Step for the on-screen ± zoom buttons. */
+export const ZOOM_BTN_STEP = 0.2
