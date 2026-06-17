@@ -13,6 +13,7 @@ import '@fontsource/jetbrains-mono/600.css'
 import './index.css'
 import App from './App'
 import { registerGltfDecoders } from './furniture/gltf/decoders'
+import { registerAppServiceWorker } from './pwa/swUpdate'
 import { installChunkErrorRecovery } from './ui/app/lazyWithRetry'
 import { ErrorBoundary } from './ui/ErrorBoundary'
 
@@ -24,6 +25,10 @@ installChunkErrorRecovery()
 // before any model is requested, so compressed GLBs decode correctly. This is
 // cheap + synchronous, so it stays on the critical path.
 registerGltfDecoders()
+
+// Register the service worker + keep it fresh (foreground/periodic update checks
+// power the silent auto-update; a manual "Check for updates" lives in File menu).
+registerAppServiceWorker()
 
 // Render immediately — App shows the loading overlay and kicks off the async
 // boot bootstrap (IDB user assets, packs, autosave) from <BootHydrator>, so

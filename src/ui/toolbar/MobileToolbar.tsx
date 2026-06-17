@@ -8,6 +8,7 @@ import { ikeaSetRecipes } from '../../furniture/ikeaSets'
 import { LAYOUT_PRESETS } from '../../furniture/layoutPresets'
 import { tidyHome } from '../../layout/tidyHome'
 import { applyStyle, STYLE_PRESETS } from '../../materials/stylePresets'
+import { runUpdateCheck } from '../../pwa/swUpdate'
 import { QUALITY_LABEL } from '../../scene/quality'
 import { canRecord } from '../../scene/RecordController'
 import { applyRenderPreset, RENDER_PRESETS } from '../../scene/renderPresets'
@@ -1143,6 +1144,12 @@ export function MobileToolbar() {
                   />
                   <Item icon="Book" label="User guide ↗" onClick={act(openDocs)} />
                   <Item icon="Help" label="Replay guided tour" onClick={act(startTour)} />
+                  <Item
+                    icon="Download"
+                    label="Check for updates"
+                    sub="Fetch the latest version"
+                    onClick={act(() => void runUpdateCheck())}
+                  />
                 </Section>
               </div>
             </div>
