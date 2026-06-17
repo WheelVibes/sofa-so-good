@@ -32,7 +32,7 @@
     "docs:dev:developer": "vitepress dev docs/developer --port 5176",
     "docs:build:developer": "vitepress build docs/developer",
     "docs:preview:developer": "vitepress preview docs/developer --port 5176",
-    "build:all": "npm run build && npm run docs:build"
+    "build:all": "node scripts/build-with-guide.mjs"
   },
   "dependencies": {
     "@fontsource/jetbrains-mono": "^5.2.8",

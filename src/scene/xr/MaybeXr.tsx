@@ -1,7 +1,10 @@
-import { lazy, type ReactNode, Suspense } from 'react'
+import { type ReactNode, Suspense } from 'react'
 import { useStore } from '../../state/store'
+import { lazyWithRetry } from '../../ui/app/lazyWithRetry'
 
-const XrProvider = lazy(() => import('./XrProvider').then((m) => ({ default: m.XrProvider })))
+const XrProvider = lazyWithRetry(() =>
+  import('./XrProvider').then((m) => ({ default: m.XrProvider })),
+)
 
 /**
  * Inert pass-through until a VR session is requested (F21): the @react-three/xr

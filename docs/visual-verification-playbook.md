@@ -523,6 +523,31 @@ ticks get throttled while the page is busy compiling shaders — log
 In **scenario mode**: use `{"waitFor": {"css": ".modal-overlay"}}` instead of
 a fixed `wait`.
 
+### Verifying offline / service-worker behaviour
+The PWA service worker is **build-only** (`devOptions` off), so offline behaviour
+can't be checked against `npm run dev`. It also can't be checked against
+`npm run preview` in this sandbox: `vite preview` here serves `index.html` (the
+SPA fallback) for `/<base>/assets/*.js` while the real chunk lives at root, so the
+app never boots and every probe is a false negative. Use the static server that
+honours the production base like a real host:
+```bash
+npm run build:all                   # app + user guide, both precached (build-with-guide.mjs)
+node scripts/static-serve.mjs       # serves dist/ at http://localhost:4173/sofa-so-good/
+node scripts/offline-test.mjs          # editor opens offline (lazy chunk)
+node scripts/offline-features-test.mjs # 29 non-exempt features via the command palette
+node scripts/offline-guide-test.mjs    # the VitePress user guide loads offline
+```
+Use `npm run build:all` (not `npm run build`) when checking the guide offline —
+plain `npm run build` is app-only; `build:all` builds the guide into `dist/docs`
+first, then the app with `VITE_KEEP_DIST=1` so the SW precaches it.
+`offline-test.mjs` launches puppeteer with a **fresh `userDataDir`** (a reused
+profile keeps a stale SW that 404s every request), seeds `hdb_onboarded=1` so the
+onboarding modal doesn't swallow the `P` hotkey, waits until the editor chunk is
+in `caches`, then goes offline and opens the editor — asserting no
+"Importing a module script failed". `window.__store` is **dev-only**
+(`import.meta.env.DEV`), so drive the prod build through the UI (keys/clicks),
+not the store.
+
 ### Editing source mid-session triggers HMR
 Vite hot-reloads your edits into the running server, so you usually don't need to
 restart after a code change — but a change to `main.tsx`'s startup block may need
