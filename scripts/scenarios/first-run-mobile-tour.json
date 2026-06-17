@@ -2,118 +2,332 @@
   "name": "first-run-mobile-tour",
   "description": "Mobile viewport interactive guided tour: clean profile → onboarding → 'Take the guided tour' → the tour OPENS (must not flash open and die into the location prompt) and, for each step, auto-opens the hamburger sheet + expands the right accordion section so the real control is spotlighted and tappable. View + Scene are spotlit in the overview (Scene precedes entering a room, since the Scene section is overview-only), then the action steps (Edit → Edit a room → Catalog), the centred editor steps, ending on Appearance → Done → location prompt LAST. Regression for the mobile tour/location-modal bug + interactive mobile spotlight.",
   "url": "http://localhost:5212/",
+  "keepFirstRun": true,
   "steps": [
-    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
-    { "name": "clear-storage", "eval": "try { localStorage.clear() } catch {}" },
-    { "name": "reload-clean", "eval": "location.reload()" },
-    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
     {
-      "name": "onboarding-open",
-      "waitFor": { "store": "state.onboardingOpen === true" },
+      "name": "mobile-viewport",
+      "viewport": {
+        "width": 390,
+        "height": 844
+      }
+    },
+    {
+      "name": "clear-storage",
+      "eval": "try { localStorage.clear() } catch {}"
+    },
+    {
+      "name": "reload-clean",
+      "eval": "location.reload()"
+    },
+    {
+      "name": "store-ready",
+      "waitFor": {
+        "storeExists": true
+      },
       "timeout": 60000
     },
-    { "name": "click-get-started", "click": { "text": "Get started" } },
-    { "name": "onboarding-step2-visible", "waitFor": { "css": ".onb-body2" }, "timeout": 5000 },
-    { "name": "click-next", "click": { "text": "Next" } },
-    { "name": "onboarding-step3-visible", "waitFor": { "css": ".onb-body3" }, "timeout": 5000 },
-    { "name": "click-guided-tour", "click": { "text": "Take the guided tour" } },
     {
-      "name": "onboarding-closed",
-      "waitFor": { "store": "state.onboardingOpen === false" },
+      "name": "onboarding-open",
+      "waitFor": {
+        "store": "state.onboardingOpen === true"
+      },
+      "timeout": 60000
+    },
+    {
+      "name": "click-get-started",
+      "click": {
+        "text": "Get started"
+      }
+    },
+    {
+      "name": "onboarding-step2-visible",
+      "waitFor": {
+        "css": ".onb-body2"
+      },
       "timeout": 5000
     },
-    { "name": "tour-open", "waitFor": { "store": "state.tourOpen === true" }, "timeout": 8000 },
-    { "name": "tour-card-visible", "waitFor": { "css": ".tour-root" }, "timeout": 5000 },
-    { "name": "shot-welcome", "screenshot": "mobile-tour-step0-welcome" },
-
+    {
+      "name": "click-next",
+      "click": {
+        "text": "Next"
+      }
+    },
+    {
+      "name": "onboarding-step3-visible",
+      "waitFor": {
+        "css": ".onb-body3"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "click-guided-tour",
+      "click": {
+        "text": "Take the guided tour"
+      }
+    },
+    {
+      "name": "onboarding-closed",
+      "waitFor": {
+        "store": "state.onboardingOpen === false"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "tour-open",
+      "waitFor": {
+        "store": "state.tourOpen === true"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "tour-card-visible",
+      "waitFor": {
+        "css": ".tour-root"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "shot-welcome",
+      "screenshot": "mobile-tour-step0-welcome"
+    },
     {
       "name": "assert-tour-not-self-terminated",
       "eval": "if (window.__store.getState().tourOpen !== true) throw new Error('tour closed itself on mobile')"
     },
-
-    { "name": "next-to-view", "click": { "text": "Next" } },
-    { "name": "view-step", "waitFor": { "store": "state.tourStep === 1" }, "timeout": 5000 },
+    {
+      "name": "next-to-view",
+      "click": {
+        "text": "Next"
+      }
+    },
+    {
+      "name": "view-step",
+      "waitFor": {
+        "store": "state.tourStep === 1"
+      },
+      "timeout": 5000
+    },
     {
       "name": "view-sheet-opened",
-      "waitFor": { "css": ".m-sheet [data-tour-section=\"view\"]" },
+      "waitFor": {
+        "css": ".m-sheet [data-tour-section=\"view\"]"
+      },
       "timeout": 8000
     },
-    { "name": "shot-view-spotlight", "screenshot": "mobile-tour-step1-view-spotlight" },
-
-    { "name": "next-to-scene", "click": { "text": "Next" } },
-    { "name": "scene-step", "waitFor": { "store": "state.tourStep === 2" }, "timeout": 5000 },
+    {
+      "name": "shot-view-spotlight",
+      "screenshot": "mobile-tour-step1-view-spotlight"
+    },
+    {
+      "name": "next-to-scene",
+      "click": {
+        "text": "Next"
+      }
+    },
+    {
+      "name": "scene-step",
+      "waitFor": {
+        "store": "state.tourStep === 2"
+      },
+      "timeout": 5000
+    },
     {
       "name": "scene-header-spotlit",
-      "waitFor": { "css": ".m-sheet [data-tour-section=\"scene\"]" },
+      "waitFor": {
+        "css": ".m-sheet [data-tour-section=\"scene\"]"
+      },
       "timeout": 8000
     },
-    { "name": "shot-scene-spotlight", "screenshot": "mobile-tour-step2-scene-spotlight" },
-
-    { "name": "next-to-edit", "click": { "text": "Next" } },
-    { "name": "edit-step", "waitFor": { "store": "state.tourStep === 3" }, "timeout": 5000 },
+    {
+      "name": "shot-scene-spotlight",
+      "screenshot": "mobile-tour-step2-scene-spotlight"
+    },
+    {
+      "name": "next-to-edit",
+      "click": {
+        "text": "Next"
+      }
+    },
+    {
+      "name": "edit-step",
+      "waitFor": {
+        "store": "state.tourStep === 3"
+      },
+      "timeout": 5000
+    },
     {
       "name": "edit-header-spotlit",
-      "waitFor": { "css": ".m-sheet [data-tour-section=\"edit-home\"]" },
+      "waitFor": {
+        "css": ".m-sheet [data-tour-section=\"edit-home\"]"
+      },
       "timeout": 8000
     },
-    { "name": "shot-edit-spotlight", "screenshot": "mobile-tour-step3-edit-spotlight" },
+    {
+      "name": "shot-edit-spotlight",
+      "screenshot": "mobile-tour-step3-edit-spotlight"
+    },
     {
       "name": "tap-edit-header",
-      "click": { "selector": ".m-sheet [data-tour-section=\"edit-home\"]" }
+      "click": {
+        "selector": ".m-sheet [data-tour-section=\"edit-home\"]"
+      }
     },
-    { "name": "edit-room-step", "waitFor": { "store": "state.tourStep === 4" }, "timeout": 5000 },
+    {
+      "name": "edit-room-step",
+      "waitFor": {
+        "store": "state.tourStep === 4"
+      },
+      "timeout": 5000
+    },
     {
       "name": "edit-room-item-spotlit",
-      "waitFor": { "css": ".m-sheet [data-tour=\"edit-room\"]" },
+      "waitFor": {
+        "css": ".m-sheet [data-tour=\"edit-room\"]"
+      },
       "timeout": 8000
     },
-    { "name": "shot-edit-room-spotlight", "screenshot": "mobile-tour-step4-edit-room-spotlight" },
+    {
+      "name": "shot-edit-room-spotlight",
+      "screenshot": "mobile-tour-step4-edit-room-spotlight"
+    },
     {
       "name": "tap-edit-room",
-      "click": { "selector": ".m-sheet [data-tour=\"edit-room\"]" }
+      "click": {
+        "selector": ".m-sheet [data-tour=\"edit-room\"]"
+      }
     },
-    { "name": "furniture-step", "waitFor": { "store": "state.tourStep === 5" }, "timeout": 8000 },
-    { "name": "in-room-editor", "waitFor": { "store": "state.roomEditor.active === true" }, "timeout": 8000 },
     {
-      "name": "catalog-item-spotlit",
-      "waitFor": { "css": ".m-sheet [data-tour=\"catalog\"]" },
-      "timeout": 10000
-    },
-    { "name": "shot-catalog-spotlight", "screenshot": "mobile-tour-step5-catalog-spotlight" },
-    {
-      "name": "tap-catalog",
-      "click": { "selector": ".m-sheet [data-tour=\"catalog\"]" }
-    },
-    { "name": "customize-step", "waitFor": { "store": "state.tourStep === 6" }, "timeout": 8000 },
-    {
-      "name": "sheet-closed-on-centred-step",
-      "waitFor": { "css": ".m-sheet", "visible": false },
-      "timeout": 5000
-    },
-    { "name": "shot-customize-centred", "screenshot": "mobile-tour-step6-customize-centred" },
-
-    { "name": "next-to-finishes", "click": { "text": "Next" } },
-    { "name": "finishes-step", "waitFor": { "store": "state.tourStep === 7" }, "timeout": 5000 },
-    { "name": "next-to-finish", "click": { "text": "Next" } },
-    { "name": "finish-step", "waitFor": { "store": "state.tourStep === 8" }, "timeout": 5000 },
-    {
-      "name": "appearance-spotlit",
-      "waitFor": { "css": ".m-sheet [data-tour-section=\"appearance\"]" },
+      "name": "furniture-step",
+      "waitFor": {
+        "store": "state.tourStep === 5"
+      },
       "timeout": 8000
     },
-    { "name": "shot-appearance-spotlight", "screenshot": "mobile-tour-step8-appearance-spotlight" },
-
-    { "name": "done", "click": { "text": "Done" } },
-    { "name": "tour-closed", "waitFor": { "store": "state.tourOpen === false" }, "timeout": 5000 },
     {
-      "name": "sheet-closed-after-tour",
-      "waitFor": { "css": ".m-sheet", "visible": false },
+      "name": "in-room-editor",
+      "waitFor": {
+        "store": "state.roomEditor.active === true"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "catalog-item-spotlit",
+      "waitFor": {
+        "css": ".m-sheet [data-tour=\"catalog\"]"
+      },
+      "timeout": 10000
+    },
+    {
+      "name": "shot-catalog-spotlight",
+      "screenshot": "mobile-tour-step5-catalog-spotlight"
+    },
+    {
+      "name": "tap-catalog",
+      "click": {
+        "selector": ".m-sheet [data-tour=\"catalog\"]"
+      }
+    },
+    {
+      "name": "customize-step",
+      "waitFor": {
+        "store": "state.tourStep === 6"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "sheet-closed-on-centred-step",
+      "waitFor": {
+        "css": ".m-sheet",
+        "visible": false
+      },
       "timeout": 5000
     },
-    { "name": "location-prompt-last", "waitFor": { "css": ".modal-overlay" }, "timeout": 8000 },
-    { "name": "shot-location-prompt", "screenshot": "mobile-location-prompt-last" },
-    { "name": "dismiss-location", "click": { "text": "Skip — use default location" } },
-    { "name": "settle", "wait": 1500 },
-    { "name": "shot-final", "screenshot": "mobile-final-scene" }
+    {
+      "name": "shot-customize-centred",
+      "screenshot": "mobile-tour-step6-customize-centred"
+    },
+    {
+      "name": "next-to-finishes",
+      "click": {
+        "text": "Next"
+      }
+    },
+    {
+      "name": "finishes-step",
+      "waitFor": {
+        "store": "state.tourStep === 7"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "next-to-finish",
+      "click": {
+        "text": "Next"
+      }
+    },
+    {
+      "name": "finish-step",
+      "waitFor": {
+        "store": "state.tourStep === 8"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "appearance-spotlit",
+      "waitFor": {
+        "css": ".m-sheet [data-tour-section=\"appearance\"]"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "shot-appearance-spotlight",
+      "screenshot": "mobile-tour-step8-appearance-spotlight"
+    },
+    {
+      "name": "done",
+      "click": {
+        "text": "Done"
+      }
+    },
+    {
+      "name": "tour-closed",
+      "waitFor": {
+        "store": "state.tourOpen === false"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "sheet-closed-after-tour",
+      "waitFor": {
+        "css": ".m-sheet",
+        "visible": false
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "location-prompt-last",
+      "waitFor": {
+        "css": ".modal-overlay"
+      },
+      "timeout": 8000
+    },
+    {
+      "name": "shot-location-prompt",
+      "screenshot": "mobile-location-prompt-last"
+    },
+    {
+      "name": "dismiss-location",
+      "click": {
+        "text": "Skip — use default location"
+      }
+    },
+    {
+      "name": "settle",
+      "wait": 1500
+    },
+    {
+      "name": "shot-final",
+      "screenshot": "mobile-final-scene"
+    }
   ]
 }

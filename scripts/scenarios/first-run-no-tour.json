@@ -2,6 +2,7 @@
   "name": "first-run-no-tour",
   "description": "Clean profile boot → onboarding carousel → choose 'Enter sandbox' (no tour) → assert tour does NOT appear → location prompt → furnished scene.",
   "url": "http://localhost:5212/",
+  "keepFirstRun": true,
   "steps": [
     {
       "name": "clear-storage",
@@ -13,12 +14,16 @@
     },
     {
       "name": "store-ready",
-      "waitFor": { "storeExists": true },
+      "waitFor": {
+        "storeExists": true
+      },
       "timeout": 60000
     },
     {
       "name": "onboarding-open",
-      "waitFor": { "store": "state.onboardingOpen === true" },
+      "waitFor": {
+        "store": "state.onboardingOpen === true"
+      },
       "timeout": 60000
     },
     {
@@ -27,20 +32,28 @@
     },
     {
       "name": "click-get-started",
-      "click": { "text": "Get started" }
+      "click": {
+        "text": "Get started"
+      }
     },
     {
       "name": "onboarding-step2-visible",
-      "waitFor": { "css": ".onb-body2" },
+      "waitFor": {
+        "css": ".onb-body2"
+      },
       "timeout": 5000
     },
     {
       "name": "click-next",
-      "click": { "text": "Next" }
+      "click": {
+        "text": "Next"
+      }
     },
     {
       "name": "onboarding-step3-visible",
-      "waitFor": { "css": ".onb-body3" },
+      "waitFor": {
+        "css": ".onb-body3"
+      },
       "timeout": 5000
     },
     {
@@ -49,20 +62,28 @@
     },
     {
       "name": "enter-sandbox",
-      "click": { "text": "Enter sandbox" }
+      "click": {
+        "text": "Enter sandbox"
+      }
     },
     {
       "name": "onboarding-closed",
-      "waitFor": { "store": "state.onboardingOpen === false" },
+      "waitFor": {
+        "store": "state.onboardingOpen === false"
+      },
       "timeout": 5000
     },
     {
       "name": "assert-tour-not-open",
-      "waitFor": { "store": "state.tourOpen === false" }
+      "waitFor": {
+        "store": "state.tourOpen === false"
+      }
     },
     {
       "name": "location-prompt-visible",
-      "waitFor": { "css": ".modal-overlay" },
+      "waitFor": {
+        "css": ".modal-overlay"
+      },
       "timeout": 8000
     },
     {
@@ -71,11 +92,16 @@
     },
     {
       "name": "dismiss-location",
-      "click": { "text": "Skip — use default location" }
+      "click": {
+        "text": "Skip — use default location"
+      }
     },
     {
       "name": "location-dismissed",
-      "waitFor": { "css": ".modal-overlay", "visible": false },
+      "waitFor": {
+        "css": ".modal-overlay",
+        "visible": false
+      },
       "timeout": 5000
     },
     {

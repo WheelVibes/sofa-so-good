@@ -261,8 +261,9 @@ export const UI_INITIAL: Pick<
   lastSavedAt: null,
 }
 
-/** Preset alignment-grid cell sizes (metres) the size button cycles through. */
-export const GRID_SIZES = [0.1, 0.25, 0.5, 1] as const
+/** Preset alignment-grid cell sizes (metres). Finer steps (down to 25 mm) allow
+ *  precise wall/opening snapping; coarser ones keep rough sketching fast. */
+export const GRID_SIZES = [0.025, 0.05, 0.1, 0.25, 0.5, 1] as const
 
 const CYCLE: RenderTier[] = RENDER_TIERS
 const LIGHTS_CYCLE: LightsMode[] = ['auto', 'on', 'off']

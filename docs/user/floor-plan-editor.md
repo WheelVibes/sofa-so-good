@@ -6,10 +6,32 @@ between the 2D plan and the 3D scene at any time.
 
 ![The 2D floor-plan editor showing furniture footprints](/screenshots/floor-plan-editor.png)
 
+## Moving around — and View vs Edit
+
+- **Zoom** with the mouse wheel or a trackpad pinch — it zooms toward the cursor
+  (the ± buttons in the header zoom around the centre). **Pan** by dragging with
+  the middle or right mouse button, or with one finger on a touch screen.
+- The header has a **View / Edit** toggle:
+  - **View** — pan, zoom, and tap to inspect only; a drag never moves anything.
+    This is the default on phones/tablets, so a one‑finger pan can't nudge a wall
+    or a sofa by accident.
+  - **Edit** — reveals the drawing tools and lets you move things. On a touch
+    screen you **tap an item to select it first, then drag** it; a drag on
+    anything unselected just pans. (With a mouse, drag‑to‑move works directly.)
+  - Picking any tool switches you to Edit automatically.
+
 ## Drawing
 
-- **Walls** — choose interior or exterior thickness, then drag to draw. Endpoints
-  snap to the grid and to nearby wall corners.
+- **Walls** — choose interior or exterior thickness, then draw. On a computer,
+  drag from start to end. On a **phone or tablet**, *tap* to drop the start then
+  *tap* to drop the end — each point snaps to the grid and to existing walls, so
+  you place exact points instead of guessing a drag under your fingertip. Walls
+  **chain**: each new wall continues from the last one's end, so a run goes
+  tap‑tap‑tap; tap the last point again (or pick another tool) to stop. A small
+  dot marks the start and a ring marks the end so you can see exactly where each
+  point lands. Endpoints snap to the grid, to nearby wall corners, and onto the
+  side of an existing wall (a clean T‑junction); dragging clearly past a wall
+  stays free, so you can still extend beyond it.
 - **Rooms** — drag a rectangle; its area is computed and added to the total.
 - **Doors / windows** — click on a wall to drop one. Select a door to set which
   way it opens: **Hinge** (which jamb it pivots on) and **Swing** (which side of
@@ -17,11 +39,42 @@ between the 2D plan and the 3D scene at any time.
   and the **Checks** tool keeps that swing arc clear of furniture.
 - **Split** — click a wall to cut it into two segments at that point. Any door or
   window on it moves to the matching half.
-- **Select tool** — click to select, drag to move a room or a piece of furniture.
-- **Grid & corner snapping** keep everything aligned (cycle the grid size from the
+- **Select tool** — click to select, drag to move a room or a piece of furniture
+  (on touch, tap to select first — see *View vs Edit* above).
+- **Grid, corner & wall snapping** keep everything aligned — new walls snap to the
+  grid, to existing corners, and onto existing walls (cycle the grid size from the
   toolbar).
-- **Dims** (header toggle) labels every wall's length and every door/window's
-  width, so the plan reads with full dimensions.
+- **Dims** (header toggle, **off by default**) draws a dimension line — with
+  arrowheads spanning the length — on every wall and every door/window width.
+  Labels scale with zoom and thin out automatically when zoomed out so the plan
+  never turns into a wall of overlapping text.
+
+## Inspecting an element
+
+Select a wall, door or window and the **Properties** panel works just like the
+furniture inspector — a **Name** field on top, then a grid of quick actions:
+
+- **Name** — give it your own label (e.g. “Front door”). Left blank, it shows a
+  generated default like *Wall 123456*. When you create a room around walls
+  (Room, Polygon or **Auto room**), their boundary walls are auto-named
+  *‹room› wall 01, 02, …* — but **a name you type always sticks** and is never
+  overwritten by a later room.
+- **Walls** — *Reverse*, *Split* (cut in two at the midpoint), *Join* (merge a
+  collinear neighbour), *Duplicate*, *Lock* and *Delete*, with the exact
+  thickness / start / end / length / angle fields underneath.
+- **Doors / windows** — *Flip hinge* and *Flip swing* (doors), *Duplicate*,
+  *Lock* and *Delete*, plus the offset / width / sill / head fields.
+- **Lock** — a locked wall or opening can still be selected but won't move,
+  reshape or delete by accident (its drag handles disappear) — unlock it to edit
+  again.
+- **Duplicate** — drops an editable copy beside the original (the name and lock
+  aren't carried over).
+
+**Select several walls at once** — Shift‑click (or ⌘/Ctrl‑click) walls to add or
+remove them from the selection; on a touch screen, turn on the toolbar **Select+**
+toggle and tap walls instead. The Properties panel then shows how many are
+selected with **Lock all**, **Delete all** (locked walls are kept) and **Clear
+selection** — handy for clearing out a whole run of walls in one go.
 
 ## Non‑rectangular rooms (L‑shapes & angles)
 
@@ -134,12 +187,16 @@ screen and centred** when you open the editor. Click the percentage to reset to
 
 ## On a phone: the Tools menu
 
-On a small screen the toolbar fits one row: a **☰ Tools** button, a **tool
-dropdown** for picking the drawing tool, and **Done**. Tap **☰ Tools** to open
-the **Plan tools** sheet with everything else — the plan name and levels, New /
-Reset / templates / Reference photo, the label/dimension/export/zoom controls,
-the **Ceiling height** and **Wall colour** defaults, and a **Help → user guide**
-link.
+On a small screen the toolbar fits one row: **View / Edit**, a **☰ Menu** button,
+a **tool button** (shows the current tool, e.g. *Wall ▾*) that opens a grid of
+all the drawing tools to tap, **undo / redo** (↶ ↷), and **Done**. Tap **☰ Menu**
+to open the
+**Plan tools** sheet, organised into tidy sections so it isn't a wall of buttons:
+**Plan** (name, levels, templates, New / Reset / Reference photo), **View**
+(labels, dimensions, furniture, all-levels, Export PNG, undo/redo, grid, zoom),
+**Edit** (wall thickness and multi-select, when you're using those), and
+**Defaults** (Ceiling height, Wall colour, area total) — plus a **Help → user
+guide** link.
 
 ## Properties panel
 
@@ -150,15 +207,16 @@ until you expand it.
 
 ## Export the plan as an image
 
-**Export PNG** (in the editor header) downloads the floor plan as a PNG image —
-walls, rooms, areas and dimension labels — to share with a client, drop into a
-document, or print. (The reference trace photo isn't included; it's just the
-clean plan.)
+**Export PNG** (under the header's **View ▾** menu on desktop, or the **☰ Menu**
+on a phone) downloads the floor plan as a PNG image — walls, rooms, areas and
+dimension labels — to share with a client, drop into a document, or print. (The
+reference trace photo isn't included; it's just the clean plan.)
 
 ## Templates & saving
 
-Start from a **template** apartment, **Reset to HDB** for the default flat, or
-**New** for an empty shell. The **template picker** is a three‑step cascade —
+Start from a **template** apartment, or use the header's **Plan ▾** menu to
+**Reset to HDB** for the default flat or start **New** with an empty shell. The
+**template picker** is a three‑step cascade —
 pick a **housing type** (HDB or Condominium), then a **project**, then the
 **apartment type** — and choosing a type loads that starter plan. The default
 flat is **HDB › Serangoon North Vista › 4‑Room**. It covers the common Singapore

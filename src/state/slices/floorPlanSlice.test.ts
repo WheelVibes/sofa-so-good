@@ -34,6 +34,127 @@ describe('floorPlanSlice', () => {
     expect(after.openings.some((o) => o.id === oid)).toBe(false)
   })
 
+  it('moveWallTo drags a wall and keeps connected walls joined at the corner', () => {
+    useStore.getState().newFloorPlan('Connectivity test')
+    // Two walls meeting at the corner (2,0): A = (0,0)->(2,0), B = (2,0)->(2,2).
+    const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+    // Translate A by (0,1): its shared corner (2,0)->(2,1) should drag B's start.
+    useStore.getState().moveWallTo(a, [0, 1], [2, 1])
+    const A = useStore.getState().floorPlan.walls.find((w) => w.id === a)!
+    const B = useStore.getState().floorPlan.walls.find((w) => w.id === b)!
+    expect(A.start).toEqual([0, 1])
+    expect(A.end).toEqual([2, 1])
+    // B stays joined: its start followed the shared corner; its far end is fixed.
+    expect(B.start).toEqual([2, 1])
+    expect(B.end).toEqual([2, 2])
+  })
+
+  it('duplicates a wall as a new, unlocked, unnamed copy offset from the source', () => {
+    useStore.getState().newFloorPlan('Dup wall test')
+    const id = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    useStore.getState().updateWall(id, { name: 'Custom', locked: true })
+    const newId = useStore.getState().duplicateWall(id)
+    expect(newId).toBeTruthy()
+    const copy = useStore.getState().floorPlan.walls.find((w) => w.id === newId)!
+    expect(copy.start).toEqual([0.3, 0.3])
+    expect(copy.end).toEqual([2.3, 0.3])
+    expect(copy.name).toBeUndefined() // custom name not copied
+    expect(copy.locked).toBeUndefined() // copy is editable
+    expect(useStore.getState().planSelection).toEqual({ type: 'wall', id: newId })
+  })
+
+  it('duplicates an opening onto the same wall, nudged along it and clamped', () => {
+    useStore.getState().newFloorPlan('Dup opening test')
+    const wid = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
+    const oid = useStore
+      .getState()
+      .addOpening({ kind: 'door', wallId: wid, offset: 0.5, width: 0.9, sill: 0, head: 2.1 })
+    const newId = useStore.getState().duplicateOpening(oid)
+    const copy = useStore.getState().floorPlan.openings.find((o) => o.id === newId)!
+    expect(copy.wallId).toBe(wid)
+    expect(copy.offset).toBeCloseTo(1.4, 5) // 0.5 + width 0.9
+    expect(copy.name).toBeUndefined()
+    expect(useStore.getState().planSelection).toEqual({ type: 'opening', id: newId })
+  })
+
+  it('auto-names boundary walls on room allocation, never overriding a custom name', () => {
+    useStore.getState().newFloorPlan('Naming test')
+    for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
+    // Four walls tracing a 4×3 rectangle.
+    const top = useStore.getState().addWall({ start: [0, 0], end: [4, 0], thickness: 'internal' })
+    const right = useStore.getState().addWall({ start: [4, 0], end: [4, 3], thickness: 'internal' })
+    const bottom = useStore
+      .getState()
+      .addWall({ start: [4, 3], end: [0, 3], thickness: 'internal' })
+    const left = useStore.getState().addWall({ start: [0, 3], end: [0, 0], thickness: 'internal' })
+    // Give one wall a user-set custom name (nameAuto cleared) — it must survive.
+    useStore.getState().updateWall(left, { name: 'My special wall', nameAuto: undefined })
+
+    useStore.getState().addRoom({ name: 'Living', origin: [0, 0], width: 4, depth: 3 })
+    const byId = (id: string) => useStore.getState().floorPlan.walls.find((w) => w.id === id)!
+    expect(byId(top).name).toBe('Living wall 01')
+    expect(byId(top).nameAuto).toBe(true)
+    expect(byId(right).name).toBe('Living wall 02')
+    expect(byId(bottom).name).toBe('Living wall 03')
+    // The user-named wall is untouched.
+    expect(byId(left).name).toBe('My special wall')
+    expect(byId(left).nameAuto).toBeUndefined()
+
+    // Re-allocating a room over the same walls re-names the auto ones but still
+    // leaves the custom name alone.
+    useStore.getState().addRoom({ name: 'Studio', origin: [0, 0], width: 4, depth: 3 })
+    expect(byId(top).name).toBe('Studio wall 01')
+    expect(byId(left).name).toBe('My special wall')
+  })
+
+  it('multi-selects walls, then bulk-locks and bulk-deletes them', () => {
+    useStore.getState().newFloorPlan('Multi test')
+    for (const w of [...useStore.getState().floorPlan.walls]) useStore.getState().removeWall(w.id)
+    const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+    const c = useStore.getState().addWall({ start: [2, 2], end: [0, 2], thickness: 'internal' })
+    // Primary select A, then add B and C to the multi-selection.
+    useStore.getState().setPlanSelection({ type: 'wall', id: a })
+    useStore.getState().toggleWallSelection(b)
+    useStore.getState().toggleWallSelection(c)
+    // C is the newest primary; A and B are the extras.
+    expect(useStore.getState().planSelection).toEqual({ type: 'wall', id: c })
+    expect(new Set(useStore.getState().selectedWallIds)).toEqual(new Set([a, b]))
+
+    // Toggling C off promotes another wall to primary.
+    useStore.getState().toggleWallSelection(c)
+    expect(useStore.getState().planSelection?.type).toBe('wall')
+    expect(useStore.getState().selectedWallIds.length).toBe(1)
+
+    // Re-add C, then bulk-lock all three.
+    useStore.getState().toggleWallSelection(c)
+    useStore.getState().setWallsLocked([a, b, c], true)
+    expect(useStore.getState().floorPlan.walls.filter((w) => w.locked).length).toBe(3)
+
+    // removeWalls skips locked walls.
+    useStore.getState().removeWalls([a, b, c])
+    expect(useStore.getState().floorPlan.walls.length).toBe(3)
+
+    // Unlock then bulk-delete: all gone, selection cleared.
+    useStore.getState().setWallsLocked([a, b, c], false)
+    useStore.getState().removeWalls([a, b, c])
+    expect(useStore.getState().floorPlan.walls.length).toBe(0)
+    expect(useStore.getState().planSelection).toBeNull()
+    expect(useStore.getState().selectedWallIds).toEqual([])
+  })
+
+  it('a plain selection clears the multi-selection extras', () => {
+    useStore.getState().newFloorPlan('Multi clear test')
+    const a = useStore.getState().addWall({ start: [0, 0], end: [2, 0], thickness: 'internal' })
+    const b = useStore.getState().addWall({ start: [2, 0], end: [2, 2], thickness: 'internal' })
+    useStore.getState().setPlanSelection({ type: 'wall', id: a })
+    useStore.getState().toggleWallSelection(b)
+    expect(useStore.getState().selectedWallIds.length).toBe(1)
+    useStore.getState().setPlanSelection({ type: 'wall', id: a })
+    expect(useStore.getState().selectedWallIds).toEqual([])
+  })
+
   it('splits a wall into two segments at the midpoint, re-homing openings', () => {
     const s = useStore.getState()
     s.newFloorPlan('Split test')

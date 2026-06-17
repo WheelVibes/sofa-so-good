@@ -9,6 +9,7 @@ import {
   planLevels,
   withLevelGeometry,
 } from '../../floorplan/levels'
+import { assignRoomWallNames } from '../../floorplan/roomWallNames'
 import type {
   CeilingConfig,
   FloorPlan,
@@ -63,8 +64,25 @@ export interface FloorPlanSlice {
   setPlanLabels: (mode: PlanLabelMode) => void
   /** Advance the plan-label mode (off → name → price → off). */
   cyclePlanLabels: () => void
-  /** Currently-selected element in the editor. */
+  /** Currently-selected element in the editor (the "primary" selection that the
+   *  inspector edits). */
   planSelection: PlanSelection
+  /** Additional walls in a multi-selection, *beyond* the primary `planSelection`
+   *  wall. The full wall selection = primary wall (if any) ∪ these. Session-only
+   *  (not persisted, not in history); cleared by any plain (non-additive)
+   *  selection. */
+  selectedWallIds: string[]
+  /** When on, a tap/click on a wall toggles it in the multi-selection instead of
+   *  replacing it (the touch-friendly equivalent of Shift-click). Session-only. */
+  planWallMultiAdd: boolean
+  setPlanWallMultiAdd: (on: boolean) => void
+  /** Toggle a wall in the multi-selection (Shift/⌘-click or multi-add mode):
+   *  adds it as the new primary, or removes it (promoting another to primary). */
+  toggleWallSelection: (id: string) => void
+  /** Bulk-delete walls (skips locked ones); one history step; clears selection. */
+  removeWalls: (ids: string[], levelId?: string) => void
+  /** Bulk lock/unlock walls; one history step. */
+  setWallsLocked: (ids: string[], locked: boolean, levelId?: string) => void
   /** Saved named floor plans (the apartment library). */
   savedPlans: FloorPlan[]
   /** Save the active plan into the library (new entry; returns its id). */
@@ -101,6 +119,10 @@ export interface FloorPlanSlice {
   splitWall: (id: string, t?: number, levelId?: string) => void
   /** Reverse a wall's direction in place (openings keep their position). */
   reverseWall: (id: string, levelId?: string) => void
+  /** Duplicate a wall, offset slightly so the copy is visible, and select it.
+   *  A custom name is NOT copied (the duplicate gets its own default). Returns
+   *  the new wall's id, or undefined when the source is missing. */
+  duplicateWall: (id: string, levelId?: string) => string | undefined
   /** Merge a wall with a collinear neighbour that shares an endpoint (inverse of
    *  split); selects the merged wall. No-op when there's no collinear neighbour. */
   joinWall: (id: string, levelId?: string) => void
@@ -110,6 +132,14 @@ export interface FloorPlanSlice {
     id: string,
     which: 'start' | 'end',
     to: [number, number],
+    levelId?: string,
+  ) => void
+  /** Move a whole wall to new endpoints (drag/rotate), dragging any connected
+   *  walls that shared the old start/end so corners stay joined. */
+  moveWallTo: (
+    id: string,
+    newStart: [number, number],
+    newEnd: [number, number],
     levelId?: string,
   ) => void
 
@@ -125,6 +155,11 @@ export interface FloorPlanSlice {
   addOpening: (opening: Omit<PlanOpening, 'id'>, levelId?: string) => string
   updateOpening: (id: string, patch: Partial<PlanOpening>, levelId?: string) => void
   removeOpening: (id: string, levelId?: string) => void
+  /** Duplicate an opening on the same wall, nudged along it so the copy is
+   *  visible, clamped within the wall; selects the copy. A custom name is not
+   *  copied. Returns the new opening's id, or undefined when the source/wall is
+   *  missing. */
+  duplicateOpening: (id: string, levelId?: string) => string | undefined
 
   /** Add a free-text note to the plan (PARITY-DIMTEXT); returns its id. */
   addNote: (note: Omit<PlanNote, 'id'>) => string
@@ -158,13 +193,22 @@ export interface FloorPlanSlice {
 
 export const FLOOR_PLAN_INITIAL: Pick<
   FloorPlanSlice,
-  'floorPlan' | 'baselinePlan' | 'floorPlanEditing' | 'planLabels' | 'planSelection' | 'savedPlans'
+  | 'floorPlan'
+  | 'baselinePlan'
+  | 'floorPlanEditing'
+  | 'planLabels'
+  | 'planSelection'
+  | 'selectedWallIds'
+  | 'planWallMultiAdd'
+  | 'savedPlans'
 > = {
   floorPlan: buildDefaultPlan(),
   baselinePlan: buildDefaultPlan(),
   floorPlanEditing: false,
   planLabels: 'off',
   planSelection: null,
+  selectedWallIds: [],
+  planWallMultiAdd: false,
   savedPlans: [],
 }
 
@@ -239,7 +283,50 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
   setPlanLabels: (planLabels) => set({ planLabels }),
   cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
-  setPlanSelection: (sel) => set({ planSelection: sel }),
+  // A plain selection always replaces the multi-selection (clears the extras),
+  // so single-click select behaves exactly as before.
+  setPlanSelection: (sel) => set({ planSelection: sel, selectedWallIds: [] }),
+  setPlanWallMultiAdd: (on) => set({ planWallMultiAdd: on }),
+  toggleWallSelection: (id) =>
+    set((s) => {
+      const primary = s.planSelection?.type === 'wall' ? s.planSelection.id : null
+      const combined = [...new Set([...(primary ? [primary] : []), ...s.selectedWallIds])]
+      if (combined.includes(id)) {
+        // Remove it; promote the first remaining wall to primary.
+        const rest = combined.filter((w) => w !== id)
+        return {
+          planSelection: rest.length ? { type: 'wall', id: rest[0] } : null,
+          selectedWallIds: rest.slice(1),
+        }
+      }
+      // Add it as the new primary; everything previously selected becomes extra.
+      return { planSelection: { type: 'wall', id }, selectedWallIds: combined }
+    }),
+  removeWalls: (ids, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const removable = new Set(ids.filter((id) => !g.walls.find((w) => w.id === id)?.locked))
+    if (removable.size === 0) return
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+        walls: gg.walls.filter((w) => !removable.has(w.id)),
+        openings: gg.openings.filter((o) => !removable.has(o.wallId)),
+      })),
+      planSelection: null,
+      selectedWallIds: [],
+    }))
+  },
+  setWallsLocked: (ids, locked, levelId) => {
+    const set0 = new Set(ids)
+    if (set0.size === 0) return
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+        walls: gg.walls.map((w) => (set0.has(w.id) ? { ...w, locked: locked || undefined } : w)),
+      })),
+    }))
+  },
   resetFloorPlan: () => {
     // Snapshot first so "Reset to HDB" is undoable — otherwise a hand-built
     // custom plan is destroyed with no way back.
@@ -295,6 +382,29 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       planSelection: null,
     }))
   },
+  duplicateWall: (id, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const src = g.walls.find((w) => w.id === id)
+    if (!src) return undefined
+    const newId = planId('w')
+    const off = 0.3 // visible offset so the copy doesn't sit exactly on the source
+    // A copy is its own element: drop the custom name + lock so it's editable.
+    const { name: _n, locked: _l, ...rest } = src
+    const copy: PlanWall = {
+      ...rest,
+      id: newId,
+      start: [src.start[0] + off, src.start[1] + off],
+      end: [src.end[0] + off, src.end[1] + off],
+    }
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({ walls: [...gg.walls, copy] })),
+      planSelection: { type: 'wall', id: newId },
+      selectedWallIds: [],
+    }))
+    return newId
+  },
 
   splitWall: (id, t = 0.5, levelId) => {
     get().pushHistory()
@@ -327,7 +437,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
           }),
         }
       })
-      return { floorPlan, planSelection: selection }
+      return { floorPlan, planSelection: selection, selectedWallIds: [] }
     })
   },
 
@@ -357,6 +467,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         openings: res.openings,
       })),
       planSelection: { type: 'wall', id: res.mergedId },
+      selectedWallIds: [],
     }))
   },
 
@@ -382,13 +493,45 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     }))
   },
 
+  moveWallTo: (id, newStart, newEnd, levelId) => {
+    get().pushHistoryCoalesced(`plan-wall-move-${id}`)
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => {
+        const target = g.walls.find((w) => w.id === id)
+        if (!target) return {}
+        const cs = target.start
+        const ce = target.end
+        const EPS = 1e-3
+        const near = (p: [number, number], q: [number, number]) =>
+          Math.abs(p[0] - q[0]) < EPS && Math.abs(p[1] - q[1]) < EPS
+        // Endpoints coincident with the wall's OLD start move to newStart; with
+        // the old end → newEnd. This drags the wall itself plus every wall that
+        // shared either corner, so the network stays connected.
+        const remap = (p: [number, number]): [number, number] =>
+          near(p, cs) ? [...newStart] : near(p, ce) ? [...newEnd] : p
+        return {
+          walls: g.walls.map((w) => ({ ...w, start: remap(w.start), end: remap(w.end) })),
+        }
+      }),
+    }))
+  },
+
   addRoom: (room, levelId) => {
     const id = planId('r')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
-        rooms: [...g.rooms, { ...room, id }],
-      })),
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => {
+        const newRoom = { ...room, id }
+        // Auto-name the room's boundary walls `<room> wall ##` — but never
+        // overwrite a user-set name (only unset / previously auto-assigned ones).
+        const names = new Map(assignRoomWallNames(g.walls, newRoom).map((a) => [a.id, a.name]))
+        const walls = g.walls.map((w) => {
+          const name = names.get(w.id)
+          if (name && (!w.name || w.nameAuto)) return { ...w, name, nameAuto: true as const }
+          return w
+        })
+        return { rooms: [...g.rooms, newRoom], walls }
+      }),
     }))
     return id
   },
@@ -454,6 +597,30 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
       })),
       planSelection: null,
     }))
+  },
+  duplicateOpening: (id, levelId) => {
+    const s0 = get()
+    const g = levelAsPlan(s0.floorPlan, levelById(s0.floorPlan, levelId))
+    const src = g.openings.find((o) => o.id === id)
+    if (!src) return undefined
+    const wall = g.walls.find((w) => w.id === src.wallId)
+    if (!wall) return undefined
+    const wlen = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
+    // Nudge the copy along the wall by ~one width, clamped within the wall span.
+    const maxOff = Math.max(0, wlen - src.width)
+    const nudged = src.offset + src.width
+    const offset = nudged <= maxOff ? nudged : Math.max(0, src.offset - src.width)
+    const newId = planId(src.kind === 'door' ? 'door' : 'win')
+    const { name: _n, locked: _l, ...rest } = src
+    const copy: PlanOpening = { ...rest, id: newId, offset }
+    get().pushHistory()
+    set((s) => ({
+      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+        openings: [...gg.openings, copy],
+      })),
+      planSelection: { type: 'opening', id: newId },
+    }))
+    return newId
   },
 
   // Notes are a top-level plan array (level-tagged via `note.levelId`), not part

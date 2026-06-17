@@ -74,12 +74,17 @@ export function doorSwingGeometry(wall: PlanWall, o: PlanOpening): DoorSwingGeom
     sPt = [wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]
     ePt = [wall.start[0] + ux * (o.offset + o.width), wall.start[1] + uz * (o.offset + o.width)]
   }
-  const sign = doorSwing(o) === 'right' ? 1 : -1
+  const hingeAtStart = doorHinge(o) === 'start'
+  // The physical swing side flips with the hinge jamb — matching the 3D door
+  // leaf (PlanDoorLeaf), where the leaf is offset to the hinge side and rotated,
+  // so a 'right' door hinged at the END opens to the side a 'right' door hinged
+  // at the START opens away from. Fold the hinge into the sign so the 2D arc,
+  // the clearance quarter, and the report all agree with the 3D swing.
+  const sign = (doorSwing(o) === 'right' ? 1 : -1) * (hingeAtStart ? 1 : -1)
   // `+ 0` normalises a `-0` (from `-uz * sign` when uz is 0) to `0` so equality
   // checks + downstream consumers never see negative zero.
   const nx = -uz * sign + 0
   const nz = ux * sign + 0
-  const hingeAtStart = doorHinge(o) === 'start'
   const hinge = hingeAtStart ? sPt : ePt
   const freeJamb = hingeAtStart ? ePt : sPt
   const leafTip: [number, number] = [hinge[0] + nx * o.width, hinge[1] + nz * o.width]

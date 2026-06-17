@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import {
   AiPlanError,
   classifyVisionEndpoint,
@@ -46,6 +46,7 @@ import {
 } from '../../floorplan/wallArc'
 import { useCatalogGetter } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
+import { GRID_SIZES } from '../../state/slices/uiSlice'
 import { useStore } from '../../state/store'
 import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { openDocs } from '../docsUrl'
@@ -61,6 +62,8 @@ import {
 } from './backdropPersist'
 import { GridLines } from './editor/GridLines'
 import { PlanLibrary } from './editor/PlanLibrary'
+import { PlanMenu } from './editor/PlanMenu'
+import { PlanToolMenu } from './editor/PlanToolMenu'
 import {
   type Backdrop,
   CATEGORY_FILL,
@@ -69,8 +72,22 @@ import {
   GRID_MARGIN,
   MAX_H,
   MAX_W,
+  MAX_ZOOM,
+  MIN_ZOOM,
   type Tool,
+  ZOOM_BTN_STEP,
+  ZOOM_WHEEL_SENS,
 } from './editor/planConstants'
+import {
+  dimFontPx,
+  roomFontPx,
+  roomLabelDetail,
+  showOpeningDim,
+  showWallDim,
+  wrapLabel,
+} from './editor/planLabelDisplay'
+import { snapToWalls } from './editor/snapToWalls'
+import { WallDimension } from './editor/WallDimension'
 import { exportPlanPng } from './exportPlanPng'
 import { LevelTabs } from './LevelTabs'
 import { PlanInspector } from './PlanInspector'
@@ -81,7 +98,12 @@ export function FloorPlanEditor() {
   const editing = useStore((s) => s.floorPlanEditing)
   const plan = useStore((s) => s.floorPlan)
   const gridSize = useStore((s) => s.gridSize)
+  const setGridSize = useStore((s) => s.setGridSize)
+  const canUndo = useStore((s) => s.past.length > 0)
+  const canRedo = useStore((s) => s.future.length > 0)
   const sel = useStore((s) => s.planSelection)
+  const selectedWallIdsRaw = useStore((s) => s.selectedWallIds)
+  const planWallMultiAdd = useStore((s) => s.planWallMultiAdd)
   const units = useStore((s) => s.units)
   const a = useStore.getState()
 
@@ -123,6 +145,13 @@ export function FloorPlanEditor() {
   const activeLevel = levelById(plan, activeLevelId)
   const levelPlan = levelAsPlan(plan, activeLevel)
   const levelId = activeLevel.id
+  // The full wall selection = primary wall (if any) ∪ the multi-select extras,
+  // filtered to walls that still exist (so deletes/merges leave no stale ids).
+  const selectedWalls = useMemo(() => {
+    const ids = new Set<string>([...(sel?.type === 'wall' ? [sel.id] : []), ...selectedWallIdsRaw])
+    const present = new Set(levelPlan.walls.map((w) => w.id))
+    return new Set([...ids].filter((id) => present.has(id)))
+  }, [sel, selectedWallIdsRaw, levelPlan.walls])
   // Exact wall-enclosed outline (exterior walls) for the un-roomed flag: drawn
   // beneath the room fills, so walled-in floor with no room shows through in red.
   const fUnroomed = useFeature('unroomedFlag')
@@ -157,6 +186,27 @@ export function FloorPlanEditor() {
   // Active wall-curve bulge drag (select tool): drag a wall's midpoint to bow it
   // into a curve (PARITY-CURVEDWALL).
   const [movingBulge, setMovingBulge] = useState<{ id: string } | null>(null)
+  // Active door/window drag ALONG its wall: `grab` = the along-wall distance
+  // between the grab point and the opening's offset, so it doesn't jump on grab.
+  const [movingOpening, setMovingOpening] = useState<{ id: string; grab: number } | null>(null)
+  // Active whole-wall translate: original endpoints + grab point; connected walls
+  // follow via moveWallTo so corners stay joined.
+  const [movingWall, setMovingWall] = useState<{
+    id: string
+    s0: [number, number]
+    e0: [number, number]
+    grab: [number, number]
+  } | null>(null)
+  // Active wall rotate (handle): centre + original endpoints + the pointer angle
+  // at grab, so rotation tracks the handle.
+  const [rotatingWall, setRotatingWall] = useState<{
+    id: string
+    cx: number
+    cz: number
+    s0: [number, number]
+    e0: [number, number]
+    a0: number
+  } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
@@ -182,15 +232,35 @@ export function FloorPlanEditor() {
   const [aiBusy, setAiBusy] = useState(false)
   const aiWalls = useFeature('aiWalls')
   // Persistent wall-length labels (on by default; toggle in the editor header).
-  const [showWallDims, setShowWallDims] = useState(true)
+  // Dimensions default OFF — they're the densest overlay and collide with walls
+  // when zoomed out; the toolbar "Dims" toggle turns them on. When on, callouts
+  // are culled + font-scaled by zoom/screen so they stay legible (see below).
+  const [showWallDims, setShowWallDims] = useState(false)
+  // View vs Edit interaction mode. **View** = pan/zoom + tap-to-inspect only, so
+  // a one-finger drag never shifts anything (the default on touch, where stray
+  // drags are easy). **Edit** enables drawing + moving; on touch an item must be
+  // tapped (selected) before a drag moves it — otherwise the drag pans. Mouse
+  // (desktop) edit keeps the direct drag-to-move behaviour.
+  const [editMode, setEditMode] = useState<'view' | 'edit'>(isMobile ? 'view' : 'edit')
+  // Furniture footprints are HIDDEN by default in the editor so they don't get in
+  // the way of (or get accidentally grabbed while) editing walls/rooms. The
+  // "Furniture" toggle shows them; while hidden they can't be selected or moved.
+  const [showFurniture, setShowFurniture] = useState(false)
   // Show the OTHER storeys' walls as a dimmed underlay (SH3D "all levels"), so
   // you can stack walls / line up stairs between floors. Off by default.
   const [showOtherLevels, setShowOtherLevels] = useState(false)
   const svgRef = useRef<SVGSVGElement>(null)
   const fileRef = useRef<HTMLInputElement>(null)
   const canvasRef = useRef<HTMLDivElement>(null)
-  // Middle-mouse drag-to-pan: start client pos + canvas scroll at grab.
+  // Middle/right-mouse drag-to-pan: start client pos + canvas scroll at grab.
   const panRef = useRef<{ x: number; y: number; sl: number; st: number } | null>(null)
+  // Whether the current pan actually moved — used to swallow the context menu
+  // that a right-drag would otherwise pop at the end of the pan.
+  const panDidMove = useRef(false)
+  // Touch wall tap-to-place: whether an anchor (start point) already existed when
+  // the current pointer went down, so onUp can tell "placing the start" from
+  // "placing the end / ending the chain".
+  const wallTapHadAnchor = useRef(false)
 
   // Rehydrate a previously-saved backdrop when the editor opens (the component
   // is always mounted and only renders when `editing`, so this can't be a
@@ -358,6 +428,35 @@ export function FloorPlanEditor() {
   }, [editing])
 
   const [ew, ed] = planBounds(plan)
+  // True plan centre = midpoint of its actual bounding box (leftmost↔rightmost,
+  // topmost↔bottommost of walls + rooms), NOT ew/2,ed/2 — the plan needn't start
+  // at world 0, and we want that box's middle centred in the canvas.
+  const planCenter = useMemo<[number, number]>(() => {
+    let minX = Number.POSITIVE_INFINITY
+    let minZ = Number.POSITIVE_INFINITY
+    let maxX = Number.NEGATIVE_INFINITY
+    let maxZ = Number.NEGATIVE_INFINITY
+    const acc = (x: number, z: number) => {
+      if (x < minX) minX = x
+      if (x > maxX) maxX = x
+      if (z < minZ) minZ = z
+      if (z > maxZ) maxZ = z
+    }
+    for (const w of levelPlan.walls) {
+      acc(w.start[0], w.start[1])
+      acc(w.end[0], w.end[1])
+    }
+    for (const r of levelPlan.rooms) {
+      if (r.polygon && r.polygon.length >= 3) for (const [x, z] of r.polygon) acc(x, z)
+      else {
+        acc(r.origin[0], r.origin[1])
+        acc(r.origin[0] + r.width, r.origin[1] + r.depth)
+      }
+    }
+    return Number.isFinite(minX) ? [(minX + maxX) / 2, (minZ + maxZ) / 2] : [ew / 2, ed / 2]
+  }, [levelPlan, ew, ed])
+  const planCenterRef = useRef(planCenter)
+  planCenterRef.current = planCenter
   const basePX = useMemo(() => {
     // Fit to the measured viewport (minus the canvas padding) so the whole plan
     // is visible at zoom 1 on any screen size.
@@ -367,37 +466,85 @@ export function FloorPlanEditor() {
     const fitH = availH / (ed + FIT_PAD * 2)
     return Math.max(16, Math.min(fitW, fitH, 80))
   }, [ew, ed, viewport.w, viewport.h])
-  // User zoom (ctrl/⌘+wheel or the ± buttons) multiplies the base px-per-metre;
+  // User zoom (wheel/pinch or the ± buttons) multiplies the base px-per-metre;
   // every coordinate (toPx + its inverse) reads PX, so zoom stays consistent.
   const [zoom, setZoom] = useState(1)
+  // Latest zoom for the native wheel listener (attached once; reads via ref so
+  // we don't re-bind on every zoom change).
+  const zoomRef = useRef(zoom)
+  zoomRef.current = zoom
+  // Scroll target to apply *after* the zoom re-render grows the SVG, so a
+  // zoom-to-cursor keeps the point under the cursor (a rAF can fire before the
+  // new size lays out and then clamps the scroll — feeling unresponsive).
+  const pendingScroll = useRef<{ left: number; top: number } | null>(null)
   const PX = basePX * zoom
+
+  // Zoom around the viewport centre (for the ± buttons / keyboard), reusing the
+  // same anchored-scroll path as wheel zoom so the view stays put.
+  const zoomAroundCentre = useCallback((compute: (z: number) => number) => {
+    const el = canvasRef.current
+    const cur = zoomRef.current
+    const next = Math.min(MAX_ZOOM, Math.max(MIN_ZOOM, compute(cur)))
+    if (!el || next === cur) return
+    const px = el.clientWidth / 2
+    const py = el.clientHeight / 2
+    const cx = el.scrollLeft + px
+    const cy = el.scrollTop + py
+    const r = next / cur
+    pendingScroll.current = { left: cx * r - px, top: cy * r - py }
+    setZoom(next)
+  }, [])
   // Canvas is the plan plus a generous grid margin on every side (pannable via
   // the scroll container; the plan stays centred because the margin is equal).
   const W = (ew + GRID_MARGIN * 2) * PX
   const H = (ed + GRID_MARGIN * 2) * PX
   const toPx = (m: number) => (m + GRID_MARGIN) * PX
   const snap = (m: number) => (gridSize > 0 ? Math.round(m / gridSize) * gridSize : m)
+  // Plan centre in screen px (dimension callouts orient away from it) + the
+  // zoom/screen-scaled label fonts so overlays stay legible without dominating.
+  const planCentrePx: [number, number] = [toPx(ew / 2), toPx(ed / 2)]
+  const dimFont = dimFontPx(PX)
+  const roomFont = roomFontPx(PX)
 
   // Scroll the (large, margin-padded) canvas so the plan is centred. Retries
   // each frame until the SVG has laid out at its full (inline) size — before
   // that, scrollLeft clamps to 0 (content not yet wider than the view).
+  const centerRaf = useRef(0)
   const centerPlan = useCallback(
     (px: number) => {
       const el = canvasRef.current
       if (!el) return
+      // Cancel any in-flight centering: on open the viewport is first measured at
+      // its default size, then re-measured (ResizeObserver) at the real size —
+      // without this, the first (stale-px) pass could win the race and land the
+      // plan off-centre (notably too low on tall mobile viewports).
+      cancelAnimationFrame(centerRaf.current)
+      // Wait until the SVG has laid out at its FULL expected size, then scroll so
+      // the plan's true bbox centre sits at the canvas centre. We measure the
+      // SVG's real offset within the scroll content (via getBoundingClientRect +
+      // current scroll) so canvas padding / any extra content can't bias it.
+      const expH = (ed + GRID_MARGIN * 2) * px
       let frames = 0
       const run = () => {
         frames++
-        if (el.scrollWidth > el.clientWidth || el.scrollHeight > el.clientHeight || frames > 120) {
-          el.scrollLeft = Math.max(0, (ew / 2 + GRID_MARGIN) * px - el.clientWidth / 2)
-          el.scrollTop = Math.max(0, (ed / 2 + GRID_MARGIN) * px - el.clientHeight / 2)
+        const svg = svgRef.current
+        const ready = svg ? svg.getBoundingClientRect().height >= expH - 1 : false
+        if ((svg && ready) || frames > 120) {
+          const cRect = el.getBoundingClientRect()
+          const sRect = svg?.getBoundingClientRect()
+          // Content-space offset of the SVG's top-left corner.
+          const svgLeft = sRect ? sRect.left - cRect.left + el.scrollLeft : 0
+          const svgTop = sRect ? sRect.top - cRect.top + el.scrollTop : 0
+          const [cxW, czW] = planCenterRef.current
+          el.scrollLeft = Math.max(0, svgLeft + (cxW + GRID_MARGIN) * px - el.clientWidth / 2)
+          el.scrollTop = Math.max(0, svgTop + (czW + GRID_MARGIN) * px - el.clientHeight / 2)
           return
         }
-        requestAnimationFrame(run)
+        centerRaf.current = requestAnimationFrame(run)
       }
-      requestAnimationFrame(run)
+      centerRaf.current = requestAnimationFrame(run)
     },
-    [ew, ed],
+    [ed],
   )
 
   // Centre the plan when the editor opens, and re-fit when the viewport scale
@@ -407,6 +554,52 @@ export function FloorPlanEditor() {
   useEffect(() => {
     if (editing) centerPlan(PX)
   }, [editing, centerPlan, basePX])
+
+  // Wheel / trackpad-pinch zoom, anchored to the cursor. Uses a NATIVE
+  // non-passive listener because React's synthetic `onWheel` is passive — its
+  // `preventDefault()` is ignored, so Ctrl+wheel would zoom the whole browser
+  // page and plain-wheel would just scroll. Plain wheel zooms here (no modifier
+  // needed) so it feels as direct and sensitive as orbit-mode dolly.
+  useEffect(() => {
+    const el = canvasRef.current
+    if (!el || !editing) return
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault()
+      const rect = el.getBoundingClientRect()
+      const px = e.clientX - rect.left
+      const py = e.clientY - rect.top
+      const cx = el.scrollLeft + px
+      const cy = el.scrollTop + py
+      // Normalise line/page delta modes to pixels for consistent sensitivity.
+      const unit = e.deltaMode === 1 ? 16 : e.deltaMode === 2 ? rect.height : 1
+      const cur = zoomRef.current
+      const next = Math.min(
+        MAX_ZOOM,
+        Math.max(MIN_ZOOM, cur * Math.exp(-e.deltaY * unit * ZOOM_WHEEL_SENS)),
+      )
+      if (next === cur) return
+      const r = next / cur
+      // Keep the cursor's world point fixed: the content scales by r, so the
+      // same point sits at cx*r and we offset by the cursor's view position.
+      pendingScroll.current = { left: cx * r - px, top: cy * r - py }
+      setZoom(next)
+    }
+    el.addEventListener('wheel', onWheel, { passive: false })
+    return () => el.removeEventListener('wheel', onWheel)
+  }, [editing])
+
+  // Apply the zoom-to-cursor scroll target after the grown SVG has laid out
+  // (scrollLeft set before the content is wider than the view clamps to 0).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: `zoom` is the trigger — re-apply the pending scroll after each zoom re-render.
+  useLayoutEffect(() => {
+    const el = canvasRef.current
+    const p = pendingScroll.current
+    if (el && p) {
+      el.scrollLeft = p.left
+      el.scrollTop = p.top
+      pendingScroll.current = null
+    }
+  }, [zoom])
 
   /** Close an in-progress polygon into a room (bbox → origin/width/depth + the
    *  explicit polygon for area/render/containment) on the active storey. */
@@ -466,6 +659,9 @@ export function FloorPlanEditor() {
         commitPolyRoom(polyDraft)
         setPolyDraft([])
       } else if (e.key === 'Escape') {
+        // A toolbar dropdown (Plan / View) owns Escape to close itself — don't
+        // also exit the editor in the same keypress.
+        if (document.querySelector('.plan-menu-panel')) return
         if (polylineDraft.length > 0) {
           setPolylineDraft([])
           return
@@ -482,13 +678,28 @@ export function FloorPlanEditor() {
         // the selected element.
         if (isEditableTarget(e)) return
         const st = useStore.getState()
+        // A multi-wall selection deletes them all in one step (skips locked).
+        const wallIds = [
+          ...new Set([
+            ...(st.planSelection?.type === 'wall' ? [st.planSelection.id] : []),
+            ...st.selectedWallIds,
+          ]),
+        ]
+        if (wallIds.length > 1) {
+          st.removeWalls(wallIds, levelId)
+          return
+        }
         if (sel) {
-          if (sel.type === 'wall') st.removeWall(sel.id, levelId)
-          else if (sel.type === 'room') st.removeRoom(sel.id, levelId)
+          // Locked walls/openings can't be deleted (matches furniture lock).
+          const lvl = levelById(st.floorPlan, levelId)
+          if (sel.type === 'wall') {
+            if (!lvl.walls.find((w) => w.id === sel.id)?.locked) st.removeWall(sel.id, levelId)
+          } else if (sel.type === 'room') st.removeRoom(sel.id, levelId)
           else if (sel.type === 'note') st.removeNote(sel.id)
           else if (sel.type === 'dim') st.removeDimension(sel.id)
           else if (sel.type === 'polyline') st.removePolyline(sel.id)
-          else st.removeOpening(sel.id, levelId)
+          else if (!lvl.openings.find((o) => o.id === sel.id)?.locked)
+            st.removeOpening(sel.id, levelId)
         } else if (st.selectedItemId) {
           // A furniture footprint is selected — delete it (parity with 3D).
           st.deleteItem(st.selectedItemId)
@@ -501,28 +712,20 @@ export function FloorPlanEditor() {
 
   if (!editing) return null
 
-  const pointerWorld = (e: React.PointerEvent, excludeWallId?: string): [number, number] => {
+  const pointerWorld = (
+    e: React.PointerEvent,
+    excludeWallId?: string,
+    snapEdges?: boolean,
+  ): [number, number] => {
     const rect = svgRef.current!.getBoundingClientRect()
     const x = ((e.clientX - rect.left) / rect.width) * W
     const y = ((e.clientY - rect.top) / rect.height) * H
-    let wx = snap(x / PX - GRID_MARGIN)
-    let wz = snap(y / PX - GRID_MARGIN)
-    // Vertex snap: prefer an existing wall endpoint (on the active storey)
-    // within ~0.3 m so walls connect cleanly at corners. Skip the wall being
-    // vertex-dragged so its own endpoints don't capture the cursor.
-    let best = 0.3
-    for (const w of levelPlan.walls) {
-      if (w.id === excludeWallId) continue
-      for (const p of [w.start, w.end]) {
-        const dd = Math.hypot(p[0] - wx, p[1] - wz)
-        if (dd < best) {
-          best = dd
-          wx = p[0]
-          wz = p[1]
-        }
-      }
-    }
-    return [wx, wz]
+    const wx = snap(x / PX - GRID_MARGIN)
+    const wz = snap(y / PX - GRID_MARGIN)
+    // Vertex snap (always) + edge snap (wall drawing only): connect walls cleanly
+    // at corners, and let a new wall tee mid-span into an existing one. Skip the
+    // wall being vertex-dragged so its own endpoints don't capture the cursor.
+    return snapToWalls([wx, wz], levelPlan.walls, { excludeWallId, edges: snapEdges })
   }
 
   /** Nearest active-storey wall to a world point, with the projected offset. */
@@ -554,24 +757,74 @@ export function FloorPlanEditor() {
     return best && best.dist < 0.4 ? best : null
   }
 
+  // Along-wall distance of a world point: arc-length on a curved wall, chord
+  // projection on a straight one. Used to drag an opening along its wall.
+  const alongWall = (wall: PlanWall, x: number, z: number): number => {
+    if (isCurvedWall(wall)) return nearestArcLength(wall, [x, z]).offset
+    const len = wallLength(wall)
+    if (len === 0) return 0
+    const ux = (wall.end[0] - wall.start[0]) / len
+    const uz = (wall.end[1] - wall.start[1]) / len
+    return (x - wall.start[0]) * ux + (z - wall.start[1]) * uz
+  }
+
+  // Start a canvas pan from a pointer-down (used by middle/right-drag, view mode,
+  // and mobile-edit drags that aren't moving the selected item).
+  const startPan = (e: React.PointerEvent) => {
+    if (!canvasRef.current) return
+    panRef.current = {
+      x: e.clientX,
+      y: e.clientY,
+      sl: canvasRef.current.scrollLeft,
+      st: canvasRef.current.scrollTop,
+    }
+    panDidMove.current = false
+    svgRef.current?.setPointerCapture(e.pointerId)
+  }
+
+  /**
+   * Decide whether a pointer-down on a draggable element starts a MOVE. View
+   * mode never moves; on touch, edit mode requires the element to already be
+   * selected (tap first). When true it has captured the pointer + stopped
+   * propagation; when false the caller just selects and lets the gesture bubble
+   * to the canvas pan.
+   */
+  const beginElementDrag = (e: React.PointerEvent, isSelectedNow: boolean): boolean => {
+    if (editMode !== 'edit') return false
+    if (isMobile && !isSelectedNow) return false
+    e.stopPropagation()
+    svgRef.current?.setPointerCapture(e.pointerId)
+    return true
+  }
+
   const onDown = (e: React.PointerEvent) => {
-    // Middle-button drags to pan the open canvas; ignore right-click. Only the
-    // left button draws/selects.
-    if (e.button === 1 && canvasRef.current) {
+    // Middle- OR right-button drags pan the open canvas (orbit-style: a drag
+    // moves the view, leaving the left button free to draw/select). The right
+    // button's context menu is suppressed in onContextMenu when a pan moved.
+    if ((e.button === 1 || e.button === 2) && canvasRef.current) {
       e.preventDefault()
-      panRef.current = {
-        x: e.clientX,
-        y: e.clientY,
-        sl: canvasRef.current.scrollLeft,
-        st: canvasRef.current.scrollTop,
-      }
-      svgRef.current?.setPointerCapture(e.pointerId)
+      startPan(e)
       return
     }
     if (e.button !== 0) return
-    const [wx, wz] = pointerWorld(e)
+    // View mode (any drag pans), or a mobile-edit select-tool drag — on empty
+    // canvas, or an unselected item whose handler fell through here — pans
+    // instead of editing. The selected item's handler captures before this runs.
+    if (editMode === 'view' || (isMobile && tool === 'select')) {
+      startPan(e)
+      return
+    }
+    const [wx, wz] = pointerWorld(e, undefined, tool === 'wall')
     const st = useStore.getState()
-    if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
+    if (tool === 'wall' && isMobile) {
+      // Touch: tap-to-place chaining (precise — each point snaps to grid/walls,
+      // and you tap an exact spot instead of guessing a drag's lift-off under
+      // your finger). No anchor yet → this taps the start; an anchor exists →
+      // this sets the end (onUp commits + chains from it). A press-drag in one
+      // gesture still works (the end follows the finger before release).
+      wallTapHadAnchor.current = draft !== null
+      setDraft(draft ? { ...draft, x: wx, z: wz } : { x0: wx, z0: wz, x: wx, z: wz })
+    } else if (tool === 'wall' || tool === 'room' || tool === 'scale' || tool === 'dimension') {
       setDraft({ x0: wx, z0: wz, x: wx, z: wz })
     } else if (tool === 'autoroom') {
       // Make a room from the active storey's wall loop enclosing the click.
@@ -672,6 +925,7 @@ export function FloorPlanEditor() {
 
   const onMove = (e: React.PointerEvent) => {
     if (panRef.current && canvasRef.current) {
+      panDidMove.current = true
       canvasRef.current.scrollLeft = panRef.current.sl - (e.clientX - panRef.current.x)
       canvasRef.current.scrollTop = panRef.current.st - (e.clientY - panRef.current.y)
       return
@@ -715,8 +969,60 @@ export function FloorPlanEditor() {
       const st = useStore.getState()
       const wall = levelPlan.walls.find((w) => w.id === movingBulge.id)
       if (wall) {
-        const arc = Math.round(arcFromMidpoint(wall.start, wall.end, [wx, wz]) * 100) / 100
-        st.updateWall(wall.id, { arc }, levelId)
+        let arc = Math.round(arcFromMidpoint(wall.start, wall.end, [wx, wz]) * 100) / 100
+        // Snap back to a perfectly straight wall when the midpoint is within
+        // ~12 px of the chord — even off a grid line — so flattening a curve is
+        // easy. Clearing `arc` (undefined) makes the wall straight again.
+        if (Math.abs(arc) * PX < 12) arc = 0
+        st.updateWall(wall.id, { arc: arc === 0 ? undefined : arc }, levelId)
+      }
+      return
+    }
+    if (movingWall) {
+      const [wx, wz] = pointerWorld(e)
+      // Snap the DELTA so the wall stays rigid and moves in grid steps.
+      const dx = snap(wx - movingWall.grab[0])
+      const dz = snap(wz - movingWall.grab[1])
+      const ns: [number, number] = [movingWall.s0[0] + dx, movingWall.s0[1] + dz]
+      const ne: [number, number] = [movingWall.e0[0] + dx, movingWall.e0[1] + dz]
+      useStore.getState().moveWallTo(movingWall.id, ns, ne, levelId)
+      return
+    }
+    if (rotatingWall) {
+      const [wx, wz] = pointerWorld(e)
+      const ang = Math.atan2(wz - rotatingWall.cz, wx - rotatingWall.cx)
+      // Wrap to (-π, π], then clamp to ±90° each way: a larger turn would swing
+      // a segment back across its neighbours and tangle the shared corners.
+      let d = ang - rotatingWall.a0
+      d = Math.atan2(Math.sin(d), Math.cos(d))
+      d = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, d))
+      const cos = Math.cos(d)
+      const sin = Math.sin(d)
+      const rot = (p: [number, number]): [number, number] => {
+        const x = p[0] - rotatingWall.cx
+        const z = p[1] - rotatingWall.cz
+        return [
+          snap(rotatingWall.cx + x * cos - z * sin),
+          snap(rotatingWall.cz + x * sin + z * cos),
+        ]
+      }
+      useStore
+        .getState()
+        .moveWallTo(rotatingWall.id, rot(rotatingWall.s0), rot(rotatingWall.e0), levelId)
+      return
+    }
+    if (movingOpening) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const o = levelPlan.openings.find((x) => x.id === movingOpening.id)
+      const wall = o && levelPlan.walls.find((w) => w.id === o.wallId)
+      if (o && wall) {
+        const span = isCurvedWall(wall) ? wallArcLength(wall) : wallLength(wall)
+        const along = alongWall(wall, wx, wz)
+        // Keep the grabbed point under the cursor; clamp so the opening stays
+        // wholly on the wall.
+        const offset = Math.max(0, Math.min(span - o.width, snap(along - movingOpening.grab)))
+        st.updateOpening(o.id, { offset }, levelId)
       }
       return
     }
@@ -775,7 +1081,7 @@ export function FloorPlanEditor() {
       return
     }
     if (!draft) return
-    const [wx, wz] = pointerWorld(e)
+    const [wx, wz] = pointerWorld(e, undefined, tool === 'wall')
     setDraft({ ...draft, x: wx, z: wz })
   }
 
@@ -809,6 +1115,18 @@ export function FloorPlanEditor() {
     }
     if (movingBulge) {
       setMovingBulge(null)
+      return
+    }
+    if (movingWall) {
+      setMovingWall(null)
+      return
+    }
+    if (rotatingWall) {
+      setRotatingWall(null)
+      return
+    }
+    if (movingOpening) {
+      setMovingOpening(null)
       return
     }
     if (movingItem) {
@@ -854,6 +1172,24 @@ export function FloorPlanEditor() {
         st.setPlanSelection({ type: 'dim', id })
       }
       setDraft(null)
+      return
+    }
+    if (tool === 'wall' && isMobile) {
+      // Touch tap-to-place: a real segment commits and the chain continues from
+      // its end (tap the next point to keep going). A tap on/near the anchor (no
+      // segment) ends the chain; the very first tap just keeps the anchor.
+      const len = Math.hypot(draft.x - draft.x0, draft.z - draft.z0)
+      if (len > 0.2) {
+        const id = st.addWall(
+          { start: [draft.x0, draft.z0], end: [draft.x, draft.z], thickness: wallType },
+          levelId,
+        )
+        st.setPlanSelection({ type: 'wall', id })
+        setDraft({ x0: draft.x, z0: draft.z, x: draft.x, z: draft.z }) // chain from the end
+      } else if (wallTapHadAnchor.current) {
+        setDraft(null) // tapped the anchor again → finish the chain
+      }
+      // else: first tap just placed the anchor — keep it (draft stays).
       return
     }
     if (tool === 'wall') {
@@ -910,8 +1246,41 @@ export function FloorPlanEditor() {
   const pickTool = (t: Tool) => {
     setPolyDraft([])
     setPolylineDraft([])
+    setDraft(null) // drop any in-progress wall tap-chain / draft
     setTool(t)
+    setEditMode('edit') // choosing a tool implies you want to edit
   }
+
+  // View ⇄ Edit toggle. View = pan/zoom + tap-to-inspect (safe one-finger pan on
+  // touch); Edit reveals the tools + lets you move/draw.
+  const viewToggle = (
+    <div className="seg accent">
+      <button
+        type="button"
+        className={editMode === 'view' ? 'on' : ''}
+        aria-pressed={editMode === 'view'}
+        onClick={() => {
+          setEditMode('view')
+          setTool('select')
+          setPolyDraft([])
+          setPolylineDraft([])
+          setDraft(null)
+        }}
+        title="View — pan & zoom only; dragging never moves anything"
+      >
+        View
+      </button>
+      <button
+        type="button"
+        className={editMode === 'edit' ? 'on' : ''}
+        aria-pressed={editMode === 'edit'}
+        onClick={() => setEditMode('edit')}
+        title="Edit — draw + move items (on touch, tap an item before dragging it)"
+      >
+        Edit
+      </button>
+    </div>
+  )
 
   // The drawing-tool palette (desktop: a button row; mobile: a compact <select>
   // so the whole bar stays one row instead of wrapping "Auto room" to 2 lines).
@@ -956,8 +1325,17 @@ export function FloorPlanEditor() {
     </div>
   )
 
-  // Plan-management actions (shared by the desktop bar + the mobile Tools modal).
-  const planActions = (
+  // Template + saved-plan library — primary plan entry points, kept inline.
+  const templateLibrary = (
+    <>
+      <TemplatePicker />
+      <PlanLibrary />
+    </>
+  )
+
+  // File / reference actions — grouped behind the desktop "Plan ▾" menu (and
+  // shown flat in the mobile Tools modal).
+  const fileActions = (
     <>
       <button
         type="button"
@@ -976,8 +1354,6 @@ export function FloorPlanEditor() {
       <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
         Reset to HDB
       </button>
-      <TemplatePicker />
-      <PlanLibrary />
       {/* Reference photo — trace walls over a floor-plan image / room scan. */}
       <input
         ref={fileRef}
@@ -1049,8 +1425,108 @@ export function FloorPlanEditor() {
     </>
   )
 
-  // View toggles + export + zoom (shared by the desktop bar + the mobile modal).
-  const viewActions = (
+  // Contextual multi-select toggle — inline (only with Select tool in Edit mode).
+  const multiSelectToggle =
+    tool === 'select' && editMode === 'edit' ? (
+      <button
+        type="button"
+        onClick={() => a.setPlanWallMultiAdd(!planWallMultiAdd)}
+        className={`btn btn-sm${planWallMultiAdd ? ' btn-accent' : ''}`}
+        title="Select multiple walls: tap walls to add/remove them (or Shift-click). Then Delete or Lock them together."
+        aria-pressed={planWallMultiAdd}
+      >
+        Select+
+      </button>
+    ) : null
+
+  // Undo / redo (also ⌘Z / ⇧⌘Z) — visible buttons for touch, where there's no
+  // keyboard. Important enough to sit in the mobile top bar, not just the menu.
+  const undoRedo = (
+    <div className="seg" style={{ alignItems: 'center' }}>
+      <button
+        type="button"
+        title="Undo (⌘Z)"
+        aria-label="Undo"
+        disabled={!canUndo}
+        onClick={() => useStore.getState().undo()}
+      >
+        ↶
+      </button>
+      <button
+        type="button"
+        title="Redo (⇧⌘Z)"
+        aria-label="Redo"
+        disabled={!canRedo}
+        onClick={() => useStore.getState().redo()}
+      >
+        ↷
+      </button>
+    </div>
+  )
+
+  // Snap-grid size + zoom — frequent but lower-priority than undo/redo.
+  const gridZoom = (
+    <>
+      {/* Snap-grid size — finer = more precise placement. */}
+      <label className="seg" style={{ alignItems: 'center', gap: 6, paddingLeft: 8 }}>
+        <span className="panel-sub" style={{ textTransform: 'none', letterSpacing: 0 }}>
+          Grid
+        </span>
+        <select
+          aria-label="Snap grid size"
+          className="input"
+          value={gridSize}
+          onChange={(e) => setGridSize(Number(e.target.value))}
+        >
+          {GRID_SIZES.map((g) => (
+            <option key={g} value={g}>
+              {g < 1 ? `${+(g * 100).toFixed(1)} cm` : `${g} m`}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="seg" style={{ alignItems: 'center' }}>
+        <button
+          type="button"
+          title="Zoom out"
+          onClick={() => zoomAroundCentre((z) => z - ZOOM_BTN_STEP)}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          title="Reset zoom & centre"
+          onClick={() => {
+            pendingScroll.current = null
+            setZoom(1)
+            requestAnimationFrame(() => centerPlan(basePX))
+          }}
+          style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          type="button"
+          title="Zoom in"
+          onClick={() => zoomAroundCentre((z) => z + ZOOM_BTN_STEP)}
+        >
+          +
+        </button>
+      </div>
+    </>
+  )
+
+  // Frequent, compact controls kept inline on desktop: undo/redo + grid + zoom.
+  const quickActions = (
+    <>
+      {undoRedo}
+      {gridZoom}
+    </>
+  )
+
+  // Occasional view toggles + export — grouped behind the desktop "View ▾" menu
+  // (and shown flat in the mobile Tools modal).
+  const viewMenuActions = (
     <>
       {fPlanLabels && (
         <button
@@ -1071,6 +1547,15 @@ export function FloorPlanEditor() {
         aria-pressed={showWallDims}
       >
         Dims
+      </button>
+      <button
+        type="button"
+        onClick={() => setShowFurniture((v) => !v)}
+        className={`btn btn-sm${showFurniture ? ' btn-accent' : ''}`}
+        title="Show furniture footprints (hidden by default so they don't get in the way of editing; hidden furniture can't be selected or moved)"
+        aria-pressed={showFurniture}
+      >
+        Furniture
       </button>
       {isMultiLevel && (
         <button
@@ -1107,33 +1592,6 @@ export function FloorPlanEditor() {
       >
         Export PNG
       </button>
-      <div className="seg" style={{ alignItems: 'center' }}>
-        <button
-          type="button"
-          title="Zoom out"
-          onClick={() => setZoom((z) => Math.max(0.4, Math.round((z - 0.1) * 10) / 10))}
-        >
-          −
-        </button>
-        <button
-          type="button"
-          title="Reset zoom & centre"
-          onClick={() => {
-            setZoom(1)
-            requestAnimationFrame(() => centerPlan(basePX))
-          }}
-          style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
-        >
-          {Math.round(zoom * 100)}%
-        </button>
-        <button
-          type="button"
-          title="Zoom in"
-          onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.1) * 10) / 10))}
-        >
-          +
-        </button>
-      </div>
     </>
   )
 
@@ -1237,6 +1695,10 @@ export function FloorPlanEditor() {
       >
         {isMobile ? (
           <>
+            {viewToggle}
+            {/* The ☰ menu holds furniture/undo/grid/labels/export/etc., useful in
+                both modes — so show it always (the drawing-tool picker stays
+                Edit-only). */}
             <button
               type="button"
               className={`btn btn-sm${toolsMenuOpen ? ' btn-accent' : ''}`}
@@ -1244,24 +1706,23 @@ export function FloorPlanEditor() {
               aria-expanded={toolsMenuOpen}
               onClick={() => setToolsMenuOpen(true)}
             >
-              ☰ Tools
+              ☰ Menu
             </button>
-            <select
-              aria-label="Drawing tool"
-              className="input"
-              value={tool === 'scale' ? 'select' : tool}
-              onChange={(e) => pickTool(e.target.value as Tool)}
-              style={{ flex: 1, minWidth: 0 }}
-            >
-              {toolList.map((t) => (
-                <option key={t} value={t}>
-                  {toolLabel(t)}
-                </option>
-              ))}
-            </select>
-            <button type="button" onClick={exitPlanEditorToScene} className="btn btn-accent btn-sm">
-              Done
-            </button>
+            {editMode === 'edit' && (
+              <PlanToolMenu tools={toolList} tool={tool} label={toolLabel} onPick={pickTool} />
+            )}
+            {/* Undo/redo are important enough to stay in the top bar (not buried
+                in the ☰ Menu). `ml-auto` pushes them + Done to the right. */}
+            <div className="ml-auto flex items-center gap-2">
+              {undoRedo}
+              <button
+                type="button"
+                onClick={exitPlanEditorToScene}
+                className="btn btn-accent btn-sm"
+              >
+                Done
+              </button>
+            </div>
           </>
         ) : (
           <>
@@ -1274,11 +1735,20 @@ export function FloorPlanEditor() {
               aria-label="Plan name"
             />
             <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
-            {toolPalette}
-            {wallTypeSeg}
-            {planActions}
-            <div className="ml-auto flex items-center gap-3">
-              {viewActions}
+            {viewToggle}
+            {editMode === 'edit' && toolPalette}
+            {editMode === 'edit' && wallTypeSeg}
+            {templateLibrary}
+            <PlanMenu label="Plan">{fileActions}</PlanMenu>
+            <div className="ml-auto flex items-center gap-2">
+              {multiSelectToggle}
+              {quickActions}
+              <PlanMenu
+                label="View"
+                active={showWallDims || showFurniture || labelsOn || showOtherLevels}
+              >
+                {viewMenuActions}
+              </PlanMenu>
               {totalLabel}
               <button
                 type="button"
@@ -1293,21 +1763,47 @@ export function FloorPlanEditor() {
       </div>
       {isMobile && (
         <Modal open={toolsMenuOpen} onClose={() => setToolsMenuOpen(false)} title="Plan tools">
-          <div className="flex flex-col gap-3">
-            <input
-              value={plan.name}
-              onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
-              className="input"
-              aria-label="Plan name"
-            />
-            <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
-            {wallTypeSeg ? (
-              <div className="flex flex-wrap items-center gap-2">{wallTypeSeg}</div>
-            ) : null}
-            <div className="flex flex-wrap items-center gap-2">{planActions}</div>
-            <div className="flex flex-wrap items-center gap-2">{viewActions}</div>
-            {totalLabel}
-            {planDefaults}
+          {/* Grouped into labelled sections so the sheet reads as tidy settings
+              rather than one dense wall of buttons. */}
+          <div className="plan-tools-sheet">
+            <section className="plan-tools-group">
+              <div className="menu-label">Plan</div>
+              <input
+                value={plan.name}
+                onChange={(e) => a.updateFloorPlanMeta({ name: e.target.value })}
+                className="input"
+                aria-label="Plan name"
+              />
+              <LevelTabs plan={plan} activeLevelId={levelId} onSelect={setActiveLevelId} />
+              <div className="flex flex-wrap items-center gap-2">
+                {templateLibrary}
+                {fileActions}
+              </div>
+            </section>
+
+            <section className="plan-tools-group">
+              <div className="menu-label">View</div>
+              <div className="flex flex-wrap items-center gap-2">{viewMenuActions}</div>
+              {/* undo/redo live in the top bar on mobile, so only grid + zoom here. */}
+              <div className="flex flex-wrap items-center gap-2">{gridZoom}</div>
+            </section>
+
+            {(wallTypeSeg || multiSelectToggle) && (
+              <section className="plan-tools-group">
+                <div className="menu-label">Edit</div>
+                {wallTypeSeg ? (
+                  <div className="flex flex-wrap items-center gap-2">{wallTypeSeg}</div>
+                ) : null}
+                {multiSelectToggle}
+              </section>
+            )}
+
+            <section className="plan-tools-group">
+              <div className="menu-label">Defaults</div>
+              {planDefaults}
+              {totalLabel}
+            </section>
+
             <button
               type="button"
               className="btn btn-sm btn-block"
@@ -1329,26 +1825,15 @@ export function FloorPlanEditor() {
         <div
           ref={canvasRef}
           className="plan-canvas min-h-0 flex-1 overflow-auto p-4"
-          onWheel={(e) => {
-            // Ctrl/⌘+wheel zooms around the cursor; plain wheel scrolls (pans).
-            if (!(e.ctrlKey || e.metaKey)) return
-            e.preventDefault()
-            const el = canvasRef.current
-            if (!el) return
-            const rect = el.getBoundingClientRect()
-            const px = e.clientX - rect.left
-            const py = e.clientY - rect.top
-            const cx = el.scrollLeft + px
-            const cy = el.scrollTop + py
-            const factor = e.deltaY < 0 ? 1.12 : 1 / 1.12
-            const next = Math.min(3, Math.max(0.4, zoom * factor))
-            if (next === zoom) return
-            setZoom(next)
-            const r = next / zoom
-            requestAnimationFrame(() => {
-              el.scrollLeft = cx * r - px
-              el.scrollTop = cy * r - py
-            })
+          // Wheel zoom is wired as a native non-passive listener (see effect
+          // above); a React onWheel here would be passive and couldn't
+          // preventDefault. Right-drag pans, so suppress its context menu.
+          onContextMenu={(e) => {
+            // Swallow the menu only when a right-drag pan actually moved.
+            if (panDidMove.current) {
+              e.preventDefault()
+              panDidMove.current = false
+            }
           }}
           onDragOver={(e) => {
             if (e.dataTransfer.types.includes('Files')) e.preventDefault()
@@ -1367,7 +1852,7 @@ export function FloorPlanEditor() {
             height={H}
             className="plan-paper touch-none"
             style={{
-              cursor: tool === 'select' ? 'default' : 'crosshair',
+              cursor: editMode === 'view' ? 'grab' : tool === 'select' ? 'default' : 'crosshair',
               padding: 0,
               // Render at the full canvas size (overrides responsive `.plan-paper`
               // width rules) so the grid + plan aren't shrunk/clipped.
@@ -1446,11 +1931,11 @@ export function FloorPlanEditor() {
                   style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
                   onPointerDown={(e) => {
                     if (tool !== 'select') return
-                    e.stopPropagation()
-                    const [wx, wz] = pointerWorld(e)
+                    const willMove = beginElementDrag(e, sel?.type === 'room' && sel.id === r.id)
                     a.setPlanSelection({ type: 'room', id: r.id })
+                    if (!willMove) return
+                    const [wx, wz] = pointerWorld(e)
                     setMoving({ id: r.id, gx: wx - r.origin[0], gz: wz - r.origin[1] })
-                    svgRef.current?.setPointerCapture(e.pointerId)
                   }}
                 >
                   {r.polygon && r.polygon.length >= 3 ? (
@@ -1487,7 +1972,11 @@ export function FloorPlanEditor() {
                   {/* Reshape handles: drag any vertex of a selected free-form
                       (polyroom) room. stopPropagation keeps the room-move
                       handler on the parent <g> from firing. */}
-                  {isSel && tool === 'select' && r.polygon && r.polygon.length >= 3
+                  {editMode === 'edit' &&
+                  isSel &&
+                  tool === 'select' &&
+                  r.polygon &&
+                  r.polygon.length >= 3
                     ? r.polygon.map(([vx, vz], i) => (
                         <circle
                           key={`pv-${r.id}-${i}`}
@@ -1509,17 +1998,41 @@ export function FloorPlanEditor() {
                       ))
                     : null}
                   {(() => {
+                    // Progressive detail by on-screen room size: full (name +
+                    // area) → name only → hidden. Keeps the most important info
+                    // (the name) longest as the plan zooms out / shrinks. A
+                    // selected room always shows full so editing stays legible.
+                    const detail =
+                      isSel && tool === 'select' ? 'full' : roomLabelDetail(planRoomArea(r), PX)
+                    if (detail === 'none') return null
                     const [lx, lz] = roomLabelPosition(r)
                     const px = toPx(lx)
                     const pz = toPx(lz)
                     // Optional label rotation (radians → degrees, about the anchor)
                     // and font-size multiplier — Sweet Home 3D label angle/font.
                     const deg = r.labelAngle ? (r.labelAngle * 180) / Math.PI : 0
-                    const fontPx = 11 * (r.labelFontScale ?? 1)
+                    const fontPx = roomFont * (r.labelFontScale ?? 1)
+                    // Wrap the name to the room's on-screen width so long names
+                    // (e.g. "Household Shelter") stay inside the room; over-long
+                    // words hyphenate. ~0.55·fontPx ≈ average glyph advance.
+                    const roomWidthM =
+                      r.polygon && r.polygon.length >= 3
+                        ? Math.max(...r.polygon.map((p) => p[0])) -
+                          Math.min(...r.polygon.map((p) => p[0]))
+                        : r.width
+                    const maxChars = Math.max(
+                      4,
+                      Math.floor((roomWidthM * PX * 0.92) / (fontPx * 0.55)),
+                    )
+                    const nameLines = wrapLabel(r.name, maxChars)
+                    const lineH = fontPx + 1
+                    const totalLines = nameLines.length + (detail === 'full' ? 1 : 0)
+                    // Vertically centre the multi-line block on the label anchor.
+                    const yTop = pz - ((totalLines - 1) * lineH) / 2
                     return (
                       <text
                         x={px}
-                        y={pz}
+                        y={yTop}
                         textAnchor="middle"
                         className="select-none"
                         fontSize={fontPx}
@@ -1528,17 +2041,26 @@ export function FloorPlanEditor() {
                         style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
                         onPointerDown={(e) => {
                           if (tool !== 'select') return
-                          e.stopPropagation()
-                          const [wx, wz] = pointerWorld(e)
+                          const willMove = beginElementDrag(
+                            e,
+                            sel?.type === 'room' && sel.id === r.id,
+                          )
                           a.setPlanSelection({ type: 'room', id: r.id })
+                          if (!willMove) return
+                          const [wx, wz] = pointerWorld(e)
                           setMovingRoomLabel({ id: r.id, gx: wx - lx, gz: wz - lz })
-                          svgRef.current?.setPointerCapture(e.pointerId)
                         }}
                       >
-                        <tspan x={px}>{r.name}</tspan>
-                        <tspan x={px} dy={fontPx + 3} fill="var(--text-3)">
-                          {formatArea(planRoomArea(r), units)}
-                        </tspan>
+                        {nameLines.map((ln, i) => (
+                          <tspan key={`${ln}-${i}`} x={px} dy={i === 0 ? 0 : lineH}>
+                            {ln}
+                          </tspan>
+                        ))}
+                        {detail === 'full' && (
+                          <tspan x={px} dy={lineH + 2} fill="var(--text-3)">
+                            {formatArea(planRoomArea(r), units)}
+                          </tspan>
+                        )}
                       </text>
                     )
                   })()}
@@ -1547,89 +2069,98 @@ export function FloorPlanEditor() {
             })}
 
             {/* Furniture footprints — the live 3D layout, top-down, filtered to
-                the active storey. Click to select (shared with 3D); drag
-                (select tool) to move. */}
-            {levelItems.map((it) => {
-              const def = getDef(it.defId)
-              if (!def) return null
-              const obb = itemFootprint(it, def)
-              const pts = obbCorners(obb)
-                .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
-                .join(' ')
-              const isSel = selectedItemId === it.id
-              return (
-                <polygon
-                  key={it.id}
-                  points={pts}
-                  fill={
-                    isSel
-                      ? 'var(--accent-soft)'
-                      : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
-                  }
-                  fillOpacity={isSel ? 0.95 : 0.55}
-                  stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
-                  strokeWidth={isSel ? 2 : 1}
-                  strokeLinejoin="round"
-                  style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
-                  onPointerDown={(e) => {
-                    if (tool !== 'select') return
-                    e.stopPropagation()
-                    const [wx, wz] = pointerWorld(e)
-                    const st = useStore.getState()
-                    st.selectItem(it.id)
-                    st.pushHistory()
-                    setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
-                    svgRef.current?.setPointerCapture(e.pointerId)
-                  }}
-                />
-              )
-            })}
+                the active storey. Hidden by default (the "Furniture" toggle);
+                while hidden they render nothing, so they can't be selected/moved.
+                Click to select (shared with 3D); drag (select tool) to move. */}
+            {showFurniture &&
+              levelItems.map((it) => {
+                const def = getDef(it.defId)
+                if (!def) return null
+                const obb = itemFootprint(it, def)
+                const pts = obbCorners(obb)
+                  .map(([x, z]) => `${toPx(x)},${toPx(z)}`)
+                  .join(' ')
+                const isSel = selectedItemId === it.id
+                return (
+                  <polygon
+                    key={it.id}
+                    points={pts}
+                    fill={
+                      isSel
+                        ? 'var(--accent-soft)'
+                        : (CATEGORY_FILL[def.category] ?? 'var(--plan-cat-others)')
+                    }
+                    fillOpacity={isSel ? 0.95 : 0.55}
+                    stroke={isSel ? 'var(--accent)' : 'var(--border-2)'}
+                    strokeWidth={isSel ? 2 : 1}
+                    strokeLinejoin="round"
+                    style={{ cursor: tool === 'select' ? 'move' : 'crosshair' }}
+                    onPointerDown={(e) => {
+                      if (tool !== 'select') return
+                      const st = useStore.getState()
+                      const willMove = beginElementDrag(e, selectedItemId === it.id)
+                      st.selectItem(it.id) // a tap always selects (for inspect/then-drag)
+                      if (!willMove) return // view / unselected-on-touch: let it pan
+                      const [wx, wz] = pointerWorld(e)
+                      st.pushHistory()
+                      setMovingItem({ id: it.id, gx: wx - it.position[0], gz: wz - it.position[1] })
+                    }}
+                  />
+                )
+              })}
 
             {/* Furniture labels. When the Labels toggle is on (PARITY-PLANLABELS),
                 every footprint shows its name (+ price); otherwise just the
                 selected one, so the user can always tell what they clicked. */}
-            {(() => {
-              const labelled = labelsOn
-                ? levelItems
-                : levelItems.filter((i) => i.id === selectedItemId)
-              return labelled.map((it) => {
-                const def = getDef(it.defId)
-                const name = it.label ?? def?.name
-                if (!name) return null
-                const variant = typeof it.props.variant === 'string' ? it.props.variant : undefined
-                const price = fPrice && def ? itemPrice(def, def.category, variant) : undefined
-                const lines = labelsOn ? planLabelLines(name, price, planLabels) : [name]
-                if (lines.length === 0) return null
-                const cx = toPx(it.position[0])
-                const cy = toPx(it.position[1])
-                return (
-                  <text
-                    key={it.id}
-                    x={cx}
-                    y={cy - (lines.length - 1) * 6}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="plan-item-label"
-                    style={{
-                      pointerEvents: 'none',
-                      fontSize: 11,
-                      fontWeight: 700,
-                      fill: 'var(--text)',
-                      paintOrder: 'stroke',
-                      stroke: 'var(--surface)',
-                      strokeWidth: 3,
-                      strokeLinejoin: 'round',
-                    }}
-                  >
-                    {lines.map((ln, i) => (
-                      <tspan key={ln} x={cx} dy={i === 0 ? 0 : 12} fontWeight={i === 0 ? 700 : 600}>
-                        {ln}
-                      </tspan>
-                    ))}
-                  </text>
-                )
-              })
-            })()}
+            {showFurniture &&
+              (() => {
+                const labelled = labelsOn
+                  ? levelItems
+                  : levelItems.filter((i) => i.id === selectedItemId)
+                return labelled.map((it) => {
+                  const def = getDef(it.defId)
+                  const name = it.label ?? def?.name
+                  if (!name) return null
+                  const variant =
+                    typeof it.props.variant === 'string' ? it.props.variant : undefined
+                  const price = fPrice && def ? itemPrice(def, def.category, variant) : undefined
+                  const lines = labelsOn ? planLabelLines(name, price, planLabels) : [name]
+                  if (lines.length === 0) return null
+                  const cx = toPx(it.position[0])
+                  const cy = toPx(it.position[1])
+                  return (
+                    <text
+                      key={it.id}
+                      x={cx}
+                      y={cy - (lines.length - 1) * 6}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="plan-item-label"
+                      style={{
+                        pointerEvents: 'none',
+                        fontSize: 11,
+                        fontWeight: 700,
+                        fill: 'var(--text)',
+                        paintOrder: 'stroke',
+                        stroke: 'var(--surface)',
+                        strokeWidth: 3,
+                        strokeLinejoin: 'round',
+                      }}
+                    >
+                      {lines.map((ln, i) => (
+                        <tspan
+                          key={ln}
+                          x={cx}
+                          dy={i === 0 ? 0 : 12}
+                          fontWeight={i === 0 ? 700 : 600}
+                        >
+                          {ln}
+                        </tspan>
+                      ))}
+                    </text>
+                  )
+                })
+              })()}
 
             {/* Text notes (active storey) — PARITY-DIMTEXT. Click (select tool)
                 to select + drag; edit/delete in the inspector. */}
@@ -1657,11 +2188,11 @@ export function FloorPlanEditor() {
                     }}
                     onPointerDown={(e) => {
                       if (tool !== 'select') return
-                      e.stopPropagation()
-                      const [wx, wz] = pointerWorld(e)
+                      const willMove = beginElementDrag(e, sel?.type === 'note' && sel.id === nt.id)
                       useStore.getState().setPlanSelection({ type: 'note', id: nt.id })
+                      if (!willMove) return
+                      const [wx, wz] = pointerWorld(e)
                       setMovingNote({ id: nt.id, gx: wx - nt.x, gz: wz - nt.z })
-                      svgRef.current?.setPointerCapture(e.pointerId)
                     }}
                   >
                     {nt.text}
@@ -1803,22 +2334,52 @@ export function FloorPlanEditor() {
             {/* Walls (active storey) */}
             {levelPlan.walls.map((w) => {
               const isSel = sel?.type === 'wall' && sel.id === w.id
+              const inSel = selectedWalls.has(w.id) // primary OR a multi-select extra
               const d = wallSvgPath(w, toPx)
-              const stroke = isSel
+              const stroke = inSel
                 ? 'var(--accent)'
                 : w.thickness === 'external'
                   ? 'var(--plan-wall)'
                   : 'var(--text-3)'
               const onWallDown = (e: React.PointerEvent) => {
-                if (tool === 'select') {
+                if (tool !== 'select') return
+                // Additive select (Shift/⌘/Ctrl-click, or the touch "Select more"
+                // toggle): toggle this wall in the multi-selection and don't drag.
+                if (e.shiftKey || e.metaKey || e.ctrlKey || planWallMultiAdd) {
                   e.stopPropagation()
-                  a.setPlanSelection({ type: 'wall', id: w.id })
+                  a.toggleWallSelection(w.id)
+                  return
                 }
+                const willMove = beginElementDrag(e, inSel)
+                a.setPlanSelection({ type: 'wall', id: w.id })
+                if (!willMove) return // view / unselected-on-touch: let it pan
+                if (w.locked) return // locked walls select but don't move (like furniture)
+                // Drag the whole wall (endpoint handles, which stopPropagation,
+                // handle per-corner reshape instead).
+                const [wx, wz] = pointerWorld(e)
+                setMovingWall({ id: w.id, s0: [...w.start], e0: [...w.end], grab: [wx, wz] })
               }
               // Curve bulge handle: drag a selected wall's midpoint to bow it.
-              const bulge = fCurvedWalls && isSel && tool === 'select' ? wallCurveMidpoint(w) : null
+              const bulge =
+                editMode === 'edit' && fCurvedWalls && isSel && tool === 'select' && !w.locked
+                  ? wallCurveMidpoint(w)
+                  : null
               return (
-                <g key={w.id}>
+                <g key={w.id} data-wall={w.id}>
+                  {/* Selected: a translucent accent halo around the wall so the
+                      selection is obvious (mirrors the furniture highlight).
+                      Shown for every wall in the (multi-)selection. */}
+                  {inSel && (
+                    <path
+                      d={d}
+                      fill="none"
+                      stroke="var(--accent)"
+                      strokeOpacity={0.35}
+                      strokeWidth={(w.thickness === 'external' ? 7 : 4) + 11}
+                      strokeLinecap="round"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )}
                   {/* Fat invisible hit target so curved/thin walls are easy to grab. */}
                   <path
                     d={d}
@@ -1859,78 +2420,80 @@ export function FloorPlanEditor() {
               )
             })}
 
-            {/* Persistent wall-length labels (a staple of pro floor planners),
-                placed at each wall midpoint, nudged to the wall's outward side.
-                Shown only for walls long enough to be legible. */}
+            {/* Persistent wall-length dimensions (a staple of pro floor
+                planners): a proper dimension line with extension lines +
+                arrowheads spanning each wall, oriented to the plan's outside.
+                Culled to walls long enough on screen to fit the callout, and the
+                text font scales with zoom — so they stay legible without
+                cluttering when zoomed out. */}
             {showWallDims &&
               levelPlan.walls.map((w) => {
                 const len = wallLength(w)
-                if (len < 0.4) return null
-                const mx = (w.start[0] + w.end[0]) / 2
-                const mz = (w.start[1] + w.end[1]) / 2
-                const ux = (w.end[0] - w.start[0]) / len
-                const uz = (w.end[1] - w.start[1]) / len
-                // Perpendicular offset (in metres) so the label clears the line.
-                const off = 0.28
-                const isSel = sel?.type === 'wall' && sel.id === w.id
+                if (!showWallDim(len, PX)) return null
                 return (
-                  <text
+                  <WallDimension
                     key={`dim-${w.id}`}
-                    x={toPx(mx - uz * off)}
-                    y={toPx(mz + ux * off)}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="plan-dim-label"
-                    fill={isSel ? 'var(--accent)' : 'var(--text-2)'}
-                    style={{ pointerEvents: 'none', fontSize: 11, fontWeight: 600 }}
-                  >
-                    {formatLength(len, units)}
-                  </text>
+                    a={w.start}
+                    b={w.end}
+                    label={formatLength(len, units)}
+                    toPx={toPx}
+                    centre={planCentrePx}
+                    fontPx={dimFont}
+                    selected={sel?.type === 'wall' && sel.id === w.id}
+                  />
                 )
               })}
 
-            {/* Opening (door/window) width labels — same "Dims" toggle. Placed on
-                the side opposite a door's swing so they clear the arc. */}
+            {/* Opening (door/window) width dimensions — same "Dims" toggle.
+                Rendered as a dimension marker spanning the opening along its
+                wall, matching the wall callouts. Curved walls keep a plain label
+                (a straight marker can't follow the arc). */}
             {showWallDims &&
               levelPlan.openings.map((o) => {
                 const wall = levelPlan.walls.find((w) => w.id === o.wallId)
                 if (!wall) return null
                 const len = wallLength(wall)
                 if (len === 0) return null
-                // Opening centre + wall normal — arc-aware for curved walls.
-                let ux: number
-                let uz: number
-                let mx: number
-                let mz: number
+                // Least-important, most-numerous labels — drop when they can't
+                // fit (and sooner on mobile) to keep the plan readable.
+                if (!showOpeningDim(o.width, PX, isMobile)) return null
+                const isSel = sel?.type === 'opening' && sel.id === o.id
                 if (isCurvedWall(wall)) {
                   const p = pointAtArcLength(wall, o.offset + o.width / 2)
-                  ux = Math.sin(p.angle)
-                  uz = Math.cos(p.angle)
-                  mx = p.x
-                  mz = p.z
-                } else {
-                  ux = (wall.end[0] - wall.start[0]) / len
-                  uz = (wall.end[1] - wall.start[1]) / len
-                  mx = wall.start[0] + ux * (o.offset + o.width / 2)
-                  mz = wall.start[1] + uz * (o.offset + o.width / 2)
+                  const ux = Math.sin(p.angle)
+                  const uz = Math.cos(p.angle)
+                  const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
+                  return (
+                    <text
+                      key={`odim-${o.id}`}
+                      x={toPx(p.x - uz * off)}
+                      y={toPx(p.z + ux * off)}
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      className="plan-dim-label"
+                      fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
+                      style={{ pointerEvents: 'none', fontSize: dimFont, fontWeight: 600 }}
+                    >
+                      {formatLength(o.width, units)}
+                    </text>
+                  )
                 }
-                // (-uz, ux) is the wall's "right" normal — a door swinging right
-                // has its arc there, so label the opposite side.
-                const off = o.kind === 'door' && doorSwing(o) === 'right' ? -0.32 : 0.32
-                const isSel = sel?.type === 'opening' && sel.id === o.id
+                const ux = (wall.end[0] - wall.start[0]) / len
+                const uz = (wall.end[1] - wall.start[1]) / len
                 return (
-                  <text
+                  <WallDimension
                     key={`odim-${o.id}`}
-                    x={toPx(mx - uz * off)}
-                    y={toPx(mz + ux * off)}
-                    textAnchor="middle"
-                    dominantBaseline="middle"
-                    className="plan-dim-label"
-                    fill={isSel ? 'var(--accent)' : 'var(--accent-soft-text)'}
-                    style={{ pointerEvents: 'none', fontSize: 10, fontWeight: 600 }}
-                  >
-                    {formatLength(o.width, units)}
-                  </text>
+                    a={[wall.start[0] + ux * o.offset, wall.start[1] + uz * o.offset]}
+                    b={[
+                      wall.start[0] + ux * (o.offset + o.width),
+                      wall.start[1] + uz * (o.offset + o.width),
+                    ]}
+                    label={formatLength(o.width, units)}
+                    toPx={toPx}
+                    centre={planCentrePx}
+                    fontPx={dimFont}
+                    selected={isSel}
+                  />
                 )
               })}
 
@@ -2015,6 +2578,7 @@ export function FloorPlanEditor() {
                       isGround
                         ? (e) => {
                             if (e.button !== 0) return
+                            if (editMode !== 'edit') return // view mode: let it pan
                             e.stopPropagation()
                             const [wx, wz] = pointerWorld(e)
                             setMovingStop({ id: s.id, gx: wx - sx, gz: wz - sz })
@@ -2054,33 +2618,85 @@ export function FloorPlanEditor() {
                 )
               })}
 
-            {/* Endpoint handles for the selected wall (drag to reshape; shared
-                corners move together). Lets the user pull a rectangle into an
-                L-shape by dragging one corner. */}
-            {tool === 'select' &&
+            {/* Selected-wall handles: drag the body to move (connected corners
+                follow), drag an end handle to extend/shorten that end, or drag
+                the rotate handle (offset from the midpoint) to rotate. */}
+            {editMode === 'edit' &&
+              tool === 'select' &&
               sel?.type === 'wall' &&
               (() => {
                 const w = levelPlan.walls.find((x) => x.id === sel.id)
-                if (!w) return null
-                return (['start', 'end'] as const).map((which) => {
-                  const p = w[which]
-                  return (
+                if (!w || w.locked) return null // locked: no reshape/rotate handles
+                const sx = toPx(w.start[0])
+                const sy = toPx(w.start[1])
+                const ex = toPx(w.end[0])
+                const ey = toPx(w.end[1])
+                const mpx = (sx + ex) / 2
+                const mpy = (sy + ey) / 2
+                const L = Math.hypot(ex - sx, ey - sy) || 1
+                const npx = -(ey - sy) / L
+                const npy = (ex - sx) / L
+                const ROT_OFF = 30
+                const hx = mpx + npx * ROT_OFF
+                const hy = mpy + npy * ROT_OFF
+                return (
+                  <>
+                    {(['start', 'end'] as const).map((which) => {
+                      const p = w[which]
+                      return (
+                        <circle
+                          key={which}
+                          cx={toPx(p[0])}
+                          cy={toPx(p[1])}
+                          r={6}
+                          fill="var(--accent)"
+                          stroke="var(--surface-solid)"
+                          strokeWidth={2}
+                          style={{ cursor: 'grab' }}
+                          onPointerDown={(e) => {
+                            e.stopPropagation()
+                            setMovingVertex({ id: w.id, which })
+                            svgRef.current?.setPointerCapture(e.pointerId)
+                          }}
+                        />
+                      )
+                    })}
+                    {/* Rotate handle */}
+                    <line
+                      x1={mpx}
+                      y1={mpy}
+                      x2={hx}
+                      y2={hy}
+                      stroke="var(--accent)"
+                      strokeWidth={1.5}
+                      style={{ pointerEvents: 'none' }}
+                    />
                     <circle
-                      key={which}
-                      cx={toPx(p[0])}
-                      cy={toPx(p[1])}
-                      r={6}
-                      fill="var(--accent)"
-                      stroke="var(--surface-solid)"
+                      cx={hx}
+                      cy={hy}
+                      r={7}
+                      fill="var(--surface-solid)"
+                      stroke="var(--accent)"
                       strokeWidth={2}
                       style={{ cursor: 'grab' }}
                       onPointerDown={(e) => {
                         e.stopPropagation()
-                        setMovingVertex({ id: w.id, which })
+                        const [gx, gz] = pointerWorld(e)
+                        const cx = (w.start[0] + w.end[0]) / 2
+                        const cz = (w.start[1] + w.end[1]) / 2
+                        setRotatingWall({
+                          id: w.id,
+                          cx,
+                          cz,
+                          s0: [...w.start],
+                          e0: [...w.end],
+                          a0: Math.atan2(gz - cz, gx - cx),
+                        })
+                        svgRef.current?.setPointerCapture(e.pointerId)
                       }}
                     />
-                  )
-                })
+                  </>
+                )
               })()}
 
             {/* Openings — architectural symbols (door swing / window double-line) */}
@@ -2114,16 +2730,57 @@ export function FloorPlanEditor() {
                 ]
               }
               const isSel = sel?.type === 'opening' && sel.id === o.id
-              const color = o.kind === 'door' ? 'var(--accent)' : 'var(--accent-soft-text)'
+              const color = isSel
+                ? 'var(--accent)'
+                : o.kind === 'door'
+                  ? 'var(--accent)'
+                  : 'var(--accent-soft-text)'
               const strokeW = wall.thickness === 'external' ? 7 : 4
               const onPD = (e: React.PointerEvent) => {
-                if (tool === 'select') {
-                  e.stopPropagation()
-                  a.setPlanSelection({ type: 'opening', id: o.id })
-                }
+                if (tool !== 'select') return
+                const willMove = beginElementDrag(e, isSel)
+                a.setPlanSelection({ type: 'opening', id: o.id })
+                if (!willMove) return // view / unselected-on-touch: let it pan
+                if (o.locked) return // locked openings select but don't move
+                // Start dragging the opening along its wall.
+                const [wx, wz] = pointerWorld(e)
+                useStore.getState().pushHistory()
+                setMovingOpening({ id: o.id, grab: alongWall(wall, wx, wz) - o.offset })
               }
               return (
-                <g key={o.id} onPointerDown={onPD} style={{ cursor: 'pointer' }}>
+                <g
+                  key={o.id}
+                  data-opening={o.id}
+                  onPointerDown={onPD}
+                  style={{ cursor: editMode === 'edit' && !o.locked ? 'grab' : 'pointer' }}
+                >
+                  {/* Selected: translucent accent halo over the opening span so
+                      the selection is obvious (mirrors the furniture highlight). */}
+                  {isSel && (
+                    <line
+                      x1={toPx(sPt[0])}
+                      y1={toPx(sPt[1])}
+                      x2={toPx(ePt[0])}
+                      y2={toPx(ePt[1])}
+                      stroke="var(--accent)"
+                      strokeOpacity={0.4}
+                      strokeWidth={strokeW + 11}
+                      strokeLinecap="round"
+                      style={{ pointerEvents: 'none' }}
+                    />
+                  )}
+                  {/* Fat invisible hit target along the opening span so the whole
+                      door/window is easy to grab (drag it along the wall), not
+                      just its thin symbol lines. */}
+                  <line
+                    x1={toPx(sPt[0])}
+                    y1={toPx(sPt[1])}
+                    x2={toPx(ePt[0])}
+                    y2={toPx(ePt[1])}
+                    stroke="transparent"
+                    strokeWidth={Math.max(16, strokeW + 10)}
+                    strokeLinecap="round"
+                  />
                   {/* Mask the wall under the opening */}
                   <line
                     x1={toPx(sPt[0])}
@@ -2133,6 +2790,7 @@ export function FloorPlanEditor() {
                     stroke="var(--surface-solid)"
                     strokeWidth={strokeW + 2}
                     strokeLinecap="butt"
+                    style={{ pointerEvents: 'none' }}
                   />
                   {o.kind === 'door' ? (
                     (() => {
@@ -2195,15 +2853,29 @@ export function FloorPlanEditor() {
 
             {/* Draft (in-progress draw) */}
             {draft && tool === 'wall' && (
-              <line
-                x1={toPx(draft.x0)}
-                y1={toPx(draft.z0)}
-                x2={toPx(draft.x)}
-                y2={toPx(draft.z)}
-                stroke="var(--accent)"
-                strokeWidth={4}
-                strokeLinecap="round"
-              />
+              <>
+                <line
+                  x1={toPx(draft.x0)}
+                  y1={toPx(draft.z0)}
+                  x2={toPx(draft.x)}
+                  y2={toPx(draft.z)}
+                  stroke="var(--accent)"
+                  strokeWidth={4}
+                  strokeLinecap="round"
+                />
+                {/* Snap markers at the exact (grid/wall-snapped) endpoints, so the
+                    point you're placing is visible even under a fingertip. The
+                    filled dot is the start/anchor; the ring is the live end. */}
+                <circle cx={toPx(draft.x0)} cy={toPx(draft.z0)} r={5} fill="var(--accent)" />
+                <circle
+                  cx={toPx(draft.x)}
+                  cy={toPx(draft.z)}
+                  r={5}
+                  fill="var(--surface-solid)"
+                  stroke="var(--accent)"
+                  strokeWidth={2}
+                />
+              </>
             )}
             {draft && tool === 'room' && (
               <rect
@@ -2266,14 +2938,17 @@ export function FloorPlanEditor() {
                 ))}
               </g>
             )}
-            {/* Live dimension readout while drawing. */}
+            {/* Live dimension readout while drawing — follows the cursor with a
+                readable halo so you always know the current length/size. */}
             {draft && (
               <text
-                x={toPx(draft.x) + 8}
-                y={toPx(draft.z) - 8}
-                fontSize={12}
-                fill="var(--accent-soft-text)"
+                x={toPx(draft.x) + 10}
+                y={toPx(draft.z) - 10}
+                fontSize={13}
+                fontWeight={700}
+                fill="var(--accent)"
                 className="select-none"
+                style={{ paintOrder: 'stroke', stroke: 'var(--surface-solid)', strokeWidth: 4 }}
               >
                 {tool === 'wall'
                   ? formatLength(Math.hypot(draft.x - draft.x0, draft.z - draft.z0), units)

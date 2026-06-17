@@ -411,8 +411,24 @@ same change that reshapes a system.
   `floorplan/roomFinishes.ts` (live `finishes` slice → `PlanRoom.floor`/`wall` → default);
   the finish setters write through to the active plan and plan activation prunes stale
   custom-room keys; `PlanRoomShell` paints plan walls via `apartment/walls/PlanWallFinishFace`. **Split / Reverse / Join** (pure `wallOps.ts` — openings re-homed) + **exact length/angle** inspector
-  fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) for
-  non-orthogonal shapes. **Text notes** (Text tool → `plan.notes`, draggable/editable; also rendered on
+  fields (`wallOps.ts` `endForLength`/`endForAngle`/`wallAngleDeg` — PARITY-WALLDIM) + draggable endpoint handles (`moveWallVertex`) +
+  whole-wall drag/rotate keeping connected corners joined (`moveWallTo`, rotation clamped ±90°) for
+  non-orthogonal shapes. Drawing a new wall snaps its endpoints to existing corners **and** wall spans
+  (a T-junction) via pure `ui/floorplan/editor/snapToWalls.ts` (vertex wins over edge; free past the radius);
+  **on touch the Wall tool is tap-to-place + chaining** (tap start, tap end, continues from the last end;
+  `wallTapHadAnchor` ref distinguishes placing the start vs the end), with snapped start-dot/end-ring markers
+  drawn on the draft (desktop keeps drag-to-draw).
+  **Wall + door/window inspectors mirror the furniture inspector** (`PlanInspector`): a custom **Name**
+  (pure defaults in `floorplan/planElementName.ts`; `PlanWall.name`/`PlanOpening.name`, custom wins; room
+  creation auto-names boundary walls `<room> wall ##` via pure `floorplan/roomWallNames.ts` in `addRoom`,
+  flagged `nameAuto` so a user-typed name is never overwritten) +
+  an **action grid** (Reverse/Split/Join/Duplicate/Lock/Delete for walls; Flip hinge/swing/Duplicate/Lock/Delete
+  for doors). **Lock** (`PlanWall.locked`/`PlanOpening.locked`) keeps an element selectable but un-draggable/
+  -deletable on the canvas; **`duplicateWall`/`duplicateOpening`** make an editable copy (name + lock dropped).
+  **Multi-select walls** (Shift/⌘-click, or touch **Select+** = `planWallMultiAdd`): primary `planSelection`
+  ∪ session `selectedWallIds` (filtered to existing); the inspector shows an *N walls selected* panel with
+  bulk **Lock all** / **Delete all** (`setWallsLocked`/`removeWalls`, locked-skipping) + Clear; `toggleWallSelection`
+  drives add/remove and ⌫ deletes the whole set in one step. **Text notes** (Text tool → `plan.notes`, draggable/editable; also rendered on
   the report + drawing-set plan sheets via `reportPlanSvg` `notesSvg`, level-scoped by `levelAsPlan` —
   PARITY-PLANTEXT) + **dimension
   lines** (Dimension tool → `plan.dimensions`, measured-length labels) — both persisted (PARITY-DIMTEXT).
@@ -433,10 +449,15 @@ same change that reshapes a system.
   Undoable + persists (`floorPlanStore.ts`). On open the plan is **fit to the measured canvas
   viewport** (a `ResizeObserver` drives `basePX`, replacing a fixed 940×620 assumption) so it
   fills any screen without a manual zoom-out. **Mobile:** the toolbar is a single row
-  (`isMobile`) — a **☰ Tools** button, a compact drawing-tool `<select>`, and Done; everything
+  (`isMobile`) — a **☰ Menu** button, a **`PlanToolMenu`** grid popover for the drawing tool (shows the
+  current tool; replaces a native `<select>`), **undo/redo** (top-bar, not buried in the menu), and Done; everything
   else (name, levels, New/Reset/Template/Save/Reference, labels/dims/all-levels/export/zoom, the
-  plan defaults, and a Help → user-guide link via `openDocs`) opens in a **"Plan tools" `Modal`**.
-  The secondary controls are shared fragments so desktop keeps its full inline toolbar.
+  plan defaults, and a Help → user-guide link via `openDocs`) opens in a **"Plan tools" `Modal`**, grouped
+  into labelled **Plan / View / Edit / Defaults** sections (`.plan-tools-group`) so it reads as a tidy sheet.
+  The secondary controls are shared fragments; **desktop** keeps the core loop inline and groups the
+  rest into two `PlanMenu` dropdowns (`editor/PlanMenu.tsx`, on the shared `Popover`): **Plan ▾**
+  (New/Reset/Reference) + **View ▾** (labels/dims/furniture/all-levels/export). Escape closes an open
+  dropdown (`.plan-menu-panel` guard) before it can exit the editor.
   `PlanInspector` gets a **minimize toggle** in its header (`usePlanInspectorMinimize`, starts
   minimized on selection) and is **hidden entirely on mobile when nothing is selected** (its
   resting view only repeats the defaults, which now live in the Tools modal).

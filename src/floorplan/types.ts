@@ -16,6 +16,17 @@ export interface PlanWall {
   start: PlanVec2
   end: PlanVec2
   thickness: 'external' | 'internal'
+  /** Optional name. Absent = a generated default (`Wall <hash>`). Room/auto-room
+   *  allocation may write a `<room> wall ##` name here, but only over an
+   *  unset/auto name — a user-set name (with `nameAuto` cleared) always wins. */
+  name?: string
+  /** True when `name` was assigned automatically by room allocation (so a later
+   *  allocation may replace it). Cleared when the user edits the name, which
+   *  makes it permanent. */
+  nameAuto?: boolean
+  /** When true the wall can't be dragged, reshaped, or deleted from the canvas
+   *  (matches furniture lock). Edited in the 2D plan inspector. */
+  locked?: boolean
   /** Optional explicit thickness (m) for THIS wall, overriding both its
    *  external/internal category default and the plan-level default. Absent =
    *  use the plan default for the category (falling back to 0.2 m external /
@@ -45,6 +56,11 @@ export interface PlanOpening {
   kind: 'door' | 'window'
   /** Wall this opening cuts through. */
   wallId: string
+  /** Optional user-given name; absent = a generated default (`Door <hash>` /
+   *  `Window <hash>`). A custom name takes precedence and is never overwritten. */
+  name?: string
+  /** When true the opening can't be dragged or deleted from the canvas. */
+  locked?: boolean
   /** Distance from the wall's start along its length, to the opening's start. */
   offset: number
   width: number

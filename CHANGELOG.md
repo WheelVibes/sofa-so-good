@@ -5,6 +5,160 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: precise tap-to-place wall drawing on touch
+
+- On a phone/tablet the **Wall** tool is now **tap-to-place**: tap to drop the
+  start, tap to drop the end — each point snaps to the grid and to existing
+  walls, so you place exact points instead of guessing where a drag lifts off
+  under your fingertip. Walls **chain**: each new wall starts from the previous
+  one's end, so a run of rooms goes tap-tap-tap; tap the last point again (or
+  switch tools) to finish. A press-drag in one gesture still works too.
+- Both platforms now draw **snap markers** on the wall being drawn — a filled
+  dot at the start/anchor and a ring at the live end — so the precise snapped
+  point is visible even under a finger. Desktop keeps drag-to-draw.
+
+## Floor-plan editor: mobile tool picker is now a grid popover
+
+- The mobile drawing-tool picker is no longer a native `<select>` dropdown — it's
+  a **"‹current tool› ▾"** button that opens a tidy grid of labelled tool chips
+  below it (`PlanToolMenu`, on the shared `Popover`), with the active tool
+  highlighted. Every tool is visible at once with a big touch target and the
+  current selection is obvious — matching how mobile floor-plan apps surface
+  their tools, instead of a hidden two-step dropdown.
+
+## Floor-plan editor: undo/redo in the mobile top bar
+
+- Undo/redo (↶ ↷) now sit directly in the mobile editor's top bar — in both View
+  and Edit — instead of being buried in the ☰ Menu, so the most-used action is
+  always one tap away. They're no longer duplicated inside the menu (which keeps
+  grid + zoom under **View**).
+
+## Floor-plan editor: tidier mobile "Plan tools" sheet
+
+- The mobile **☰ Menu** sheet is reorganised from one dense wall of buttons into
+  labelled sections — **Plan** (name, levels, template/save, new/reset/reference),
+  **View** (labels/dims/furniture/all-levels/export + undo-redo/grid/zoom),
+  **Edit** (wall thickness + multi-select, when relevant) and **Defaults**
+  (ceiling height, wall colour, area total) — each separated, so it reads as a
+  tidy settings sheet.
+
+## Floor-plan editor: decluttered desktop toolbar
+
+- The desktop toolbar's secondary actions are grouped into two tidy dropdowns
+  (a small `PlanMenu` built on the shared `Popover`): **Plan ▾** (New / Reset to
+  HDB / Reference photo) and **View ▾** (Labels / Dims / Furniture / All levels /
+  Export PNG). The View trigger lights up when any of its toggles is active.
+- The core design loop stays inline — name, level tabs, View/Edit, the tool
+  palette, Template/Save, multi-select, undo/redo, snap-grid, zoom, area total,
+  Done — so the bar reads cleanly instead of one long wrapping row.
+- Escape closes an open dropdown without also exiting the editor (a second
+  Escape still leaves). The mobile **☰ Menu** modal is unchanged (it already
+  consolidated these controls).
+
+## Floor-plan editor: auto-name boundary walls on room allocation
+
+- Creating a room (Room tool, Polygon, or **Auto room**) now names its boundary
+  walls **`<room name> wall ##`** (2-digit, in boundary order) — so a freshly
+  walled room reads as *Living wall 01 … 04* instead of anonymous hashes.
+- A **user-set name takes absolute precedence** and is never overwritten: walls
+  carry a `nameAuto` flag (set when allocation names them, cleared the moment you
+  edit the name in the inspector), so re-allocating a room re-labels only the
+  auto-named walls and leaves your custom names alone.
+- Matching is a pure, unit-tested helper (`floorplan/roomWallNames.ts`): a wall
+  belongs to a room when it lies along one of the room's boundary edges
+  (collinear + overlapping, with a small tolerance for walls just off the
+  interior rectangle).
+
+## Floor-plan editor: multi-select walls (bulk lock / delete)
+
+- **Select several walls at once** — Shift/⌘/Ctrl-click adds or removes a wall
+  from the selection; on touch a new toolbar **Select+** toggle makes taps
+  additive (the Shift-click equivalent). Every selected wall gets the accent
+  halo.
+- The inspector shows a **"N walls selected"** panel with **Lock all / Unlock
+  all**, **Delete all** (skips locked walls), and **Clear selection**. ⌫/Delete
+  removes the whole selection in one undoable step.
+- State is session-only (`selectedWallIds` + `planWallMultiAdd`); a plain click
+  clears the multi-selection, and ids are filtered to existing walls so
+  deletes/merges leave nothing stale. New slice actions: `toggleWallSelection`,
+  `removeWalls`, `setWallsLocked`.
+
+## Floor-plan editor: wall / door / window inspector parity (name, lock, duplicate)
+
+- The wall and door/window inspectors now mirror the **furniture inspector**: a
+  **Name** field at the top (custom name with the generated default as
+  placeholder), then an **action grid** of icon buttons —
+  walls get *Reverse · Split · Join · Duplicate · Lock · Delete*; doors get
+  *Flip hinge · Flip swing · Duplicate · Lock · Delete* (windows omit the door
+  flips). Detailed fields (thickness, coordinates, swing, …) follow underneath.
+- **Custom names** — walls/doors/windows carry an optional name. Unset, they show
+  a stable generated default (`Wall 123456`, `Door …`, `Window …`); a custom name
+  takes absolute precedence. (Schema is additive + back-compat; round-trips on
+  save/load.)
+- **Lock** — a locked wall/opening can still be *selected* but can't be dragged,
+  reshaped, rotated, or deleted from the canvas (handles hidden; ⌫/Del ignored) —
+  matching how furniture lock works.
+- **Duplicate** — `duplicateWall` / `duplicateOpening` make an editable copy
+  (offset so it's visible; the custom name + lock are not copied) and select it.
+
+## Floor-plan editor: new walls snap to join existing ones
+
+- **Drawing a wall snaps to existing geometry** so segments connect cleanly: an
+  existing wall *endpoint* within ~0.3 m captures the cursor (corner join), and
+  failing that the nearest point on a wall *span* within ~0.25 m captures it
+  (a mid-wall T-junction). Dragging clearly past a wall stays free, so a new wall
+  can still extend beyond the one it crosses — snapping only engages near
+  existing walls. Vertex snap wins over edge snap when both are in range.
+- The vertex+edge snapping is a pure, unit-tested helper (`editor/snapToWalls.ts`)
+  shared by the editor's pointer→world mapping.
+
+## Floor-plan editor: furniture toggle, undo/redo, grid sizes, centring, clearer selection
+
+- **Furniture show/hide** (header "Furniture", **hidden by default**) so footprints
+  don't get in the way of editing — while hidden they can't be selected or moved.
+- **Undo/redo buttons** in the toolbar (the ⌘Z / ⇧⌘Z hotkeys already worked, but
+  there was no on-screen control — essential on touch).
+- **Configurable snap grid** — a header selector with finer steps (down to 2.5 cm,
+  was a min of 10 cm) for precise placement.
+- **Plan centres in the canvas on open** — vertically too. Centres on the plan's
+  true bounding-box midpoint (top↔bottom, left↔right), measuring the SVG's real
+  offset in the scroll content so padding / a non-zero plan origin can't bias it
+  (it previously sat too low on tall mobile viewports).
+- **Clearer selection** — selected walls and doors/windows now get a translucent
+  accent halo (mirroring the furniture highlight), so what's selected is obvious.
+- **Curved walls snap back to straight** — dragging a wall's curve midpoint within
+  ~12 px of the straight chord flattens it (clears the arc), even off a grid line.
+- **Live length while drawing** a wall is more legible (larger, with a halo).
+- Mobile: the ☰ menu is available in both View and Edit (it holds furniture/undo/
+  grid/labels/export, not just drawing tools).
+
+## Floor-plan editor: View/Edit mode, orbit-like pan/zoom, decluttered dimensions, correct door swing
+
+- **View/Edit mode toggle.** The 2D editor now has a header toggle. **View** (the
+  default on touch) pans/zooms and taps to inspect only — a one-finger drag never
+  shifts a wall or a sofa by accident. **Edit** reveals the tools and lets you
+  move things; on touch you tap an item to select it first, then drag (a drag on
+  anything unselected pans). Mouse drag-to-move is unchanged. Move handles
+  (wall/room vertices, curve bulge) only show in Edit.
+- **Pan/zoom feels like orbit.** Wheel/trackpad-pinch zooms to the cursor with no
+  modifier (was Ctrl+wheel — and React's passive `onWheel` meant its
+  `preventDefault` was ignored, so Ctrl+wheel zoomed the whole browser page);
+  now a native non-passive listener. Right-drag pans too; zoom-to-cursor scroll
+  is applied in a layout effect so it no longer clamps and "doesn't take".
+- **Decluttered dimensions.** Dimensions render as architectural callouts —
+  extension lines + arrowheads spanning the measured length, rotated text in a
+  line gap, oriented outside the plan (`WallDimension`); door/window widths use
+  the same marker. Default **off**; the "Dims" toggle enables them. Label fonts
+  scale with zoom (clamped) and cull progressively by on-screen size / screen so
+  the plan never becomes overlapping text (`planLabelDisplay`, unit-tested).
+- **Door swing matches 3D for end-hinged doors.** The 2D arc (and clearance +
+  report) drew the swing side from `swing` alone, ignoring the hinge jamb; the 3D
+  leaf mirrors it for end-hinged doors. Bedroom 2 (the only end-hinged door in the
+  default flat) swung outward in 2D but inward in orbit/walk — folded the hinge
+  into `doorSwingGeometry`'s sign so all 2D consumers agree with 3D.
+- **Harness:** `shot.mjs` auto-dismisses the onboarding carousel + location prompt
+  by default (opt out with `SHOT_KEEP_FIRSTRUN=1` or per-scenario `keepFirstRun`).
+
 ## Offline: idle-preload feature chunks so nothing needs opening once
 
 - Even though the service worker precaches every chunk, a user who opened a feature (e.g. the

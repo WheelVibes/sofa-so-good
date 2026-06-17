@@ -61,6 +61,13 @@ scenario, since scenarios hardcode their author's dev-server port.
 Default localStorage is **empty** in scenario mode (so first-run flows trigger
 naturally). Override with `SHOT_INIT_LS`.
 
+**First-run overlays are auto-dismissed by default.** The harness seeds
+`hdb_onboarded` (skips the onboarding carousel) and, after boot, clears the
+"Where are you?" location prompt (via `__store.dismissLocationPrompt()`, with a
+click-the-skip-button fallback for prod builds) — so neither can cover the canvas
+in a screenshot. To screenshot those flows on purpose, set `SHOT_KEEP_FIRSTRUN=1`
+(the `first-run*.json` scenarios rely on this).
+
 ### Timing contract — why scenarios beat blind waits
 
 **Known pitfall (fixed in scenario mode):** the legacy harness fires `page.evaluate`
