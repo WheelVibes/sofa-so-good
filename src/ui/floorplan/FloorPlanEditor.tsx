@@ -54,6 +54,7 @@ import { formatArea, formatDims, formatLength } from '../../utils/measurement'
 import { openDocs } from '../docsUrl'
 import { Modal } from '../Modal'
 import { evictPanoStop } from '../panorama/panoImageIdb'
+import { Icon } from '../toolbar/icons'
 import { useIsMobile } from '../useIsMobile'
 import {
   type BackdropMeta,
@@ -1553,7 +1554,7 @@ export function FloorPlanEditor() {
         disabled={!canUndo}
         onClick={() => useStore.getState().undo()}
       >
-        ↶
+        <Icon.Undo width={16} height={16} />
       </button>
       <button
         type="button"
@@ -1562,7 +1563,7 @@ export function FloorPlanEditor() {
         disabled={!canRedo}
         onClick={() => useStore.getState().redo()}
       >
-        ↷
+        <Icon.Redo width={16} height={16} />
       </button>
     </div>
   )
@@ -1761,14 +1762,17 @@ export function FloorPlanEditor() {
   return (
     <div className="plan-screen absolute inset-0 z-30 flex flex-col">
       {/* North/compass rose (SweetHome3DJS parity) — pinned to the editor frame,
-          the needle rotates with the plan's orientation. */}
+          the needle rotates with the plan's orientation. On mobile the bottom-right
+          is the (full-width) inspector bottom-sheet's corner — and the compass
+          would sit over its expand/lock/delete icons — so it moves to the free
+          top-right of the canvas (just below the header). */}
       {fCompass ? (
         <div
           className="panel"
           style={{
             position: 'absolute',
             right: 12,
-            bottom: 12,
+            ...(isMobile ? { top: 128 } : { bottom: 12 }),
             zIndex: 5,
             width: 52,
             height: 52,
