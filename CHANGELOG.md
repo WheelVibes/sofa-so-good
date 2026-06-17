@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Floor-plan editor: decluttered desktop toolbar
+
+- The desktop toolbar's secondary actions are grouped into two tidy dropdowns
+  (a small `PlanMenu` built on the shared `Popover`): **Plan ▾** (New / Reset to
+  HDB / Reference photo) and **View ▾** (Labels / Dims / Furniture / All levels /
+  Export PNG). The View trigger lights up when any of its toggles is active.
+- The core design loop stays inline — name, level tabs, View/Edit, the tool
+  palette, Template/Save, multi-select, undo/redo, snap-grid, zoom, area total,
+  Done — so the bar reads cleanly instead of one long wrapping row.
+- Escape closes an open dropdown without also exiting the editor (a second
+  Escape still leaves). The mobile **☰ Menu** modal is unchanged (it already
+  consolidated these controls).
+
 ## Floor-plan editor: auto-name boundary walls on room allocation
 
 - Creating a room (Room tool, Polygon, or **Auto room**) now names its boundary

@@ -449,7 +449,10 @@ same change that reshapes a system.
   (`isMobile`) — a **☰ Tools** button, a compact drawing-tool `<select>`, and Done; everything
   else (name, levels, New/Reset/Template/Save/Reference, labels/dims/all-levels/export/zoom, the
   plan defaults, and a Help → user-guide link via `openDocs`) opens in a **"Plan tools" `Modal`**.
-  The secondary controls are shared fragments so desktop keeps its full inline toolbar.
+  The secondary controls are shared fragments; **desktop** keeps the core loop inline and groups the
+  rest into two `PlanMenu` dropdowns (`editor/PlanMenu.tsx`, on the shared `Popover`): **Plan ▾**
+  (New/Reset/Reference) + **View ▾** (labels/dims/furniture/all-levels/export). Escape closes an open
+  dropdown (`.plan-menu-panel` guard) before it can exit the editor.
   `PlanInspector` gets a **minimize toggle** in its header (`usePlanInspectorMinimize`, starts
   minimized on selection) and is **hidden entirely on mobile when nothing is selected** (its
   resting view only repeats the defaults, which now live in the Tools modal).

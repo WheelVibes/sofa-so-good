@@ -197,15 +197,16 @@ until you expand it.
 
 ## Export the plan as an image
 
-**Export PNG** (in the editor header) downloads the floor plan as a PNG image —
-walls, rooms, areas and dimension labels — to share with a client, drop into a
-document, or print. (The reference trace photo isn't included; it's just the
-clean plan.)
+**Export PNG** (under the header's **View ▾** menu on desktop, or the **☰ Menu**
+on a phone) downloads the floor plan as a PNG image — walls, rooms, areas and
+dimension labels — to share with a client, drop into a document, or print. (The
+reference trace photo isn't included; it's just the clean plan.)
 
 ## Templates & saving
 
-Start from a **template** apartment, **Reset to HDB** for the default flat, or
-**New** for an empty shell. The **template picker** is a three‑step cascade —
+Start from a **template** apartment, or use the header's **Plan ▾** menu to
+**Reset to HDB** for the default flat or start **New** with an empty shell. The
+**template picker** is a three‑step cascade —
 pick a **housing type** (HDB or Condominium), then a **project**, then the
 **apartment type** — and choosing a type loads that starter plan. The default
 flat is **HDB › Serangoon North Vista › 4‑Room**. It covers the common Singapore

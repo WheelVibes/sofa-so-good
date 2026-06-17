@@ -62,6 +62,7 @@ import {
 } from './backdropPersist'
 import { GridLines } from './editor/GridLines'
 import { PlanLibrary } from './editor/PlanLibrary'
+import { PlanMenu } from './editor/PlanMenu'
 import {
   type Backdrop,
   CATEGORY_FILL,
@@ -653,6 +654,9 @@ export function FloorPlanEditor() {
         commitPolyRoom(polyDraft)
         setPolyDraft([])
       } else if (e.key === 'Escape') {
+        // A toolbar dropdown (Plan / View) owns Escape to close itself — don't
+        // also exit the editor in the same keypress.
+        if (document.querySelector('.plan-menu-panel')) return
         if (polylineDraft.length > 0) {
           setPolylineDraft([])
           return
@@ -1288,8 +1292,17 @@ export function FloorPlanEditor() {
     </div>
   )
 
-  // Plan-management actions (shared by the desktop bar + the mobile Tools modal).
-  const planActions = (
+  // Template + saved-plan library — primary plan entry points, kept inline.
+  const templateLibrary = (
+    <>
+      <TemplatePicker />
+      <PlanLibrary />
+    </>
+  )
+
+  // File / reference actions — grouped behind the desktop "Plan ▾" menu (and
+  // shown flat in the mobile Tools modal).
+  const fileActions = (
     <>
       <button
         type="button"
@@ -1308,8 +1321,6 @@ export function FloorPlanEditor() {
       <button type="button" onClick={() => a.resetFloorPlan()} className="btn btn-sm">
         Reset to HDB
       </button>
-      <TemplatePicker />
-      <PlanLibrary />
       {/* Reference photo — trace walls over a floor-plan image / room scan. */}
       <input
         ref={fileRef}
@@ -1381,52 +1392,23 @@ export function FloorPlanEditor() {
     </>
   )
 
-  // View toggles + export + zoom (shared by the desktop bar + the mobile modal).
-  const viewActions = (
+  // Contextual multi-select toggle — inline (only with Select tool in Edit mode).
+  const multiSelectToggle =
+    tool === 'select' && editMode === 'edit' ? (
+      <button
+        type="button"
+        onClick={() => a.setPlanWallMultiAdd(!planWallMultiAdd)}
+        className={`btn btn-sm${planWallMultiAdd ? ' btn-accent' : ''}`}
+        title="Select multiple walls: tap walls to add/remove them (or Shift-click). Then Delete or Lock them together."
+        aria-pressed={planWallMultiAdd}
+      >
+        Select+
+      </button>
+    ) : null
+
+  // Frequent, compact controls kept inline: undo/redo, snap-grid, zoom.
+  const quickActions = (
     <>
-      {fPlanLabels && (
-        <button
-          type="button"
-          onClick={() => useStore.getState().cyclePlanLabels()}
-          className={`btn btn-sm${labelsOn ? ' btn-accent' : ''}`}
-          title="Cycle furniture labels on the plan: off → name → name + price"
-          aria-pressed={labelsOn}
-        >
-          {PLAN_LABEL_TEXT[planLabels]}
-        </button>
-      )}
-      <button
-        type="button"
-        onClick={() => setShowWallDims((v) => !v)}
-        className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
-        title="Toggle wall-length labels"
-        aria-pressed={showWallDims}
-      >
-        Dims
-      </button>
-      <button
-        type="button"
-        onClick={() => setShowFurniture((v) => !v)}
-        className={`btn btn-sm${showFurniture ? ' btn-accent' : ''}`}
-        title="Show furniture footprints (hidden by default so they don't get in the way of editing; hidden furniture can't be selected or moved)"
-        aria-pressed={showFurniture}
-      >
-        Furniture
-      </button>
-      {/* Multi-select walls (touch-friendly equivalent of Shift-click). Only
-          meaningful with the Select tool in Edit mode, so it's hidden otherwise
-          to keep the toolbar uncluttered. */}
-      {tool === 'select' && editMode === 'edit' ? (
-        <button
-          type="button"
-          onClick={() => a.setPlanWallMultiAdd(!planWallMultiAdd)}
-          className={`btn btn-sm${planWallMultiAdd ? ' btn-accent' : ''}`}
-          title="Select multiple walls: tap walls to add/remove them (or Shift-click). Then Delete or Lock them together."
-          aria-pressed={planWallMultiAdd}
-        >
-          Select+
-        </button>
-      ) : null}
       {/* Undo / redo (also ⌘Z / ⇧⌘Z). Visible buttons for touch, where there's
           no keyboard. */}
       <div className="seg" style={{ alignItems: 'center' }}>
@@ -1465,6 +1447,70 @@ export function FloorPlanEditor() {
           ))}
         </select>
       </label>
+      <div className="seg" style={{ alignItems: 'center' }}>
+        <button
+          type="button"
+          title="Zoom out"
+          onClick={() => zoomAroundCentre((z) => z - ZOOM_BTN_STEP)}
+        >
+          −
+        </button>
+        <button
+          type="button"
+          title="Reset zoom & centre"
+          onClick={() => {
+            pendingScroll.current = null
+            setZoom(1)
+            requestAnimationFrame(() => centerPlan(basePX))
+          }}
+          style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
+        >
+          {Math.round(zoom * 100)}%
+        </button>
+        <button
+          type="button"
+          title="Zoom in"
+          onClick={() => zoomAroundCentre((z) => z + ZOOM_BTN_STEP)}
+        >
+          +
+        </button>
+      </div>
+    </>
+  )
+
+  // Occasional view toggles + export — grouped behind the desktop "View ▾" menu
+  // (and shown flat in the mobile Tools modal).
+  const viewMenuActions = (
+    <>
+      {fPlanLabels && (
+        <button
+          type="button"
+          onClick={() => useStore.getState().cyclePlanLabels()}
+          className={`btn btn-sm${labelsOn ? ' btn-accent' : ''}`}
+          title="Cycle furniture labels on the plan: off → name → name + price"
+          aria-pressed={labelsOn}
+        >
+          {PLAN_LABEL_TEXT[planLabels]}
+        </button>
+      )}
+      <button
+        type="button"
+        onClick={() => setShowWallDims((v) => !v)}
+        className={`btn btn-sm${showWallDims ? ' btn-accent' : ''}`}
+        title="Toggle wall-length labels"
+        aria-pressed={showWallDims}
+      >
+        Dims
+      </button>
+      <button
+        type="button"
+        onClick={() => setShowFurniture((v) => !v)}
+        className={`btn btn-sm${showFurniture ? ' btn-accent' : ''}`}
+        title="Show furniture footprints (hidden by default so they don't get in the way of editing; hidden furniture can't be selected or moved)"
+        aria-pressed={showFurniture}
+      >
+        Furniture
+      </button>
       {isMultiLevel && (
         <button
           type="button"
@@ -1500,34 +1546,6 @@ export function FloorPlanEditor() {
       >
         Export PNG
       </button>
-      <div className="seg" style={{ alignItems: 'center' }}>
-        <button
-          type="button"
-          title="Zoom out"
-          onClick={() => zoomAroundCentre((z) => z - ZOOM_BTN_STEP)}
-        >
-          −
-        </button>
-        <button
-          type="button"
-          title="Reset zoom & centre"
-          onClick={() => {
-            pendingScroll.current = null
-            setZoom(1)
-            requestAnimationFrame(() => centerPlan(basePX))
-          }}
-          style={{ minWidth: 44, fontVariantNumeric: 'tabular-nums' }}
-        >
-          {Math.round(zoom * 100)}%
-        </button>
-        <button
-          type="button"
-          title="Zoom in"
-          onClick={() => zoomAroundCentre((z) => z + ZOOM_BTN_STEP)}
-        >
-          +
-        </button>
-      </div>
     </>
   )
 
@@ -1682,9 +1700,17 @@ export function FloorPlanEditor() {
             {viewToggle}
             {editMode === 'edit' && toolPalette}
             {editMode === 'edit' && wallTypeSeg}
-            {planActions}
-            <div className="ml-auto flex items-center gap-3">
-              {viewActions}
+            {templateLibrary}
+            <PlanMenu label="Plan">{fileActions}</PlanMenu>
+            <div className="ml-auto flex items-center gap-2">
+              {multiSelectToggle}
+              {quickActions}
+              <PlanMenu
+                label="View"
+                active={showWallDims || showFurniture || labelsOn || showOtherLevels}
+              >
+                {viewMenuActions}
+              </PlanMenu>
               {totalLabel}
               <button
                 type="button"
@@ -1710,8 +1736,15 @@ export function FloorPlanEditor() {
             {wallTypeSeg ? (
               <div className="flex flex-wrap items-center gap-2">{wallTypeSeg}</div>
             ) : null}
-            <div className="flex flex-wrap items-center gap-2">{planActions}</div>
-            <div className="flex flex-wrap items-center gap-2">{viewActions}</div>
+            <div className="flex flex-wrap items-center gap-2">
+              {templateLibrary}
+              {fileActions}
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              {multiSelectToggle}
+              {quickActions}
+              {viewMenuActions}
+            </div>
             {totalLabel}
             {planDefaults}
             <button
