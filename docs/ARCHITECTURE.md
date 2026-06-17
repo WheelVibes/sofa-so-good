@@ -583,9 +583,14 @@ same change that reshapes a system.
   retried, then recovered with a single guarded reload when online, so it never crash-lands the
   app on the top-level ErrorBoundary with "Importing a module script failed". `main.tsx` also
   installs a `vite:preloadError` handler (`installChunkErrorRecovery`) for `modulepreload`
-  failures. Verify with `node scripts/static-serve.mjs` (serves `dist/` under the prod base —
-  unlike `vite preview`, which doesn't honour `base` for assets in this sandbox) + a headless
-  offline run (`scripts/offline-test.mjs`).
+  failures. After boot, **`ui/app/preloadOnIdle.ts`** idle-warms those feature chunks (2D
+  editor first, then dialogs/panels) so they're cached + instant without the user opening each
+  one once — closing the window where someone disconnects mid-precache before a feature is
+  cached (App's post-boot idle effect; warming imports are SW-cache hits, so no extra network).
+  Verify with `node scripts/static-serve.mjs` (serves `dist/` under the prod base — unlike `vite
+  preview`, which doesn't honour `base` for assets in this sandbox) + headless offline runs
+  (`scripts/offline-test.mjs`, `scripts/offline-features-test.mjs`, `scripts/offline-guide-test.mjs`,
+  `scripts/preload-verify.mjs`).
 
 ## Adding content
 - **Furniture**: add `primitives/<Name>.tsx` (`{props}`), register in `index.ts` +

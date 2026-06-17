@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Offline: idle-preload feature chunks so nothing needs opening once
+
+- Even though the service worker precaches every chunk, a user who opened a feature (e.g. the
+  2D floor-plan editor) **before** going offline would still hit it un-warmed if they
+  disconnected while the ~21 MB precache was mid-download — and every first-open paid a fetch +
+  parse delay. Now `src/ui/app/preloadOnIdle.ts` idle-warms the on-demand feature chunks in the
+  background after boot (2D editor first, then dialogs/panels), so they're cached and instant
+  without the user opening each one once.
+- `lazyWithRetry` now exposes a `preload()` (plain factory call — a failed warm never triggers
+  the recovery reload). App's existing post-boot idle effect kicks off `preloadFeatureChunks()`;
+  warming is one initial `requestIdleCallback` then sequential awaited imports (no thundering
+  herd, no per-chunk idle stall). Since the SW already precaches these chunks, warming them is a
+  cache hit — no extra network. Unit-tested (`preloadOnIdle.test.ts`, plus `preload()` cases in
+  `lazyWithRetry.test.tsx`); verified headless that the editor + other chunks load with zero
+  interaction (`scripts/preload-verify.mjs`).
+
 ## Offline: precache the user guide so it works from the first launch
 
 - The VitePress **user guide** (`<base>/docs/`) is now **precached** into the service worker, so
