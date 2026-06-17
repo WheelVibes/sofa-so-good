@@ -174,6 +174,9 @@ export function FloorPlanEditor() {
   // Active wall-curve bulge drag (select tool): drag a wall's midpoint to bow it
   // into a curve (PARITY-CURVEDWALL).
   const [movingBulge, setMovingBulge] = useState<{ id: string } | null>(null)
+  // Active door/window drag ALONG its wall: `grab` = the along-wall distance
+  // between the grab point and the opening's offset, so it doesn't jump on grab.
+  const [movingOpening, setMovingOpening] = useState<{ id: string; grab: number } | null>(null)
   // Active tour-stop drag: grab offset from the stop's world position.
   const [movingStop, setMovingStop] = useState<{ id: string; gx: number; gz: number } | null>(null)
   // Active note drag (select tool): grab offset from the note's position.
@@ -710,6 +713,17 @@ export function FloorPlanEditor() {
     return best && best.dist < 0.4 ? best : null
   }
 
+  // Along-wall distance of a world point: arc-length on a curved wall, chord
+  // projection on a straight one. Used to drag an opening along its wall.
+  const alongWall = (wall: PlanWall, x: number, z: number): number => {
+    if (isCurvedWall(wall)) return nearestArcLength(wall, [x, z]).offset
+    const len = wallLength(wall)
+    if (len === 0) return 0
+    const ux = (wall.end[0] - wall.start[0]) / len
+    const uz = (wall.end[1] - wall.start[1]) / len
+    return (x - wall.start[0]) * ux + (z - wall.start[1]) * uz
+  }
+
   // Start a canvas pan from a pointer-down (used by middle/right-drag, view mode,
   // and mobile-edit drags that aren't moving the selected item).
   const startPan = (e: React.PointerEvent) => {
@@ -912,6 +926,21 @@ export function FloorPlanEditor() {
       }
       return
     }
+    if (movingOpening) {
+      const [wx, wz] = pointerWorld(e)
+      const st = useStore.getState()
+      const o = levelPlan.openings.find((x) => x.id === movingOpening.id)
+      const wall = o && levelPlan.walls.find((w) => w.id === o.wallId)
+      if (o && wall) {
+        const span = isCurvedWall(wall) ? wallArcLength(wall) : wallLength(wall)
+        const along = alongWall(wall, wx, wz)
+        // Keep the grabbed point under the cursor; clamp so the opening stays
+        // wholly on the wall.
+        const offset = Math.max(0, Math.min(span - o.width, snap(along - movingOpening.grab)))
+        st.updateOpening(o.id, { offset }, levelId)
+      }
+      return
+    }
     if (movingPolyVertex) {
       const [wx, wz] = pointerWorld(e)
       const st = useStore.getState()
@@ -1001,6 +1030,10 @@ export function FloorPlanEditor() {
     }
     if (movingBulge) {
       setMovingBulge(null)
+      return
+    }
+    if (movingOpening) {
+      setMovingOpening(null)
       return
     }
     if (movingItem) {
@@ -2461,12 +2494,21 @@ export function FloorPlanEditor() {
               const strokeW = wall.thickness === 'external' ? 7 : 4
               const onPD = (e: React.PointerEvent) => {
                 if (tool !== 'select') return
+                const willMove = beginElementDrag(e, isSel)
                 a.setPlanSelection({ type: 'opening', id: o.id })
-                // Desktop edit keeps the selection; view + touch let a drag pan.
-                if (editMode === 'edit' && !isMobile) e.stopPropagation()
+                if (!willMove) return // view / unselected-on-touch: let it pan
+                // Start dragging the opening along its wall.
+                const [wx, wz] = pointerWorld(e)
+                useStore.getState().pushHistory()
+                setMovingOpening({ id: o.id, grab: alongWall(wall, wx, wz) - o.offset })
               }
               return (
-                <g key={o.id} onPointerDown={onPD} style={{ cursor: 'pointer' }}>
+                <g
+                  key={o.id}
+                  data-opening={o.id}
+                  onPointerDown={onPD}
+                  style={{ cursor: editMode === 'edit' ? 'grab' : 'pointer' }}
+                >
                   {/* Selected: translucent accent halo over the opening span so
                       the selection is obvious (mirrors the furniture highlight). */}
                   {isSel && (
@@ -2482,6 +2524,18 @@ export function FloorPlanEditor() {
                       style={{ pointerEvents: 'none' }}
                     />
                   )}
+                  {/* Fat invisible hit target along the opening span so the whole
+                      door/window is easy to grab (drag it along the wall), not
+                      just its thin symbol lines. */}
+                  <line
+                    x1={toPx(sPt[0])}
+                    y1={toPx(sPt[1])}
+                    x2={toPx(ePt[0])}
+                    y2={toPx(ePt[1])}
+                    stroke="transparent"
+                    strokeWidth={Math.max(16, strokeW + 10)}
+                    strokeLinecap="round"
+                  />
                   {/* Mask the wall under the opening */}
                   <line
                     x1={toPx(sPt[0])}
@@ -2491,6 +2545,7 @@ export function FloorPlanEditor() {
                     stroke="var(--surface-solid)"
                     strokeWidth={strokeW + 2}
                     strokeLinecap="butt"
+                    style={{ pointerEvents: 'none' }}
                   />
                   {o.kind === 'door' ? (
                     (() => {
