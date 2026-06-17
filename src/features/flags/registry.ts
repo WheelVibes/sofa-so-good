@@ -491,6 +491,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Flags stray plan elements in the 2D editor (red): a wall joined to no other
+  // wall, a room touching no other room, a door/window not on a wall — so the
+  // apartment can be made whole. Analytical "check" surface → pro tier (hidden in
+  // Simple); pure geometry, no deps → prod-safe (default on).
+  planIntegrity: {
+    label: 'Plan integrity flags',
+    description: 'Flag stray walls / rooms / doors / windows (disconnected) in the 2D plan editor',
+    default: true,
+    tier: 'pro',
+  },
   // "View in your room" AR: iOS AR Quick Look from a USDZ (blob), GLB download
   // elsewhere. Pure client-side (no backend/dep) → prod-safe. A high-wow viewing
   // surface beyond the core loop → pro tier.

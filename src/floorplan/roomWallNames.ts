@@ -10,7 +10,7 @@
  *
  * Pure (no React/three) so it unit-tests in isolation.
  */
-import type { PlanRoom, PlanVec2, PlanWall } from './types'
+import type { PlanOpening, PlanRoom, PlanVec2, PlanWall } from './types'
 
 type Edge = [PlanVec2, PlanVec2]
 
@@ -98,6 +98,52 @@ export function assignRoomWallNames(
         used.add(w.id)
         out.push({ id: w.id, name: `${room.name} wall ${String(n).padStart(2, '0')}` })
         n++
+      }
+    }
+  }
+  return out
+}
+
+/**
+ * Names for the doors + windows that sit on the room's boundary walls, in the
+ * same boundary order as `assignRoomWallNames`: `<room name> door 01`, `02`, …
+ * and `<room name> window 01`, … (doors + windows numbered independently). An
+ * opening belongs to the room when its host wall lies along a room edge; on each
+ * wall the openings are ordered by their offset along it. As with walls, the
+ * caller only applies these over unset / auto-assigned names — a user-set name
+ * always wins.
+ */
+export function assignRoomOpeningNames(
+  walls: readonly PlanWall[],
+  openings: readonly PlanOpening[],
+  room: PlanRoom,
+  tol = 0.25,
+): RoomWallNameAssignment[] {
+  const edges = roomBoundaryEdges(room)
+  const usedWalls = new Set<string>()
+  // Boundary walls in order (first edge match wins, mirroring the wall naming).
+  const boundaryWallIds: string[] = []
+  for (const edge of edges) {
+    for (const w of walls) {
+      if (usedWalls.has(w.id)) continue
+      if (wallOnEdge(w, edge, tol)) {
+        usedWalls.add(w.id)
+        boundaryWallIds.push(w.id)
+      }
+    }
+  }
+  const out: RoomWallNameAssignment[] = []
+  let doors = 1
+  let windows = 1
+  for (const wallId of boundaryWallIds) {
+    const onWall = openings.filter((o) => o.wallId === wallId).sort((a, b) => a.offset - b.offset)
+    for (const o of onWall) {
+      if (o.kind === 'door') {
+        out.push({ id: o.id, name: `${room.name} door ${String(doors).padStart(2, '0')}` })
+        doors++
+      } else {
+        out.push({ id: o.id, name: `${room.name} window ${String(windows).padStart(2, '0')}` })
+        windows++
       }
     }
   }

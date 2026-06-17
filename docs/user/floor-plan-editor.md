@@ -48,6 +48,15 @@ between the 2D plan and the 3D scene at any time.
   arrowheads spanning the length — on every wall and every door/window width.
   Labels scale with zoom and thin out automatically when zoomed out so the plan
   never turns into a wall of overlapping text.
+- **Skeleton** (header toggle) draws every wall at one uniform thin stroke,
+  ignoring its thickness, so you can clearly see whether wall ends actually
+  **meet to close a room** — handy when thick exterior and thin interior walls
+  meet at a corner and hide a small gap. Doors and windows stay drawn.
+- **Stray flags** *(Pro)* — the editor highlights anything that breaks a whole
+  apartment in **red**: a wall joined to no other wall, a room that touches no
+  other room, and a door or window that isn't on a wall. The header shows a
+  `⚠ N stray` count; connect or delete the flagged items to clear it. *(Hidden
+  in Simple mode.)*
 
 ## Inspecting an element
 
@@ -56,9 +65,11 @@ furniture inspector — a **Name** field on top, then a grid of quick actions:
 
 - **Name** — give it your own label (e.g. “Front door”). Left blank, it shows a
   generated default like *Wall 123456*. When you create a room around walls
-  (Room, Polygon or **Auto room**), their boundary walls are auto-named
-  *‹room› wall 01, 02, …* — but **a name you type always sticks** and is never
-  overwritten by a later room.
+  (Room, Polygon or **Auto room**), their boundary walls **and** the doors /
+  windows on them are auto-named *‹room› wall 01*, *‹room› door 01*,
+  *‹room› window 01*, … **Renaming the room re-flows those names** to match —
+  except any wall/door/window you gave your own name, which **always sticks** and
+  is never overwritten.
 - **Walls** — *Reverse*, *Split* (cut in two at the midpoint), *Join* (merge a
   collinear neighbour), *Duplicate*, *Lock* and *Delete*, with the exact
   thickness / start / end / length / angle fields underneath.
@@ -83,7 +94,9 @@ Rooms don't have to be plain rectangles:
 - **Reshape a wall** — select a wall with the **Select** tool and drag the round
   handles at its ends. Walls that share that corner move with it, so the outline
   stays joined. Drag a corner off the grid line and the wall takes an angle —
-  use this with **Split** to bend a straight run into an **L**. For exact sizes,
+  use this with **Split** to bend a straight run into an **L**. To **rotate** the
+  whole wall, grab the **ring** drawn around it (anywhere on the ring, or its
+  knob) and swing it — just like the furniture rotation gizmo. For exact sizes,
   the inspector has **Length (m)** and **Angle (°)** fields: set a wall to
   precisely 3.2 m, or rotate it to 45°, without nudging the X/Z by hand.
 - **L‑shaped rooms** — with a room selected, click **Make L‑shaped** to add a
@@ -97,7 +110,10 @@ Rooms don't have to be plain rectangles:
   match.
 - **Auto room from walls** — already drew the walls? Pick **Auto room** and click
   inside any wall‑enclosed area; the room is created automatically from that
-  loop (any shape, including L‑shapes), with the matching area.
+  loop (any shape, including L‑shapes), with the matching area. Doors and windows
+  are part of their wall, so a wall with openings still encloses the room. If you
+  click inside an area that's **already a room**, Auto room leaves it alone (it
+  won't stack a duplicate) and tells you so.
 
 ## Annotations & markup
 
@@ -181,9 +197,13 @@ returns the default warm off‑white). It's saved with the plan too.
 
 The canvas is an open grid that extends in every direction — **scroll** (or
 drag the scrollbars) to pan around, and **zoom** with the **− / + buttons** (or
-**Ctrl/⌘ + scroll** to zoom around the cursor). The whole plan is **fit to the
-screen and centred** when you open the editor. Click the percentage to reset to
-100%.
+**Ctrl/⌘ + scroll** to zoom around the cursor). On a touch screen, **pinch with
+two fingers** to zoom in and out around the pinch point. The whole plan is **fit
+to the screen and centred** when you open the editor. Click the percentage to
+reset to 100%.
+
+Tapping the **empty canvas** with the **Select** tool clears the current
+selection, and opening or closing the editor starts with nothing selected.
 
 ## On a phone: the Tools menu
 
@@ -201,9 +221,11 @@ guide** link.
 ## Properties panel
 
 The **Properties** panel starts **minimized** (just its header) so it never
-covers the plan — tap the **＋** in its header to expand it, and the **−** to
-collapse it again. Selecting a wall, room, door or window keeps it minimized
-until you expand it.
+covers the plan — **tap the title bar** to expand it, and tap it again to
+collapse (the **＋ / −** button does the same). Selecting a wall, room, door or
+window keeps it minimized until you expand it. While it's minimized, a selected
+**wall, door or window** shows quick **lock** and **delete** icons right in the
+title bar, so you can lock or remove it without expanding the panel.
 
 ## Export the plan as an image
 

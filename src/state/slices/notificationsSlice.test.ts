@@ -70,4 +70,27 @@ describe('notificationsSlice', () => {
     notify.dismiss(id)
     expect(useStore.getState().notifications).toHaveLength(0)
   })
+
+  it('de-dupes an identical toast — resurfaces the existing one instead of stacking', () => {
+    const { notify } = useStore.getState()
+    const id1 = notify.start({ title: 'This area is already a room', kind: 'info' })
+    const id2 = notify.start({ title: 'This area is already a room', kind: 'info' })
+    expect(id2).toBe(id1) // same notification resurfaced
+    expect(useStore.getState().notifications).toHaveLength(1)
+  })
+
+  it('keeps distinct toasts (different title) separate', () => {
+    const { notify } = useStore.getState()
+    notify.start({ title: 'A', kind: 'info' })
+    notify.start({ title: 'B', kind: 'info' })
+    expect(useStore.getState().notifications).toHaveLength(2)
+  })
+
+  it('never de-dupes progress toasts (tracked by their own id for live updates)', () => {
+    const { notify } = useStore.getState()
+    const id1 = notify.start({ title: 'Installing', kind: 'progress' })
+    const id2 = notify.start({ title: 'Installing', kind: 'progress' })
+    expect(id2).not.toBe(id1)
+    expect(useStore.getState().notifications).toHaveLength(2)
+  })
 })

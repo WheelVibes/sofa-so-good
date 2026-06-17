@@ -9,7 +9,8 @@ import {
   planLevels,
   withLevelGeometry,
 } from '../../floorplan/levels'
-import { assignRoomWallNames } from '../../floorplan/roomWallNames'
+import { DEFAULT_PLAN_ID } from '../../floorplan/planGeometry'
+import { assignRoomOpeningNames, assignRoomWallNames } from '../../floorplan/roomWallNames'
 import type {
   CeilingConfig,
   FloorPlan,
@@ -48,6 +49,44 @@ function planId(prefix: string): string {
 /** Deep clone a plan (plain serialisable data). */
 function clonePlan(p: FloorPlan): FloorPlan {
   return JSON.parse(JSON.stringify(p)) as FloorPlan
+}
+
+/** Make plan edits "bind" to the 3D scene. The scene renders the curated
+ *  `<Apartment/>` only while the plan id is the seeded default (`isDefaultPlan`);
+ *  every other plan renders live via `<PlanShell/>`. So the first structural
+ *  edit re-ids the default plan to a custom one — switching orbit + walk to the
+ *  edited geometry. The default plan's geometry reproduces the curated shell, so
+ *  the swap is seamless (and the 3D scene is hidden behind the editor anyway).
+ *  Idempotent once forked (a no-op for already-custom plans). */
+function forkIfDefault(plan: FloorPlan): FloorPlan {
+  return plan.id === DEFAULT_PLAN_ID ? { ...plan, id: planId('plan') } : plan
+}
+
+/** Apply a room's auto-naming to its boundary walls + the doors/windows on them
+ *  (`<room> wall ##` / `<room> door ##` / `<room> window ##`). A user-set name
+ *  (its `nameAuto` flag cleared) is never overwritten — only unset / previously
+ *  auto-assigned names are (re)written, so renaming a room re-flows the autos
+ *  while custom names stay put. Returns the patched walls + openings. */
+function applyRoomElementNames(
+  walls: PlanWall[],
+  openings: PlanOpening[],
+  room: PlanRoom,
+): { walls: PlanWall[]; openings: PlanOpening[] } {
+  const wallNames = new Map(assignRoomWallNames(walls, room).map((a) => [a.id, a.name]))
+  const nextWalls = walls.map((w) => {
+    const name = wallNames.get(w.id)
+    if (name && (!w.name || w.nameAuto)) return { ...w, name, nameAuto: true as const }
+    return w
+  })
+  const openNames = new Map(
+    assignRoomOpeningNames(walls, openings, room).map((a) => [a.id, a.name]),
+  )
+  const nextOpenings = openings.map((o) => {
+    const name = openNames.get(o.id)
+    if (name && (!o.name || o.nameAuto)) return { ...o, name, nameAuto: true as const }
+    return o
+  })
+  return { walls: nextWalls, openings: nextOpenings }
 }
 
 export interface FloorPlanSlice {
@@ -279,8 +318,17 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     })
   },
   deleteSavedPlan: (id) => set((s) => ({ savedPlans: s.savedPlans.filter((p) => p.id !== id) })),
-  setFloorPlanEditing: (open) => set({ floorPlanEditing: open }),
-  toggleFloorPlanEditing: () => set((s) => ({ floorPlanEditing: !s.floorPlanEditing })),
+  // Opening or closing the editor starts with a clean slate — clear any element
+  // selection (and multi-selection) so re-entering never resurfaces a stale
+  // inspector for something the user can no longer see.
+  setFloorPlanEditing: (open) =>
+    set({ floorPlanEditing: open, planSelection: null, selectedWallIds: [] }),
+  toggleFloorPlanEditing: () =>
+    set((s) => ({
+      floorPlanEditing: !s.floorPlanEditing,
+      planSelection: null,
+      selectedWallIds: [],
+    })),
   setPlanLabels: (planLabels) => set({ planLabels }),
   cyclePlanLabels: () => set((s) => ({ planLabels: nextPlanLabelMode(s.planLabels) })),
   // A plain selection always replaces the multi-selection (clears the extras),
@@ -309,7 +357,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (removable.size === 0) return
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (gg) => ({
         walls: gg.walls.filter((w) => !removable.has(w.id)),
         openings: gg.openings.filter((o) => !removable.has(o.wallId)),
       })),
@@ -322,7 +370,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (set0.size === 0) return
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (gg) => ({
         walls: gg.walls.map((w) => (set0.has(w.id) ? { ...w, locked: locked || undefined } : w)),
       })),
     }))
@@ -350,14 +398,14 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   },
   updateFloorPlanMeta: (patch) => {
     get().pushHistoryCoalesced('plan-meta')
-    set((s) => ({ floorPlan: { ...s.floorPlan, ...patch } }))
+    set((s) => ({ floorPlan: { ...forkIfDefault(s.floorPlan), ...patch } }))
   },
 
   addWall: (wall, levelId) => {
     const id = planId('w')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
         walls: [...g.walls, { ...wall, id }],
       })),
     }))
@@ -366,7 +414,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   updateWall: (id, patch, levelId) => {
     get().pushHistoryCoalesced(`plan-wall-${id}`)
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
         walls: g.walls.map((w) => (w.id === id ? { ...w, ...patch } : w)),
       })),
     }))
@@ -374,7 +422,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   removeWall: (id, levelId) => {
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
         walls: g.walls.filter((w) => w.id !== id),
         // Drop openings that referenced the deleted wall.
         openings: g.openings.filter((o) => o.wallId !== id),
@@ -389,8 +437,8 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (!src) return undefined
     const newId = planId('w')
     const off = 0.3 // visible offset so the copy doesn't sit exactly on the source
-    // A copy is its own element: drop the custom name + lock so it's editable.
-    const { name: _n, locked: _l, ...rest } = src
+    // A copy is its own element: drop the custom name (+ auto flag) + lock so it's editable.
+    const { name: _n, nameAuto: _na, locked: _l, ...rest } = src
     const copy: PlanWall = {
       ...rest,
       id: newId,
@@ -399,7 +447,9 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     }
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({ walls: [...gg.walls, copy] })),
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (gg) => ({
+        walls: [...gg.walls, copy],
+      })),
       planSelection: { type: 'wall', id: newId },
       selectedWallIds: [],
     }))
@@ -410,7 +460,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     get().pushHistory()
     set((s) => {
       let selection = s.planSelection
-      const floorPlan = withLevelGeometry(s.floorPlan, levelId, (g) => {
+      const floorPlan = withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
         const wall = g.walls.find((w) => w.id === id)
         if (!wall) return {}
         const len = Math.hypot(wall.end[0] - wall.start[0], wall.end[1] - wall.start[1])
@@ -448,7 +498,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (!res) return // missing/degenerate — no-op, no history step
     s0.pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, () => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, () => ({
         walls: res.walls,
         openings: res.openings,
       })),
@@ -462,7 +512,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     if (!res) return // no collinear neighbour — no-op, no history step
     s0.pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, () => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, () => ({
         walls: res.walls,
         openings: res.openings,
       })),
@@ -474,7 +524,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   moveWallVertex: (id, which, to, levelId) => {
     get().pushHistoryCoalesced(`plan-vertex-${id}-${which}`)
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => {
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
         const target = g.walls.find((w) => w.id === id)
         if (!target) return {}
         const from = which === 'start' ? target.start : target.end
@@ -496,7 +546,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   moveWallTo: (id, newStart, newEnd, levelId) => {
     get().pushHistoryCoalesced(`plan-wall-move-${id}`)
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => {
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
         const target = g.walls.find((w) => w.id === id)
         if (!target) return {}
         const cs = target.start
@@ -520,17 +570,13 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     const id = planId('r')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => {
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => {
         const newRoom = { ...room, id }
-        // Auto-name the room's boundary walls `<room> wall ##` — but never
-        // overwrite a user-set name (only unset / previously auto-assigned ones).
-        const names = new Map(assignRoomWallNames(g.walls, newRoom).map((a) => [a.id, a.name]))
-        const walls = g.walls.map((w) => {
-          const name = names.get(w.id)
-          if (name && (!w.name || w.nameAuto)) return { ...w, name, nameAuto: true as const }
-          return w
-        })
-        return { rooms: [...g.rooms, newRoom], walls }
+        // Auto-name the room's boundary walls + the doors/windows on them
+        // (`<room> wall/door/window ##`) — but never overwrite a user-set name
+        // (only unset / previously auto-assigned ones).
+        const named = applyRoomElementNames(g.walls, g.openings, newRoom)
+        return { rooms: [...g.rooms, newRoom], walls: named.walls, openings: named.openings }
       }),
     }))
     return id
@@ -540,31 +586,50 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     set((s) => ({
       // The room can sit on any storey — resolve its level so an upper-level
       // room patches in place (room ids are plan-unique across levels).
-      floorPlan: withLevelGeometry(s.floorPlan, levelOfRoom(s.floorPlan, id)?.id, (g) => ({
-        rooms: g.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r)),
-      })),
+      floorPlan: withLevelGeometry(
+        forkIfDefault(s.floorPlan),
+        levelOfRoom(s.floorPlan, id)?.id,
+        (g) => {
+          const rooms = g.rooms.map((r) => (r.id === id ? { ...r, ...patch } : r))
+          // Renaming a room re-flows its auto-assigned wall/door/window names so
+          // they track the new room name; elements the user named themselves keep
+          // their names (their `nameAuto` flag is cleared — see applyRoomElementNames).
+          if (patch.name !== undefined) {
+            const room = rooms.find((r) => r.id === id)
+            if (room) {
+              const named = applyRoomElementNames(g.walls, g.openings, room)
+              return { rooms, walls: named.walls, openings: named.openings }
+            }
+          }
+          return { rooms }
+        },
+      ),
     }))
   },
   setRoomCeiling: (id, patch) => {
     get().pushHistoryCoalesced(`plan-ceiling-${id}`)
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelOfRoom(s.floorPlan, id)?.id, (g) => ({
-        rooms: g.rooms.map((r) => {
-          if (r.id !== id) return r
-          if (patch === null) {
-            const { ceiling: _drop, ...rest } = r
-            return rest
-          }
-          const base: CeilingConfig = r.ceiling ?? { style: 'flat' }
-          return { ...r, ceiling: { ...base, ...patch } }
+      floorPlan: withLevelGeometry(
+        forkIfDefault(s.floorPlan),
+        levelOfRoom(s.floorPlan, id)?.id,
+        (g) => ({
+          rooms: g.rooms.map((r) => {
+            if (r.id !== id) return r
+            if (patch === null) {
+              const { ceiling: _drop, ...rest } = r
+              return rest
+            }
+            const base: CeilingConfig = r.ceiling ?? { style: 'flat' }
+            return { ...r, ceiling: { ...base, ...patch } }
+          }),
         }),
-      })),
+      ),
     }))
   },
   removeRoom: (id, levelId) => {
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
         rooms: g.rooms.filter((r) => r.id !== id),
       })),
       planSelection: null,
@@ -575,7 +640,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     const id = planId(opening.kind === 'door' ? 'door' : 'win')
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
         openings: [...g.openings, { ...opening, id }],
       })),
     }))
@@ -584,7 +649,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   updateOpening: (id, patch, levelId) => {
     get().pushHistoryCoalesced(`plan-open-${id}`)
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
         openings: g.openings.map((o) => (o.id === id ? { ...o, ...patch } : o)),
       })),
     }))
@@ -592,7 +657,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
   removeOpening: (id, levelId) => {
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (g) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (g) => ({
         openings: g.openings.filter((o) => o.id !== id),
       })),
       planSelection: null,
@@ -611,11 +676,11 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
     const nudged = src.offset + src.width
     const offset = nudged <= maxOff ? nudged : Math.max(0, src.offset - src.width)
     const newId = planId(src.kind === 'door' ? 'door' : 'win')
-    const { name: _n, locked: _l, ...rest } = src
+    const { name: _n, nameAuto: _na, locked: _l, ...rest } = src
     const copy: PlanOpening = { ...rest, id: newId, offset }
     get().pushHistory()
     set((s) => ({
-      floorPlan: withLevelGeometry(s.floorPlan, levelId, (gg) => ({
+      floorPlan: withLevelGeometry(forkIfDefault(s.floorPlan), levelId, (gg) => ({
         openings: [...gg.openings, copy],
       })),
       planSelection: { type: 'opening', id: newId },
@@ -729,7 +794,7 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         openings: [],
         rooms: [],
       }
-      return { floorPlan: { ...s.floorPlan, upperLevels: [...existing, level] } }
+      return { floorPlan: { ...forkIfDefault(s.floorPlan), upperLevels: [...existing, level] } }
     })
     return id
   },
@@ -782,7 +847,10 @@ export const createFloorPlanSlice: SliceCreator<FloorPlanSlice, RootState> = (se
         if (nw && nr) wallAccents[`${nw}:${nr}`] = mat
       }
       return {
-        floorPlan: { ...s.floorPlan, upperLevels: [...(s.floorPlan.upperLevels ?? []), level] },
+        floorPlan: {
+          ...forkIfDefault(s.floorPlan),
+          upperLevels: [...(s.floorPlan.upperLevels ?? []), level],
+        },
         items: [...s.items, ...newItems],
         finishes: {
           ...f,

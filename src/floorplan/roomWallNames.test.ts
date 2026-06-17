@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { assignRoomWallNames, roomBoundaryEdges } from './roomWallNames'
-import type { PlanRoom, PlanWall } from './types'
+import { assignRoomOpeningNames, assignRoomWallNames, roomBoundaryEdges } from './roomWallNames'
+import type { PlanOpening, PlanRoom, PlanWall } from './types'
 
 const wall = (id: string, start: [number, number], end: [number, number]): PlanWall => ({
   id,
@@ -59,5 +59,42 @@ describe('assignRoomWallNames', () => {
     // Top wall sitting 0.1 m outside the room rectangle still counts.
     const offset = [wall('top', [0, -0.1], [4, -0.1])]
     expect(assignRoomWallNames(offset, room)).toEqual([{ id: 'top', name: 'Living wall 01' }])
+  })
+})
+
+describe('assignRoomOpeningNames', () => {
+  const open = (
+    id: string,
+    kind: 'door' | 'window',
+    wallId: string,
+    offset: number,
+  ): PlanOpening => ({
+    id,
+    kind,
+    wallId,
+    offset,
+    width: 0.9,
+    sill: 0,
+    head: 2.1,
+  })
+
+  it('names doors + windows on the room boundary, numbered per-kind', () => {
+    const openings = [
+      open('d1', 'door', 'top', 1),
+      open('w1', 'window', 'right', 1),
+      open('w2', 'window', 'bottom', 1),
+    ]
+    const names = assignRoomOpeningNames(boundaryWalls, openings, room)
+    expect(names).toEqual([
+      { id: 'd1', name: 'Living door 01' },
+      { id: 'w1', name: 'Living window 01' },
+      { id: 'w2', name: 'Living window 02' },
+    ])
+  })
+
+  it('ignores openings on walls that are not on the boundary', () => {
+    const walls = [...boundaryWalls, wall('inner', [1, 1], [3, 1])]
+    const openings = [open('d1', 'door', 'inner', 1)]
+    expect(assignRoomOpeningNames(walls, openings, room)).toEqual([])
   })
 })

@@ -63,7 +63,9 @@ same change that reshapes a system.
   each carries a `category` {housingType › projectName › apartmentType} and `templateCategoryTree`
   groups them for the cascading `ui/floorplan/TemplatePicker.tsx`; default = HDB › Serangoon North
   Vista › 4-Room; `ui/floorplan/SaveTemplateModal.tsx` prompts for the category on save),
-  `roomDetect.ts`, `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
+  `roomDetect.ts`, `planIntegrity.ts` (stray-element checks — walls joined to no other wall,
+  rooms touching no other room, openings off any wall — drawn red in the editor behind the
+  `planIntegrity` Pro flag), `levels.ts` (multi-storey resolution layer F13: top-level arrays = ground,
   `upperLevels` adds storeys; `planLevels`/`levelById`/`levelAsPlan`/`allPlanRooms`/
   `withLevelGeometry` — see `docs/research/multi-level-design.md`),
   `wallArc.ts` (curved walls — `PlanWall.arc` bulge → quadratic-Bézier chord sub-segments reused by
@@ -420,8 +422,12 @@ same change that reshapes a system.
   drawn on the draft (desktop keeps drag-to-draw).
   **Wall + door/window inspectors mirror the furniture inspector** (`PlanInspector`): a custom **Name**
   (pure defaults in `floorplan/planElementName.ts`; `PlanWall.name`/`PlanOpening.name`, custom wins; room
-  creation auto-names boundary walls `<room> wall ##` via pure `floorplan/roomWallNames.ts` in `addRoom`,
-  flagged `nameAuto` so a user-typed name is never overwritten) +
+  creation auto-names boundary walls `<room> wall ##` **and the doors/windows on them**
+  (`<room> door/window ##`) via pure `floorplan/roomWallNames.ts` (`assignRoomWallNames`/
+  `assignRoomOpeningNames`) in `addRoom`, flagged `nameAuto` (walls + openings) so a user-typed name is
+  never overwritten; **renaming a room re-flows** the auto names via `applyRoomElementNames` in `updateRoom`.
+  Structural plan edits to the seeded default flat **fork it to a custom id** (`forkIfDefault`) so the 3D
+  scene switches from the curated `<Apartment/>` to the live `<PlanShell/>` and edits bind in orbit/walk) +
   an **action grid** (Reverse/Split/Join/Duplicate/Lock/Delete for walls; Flip hinge/swing/Duplicate/Lock/Delete
   for doors). **Lock** (`PlanWall.locked`/`PlanOpening.locked`) keeps an element selectable but un-draggable/
   -deletable on the canvas; **`duplicateWall`/`duplicateOpening`** make an editable copy (name + lock dropped).
