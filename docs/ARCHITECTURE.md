@@ -588,7 +588,13 @@ same change that reshapes a system.
   the base-aware `withBase('/draco/')` (override `VITE_DRACO_DECODER_PATH`); the Basis transcoder
   is `public/basis/` via `withBase('/basis/')`. A `vite-plugin-pwa` Workbox service worker
   (`vite.config.ts`) precaches the build so the app loads and runs offline after the first visit
-  (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`). Optional network-bound
+  (build-only — `devOptions` off; opt out with `VITE_DISABLE_PWA=1`, which `disable`s the plugin
+  while keeping `virtual:pwa-register` resolvable). **Updates** (`registerType: 'autoUpdate'`):
+  registration is owned by `src/pwa/swUpdate.ts` (`injectRegister: null`) which polls
+  `registration.update()` hourly **and** on foreground (visibility/focus) so installed Home-Screen
+  PWAs — iOS standalone has no reload UI — pick up new builds; a found build installs + reloads
+  silently, and a manual **"Check for updates"** (`runUpdateCheck`, File menu / mobile Appearance &
+  help) gives toast feedback. Optional network-bound
   features (remote CC0 catalog, AI, geocoding) degrade gracefully when offline. The SPA
   navigation fallback is denylisted for `<base>/docs/` (`navigateFallbackDenylist`) so it can't
   serve the app shell in place of the separately-built VitePress **user guide**. The guide is

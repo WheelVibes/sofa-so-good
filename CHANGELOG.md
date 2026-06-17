@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PWA: foreground/periodic update checks + manual "Check for updates"
+
+- Installed Home-Screen PWAs (esp. iOS standalone, which has no reload UI and only
+  looks for a new worker on a real launch) now pick up new builds reliably: we
+  register the service worker ourselves (`src/pwa/swUpdate.ts`) and call
+  `registration.update()` **hourly and whenever the app returns to the foreground**
+  (visibility/focus, throttled). With `autoUpdate`, a found build still installs +
+  reloads silently.
+- Added a manual **"Check for updates"** action (File menu on desktop, Appearance &
+  help on mobile) with toast feedback — *updating / up-to-date / unavailable* — for
+  standalone users who have no browser refresh button.
+- Vite PWA config: the plugin is always present with `disable: !pwaEnabled` (so
+  `virtual:pwa-register` resolves even when the SW is off) and `injectRegister: null`
+  (we own registration). SW generation is unchanged; verified the SW registers,
+  activates, and `update()` resolves against the production base.
+
 ## Floor-plan editor: precise tap-to-place wall drawing on touch
 
 - On a phone/tablet the **Wall** tool is now **tap-to-place**: tap to drop the

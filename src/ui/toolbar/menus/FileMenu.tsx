@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useFeature } from '../../../features/useFeature'
 import { BUILTIN_CATALOG } from '../../../furniture/builtinCatalog'
+import { runUpdateCheck } from '../../../pwa/swUpdate'
 import { canRecord } from '../../../scene/RecordController'
 import { EXPORT_EVENT } from '../../../scene/ScreenshotController'
 import { applySerialized, serialize } from '../../../state/schema'
@@ -220,6 +221,16 @@ export function FileMenu() {
             ))}
         </div>
       )}
+
+      <div className="mt-1 border-t border-[var(--border)] px-2 pb-0.5 pt-1.5 text-[10px] font-semibold uppercase tracking-wider text-[var(--text-3)]">
+        App
+      </div>
+      <MenuItem
+        icon="Download"
+        label="Check for updates"
+        sub="Fetch the latest version (auto-reloads if found)"
+        onClick={() => void runUpdateCheck()}
+      />
     </ToolbarMenu>
   )
 }

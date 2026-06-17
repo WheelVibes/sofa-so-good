@@ -1,3 +1,4 @@
+import { fileURLToPath } from 'node:url'
 import react from '@vitejs/plugin-react'
 import { defineConfig } from 'vitest/config'
 
@@ -8,7 +9,16 @@ process.env.TZ = 'Asia/Singapore'
 export default defineConfig({
   plugins: [react()],
   // Prevent duplicate React/three when a nested node_modules/ sub-tree is present.
-  resolve: { dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'scheduler', 'three'] },
+  resolve: {
+    dedupe: ['react', 'react-dom', 'react/jsx-runtime', 'scheduler', 'three'],
+    // vite-plugin-pwa's `virtual:pwa-register` only exists during a real Vite
+    // build/dev; stub it so component tests that import the SW-update helper run.
+    alias: {
+      'virtual:pwa-register': fileURLToPath(
+        new URL('./src/pwa/pwaRegisterStub.ts', import.meta.url),
+      ),
+    },
+  },
   test: {
     environment: 'happy-dom',
     setupFiles: ['./src/setupTests.ts'],
