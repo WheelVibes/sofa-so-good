@@ -32,13 +32,23 @@ export function PlanToolMenu({
         ref={ref}
         type="button"
         className={`btn btn-sm${open ? ' btn-accent' : ''}`}
-        style={{ flex: 1, minWidth: 0 }}
+        style={{
+          flex: 1,
+          minWidth: 0,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 8,
+        }}
         aria-haspopup="menu"
         aria-expanded={open}
         aria-label="Drawing tool"
         onClick={() => setOpen((v) => !v)}
       >
-        {label(current)} ▾
+        <span>{label(current)}</span>
+        <span aria-hidden style={{ opacity: 0.7 }}>
+          ▾
+        </span>
       </button>
       <Popover open={open} anchorRef={ref} onClose={() => setOpen(false)}>
         <div role="menu" className="pop-panel" style={{ width: 264 }}>
