@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Configurable linear + grid array with placement feedback (PC-ARRAY-GAP) (v0.1.0.16)
+
+Improve the linear array tool to match design-tool standards: axis/direction control,
+explicit spacing, 2D grid (rows×cols), and a non-blocking toast when copies are dropped.
+
+- **`arrayPlacement.ts` (`src/furniture/arrayPlacement.ts`):**
+  - Extended `ArrayAxis` to include `'left'` (−X) and `'back'` (−Z) in addition to
+    `'right'` and `'forward'`.
+  - `arrayOffsets` now caps output at `ARRAY_MAX_COUNT` (200) for safety.
+  - New `gridArrayPlacements(src, opts)` — pure, render-agnostic, unit-tested:
+    given `cols × rows`, `colSpacing`, `rowSpacing`, `colAxis`, `rowAxis` (all relative
+    to item Y-rotation), returns `GridPlacement[]` of additional positions (source cell
+    skipped). Spacing clamped to ≥ 0.001 m; cols/rows clamped to ≥ 1; total capped at
+    `ARRAY_MAX_COUNT`.
+- **Unit tests** (`src/furniture/arrayPlacement.test.ts`): 18 tests — added left/back
+  axis correctness, rotation-honouring for grids, 3×2 grid cell positions, col/row axis
+  overrides, spacing clamping, and the ARRAY_MAX_COUNT cap.
+- **UI** (`src/ui/inspector/InspectorPanel.tsx`):
+  - The old single-line "Duplicate a row of N" is replaced by a full "Linear array" panel
+    (pro mode) with: Columns count, Rows count, Col gap (m), Row gap (m), and a Direction
+    selector (+X/−X/+Z/−Z). Gaps default to item footprint + 12 cm gap; user can override.
+  - Dropped-copy feedback: when some copies fail `canPlace`, a non-blocking info toast
+    appears: "Placed N of M — K didn't fit". If all copies fail: "Couldn't place any copies".
+  - Grid mode activates automatically when Rows > 1 (uses `gridArrayPlacements`); 1D row
+    (Rows=1) uses `arrayOffsets`. A **grid** skips blocked cells (an interior obstruction
+    doesn't drop cells beyond it, like radial); a **1D row** stops at the first blocked slot
+    so it stays contiguous and copies never tunnel through a wall into empty exterior space.
+    Either way the toast reports the accurate dropped count.
+  - Committed in a single `setItems` + `pushHistory` (same undo-step pattern as radial array).
+
 ## Radial/polar array (PC-ARRAY-RADIAL) (v0.1.0.15)
 
 Place N copies of a selected item evenly around a circle — ideal for dining

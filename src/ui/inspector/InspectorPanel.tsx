@@ -4,7 +4,12 @@ import { canPlace } from '../../collision/placement'
 import { placementWalls } from '../../collision/placementWalls'
 import { useFeature } from '../../features/useFeature'
 import { pointInRoom } from '../../floorplan/types'
-import { arrayOffsets } from '../../furniture/arrayPlacement'
+import {
+  ARRAY_MAX_COUNT,
+  type ArrayAxis,
+  arrayOffsets,
+  gridArrayPlacements,
+} from '../../furniture/arrayPlacement'
 import { isIkeaDef, useCatalog } from '../../furniture/catalog'
 import { itemPrice } from '../../furniture/furniturePrices'
 import { isEmitter, isItemEmitter, resolveEmitterSpec } from '../../furniture/lightEmitters'
@@ -72,6 +77,10 @@ export function InspectorPanel() {
   const renameItem = useStore((s) => s.renameItem)
   const { minimized, toggle } = useInspectorMinimize(item?.id)
   const [arrayCount, setArrayCount] = useState(3)
+  const [arrayAxis, setArrayAxis] = useState<ArrayAxis>('right')
+  const [arraySpacingOverride, setArraySpacingOverride] = useState<number | null>(null)
+  const [arrayRows, setArrayRows] = useState(1)
+  const [arrayRowSpacingOverride, setArrayRowSpacingOverride] = useState<number | null>(null)
   const [radialCount, setRadialCount] = useState(6)
   const [radialRadius, setRadialRadius] = useState(1.0)
   const [radialStartAngle, setRadialStartAngle] = useState(0)
@@ -270,19 +279,42 @@ export function InspectorPanel() {
     if (typeof wv === 'number') w = wv
     if (typeof dv === 'number') d = dv
   }
-  // Place a row of copies to the item's right (local +X), spaced by its width,
-  // each collision-checked. Stops at the first blocked slot. The original + all
-  // copies share one groupId, committed in a single undo step.
+  // Place a grid (or row) of copies starting from the item's position.
+  // Supports configurable axis, spacing, count, and rows×cols grid mode.
+  // Copies that fail canPlace are skipped; the user gets a toast if any were dropped.
   const duplicateRow = () => {
     const st = useStore.getState()
-    const count = Math.max(2, Math.min(10, Math.round(arrayCount)))
-    // Evenly-spaced copy positions to the item's right (tested `arrayOffsets`).
-    const positions = arrayOffsets(item, count - 1, w + 0.12, 'right')
+    // Clamp count and rows to safe ranges
+    const cols = Math.max(1, Math.min(ARRAY_MAX_COUNT + 1, Math.round(arrayCount)))
+    const rows = Math.max(1, Math.min(ARRAY_MAX_COUNT + 1, Math.round(arrayRows)))
+    // Default spacing is footprint dimension + gap; user can override.
+    const colFootprint = arrayAxis === 'right' || arrayAxis === 'left' ? w : d
+    const rowFootprint = d
+    const colSpacing = arraySpacingOverride ?? colFootprint + 0.12
+    const rowSpacing = arrayRowSpacingOverride ?? rowFootprint + 0.12
+
+    const isGrid = rows > 1
+    const placements = isGrid
+      ? gridArrayPlacements(item, {
+          cols,
+          rows,
+          colSpacing,
+          rowSpacing,
+          colAxis: arrayAxis,
+          rowAxis: 'forward',
+        })
+      : arrayOffsets(item, cols - 1, colSpacing, arrayAxis).map((position) => ({
+          position,
+          col: 0,
+          row: 0,
+        }))
+
     const gid =
       typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `grp-${Date.now()}`
     const newItems: (typeof item)[] = []
     let others = st.items
-    for (const pos of positions) {
+    let dropped = 0
+    for (const { position: pos } of placements) {
       const probe = {
         id: 'row-probe',
         defId: item.defId,
@@ -290,11 +322,21 @@ export function InspectorPanel() {
         rotation: item.rotation,
         props: item.props,
       }
-      // Stop at the first blocked slot so the row stays contiguous.
       if (
         !canPlace(probe, def, { others, defs: catalog, doors: st.doors, walls: placementWalls(st) })
-      )
+      ) {
+        if (isGrid) {
+          // Grids: skip the blocked cell (like radial) — an interior obstruction
+          // shouldn't drop the cells beyond it. Count it for the toast.
+          dropped++
+          continue
+        }
+        // 1-D linear row: stop at the first blocked slot so the row stays
+        // contiguous and copies don't tunnel through a wall into empty space
+        // outside the room. Everything from this slot on is dropped.
+        dropped = placements.length - newItems.length
         break
+      }
       const ni = {
         ...item,
         id:
@@ -308,11 +350,27 @@ export function InspectorPanel() {
       newItems.push(ni)
       others = [...others, ni]
     }
-    if (newItems.length === 0) return
+
+    const total = placements.length
+    if (newItems.length === 0) {
+      st.notify.start({
+        title: "Couldn't place any copies",
+        message: `All ${total} position${total !== 1 ? 's' : ''} are blocked.`,
+        kind: 'info',
+      })
+      return
+    }
     st.pushHistory()
     st.setItems(
       st.items.map((it) => (it.id === item.id ? { ...it, groupId: gid } : it)).concat(newItems),
     )
+    if (dropped > 0) {
+      const placed = newItems.length
+      st.notify.start({
+        title: `Placed ${placed} of ${total + 1} — ${dropped} didn't fit`,
+        kind: 'info',
+      })
+    }
   }
 
   return (
@@ -508,20 +566,146 @@ export function InspectorPanel() {
                 </button>
               </div>
               {proMode ? (
-                <div className="act-array" title="Place a row of copies to the right of this item">
-                  <span>Duplicate a row of</span>
-                  <input
-                    type="number"
-                    min={2}
-                    max={10}
-                    value={arrayCount}
-                    onChange={(e) => setArrayCount(Number(e.target.value) || 2)}
-                    aria-label="Number of copies in the row"
-                  />
-                  <button type="button" className="act-array-go" onClick={duplicateRow}>
-                    <Icon.Copy width={13} height={13} />
-                    Go
-                  </button>
+                <div
+                  className="act-array act-array--linear"
+                  title="Place a linear or grid array of copies"
+                  style={{ flexDirection: 'column', alignItems: 'stretch', gap: 'var(--s-2)' }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <span>Linear array</span>
+                    <button
+                      type="button"
+                      className="act-array-go"
+                      onClick={duplicateRow}
+                      style={{ marginLeft: 'auto' }}
+                    >
+                      <Icon.Copy width={13} height={13} />
+                      Go
+                    </button>
+                  </div>
+                  <div
+                    style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 'var(--s-2)' }}
+                  >
+                    <label
+                      className="fld"
+                      style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                    >
+                      <span
+                        className="label"
+                        style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                      >
+                        Columns
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={ARRAY_MAX_COUNT + 1}
+                        value={arrayCount}
+                        onChange={(e) => setArrayCount(Math.max(1, Number(e.target.value) || 1))}
+                        aria-label="Number of columns (total including source)"
+                        className="input"
+                        style={{ fontSize: 'var(--t-xs)', textAlign: 'center' }}
+                      />
+                    </label>
+                    <label
+                      className="fld"
+                      style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                    >
+                      <span
+                        className="label"
+                        style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                      >
+                        Rows
+                      </span>
+                      <input
+                        type="number"
+                        min={1}
+                        max={ARRAY_MAX_COUNT + 1}
+                        value={arrayRows}
+                        onChange={(e) => setArrayRows(Math.max(1, Number(e.target.value) || 1))}
+                        aria-label="Number of rows (total including source)"
+                        className="input"
+                        style={{ fontSize: 'var(--t-xs)', textAlign: 'center' }}
+                      />
+                    </label>
+                    <label
+                      className="fld"
+                      style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                    >
+                      <span
+                        className="label"
+                        style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                      >
+                        Col gap (m)
+                      </span>
+                      <input
+                        type="number"
+                        min={0.01}
+                        max={50}
+                        step={0.05}
+                        placeholder={`${((arrayAxis === 'right' || arrayAxis === 'left' ? w : d) + 0.12).toFixed(2)}`}
+                        value={arraySpacingOverride ?? ''}
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          setArraySpacingOverride(e.target.value === '' ? null : Math.max(0.01, v))
+                        }}
+                        aria-label="Column spacing centre-to-centre in metres"
+                        className="input"
+                        style={{ fontSize: 'var(--t-xs)', textAlign: 'center' }}
+                      />
+                    </label>
+                    <label
+                      className="fld"
+                      style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                    >
+                      <span
+                        className="label"
+                        style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                      >
+                        Row gap (m)
+                      </span>
+                      <input
+                        type="number"
+                        min={0.01}
+                        max={50}
+                        step={0.05}
+                        placeholder={`${(d + 0.12).toFixed(2)}`}
+                        value={arrayRowSpacingOverride ?? ''}
+                        onChange={(e) => {
+                          const v = Number(e.target.value)
+                          setArrayRowSpacingOverride(
+                            e.target.value === '' ? null : Math.max(0.01, v),
+                          )
+                        }}
+                        aria-label="Row spacing centre-to-centre in metres"
+                        className="input"
+                        style={{ fontSize: 'var(--t-xs)', textAlign: 'center' }}
+                      />
+                    </label>
+                  </div>
+                  <label
+                    className="fld"
+                    style={{ display: 'flex', flexDirection: 'column', gap: 2 }}
+                  >
+                    <span
+                      className="label"
+                      style={{ fontSize: 'var(--t-2xs)', color: 'var(--text-3)' }}
+                    >
+                      Direction
+                    </span>
+                    <select
+                      value={arrayAxis}
+                      onChange={(e) => setArrayAxis(e.target.value as ArrayAxis)}
+                      aria-label="Array column direction"
+                      className="input"
+                      style={{ fontSize: 'var(--t-xs)' }}
+                    >
+                      <option value="right">Right (+X)</option>
+                      <option value="left">Left (−X)</option>
+                      <option value="forward">Forward (+Z)</option>
+                      <option value="back">Back (−Z)</option>
+                    </select>
+                  </label>
                 </div>
               ) : null}
               {proMode && radialArrayOn ? (

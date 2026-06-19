@@ -30,7 +30,15 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   (`scripts/scenarios/parametric-<type>-simple.json` + journey). Kitchen-run specifics:
   `kitchenCabinets` flag (tier: `simple`), `TYPE_CATEGORY` maps to `'kitchen'`.
 - **Array helpers** — pure geometry, render-agnostic, unit-tested, no store imports:
-  - `arrayPlacement.ts` — linear/row array: N evenly-spaced positions along local +X or +Z.
+  - `arrayPlacement.ts` — linear/grid array:
+    - `arrayOffsets(src, count, spacing, axis)` — N evenly-spaced positions along the item's
+      local `'right'` (+X), `'left'` (−X), `'forward'` (+Z), or `'back'` (−Z), honoring
+      Y-rotation. Count capped at `ARRAY_MAX_COUNT` (200).
+    - `gridArrayPlacements(src, opts)` — 2D `cols × rows` grid of positions with independent
+      `colSpacing`/`rowSpacing` and `colAxis`/`rowAxis` (defaults: right/forward). Source cell
+      (0,0) excluded from output. Spacing clamped to ≥ 0.001 m; total capped at `ARRAY_MAX_COUNT`.
+    - Both functions return only positions; the UI in `InspectorPanel.tsx` does collision-checking,
+      batches commits via `setItems`/`pushHistory`, and surfaces a dropped-count toast.
   - `radialArray.ts` — radial/polar array: N positions around a circle with optional
     `faceCenter` yaw. Facing convention: `atan2(-cos angle, -sin angle)` so the item's
     Three.js local +Z points toward the center. Gated by the `radialArray` Pro flag (and
