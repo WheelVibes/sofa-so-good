@@ -5,7 +5,7 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
-## Context-aware tone-mapping default (RD-404)
+## Context-aware tone-mapping default (RD-404) (v0.1.0.26)
 
 The tone-mapper now picks the right view transform for what you're doing, while
 still honouring an explicit choice. New **Auto** setting (the default) in the
