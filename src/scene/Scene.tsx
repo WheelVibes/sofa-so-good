@@ -11,6 +11,7 @@ import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
+import { AnisotropyController } from './AnisotropyController'
 import { AnnotationsOverlay } from './AnnotationsOverlay'
 import { ClearanceOverlay } from './ClearanceOverlay'
 import { CommentPins } from './CommentPins'
@@ -126,6 +127,7 @@ export function Scene() {
         <Effects />
         <ShowcaseController />
         <QualityController />
+        <AnisotropyController />
         <ScreenshotController />
         <SceneExportController />
         <PanoramaController />

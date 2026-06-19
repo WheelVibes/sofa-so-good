@@ -244,6 +244,12 @@ same change that reshapes a system.
   patterns cap at 512²); `effectivePatternSize(pattern)` clamps to `min(BASE_SIZE, cap)` so
   smooth patterns stay at 256 even on Medium+ tiers — saving GPU memory with no visible loss.
   `QualityController` sets `BASE_SIZE` to 256 on Performance, 512 on Medium+.
+  **Texture anisotropy (RD-401)**: `materials/anisotropy.ts` is the single source of truth —
+  every CanvasTexture creation (+ per-repeat `.clone()`) routes through `applyAnisotropy(tex)`,
+  which stamps a cached cap (default 8) and tracks the texture. `scene/AnisotropyController`
+  (mounted in both Canvases) calls `setMaxAnisotropy(gl.capabilities.getMaxAnisotropy())` on
+  first render → clamps to `max(1, deviceMax)` (commonly 16) and re-applies to all already-built
+  textures so module-load singletons + worker hot-swap maps sharpen at grazing angles.
   **C271 worker**: `buildMaterial` immediately generates a sync texture (no first-paint delay),
   then `runProceduralWorker.ts` fires a single shared `Worker`
   (`procedural.worker.ts`) that re-renders via `OffscreenCanvas` and returns three

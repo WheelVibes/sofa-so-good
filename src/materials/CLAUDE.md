@@ -9,6 +9,14 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   `PATTERN_SIZE_CAP` (256 for smooth/noise-based, 512 for high-frequency geometric patterns).
 - **World-space UVs** (`worldUv.ts`): surfaces tile at a fixed physical scale — don't bake
   per-mesh UVs or assume a unit cube.
+- **Texture anisotropy** (`anisotropy.ts`, RD-401): never hardcode `texture.anisotropy`.
+  Route every CanvasTexture creation (and every per-repeat `.clone()`) through
+  `applyAnisotropy(tex)` — it stamps the shared cap and tracks the texture. The cap defaults
+  to 8 until the first render publishes the real device max via `setMaxAnisotropy(gl.capabilities
+  .getMaxAnisotropy())` (from `scene/AnisotropyController`, mounted in both Canvases), which
+  clamps to `max(1, deviceMax)` and re-applies to all already-created textures. Anisotropy needs
+  mipmaps — CanvasTextures have them by default; if you build a texture without mipmaps it's a
+  no-op.
 - **Furniture materials** come from `furnitureMaterials.ts` helpers (real three `Material`
   instances: tintable wood/stone/fabric, `getSolidMaterial`, the `mat:<id>` DLC resolver).
   Don't invent bespoke texture art — apply a CC0 DLC material over the procedural fallback.

@@ -5,6 +5,34 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Clamp texture anisotropy to the device maximum (RD-401) (v0.1.0.25)
+
+Sharper floors/walls/wood at grazing angles — the most visible "game-ish" blur
+tell. Texture anisotropy was hardcoded (`furnitureMaterials.ts` `= 4`, `cache.ts`
++ `procedural/generators.ts` `= 8`) instead of the device limit (commonly 16 via
+`renderer.capabilities.getMaxAnisotropy()`).
+
+- **New shared source of truth** (`src/materials/anisotropy.ts`): a cached
+  `maxAnisotropy` defaulting to 8 until the renderer is known, `getAnisotropy()`
+  accessor, `applyAnisotropy(tex)` (stamps the cap + tracks the texture), and
+  `setMaxAnisotropy(deviceMax)` which clamps to `max(1, deviceMax)` and re-applies
+  to every already-created/cached texture (the module-load singletons + their
+  per-repeat clones + the worker hot-swap maps), so textures built before the
+  renderer existed still sharpen once the real max lands.
+- **New R3F component** (`src/scene/AnisotropyController.tsx`) reads
+  `gl.capabilities.getMaxAnisotropy()` on first render; mounted in both Canvases
+  (main scene + room editor) so whichever renders first resolves the cap, and it
+  re-clamps on a re-created context.
+- Every CanvasTexture creation site (`furnitureMaterials.ts`, `cache.ts`,
+  `procedural/generators.ts`) + every per-repeat `.clone()` now routes through
+  `applyAnisotropy`. CanvasTextures keep mipmaps (LinearMipmapLinear), so the
+  anisotropy is effective, not a no-op.
+- Unit-tested (`anisotropy.test.ts`): default before set, raises to device max,
+  clamps a low headless max, never exceeds the cap, floors garbage at 1,
+  idempotent. Verified in-app via a scene-graph probe — `getMaxAnisotropy()` read
+  as 16 and all 581 pipeline CanvasTextures sit at 16 (only GLB-loaded model
+  textures, outside scope, keep the loader default).
+
 ## IES photometric light profiles for spotlights (PC-IES-LIGHT) (v0.1.0.23)
 
 Coohom-parity advanced lighting: drive a light fixture with a real luminaire beam

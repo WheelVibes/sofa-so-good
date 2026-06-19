@@ -5,6 +5,7 @@ import {
   SRGBColorSpace,
   type Texture,
 } from 'three'
+import { applyAnisotropy } from './anisotropy'
 import {
   effectivePatternSize,
   generateProcedural,
@@ -57,7 +58,7 @@ function imageBitmapToTexture(
   const tex = new CanvasTexture(canvas)
   tex.wrapS = tex.wrapT = RepeatWrapping
   if (srgb) tex.colorSpace = SRGBColorSpace
-  tex.anisotropy = 8
+  applyAnisotropy(tex)
   tex.repeat.set(1 / uvScale[0], 1 / uvScale[1])
   tex.needsUpdate = true
   return tex

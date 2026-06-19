@@ -10,6 +10,7 @@
  * public `generateProcedural*` API.
  */
 import { CanvasTexture, RepeatWrapping, SRGBColorSpace, type Texture } from 'three'
+import { applyAnisotropy } from '../anisotropy'
 import type { ProceduralPattern } from '../types'
 import type { Fields } from './fieldKit'
 import { clamp01, hashSeed, heightToNormalRGBA, hexToRgb, mix } from './noise'
@@ -132,7 +133,7 @@ function toTexture(data: Uint8ClampedArray, srgb: boolean): CanvasTexture {
   const tex = new CanvasTexture(canvas)
   tex.wrapS = tex.wrapT = RepeatWrapping
   if (srgb) tex.colorSpace = SRGBColorSpace
-  tex.anisotropy = 8
+  applyAnisotropy(tex)
   return tex
 }
 
@@ -149,7 +150,7 @@ export function rawToTexture(data: Uint8ClampedArray, size: number, srgb: boolea
   const tex = new CanvasTexture(canvas)
   tex.wrapS = tex.wrapT = RepeatWrapping
   if (srgb) tex.colorSpace = SRGBColorSpace
-  tex.anisotropy = 8
+  applyAnisotropy(tex)
   return tex
 }
 

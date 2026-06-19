@@ -17,6 +17,7 @@ import {
 } from 'three'
 import { isFeatureEnabled } from '../features/featureFlags'
 import type { RenderTier } from '../scene/quality'
+import { applyAnisotropy } from './anisotropy'
 import { getBuiltMaterial } from './cache'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
@@ -50,7 +51,7 @@ function canvasFrom(data: Uint8ClampedArray): CanvasTexture {
   ctx.putImageData(img, 0, 0)
   const t = new CanvasTexture(c)
   t.wrapS = t.wrapT = RepeatWrapping
-  t.anisotropy = 4
+  applyAnisotropy(t)
   return t
 }
 
@@ -225,8 +226,8 @@ export function getStoneMaterial(color: string, repeat = 1, rough = 0.12): MeshS
   const hit = cache.get(key)
   if (hit) return hit
   const maps = getMarbleMaps()
-  const map = maps.albedo.clone()
-  const normal = maps.normal.clone()
+  const map = applyAnisotropy(maps.albedo.clone())
+  const normal = applyAnisotropy(maps.normal.clone())
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   map.needsUpdate = normal.needsUpdate = true
@@ -292,8 +293,8 @@ export function getConcreteMaterial(color: string, repeat = 1, rough = 0.85): Me
   const hit = cache.get(key)
   if (hit) return hit
   const maps = getConcreteMaps()
-  const map = maps.albedo.clone()
-  const normal = maps.normal.clone()
+  const map = applyAnisotropy(maps.albedo.clone())
+  const normal = applyAnisotropy(maps.normal.clone())
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   map.needsUpdate = normal.needsUpdate = true
@@ -537,6 +538,7 @@ export function getGradientFabricMaterial(a: string, b: string): MeshStandardMat
   ctx.fillRect(0, 0, 64, 64)
   const tex = new CanvasTexture(c)
   tex.colorSpace = SRGBColorSpace
+  applyAnisotropy(tex)
   const m = new MeshPhysicalMaterial({
     map: tex,
     roughness: 0.95,
@@ -572,6 +574,7 @@ export function getGradientMaterial(a: string, b: string): MeshStandardMaterial 
   ctx.fillRect(0, 0, 64, 64)
   const tex = new CanvasTexture(c)
   tex.colorSpace = SRGBColorSpace
+  applyAnisotropy(tex)
   const m = new MeshStandardMaterial({ map: tex, roughness: 0.85, metalness: 0 })
   cache.set(key, m)
   return m
@@ -621,6 +624,7 @@ export function getPrintMaterial(a: string, b: string, kind: string): MeshStanda
   }
   const tex = new CanvasTexture(c)
   tex.colorSpace = SRGBColorSpace
+  applyAnisotropy(tex)
   const m = new MeshStandardMaterial({ map: tex, roughness: 0.82, metalness: 0 })
   cache.set(key, m)
   return m
@@ -752,17 +756,17 @@ function getFurnitureMatWithRepeat(
   if (hit) return hit
   const m = base.clone()
   if (m.map) {
-    m.map = m.map.clone()
+    m.map = applyAnisotropy(m.map.clone())
     m.map.needsUpdate = true
     m.map.repeat.set(repeat, repeat)
   }
   if (m.normalMap) {
-    m.normalMap = m.normalMap.clone()
+    m.normalMap = applyAnisotropy(m.normalMap.clone())
     m.normalMap.needsUpdate = true
     m.normalMap.repeat.set(repeat, repeat)
   }
   if (m.roughnessMap) {
-    m.roughnessMap = m.roughnessMap.clone()
+    m.roughnessMap = applyAnisotropy(m.roughnessMap.clone())
     m.roughnessMap.needsUpdate = true
     m.roughnessMap.repeat.set(repeat, repeat)
   }
@@ -822,10 +826,11 @@ export function getWoodMaterial(color: string, repeat = 1, rough = 0.5): MeshSta
   const hit = cache.get(key)
   if (hit) return hit
   const maps = getWoodMaps()
-  // Clone so per-repeat tiling doesn't clobber the shared source.
-  const map = maps.albedo.clone()
-  const normal = maps.normal.clone()
-  const roughMap = maps.rough.clone()
+  // Clone so per-repeat tiling doesn't clobber the shared source. Re-stamp the
+  // anisotropy cap so the clone tracks a later device-max update too (RD-401).
+  const map = applyAnisotropy(maps.albedo.clone())
+  const normal = applyAnisotropy(maps.normal.clone())
+  const roughMap = applyAnisotropy(maps.rough.clone())
   map.repeat.set(repeat, repeat)
   normal.repeat.set(repeat, repeat)
   roughMap.repeat.set(repeat, repeat)
@@ -881,7 +886,7 @@ export function getRattanMaterial(color: string, repeat = 3): MeshStandardMateri
   const key = `rattan:${color}:${repeat}`
   const hit = cache.get(key)
   if (hit) return hit
-  const normal = getRattanNormal().clone()
+  const normal = applyAnisotropy(getRattanNormal().clone())
   normal.repeat.set(repeat, repeat)
   normal.needsUpdate = true
   const [r, g, b] = hexToRgb(color)

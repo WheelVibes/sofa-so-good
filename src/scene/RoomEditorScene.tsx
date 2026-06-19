@@ -6,6 +6,7 @@ import { FurnitureMaterialLoader } from '../furniture/FurnitureMaterialLoader'
 import { useStore } from '../state/store'
 import { MeasurementOverlay } from '../ui/MeasurementOverlay'
 import { AlignmentGuides } from './AlignmentGuides'
+import { AnisotropyController } from './AnisotropyController'
 import { AnnotationsOverlay } from './AnnotationsOverlay'
 import { ClearanceOverlay } from './ClearanceOverlay'
 import { ContextLossGuard } from './ContextLossGuard'
@@ -53,6 +54,7 @@ export function RoomEditorScene() {
       }}
     >
       <ContextLossGuard />
+      <AnisotropyController />
       <hemisphereLight args={['#ffffff', '#b9b4aa', 2.2]} />
       <ambientLight intensity={0.6} />
       {editorShell.kind === 'default' ? (
