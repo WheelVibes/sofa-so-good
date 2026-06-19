@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## a11y: 44px close-button hit targets on bottom-sheet panels (UX-002) (v0.2.0.16)
+
+On phones the catalog/inspector/finish-picker/plan-props and the `.aux` analysis panels (Budget,
+Daylight, Clearance, …) dock as bottom sheets, but their header close **X** was a bare 26px
+`.icon-btn` — under the 44px touch-target guideline (only the mobile *menu* sheet's X had the
+treatment). Extended the existing invisible `::after` hit-area pattern to every docked-sheet
+`.panel-head .icon-btn`, so the close control is a 44px tap target (26px + 2×9px) while keeping the
+compact 26px visual. Measured the computed hit box at 390×844 (visual 26×26, hit 44px).
+
 ## Perf: de-duplicate the per-move wall build in the drag path (PERF-003, partial) (v0.2.0.15)
 
 `DragController.onMove` built the placement-wall set twice per pointermove — once for the

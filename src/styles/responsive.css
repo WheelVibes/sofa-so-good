@@ -257,6 +257,16 @@ body.mobile {
   .er-finish .panel-head, .plan-props .panel-head,
   .aux .panel-head { padding-top: calc(var(--s-4) + 6px); }
 
+  /* Docked-sheet header close X: keep the compact 26px visual but pad the hit
+     area to 44px (26 + 2×9) with an invisible pseudo-element, matching
+     .m-sheet-head so every bottom-sheet's close meets the touch target (UX-002). */
+  .catalog .panel-head .icon-btn, .inspector .panel-head .icon-btn,
+  .er-finish .panel-head .icon-btn, .plan-props .panel-head .icon-btn,
+  .aux .panel-head .icon-btn { position: relative; }
+  .catalog .panel-head .icon-btn::after, .inspector .panel-head .icon-btn::after,
+  .er-finish .panel-head .icon-btn::after, .plan-props .panel-head .icon-btn::after,
+  .aux .panel-head .icon-btn::after { content: ''; position: absolute; inset: -9px; }
+
   /* card grid breathes a touch more on phones */
   .card-grid { gap: var(--s-3); }
 

@@ -65,7 +65,7 @@ headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
 | 26 | **PC2-FURN-GROUP** | First-class furniture grouping (group move/rotate/dup/delete + ⌘K cmd, pro flag) | MED QOL | M | placement slice, `layout/selectionActions.ts`, `features/featureFlags.ts` | `cg-selactions` |
 | 27 | **PC2-MULTI-DUP-PASTE** | Copy/paste + duplicate-in-place for multi-selection, one coalesced undo | MED QOL | S | `layout/selectionActions.ts`, keymap/⌘K | `cg-selactions` |
 | 28 | **PC2-PLAN-ANGLE-SNAP** | Snap wall-draw + furniture-rotate to 15/30/45/90° with Shift/Alt override | MED QOL | S/M | `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapToWalls.ts` (+test) | `cg-floorplaneditor` |
-| 29 | **UX-002** | Bottom-sheet close buttons are 26px tap targets (<44px) on mobile | MED a11y/touch | S | `styles/components.css`, `styles/responsive.css` | `cg-css` |
+| ~~29~~ | ~~**UX-002**~~ | ✅ DONE (v0.2.0.16) — 44px `::after` hit area on every docked-sheet `.panel-head .icon-btn` | MED a11y/touch | S | `styles/responsive.css` | `cg-css` |
 | 30 | **UX-006** | No global `prefers-reduced-motion` handling for sheet/fade animations | LOW/MED a11y | S | `styles/responsive.css` (global media block) | `cg-css` |
 | 31 | **UX-003** | `UploadModelDialog` not on shared `Modal` (no focus trap/role + `border-blue-500` literal) | MED a11y *(dev-only path)* | M | `ui/upload/UploadModelDialog.tsx` | `cg-uploaddlg` |
 | 32 | **UX-004** | `CompassModal` custom overlay lacks dialog role/focus mgmt + keyboard dial | MED a11y | M | `ui/toolbar/CompassModal.tsx` | `cg-compass` |
