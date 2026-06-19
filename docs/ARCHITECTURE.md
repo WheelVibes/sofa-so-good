@@ -122,7 +122,9 @@ same change that reshapes a system.
   Layers (`LayersPanel.tsx`, `leftMode`) = Objects tree, select/hide/lock/delete + name
   filter + per-row finish drop target. Packs = downloadable content. Plus InspectorPanel
   (`inspector/`: `label` rename, minimize, price/total, Quick finishes, Apply-to-all,
-  Straighten), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel, NavCluster,
+  Straighten, **linear array** (`furniture/arrayPlacement.ts` — pure, unit-tested),
+  **radial/polar array** (`furniture/radialArray.ts` — pure, unit-tested, Pro-only via
+  `radialArray` flag)), FinishPicker, WallAccentPicker, GraphicsSettings, BudgetPanel, NavCluster,
   CommandPalette, ContextMenu, Onboarding, HelpModal, Modal, `upload/`/`floorplan/`/
   `toolbar/`/`tour/`/`wizard/`/`ai/`/`auth/`.
 - `src/styles/` — design CSS (after Tailwind via `index.css`): `tokens.css` (10 OKLCH

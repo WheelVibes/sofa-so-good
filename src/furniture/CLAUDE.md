@@ -21,6 +21,12 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   maps parts → meshes/materials. The parametric generator (`parametric/`) saves through the
   GLB-designer path (`exportGlb` → `persistUserGlb`) so its output is a regular user def —
   don't invent a parallel persistence channel for generated geometry.
+- **Array helpers** — pure geometry, render-agnostic, unit-tested, no store imports:
+  - `arrayPlacement.ts` — linear/row array: N evenly-spaced positions along local +X or +Z.
+  - `radialArray.ts` — radial/polar array: N positions around a circle with optional
+    `faceCenter` yaw. Facing convention: `atan2(-cos angle, -sin angle)` so the item's
+    Three.js local +Z points toward the center. Gated by the `radialArray` Pro flag (and
+    `proMode`) in `InspectorPanel.tsx`; committed via `setItems` in a single undo step.
 - **In-canvas catalog consumers** use `catalog.ts` `useCatalogGetter` (non-rendering
   subscription) so catalog churn never re-renders the R3F tree. Bulk/IKEA imports **batch
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).

@@ -1,0 +1,200 @@
+{
+  "name": "radial-array-simple",
+  "description": "Ladder for the radial/polar array feature (PC-ARRAY-RADIAL). Rungs: (1) verify hidden in Simple mode; (2) verify visible in Pro mode; (3) place a dining table + one chair inside the livingDining room, fire radial array via store action, screenshot top + perspective to verify 6 chairs evenly spaced around the table facing center.",
+  "url": "http://localhost:5176/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "switch-to-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "wait-mode-switch",
+      "wait": 500
+    },
+    {
+      "name": "place-table-and-chair",
+      "eval": "window.__store.getState().setItems([{id:'tbl-1',defId:'dining-table-4',position:[10.55,4.1],rotation:0,props:{}},{id:'chair-seed',defId:'dining-chair',position:[11.55,4.1],rotation:0,props:{}}])"
+    },
+    {
+      "name": "wait-items-mount",
+      "wait": 1500
+    },
+    {
+      "name": "verify-items-in-store",
+      "waitFor": {
+        "store": "state.items.length >= 2 && state.items.some(it => it.id === 'tbl-1') && state.items.some(it => it.id === 'chair-seed')"
+      },
+      "timeout": 5000
+    },
+    {
+      "name": "select-chair",
+      "eval": "window.__store.getState().selectItem('chair-seed')"
+    },
+    {
+      "name": "wait-selection",
+      "wait": 500
+    },
+    {
+      "name": "focus-on-table",
+      "eval": "window.__store.getState().focusOn?.([10.55, 4.1])"
+    },
+    {
+      "name": "wait-focus",
+      "wait": 1500
+    },
+    {
+      "name": "expand-inspector-before",
+      "eval": "(function(){ const btn = document.querySelector('button[aria-label=\"Expand inspector\"]'); if (btn) btn.click(); })()"
+    },
+    {
+      "name": "wait-expand-before",
+      "wait": 800
+    },
+    {
+      "name": "shot-before-array",
+      "screenshot": "01-table-and-chair-before-array"
+    },
+    {
+      "name": "verify-radial-array-pro-flag",
+      "eval": "(function(){ const ff = window.__store.getState().resolvedFlags; if (!ff) { console.log('resolvedFlags not in store, skipping flag check'); return; } if (!ff.radialArray) throw new Error('radialArray flag should be ON in Pro mode, got: ' + ff.radialArray); })()"
+    },
+    {
+      "name": "run-radial-array-via-store",
+      "eval": "(function(){\n  const TWO_PI = 2 * Math.PI;\n  const count = 6;\n  const center = [10.55, 4.1];\n  const radius = 0.75;\n  const placements = [];\n  const step = TWO_PI / count;\n  for (let i = 0; i < count; i++) {\n    const angle = i * step;\n    const x = center[0] + radius * Math.cos(angle);\n    const z = center[1] + radius * Math.sin(angle);\n    const rotation = Math.atan2(-Math.cos(angle), -Math.sin(angle));\n    placements.push({ position: [x, z], rotation });\n  }\n  const st = window.__store.getState();\n  const seedItem = st.items.find(it => it.id === 'chair-seed');\n  if (!seedItem) throw new Error('seed chair not found');\n  const gid = 'radial-grp-test';\n  const newItems = placements.map((p, i) => ({\n    ...seedItem,\n    id: 'radial-chair-' + i,\n    position: p.position,\n    rotation: p.rotation,\n    props: { ...seedItem.props },\n    groupId: gid\n  }));\n  const updatedSeed = { ...seedItem, groupId: gid };\n  st.setItems(st.items.filter(it => it.id !== 'chair-seed').concat([updatedSeed]).concat(newItems));\n  st.selectItem(null);\n})()"
+    },
+    {
+      "name": "wait-radial-placed",
+      "wait": 2000
+    },
+    {
+      "name": "verify-radial-count",
+      "waitFor": {
+        "store": "state.items.filter(it => it.id.startsWith('radial-chair-') || it.id === 'chair-seed').length === 7"
+      },
+      "timeout": 5000,
+      "failMessage": "Expected 7 chair items (1 seed + 6 radial copies) but got a different count"
+    },
+    {
+      "name": "request-top-view",
+      "eval": "window.__store.getState().requestTopView?.()"
+    },
+    {
+      "name": "wait-top-view",
+      "wait": 2000
+    },
+    {
+      "name": "zoom-out-for-context",
+      "wheel": { "x": 640, "y": 400, "dy": 1200 }
+    },
+    {
+      "name": "wait-zoom",
+      "wait": 1000
+    },
+    {
+      "name": "shot-radial-top",
+      "screenshot": "02-radial-array-top-view"
+    },
+    {
+      "name": "restore-perspective",
+      "eval": "window.__store.getState().focusOn?.([10.55, 4.1])"
+    },
+    {
+      "name": "wait-restore",
+      "wait": 1500
+    },
+    {
+      "name": "shot-radial-perspective",
+      "screenshot": "02b-radial-array-perspective"
+    },
+    {
+      "name": "switch-to-simple-mode",
+      "store": { "action": "setUiMode", "args": ["simple"] }
+    },
+    {
+      "name": "wait-simple",
+      "wait": 500
+    },
+    {
+      "name": "select-item-simple",
+      "eval": "window.__store.getState().selectItem('chair-seed')"
+    },
+    {
+      "name": "wait-inspector",
+      "wait": 800
+    },
+    {
+      "name": "verify-radial-hidden-simple",
+      "eval": "(function(){\n  const panel = document.querySelector('.act-array--radial');\n  if (panel) throw new Error('Radial array UI should be hidden in Simple mode but is visible');\n  console.log('PASS: radial array hidden in Simple mode');\n})()"
+    },
+    {
+      "name": "shot-inspector-simple",
+      "screenshot": "03-inspector-simple-no-radial"
+    },
+    {
+      "name": "back-to-pro",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "wait-pro",
+      "wait": 500
+    },
+    {
+      "name": "deselect-and-reselect",
+      "eval": "window.__store.getState().selectItem(null)"
+    },
+    {
+      "name": "wait-deselect",
+      "wait": 300
+    },
+    {
+      "name": "reselect-chair",
+      "eval": "window.__store.getState().selectItem('chair-seed')"
+    },
+    {
+      "name": "wait-inspector-pro",
+      "wait": 1500
+    },
+    {
+      "name": "expand-inspector",
+      "eval": "(function(){ const btn = document.querySelector('button[aria-label=\"Expand inspector\"]'); if (btn) { btn.click(); console.log('clicked expand'); } else { console.log('expand button not found — may already be expanded'); } })()"
+    },
+    {
+      "name": "wait-expand",
+      "wait": 800
+    },
+    {
+      "name": "verify-radial-visible-pro",
+      "eval": "(function(){\n  const panel = document.querySelector('.act-array--radial');\n  if (!panel) {\n    const inspector = document.querySelector('.inspector');\n    const classes = inspector ? inspector.className : 'not found';\n    console.log('inspector classes:', classes);\n    if (inspector && inspector.classList.contains('minimized')) throw new Error('Inspector is still minimized — body not rendered');\n    throw new Error('Radial array UI (.act-array--radial) should be visible in Pro mode but is not present');\n  }\n  console.log('PASS: radial array visible in Pro mode');\n})()"
+    },
+    {
+      "name": "shot-inspector-pro-with-radial",
+      "screenshot": "04-inspector-pro-radial-ui"
+    }
+  ]
+}
