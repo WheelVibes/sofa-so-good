@@ -70,7 +70,14 @@ shared `safeHref()` helper used by `SourceLine`, `IkeaBody`, and any other def-d
 
 ---
 
-### SEC-002 — CSV formula injection in all CSV exports (BOQ / furniture list / shopping list) — MED
+### SEC-002 — CSV formula injection in all CSV exports (BOQ / furniture list / shopping list) — MED — ✅ RESOLVED
+**Resolution:** added a shared `csvSafeField`/`csvNumberField` helper in `src/utils/csv.ts`
+(RFC-4180 quoting + OWASP formula-neutralization: a leading `= + - @` / TAB / CR — including
+behind a leading `"` — is prefixed with a single quote `'`). All three builders (`boq.ts`,
+`furnitureCsv.ts`, `shoppingCsv.ts`) now route every user-controlled TEXT field through it; genuine
+numeric columns use `csvNumberField` so legitimate negative numbers stay numeric. Unit-tested in
+`src/utils/csv.test.ts` + each exporter's test.
+
 **Files:**
 - `src/export/boq.ts:184` `csvField()` — RFC-4180 quoting only; no formula neutralization (confirms/extends prior **IO-011**)
 - `src/ui/furnitureCsv.ts:12` `esc()` — same gap

@@ -5,6 +5,21 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix (security): neutralize CSV formula injection in exports (SEC-002)
+
+The three CSV builders — `src/export/boq.ts` (`boqToCsv`), `src/ui/furnitureCsv.ts`, and
+`src/ui/shoppingCsv.ts` — did RFC-4180 field quoting but never neutralized leading formula
+characters, so attacker-controllable text (item/material/room names, quote-template branding) that
+starts with `= + - @` (or TAB/CR) became a live formula when the CSV was opened in Excel / Google
+Sheets / LibreOffice (`=HYPERLINK(...)` exfiltration, `=cmd|...` DDE). Added a shared
+`src/utils/csv.ts` (`csvSafeField` + `csvNumberField`): `csvSafeField` prefixes a single quote `'`
+when the first char (also when hidden behind a leading `"`) is a formula lead — the standard OWASP
+CSV-injection defense — then applies RFC-4180 quoting; `csvNumberField` emits genuine numeric
+columns verbatim so legitimate negative numbers stay numeric. All three builders now route every
+user-controlled text field through `csvSafeField` and every numeric column through `csvNumberField`.
+Normal values are unchanged. Unit-tested in `src/utils/csv.test.ts` plus formula-injection cases in
+each exporter's test (the `.xlsx` export was already safe — inline strings).
+
 ## Fix (security): sanitize def URL schemes to block javascript:/data: XSS (SEC-001) (v0.1.0.38)
 
 A crafted `.sofa.json` import could carry furniture defs whose `sourceUrl` / IKEA

@@ -35,4 +35,14 @@ describe('buildShoppingCsv', () => {
     )
     expect(csv).toContain('X,Y,1,13,13')
   })
+
+  it('neutralises CSV formula injection in user text (SEC-002)', () => {
+    const csv = buildShoppingCsv(
+      [{ category: '@SUM(A1)', item: '=HYPERLINK("http://evil")', qty: 1, unit: 20, total: 20 }],
+      20,
+    )
+    // Category gets a quote prefix; item gets prefix + RFC-4180 quoting (it has a comma/quotes).
+    expect(csv).toContain('\'@SUM(A1),"\'=HYPERLINK(""http://evil"")",1,20,20')
+    expect(csv).not.toMatch(/(^|,)=HYPERLINK/)
+  })
 })

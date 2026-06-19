@@ -6,12 +6,11 @@
  * the formatting + escaping is unit-testable.
  */
 import type { FfeRow } from '../ffe/ffeSchedule'
+import { csvSafeField } from '../utils/csv'
 
-/** RFC-4180 field escaping: quote fields containing comma, quote, CR or LF and
- *  double any interior quote. */
-function esc(s: string): string {
-  return /[",\n\r]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s
-}
+/** Sanitise a user-controlled TEXT field: RFC-4180 quoting + neutralise leading
+ *  formula characters (CSV-injection defense). */
+const esc = csvSafeField
 
 /** Metres → whole millimetres (real product dimensions read as mm in schedules). */
 function mm(metres: number): string {
