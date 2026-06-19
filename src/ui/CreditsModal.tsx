@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { withBase } from '../utils/assetUrl'
+import { safeUrl } from '../utils/safeUrl'
 
 interface CreditEntry {
   id: string
@@ -77,15 +78,22 @@ function Section({ title, entries }: { title: string; entries: CreditEntry[] }) 
     <section className="mt-2">
       <h3 className="text-sm font-semibold">{title}</h3>
       <ul className="text-sm">
-        {entries.map((e) => (
-          <li key={e.id}>
-            <a href={e.sourceUrl} target="_blank" rel="noopener noreferrer" className="underline">
-              {e.name}
-            </a>
-            {' — '}
-            {e.attribution} · {e.license}
-          </li>
-        ))}
+        {entries.map((e) => {
+          const href = safeUrl(e.sourceUrl)
+          return (
+            <li key={e.id}>
+              {href ? (
+                <a href={href} target="_blank" rel="noopener noreferrer" className="underline">
+                  {e.name}
+                </a>
+              ) : (
+                <span>{e.name}</span>
+              )}
+              {' — '}
+              {e.attribution} · {e.license}
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
