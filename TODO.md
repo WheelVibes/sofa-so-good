@@ -2,6 +2,135 @@
 
 Single source of truth for deferred work across this project. Each entry links back to the spec, plan, or file that introduced it. Removed when done.
 
+## MASTER EXECUTION QUEUE (consolidated 2026-06-19)
+
+One de-duplicated, prioritised dispatch queue distilled from the five 2026-06-19 audit
+docs so the orchestrator can grab work **without re-reading six files**. Each row keeps its
+original ID and points back to the detailed source doc. The full reasoning, `file:line`
+evidence, fix direction, and verify steps live in the source docs — this is an **index**, not
+a replacement; do not delete those docs.
+
+**Source docs**
+- `docs/research/2026-06-19-correctness-bug-hunt.md` — **BUG-001…014**
+- `docs/research/2026-06-19-performance-scalability-audit.md` — **PERF-001…008**
+- `docs/research/2026-06-19-mobile-a11y-ux-audit.md` — **UX-001…009**
+- `docs/research/2026-06-19-photoreal-parity-deepdive.md` — **RD-402…425** (RD-401, RD-404 already shipped)
+- `docs/research/2026-06-19-material-microdetail-plan.md` — **MAT-xxx — NOT PRESENT on this
+  branch** (file absent at consolidation time; the material micro-detail work it would have
+  covered is represented here by **RD-402** stone/tile/concrete/plaster/metal micro-variation,
+  which is open. If the MAT plan lands later, fold its open items in under the same RD-402 area.)
+
+**Already shipped (per `CHANGELOG.md` top — EXCLUDED from the queue):** RD-401 (anisotropy cap),
+RD-404 (context-aware tone-mapping), PC-IES-LIGHT, PC-EMPTY-STATES, RZ6 / PC-RZ6-SEAMS
+(upholstery seams), PC-GUIDE-SPACING, PC-NUDGE-UNDO, PC-DRAG-DIM, PC-ROOM-AREA-ONPLAN,
+PC-ARRAY-GAP, PC-ARRAY-RADIAL, PC-WALL-NUMERIC (= RD-420), PC-CATALOG-FAVOURITES,
+PC-MEASURE-UNITS, PC-DISTRIBUTE-OVERLAP, the decor-styling/auto-style/quote-template/parametric-
+kitchen-run work. The whole **"Pure-client improvement pipeline (2026-06-19 audit)"** block
+below (PC-* without the `2` prefix) is fully shipped except nothing — all of it landed; it is
+retained only as historical context. The **PC2-*** refresh-#2 items below are **still open**.
+
+**Effort:** S/M/L. **Conflict-group:** items sharing a tag touch the same file(s) → **must
+serialize**; differing tags can run in parallel. **Verify:** all rows are pure-client and
+headlessly verifiable on SwiftShader unless explicitly marked *blocked*.
+
+### Ranked queue (highest priority first)
+
+| Rank | ID | One-line | Sev/Impact | Eff | Area / files | Conflict-group |
+|------|----|----------|-----------|-----|--------------|----------------|
+| 1 | **BUG-001** | Autosave watch-list omits comments/drawingCallouts/quoteTemplate → silent data loss on reload | HIGH (data loss) | S | `state/storage/autosave.ts` (+test) | `cg-autosave` |
+| 2 | **BUG-002** | `PlanRoomFloor` rect floor allocates a new `PlaneGeometry` every render, never disposed → WebGL context loss | HIGH (GPU leak/crash) | S | `apartment/floor/PlanRoomFloor.tsx` | `cg-floorgeo` |
+| 3 | **BUG-003** | Uploaded materials lose name/category/uvScale/swatch on reload (persist↔hydrate schema mismatch) | HIGH (persistence corruption) | M | `materials/upload/persist.ts`, `state/storage/hydrateAssets.ts` (+test) | `cg-matpersist` |
+| 4 | **PERF-001** | drei `useGLTF` cache never evicted → unbounded GPU memory growth over a session | HIGH (GPU leak/crash) | M | `state/slices/userAssetsSlice.ts`, `furniture/GltfModel.tsx` (incl. PERF-008 caches) | `cg-gltfcache` |
+| 5 | **BUG-004** | L-shape room area double-counts overlapping extension (sum vs union) → wrong schedules/score/labels | MED (wrong data) | S | `floorplan/types.ts` `planRoomArea` (+test) | `cg-roomarea` |
+| 6 | **BUG-006** | `RoomFloor`/`WallSegment` face geometries memoized but never disposed (leak on plan switch / wall edit) | MED (bounded GPU leak) | S | `apartment/floor/RoomFloor.tsx`, `apartment/walls/WallSegment.tsx` | `cg-floorgeo` |
+| 7 | **BUG-005** | Unhandled promise rejection when a remote catalog asset 404s/offline | MED (console error/overlay) | S | `ui/catalog/RemoteCard.tsx` | `cg-remotecard` |
+| 8 | **BUG-007** | Blob-URL leak in remote-catalog thumbnails (never revoked) | MED (steady leak) | S | `catalog/remote/hooks.ts` | `cg-remotehooks` |
+| 9 | **BUG-008** | `renameItem` is not undoable (no history push) | MED (QOL/data) | S | `state/slices/itemsSlice.ts` (+test) | `cg-itemsslice` |
+| 10 | **UX-001** | Toasts have no `aria-live` region → screen readers hear nothing | HIGH (a11y blocker) | S | `ui/notifications/NotificationContainer.tsx` | `cg-notif` |
+| 11 | **PERF-002** | Orbit mode renders *every* fixture as a real light (ignores `maxFixtureLights`) → frame cost at scale | MED (perf) | S | `scene/lighting/FurnitureLights.tsx` | `cg-furnlights` |
+| 12 | **PERF-004** | Pro analysis panels eagerly imported into boot bundle (Simple users pay for them) | MED (boot perf) | M | `ui/app/lazyComponents.tsx`, `App.tsx` | `cg-applazy` |
+| 13 | **PERF-005** | Catalog search re-ranks the whole merged catalog per keystroke (no debounce/defer) | MED (input lag at scale) | S | `ui/catalog/CatalogDrawer.tsx` | `cg-catalogdrawer` |
+| 14 | **PERF-003** | `DragController.onMove` runs several O(n) passes per pointermove (no broadphase) | MED (drag perf at scale) | M | `scene/DragController.tsx` | `cg-dragctl` |
+| 15 | **RD-403** | Flat-tier corner-AO + contact-darkening decals (biggest default-tier realism cue) | HIGH photoreal | M | `scene/CornerAO.tsx` (new), `scene/ContactShadow.tsx`, mounts in `Scene.tsx` | `cg-scenemount` |
+| 16 | **RD-402** | Roughness/AO/normal micro-variation: stone/tile/concrete/plaster + brushed-metal anisotropy | HIGH photoreal | M | `procedural/patterns/{stone,tile,wall}.ts`, `patterns/metal.ts` (new), `furnitureMaterials.ts`, `generators.test.ts` | `cg-materials` |
+| 17 | **RD-405** | Cheap window/glass fresnel + sky-reflection on every tier | HIGH photoreal | M | `materials/materialRealism.ts`, `furnitureMaterials.ts` | `cg-materials` |
+| 18 | **PC2-CONTACT-AO-DECOR** | Per-prop contact-shadow decal under small decor (grounds vases/books/trays) | HIGH photoreal | S/M | `scene/ContactShadow.tsx` / `scene/PropContactDecal.tsx` (new), decor primitives | `cg-scenemount` |
+| 19 | **RD-408** | Decor density/variety + asymmetric placement jitter + hero props | HIGH photoreal | M | `furniture/layout/decorStyling.ts`, `furnishPlan.ts`, new primitives | `cg-decor` |
+| 20 | **RD-412** | Procedural Preetham/Hosek sky gradient → backdrop + procedural IBL | MED photoreal | S | `scene/backdropEquirect.ts`, `scene/lighting/SceneEnvironment.tsx` | `cg-sky` |
+| 21 | **PC2-WOOD-GRAIN-FLOW** | Seeded per-plank hue/value jitter + grain-direction rotation (kills repetitive flooring) | MED photoreal | M | `procedural/generators.ts` / `procedural/woodPlank.ts` (new) (+test) | `cg-materials` |
+| 22 | **RD-406** | Tile-repetition break-up (UV hash/macro-variation) + triplanar for sloped/curved walls | MED photoreal | M | `materials/worldUv.ts`, `materials/triplanar.ts` (new) | `cg-worlduv` |
+| 23 | **RD-409** | Light colour-temperature (Kelvin→RGB) + inverse-square falloff per fixture | MED photoreal | M | `scene/lighting/FurnitureLights.tsx`, `lighting/colorTemperature.ts` (new) | `cg-furnlights` |
+| 24 | **RD-407** | Finish PHOTO-BEVELS: bevel shelf/cabinet/appliance primitives | MED photoreal | M | `furniture/primitives/{Bookshelf,Wardrobe,CabinetModule,CabinetCorner}.tsx` + appliances | `cg-primitives` |
+| 25 | **PC2-SURFACE-DROP** | Auto-snap surface decor (lamp/vase/monitor) onto table/shelf top on drop | MED QOL | M | `scene/DragController.tsx`, `collision/placement.ts`, placement slice | `cg-dragctl` |
+| 26 | **PC2-FURN-GROUP** | First-class furniture grouping (group move/rotate/dup/delete + ⌘K cmd, pro flag) | MED QOL | M | placement slice, `layout/selectionActions.ts`, `features/featureFlags.ts` | `cg-selactions` |
+| 27 | **PC2-MULTI-DUP-PASTE** | Copy/paste + duplicate-in-place for multi-selection, one coalesced undo | MED QOL | S | `layout/selectionActions.ts`, keymap/⌘K | `cg-selactions` |
+| 28 | **PC2-PLAN-ANGLE-SNAP** | Snap wall-draw + furniture-rotate to 15/30/45/90° with Shift/Alt override | MED QOL | S/M | `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapToWalls.ts` (+test) | `cg-floorplaneditor` |
+| 29 | **UX-002** | Bottom-sheet close buttons are 26px tap targets (<44px) on mobile | MED a11y/touch | S | `styles/components.css`, `styles/responsive.css` | `cg-css` |
+| 30 | **UX-006** | No global `prefers-reduced-motion` handling for sheet/fade animations | LOW/MED a11y | S | `styles/responsive.css` (global media block) | `cg-css` |
+| 31 | **UX-003** | `UploadModelDialog` not on shared `Modal` (no focus trap/role + `border-blue-500` literal) | MED a11y *(dev-only path)* | M | `ui/upload/UploadModelDialog.tsx` | `cg-uploaddlg` |
+| 32 | **UX-004** | `CompassModal` custom overlay lacks dialog role/focus mgmt + keyboard dial | MED a11y | M | `ui/toolbar/CompassModal.tsx` | `cg-compass` |
+| 33 | **UX-008** | `NotificationDetailsModal` not on shared `Modal` | LOW a11y | S | `ui/notifications/NotificationContainer.tsx` | `cg-notif` |
+| 34 | **UX-009** | `UploadMaterialDialog` custom overlay lacks dialog role/focus mgmt | LOW a11y *(dev-only)* | S | `ui/upload/UploadMaterialDialog.tsx` | `cg-uploadmatdlg` |
+| 35 | **UX-007** | Toolbar tooltips are hover-only (no `:focus`) → keyboard users get no hint | LOW a11y | S | `ui/toolbar/Tooltip.tsx` | `cg-tooltip` |
+| 36 | **UX-005** | Hardcoded `text-green-600`/`border-blue-500` status colours (theme/contrast leak) | LOW a11y *(dev-only)* | S | `ui/catalog/RemoteBrowseTab.tsx`, `ui/inspector/IkeaBody.tsx` | `cg-colorleak` |
+| 37 | **RD-411** | SSAA (2× render → downsample) on the snapshot/export path | MED polish (exports) | S | `scene/ScreenshotController.tsx`, `scene/captureCanvas.ts` | `cg-capture` |
+| 38 | **PC2-SSAA-EXPORT** | Supersample snapshot/PNG export (duplicate of RD-411 — **merge with RD-411**, do not dispatch separately) | MED polish | S | same as RD-411 | `cg-capture` |
+| 39 | **PC2-PLAN-FURN-ICONS** | Top-down furniture glyphs in the 2D plan (bed/sofa/toilet/sink…) | LOW polish | M | `ui/floorplan/editor/*`, `ui/floorplan/planLabels.ts` | `cg-planlabels` |
+| 40 | **PC2-FAVOURITE-MATERIALS** | Extend favourites to finishes/materials (star + Favourites group) | LOW QOL | S | `ui/` material-picker, favourites slice | `cg-matfav` |
+| 41 | **PC2-DISTRIBUTE-AXIS** | Audit `distributeEvenGaps` dominant-axis pick + rotated-OBB align; n<3 fallback | LOW reliability | S | `layout/alignDistribute.ts` (+test) | `cg-aligndist` |
+| 42 | **BUG-009** | Sloped wall ignores per-wall thickness override + plan default (renders 0.2 m) | LOW (wrong geo) | S | `floorplan/slopedWall.ts` | `cg-slopedwall` |
+| 43 | **BUG-010** | `parseAngleInput` accepts trailing garbage (`"90xyz"`→90) | LOW (validation) | S | `floorplan/wallNumericEntry.ts` | `cg-wallnumeric` |
+| 44 | **BUG-013** | `newFloorPlan` replaces plan without pushing history (confirm intent) | LOW (decide) | S | `state/slices/floorPlanSlice.ts` | `cg-floorplanslice` |
+| 45 | **BUG-014** | `floorPlanStore.loadFloorPlans` restores saved plans without migrate+Zod validation | LOW (robustness) | S | `state/floorPlanStore.ts` | `cg-floorplanstore` |
+| 46 | **BUG-011** | Non-atomic read-modify-write of remote-cache meta (cross-key race) | LOW (cache drift) | S | `catalog/remote/cache/db.ts`, `cache/lru.ts` | `cg-remotecache` |
+| 47 | **BUG-012** | Possible swallowed `TransactionInactiveError` in pano cache write | LOW (rare, swallowed) | S | `ui/panorama/panoImageIdb.ts` | `cg-panoidb` |
+
+**Do NOT preemptively fix (audit verdict):** PERF-006 (`moveItem`/`rotateItem` array rebuild —
+acceptable at design scale, explicitly "don't fix preemptively"), PERF-007 (`SelectionOutline`
+selector — minor). Listed in the perf doc as monitor-only.
+
+### Blocked — DO NOT dispatch headless (need a real GPU or backend)
+
+These cannot be implemented **and** verified on SwiftShader, or need network/licensed assets.
+The *wiring* of the camera/render-tier items below is headless-verifiable, but the pixel pass is
+real-GPU-pending — split if dispatched.
+
+- **RD-421** Fisheye/DoF lens options on render camera — *wiring headless, bokeh real-GPU*
+  (= PC2-CAM-DOF-LENS; same item, merge).
+- **RD-422** 8K tiled still + fast rasterized "preview render" — *dimensions headless, quality real-GPU*.
+- **RD-410** VSM soft shadows (replace PCFSoft) — *type assert headless, penumbra real-GPU; shares
+  `Scene.tsx` with RD-403 → serialize if both run* (`cg-scenemount`).
+- **RD-423** Day-to-night animated render clip — *hour interpolation headless, final clip real-GPU*.
+- Photoreal real-GPU/backend track (from the dossier §4): PHOTO-PT-TUNE, PHOTO-DENOISE,
+  PHOTO-SSGI-SSR, PHOTO-WEBGPU, PHOTO-GTAO, PHOTO-POM, PHOTO-HDRI, PHOTO-PBR-MAPS, PHOTO-KTX2.
+- **RD-424** in-engine style transfer and **RD-425** before/after reveal slider are pure-client
+  and *not* blocked — they sit in the QOL/polish lane but were left in the dossier's parity track;
+  pull them forward only after the photoreal material chain.
+
+### SAFE PARALLEL BATCHES (no shared conflict-group → dispatch concurrently)
+
+Each batch is mutually conflict-free; run a batch's items in parallel, then move to the next.
+Within the material chain (`cg-materials`) and the scene-mount pair (`cg-scenemount`), items
+**must serialize** — they are split across batches below for exactly that reason.
+
+- **Batch A — HIGH bugs/leaks (independent files):** BUG-001 `cg-autosave`, BUG-002 `cg-floorgeo`,
+  BUG-003 `cg-matpersist`, PERF-001 `cg-gltfcache`, UX-001 `cg-notif`. *(All different files;
+  the two GPU-leak items + the two persistence items don't overlap.)*
+- **Batch B — remaining bugs + perf (independent):** BUG-004 `cg-roomarea`, BUG-005 `cg-remotecard`,
+  BUG-007 `cg-remotehooks`, BUG-008 `cg-itemsslice`, PERF-002 `cg-furnlights`, PERF-005 `cg-catalogdrawer`,
+  PERF-004 `cg-applazy`. *(BUG-006 shares `cg-floorgeo` with BUG-002 → run after Batch A, not here.)*
+- **Batch C — photoreal lane 1 (one per conflict-group):** RD-403 `cg-scenemount`, RD-402 `cg-materials`,
+  RD-408 `cg-decor`, RD-412 `cg-sky`, RD-407 `cg-primitives`. *(RD-405 + PC2-WOOD-GRAIN-FLOW share
+  `cg-materials` with RD-402 → next batch; PC2-CONTACT-AO-DECOR shares `cg-scenemount` with RD-403 → next.)*
+- **Batch D — photoreal lane 2 + QOL:** RD-405 `cg-materials`, PC2-CONTACT-AO-DECOR `cg-scenemount`,
+  RD-406 `cg-worlduv`, RD-409 `cg-furnlights`, PC2-FURN-GROUP `cg-selactions`, PC2-PLAN-ANGLE-SNAP
+  `cg-floorplaneditor`. *(then PC2-WOOD-GRAIN-FLOW alone on `cg-materials`, PC2-MULTI-DUP-PASTE after
+  PC2-FURN-GROUP on `cg-selactions`.)*
+- **Batch E — a11y/polish (all independent files):** UX-002+UX-006 `cg-css` (one agent, same files),
+  UX-003 `cg-uploaddlg`, UX-004 `cg-compass`, UX-007 `cg-tooltip`, RD-411(+PC2-SSAA-EXPORT) `cg-capture`,
+  PC2-PLAN-FURN-ICONS `cg-planlabels`, PC2-FAVOURITE-MATERIALS `cg-matfav`.
+
+
 
 ## Render fidelity + GLTF hardening (2026-05-31)
 Milestone 1 of the IKEA-grade fidelity program. Spec:
