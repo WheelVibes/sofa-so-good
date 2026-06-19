@@ -41,29 +41,50 @@ export function alignEdge(boxes: AxisBox[], side: 'min' | 'max'): Map<string, nu
   return out
 }
 
+/** Result returned by {@link distributeEvenGaps}. */
+export interface DistributeResult {
+  /** New centre per id. Empty when the input has fewer than three boxes. */
+  positions: Map<string, number>
+  /**
+   * `true` when the combined footprint of all selected items exceeded the span
+   * between the two extremes, so the gap was clamped to 0 (flush/touching) to
+   * avoid silent overlapping. Callers may surface a non-blocking hint in this
+   * case. Always `false` when `positions` is empty.
+   */
+  clamped: boolean
+}
+
 /**
  * Distribute boxes with **even gaps** between their edges. The two extreme boxes
  * stay put; the rest are spaced so every consecutive edge-to-edge gap is equal —
  * unlike a naive centre-spacing, this stays even when items differ in size.
- * Returns new centres by id (needs at least three boxes, else empty).
+ *
+ * When the combined footprints exceed the span (gap would go negative) the gap
+ * is clamped to **0** (items touch but do not overlap) and `result.clamped` is
+ * set to `true` so the caller can surface a non-blocking hint.
+ *
+ * Returns `positions` by id (empty when fewer than three boxes are supplied).
  */
-export function distributeEvenGaps(boxes: AxisBox[]): Map<string, number> {
-  const out = new Map<string, number>()
-  if (boxes.length < 3) return out
+export function distributeEvenGaps(boxes: AxisBox[]): DistributeResult {
+  const empty: DistributeResult = { positions: new Map(), clamped: false }
+  if (boxes.length < 3) return empty
   const sorted = [...boxes].sort((a, b) => a.center - b.center)
   const first = sorted[0]
   const last = sorted[sorted.length - 1]
   const lo = first.center - first.half
   const hi = last.center + last.half
   const totalWidth = sorted.reduce((a, b) => a + b.half * 2, 0)
-  const gap = (hi - lo - totalWidth) / (sorted.length - 1)
+  const rawGap = (hi - lo - totalWidth) / (sorted.length - 1)
+  const clamped = rawGap < 0
+  const gap = clamped ? 0 : rawGap
+  const positions = new Map<string, number>()
   let cursor = lo
   for (const b of sorted) {
     const newCenter = cursor + b.half
-    out.set(b.id, newCenter)
+    positions.set(b.id, newCenter)
     cursor = newCenter + b.half + gap
   }
-  return out
+  return { positions, clamped }
 }
 
 /**

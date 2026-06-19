@@ -5,6 +5,23 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix PC-DISTRIBUTE-OVERLAP: clamp distributeEvenGaps to prevent silent overlap (v0.1.0.11)
+
+`distributeEvenGaps` in `src/layout/alignDistribute.ts` was computing a negative
+gap when the combined footprint of selected items exceeded the span between the two
+extremes, silently packing items into overlapping positions.
+
+**Fix:** gap is clamped to 0 (flush/touching) when it would go negative. The
+function now returns `{ positions: Map<string,number>, clamped: boolean }` instead
+of a bare `Map`. `clamped: true` signals that items couldn't fit with positive gaps.
+The UI (`src/ui/inspector/MultiSelectPanel.tsx`) reads `clamped` and fires a
+non-blocking `info` toast: "Items touch — selection is too wide to fit with gaps".
+
+New unit tests cover: negative-gap clamping (no overlap verified), the `clamped`
+flag is set, the normal-fit regression (flag stays `false`), n<2 no-op, zero-width
+items, and a four-box clamped case checking strict non-overlap for all adjacent pairs.
+`tsc` + Biome zero errors; full suite 353 files / 2744 tests all pass.
+
 ## Auto-arrange decor styling pass (v0.1.0.9)
 
 New `src/furniture/layout/decorStyling.ts` helper (pure, unit-tested, seedable) adds a
