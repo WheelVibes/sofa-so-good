@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Perf: defer + memoise catalog search ranking (PERF-005) (v0.2.0.4)
+
+Typing in the catalog search re-ran the synonym-aware fuzzy ranking over the WHOLE
+merged catalog (local + the large browsable CC0 index) on every keystroke, inside the
+render body with no memoisation. `CatalogDrawer` now ranks against a `useDeferredValue`
+of the query (the input updates instantly; the expensive rank runs in a non-blocking
+deferred render) and wraps the result in `useMemo` keyed on the deferred query + the
+memoised `useUnifiedCatalog` output + category/sort, so it only recomputes when those
+actually change — not on unrelated re-renders (hover, etc.). Visible results are
+identical (same ranking/order); existing catalog tests pass unchanged.
+
 ## Fix: make item rename undoable (BUG-008) (v0.2.0.3)
 
 `renameItem` (`src/state/slices/itemsSlice.ts`) mutated the item label without a
