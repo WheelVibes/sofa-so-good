@@ -244,9 +244,9 @@ files (conflict-group **C**).
 
 | ID | One-line | Effort | Files | Conflict-group |
 |----|----------|--------|-------|----------------|
-| **RD408-001** | Per-surface density budget by area+type (replace `MAX_PER_HOST`) | S | `decorStyling.ts`, `decorStyling.test.ts` | **A** (serialize first) |
-| **RD408-002** | Position multi-slot spread over host footprint + rotation-aware, seeded jitter | M | `decorStyling.ts`, `decorStyling.test.ts` | **A** (after 001) |
-| **RD408-003** | Rotation jitter per prop (per-prop jitter spans) | S | `decorStyling.ts`, `decorStyling.test.ts` | **A** (after 002) |
+| **RD408-001** ✅ | Per-surface density budget by area+type (replace `MAX_PER_HOST`) | S | `decorStyling.ts`, `decorStyling.test.ts` | **A** (serialize first) — **shipped v0.1.0.47** |
+| **RD408-002** ✅ | Position multi-slot spread over host footprint + rotation-aware, seeded jitter | M | `decorStyling.ts`, `decorStyling.test.ts` | **A** (after 001) — **shipped v0.1.0.47** |
+| **RD408-003** ✅ | Rotation jitter per prop (per-prop jitter spans) | S | `decorStyling.ts`, `decorStyling.test.ts` | **A** (after 002) — **shipped v0.1.0.47** |
 | **RD408-004** | Weighted + anti-repeat prop selection (`pickProps`) | M | `decorStyling.ts`, `decorStyling.test.ts` | **A** (after 003) |
 | **RD408-005** | Optional style-aware prop weighting; thread `style` from `furnishPlanItems` | M | `decorStyling.ts`, `furnishPlan.ts`, tests | **A+B** (after 004) |
 | **RD408-006** | Expand `HOST_PROPS` vocabulary + new tasteful primitives if needed (e.g. stacked-books hero, tray vignette) | M | `primitives/*.tsx` (new), `primitives/index.ts`, `PrimitiveKind` union, `defs/decor.ts`, primitive tests | **C** (parallel-safe) |

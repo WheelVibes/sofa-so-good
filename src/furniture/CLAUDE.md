@@ -57,7 +57,15 @@ Area rules for furniture. Full sub-dir map in `docs/ARCHITECTURE.md`.
   store writes** (`runImport.ts`) — never commit per-item (O(n²) catalog rebuilds → WebGL loss).
 - Match the surrounding primitive style: real-world metres, real three `Material` instances.
 - **Auto-arrange decor styling** (`layout/decorStyling.ts`): `applyDecorStyling(arranged, defs, seed?)`
-  places up to 2 `noClip` decor props per host surface (sofa→cushions/blanket, coffee-table→bowl/
-  magazines/candles, bed→cushions, nightstand→plant/candle, desk→plant/books, sideboard→frames/
-  sculpture). `applyDecorStylingForPlan` wraps it per-room. Both are pure + seedable → unit-testable.
-  Wired into `furnishPlanItems` (`withDecor=true` by default); skip with `withDecor=false`.
+  places `noClip` decor props per host surface (sofa→cushions/blanket, coffee-table→bowl/magazines/
+  candles, bed→cushions, nightstand→plant/candle, desk→plant/books, sideboard→frames/sculpture).
+  **Per-surface budget (RD408-001)** scales with the host's footprint area + a per-type ceiling
+  (`budget = clamp(round(area / AREA_PER_PROP), 1, HOST_MAX[type])`); a per-room `ROOM_DECOR_CAP`
+  bounds total density (trimmed tail-first in `applyDecorStylingForPlan`). **Props are spread across
+  the host's real footprint (RD408-002)** — rotation-aware (offsets rotated by the host yaw), inset
+  from edges + clamped so nothing spills off, with a small seeded position jitter. **Each prop gets a
+  small seeded yaw jitter around the host facing (RD408-003)** (soft goods tilt more than frames).
+  `applyDecorStylingForPlan` wraps it per-room. Both stay pure + seedable + deterministic →
+  unit-testable. Wired into `furnishPlanItems` (`withDecor=true` by default); skip with
+  `withDecor=false`. No feature flag — enriches the existing auto-furnish surface. Decor ids are
+  `decor-<hostId>-<propId>-<slot>`. (Hero/wall passes + weighted variety are future RD-408 tasks.)

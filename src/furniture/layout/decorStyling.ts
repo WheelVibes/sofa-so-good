@@ -15,10 +15,18 @@
  *   console-table / sideboard   → book-stack, small-sculpture, photo-frame-cluster
  *   bookshelf / cube-shelf      → book-stack, small-sculpture, desk-plant
  *
- * Each host surface contributes at most MAX_PER_HOST props.
- * Positions are placed at the host's [x, z] (footprint centre on the floor
- * plane) — since all decor props are `noClip` they never require a floor
- * collision check; only `surfaceHeight` is set via the host's top height.
+ * Density (RD408-001): each host gets a per-surface budget derived from its
+ * footprint AREA and a conservative per-type ceiling, so a long sideboard or a
+ * 3-seat sofa reads richer than a tiny nightstand while staying tasteful. A
+ * per-room total cap (ROOM_DECOR_CAP) bounds density for perf.
+ *
+ * Position (RD408-002): props are spread across the host's real footprint
+ * (rotation-aware — the spread aligns to the host's yaw) with a small seeded
+ * jitter, so multiple props on one surface don't overlap and read naturally.
+ * Props stay inset from the footprint edges so they never spill off the host.
+ *
+ * Rotation (RD408-003): each prop gets a small seeded yaw jitter around the
+ * host's facing so nothing is dead-square / obviously auto-placed.
  *
  * Pure + deterministic (no store, no GPU) → unit-testable. Seedable via the
  * optional `seed` parameter so results are stable in tests.
@@ -31,16 +39,62 @@ import { defaultParamProps } from '../types'
 
 // ── Constants ────────────────────────────────────────────────────────────────
 
-/** Maximum decor props placed on a single host surface. */
-const MAX_PER_HOST = 2
-
 /** Minimum host surface footprint (m²) before we consider it too small to dress. */
 const MIN_HOST_AREA = 0.12
+
+/** Footprint area (m²) that "buys" one prop before the per-type ceiling clamps. */
+const AREA_PER_PROP = 0.45
+
+/** Per-room total decor cap (clutter + perf guard). Lowest-priority trimmed. */
+const ROOM_DECOR_CAP = 10
+
+/** Fraction of a host dimension usable for spreading props (inset from edges). */
+const SPREAD_SPAN = 0.66
+
+/** Seeded position jitter (m) applied on each local axis after slot layout. */
+const POS_JITTER = 0.04
+
+/** Default rotation jitter half-range (radians, ≈ ±14°). */
+const ROT_JITTER = 0.5
+
+/** Per-prop rotation jitter half-range (radians). Soft goods tilt more freely
+ *  than precise objects (frames/sculptures sit squarer). */
+const ROT_JITTER_BY_PROP: Record<string, number> = {
+  'throw-cushion': 0.7, // ≈ ±20°
+  'throw-blanket': 0.7,
+  'photo-frame-cluster': 0.28, // ≈ ±8°
+  'small-sculpture': 0.28,
+  'book-stack': 0.4,
+}
+
+/** Per-host-type ceiling on prop count, regardless of how large the surface is.
+ *  Conservative — tasteful beats dense. */
+const HOST_MAX: Record<string, number> = {
+  'sofa-3seat': 4,
+  'sofa-2seat': 3,
+  'sofa-lshape': 4,
+  armchair: 1,
+  'chaise-lounge': 2,
+  'bed-queen': 4,
+  'bed-king': 4,
+  'bed-double': 3,
+  'bed-single': 2,
+  'coffee-table': 3,
+  'dining-table-4': 3,
+  'side-table': 1,
+  nightstand: 2,
+  desk: 2,
+  'console-table': 3,
+  sideboard: 3,
+  bookshelf: 3,
+  'cube-shelf': 3,
+  dresser: 2,
+}
 
 // ── Host-surface definitions ─────────────────────────────────────────────────
 
 /** Decor prop ids that may be placed on a given host. Priority order: the first
- *  props listed are preferred; we stop at MAX_PER_HOST. */
+ *  props listed are preferred; we cycle through them up to the surface budget. */
 const HOST_PROPS: Record<string, readonly string[]> = {
   // Seating (sofa / armchair)
   'sofa-3seat': ['throw-cushion', 'throw-blanket'],
@@ -93,6 +147,29 @@ const FALLBACK_TOP: Record<string, number> = {
   dresser: 0.82,
 }
 
+/** Fallback host footprint (w × d, metres) when the catalog def is unavailable. */
+const FALLBACK_FOOTPRINT: Record<string, { w: number; d: number }> = {
+  'sofa-3seat': { w: 2.1, d: 0.9 },
+  'sofa-2seat': { w: 1.6, d: 0.9 },
+  'sofa-lshape': { w: 2.4, d: 1.6 },
+  armchair: { w: 0.8, d: 0.85 },
+  'chaise-lounge': { w: 1.6, d: 0.7 },
+  'bed-queen': { w: 1.6, d: 2.03 },
+  'bed-king': { w: 1.82, d: 2.03 },
+  'bed-double': { w: 1.4, d: 2.0 },
+  'bed-single': { w: 0.9, d: 1.9 },
+  'coffee-table': { w: 1.1, d: 0.55 },
+  'dining-table-4': { w: 1.5, d: 0.9 },
+  'side-table': { w: 0.45, d: 0.45 },
+  nightstand: { w: 0.45, d: 0.4 },
+  desk: { w: 1.2, d: 0.6 },
+  'console-table': { w: 1.2, d: 0.35 },
+  sideboard: { w: 1.6, d: 0.42 },
+  bookshelf: { w: 0.8, d: 0.3 },
+  'cube-shelf': { w: 0.8, d: 0.35 },
+  dresser: { w: 1.0, d: 0.45 },
+}
+
 // ── Seeded PRNG (mulberry32) ──────────────────────────────────────────────────
 
 function mulberry32(seed: number) {
@@ -117,21 +194,85 @@ function surfaceTopHeight(item: FurnitureItem, def: FurnitureDef | undefined): n
   return FALLBACK_TOP[item.defId] ?? 0.5
 }
 
+/** Read a host's plan footprint (w × d, metres) from the catalog or fallback. */
+function hostFootprint(
+  item: FurnitureItem,
+  def: FurnitureDef | undefined,
+): { w: number; d: number } {
+  if (def) return { w: def.defaultFootprint.w, d: def.defaultFootprint.d }
+  return FALLBACK_FOOTPRINT[item.defId] ?? { w: 0.5, d: 0.5 }
+}
+
 /** True when `defId` is a known host surface we style onto. */
 function isHost(defId: string): boolean {
   return defId in HOST_PROPS
 }
 
-/** Pick a small offset from the host centre so two props on the same surface
- *  don't sit directly on top of each other. */
-function offsetPos(host: FurnitureItem, slotIndex: number, rand: () => number): [number, number] {
-  // Quarter the host footprint to spread props slightly. A small random
-  // jitter keeps sequential rooms from looking identical.
-  const jitterX = (rand() - 0.5) * 0.06
-  const jitterZ = (rand() - 0.5) * 0.06
-  // Two offsets: left-of-centre for slot 0, right-of-centre for slot 1.
-  const spreadX = slotIndex === 0 ? -0.12 : 0.12
-  return [host.position[0] + spreadX + jitterX, host.position[1] + jitterZ]
+/** Per-surface prop budget (RD408-001): scale with footprint area, clamp to the
+ *  host-type ceiling, always at least 1 for a dressable surface. */
+function surfaceBudget(item: FurnitureItem, area: number): number {
+  const ceiling = HOST_MAX[item.defId] ?? 3
+  const byArea = Math.round(area / AREA_PER_PROP)
+  return Math.max(1, Math.min(byArea, ceiling))
+}
+
+/**
+ * Lay out `count` prop positions across the host's footprint (RD408-002).
+ *
+ * Slots are distributed along the host's local long axis, inset from the edges
+ * by SPREAD_SPAN, then offset onto a near/far row on the short axis and given a
+ * small seeded jitter. The local (du, dv) offset is rotated by the host's yaw
+ * into world X/Z so the spread aligns to a rotated, wall-flushed host. Jitter is
+ * clamped so props always stay within the host footprint (never spill off edges).
+ */
+function slotPositions(
+  host: FurnitureItem,
+  footprint: { w: number; d: number },
+  count: number,
+  rand: () => number,
+): [number, number][] {
+  const { w, d } = footprint
+  // Local axes: u = long (w), v = short (d). Choose the longer dim as the run.
+  const longAlongW = w >= d
+  const longDim = longAlongW ? w : d
+  const shortDim = longAlongW ? d : w
+  const usableLong = longDim * SPREAD_SPAN
+  const usableShort = shortDim * SPREAD_SPAN
+  // Max half-extent a prop centre may sit at without leaving the footprint.
+  const halfLong = Math.max(0, longDim / 2 - 0.02)
+  const halfShort = Math.max(0, shortDim / 2 - 0.02)
+
+  const cos = Math.cos(host.rotation)
+  const sin = Math.sin(host.rotation)
+  const out: [number, number][] = []
+
+  for (let i = 0; i < count; i++) {
+    // Even slot along the long axis, centred (−usableLong/2 … +usableLong/2).
+    const t = count === 1 ? 0.5 : i / (count - 1)
+    let local = (t - 0.5) * usableLong
+    // Alternate near/far row on the short axis so props don't form one line.
+    let lateral = count > 1 ? ((i % 2 === 0 ? -1 : 1) * usableShort) / 4 : 0
+    // Seeded jitter, then clamp to keep the prop on the surface.
+    local += (rand() - 0.5) * 2 * POS_JITTER
+    lateral += (rand() - 0.5) * 2 * POS_JITTER
+    local = Math.max(-halfLong, Math.min(halfLong, local))
+    lateral = Math.max(-halfShort, Math.min(halfShort, lateral))
+
+    // Map local (long, short) → local (du = X, dv = Z) before world rotation.
+    const du = longAlongW ? local : lateral
+    const dv = longAlongW ? lateral : local
+    // Rotate local offset by host yaw into world X/Z.
+    const x = host.position[0] + du * cos - dv * sin
+    const z = host.position[1] + du * sin + dv * cos
+    out.push([x, z])
+  }
+  return out
+}
+
+/** Per-prop seeded yaw jitter around the host facing (RD408-003). */
+function propRotation(host: FurnitureItem, propId: string, rand: () => number): number {
+  const span = ROT_JITTER_BY_PROP[propId] ?? ROT_JITTER
+  return host.rotation + (rand() - 0.5) * span
 }
 
 /**
@@ -149,7 +290,7 @@ export function applyDecorStyling(
 ): FurnitureItem[] {
   const rand = mulberry32(seed)
   const result: FurnitureItem[] = []
-  const usedProps = new Set<string>() // guard idempotency on repeated calls
+  const usedIds = new Set<string>() // guard idempotency on repeated calls
 
   // Group hosts by their identity so multiple sofas each get their own budget.
   const hosts = arranged.filter((it) => isHost(it.defId))
@@ -159,35 +300,39 @@ export function applyDecorStyling(
     if (!candidateProps || candidateProps.length === 0) continue
 
     const hostDef = defs[host.defId]
-    const hostArea = hostDef ? hostDef.defaultFootprint.w * hostDef.defaultFootprint.d : 0.3
+    const footprint = hostFootprint(host, hostDef)
+    const hostArea = footprint.w * footprint.d
     if (hostArea < MIN_HOST_AREA) continue
 
     const topHeight = surfaceTopHeight(host, hostDef)
-    let placed = 0
+    const budget = surfaceBudget(host, hostArea)
+    const positions = slotPositions(host, footprint, budget, rand)
 
-    for (const propId of candidateProps) {
-      if (placed >= MAX_PER_HOST) break
+    let placed = 0
+    for (let slot = 0; slot < budget; slot++) {
+      // Cycle through the priority list so a high budget reuses props in order.
+      const propId = candidateProps[slot % candidateProps.length]
       const propDef = defs[propId]
       if (!propDef) continue
 
-      const pos = offsetPos(host, placed, rand)
       const baseProps: ParamProps = propDef.kind === 'parametric' ? defaultParamProps(propDef) : {}
       const props: ParamProps = { ...baseProps, surfaceHeight: topHeight }
 
-      const id = `decor-${host.id}-${propId}-${placed}`
-      if (usedProps.has(id)) continue
-      usedProps.add(id)
+      const id = `decor-${host.id}-${propId}-${slot}`
+      if (usedIds.has(id)) continue
+      usedIds.add(id)
 
       result.push({
         id,
         defId: propId as FurnitureItem['defId'],
-        position: pos,
-        rotation: 0,
+        position: positions[slot],
+        rotation: propRotation(host, propId, rand),
         elevation: topHeight,
         props,
       })
       placed++
     }
+    void placed
   }
 
   return result
@@ -196,7 +341,10 @@ export function applyDecorStyling(
 /**
  * Convenience: apply the decor styling pass per-room for a user-authored plan.
  * Each room is styled with an independent seed derived from the base seed + its
- * index so rooms look distinct but are still deterministic.
+ * index so rooms look distinct but are still deterministic. A per-room total cap
+ * (ROOM_DECOR_CAP) keeps density bounded for taste + perf — surplus props are
+ * trimmed lowest-priority-first (the styling pass already emits hosts in order,
+ * so trimming from the tail drops the least-important props).
  *
  * @param plan       The floor plan (rooms used for boundary checks).
  * @param arranged   Arranged furniture items across all rooms.
@@ -213,7 +361,8 @@ export function applyDecorStylingForPlan(
   plan.rooms.forEach((room: PlanRoom, idx: number) => {
     const roomItems = arranged.filter((it) => pointInRoom(room, it.position[0], it.position[1]))
     const roomDecor = applyDecorStyling(roomItems, defs, seed + idx * 997)
-    allDecor.push(...roomDecor)
+    // Per-room total cap — trim the tail (lowest-priority props placed last).
+    allDecor.push(...roomDecor.slice(0, ROOM_DECOR_CAP))
   })
   return allDecor
 }

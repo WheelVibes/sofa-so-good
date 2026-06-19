@@ -48,22 +48,56 @@ describe('applyDecorStyling', () => {
     }
   })
 
-  it('never places more than MAX_PER_HOST (2) props per host surface', () => {
-    const plan = makePlan()
-    const furniture = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {}, false)
-    const decor = applyDecorStyling(furniture, BUILTIN_CATALOG)
-    // Count props per host id (parsed from id "decor-{hostId}-{propId}-{slot}")
-    const counts = new Map<string, number>()
-    for (const d of decor) {
-      // id format: "decor-{hostId}-{propId}-{slot}"
-      const parts = d.id.split('-')
-      // The host id is everything between 'decor-' and the propId segment.
-      // Find the first segment that matches a catalog def.
-      // Simpler: count by slot (last char is slot index 0 or 1 ≤ MAX_PER_HOST).
-      const slot = Number(parts[parts.length - 1])
-      expect(slot).toBeLessThan(2) // MAX_PER_HOST = 2
+  it('density budget scales with host footprint area (RD408-001)', () => {
+    // A 3-seat sofa (≈1.89 m²) should get strictly more props than a tiny
+    // side table (≈0.20 m²) — budget scales with area, clamped per type.
+    const sofa = {
+      id: 'host-sofa',
+      defId: 'sofa-3seat' as const,
+      position: [2, 2] as [number, number],
+      rotation: 0,
+      props: {},
     }
-    void counts
+    const sideTable = {
+      id: 'host-side',
+      defId: 'side-table' as const,
+      position: [6, 6] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const sofaDecor = applyDecorStyling([sofa], BUILTIN_CATALOG)
+    const sideDecor = applyDecorStyling([sideTable], BUILTIN_CATALOG)
+    expect(sofaDecor.length).toBeGreaterThan(sideDecor.length)
+    // Side table has a strict ceiling of 1.
+    expect(sideDecor.length).toBe(1)
+    // Sofa is dense but capped at its host ceiling (4).
+    expect(sofaDecor.length).toBeGreaterThanOrEqual(2)
+    expect(sofaDecor.length).toBeLessThanOrEqual(4)
+  })
+
+  it('respects the per-host-type ceiling even for huge hosts (RD408-001)', () => {
+    // Per-type ceilings cap density regardless of how large a surface is.
+    const sofa = {
+      id: 'host-sofa',
+      defId: 'sofa-3seat' as const,
+      position: [2, 2] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const decor = applyDecorStyling([sofa], BUILTIN_CATALOG)
+    expect(decor.length).toBeLessThanOrEqual(4) // HOST_MAX['sofa-3seat']
+  })
+
+  it('always dresses a tiny (but ≥ min-area) host with at least one prop', () => {
+    const nightstand = {
+      id: 'host-ns',
+      defId: 'nightstand' as const,
+      position: [1, 1] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const decor = applyDecorStyling([nightstand], BUILTIN_CATALOG)
+    expect(decor.length).toBeGreaterThanOrEqual(1)
   })
 
   it('sets surfaceHeight to the host top height in each decor prop', () => {
@@ -94,6 +128,86 @@ describe('applyDecorStyling', () => {
     const b = applyDecorStyling(furniture, BUILTIN_CATALOG, 42)
     expect(a.map((d) => d.id)).toEqual(b.map((d) => d.id))
     expect(a.map((d) => d.position)).toEqual(b.map((d) => d.position))
+  })
+
+  it('spreads multiple props across the host footprint without overlap (RD408-002)', () => {
+    // A king bed gets several cushions; their positions must be distinct and
+    // each must sit within the host footprint (props are noClip but should not
+    // visually spill off the surface).
+    const bed = BUILTIN_CATALOG['bed-king']!
+    const host = {
+      id: 'host-bed',
+      defId: 'bed-king' as const,
+      position: [3, 3] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const decor = applyDecorStyling([host], BUILTIN_CATALOG)
+    expect(decor.length).toBeGreaterThan(1)
+    const halfW = bed.defaultFootprint.w / 2
+    const halfD = bed.defaultFootprint.d / 2
+    for (const d of decor) {
+      expect(Math.abs(d.position[0] - 3)).toBeLessThanOrEqual(halfW + 1e-6)
+      expect(Math.abs(d.position[1] - 3)).toBeLessThanOrEqual(halfD + 1e-6)
+    }
+    // No two props share an identical position.
+    const keys = decor.map((d) => `${d.position[0].toFixed(4)},${d.position[1].toFixed(4)}`)
+    expect(new Set(keys).size).toBe(keys.length)
+    // Props don't all collapse to the host centre (some real spread exists).
+    const spread = decor.some(
+      (d) => Math.abs(d.position[0] - 3) > 0.05 || Math.abs(d.position[1] - 3) > 0.05,
+    )
+    expect(spread).toBe(true)
+  })
+
+  it('spread is rotation-aware: offsets follow the host yaw (RD408-002)', () => {
+    // Same host, rotated 90°: the long-axis spread should now run along Z, not X.
+    const base = {
+      id: 'host-sofa',
+      defId: 'sofa-3seat' as const,
+      position: [3, 3] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const rotated = { ...base, rotation: Math.PI / 2 }
+    const a = applyDecorStyling([base], BUILTIN_CATALOG, 5)
+    const b = applyDecorStyling([rotated], BUILTIN_CATALOG, 5)
+    const rangeX = (items: typeof a) => {
+      const xs = items.map((d) => d.position[0])
+      return Math.max(...xs) - Math.min(...xs)
+    }
+    const rangeZ = (items: typeof a) => {
+      const zs = items.map((d) => d.position[1])
+      return Math.max(...zs) - Math.min(...zs)
+    }
+    // Unrotated: wider on X (long axis is w). Rotated 90°: that run swings to Z.
+    expect(rangeX(a)).toBeGreaterThan(rangeZ(a))
+    expect(rangeZ(b)).toBeGreaterThan(rangeX(b))
+  })
+
+  it('applies a bounded, non-zero, seeded rotation jitter (RD408-003)', () => {
+    const sofa = {
+      id: 'host-sofa',
+      defId: 'sofa-3seat' as const,
+      position: [2, 2] as [number, number],
+      rotation: 0,
+      props: {},
+    }
+    const decor = applyDecorStyling([sofa], BUILTIN_CATALOG)
+    // At least one prop is rotated off-square.
+    expect(decor.some((d) => Math.abs(d.rotation) > 1e-6)).toBe(true)
+    // Jitter stays bounded (well under ±45°) around the host facing.
+    for (const d of decor) {
+      expect(Math.abs(d.rotation)).toBeLessThan(0.8)
+    }
+  })
+
+  it('rotation jitter is deterministic for a fixed seed (RD408-003)', () => {
+    const plan = makePlan()
+    const furniture = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {}, false)
+    const a = applyDecorStyling(furniture, BUILTIN_CATALOG, 9)
+    const b = applyDecorStyling(furniture, BUILTIN_CATALOG, 9)
+    expect(a.map((d) => d.rotation)).toEqual(b.map((d) => d.rotation))
   })
 
   it('produces no decor for an empty item list (no suitable hosts)', () => {
@@ -138,6 +252,27 @@ describe('applyDecorStylingForPlan', () => {
     const a = applyDecorStylingForPlan(plan, furniture, BUILTIN_CATALOG, 7)
     const b = applyDecorStylingForPlan(plan, furniture, BUILTIN_CATALOG, 7)
     expect(a.map((d) => d.id)).toEqual(b.map((d) => d.id))
+    expect(a.map((d) => d.position)).toEqual(b.map((d) => d.position))
+    expect(a.map((d) => d.rotation)).toEqual(b.map((d) => d.rotation))
+  })
+
+  it('caps decor per room at ROOM_DECOR_CAP (10) (RD408-001)', () => {
+    const plan = makePlan()
+    const furniture = furnishPlanItems(plan, movein, BUILTIN_CATALOG, {}, false)
+    const decor = applyDecorStylingForPlan(plan, furniture, BUILTIN_CATALOG)
+    // Tally decor per room via the plan room boundaries.
+    for (const room of plan.rooms) {
+      const inRoom = decor.filter((d) => {
+        const { origin, width, depth } = room
+        return (
+          d.position[0] >= origin[0] &&
+          d.position[0] <= origin[0] + width &&
+          d.position[1] >= origin[1] &&
+          d.position[1] <= origin[1] + depth
+        )
+      })
+      expect(inRoom.length).toBeLessThanOrEqual(10)
+    }
   })
 })
 

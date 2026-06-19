@@ -5,6 +5,37 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Richer auto-decor — density budget + position spread + rotation jitter (RD408-001/002/003) (v0.1.0.47)
+
+Auto-furnished (Smart Start / preset) rooms read sparse + obviously machine-placed: the
+set-dressing pass (`src/furniture/layout/decorStyling.ts`) capped every host at **2 props**,
+stacked them at one point on the X axis, and shipped them all at `rotation: 0`. RD-408's A-chain
+core makes them read richer + more natural without clutter, collisions, or a perf blowup
+(everything stays pure, seeded + deterministic so unit tests are stable; all props are still
+`noClip` table-top decor — no collision math):
+
+- **RD408-001 — density budget.** Replaced the flat `MAX_PER_HOST = 2` with a per-surface budget
+  derived from the host's footprint **area** and a conservative **per-type ceiling**:
+  `budget = clamp(round(area / AREA_PER_PROP=0.45), 1, HOST_MAX[type])`. A 3-seat sofa now gets up
+  to 4 cushions/blankets, a dining table up to 3, while a nightstand stays ≤2 and a side table ≤1.
+  A per-room total cap (`ROOM_DECOR_CAP = 10`, lowest-priority trimmed from the tail in
+  `applyDecorStylingForPlan`) keeps density bounded for taste + perf.
+- **RD408-002 — position spread.** Replaced the single-axis `offsetPos` with `slotPositions`, which
+  lays props out across the host's **real footprint** (long axis run + alternating near/far short-axis
+  row), **rotation-aware** (the local offset is rotated by the host's yaw into world X/Z so the spread
+  aligns to a wall-flushed, rotated sofa/bed), with a small seeded jitter (`POS_JITTER = 0.04 m`).
+  Offsets are clamped to the footprint half-extents so props never spill off the host edge.
+- **RD408-003 — rotation jitter.** Each prop now gets a small seeded yaw around the host facing
+  (`host.rotation ± ROT_JITTER`); soft goods (cushions/blankets ≈ ±20°) tilt more than precise
+  objects (frames/sculptures ≈ ±8°), so nothing is dead-square. (The mesh already wired
+  `item.rotation`; the pass simply stopped hardcoding `0`.)
+
+No new feature flag — this enriches the existing auto-furnish surface. `decorStyling.test.ts`
+extended: budget scales with area, per-room cap, in-footprint + non-overlapping spread,
+rotation-aware spread, bounded non-zero + deterministic rotation jitter. Visual check (4-room HDB
+furnished via a custom plan) confirmed sofas/dining tables/beds read richer with props spread +
+slightly rotated, no clutter / floating / clipping.
+
 ## Plaster/concrete roller-nap roughness micro-detail (MAT-003) (v0.1.0.46)
 
 Painted plaster / microcement walls rendered as a dead-flat matte colour — a single roughness
