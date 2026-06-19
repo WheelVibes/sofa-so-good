@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: route baked-AO CanvasTextures through the anisotropy cap (REV-006) (v0.2.0.13)
+
+The shared `CornerAO` corner-strip gradient and the `ContactShadow` radial blob were the two
+`CanvasTexture`s created without `applyAnisotropy()`, against the RD-401 rule that routes *every*
+CanvasTexture through the shared cap. Both are floor decals seen at grazing angles on the flat
+(Performance) tier, where anisotropic filtering keeps the falloff crisp. Both now stamp the cap (and
+register for the device-max re-apply on first render). Verified the flat-tier scene still renders the
+grounding cues with no artifacts.
+
 ## Perf: lazy-load the Pro/analysis panels out of the boot bundle (PERF-004) (v0.2.0.12)
 
 The eight Pro/analysis panels — Budget, Clearance, Daylight, DesignScore, Comments,

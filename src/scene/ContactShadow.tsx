@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { CanvasTexture } from 'three'
+import { applyAnisotropy } from '../materials/anisotropy'
 
 let sharedTex: CanvasTexture | null = null
 /** Soft radial-gradient alpha blob, created once and shared by every shadow. */
@@ -15,7 +16,8 @@ function shadowTexture(): CanvasTexture {
   g.addColorStop(1, 'rgba(0,0,0,0)')
   ctx.fillStyle = g
   ctx.fillRect(0, 0, size, size)
-  sharedTex = new CanvasTexture(c)
+  // Route through the shared anisotropy cap (RD-401), like every other CanvasTexture.
+  sharedTex = applyAnisotropy(new CanvasTexture(c))
   return sharedTex
 }
 
