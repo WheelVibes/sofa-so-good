@@ -19,7 +19,22 @@ IKEA def. Both are reachable by sending a victim a crafted `.sofa.json`.
 
 ## Findings (ranked)
 
-### SEC-001 — `javascript:` URL injection in inspector source/document links (XSS) — HIGH
+### SEC-001 — `javascript:` URL injection in inspector source/document links (XSS) — HIGH — ✅ RESOLVED (v0.1.0.38)
+
+**Resolution:** Added a shared, unit-tested scheme allowlist sanitizer
+`src/utils/safeUrl.ts` (`safeUrl`/`safeHref`/`sanitizeUrlField`) — permits only
+`http:`/`https:`/`mailto:` and scheme-less relative/protocol-relative URLs after stripping
+whitespace + control chars and lowercasing the scheme (so ` javascript:`, `JavaScript:`,
+`java\tscript:` are all rejected); drops `javascript:`/`data:`/`vbscript:`/`file:`/any other
+scheme. Applied at every def-derived render sink: `SourceLine` (`sourceUrl`), `IkeaBody`
+(`documents[].url` anchors render as inert text when unsafe, `mainImageUrl` `<img src>`), and
+`BudgetPanel` retailer offer links (+`rel="noopener noreferrer"`). Hardened at the trust
+boundary in `src/state/schema.ts`: a Zod transform neutralizes `IkeaGltfDefZ.sourceUrl` and the
+`productInfo.mainImageUrl`/`documents[].url` fields on import (set to `undefined`, import does
+not throw — back-compatible). The IKEA variant `url` render sink was already protected by
+`shoplist.ts:sanitizeUrl`. Tests: `src/utils/safeUrl.test.ts`, a schema-import test
+(`schema.test.ts`), and a `SourceLine` inert-link test.
+
 **Files:**
 - `src/ui/inspector/SourceLine.tsx:14` — `<a href={sourceUrl} …>` (no scheme validation)
 - `src/ui/inspector/InspectorPanel.tsx:513-517` — passes `def.sourceUrl` to `SourceLine` for `source === 'ikea'` defs

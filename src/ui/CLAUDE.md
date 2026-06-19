@@ -23,6 +23,13 @@ Area rules for DOM overlays. Component map in `docs/ARCHITECTURE.md`.
 - **Shortcut chips** come from `controls/keybindings.ts` (via `shortcuts.ts`) — never
   hardcode a key label. Tooltips + menus render through `Popover` (portal) so the
   scrollable toolbar can't clip them.
+- **Untrusted URLs → `safeUrl` (`src/utils/safeUrl.ts`).** Any URL that originates from
+  imported / user-supplied / scraped data (def `sourceUrl`, IKEA `productInfo` image/document
+  URLs, retailer-offer links, …) MUST pass through `safeUrl()`/`safeHref()` before it reaches an
+  `href`/`src` — render the link only when it returns a value, else fall back to inert text (a
+  `javascript:`/`data:` URL would otherwise execute on click, SEC-001). It allows only
+  `http:`/`https:`/`mailto:` + relative/protocol-relative URLs. The schema also neutralizes these
+  fields on import, but the render sink is the defense-in-depth backstop.
 - Modals portal to `document.body`; reuse the shared `Modal` primitive. While any modal is
   open, global hotkeys are suppressed via `controls/modalGuard.ts` — `Modal` registers
   automatically; any modal-style overlay that does **not** build on `Modal` (custom

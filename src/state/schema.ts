@@ -19,7 +19,13 @@ import {
 import { buildDefaultPlan } from '../floorplan/defaultPlan'
 import { allPlanRooms } from '../floorplan/levels'
 import { isDefaultPlan } from '../floorplan/planGeometry'
+import { safeUrl } from '../utils/safeUrl'
 import type { RootState } from './store'
+
+/** Zod transform: neutralize an unsafe-scheme URL (javascript:/data:/…) into
+ *  `undefined` at the import trust boundary so it never enters state.
+ *  Back-compatible — only the URL field is dropped, the record is preserved. */
+const sanitizedUrl = (schema: z.ZodOptional<z.ZodString>) => schema.transform((u) => safeUrl(u))
 
 const FurnitureItemZ = z.object({
   id: z.string(),
@@ -101,29 +107,55 @@ const IkeaVariantZ = z.object({
   ),
 }) // runtimeUrl intentionally omitted — rebuilt from assetId at hydration
 
-const IkeaGltfDefZ = z.object({
-  id: z.string(),
-  name: z.string(),
-  category: z.string(),
-  kind: z.literal('gltf'),
-  source: z.literal('ikea'),
-  groupKey: z.string(),
-  activeVariant: z.string(),
-  variants: z.array(IkeaVariantZ),
-  defaultFootprint: z.object({ w: z.number(), d: z.number(), h: z.number() }),
-  verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
-  mounted: z.boolean().optional(),
-  noClip: z.boolean().optional(),
-  frontClearance: z.number().optional(),
-  productInfo: z.record(z.string(), z.unknown()).optional(),
-  compatibility: z
-    .object({ acceptsCategories: z.array(z.string()), size: z.string().optional() })
-    .optional(),
-  uploadedAt: z.string(),
-  license: z.literal('IKEA'),
-  attribution: z.string(),
-  sourceUrl: z.string().optional(),
-})
+const IkeaGltfDefZ = z
+  .object({
+    id: z.string(),
+    name: z.string(),
+    category: z.string(),
+    kind: z.literal('gltf'),
+    source: z.literal('ikea'),
+    groupKey: z.string(),
+    activeVariant: z.string(),
+    variants: z.array(IkeaVariantZ),
+    defaultFootprint: z.object({ w: z.number(), d: z.number(), h: z.number() }),
+    verticalSpan: z.object({ base: z.number(), top: z.number() }).optional(),
+    mounted: z.boolean().optional(),
+    noClip: z.boolean().optional(),
+    frontClearance: z.number().optional(),
+    productInfo: z.record(z.string(), z.unknown()).optional(),
+    compatibility: z
+      .object({ acceptsCategories: z.array(z.string()), size: z.string().optional() })
+      .optional(),
+    uploadedAt: z.string(),
+    license: z.literal('IKEA'),
+    attribution: z.string(),
+    // Neutralize a javascript:/data: source URL on import (rendered in SourceLine).
+    sourceUrl: sanitizedUrl(z.string().optional()),
+  })
+  // The free-form productInfo bag (z.unknown()) carries scraped URLs rendered
+  // as a `<img src>` (mainImageUrl) and document `href`s — sanitize them too.
+  .transform((d) => {
+    if (d.productInfo) d.productInfo = sanitizeProductInfoUrls(d.productInfo)
+    return d
+  })
+
+/** Drop unsafe-scheme URLs inside the open-ended IKEA `productInfo` bag —
+ *  `mainImageUrl` (rendered as `<img src>`) and `documents[].url` (rendered as
+ *  anchors). Mutates a shallow copy; unknown shapes pass through untouched. */
+function sanitizeProductInfoUrls(info: Record<string, unknown>): Record<string, unknown> {
+  const out: Record<string, unknown> = { ...info }
+  if (typeof out.mainImageUrl === 'string') {
+    out.mainImageUrl = safeUrl(out.mainImageUrl) // undefined → field dropped on render
+  }
+  if (Array.isArray(out.documents)) {
+    out.documents = out.documents.map((doc) =>
+      doc && typeof doc === 'object' && typeof (doc as { url?: unknown }).url === 'string'
+        ? { ...doc, url: safeUrl((doc as { url: string }).url) }
+        : doc,
+    )
+  }
+  return out
+}
 
 const UserMaterialDefZ = z.object({
   id: z.string(),

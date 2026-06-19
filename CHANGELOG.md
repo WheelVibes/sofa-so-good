@@ -5,6 +5,27 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix (security): sanitize def URL schemes to block javascript:/data: XSS (SEC-001) (v0.1.0.38)
+
+A crafted `.sofa.json` import could carry furniture defs whose `sourceUrl` / IKEA
+`productInfo.documents[].url` / `mainImageUrl` were `javascript:…` or `data:text/html,…`; the
+file-import path keeps `userFurniture` (incl. `source:'ikea'` defs and their URLs), and the
+inspector rendered those straight into an `<a href>` / `<img src>` with no scheme check — so
+clicking the "Source" / "(PDF)" link executed script in the app origin (XSS). Added a shared,
+pure, unit-tested sanitizer `src/utils/safeUrl.ts` (`safeUrl`/`safeHref`/`sanitizeUrlField`):
+a scheme **allowlist** (`http:`/`https:`/`mailto:` + scheme-less relative & protocol-relative
+URLs) applied **after** stripping whitespace/control chars and lowercasing the scheme, so
+` javascript:`, `JavaScript:`, and `java\tscript:` are all rejected; `data:`/`vbscript:`/
+`file:`/any other scheme are dropped. Applied at every def-derived render sink — `SourceLine`
+(`sourceUrl`), `IkeaBody` (document anchors fall back to inert text, image `<img src>`), and
+`BudgetPanel` retailer offers (now also `rel="noopener noreferrer"`) — **and** hardened at the
+trust boundary in `state/schema.ts` via a Zod transform that neutralizes the `sourceUrl` and
+`productInfo` URL fields on import (set to `undefined`; import stays back-compatible, never
+throws). The IKEA variant `url` sink was already covered by `shoplist.ts:sanitizeUrl`. Tests:
+`safeUrl` (allow http/https/mailto/relative; reject obfuscated/cased javascript:/data:/vbscript:),
+a schema-import test (a `.sofa.json` with `javascript:`/`data:` URLs imports with each URL
+neutralized and the rest of the def intact), and a `SourceLine` inert-link test.
+
 ## Fix (a11y): announce toasts via ARIA live regions (UX-001)
 
 The toast/notification stack (`src/ui/notifications/NotificationContainer.tsx`) was silent to

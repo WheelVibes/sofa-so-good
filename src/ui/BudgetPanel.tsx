@@ -7,6 +7,7 @@ import { buildShoppingGroups, type Line } from '../furniture/shoppingGroups'
 import { spendByRoom } from '../furniture/spendByRoom'
 import type { FurnitureCategory } from '../furniture/types'
 import { useStore } from '../state/store'
+import { safeUrl } from '../utils/safeUrl'
 import { CategoryIcon } from './catalog/CategoryIcon'
 import { EmptyState } from './EmptyState'
 import { buildShoppingCsv } from './shoppingCsv'
@@ -357,13 +358,14 @@ export function BudgetPanel() {
                               fontSize: 'var(--t-2xs)',
                             }}
                           >
-                            {offers.map((o) =>
-                              o.url ? (
+                            {offers.map((o) => {
+                              const href = safeUrl(o.url)
+                              return href ? (
                                 <a
                                   key={o.retailer}
-                                  href={o.url}
+                                  href={href}
                                   target="_blank"
-                                  rel="noreferrer"
+                                  rel="noopener noreferrer"
                                   title={`${o.title} · ${o.retailerLabel ?? o.retailer}`}
                                   style={{ color: 'var(--accent)', whiteSpace: 'nowrap' }}
                                 >
@@ -377,8 +379,8 @@ export function BudgetPanel() {
                                 >
                                   {o.retailerLabel ?? o.retailer} {fmt(o.price)}
                                 </span>
-                              ),
-                            )}
+                              )
+                            })}
                           </div>
                         )}
                       </div>

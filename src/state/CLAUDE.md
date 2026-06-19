@@ -38,4 +38,11 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   long hold form one step; `refreshCoalesce(key)` keeps that window alive across a hold→re-tap
   without snapshotting and is a no-op for any other key (so a nudge can't merge with another
   action). A deliberate pause past `COALESCE_MS` starts a fresh step.
+- **`schema.ts` is the import trust boundary — sanitize untrusted URLs here.** A `.sofa.json`
+  import keeps `userFurniture` (incl. `source:'ikea'` defs + their URLs), so any URL field that
+  later renders into an `href`/`src` (def `sourceUrl`, IKEA `productInfo.mainImageUrl` /
+  `documents[].url`) is run through `safeUrl` (`src/utils/safeUrl.ts`) via a Zod transform —
+  unsafe-scheme URLs (`javascript:`/`data:`/…) become `undefined`, the rest of the record is
+  preserved (back-compatible, never rejects the whole import, SEC-001). When you add a new
+  imported URL field, sanitize it here too (and at its render sink).
 - `editing.ts` `canEditScene` is the single gate for all scene editing — don't bypass it.

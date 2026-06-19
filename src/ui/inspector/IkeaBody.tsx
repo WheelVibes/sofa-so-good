@@ -9,6 +9,7 @@ import type {
   IkeaVariant,
 } from '../../furniture/types'
 import { useStore } from '../../state/store'
+import { safeUrl } from '../../utils/safeUrl'
 import { finishOverrideKey, variantProps } from './ikeaBodyProps'
 
 interface IkeaBodyProps {
@@ -30,6 +31,9 @@ function findVariant(def: IkeaGltfDef, finish: string): IkeaVariant | undefined 
 /** Read-only product metadata, collapsed by default. */
 function IkeaProductInfoDetails({ info }: { info: IkeaProductInfo }) {
   const measurements = Object.entries(info.productMeasurements ?? {}).slice(0, 6)
+  // Scraped/imported product data is untrusted — sanitize the image source so a
+  // crafted `data:`/`javascript:` URL can't slip into an `<img src>`.
+  const mainImageUrl = safeUrl(info.mainImageUrl)
   return (
     <details className="rounded border border-[var(--border)] bg-[var(--surface-2)] px-2 py-1 text-[10px] text-[var(--text-2)]">
       <summary className="cursor-pointer text-xs font-medium text-[var(--text-2)]">
@@ -39,9 +43,9 @@ function IkeaProductInfoDetails({ info }: { info: IkeaProductInfo }) {
         {info.categoryConfidence === 'low' ? (
           <p className="text-[10px] text-amber-600">⚠ Category auto-detected — review.</p>
         ) : null}
-        {info.mainImageUrl ? (
+        {mainImageUrl ? (
           <img
-            src={info.mainImageUrl}
+            src={mainImageUrl}
             alt=""
             width={96}
             className="rounded border border-[var(--border)]"
@@ -97,17 +101,24 @@ function IkeaProductInfoDetails({ info }: { info: IkeaProductInfo }) {
         {info.documents?.length ? (
           <div>
             <div className="text-[var(--text-3)]">Documents</div>
-            {info.documents.map((d, i) => (
-              <a
-                key={i}
-                href={d.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="block text-[var(--accent-soft-text)] hover:underline"
-              >
-                {d.name} (PDF)
-              </a>
-            ))}
+            {info.documents.map((d, i) => {
+              const href = safeUrl(d.url)
+              return href ? (
+                <a
+                  key={i}
+                  href={href}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="block text-[var(--accent-soft-text)] hover:underline"
+                >
+                  {d.name} (PDF)
+                </a>
+              ) : (
+                <span key={i} className="block text-[var(--text-3)]">
+                  {d.name} (PDF)
+                </span>
+              )
+            })}
           </div>
         ) : null}
         {info.rating ? (
