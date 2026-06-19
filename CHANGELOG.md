@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix (a11y): announce toasts via ARIA live regions (UX-001)
+
+The toast/notification stack (`src/ui/notifications/NotificationContainer.tsx`) was silent to
+screen readers — its `.toast-host` container had no `aria-live`/`role`, so success/error/progress
+toasts never reached assistive tech. Added two visually-hidden, always-mounted live regions: a
+**polite** `role="status"` region for info/success/progress and an **assertive** `role="alert"`
+region for errors (so errors interrupt). A `useToastAnnouncer` hook announces each toast exactly
+once — keyed by toast id + kind — so progress *value* ticks never re-announce (no announcement
+spam), while a progress toast resolving to success/error does re-announce. Each region holds only
+the newest message (`aria-atomic`), so screen readers read it once. The visible stack stays in the
+a11y tree (interactive Dismiss / View-details buttons remain reachable) but is **not** itself a live
+region, so it can't double-announce. Empty state mounts the (empty) regions without stray noise.
+Visual appearance/layout/animation unchanged (verified light + dark); CSS tokens untouched. New RTL
+tests assert region roles/aria, error→assertive vs info→polite routing, no progress-tick spam, and
+progress→success re-announcement.
+
 ## Fix: room area = rectilinear union polygon (BUG-004) (v0.1.0.34)
 
 `planRoomArea` summed `main + extension` rectangles, double-counting the overlap
