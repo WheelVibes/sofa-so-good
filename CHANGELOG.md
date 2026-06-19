@@ -5,6 +5,22 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Asset-source scraper suite — 35 resumable, rate-limited downloaders (v0.1.0.40)
+
+`research/scrapers/`: one `<source>_scraper.py` for every source in
+`research/MODEL_LIBRARIES.html` that is scrapable / programmatically downloadable (35
+sources + the shared `scraper_common.py` harness + `_retailer.py` sitemap-crawler +
+`polyhaven_scraper.py` reference). Every script is **resumable** (JSON manifest, `.part`→
+rename), **rate-limited** (`--rps` + 429-aware backoff), stdlib-first, and records per-item
+license for downstream commercial filtering. Covers CC0/CC-BY APIs (Poly Haven, ambientCG,
+Poly Pizza, Quaternius, Kenney, Google Scanned Objects, Redwood, Sketchfab, Smithsonian,
+Thingiverse, OpenGameArt, Three D Scans), material/HDRI sites (cgbookcase, 3DTextures.me,
+CGEES, HDRMaps, FreePBR), datasets (ABO, Objaverse 1.0/XL, ShapeNet, 3D-FUTURE, 3D-FRONT,
+Pix3D, OmniObject3D), dev-only retailer AR (Wayfair API + Castlery/Crate&Barrel/Target/
+Houzz/Article/West Elm/Amazon via `_retailer.py`), and marketplace/AI APIs (CGTrader,
+Meshy, Tripo). `NOT_SCRAPABLE.md` documents auth/ToS/anti-bot-blocked sources. All 37 files
+pass `py_compile` + `--help`. (IKEA excluded — already implemented.)
+
 ## Fix (security): neutralize CSV formula injection in exports (SEC-002)
 
 The three CSV builders — `src/export/boq.ts` (`boqToCsv`), `src/ui/furnitureCsv.ts`, and
