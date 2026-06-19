@@ -5,6 +5,32 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Drag HUD: live per-side distance-to-wall readout (v0.1.0.18)
+
+While dragging a single item, the drag HUD already showed the single nearest-wall
+gap; it now reads out the gap to the nearest wall on **each side** of the footprint
+(left/right/back/front), so a piece can be placed to a precise clearance the way
+Coohom / pro tools do. Each side is a small chip with a directional arrow and the
+distance via `formatLength` (metric/imperial), and turns amber below the minimum
+walkway clearance (`CLEARANCE.walkwayMin`). Rides under the existing drag HUD — no
+new feature flag (an inline readout on an always-present editor surface).
+
+- New pure, unit-tested `wallGapsPerSide(box, walls)` in `collision/clearanceGap.ts`
+  returns `{ left, right, back, front }` (each `number | null`), reusing the existing
+  axis-aligned `CollisionWall` segments + footprint AABB. The old `nearestWallGap` is
+  now a thin wrapper over it (overall minimum), keeping its behaviour/back-compat.
+- `DragController` precomputes the same walls it already validates against per move
+  (`placementWalls` / door-aware `buildCollisionWalls`) and writes both the legacy
+  `dragClearance` and the new `dragWallGaps` to the store each pointer-move — cheap
+  per-frame point/segment distance, no geometry rebuilt.
+- `DragHud` renders the per-side chips (themed via CSS tokens, wraps on narrow/mobile
+  viewports), falling back to the single nearest-gap pill when no side faces a wall,
+  and hiding entirely when there's no wall to measure to. Unit-tested in metric +
+  imperial, group-drag hidden, warn styling, and the fallback path.
+- Edge cases handled: flush/overlap clamps to 0 (touch), no-facing-wall leaves a side
+  `null` (no chip), nearest of several walls per side wins, group drags suppress the
+  readout.
+
 ## 2D plan: room perimeter on the live area label (v0.1.0.17)
 
 The 2D editor already drew each room's name + floor area centred inside it, live

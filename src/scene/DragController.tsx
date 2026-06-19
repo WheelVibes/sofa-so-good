@@ -1,7 +1,7 @@
 import { useThree } from '@react-three/fiber'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { Plane, Raycaster, Vector2, Vector3 } from 'three'
-import { nearestWallGap } from '../collision/clearanceGap'
+import { nearestWallGap, wallGapsPerSide } from '../collision/clearanceGap'
 import { canPlace, itemFootprint } from '../collision/placement'
 import { placementWalls } from '../collision/placementWalls'
 import { wallSnapOffset } from '../collision/wallSnap'
@@ -288,6 +288,7 @@ export function DragController() {
           }
           const walls = planWalls ?? buildCollisionWalls(after.doors)
           state.setDragClearance(nearestWallGap(box, walls))
+          state.setDragWallGaps(wallGapsPerSide(box, walls))
         }
       }
     }

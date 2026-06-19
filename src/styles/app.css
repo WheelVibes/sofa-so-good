@@ -104,6 +104,34 @@
   margin-right: 2px;
 }
 
+/* Per-side wall-gap readout shown while dragging an item. Wraps on narrow
+   viewports so the chips never overflow the screen on mobile/touch drags. */
+.hud-pill.drag-gaps {
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: min(92vw, 420px);
+}
+.drag-gaps-label {
+  color: var(--text-3);
+  font-weight: 600;
+}
+.drag-gap {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.drag-gap.warn {
+  background: var(--danger-soft);
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
 /* Walk-mode controls banner (auto-fading, themed). */
 .walk-hud {
   display: inline-flex;
