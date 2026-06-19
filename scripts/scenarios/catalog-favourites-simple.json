@@ -1,0 +1,147 @@
+{
+  "name": "catalog-favourites-simple",
+  "description": "Simple ladder for catalog favourites: verify the star button appears on catalog cards, toggling it adds items to the Favourites tab, the tab count updates, and persistence survives a store clear (simulating reload). Checks visibility in both Simple and Pro modes.",
+  "url": "http://localhost:5174/",
+  "steps": [
+    {
+      "name": "store-ready",
+      "waitFor": { "storeExists": true },
+      "timeout": 60000
+    },
+    {
+      "name": "dismiss-overlays",
+      "eval": "try { localStorage.setItem('hdb_onboarded','1') } catch {}; const s = window.__store.getState(); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.()"
+    },
+    {
+      "name": "set-daytime",
+      "eval": "window.__store.getState().setManualHour?.(13)"
+    },
+    {
+      "name": "clear-favourites",
+      "eval": "window.__store.getState().clearFavourites?.()"
+    },
+    {
+      "name": "verify-simple-mode",
+      "waitFor": { "store": "state.uiMode === 'simple'" },
+      "timeout": 5000,
+      "failMessage": "App did not boot in Simple mode"
+    },
+    {
+      "name": "enter-room-editor",
+      "store": { "action": "enterRoomEditor", "args": ["livingDining"] }
+    },
+    {
+      "name": "room-editor-active",
+      "waitFor": { "store": "state.roomEditor.active === true" },
+      "timeout": 5000
+    },
+    {
+      "name": "wait-room-load",
+      "wait": 2000
+    },
+    {
+      "name": "open-catalog",
+      "store": { "action": "setCatalogOpen", "args": [true] }
+    },
+    {
+      "name": "catalog-visible",
+      "waitFor": { "css": ".panel.catalog" },
+      "timeout": 20000,
+      "failMessage": "Catalog drawer did not appear"
+    },
+    {
+      "name": "shot-01-catalog-open",
+      "screenshot": "01-catalog-open-simple"
+    },
+    {
+      "name": "verify-star-chip-visible-simple",
+      "eval": "(function(){ const starChips = [...document.querySelectorAll('.cat-rail .chip')].filter(b => b.querySelector('svg') && !b.textContent?.includes('Rec')); if (starChips.length === 0) throw new Error('Favourites star chip not found in cat-rail — catalogFavourites flag may be off in Simple mode'); })()"
+    },
+    {
+      "name": "verify-fav-buttons-on-cards",
+      "eval": "(function(){ const cards = document.querySelectorAll('.cat-card'); const favBtns = document.querySelectorAll('.fav-btn'); if (favBtns.length === 0) throw new Error('No .fav-btn found on catalog cards — star button missing'); console.log('Found', favBtns.length, 'fav buttons across', cards.length, 'cards'); })()"
+    },
+    {
+      "name": "shot-02-fav-buttons-on-cards",
+      "screenshot": "02-fav-buttons-on-cards"
+    },
+    {
+      "name": "star-first-two-via-store",
+      "eval": "window.__store.getState().toggleFavourite?.('armchair'); window.__store.getState().toggleFavourite?.('sofa-3seat');"
+    },
+    {
+      "name": "verify-two-favourited",
+      "waitFor": { "store": "state.favouriteDefIds.length === 2" },
+      "timeout": 3000,
+      "failMessage": "Expected 2 favourites after starring two items"
+    },
+    {
+      "name": "shot-03-two-starred",
+      "screenshot": "03-two-items-starred"
+    },
+    {
+      "name": "click-favourites-tab",
+      "eval": "(function(){ const chips = [...document.querySelectorAll('.cat-rail .chip')]; const starChip = chips.find(c => !c.textContent?.trim() || c.textContent?.trim().replace(/[0-9]/g,'') === ''); if (!starChip) { console.log('chips:', chips.map(c=>c.textContent)); } else { starChip.click(); } })()"
+    },
+    {
+      "name": "wait-tab-switch",
+      "wait": 500
+    },
+    {
+      "name": "shot-04-favourites-tab",
+      "screenshot": "04-favourites-tab-open"
+    },
+    {
+      "name": "verify-favourites-shows-items",
+      "eval": "(function(){ const cards = document.querySelectorAll('.card-grid .cat-card'); if (cards.length < 2) throw new Error('Expected at least 2 items in the Favourites view, found: ' + cards.length); console.log('Favourites view shows', cards.length, 'cards'); })()"
+    },
+    {
+      "name": "verify-persistence-test",
+      "eval": "(function(){ const raw = localStorage.getItem('hdb_favourites'); const saved = raw ? JSON.parse(raw) : []; if (!saved.includes('armchair') || !saved.includes('sofa-3seat')) throw new Error('Favourites not persisted to localStorage. Got: ' + JSON.stringify(saved)); console.log('localStorage hdb_favourites:', saved); })()"
+    },
+    {
+      "name": "shot-05-persistence-verified",
+      "screenshot": "05-persistence-verified"
+    },
+    {
+      "name": "verify-empty-state-after-clear",
+      "eval": "window.__store.getState().clearFavourites?.()"
+    },
+    {
+      "name": "wait-clear",
+      "wait": 300
+    },
+    {
+      "name": "shot-06-empty-state",
+      "screenshot": "06-empty-state"
+    },
+    {
+      "name": "verify-empty-hint-shown",
+      "eval": "(function(){ const emptyMsg = document.querySelector('.empty-mini'); if (!emptyMsg) throw new Error('Empty state message not shown when favourites is empty'); console.log('Empty message text:', emptyMsg.textContent?.trim()); })()"
+    },
+    {
+      "name": "switch-to-pro-mode",
+      "store": { "action": "setUiMode", "args": ["pro"] }
+    },
+    {
+      "name": "wait-pro",
+      "wait": 500
+    },
+    {
+      "name": "verify-star-chip-visible-pro",
+      "eval": "(function(){ const starChips = [...document.querySelectorAll('.cat-rail .chip')].filter(b => b.querySelector('svg') && !b.textContent?.includes('Rec')); if (starChips.length === 0) throw new Error('Favourites star chip not found in Pro mode'); })()"
+    },
+    {
+      "name": "shot-07-pro-mode",
+      "screenshot": "07-pro-mode-fav-visible"
+    },
+    {
+      "name": "back-to-simple",
+      "store": { "action": "setUiMode", "args": ["simple"] }
+    },
+    {
+      "name": "shot-08-done",
+      "screenshot": "08-back-to-simple"
+    }
+  ]
+}

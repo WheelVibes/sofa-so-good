@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Catalog: persisted favourites / star list (PC-CATALOG-FAVOURITES)
+
+Star any catalog card (heart button) to save it in a dedicated **Favourites** tab that
+persists across reloads. Mirrors the existing Recent pattern with a dedicated
+`favouritesSlice` that self-persists to `localStorage` (`hdb_favourites`). Gated by the
+new `catalogFavourites` feature flag (tier: simple, default on — visible in both Simple and
+Pro modes). Empty state shows a friendly hint. Star button accessible and keyboard-operable
+on both local and remote CC0 catalog cards. Uninstalled items drop out of the list
+gracefully. 15 unit tests covering toggle, dedup, order, clear, flag visibility in both
+modes.
+
 ## Floor-plan editor: binding edits, stray-element flags, skeleton view + touch fixes
 
 A batch of floor-plan-editor fixes so plan edits are real, the apartment can be

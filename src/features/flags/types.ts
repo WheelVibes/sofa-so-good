@@ -80,6 +80,7 @@ export type FeatureFlag =
   | 'floorTexture'
   | 'planCompass'
   | 'contactShadows'
+  | 'catalogFavourites'
 
 export interface FlagDef {
   /** Short human label for the dev flags panel. */

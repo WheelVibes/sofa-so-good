@@ -527,6 +527,16 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Persisted catalog favourites / star list (PC-CATALOG-FAVOURITES). A QOL
+  // convenience matching Coohom/Planner5D — users star items for quick reuse
+  // across sessions. Pure client-side (localStorage) → prod-safe. Part of the
+  // core furnish loop (casual users benefit most) → simple tier.
+  catalogFavourites: {
+    label: 'Catalog favourites',
+    description: 'Star catalog items to save them in a persistent Favourites tab',
+    default: true,
+    tier: 'simple',
+  },
   // Soft contact-shadow blobs that ground every piece of furniture against the
   // floor (RZ1). One shared radial-gradient texture + a transparent plane per
   // item — cheap fill-rate overdraw, no shadow map — so it reads even on the

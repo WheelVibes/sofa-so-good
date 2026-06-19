@@ -24,6 +24,11 @@ import {
 import { COMMENTS_INITIAL, type CommentsSlice, createCommentsSlice } from './slices/commentsSlice'
 import { createDoorsSlice, DOORS_INITIAL, type DoorsSlice } from './slices/doorsSlice'
 import {
+  createFavouritesSlice,
+  FAVOURITES_INITIAL,
+  type FavouritesSlice,
+} from './slices/favouritesSlice'
+import {
   createFeatureFlagsSlice,
   FEATURE_FLAGS_INITIAL,
   type FeatureFlagsSlice,
@@ -131,6 +136,7 @@ export interface RootState
     UserSetsSlice,
     UserStylesSlice,
     RecentSlice,
+    FavouritesSlice,
     CameraViewsSlice,
     PanoTourSlice,
     PromptSlice,
@@ -166,6 +172,7 @@ const INITIAL = {
   ...AUTH_INITIAL,
   ...USER_STYLES_INITIAL,
   ...RECENT_INITIAL,
+  ...FAVOURITES_INITIAL,
   ...CAMERA_VIEWS_INITIAL,
   ...PANO_TOUR_INITIAL,
   ...PROMPT_INITIAL,
@@ -202,6 +209,7 @@ export const useStore = create<RootState>((set, get, api) => ({
   ...createFeatureFlagsSlice(set, get, api),
   ...createAuthSlice(set, get, api),
   ...createRecentSlice(set, get, api),
+  ...createFavouritesSlice(set, get, api),
   ...createCameraViewsSlice(set, get, api),
   ...createPanoTourSlice(set, get, api),
   ...createPromptSlice(set, get, api),
