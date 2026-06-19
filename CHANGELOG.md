@@ -5,6 +5,15 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: validate saved floor plans on load (BUG-014) (v0.2.0.9)
+
+`loadFloorPlans` restored localStorage-persisted plans with only `JSON.parse` + `Array.isArray`
+checks, casting parseable-but-malformed plans (e.g. missing `walls`/`rooms`) straight into the store
+— unlike the autosave/designFile paths, which run Zod validation. That could feed bad geometry to the
+renderer. It now runs each entry through the (newly exported) `FloorPlanZ` schema via `safeParse`,
+dropping any that fail (the active plan falls back to the rebuilt default). Adds a unit test covering
+valid restore, malformed-entry drop, malformed-active fallback, and corrupt JSON.
+
 ## Fix: strict angle parse + make "New apartment" undoable (BUG-010/013) (v0.2.0.8)
 
 - **BUG-010** — `parseAngleInput` ran `parseFloat` on the raw string, so trailing garbage
