@@ -4,7 +4,7 @@
  * assertions.
  */
 import { ROOMS } from '../apartment/constants'
-import { type FloorPlan, type PlanRoom, planRoomArea, pointInRoom } from '../floorplan/types'
+import { type FloorPlan, planRoomArea, planRoomPerimeter, pointInRoom } from '../floorplan/types'
 import { itemPrice } from '../furniture/furniturePrices'
 import type { FurnitureDef, FurnitureItem } from '../furniture/types'
 import { BUILTIN_MATERIALS } from '../materials/builtinCatalog'
@@ -35,20 +35,6 @@ export function floorAreaByFinish(
   return [...byFinish.entries()].map(([id, area]) => ({ id, area })).sort((a, b) => b.area - a.area)
 }
 
-/** Room wall perimeter (m): the polygon edge sum, else the rectangle's 2·(w+d). */
-function roomPerimeter(r: PlanRoom): number {
-  if (r.polygon && r.polygon.length >= 3) {
-    let p = 0
-    for (let i = 0; i < r.polygon.length; i++) {
-      const a = r.polygon[i]
-      const b = r.polygon[(i + 1) % r.polygon.length]
-      p += Math.hypot(b[0] - a[0], b[1] - a[1])
-    }
-    return p
-  }
-  return 2 * (r.width + r.depth)
-}
-
 /**
  * Gross wall area per wall finish (m²) — perimeter × ceiling height per room,
  * grouped by the room's wall finish. The procurement counterpart to the flooring
@@ -67,7 +53,7 @@ export function wallAreaByFinish(
     const id = walls[room.id]
     if (!id) continue
     const h = room.ceilingHeight ?? defaultHeight
-    byFinish.set(id, (byFinish.get(id) ?? 0) + roomPerimeter(room) * h)
+    byFinish.set(id, (byFinish.get(id) ?? 0) + planRoomPerimeter(room) * h)
   }
   return [...byFinish.entries()].map(([id, area]) => ({ id, area })).sort((a, b) => b.area - a.area)
 }

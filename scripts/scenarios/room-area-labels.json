@@ -1,0 +1,18 @@
+{
+  "name": "room-area-labels",
+  "url": "http://localhost:5208/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    { "name": "dismiss-overlays", "eval": "(() => { const s=window.__store.getState(); localStorage.setItem('hdb_onboarded','1'); s.endTour?.(); s.setOnboardingOpen?.(false); s.dismissLocationPrompt?.(); })()" },
+    { "name": "open-plan", "store": { "action": "setFloorPlanEditing", "args": [true] } },
+    { "name": "plan-screen", "waitFor": { "css": ".plan-screen" }, "timeout": 20000 },
+    { "name": "metric-units", "store": { "action": "setUnits", "args": ["metric"] } },
+    { "name": "shot-metric", "screenshot": "metric" },
+    { "name": "imperial-units", "store": { "action": "setUnits", "args": ["imperial"] } },
+    { "name": "units-set", "waitFor": { "store": "state.units === 'imperial'" } },
+    { "name": "shot-imperial", "screenshot": "imperial" },
+    { "name": "back-to-metric", "store": { "action": "setUnits", "args": ["metric"] } },
+    { "name": "move-a-wall", "eval": "(() => { const s=window.__store.getState(); const w = s.floorPlan.walls[0]; window.__a0 = s.floorPlan.rooms.map(r=>r.id); s.updateWall(w.id, { end: [w.end[0], w.end[1] + 0.8] }); })()" },
+    { "name": "shot-after-move", "screenshot": "after-wall-move" }
+  ]
+}

@@ -380,6 +380,21 @@ export function planRoomArea(r: PlanRoom): number {
   return main + ext
 }
 
+/** Interior wall perimeter of a room (m): the closed-loop edge length of its
+ *  outline polygon (explicit `polygon`, else the rectangle / L-shape outline via
+ *  `roomPolygon`). Shared by the 2D plan labels and the printable report so a
+ *  single edge length is used everywhere. */
+export function planRoomPerimeter(r: PlanRoom): number {
+  const poly = roomPolygon(r)
+  let p = 0
+  for (let i = 0; i < poly.length; i++) {
+    const a = poly[i]
+    const b = poly[(i + 1) % poly.length]
+    p += Math.hypot(b[0] - a[0], b[1] - a[1])
+  }
+  return p
+}
+
 /** Whether a world point lies inside the room (polygon-aware). */
 export function pointInRoom(r: PlanRoom, x: number, z: number): boolean {
   if (r.polygon && r.polygon.length >= 3) return pointInPolygon(x, z, r.polygon)
