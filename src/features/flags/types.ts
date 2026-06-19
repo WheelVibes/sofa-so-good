@@ -80,6 +80,7 @@ export type FeatureFlag =
   | 'floorTexture'
   | 'planCompass'
   | 'contactShadows'
+  | 'cornerAo'
   | 'drawingCallouts'
   | 'quoteTemplate'
   | 'catalogFavourites'

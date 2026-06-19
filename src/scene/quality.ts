@@ -46,6 +46,12 @@ export interface QualitySettings {
    *  they are the only grounding cue — gated by the `contactShadows` feature
    *  flag (RZ1). */
   contactShadows: boolean
+  /** Cheap baked wall/floor corner ambient-occlusion strips (`scene/CornerAO.tsx`).
+   *  A substitute for SSAO on the GPU-light tiers — on for `performance`/`medium`
+   *  (no post-processing AO), off from `high` up where the post stack already
+   *  darkens corners (avoids double-darkening). Gated on top by the `cornerAo`
+   *  feature flag. RD-403. */
+  cornerAo: boolean
   /** Tessellation multiplier for furniture curved geometry (cylinders, lathes,
    *  rounded boxes). Scales segment counts so higher tiers render smoother
    *  legs/shades/vases while performance keeps polys down. 1 = baseline. */
@@ -79,6 +85,8 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     // Cheap blob grounding (no shadow map) — the only contact cue on the flat
     // tier, so furniture doesn't look like it floats. RZ1.
     contactShadows: true,
+    // Baked corner AO stands in for the SSAO this tier doesn't have (RD-403).
+    cornerAo: true,
     geometryDetail: 0.7,
     showcase: false,
     aoFullRes: false,
@@ -93,6 +101,9 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     dprMax: 1.5,
     wallReveal: true,
     contactShadows: true,
+    // Medium has sun shadows + IBL but no post-processing SSAO yet, so the
+    // baked corner strips still help (RD-403).
+    cornerAo: true,
     geometryDetail: 1,
     showcase: true,
     aoFullRes: false,
@@ -107,6 +118,9 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     dprMax: 2,
     wallReveal: true,
     contactShadows: true,
+    // High+ run the post-processing SSAO pass, which darkens corners for real —
+    // skip the baked strips to avoid double-darkening the junctions (RD-403).
+    cornerAo: false,
     geometryDetail: 1.4,
     showcase: true,
     aoFullRes: false,
@@ -121,6 +135,8 @@ export const QUALITY_PRESETS: Record<RenderTier, QualitySettings> = {
     dprMax: 2,
     wallReveal: true,
     contactShadows: true,
+    // Full post stack with full-res SSAO — baked corner strips off (RD-403).
+    cornerAo: false,
     geometryDetail: 1.8,
     showcase: true,
     aoFullRes: true,

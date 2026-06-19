@@ -548,6 +548,19 @@ export const FEATURE_FLAGS: Record<FeatureFlag, FlagDef> = {
     default: true,
     tier: 'simple',
   },
+  // Cheap baked wall/floor corner ambient-occlusion strips (RD-403). A shared
+  // gradient texture + one transparent floor quad along each interior wall base —
+  // pure fill-rate overdraw, no shadow map / SSAO — so corners read grounded on
+  // the flat Performance tier (and Medium) where no post-processing AO exists.
+  // The per-tier quality setting suppresses it on High+ (the post stack's SSAO
+  // already darkens corners) to avoid double-darkening. Pure code, no external
+  // assets → prod-safe. A core realism cue everyone sees → simple tier.
+  cornerAo: {
+    label: 'Corner shading',
+    description: 'Soft baked ambient-occlusion darkening where walls meet the floor',
+    default: true,
+    tier: 'simple',
+  },
   // Free-text callouts on drawing-set sheets (PARITY-LIGHTINGTEMPLATE-TEXT).
   // A designer adds a note ("Contractor to verify", "GL = 0.00") that renders
   // as crisp SVG text on the target sheet when the drawing set is exported.

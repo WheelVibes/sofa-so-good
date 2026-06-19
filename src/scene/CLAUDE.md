@@ -14,6 +14,15 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).
+- **Cheap baked AO on the flat tier.** With no SSAO on Performance/Medium, grounding is
+  faked with shared-texture alpha decals: `ContactShadow.tsx` (under-furniture blob, RZ1)
+  and `CornerAO.tsx` `WallFloorAO` (wall/floor corner strip, RD-403). Both use ONE shared
+  `CanvasTexture`, a single transparent plane each, `depthWrite:false` + `polygonOffset` +
+  small `+Y`. Corner AO mounts inside the wall's local frame in `WallSegment.tsx` (follows
+  wall edits) and is gated **on** for `performance`/`medium` only via the `cornerAo`
+  `QualitySettings` flag (off on High+ so it never double-darkens the post stack's SSAO);
+  sizing/gating logic is pure in `cornerAoMath.ts`. When adding a new baked-AO cue, follow
+  this pattern (shared texture, tier-gate off where real AO runs) — never per-instance textures.
 - **Tone mapping is context-aware** (`toneContext.ts`, pure + unit-tested). The stored user
   setting is `ToneMappingSetting` (`auto` | filmic | agx | neutral); `Lighting` resolves the
   concrete operator each frame via `resolveToneMapping(setting, ctx)` — never read `st.toneMapping`

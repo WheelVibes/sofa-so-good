@@ -103,6 +103,9 @@ same change that reshapes a system.
   `scene/FinishDropSurface.tsx` + `scene/finishDropTarget.ts`, commit = `state/finishDropApply.ts`), `convert/`
   (`decodeImage.ts` incl. TGA/TIFF/EXR/HDR/KTX2/DDS, `reencode.ts`→WebP; 16MB cap; `decodeGpuTexture.ts` handles KTX2+DDS via pure-JS or GPU readback).
 - `src/scene/` — R3F `<Canvas>` + systems: `lighting/`, `Effects.tsx` (bloom+SMAA),
+  baked grounding decals (`ContactShadow.tsx` under-furniture blob RZ1; `CornerAO.tsx`
+  `WallFloorAO` wall/floor corner strip RD-403, sizing/gating in `cornerAoMath.ts`, mounted
+  in `apartment/walls/WallSegment.tsx`, tier-gated via the `cornerAo` QualitySettings flag),
   `quality.ts`+`QualityController`, `ScreenshotController`, `PanoramaController`
   (+`panorama/equirect.ts` — six 90° screen-path renders → CPU equirect; viewer/export in
   `ui/PanoramaModal.tsx`, `panorama` flag), cameras, selection,

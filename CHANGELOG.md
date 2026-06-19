@@ -5,6 +5,31 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Flat-tier wall/floor corner-AO grounding decals (RD-403) (v0.1.0.41)
+
+Cheap baked ambient-occlusion darkening where walls meet the floor, so corners
+read grounded on the default flat **Performance** tier (and **Medium**) — which
+have no SSAO. A new `scene/CornerAO.tsx` `WallFloorAO` renders one alpha-blended
+floor quad along each interior wall-face base, textured with a single **shared**
+1D gradient (dark at the skirting, fading into the room over `CORNER_AO_REACH`).
+It mounts inside the wall's local frame in `WallSegment.tsx`, so it inherits the
+wall's position/rotation and follows any wall edit for free; `depthWrite:false` +
+a small `+Y` offset + `polygonOffset` keep it off the floor with no z-fighting.
+- Pure sizing/tier-gating helpers in `scene/cornerAoMath.ts` (`cornerAoStripDims`,
+  `cornerAoEnabledForTier`), unit-tested (`cornerAoMath.test.ts`).
+- Tier-aware: new `cornerAo` `QualitySettings` flag — **on** for `performance`/
+  `medium`, **off** for `high`/`maximum` (their post stack runs SSAO, so the baked
+  strip would double-darken). `quality.test.ts` asserts the predicate ⇔ presets and
+  that it never coexists with `postprocessing`.
+- Gated behind a new **`cornerAo` feature flag** (`features/flags/registry.ts`) —
+  **simple tier, default on** (pure code, no external assets → prod-safe). The wall
+  segment ANDs the flag with the per-tier quality setting. Both-mode tested in
+  `featureFlags.test.ts`.
+- Complements the existing RZ1 under-furniture contact blobs (left unchanged); this
+  is the corner-contact cue the deep-dive flagged as the biggest flat-tier weakness.
+  Custom-plan (`PlanShell`) walls are a follow-up — the default apartment (the move-in
+  flat) is covered.
+
 ## Asset-source scraper suite — 35 resumable, rate-limited downloaders (v0.1.0.40)
 
 `research/scrapers/`: one `<source>_scraper.py` for every source in

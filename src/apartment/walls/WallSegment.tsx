@@ -17,8 +17,10 @@ import {
   useTexturedMaterial,
 } from '../../materials/useMaterial'
 import { worldUvPlaneGeometry } from '../../materials/worldUv'
+import { WallFloorAO } from '../../scene/CornerAO'
 import { finishSurfaceUserData } from '../../scene/finishDropTarget'
 import { SilentErrorBoundary } from '../../scene/SilentErrorBoundary'
+import { useQuality } from '../../scene/useQuality'
 import { canEditScene } from '../../state/editing'
 import { useStore } from '../../state/store'
 import { APARTMENT_EXT_D, APARTMENT_EXT_W, FLAT, ROOMS, WALLS } from '../constants'
@@ -474,6 +476,11 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
   const selectWall = useStore((s) => s.selectWall)
   const selectedWall = useStore((s) => s.selectedWall)
   const crownMolding = useFeature('crownMolding')
+  // Cheap baked wall/floor corner AO (RD-403): feature flag AND the per-tier
+  // quality setting (on for performance/medium, off on high+ where SSAO runs).
+  const cornerAoFlag = useFeature('cornerAo')
+  const cornerAoQuality = useQuality().cornerAo
+  const cornerAoOn = cornerAoFlag && cornerAoQuality
   // Accent-wall finishing is editing, so it's only reachable inside the room
   // editor (orbit). Outside it, wall-face clicks do nothing (view-only).
   const selectWallIfEditing = (wallId: string, roomId: RoomId) => {
@@ -515,6 +522,15 @@ function WallSegmentInner({ wall }: WallSegmentProps) {
         const atCeiling = crownMolding && span.top >= ceilingHeight - 0.01
         return (
           <group key={i}>
+            {/* Baked corner-AO strips along the floor edge of each room-facing
+                side — independent of whether a wall finish is set, so the
+                grounding cue is present on bare plaster too (RD-403). */}
+            {cornerAoOn && onFloor && span.positive && (
+              <WallFloorAO segLen={segLen} segMid={segMid} thickness={thickness} sign={1} />
+            )}
+            {cornerAoOn && onFloor && span.negative && (
+              <WallFloorAO segLen={segLen} segMid={segMid} thickness={thickness} sign={-1} />
+            )}
             {positiveMat ? (
               <>
                 <SilentErrorBoundary resetKey={positiveMat}>

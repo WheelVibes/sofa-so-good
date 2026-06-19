@@ -36,6 +36,17 @@ describe('quality presets', () => {
     for (const t of RENDER_TIERS) expect(QUALITY_PRESETS[t].contactShadows).toBe(true)
   })
 
+  it('baked corner AO is on for the post-AO-less tiers and off where the post stack runs (RD-403)', () => {
+    expect(QUALITY_PRESETS.performance.cornerAo).toBe(true)
+    expect(QUALITY_PRESETS.medium.cornerAo).toBe(true)
+    expect(QUALITY_PRESETS.high.cornerAo).toBe(false)
+    expect(QUALITY_PRESETS.maximum.cornerAo).toBe(false)
+    // The baked strip must never run alongside real SSAO (double-darkening).
+    for (const t of RENDER_TIERS) {
+      if (QUALITY_PRESETS[t].postprocessing) expect(QUALITY_PRESETS[t].cornerAo).toBe(false)
+    }
+  })
+
   it('shadow resolution is monotonically non-decreasing across the tier order', () => {
     const sizes = RENDER_TIERS.map((t) => QUALITY_PRESETS[t].shadowMapSize)
     for (let i = 1; i < sizes.length; i++) {

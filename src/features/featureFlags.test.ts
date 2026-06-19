@@ -270,6 +270,13 @@ describe('contactShadows flag (RZ1)', () => {
   })
 })
 
+describe('cornerAo flag (RD-403)', () => {
+  it('is simple-tier: baked corner AO stays on in both Simple and Pro by default', () => {
+    expect(resolveFlags(false, {}, false, 'simple').cornerAo).toBe(true)
+    expect(resolveFlags(false, {}, false, 'pro').cornerAo).toBe(true)
+  })
+})
+
 describe('hqRender flag (F1)', () => {
   it('is simple-tier: present in both Simple and Pro by default', () => {
     expect(resolveFlags(false, {}, false, 'simple').hqRender).toBe(true)

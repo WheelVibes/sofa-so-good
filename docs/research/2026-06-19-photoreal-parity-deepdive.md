@@ -42,12 +42,16 @@ probe `scene/lighting/SceneEnvironment.tsx` (Lightformers, no HDRI). Path tracer
    anisotropy** (three.js `anisotropyMap`/`anisotropyRotation` are shipping API — confirmed).
    Pure procedural, headless-verifiable (pixel-stats on the generated buffers).
 
-3. **RD-403 Baked AO-in-corners contact decal on the flat tier (M).** Performance (the
-   default everyone first sees) has no AO and only blob contact shadows. A cheap, prebaked
-   **soft gradient "corner darkening" decal** along wall/floor junctions + under furniture
-   feet (extend `ContactShadow.tsx` pattern) closes most of the perceived gap to Medium's
-   N8AO **with zero shadow-map / SSAO cost**. The earlier RZ1 grounding revert was about a
-   different cue; this is corner-contact, the biggest flat-tier weakness.
+3. **RD-403 Baked AO-in-corners contact decal on the flat tier (M).** ✅ **DONE (v0.1.0.41).**
+   Shipped `scene/CornerAO.tsx` `WallFloorAO` — a shared 1D-gradient floor strip along each
+   interior wall base, mounted in the wall's local frame in `WallSegment.tsx`, gated by the
+   new `cornerAo` `QualitySettings`/feature flag (on for performance/medium, off on High+ so
+   it never double-darkens the post stack's SSAO). Pure sizing/gating in `cornerAoMath.ts`.
+   The under-furniture blob (RZ1, `ContactShadow.tsx`) is left as-is. Custom-plan (`PlanShell`)
+   walls remain a follow-up. _Original note:_ Performance (the default everyone first sees) has
+   no AO and only blob contact shadows. A cheap, prebaked **soft gradient "corner darkening"
+   decal** along wall/floor junctions closes most of the perceived gap to Medium's N8AO **with
+   zero shadow-map / SSAO cost**.
 
 4. **RD-404 Khronos PBR-Neutral default in finish-preview context + AgX for "photo" (S).**
    `look.ts` already ships all three tone-mappers and a per-mode exposure bias; the only
