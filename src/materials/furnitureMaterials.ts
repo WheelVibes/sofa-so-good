@@ -20,6 +20,7 @@ import type { RenderTier } from '../scene/quality'
 import { getBuiltMaterial } from './cache'
 import { clearcoatLayer, glassConfig, type SheenLayer, sheenLayer } from './materialRealism'
 import { clamp01, heightToNormalRGBA, hexToRgb, makeFbm } from './procedural/noise'
+import { buildUpholsteryHeight, DEFAULT_SEAM_PARAMS } from './procedural/upholsterySeams'
 
 /** A furniture finish that points at a catalog/DLC material is encoded as
  *  `mat:<materialId>`. The material itself is built (from its procedural
@@ -56,37 +57,33 @@ function canvasFrom(data: Uint8ClampedArray): CanvasTexture {
 let fabricNormal: Texture | null = null
 function getFabricNormal(): Texture {
   if (fabricNormal) return fabricNormal
+  // PR6: a perfectly regular sin-grid reads synthetic. RZ6: on top of the warped
+  // weave + slubs, add a soft fabric wrinkle (broad gathered creases) and faint
+  // seam stitching (panel-edge channels + topstitch) so upholstery reads as real
+  // sewn cloth, not a flat plastic shell. The richer height field lives in the
+  // dedicated `upholsterySeams` generator (pure + unit-tested). Off → legacy
+  // clean grid (still a normal map, so even Performance never reads dead-flat).
+  const richWeave = isFeatureEnabled('pbrSurfaces')
+  if (richWeave) {
+    const height = buildUpholsteryHeight(N, 0x4242, DEFAULT_SEAM_PARAMS)
+    // Gentler bump than the legacy weave: the richer field already carries the
+    // seam + wrinkle relief, so a softer strength keeps light upholstery from
+    // reading as a loud waffle.
+    fabricNormal = canvasFrom(heightToNormalRGBA(height, N, 2.0))
+    return fabricNormal
+  }
   const fine = makeFbm(4242, 4, 120)
   const height = new Float32Array(N * N)
-  // PR6: a perfectly regular sin-grid reads synthetic. Warp the thread phase
-  // with low-freq noise + add occasional slubs (thicker threads) and surface
-  // fuzz so the weave looks like real cloth. Off → the legacy clean grid.
-  const richWeave = isFeatureEnabled('pbrSurfaces')
-  const warp = richWeave ? makeFbm(0x6d2f, 3, 6) : null
-  const slub = richWeave ? makeFbm(0x1f88, 3, 22) : null
   for (let y = 0; y < N; y++) {
     for (let x = 0; x < N; x++) {
       const u = x / N
       const v = y / N
-      if (warp && slub) {
-        // Per-thread phase jitter (a few % of a thread) so rows/cols meander.
-        const jx = (warp(u, v) - 0.5) * 1.6
-        const jy = (warp(v + 3.1, u + 1.7) - 0.5) * 1.6
-        const warpThread = 0.5 + 0.5 * Math.sin(x * 0.9 + jx)
-        const weftThread = 0.5 + 0.5 * Math.sin(y * 0.9 + jy)
-        // Over/under interlace + a slub bump where a thread thickens.
-        const weave = warpThread * weftThread
-        const sl = slub(u * 1.2, v * 1.2)
-        const slubBump = sl > 0.74 ? (sl - 0.74) * 1.3 : 0
-        height[y * N + x] = weave * 0.55 + slubBump * 0.3 + fine(u, v) * 0.15
-      } else {
-        // Soft over/under weave: a fine grid modulated by noise.
-        const weave = 0.5 + 0.5 * Math.sin(x * 0.9) * Math.sin(y * 0.9)
-        height[y * N + x] = weave * 0.6 + fine(u, v) * 0.4
-      }
+      // Soft over/under weave: a fine grid modulated by noise.
+      const weave = 0.5 + 0.5 * Math.sin(x * 0.9) * Math.sin(y * 0.9)
+      height[y * N + x] = weave * 0.6 + fine(u, v) * 0.4
     }
   }
-  fabricNormal = canvasFrom(heightToNormalRGBA(height, N, richWeave ? 2.6 : 2.2))
+  fabricNormal = canvasFrom(heightToNormalRGBA(height, N, 2.2))
   return fabricNormal
 }
 

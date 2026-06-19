@@ -16,6 +16,13 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   higher-fidelity variants — plank wood, woven fabric, painted micro-normal — behind the
   `pbrSurfaces` flag (default on, Simple tier); keep normal maps on **all** tiers (they're cheap
   and the default Performance tier still needs them to not read flat).
+- **Upholstery weave (RZ6)**: the fabric normal's height field is built by the pure
+  `procedural/upholsterySeams.ts` `buildUpholsteryHeight(size, seed, SeamParams)` — woven
+  micro-texture + a soft fabric wrinkle + a faint panel-seam channel & topstitch. Keep it
+  **subtle** (tasteful default `DEFAULT_SEAM_PARAMS`; `seam`/`wrinkle` are 0..1 intensities, `0`
+  disables a channel) — the goal is "reads as cloth", not quilted leather. It's deterministic +
+  unit-tested (dims/determinism/seam-recess), baked once into the shared fabric normal singleton
+  behind `pbrSurfaces` (off → legacy clean weave). Albedo stays sRGB, the normal stays linear.
 - **Uploaded textures** normalize through `convert/` (`normalizeTextureFile` → near-lossless
   WebP, full res; `decodeImage.ts` handles TGA/TIFF/EXR/HDR/KTX2/DDS).
   KTX2 and DDS are handled by `decodeGpuTexture.ts`: uncompressed formats via pure-JS paths

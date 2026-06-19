@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Upholstery realism: procedural seam stitching + soft fabric wrinkle (RZ6) (v0.1.0.21)
+
+Upholstered furniture (sofas, armchairs, ottomans, beds, benches, cushioned
+dining chairs) read plasticky because the fabric normal was a flat woven grid.
+
+- **New procedural generator** `src/materials/procedural/upholsterySeams.ts`
+  (`buildUpholsteryHeight`) layers a fine woven micro-texture, a soft low-frequency
+  fabric **wrinkle** (broad gathered creases), and a faint panel-**seam** channel +
+  topstitch into one height field — pure, deterministic, and unit-tested
+  (dimensions / determinism / seam-recess / channel toggles / color-space).
+- **Wired into the fabric material** (`getFabricMaterial` → `getFabricNormal`): the
+  richer height field bakes once into the shared 256² fabric normal singleton
+  (cached + reused across every upholstered instance — no per-item cost, no new
+  texture channel), behind the existing `pbrSurfaces` flag (off → the legacy clean
+  weave). Albedo stays sRGB, the normal stays linear (PHOTO-COLORSPACE).
+- **Tasteful by default**: gentle amplitudes + a fine thread pitch so light and
+  dark upholstery read as soft cloth, not a quilted waffle; `seam`/`wrinkle`
+  intensities are tunable (and `0`-disable-able) via `SeamParams`.
+- Verified visually (High + the default Performance tier) on a blue sofa + rust /
+  cream armchairs: subtle weave grain, no harsh tiling, no z-fighting (it is a
+  material normal map only), reads as fabric over any base colour.
+
 ## Equal-spacing smart-guide badges while dragging (PC-GUIDE-SPACING) (v0.1.0.20)
 
 Pro-tool (Coohom / Figma) equal-spacing hints layered onto the existing alignment
