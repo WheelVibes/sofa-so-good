@@ -5,6 +5,16 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Realism: cheap window/glass fresnel + sky reflection on every tier (RD-405) (v0.2.0.17)
+
+Real refractive transmission is High/Maximum only; on Performance/Medium the cheap glass path
+(`getGlassMaterial` / `glassConfig`) was a flat transparent+opacity pane with no reflection. The cheap
+glass now also carries an `ior` (1.5) — giving a physically-correct fresnel rim (brighter reflection
+toward grazing angles) on any tier with lighting — and a faint `envMapIntensity` (0.6) so glassware /
+cabinet panes catch the IBL sky probe on Medium. Both are inert on the IBL-less Performance tier, so
+the flat default never regresses. Unit-tests assert the cheap-glass `ior`/`envMapIntensity`/roughness;
+verified glassware (bar-cart shelves, floor vase) renders glassy on Medium with no artifacts.
+
 ## a11y: 44px close-button hit targets on bottom-sheet panels (UX-002) (v0.2.0.16)
 
 On phones the catalog/inspector/finish-picker/plan-props and the `.aux` analysis panels (Budget,

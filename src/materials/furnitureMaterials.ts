@@ -986,6 +986,11 @@ export function getGlassMaterial(
     m.opacity = cheap.opacity
     m.roughness = cheap.roughness
     m.metalness = cheap.metalness
+    // Fresnel rim + faint sky reflection so cheap glass still reads as glass
+    // (RD-405). `envMapIntensity` only does anything where an IBL probe exists
+    // (Medium); it's inert on the flat Performance tier.
+    m.ior = cheap.ior
+    m.envMapIntensity = cheap.envMapIntensity
   }
   cache.set(key, m)
   return m

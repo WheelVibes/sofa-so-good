@@ -38,12 +38,23 @@ export interface GlassPhysical {
 }
 
 /** Cheap fallback glass (transparent + opacity) for Performance / Medium — no
- *  transmission pass. Mirrors the look the inline primitives already used. */
+ *  transmission pass. Mirrors the look the inline primitives already used, plus
+ *  a cheap fresnel + sky-reflection so panes read as glass without the pass
+ *  (RD-405). */
 export interface GlassCheap {
   transparent: true
   opacity: number
   roughness: number
   metalness: number
+  /** Index of refraction (≈1.5 architectural glass). On a `MeshPhysicalMaterial`
+   *  this drives a physically-correct fresnel rim — brighter reflection toward
+   *  grazing angles — even with no transmission pass, on any tier that has
+   *  lighting/IBL. */
+  ior: number
+  /** Reflection strength against the IBL sky probe. Medium has IBL, so cheap
+   *  glassware/panes catch a faint sky reflection there; Performance has no IBL,
+   *  so it's a no-op on the flat default (no regression). */
+  envMapIntensity: number
 }
 
 /**
@@ -76,7 +87,17 @@ export function glassConfig(
   }
   return {
     physical: null,
-    cheap: { transparent: true, opacity, roughness: 0.05, metalness: 0.1 },
+    // Cheap glass gains a fresnel rim (`ior`) + a faint sky reflection
+    // (`envMapIntensity`) so panes read as glass on Medium without a transmission
+    // pass; both are inert on the IBL-less Performance tier (RD-405).
+    cheap: {
+      transparent: true,
+      opacity,
+      roughness: 0.05,
+      metalness: 0.1,
+      ior: 1.5,
+      envMapIntensity: 0.6,
+    },
   }
 }
 

@@ -30,6 +30,17 @@ describe('glassConfig', () => {
     }
   })
 
+  it('gives cheap glass a fresnel rim + faint sky reflection (RD-405)', () => {
+    for (const tier of ['performance', 'medium'] as RenderTier[]) {
+      const { cheap } = glassConfig(tier, 0.3)
+      expect(cheap?.ior).toBeCloseTo(1.5)
+      expect(cheap?.envMapIntensity).toBeGreaterThan(0)
+      // Faint, not a mirror — stays well below the glossy/physical reflection cap.
+      expect(cheap?.envMapIntensity).toBeLessThan(1)
+      expect(cheap?.roughness).toBeLessThan(0.1)
+    }
+  })
+
   it('returns refractive physical glass on High/Maximum', () => {
     for (const tier of ['high', 'maximum'] as RenderTier[]) {
       const { physical, cheap } = glassConfig(tier, 0.3)
