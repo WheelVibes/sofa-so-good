@@ -251,3 +251,98 @@ files/areas it touches and the parity gap it fills.
 - **PC-EMPTY-STATES** (S) — Polish empty/edge states across panels (no saved views, empty BOQ, no
   comments, empty room): consistent illustrative empty-state copy + a primary CTA, instead of blank
   panels. Touches the various `*Panel.tsx`. Aesthetic/onboarding polish; verify Simple + Pro modes.
+
+## Pure-client improvement pipeline (2026-06-19 refresh #2)
+
+Second refreshed backlog of high-value items that are **100% client-side** — no real GPU, no
+network/backend dependency — so each is implementable AND headlessly verifiable in this sandbox
+(SwiftShader WebGL works; a real GPU does not). Audited against `CHANGELOG.md` (top ~25: edge
+bevels, set-dressing decor, auto-styling, drawing-set callouts, quote templates, parametric
+kitchen-run, distribute-overlap fix, measure-unit audit, catalog favourites, numeric wall entry,
+radial/linear/grid arrays, room area+perimeter labels, drag-HUD distance, undo coalescing,
+equal-spacing guides, upholstery seams, shared EmptyState), plus `FEATURE_PARITY.md`,
+`PHOTOREALISM.md`, and `FEATURE_FLAGS`. The prior audit's items (`## Pure-client improvement
+pipeline (2026-06-19 audit)`) are all shipped except **PC-IES-LIGHT** (still in flight — do not
+re-take here). Nothing below duplicates shipped or open work. Prioritised: correctness/reliability
+→ photorealism levers → QOL/UX → polish. Effort: S/M/L. Each names the files/areas + the parity gap.
+
+### Correctness / reliability (do first)
+- **PC2-ANISO-MAX** (S) — Texture anisotropy is **hardcoded** (`furnitureMaterials.ts` line ~53
+  `t.anisotropy = 4`; `materials/cache.ts` line ~60 `tex.anisotropy = 8`) instead of clamped to the
+  device cap via `renderer.capabilities.getMaxAnisotropy()` (commonly 16). Grazing-angle floors/wood
+  read blurry. Thread the renderer's max through a shared helper and clamp per texture. Touches
+  `materials/furnitureMaterials.ts`, `materials/cache.ts` (+ a small pure clamp test). Photoreal
+  sharpness win at near-zero cost; reliability because the value silently ignores the GPU cap.
+- **PC2-SURFACE-DROP** (M) — When dropping a surface item (lamp/vase/monitor — anything with the
+  `surfaceHeight` prop the collision span in `collision/placement.ts` already honours) onto a table/
+  shelf top, auto-snap its base elevation to that surface's top (SH3D shelf-magnetism). Today drop Y
+  is floor-anchored, so decor visually floats or clips. Compute the support surface height in the
+  drop path and set the item elevation. Touches `scene/DragController.tsx`, `collision/placement.ts`,
+  the placement/elevation slice. Gap: SH3D `shelfElevations` magnetism. Verify with a unit test on
+  the support-height resolver + a drop scenario.
+- **PC2-DISTRIBUTE-AXIS** (S) — `layout/alignDistribute.ts` `distributeEvenGaps` distributes along a
+  single inferred axis; confirm it picks the dominant spread axis correctly for a diagonal selection
+  and that align-edge ops handle rotated footprints (OBB, not AABB). Audit + add a rotated-item test;
+  fall back gracefully when n<3. Reliability follow-on to the shipped overlap clamp. Touches
+  `layout/alignDistribute.ts` (+ test).
+
+### Photorealism levers (pure-code / headless-verifiable wiring)
+- **PC2-CONTACT-AO-DECOR** (S/M) — Small surface decor (vases, bowls, books, trays) gets no contact
+  grounding, so it reads pasted-on. Add a tiny baked radial-gradient **contact-shadow decal** under
+  small props (a cheap alpha texture quad, not a render pass — works on the flat Performance tier).
+  Reuse/extend `scene/ContactShadow.tsx` patterns into a per-prop decal helper. Touches
+  `scene/ContactShadow.tsx` (or new `scene/PropContactDecal.tsx`), decor primitives. Biggest cheap
+  "is-it-really-sitting-there" realism lever on the default tier. Verify via screenshot + a present-
+  in-graph unit check.
+- **PC2-TONEMAP-EXPOSURE-CTX** (S) — `PHOTOREALISM.md` recommends **Neutral as the default tone-map
+  in the finish-preview context** (accurate base colours) and AgX for "photo" presets, but the app
+  uses one global tone-mapper. Make tone-mapping context-aware: Neutral while a finish/material swatch
+  is being previewed/dragged, the user's choice (or AgX) otherwise. Pure config in `scene/look.ts` +
+  `scene/toneMappingThree.ts` + the finish-drag signal. Headless-verifiable (renderer constant +
+  unit test on the resolver). Gap: fidelity-correct previewing per `PHOTOREALISM.md` tone note.
+- **PC2-WOOD-GRAIN-FLOW** (M) — Wood procedural grain (`materials/procedural/`) tiles uniformly with
+  no plank-to-plank variation or directional flow, so parquet/flooring reads repetitive. Add seeded
+  per-plank hue/value jitter + grain-direction rotation per plank (pure field math, deterministic,
+  unit-testable like `upholsterySeams.ts`). Touches `materials/procedural/generators.ts` (or a new
+  `procedural/woodPlank.ts`) + a test asserting determinism + per-plank variation. Photoreal flooring
+  lever; Coohom's "jaw-dropping wood grain" is the bar. No GPU needed for the base read.
+- **PC2-SSAA-EXPORT** (S) — Carry `PHOTO-SSAA-EXPORT` from `PHOTOREALISM.md`: supersample the
+  snapshot/PNG export path (render at 2×–3× then box-downsample) for crisp reference stills, separate
+  from live SMAA. Pure offscreen-canvas resize math in the capture path; **headless-verifiable**
+  (assert output dimensions + that downsample runs), unlike GPU-pixel items. Touches
+  `scene/captureCanvas.ts` / `scene/ScreenshotController.tsx` / `ui/floorplan/exportPlanPng.ts`. Gap:
+  reference-quality stills without a cloud render.
+
+### High-value QOL / UX
+- **PC2-FURN-GROUP** (M) — First-class **furniture grouping**: select N items → "Group" so they
+  move/rotate/duplicate/delete as one (SH3D + Coohom core). Collision already has a `group-mate`
+  concept (`collision/placement.ts` exempts group-mates) — surface user-facing grouping on top of it:
+  a `groupId` on placed items, group-aware transforms in `layout/selectionActions.ts`, and a Group/
+  Ungroup ⌘K command + toolbar entry (flag-gated, pro). Touches the placement slice,
+  `layout/selectionActions.ts`, `features/featureFlags.ts`. Test both Simple/Pro. Gap explicitly
+  named in `FEATURE_PARITY` (furniture groups) — confirm not already wired before building.
+- **PC2-MULTI-DUP-PASTE** (S) — Copy/paste + duplicate-in-place for the current selection with a small
+  offset (Coohom/SH3D Ctrl+C/Ctrl+V). Verify the existing duplicate path handles a multi-selection and
+  pushes one coalesced undo entry; add clipboard-style paste if missing. Touches
+  `layout/selectionActions.ts`, the keymap/⌘K commands. QOL parity; unit-test history depth + count.
+- **PC2-CAM-DOF-LENS** (M) — Add **lens type + depth-of-field** controls to the render/snapshot camera
+  (focal length / f-stop / focus distance). DoF partly exists in the HQ path tracer (`PhysicalCamera`);
+  expose it as UI and apply a cheap post DoF on the High/Max raster tiers too. Touches the render-
+  settings UI + `scene/pathtrace/*` + `scene/Effects.tsx`. Gap: SH3D fisheye/DoF lens row in
+  `FEATURE_PARITY`. Wiring is headless-verifiable; the pixel pass is real-GPU-pending (mark it).
+- **PC2-PLAN-ANGLE-SNAP** (S/M) — In the 2D editor, snap wall-draw + furniture-rotate to common
+  angles (15°/30°/45°/90°) with a modifier-free default + a Shift/Alt override, mirroring Arcadium 3D /
+  SH3D precision snapping. Complements the shipped numeric wall entry. Touches
+  `ui/floorplan/FloorPlanEditor.tsx`, `ui/floorplan/editor/snapToWalls.ts` (+ a pure angle-snap test).
+  Gap: precision drafting (Arcadium 3D, new ref).
+
+### Polish
+- **PC2-PLAN-FURN-ICONS** (M) — The 2D plan draws furniture as plain footprint rectangles; SH3D draws
+  recognisable top-down **furniture icons** (bed, sofa, toilet, sink…). Add simple per-category SVG
+  glyphs keyed off the furniture role/category so the plan reads at a glance. Touches the 2D plan
+  furniture renderer (`ui/floorplan/editor/*`, `ui/floorplan/planLabels.ts`) + a category→glyph map.
+  Pure SVG; verify via plan-PNG screenshot. Gap: SH3D plan legibility.
+- **PC2-FAVOURITE-MATERIALS** (S) — Extend the shipped catalog-favourites pattern to **finishes/
+  materials** (star a finish, a "Favourites" group in the material picker), so users can pin go-to
+  surfaces. Reuse the favourites slice/schema. Touches `ui/` material-picker components + the
+  favourites slice. QOL parity with the model favourites just shipped; unit-test the slice path.
