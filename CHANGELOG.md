@@ -5,6 +5,25 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Autosave all persisted fields (BUG-001) (v0.1.0.27)
+
+Fixed silent data loss: the autosave watch-list omitted four fields that
+`serialize()` (`src/state/schema.ts`) persists, so editing only one of them never
+scheduled a save and the edit was lost on reload (unless an unrelated watched field
+also changed).
+
+- **Closed the gap** in `src/state/storage/autosave.ts`: added `comments`,
+  `drawingCallouts`, `panoTourStops`, and `quoteTemplate` to the `Persistent` watch
+  set (`pickPersistent` + `shallowEqual`). These slices replace their array/object on
+  every mutation, so the existing reference compare and 500 ms debounce are unchanged;
+  no transient/non-persisted state was added.
+- **Regression guard**: exported `PERSISTENT_WATCH_KEYS` and added a test
+  (`autosave.test.ts`) that derives the field set `serialize()` emits and fails if any
+  persisted field isn't watched — so adding a new persisted field to `serialize()`
+  without watching it now breaks CI. Added per-field trigger tests (comments-only /
+  drawingCallouts-only / panoTourStops-only / quoteTemplate-only each schedule a save)
+  and a serialize() round-trip test for all four.
+
 ## Context-aware tone-mapping default (RD-404) (v0.1.0.26)
 
 The tone-mapper now picks the right view transform for what you're doing, while

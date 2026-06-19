@@ -13,6 +13,15 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
 - **`schema.ts` is the save/load serializer.** Any new *persisted* item/design field must
   round-trip there — keep it optional + back-compat; bump the version + add a migration for
   a breaking change (the v1→v2 `groupId` migration is the pattern).
+- **Autosave ⊇ serialize() (lock-step invariant).** Every field `serialize()` writes MUST
+  also be in the autosave watch-list (`PERSISTENT_WATCH_KEYS` / `pickPersistent` /
+  `shallowEqual` in `storage/autosave.ts`), or editing *only* that field never schedules a
+  save and the edit is lost on reload (BUG-001). When you add a persisted field to
+  `serialize()`, add it to the watch-list too — and ensure its slice replaces the
+  array/object on each mutation so the reference compare detects the change. The guard test in
+  `storage/autosave.test.ts` derives serialize()'s emitted keys and fails if any isn't watched.
+  Do **not** add transient/non-persisted state (selection, open flags, hover ids) to the
+  watch-list.
 - **`hydrate*.ts` re-resolve user/IKEA defs + their IDB blobs on boot** — a new persisted
   asset kind must be rehydrated there or it won't survive reload.
 - In handlers read fresh state with `useStore.getState()`; push undo via `pushHistory` /
