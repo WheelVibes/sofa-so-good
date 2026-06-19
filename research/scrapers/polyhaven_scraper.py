@@ -39,7 +39,9 @@ def main() -> None:
 
     for asset_type in types:
         _log(f"== Poly Haven: {asset_type} ==")
-        ids = http.get_json(f"{API}/assets?type={asset_type}")  # {slug: {...}}
+        # Canonical param is `t=` (the API also tolerates `type=`); send `t=` so a
+        # future tightening that drops the alias doesn't yield an empty map (REV-005).
+        ids = http.get_json(f"{API}/assets?t={asset_type}")  # {slug: {...}}
         items = [{"slug": slug, "type": asset_type} for slug in ids]
         out_dir = str(Path(args.out) / asset_type)
 

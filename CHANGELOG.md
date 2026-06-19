@@ -5,6 +5,19 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: resumable-scraper edge cases (REV-002/003/004/005) (v0.2.0.14)
+
+Hardens the dev-only Python scraper harness (`research/scrapers/`):
+- **REV-002** — `Manifest.has`/`mark` now treat a falsy/empty key as never-done / never-persisted,
+  so keyless items (a malformed search result with no id/url) no longer collapse onto one `""`
+  manifest entry and silently skip each other on resume — they're reprocessed instead.
+- **REV-003** — `Manifest._flush` `fsync`s the tmp ledger before the atomic rename, so a power-loss
+  between write and rename can't leave a truncated `_manifest.json` and lose resume progress.
+- **REV-004** — `download_file` retries the whole stream with backoff (a connection reset *mid-body*,
+  after the 200, was previously unretried) and always unlinks the orphaned `.part` on failure.
+- **REV-005** — `polyhaven_scraper` queries `?t=<type>` (the canonical param) instead of the `type=`
+  alias, so a future API tightening can't yield an empty asset map.
+
 ## Fix: route baked-AO CanvasTextures through the anisotropy cap (REV-006) (v0.2.0.13)
 
 The shared `CornerAO` corner-strip gradient and the `ContactShadow` radial blob were the two
