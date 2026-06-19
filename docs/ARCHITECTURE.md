@@ -419,8 +419,11 @@ same change that reshapes a system.
   (`apartment/walls/`): exterior walls between camera and interior fade out.
 - **Snap + drag aids + rotate** (`scene/snap.ts`, `GridOverlay.tsx`, `DragController`,
   `selection/RotateGizmo.tsx`+`rotateGizmoMath.ts`): grid 10/25/50cm/1m; align
-  (`AlignmentGuides`), flush-to-wall (`wallSnap.ts`, off when grid-snap on), live
-  per-side distance-to-wall HUD (`DragHud` ← `clearanceGap.ts` `wallGapsPerSide`,
+  (`AlignmentGuides`), equal-spacing smart guides (`collision/equalSpacing.ts`
+  `detectEqualSpacingAxis` — matching distance badges + ticks when the dragged item
+  forms equal gaps with neighbours/walls, snaps to the even-gap centre; pure +
+  unit-tested, rendered in `AlignmentGuides`), flush-to-wall (`wallSnap.ts`, off
+  when grid-snap on), live per-side distance-to-wall HUD (`DragHud` ← `clearanceGap.ts` `wallGapsPerSide`,
   left/right/back/front gaps, amber under `walkwayMin`); touch rotate ring (single 15°, multi rigid centroid, Shift=free,
   green/red validity, complements **R** 90°).
 - **Floor plan editor** (`ui/floorplan/`, `floorplan/`): 2D editor of store `floorPlan`

@@ -1,0 +1,39 @@
+{
+  "name": "equal-spacing-guides",
+  "url": "http://localhost:5176/",
+  "steps": [
+    { "name": "store-ready", "waitFor": { "storeExists": true }, "timeout": 60000 },
+    {
+      "name": "dismiss-overlays",
+      "eval": "(()=>{const s=window.__store.getState();s.endTour&&s.endTour();s.setOnboardingOpen&&s.setOnboardingOpen(false);s.dismissLocationPrompt&&s.dismissLocationPrompt();s.setManualHour&&s.setManualHour(13);localStorage.setItem('hdb_onboarded','1')})()"
+    },
+    {
+      "name": "place-three-chairs",
+      "eval": "window.__store.getState().setItems([{id:'es-c1',defId:'dining-chair',position:[8.5,4.5],rotation:0,props:{}},{id:'es-c2',defId:'dining-chair',position:[10.0,4.5],rotation:0,props:{}},{id:'es-c3',defId:'dining-chair',position:[11.5,4.5],rotation:0,props:{}}])"
+    },
+    { "name": "settle", "wait": 1200 },
+    { "name": "frame", "store": { "action": "focusOn", "args": [[10.0, 4.5]] } },
+    { "name": "tilt-down", "drag": { "from": [800, 230], "to": [800, 540] } },
+    { "name": "zoom-in", "wheel": { "x": 800, "y": 500, "dy": -360 } },
+    { "name": "settle-cam", "wait": 1000 },
+    {
+      "name": "inject-spacing",
+      "eval": "(()=>{const s=window.__store.getState();const sp={axis:'x',size:1.04,gaps:[{size:1.04,from:8.73,to:9.77},{size:1.04,from:10.23,to:11.27}],snapCenter:11.5};window.__store.setState({draggingItemId:'es-c3',dragGroupOriginals:[]});s.setDragGuides([{axis:'z',value:4.5}]);s.setDragSpacings([sp])})()"
+    },
+    { "name": "settle2", "wait": 900 },
+    { "name": "shot-metric", "screenshot": "equal-spacing-metric" },
+    {
+      "name": "switch-imperial",
+      "eval": "(()=>{const s=window.__store.getState();s.setUnits('imperial');const sp={axis:'x',size:1.04,gaps:[{size:1.04,from:8.73,to:9.77},{size:1.04,from:10.23,to:11.27}],snapCenter:11.5};s.setDragSpacings([sp])})()"
+    },
+    { "name": "settle3", "wait": 900 },
+    { "name": "shot-imperial", "screenshot": "equal-spacing-imperial" },
+    { "name": "mobile-viewport", "viewport": { "width": 390, "height": 844 } },
+    {
+      "name": "reframe-mobile",
+      "eval": "(()=>{const s=window.__store.getState();s.setUnits('metric');s.focusOn&&s.focusOn([10.0,4.5]);const sp={axis:'x',size:1.04,gaps:[{size:1.04,from:8.73,to:9.77},{size:1.04,from:10.23,to:11.27}],snapCenter:11.5};window.__store.setState({draggingItemId:'es-c3',dragGroupOriginals:[]});s.setDragGuides([{axis:'z',value:4.5}]);s.setDragSpacings([sp])})()"
+    },
+    { "name": "settle-mobile", "wait": 1000 },
+    { "name": "shot-mobile", "screenshot": "equal-spacing-mobile" }
+  ]
+}

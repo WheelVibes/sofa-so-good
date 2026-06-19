@@ -5,6 +5,36 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Equal-spacing smart-guide badges while dragging (PC-GUIDE-SPACING) (v0.1.0.20)
+
+Pro-tool (Coohom / Figma) equal-spacing hints layered onto the existing alignment
+guides: while dragging, when the item forms a gap equal to gaps among nearby items
+(or to a wall), matching distance badges + end-ticks are drawn so the user can land
+on even spacing.
+
+- **Pure detector** (`collision/equalSpacing.ts` `detectEqualSpacingAxis`, render-
+  agnostic + unit-tested): given the dragged item's axis span, neighbour spans, and
+  optional wall faces, it finds reference gaps (item↔item and item↔wall, skipping
+  overlaps and gaps with an item in between), matches the gap(s) the drag forms
+  against them within tolerance, picks the strongest match (most equal gaps, then
+  tightest), de-dupes coincident spans, and returns the shared gap size + the spans
+  to badge + a `snapCenter`. `relevantWallFaces` bounds wall candidates to the
+  dragged row/column.
+- **Wired into the drag** (`DragController`): runs per pointer-move for single-item
+  drags only, restricted to neighbours within a band on the cross-axis (cheap in
+  busy scenes). Snaps the drag to the equal-gap centre when grid-snap is off and the
+  axis wasn't already claimed by a stronger edge/centre alignment snap, then
+  re-detects at the final position so the badges read the post-snap gaps. New
+  ephemeral store field `dragSpacings` (placement slice; cleared on `endDrag`).
+- **Render** (`AlignmentGuides`): flat magenta bracket + end-ticks per equal gap
+  (same hue as the alignment lines) plus a drei `Html` `.spacing-badge` showing the
+  measured gap via `formatLength` (honours metric/imperial). Themed via tokens
+  (`--surface-solid` + `--guide` fallback); light/dark/5 themes; mobile-verified.
+- **No new flag** — rides under the existing always-on alignment-guides behaviour.
+- Visual verification: 3 chairs in a row, drag one to an equal gap → two `1.04 m`
+  (metric) / `3′ 5″` (imperial) badges at the gap midpoints, clean at 390×844 mobile
+  (`scripts/scenarios/equal-spacing-guides.json`).
+
 ## Cleaner undo for nudge / array / align / mirror (PC-NUDGE-UNDO) (v0.1.0.19)
 
 Multi-item edits now form the single, predictable undo step users expect from

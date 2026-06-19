@@ -1,4 +1,5 @@
 import type { WallGaps } from '../../collision/clearanceGap'
+import type { EqualSpacing } from '../../collision/equalSpacing'
 import type { RootState } from '../store'
 import type { SliceCreator } from './types'
 
@@ -41,6 +42,11 @@ export interface PlacementSlice {
    *  constant-X or constant-Z line the dragged item snapped to. */
   dragGuides: Array<{ axis: 'x' | 'z'; value: number }>
   setDragGuides: (guides: Array<{ axis: 'x' | 'z'; value: number }>) => void
+  /** Equal-spacing matches detected while dragging — pairs/runs of equal gaps
+   *  (per axis) the dragged item lines up with, rendered as matching distance
+   *  badges. Empty when no even-spacing relationship is present. */
+  dragSpacings: EqualSpacing[]
+  setDragSpacings: (spacings: EqualSpacing[]) => void
   /** Live gap (metres) from the dragged item to the nearest wall, or null. */
   dragClearance: number | null
   setDragClearance: (gap: number | null) => void
@@ -80,6 +86,7 @@ export const PLACEMENT_INITIAL: Pick<
   | 'dragOffset'
   | 'dragGroupOriginals'
   | 'dragGuides'
+  | 'dragSpacings'
   | 'dragClearance'
   | 'dragWallGaps'
   | 'rotatingGizmo'
@@ -95,6 +102,7 @@ export const PLACEMENT_INITIAL: Pick<
   dragOffset: [0, 0],
   dragGroupOriginals: [],
   dragGuides: [],
+  dragSpacings: [],
   dragClearance: null,
   dragWallGaps: null,
   rotatingGizmo: false,
@@ -123,6 +131,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
   },
   setDragValid: (valid) => set({ dragValid: valid }),
   setDragGuides: (dragGuides) => set({ dragGuides }),
+  setDragSpacings: (dragSpacings) => set({ dragSpacings }),
   setDragClearance: (dragClearance) => set({ dragClearance }),
   setDragWallGaps: (dragWallGaps) => set({ dragWallGaps }),
   setRotatingGizmo: (rotatingGizmo) => set({ rotatingGizmo }),
@@ -134,6 +143,7 @@ export const createPlacementSlice: SliceCreator<PlacementSlice, RootState> = (se
       dragValid: true,
       dragGroupOriginals: [],
       dragGuides: [],
+      dragSpacings: [],
       dragClearance: null,
       dragWallGaps: null,
     }),

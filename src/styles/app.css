@@ -132,6 +132,25 @@
   color: var(--danger);
 }
 
+/* Equal-spacing smart-guide distance badge (drawn in the 3D scene via drei Html
+   while dragging). Reads over furniture; the magenta border ties it to the
+   alignment-guide lines. Surface/text use theme tokens so it stays legible in
+   light + dark across all themes. */
+.spacing-badge {
+  display: inline-block;
+  padding: 1px 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-solid);
+  border: 1px solid var(--guide, #ff3df0);
+  color: var(--guide, #ff3df0);
+  font-size: var(--t-xs);
+  font-weight: 700;
+  line-height: 1.4;
+  white-space: nowrap;
+  box-shadow: var(--shadow-panel);
+  pointer-events: none;
+}
+
 /* Walk-mode controls banner (auto-fading, themed). */
 .walk-hud {
   display: inline-flex;
