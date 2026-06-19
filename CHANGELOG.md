@@ -5,6 +5,17 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## a11y: CompassModal → shared Modal + keyboard-operable dial (UX-004) (v0.2.0.22)
+
+The "Sun direction" dial was a hand-rolled `.modal-overlay` with no `role="dialog"`, no focus
+trap/restore, and no keyboard path to change the heading. It now renders through the shared `Modal`
+(dialog role + aria-modal + focus trap + focus restore + Escape, all for free), and the dial is a
+focusable `role="slider"` (aria-valuemin/max/now/text) with arrow-key control — ←↓/→↑ nudge ±5° (±15°
+with Shift), Home resets to 0° (north) — so keyboard users can set the sun. Drops the custom overlay,
+`useModalGuard`, and the bespoke Escape listener (the Modal owns them). Adds an RTL test (dialog +
+slider present, arrow/Home keys move `orientationDeg`); verified the dial renders cleanly in the Modal
+on mobile.
+
 ## Realism: auto-decor cushion shape/fabric variety (RD-408 follow-up) (v0.2.0.21)
 
 Extends the decor `VARIETY` system to also vary enum params, not just colour: auto-placed
