@@ -23,7 +23,12 @@ Area rules for the store. Full slice list + persistence map in `docs/ARCHITECTUR
   Do **not** add transient/non-persisted state (selection, open flags, hover ids) to the
   watch-list.
 - **`hydrate*.ts` re-resolve user/IKEA defs + their IDB blobs on boot** — a new persisted
-  asset kind must be rehydrated there or it won't survive reload.
+  asset kind must be rehydrated there or it won't survive reload. For **user materials**
+  (`hydrateAssets.ts`) the def's identity/appearance (name/category/swatch/uvScale) is read
+  back from the albedo channel's IDB `meta` (written by `materials/upload/persist.ts`); any
+  new such field must be persisted there AND restored here **with a back-compat default** so
+  legacy records that predate the field still load — the IDB `meta` bag is open-ended, so this
+  needs no schema/version bump (BUG-003).
 - In handlers read fresh state with `useStore.getState()`; push undo via `pushHistory` /
   `pushHistoryCoalesced` (coalesce streaming edits like slider drags into one step).
   **Undo granularity:** one logical action = one entry. Batch actions (array / align /

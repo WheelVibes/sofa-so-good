@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Fix: persist uploaded-material name/category/uvScale/swatch (BUG-003, v0.1.0.31)
+
+Uploaded materials lost their identity/appearance on reload. `persistUserMaterial`
+(`materials/upload/persist.ts`) wrote only `{ matId, role }` into each channel's IDB meta,
+so on boot `hydrateUserAssets` (`state/storage/hydrateAssets.ts`) had nothing to restore
+from and fell back to hardcoded defaults — `name → matId.slice(0,8)`, `category → 'floor'`,
+`swatch → '#cccccc'`, `uvScale → [1, 1]` — corrupting every user material's library entry.
+
+- **Persist** the full identity/appearance on **every** channel record's meta: `name`,
+  `category`, `swatch`, plus `uvScaleX`/`uvScaleY` (stored as two scalars because the
+  open-ended IDB meta value type forbids arrays). The albedo channel is the one hydration
+  reads, but stamping all channels keeps the data even if albedo were ever dropped.
+- **Hydrate** reads those fields back with per-field type guards; partial/garbage `uvScale`
+  (only one axis present) cleanly falls back to `[1, 1]` rather than producing `NaN`.
+- **Back-compat (no schema bump needed):** the IDB store keeps its open-ended `meta` bag, so
+  legacy records saved before this fix simply lack the new keys and hydrate with the original
+  defaults — no migration, no crash.
+- **Tests:** `state/storage/hydrateMaterials.test.ts` (round-trip of name/category/uvScale/
+  swatch, legacy-record defaults, albedo-only, garbage uvScale, multiple materials) and
+  `materials/upload/persist.test.ts` (real `persistUserMaterial` → `hydrateUserAssets`
+  round-trip with mocked image decode).
+
 ## Fix: memoise + dispose plan-room floor/ceiling geometry — stop GPU leak (BUG-002)
 
 The custom-plan room floor leaked a fresh `PlaneGeometry` on **every** render: the

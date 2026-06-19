@@ -155,25 +155,28 @@ export async function hydrateUserAssets(): Promise<void> {
   const materials: TexturedMaterialDef[] = []
   for (const [matId, channels] of matChannels.entries()) {
     if (!channels.albedo) continue
-    const albedoMeta = channels.albedo.meta as
-      | {
-          matId?: string
-          category?: string
-          uvScale?: [number, number]
-          swatch?: string
-          name?: string
-        }
-      | undefined
-    const category: MaterialCategory = albedoMeta?.category === 'wall' ? 'wall' : 'floor'
+    // Identity/appearance is persisted on every channel record's meta
+    // (BUG-003). Prefer the albedo channel; legacy records (saved before the
+    // fix) omit these fields → fall back to sane defaults so they still load.
+    const meta = channels.albedo.meta
+    const category: MaterialCategory = meta?.['category'] === 'wall' ? 'wall' : 'floor'
+    const name = typeof meta?.['name'] === 'string' ? (meta['name'] as string) : matId.slice(0, 8)
+    const swatch = typeof meta?.['swatch'] === 'string' ? (meta['swatch'] as string) : '#cccccc'
+    const ux = meta?.['uvScaleX']
+    const uy = meta?.['uvScaleY']
+    const uvScale: [number, number] =
+      typeof ux === 'number' && Number.isFinite(ux) && typeof uy === 'number' && Number.isFinite(uy)
+        ? [ux, uy]
+        : [1, 1]
     const url = (rec: AssetRecord) => URL.createObjectURL(rec.blob)
     materials.push({
       id: matId,
-      name: (channels.albedo.meta?.['name'] as string) ?? matId.slice(0, 8),
+      name,
       category,
       kind: 'textured',
       source: 'user',
-      swatch: '#cccccc',
-      uvScale: [1, 1],
+      swatch,
+      uvScale,
       textures: {
         albedo: channels.albedo.assetId,
         normal: channels.normal?.assetId,

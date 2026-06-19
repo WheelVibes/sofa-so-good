@@ -31,6 +31,13 @@ Area rules for materials/finishes. Details in `docs/ARCHITECTURE.md`.
   disables a channel) — the goal is "reads as cloth", not quilted leather. It's deterministic +
   unit-tested (dims/determinism/seam-recess), baked once into the shared fabric normal singleton
   behind `pbrSurfaces` (off → legacy clean weave). Albedo stays sRGB, the normal stays linear.
+- **Uploaded-material persistence (`upload/persist.ts`)**: each channel blob is one IDB record;
+  the material's full identity/appearance (`name`, `category`, `swatch`, `uvScaleX`/`uvScaleY`
+  — `uvScale` is stored as two scalars since IDB `meta` values can't be arrays) is stamped on
+  **every** channel's `meta` so it round-trips through `state/storage/hydrateAssets.ts` (BUG-003).
+  When you add a new identity/appearance field to `TexturedMaterialDef` for user materials,
+  persist it in the channel meta here AND restore it (with a back-compat default for legacy
+  records) in `hydrateAssets`, or it resets to a default on reload.
 - **Uploaded textures** normalize through `convert/` (`normalizeTextureFile` → near-lossless
   WebP, full res; `decodeImage.ts` handles TGA/TIFF/EXR/HDR/KTX2/DDS).
   KTX2 and DDS are handled by `decodeGpuTexture.ts`: uncompressed formats via pure-JS paths
