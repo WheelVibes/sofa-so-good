@@ -40,10 +40,21 @@ describe('buildDimensions', () => {
     expect(values).toEqual([4, 4, 5, 5])
   })
 
-  it('formats overall labels in metres', () => {
+  it('formats overall labels in metres (metric default)', () => {
     const { overall } = buildDimensions(rectPlan())
     const labels = overall.map((d) => d.label).sort()
     expect(labels).toEqual(['4.00 m', '4.00 m', '5.00 m', '5.00 m'])
+  })
+
+  it('formats overall labels in feet+inches when units=imperial', () => {
+    const { overall } = buildDimensions(rectPlan(), 'imperial')
+    // 5 m → 16′ 5″; 4 m → 13′ 1″
+    const labels = overall.map((d) => d.label)
+    // All labels should use ′/″ notation, not metres
+    for (const l of labels) expect(l).not.toMatch(/\d+\.\d+ m/)
+    // Check specific values: 5 m ≈ 16′ 5″, 4 m ≈ 13′ 1″
+    expect(labels.filter((l) => l === '16′ 5″')).toHaveLength(2)
+    expect(labels.filter((l) => l === '13′ 1″')).toHaveLength(2)
   })
 
   it('offsets overall lines outside the plan bounds', () => {

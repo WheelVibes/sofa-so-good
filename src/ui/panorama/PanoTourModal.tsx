@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow'
 import { allPlanRooms, levelElevation } from '../../floorplan/levels'
 import { capturePanorama } from '../../scene/panorama/capturePanorama'
 import { useStore } from '../../state/store'
+import { formatLength } from '../../utils/measurement'
 import { Modal } from '../Modal'
 import { Icon } from '../toolbar/icons'
 import { PanoramaViewer } from './PanoramaViewer'
@@ -45,6 +46,7 @@ export function PanoTourModal() {
   const activeId = useStore((s) => s.panoTourActiveId)
   const setActive = useStore((s) => s.setPanoTourActive)
   const removeStop = useStore((s) => s.removePanoTourStop)
+  const units = useStore((s) => s.units)
 
   const active: PanoTourStop | null = stops.find((s) => s.id === activeId) ?? stops[0] ?? null
 
@@ -260,7 +262,7 @@ export function PanoTourModal() {
                       alignItems: 'center',
                       gap: 6,
                     }}
-                    title={`Go to ${h.label} (${h.distance.toFixed(1)} m)`}
+                    title={`Go to ${h.label} (${formatLength(h.distance, units)})`}
                     aria-label={`Go to ${h.label}`}
                     onClick={() => jumpTo(h.stopId, h)}
                   >

@@ -2,6 +2,7 @@ import { Fragment } from 'react'
 import { GROUND_LEVEL_ID, type PlanLevel, planLevels } from '../../floorplan/levels'
 import type { FloorPlan } from '../../floorplan/types'
 import { useStore } from '../../state/store'
+import { formatLength } from '../../utils/measurement'
 
 /**
  * Storey tab strip for the 2D Floor Plan Editor (F13/ML4b): Ground + each
@@ -21,6 +22,7 @@ export function LevelTabs({
   onSelect: (levelId: string) => void
 }) {
   const levels = planLevels(plan)
+  const units = useStore((s) => s.units)
 
   const addLevel = () => {
     const id = useStore.getState().addLevel()
@@ -57,7 +59,7 @@ export function LevelTabs({
             onClick={() => onSelect(l.id)}
             title={
               l.elevation > 0
-                ? `Edit this storey (floor at ${l.elevation.toFixed(1)} m)`
+                ? `Edit this storey (floor at ${formatLength(l.elevation, units)})`
                 : undefined
             }
           >

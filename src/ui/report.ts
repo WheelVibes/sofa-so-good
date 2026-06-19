@@ -349,7 +349,7 @@ export function buildReportHtml(
             ? `<div class="warn">${narrowGaps.length} narrow walkway${narrowGaps.length === 1 ? '' : 's'} (under 90 cm):</div><table>${narrowGaps
                 .map(
                   (g) =>
-                    `<tr><td class="indent">${esc(itemName(g.a))} ↔ ${esc(gapPartner(g.b))} · ${(g.gap * 100).toFixed(0)} cm</td></tr>`,
+                    `<tr><td class="indent">${esc(itemName(g.a))} ↔ ${esc(gapPartner(g.b))} · ${esc(formatLength(g.gap, units))}</td></tr>`,
                 )
                 .join('')}</table>`
             : ''
@@ -401,7 +401,7 @@ export function buildReportHtml(
   const a11yFailRooms = a11y.rooms.filter((r) => !r.pass)
   const doorName = (id: string) => {
     const it = plan.openings?.find((o) => o.id === id)
-    return it ? `Door (${(it.width * 100).toFixed(0)} cm)` : id
+    return it ? `Door (${formatLength(it.width, units)})` : id
   }
   const accessibilitySection =
     a11y.doors.length === 0 && a11y.rooms.length === 0
@@ -409,14 +409,14 @@ export function buildReportHtml(
       : `<div class="room-cost">
       <h2>Accessibility</h2>
       <div class="${a11y.allPass ? 'ok' : 'warn'}">
-        ${a11y.doorPassCount}/${a11y.doors.length} doors ≥ ${Math.round(a11y.thresholds.door * 100)} cm clear ·
-        ${a11y.turnPassCount}/${a11y.rooms.length} rooms fit a ${a11y.thresholds.turn} m turning circle
+        ${a11y.doorPassCount}/${a11y.doors.length} doors ≥ ${esc(formatLength(a11y.thresholds.door, units))} clear ·
+        ${a11y.turnPassCount}/${a11y.rooms.length} rooms fit a ${esc(formatLength(a11y.thresholds.turn, units))} turning circle
       </div>${
         a11yFailDoors.length > 0
           ? `<div class="warn">Doorways below the accessible clear width:</div><table>${a11yFailDoors
               .map(
                 (d) =>
-                  `<tr><td class="indent">${esc(doorName(d.id))} — widen to ≥ ${Math.round(a11y.thresholds.door * 100)} cm</td></tr>`,
+                  `<tr><td class="indent">${esc(doorName(d.id))} — widen to ≥ ${esc(formatLength(a11y.thresholds.door, units))}</td></tr>`,
               )
               .join('')}</table>`
           : ''
@@ -425,7 +425,7 @@ export function buildReportHtml(
           ? `<div class="warn">Rooms too tight for a wheelchair turn:</div><table>${a11yFailRooms
               .map(
                 (r) =>
-                  `<tr><td class="indent">${esc(r.roomName)} — ${r.minDim.toFixed(2)} m min span</td></tr>`,
+                  `<tr><td class="indent">${esc(r.roomName)} — ${esc(formatLength(r.minDim, units))} min span</td></tr>`,
               )
               .join('')}</table>`
           : ''
@@ -473,12 +473,13 @@ export function buildReportHtml(
               {
                 palette: { ink: '#374151', faint: '#cbd5e1' },
                 widthPx: 700,
+                units,
               },
             )}</div>`,
         )
         .join('')
     : Array.isArray(plan.walls) && plan.walls.length > 0
-      ? `<div class="plan-wrap">${dimensionSvg(plan, { palette: { ink: '#374151', faint: '#cbd5e1' }, widthPx: 700 })}</div>`
+      ? `<div class="plan-wrap">${dimensionSvg(plan, { palette: { ink: '#374151', faint: '#cbd5e1' }, widthPx: 700, units })}</div>`
       : ''
   const dimensionedPlanSection = dimFigures
     ? `<div class="elev-section"><h2>Dimensioned plan</h2>${dimFigures}</div>`
@@ -502,7 +503,7 @@ export function buildReportHtml(
     : []
   const wallDiff = baselinePlan && !hackingMulti ? diffWalls(baselinePlan, plan) : null
   const hackingSummary = (demo: number, hackedM: number, added: number, addedM: number) =>
-    `<div class="warn">${demo} wall${demo === 1 ? '' : 's'} hacked (${hackedM.toFixed(1)} m) · ${added} new (${addedM.toFixed(1)} m) vs the original layout — hacking needs HDB approval.</div>`
+    `<div class="warn">${demo} wall${demo === 1 ? '' : 's'} hacked (${esc(formatLength(hackedM, units))}) · ${added} new (${esc(formatLength(addedM, units))}) vs the original layout — hacking needs HDB approval.</div>`
   const hackingSection = hackingMulti
     ? levelDiffs.length > 0
       ? `<div class="elev-section"><h2>Hacking &amp; new walls</h2>

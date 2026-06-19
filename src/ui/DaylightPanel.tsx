@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { buildDaylightReport, DAYLIGHT_MIN_RATIO, VENT_MIN_RATIO } from '../analysis/daylight'
 import { useStore } from '../state/store'
+import { formatArea } from '../utils/measurement'
 import { Icon } from './toolbar/icons'
 
 /** Daylight & ventilation check: per-room window glazing % vs floor area against
@@ -11,6 +12,7 @@ export function DaylightPanel() {
   const open = useStore((s) => s.daylightOpen)
   const setOpen = useStore((s) => s.setDaylightOpen)
   const plan = useStore((s) => s.floorPlan)
+  const units = useStore((s) => s.units)
 
   const report = useMemo(() => (open ? buildDaylightReport(plan) : null), [open, plan])
 
@@ -98,7 +100,8 @@ export function DaylightPanel() {
                       <span>Ventilation openable {fmtPct(r.ventPct)}</span>
                     </div>
                     <div style={{ marginTop: 5, color: 'var(--text-3)', fontSize: 'var(--t-2xs)' }}>
-                      {r.glazingArea.toFixed(2)} m² glazing · {r.floorArea.toFixed(1)} m² floor
+                      {formatArea(r.glazingArea, units)} glazing · {formatArea(r.floorArea, units)}{' '}
+                      floor
                     </div>
                   </div>
                 </div>

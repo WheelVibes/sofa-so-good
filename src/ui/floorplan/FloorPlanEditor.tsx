@@ -1584,7 +1584,7 @@ export function FloorPlanEditor() {
         >
           {GRID_SIZES.map((g) => (
             <option key={g} value={g}>
-              {g < 1 ? `${+(g * 100).toFixed(1)} cm` : `${g} m`}
+              {formatLength(g, units)}
             </option>
           ))}
         </select>

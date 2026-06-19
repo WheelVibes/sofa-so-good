@@ -80,7 +80,16 @@ describe('buildReportHtml', () => {
   it('includes an Accessibility section with door-width + turning-circle checks', () => {
     const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null)
     expect(html).toContain('Accessibility')
-    expect(html).toMatch(/doors ≥ \d+ cm clear/)
+    // Metric: formatLength(0.85, 'metric') = '0.85 m'
+    expect(html).toMatch(/doors ≥ 0\.85 m clear/)
+    expect(html).toMatch(/turning circle/)
+  })
+
+  it('uses imperial units in the Accessibility section when units=imperial', () => {
+    const html = buildReportHtml(plan, items, BUILTIN_CATALOG, null, 'imperial')
+    expect(html).toContain('Accessibility')
+    // formatLength(0.85, 'imperial') → feet+inches, not metres
+    expect(html).not.toMatch(/\d+\.\d+ m clear/)
     expect(html).toMatch(/turning circle/)
   })
 

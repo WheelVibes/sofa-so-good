@@ -262,6 +262,7 @@ export function buildDrawingSetHtml(
         body: `<div class="draw">${dimensionSvg(levelAsPlan(plan, level), {
           palette: { ink: '#374151', faint: '#cbd5e1' },
           widthPx: 900,
+          units,
         })}</div>`,
         calloutGroup: 'dimensions',
       })

@@ -5,6 +5,28 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## PC-MEASURE-UNITS: route all distance/area readouts through unit formatters (v0.1.0.12)
+
+Every user-facing distance and area display now honours the `metric`/`imperial` unit toggle
+stored in `state.units`. Offenders fixed:
+
+- **`ClearancePanel.tsx`** — narrow-gap distances (e.g. `Queen bed ↔ Wardrobe · 1′ 11″` in imperial)
+- **`AccessibilityPanel.tsx`** — door widths, min span, subtitle thresholds (MIN_DOOR_CLEAR / TURN_CIRCLE)
+- **`DaylightPanel.tsx`** — glazing area and floor area readouts
+- **`MountHeightPresets.tsx`** — mount-height tooltip ("Set mount height to …")
+- **`PanoTourModal.tsx`** — hotspot distance tooltip
+- **`LevelTabs.tsx`** — storey elevation tooltip
+- **`ViewMenu.tsx`** — storey elevation label in the View menu
+- **`FloorPlanEditor.tsx`** — grid-size option labels (was `"50 cm"` hardcoded, now `"0.50 m"` / `"1′ 8″"`)
+- **`autoDimension.ts`** — `buildDimensions` / `roomDimensions` accept `units` param; SVG labels use `formatLength`
+- **`autoDimensionSvg.ts`** — `DimensionSvgOpts.units` threaded through to `buildDimensions`
+- **`report.ts`** — narrow-gap text, door widths, room min span, hacking summary, accessibility thresholds
+
+No internal geometry calculations were changed — only display formatting. New unit tests cover
+`buildDimensions` in imperial (feet+inches labels) and `dimensionSvg` in imperial. Visual verification
+confirmed: Clearance panel shows `1′ 11″` / `2′ 3″` etc. in imperial and `0.59 m` / `0.69 m` in metric.
+`tsc` + Biome zero errors; full suite 354 files / 2749 tests all pass.
+
 ## Fix PC-DISTRIBUTE-OVERLAP: clamp distributeEvenGaps to prevent silent overlap (v0.1.0.11)
 
 `distributeEvenGaps` in `src/layout/alignDistribute.ts` was computing a negative
