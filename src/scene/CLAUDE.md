@@ -11,6 +11,13 @@ Area rules for the 3D scene. System details in `docs/ARCHITECTURE.md`.
   module-level signal (`finishDragSignal.ts` pattern: `useSyncExternalStore` subscriber +
   pure set/notify) — this avoids routing through the Zustand store and triggering
   `subscribe(markDirty)` on every drag event.
+- **Fixture lights are budget-capped in BOTH view modes** (`lighting/FurnitureLights.tsx` +
+  pure `lighting/chooseEmitters.ts`, PERF-002). Real point/spot lights from emitting furniture
+  are ranked nearest-to-camera and capped to the tier's `maxFixtureLights`: walk to N, orbit to
+  `N * ORBIT_BUDGET_MULTIPLIER`. Never light every emitter (a night home reaches 30–50 — linear
+  per-fragment fill cost). The pick is gated off the per-frame path (camera-move threshold +
+  items-identity + mode change); keep new emitter logic going through `chooseEmitters` so the cap
+  stays tier-aware and the scene never goes dark (ambient/fill + emissive materials remain).
 - **Tier-gate GPU cost.** Read `RenderTier`; **Performance is the default for everyone**
   (flat: no shadows/IBL/post, DPR 1). Heavy effects (real mirrors, post stack) are
   High/Maximum only (`mirrorReflectorConfig(tier)` is the pattern).

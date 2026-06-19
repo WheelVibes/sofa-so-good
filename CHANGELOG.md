@@ -5,6 +5,26 @@ Each entry corresponds to one focused commit. The pre-C251 history (C1–C250) w
 pruned from `main`; entries from C251 on (branch
 `claude/codebase-analysis-optimization-ny3xm9`) are kept here. See `TASKS.md` for the backlog.
 
+## Cap live fixture lights in orbit mode (PERF-002) (v0.1.0.45)
+
+Orbit mode rendered **every** light-emitting fixture as a real `pointLight`/`spotLight`,
+bypassing the `maxFixtureLights` budget that walk mode respects — a furnished night home
+reached 30–50 live lights, and Three.js evaluates every non-shadow light per fragment over
+the whole framebuffer, so cost scaled linearly in the densest (default) view. Now both modes
+obey the tier-aware budget via a new pure, unit-tested helper
+`src/scene/lighting/chooseEmitters.ts`:
+- **walk** (`firstPerson`) caps to the nearest `maxFixtureLights` (unchanged).
+- **orbit** caps to the nearest `maxFixtureLights * ORBIT_BUDGET_MULTIPLIER` (×3) — a higher,
+  still-bounded budget because the whole home is visible, instead of "show all". The dropped
+  fixtures are the farthest from the camera, so ambient/fill + emissive materials keep the
+  scene reading well-lit (verified before/after: identical-looking interior).
+The existing nearest-N rank + camera-move/items gate are reused; the gate now also recomputes
+on an orbit↔walk mode switch (the budget differs by mode). `chooseEmitters` is a no-op (returns
+the same array) when under budget, and handles zero emitters / zero budget.
+- **Verified (headless, night orbit, performance tier, 20 ceiling-light emitters):** live
+  `pointLight` count dropped from **20 → 6** (`2 × 3`); scene-graph probe + before/after
+  screenshots confirm no visible darkening or missing-light artifacts.
+
 ## Stone/marble micro-detail (MAT-001) + CreditsModal safeUrl (REV-001) (v0.1.0.44)
 
 Polished stone/marble read as a flat specular plane. New pure, deterministic, worker-safe helper
