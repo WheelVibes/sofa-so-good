@@ -15,6 +15,26 @@ All scripts share [`scraper_common.py`](./scraper_common.py) (`HttpClient`, `Man
 `RateLimiter`, `run_loop`, sitemap/model-viewer extractors, `common_argparser`).
 [`polyhaven_scraper.py`](./polyhaven_scraper.py) is the canonical reference.
 
+The sitemap-crawl retailers also share [`_retailer.py`](./_retailer.py) — one
+implementation of *sitemap → product page → `find_model_urls` → download* (robots-aware,
+low default rps) that each thin `<retailer>_scraper.py` wraps with its base URL + sitemap.
+
+### Retailers (DEV-ONLY, proprietary — `<model-viewer>` GLB + USDZ)
+
+`castlery` · `crateandbarrel` · `target` · `article` (unverified PDP) · `westelm`
+(unverified/partial) · `houzz` · `amazon` (heavy anti-bot, default `--rps 0.1`).
+`wayfair` uses the **official 3D Model API** (keyless demo set, or `--api-key` for the
+registered endpoint) returning glTF/GLB — the clean path, not HTML scraping.
+
+### Marketplace / AI generation APIs (programmatic, `--api-key`)
+
+`cgtrader` (OAuth2 `client_id:client_secret`; search + download; ToS §19.2 — API only, no
+mass free scraping) · `meshy` / `tripo` (text/image→3D: submit prompt, poll task, download
+GLB; generated-asset license depends on your plan).
+
+See [`NOT_SCRAPABLE.md`](./NOT_SCRAPABLE.md) for per-source caveats (none in this segment
+had *no* programmatic path).
+
 ## Usage
 
 ```bash
